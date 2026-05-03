@@ -9,7 +9,7 @@
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
-  import Wrench from "phosphor-svelte/lib/Wrench";
+
   import Trash from "phosphor-svelte/lib/Trash";
   import Warning from "phosphor-svelte/lib/Warning";
 
@@ -345,14 +345,6 @@
           <CheckCircle size={16} />
           {applied ? "Tracked" : applying ? "..." : "Mark as applied"}
         </button>
-        <button
-          class="btn-secondary"
-          style="width: 100%; opacity: 0.5;"
-          disabled
-        >
-          <Wrench size={14} />
-          Tailor resume
-        </button>
       </div>
     {/if}
   </div>
@@ -360,15 +352,16 @@
 
 <!-- Block confirmation modal -->
 {#if showBlockConfirm}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    role="presentation"
     onclick={() => { showBlockConfirm = false; }}
+    onkeydown={(e) => { if (e.key === 'Escape') showBlockConfirm = false; }}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="block-title"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
     >
@@ -376,7 +369,7 @@
         <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">
           <Warning size={18} color="var(--color-bad)" />
         </div>
-        <div style="font-size: 17px; font-weight: 600;">Block this job?</div>
+        <div id="block-title" style="font-size: 17px; font-weight: 600;">Block this job?</div>
       </div>
       <p style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.

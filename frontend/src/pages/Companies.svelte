@@ -283,19 +283,20 @@
 
 <!-- Edit company modal -->
 {#if editTarget}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    role="presentation"
     onclick={() => { editTarget = null; }}
+    onkeydown={(e) => { if (e.key === 'Escape') editTarget = null; }}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-title"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
     >
-      <div style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Edit company</div>
+      <div id="edit-title" style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Edit company</div>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div>
           <label for="edit-name" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">Name</label>
@@ -339,15 +340,16 @@
 
 <!-- Delete confirmation modal -->
 {#if deleteTarget}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    role="presentation"
     onclick={() => { deleteTarget = null; }}
+    onkeydown={(e) => { if (e.key === 'Escape') deleteTarget = null; }}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-title"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
     >
@@ -355,7 +357,7 @@
         <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">
           <Warning size={18} color="var(--color-bad)" />
         </div>
-        <div style="font-size: 17px; font-weight: 600;">Remove {deleteTarget.name}?</div>
+        <div id="delete-title" style="font-size: 17px; font-weight: 600;">Remove {deleteTarget.name}?</div>
       </div>
       <p style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.

@@ -63,5 +63,6 @@
     type="checkbox"
     checked={company.enabled}
     onchange={(e) => onToggle(company.id, (e.target as HTMLInputElement).checked)}
+    aria-label="Enable {company.name}"
   />
 </div>
