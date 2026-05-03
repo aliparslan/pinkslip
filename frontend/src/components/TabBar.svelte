@@ -1,12 +1,17 @@
 <script lang="ts">
   import { currentRoute, navigate } from "../router";
+  import House from "phosphor-svelte/lib/House";
+  import Notepad from "phosphor-svelte/lib/Notepad";
+  import Ticket from "phosphor-svelte/lib/Ticket";
+  import UserCircle from "phosphor-svelte/lib/UserCircle";
 
   let route = $derived($currentRoute);
 
   const tabs = [
-    { label: "Jobs", path: "/", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-    { label: "Companies", path: "/companies", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
-    { label: "Settings", path: "/settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
+    { label: "Feed", path: "/", icon: House },
+    { label: "Tracker", path: "/tracker", icon: Notepad },
+    { label: "Events", path: "/events", icon: Ticket },
+    { label: "Profile", path: "/profile", icon: UserCircle },
   ] as const;
 
   function isActive(path: string): boolean {
@@ -15,23 +20,18 @@
   }
 </script>
 
-<div class="btm-nav btm-nav-sm">
-  {#each tabs as tab}
-    <button
-      class={isActive(tab.path) ? "active" : ""}
-      onclick={() => navigate(tab.path)}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        stroke-width="1.5"
+<nav class="fixed bottom-0 left-0 right-0 z-40" style="background: color-mix(in oklch, var(--color-bg) 94%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--color-line); box-shadow: 0 -1px 3px rgba(0,0,0,0.06);">
+  <div class="grid grid-cols-4" style="padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);">
+    {#each tabs as tab}
+      {@const active = isActive(tab.path)}
+      <button
+        class="flex flex-col items-center gap-1 py-1.5 transition-colors"
+        style="color: {active ? 'var(--color-ink)' : 'var(--color-ink-3)'}; font-family: var(--font-sans); font-size: 10.5px; font-weight: 500;"
+        onclick={() => navigate(tab.path)}
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d={tab.icon} />
-      </svg>
-      <span class="btm-nav-label">{tab.label}</span>
-    </button>
-  {/each}
-</div>
+        <tab.icon size={22} weight={active ? "fill" : "regular"} />
+        <span>{tab.label}</span>
+      </button>
+    {/each}
+  </div>
+</nav>
