@@ -1,6 +1,6 @@
 {
-  "name": "JobRadar",
-  "short_name": "JobRadar",
+  "name": "Pink Slip",
+  "short_name": "Pink Slip",
   "description": "Personal job alert system for top tech companies",
   "start_url": "/",
   "display": "standalone",

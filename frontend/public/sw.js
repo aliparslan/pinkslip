@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  let data = { title: "JobRadar", body: "New jobs available", data: { url: "/" } };
+  let data = { title: "Pink Slip", body: "New jobs available", data: { url: "/" } };
 
   try {
     data = event.data.json();

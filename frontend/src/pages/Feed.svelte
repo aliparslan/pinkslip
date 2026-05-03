@@ -40,7 +40,7 @@
   <!-- Header -->
   <header class="sticky top-0 z-10 bg-base-100 border-b border-base-300 px-4 py-3">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold">JobRadar</h1>
+      <h1 class="text-xl font-bold">Pink Slip</h1>
       {#if newToday > 0}
         <span class="badge badge-primary">{newToday} new today</span>
       {/if}
