@@ -333,6 +333,7 @@
                 title: job.title,
                 url: job.url ?? "",
               });
+              applied = true;
               await api.jobs.dismiss(jobId);
               navigate("/");
             } catch (e: any) {

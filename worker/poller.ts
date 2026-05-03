@@ -73,7 +73,7 @@ export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPref
     max_yoe: (map["max_yoe"] as number) ?? 3,
     role_keywords: (map["role_keywords"] as string[]) ?? [],
     negative_keywords: (map["negative_keywords"] as string[]) ?? [],
-    notify_threshold: (map["notify_threshold"] as number) ?? 50,
+    notify_threshold: (map["notify_threshold"] as number) ?? (map["notification_threshold"] as number) ?? 50,
   };
 }
 

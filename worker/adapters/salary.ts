@@ -24,7 +24,8 @@ export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): s
   if (!range) return null;
   const min = Math.round(range.min_cents / 100).toLocaleString();
   const max = Math.round(range.max_cents / 100).toLocaleString();
-  let salary = `$${min} – $${max}`;
+  const prefix = range.currency_type === "USD" ? "$" : `${range.currency_type} `;
+  let salary = `${prefix}${min} – ${prefix}${max}`;
   if (range.title) salary += ` (${range.title})`;
   return salary;
 }
@@ -36,5 +37,6 @@ export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): s
 export function formatLeverSalary(range: LeverSalaryRange | undefined): string | null {
   if (!range) return null;
   const { min, max, currency, interval } = range;
-  return `${currency === "USD" ? "$" : currency}${min.toLocaleString()} – ${currency === "USD" ? "$" : ""}${max.toLocaleString()}/${interval}`;
+  const prefix = currency === "USD" ? "$" : `${currency} `;
+  return `${prefix}${min.toLocaleString()} – ${prefix}${max.toLocaleString()}/${interval}`;
 }

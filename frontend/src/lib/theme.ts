@@ -10,6 +10,7 @@ export const themeMode = writable<ThemeMode>(stored || "system");
 
 function resolvedMode(mode: ThemeMode): "light" | "dark" {
   if (mode !== "system") return mode;
+  if (typeof window === "undefined") return "dark";
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 

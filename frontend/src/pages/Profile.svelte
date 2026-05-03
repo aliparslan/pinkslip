@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../lib/api";
+  import { companyMark } from "../lib/utils";
   import { navigate } from "../router";
   import { registerPush } from "../lib/push";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
@@ -18,9 +19,7 @@
   let skills: string[] = $state(["TypeScript", "React", "Svelte", "Python", "Node.js", "Swift"]);
   let resumeCompletion: number = $state(0);
 
-  let initials = $derived(
-    userName ? userName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?"
-  );
+  let initials = $derived(userName ? companyMark(userName) : "?");
 
   let stats = $derived([
     { label: "Apps sent", value: 0, sub: "this week" },

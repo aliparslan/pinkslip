@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { companyMark } from "../lib/utils";
+
   let { name, domain, size = 44 }: {
     name: string;
     domain?: string | null;
@@ -6,10 +8,6 @@
   } = $props();
 
   let imgFailed: boolean = $state(false);
-
-  function mark(n: string): string {
-    return n.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  }
 
   let cleanDomain = $derived.by(() => {
     if (!domain) return null;
@@ -38,6 +36,6 @@
       onerror={() => { imgFailed = true; }}
     />
   {:else}
-    {mark(name)}
+    {companyMark(name)}
   {/if}
 </div>
