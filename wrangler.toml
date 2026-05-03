@@ -1,0 +1,17 @@
+name = "jobradar"
+main = "worker/index.ts"
+compatibility_date = "2024-12-01"
+
+[assets]
+directory = "./frontend/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jobradar"
+database_id = "placeholder-will-be-replaced-after-db-create"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+VAPID_SUBJECT = "mailto:aliparslan@outlook.com"

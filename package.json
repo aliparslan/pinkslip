@@ -1,0 +1,27 @@
+{
+  "name": "jobradar",
+  "version": "1.0.0",
+  "description": "Personal job alerting PWA on Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "npm run build:frontend && wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:frontend": "cd frontend && npm run build",
+    "db:migrate": "wrangler d1 execute jobradar --local --file=migrations/0001_initial.sql",
+    "db:migrate:remote": "wrangler d1 execute jobradar --remote --file=migrations/0001_initial.sql"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hono": "^4.12.16"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260503.1",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5",
+    "wrangler": "^4.87.0"
+  }
+}
