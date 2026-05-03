@@ -4,10 +4,10 @@
   "description": "Personal job alerting PWA on Cloudflare Workers",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "npm run build:frontend && wrangler deploy",
+    "deploy": "bun run build:frontend && wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:frontend": "cd frontend && npm run build",
+    "build:frontend": "cd frontend && bun run build",
     "db:migrate": "wrangler d1 execute jobradar --local --file=migrations/0001_initial.sql",
     "db:migrate:remote": "wrangler d1 execute jobradar --remote --file=migrations/0001_initial.sql"
   },
