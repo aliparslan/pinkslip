@@ -1,5 +1,5 @@
 {
-  "name": "pink-slip",
+  "name": "pinkslip",
   "version": "1.0.0",
   "description": "Personal job alerting PWA on Cloudflare Workers",
   "scripts": {
@@ -8,8 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:frontend": "cd frontend && bun run build",
-    "db:migrate": "wrangler d1 execute pink-slip --local --file=migrations/0001_initial.sql",
-    "db:migrate:remote": "wrangler d1 execute pink-slip --remote --file=migrations/0001_initial.sql"
+    "db:migrate": "for f in migrations/*.sql; do wrangler d1 execute pinkslip --local --file=$f; done",
+    "db:migrate:remote": "for f in migrations/*.sql; do wrangler d1 execute pinkslip --remote --file=$f; done"
   },
   "keywords": [],
   "author": "",

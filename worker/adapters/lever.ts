@@ -1,4 +1,5 @@
-import type { ATSAdapter, JobListing } from "./types";
+import type { ATSAdapter, JobListing, JobContent } from "./types";
+import { formatLeverSalary } from "./salary";
 
 interface LeverPosting {
   id: string;
@@ -9,6 +10,9 @@ interface LeverPosting {
   };
   hostedUrl: string;
   createdAt: number;
+  descriptionPlain?: string;
+  description?: string;
+  salaryRange?: { min: number; max: number; currency: string; interval: string };
 }
 
 export class LeverAdapter implements ATSAdapter {
@@ -20,21 +24,34 @@ export class LeverAdapter implements ATSAdapter {
       const response = await fetch(url);
 
       if (!response.ok) {
-        return [];
+        throw new Error(`Lever API ${response.status}`);
       }
 
       const data: LeverPosting[] = await response.json();
 
-      return data.map((posting) => ({
-        externalId: posting.id,
-        title: posting.text,
-        url: posting.hostedUrl,
-        location: posting.categories.location,
-        department: posting.categories.department ?? null,
-        postedAt: new Date(posting.createdAt).toISOString(),
-      }));
-    } catch {
-      return [];
+      return data.map((posting) => {
+        const salary = formatLeverSalary(posting.salaryRange);
+        return {
+          externalId: posting.id,
+          title: posting.text,
+          url: posting.hostedUrl,
+          location: posting.categories.location,
+          department: posting.categories.department ?? null,
+          postedAt: new Date(posting.createdAt).toISOString(),
+          description: posting.description || null,
+          salary,
+        };
+      });
+    } catch (e) {
+      throw e instanceof Error ? e : new Error(String(e));
     }
+  }
+
+  async fetchJobContent(slug: string, externalId: string): Promise<JobContent> {
+    const url = `https://api.lever.co/v0/postings/${slug}/${externalId}`;
+    const res = await fetch(url);
+    if (!res.ok) return { description: null, salary: null };
+    const posting: LeverPosting = await res.json();
+    return { description: posting.description || null, salary: formatLeverSalary(posting.salaryRange) };
   }
 }

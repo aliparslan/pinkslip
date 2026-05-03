@@ -12,6 +12,7 @@ export interface ScoringPrefs {
 
 const HIGH_TITLE_KEYWORDS = [
   "software engineer",
+  "software developer",
   "fullstack",
   "full stack",
   "full-stack",
@@ -22,6 +23,9 @@ const HIGH_TITLE_KEYWORDS = [
   "front end",
   "front-end",
   "forward deployed engineer",
+  "ai engineer",
+  "member of technical staff",
+  "founding engineer",
 ];
 
 const MEDIUM_TITLE_KEYWORDS = ["engineer", "developer", "swe"];
@@ -31,6 +35,8 @@ const MEDIUM_TITLE_KEYWORDS = ["engineer", "developer", "swe"];
  * We match them against the lowercased title with word-boundary awareness.
  */
 const BUILTIN_NEGATIVE_KEYWORDS = [
+  "senior",
+  "sr.",
   "staff",
   "principal",
   "director",
@@ -39,6 +45,8 @@ const BUILTIN_NEGATIVE_KEYWORDS = [
   "senior staff",
   "vp",
   "head of",
+  "lead",
+  "architect",
 ];
 
 interface TitleResult {
@@ -81,49 +89,76 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
 // Patterns like "2+ years", "3-5 years", "up to 5 years"
 const YOE_PATTERN = /(\d+)\s*(?:\+|–|-|to)?\s*\d*\s*(?:years?|yrs?)/i;
 
-function scoreYoeFit(title: string): number {
+function scoreYoeFit(title: string, prefs: ScoringPrefs): number {
   const lower = title.toLowerCase();
 
-  // Check for "junior" or "new grad" in title → 25
   if (containsKeyword(lower, "junior") || containsKeyword(lower, "new grad")) return 25;
-
-  // Check for "senior" or "sr" (abbreviation) in title → 5
-  // Use word boundary to avoid matching "senior staff" (already caught by negatives, but be safe)
   if (/\bsenior\b/.test(lower) || /\bsr\.?\b/.test(lower)) return 5;
 
-  // Try to extract explicit YOE from the title
   const match = lower.match(YOE_PATTERN);
   if (match) {
     const years = parseInt(match[1], 10);
-    if (years <= 3) return 25;
-    if (years <= 5) return 10;
+    if (years <= prefs.max_yoe) return 25;
+    if (years <= prefs.max_yoe + 2) return 10;
     return 0;
   }
 
-  // No mention → default 15
   return 15;
 }
 
 // ─── Location Match (0–20) ───────────────────────────────────────────────────
 
-function scoreLocationMatch(location: string, prefs: ScoringPrefs): number {
+const US_STATES = new Set([
+  "al","ak","az","ar","ca","co","ct","de","fl","ga","hi","id","il","in","ia",
+  "ks","ky","la","me","md","ma","mi","mn","ms","mo","mt","ne","nv","nh","nj",
+  "nm","ny","nc","nd","oh","ok","or","pa","ri","sc","sd","tn","tx","ut","vt",
+  "va","wa","wv","wi","wy","dc",
+]);
+
+function isUSOrRemote(location: string, prefs: ScoringPrefs): boolean {
   const loc = location.trim().toLowerCase();
-
-  if (!loc) return 10; // Empty/unspecified
-
-  if (loc === "remote" || loc.includes("remote")) return 20;
-
-  if (loc === "multiple" || loc === "various" || loc.includes("multiple") || loc.includes("various"))
-    return 10;
-
-  // Check preferred cities (case-insensitive substring match)
+  if (!loc) return true;
+  if (loc.includes("remote")) return true;
+  if (loc.includes("united states") || loc.includes(", us")) return true;
+  if (loc === "multiple" || loc === "various" || loc.includes("multiple")) return true;
+  // Match ", XX" where XX is a US state abbreviation
+  const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
+  if (stateMatch && US_STATES.has(stateMatch[1])) return true;
+  // Check if location matches any preferred location (user's prefs are US cities)
   for (const preferred of prefs.locations) {
     const prefLower = preferred.toLowerCase();
-    if (prefLower === "remote") continue; // handled above
-    if (loc.includes(prefLower) || prefLower.includes(loc)) return 20;
+    if (prefLower === "remote") continue;
+    if (loc.includes(prefLower)) return true;
+    if (prefLower.includes(loc) && loc.length >= 3) return true;
+  }
+  return false;
+}
+
+interface LocationResult {
+  score: number;
+  disqualified: boolean;
+}
+
+function scoreLocationMatch(location: string, prefs: ScoringPrefs): LocationResult {
+  const loc = location.trim().toLowerCase();
+
+  if (!isUSOrRemote(location, prefs)) return { score: 0, disqualified: true };
+
+  if (!loc) return { score: 10, disqualified: false };
+
+  if (loc === "remote" || loc.includes("remote")) return { score: 20, disqualified: false };
+
+  if (loc === "multiple" || loc === "various" || loc.includes("multiple") || loc.includes("various"))
+    return { score: 10, disqualified: false };
+
+  for (const preferred of prefs.locations) {
+    const prefLower = preferred.toLowerCase();
+    if (prefLower === "remote") continue;
+    if (loc.includes(prefLower)) return { score: 20, disqualified: false };
+    if (prefLower.includes(loc) && loc.length >= 3) return { score: 20, disqualified: false };
   }
 
-  return 0; // Non-preferred city
+  return { score: 0, disqualified: false };
 }
 
 // ─── Department Match (0–10) ─────────────────────────────────────────────────
@@ -184,25 +219,37 @@ function containsKeyword(text: string, keyword: string): boolean {
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 
-export function scoreJob(job: JobListing, prefs: ScoringPrefs): number {
+export interface ScoreBreakdown {
+  score: number;
+  title_score: number;
+  yoe_score: number;
+  location_score: number;
+  department_score: number;
+  recency_score: number;
+}
+
+export function scoreJob(job: JobListing, prefs: ScoringPrefs): ScoreBreakdown {
   const titleResult = scoreTitleMatch(job.title, prefs);
-  const yoeScore = scoreYoeFit(job.title);                        // 0–25
-  const locationScore = scoreLocationMatch(job.location, prefs);  // 0–20
-  const deptScore = scoreDepartmentMatch(job.department);         // 0–10
-  const recencyScore = scoreRecency(job.postedAt);                // 0–10
+  const yoeScore = scoreYoeFit(job.title, prefs);
+  const locResult = scoreLocationMatch(job.location, prefs);
+  const deptScore = scoreDepartmentMatch(job.department);
+  const recencyScore = scoreRecency(job.postedAt);
 
-  // If the title matched a negative/disqualifying keyword, hard-cap the total.
-  // This ensures seniority mismatches (intern, staff, VP, etc.) and non-role titles
-  // never score high enough to surface in results.
-  if (titleResult.disqualified) {
-    return Math.min(15, yoeScore + locationScore + deptScore + recencyScore);
+  let total: number;
+  if (titleResult.disqualified || locResult.disqualified) {
+    total = Math.min(15, yoeScore + locResult.score + deptScore + recencyScore);
+  } else if (titleResult.score === 0) {
+    total = Math.min(29, yoeScore + locResult.score + deptScore + recencyScore);
+  } else {
+    total = titleResult.score + yoeScore + locResult.score + deptScore + recencyScore;
   }
 
-  // If title had no match at all (score=0, not disqualified), it's likely a
-  // non-engineering role — cap at 29 so it stays below the "relevant" threshold.
-  if (titleResult.score === 0) {
-    return Math.min(29, yoeScore + locationScore + deptScore + recencyScore);
-  }
-
-  return titleResult.score + yoeScore + locationScore + deptScore + recencyScore;
+  return {
+    score: total,
+    title_score: titleResult.disqualified ? 0 : titleResult.score,
+    yoe_score: yoeScore,
+    location_score: locResult.score,
+    department_score: deptScore,
+    recency_score: recencyScore,
+  };
 }

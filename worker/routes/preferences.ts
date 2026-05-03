@@ -23,11 +23,18 @@ preferences.get("/", async (c) => {
   return c.json(out);
 });
 
+const ALLOWED_KEYS = new Set([
+  "locations", "min_yoe", "max_yoe", "role_keywords",
+  "negative_keywords", "notify_threshold", "notification_threshold",
+]);
+
 // PUT / — Update preferences
 preferences.put("/", async (c) => {
   const body = await c.req.json<Record<string, unknown>>();
 
-  const stmts = Object.entries(body).map(([key, value]) =>
+  const filteredEntries = Object.entries(body).filter(([key]) => ALLOWED_KEYS.has(key));
+
+  const stmts = filteredEntries.map(([key, value]) =>
     c.env.DB.prepare(
       "INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)"
     ).bind(key, JSON.stringify(value))

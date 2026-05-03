@@ -98,7 +98,7 @@ describe("sendPushNotification", () => {
     expect((init as RequestInit).method).toBe("POST");
   });
 
-  it("returns true when push service responds with 2xx", async () => {
+  it("returns result.ok=true when push service responds with 2xx", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 201 })
     );
@@ -108,10 +108,10 @@ describe("sendPushNotification", () => {
     ]);
 
     const result = await sendPushNotification(MOCK_SUBSCRIPTION, payload, MOCK_VAPID);
-    expect(result).toBe(true);
+    expect(result.ok).toBe(true);
   });
 
-  it("returns false when push service responds with 4xx", async () => {
+  it("returns result.ok=false when push service responds with 4xx", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 410 })
     );
@@ -121,6 +121,6 @@ describe("sendPushNotification", () => {
     ]);
 
     const result = await sendPushNotification(MOCK_SUBSCRIPTION, payload, MOCK_VAPID);
-    expect(result).toBe(false);
+    expect(result.ok).toBe(false);
   });
 });
