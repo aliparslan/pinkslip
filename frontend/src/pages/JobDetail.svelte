@@ -362,8 +362,10 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="block-title"
+      tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') showBlockConfirm = false; }}
     >
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
         <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">

@@ -293,8 +293,10 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-title"
+      tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') editTarget = null; }}
     >
       <div id="edit-title" style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Edit company</div>
       <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -350,8 +352,10 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-title"
+      tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') deleteTarget = null; }}
     >
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
         <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">
