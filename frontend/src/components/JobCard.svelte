@@ -68,7 +68,7 @@
       >
         <X size={14} />
       </button>
-      <span style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: {scoreColor}; letter-spacing: -0.02em;">
+      <span style="font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: {scoreColor}; letter-spacing: -0.02em; background: color-mix(in oklch, {scoreColor} 12%, transparent); padding: 2px 8px; border-radius: 8px;">
         {job.score ?? 0}
       </span>
     </div>

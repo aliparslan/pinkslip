@@ -59,6 +59,10 @@
 
 <div class="page">
   <div style="padding: 0 22px 10px;">
+    <p class="h-eyebrow" style="margin-bottom: 6px;">Feed</p>
+    <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
+      New roles
+    </h1>
     <div class="stat-row">
       <span><strong style="color: var(--color-ink);">{newToday}</strong> new today</span>
       <span><strong style="color: var(--color-ink);">{filteredJobs.length}</strong> showing</span>
@@ -79,13 +83,13 @@
     </div>
     <div style="display: flex; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--color-line);">
       <button
-        style="padding: 5px 10px; font-size: 11px; font-weight: 500; border: none; cursor: pointer; background: {sortBy === 'time' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'time' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
+        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: {sortBy === 'time' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'time' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
         onclick={() => sortBy = "time"}
       >
         New
       </button>
       <button
-        style="padding: 5px 10px; font-size: 11px; font-weight: 500; border: none; border-left: 1px solid var(--color-line); cursor: pointer; background: {sortBy === 'score' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'score' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
+        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; border-left: 1px solid var(--color-line); cursor: pointer; background: {sortBy === 'score' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'score' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
         onclick={() => sortBy = "score"}
       >
         Match
