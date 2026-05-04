@@ -154,6 +154,52 @@ describe("scoreJob", () => {
     expect(scoreJob(architectJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(29);
   });
 
+  it("uses the job description for YOE scoring instead of relying on the title", () => {
+    const juniorRange = makeJob({
+      title: "Software Engineer",
+      description: "<p>You have 1-2 years of experience building product systems.</p>",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: null,
+    });
+    const seniorRange = makeJob({
+      title: "Software Engineer",
+      description: "<p>You have 6+ years of experience leading complex distributed systems.</p>",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: null,
+    });
+
+    expect(scoreJob(juniorRange, DEFAULT_PREFS).yoe_score).toBe(25);
+    expect(scoreJob(seniorRange, DEFAULT_PREFS).yoe_score).toBe(0);
+    expect(scoreJob(juniorRange, DEFAULT_PREFS).score).toBeGreaterThan(scoreJob(seniorRange, DEFAULT_PREFS).score);
+  });
+
+  it("does not surface non-software engineering titles just because they say engineer", () => {
+    const mechanicalJob = makeJob({
+      title: "Mechanical Engineer",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const chemicalJob = makeJob({
+      title: "Chemical Engineer",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const dataJob = makeJob({
+      title: "Data Engineer",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+
+    expect(scoreJob(mechanicalJob, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(chemicalJob, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(dataJob, DEFAULT_PREFS).score).toBeGreaterThan(50);
+  });
+
   // Test 8: Recency — today's posting scores higher than 14-day-old posting
   it("scores today's posting higher than a 14-day-old posting", () => {
     const today = new Date().toISOString();

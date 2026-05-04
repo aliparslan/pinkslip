@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import type { Env, Variables, JobRow, CompanyRow } from "../types";
 import { getAdapter } from "../ats";
+import { loadPreferencesForPoll } from "../poller";
+import { scoreJob } from "../scoring";
+import type { JobListing } from "../adapters/types";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JOB_FIELDS = `
@@ -46,10 +49,108 @@ type JobListRow = JobRow & {
   saved: number;
 };
 
+const LOCATION_ALIASES: Record<string, string[]> = {
+  Remote: ["remote"],
+  NYC: ["new york", "nyc", "brooklyn"],
+  "SF Bay Area": [
+    "san francisco",
+    "bay area",
+    "sf",
+    "palo alto",
+    "mountain view",
+    "sunnyvale",
+    "san jose",
+    "menlo park",
+    "redwood city",
+  ],
+  Chicago: ["chicago"],
+  Boston: ["boston", "cambridge, ma"],
+  DC: ["washington", "d.c.", "dc", "arlington, va", "mclean, va"],
+};
+
+function buildLocationFilter(location: string | undefined) {
+  if (!location || location === "All") {
+    return null;
+  }
+
+  const aliases = LOCATION_ALIASES[location] ?? [location.toLowerCase()];
+  return {
+    clause: `(${aliases
+      .map(() => "LOWER(COALESCE(j.location, '')) LIKE ?")
+      .join(" OR ")})`,
+    bindings: aliases.map((alias) => `%${alias.toLowerCase()}%`),
+  };
+}
+
+function toJobListing(row: Pick<JobListRow, "external_id" | "title" | "url" | "location" | "department" | "posted_at" | "description" | "salary">): JobListing {
+  return {
+    externalId: row.external_id,
+    title: row.title,
+    url: row.url,
+    location: row.location,
+    department: row.department,
+    postedAt: row.posted_at,
+    description: row.description,
+    salary: row.salary,
+  };
+}
+
+async function rehydrateScores(db: D1Database, rows: JobListRow[]): Promise<JobListRow[]> {
+  if (rows.length === 0) return rows;
+
+  const prefs = await loadPreferencesForPoll(db);
+  const updateStmts: D1PreparedStatement[] = [];
+
+  const rescored = rows.map((row) => {
+    const breakdown = scoreJob(toJobListing(row), prefs);
+
+    if (
+      row.score !== breakdown.score
+      || row.title_score !== breakdown.title_score
+      || row.yoe_score !== breakdown.yoe_score
+      || row.location_score !== breakdown.location_score
+      || row.department_score !== breakdown.department_score
+      || row.recency_score !== breakdown.recency_score
+    ) {
+      updateStmts.push(
+        db.prepare(
+          `UPDATE jobs
+           SET score = ?,
+               title_score = ?,
+               yoe_score = ?,
+               location_score = ?,
+               department_score = ?,
+               recency_score = ?
+           WHERE id = ?`
+        ).bind(
+          breakdown.score,
+          breakdown.title_score,
+          breakdown.yoe_score,
+          breakdown.location_score,
+          breakdown.department_score,
+          breakdown.recency_score,
+          row.id
+        )
+      );
+    }
+
+    return {
+      ...row,
+      ...breakdown,
+    };
+  });
+
+  if (updateStmts.length > 0) {
+    await db.batch(updateStmts);
+  }
+
+  return rescored;
+}
+
 // GET / — List jobs
 jobs.get("/", async (c) => {
   const userId = c.get("userId");
-  const { min_score, company_id, dismissed, limit, offset } = c.req.query();
+  const { min_score, company_id, dismissed, limit, offset, location, saved, sort, q } = c.req.query();
 
   const limitVal = Math.min(parseInt(limit ?? "2000", 10) || 2000, 5000);
   const offsetVal = parseInt(offset ?? "0", 10) || 0;
@@ -79,25 +180,48 @@ jobs.get("/", async (c) => {
   }
   // dismissed=all → no filter
 
-  if (min_score !== undefined) {
-    conditions.push("j.score >= ?");
-    bindings.push(parseFloat(min_score));
-    conditions.push("j.title NOT LIKE '%Senior%' AND j.title NOT LIKE '%Staff%' AND j.title NOT LIKE '%Principal%' AND j.title NOT LIKE '%Director%' AND j.title NOT LIKE '%Intern,%' AND j.title NOT LIKE '%Internship%'");
-  }
-
   if (company_id !== undefined) {
     conditions.push("j.company_id = ?");
     bindings.push(company_id);
   }
 
+  if (q !== undefined && q.trim() !== "") {
+    const term = `%${q.trim().toLowerCase()}%`;
+    conditions.push(
+      `(LOWER(j.title) LIKE ? OR LOWER(c.name) LIKE ?)`
+    );
+    bindings.push(term, term);
+  }
+
+  if (saved === "true") {
+    conditions.push(
+      `EXISTS (
+        SELECT 1
+        FROM saved_jobs s
+        WHERE s.user_id = ? AND s.job_id = j.id
+      )`
+    );
+    bindings.push(userId);
+  }
+
+  const locationFilter = buildLocationFilter(location);
+  if (locationFilter) {
+    conditions.push(locationFilter.clause);
+    bindings.push(...locationFilter.bindings);
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const orderBy =
+    sort === "score"
+      ? "j.score DESC, datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC"
+      : "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC";
 
   const sql = `
     SELECT ${JOB_FIELDS}
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     ${where}
-    ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC
+    ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
   `;
 
@@ -105,14 +229,40 @@ jobs.get("/", async (c) => {
 
   const stmt = c.env.DB.prepare(sql);
   const result = await stmt.bind(...bindings).all<JobListRow>();
-  const rows = result.results ?? [];
+  const rows = await rehydrateScores(c.env.DB, result.results ?? []);
 
-  return c.json({ jobs: rows, meta: { total: rows.length } });
+  let finalRows = rows;
+  if (min_score !== undefined) {
+    const minScoreVal = parseFloat(min_score);
+    finalRows = finalRows.filter((row) => row.score >= minScoreVal);
+  }
+  if (sort === "score") {
+    finalRows = [...finalRows].sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aTime = Date.parse(a.posted_at ?? a.first_seen_at ?? "") || 0;
+      const bTime = Date.parse(b.posted_at ?? b.first_seen_at ?? "") || 0;
+      return bTime - aTime;
+    });
+  }
+
+  return c.json({ jobs: finalRows, meta: { total: finalRows.length } });
 });
 
 async function backfillJobContent(
   db: D1Database,
-  job: { id: string; external_id: string; ats_type: string; ats_slug: string }
+  job: {
+    id: string;
+    external_id: string;
+    title: string;
+    url: string;
+    location: string;
+    department: string | null;
+    posted_at: string | null;
+    description: string | null;
+    salary: string | null;
+    ats_type: string;
+    ats_slug: string;
+  }
 ) {
   const adapter = getAdapter(job.ats_type as CompanyRow["ats_type"]);
   if (!adapter) return;
@@ -120,8 +270,25 @@ async function backfillJobContent(
   const content = await adapter.fetchJobContent(job.ats_slug, job.external_id);
   if (!content.description && !content.salary) return;
 
+  const nextDescription = content.description ?? job.description;
+  const nextSalary = content.salary ?? job.salary;
+  const prefs = await loadPreferencesForPoll(db);
+  const breakdown = scoreJob(
+    {
+      externalId: job.external_id,
+      title: job.title,
+      url: job.url,
+      location: job.location,
+      department: job.department,
+      postedAt: job.posted_at,
+      description: nextDescription,
+      salary: nextSalary,
+    } satisfies JobListing,
+    prefs
+  );
+
   const sets: string[] = [];
-  const vals: (string | null)[] = [];
+  const vals: (string | number | null)[] = [];
   if (content.description) {
     sets.push("description = ?");
     vals.push(content.description);
@@ -130,6 +297,15 @@ async function backfillJobContent(
     sets.push("salary = ?");
     vals.push(content.salary);
   }
+  sets.push("score = ?", "title_score = ?", "yoe_score = ?", "location_score = ?", "department_score = ?", "recency_score = ?");
+  vals.push(
+    breakdown.score,
+    breakdown.title_score,
+    breakdown.yoe_score,
+    breakdown.location_score,
+    breakdown.department_score,
+    breakdown.recency_score
+  );
   vals.push(job.id);
   await db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).bind(...vals).run();
 }
@@ -153,7 +329,17 @@ jobs.get("/:id", async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
+  const [rescored] = await rehydrateScores(db, [result]);
+  result.score = rescored.score;
+  result.title_score = rescored.title_score;
+  result.yoe_score = rescored.yoe_score;
+  result.location_score = rescored.location_score;
+  result.department_score = rescored.department_score;
+  result.recency_score = rescored.recency_score;
+
+  let contentPending = false;
   if (result.description === null) {
+    contentPending = true;
     c.executionCtx.waitUntil(
       backfillJobContent(db, result).catch((error) => {
         console.error("Description backfill failed:", error);
@@ -161,7 +347,11 @@ jobs.get("/:id", async (c) => {
     );
   }
 
-  return c.json(result);
+  return c.json({
+    ...result,
+    content_pending: contentPending,
+    content_refresh_after_ms: contentPending ? 1500 : null,
+  });
 });
 
 // PATCH /:id — Update job
@@ -213,7 +403,8 @@ jobs.patch("/:id", async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
-  return c.json(updated);
+  const [rescored] = await rehydrateScores(c.env.DB, [updated]);
+  return c.json(rescored);
 });
 
 // DELETE /:id/block — Permanently block a job globally (never returns from polls)
@@ -253,7 +444,7 @@ jobs.get("/saved/list", async (c) => {
      ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC`
   ).bind(userId, userId, userId).all<JobListRow>();
 
-  return c.json({ jobs: result.results ?? [] });
+  return c.json({ jobs: await rehydrateScores(c.env.DB, result.results ?? []) });
 });
 
 export default jobs;

@@ -103,7 +103,7 @@
 </script>
 
 <!-- Top bar -->
-<header style="position: sticky; top: 0; z-index: 40; padding: 10px 22px; display: flex; align-items: center; justify-content: space-between; background: color-mix(in oklch, var(--color-bg) 94%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--color-line); box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+<header class="app-shell-header">
   <div style="display: flex; align-items: center; gap: 8px;">
     <!-- pinkslip icon -->
     <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true" style="transform: rotate(-8deg); flex-shrink: 0;">

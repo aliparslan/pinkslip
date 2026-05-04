@@ -1,6 +1,13 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { navigate } from "../router";
   import { api } from "../lib/api";
+  import {
+    JOB_SCORE_RAW_MAX,
+    normalizeJobScore,
+    scoreLabelFromPercent,
+    scoreToneFromPercent,
+  } from "../lib/scoring";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
@@ -9,6 +16,7 @@
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
+  import X from "phosphor-svelte/lib/X";
 
   import Trash from "phosphor-svelte/lib/Trash";
   import Warning from "phosphor-svelte/lib/Warning";
@@ -25,16 +33,68 @@
   let scoreExpanded: boolean = $state(false);
   let showBlockConfirm: boolean = $state(false);
   let blocking: boolean = $state(false);
+  let descriptionPending: boolean = $state(false);
+  let descriptionRefreshTimer: number | null = $state(null);
+  let descriptionRefreshAttempts: number = $state(0);
+
+  const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
+
+  function clearDescriptionRefreshTimer() {
+    if (descriptionRefreshTimer !== null) {
+      window.clearTimeout(descriptionRefreshTimer);
+      descriptionRefreshTimer = null;
+    }
+  }
+
+  function syncJobState(nextJob: any) {
+    job = nextJob;
+    saved = Boolean(nextJob?.saved);
+    descriptionPending = Boolean(nextJob?.content_pending && !nextJob?.description);
+  }
+
+  async function loadJobDetail(silent = false) {
+    if (!jobId) return;
+    if (!silent) {
+      loading = true;
+      error = null;
+    }
+
+    try {
+      const nextJob = await api.jobs.get(jobId);
+      syncJobState(nextJob);
+
+      if (descriptionPending && descriptionRefreshAttempts < MAX_DESCRIPTION_REFRESH_ATTEMPTS) {
+        clearDescriptionRefreshTimer();
+        descriptionRefreshTimer = window.setTimeout(async () => {
+          descriptionRefreshAttempts += 1;
+          await loadJobDetail(true);
+        }, nextJob.content_refresh_after_ms ?? 1500);
+      } else if (!descriptionPending) {
+        clearDescriptionRefreshTimer();
+      }
+    } catch (e: any) {
+      if (!silent || !job) {
+        error = e.message;
+      }
+    } finally {
+      loading = false;
+    }
+  }
 
   $effect(() => {
     if (!jobId) return;
-    loading = true;
-    error = null;
-    api.jobs
-      .get(jobId)
-      .then((j) => { job = j; saved = j.saved ?? false; })
-      .catch((e) => { error = e.message; })
-      .finally(() => { loading = false; });
+    applied = false;
+    descriptionRefreshAttempts = 0;
+    clearDescriptionRefreshTimer();
+    void loadJobDetail();
+
+    return () => {
+      clearDescriptionRefreshTimer();
+    };
+  });
+
+  onDestroy(() => {
+    clearDescriptionRefreshTimer();
   });
 
   async function handleDismiss() {
@@ -83,20 +143,13 @@
     });
   }
 
-  let scorePercent = $derived(job?.score ?? 0);
-  let scoreLabel = $derived(
-    scorePercent >= 70 ? "Strong match" :
-    scorePercent >= 40 ? "Moderate match" :
-    "Low match"
-  );
-  let scoreColor = $derived(
-    scorePercent >= 70 ? "var(--color-good)" :
-    scorePercent >= 40 ? "var(--color-warn)" :
-    "var(--color-ink-3)"
-  );
+  let scoreRaw = $derived(job?.score ?? 0);
+  let scorePercent = $derived(normalizeJobScore(scoreRaw));
+  let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
+  let scoreColor = $derived(scoreToneFromPercent(scorePercent));
 
   const scoreBreakdownKeys = [
-    { label: "Title", key: "title_score", max: 35 },
+    { label: "Title", key: "title_score", max: 30 },
     { label: "YOE", key: "yoe_score", max: 25 },
     { label: "Location", key: "location_score", max: 20 },
     { label: "Department", key: "department_score", max: 10 },
@@ -168,6 +221,12 @@
 
   let parsedDesc = $derived(job?.description ? parseDescription(job.description) : []);
   let payRanges = $derived(job?.description ? extractPayRanges(job.description) : []);
+  let plainDescription = $derived.by(() => {
+    if (!job?.description) return "";
+    const div = document.createElement("div");
+    div.innerHTML = job.description;
+    return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+  });
 </script>
 
 <div class="page">
@@ -177,6 +236,17 @@
       <ArrowLeft size={20} />
     </button>
     <div style="display: flex; gap: 0;">
+      {#if job?.url}
+        <a
+          class="icon-btn"
+          aria-label="Open original posting"
+          href={job.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ArrowSquareOut size={18} color="var(--color-ink-3)" />
+        </a>
+      {/if}
       <button class="icon-btn" aria-label="Block job" onclick={() => { showBlockConfirm = true; }}>
         <Trash size={18} color="var(--color-ink-3)" />
       </button>
@@ -188,7 +258,7 @@
 
   <div style="padding: 0 28px 28px;">
     {#if loading}
-      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
+      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: 12px;">
         Loading...
       </div>
     {:else if error}
@@ -224,7 +294,10 @@
           </span>
         {/if}
         {#if job.posted_at}
-          <span>{formatDate(job.posted_at)}</span>
+          <span>posted {formatDate(job.posted_at)}</span>
+        {/if}
+        {#if job.first_seen_at}
+          <span>seen {formatDate(job.first_seen_at)}</span>
         {/if}
       </div>
 
@@ -235,13 +308,13 @@
           onclick={() => scoreExpanded = !scoreExpanded}
           style="width: 100%; text-align: left; padding: 14px 16px; background: transparent; border: 0; display: flex; gap: 12px; align-items: center; cursor: pointer;"
         >
-          <div style="font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: {scoreColor}; letter-spacing: -0.02em;">
+          <div style="font-size: 22px; font-weight: 600; color: {scoreColor}; letter-spacing: -0.02em;">
             {scorePercent}%
           </div>
           <div style="flex: 1;">
             <div style="font-size: 13.5px; font-weight: 600; color: var(--color-ink); margin-bottom: 2px;">{scoreLabel}</div>
             <div style="font-size: 12px; color: var(--color-ink-2);">
-              {scoreExpanded ? "Tap to collapse" : "Tap for breakdown"}
+              {scoreRaw}/{JOB_SCORE_RAW_MAX} raw score · {scoreExpanded ? "tap to collapse" : "tap for breakdown"}
             </div>
           </div>
           <div style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});">
@@ -258,7 +331,7 @@
                   <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: 999px; overflow: hidden;">
                     <div style="height: 100%; background: var(--color-accent); width: {((job[key] ?? 0) / max) * 100}%; border-radius: 999px;"></div>
                   </div>
-                  <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-2); width: 36px; text-align: right;">
+                  <span style="font-size: 11px; color: var(--color-ink-2); width: 36px; text-align: right;">
                     {job[key] ?? 0}/{max}
                   </span>
                 </div>
@@ -331,13 +404,24 @@
             onclick={handleDismiss}
             disabled={dismissing}
           >
+            <X size={15} />
             {dismissing ? "..." : "Dismiss for me"}
           </button>
         </div>
       </div>
 
       <!-- Description (parsed) -->
-      {#if parsedDesc.length > 0}
+      {#if descriptionPending}
+        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
+          <div class="section-title" style="margin-bottom: 8px;">Loading job description</div>
+          <p style="margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--color-ink-2);">
+            Pulling the full posting now. This usually lands in a second or two.
+          </p>
+          <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
+            Check again
+          </button>
+        </div>
+      {:else if parsedDesc.length > 0}
         <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 16px;">
           {#each parsedDesc as section}
             <div>
@@ -349,6 +433,36 @@
               </ul>
             </div>
           {/each}
+        </div>
+      {:else if plainDescription}
+        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
+          <div class="section-title" style="margin-bottom: 10px;">Overview</div>
+          <p style="margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--color-ink-2);">
+            {plainDescription}
+          </p>
+        </div>
+      {:else}
+        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
+          <div class="section-title" style="margin-bottom: 8px;">Description unavailable</div>
+          <p style="margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--color-ink-2);">
+            We couldn’t pull the full job description yet. The original posting may still have it.
+          </p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={() => void loadJobDetail(true)}>
+              Try again
+            </button>
+            {#if job.url}
+              <a
+                href={job.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-secondary"
+                style="height: 38px; padding: 0 14px; text-decoration: none;"
+              >
+                Open original
+              </a>
+            {/if}
+          </div>
         </div>
       {/if}
 
@@ -382,7 +496,7 @@
       <p style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
         <br /><br />
-        If you just want to hide it for yourself, use <strong>Dismiss</strong> instead.
+        If you only want it gone from your own list, use <strong>Dismiss just for me</strong> instead.
       </p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button
@@ -390,7 +504,8 @@
           style="width: 100%; height: 48px;"
           onclick={() => { showBlockConfirm = false; handleDismiss(); }}
         >
-          Just dismiss for me
+          <X size={15} />
+          Dismiss just for me
         </button>
         <button
           class="btn-primary"

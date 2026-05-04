@@ -4,7 +4,7 @@
 
 <div class="page">
   <div style="padding: 0 22px 16px;">
-    <h1 class="h-display" style="font-size: 30px;">
+    <h1 class="h-display page-title" style="font-size: 30px;">
       Recruiting events
     </h1>
     <p style="font-size: 13px; color: var(--color-ink-3); margin-top: 8px; line-height: 1.5;">

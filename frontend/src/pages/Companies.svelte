@@ -235,7 +235,7 @@
 
 <div class="page">
   <div style="padding: 0 22px 28px;">
-    <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
+    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 14px;">
       Companies
     </h1>
     <div class="stat-row" style="margin-bottom: 16px;">

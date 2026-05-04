@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @theme {
   --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -105,6 +110,10 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   margin: 0;
 }
 
+.page-title {
+  letter-spacing: -0.018em;
+}
+
 .brand-word {
   display: inline-block;
   font: inherit;
@@ -164,6 +173,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   border-color: var(--color-line-2);
 }
 .card-base:active { transform: scale(0.97); }
+.tracker-card { padding: 12px 14px; }
 .tracker-card:active { transform: scale(0.965); box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 30%, transparent); }
 
 /* ── Chip / Tag ──────────────────────────────────────────── */
@@ -192,6 +202,55 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   border-color: var(--color-ink);
 }
 .chip-active:hover { background: var(--color-ink); }
+
+.chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0 4px;
+}
+
+.chip-rail {
+  position: relative;
+}
+
+.chip-rail::before,
+.chip-rail::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 4px;
+  width: 28px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.chip-rail::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--color-bg) 12%, transparent);
+}
+
+.chip-rail::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--color-bg) 12%, transparent);
+}
+
+.chip-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 16px 4px 1px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chip-strip::-webkit-scrollbar {
+  display: none;
+}
 
 .tag {
   display: inline-flex;
@@ -346,17 +405,66 @@ select.input-field { cursor: pointer; }
   margin: 0;
   padding: 18px;
   min-height: 360px;
-  white-space: pre-wrap;
   word-break: break-word;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.7;
   color: var(--color-ink-2);
 }
 
+.prose-output h1,
+.prose-output h2,
+.prose-output h3,
+.prose-output h4 {
+  margin: 0 0 10px;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.prose-output h1 { font-size: 24px; }
+.prose-output h2 { font-size: 20px; }
+.prose-output h3 { font-size: 16px; }
+.prose-output h4 { font-size: 14px; }
+
+.prose-output p {
+  margin: 0 0 12px;
+}
+
+.prose-output ul,
+.prose-output ol {
+  margin: 0 0 14px 18px;
+  padding: 0;
+}
+
+.prose-output li {
+  margin-bottom: 6px;
+}
+
+.prose-output strong {
+  color: var(--color-ink);
+}
+
+.prose-output code {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-line);
+  font-size: 12px;
+}
+
+.qa-block + .qa-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line);
+}
+
+.qa-block-body > :last-child {
+  margin-bottom: 0;
+}
+
 .toast-wrap {
   position: fixed;
-  top: 64px;
+  top: calc(var(--safe-top) + 64px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 80;
@@ -468,7 +576,7 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
 .divider { height: 0.5px; background: var(--color-line); margin: 0; }
 
 .page {
-  padding-top: 16px;
+  padding-top: 22px;
   animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -476,6 +584,21 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
+}
+
+.app-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: calc(var(--safe-top) + 10px) 22px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 @keyframes page-in {
   from { opacity: 0; transform: translateY(8px); }

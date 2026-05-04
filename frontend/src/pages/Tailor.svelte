@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { navigate } from "../router";
   import { api, type Job, type Tailoring } from "../lib/api";
+  import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -140,8 +141,8 @@
     }
   }
 
-  async function saveEdits() {
-    if (!tailoring || saving) return;
+  async function saveEdits(): Promise<boolean> {
+    if (!tailoring || saving) return false;
     saving = true;
     try {
       const saved = await api.tailor.save(tailoring.id, {
@@ -150,8 +151,10 @@
         user_edited_qa_json: qaText,
       });
       hydrateFromTailoring(saved.tailoring);
+      return true;
     } catch (e: any) {
       error = e.message;
+      return false;
     } finally {
       saving = false;
     }
@@ -162,25 +165,71 @@
       window.clearTimeout(saveTimer);
     }
     saveTimer = window.setTimeout(() => {
-      saveEdits();
+      saveTimer = null;
+      void saveEdits();
     }, 900);
   }
 
+  function clearQueuedSave() {
+    if (saveTimer !== null) {
+      window.clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+  }
+
+  let hasPendingEdits = $derived.by(() => {
+    const latest = tailoring;
+    return (
+      resumeText !== (latest?.resume_md_final ?? "")
+      || coverText !== (latest?.cover_letter_md_final ?? "")
+      || qaText !== (latest?.qa_json_final ?? "")
+    );
+  });
+
+  let currentText = $derived.by(() => {
+    if (activeTab === "resume") return resumeText;
+    if (activeTab === "cover") return coverText;
+    return qaText;
+  });
+  let currentPreviewHtml = $derived.by(() => {
+    if (activeTab === "qa") return "";
+    return renderMarkdownHtml(activeTab === "resume" ? resumeText : coverText);
+  });
+  let qaSections = $derived.by(() => parseQaSections(qaText));
+
+  async function handleRegenerate() {
+    if (streaming) return;
+
+    if (resumeText || coverText || qaText || tailoring) {
+      const confirmed = window.confirm(
+        hasPendingEdits
+          ? "Regenerating will create a new version. Your current edits will be saved first so you can come back to them. Continue?"
+          : "Generate a fresh version from the current corpus and this job?"
+      );
+      if (!confirmed) return;
+    }
+
+    clearQueuedSave();
+    if (hasPendingEdits && tailoring) {
+      const savedOkay = await saveEdits();
+      if (!savedOkay) return;
+    }
+
+    await streamTailoring();
+  }
+
   async function copyCurrent() {
-    const text = activeTab === "resume" ? resumeText : activeTab === "cover" ? coverText : qaText;
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(currentText);
   }
 
   onMount(() => {
     loadExisting().then(() => {
       if (!tailoring) {
-        streamTailoring();
+        void streamTailoring();
       }
     });
     return () => {
-      if (saveTimer !== null) {
-        window.clearTimeout(saveTimer);
-      }
+      clearQueuedSave();
     };
   });
 </script>
@@ -247,7 +296,7 @@
         <PencilSimple size={15} />
         {editing[activeTab] ? "Stop editing" : "Edit"}
       </button>
-      <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={streamTailoring} disabled={streaming}>
+      <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={handleRegenerate} disabled={streaming}>
         <span class:spin={streaming} style="display: inline-flex;">
           <ArrowsClockwise size={15} />
         </span>
@@ -256,7 +305,7 @@
     </div>
 
     {#if loading}
-      <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono);">
+      <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3);">
         Loading...
       </div>
     {:else}
@@ -268,7 +317,22 @@
         {:else if editing.qa && activeTab === "qa"}
           <textarea class="input-field tailor-textarea" bind:value={qaText} oninput={queueSave}></textarea>
         {:else}
-          <pre class="tailor-output">{activeTab === "resume" ? resumeText : activeTab === "cover" ? coverText : qaText}</pre>
+          {#if activeTab === "qa"}
+            <div class="tailor-output prose-output">
+              {#if qaSections.length === 0}
+                <p>No interview prep has been generated yet.</p>
+              {:else}
+                {#each qaSections as section}
+                  <section class="qa-block">
+                    <h3>{section.label}</h3>
+                    <div class="qa-block-body">{@html renderMarkdownHtml(section.body)}</div>
+                  </section>
+                {/each}
+              {/if}
+            </div>
+          {:else}
+            <div class="tailor-output prose-output">{@html currentPreviewHtml}</div>
+          {/if}
         {/if}
       </div>
     {/if}

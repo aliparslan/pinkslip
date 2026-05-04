@@ -1,5 +1,5 @@
 import type { JobListing } from "./adapters/types";
-import { scoreJob } from "./scoring";
+import { normalizeScore, scoreJob } from "./scoring";
 import type { ScoringPrefs } from "./scoring";
 import {
   buildNotificationPayload,
@@ -362,7 +362,7 @@ export async function runPollCycle(
   }
 
   // 5. Filter qualifying jobs
-  const qualifying = allNewJobs.filter((j) => j.score >= threshold);
+  const qualifying = allNewJobs.filter((j) => normalizeScore(j.score) >= threshold);
 
   // 6. Send push notifications
   let notificationsSent = 0;

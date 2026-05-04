@@ -140,7 +140,7 @@
 
 <div class="page">
   <div style="padding: 0 22px 28px;">
-    <h1 class="h-display" style="font-size: 30px; margin-bottom: 20px;">
+    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 20px;">
       Profile
     </h1>
 

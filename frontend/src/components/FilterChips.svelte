@@ -1,16 +1,14 @@
 <script lang="ts">
-  let { filters, selected, onSelect }: {
+  let { filters, selected, onSelect, scrollable = false }: {
     filters: string[];
     selected: string;
     onSelect: (f: string) => void;
+    scrollable?: boolean;
   } = $props();
 </script>
 
-<div style="position: relative;">
-  <div
-    class="flex flex-wrap items-center gap-2"
-    style="padding: 1px 0 4px;"
-  >
+<div class={scrollable ? "chip-rail" : ""}>
+  <div class={scrollable ? "chip-strip" : "chip-wrap"} aria-label="Filters">
     {#each filters as filter}
       <button
         class="chip {selected === filter ? 'chip-active' : ''}"

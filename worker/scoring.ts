@@ -8,7 +8,22 @@ export interface ScoringPrefs {
   negative_keywords: string[];
 }
 
-// ─── Title Match (0–35) ──────────────────────────────────────────────────────
+export const SCORE_COMPONENT_MAX = {
+  title: 30,
+  yoe: 25,
+  location: 20,
+  department: 10,
+  recency: 10,
+} as const;
+
+export const SCORE_RAW_MAX =
+  SCORE_COMPONENT_MAX.title
+  + SCORE_COMPONENT_MAX.yoe
+  + SCORE_COMPONENT_MAX.location
+  + SCORE_COMPONENT_MAX.department
+  + SCORE_COMPONENT_MAX.recency;
+
+// ─── Title Match (0–30) ──────────────────────────────────────────────────────
 
 const HIGH_TITLE_KEYWORDS = [
   "software engineer",
@@ -28,7 +43,25 @@ const HIGH_TITLE_KEYWORDS = [
   "founding engineer",
 ];
 
-const MEDIUM_TITLE_KEYWORDS = ["engineer", "developer", "swe"];
+const MEDIUM_TITLE_KEYWORDS = [
+  "data engineer",
+  "research engineer",
+  "security engineer",
+  "product engineer",
+  "platform engineer",
+  "infrastructure engineer",
+  "mobile engineer",
+  "ios engineer",
+  "android engineer",
+  "site reliability engineer",
+  "devops engineer",
+  "cloud engineer",
+  "ml engineer",
+  "machine learning engineer",
+  "developer productivity engineer",
+  "web engineer",
+  "swe",
+];
 
 /**
  * Negative keywords that immediately zero out the title score.
@@ -72,7 +105,7 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
   );
 
   for (const kw of highKeywords) {
-    if (containsKeyword(lower, kw)) return { score: 30, disqualified: false };
+    if (containsKeyword(lower, kw)) return { score: SCORE_COMPONENT_MAX.title, disqualified: false };
   }
 
   for (const kw of MEDIUM_TITLE_KEYWORDS) {
@@ -87,8 +120,8 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
 // Patterns like "2+ years", "3-5 years", "up to 5 years"
 const YOE_PATTERN = /(\d+)\s*(?:\+|–|-|to)?\s*\d*\s*(?:years?|yrs?)/i;
 
-function scoreYoeFit(title: string, prefs: ScoringPrefs): number {
-  const lower = title.toLowerCase();
+function scoreYoeFit(description: string | null, title: string, prefs: ScoringPrefs): number {
+  const lower = [description ?? "", title].join("\n").toLowerCase();
 
   if (containsKeyword(lower, "junior") || containsKeyword(lower, "new grad")) return 25;
   if (/\bsenior\b/.test(lower) || /\bsr\.?\b/.test(lower)) return 5;
@@ -226,9 +259,14 @@ export interface ScoreBreakdown {
   recency_score: number;
 }
 
+export function normalizeScore(rawScore: number): number {
+  if (!Number.isFinite(rawScore) || rawScore <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((rawScore / SCORE_RAW_MAX) * 100)));
+}
+
 export function scoreJob(job: JobListing, prefs: ScoringPrefs): ScoreBreakdown {
   const titleResult = scoreTitleMatch(job.title, prefs);
-  const yoeScore = scoreYoeFit(job.title, prefs);
+  const yoeScore = scoreYoeFit(job.description, job.title, prefs);
   const locResult = scoreLocationMatch(job.location, prefs);
   const deptScore = scoreDepartmentMatch(job.department);
   const recencyScore = scoreRecency(job.postedAt);

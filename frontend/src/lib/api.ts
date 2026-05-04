@@ -64,7 +64,9 @@ export interface Job {
   company_domain: string;
   ats_type?: string;
   ats_slug?: string;
-  saved?: boolean;
+  saved?: boolean | number;
+  content_pending?: boolean;
+  content_refresh_after_ms?: number | null;
 }
 
 export interface Company {

@@ -3,6 +3,16 @@ const VERSION =
 const CACHE_NAME = `pinkslip-${VERSION}`;
 const APP_SHELL = ["/", "/index.html"];
 
+function notifyClients(type, payload = {}) {
+  return clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((windowClients) =>
+      Promise.all(
+        windowClients.map((client) => client.postMessage({ type, ...payload }))
+      )
+    );
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
@@ -64,11 +74,14 @@ self.addEventListener("push", (event) => {
   const url = data.data?.url ?? "/";
 
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      tag: url,
-      data: data.data,
-    })
+    Promise.all([
+      self.registration.showNotification(data.title, {
+        body: data.body,
+        tag: url,
+        data: data.data,
+      }),
+      notifyClients("pinkslip:push", { url }),
+    ])
   );
 });
 
@@ -79,11 +92,13 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
+      .then(async (windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin)) {
-            client.focus();
-            return client.navigate(self.location.origin + "/#" + url);
+            await client.focus();
+            await client.navigate(self.location.origin + "/#" + url);
+            client.postMessage({ type: "pinkslip:notification-opened", url });
+            return;
           }
         }
         return clients.openWindow(self.location.origin + "/#" + url);
