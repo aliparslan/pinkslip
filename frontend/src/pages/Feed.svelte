@@ -13,6 +13,11 @@
   let selectedLocation: string = $state("All");
   let sortBy: "time" | "score" = $state("time");
   let lastPolled: string | null = $state(null);
+  let refreshing: boolean = $state(false);
+  let pullDistance: number = $state(0);
+  let pullReady: boolean = $state(false);
+  let touchStartY: number = $state(0);
+  let draggingPull: boolean = $state(false);
 
   const locationAliases: Record<string, string[]> = {
     "NYC": ["new york", "nyc", "brooklyn"],
@@ -34,6 +39,12 @@
         });
     if (sortBy === "score") {
       result.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    } else {
+      result.sort((a, b) => {
+        const aTime = Date.parse(a.posted_at ?? a.first_seen_at ?? "") || 0;
+        const bTime = Date.parse(b.posted_at ?? b.first_seen_at ?? "") || 0;
+        return bTime - aTime;
+      });
     }
     return result;
   });
@@ -43,23 +54,77 @@
     return jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
   });
 
-  onMount(() => {
-    loading = true;
+  async function loadFeed(silent = false) {
+    if (!silent) loading = true;
     error = null;
-    Promise.all([api.jobs.list({ min_score: "40" }), api.stats.get()])
-      .then(([jobsRes, statsRes]) => {
-        jobs = jobsRes.jobs ?? [];
-        lastPolled = statsRes.lastPolled ?? null;
-      })
-      .catch((e) => { error = e.message; })
-      .finally(() => { loading = false; });
+    try {
+      const [jobsRes, statsRes] = await Promise.all([
+        api.jobs.list({ min_score: "40" }),
+        api.stats.get(),
+      ]);
+      jobs = jobsRes.jobs ?? [];
+      lastPolled = statsRes.lastPolled ?? null;
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function triggerRefresh() {
+    refreshing = true;
+    pullDistance = 44;
+    await loadFeed(true);
+    refreshing = false;
+    pullDistance = 0;
+    pullReady = false;
+  }
+
+  function handleTouchStart(event: TouchEvent) {
+    if (window.scrollY > 0 || refreshing) return;
+    touchStartY = event.touches[0]?.clientY ?? 0;
+    draggingPull = true;
+  }
+
+  function handleTouchMove(event: TouchEvent) {
+    if (!draggingPull || refreshing) return;
+    if (window.scrollY > 0) {
+      draggingPull = false;
+      return;
+    }
+    const delta = Math.max(0, (event.touches[0]?.clientY ?? 0) - touchStartY);
+    pullDistance = Math.min(84, delta * 0.45);
+    pullReady = pullDistance >= 42;
+  }
+
+  function handleTouchEnd() {
+    if (!draggingPull) return;
+    draggingPull = false;
+    if (pullReady) {
+      triggerRefresh();
+    } else {
+      pullDistance = 0;
+      pullReady = false;
+    }
+  }
+
+  onMount(() => {
+    loadFeed();
   });
 
 </script>
 
-<div class="page">
+<div class="page" role="presentation" ontouchstart={handleTouchStart} ontouchmove={handleTouchMove} ontouchend={handleTouchEnd}>
+  <div
+    style="position: sticky; top: 62px; z-index: 20; display: flex; justify-content: center; pointer-events: none; height: 0;"
+  >
+    <div
+      style="transform: translateY({pullDistance - 44}px); opacity: {Math.min(1, pullDistance / 44)}; transition: {draggingPull || refreshing ? 'none' : 'transform .2s, opacity .2s'}; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 999px; padding: 8px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3);"
+    >
+      {refreshing ? "Refreshing…" : pullReady ? "Release to refresh" : "Pull for latest"}
+    </div>
+  </div>
   <div style="padding: 0 22px 10px;">
-    <p class="h-eyebrow" style="margin-bottom: 6px;">Feed</p>
     <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
       New roles
     </h1>
@@ -69,12 +134,15 @@
       {#if lastPolled}
         <span>polled {timeAgo(lastPolled)}</span>
       {/if}
+      {#if refreshing}
+        <span>refreshing now</span>
+      {/if}
     </div>
   </div>
 
   <!-- Filter chips + sort -->
   <div style="padding: 0 22px 10px; display: flex; align-items: center; gap: 10px;">
-    <div style="flex: 1; overflow-x: auto;">
+    <div style="flex: 1;">
       <FilterChips
         filters={LOCATIONS}
         selected={selectedLocation}

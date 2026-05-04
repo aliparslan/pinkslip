@@ -34,6 +34,8 @@ function makeJob(overrides: Partial<JobListing>): JobListing {
     location: "Remote",
     department: "Engineering",
     postedAt: new Date().toISOString(),
+    description: null,
+    salary: null,
     ...overrides,
   };
 }
@@ -47,7 +49,7 @@ describe("scoreJob", () => {
       department: "Engineering",
       postedAt: new Date().toISOString(),
     });
-    expect(scoreJob(job, DEFAULT_PREFS)).toBeGreaterThanOrEqual(80);
+    expect(scoreJob(job, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
   // Test 2: Low score for senior staff role
@@ -58,7 +60,7 @@ describe("scoreJob", () => {
       department: "Engineering",
       postedAt: new Date().toISOString(),
     });
-    expect(scoreJob(job, DEFAULT_PREFS)).toBeLessThan(30);
+    expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
   // Test 3: High score for Forward Deployed Engineer
@@ -69,7 +71,7 @@ describe("scoreJob", () => {
       department: "Engineering",
       postedAt: new Date().toISOString(),
     });
-    expect(scoreJob(job, DEFAULT_PREFS)).toBeGreaterThanOrEqual(80);
+    expect(scoreJob(job, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
   // Test 4: Low score for non-engineering role
@@ -80,7 +82,7 @@ describe("scoreJob", () => {
       department: "Sales",
       postedAt: new Date().toISOString(),
     });
-    expect(scoreJob(job, DEFAULT_PREFS)).toBeLessThan(30);
+    expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
   // Test 5: Partial location score for empty location string
@@ -97,11 +99,9 @@ describe("scoreJob", () => {
       department: "Engineering",
       postedAt: null,
     });
-    const scoreWithLocation = scoreJob(jobWithLocation, DEFAULT_PREFS);
-    const scoreWithoutLocation = scoreJob(jobWithoutLocation, DEFAULT_PREFS);
-    // Empty location should score 10 (partial), Remote should score 20
+    const scoreWithLocation = scoreJob(jobWithLocation, DEFAULT_PREFS).score;
+    const scoreWithoutLocation = scoreJob(jobWithoutLocation, DEFAULT_PREFS).score;
     expect(scoreWithLocation).toBeGreaterThan(scoreWithoutLocation);
-    // Verify empty location still adds some points (doesn't zero out)
     expect(scoreWithoutLocation).toBeGreaterThan(0);
   });
 
@@ -119,10 +119,9 @@ describe("scoreJob", () => {
       department: null,
       postedAt: null,
     });
-    const remoteScore = scoreJob(remoteJob, DEFAULT_PREFS);
-    const nonPreferredScore = scoreJob(nonPreferredJob, DEFAULT_PREFS);
+    const remoteScore = scoreJob(remoteJob, DEFAULT_PREFS).score;
+    const nonPreferredScore = scoreJob(nonPreferredJob, DEFAULT_PREFS).score;
     expect(remoteScore).toBeGreaterThan(nonPreferredScore);
-    // Difference should be exactly 20 (Remote = 20, non-preferred = 0)
     expect(remoteScore - nonPreferredScore).toBe(20);
   });
 
@@ -134,7 +133,25 @@ describe("scoreJob", () => {
       department: "Engineering",
       postedAt: new Date().toISOString(),
     });
-    expect(scoreJob(job, DEFAULT_PREFS)).toBeLessThan(30);
+    expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
+  });
+
+  it("does not auto-disqualify titles just because they contain lead or architect", () => {
+    const leadJob = makeJob({
+      title: "Technical Lead, Platform",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const architectJob = makeJob({
+      title: "Solutions Architect",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+
+    expect(scoreJob(leadJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(29);
+    expect(scoreJob(architectJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(29);
   });
 
   // Test 8: Recency — today's posting scores higher than 14-day-old posting
@@ -155,6 +172,6 @@ describe("scoreJob", () => {
       postedAt: oldDate,
     });
 
-    expect(scoreJob(freshJob, DEFAULT_PREFS)).toBeGreaterThan(scoreJob(oldJob, DEFAULT_PREFS));
+    expect(scoreJob(freshJob, DEFAULT_PREFS).score).toBeGreaterThan(scoreJob(oldJob, DEFAULT_PREFS).score);
   });
 });

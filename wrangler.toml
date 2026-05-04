@@ -1,17 +1,26 @@
-name = "pink-slip"
+name = "pinkslip"
 main = "worker/index.ts"
 compatibility_date = "2024-12-01"
+routes = [
+  { pattern = "pinkslip.alip.dev", custom_domain = true }
+]
 
 [assets]
 directory = "./frontend/dist"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "pink-slip"
-database_id = "placeholder-will-be-replaced-after-db-create"
+database_name = "pinkslip"
+database_id = "fc0ff85d-0921-4b25-b4b2-c77a6ed28371"
 
 [triggers]
 crons = ["*/15 * * * *"]
 
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
+
 [vars]
 VAPID_SUBJECT = "mailto:aliparslan@outlook.com"
+VAPID_PUBLIC_KEY = "BM8EzXoxkPPxG1IRS7CroVdKoLPNAs8AxDsZ6wlJB2uu2FyZyFAMXjdJvbg5Y0faVBbd28_GAwrrntFb1cBPVQU"

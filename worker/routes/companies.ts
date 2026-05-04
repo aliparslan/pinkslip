@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import type { Env, CompanyRow } from "../types";
+import { loadPreferencesForPoll, pollCompany } from "../poller";
+import { verifyCompanySource } from "../ats";
 
 const companies = new Hono<{ Bindings: Env }>();
 
@@ -23,7 +25,32 @@ companies.get("/", async (c) => {
     .bind(...bindings)
     .all<CompanyRow>();
 
-  return c.json(result.results ?? []);
+  return c.json({ companies: result.results ?? [] });
+});
+
+// POST /verify — Test an ATS slug without persisting it
+companies.post("/verify", async (c) => {
+  const body = await c.req.json<{
+    ats_type: CompanyRow["ats_type"];
+    ats_slug: string;
+  }>();
+
+  try {
+    const jobs = await verifyCompanySource({
+      ats_type: body.ats_type,
+      ats_slug: body.ats_slug.trim(),
+    });
+    return c.json({
+      ok: true,
+      sample_jobs: jobs.slice(0, 3),
+      total_jobs: jobs.length,
+    });
+  } catch (error) {
+    return c.json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Verification failed",
+    });
+  }
 });
 
 // POST / — Add company
@@ -59,8 +86,10 @@ companies.patch("/:id", async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{
     enabled?: boolean;
+    name?: string;
     ats_slug?: string;
     ats_type?: CompanyRow["ats_type"];
+    website?: string;
   }>();
 
   const setClauses: string[] = [];
@@ -71,6 +100,11 @@ companies.patch("/:id", async (c) => {
     bindings.push(body.enabled ? 1 : 0);
   }
 
+  if (body.name !== undefined) {
+    setClauses.push("name = ?");
+    bindings.push(body.name);
+  }
+
   if (body.ats_slug !== undefined) {
     setClauses.push("ats_slug = ?");
     bindings.push(body.ats_slug);
@@ -79,6 +113,11 @@ companies.patch("/:id", async (c) => {
   if (body.ats_type !== undefined) {
     setClauses.push("ats_type = ?");
     bindings.push(body.ats_type);
+  }
+
+  if (body.website !== undefined) {
+    setClauses.push("website = ?");
+    bindings.push(body.website);
   }
 
   if (setClauses.length === 0) {
@@ -104,6 +143,44 @@ companies.patch("/:id", async (c) => {
   }
 
   return c.json(updated);
+});
+
+// POST /:id/poll — Trigger a poll for a single company
+companies.post("/:id/poll", async (c) => {
+  const { id } = c.req.param();
+  const db = c.env.DB;
+
+  const company = await db
+    .prepare("SELECT * FROM companies WHERE id = ?")
+    .bind(id)
+    .first<CompanyRow>();
+
+  if (!company) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  const prefs = await loadPreferencesForPoll(db);
+
+  const now = new Date().toISOString();
+  try {
+    const newJobs = await pollCompany(company, db, prefs);
+    await db
+      .prepare("UPDATE companies SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ? WHERE id = ?")
+      .bind(now, id)
+      .run();
+
+    const updated = await db.prepare("SELECT * FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
+    return c.json({ ...updated, new_jobs: newJobs.length });
+  } catch (e: any) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    await db
+      .prepare("UPDATE companies SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ? WHERE id = ?")
+      .bind(errMsg, now, id)
+      .run();
+
+    const updated = await db.prepare("SELECT * FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
+    return c.json({ ...updated, poll_error: errMsg }, 200);
+  }
 });
 
 // DELETE /:id — Delete company

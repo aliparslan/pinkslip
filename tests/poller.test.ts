@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diffJobs } from "@worker/poller";
+import { diffJobs, runWithConcurrency } from "@worker/poller";
 import type { JobListing } from "@worker/adapters/types";
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -12,6 +12,8 @@ function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobLi
     location: "Remote",
     department: "Engineering",
     postedAt: new Date().toISOString(),
+    description: null,
+    salary: null,
     ...overrides,
   };
 }
@@ -71,5 +73,34 @@ describe("diffJobs", () => {
   it("returns empty array when fetched list is empty", () => {
     const result = diffJobs([], new Set(["existing-1"]));
     expect(result).toHaveLength(0);
+  });
+});
+
+describe("runWithConcurrency", () => {
+  it("preserves input order while limiting concurrency", async () => {
+    const started: number[] = [];
+    const finished: number[] = [];
+    let active = 0;
+    let maxActive = 0;
+
+    const results = await runWithConcurrency([1, 2, 3, 4], 2, async (item) => {
+      started.push(item);
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, item % 2 === 0 ? 5 : 1));
+      active--;
+      finished.push(item);
+      return item * 2;
+    });
+
+    expect(maxActive).toBeLessThanOrEqual(2);
+    expect(started).toHaveLength(4);
+    expect(finished).toHaveLength(4);
+    expect(results).toEqual([
+      { status: "fulfilled", value: 2 },
+      { status: "fulfilled", value: 4 },
+      { status: "fulfilled", value: 6 },
+      { status: "fulfilled", value: 8 },
+    ]);
   });
 });

@@ -45,8 +45,6 @@ const BUILTIN_NEGATIVE_KEYWORDS = [
   "senior staff",
   "vp",
   "head of",
-  "lead",
-  "architect",
 ];
 
 interface TitleResult {

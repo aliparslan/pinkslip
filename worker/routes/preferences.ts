@@ -3,64 +3,73 @@ import type { Env, PreferenceRow } from "../types";
 
 const preferences = new Hono<{ Bindings: Env }>();
 
-// GET / — Get all preferences as key-value object
-preferences.get("/", async (c) => {
-  const result = await c.env.DB.prepare(
-    "SELECT key, value FROM preferences"
-  ).all<PreferenceRow>();
+const ALLOWED_KEYS = new Set([
+  "locations",
+  "min_yoe",
+  "max_yoe",
+  "role_keywords",
+  "negative_keywords",
+  "notify_threshold",
+]);
 
+function parsePreferenceValue(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizePreferenceKey(key: string): string {
+  return key === "notification_threshold" ? "notify_threshold" : key;
+}
+
+async function readPreferences(db: D1Database): Promise<Record<string, unknown>> {
+  const result = await db.prepare("SELECT key, value FROM preferences").all<PreferenceRow>();
   const rows = result.results ?? [];
   const out: Record<string, unknown> = {};
 
   for (const row of rows) {
-    try {
-      out[row.key] = JSON.parse(row.value);
-    } catch {
-      out[row.key] = row.value;
-    }
+    const normalizedKey = normalizePreferenceKey(row.key);
+    out[normalizedKey] = parsePreferenceValue(row.value);
   }
 
-  return c.json(out);
-});
+  return out;
+}
 
-const ALLOWED_KEYS = new Set([
-  "locations", "min_yoe", "max_yoe", "role_keywords",
-  "negative_keywords", "notify_threshold", "notification_threshold",
-]);
+// GET / — Get all preferences as key-value object
+preferences.get("/", async (c) => {
+  return c.json(await readPreferences(c.env.DB));
+});
 
 // PUT / — Update preferences
 preferences.put("/", async (c) => {
   const body = await c.req.json<Record<string, unknown>>();
+  const normalizedEntries = new Map<string, unknown>();
 
-  const filteredEntries = Object.entries(body).filter(([key]) => ALLOWED_KEYS.has(key));
+  for (const [key, value] of Object.entries(body)) {
+    const normalizedKey = normalizePreferenceKey(key);
+    if (ALLOWED_KEYS.has(normalizedKey)) {
+      normalizedEntries.set(normalizedKey, value);
+    }
+  }
 
-  const stmts = filteredEntries.map(([key, value]) =>
-    c.env.DB.prepare(
-      "INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)"
-    ).bind(key, JSON.stringify(value))
+  const stmts = [...normalizedEntries.entries()].map(([key, value]) =>
+    c.env.DB.prepare("INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)")
+      .bind(key, JSON.stringify(value))
   );
+
+  if (normalizedEntries.has("notify_threshold")) {
+    stmts.unshift(
+      c.env.DB.prepare("DELETE FROM preferences WHERE key = 'notification_threshold'")
+    );
+  }
 
   if (stmts.length > 0) {
     await c.env.DB.batch(stmts);
   }
 
-  // Return updated preferences
-  const result = await c.env.DB.prepare(
-    "SELECT key, value FROM preferences"
-  ).all<PreferenceRow>();
-
-  const rows = result.results ?? [];
-  const out: Record<string, unknown> = {};
-
-  for (const row of rows) {
-    try {
-      out[row.key] = JSON.parse(row.value);
-    } catch {
-      out[row.key] = row.value;
-    }
-  }
-
-  return c.json(out);
+  return c.json(await readPreferences(c.env.DB));
 });
 
 export default preferences;

@@ -60,8 +60,16 @@ export interface PushSubscription {
 }
 
 // Base64url helpers (no padding)
-function base64urlEncode(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+function asUint8Array(buffer: ArrayBuffer | ArrayBufferView): Uint8Array {
+  if (buffer instanceof ArrayBuffer) {
+    return new Uint8Array(buffer);
+  }
+
+  return new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+}
+
+function base64urlEncode(buffer: ArrayBuffer | ArrayBufferView): string {
+  const bytes = asUint8Array(buffer);
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
@@ -143,32 +151,119 @@ async function buildVapidHeader(
   return `vapid t=${token},k=${vapid.publicKey}`;
 }
 
+// ─── RFC 8291 Payload Encryption ────────────────────────────────────────────
+
+function concat(...arrays: Uint8Array[]): Uint8Array {
+  const len = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Uint8Array(len);
+  let offset = 0;
+  for (const a of arrays) {
+    result.set(a, offset);
+    offset += a.length;
+  }
+  return result;
+}
+
+async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, data));
+}
+
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+  const prk = await hmacSha256(salt, ikm);
+  const infoWithCounter = concat(info, new Uint8Array([1]));
+  const okm = await hmacSha256(prk, infoWithCounter);
+  return okm.slice(0, length);
+}
+
+async function encryptPayload(
+  plaintext: Uint8Array,
+  subscription: PushSubscription
+): Promise<Uint8Array> {
+  const clientPublicKey = base64urlDecode(subscription.keys.p256dh);
+  const clientAuth = base64urlDecode(subscription.keys.auth);
+
+  const serverKeys = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]
+  ) as CryptoKeyPair;
+  const serverPublicKey = new Uint8Array(
+    await crypto.subtle.exportKey("raw", serverKeys.publicKey) as ArrayBuffer
+  );
+
+  const clientCryptoKey = await crypto.subtle.importKey(
+    "raw", clientPublicKey, { name: "ECDH", namedCurve: "P-256" }, false, []
+  );
+
+  const sharedSecret = new Uint8Array(
+    await crypto.subtle.deriveBits(
+      { name: "ECDH", public: clientCryptoKey } as any,
+      serverKeys.privateKey,
+      256
+    )
+  );
+
+  // RFC 8291 Section 3.3: IKM derivation
+  const enc = new TextEncoder();
+  const ikmInfo = concat(enc.encode("WebPush: info\0"), clientPublicKey, serverPublicKey);
+  const ikm = await hkdf(clientAuth, sharedSecret, ikmInfo, 32);
+
+  // RFC 8188: Content encryption key and nonce
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, enc.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(salt, ikm, enc.encode("Content-Encoding: nonce\0"), 12);
+
+  // Pad plaintext: content + delimiter (0x02 = final record)
+  const padded = concat(plaintext, new Uint8Array([2]));
+
+  const contentKey = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const encrypted = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, contentKey, padded)
+  );
+
+  // aes128gcm header: salt(16) || rs(4) || idlen(1) || keyid(65) || ciphertext
+  const rs = new Uint8Array(4);
+  new DataView(rs.buffer).setUint32(0, 4096);
+
+  return concat(salt, rs, new Uint8Array([serverPublicKey.length]), serverPublicKey, encrypted);
+}
+
+export interface PushResult {
+  ok: boolean;
+  status?: number;
+  body?: string;
+  error?: string;
+}
+
 /**
- * Sends a Web Push notification.
- * Returns true on success (HTTP 200/201), false otherwise.
+ * Sends a Web Push notification with RFC 8291 encrypted payload.
  */
 export async function sendPushNotification(
   subscription: PushSubscription,
   payload: NotificationPayload,
   vapid: VapidConfig
-): Promise<boolean> {
+): Promise<PushResult> {
   try {
     const authHeader = await buildVapidHeader(subscription.endpoint, vapid);
-
-    const body = JSON.stringify(payload);
+    const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+    const body = await encryptPayload(plaintext, subscription);
 
     const response = await fetch(subscription.endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: authHeader,
+        "Content-Encoding": "aes128gcm",
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(body.byteLength),
         TTL: "86400",
       },
       body,
     });
 
-    return response.ok;
-  } catch {
-    return false;
+    const responseBody = await response.text();
+    return { ok: response.ok, status: response.status, body: responseBody };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
   }
 }

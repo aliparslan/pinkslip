@@ -81,20 +81,18 @@ describe("LeverAdapter", () => {
     expect(jobs[1].department).toBeNull();
   });
 
-  it("returns [] on non-ok HTTP response", async () => {
+  it("throws on non-ok HTTP response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 403,
     }));
 
-    const jobs = await adapter.fetchJobs("unknown");
-    expect(jobs).toEqual([]);
+    await expect(adapter.fetchJobs("unknown")).rejects.toThrow("Lever API 403");
   });
 
-  it("returns [] on network error", async () => {
+  it("throws on network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
 
-    const jobs = await adapter.fetchJobs("robinhood");
-    expect(jobs).toEqual([]);
+    await expect(adapter.fetchJobs("robinhood")).rejects.toThrow("Network failure");
   });
 });

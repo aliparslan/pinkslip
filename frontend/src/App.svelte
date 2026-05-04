@@ -2,45 +2,103 @@
   import { onMount } from "svelte";
   import { currentRoute } from "./router";
   import { themeMode, cycleTheme } from "./lib/theme";
-  import { api } from "./lib/api";
+  import { api, ApiError } from "./lib/api";
   import Sun from "phosphor-svelte/lib/Sun";
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
   import Tracker from "./pages/Tracker.svelte";
-  import Profile from "./pages/Profile.svelte";
   import Companies from "./pages/Companies.svelte";
   import Settings from "./pages/Settings.svelte";
+  import Events from "./pages/Events.svelte";
+  import Corpus from "./pages/Corpus.svelte";
+  import Tailor from "./pages/Tailor.svelte";
   import TabBar from "./components/TabBar.svelte";
   import Onboarding from "./components/Onboarding.svelte";
 
   const routes: Record<string, any> = {
     "/": Feed,
     "/tracker": Tracker,
-    "/profile": Profile,
-    "/profile/companies": Companies,
+    "/events": Events,
+    "/profile": Settings,
+    "/companies": Companies,
+    "/corpus": Corpus,
     "/settings": Settings,
   };
 
   let route = $derived($currentRoute);
   let isDetailPage = $derived(route.startsWith("/jobs/"));
+  let isTailorPage = $derived(route.startsWith("/tailor/"));
   let CurrentPage = $derived(
-    isDetailPage ? JobDetail : (routes[route] ?? Feed)
+    isDetailPage ? JobDetail : isTailorPage ? Tailor : (routes[route] ?? Feed)
   );
-  let jobId = $derived(isDetailPage ? route.split("/jobs/")[1] : null);
+  let jobId = $derived(
+    isDetailPage
+      ? route.split("/jobs/")[1]
+      : isTailorPage
+        ? route.split("/tailor/")[1]
+        : null
+  );
+  let showTabBar = $derived(!isDetailPage && !isTailorPage);
   let mode = $derived($themeMode);
 
   let showOnboarding: boolean = $state(false);
   let userName: string = $state("");
+  let booting: boolean = $state(true);
+  let sessionReady: boolean = $state(false);
+  let bootError: string | null = $state(null);
+  let showAccessGate: boolean = $state(false);
+  let accessCode: string = $state("");
+  let accessError: string | null = $state(null);
+  let unlocking: boolean = $state(false);
+
+  async function bootstrapSession() {
+    bootError = null;
+    accessError = null;
+    showAccessGate = false;
+
+    try {
+      const res = await api.me.get();
+      userName = res.user?.name ?? "";
+      showOnboarding = !userName;
+      sessionReady = true;
+    } catch (error) {
+      sessionReady = false;
+      if (error instanceof ApiError && error.status === 401 && error.code === "access_required") {
+        showAccessGate = true;
+        return;
+      }
+      bootError = error instanceof Error ? error.message : "Could not load pinkslip.";
+    } finally {
+      booting = false;
+    }
+  }
+
+  async function handleAccessSubmit() {
+    if (!accessCode.trim() || unlocking) return;
+    unlocking = true;
+    accessError = null;
+
+    try {
+      await api.access.unlock(accessCode.trim());
+      accessCode = "";
+      booting = true;
+      await bootstrapSession();
+    } catch (error) {
+      accessError = error instanceof ApiError && error.status === 401
+        ? "That code did not match."
+        : error instanceof Error
+          ? error.message
+          : "Could not unlock pinkslip.";
+      booting = false;
+    } finally {
+      unlocking = false;
+    }
+  }
 
   onMount(() => {
-    api.me.get()
-      .then(res => {
-        userName = res.user?.name ?? "";
-        if (!userName) showOnboarding = true;
-      })
-      .catch(() => {});
+    bootstrapSession();
   });
 </script>
 
@@ -59,9 +117,9 @@
     </span>
   </div>
   <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
-    {#if mode === "light"}
+    {#if mode === "system"}
       <Sun size={18} weight="regular" />
-    {:else if mode === "dark"}
+    {:else if mode === "light"}
       <Moon size={18} weight="regular" />
     {:else}
       <CircleHalf size={18} weight="regular" />
@@ -70,14 +128,70 @@
 </header>
 
 <div class="app-container min-h-screen pb-28">
-  {#if isDetailPage}
-    <CurrentPage {jobId} />
+  {#if sessionReady}
+    {#if isDetailPage}
+      <CurrentPage {jobId} />
+    {:else if isTailorPage}
+      <CurrentPage {jobId} />
+    {:else}
+      <CurrentPage />
+    {/if}
+    {#if showTabBar}
+      <TabBar />
+    {/if}
+  {:else if bootError}
+    <div style="padding: 32px 22px 28px;">
+      <div style="padding: 18px; border-radius: 16px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
+        <div class="h-display" style="font-size: 22px; margin-bottom: 6px;">Couldn’t load the app</div>
+        <div style="font-size: 14px; margin-bottom: 14px;">{bootError}</div>
+        <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>
+          Try again
+        </button>
+      </div>
+    </div>
   {:else}
-    <CurrentPage />
+    <div style="padding: 48px 22px 28px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
+      {booting ? "Starting up..." : "Waiting for access..."}
+    </div>
   {/if}
-  <TabBar />
 </div>
 
-{#if showOnboarding}
+{#if showAccessGate}
+  <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in oklch, var(--color-bg) 92%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 24px;">
+    <div style="width: min(100%, 360px); padding: 24px; border-radius: 20px; background: var(--color-bg-elev); border: 1px solid var(--color-line); box-shadow: 0 18px 50px rgba(0,0,0,0.16);">
+      <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Enter the shared code</h2>
+      <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 18px;">
+        <span class="brand-word"><span class="brand-word-pink">Pink</span>slip</span>
+        keeps shared state for your group, so the app now checks a single access code before it loads.
+      </p>
+      <label for="access-code" class="field-label" style="margin-bottom: 8px;">
+        Access code
+      </label>
+      <input
+        id="access-code"
+        class="input-field"
+        type="password"
+        placeholder="Enter code"
+        bind:value={accessCode}
+        onkeydown={(event) => event.key === "Enter" && handleAccessSubmit()}
+      />
+      {#if accessError}
+        <div style="margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 13px;">
+          {accessError}
+        </div>
+      {/if}
+      <button
+        class="btn-primary btn-accent"
+        style="width: 100%; margin-top: 16px;"
+        disabled={!accessCode.trim() || unlocking}
+        onclick={handleAccessSubmit}
+      >
+        {unlocking ? "Checking..." : "Unlock"}
+      </button>
+    </div>
+  </div>
+{/if}
+
+{#if sessionReady && showOnboarding}
   <Onboarding onComplete={(name) => { userName = name; showOnboarding = false; }} />
 {/if}

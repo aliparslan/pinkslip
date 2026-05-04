@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
   import CompanyRow from "../components/CompanyRow.svelte";
@@ -12,17 +13,26 @@
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
   let selectedAts: string = $state("All");
+  let search: string = $state("");
+  let showDisabled: boolean = $state(false);
 
   // Add company form
   let showAddForm: boolean = $state(false);
   let addName: string = $state("");
   let addAtsType: string = $state("greenhouse");
   let addSlug: string = $state("");
+  let addWebsite: string = $state("");
   let adding: boolean = $state(false);
+  let addVerifyBusy: boolean = $state(false);
+  let addVerifyError: string | null = $state(null);
+  let addVerifyMsg: string | null = $state(null);
 
   // Edit company
   let editTarget: { id: string; name: string; ats_type: string; ats_slug: string } | null = $state(null);
   let saving: boolean = $state(false);
+  let editVerifyBusy: boolean = $state(false);
+  let editVerifyError: string | null = $state(null);
+  let editVerifyMsg: string | null = $state(null);
 
   // Delete confirmation
   let deleteTarget: { id: string; name: string } | null = $state(null);
@@ -30,9 +40,16 @@
   let toast: string | null = $state(null);
 
   let filteredCompanies = $derived(
-    selectedAts === "All"
-      ? companies
-      : companies.filter((c) => c.ats_type === selectedAts)
+    companies.filter((c) => {
+      const matchesAts = selectedAts === "All" || c.ats_type === selectedAts;
+      const query = search.trim().toLowerCase();
+      const matchesSearch =
+        query === "" ||
+        c.name.toLowerCase().includes(query) ||
+        c.ats_slug.toLowerCase().includes(query);
+      const matchesVisibility = showDisabled || Boolean(c.enabled);
+      return matchesAts && matchesSearch && matchesVisibility;
+    })
   );
 
   onMount(() => {
@@ -65,12 +82,16 @@
         name: trimmedName,
         ats_type: addAtsType,
         ats_slug: trimmedSlug,
+        website: addWebsite.trim() || undefined,
       });
       companies = [...companies, created].sort((a, b) => a.name.localeCompare(b.name));
       addName = "";
       addSlug = "";
+      addWebsite = "";
       addAtsType = "greenhouse";
       showAddForm = false;
+      addVerifyError = null;
+      addVerifyMsg = null;
     } catch (e: any) {
       error = e.message;
     } finally {
@@ -82,6 +103,9 @@
     const c = companies.find((co) => co.id === id);
     if (!c) return;
     editTarget = { id: c.id, name: c.name, ats_type: c.ats_type, ats_slug: c.ats_slug };
+    editVerifyBusy = false;
+    editVerifyError = null;
+    editVerifyMsg = null;
   }
 
   async function handleSaveEdit() {
@@ -112,6 +136,54 @@
       error = e.message;
     } finally {
       saving = false;
+    }
+  }
+
+  async function verifyAddSource() {
+    if (!addSlug.trim() || addVerifyBusy) return;
+    addVerifyBusy = true;
+    addVerifyError = null;
+    addVerifyMsg = null;
+    try {
+      const result = await api.companies.verify({
+        ats_type: addAtsType,
+        ats_slug: addSlug.trim(),
+      });
+      if (!result.ok) {
+        addVerifyError = result.error ?? "Verification failed";
+      } else {
+        addVerifyMsg = `${result.total_jobs ?? 0} jobs found` + (
+          result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
+        );
+      }
+    } catch (e: any) {
+      addVerifyError = e.message;
+    } finally {
+      addVerifyBusy = false;
+    }
+  }
+
+  async function verifyEditSource() {
+    if (!editTarget?.ats_slug.trim() || editVerifyBusy) return;
+    editVerifyBusy = true;
+    editVerifyError = null;
+    editVerifyMsg = null;
+    try {
+      const result = await api.companies.verify({
+        ats_type: editTarget.ats_type,
+        ats_slug: editTarget.ats_slug.trim(),
+      });
+      if (!result.ok) {
+        editVerifyError = result.error ?? "Verification failed";
+      } else {
+        editVerifyMsg = `${result.total_jobs ?? 0} jobs found` + (
+          result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
+        );
+      }
+    } catch (e: any) {
+      editVerifyError = e.message;
+    } finally {
+      editVerifyBusy = false;
     }
   }
 
@@ -163,7 +235,6 @@
 
 <div class="page">
   <div style="padding: 0 22px 28px;">
-    <p class="h-eyebrow" style="margin-bottom: 6px;">Sources</p>
     <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
       Companies
     </h1>
@@ -173,33 +244,51 @@
       {#if errorCount > 0}
         <span><strong style="color: var(--color-bad);">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
       {/if}
+      {#if !showDisabled}
+        <span>disabled hidden</span>
+      {/if}
     </div>
 
     <!-- Filter chips + toggle all -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-      <FilterChips
-        filters={ATS_TYPES}
-        selected={selectedAts}
-        onSelect={(f) => (selectedAts = f)}
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+      <input
+        class="input-field"
+        type="search"
+        placeholder="Search companies or ATS slugs"
+        bind:value={search}
       />
-      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 12px;">
-        {#if filteredCompanies.length > 0}
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <FilterChips
+          filters={ATS_TYPES}
+          selected={selectedAts}
+          onSelect={(f) => (selectedAts = f)}
+        />
+        <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 12px;">
           <button
             class="btn-secondary"
             style="height: 28px; padding: 0 12px; font-size: 11px;"
-            onclick={() => toggleAll(!filteredAllEnabled)}
+            onclick={() => showDisabled = !showDisabled}
           >
-            {filteredAllEnabled ? "Deselect all" : "Select all"}
+            {showDisabled ? "Hide disabled" : "Show disabled"}
           </button>
-        {/if}
-        <button
-          class="btn-primary btn-accent"
-          style="height: 28px; padding: 0 12px; font-size: 11px; gap: 4px;"
-          onclick={() => { showAddForm = !showAddForm; }}
-        >
-          <Plus size={12} weight="bold" />
-          Add
-        </button>
+          {#if filteredCompanies.length > 0}
+            <button
+              class="btn-secondary"
+              style="height: 28px; padding: 0 12px; font-size: 11px;"
+              onclick={() => toggleAll(!filteredAllEnabled)}
+            >
+              {filteredAllEnabled ? "Deselect all" : "Select all"}
+            </button>
+          {/if}
+          <button
+            class="btn-primary btn-accent"
+            style="height: 28px; padding: 0 12px; font-size: 11px; gap: 4px;"
+            onclick={() => { showAddForm = !showAddForm; }}
+          >
+            <Plus size={12} weight="bold" />
+            Add
+          </button>
+        </div>
       </div>
     </div>
 
@@ -209,12 +298,12 @@
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Add a company</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <div>
-            <label for="add-name" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">Company name</label>
+            <label for="add-name" class="field-label">Company name</label>
             <input id="add-name" class="input-field" type="text" placeholder="e.g. Stripe" bind:value={addName} />
           </div>
           <div style="display: flex; gap: 10px;">
             <div style="flex: 1;">
-              <label for="add-ats" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">ATS type</label>
+              <label for="add-ats" class="field-label">ATS type</label>
               <select id="add-ats" class="input-field" bind:value={addAtsType}>
                 <option value="greenhouse">Greenhouse</option>
                 <option value="lever">Lever</option>
@@ -222,11 +311,33 @@
               </select>
             </div>
             <div style="flex: 1;">
-              <label for="add-slug" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">ATS slug</label>
+              <label for="add-slug" class="field-label">ATS slug</label>
               <input id="add-slug" class="input-field" type="text" placeholder="e.g. stripe" bind:value={addSlug} />
             </div>
           </div>
+          <div>
+            <label for="add-website" class="field-label">Website</label>
+            <input id="add-website" class="input-field" type="url" placeholder="https://stripe.com" bind:value={addWebsite} />
+          </div>
+          {#if addVerifyError}
+            <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+              {addVerifyError}
+            </div>
+          {/if}
+          {#if addVerifyMsg}
+            <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good); font-size: 12px;">
+              {addVerifyMsg}
+            </div>
+          {/if}
           <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button
+              class="btn-secondary"
+              style="padding: 0 14px;"
+              disabled={!addSlug.trim() || addVerifyBusy}
+              onclick={verifyAddSource}
+            >
+              {addVerifyBusy ? "..." : "Verify"}
+            </button>
             <button
               class="btn-primary btn-accent"
               style="flex: 1; height: 44px; font-size: 14px;"
@@ -301,12 +412,12 @@
       <div id="edit-title" style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Edit company</div>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div>
-          <label for="edit-name" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">Name</label>
+          <label for="edit-name" class="field-label">Name</label>
           <input id="edit-name" class="input-field" type="text" bind:value={editTarget.name} />
         </div>
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
-            <label for="edit-ats" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">ATS type</label>
+            <label for="edit-ats" class="field-label">ATS type</label>
             <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
               <option value="greenhouse">Greenhouse</option>
               <option value="lever">Lever</option>
@@ -314,11 +425,29 @@
             </select>
           </div>
           <div style="flex: 1;">
-            <label for="edit-slug" style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;">ATS slug</label>
+            <label for="edit-slug" class="field-label">ATS slug</label>
             <input id="edit-slug" class="input-field" type="text" bind:value={editTarget.ats_slug} />
           </div>
         </div>
+        {#if editVerifyError}
+          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+            {editVerifyError}
+          </div>
+        {/if}
+        {#if editVerifyMsg}
+          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good); font-size: 12px;">
+            {editVerifyMsg}
+          </div>
+        {/if}
         <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button
+            class="btn-secondary"
+            style="padding: 0 14px;"
+            disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
+            onclick={verifyEditSource}
+          >
+            {editVerifyBusy ? "..." : "Verify"}
+          </button>
           <button
             class="btn-primary btn-accent"
             style="flex: 1; height: 44px; font-size: 14px;"
@@ -397,7 +526,9 @@
 
 <!-- Toast -->
 {#if toast}
-  <div style="position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 80; background: var(--color-bg-elev); color: var(--color-ink); border: 1px solid var(--color-line); box-shadow: 0 4px 16px rgba(0,0,0,0.1); font-size: 13.5px; font-weight: 500; padding: 10px 20px; border-radius: 999px; animation: fade-in 0.15s; pointer-events: none;">
-    {toast}
+  <div class="toast-wrap">
+    <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
+      {toast}
+    </div>
   </div>
 {/if}

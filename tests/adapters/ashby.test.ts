@@ -12,6 +12,8 @@ const MOCK_RESPONSE = {
           departmentName: "Engineering",
           publishedDate: "2026-05-01T00:00:00.000Z",
           externalLink: "https://jobs.ashbyhq.com/cursor/ashby-001",
+          descriptionHtml: "<p>Build stuff</p>",
+          compensationTierSummary: "$150k - $200k",
         },
         {
           id: "ashby-002",
@@ -20,6 +22,8 @@ const MOCK_RESPONSE = {
           departmentName: null,
           publishedDate: null,
           externalLink: "https://jobs.ashbyhq.com/cursor/ashby-002",
+          descriptionHtml: null,
+          compensationTierSummary: null,
         },
       ],
     },
@@ -30,7 +34,7 @@ const EXPECTED_GRAPHQL_BODY = {
   operationName: "ApiJobBoardWithTeams",
   variables: { organizationHostedJobsPageName: "cursor" },
   query:
-    "query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName departmentName publishedDate externalLink } } }",
+    "query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName departmentName publishedDate externalLink descriptionHtml compensationTierSummary } } }",
 };
 
 describe("AshbyAdapter", () => {
@@ -97,20 +101,18 @@ describe("AshbyAdapter", () => {
     expect(jobs[1].postedAt).toBeNull();
   });
 
-  it("returns [] on non-ok HTTP response", async () => {
+  it("throws on non-ok HTTP response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
     }));
 
-    const jobs = await adapter.fetchJobs("cursor");
-    expect(jobs).toEqual([]);
+    await expect(adapter.fetchJobs("cursor")).rejects.toThrow("Ashby API 500");
   });
 
-  it("returns [] on network error", async () => {
+  it("throws on network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
 
-    const jobs = await adapter.fetchJobs("cursor");
-    expect(jobs).toEqual([]);
+    await expect(adapter.fetchJobs("cursor")).rejects.toThrow("Network failure");
   });
 });

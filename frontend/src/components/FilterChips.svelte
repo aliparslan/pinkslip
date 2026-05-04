@@ -7,7 +7,10 @@
 </script>
 
 <div style="position: relative;">
-  <div class="flex gap-2 overflow-x-auto no-scrollbar" style="-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);">
+  <div
+    class="flex flex-wrap items-center gap-2"
+    style="padding: 1px 0 4px;"
+  >
     {#each filters as filter}
       <button
         class="chip {selected === filter ? 'chip-active' : ''}"

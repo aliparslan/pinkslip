@@ -1,0 +1,2 @@
+ALTER TABLE jobs ADD COLUMN description TEXT;
+ALTER TABLE jobs ADD COLUMN salary TEXT;

@@ -60,8 +60,9 @@ describe("buildNotificationPayload", () => {
 const MOCK_SUBSCRIPTION: PushSubscription = {
   endpoint: "https://push.example.com/v1/send/sub123",
   keys: {
-    p256dh: "BNcR...",
-    auth: "tBHI...",
+    p256dh:
+      "BDthKSn35TQLXUcgRuaAaS0dmaUE2e53yD1TBJ1PLYZ6F5Qg8Zx_J---3G-7CBXBme1EBPkqVgVPDeFm9E5m6UM",
+    auth: "AAECAwQFBgcICQoLDA0ODw",
   },
 };
 

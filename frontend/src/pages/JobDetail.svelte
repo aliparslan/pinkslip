@@ -279,6 +279,63 @@
         </div>
       {/if}
 
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          {#if job.url}
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-primary btn-accent"
+              style="text-decoration: none;"
+            >
+              Apply now
+              <ArrowSquareOut size={16} />
+            </a>
+          {/if}
+          <button
+            class="btn-secondary"
+            onclick={() => jobId && navigate(`/tailor/${jobId}`)}
+          >
+            Tailor materials
+          </button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button
+            class="btn-secondary"
+            disabled={applied || applying}
+            onclick={async () => {
+              if (!jobId || !job) return;
+              applying = true;
+              try {
+                await api.applications.create({
+                  job_id: jobId,
+                  company_name: job.company_name,
+                  title: job.title,
+                  url: job.url ?? "",
+                });
+                applied = true;
+                await api.jobs.dismiss(jobId);
+                navigate("/");
+              } catch (e: any) {
+                error = e.message;
+                applying = false;
+              }
+            }}
+          >
+            <CheckCircle size={16} />
+            {applied ? "Tracked" : applying ? "..." : "Mark as applied"}
+          </button>
+          <button
+            class="btn-secondary"
+            onclick={handleDismiss}
+            disabled={dismissing}
+          >
+            {dismissing ? "..." : "Dismiss for me"}
+          </button>
+        </div>
+      </div>
+
       <!-- Description (parsed) -->
       {#if parsedDesc.length > 0}
         <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 16px;">
@@ -295,57 +352,6 @@
         </div>
       {/if}
 
-      <!-- Actions -->
-      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
-        <div style="display: flex; gap: 8px;">
-          {#if job.url}
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn-primary btn-accent"
-              style="flex: 1; text-decoration: none;"
-            >
-              Apply now
-              <ArrowSquareOut size={16} />
-            </a>
-          {/if}
-          <button
-            class="btn-secondary"
-            style="width: 100px; height: 52px; flex-shrink: 0;"
-            onclick={handleDismiss}
-            disabled={dismissing}
-          >
-            {dismissing ? "..." : "Dismiss"}
-          </button>
-        </div>
-        <button
-          class="btn-secondary"
-          style="width: 100%;"
-          disabled={applied || applying}
-          onclick={async () => {
-            if (!jobId || !job) return;
-            applying = true;
-            try {
-              await api.applications.create({
-                job_id: jobId,
-                company_name: job.company_name,
-                title: job.title,
-                url: job.url ?? "",
-              });
-              applied = true;
-              await api.jobs.dismiss(jobId);
-              navigate("/");
-            } catch (e: any) {
-              error = e.message;
-              applying = false;
-            }
-          }}
-        >
-          <CheckCircle size={16} />
-          {applied ? "Tracked" : applying ? "..." : "Mark as applied"}
-        </button>
-      </div>
     {/if}
   </div>
 </div>
@@ -381,14 +387,14 @@
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button
           class="btn-secondary"
-          style="width: 100%;"
+          style="width: 100%; height: 48px;"
           onclick={() => { showBlockConfirm = false; handleDismiss(); }}
         >
           Just dismiss for me
         </button>
         <button
           class="btn-primary"
-          style="width: 100%; background: var(--color-bad); color: #fff; border-color: var(--color-bad);"
+          style="width: 100%; height: 48px; background: var(--color-bad); color: #fff; border-color: var(--color-bad);"
           disabled={blocking}
           onclick={handleBlock}
         >

@@ -1,15 +1,13 @@
-import { GreenhouseAdapter } from "./adapters/greenhouse";
-import { LeverAdapter } from "./adapters/lever";
-import { AshbyAdapter } from "./adapters/ashby";
 import type { JobListing } from "./adapters/types";
 import { scoreJob } from "./scoring";
-import type { ScoringPrefs, ScoreBreakdown } from "./scoring";
+import type { ScoringPrefs } from "./scoring";
 import {
   buildNotificationPayload,
   sendPushNotification,
 } from "./push";
 import type { NotificationJob } from "./push";
 import type { Env, CompanyRow, PreferenceRow, PushSubscriptionRow } from "./types";
+import { getAdapter } from "./ats";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +19,7 @@ interface PollStats {
   companiesPolled: number;
   newJobsFound: number;
   notificationsSent: number;
+  log: string[];
 }
 
 interface NewJobMeta {
@@ -28,6 +27,33 @@ interface NewJobMeta {
   title: string;
   jobId: string;
   score: number;
+}
+
+interface CompanyPollError {
+  companyId: string;
+  companyName: string;
+  error: string;
+}
+
+interface RunPollCycleOptions {
+  limit?: number;
+  scope?: "cron" | "manual";
+  sendNotifications?: boolean;
+}
+
+async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
+  try {
+    const row = await db.prepare(
+      `SELECT name
+       FROM sqlite_master
+       WHERE type = 'table' AND name = 'fetch_runs'
+       LIMIT 1`
+    ).first<{ name: string }>();
+
+    return Boolean(row?.name);
+  } catch {
+    return false;
+  }
 }
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
@@ -41,6 +67,38 @@ export function diffJobs(
   existingExternalIds: Set<string>
 ): JobListing[] {
   return fetched.filter((job) => !existingExternalIds.has(job.externalId));
+}
+
+export async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let cursor = 0;
+
+  async function runNext(): Promise<void> {
+    const index = cursor++;
+    if (index >= items.length) return;
+
+    try {
+      results[index] = {
+        status: "fulfilled",
+        value: await worker(items[index], index),
+      };
+    } catch (error) {
+      results[index] = {
+        status: "rejected",
+        reason: error,
+      };
+    }
+
+    await runNext();
+  }
+
+  const width = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: width }, () => runNext()));
+  return results;
 }
 
 // ─── DB helpers ──────────────────────────────────────────────────────────────
@@ -89,18 +147,7 @@ export async function pollCompany(
   prefs: ScoringPrefs
 ): Promise<NewJobMeta[]> {
   // 1. Pick adapter by ats_type
-  const adapter = (() => {
-    switch (company.ats_type) {
-      case "greenhouse":
-        return new GreenhouseAdapter();
-      case "lever":
-        return new LeverAdapter();
-      case "ashby":
-        return new AshbyAdapter();
-      default:
-        return null;
-    }
-  })();
+  const adapter = getAdapter(company.ats_type);
 
   if (!adapter) return [];
 
@@ -225,14 +272,38 @@ export async function pollCompany(
  * 6. Send push notifications
  * 7. Return stats
  */
-export async function runPollCycle(env: Env): Promise<PollStats> {
+export async function runPollCycle(
+  env: Env,
+  options: RunPollCycleOptions = {}
+): Promise<PollStats> {
   const db = env.DB;
+  const scope = options.scope ?? "cron";
+  const sendNotifications = options.sendNotifications ?? true;
+  const companyLimit = Math.max(1, options.limit ?? 30);
+  const runId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startedAtMs = Date.now();
+  const pollErrors: CompanyPollError[] = [];
+  const log: string[] = [];
+  const trackRuns = await hasFetchRunsTable(db);
+
+  if (trackRuns) {
+    await db.prepare(
+      `INSERT INTO fetch_runs (id, scope, status, started_at)
+       VALUES (?, ?, 'running', ?)`
+    ).bind(runId, scope, startedAt).run();
+  }
 
   // 1. Load enabled non-custom companies
   const companiesResult = await db
     .prepare(
-      "SELECT * FROM companies WHERE enabled = 1 AND ats_type != 'custom'"
+      `SELECT *
+       FROM companies
+       WHERE enabled = 1 AND ats_type != 'custom'
+       ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
+       LIMIT ?`
     )
+    .bind(companyLimit)
     .all<CompanyRow>();
   const companies = companiesResult.results ?? [];
 
@@ -240,37 +311,54 @@ export async function runPollCycle(env: Env): Promise<PollStats> {
   const prefs = await loadPreferencesForPoll(db);
   const threshold = prefs.notify_threshold ?? 50;
 
+  // 2b. Write last_polled_at early so it reflects cycle start even if we time out
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO preferences (key, value) VALUES ('last_polled_at', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).bind(now).run();
+
   // 3. Fan out pollCompany() calls
-  const results = await Promise.allSettled(
-    companies.map((company) => pollCompany(company, db, prefs))
+  const results = await runWithConcurrency(
+    companies,
+    6,
+    (company) => pollCompany(company, db, prefs)
   );
 
-  // 4. Collect all new jobs and update poll status per company
+  // 4. Collect all new jobs and batch-update poll status per company
   const allNewJobs: NewJobMeta[] = [];
-  const now = new Date().toISOString();
+  const statusStmts = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const company = companies[i];
     if (result.status === "fulfilled") {
       allNewJobs.push(...result.value);
-      await db
-        .prepare(
+      log.push(`${company.name}: ${result.value.length} new`);
+      statusStmts.push(
+        db.prepare(
           "UPDATE companies SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ? WHERE id = ?"
-        )
-        .bind(now, company.id)
-        .run();
+        ).bind(now, company.id)
+      );
     } else {
       const errMsg =
         result.reason instanceof Error
           ? result.reason.message
           : String(result.reason);
-      await db
-        .prepare(
+      pollErrors.push({
+        companyId: company.id,
+        companyName: company.name,
+        error: errMsg,
+      });
+      log.push(`${company.name}: ERROR ${errMsg}`);
+      statusStmts.push(
+        db.prepare(
           "UPDATE companies SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ? WHERE id = ?"
-        )
-        .bind(errMsg, now, company.id)
-        .run();
+        ).bind(errMsg, now, company.id)
+      );
     }
+  }
+  if (statusStmts.length > 0) {
+    await db.batch(statusStmts);
   }
 
   // 5. Filter qualifying jobs
@@ -278,7 +366,7 @@ export async function runPollCycle(env: Env): Promise<PollStats> {
 
   // 6. Send push notifications
   let notificationsSent = 0;
-  if (qualifying.length > 0) {
+  if (sendNotifications && qualifying.length > 0) {
     // Load all push subscriptions
     const subsResult = await db
       .prepare("SELECT * FROM push_subscriptions")
@@ -328,18 +416,41 @@ export async function runPollCycle(env: Env): Promise<PollStats> {
 
   // Purge jobs closed for over 7 days (but preserve applied jobs)
   await db.prepare(
-    `DELETE FROM jobs WHERE closed_at IS NOT NULL AND closed_at < datetime('now', '-7 days')
+    `DELETE FROM jobs WHERE closed_at IS NOT NULL AND datetime(closed_at) < datetime('now', '-7 days')
      AND id NOT IN (SELECT job_id FROM applications WHERE job_id IS NOT NULL)`
   ).run();
 
-  await db.prepare(
-    `INSERT INTO preferences (key, value) VALUES ('last_polled_at', ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).bind(new Date().toISOString()).run();
+  if (trackRuns) {
+    await db.prepare(
+      `UPDATE fetch_runs
+       SET status = ?,
+           companies_attempted = ?,
+           companies_succeeded = ?,
+           companies_failed = ?,
+           new_jobs_found = ?,
+           notifications_sent = ?,
+           errors_json = ?,
+           finished_at = ?,
+           duration_ms = ?
+       WHERE id = ?`
+    ).bind(
+      pollErrors.length > 0 ? "error" : "ok",
+      companies.length,
+      companies.length - pollErrors.length,
+      pollErrors.length,
+      allNewJobs.length,
+      notificationsSent,
+      pollErrors.length > 0 ? JSON.stringify(pollErrors) : null,
+      new Date().toISOString(),
+      Date.now() - startedAtMs,
+      runId
+    ).run();
+  }
 
   return {
     companiesPolled: companies.length,
     newJobsFound: allNewJobs.length,
     notificationsSent,
+    log,
   };
 }
