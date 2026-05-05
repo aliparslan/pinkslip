@@ -26,7 +26,7 @@
       {@const active = isActive(tab.path)}
       <button
         class="flex flex-col items-center gap-1 py-1.5 transition-colors"
-        style="color: {active ? 'var(--color-ink)' : 'var(--color-ink-3)'}; font-family: var(--font-sans); font-size: 10.5px; font-weight: 500;"
+        style="color: {active ? 'var(--color-ink)' : 'var(--color-ink-3)'}; font-family: var(--font-sans); font-size: 11px; font-weight: 500;"
         onclick={() => navigate(tab.path)}
         aria-current={active ? "page" : undefined}
       >

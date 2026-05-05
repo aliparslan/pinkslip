@@ -16,6 +16,23 @@ interface LeverSalaryRange {
   interval: string;
 }
 
+const SALARY_PATTERNS = [
+  /(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\s*)?(?:\$|£|€|¥)\s*[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:-|–|—|to)\s*(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\s*)?(?:\$|£|€|¥)\s*[\d,]+(?:\.\d{2})?(?:\s*[kK])?/gi,
+  /\$[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:\/\s*(?:yr|year|annually|annual|hr|hour|hourly))/gi,
+];
+
+function normalizeHtmlText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&ndash;|&mdash;/gi, " – ")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, "\"")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
  * Formats a Greenhouse pay_input_range into a human-readable salary string.
  * Returns null if the range is not provided.
@@ -39,4 +56,33 @@ export function formatLeverSalary(range: LeverSalaryRange | undefined): string |
   const { min, max, currency, interval } = range;
   const prefix = currency === "USD" ? "$" : `${currency} `;
   return `${prefix}${min.toLocaleString()} – ${prefix}${max.toLocaleString()}/${interval}`;
+}
+
+/**
+ * Extracts compensation text from raw ATS HTML when the structured salary field is absent.
+ */
+export function extractSalaryFromHtml(html: string | null | undefined): string | null {
+  if (!html) return null;
+
+  const text = normalizeHtmlText(html);
+  if (!text) return null;
+
+  const matches: string[] = [];
+  for (const pattern of SALARY_PATTERNS) {
+    const found = text.match(pattern);
+    if (!found) continue;
+
+    for (const match of found) {
+      const cleaned = match.replace(/\s+/g, " ").trim();
+      const numbers = cleaned.match(/[\d,]+/g) ?? [];
+      const maxValue = Math.max(...numbers.map((value) => parseInt(value.replace(/,/g, ""), 10)));
+      if (Number.isFinite(maxValue) && maxValue >= 1000) {
+        matches.push(cleaned);
+      }
+    }
+  }
+
+  const unique = [...new Set(matches)];
+  if (unique.length === 0) return null;
+  return unique.slice(0, 2).join(" · ");
 }

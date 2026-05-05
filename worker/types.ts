@@ -121,9 +121,10 @@ export interface ApplicationRow {
 export interface EventRow {
   id: string;
   company_id: string | null;
+  company_name: string;
   title: string;
   description: string;
-  event_type: "career_fair" | "info_session" | "workshop" | "networking" | "other";
+  event_type: string;
   event_date: string;
   location: string;
   url: string;

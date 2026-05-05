@@ -21,6 +21,8 @@ const DEFAULT_PREFS: ScoringPrefs = {
     "intern",
     "manager",
     "senior staff",
+    "lead",
+    "vice president",
     "vp",
     "head of",
   ],
@@ -136,13 +138,7 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
-  it("does not auto-disqualify titles just because they contain lead or architect", () => {
-    const leadJob = makeJob({
-      title: "Technical Lead, Platform",
-      location: "Remote",
-      department: "Engineering",
-      postedAt: new Date().toISOString(),
-    });
+  it("does not auto-disqualify architect titles that still look like IC software roles", () => {
     const architectJob = makeJob({
       title: "Solutions Architect",
       location: "Remote",
@@ -150,8 +146,32 @@ describe("scoreJob", () => {
       postedAt: new Date().toISOString(),
     });
 
-    expect(scoreJob(leadJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(29);
     expect(scoreJob(architectJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(29);
+  });
+
+  it("filters lead, vice president, and sr titles more aggressively", () => {
+    const leadJob = makeJob({
+      title: "Technical Lead, Platform",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const vpJob = makeJob({
+      title: "Vice President of Engineering",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const srJob = makeJob({
+      title: "Sr Software Engineer",
+      location: "Remote",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+
+    expect(scoreJob(leadJob, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(vpJob, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(srJob, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
   it("uses the job description for YOE scoring instead of relying on the title", () => {
@@ -198,6 +218,49 @@ describe("scoreJob", () => {
     expect(scoreJob(mechanicalJob, DEFAULT_PREFS).score).toBeLessThan(30);
     expect(scoreJob(chemicalJob, DEFAULT_PREFS).score).toBeLessThan(30);
     expect(scoreJob(dataJob, DEFAULT_PREFS).score).toBeGreaterThan(50);
+  });
+
+  it("excludes remote roles that are explicitly outside the us", () => {
+    const canadaRemote = makeJob({
+      title: "Software Engineer",
+      location: "Remote - Ontario, Canada",
+      department: "Engineering",
+      postedAt: null,
+    });
+    const globalRemote = makeJob({
+      title: "Software Engineer",
+      location: "Remote (EMEA)",
+      department: "Engineering",
+      postedAt: null,
+    });
+    const usRemote = makeJob({
+      title: "Software Engineer",
+      location: "Remote, United States",
+      department: "Engineering",
+      postedAt: null,
+    });
+
+    expect(scoreJob(canadaRemote, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(globalRemote, DEFAULT_PREFS).score).toBeLessThan(30);
+    expect(scoreJob(usRemote, DEFAULT_PREFS).score).toBeGreaterThan(50);
+  });
+
+  it("keeps new grad and early career software roles in the feed", () => {
+    const newGradJob = makeJob({
+      title: "Software Engineer, New Grad",
+      location: "Remote, United States",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+    const earlyCareerJob = makeJob({
+      title: "Early Career Backend Engineer",
+      location: "NYC",
+      department: "Engineering",
+      postedAt: new Date().toISOString(),
+    });
+
+    expect(scoreJob(newGradJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
+    expect(scoreJob(earlyCareerJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
   // Test 8: Recency — today's posting scores higher than 14-day-old posting

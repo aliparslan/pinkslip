@@ -3,7 +3,11 @@
   import { navigate } from "../router";
   import { api } from "../lib/api";
   import {
-    JOB_SCORE_RAW_MAX,
+    extractPlainTextFromHtml,
+    extractSalaryFromHtml,
+    parseJobDescription,
+  } from "../lib/job-content";
+  import {
     normalizeJobScore,
     scoreLabelFromPercent,
     scoreToneFromPercent,
@@ -156,86 +160,26 @@
     { label: "Recency", key: "recency_score", max: 10 },
   ];
 
-  interface DescSection { heading: string; items: string[] }
-
-  const KEEP_HEADINGS = /role|responsibilit|you.?ll|you.?re excited|excited about you|what we.?re looking|qualif|require|experience|you have|you bring|what you.?ll need|skills|about this/i;
-  const SKIP_HEADINGS = /about (the company|doordash|us)|diversity|inclusion|equal opportunity|benefits|perks|notice to|commitment to|who we are|our mission/i;
-
-  function parseDescription(html: string): DescSection[] {
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    div.querySelectorAll("img, script, style, .content-intro, .content-conclusion").forEach((el) => el.remove());
-    div.querySelectorAll('[style*="display: none"], [style*="display:none"]').forEach((el) => el.remove());
-
-    const sections: DescSection[] = [];
-    let current: DescSection | null = null;
-
-    for (const node of div.children) {
-      const tag = node.tagName;
-      const text = (node.textContent ?? "").trim();
-      if (!text) continue;
-
-      const isHeading = tag === "H1" || tag === "H2" || tag === "H3" || tag === "H4" || (tag === "P" && node.querySelector("strong") && text.length < 80);
-
-      if (isHeading) {
-        if (SKIP_HEADINGS.test(text)) { current = null; continue; }
-        if (KEEP_HEADINGS.test(text)) {
-          current = { heading: text, items: [] };
-          sections.push(current);
-        } else {
-          current = null;
-        }
-        continue;
-      }
-
-      if (!current) continue;
-
-      if (tag === "UL" || tag === "OL") {
-        for (const li of node.querySelectorAll("li")) {
-          const t = (li.textContent ?? "").trim();
-          if (t) current.items.push(t);
-        }
-      } else if (tag === "P") {
-        if (text) current.items.push(text);
-      }
-    }
-
-    return sections.filter((s) => s.items.length > 0);
-  }
-
-  function extractPayRanges(html: string): string[] {
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    const ranges: string[] = [];
-    for (const el of div.querySelectorAll(".pay-input")) {
-      const title = el.querySelector(".title")?.textContent?.trim() ?? "";
-      const spans = el.querySelectorAll(".pay-range span:not(.divider)");
-      if (spans.length >= 2) {
-        const min = spans[0].textContent?.trim() ?? "";
-        const max = spans[1].textContent?.trim() ?? "";
-        ranges.push(title ? `${title}: ${min} – ${max}` : `${min} – ${max}`);
-      }
-    }
-    return ranges;
-  }
-
-  let parsedDesc = $derived(job?.description ? parseDescription(job.description) : []);
-  let payRanges = $derived(job?.description ? extractPayRanges(job.description) : []);
+  let parsedDesc = $derived(job?.description ? parseJobDescription(job.description) : []);
+  let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
+  let displaySalary = $derived(job?.salary ?? extractedSalary);
   let plainDescription = $derived.by(() => {
-    if (!job?.description) return "";
-    const div = document.createElement("div");
-    div.innerHTML = job.description;
-    return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+    return extractPlainTextFromHtml(job?.description);
   });
 </script>
 
 <div class="page">
   <!-- Header -->
-  <header style="padding: 8px 22px 12px; display: flex; align-items: center; justify-content: space-between;">
+  <header style="padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-line);">
     <button class="icon-btn" aria-label="Back" onclick={() => navigate("/")}>
-      <ArrowLeft size={20} />
+      <ArrowLeft size={18} />
     </button>
-    <div style="display: flex; gap: 0;">
+    {#if job?.ats_type}
+      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;">
+        via {job.ats_type}
+      </div>
+    {/if}
+    <div style="display: flex; gap: 2px;">
       {#if job?.url}
         <a
           class="icon-btn"
@@ -256,7 +200,7 @@
     </div>
   </header>
 
-  <div style="padding: 0 28px 28px;">
+  <div style="padding: 18px 20px 28px;">
     {#if loading}
       <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: 12px;">
         Loading...
@@ -270,87 +214,85 @@
       <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px;">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
         <div style="flex: 1; min-width: 0;">
-          <div style="font-family: var(--font-mono); font-size: 11.5px; color: var(--color-ink-2); margin-bottom: 4px; letter-spacing: -0.005em;">
-            {job.company_name}{#if job.ats_type} · via {job.ats_type}{/if}
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
+            {job.company_name}{#if job.department} · {job.department}{/if}
           </div>
-          <h1 class="h-display" style="font-size: 26px; letter-spacing: -0.025em;">
+          <h1 class="h-display" style="font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-top: 4px;">
             {job.title}
           </h1>
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="stat-row" style="margin-bottom: 22px;">
+      <!-- Metadata row -->
+      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--color-ink-3);">
         {#if job.location}
-          <span>
-            <MapPin size={13} />
+          <span style="display: inline-flex; align-items: center; gap: 4px;">
+            <MapPin size={12} />
             {job.location}
           </span>
         {/if}
-        {#if job.salary}
-          <span>
-            <CurrencyDollar size={13} />
-            {job.salary}
+        {#if job.location && displaySalary}
+          <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
+        {/if}
+        {#if displaySalary}
+          <span style="display: inline-flex; align-items: center; gap: 4px;">
+            <CurrencyDollar size={12} />
+            {displaySalary}
           </span>
         {/if}
-        {#if job.posted_at}
-          <span>posted {formatDate(job.posted_at)}</span>
+        {#if (job.location || displaySalary) && job.posted_at}
+          <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
         {/if}
-        {#if job.first_seen_at}
-          <span>seen {formatDate(job.first_seen_at)}</span>
+        {#if job.posted_at}
+          <span style="font-family: var(--font-mono);">posted {formatDate(job.posted_at)}</span>
         {/if}
       </div>
 
-      <!-- Score (collapsible) -->
-      <div style="border-radius: 14px; margin-bottom: 24px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); overflow: hidden;">
-        <button
-          type="button"
-          onclick={() => scoreExpanded = !scoreExpanded}
-          style="width: 100%; text-align: left; padding: 14px 16px; background: transparent; border: 0; display: flex; gap: 12px; align-items: center; cursor: pointer;"
-        >
-          <div style="font-size: 22px; font-weight: 600; color: {scoreColor}; letter-spacing: -0.02em;">
-            {scorePercent}%
-          </div>
-          <div style="flex: 1;">
-            <div style="font-size: 13.5px; font-weight: 600; color: var(--color-ink); margin-bottom: 2px;">{scoreLabel}</div>
-            <div style="font-size: 12px; color: var(--color-ink-2);">
-              {scoreRaw}/{JOB_SCORE_RAW_MAX} raw score · {scoreExpanded ? "tap to collapse" : "tap for breakdown"}
+      <div style="height: 0.5px; background: var(--color-line); margin-bottom: 16px;"></div>
+
+      <!-- Match score -->
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
+              Match score
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
+              <span style="font-family: var(--font-display); font-weight: 700; font-size: 36px; color: {scoreColor}; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">
+                {scorePercent}
+              </span>
+              <span style="font-size: 14px; font-weight: 600; color: var(--color-ink);">
+                {scoreLabel}
+              </span>
             </div>
           </div>
-          <div style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});">
-            <CaretDown size={16} color="var(--color-ink-3)" />
-          </div>
-        </button>
+          <button
+            type="button"
+            onclick={() => scoreExpanded = !scoreExpanded}
+            style="border: 0.5px solid var(--color-line); background: var(--color-bg-elev); border-radius: 8px; padding: 6px 10px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+          >
+            why? <CaretDown size={12} style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});" />
+          </button>
+        </div>
 
         {#if scoreExpanded}
-          <div style="padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--color-line); padding-top: 14px;">
+          <div style="display: flex; flex-direction: column;">
             {#each scoreBreakdownKeys as { label, key, max }}
-              <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 13.5px; color: var(--color-ink); font-weight: 500;">{label}</span>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: 999px; overflow: hidden;">
-                    <div style="height: 100%; background: var(--color-accent); width: {((job[key] ?? 0) / max) * 100}%; border-radius: 999px;"></div>
-                  </div>
-                  <span style="font-size: 11px; color: var(--color-ink-2); width: 36px; text-align: right;">
-                    {job[key] ?? 0}/{max}
-                  </span>
+              <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 7px 0; border-top: 0.5px solid var(--color-line);">
+                <span style="font-size: 13px; color: var(--color-ink); font-weight: 500;">{label}</span>
+                <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: 999px; overflow: hidden;">
+                  <div style="height: 100%; background: {(job[key] ?? 0) === max ? 'var(--color-good)' : 'var(--color-accent)'}; width: {((job[key] ?? 0) / max) * 100}%; border-radius: 999px;"></div>
                 </div>
+                <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right;">
+                  {job[key] ?? 0}/{max}
+                </span>
               </div>
             {/each}
           </div>
         {/if}
       </div>
 
-      <!-- Pay ranges -->
-      {#if payRanges.length > 0}
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;">
-          {#each payRanges as range}
-            <div style="font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 8px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); color: var(--color-ink);">
-              {range}
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <div style="height: 0.5px; background: var(--color-line); margin-bottom: 16px;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -410,11 +352,15 @@
         </div>
       </div>
 
-      <!-- Description (parsed) -->
+      <div style="height: 0.5px; background: var(--color-line);"></div>
+
+      <!-- About the role -->
       {#if descriptionPending}
-        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
-          <div class="section-title" style="margin-bottom: 8px;">Loading job description</div>
-          <p style="margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--color-ink-2);">
+        <div style="padding: 16px 0 24px;">
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+            About the role
+          </div>
+          <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
             Pulling the full posting now. This usually lands in a second or two.
           </p>
           <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
@@ -422,29 +368,54 @@
           </button>
         </div>
       {:else if parsedDesc.length > 0}
-        <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 16px;">
-          {#each parsedDesc as section}
+        <div style="padding: 16px 0 24px; display: flex; flex-direction: column; gap: 16px;">
+          {#each parsedDesc as section, i}
             <div>
-              <h3 style="font-size: 13.5px; font-weight: 600; margin-bottom: 8px; color: var(--color-ink);">{section.heading}</h3>
+              {#if i === 0}
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+                  About the role
+                </div>
+              {/if}
+              <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--color-ink);">{section.heading}</h3>
               <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px;">
                 {#each section.items as item}
-                  <li style="font-size: 13.5px; line-height: 1.55; color: var(--color-ink-2);">{item}</li>
+                  <li style="font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">{item}</li>
                 {/each}
               </ul>
             </div>
           {/each}
+          {#if job.url}
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style="border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+            >Read full description →</a>
+          {/if}
         </div>
       {:else if plainDescription}
-        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
-          <div class="section-title" style="margin-bottom: 10px;">Overview</div>
-          <p style="margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--color-ink-2);">
+        <div style="padding: 16px 0 24px;">
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+            About the role
+          </div>
+          <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
             {plainDescription}
           </p>
+          {#if job.url}
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style="display: inline-block; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+            >Read full description →</a>
+          {/if}
         </div>
       {:else}
-        <div style="margin-bottom: 24px; border: 1px solid var(--color-line); border-radius: 16px; padding: 18px; background: var(--color-bg-elev);">
-          <div class="section-title" style="margin-bottom: 8px;">Description unavailable</div>
-          <p style="margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--color-ink-2);">
+        <div style="padding: 16px 0 24px;">
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+            About the role
+          </div>
+          <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -493,7 +464,7 @@
         </div>
         <div id="block-title" style="font-size: 17px; font-weight: 600;">Block this job?</div>
       </div>
-      <p style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
+      <p style="font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
         <br /><br />
         If you only want it gone from your own list, use <strong>Dismiss just for me</strong> instead.

@@ -1,5 +1,5 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
-import { formatGreenhouseSalary } from "./salary";
+import { extractSalaryFromHtml, formatGreenhouseSalary } from "./salary";
 
 interface GreenhouseJob {
   id: number;
@@ -31,7 +31,7 @@ export class GreenhouseAdapter implements ATSAdapter {
       const data: GreenhouseResponse = await response.json();
 
       return data.jobs.map((job) => {
-        const salary = formatGreenhouseSalary(job.pay_input_ranges?.[0]);
+        const salary = formatGreenhouseSalary(job.pay_input_ranges?.[0]) ?? extractSalaryFromHtml(job.content);
         return {
           externalId: String(job.id),
           title: job.title,
@@ -53,6 +53,9 @@ export class GreenhouseAdapter implements ATSAdapter {
     const res = await fetch(url);
     if (!res.ok) return { description: null, salary: null };
     const job: GreenhouseJob = await res.json();
-    return { description: job.content || null, salary: formatGreenhouseSalary(job.pay_input_ranges?.[0]) };
+    return {
+      description: job.content || null,
+      salary: formatGreenhouseSalary(job.pay_input_ranges?.[0]) ?? extractSalaryFromHtml(job.content),
+    };
   }
 }

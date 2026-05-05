@@ -4,6 +4,7 @@
   import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import CompanyLogo from "./CompanyLogo.svelte";
+  import MapPin from "phosphor-svelte/lib/MapPin";
   import CurrencyDollar from "phosphor-svelte/lib/CurrencyDollar";
   import X from "phosphor-svelte/lib/X";
 
@@ -49,10 +50,19 @@
       <h3 class="h-display" style="font-size: 17px; line-height: 1.2;">
         {job.title}
       </h3>
-      {#if job.salary}
-        <div style="display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--color-ink-3); letter-spacing: -0.005em;">
-          <CurrencyDollar size={12} />
-          <span>{job.salary}</span>
+      {#if job.location || job.salary}
+        <div style="display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--color-ink-3); letter-spacing: -0.005em; flex-wrap: wrap;">
+          {#if job.location}
+            <MapPin size={12} />
+            <span>{job.location}</span>
+          {/if}
+          {#if job.location && job.salary}
+            <span style="margin: 0 3px; color: var(--color-ink-4);">·</span>
+          {/if}
+          {#if job.salary}
+            <CurrencyDollar size={12} />
+            <span>{job.salary}</span>
+          {/if}
         </div>
       {/if}
     </div>

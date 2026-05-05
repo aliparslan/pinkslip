@@ -8,19 +8,24 @@ applications.get("/", async (c) => {
   const userId = c.get("userId");
   const { stage } = c.req.query();
 
-  let sql = `SELECT * FROM applications WHERE user_id = ?`;
+  let sql = `
+    SELECT a.*, c.website AS company_domain
+    FROM applications a
+    LEFT JOIN jobs j ON a.job_id = j.id
+    LEFT JOIN companies c ON j.company_id = c.id
+    WHERE a.user_id = ?`;
   const bindings: string[] = [userId];
 
   if (stage) {
-    sql += ` AND stage = ?`;
+    sql += ` AND a.stage = ?`;
     bindings.push(stage);
   }
 
-  sql += ` ORDER BY datetime(updated_at) DESC, updated_at DESC`;
+  sql += ` ORDER BY datetime(a.updated_at) DESC, a.updated_at DESC`;
 
   const result = await c.env.DB.prepare(sql)
     .bind(...bindings)
-    .all<ApplicationRow>();
+    .all<ApplicationRow & { company_domain?: string }>();
 
   return c.json({ applications: result.results ?? [] });
 });

@@ -63,21 +63,69 @@ const MEDIUM_TITLE_KEYWORDS = [
   "swe",
 ];
 
+const EARLY_CAREER_MARKERS = [
+  "new grad",
+  "new graduate",
+  "early career",
+  "entry level",
+  "graduate",
+  "university graduate",
+  "campus",
+];
+
+const SOFTWARE_DOMAIN_MARKERS = [
+  "software",
+  "developer",
+  "frontend",
+  "front end",
+  "front-end",
+  "backend",
+  "back end",
+  "back-end",
+  "fullstack",
+  "full stack",
+  "full-stack",
+  "platform",
+  "web",
+  "mobile",
+  "ios",
+  "android",
+  "data",
+  "ml",
+  "machine learning",
+  "ai",
+  "security",
+  "devops",
+  "cloud",
+  "site reliability",
+  "infrastructure",
+];
+
 /**
  * Negative keywords that immediately zero out the title score.
  * We match them against the lowercased title with word-boundary awareness.
  */
 const BUILTIN_NEGATIVE_KEYWORDS = [
   "senior",
+  "sr",
   "sr.",
   "staff",
   "principal",
   "director",
+  "vice president",
   "intern",
+  "internship",
   "manager",
   "senior staff",
   "vp",
+  "svp",
+  "avp",
+  "vpe",
   "head of",
+  "chief",
+  "distinguished",
+  "fellow",
+  "lead",
 ];
 
 interface TitleResult {
@@ -97,6 +145,14 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
   // Check negative keywords first — any match disqualifies the job
   for (const kw of negatives) {
     if (containsKeyword(lower, kw)) return { score: 0, disqualified: true };
+  }
+
+  const isEarlyCareerSoftwareRole =
+    EARLY_CAREER_MARKERS.some((kw) => containsKeyword(lower, kw))
+    && SOFTWARE_DOMAIN_MARKERS.some((kw) => containsKeyword(lower, kw));
+
+  if (isEarlyCareerSoftwareRole) {
+    return { score: SCORE_COMPONENT_MAX.title, disqualified: false };
   }
 
   // Combine prefs.role_keywords (high priority) with built-in high keywords
@@ -146,16 +202,61 @@ const US_STATES = new Set([
   "va","wa","wv","wi","wy","dc",
 ]);
 
-function isUSOrRemote(location: string, prefs: ScoringPrefs): boolean {
-  const loc = location.trim().toLowerCase();
-  if (!loc) return true;
-  if (loc.includes("remote")) return true;
-  if (loc.includes("united states") || loc.includes(", us")) return true;
-  if (loc === "multiple" || loc === "various" || loc.includes("multiple")) return true;
-  // Match ", XX" where XX is a US state abbreviation
-  const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
-  if (stateMatch && US_STATES.has(stateMatch[1])) return true;
-  // Check if location matches any preferred location (user's prefs are US cities)
+const NON_US_REMOTE_MARKERS = [
+  "canada",
+  "ontario",
+  "british columbia",
+  "alberta",
+  "quebec",
+  "toronto",
+  "vancouver",
+  "montreal",
+  "united kingdom",
+  "uk",
+  "ireland",
+  "europe",
+  "emea",
+  "apac",
+  "latam",
+  "latin america",
+  "australia",
+  "new zealand",
+  "india",
+  "singapore",
+  "japan",
+  "germany",
+  "france",
+  "spain",
+  "italy",
+  "netherlands",
+  "poland",
+  "portugal",
+  "sweden",
+  "switzerland",
+  "international",
+  "global",
+  "worldwide",
+  "anywhere",
+  "americas",
+  "north america",
+];
+
+const US_REMOTE_MARKERS = [
+  "united states",
+  "u.s.",
+  "u.s.a",
+  "usa",
+  ", us",
+  "us only",
+  "remote us",
+  "remote-us",
+  "within the us",
+  "within us",
+  "anywhere in the us",
+  "nationwide",
+];
+
+function mentionsPreferredUsLocation(loc: string, prefs: ScoringPrefs): boolean {
   for (const preferred of prefs.locations) {
     const prefLower = preferred.toLowerCase();
     if (prefLower === "remote") continue;
@@ -163,6 +264,26 @@ function isUSOrRemote(location: string, prefs: ScoringPrefs): boolean {
     if (prefLower.includes(loc) && loc.length >= 3) return true;
   }
   return false;
+}
+
+function isUSOrRemote(location: string, prefs: ScoringPrefs): boolean {
+  const loc = location.trim().toLowerCase();
+  if (!loc) return true;
+  if (loc.includes("remote")) {
+    if (NON_US_REMOTE_MARKERS.some((marker) => loc.includes(marker))) return false;
+    if (US_REMOTE_MARKERS.some((marker) => loc.includes(marker))) return true;
+    if (mentionsPreferredUsLocation(loc, prefs)) return true;
+    const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
+    if (stateMatch && US_STATES.has(stateMatch[1])) return true;
+    return true;
+  }
+  if (loc.includes("united states") || loc.includes(", us")) return true;
+  if (loc === "multiple" || loc === "various" || loc.includes("multiple")) return true;
+  // Match ", XX" where XX is a US state abbreviation
+  const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
+  if (stateMatch && US_STATES.has(stateMatch[1])) return true;
+  // Check if location matches any preferred location (user's prefs are US cities)
+  return mentionsPreferredUsLocation(loc, prefs);
 }
 
 interface LocationResult {

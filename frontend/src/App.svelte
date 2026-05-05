@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { currentRoute } from "./router";
+  import { currentRoute, navigate } from "./router";
   import { themeMode, cycleTheme } from "./lib/theme";
+  import { searchOpen, unviewedCount } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
   import Sun from "phosphor-svelte/lib/Sun";
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
+  import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
+  import Bell from "phosphor-svelte/lib/Bell";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
   import Tracker from "./pages/Tracker.svelte";
@@ -42,6 +45,17 @@
   );
   let showTabBar = $derived(!isDetailPage && !isTailorPage);
   let mode = $derived($themeMode);
+  let badgeCount = $derived($unviewedCount);
+  let isOnFeed = $derived(route === "/");
+
+  function toggleSearch() {
+    if (!isOnFeed) navigate("/");
+    searchOpen.update((v) => !v);
+  }
+
+  function goToFeed() {
+    if (!isOnFeed) navigate("/");
+  }
 
   let showOnboarding: boolean = $state(false);
   let userName: string = $state("");
@@ -116,15 +130,26 @@
       <span style="color: var(--color-accent);">pink</span>slip
     </span>
   </div>
-  <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
-    {#if mode === "system"}
-      <Sun size={18} weight="regular" />
-    {:else if mode === "light"}
-      <Moon size={18} weight="regular" />
-    {:else}
-      <CircleHalf size={18} weight="regular" />
-    {/if}
-  </button>
+  <div style="display: flex; align-items: center; gap: 2px;">
+    <button class="icon-btn" onclick={toggleSearch} aria-label="Search jobs">
+      <MagnifyingGlass size={18} weight="regular" />
+    </button>
+    <button class="icon-btn" onclick={goToFeed} aria-label="New jobs" style="position: relative;">
+      <Bell size={18} weight="regular" />
+      {#if badgeCount > 0}
+        <span style="position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); border: 1.5px solid var(--color-bg);"></span>
+      {/if}
+    </button>
+    <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
+      {#if mode === "system"}
+        <Sun size={18} weight="regular" />
+      {:else if mode === "light"}
+        <Moon size={18} weight="regular" />
+      {:else}
+        <CircleHalf size={18} weight="regular" />
+      {/if}
+    </button>
+  </div>
 </header>
 
 <div class="app-container min-h-screen pb-28">

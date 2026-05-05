@@ -1,5 +1,5 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
-import { formatLeverSalary } from "./salary";
+import { extractSalaryFromHtml, formatLeverSalary } from "./salary";
 
 interface LeverPosting {
   id: string;
@@ -30,7 +30,7 @@ export class LeverAdapter implements ATSAdapter {
       const data: LeverPosting[] = await response.json();
 
       return data.map((posting) => {
-        const salary = formatLeverSalary(posting.salaryRange);
+        const salary = formatLeverSalary(posting.salaryRange) ?? extractSalaryFromHtml(posting.description ?? posting.descriptionPlain ?? null);
         return {
           externalId: posting.id,
           title: posting.text,
@@ -52,6 +52,9 @@ export class LeverAdapter implements ATSAdapter {
     const res = await fetch(url);
     if (!res.ok) return { description: null, salary: null };
     const posting: LeverPosting = await res.json();
-    return { description: posting.description || null, salary: formatLeverSalary(posting.salaryRange) };
+    return {
+      description: posting.description || null,
+      salary: formatLeverSalary(posting.salaryRange) ?? extractSalaryFromHtml(posting.description ?? posting.descriptionPlain ?? null),
+    };
   }
 }

@@ -22,7 +22,7 @@ events.get("/", async (c) => {
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const result = await c.env.DB.prepare(
-    `SELECT e.*, c.name AS company_name
+    `SELECT e.*, COALESCE(c.name, NULLIF(e.company_name, '')) AS company_name
      FROM events e
      LEFT JOIN companies c ON e.company_id = c.id
      ${where}
@@ -38,6 +38,7 @@ events.get("/", async (c) => {
 events.post("/", async (c) => {
   const body = await c.req.json<{
     company_id?: string;
+    company_name?: string;
     title: string;
     description?: string;
     event_type?: string;
@@ -49,12 +50,13 @@ events.post("/", async (c) => {
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(
-    `INSERT INTO events (id, company_id, title, description, event_type, event_date, location, url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO events (id, company_id, company_name, title, description, event_type, event_date, location, url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
       body.company_id ?? null,
+      body.company_name ?? "",
       body.title,
       body.description ?? "",
       body.event_type ?? "other",
@@ -65,7 +67,7 @@ events.post("/", async (c) => {
     .run();
 
   const row = await c.env.DB.prepare(
-    `SELECT e.*, c.name AS company_name
+    `SELECT e.*, COALESCE(c.name, NULLIF(e.company_name, '')) AS company_name
      FROM events e
      LEFT JOIN companies c ON e.company_id = c.id
      WHERE e.id = ?`

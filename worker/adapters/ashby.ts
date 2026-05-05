@@ -1,4 +1,5 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
+import { extractSalaryFromHtml } from "./salary";
 
 const GRAPHQL_QUERY =
   "query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName departmentName publishedDate externalLink descriptionHtml compensationTierSummary } } }";
@@ -55,7 +56,7 @@ export class AshbyAdapter implements ATSAdapter {
         department: posting.departmentName ?? null,
         postedAt: posting.publishedDate ?? null,
         description: posting.descriptionHtml || null,
-        salary: posting.compensationTierSummary || null,
+        salary: posting.compensationTierSummary || extractSalaryFromHtml(posting.descriptionHtml),
       }));
     } catch (e) {
       throw e instanceof Error ? e : new Error(String(e));
@@ -79,7 +80,7 @@ export class AshbyAdapter implements ATSAdapter {
     if (!posting) return { description: null, salary: null };
     return {
       description: posting.descriptionHtml || null,
-      salary: posting.compensationTierSummary || null,
+      salary: posting.compensationTierSummary || extractSalaryFromHtml(posting.descriptionHtml),
     };
   }
 }

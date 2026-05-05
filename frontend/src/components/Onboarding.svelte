@@ -102,7 +102,7 @@
             </span>
           </div>
           <h2 class="h-display" style="font-size: 26px; margin-bottom: 8px;">Beat the crowd</h2>
-          <p style="font-size: 14.5px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
+          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
             Get alerted the moment roles drop &mdash; before everyone else applies. We scan company job boards every 15 minutes so you never miss a match.
           </p>
           <label for="onboarding-name" class="field-label" style="margin-bottom: 8px;">
@@ -136,7 +136,7 @@
             {#each roles as role}
               <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--color-bg-sunken); border: 1px solid var(--color-line);">
                 <span style="flex: 1; font-size: 14px; font-weight: 500;">{role}</span>
-                <Wrench size={14} color="var(--color-ink-4)" />
+                <Wrench size={14} color="var(--color-ink-3)" />
               </div>
             {/each}
           </div>
@@ -155,7 +155,7 @@
             {#each locations as loc}
               <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: var(--color-bg-sunken); border: 1px solid var(--color-line);">
                 <span style="font-size: 14px; font-weight: 500;">{loc}</span>
-                <Wrench size={12} color="var(--color-ink-4)" />
+                <Wrench size={12} color="var(--color-ink-3)" />
               </div>
             {/each}
           </div>
@@ -176,9 +176,9 @@
                 <div class="logo-mark" style="width: 36px; height: 36px; font-size: 11px; border-radius: 9px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); border-color: transparent;">
                   {source.abbr}
                 </div>
-                <span style="flex: 1; font-size: 14.5px; font-weight: 500;">{source.name}</span>
+                <span style="flex: 1; font-size: 14px; font-weight: 500;">{source.name}</span>
                 {#if source.wip}
-                  <Wrench size={14} color="var(--color-ink-4)" />
+                  <Wrench size={14} color="var(--color-ink-3)" />
                 {:else}
                   <Check size={16} weight="bold" color="var(--color-good)" />
                 {/if}
@@ -191,7 +191,7 @@
               <div style="font-size: 14px; font-weight: 500; margin-bottom: 2px;">Upload resume</div>
               <div style="font-size: 12px; color: var(--color-ink-3);">For tailored scoring & cover letters</div>
             </div>
-            <Wrench size={14} color="var(--color-ink-4)" />
+            <Wrench size={14} color="var(--color-ink-3)" />
           </div>
 
           <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 5}>
@@ -209,7 +209,7 @@
           <!-- Add to homescreen instructions -->
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 16px;">
             <div style="padding: 16px;">
-              <div style="font-size: 14.5px; font-weight: 600; margin-bottom: 10px;">Add to homescreen</div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Add to homescreen</div>
               <div style="display: flex; flex-direction: column; gap: 10px;">
                 <div style="display: flex; gap: 10px; align-items: flex-start;">
                   <div style="width: 22px; height: 22px; border-radius: 6px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">1</div>
@@ -240,7 +240,7 @@
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 24px;">
             <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <div style="font-size: 14.5px; font-weight: 600;">Push notifications</div>
+                <div style="font-size: 14px; font-weight: 600;">Push notifications</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Get alerted for high-scoring jobs</div>
               </div>
               {#if pushStatus === "enabled"}

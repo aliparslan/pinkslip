@@ -380,7 +380,7 @@
         <div class="h-display" style="font-size: 24px; color: var(--color-ink-2); margin-bottom: 8px;">
           No companies found
         </div>
-        <div style="font-size: 13.5px;">Adjust your filters or add a company.</div>
+        <div style="font-size: 13px;">Adjust your filters or add a company.</div>
       </div>
     {:else}
       <div style="background: var(--color-bg-elev); border: 0.5px solid var(--color-line); border-radius: 14px; overflow: hidden;">
@@ -492,7 +492,7 @@
         </div>
         <div id="delete-title" style="font-size: 17px; font-weight: 600;">Remove {deleteTarget.name}?</div>
       </div>
-      <p style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
+      <p style="font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.
         <br /><br />
         If you just want to stop seeing their jobs, <strong>hide</strong> them instead.

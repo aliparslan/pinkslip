@@ -8,7 +8,7 @@
   const DEFAULTS = {
     locations: "Remote, New York, San Francisco, Bay Area, Chicago, Boston, Washington DC, Seattle, Austin",
     roleKeywords: "software engineer, fullstack, backend, frontend, forward deployed engineer",
-    negativeKeywords: "staff, principal, director, intern, manager, senior staff, vp, head of",
+    negativeKeywords: "senior, sr, lead, staff, principal, director, vice president, vp, head of, manager, intern",
     minYoe: 0,
     maxYoe: 2,
     notificationThreshold: 50,
@@ -138,11 +138,11 @@
   }
 </script>
 
-<div class="page">
-  <div style="padding: 0 22px 28px;">
-    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 20px;">
+<div class="page" style="padding-top: 0;">
+  <div style="padding: 16px 16px 28px;">
+    <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 12px;">
       Profile
-    </h1>
+    </div>
 
     {#if loading}
       <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
@@ -163,45 +163,56 @@
           </div>
         {/if}
 
+        <!-- Avatar + name -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 48px; height: 48px; border-radius: 24px; background: var(--color-accent); color: var(--color-accent-ink); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 20px; flex-shrink: 0;">
+            {(displayName || "?").charAt(0).toUpperCase()}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <input
+              id="display-name"
+              type="text"
+              class="input-field"
+              placeholder="Your name"
+              bind:value={displayName}
+              style="font-size: 16px; font-weight: 600;"
+            />
+          </div>
+        </div>
+
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Identity</h3>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
-            <div>
-              <label for="display-name" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Display name</label>
-              <input id="display-name" type="text" class="input-field" placeholder="Your name" bind:value={displayName} />
-              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Shared state is group-wide, your tracking and dismissals stay personal.</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each shortcuts as shortcut}
-                <button
-                  class="btn-secondary"
-                  style="width: 100%; justify-content: space-between; padding: 0 14px;"
-                  onclick={() => navigate(shortcut.path)}
-                >
-                  <span>{shortcut.label}</span>
-                  <span style="font-size: 12px; color: var(--color-ink-3);">{shortcut.sub}</span>
-                </button>
-              {/each}
-            </div>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
+            Shortcuts
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0;">
+            {#each shortcuts as shortcut, i}
+              <button
+                style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: none; background: transparent; cursor: pointer; color: var(--color-ink); {i > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''} border-bottom: 0.5px solid var(--color-line);"
+                onclick={() => navigate(shortcut.path)}
+              >
+                <div style="font-size: 14px; font-weight: 500;">{shortcut.label}</div>
+                <span style="font-size: 12px; color: var(--color-ink-3);">{shortcut.sub}</span>
+              </button>
+            {/each}
           </div>
         </section>
 
         <!-- Job Preferences -->
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Job preferences</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Job preferences</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
             <div>
-              <label for="locations" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Locations</label>
+              <label for="locations" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Locations</label>
               <input id="locations" type="text" class="input-field" placeholder="Remote, NYC, SF" bind:value={locations} />
               <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Comma-separated</span>
             </div>
             <div>
-              <label for="role-keywords" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Role keywords</label>
+              <label for="role-keywords" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Role keywords</label>
               <input id="role-keywords" type="text" class="input-field" placeholder="Software Engineer, SWE, Fullstack" bind:value={roleKeywords} />
               <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Comma-separated</span>
             </div>
             <div>
-              <label for="neg-keywords" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Negative keywords</label>
+              <label for="neg-keywords" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Negative keywords</label>
               <input id="neg-keywords" type="text" class="input-field" placeholder="Intern, Sales, Senior Staff" bind:value={negativeKeywords} />
               <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Jobs with these words score lower</span>
             </div>
@@ -215,15 +226,15 @@
 
         <!-- Experience -->
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Experience range</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Experience range</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div>
-                <label for="min-yoe" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Min YOE</label>
+                <label for="min-yoe" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Min YOE</label>
                 <input id="min-yoe" type="number" class="input-field" min="0" max="20" bind:value={minYoe} />
               </div>
               <div>
-                <label for="max-yoe" style="font-size: 13.5px; font-weight: 500; margin-bottom: 6px; display: block;">Max YOE</label>
+                <label for="max-yoe" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Max YOE</label>
                 <input id="max-yoe" type="number" class="input-field" min="0" max="20" bind:value={maxYoe} />
               </div>
             </div>
@@ -232,12 +243,12 @@
 
         <!-- Notifications -->
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Notifications</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Notifications</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden;">
             <!-- Push toggle -->
             <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <div style="font-size: 14.5px; font-weight: 500;">Push notifications</div>
+                <div style="font-size: 14px; font-weight: 500;">Push notifications</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Get notified for high-scoring jobs</div>
               </div>
               <div style="display: flex; align-items: center; gap: 10px;">
@@ -273,13 +284,13 @@
             <!-- Threshold -->
             <div style="padding: 16px 18px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                <div style="font-size: 14.5px; font-weight: 500;">Score threshold</div>
+                <div style="font-size: 14px; font-weight: 500;">Score threshold</div>
                 <span style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--color-accent);">
                   {notificationThreshold}
                 </span>
               </div>
               <input type="range" min="0" max="100" step="5" style="width: 100%;" bind:value={notificationThreshold} />
-              <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-4);">
+              <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4);">
                 <span>0</span>
                 <span>50</span>
                 <span>100</span>
@@ -290,7 +301,7 @@
 
             <!-- Poll interval -->
             <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
-              <div style="font-size: 14.5px; font-weight: 500;">Poll interval</div>
+              <div style="font-size: 14px; font-weight: 500;">Poll interval</div>
               <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3);">Every 15 min</span>
             </div>
           </div>
@@ -298,7 +309,7 @@
 
         <!-- Test Notifications -->
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Test notifications</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Test notifications</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px;">
             {#if testingNotif}
               <div style="padding: 12px 14px; border-radius: 10px; background: color-mix(in oklch, var(--color-accent) 14%, transparent); color: var(--color-accent-soft-ink); font-family: var(--font-mono); font-size: 12px; margin-bottom: 14px;">
@@ -349,11 +360,11 @@
         </section>
 
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Tailoring</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Tailoring</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
               <div>
-                <div style="font-size: 14.5px; font-weight: 500;">Anthropic status</div>
+                <div style="font-size: 14px; font-weight: 500;">Anthropic status</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
                   {#if features?.tailoring_enabled}
                     Ready with {features.tailoring_model}
@@ -368,11 +379,11 @@
         </section>
 
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Operations</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Operations</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
             <div style="display: flex; flex-direction: column; align-items: stretch; gap: 12px;">
               <div>
-                <div style="font-size: 14.5px; font-weight: 500;">Force refresh all companies</div>
+                <div style="font-size: 14px; font-weight: 500;">Force refresh all companies</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Runs the full poll loop right now for the active batch.</div>
               </div>
               <button
@@ -409,7 +420,7 @@
         </section>
 
         <section>
-          <h3 class="section-title" style="margin-bottom: 14px;">Recent fetch runs</h3>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Recent fetch runs</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden;">
             {#if runs.length === 0}
               <div style="padding: 18px; font-size: 13px; color: var(--color-ink-3);">

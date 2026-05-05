@@ -3,19 +3,21 @@
   import { navigate } from "../router";
   import { api } from "../lib/api";
   import { timeAgo, companyMark } from "../lib/utils";
+  import CompanyLogo from "../components/CompanyLogo.svelte";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
+  import DotsThree from "phosphor-svelte/lib/DotsThree";
 
   type Stage = "Applied" | "Screen" | "Interview" | "Offer" | "Rejected" | "Ghosted";
-  type App = { id: string; company_name: string; title: string; stage: Stage; next: string; updated_at: string; job_id?: string | null; url?: string };
+  type App = { id: string; company_name: string; company_domain?: string; title: string; stage: Stage; next: string; updated_at: string; job_id?: string | null; url?: string };
 
   const ALL_STAGES: Stage[] = ["Applied", "Screen", "Interview", "Offer", "Rejected", "Ghosted"];
+  const STAGE_ORDER: Stage[] = ["Interview", "Screen", "Applied", "Offer", "Rejected", "Ghosted"];
 
   let apps: App[] = $state([]);
   let loading: boolean = $state(true);
-  let activeTab: "active" | "closed" = $state("active");
-  let expandedId: string | null = $state(null);
+  let menuOpenId: string | null = $state(null);
   let showCreate = $state(false);
   let creating = $state(false);
   let createCompany = $state("");
@@ -25,26 +27,20 @@
   let createUrl = $state("");
   let formError: string | null = $state(null);
 
-  let stages = $derived([
-    { id: "Applied", count: apps.filter((a) => a.stage === "Applied").length },
-    { id: "Screen", count: apps.filter((a) => a.stage === "Screen").length },
-    { id: "Interview", count: apps.filter((a) => a.stage === "Interview").length },
-    { id: "Offer", count: apps.filter((a) => a.stage === "Offer").length },
-  ]);
-
-  let visible = $derived(
-    apps.filter((a) => {
-      const closed = a.stage === "Rejected" || a.stage === "Ghosted";
-      return activeTab === "active" ? !closed : closed;
-    })
-  );
-
   let activeCt = $derived(apps.filter((a) => a.stage !== "Rejected" && a.stage !== "Ghosted").length);
-  let closedCt = $derived(apps.length - activeCt);
+
+  let grouped = $derived.by(() => {
+    const g: Record<string, App[]> = {};
+    for (const stage of STAGE_ORDER) {
+      const items = apps.filter((a) => a.stage === stage);
+      if (items.length > 0) g[stage] = items;
+    }
+    return g;
+  });
 
   async function setStage(appId: string, stage: Stage) {
     apps = apps.map(a => a.id === appId ? { ...a, stage, updated_at: new Date().toISOString() } : a);
-    expandedId = null;
+    menuOpenId = null;
     try {
       await api.applications.update(appId, { stage });
     } catch {
@@ -93,10 +89,19 @@
   async function deleteApplication(appId: string) {
     const previous = apps;
     apps = apps.filter((app) => app.id !== appId);
+    menuOpenId = null;
     try {
       await api.applications.delete(appId);
     } catch {
       apps = previous;
+    }
+  }
+
+  function handleRowClick(app: App) {
+    if (app.job_id) {
+      navigate(`/jobs/${app.job_id}`);
+    } else if (app.url) {
+      window.open(app.url, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -105,132 +110,132 @@
   });
 </script>
 
-<div class="page">
-  <div style="padding: 0 22px 14px;">
-    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 14px;">
-      Your applications
-    </h1>
-
-    <!-- Pipeline stats -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px 4px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line);">
-      {#each stages as s, i}
-        <div style="padding: 0 8px; {i > 0 ? 'border-left: 1px solid var(--color-line);' : ''} display: flex; flex-direction: column; align-items: center; gap: 3px;">
-          <div style="font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: {s.count > 0 ? 'var(--color-ink)' : 'var(--color-ink-4)'}; letter-spacing: -0.02em; line-height: 1;">
-            {s.count}
-          </div>
-          <div style="font-size: 11px; font-weight: 500; color: var(--color-ink-3); line-height: 1.1;">{s.id}</div>
-        </div>
-      {/each}
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 22px 12px;">
-    <div style="display: flex; gap: 6px;">
-      {#each [{ id: "active", label: "Active", count: activeCt }, { id: "closed", label: "Closed", count: closedCt }] as tab}
-        <button
-          style="appearance: none; border: 0; background: transparent; padding: 8px 0; margin-right: 18px; cursor: pointer; font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: {activeTab === tab.id ? 'var(--color-ink)' : 'var(--color-ink-3)'}; border-bottom: 2px solid {activeTab === tab.id ? 'var(--color-ink)' : 'transparent'}; letter-spacing: -0.005em;"
-          onclick={() => activeTab = tab.id as "active" | "closed"}
-        >
-          {tab.label}
-          <span style="margin-left: 6px; color: var(--color-ink-4); font-family: var(--font-mono); font-size: 12px;">
-            {tab.count}
-          </span>
-        </button>
-      {/each}
-    </div>
-    <button
-      class="btn-secondary"
-      style="height: 34px; padding: 0 12px; flex-shrink: 0; font-size: 12px;"
-      aria-label="Add application"
-      onclick={() => showCreate = true}
-    >
-      <Plus size={14} />
-      Add
-    </button>
-  </div>
-
-  <!-- Application list -->
-  <div style="padding: 0 22px 28px; display: flex; flex-direction: column; gap: 6px;">
-    {#if visible.length === 0}
-      <div style="text-align: center; padding: 48px 24px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
-          <Briefcase size={24} />
-        </div>
-        <div class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
-          No {activeTab} applications
-        </div>
-        <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
-          Track jobs from the feed or add one-off applications from referrals, recruiters, and random links.
-        </div>
+<div class="page" style="padding-top: 0;">
+  <!-- Title + stats -->
+  <div style="padding: 16px 16px 8px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+      <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+        Tracker
       </div>
-    {:else}
-      {#each visible as app (app.id)}
-        <div class="card-base tracker-card" style="width: 100%;">
-          <button type="button" style="appearance: none; border: 0; background: transparent; width: 100%; text-align: left; cursor: pointer; padding: 0;" onclick={() => expandedId = expandedId === app.id ? null : app.id}>
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-              <div class="logo-mark" style="width: 32px; height: 32px; font-size: 11px; border-radius: 8px; margin-top: 1px;">
-                {companyMark(app.company_name)}
+      <button
+        class="btn-secondary"
+        style="height: 34px; padding: 0 12px; flex-shrink: 0; font-size: 12px;"
+        aria-label="Add application"
+        onclick={() => showCreate = true}
+      >
+        <Plus size={14} />
+        Add
+      </button>
+    </div>
+    <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
+        <span style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{activeCt}</span>
+        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">active</span>
+      </div>
+      <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block; align-self: center;"></span>
+      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
+        <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{apps.length}</span>
+        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">total</span>
+      </div>
+    </div>
+  </div>
+
+  {#if loading}
+    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
+      Loading...
+    </div>
+  {:else if apps.length === 0}
+    <div style="text-align: center; padding: 48px 24px;">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
+        <Briefcase size={24} />
+      </div>
+      <div class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+        No applications yet
+      </div>
+      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
+        Track jobs from the feed or add one-off applications from referrals, recruiters, and random links.
+      </div>
+    </div>
+  {:else}
+    <!-- Grouped sections -->
+    {#each Object.entries(grouped) as [stage, items]}
+      <div>
+        <div style="padding: 14px 16px 6px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+          <span>{stage}</span>
+          <span style="font-variant-numeric: tabular-nums; opacity: 0.6;">{items.length}</span>
+        </div>
+        {#each items as app (app.id)}
+          <div
+            role="button"
+            tabindex="0"
+            style="display: grid; grid-template-columns: 24px 1fr auto; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--color-line); cursor: pointer; position: relative;"
+            onclick={() => handleRowClick(app)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(app); } }}
+          >
+            <CompanyLogo name={app.company_name} domain={app.company_domain} size={24} />
+            <div style="min-width: 0;">
+              <div style="font-size: 14px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {app.title}
               </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="display: flex; justify-content: space-between; gap: 8px; align-items: baseline;">
-                  <div style="font-weight: 500; font-size: 14px; line-height: 1.25;">{app.title}</div>
-                  <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-4); flex-shrink: 0;">{timeAgo(app.updated_at)}</div>
-                </div>
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 1px; margin-bottom: 6px;">
-                  {app.company_name}
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span class="stage-badge stage-{app.stage.toLowerCase()}">
-                    <span class="dot"></span>{app.stage}
-                  </span>
-                  {#if app.next}
-                    <span style="font-size: 11px; color: var(--color-ink-3);">
-                      {app.next}
-                    </span>
-                  {/if}
-                </div>
+              <div style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                <span>{app.company_name}</span>
+                {#if app.next}
+                  <span style="opacity: 0.5;">·</span>
+                  <span>{app.next}</span>
+                {/if}
               </div>
             </div>
-          </button>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <div style="text-align: right;">
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">
+                  {timeAgo(app.updated_at)}
+                </div>
+              </div>
+              <button
+                class="icon-btn"
+                style="width: 28px; height: 28px; flex-shrink: 0;"
+                aria-label="Change stage"
+                onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === app.id ? null : app.id; }}
+              >
+                <DotsThree size={16} weight="bold" color="var(--color-ink-3)" />
+              </button>
+            </div>
 
-          {#if expandedId === app.id}
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                {#each ALL_STAGES as stage}
+            <!-- Stage picker dropdown -->
+            {#if menuOpenId === app.id}
+              <!-- svelte-ignore a11y_no_static_element_interactions a11y_interactive_supports_focus -->
+              <div
+                role="menu"
+                tabindex="-1"
+                style="position: absolute; right: 12px; top: 100%; z-index: 20; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;"
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => { if (e.key === 'Escape') menuOpenId = null; }}
+              >
+                {#each ALL_STAGES as s}
                   <button
-                    class="stage-badge stage-{stage.toLowerCase()}"
-                    style="cursor: pointer; border: 0; opacity: {app.stage === stage ? 1 : 0.5}; transition: opacity .15s;"
-                    onclick={() => setStage(app.id, stage)}
+                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: {app.stage === s ? 'var(--color-bg-sunken)' : 'transparent'}; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--color-ink); font-weight: {app.stage === s ? '600' : '400'};"
+                    onclick={() => setStage(app.id, s)}
                   >
-                    <span class="dot"></span>{stage}
+                    <span class="stage-badge stage-{s.toLowerCase()}" style="pointer-events: none;">
+                      <span class="dot"></span>{s}
+                    </span>
                   </button>
                 {/each}
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center;">
-                {#if app.job_id}
-                  <button class="btn-secondary" style="height: 36px; padding: 0 12px;" onclick={() => navigate(`/jobs/${app.job_id}`)}>
-                    Open job
-                  </button>
-                {:else if app.url}
-                  <a class="btn-secondary" style="height: 36px; padding: 0 12px; text-decoration: none;" href={app.url} target="_blank" rel="noopener noreferrer">
-                    Open link
-                  </a>
-                {:else}
-                  <span></span>
-                {/if}
-                <button class="btn-secondary" style="height: 36px; padding: 0 12px;" onclick={() => deleteApplication(app.id)}>
+                <div style="height: 0.5px; background: var(--color-line); margin: 4px 0;"></div>
+                <button
+                  style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: transparent; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--color-bad);"
+                  onclick={() => deleteApplication(app.id)}
+                >
                   <Trash size={14} />
                   Delete
                 </button>
               </div>
-            </div>
-          {/if}
-        </div>
-      {/each}
-    {/if}
-  </div>
-
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/each}
+  {/if}
 </div>
 
 {#if showCreate}
@@ -243,7 +248,7 @@
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 22px;"
+      style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 16px; padding: 20px;"
       onclick={(event) => event.stopPropagation()}
       onkeydown={(event) => {
         if (event.key === "Escape") showCreate = false;

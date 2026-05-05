@@ -29,8 +29,11 @@
   import { api, type Job } from "../lib/api";
   import { JOB_SCORE_RAW_MAX } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
-  import JobCard from "../components/JobCard.svelte";
+  import { searchOpen, unviewedCount } from "../lib/feed-state";
+  import { viewedJobs } from "../lib/viewed";
+  import JobRow from "../components/JobRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
+  import X from "phosphor-svelte/lib/X";
 
   const LOCATIONS = ["All", "Remote", "NYC", "SF Bay Area", "Chicago", "Boston", "DC"];
 
@@ -46,10 +49,27 @@
   let refreshing: boolean = $state(false);
   let lastAutoRefreshAt = 0;
   let searchTimer: number | null = $state(null);
+  let searchInputEl: HTMLInputElement | undefined = $state(undefined);
+
+  let viewed = $derived($viewedJobs);
+  let showSearch = $derived($searchOpen);
 
   let newToday = $derived.by(() => {
     const today = new Date().toISOString().slice(0, 10);
     return jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
+  });
+
+  // Drive the bell badge
+  $effect(() => {
+    const count = jobs.filter((j) => !viewed.has(j.id)).length;
+    unviewedCount.set(count);
+  });
+
+  // Focus search input when header icon opens search
+  $effect(() => {
+    if (showSearch && searchInputEl) {
+      searchInputEl.focus();
+    }
   });
 
   function syncFeedCache() {
@@ -148,6 +168,12 @@
     }, 220);
   }
 
+  function closeSearch() {
+    searchQuery = "";
+    searchOpen.set(false);
+    void applyFeedFilters({ searchQuery: "" });
+  }
+
   async function triggerRefresh() {
     if (refreshing) return;
     refreshing = true;
@@ -209,132 +235,118 @@
   $effect(() => {
     syncFeedCache();
   });
-
 </script>
 
-<div class="page">
-  <div style="padding: 0 22px 10px;">
-    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 14px;">
-      New roles
-    </h1>
-    <div class="stat-row">
-      <span><strong style="color: var(--color-ink);">{newToday}</strong> new today</span>
-      <span><strong style="color: var(--color-ink);">{jobs.length}</strong> showing</span>
-      {#if lastPolled}
-        <span>polled {timeAgo(lastPolled)}</span>
-      {/if}
-      {#if refreshing}
-        <span>refreshing now</span>
-      {/if}
-    </div>
-  </div>
-
-  <!-- Search + library filter -->
-  <div style="padding: 0 22px 10px; display: flex; align-items: center; gap: 10px;">
-    <input
-      class="input-field"
-      type="search"
-      placeholder="Search roles or companies"
-      value={searchQuery}
-      oninput={(event) => scheduleSearch((event.currentTarget as HTMLInputElement).value)}
-      style="flex: 1; height: 34px; padding: 0 12px;"
-    />
-    <div style="display: flex; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--color-line);">
+<div class="page" style="padding-top: 0;">
+  <!-- Search bar (toggled from header or always visible) -->
+  {#if showSearch || searchQuery}
+    <div style="padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid var(--color-line);">
+      <input
+        bind:this={searchInputEl}
+        type="text"
+        class="input-field"
+        style="flex: 1; height: 36px; font-size: 14px; border-radius: 8px;"
+        placeholder="Search jobs or companies..."
+        value={searchQuery}
+        oninput={(e) => scheduleSearch((e.currentTarget as HTMLInputElement).value)}
+        onkeydown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+      />
       <button
-        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: {!savedOnly ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {!savedOnly ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
-        onclick={() => void applyFeedFilters({ savedOnly: false })}
+        class="icon-btn"
+        style="width: 32px; height: 32px; flex-shrink: 0;"
+        aria-label="Close search"
+        onclick={closeSearch}
       >
-        All
-      </button>
-      <button
-        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; border-left: 1px solid var(--color-line); cursor: pointer; background: {savedOnly ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {savedOnly ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
-        onclick={() => void applyFeedFilters({ savedOnly: true })}
-      >
-        Saved
+        <X size={16} />
       </button>
     </div>
+  {/if}
+
+  <!-- Stats bar -->
+  <div style="padding: 10px 16px 12px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;">
+    <div style="display: inline-flex; align-items: baseline; gap: 5px;">
+      <span style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{newToday}</span>
+      <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">new today</span>
+    </div>
+    <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
+    <div style="display: inline-flex; align-items: baseline; gap: 5px;">
+      <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{jobs.length}</span>
+      <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">showing</span>
+    </div>
+    {#if lastPolled}
+      <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
+      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
+        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">polled</span>
+        <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">{timeAgo(lastPolled)}</span>
+      </div>
+    {/if}
   </div>
 
-  <!-- Location filter -->
-  <div style="padding: 0 22px 8px;">
-    <FilterChips
-      filters={LOCATIONS}
-      selected={selectedLocation}
-      scrollable={true}
-      onSelect={(f) => void applyFeedFilters({ selectedLocation: f })}
-    />
-  </div>
-
-  <!-- Sort + refresh -->
-  <div style="padding: 0 22px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-    <div style="display: flex; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--color-line);">
+  <!-- Filters + sort -->
+  <div style="display: flex; align-items: center; gap: 8px; padding: 0 16px 8px;">
+    <div style="flex: 1; min-width: 0; overflow: hidden;">
+      <FilterChips
+        filters={LOCATIONS}
+        selected={selectedLocation}
+        scrollable={true}
+        onSelect={(f) => void applyFeedFilters({ selectedLocation: f })}
+      />
+    </div>
+    <div style="position: relative; display: inline-flex; background: var(--color-bg-sunken); border-radius: 8px; padding: 2px; flex-shrink: 0;">
       <button
-        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: {sortBy === 'time' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'time' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
+        style="position: relative; z-index: 1; padding: 4px 12px; border: none; background: {sortBy === 'time' ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === 'time' ? '600' : '500'}; color: {sortBy === 'time' ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 6px; {sortBy === 'time' ? 'box-shadow: 0 1px 2px rgba(0,0,0,0.06);' : ''}"
         onclick={() => void applyFeedFilters({ sortBy: 'time' })}
       >
         New
       </button>
       <button
-        style="padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; border-left: 1px solid var(--color-line); cursor: pointer; background: {sortBy === 'score' ? 'var(--color-accent)' : 'var(--color-bg-elev)'}; color: {sortBy === 'score' ? 'var(--color-accent-ink)' : 'var(--color-ink-3)'};"
+        style="position: relative; z-index: 1; padding: 4px 12px; border: none; background: {sortBy === 'score' ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === 'score' ? '600' : '500'}; color: {sortBy === 'score' ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 6px; {sortBy === 'score' ? 'box-shadow: 0 1px 2px rgba(0,0,0,0.06);' : ''}"
         onclick={() => void applyFeedFilters({ sortBy: 'score' })}
       >
-        Score
+        Match
       </button>
     </div>
-    <button
-      class="btn-secondary"
-      style="height: 32px; padding: 0 14px; flex-shrink: 0; font-size: 12px;"
-      disabled={refreshing}
-      onclick={triggerRefresh}
-    >
-      {refreshing ? "Refreshing..." : "Refresh"}
-    </button>
   </div>
 
-  <!-- Job feed -->
-  <div style="display: flex; flex-direction: column; gap: 6px; padding: 0 22px 28px;">
+  <div style="height: 0.5px; background: var(--color-line);"></div>
+
+  <!-- Job rows -->
+  <div>
     {#if loading}
-      {#each Array(4) as _}
-        <div class="card-base" style="width: 100%; pointer-events: none;">
-          <div style="display: flex; gap: 14px; align-items: flex-start;">
-            <div class="skeleton" style="width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;"></div>
-            <div style="flex: 1;">
-              <div class="skeleton" style="width: 50%; height: 10px; margin-bottom: 8px;"></div>
-              <div class="skeleton" style="width: 80%; height: 16px; margin-bottom: 10px;"></div>
-              <div class="skeleton" style="width: 40%; height: 10px;"></div>
-            </div>
+      {#each Array(6) as _}
+        <div style="display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--color-line);">
+          <div class="skeleton" style="width: 24px; height: 24px; border-radius: 6px;"></div>
+          <div>
+            <div class="skeleton" style="width: 45%; height: 8px; margin-bottom: 6px;"></div>
+            <div class="skeleton" style="width: 72%; height: 12px; margin-bottom: 6px;"></div>
+            <div class="skeleton" style="width: 50%; height: 8px;"></div>
           </div>
         </div>
       {/each}
     {:else if error}
-      <div style="padding: 16px 18px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 14px;">
+      <div style="padding: 16px; margin: 16px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 14px;">
         {error}
       </div>
     {:else if jobs.length === 0}
       <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <div class="h-display" style="font-size: 24px; color: var(--color-ink-2); margin-bottom: 8px;">
+        <div class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
           {savedOnly ? "No saved jobs yet" : "Nothing here"}
         </div>
-        <div style="font-size: 13.5px; margin-bottom: 14px;">
-          {savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or pull in a fresh poll."}
+        <div style="font-size: 13px; margin-bottom: 14px;">
+          {savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or check back later."}
         </div>
         <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
-          <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={triggerRefresh} disabled={refreshing}>
+          <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
             {refreshing ? "Refreshing..." : "Refresh now"}
           </button>
-          {#if lastPolled}
-            <div style="display: inline-flex; align-items: center; font-size: 12px; color: var(--color-ink-4);">
-              Last poll {timeAgo(lastPolled)}
-            </div>
-          {/if}
         </div>
       </div>
     {:else}
       {#each jobs as job (job.id)}
-        <JobCard {job} onDismiss={(id) => { jobs = jobs.filter(j => j.id !== id); }} />
+        <JobRow {job} viewed={viewed.has(job.id)} onDismiss={(id) => { jobs = jobs.filter(j => j.id !== id); }} />
       {/each}
-      <div style="text-align: center; padding: 16px 0 4px; font-size: 11px; color: var(--color-ink-4);">
-        End of feed
+      <div style="padding: 24px 16px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); letter-spacing: 0.04em;">
+        — go touch grass —
       </div>
     {/if}
   </div>

@@ -273,13 +273,13 @@ export const api = {
       request<void>(`/applications/${id}`, { method: "DELETE" }),
   },
   events: {
-    list: (params?: { company_id?: string; upcoming?: boolean }) => {
+    list: (params?: { company_id?: string; upcoming?: string }) => {
       const qs = params ? "?" + new URLSearchParams(
         Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
       ).toString() : "";
       return request<{ events: Record<string, unknown>[] }>(`/events${qs}`);
     },
-    create: (data: { company_id?: string; title: string; description?: string; event_type?: string; event_date: string; location?: string; url?: string }) =>
+    create: (data: { company_id?: string; company_name?: string; title: string; description?: string; event_type?: string; event_date: string; location?: string; url?: string }) =>
       request<Record<string, unknown>>("/events", {
         method: "POST",
         body: JSON.stringify(data),
