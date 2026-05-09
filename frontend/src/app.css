@@ -6,9 +6,9 @@
 }
 
 @theme {
-  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Founders Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Founders Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Founders Grotesk Mono", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --radius-sm: 8px;
   --radius-md: 12px;
