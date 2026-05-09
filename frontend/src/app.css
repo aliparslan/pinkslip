@@ -1,6 +1,38 @@
 @import "tailwindcss";
 
 @font-face {
+  font-family: "American Grotesk";
+  src: url("/fonts/american/american-grotesk-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "American Grotesk";
+  src: url("/fonts/american/american-grotesk-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "American Grotesk";
+  src: url("/fonts/american/american-grotesk-bold.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "American Grotesk";
+  src: url("/fonts/american/american-grotesk-heavy.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Founders Grotesk";
   src: url("/fonts/founders/founders-grotesk-regular.woff2") format("woff2");
   font-weight: 400;
@@ -94,9 +126,9 @@
 }
 
 @theme {
-  --font-display: "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Founders Grotesk Text", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Founders Grotesk Mono", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "American Grotesk", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "American Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Founders Grotesk Mono", "American Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --radius-sm: 8px;
   --radius-md: 12px;
