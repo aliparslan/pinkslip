@@ -352,13 +352,13 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   max-width: 100%;
   align-self: flex-start;
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
+  gap: 1px;
+  padding: 2px;
   overflow-x: auto;
-  border: 1px solid var(--color-line-2);
+  border: 1px solid oklch(0.40 0.014 340);
   border-radius: 999px;
-  background: color-mix(in oklch, var(--color-bg-sunken) 88%, var(--color-ink) 12%);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-ink) 7%, transparent);
+  background: oklch(0.29 0.012 340);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
   scrollbar-width: none;
 }
 
@@ -368,13 +368,13 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 
 .sort-segmented button {
   min-width: max-content;
-  height: 28px;
-  padding: 0 15px;
+  height: 24px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--color-ink-3);
-  font-size: 12px;
+  color: oklch(0.76 0.01 340);
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -383,13 +383,47 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 
 .sort-segmented button.active {
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  box-shadow: 0 1px 4px color-mix(in oklch, var(--color-shadow) 22%, transparent);
+  background: oklch(0.17 0.01 340);
+  color: oklch(0.98 0.004 340);
+  box-shadow: 0 1px 5px color-mix(in oklch, black 28%, transparent);
 }
 
 .sort-segmented button:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 42%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-mode="dark"]) .sort-segmented {
+    border-color: var(--color-line-2);
+    background: oklch(0.90 0.006 340);
+    box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
+  }
+
+  :root:not([data-mode="dark"]) .sort-segmented button {
+    color: var(--color-ink-2);
+  }
+
+  :root:not([data-mode="dark"]) .sort-segmented button.active {
+    background: var(--color-bg-elev);
+    color: var(--color-ink);
+    box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
+  }
+}
+
+[data-mode="light"] .sort-segmented {
+  border-color: var(--color-line-2);
+  background: oklch(0.90 0.006 340);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
+}
+
+[data-mode="light"] .sort-segmented button {
+  color: var(--color-ink-2);
+}
+
+[data-mode="light"] .sort-segmented button.active {
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
 }
 
 /* ── Logo mark ───────────────────────────────────────────── */
