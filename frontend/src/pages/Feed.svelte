@@ -490,8 +490,13 @@
 
   <!-- Filters + sort -->
   <div class="feed-controls">
-    <div class="feed-control-row">
-      <button class="filter-button" onclick={() => (filtersOpen = true)} aria-label="Open filters">
+    <div class="feed-control-row" aria-label="Feed controls">
+      <button
+        class="filter-button"
+        class:active={activeFilterCount > 0}
+        onclick={() => (filtersOpen = true)}
+        aria-label="Open filters"
+      >
         <SlidersHorizontal size={15} weight="bold" />
         <span>Filters</span>
         {#if activeFilterCount > 0}

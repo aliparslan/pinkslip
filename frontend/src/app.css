@@ -357,31 +357,53 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 
 .feed-control-row {
   min-width: 0;
-  display: flex;
+  max-width: 100%;
+  width: fit-content;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid oklch(0.40 0.014 340);
+  border-radius: 999px;
+  background: oklch(0.29 0.012 340);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.feed-control-row::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-button {
   width: fit-content;
-  min-height: 32px;
+  height: 24px;
+  min-height: 24px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 11px;
-  border: 1px solid var(--color-line-2);
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
   border-radius: 999px;
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  font-size: 12px;
+  background: transparent;
+  color: oklch(0.82 0.01 340);
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: background .15s, border-color .15s, transform .15s;
+  white-space: nowrap;
+  transition: background .15s, color .15s, transform .15s, box-shadow .15s;
 }
 
 .filter-button:hover {
-  background: var(--color-bg-sunken);
+  color: var(--color-ink);
+  background: color-mix(in oklch, white 5%, transparent);
+}
+
+.filter-button.active {
+  background: oklch(0.17 0.01 340);
+  color: oklch(0.98 0.004 340);
+  box-shadow: 0 1px 5px color-mix(in oklch, black 28%, transparent);
 }
 
 .filter-button:active {
@@ -389,16 +411,17 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 
 .filter-count {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: var(--color-accent);
   color: var(--color-accent-ink);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -420,12 +443,12 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   align-self: flex-start;
   display: inline-flex;
   gap: 1px;
-  padding: 2px;
+  padding: 0;
   overflow-x: auto;
-  border: 1px solid oklch(0.40 0.014 340);
+  border: 0;
   border-radius: 999px;
-  background: oklch(0.29 0.012 340);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
+  background: transparent;
+  box-shadow: none;
   scrollbar-width: none;
 }
 
@@ -460,10 +483,31 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 
 @media (prefers-color-scheme: light) {
-  :root:not([data-mode="dark"]) .sort-segmented {
+  :root:not([data-mode="dark"]) .feed-control-row {
     border-color: var(--color-line-2);
     background: oklch(0.90 0.006 340);
     box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
+  }
+
+  :root:not([data-mode="dark"]) .filter-button {
+    color: var(--color-ink-2);
+  }
+
+  :root:not([data-mode="dark"]) .filter-button:hover {
+    background: color-mix(in oklch, white 38%, transparent);
+    color: var(--color-ink);
+  }
+
+  :root:not([data-mode="dark"]) .filter-button.active {
+    background: var(--color-bg-elev);
+    color: var(--color-ink);
+    box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
+  }
+
+  :root:not([data-mode="dark"]) .sort-segmented {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
   }
 
   :root:not([data-mode="dark"]) .sort-segmented button {
@@ -477,10 +521,31 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   }
 }
 
-[data-mode="light"] .sort-segmented {
+[data-mode="light"] .feed-control-row {
   border-color: var(--color-line-2);
   background: oklch(0.90 0.006 340);
   box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
+}
+
+[data-mode="light"] .filter-button {
+  color: var(--color-ink-2);
+}
+
+[data-mode="light"] .filter-button:hover {
+  background: color-mix(in oklch, white 38%, transparent);
+  color: var(--color-ink);
+}
+
+[data-mode="light"] .filter-button.active {
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
+}
+
+[data-mode="light"] .sort-segmented {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 [data-mode="light"] .sort-segmented button {
