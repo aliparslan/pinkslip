@@ -392,10 +392,11 @@
         onSelect={(f) => void applyFeedFilters({ selectedLocation: f })}
       />
     </div>
-    <div style="position: relative; display: inline-flex; align-self: flex-start; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); border-radius: 9px; padding: 2px; max-width: 100%; overflow-x: auto;">
+    <div class="sort-segmented" aria-label="Sort jobs">
       {#each SORT_OPTIONS as option}
         <button
-          style="position: relative; z-index: 1; min-width: max-content; padding: 4px 12px; border: 1px solid {sortBy === option.value ? 'var(--color-line-2)' : 'transparent'}; background: {sortBy === option.value ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === option.value ? '600' : '500'}; color: {sortBy === option.value ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 7px; white-space: nowrap;"
+          class:active={sortBy === option.value}
+          aria-pressed={sortBy === option.value}
           onclick={() => void applyFeedFilters({ sortBy: option.value })}
         >
           {option.label}

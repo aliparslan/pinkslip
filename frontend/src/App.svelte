@@ -115,7 +115,7 @@
   <!-- Top bar -->
   <header class="app-shell-header">
     <div class="app-shell-header-inner">
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="brand-home-button" aria-label="Go to feed" onclick={() => navigate("/")}>
         <!-- pinkslip icon -->
         <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true" style="transform: rotate(-8deg); flex-shrink: 0;">
           <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="0.5"/>
@@ -126,7 +126,7 @@
         <span class="h-display" style="font-size: 22px; line-height: 1;">
           <span style="color: var(--color-accent);">pink</span>slip
         </span>
-      </div>
+      </button>
       <div style="display: flex; align-items: center; gap: 2px;">
         <button class="icon-btn" onclick={toggleSearch} aria-label="Search jobs">
           <MagnifyingGlass size={18} weight="regular" />
