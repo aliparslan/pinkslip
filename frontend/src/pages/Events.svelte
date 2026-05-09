@@ -297,11 +297,11 @@
         <input class="input-field" placeholder="Join link (optional)" bind:value={createUrl} />
         <input class="input-field" placeholder="Location (optional)" bind:value={createLocation} />
       </div>
-      <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <div class="action-row" style="margin-top: 16px;">
         <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleCreate} disabled={creating || !createTitle.trim() || !createDate}>
           {creating ? "Saving..." : "Add event"}
         </button>
-        <button class="btn-secondary" style="padding: 0 16px;" onclick={() => showCreate = false}>
+        <button class="btn-secondary" onclick={() => showCreate = false}>
           Cancel
         </button>
       </div>

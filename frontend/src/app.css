@@ -351,13 +351,21 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .feed-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 0 16px 10px;
+}
+
+.feed-control-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .filter-button {
   width: fit-content;
   min-height: 32px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -406,7 +414,9 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 /* ── Segmented controls ─────────────────────────────────── */
 
 .sort-segmented {
+  min-width: 0;
   max-width: 100%;
+  flex: 0 1 auto;
   align-self: flex-start;
   display: inline-flex;
   gap: 1px;
@@ -658,6 +668,37 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   gap: 10px;
   border-top: 0.5px solid var(--color-line);
   background: color-mix(in oklch, var(--color-bg) 96%, transparent);
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+}
+
+.action-row > .btn-primary,
+.action-row > .btn-secondary {
+  min-height: 44px;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.action-row.compact > .btn-primary,
+.action-row.compact > .btn-secondary {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.filter-sheet-actions.action-row {
+  display: grid;
+}
+
+.filter-sheet-actions.action-row > .btn-primary,
+.filter-sheet-actions.action-row > .btn-secondary {
+  min-height: 46px;
+  height: 46px;
 }
 
 @keyframes filter-sheet-in {

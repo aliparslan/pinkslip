@@ -490,25 +490,27 @@
 
   <!-- Filters + sort -->
   <div class="feed-controls">
-    <button class="filter-button" onclick={() => (filtersOpen = true)} aria-label="Open filters">
-      <SlidersHorizontal size={15} weight="bold" />
-      <span>Filters</span>
-      {#if activeFilterCount > 0}
-        <span class="filter-count">{activeFilterCount}</span>
-      {/if}
-    </button>
-    <div class="filter-summary">{filterSummary}</div>
-    <div class="sort-segmented" aria-label="Sort jobs">
-      {#each SORT_OPTIONS as option}
-        <button
-          class:active={sortBy === option.value}
-          aria-pressed={sortBy === option.value}
-          onclick={() => void applyFeedFilters({ sortBy: option.value })}
-        >
-          {option.label}
-        </button>
-      {/each}
+    <div class="feed-control-row">
+      <button class="filter-button" onclick={() => (filtersOpen = true)} aria-label="Open filters">
+        <SlidersHorizontal size={15} weight="bold" />
+        <span>Filters</span>
+        {#if activeFilterCount > 0}
+          <span class="filter-count">{activeFilterCount}</span>
+        {/if}
+      </button>
+      <div class="sort-segmented" aria-label="Sort jobs">
+        {#each SORT_OPTIONS as option}
+          <button
+            class:active={sortBy === option.value}
+            aria-pressed={sortBy === option.value}
+            onclick={() => void applyFeedFilters({ sortBy: option.value })}
+          >
+            {option.label}
+          </button>
+        {/each}
+      </div>
     </div>
+    <div class="filter-summary">{filterSummary}</div>
   </div>
 
   <div style="height: 0.5px; background: var(--color-line);"></div>
@@ -657,7 +659,7 @@
       </section>
     </div>
 
-    <div class="filter-sheet-actions">
+    <div class="filter-sheet-actions action-row">
       <button class="btn-secondary" onclick={resetFilters}>Reset</button>
       <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply filters</button>
     </div>

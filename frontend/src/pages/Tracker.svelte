@@ -271,11 +271,11 @@
         <input class="input-field" placeholder="Next step note" bind:value={createNext} />
         <input class="input-field" placeholder="URL (optional)" bind:value={createUrl} />
       </div>
-      <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <div class="action-row" style="margin-top: 16px;">
         <button class="btn-primary btn-accent" style="flex: 1;" onclick={createApplication} disabled={creating}>
           {creating ? "Saving..." : "Add"}
         </button>
-        <button class="btn-secondary" style="padding: 0 18px;" onclick={() => showCreate = false}>
+        <button class="btn-secondary" onclick={() => showCreate = false}>
           Cancel
         </button>
       </div>

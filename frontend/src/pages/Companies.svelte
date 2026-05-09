@@ -338,10 +338,9 @@
               {addVerifyMsg}
             </div>
           {/if}
-          <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <div class="action-row compact" style="margin-top: 4px;">
             <button
               class="btn-secondary"
-              style="padding: 0 14px;"
               disabled={!addSlug.trim() || addVerifyBusy}
               onclick={verifyAddSource}
             >
@@ -349,7 +348,7 @@
             </button>
             <button
               class="btn-primary btn-accent"
-              style="flex: 1; height: 44px; font-size: 14px;"
+              style="flex: 1;"
               disabled={!addName.trim() || !addSlug.trim() || adding}
               onclick={handleAdd}
             >
@@ -357,7 +356,6 @@
             </button>
             <button
               class="btn-secondary"
-              style="padding: 0 18px;"
               onclick={() => { showAddForm = false; }}
             >
               Cancel
@@ -448,10 +446,9 @@
             {editVerifyMsg}
           </div>
         {/if}
-        <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <div class="action-row compact" style="margin-top: 4px;">
           <button
             class="btn-secondary"
-            style="padding: 0 14px;"
             disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
             onclick={verifyEditSource}
           >
@@ -459,7 +456,7 @@
           </button>
           <button
             class="btn-primary btn-accent"
-            style="flex: 1; height: 44px; font-size: 14px;"
+            style="flex: 1;"
             disabled={!editTarget.name.trim() || !editTarget.ats_slug.trim() || saving}
             onclick={handleSaveEdit}
           >
@@ -467,7 +464,6 @@
           </button>
           <button
             class="btn-secondary"
-            style="padding: 0 18px;"
             onclick={() => { editTarget = null; }}
           >
             Cancel
