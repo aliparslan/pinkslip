@@ -1,25 +1,50 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
 import { extractSalaryFromHtml } from "./salary";
 
-const GRAPHQL_QUERY =
-  "query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName departmentName publishedDate externalLink descriptionHtml compensationTierSummary } } }";
-
 interface AshbyJobPosting {
   id: string;
   title: string;
-  locationName: string;
-  departmentName: string | null;
-  publishedDate: string | null;
-  externalLink: string;
+  location: string;
+  department?: string | null;
+  team?: string | null;
+  publishedAt: string | null;
+  jobUrl: string;
+  applyUrl?: string | null;
   descriptionHtml: string | null;
-  compensationTierSummary: string | null;
+  descriptionPlain?: string | null;
+  compensation?: {
+    compensationTierSummary?: string | null;
+  } | null;
 }
 
 interface AshbyResponse {
-  data: {
-    jobBoard: {
-      jobPostings: AshbyJobPosting[];
-    };
+  jobs?: AshbyJobPosting[];
+  apiVersion?: string;
+}
+
+function ashbyBoardUrl(slug: string) {
+  return `https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`;
+}
+
+function getAshbyJobs(data: AshbyResponse, slug: string) {
+  if (!Array.isArray(data.jobs)) {
+    throw new Error(`Ashby API returned an unexpected payload for ${slug}`);
+  }
+  return data.jobs;
+}
+
+function mapAshbyJob(posting: AshbyJobPosting): JobListing {
+  return {
+    externalId: posting.id,
+    title: posting.title,
+    url: posting.jobUrl,
+    location: posting.location,
+    department: posting.department ?? posting.team ?? null,
+    postedAt: posting.publishedAt ?? null,
+    description: posting.descriptionHtml || null,
+    salary:
+      posting.compensation?.compensationTierSummary
+      || extractSalaryFromHtml(posting.descriptionHtml ?? posting.descriptionPlain ?? null),
   };
 }
 
@@ -28,59 +53,30 @@ export class AshbyAdapter implements ATSAdapter {
 
   async fetchJobs(slug: string): Promise<JobListing[]> {
     try {
-      const url =
-        "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobBoardWithTeams";
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          operationName: "ApiJobBoardWithTeams",
-          variables: { organizationHostedJobsPageName: slug },
-          query: GRAPHQL_QUERY,
-        }),
-      });
+      const response = await fetch(ashbyBoardUrl(slug));
 
       if (!response.ok) {
         throw new Error(`Ashby API ${response.status}`);
       }
 
       const data: AshbyResponse = await response.json();
-      const postings = data.data.jobBoard.jobPostings;
-
-      return postings.map((posting) => ({
-        externalId: posting.id,
-        title: posting.title,
-        url: posting.externalLink,
-        location: posting.locationName,
-        department: posting.departmentName ?? null,
-        postedAt: posting.publishedDate ?? null,
-        description: posting.descriptionHtml || null,
-        salary: posting.compensationTierSummary || extractSalaryFromHtml(posting.descriptionHtml),
-      }));
+      return getAshbyJobs(data, slug).map(mapAshbyJob);
     } catch (e) {
       throw e instanceof Error ? e : new Error(String(e));
     }
   }
 
   async fetchJobContent(slug: string, externalId: string): Promise<JobContent> {
-    const url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobBoardWithTeams";
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        operationName: "ApiJobBoardWithTeams",
-        variables: { organizationHostedJobsPageName: slug },
-        query: GRAPHQL_QUERY,
-      }),
-    });
+    const res = await fetch(ashbyBoardUrl(slug));
     if (!res.ok) return { description: null, salary: null };
     const data: AshbyResponse = await res.json();
-    const posting = data.data.jobBoard.jobPostings.find((p) => p.id === externalId);
+    const posting = getAshbyJobs(data, slug).find((p) => p.id === externalId);
     if (!posting) return { description: null, salary: null };
     return {
       description: posting.descriptionHtml || null,
-      salary: posting.compensationTierSummary || extractSalaryFromHtml(posting.descriptionHtml),
+      salary:
+        posting.compensation?.compensationTierSummary
+        || extractSalaryFromHtml(posting.descriptionHtml ?? posting.descriptionPlain ?? null),
     };
   }
 }

@@ -22,7 +22,7 @@ interface PollStats {
   log: string[];
 }
 
-interface NewJobMeta {
+export interface NewJobMeta {
   company: string;
   title: string;
   jobId: string;
@@ -36,7 +36,7 @@ interface CompanyPollError {
 }
 
 interface RunPollCycleOptions {
-  limit?: number;
+  limit?: number | null;
   scope?: "cron" | "manual";
   sendNotifications?: boolean;
 }
@@ -260,6 +260,64 @@ export async function pollCompany(
   return newMeta;
 }
 
+export async function sendNotificationsForJobs(
+  db: D1Database,
+  env: Env,
+  jobs: NewJobMeta[],
+  threshold: number
+): Promise<number> {
+  const qualifying = jobs.filter((j) => normalizeScore(j.score) >= threshold);
+  if (qualifying.length === 0) return 0;
+
+  const subsResult = await db
+    .prepare("SELECT * FROM push_subscriptions")
+    .all<PushSubscriptionRow>();
+  const subscriptions = subsResult.results ?? [];
+  if (subscriptions.length === 0) return 0;
+
+  const notifJobs: NotificationJob[] = qualifying.map((j) => ({
+    company: j.company,
+    title: j.title,
+    jobId: j.jobId,
+  }));
+  const payload = buildNotificationPayload(notifJobs);
+  const vapid = {
+    subject: env.VAPID_SUBJECT,
+    publicKey: env.VAPID_PUBLIC_KEY,
+    privateKey: env.VAPID_PRIVATE_KEY,
+  };
+
+  const sendResults = await Promise.allSettled(
+    subscriptions.map((sub) =>
+      sendPushNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        },
+        payload,
+        vapid
+      )
+    )
+  );
+
+  let notificationsSent = 0;
+  for (let i = 0; i < sendResults.length; i++) {
+    const result = sendResults[i];
+    if (result.status !== "fulfilled") continue;
+
+    if (result.value.ok) {
+      notificationsSent++;
+    } else if (result.value.status === 410 || result.value.status === 404) {
+      await db
+        .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
+        .bind(subscriptions[i].endpoint)
+        .run();
+    }
+  }
+
+  return notificationsSent;
+}
+
 // ─── runPollCycle ─────────────────────────────────────────────────────────────
 
 /**
@@ -279,7 +337,10 @@ export async function runPollCycle(
   const db = env.DB;
   const scope = options.scope ?? "cron";
   const sendNotifications = options.sendNotifications ?? true;
-  const companyLimit = Math.max(1, options.limit ?? 30);
+  const companyLimit =
+    options.limit === null
+      ? null
+      : Math.max(1, options.limit ?? 30);
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   const startedAtMs = Date.now();
@@ -295,16 +356,17 @@ export async function runPollCycle(
   }
 
   // 1. Load enabled non-custom companies
-  const companiesResult = await db
-    .prepare(
-      `SELECT *
-       FROM companies
-       WHERE enabled = 1 AND ats_type != 'custom'
-       ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
-       LIMIT ?`
-    )
-    .bind(companyLimit)
-    .all<CompanyRow>();
+  const companySql = `
+    SELECT *
+    FROM companies
+    WHERE enabled = 1 AND ats_type != 'custom'
+    ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
+    ${companyLimit === null ? "" : "LIMIT ?"}
+  `;
+  const companyStmt = db.prepare(companySql);
+  const companiesResult = companyLimit === null
+    ? await companyStmt.all<CompanyRow>()
+    : await companyStmt.bind(companyLimit).all<CompanyRow>();
   const companies = companiesResult.results ?? [];
 
   // 2. Load preferences
@@ -361,57 +423,10 @@ export async function runPollCycle(
     await db.batch(statusStmts);
   }
 
-  // 5. Filter qualifying jobs
-  const qualifying = allNewJobs.filter((j) => normalizeScore(j.score) >= threshold);
-
-  // 6. Send push notifications
+  // 5. Send push notifications
   let notificationsSent = 0;
-  if (sendNotifications && qualifying.length > 0) {
-    // Load all push subscriptions
-    const subsResult = await db
-      .prepare("SELECT * FROM push_subscriptions")
-      .all<PushSubscriptionRow>();
-    const subscriptions = subsResult.results ?? [];
-
-    if (subscriptions.length > 0) {
-      const notifJobs: NotificationJob[] = qualifying.map((j) => ({
-        company: j.company,
-        title: j.title,
-        jobId: j.jobId,
-      }));
-      const payload = buildNotificationPayload(notifJobs);
-
-      const vapid = {
-        subject: env.VAPID_SUBJECT,
-        publicKey: env.VAPID_PUBLIC_KEY,
-        privateKey: env.VAPID_PRIVATE_KEY,
-      };
-
-      const sendResults = await Promise.allSettled(
-        subscriptions.map((sub) =>
-          sendPushNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: { p256dh: sub.p256dh, auth: sub.auth },
-            },
-            payload,
-            vapid
-          )
-        )
-      );
-
-      for (let i = 0; i < sendResults.length; i++) {
-        const r = sendResults[i];
-        if (r.status === "fulfilled") {
-          if (r.value.ok) {
-            notificationsSent++;
-          } else if (r.value.status === 410 || r.value.status === 404) {
-            await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
-              .bind(subscriptions[i].endpoint).run();
-          }
-        }
-      }
-    }
+  if (sendNotifications) {
+    notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs, threshold);
   }
 
   // Purge jobs closed for over 7 days (but preserve applied jobs)

@@ -85,8 +85,8 @@ app.post("/api/poll", async (c) => {
   const limit = Number(c.req.query("limit") ?? "0");
   const result = await runPollCycle(c.env, {
     scope: "manual",
-    limit: limit > 0 ? limit : 30,
-    sendNotifications: false,
+    limit: limit > 0 ? limit : null,
+    sendNotifications: true,
   });
 
   return c.json({

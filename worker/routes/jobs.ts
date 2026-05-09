@@ -6,7 +6,44 @@ import { scoreJob } from "../scoring";
 import type { JobListing } from "../adapters/types";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
-const JOB_FIELDS = `
+const JOB_LIST_FIELDS = `
+  j.id,
+  j.company_id,
+  j.external_id,
+  j.title,
+  j.url,
+  j.location,
+  j.department,
+  j.posted_at,
+  j.first_seen_at,
+  j.score,
+  j.title_score,
+  j.yoe_score,
+  j.location_score,
+  j.department_score,
+  j.recency_score,
+  CAST(
+    EXISTS(
+      SELECT 1
+      FROM dismissed_jobs d
+      WHERE d.user_id = ? AND d.job_id = j.id
+  ) AS INTEGER
+  ) AS dismissed,
+  NULL AS description,
+  j.salary,
+  j.closed_at,
+  CAST(
+    EXISTS(
+      SELECT 1
+      FROM saved_jobs s
+      WHERE s.user_id = ? AND s.job_id = j.id
+    ) AS INTEGER
+  ) AS saved,
+  c.name AS company_name,
+  c.website AS company_domain
+`;
+
+const JOB_DETAIL_FIELDS = `
   j.id,
   j.company_id,
   j.external_id,
@@ -152,7 +189,7 @@ jobs.get("/", async (c) => {
   const userId = c.get("userId");
   const { min_score, company_id, dismissed, limit, offset, location, saved, sort, q } = c.req.query();
 
-  const limitVal = Math.min(parseInt(limit ?? "2000", 10) || 2000, 5000);
+  const limitVal = Math.min(parseInt(limit ?? "300", 10) || 300, 1000);
   const offsetVal = parseInt(offset ?? "0", 10) || 0;
 
   const conditions: string[] = ["c.enabled = 1", "j.closed_at IS NULL"];
@@ -210,14 +247,24 @@ jobs.get("/", async (c) => {
     bindings.push(...locationFilter.bindings);
   }
 
+  if (min_score !== undefined) {
+    const minScoreVal = parseFloat(min_score);
+    if (Number.isFinite(minScoreVal)) {
+      conditions.push("j.score >= ?");
+      bindings.push(minScoreVal);
+    }
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const orderBy =
     sort === "score"
-      ? "j.score DESC, datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC"
-      : "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC";
+      ? "j.score DESC, datetime(j.first_seen_at) DESC, j.first_seen_at DESC"
+      : sort === "last_posted"
+        ? "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, datetime(j.first_seen_at) DESC, j.first_seen_at DESC"
+        : "datetime(j.first_seen_at) DESC, j.first_seen_at DESC";
 
   const sql = `
-    SELECT ${JOB_FIELDS}
+    SELECT ${JOB_LIST_FIELDS}
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     ${where}
@@ -229,23 +276,16 @@ jobs.get("/", async (c) => {
 
   const stmt = c.env.DB.prepare(sql);
   const result = await stmt.bind(...bindings).all<JobListRow>();
-  const rows = await rehydrateScores(c.env.DB, result.results ?? []);
-
-  let finalRows = rows;
-  if (min_score !== undefined) {
-    const minScoreVal = parseFloat(min_score);
-    finalRows = finalRows.filter((row) => row.score >= minScoreVal);
-  }
-  if (sort === "score") {
-    finalRows = [...finalRows].sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const aTime = Date.parse(a.posted_at ?? a.first_seen_at ?? "") || 0;
-      const bTime = Date.parse(b.posted_at ?? b.first_seen_at ?? "") || 0;
-      return bTime - aTime;
-    });
-  }
-
-  return c.json({ jobs: finalRows, meta: { total: finalRows.length } });
+  const rows = result.results ?? [];
+  return c.json({
+    jobs: rows,
+    meta: {
+      total: rows.length,
+      count: rows.length,
+      has_more: rows.length === limitVal,
+      next_offset: offsetVal + rows.length,
+    },
+  });
 });
 
 async function backfillJobContent(
@@ -317,7 +357,7 @@ jobs.get("/:id", async (c) => {
   const db = c.env.DB;
 
   const result = await db.prepare(
-    `SELECT ${JOB_FIELDS}, c.ats_type, c.ats_slug
+    `SELECT ${JOB_DETAIL_FIELDS}, c.ats_type, c.ats_slug
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      WHERE j.id = ?`
@@ -391,7 +431,7 @@ jobs.patch("/:id", async (c) => {
   }
 
   const updated = await c.env.DB.prepare(
-    `SELECT ${JOB_FIELDS}
+    `SELECT ${JOB_DETAIL_FIELDS}
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      WHERE j.id = ?`
@@ -437,14 +477,14 @@ jobs.delete("/:id/block", async (c) => {
 jobs.get("/saved/list", async (c) => {
   const userId = c.get("userId");
   const result = await c.env.DB.prepare(
-    `SELECT ${JOB_FIELDS}
+    `SELECT ${JOB_LIST_FIELDS}
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ?
      ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC`
   ).bind(userId, userId, userId).all<JobListRow>();
 
-  return c.json({ jobs: await rehydrateScores(c.env.DB, result.results ?? []) });
+  return c.json({ jobs: result.results ?? [] });
 });
 
 export default jobs;

@@ -14,6 +14,10 @@ describe("salary helpers", () => {
     expect(extractSalaryFromHtml(html)).toBe("CAD $132,640.00 - CAD $165,800.00");
   });
 
+  it("extracts shorthand salary ranges with k suffixes", () => {
+    expect(extractSalaryFromHtml("<p>Compensation: $180k - $220k</p>")).toBe("$180k - $220k");
+  });
+
   it("formats greenhouse structured ranges", () => {
     expect(
       formatGreenhouseSalary({

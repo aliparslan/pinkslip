@@ -21,6 +21,14 @@ const SALARY_PATTERNS = [
   /\$[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:\/\s*(?:yr|year|annually|annual|hr|hour|hourly))/gi,
 ];
 
+function parseSalaryMagnitude(token: string): number {
+  const normalized = token.trim();
+  const hasThousandsSuffix = /[kK]\b/.test(normalized);
+  const numeric = Number.parseFloat(normalized.replace(/,/g, "").replace(/[kK]\b/, ""));
+  if (!Number.isFinite(numeric)) return Number.NaN;
+  return hasThousandsSuffix ? numeric * 1000 : numeric;
+}
+
 function normalizeHtmlText(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -74,8 +82,8 @@ export function extractSalaryFromHtml(html: string | null | undefined): string |
 
     for (const match of found) {
       const cleaned = match.replace(/\s+/g, " ").trim();
-      const numbers = cleaned.match(/[\d,]+/g) ?? [];
-      const maxValue = Math.max(...numbers.map((value) => parseInt(value.replace(/,/g, ""), 10)));
+      const numbers = cleaned.match(/[\d,]+(?:\.\d{2})?(?:\s*[kK])?/g) ?? [];
+      const maxValue = Math.max(...numbers.map(parseSalaryMagnitude));
       if (Number.isFinite(maxValue) && maxValue >= 1000) {
         matches.push(cleaned);
       }

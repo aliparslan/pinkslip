@@ -1,9 +1,17 @@
 import { Hono } from "hono";
 import type { Env, CompanyRow } from "../types";
-import { loadPreferencesForPoll, pollCompany } from "../poller";
+import { loadPreferencesForPoll, pollCompany, sendNotificationsForJobs } from "../poller";
 import { verifyCompanySource } from "../ats";
 
 const companies = new Hono<{ Bindings: Env }>();
+
+function normalizeAtsSlug(slug: string): string {
+  return slug.trim();
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && /unique|constraint/i.test(error.message);
+}
 
 // GET / — List companies
 companies.get("/", async (c) => {
@@ -62,15 +70,43 @@ companies.post("/", async (c) => {
     website?: string;
   }>();
 
+  const name = body.name.trim();
+  const atsSlug = normalizeAtsSlug(body.ats_slug);
+  if (!name || !atsSlug) {
+    return c.json({ error: "Company name and ATS slug are required" }, 400);
+  }
+
+  const duplicate = await c.env.DB.prepare(
+    `SELECT id, name FROM companies
+     WHERE ats_type = ? AND LOWER(TRIM(ats_slug)) = LOWER(TRIM(?))
+     LIMIT 1`
+  )
+    .bind(body.ats_type, atsSlug)
+    .first<{ id: string; name: string }>();
+
+  if (duplicate) {
+    return c.json(
+      { error: `${duplicate.name} already uses that ${body.ats_type} source`, code: "duplicate_source" },
+      409
+    );
+  }
+
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  await c.env.DB.prepare(
-    `INSERT INTO companies (id, name, ats_type, ats_slug, website, enabled, added_at)
-     VALUES (?, ?, ?, ?, ?, 1, ?)`
-  )
-    .bind(id, body.name, body.ats_type, body.ats_slug, body.website ?? null, now)
-    .run();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO companies (id, name, ats_type, ats_slug, website, enabled, added_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?)`
+    )
+      .bind(id, name, body.ats_type, atsSlug, body.website?.trim() || null, now)
+      .run();
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return c.json({ error: "That company source already exists", code: "duplicate_source" }, 409);
+    }
+    throw error;
+  }
 
   const created = await c.env.DB.prepare(
     "SELECT * FROM companies WHERE id = ?"
@@ -102,12 +138,12 @@ companies.patch("/:id", async (c) => {
 
   if (body.name !== undefined) {
     setClauses.push("name = ?");
-    bindings.push(body.name);
+    bindings.push(body.name.trim());
   }
 
   if (body.ats_slug !== undefined) {
     setClauses.push("ats_slug = ?");
-    bindings.push(body.ats_slug);
+    bindings.push(normalizeAtsSlug(body.ats_slug));
   }
 
   if (body.ats_type !== undefined) {
@@ -117,7 +153,7 @@ companies.patch("/:id", async (c) => {
 
   if (body.website !== undefined) {
     setClauses.push("website = ?");
-    bindings.push(body.website);
+    bindings.push(body.website.trim());
   }
 
   if (setClauses.length === 0) {
@@ -126,11 +162,44 @@ companies.patch("/:id", async (c) => {
 
   bindings.push(id);
 
-  await c.env.DB.prepare(
-    `UPDATE companies SET ${setClauses.join(", ")} WHERE id = ?`
-  )
-    .bind(...bindings)
-    .run();
+  const nextAtsType = body.ats_type;
+  const nextAtsSlug = body.ats_slug !== undefined ? normalizeAtsSlug(body.ats_slug) : undefined;
+  if (nextAtsType !== undefined || nextAtsSlug !== undefined) {
+    const current = await c.env.DB.prepare("SELECT ats_type, ats_slug FROM companies WHERE id = ?")
+      .bind(id)
+      .first<Pick<CompanyRow, "ats_type" | "ats_slug">>();
+    if (!current) return c.json({ error: "Not found" }, 404);
+
+    const duplicate = await c.env.DB.prepare(
+      `SELECT id, name FROM companies
+       WHERE id != ?
+         AND ats_type = ?
+         AND LOWER(TRIM(ats_slug)) = LOWER(TRIM(?))
+       LIMIT 1`
+    )
+      .bind(id, nextAtsType ?? current.ats_type, nextAtsSlug ?? current.ats_slug)
+      .first<{ id: string; name: string }>();
+
+    if (duplicate) {
+      return c.json(
+        { error: `${duplicate.name} already uses that source`, code: "duplicate_source" },
+        409
+      );
+    }
+  }
+
+  try {
+    await c.env.DB.prepare(
+      `UPDATE companies SET ${setClauses.join(", ")} WHERE id = ?`
+    )
+      .bind(...bindings)
+      .run();
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return c.json({ error: "That company source already exists", code: "duplicate_source" }, 409);
+    }
+    throw error;
+  }
 
   const updated = await c.env.DB.prepare(
     "SELECT * FROM companies WHERE id = ?"
@@ -164,13 +233,19 @@ companies.post("/:id/poll", async (c) => {
   const now = new Date().toISOString();
   try {
     const newJobs = await pollCompany(company, db, prefs);
+    const notificationsSent = await sendNotificationsForJobs(
+      db,
+      c.env,
+      newJobs,
+      prefs.notify_threshold ?? 50
+    );
     await db
       .prepare("UPDATE companies SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ? WHERE id = ?")
       .bind(now, id)
       .run();
 
     const updated = await db.prepare("SELECT * FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
-    return c.json({ ...updated, new_jobs: newJobs.length });
+    return c.json({ ...updated, new_jobs: newJobs.length, notifications_sent: notificationsSent });
   } catch (e: any) {
     const errMsg = e instanceof Error ? e.message : String(e);
     await db

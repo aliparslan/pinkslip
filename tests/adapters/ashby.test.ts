@@ -2,40 +2,37 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AshbyAdapter } from "@worker/adapters/ashby";
 
 const MOCK_RESPONSE = {
-  data: {
-    jobBoard: {
-      jobPostings: [
-        {
-          id: "ashby-001",
-          title: "Fullstack Engineer",
-          locationName: "San Francisco, CA",
-          departmentName: "Engineering",
-          publishedDate: "2026-05-01T00:00:00.000Z",
-          externalLink: "https://jobs.ashbyhq.com/cursor/ashby-001",
-          descriptionHtml: "<p>Build stuff</p>",
-          compensationTierSummary: "$150k - $200k",
-        },
-        {
-          id: "ashby-002",
-          title: "ML Research Scientist",
-          locationName: "Remote",
-          departmentName: null,
-          publishedDate: null,
-          externalLink: "https://jobs.ashbyhq.com/cursor/ashby-002",
-          descriptionHtml: null,
-          compensationTierSummary: null,
-        },
-      ],
+  jobs: [
+    {
+      id: "ashby-001",
+      title: "Fullstack Engineer",
+      location: "San Francisco, CA",
+      department: "Engineering",
+      publishedAt: "2026-05-01T00:00:00.000Z",
+      jobUrl: "https://jobs.ashbyhq.com/cursor/ashby-001",
+      applyUrl: "https://jobs.ashbyhq.com/cursor/apply/ashby-001",
+      descriptionHtml: "<p>Build stuff</p>",
+      compensation: {
+        compensationTierSummary: "$150k - $200k",
+      },
     },
-  },
+    {
+      id: "ashby-002",
+      title: "ML Research Scientist",
+      location: "Remote",
+      team: "Research",
+      publishedAt: null,
+      jobUrl: "https://jobs.ashbyhq.com/cursor/ashby-002",
+      descriptionHtml: null,
+      descriptionPlain: "Compensation: $180k - $220k",
+      compensation: null,
+    },
+  ],
+  apiVersion: "1",
 };
 
-const EXPECTED_GRAPHQL_BODY = {
-  operationName: "ApiJobBoardWithTeams",
-  variables: { organizationHostedJobsPageName: "cursor" },
-  query:
-    "query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName departmentName publishedDate externalLink descriptionHtml compensationTierSummary } } }",
-};
+const BOARD_URL =
+  "https://api.ashbyhq.com/posting-api/job-board/cursor?includeCompensation=true";
 
 describe("AshbyAdapter", () => {
   let adapter: AshbyAdapter;
@@ -49,7 +46,7 @@ describe("AshbyAdapter", () => {
     expect(adapter.name).toBe("ashby");
   });
 
-  it("sends a POST to the correct URL with GraphQL body", async () => {
+  it("fetches the Ashby public job board endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => MOCK_RESPONSE,
@@ -59,16 +56,7 @@ describe("AshbyAdapter", () => {
     await adapter.fetchJobs("cursor");
 
     expect(fetchMock).toHaveBeenCalledOnce();
-
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(
-      "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobBoardWithTeams"
-    );
-    expect(init.method).toBe("POST");
-    expect(init.headers?.["Content-Type"]).toBe("application/json");
-
-    const sentBody = JSON.parse(init.body);
-    expect(sentBody).toEqual(EXPECTED_GRAPHQL_BODY);
+    expect(fetchMock).toHaveBeenCalledWith(BOARD_URL);
   });
 
   it("correctly maps job fields", async () => {
@@ -88,17 +76,44 @@ describe("AshbyAdapter", () => {
     expect(first.department).toBe("Engineering");
     expect(first.url).toBe("https://jobs.ashbyhq.com/cursor/ashby-001");
     expect(first.postedAt).toBe("2026-05-01T00:00:00.000Z");
+    expect(first.salary).toBe("$150k - $200k");
   });
 
-  it("maps null department and postedAt when absent", async () => {
+  it("falls back to team and extracted salary when structured fields are missing", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => MOCK_RESPONSE,
     }));
 
     const jobs = await adapter.fetchJobs("cursor");
-    expect(jobs[1].department).toBeNull();
+
+    expect(jobs[1].department).toBe("Research");
     expect(jobs[1].postedAt).toBeNull();
+    expect(jobs[1].salary).toBe("$180k - $220k");
+  });
+
+  it("fetches job content from the same public job board endpoint", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => MOCK_RESPONSE,
+    }));
+
+    const content = await adapter.fetchJobContent("cursor", "ashby-001");
+
+    expect(content).toEqual({
+      description: "<p>Build stuff</p>",
+      salary: "$150k - $200k",
+    });
+  });
+
+  it("returns empty job content when a posting is missing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => MOCK_RESPONSE,
+    }));
+
+    const content = await adapter.fetchJobContent("cursor", "missing");
+    expect(content).toEqual({ description: null, salary: null });
   });
 
   it("throws on non-ok HTTP response", async () => {
@@ -108,6 +123,17 @@ describe("AshbyAdapter", () => {
     }));
 
     await expect(adapter.fetchJobs("cursor")).rejects.toThrow("Ashby API 500");
+  });
+
+  it("throws on unexpected payload shape", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: {} }),
+    }));
+
+    await expect(adapter.fetchJobs("cursor")).rejects.toThrow(
+      "Ashby API returned an unexpected payload for cursor"
+    );
   });
 
   it("throws on network error", async () => {
