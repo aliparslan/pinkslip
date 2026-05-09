@@ -346,6 +346,63 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   text-transform: uppercase;
 }
 
+/* ── Feed controls ──────────────────────────────────────── */
+
+.feed-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 10px;
+}
+
+.filter-button {
+  width: fit-content;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 999px;
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+
+.filter-button:hover {
+  background: var(--color-bg-sunken);
+}
+
+.filter-button:active {
+  transform: scale(0.98);
+}
+
+.filter-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.filter-summary {
+  max-width: 100%;
+  color: var(--color-ink-3);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Segmented controls ─────────────────────────────────── */
 
 .sort-segmented {
@@ -424,6 +481,188 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--color-bg-elev);
   color: var(--color-ink);
   box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
+}
+
+.filter-sheet {
+  left: 50%;
+  right: auto;
+  width: min(100%, 480px);
+  transform: translateX(-50%);
+  animation: filter-sheet-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+  border: 1px solid var(--color-line);
+  border-bottom: 0;
+}
+
+.filter-sheet-header {
+  padding: 14px 18px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 0.5px solid var(--color-line);
+}
+
+.filter-sheet-body {
+  padding: 14px 18px 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.filter-group-title {
+  color: var(--color-ink-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.filter-help {
+  margin-top: 2px;
+  color: var(--color-ink-3);
+  font-size: 12px;
+}
+
+.filter-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.filter-option-grid.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.filter-choice {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink-2);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.filter-choice.active {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-bg);
+}
+
+.filter-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.filter-input-grid label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-ink-3);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.filter-money-input {
+  height: 38px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 11px;
+  background: var(--color-bg);
+  color: var(--color-ink-3);
+}
+
+.filter-money-input input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.filter-money-input input::placeholder {
+  color: var(--color-ink-4);
+}
+
+.filter-row,
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filter-value {
+  min-width: 38px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.filter-toggle {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 12px;
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filter-toggle span:last-child {
+  color: var(--color-ink-3);
+  font-size: 12px;
+}
+
+.filter-toggle.active {
+  border-color: color-mix(in oklch, var(--color-accent) 55%, var(--color-line-2));
+  background: color-mix(in oklch, var(--color-accent) 13%, var(--color-bg-elev));
+}
+
+.filter-toggle.active span:last-child {
+  color: var(--color-accent-soft-ink);
+}
+
+.filter-sheet-actions {
+  padding: 12px 18px calc(var(--safe-bottom) + 14px);
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 10px;
+  border-top: 0.5px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-bg) 96%, transparent);
+}
+
+@keyframes filter-sheet-in {
+  from { transform: translate(-50%, 100%); }
+  to { transform: translate(-50%, 0); }
 }
 
 /* ── Logo mark ───────────────────────────────────────────── */
@@ -956,9 +1195,13 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
 .sheet-backdrop {
   position: fixed;
   inset: 0;
+  width: 100%;
+  border: 0;
+  padding: 0;
   background: rgba(0, 0, 0, 0.32);
   z-index: 50;
   animation: fade-in 0.2s;
+  cursor: pointer;
 }
 .sheet {
   position: fixed;
@@ -973,6 +1216,15 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   flex-direction: column;
   animation: sheet-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
   box-shadow: 0 -8px 32px rgba(0,0,0,.18);
+}
+.sheet.filter-sheet {
+  left: 50%;
+  right: auto;
+  width: min(100%, 480px);
+  transform: translateX(-50%);
+  animation: filter-sheet-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+  border: 1px solid var(--color-line);
+  border-bottom: 0;
 }
 .sheet-handle {
   width: 36px;

@@ -6,10 +6,14 @@
   type FeedCache = {
     jobs: FeedJob[];
     lastPolled: string | null;
-    selectedLocation: string;
+    selectedLocations: string[];
     sortBy: FeedSort;
     searchQuery: string;
     savedOnly: boolean;
+    minMatch: number;
+    minSalaryK: string;
+    maxSalaryK: string;
+    maxYoe: string;
     notifyThreshold: number;
     nextOffset: number;
     hasMore: boolean;
@@ -21,10 +25,14 @@
   const feedCache: FeedCache = {
     jobs: [],
     lastPolled: null,
-    selectedLocation: "All",
+    selectedLocations: ["All"],
     sortBy: "last_seen",
     searchQuery: "",
     savedOnly: false,
+    minMatch: 50,
+    minSalaryK: "",
+    maxSalaryK: "",
+    maxYoe: "",
     notifyThreshold: 50,
     nextOffset: 0,
     hasMore: true,
@@ -41,15 +49,24 @@
   import { viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
-  import FilterChips from "../components/FilterChips.svelte";
   import X from "phosphor-svelte/lib/X";
+  import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
 
   const LOCATIONS = ["All", "Remote", "NYC", "SF Bay Area", "Chicago", "Boston", "DC"];
+  const YOE_OPTIONS = [
+    { label: "Any", value: "" },
+    { label: "0-1", value: "1" },
+    { label: "0-2", value: "2" },
+    { label: "0-3", value: "3" },
+    { label: "0-4", value: "4" },
+    { label: "0-5", value: "5" },
+    { label: "0-8", value: "8" },
+  ];
 
   let jobs: Job[] = $state([...feedCache.jobs]);
   let loading: boolean = $state(!feedCache.hydrated && feedCache.jobs.length === 0);
   let error: string | null = $state(null);
-  let selectedLocation: string = $state(feedCache.selectedLocation);
+  let selectedLocations: string[] = $state([...feedCache.selectedLocations]);
   type FeedSort = "last_seen" | "last_posted" | "score";
 
   const SORT_OPTIONS: { label: string; value: FeedSort }[] = [
@@ -61,6 +78,11 @@
   let sortBy: FeedSort = $state(feedCache.sortBy);
   let searchQuery: string = $state(feedCache.searchQuery);
   let savedOnly: boolean = $state(feedCache.savedOnly);
+  let minMatch: number = $state(feedCache.minMatch);
+  let minSalaryK: string = $state(feedCache.minSalaryK);
+  let maxSalaryK: string = $state(feedCache.maxSalaryK);
+  let maxYoe: string = $state(feedCache.maxYoe);
+  let filtersOpen: boolean = $state(false);
   let notifyThreshold: number = $state(feedCache.notifyThreshold);
   let lastPolled: string | null = $state(feedCache.lastPolled);
   let refreshing: boolean = $state(false);
@@ -81,6 +103,30 @@
     return jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
   });
   let showingLabel = $derived(hasMore ? `${jobs.length}+ showing` : `${jobs.length} showing`);
+  let activeFilterCount = $derived.by(() => {
+    let count = 0;
+    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) count += 1;
+    if (minSalaryK.trim() || maxSalaryK.trim()) count += 1;
+    if (maxYoe) count += 1;
+    if (minMatch !== 50) count += 1;
+    if (savedOnly) count += 1;
+    return count;
+  });
+  let filterSummary = $derived.by(() => {
+    const parts: string[] = [];
+    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
+      parts.push(selectedLocations.join(", "));
+    }
+    if (minSalaryK.trim() || maxSalaryK.trim()) {
+      const min = minSalaryK.trim() ? `$${minSalaryK.trim()}K` : "Any";
+      const max = maxSalaryK.trim() ? `$${maxSalaryK.trim()}K` : "Any";
+      parts.push(`${min}-${max}`);
+    }
+    if (maxYoe) parts.push(`<= ${maxYoe} YOE`);
+    if (minMatch !== 50) parts.push(`${minMatch}+ match`);
+    if (savedOnly) parts.push("Saved");
+    return parts.length > 0 ? parts.join(" · ") : "All jobs";
+  });
 
   // Drive the bell badge
   $effect(() => {
@@ -98,10 +144,14 @@
   function syncFeedCache() {
     feedCache.jobs = [...jobs];
     feedCache.lastPolled = lastPolled;
-    feedCache.selectedLocation = selectedLocation;
+    feedCache.selectedLocations = [...selectedLocations];
     feedCache.sortBy = sortBy;
     feedCache.searchQuery = searchQuery;
     feedCache.savedOnly = savedOnly;
+    feedCache.minMatch = minMatch;
+    feedCache.minSalaryK = minSalaryK;
+    feedCache.maxSalaryK = maxSalaryK;
+    feedCache.maxYoe = maxYoe;
     feedCache.notifyThreshold = notifyThreshold;
     feedCache.nextOffset = nextOffset;
     feedCache.hasMore = hasMore;
@@ -120,18 +170,21 @@
       offset: String(offset),
     };
 
-    if (!savedOnly) {
-      params.min_score = String(thresholdToRaw(notifyThreshold));
-    }
+    if (minMatch > 0) params.min_score = String(thresholdToRaw(minMatch));
     if (searchQuery.trim()) {
       params.q = searchQuery.trim();
     }
-    if (selectedLocation !== "All") {
-      params.location = selectedLocation;
+    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
+      params.locations = selectedLocations.join(",");
     }
     if (savedOnly) {
       params.saved = "true";
     }
+    const minSalary = parseInt(minSalaryK, 10);
+    const maxSalary = parseInt(maxSalaryK, 10);
+    if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
+    if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
+    if (maxYoe) params.max_yoe = maxYoe;
 
     return params;
   }
@@ -221,13 +274,17 @@
   }
 
   async function applyFeedFilters(updates?: {
-    selectedLocation?: string;
+    selectedLocations?: string[];
     sortBy?: FeedSort;
     searchQuery?: string;
     savedOnly?: boolean;
+    minMatch?: number;
+    minSalaryK?: string;
+    maxSalaryK?: string;
+    maxYoe?: string;
   }) {
-    if (updates?.selectedLocation !== undefined) {
-      selectedLocation = updates.selectedLocation;
+    if (updates?.selectedLocations !== undefined) {
+      selectedLocations = updates.selectedLocations;
     }
     if (updates?.sortBy !== undefined) {
       sortBy = updates.sortBy;
@@ -238,6 +295,18 @@
     if (updates?.savedOnly !== undefined) {
       savedOnly = updates.savedOnly;
     }
+    if (updates?.minMatch !== undefined) {
+      minMatch = updates.minMatch;
+    }
+    if (updates?.minSalaryK !== undefined) {
+      minSalaryK = updates.minSalaryK;
+    }
+    if (updates?.maxSalaryK !== undefined) {
+      maxSalaryK = updates.maxSalaryK;
+    }
+    if (updates?.maxYoe !== undefined) {
+      maxYoe = updates.maxYoe;
+    }
     error = null;
     hasMore = true;
     nextOffset = 0;
@@ -246,6 +315,43 @@
       append: false,
       limit: PAGE_SIZE,
       offset: 0,
+    });
+  }
+
+  function toggleLocationFilter(location: string) {
+    if (location === "All") {
+      selectedLocations = ["All"];
+      return;
+    }
+
+    const current = selectedLocations.filter((item) => item !== "All");
+    selectedLocations = current.includes(location)
+      ? current.filter((item) => item !== location)
+      : [...current, location];
+
+    if (selectedLocations.length === 0) {
+      selectedLocations = ["All"];
+    }
+  }
+
+  function resetFilters() {
+    selectedLocations = ["All"];
+    minSalaryK = "";
+    maxSalaryK = "";
+    maxYoe = "";
+    minMatch = 50;
+    savedOnly = false;
+  }
+
+  async function applyFilterSheet() {
+    filtersOpen = false;
+    await applyFeedFilters({
+      selectedLocations: [...selectedLocations],
+      minSalaryK,
+      maxSalaryK,
+      maxYoe,
+      minMatch,
+      savedOnly,
     });
   }
 
@@ -383,15 +489,15 @@
   </div>
 
   <!-- Filters + sort -->
-  <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 16px 10px;">
-    <div style="min-width: 0; overflow: hidden;">
-      <FilterChips
-        filters={LOCATIONS}
-        selected={selectedLocation}
-        scrollable={true}
-        onSelect={(f) => void applyFeedFilters({ selectedLocation: f })}
-      />
-    </div>
+  <div class="feed-controls">
+    <button class="filter-button" onclick={() => (filtersOpen = true)} aria-label="Open filters">
+      <SlidersHorizontal size={15} weight="bold" />
+      <span>Filters</span>
+      {#if activeFilterCount > 0}
+        <span class="filter-count">{activeFilterCount}</span>
+      {/if}
+    </button>
+    <div class="filter-summary">{filterSummary}</div>
     <div class="sort-segmented" aria-label="Sort jobs">
       {#each SORT_OPTIONS as option}
         <button
@@ -457,3 +563,103 @@
     {/if}
   </div>
 </div>
+
+{#if filtersOpen}
+  <button type="button" class="sheet-backdrop" aria-label="Close filters" onclick={() => (filtersOpen = false)}></button>
+  <div class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Feed filters">
+    <div class="sheet-handle"></div>
+    <div class="filter-sheet-header">
+      <div>
+        <div class="section-label">Feed</div>
+        <h2 class="h-display" style="font-size: 26px;">Filters</h2>
+      </div>
+      <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
+        <X size={18} />
+      </button>
+    </div>
+
+    <div class="filter-sheet-body">
+      <section class="filter-group">
+        <div class="filter-group-title">Location</div>
+        <div class="filter-option-grid">
+          {#each LOCATIONS as location}
+            <button
+              class="filter-choice"
+              class:active={selectedLocations.includes(location)}
+              aria-pressed={selectedLocations.includes(location)}
+              onclick={() => toggleLocationFilter(location)}
+            >
+              {location}
+            </button>
+          {/each}
+        </div>
+      </section>
+
+      <section class="filter-group">
+        <div class="filter-group-title">Salary</div>
+        <div class="filter-input-grid">
+          <label>
+            <span>Min</span>
+            <div class="filter-money-input">
+              <span>$</span>
+              <input inputmode="numeric" placeholder="120" bind:value={minSalaryK} />
+              <span>K</span>
+            </div>
+          </label>
+          <label>
+            <span>Max</span>
+            <div class="filter-money-input">
+              <span>$</span>
+              <input inputmode="numeric" placeholder="250" bind:value={maxSalaryK} />
+              <span>K</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section class="filter-group">
+        <div class="filter-group-title">Experience</div>
+        <div class="filter-option-grid compact">
+          {#each YOE_OPTIONS as option}
+            <button
+              class="filter-choice"
+              class:active={maxYoe === option.value}
+              aria-pressed={maxYoe === option.value}
+              onclick={() => (maxYoe = option.value)}
+            >
+              {option.label}
+            </button>
+          {/each}
+        </div>
+      </section>
+
+      <section class="filter-group">
+        <div class="filter-row">
+          <div>
+            <div class="filter-group-title">Match score</div>
+            <div class="filter-help">{minMatch}+ minimum</div>
+          </div>
+          <div class="filter-value">{minMatch}</div>
+        </div>
+        <input type="range" min="0" max="100" step="5" bind:value={minMatch} />
+      </section>
+
+      <section class="filter-group">
+        <button
+          class="filter-toggle"
+          class:active={savedOnly}
+          aria-pressed={savedOnly}
+          onclick={() => (savedOnly = !savedOnly)}
+        >
+          <span>Saved jobs only</span>
+          <span>{savedOnly ? "On" : "Off"}</span>
+        </button>
+      </section>
+    </div>
+
+    <div class="filter-sheet-actions">
+      <button class="btn-secondary" onclick={resetFilters}>Reset</button>
+      <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply filters</button>
+    </div>
+  </div>
+{/if}

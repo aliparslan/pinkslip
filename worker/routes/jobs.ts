@@ -105,18 +105,87 @@ const LOCATION_ALIASES: Record<string, string[]> = {
   DC: ["washington", "d.c.", "dc", "arlington, va", "mclean, va"],
 };
 
-function buildLocationFilter(location: string | undefined) {
-  if (!location || location === "All") {
+function parseListParam(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildLocationFilter(location: string | undefined, locations: string | undefined) {
+  const selected = parseListParam(locations ?? location).filter((item) => item !== "All");
+  if (selected.length === 0) {
     return null;
   }
 
-  const aliases = LOCATION_ALIASES[location] ?? [location.toLowerCase()];
+  const aliases = selected.flatMap((item) => LOCATION_ALIASES[item] ?? [item.toLowerCase()]);
   return {
     clause: `(${aliases
       .map(() => "LOWER(COALESCE(j.location, '')) LIKE ?")
       .join(" OR ")})`,
     bindings: aliases.map((alias) => `%${alias.toLowerCase()}%`),
   };
+}
+
+function parseMoneyToken(token: string): number | null {
+  const hasThousandsSuffix = /k\b/i.test(token);
+  const numeric = Number.parseFloat(token.replace(/,/g, "").replace(/k\b/i, ""));
+  if (!Number.isFinite(numeric)) return null;
+  return hasThousandsSuffix || numeric < 1000 ? Math.round(numeric * 1000) : Math.round(numeric);
+}
+
+function parseSalaryRange(salary: string | null): { min: number; max: number } | null {
+  if (!salary) return null;
+  if (/(?:\/|\b)(?:hr|hour|hourly)\b/i.test(salary)) return null;
+
+  const matches = salary.match(/(?:\$|USD\s*)?\s*\d[\d,]*(?:\.\d+)?\s*k?/gi) ?? [];
+  const values = matches
+    .map(parseMoneyToken)
+    .filter((value): value is number => value !== null && value >= 1000);
+
+  if (values.length === 0) return null;
+  return {
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
+}
+
+function extractRequiredYoe(row: Pick<JobListRow, "title" | "description">): number | null {
+  const text = `${row.title ?? ""}\n${row.description ?? ""}`.toLowerCase();
+  if (/\b(?:junior|new grad|new graduate|entry level|early career)\b/.test(text)) return 0;
+  if (/\b(?:senior|sr\.?|staff|principal|lead)\b/.test(text)) return 5;
+
+  const rangeMatch = text.match(/\b(\d{1,2})\s*(?:\+|–|-|to)\s*(\d{1,2})?\s*(?:years?|yrs?)\b/);
+  if (rangeMatch) return Number.parseInt(rangeMatch[1], 10);
+
+  const yearMatch = text.match(/\b(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b/);
+  if (yearMatch) return Number.parseInt(yearMatch[1], 10);
+
+  return null;
+}
+
+function passesAdvancedFilters(
+  row: JobListRow,
+  filters: {
+    minSalary: number | null;
+    maxSalary: number | null;
+    maxYoe: number | null;
+  }
+): boolean {
+  if (filters.minSalary !== null || filters.maxSalary !== null) {
+    const range = parseSalaryRange(row.salary);
+    if (!range) return false;
+    if (filters.minSalary !== null && range.max < filters.minSalary) return false;
+    if (filters.maxSalary !== null && range.min > filters.maxSalary) return false;
+  }
+
+  if (filters.maxYoe !== null) {
+    const requiredYoe = extractRequiredYoe(row);
+    if (requiredYoe !== null && requiredYoe > filters.maxYoe) return false;
+  }
+
+  return true;
 }
 
 function toJobListing(row: Pick<JobListRow, "external_id" | "title" | "url" | "location" | "department" | "posted_at" | "description" | "salary">): JobListing {
@@ -187,10 +256,33 @@ async function rehydrateScores(db: D1Database, rows: JobListRow[]): Promise<JobL
 // GET / — List jobs
 jobs.get("/", async (c) => {
   const userId = c.get("userId");
-  const { min_score, company_id, dismissed, limit, offset, location, saved, sort, q } = c.req.query();
+  const {
+    min_score,
+    company_id,
+    dismissed,
+    limit,
+    offset,
+    location,
+    locations,
+    saved,
+    sort,
+    q,
+    min_salary,
+    max_salary,
+    max_yoe,
+  } = c.req.query();
 
   const limitVal = Math.min(parseInt(limit ?? "300", 10) || 300, 1000);
   const offsetVal = parseInt(offset ?? "0", 10) || 0;
+  const minSalary = min_salary !== undefined ? parseInt(min_salary, 10) : Number.NaN;
+  const maxSalary = max_salary !== undefined ? parseInt(max_salary, 10) : Number.NaN;
+  const maxYoe = max_yoe !== undefined ? parseInt(max_yoe, 10) : Number.NaN;
+  const advancedFilters = {
+    minSalary: Number.isFinite(minSalary) ? minSalary : null,
+    maxSalary: Number.isFinite(maxSalary) ? maxSalary : null,
+    maxYoe: Number.isFinite(maxYoe) ? maxYoe : null,
+  };
+  const hasAdvancedFilters = Object.values(advancedFilters).some((value) => value !== null);
 
   const conditions: string[] = ["c.enabled = 1", "j.closed_at IS NULL"];
   const bindings: (string | number)[] = [userId, userId];
@@ -241,7 +333,7 @@ jobs.get("/", async (c) => {
     bindings.push(userId);
   }
 
-  const locationFilter = buildLocationFilter(location);
+  const locationFilter = buildLocationFilter(location, locations);
   if (locationFilter) {
     conditions.push(locationFilter.clause);
     bindings.push(...locationFilter.bindings);
@@ -264,7 +356,7 @@ jobs.get("/", async (c) => {
         : "datetime(j.first_seen_at) DESC, j.first_seen_at DESC";
 
   const sql = `
-    SELECT ${JOB_LIST_FIELDS}
+    SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     ${where}
@@ -272,17 +364,25 @@ jobs.get("/", async (c) => {
     LIMIT ? OFFSET ?
   `;
 
-  bindings.push(limitVal, offsetVal);
+  bindings.push(hasAdvancedFilters ? 1000 : limitVal, hasAdvancedFilters ? 0 : offsetVal);
 
   const stmt = c.env.DB.prepare(sql);
   const result = await stmt.bind(...bindings).all<JobListRow>();
-  const rows = result.results ?? [];
+  const filteredRows = hasAdvancedFilters
+    ? (result.results ?? []).filter((row) => passesAdvancedFilters(row, advancedFilters))
+    : (result.results ?? []);
+  const rows = hasAdvancedFilters
+    ? filteredRows.slice(offsetVal, offsetVal + limitVal)
+    : filteredRows;
+
   return c.json({
     jobs: rows,
     meta: {
-      total: rows.length,
+      total: filteredRows.length,
       count: rows.length,
-      has_more: rows.length === limitVal,
+      has_more: hasAdvancedFilters
+        ? offsetVal + rows.length < filteredRows.length
+        : rows.length === limitVal,
       next_offset: offsetVal + rows.length,
     },
   });
