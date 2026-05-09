@@ -1,13 +1,101 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-bold.woff2") format("woff2");
+  font-weight: 700 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Text";
+  src: url("/fonts/founders/founders-grotesk-text-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Text";
+  src: url("/fonts/founders/founders-grotesk-text-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Text";
+  src: url("/fonts/founders/founders-grotesk-text-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Text";
+  src: url("/fonts/founders/founders-grotesk-text-bold.woff2") format("woff2");
+  font-weight: 700 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Mono";
+  src: url("/fonts/founders/founders-grotesk-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Mono";
+  src: url("/fonts/founders/founders-grotesk-mono-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk Mono";
+  src: url("/fonts/founders/founders-grotesk-mono-semibold.woff2") format("woff2");
+  font-weight: 600 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme {
-  --font-display: "Founders Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Founders Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Founders Grotesk Text", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Founders Grotesk Mono", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --radius-sm: 8px;
@@ -87,11 +175,12 @@ body {
   font-family: var(--font-sans);
   background: var(--color-bg);
   color: var(--color-ink);
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 15px;
   line-height: 1.45;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   overscroll-behavior-x: none;
@@ -104,14 +193,14 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .h-display {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 1.05;
   color: var(--color-ink);
   margin: 0;
 }
 
 .page-title {
-  letter-spacing: -0.018em;
+  letter-spacing: 0;
 }
 
 .brand-word {
