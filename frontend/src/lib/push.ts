@@ -25,6 +25,22 @@ export async function registerPush(): Promise<boolean> {
   }
 }
 
+export async function syncExistingPushSubscription(): Promise<boolean> {
+  try {
+    if (Notification.permission !== "granted") return false;
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return false;
+
+    await api.push.subscribe(subscription);
+    return true;
+  } catch (err) {
+    console.error("Push subscription sync failed:", err);
+    return false;
+  }
+}
+
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)

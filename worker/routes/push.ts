@@ -1,12 +1,13 @@
 import { Hono } from "hono";
-import type { Env, PushSubscriptionRow } from "../types";
+import type { Env, PushSubscriptionRow, Variables } from "../types";
 import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 
-const push = new Hono<{ Bindings: Env }>();
+const push = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // POST /subscribe — Register push subscription
 push.post("/subscribe", async (c) => {
+  const userId = c.get("userId");
   const body = await c.req.json<{
     endpoint: string;
     keys: { p256dh: string; auth: string };
@@ -16,16 +17,21 @@ push.post("/subscribe", async (c) => {
   const now = new Date().toISOString();
 
   await c.env.DB.prepare(
-    `INSERT OR REPLACE INTO push_subscriptions (id, endpoint, p256dh, auth, created_at)
-     VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(endpoint) DO UPDATE SET
+       user_id = excluded.user_id,
+       p256dh = excluded.p256dh,
+       auth = excluded.auth,
+       created_at = excluded.created_at`
   )
-    .bind(id, body.endpoint, body.keys.p256dh, body.keys.auth, now)
+    .bind(id, userId, body.endpoint, body.keys.p256dh, body.keys.auth, now)
     .run();
 
   const created = await c.env.DB.prepare(
-    "SELECT * FROM push_subscriptions WHERE id = ?"
+    "SELECT * FROM push_subscriptions WHERE endpoint = ?"
   )
-    .bind(id)
+    .bind(body.endpoint)
     .first<PushSubscriptionRow>();
 
   return c.json(created, 201);
@@ -45,13 +51,16 @@ push.delete("/subscribe", async (c) => {
 });
 
 push.post("/test", async (c) => {
+  const userId = c.get("userId");
   const delay = Math.min(Number(c.req.query("delay") ?? "0"), 10);
 
-  const subsResult = await c.env.DB.prepare("SELECT * FROM push_subscriptions").all<PushSubscriptionRow>();
+  const subsResult = await c.env.DB.prepare(
+    "SELECT * FROM push_subscriptions WHERE user_id = ?"
+  ).bind(userId).all<PushSubscriptionRow>();
   const subs = subsResult.results ?? [];
 
   if (subs.length === 0) {
-    return c.json({ error: "No push subscriptions registered. Enable notifications first." }, 400);
+    return c.json({ error: "No push subscriptions registered for this profile. Enable notifications first." }, 400);
   }
 
   if (delay > 0) {

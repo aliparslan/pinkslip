@@ -11,7 +11,10 @@ Rules:
 - Never overstate seniority, scope, or ownership.
 - Prefer sharp, concrete bullets over fluffy prose.
 - Quantify only when the corpus supports it.
-- Keep the resume concise and recruiter-friendly.
+- Keep the resume concise, ATS-safe, and recruiter-friendly.
+- Use a clean single-column markdown structure with plain headings and bullets.
+- Avoid tables, sidebars, icons, progress bars, or decorative formatting in the resume draft.
+- Mirror the job's terminology when it is truthful to the candidate's background.
 - Keep the cover letter specific to the company and role, not generic.
 - The QA output must be valid JSON when possible.
 

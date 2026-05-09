@@ -4,7 +4,6 @@ import { getLatestCorpusVersion } from "./corpus";
 import { buildTailorPrompt, TAILOR_SYSTEM } from "../tailor/prompt";
 import { parseTailoringText } from "../tailor/parse";
 import type {
-  CorpusVersionRow,
   Env,
   TailoringRow,
   Variables,
@@ -86,13 +85,16 @@ function writeSse(
 async function streamAnthropicTailoring(args: {
   apiKey: string;
   model: string;
-  corpus: CorpusVersionRow;
+  sourceMd: string;
   job: JobForTailor & { description: string };
-  db: D1Database;
   writer: WritableStreamDefaultWriter<Uint8Array>;
   encoder: TextEncoder;
+  db?: D1Database;
+  persist?: {
+    corpusVersionId: number;
+  };
 }) {
-  const { apiKey, model, corpus, job, db, writer, encoder } = args;
+  const { apiKey, model, sourceMd, job, db, persist, writer, encoder } = args;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -115,7 +117,7 @@ async function streamAnthropicTailoring(args: {
               company: job.company_name,
               description: job.description,
             },
-            corpus.content_md
+            sourceMd
           ),
         },
       ],
@@ -180,38 +182,42 @@ async function streamAnthropicTailoring(args: {
   }
 
   const parsed = parseTailoringText(fullText);
-  const tailoringId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+  let tailoringId: string | null = null;
+  if (persist && db) {
+    tailoringId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
 
-  await db.prepare(
-    `INSERT INTO tailorings (
-       id,
-       job_id,
-       corpus_version_id,
-       resume_md,
-       cover_letter_md,
-       qa_json,
-       input_tokens,
-       output_tokens,
-       model,
-       created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    tailoringId,
-    job.id,
-    corpus.id,
-    parsed.resume_md,
-    parsed.cover_letter_md,
-    parsed.qa_json,
-    inputTokens || null,
-    outputTokens || null,
-    model,
-    createdAt
-  ).run();
+    await db.prepare(
+      `INSERT INTO tailorings (
+         id,
+         job_id,
+         corpus_version_id,
+         resume_md,
+         cover_letter_md,
+         qa_json,
+         input_tokens,
+         output_tokens,
+         model,
+         created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      tailoringId,
+      job.id,
+      persist.corpusVersionId,
+      parsed.resume_md,
+      parsed.cover_letter_md,
+      parsed.qa_json,
+      inputTokens || null,
+      outputTokens || null,
+      model,
+      createdAt
+    ).run();
+  }
 
   await writeSse(writer, encoder, {
     type: "done",
     tailoring_id: tailoringId,
+    persisted: Boolean(tailoringId),
     tokens: {
       in: inputTokens,
       out: outputTokens,
@@ -280,10 +286,24 @@ tailor.patch("/tailorings/:id", async (c) => {
 
 tailor.post("/tailor/:job_id", async (c) => {
   const { job_id } = c.req.param();
-  const apiKey = c.env.ANTHROPIC_API_KEY?.trim();
+  const body =
+    (await c.req
+      .json<{
+        api_key?: string;
+        model?: string;
+        resume_md?: string;
+      }>()
+      .catch(() => null)) ?? {};
+
+  const requestApiKey = body.api_key?.trim();
+  const requestModel = body.model?.trim();
+  const requestResumeMd = body.resume_md?.trim();
+  const localMode = Boolean(requestApiKey || requestResumeMd);
+
+  const apiKey = requestApiKey || c.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
     return c.json(
-      { error: "Tailoring is unavailable until ANTHROPIC_API_KEY is configured" },
+      { error: "Add an Anthropic API key in Profile to tailor privately on this device, or configure ANTHROPIC_API_KEY on the worker" },
       503
     );
   }
@@ -301,12 +321,22 @@ tailor.post("/tailor/:job_id", async (c) => {
     );
   }
 
-  const corpus = await getLatestCorpusVersion(c.env.DB);
-  if (!corpus) {
-    return c.json({ error: "Corpus not found" }, 400);
+  let sourceMd = requestResumeMd ?? "";
+  let persist: { corpusVersionId: number } | undefined;
+
+  if (!sourceMd) {
+    const corpus = await getLatestCorpusVersion(c.env.DB);
+    if (!corpus) {
+      return c.json({ error: "Corpus not found" }, 400);
+    }
+    sourceMd = corpus.content_md;
+    persist = { corpusVersionId: corpus.id };
   }
 
-  const model = c.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-20250514";
+  const model =
+    requestModel
+    || c.env.ANTHROPIC_MODEL?.trim()
+    || "claude-sonnet-4-20250514";
   const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
@@ -317,9 +347,10 @@ tailor.post("/tailor/:job_id", async (c) => {
         await streamAnthropicTailoring({
           apiKey,
           model,
-          corpus,
+          sourceMd,
           job: { ...job, description },
           db: c.env.DB,
+          persist: localMode ? undefined : persist,
           writer,
           encoder,
         });
