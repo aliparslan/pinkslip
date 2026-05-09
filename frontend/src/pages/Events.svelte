@@ -143,10 +143,15 @@
 </script>
 
 <div class="page" style="padding-top: 0;">
-  <div style="padding: 16px 16px 8px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-      <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
-        Upcoming
+  <div class="page-frame" style="padding-bottom: 8px;">
+    <div class="page-hero">
+      <div class="page-hero-copy">
+        <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+          Events
+        </div>
+        <p class="page-subtitle">
+          Recruiter calls, onsites, and deadlines in one calmer timeline.
+        </p>
       </div>
       <button
         class="btn-secondary"
@@ -157,8 +162,8 @@
         Add
       </button>
     </div>
-    <div style="font-size: 13px; color: var(--color-ink-3);">
-      {events.length} event{events.length !== 1 ? "s" : ""} scheduled
+    <div class="stat-row">
+      <span><strong style="color: var(--color-ink);">{events.length}</strong> scheduled</span>
     </div>
   </div>
 
@@ -181,16 +186,17 @@
   {:else}
     {#each Object.entries(grouped) as [day, items]}
       <div>
-        <div style="padding: 14px 16px 6px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
-          {day}
+        <div class="list-section-label">
+          <span>{day}</span>
+          <span class="list-section-count">{items.length}</span>
         </div>
         {#each items as event (event.id)}
           <div style="display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid var(--color-line);">
             <div>
-              <div style="font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--color-ink); font-variant-numeric: tabular-nums;">
+              <div style="font-size: 16px; font-weight: 700; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">
                 {formatTime(event.event_date)}
               </div>
-              <div style="font-family: var(--font-mono); font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-top: 2px;">
+              <div style="font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 3px;">
                 {event.event_type}
               </div>
             </div>
@@ -199,11 +205,11 @@
                 {event.title}
               </div>
               {#if event.company_name}
-                <div style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); margin-top: 2px;">
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px;">
                   {event.company_name}{#if event.location} · {event.location}{/if}
                 </div>
               {:else if event.location}
-                <div style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); margin-top: 2px;">
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px;">
                   {event.location}
                 </div>
               {/if}

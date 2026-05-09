@@ -111,11 +111,15 @@
 </script>
 
 <div class="page" style="padding-top: 0;">
-  <!-- Title + stats -->
-  <div style="padding: 16px 16px 8px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-      <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
-        Tracker
+  <div class="page-frame">
+    <div class="page-hero">
+      <div class="page-hero-copy">
+        <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+          Tracker
+        </div>
+        <p class="page-subtitle">
+          Keep a clean view of active loops, one-off applications, and where each conversation stands.
+        </p>
       </div>
       <button
         class="btn-secondary"
@@ -127,16 +131,9 @@
         Add
       </button>
     </div>
-    <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
-        <span style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{activeCt}</span>
-        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">active</span>
-      </div>
-      <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block; align-self: center;"></span>
-      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
-        <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{apps.length}</span>
-        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">total</span>
-      </div>
+    <div class="stat-row" style="margin-bottom: 8px;">
+      <span><strong style="color: var(--color-ink);">{activeCt}</strong> active</span>
+      <span><strong style="color: var(--color-ink);">{apps.length}</strong> total</span>
     </div>
   </div>
 
@@ -160,9 +157,9 @@
     <!-- Grouped sections -->
     {#each Object.entries(grouped) as [stage, items]}
       <div>
-        <div style="padding: 14px 16px 6px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+        <div class="list-section-label">
           <span>{stage}</span>
-          <span style="font-variant-numeric: tabular-nums; opacity: 0.6;">{items.length}</span>
+          <span class="list-section-count">{items.length}</span>
         </div>
         {#each items as app (app.id)}
           <div
@@ -177,7 +174,7 @@
               <div style="font-size: 14px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {app.title}
               </div>
-              <div style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+              <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px; display: flex; align-items: center; gap: 6px;">
                 <span>{app.company_name}</span>
                 {#if app.next}
                   <span style="opacity: 0.5;">·</span>
@@ -187,7 +184,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
               <div style="text-align: right;">
-                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">
+                <div style="font-size: 11px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">
                   {timeAgo(app.updated_at)}
                 </div>
               </div>

@@ -1,25 +1,33 @@
 <script lang="ts" module>
   import type { Job as FeedJob } from "../lib/api";
 
+  type FeedSort = "last_seen" | "last_posted" | "score";
+
   type FeedCache = {
     jobs: FeedJob[];
     lastPolled: string | null;
     selectedLocation: string;
-    sortBy: "time" | "score";
+    sortBy: FeedSort;
     searchQuery: string;
     savedOnly: boolean;
     notifyThreshold: number;
+    nextOffset: number;
+    hasMore: boolean;
     hydrated: boolean;
   };
+
+  const PAGE_SIZE = 25;
 
   const feedCache: FeedCache = {
     jobs: [],
     lastPolled: null,
     selectedLocation: "All",
-    sortBy: "time",
+    sortBy: "last_seen",
     searchQuery: "",
     savedOnly: false,
     notifyThreshold: 50,
+    nextOffset: 0,
+    hasMore: true,
     hydrated: false,
   };
 </script>
@@ -31,6 +39,7 @@
   import { timeAgo } from "../lib/utils";
   import { searchOpen, unviewedCount } from "../lib/feed-state";
   import { viewedJobs } from "../lib/viewed";
+  import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import X from "phosphor-svelte/lib/X";
@@ -41,15 +50,28 @@
   let loading: boolean = $state(!feedCache.hydrated && feedCache.jobs.length === 0);
   let error: string | null = $state(null);
   let selectedLocation: string = $state(feedCache.selectedLocation);
-  let sortBy: "time" | "score" = $state(feedCache.sortBy);
+  type FeedSort = "last_seen" | "last_posted" | "score";
+
+  const SORT_OPTIONS: { label: string; value: FeedSort }[] = [
+    { label: "Last posted", value: "last_posted" },
+    { label: "Last seen", value: "last_seen" },
+    { label: "Score", value: "score" },
+  ];
+
+  let sortBy: FeedSort = $state(feedCache.sortBy);
   let searchQuery: string = $state(feedCache.searchQuery);
   let savedOnly: boolean = $state(feedCache.savedOnly);
   let notifyThreshold: number = $state(feedCache.notifyThreshold);
   let lastPolled: string | null = $state(feedCache.lastPolled);
   let refreshing: boolean = $state(false);
+  let loadingMore: boolean = $state(false);
+  let hasMore: boolean = $state(feedCache.hasMore);
+  let nextOffset: number = $state(feedCache.nextOffset);
   let lastAutoRefreshAt = 0;
   let searchTimer: number | null = $state(null);
   let searchInputEl: HTMLInputElement | undefined = $state(undefined);
+  let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
+  let requestVersion = 0;
 
   let viewed = $derived($viewedJobs);
   let showSearch = $derived($searchOpen);
@@ -58,6 +80,7 @@
     const today = new Date().toISOString().slice(0, 10);
     return jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
   });
+  let showingLabel = $derived(hasMore ? `${jobs.length}+ showing` : `${jobs.length} showing`);
 
   // Drive the bell badge
   $effect(() => {
@@ -80,16 +103,21 @@
     feedCache.searchQuery = searchQuery;
     feedCache.savedOnly = savedOnly;
     feedCache.notifyThreshold = notifyThreshold;
+    feedCache.nextOffset = nextOffset;
+    feedCache.hasMore = hasMore;
     feedCache.hydrated = true;
+    setFeedNavigationJobs(jobs);
   }
 
   function thresholdToRaw(threshold: number): number {
     return Math.max(0, Math.min(JOB_SCORE_RAW_MAX, Math.round((threshold / 100) * JOB_SCORE_RAW_MAX)));
   }
 
-  function buildFeedParams() {
+  function buildFeedParams(limit = PAGE_SIZE, offset = 0) {
     const params: Record<string, string> = {
       sort: sortBy,
+      limit: String(limit),
+      offset: String(offset),
     };
 
     if (!savedOnly) {
@@ -108,36 +136,93 @@
     return params;
   }
 
-  async function loadFeed(silent = false) {
+  async function loadFeedPage(options?: {
+    silent?: boolean;
+    append?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    const silent = options?.silent ?? false;
+    const append = options?.append ?? false;
+    const limit = options?.limit ?? PAGE_SIZE;
+    const offset = options?.offset ?? 0;
     const hadJobs = jobs.length > 0;
-    if (!silent && !hadJobs) loading = true;
-    if (!silent || !hadJobs) error = null;
+    const version = ++requestVersion;
+
+    if (append) {
+      loadingMore = true;
+    } else if (!silent && !hadJobs) {
+      loading = true;
+    }
+
+    if (!append && (!silent || !hadJobs)) {
+      error = null;
+    }
+
     try {
-      const [prefsRes, statsRes] = await Promise.all([
-        api.preferences.get(),
-        api.stats.get(),
-      ]);
+      if (!append) {
+        const [prefsRes, statsRes] = await Promise.all([
+          api.preferences.get(),
+          api.stats.get(),
+        ]);
 
-      notifyThreshold = (prefsRes.notify_threshold as number | undefined)
-        ?? (prefsRes.notification_threshold as number | undefined)
-        ?? 50;
+        if (version !== requestVersion) return;
 
-      const jobsRes = await api.jobs.list(buildFeedParams());
-      jobs = jobsRes.jobs ?? [];
-      lastPolled = statsRes.lastPolled ?? null;
+        notifyThreshold = (prefsRes.notify_threshold as number | undefined)
+          ?? (prefsRes.notification_threshold as number | undefined)
+          ?? 50;
+        lastPolled = statsRes.lastPolled ?? null;
+      }
+
+      const jobsRes = await api.jobs.list(buildFeedParams(limit, offset));
+      if (version !== requestVersion) return;
+
+      const incoming = jobsRes.jobs ?? [];
+      if (append) {
+        jobs = [...jobs, ...incoming];
+      } else {
+        jobs = incoming;
+      }
+
+      hasMore = Boolean(jobsRes.meta?.has_more);
+      nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
       syncFeedCache();
     } catch (e: any) {
-      if (!hadJobs) {
+      if (version !== requestVersion) return;
+      if (!hadJobs || !append) {
         error = e.message;
       }
     } finally {
-      loading = false;
+      if (version === requestVersion) {
+        loading = false;
+        loadingMore = false;
+      }
     }
+  }
+
+  async function loadFeed(silent = false) {
+    const preservedCount = Math.max(feedCache.jobs.length, jobs.length, PAGE_SIZE);
+    await loadFeedPage({
+      silent,
+      append: false,
+      limit: preservedCount,
+      offset: 0,
+    });
+  }
+
+  async function loadMore() {
+    if (loading || loadingMore || refreshing || !hasMore) return;
+    await loadFeedPage({
+      silent: true,
+      append: true,
+      limit: PAGE_SIZE,
+      offset: nextOffset,
+    });
   }
 
   async function applyFeedFilters(updates?: {
     selectedLocation?: string;
-    sortBy?: "time" | "score";
+    sortBy?: FeedSort;
     searchQuery?: string;
     savedOnly?: boolean;
   }) {
@@ -154,7 +239,14 @@
       savedOnly = updates.savedOnly;
     }
     error = null;
-    await loadFeed(true);
+    hasMore = true;
+    nextOffset = 0;
+    await loadFeedPage({
+      silent: true,
+      append: false,
+      limit: PAGE_SIZE,
+      offset: 0,
+    });
   }
 
   function scheduleSearch(nextValue: string) {
@@ -233,6 +325,25 @@
   });
 
   $effect(() => {
+    if (!loadMoreSentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "280px 0px" }
+    );
+
+    observer.observe(loadMoreSentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  });
+
+  $effect(() => {
     syncFeedCache();
   });
 </script>
@@ -263,28 +374,17 @@
   {/if}
 
   <!-- Stats bar -->
-  <div style="padding: 10px 16px 12px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;">
-    <div style="display: inline-flex; align-items: baseline; gap: 5px;">
-      <span style="font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{newToday}</span>
-      <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">new today</span>
-    </div>
-    <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
-    <div style="display: inline-flex; align-items: baseline; gap: 5px;">
-      <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;">{jobs.length}</span>
-      <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">showing</span>
-    </div>
+  <div class="stat-row" style="padding: 10px 16px 12px; justify-content: flex-start;">
+    <span>{newToday} new today</span>
+    <span>{showingLabel}</span>
     {#if lastPolled}
-      <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
-      <div style="display: inline-flex; align-items: baseline; gap: 5px;">
-        <span style="font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">polled</span>
-        <span style="font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">{timeAgo(lastPolled)}</span>
-      </div>
+      <span>polled {timeAgo(lastPolled)}</span>
     {/if}
   </div>
 
   <!-- Filters + sort -->
-  <div style="display: flex; align-items: center; gap: 8px; padding: 0 16px 8px;">
-    <div style="flex: 1; min-width: 0; overflow: hidden;">
+  <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 16px 10px;">
+    <div style="min-width: 0; overflow: hidden;">
       <FilterChips
         filters={LOCATIONS}
         selected={selectedLocation}
@@ -292,19 +392,15 @@
         onSelect={(f) => void applyFeedFilters({ selectedLocation: f })}
       />
     </div>
-    <div style="position: relative; display: inline-flex; background: var(--color-bg-sunken); border-radius: 8px; padding: 2px; flex-shrink: 0;">
-      <button
-        style="position: relative; z-index: 1; padding: 4px 12px; border: none; background: {sortBy === 'time' ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === 'time' ? '600' : '500'}; color: {sortBy === 'time' ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 6px; {sortBy === 'time' ? 'box-shadow: 0 1px 2px rgba(0,0,0,0.06);' : ''}"
-        onclick={() => void applyFeedFilters({ sortBy: 'time' })}
-      >
-        New
-      </button>
-      <button
-        style="position: relative; z-index: 1; padding: 4px 12px; border: none; background: {sortBy === 'score' ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === 'score' ? '600' : '500'}; color: {sortBy === 'score' ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 6px; {sortBy === 'score' ? 'box-shadow: 0 1px 2px rgba(0,0,0,0.06);' : ''}"
-        onclick={() => void applyFeedFilters({ sortBy: 'score' })}
-      >
-        Match
-      </button>
+    <div style="position: relative; display: inline-flex; align-self: flex-start; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); border-radius: 9px; padding: 2px; max-width: 100%; overflow-x: auto;">
+      {#each SORT_OPTIONS as option}
+        <button
+          style="position: relative; z-index: 1; min-width: max-content; padding: 4px 12px; border: 1px solid {sortBy === option.value ? 'var(--color-line-2)' : 'transparent'}; background: {sortBy === option.value ? 'var(--color-bg-elev)' : 'transparent'}; font-size: 12px; font-weight: {sortBy === option.value ? '600' : '500'}; color: {sortBy === option.value ? 'var(--color-ink)' : 'var(--color-ink-3)'}; cursor: pointer; letter-spacing: -0.01em; border-radius: 7px; white-space: nowrap;"
+          onclick={() => void applyFeedFilters({ sortBy: option.value })}
+        >
+          {option.label}
+        </button>
+      {/each}
     </div>
   </div>
 
@@ -343,11 +439,20 @@
       </div>
     {:else}
       {#each jobs as job (job.id)}
-        <JobRow {job} viewed={viewed.has(job.id)} onDismiss={(id) => { jobs = jobs.filter(j => j.id !== id); }} />
+        <JobRow {job} viewed={viewed.has(job.id)} onDismiss={(id) => { jobs = jobs.filter(j => j.id !== id); removeFeedNavigationJob(id); }} />
       {/each}
-      <div style="padding: 24px 16px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); letter-spacing: 0.04em;">
-        — go touch grass —
-      </div>
+      {#if loadingMore}
+        <div style="padding: 18px 16px; text-align: center; color: var(--color-ink-3); font-size: 13px;">
+          Loading more…
+        </div>
+      {/if}
+      {#if hasMore}
+        <div bind:this={loadMoreSentinel} style="height: 1px;"></div>
+      {:else}
+        <div style="padding: 24px 16px; text-align: center; color: var(--color-ink-4); font-size: 12px;">
+          End of feed
+        </div>
+      {/if}
     {/if}
   </div>
 </div>

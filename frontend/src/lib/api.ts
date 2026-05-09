@@ -164,11 +164,18 @@ export interface VerifyCompanyResult {
   }>;
 }
 
+export interface JobsListMeta {
+  total: number;
+  count?: number;
+  has_more?: boolean;
+  next_offset?: number;
+}
+
 export const api = {
   jobs: {
     list: (params?: Record<string, string>) => {
       const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-      return request<{ jobs: Job[]; meta: { total: number } }>(`/jobs${qs}`);
+      return request<{ jobs: Job[]; meta: JobsListMeta }>(`/jobs${qs}`);
     },
     get: (id: string) => request<Job>(`/jobs/${id}`),
     dismiss: (id: string) =>

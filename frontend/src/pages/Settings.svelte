@@ -2,8 +2,26 @@
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type AppFeatures, type FetchRun } from "../lib/api";
-  import { registerPush } from "../lib/push";
+  import {
+    DEFAULT_ANTHROPIC_MODEL,
+    createLocalResumeAsset,
+    downloadLocalResume,
+    formatFileSize,
+    loadLocalTailorKit,
+    openLocalResume,
+    saveLocalTailorKit,
+    updateLocalTailorKit,
+    type LocalResumeAsset,
+  } from "../lib/local-tailor";
+  import { registerPush, syncExistingPushSubscription } from "../lib/push";
   import { navigate } from "../router";
+  import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
+  import Eye from "phosphor-svelte/lib/Eye";
+  import EyeSlash from "phosphor-svelte/lib/EyeSlash";
+  import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
+  import Trash from "phosphor-svelte/lib/Trash";
+  import UploadSimple from "phosphor-svelte/lib/UploadSimple";
+  import CaretRight from "phosphor-svelte/lib/CaretRight";
 
   const DEFAULTS = {
     locations: "Remote, New York, San Francisco, Bay Area, Chicago, Boston, Washington DC, Seattle, Austin",
@@ -34,11 +52,31 @@
   let runs: FetchRun[] = $state([]);
   let refreshingAll: boolean = $state(false);
   let refreshLog: string[] = $state([]);
+  let localAnthropicKey: string = $state("");
+  let localAnthropicModel: string = $state(DEFAULT_ANTHROPIC_MODEL);
+  let localResume = $state<LocalResumeAsset | null>(null);
+  let showAnthropicKey: boolean = $state(false);
+  let savingLocalSetup: boolean = $state(false);
+  let resumeUploadInput: HTMLInputElement | null = $state(null);
+
+  let browserTailoringReady = $derived(Boolean(localAnthropicKey.trim() && localResume && localResume.canTailor));
+  let localSetupLabel = $derived.by(() => {
+    if (browserTailoringReady) return "local ready";
+    if (localAnthropicKey.trim() || localResume) return "partial";
+    return "off";
+  });
 
   const shortcuts = [
     { label: "Companies", sub: "Manage the shared watchlist", path: "/companies" },
     { label: "Corpus", sub: "Edit the material tailoring pulls from", path: "/corpus" },
   ] as const;
+
+  function hydrateLocalSetup() {
+    const localKit = loadLocalTailorKit();
+    localAnthropicKey = localKit.anthropicApiKey;
+    localAnthropicModel = localKit.anthropicModel || DEFAULT_ANTHROPIC_MODEL;
+    localResume = localKit.resume;
+  }
 
   async function loadSettings() {
     loading = true;
@@ -82,6 +120,9 @@
         navigator.serviceWorker.ready.then(async (reg) => {
           const sub = await reg.pushManager.getSubscription();
           pushStatus = sub ? "enabled" : "disabled";
+          if (sub) {
+            await syncExistingPushSubscription().catch(() => false);
+          }
         });
       }
     } catch (e: any) {
@@ -92,6 +133,7 @@
   }
 
   onMount(() => {
+    hydrateLocalSetup();
     loadSettings();
   });
 
@@ -136,6 +178,52 @@
     maxYoe = DEFAULTS.maxYoe;
     notificationThreshold = DEFAULTS.notificationThreshold;
   }
+
+  async function saveLocalSetup() {
+    savingLocalSetup = true;
+    error = null;
+    successMsg = null;
+    try {
+      saveLocalTailorKit({
+        anthropicApiKey: localAnthropicKey.trim(),
+        anthropicModel: localAnthropicModel.trim() || DEFAULT_ANTHROPIC_MODEL,
+        resume: localResume,
+      });
+      hydrateLocalSetup();
+      successMsg = "Private tailoring setup saved on this device.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      savingLocalSetup = false;
+    }
+  }
+
+  async function handleResumeUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    error = null;
+    try {
+      const asset = await createLocalResumeAsset(file);
+      localResume = asset;
+      updateLocalTailorKit({ resume: asset });
+      successMsg = `${asset.fileName} saved on this device.`;
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      if (input) input.value = "";
+    }
+  }
+
+  function removeLocalResume() {
+    localResume = null;
+    updateLocalTailorKit({ resume: null });
+    successMsg = "Local resume removed.";
+    setTimeout(() => (successMsg = null), 3000);
+  }
 </script>
 
 <div class="page" style="padding-top: 0;">
@@ -175,7 +263,7 @@
               class="input-field"
               placeholder="Your name"
               bind:value={displayName}
-              style="font-size: 16px; font-weight: 600;"
+              style="font-size: 16px; font-weight: 600; background: var(--color-bg-elev); border-color: var(--color-line-2);"
             />
           </div>
         </div>
@@ -184,14 +272,17 @@
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
             Shortcuts
           </div>
-          <div style="display: flex; flex-direction: column; gap: 0;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each shortcuts as shortcut, i}
               <button
-                style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: none; background: transparent; cursor: pointer; color: var(--color-ink); {i > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''} border-bottom: 0.5px solid var(--color-line);"
+                class="shortcut-row"
                 onclick={() => navigate(shortcut.path)}
               >
-                <div style="font-size: 14px; font-weight: 500;">{shortcut.label}</div>
-                <span style="font-size: 12px; color: var(--color-ink-3);">{shortcut.sub}</span>
+                <div style="min-width: 0; text-align: left;">
+                  <div style="font-size: 14px; font-weight: 600;">{shortcut.label}</div>
+                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{shortcut.sub}</div>
+                </div>
+                <CaretRight size={16} color="var(--color-ink-4)" />
               </button>
             {/each}
           </div>
@@ -200,7 +291,7 @@
         <!-- Job Preferences -->
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Job preferences</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
             <div>
               <label for="locations" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Locations</label>
               <input id="locations" type="text" class="input-field" placeholder="Remote, NYC, SF" bind:value={locations} />
@@ -227,7 +318,7 @@
         <!-- Experience -->
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Experience range</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div>
                 <label for="min-yoe" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Min YOE</label>
@@ -244,7 +335,7 @@
         <!-- Notifications -->
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Notifications</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; overflow: hidden;">
             <!-- Push toggle -->
             <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
               <div>
@@ -304,87 +395,265 @@
               <div style="font-size: 14px; font-weight: 500;">Poll interval</div>
               <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3);">Every 15 min</span>
             </div>
-          </div>
-        </section>
 
-        <!-- Test Notifications -->
-        <section>
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Test notifications</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px;">
-            {#if testingNotif}
-              <div style="padding: 12px 14px; border-radius: 10px; background: color-mix(in oklch, var(--color-accent) 14%, transparent); color: var(--color-accent-soft-ink); font-family: var(--font-mono); font-size: 12px; margin-bottom: 14px;">
-                {testingNotif}
+            <div style="height: 0.5px; background: var(--color-line);"></div>
+
+            <!-- Test notifications -->
+            <div style="padding: 16px 18px;">
+              <div style="font-size: 14px; font-weight: 500; margin-bottom: 10px;">Test notifications</div>
+              {#if testingNotif}
+                <div style="padding: 12px 14px; border-radius: 10px; background: color-mix(in oklch, var(--color-accent) 14%, transparent); color: var(--color-accent-soft-ink); font-family: var(--font-mono); font-size: 12px; margin-bottom: 14px;">
+                  {testingNotif}
+                </div>
+              {/if}
+              <div style="display: flex; gap: 8px;">
+                <button
+                  class="btn-secondary"
+                  style="flex: 1;"
+                  disabled={!!testingNotif}
+                  onclick={async () => {
+                    testingNotif = "Sending...";
+                    try {
+                      const res = await api.push.test(0);
+                      testingNotif = null;
+                      successMsg = `Sent to ${res.sent} device(s)`;
+                      setTimeout(() => (successMsg = null), 3000);
+                    } catch (e: any) {
+                      testingNotif = null;
+                      error = e.message;
+                    }
+                  }}
+                >
+                  Send now
+                </button>
+                <button
+                  class="btn-secondary"
+                  style="flex: 1;"
+                  disabled={!!testingNotif}
+                  onclick={async () => {
+                    testingNotif = "Sending in 5s...";
+                    try {
+                      const res = await api.push.test(5);
+                      testingNotif = null;
+                      successMsg = `Sent to ${res.sent} device(s)`;
+                      setTimeout(() => (successMsg = null), 3000);
+                    } catch (e: any) {
+                      testingNotif = null;
+                      error = e.message;
+                    }
+                  }}
+                >
+                  Send in 5s
+                </button>
               </div>
-            {/if}
-            <div style="display: flex; gap: 8px;">
-              <button
-                class="btn-secondary"
-                style="flex: 1;"
-                disabled={!!testingNotif}
-                onclick={async () => {
-                  testingNotif = "Sending...";
-                  try {
-                    const res = await api.push.test(0);
-                    testingNotif = null;
-                    successMsg = `Sent to ${res.sent} device(s)`;
-                    setTimeout(() => (successMsg = null), 3000);
-                  } catch (e: any) {
-                    testingNotif = null;
-                    error = e.message;
-                  }
-                }}
-              >
-                Send now
-              </button>
-              <button
-                class="btn-secondary"
-                style="flex: 1;"
-                disabled={!!testingNotif}
-                onclick={async () => {
-                  testingNotif = "Sending in 5s...";
-                  try {
-                    const res = await api.push.test(5);
-                    testingNotif = null;
-                    successMsg = `Sent to ${res.sent} device(s)`;
-                    setTimeout(() => (successMsg = null), 3000);
-                  } catch (e: any) {
-                    testingNotif = null;
-                    error = e.message;
-                  }
-                }}
-              >
-                Send in 5s
-              </button>
             </div>
           </div>
         </section>
 
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Tailoring</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
+              <div style="min-width: 0;">
+                <div style="font-size: 14px; font-weight: 500;">Browser-local setup</div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
+                  Resume and Anthropic key stay only in this browser. Tailor uses them privately when they are present.
+                </div>
+              </div>
+              <span class="tag" style="flex-shrink: 0;">{localSetupLabel}</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
               <div>
-                <div style="font-size: 14px; font-weight: 500;">Anthropic status</div>
+                <label for="anthropic-key" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Anthropic API key</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input
+                    id="anthropic-key"
+                    type={showAnthropicKey ? "text" : "password"}
+                    class="input-field"
+                    placeholder="sk-ant-..."
+                    bind:value={localAnthropicKey}
+                    style="flex: 1;"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <button
+                    class="icon-btn icon-btn-surface"
+                    type="button"
+                    aria-label={showAnthropicKey ? "Hide API key" : "Show API key"}
+                    onclick={() => (showAnthropicKey = !showAnthropicKey)}
+                  >
+                    {#if showAnthropicKey}
+                      <EyeSlash size={18} />
+                    {:else}
+                      <Eye size={18} />
+                    {/if}
+                  </button>
+                </div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 6px;">
+                  Stored only on this device. Get a key from Anthropic and paste it here.
+                </div>
+              </div>
+
+              <div>
+                <label for="anthropic-model" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Model</label>
+                <input
+                  id="anthropic-model"
+                  type="text"
+                  class="input-field"
+                  placeholder={DEFAULT_ANTHROPIC_MODEL}
+                  bind:value={localAnthropicModel}
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 6px;">
+                  `claude-sonnet-4-20250514` is a good default for resume tailoring.
+                </div>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button
+                  class="btn-secondary"
+                  type="button"
+                  style="display: inline-flex; align-items: center; gap: 7px;"
+                  onclick={saveLocalSetup}
+                  disabled={savingLocalSetup}
+                >
+                  {savingLocalSetup ? "Saving..." : "Save local setup"}
+                </button>
+                <button
+                  class="btn-secondary"
+                  type="button"
+                  style="display: inline-flex; align-items: center; gap: 7px;"
+                  onclick={() => window.open("https://console.anthropic.com/settings/keys", "_blank", "noopener,noreferrer")}
+                >
+                  <ArrowSquareOut size={16} />
+                  Get Anthropic key
+                </button>
+              </div>
+            </div>
+
+            <div style="height: 0.5px; background: var(--color-line);"></div>
+
+            <div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 500;">Resume source</div>
+                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
+                    Best results come from Overleaf `.tex`, markdown, or plain text. PDFs can still be stored and re-downloaded.
+                  </div>
+                </div>
+                {#if localResume}
+                  <span class="tag">{localResume.canTailor ? "ready" : "stored"}</span>
+                {/if}
+              </div>
+
+              <input
+                bind:this={resumeUploadInput}
+                type="file"
+                accept=".tex,.txt,.md,.markdown,.pdf,.rtf"
+                style="display: none;"
+                onchange={handleResumeUpload}
+              />
+
+              {#if localResume}
+                <div style="margin-top: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 8px;">
+                  <div style="font-size: 14px; font-weight: 600;">{localResume.fileName}</div>
+                  <div style="font-size: 12px; color: var(--color-ink-3);">
+                    {formatFileSize(localResume.size)} · added {new Date(localResume.uploadedAt).toLocaleDateString()}
+                  </div>
+                  <div style="font-size: 12px; color: var(--color-ink-3);">
+                    {#if localResume.canTailor}
+                      This file is ready for private tailoring on this device.
+                    {:else}
+                      This file is saved for viewing and download. Upload `.tex`, `.md`, or `.txt` to use it directly for tailoring.
+                    {/if}
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                    <button
+                      class="btn-secondary"
+                      type="button"
+                      style="display: inline-flex; align-items: center; gap: 7px;"
+                      onclick={() => resumeUploadInput?.click()}
+                    >
+                      <UploadSimple size={16} />
+                      Replace
+                    </button>
+                    <button
+                      class="btn-secondary"
+                      type="button"
+                      style="display: inline-flex; align-items: center; gap: 7px;"
+                      onclick={() => openLocalResume(localResume)}
+                    >
+                      <Eye size={16} />
+                      View
+                    </button>
+                    <button
+                      class="btn-secondary"
+                      type="button"
+                      style="display: inline-flex; align-items: center; gap: 7px;"
+                      onclick={() => downloadLocalResume(localResume)}
+                    >
+                      <DownloadSimple size={16} />
+                      Download
+                    </button>
+                    <button
+                      class="btn-secondary"
+                      type="button"
+                      style="display: inline-flex; align-items: center; gap: 7px;"
+                      onclick={removeLocalResume}
+                    >
+                      <Trash size={16} />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              {:else}
+                <div style="margin-top: 12px; padding: 14px; border-radius: 12px; border: 1px dashed var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 10px;">
+                  <div style="font-size: 13px; color: var(--color-ink-3);">
+                    No local resume saved yet.
+                  </div>
+                  <div>
+                    <button
+                      class="btn-secondary"
+                      type="button"
+                      style="display: inline-flex; align-items: center; gap: 7px;"
+                      onclick={() => resumeUploadInput?.click()}
+                    >
+                      <UploadSimple size={16} />
+                      Upload resume
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            </div>
+
+            <div style="height: 0.5px; background: var(--color-line);"></div>
+
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
+              <div style="min-width: 0;">
+                <div style="font-size: 14px; font-weight: 500;">Worker fallback</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
                   {#if features?.tailoring_enabled}
-                    Ready with {features.tailoring_model}
+                    Shared server tailoring is also available with {features.tailoring_model}.
                   {:else}
-                    Set `ANTHROPIC_API_KEY` to enable streaming resume and cover tailoring.
+                    Server-side tailoring is off right now, but local browser setup still works.
                   {/if}
                 </div>
               </div>
-              <span class="tag">{features?.tailoring_enabled ? "live" : "off"}</span>
+              <span class="tag" style="flex-shrink: 0;">{features?.tailoring_enabled ? "server ready" : "server off"}</span>
             </div>
           </div>
         </section>
 
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Operations</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
             <div style="display: flex; flex-direction: column; align-items: stretch; gap: 12px;">
               <div>
                 <div style="font-size: 14px; font-weight: 500;">Force refresh all companies</div>
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Runs the full poll loop right now for the active batch.</div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Runs the full poll loop right now for every active company.</div>
               </div>
               <button
                 class="btn-secondary"
@@ -410,7 +679,7 @@
               </button>
             </div>
             {#if refreshLog.length > 0}
-              <div style="padding: 12px 14px; border-radius: 12px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); display: flex; flex-direction: column; gap: 4px;">
+              <div style="padding: 12px 14px; border-radius: 12px; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); display: flex; flex-direction: column; gap: 4px;">
                 {#each refreshLog.slice(0, 8) as line}
                   <div>{line}</div>
                 {/each}
@@ -421,7 +690,7 @@
 
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Recent fetch runs</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; overflow: hidden;">
             {#if runs.length === 0}
               <div style="padding: 18px; font-size: 13px; color: var(--color-ink-3);">
                 No fetch runs yet.

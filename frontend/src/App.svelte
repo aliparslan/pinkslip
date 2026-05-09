@@ -2,13 +2,12 @@
   import { onMount } from "svelte";
   import { currentRoute, navigate } from "./router";
   import { themeMode, cycleTheme } from "./lib/theme";
-  import { searchOpen, unviewedCount } from "./lib/feed-state";
+  import { searchOpen } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
   import Sun from "phosphor-svelte/lib/Sun";
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
-  import Bell from "phosphor-svelte/lib/Bell";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
   import Tracker from "./pages/Tracker.svelte";
@@ -44,17 +43,13 @@
         : null
   );
   let showTabBar = $derived(!isDetailPage && !isTailorPage);
+  let showShellHeader = $derived(!isDetailPage && !isTailorPage);
   let mode = $derived($themeMode);
-  let badgeCount = $derived($unviewedCount);
   let isOnFeed = $derived(route === "/");
 
   function toggleSearch() {
     if (!isOnFeed) navigate("/");
     searchOpen.update((v) => !v);
-  }
-
-  function goToFeed() {
-    if (!isOnFeed) navigate("/");
   }
 
   let showOnboarding: boolean = $state(false);
@@ -116,41 +111,39 @@
   });
 </script>
 
-<!-- Top bar -->
-<header class="app-shell-header">
-  <div style="display: flex; align-items: center; gap: 8px;">
-    <!-- pinkslip icon -->
-    <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true" style="transform: rotate(-8deg); flex-shrink: 0;">
-      <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="0.5"/>
-      <rect x="5" y="6" width="12" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-      <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-      <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-    </svg>
-    <span class="h-display" style="font-size: 22px; line-height: 1;">
-      <span style="color: var(--color-accent);">pink</span>slip
-    </span>
-  </div>
-  <div style="display: flex; align-items: center; gap: 2px;">
-    <button class="icon-btn" onclick={toggleSearch} aria-label="Search jobs">
-      <MagnifyingGlass size={18} weight="regular" />
-    </button>
-    <button class="icon-btn" onclick={goToFeed} aria-label="New jobs" style="position: relative;">
-      <Bell size={18} weight="regular" />
-      {#if badgeCount > 0}
-        <span style="position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); border: 1.5px solid var(--color-bg);"></span>
-      {/if}
-    </button>
-    <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
-      {#if mode === "system"}
-        <Sun size={18} weight="regular" />
-      {:else if mode === "light"}
-        <Moon size={18} weight="regular" />
-      {:else}
-        <CircleHalf size={18} weight="regular" />
-      {/if}
-    </button>
-  </div>
-</header>
+{#if showShellHeader}
+  <!-- Top bar -->
+  <header class="app-shell-header">
+    <div class="app-shell-header-inner">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <!-- pinkslip icon -->
+        <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true" style="transform: rotate(-8deg); flex-shrink: 0;">
+          <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="0.5"/>
+          <rect x="5" y="6" width="12" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
+          <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
+          <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
+        </svg>
+        <span class="h-display" style="font-size: 22px; line-height: 1;">
+          <span style="color: var(--color-accent);">pink</span>slip
+        </span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 2px;">
+        <button class="icon-btn" onclick={toggleSearch} aria-label="Search jobs">
+          <MagnifyingGlass size={18} weight="regular" />
+        </button>
+        <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
+          {#if mode === "system"}
+            <Sun size={18} weight="regular" />
+          {:else if mode === "light"}
+            <Moon size={18} weight="regular" />
+          {:else}
+            <CircleHalf size={18} weight="regular" />
+          {/if}
+        </button>
+      </div>
+    </div>
+  </header>
+{/if}
 
 <div class="app-container min-h-screen pb-28">
   {#if sessionReady}

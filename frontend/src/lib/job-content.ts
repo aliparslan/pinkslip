@@ -168,3 +168,96 @@ export function extractPlainTextFromHtml(html: string | null | undefined): strin
   div.innerHTML = html;
   return normalizeText(div.textContent ?? "");
 }
+
+const ALLOWED_TAGS = new Set([
+  "A",
+  "B",
+  "BR",
+  "DIV",
+  "EM",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "I",
+  "LI",
+  "OL",
+  "P",
+  "SECTION",
+  "SPAN",
+  "STRONG",
+  "U",
+  "UL",
+]);
+
+const BLOCK_TAGS = new Set(["DIV", "P", "SECTION", "UL", "OL", "LI", "H1", "H2", "H3", "H4", "H5", "H6"]);
+
+function unwrapElement(el: Element) {
+  const parent = el.parentNode;
+  if (!parent) return;
+  while (el.firstChild) parent.insertBefore(el.firstChild, el);
+  parent.removeChild(el);
+}
+
+function isBoilerplateBlock(text: string): boolean {
+  return /equal opportunity|reasonable accommodation|pay transparency|privacy notice|applicant privacy|do not discriminate|diversity and inclusion|diversity, equity/i.test(text);
+}
+
+function sanitizeUrl(value: string): string | null {
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:") {
+      return url.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function sanitizeJobDescriptionHtml(html: string | null | undefined): string {
+  if (!html) return "";
+
+  const template = document.createElement("template");
+  template.innerHTML = html;
+
+  template.content.querySelectorAll("script, style, iframe, object, embed, img, video, audio, form, input, button").forEach((el) => {
+    el.remove();
+  });
+
+  for (const el of Array.from(template.content.querySelectorAll("*"))) {
+    const text = normalizeText(el.textContent ?? "");
+    if (BLOCK_TAGS.has(el.tagName) && isBoilerplateBlock(text)) {
+      el.remove();
+      continue;
+    }
+
+    if (!ALLOWED_TAGS.has(el.tagName)) {
+      unwrapElement(el);
+      continue;
+    }
+
+    for (const attr of Array.from(el.attributes)) {
+      el.removeAttribute(attr.name);
+    }
+
+    if (el.tagName === "A") {
+      const href = sanitizeUrl((el as HTMLAnchorElement).href);
+      if (href) {
+        el.setAttribute("href", href);
+        el.setAttribute("target", "_blank");
+        el.setAttribute("rel", "noopener noreferrer");
+      } else {
+        unwrapElement(el);
+      }
+    }
+  }
+
+  template.content.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6").forEach((el) => {
+    if (!normalizeText(el.textContent ?? "")) el.remove();
+  });
+
+  return template.innerHTML.trim();
+}

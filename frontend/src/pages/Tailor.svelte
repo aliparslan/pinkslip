@@ -3,6 +3,15 @@
   import { navigate } from "../router";
   import { api, type Job, type Tailoring } from "../lib/api";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
+  import {
+    DEFAULT_ANTHROPIC_MODEL,
+    getLocalResumeTailorText,
+    loadLocalTailorDraft,
+    loadLocalTailorKit,
+    saveLocalTailorDraft,
+    type LocalTailorDraft,
+    type LocalTailorKit,
+  } from "../lib/local-tailor";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -18,6 +27,8 @@
   let error: string | null = $state(null);
   let job: Job | null = $state(null);
   let tailoring: Tailoring | null = $state(null);
+  let localKit: LocalTailorKit | null = $state(null);
+  let localDraft: LocalTailorDraft | null = $state(null);
   let rawStream = $state("");
   let resumeText = $state("");
   let coverText = $state("");
@@ -30,6 +41,29 @@
   });
   let saveTimer: number | null = $state(null);
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
+  let usingLocalTailor = $derived.by(() => {
+    return Boolean(localKit?.anthropicApiKey.trim() && getLocalResumeTailorText(localKit));
+  });
+  let activeModel = $derived.by(() => {
+    if (usingLocalTailor) {
+      return localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL;
+    }
+    return tailoring?.model ?? null;
+  });
+  let outputBaseline = $derived.by(() => {
+    if (usingLocalTailor) {
+      return {
+        resume: localDraft?.resumeText ?? "",
+        cover: localDraft?.coverText ?? "",
+        qa: localDraft?.qaText ?? "",
+      };
+    }
+    return {
+      resume: tailoring?.resume_md_final ?? "",
+      cover: tailoring?.cover_letter_md_final ?? "",
+      qa: tailoring?.qa_json_final ?? "",
+    };
+  });
 
   function parseSections(text: string) {
     const normalized = text.includes("=== RESUME ===") ? text : `=== RESUME ===\n${text}`;
@@ -45,6 +79,7 @@
 
   function hydrateFromTailoring(next: Tailoring | null) {
     tailoring = next;
+    localDraft = null;
     resumeText = next?.resume_md_final ?? "";
     coverText = next?.cover_letter_md_final ?? "";
     qaText = next?.qa_json_final ?? "";
@@ -57,17 +92,27 @@
         : null;
   }
 
+  function hydrateFromLocalDraft(next: LocalTailorDraft | null) {
+    tailoring = null;
+    localDraft = next;
+    resumeText = next?.resumeText ?? "";
+    coverText = next?.coverText ?? "";
+    qaText = next?.qaText ?? "";
+    tokenSummary = next?.tokenSummary ?? null;
+  }
+
   async function loadExisting() {
     if (!jobId) return;
     loading = true;
     error = null;
     try {
-      const [jobRes, tailorRes] = await Promise.all([
-        api.jobs.get(jobId),
-        api.tailor.get(jobId),
-      ]);
-      job = jobRes;
-      hydrateFromTailoring(tailorRes.tailoring);
+      job = await api.jobs.get(jobId);
+      if (usingLocalTailor) {
+        hydrateFromLocalDraft(loadLocalTailorDraft(jobId));
+      } else {
+        const tailorRes = await api.tailor.get(jobId);
+        hydrateFromTailoring(tailorRes.tailoring);
+      }
     } catch (e: any) {
       error = e.message;
     } finally {
@@ -84,9 +129,26 @@
     editing = { resume: false, cover: false, qa: false };
 
     try {
-      const res = await fetch(`/api/tailor/${jobId}`, {
+      if (!usingLocalTailor && localKit?.anthropicApiKey.trim() && localKit?.resume && !localKit.resume.canTailor) {
+        throw new Error("This saved resume can be viewed and downloaded, but upload a .tex, .md, or .txt file to tailor from it on this device.");
+      }
+
+      const requestInit: RequestInit = {
         method: "POST",
         credentials: "include",
+      };
+
+      if (usingLocalTailor) {
+        requestInit.headers = { "Content-Type": "application/json" };
+        requestInit.body = JSON.stringify({
+          api_key: localKit?.anthropicApiKey.trim(),
+          model: localKit?.anthropicModel.trim() || DEFAULT_ANTHROPIC_MODEL,
+          resume_md: getLocalResumeTailorText(localKit),
+        });
+      }
+
+      const res = await fetch(`/api/tailor/${jobId}`, {
+        ...requestInit,
       });
 
       if (!res.ok) {
@@ -127,8 +189,22 @@
               input: payload.tokens?.in ?? 0,
               output: payload.tokens?.out ?? 0,
             };
-            const latest = await api.tailor.get(jobId);
-            hydrateFromTailoring(latest.tailoring);
+            if (usingLocalTailor) {
+              const draft: LocalTailorDraft = {
+                jobId,
+                resumeText,
+                coverText,
+                qaText,
+                model: localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL,
+                updatedAt: new Date().toISOString(),
+                tokenSummary,
+              };
+              saveLocalTailorDraft(draft);
+              hydrateFromLocalDraft(draft);
+            } else {
+              const latest = await api.tailor.get(jobId);
+              hydrateFromTailoring(latest.tailoring);
+            }
           } else if (payload.type === "error") {
             throw new Error(payload.message ?? "Tailoring failed");
           }
@@ -142,9 +218,26 @@
   }
 
   async function saveEdits(): Promise<boolean> {
-    if (!tailoring || saving) return false;
+    if (saving) return false;
     saving = true;
     try {
+      if (usingLocalTailor && jobId) {
+        const draft: LocalTailorDraft = {
+          jobId,
+          resumeText,
+          coverText,
+          qaText,
+          model: localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL,
+          updatedAt: new Date().toISOString(),
+          tokenSummary,
+        };
+        saveLocalTailorDraft(draft);
+        hydrateFromLocalDraft(draft);
+        return true;
+      }
+
+      if (!tailoring) return false;
+
       const saved = await api.tailor.save(tailoring.id, {
         user_edited_resume_md: resumeText,
         user_edited_cover_md: coverText,
@@ -178,11 +271,10 @@
   }
 
   let hasPendingEdits = $derived.by(() => {
-    const latest = tailoring;
     return (
-      resumeText !== (latest?.resume_md_final ?? "")
-      || coverText !== (latest?.cover_letter_md_final ?? "")
-      || qaText !== (latest?.qa_json_final ?? "")
+      resumeText !== outputBaseline.resume
+      || coverText !== outputBaseline.cover
+      || qaText !== outputBaseline.qa
     );
   });
 
@@ -204,13 +296,15 @@
       const confirmed = window.confirm(
         hasPendingEdits
           ? "Regenerating will create a new version. Your current edits will be saved first so you can come back to them. Continue?"
-          : "Generate a fresh version from the current corpus and this job?"
+          : usingLocalTailor
+            ? "Generate a fresh version from your browser-local resume and this job?"
+            : "Generate a fresh version from the current corpus and this job?"
       );
       if (!confirmed) return;
     }
 
     clearQueuedSave();
-    if (hasPendingEdits && tailoring) {
+    if (hasPendingEdits && (tailoring || usingLocalTailor)) {
       const savedOkay = await saveEdits();
       if (!savedOkay) return;
     }
@@ -223,8 +317,9 @@
   }
 
   onMount(() => {
+    localKit = loadLocalTailorKit();
     loadExisting().then(() => {
-      if (!tailoring) {
+      if (!tailoring && !localDraft) {
         void streamTailoring();
       }
     });
@@ -234,8 +329,8 @@
   });
 </script>
 
-<div class="page">
-  <header style="padding: 8px 22px 14px; display: flex; align-items: center; gap: 10px;">
+<div class="page" style="padding-top: 0;">
+  <header class="page-replacement-header" style="justify-content: flex-start; padding-left: 18px; padding-right: 18px;">
     <button class="icon-btn" aria-label="Back" onclick={() => navigate(jobId ? `/jobs/${jobId}` : "/")}>
       <ArrowLeft size={18} />
     </button>
@@ -269,6 +364,7 @@
     </div>
 
     <div class="stat-row" style="margin-bottom: 14px;">
+      <span>{usingLocalTailor ? "browser-local resume" : "shared corpus"}</span>
       {#if streaming}
         <span>streaming live</span>
       {/if}
@@ -278,8 +374,8 @@
       {#if tokenSummary}
         <span>{tokenSummary.input} in / {tokenSummary.output} out</span>
       {/if}
-      {#if tailoring?.model}
-        <span>{tailoring.model}</span>
+      {#if activeModel}
+        <span>{activeModel}</span>
       {/if}
     </div>
 

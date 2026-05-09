@@ -2,10 +2,11 @@
   import { onDestroy } from "svelte";
   import { navigate } from "../router";
   import { api } from "../lib/api";
+  import { getAdjacentJobIds } from "../lib/feed-navigation";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
-    parseJobDescription,
+    sanitizeJobDescriptionHtml,
   } from "../lib/job-content";
   import {
     normalizeJobScore,
@@ -14,16 +15,19 @@
   } from "../lib/scoring";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
+  import ArrowRight from "phosphor-svelte/lib/ArrowRight";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import MapPin from "phosphor-svelte/lib/MapPin";
-  import CurrencyDollar from "phosphor-svelte/lib/CurrencyDollar";
+  import Money from "phosphor-svelte/lib/Money";
+  import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
+  import ClockCounterClockwise from "phosphor-svelte/lib/ClockCounterClockwise";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import X from "phosphor-svelte/lib/X";
-
   import Trash from "phosphor-svelte/lib/Trash";
   import Warning from "phosphor-svelte/lib/Warning";
+  import MagicWand from "phosphor-svelte/lib/MagicWand";
 
   let { jobId }: { jobId: string | null } = $props();
 
@@ -151,6 +155,7 @@
   let scorePercent = $derived(normalizeJobScore(scoreRaw));
   let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
+  let adjacentJobs = $derived(getAdjacentJobIds(jobId));
 
   const scoreBreakdownKeys = [
     { label: "Title", key: "title_score", max: 30 },
@@ -160,24 +165,27 @@
     { label: "Recency", key: "recency_score", max: 10 },
   ];
 
-  let parsedDesc = $derived(job?.description ? parseJobDescription(job.description) : []);
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
   let displaySalary = $derived(job?.salary ?? extractedSalary);
+  let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description) : "");
   let plainDescription = $derived.by(() => {
     return extractPlainTextFromHtml(job?.description);
   });
+
+  function navigateToAdjacent(id: string | null) {
+    if (!id) return;
+    navigate(`/jobs/${id}`);
+  }
 </script>
 
-<div class="page">
+<div class="page" style="padding-top: 0;">
   <!-- Header -->
-  <header style="padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-line);">
+  <header class="page-replacement-header">
     <button class="icon-btn" aria-label="Back" onclick={() => navigate("/")}>
       <ArrowLeft size={18} />
     </button>
-    {#if job?.ats_type}
-      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;">
-        via {job.ats_type}
-      </div>
+    {#if job?.closed_at}
+      <div class="tag" style="height: 22px;">closed</div>
     {/if}
     <div style="display: flex; gap: 2px;">
       {#if job?.url}
@@ -200,7 +208,7 @@
     </div>
   </header>
 
-  <div style="padding: 18px 20px 28px;">
+  <div style="padding: 18px 20px 112px;">
     {#if loading}
       <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: 12px;">
         Loading...
@@ -214,47 +222,50 @@
       <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px;">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
         <div style="flex: 1; min-width: 0;">
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
-            {job.company_name}{#if job.department} · {job.department}{/if}
+          <div class="section-label" style="margin-bottom: 4px;">
+            {job.company_name}{#if job.department} {" · "}{job.department}{/if}
           </div>
-          <h1 class="h-display" style="font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-top: 4px;">
+          <h1 class="h-display" style="font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-top: 0;">
             {job.title}
           </h1>
         </div>
       </div>
 
       <!-- Metadata row -->
-      <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--color-ink-3);">
+      <div class="job-meta-strip" style="margin-bottom: 16px;">
         {#if job.location}
-          <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <MapPin size={12} />
-            {job.location}
-          </span>
-        {/if}
-        {#if job.location && displaySalary}
-          <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
+          <div class="job-meta-item">
+            <MapPin size={15} />
+            <span>{job.location}</span>
+          </div>
         {/if}
         {#if displaySalary}
-          <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <CurrencyDollar size={12} />
-            {displaySalary}
-          </span>
-        {/if}
-        {#if (job.location || displaySalary) && job.posted_at}
-          <span style="width: 0.5px; height: 12px; background: var(--color-line); display: inline-block;"></span>
+          <div class="job-meta-item">
+            <Money size={15} />
+            <span>{displaySalary}</span>
+          </div>
         {/if}
         {#if job.posted_at}
-          <span style="font-family: var(--font-mono);">posted {formatDate(job.posted_at)}</span>
+          <div class="job-meta-item">
+            <CalendarBlank size={15} />
+            <span>posted {formatDate(job.posted_at)}</span>
+          </div>
+        {/if}
+        {#if job.first_seen_at}
+          <div class="job-meta-item">
+            <ClockCounterClockwise size={15} />
+            <span>seen {formatDate(job.first_seen_at)}</span>
+          </div>
         {/if}
       </div>
 
       <div style="height: 0.5px; background: var(--color-line); margin-bottom: 16px;"></div>
 
       <!-- Match score -->
-      <div style="margin-bottom: 8px;">
+      <div class="surface-card-padded" style="margin-bottom: 16px;">
         <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px;">
           <div>
-            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
+            <div class="section-label">
               Match score
             </div>
             <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
@@ -269,9 +280,11 @@
           <button
             type="button"
             onclick={() => scoreExpanded = !scoreExpanded}
-            style="border: 0.5px solid var(--color-line); background: var(--color-bg-elev); border-radius: 8px; padding: 6px 10px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+            class="btn-secondary"
+            style="height: 32px; padding: 0 10px; font-size: 12px;"
           >
-            why? <CaretDown size={12} style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});" />
+            why?
+            <CaretDown size={12} style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});" />
           </button>
         </div>
 
@@ -292,32 +305,10 @@
         {/if}
       </div>
 
-      <div style="height: 0.5px; background: var(--color-line); margin-bottom: 16px;"></div>
-
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          {#if job.url}
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn-primary btn-accent"
-              style="text-decoration: none;"
-            >
-              Apply now
-              <ArrowSquareOut size={16} />
-            </a>
-          {/if}
           <button
-            class="btn-secondary"
-            onclick={() => jobId && navigate(`/tailor/${jobId}`)}
-          >
-            Tailor materials
-          </button>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <button
-            class="btn-secondary"
+            class="btn-secondary btn-action"
             disabled={applied || applying}
             onclick={async () => {
               if (!jobId || !job) return;
@@ -342,7 +333,7 @@
             {applied ? "Tracked" : applying ? "..." : "Mark as applied"}
           </button>
           <button
-            class="btn-secondary"
+            class="btn-secondary btn-action"
             onclick={handleDismiss}
             disabled={dismissing}
           >
@@ -357,45 +348,39 @@
       <!-- About the role -->
       {#if descriptionPending}
         <div style="padding: 16px 0 24px;">
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+          <div class="section-title" style="margin-bottom: 8px;">
             About the role
           </div>
           <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
             Pulling the full posting now. This usually lands in a second or two.
           </p>
-          <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
+          <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
             Check again
           </button>
         </div>
-      {:else if parsedDesc.length > 0}
-        <div style="padding: 16px 0 24px; display: flex; flex-direction: column; gap: 16px;">
-          {#each parsedDesc as section, i}
-            <div>
-              {#if i === 0}
-                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
-                  About the role
-                </div>
-              {/if}
-              <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--color-ink);">{section.heading}</h3>
-              <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px;">
-                {#each section.items as item}
-                  <li style="font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">{item}</li>
-                {/each}
-              </ul>
-            </div>
-          {/each}
+      {:else if sanitizedDescription}
+        <div style="padding: 16px 0 24px;">
+          <div class="section-title" style="margin-bottom: 10px;">
+            About the role
+          </div>
+          <div class="job-description">
+            {@html sanitizedDescription}
+          </div>
           {#if job.url}
             <a
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
-            >Read full description →</a>
+              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+            >
+              Read full description
+              <ArrowSquareOut size={13} />
+            </a>
           {/if}
         </div>
       {:else if plainDescription}
         <div style="padding: 16px 0 24px;">
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+          <div class="section-title" style="margin-bottom: 8px;">
             About the role
           </div>
           <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
@@ -406,20 +391,23 @@
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-block; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
-            >Read full description →</a>
+              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+            >
+              Read full description
+              <ArrowSquareOut size={13} />
+            </a>
           {/if}
         </div>
       {:else}
         <div style="padding: 16px 0 24px;">
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 8px;">
+          <div class="section-title" style="margin-bottom: 8px;">
             About the role
           </div>
           <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn-secondary" style="height: 38px; padding: 0 14px;" onclick={() => void loadJobDetail(true)}>
+            <button class="btn-secondary btn-mini" onclick={() => void loadJobDetail(true)}>
               Try again
             </button>
             {#if job.url}
@@ -427,8 +415,8 @@
                 href={job.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="btn-secondary"
-                style="height: 38px; padding: 0 14px; text-decoration: none;"
+                class="btn-secondary btn-mini"
+                style="text-decoration: none;"
               >
                 Open original
               </a>
@@ -440,6 +428,53 @@
     {/if}
   </div>
 </div>
+
+{#if !loading && !error && job}
+  <div class="job-action-bar-wrap">
+    <div class="job-action-bar">
+      <button
+        class="icon-btn icon-btn-surface job-step-btn"
+        aria-label="Previous job"
+        disabled={!adjacentJobs.previousId}
+        onclick={() => navigateToAdjacent(adjacentJobs.previousId)}
+      >
+        <ArrowLeft size={18} />
+      </button>
+      {#if job.url}
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-primary btn-accent btn-action"
+          style="text-decoration: none;"
+        >
+          Apply
+          <ArrowSquareOut size={18} weight="regular" />
+        </a>
+      {:else}
+        <button class="btn-primary btn-accent btn-action" disabled>
+          Apply
+          <ArrowSquareOut size={18} weight="regular" />
+        </button>
+      {/if}
+      <button
+        class="btn-secondary btn-action"
+        onclick={() => jobId && navigate(`/tailor/${jobId}`)}
+      >
+        Tailor
+        <MagicWand size={16} />
+      </button>
+      <button
+        class="icon-btn icon-btn-surface job-step-btn"
+        aria-label="Next job"
+        disabled={!adjacentJobs.nextId}
+        onclick={() => navigateToAdjacent(adjacentJobs.nextId)}
+      >
+        <ArrowRight size={18} />
+      </button>
+    </div>
+  </div>
+{/if}
 
 <!-- Block confirmation modal -->
 {#if showBlockConfirm}

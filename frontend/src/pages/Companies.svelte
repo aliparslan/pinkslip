@@ -234,10 +234,17 @@
 </script>
 
 <div class="page">
-  <div style="padding: 0 22px 28px;">
-    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 14px;">
-      Companies
-    </h1>
+  <div class="page-frame" style="padding-left: 22px; padding-right: 22px;">
+    <div class="page-hero" style="margin-bottom: 10px;">
+      <div class="page-hero-copy">
+        <h1 class="h-display page-title" style="font-size: 30px; margin: 0;">
+          Companies
+        </h1>
+        <p class="page-subtitle">
+          Shared watchlist, source health, and quick fixes for anything that falls out of sync.
+        </p>
+      </div>
+    </div>
     <div class="stat-row" style="margin-bottom: 16px;">
       <span><strong style="color: var(--color-ink);">{enabledCount}</strong> active</span>
       <span><strong style="color: var(--color-ink);">{companies.length}</strong> total</span>
@@ -250,23 +257,25 @@
     </div>
 
     <!-- Filter chips + toggle all -->
-    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+    <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
       <input
         class="input-field"
         type="search"
         placeholder="Search companies or ATS slugs"
         bind:value={search}
       />
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-        <FilterChips
-          filters={ATS_TYPES}
-          selected={selectedAts}
-          onSelect={(f) => (selectedAts = f)}
-        />
-        <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+        <div style="min-width: 0;">
+          <FilterChips
+            filters={ATS_TYPES}
+            selected={selectedAts}
+            onSelect={(f) => (selectedAts = f)}
+          />
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
           <button
             class="btn-secondary"
-            style="height: 28px; padding: 0 12px; font-size: 11px;"
+            style="height: 32px; padding: 0 12px; font-size: 12px;"
             onclick={() => showDisabled = !showDisabled}
           >
             {showDisabled ? "Hide disabled" : "Show disabled"}
@@ -274,7 +283,7 @@
           {#if filteredCompanies.length > 0}
             <button
               class="btn-secondary"
-              style="height: 28px; padding: 0 12px; font-size: 11px;"
+              style="height: 32px; padding: 0 12px; font-size: 12px;"
               onclick={() => toggleAll(!filteredAllEnabled)}
             >
               {filteredAllEnabled ? "Deselect all" : "Select all"}
@@ -282,7 +291,7 @@
           {/if}
           <button
             class="btn-primary btn-accent"
-            style="height: 28px; padding: 0 12px; font-size: 11px; gap: 4px;"
+            style="height: 32px; padding: 0 12px; font-size: 12px; gap: 4px;"
             onclick={() => { showAddForm = !showAddForm; }}
           >
             <Plus size={12} weight="bold" />
@@ -294,7 +303,7 @@
 
     <!-- Add company form -->
     {#if showAddForm}
-      <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 20px; animation: fade-in 0.2s;">
+      <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); margin-bottom: 20px; animation: fade-in 0.2s;">
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Add a company</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <div>
@@ -359,7 +368,7 @@
     {/if}
 
     {#if loading}
-      <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden;">
+      <div class="surface-list">
         {#each Array(5) as _, i}
           <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; {i > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
             <div class="skeleton" style="width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;"></div>
@@ -383,7 +392,7 @@
         <div style="font-size: 13px;">Adjust your filters or add a company.</div>
       </div>
     {:else}
-      <div style="background: var(--color-bg-elev); border: 0.5px solid var(--color-line); border-radius: 14px; overflow: hidden;">
+      <div class="surface-list">
         {#each filteredCompanies as company (company.id)}
           <CompanyRow {company} onToggle={handleToggle} onDelete={promptDelete} onEdit={openEdit} />
         {/each}

@@ -8,7 +8,7 @@
 @theme {
   --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -132,6 +132,13 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   margin: 0;
 }
 
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-ink-3);
+}
+
 .field-label {
   display: block;
   margin-bottom: 6px;
@@ -145,24 +152,63 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .stat-row {
   display: flex;
   flex-wrap: wrap;
-  row-gap: 4px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  align-items: center;
+  column-gap: 0;
+  row-gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-ink-3);
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
 }
-.stat-row > * { display: inline-flex; align-items: center; gap: 5px; }
+.stat-row > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
 .stat-row > * + *::before {
   content: "·";
-  margin: 0 8px;
+  margin: 0 12px;
   color: var(--color-ink-4);
+}
+
+.job-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 7px;
+  color: var(--color-ink-3);
+}
+
+.job-meta-item {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  font-size: 12.5px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-ink-3);
+}
+
+.job-meta-item svg {
+  flex-shrink: 0;
+  color: var(--color-ink-4);
+}
+
+.job-meta-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ── Card ────────────────────────────────────────────────── */
 
 .card-base {
   background: var(--color-bg-elev);
-  border: 0.5px solid var(--color-line);
+  border: 1px solid var(--color-line-2);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   cursor: pointer;
@@ -183,7 +229,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   height: 28px;
   padding: 0 12px;
   border-radius: var(--radius-full);
-  border: 0.5px solid var(--color-line-2);
+  border: 1px solid var(--color-line-2);
   background: var(--color-bg);
   color: var(--color-ink-2);
   font-family: var(--font-sans);
@@ -219,19 +265,26 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   position: absolute;
   top: 0;
   bottom: 4px;
-  width: 28px;
+  width: 22px;
   pointer-events: none;
   z-index: 1;
+  opacity: 0;
+  transition: opacity .16s ease;
 }
 
 .chip-rail::before {
   left: 0;
-  background: linear-gradient(90deg, var(--color-bg) 12%, transparent);
+  background: linear-gradient(90deg, var(--color-bg) 0%, color-mix(in oklch, var(--color-bg) 80%, transparent) 58%, transparent 100%);
 }
 
 .chip-rail::after {
   right: 0;
-  background: linear-gradient(270deg, var(--color-bg) 12%, transparent);
+  background: linear-gradient(270deg, var(--color-bg) 0%, color-mix(in oklch, var(--color-bg) 80%, transparent) 58%, transparent 100%);
+}
+
+.chip-rail.fade-left::before,
+.chip-rail.fade-right::after {
+  opacity: 1;
 }
 
 .chip-strip {
@@ -240,7 +293,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 1px 16px 4px 1px;
+  padding: 1px 14px 4px 1px;
   -ms-overflow-style: none;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -301,14 +354,23 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   border: 0;
   cursor: pointer;
   color: var(--color-ink-3);
-  transition: background .15s;
+  transition: background .15s, color .15s;
 }
-.icon-btn:hover { background: var(--color-bg-sunken); }
+.icon-btn:hover { background: var(--color-bg-sunken); color: var(--color-ink-2); }
+
+.icon-btn-surface {
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
+}
+
+.icon-btn-surface:hover {
+  background: var(--color-bg-sunken);
+}
 
 .btn-primary {
   -webkit-appearance: none;
   appearance: none;
-  border: 0;
+  border: 1px solid var(--color-line-2);
   background: var(--color-ink);
   color: var(--color-bg);
   font-family: var(--font-sans);
@@ -318,7 +380,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   height: 48px;
   border-radius: 12px;
   cursor: pointer;
-  transition: opacity .15s, transform .1s;
+  transition: opacity .15s, transform .1s, border-color .15s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -328,14 +390,18 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 .btn-primary:hover { opacity: 0.9; }
 .btn-primary:active { transform: scale(0.98); }
-.btn-accent { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn-accent {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: color-mix(in oklch, var(--color-accent) 74%, var(--color-ink));
+}
 
 .btn-secondary {
   -webkit-appearance: none;
   appearance: none;
-  background: var(--color-bg-sunken);
+  background: var(--color-bg-elev);
   color: var(--color-ink);
-  border: 0.5px solid var(--color-line);
+  border: 1px solid var(--color-line-2);
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 13px;
@@ -349,15 +415,62 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   gap: 6px;
   -webkit-user-select: none;
   user-select: none;
+  transition: background .15s, border-color .15s, color .15s;
 }
-.btn-secondary:hover { background: var(--color-line); }
+.btn-secondary:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); }
+
+.btn-action {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.job-action-bar-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  padding: 10px 16px calc(var(--safe-bottom) + 10px);
+  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+  border-top: 1px solid var(--color-line);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.job-action-bar {
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
+  gap: 8px;
+}
+
+.job-step-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.job-step-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn-mini {
+  height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
 
 .save-btn {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: transparent;
-  border: 0;
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -365,7 +478,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   flex-shrink: 0;
   transition: all .15s;
 }
-.save-btn:hover { background: var(--color-bg-sunken); color: var(--color-ink-2); }
+.save-btn:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); color: var(--color-ink-2); }
 
 /* ── Form controls ───────────────────────────────────────── */
 
@@ -376,17 +489,20 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   gap: 10px;
   padding: 0 12px;
   border-radius: 10px;
-  background: var(--color-bg-elev);
-  border: 0.5px solid var(--color-line);
+  background: var(--color-bg);
+  border: 1px solid var(--color-line-2);
   font: inherit;
   color: var(--color-ink);
   font-size: 15px;
   outline: none;
   width: 100%;
-  transition: border-color .15s;
+  transition: border-color .15s, background .15s;
   -webkit-appearance: none;
 }
-.input-field:focus { border-color: var(--color-accent); }
+.input-field:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg-elev);
+}
 .input-field::placeholder { color: var(--color-ink-4); }
 select.input-field { cursor: pointer; }
 
@@ -499,9 +615,10 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 3px;
-  background: var(--color-line);
+  background: var(--color-line-2);
   border-radius: var(--radius-full);
   outline: none;
+  box-shadow: none;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -510,6 +627,17 @@ input[type="range"]::-webkit-slider-thumb {
   height: 18px;
   border-radius: var(--radius-full);
   background: var(--color-accent);
+  border: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  border: 0;
+  box-shadow: none;
   cursor: pointer;
 }
 
@@ -574,6 +702,98 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
 
 .divider { height: 0.5px; background: var(--color-line); margin: 0; }
 
+.page-frame {
+  padding: 16px 16px 28px;
+}
+
+.page-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.page-hero-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-3);
+  max-width: 38ch;
+}
+
+.surface-card {
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
+  border-radius: 16px;
+}
+
+.surface-card-padded {
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.surface-list {
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.list-section-label {
+  padding: 14px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-ink-3);
+}
+
+.list-section-count {
+  font-size: 12px;
+  color: var(--color-ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.shortcut-row {
+  appearance: none;
+  width: 100%;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 12px;
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+
+.shortcut-row:hover {
+  background: var(--color-bg-sunken);
+  border-color: var(--color-line-2);
+}
+
+.shortcut-row:active {
+  transform: scale(0.99);
+}
+
 .page {
   padding-top: 22px;
   animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -590,9 +810,30 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   top: 0;
   z-index: 40;
   padding: calc(var(--safe-top) + 10px) 16px 10px;
+  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 0.5px solid var(--color-line);
+}
+
+.app-shell-header-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.page-replacement-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: calc(var(--safe-top) + 8px) 12px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   background: color-mix(in oklch, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -657,24 +898,39 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
 .job-description h2,
 .job-description h3,
 .job-description h4 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--color-ink);
-  margin: 16px 0 8px;
+  margin: 18px 0 8px;
+  line-height: 1.25;
 }
 
 .job-description p {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.62;
 }
 
 .job-description ul,
 .job-description ol {
-  margin: 0 0 10px;
-  padding-left: 20px;
+  margin: 0 0 14px;
+  padding-left: 22px;
+  color: var(--color-ink-2);
 }
 
 .job-description li {
-  margin-bottom: 4px;
+  margin-bottom: 7px;
+  font-size: 14px;
+  line-height: 1.56;
+}
+
+.job-description > :first-child {
+  margin-top: 0;
+}
+
+.job-description > :last-child {
+  margin-bottom: 0;
 }
 
 .job-description a {
