@@ -25,6 +25,12 @@ function publicCompileError() {
   return "LaTeX compile failed. Check the uploaded template packages and syntax.";
 }
 
+function prepareTexForTectonic(tex: string) {
+  return tex
+    .replace(/^\s*\\input\{glyphtounicode\}\s*$/gm, "")
+    .replace(/^\s*\\pdfgentounicode\s*=\s*1\s*$/gm, "");
+}
+
 async function compileTex(tex: string) {
   const workDir = await mkdtemp(join(tmpdir(), "pinkslip-tex-"));
   const outDir = join(workDir, "out");
@@ -33,7 +39,7 @@ async function compileTex(tex: string) {
 
   try {
     await mkdir(outDir, { recursive: true });
-    await writeFile(texPath, tex, "utf8");
+    await writeFile(texPath, prepareTexForTectonic(tex), "utf8");
 
     const proc = Bun.spawn(["tectonic", "--keep-logs", "--outdir", outDir, texPath], {
       stdout: "pipe",
@@ -49,6 +55,15 @@ async function compileTex(tex: string) {
       throw new Error("LaTeX compile timed out");
     }
     if (result !== 0) {
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text().catch(() => ""),
+        new Response(proc.stderr).text().catch(() => ""),
+      ]);
+      console.error("LaTeX compile failed", {
+        exitCode: result,
+        stdout: stdout.slice(-4000),
+        stderr: stderr.slice(-4000),
+      });
       throw new Error(publicCompileError());
     }
 
