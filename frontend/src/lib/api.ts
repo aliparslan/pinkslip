@@ -40,6 +40,27 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+async function requestBinary(path: string, options?: RequestInit): Promise<Uint8Array> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    ...options,
+  });
+
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json")
+      ? await res.json().catch(() => null)
+      : await res.text().catch(() => null);
+    const data = typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : undefined;
+    const message = typeof data?.error === "string" ? data.error : `API error: ${res.status}`;
+    const code = typeof data?.code === "string" ? data.code : undefined;
+    throw new ApiError(message, res.status, code, payload);
+  }
+
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 export interface Job {
   id: string;
   company_id: string;
@@ -356,6 +377,11 @@ export const api = {
       const qs = model ? `?model=${encodeURIComponent(model)}` : "";
       return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
     },
+    renderPdf: (tex: string, fileName: string) =>
+      requestBinary("/tailor/render", {
+        method: "POST",
+        body: JSON.stringify({ tex, file_name: fileName }),
+      }),
     save: (
       id: string,
       data: {

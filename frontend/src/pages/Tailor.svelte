@@ -6,6 +6,7 @@
   import {
     DEFAULT_TAILOR_MODEL,
     getLocalResumeTailorText,
+    getLocalResumeSourceTex,
     loadLocalTailorDraft,
     loadLocalTailorKit,
     refreshLocalTailorKitResume,
@@ -18,6 +19,7 @@
     downloadPdfBytes,
     tailoredResumePdfFileName,
   } from "../lib/pdf-resume";
+  import { buildTailoredResumeTex } from "../lib/latex-resume";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -49,6 +51,7 @@
   let saveTimer: number | null = $state(null);
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
+  let sourceTex = $derived.by(() => getLocalResumeSourceTex(localKit));
   let usingLocalRequest = $derived.by(() => {
     return Boolean(localKit?.apiKey.trim() || localResumeText);
   });
@@ -331,8 +334,19 @@
     }
 
     try {
-      const bytes = await buildTailoredResumePdf(resumeText);
-      downloadPdfBytes(tailoredResumePdfFileName(job?.company_name, job?.title), bytes);
+      const fileName = tailoredResumePdfFileName(job?.company_name, job?.title);
+      const bytes = sourceTex
+        ? await api.tailor.renderPdf(
+            buildTailoredResumeTex(resumeText, {
+              companyName: job?.company_name,
+              jobTitle: job?.title,
+              sourceTex,
+            }),
+            fileName
+          )
+        : await buildTailoredResumePdf(resumeText);
+
+      downloadPdfBytes(fileName, bytes);
     } catch (e: any) {
       error = e.message ?? "Could not build the resume PDF";
     }

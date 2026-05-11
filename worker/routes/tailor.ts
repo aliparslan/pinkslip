@@ -24,6 +24,7 @@ const GEMINI_DAILY_LIMITS: Record<string, number> = {
   "gemini-2.5-flash": 20,
   "gemini-2.5-flash-lite": 20,
 };
+const MAX_RENDER_TEX_CHARS = 1_000_000;
 
 type TailorProvider = "gemini" | "anthropic";
 type TailorKeySource = "app" | "user";
@@ -153,6 +154,24 @@ function nextUtcDay(date = new Date()) {
   const next = new Date(startOfUtcDay(date));
   next.setUTCDate(next.getUTCDate() + 1);
   return next.toISOString();
+}
+
+function renderEndpoint(baseUrl: string) {
+  const trimmed = baseUrl.trim();
+  return trimmed.endsWith("/render")
+    ? trimmed
+    : `${trimmed.replace(/\/+$/, "")}/render`;
+}
+
+function safePdfFileName(value?: string | null) {
+  const fallback = "tailored-resume.pdf";
+  const name = (value ?? fallback)
+    .replace(/[^\w .-]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  if (!name) return fallback;
+  return name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
 }
 
 async function ensureTailorUsageTable(db: D1Database) {
@@ -599,6 +618,66 @@ tailor.get("/tailor/usage", async (c) => {
   }));
 
   return c.json({ usage });
+});
+
+tailor.post("/tailor/render", async (c) => {
+  const renderUrl = c.env.LATEX_RENDER_URL?.trim();
+  if (!renderUrl) {
+    return c.json(
+      { error: "PDF rendering is not configured yet. Set LATEX_RENDER_URL on the worker." },
+      503
+    );
+  }
+
+  const body =
+    (await c.req
+      .json<{
+        tex?: string;
+        file_name?: string;
+      }>()
+      .catch(() => null)) ?? {};
+
+  const tex = body.tex?.trim();
+  if (!tex) {
+    return c.json({ error: "TeX source is required to render a PDF" }, 400);
+  }
+  if (tex.length > MAX_RENDER_TEX_CHARS) {
+    return c.json({ error: "TeX source is too large to render" }, 413);
+  }
+
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const token = c.env.LATEX_RENDER_TOKEN?.trim();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const renderResponse = await fetch(renderEndpoint(renderUrl), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ tex }),
+  }).catch(() => null);
+
+  if (!renderResponse) {
+    return c.json({ error: "PDF renderer is unavailable" }, 503);
+  }
+
+  if (!renderResponse.ok) {
+    const payload = await renderResponse.json().catch(() => null) as { error?: string } | null;
+    const message = payload?.error?.trim() || "PDF rendering failed";
+    return new Response(JSON.stringify({ error: message }), {
+      status: renderResponse.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const pdf = await renderResponse.arrayBuffer();
+  return new Response(pdf, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${safePdfFileName(body.file_name)}"`,
+      "Cache-Control": "no-store",
+    },
+  });
 });
 
 tailor.get("/tailor/:job_id", async (c) => {

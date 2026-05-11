@@ -670,7 +670,7 @@
                   <div style="font-size: 12px; color: var(--color-ink-3);">
                     {#if localResume.canTailor}
                       {#if localResume.textFormat === "latex"}
-                        This TeX file is ready for tailoring. The source is preserved for layout-aware PDF export once the LaTeX compile path is enabled.
+                        This TeX file is ready for tailoring. PDF export will compile from its preserved LaTeX template.
                       {:else}
                         This file is ready for tailoring.
                       {/if}

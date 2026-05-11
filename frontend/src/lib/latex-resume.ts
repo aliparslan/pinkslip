@@ -4,6 +4,11 @@ interface TailoredResumeTexOptions {
   sourceTex?: string | null;
 }
 
+interface RenderResumeBodyOptions {
+  sourceHeaderTex?: string | null;
+  useResumeItemMacros?: boolean;
+}
+
 type ResumeLine =
   | { kind: "heading"; text: string }
   | { kind: "bullet"; text: string }
@@ -117,21 +122,33 @@ function renderTextLine(text: string) {
   return String.raw`${escaped}\\[-1pt]`;
 }
 
-function renderResumeBody(markdown: string) {
+function renderResumeBody(markdown: string, options: RenderResumeBodyOptions = {}) {
   const lines = parseResumeLines(markdown);
   const output: string[] = [];
   let inItems = false;
   let seenHeading = false;
   let headerLines: string[] = [];
+  const itemListStart = options.useResumeItemMacros
+    ? String.raw`\resumeItemListStart`
+    : String.raw`\begin{itemize}`;
+  const itemListEnd = options.useResumeItemMacros
+    ? String.raw`\resumeItemListEnd`
+    : String.raw`\end{itemize}`;
 
   const closeItems = () => {
     if (!inItems) return;
-    output.push(String.raw`\end{itemize}`);
+    output.push(itemListEnd);
     inItems = false;
   };
 
   const flushHeader = () => {
     if (seenHeading || headerLines.length === 0) return;
+    if (options.sourceHeaderTex?.trim()) {
+      output.push(options.sourceHeaderTex.trim());
+      headerLines = [];
+      return;
+    }
+
     const [name, ...contact] = headerLines;
     output.push(String.raw`\begin{center}`);
     output.push(String.raw`  \textbf{\huge \scshape ${escapeLatex(name)}}`);
@@ -169,10 +186,14 @@ function renderResumeBody(markdown: string) {
 
     if (line.kind === "bullet") {
       if (!inItems) {
-        output.push(String.raw`\begin{itemize}`);
+        output.push(itemListStart);
         inItems = true;
       }
-      output.push(String.raw`  \item ${escapeLatex(line.text)}`);
+      output.push(
+        options.useResumeItemMacros
+          ? String.raw`  \resumeItem{${escapeLatex(line.text)}}`
+          : String.raw`  \item ${escapeLatex(line.text)}`
+      );
       continue;
     }
 
@@ -195,9 +216,35 @@ function replaceDocumentBody(sourceTex: string, body: string) {
   return `${beforeDocument}${String.raw`\begin{document}`}\n\n${body}\n\n${String.raw`\end{document}`}\n`;
 }
 
+function extractSourceHeader(sourceTex: string) {
+  const begin = sourceTex.indexOf(String.raw`\begin{document}`);
+  const end = sourceTex.lastIndexOf(String.raw`\end{document}`);
+  if (begin === -1 || end === -1 || end <= begin) return null;
+
+  const bodyStart = begin + String.raw`\begin{document}`.length;
+  const documentBody = sourceTex.slice(bodyStart, end);
+  const firstSection = documentBody.search(/\\section\*?\s*\{/);
+  if (firstSection === -1) return null;
+
+  const header = documentBody.slice(0, firstSection).trim();
+  return header || null;
+}
+
+function hasResumeItemMacros(sourceTex: string) {
+  return (
+    sourceTex.includes(String.raw`\resumeItemListStart`)
+    && sourceTex.includes(String.raw`\resumeItem{`)
+    && sourceTex.includes(String.raw`\resumeItemListEnd`)
+  );
+}
+
 export function buildTailoredResumeTex(markdown: string, options: TailoredResumeTexOptions = {}) {
-  const body = renderResumeBody(markdown);
-  const sourceBased = options.sourceTex ? replaceDocumentBody(options.sourceTex, body) : null;
+  const sourceTex = options.sourceTex?.trim();
+  const body = renderResumeBody(markdown, {
+    sourceHeaderTex: sourceTex ? extractSourceHeader(sourceTex) : null,
+    useResumeItemMacros: sourceTex ? hasResumeItemMacros(sourceTex) : false,
+  });
+  const sourceBased = sourceTex ? replaceDocumentBody(sourceTex, body) : null;
   if (sourceBased) {
     return `% Tailored for ${options.companyName ?? "job"} - ${options.jobTitle ?? "role"}\n${sourceBased}`;
   }

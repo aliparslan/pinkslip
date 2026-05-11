@@ -8,6 +8,8 @@ export interface Env {
   GEMINI_MODEL?: string;
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_MODEL?: string;
+  LATEX_RENDER_URL?: string;
+  LATEX_RENDER_TOKEN?: string;
 }
 
 export interface Variables {
