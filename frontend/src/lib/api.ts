@@ -377,10 +377,10 @@ export const api = {
       const qs = model ? `?model=${encodeURIComponent(model)}` : "";
       return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
     },
-    renderPdf: (tex: string, fileName: string) =>
+    renderPdf: (source: string, fileName: string, format: "latex" | "typst" = "latex") =>
       requestBinary("/tailor/render", {
         method: "POST",
-        body: JSON.stringify({ tex, file_name: fileName }),
+        body: JSON.stringify({ source, format, file_name: fileName }),
       }),
     save: (
       id: string,

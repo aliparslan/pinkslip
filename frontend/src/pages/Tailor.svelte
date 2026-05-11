@@ -20,6 +20,7 @@
     tailoredResumePdfFileName,
   } from "../lib/pdf-resume";
   import { buildTailoredResumeTex } from "../lib/latex-resume";
+  import { buildTailoredResumeTypst } from "../lib/typst-resume";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -342,9 +343,22 @@
               jobTitle: job?.title,
               sourceTex,
             }),
-            fileName
+            fileName,
+            "latex"
           )
-        : await buildTailoredResumePdf(resumeText);
+        : await api.tailor.renderPdf(
+            buildTailoredResumeTypst(resumeText, {
+              companyName: job?.company_name,
+              jobTitle: job?.title,
+            }),
+            fileName,
+            "typst"
+          ).catch(async (renderError) => {
+            if (renderError?.message?.includes("not configured")) {
+              return buildTailoredResumePdf(resumeText);
+            }
+            throw renderError;
+          });
 
       downloadPdfBytes(fileName, bytes);
     } catch (e: any) {

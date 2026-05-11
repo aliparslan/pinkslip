@@ -24,7 +24,7 @@ const GEMINI_DAILY_LIMITS: Record<string, number> = {
   "gemini-2.5-flash": 20,
   "gemini-2.5-flash-lite": 20,
 };
-const MAX_RENDER_TEX_CHARS = 1_000_000;
+const MAX_RENDER_SOURCE_CHARS = 1_000_000;
 
 type TailorProvider = "gemini" | "anthropic";
 type TailorKeySource = "app" | "user";
@@ -633,16 +633,22 @@ tailor.post("/tailor/render", async (c) => {
     (await c.req
       .json<{
         tex?: string;
+        source?: string;
+        format?: "latex" | "typst";
         file_name?: string;
       }>()
       .catch(() => null)) ?? {};
 
-  const tex = body.tex?.trim();
-  if (!tex) {
-    return c.json({ error: "TeX source is required to render a PDF" }, 400);
+  const format = body.format === "typst" ? "typst" : "latex";
+  const source = (body.source ?? body.tex)?.trim();
+  if (!source) {
+    return c.json(
+      { error: `${format === "typst" ? "Typst" : "TeX"} source is required to render a PDF` },
+      400
+    );
   }
-  if (tex.length > MAX_RENDER_TEX_CHARS) {
-    return c.json({ error: "TeX source is too large to render" }, 413);
+  if (source.length > MAX_RENDER_SOURCE_CHARS) {
+    return c.json({ error: "Resume source is too large to render" }, 413);
   }
 
   const headers = new Headers({ "Content-Type": "application/json" });
@@ -654,7 +660,7 @@ tailor.post("/tailor/render", async (c) => {
   const renderResponse = await fetch(renderEndpoint(renderUrl), {
     method: "POST",
     headers,
-    body: JSON.stringify({ tex }),
+    body: JSON.stringify({ source, format }),
   }).catch(() => null);
 
   if (!renderResponse) {
