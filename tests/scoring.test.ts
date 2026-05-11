@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { scoreJob } from "@worker/scoring";
 import type { ScoringPrefs } from "@worker/scoring";
 import type { JobListing } from "@worker/adapters/types";

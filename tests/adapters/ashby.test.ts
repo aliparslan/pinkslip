@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { AshbyAdapter } from "@worker/adapters/ashby";
+import { stubFetchRejected, stubFetchResolved } from "../mock-fetch";
 
 const MOCK_RESPONSE = {
   jobs: [
@@ -39,7 +40,7 @@ describe("AshbyAdapter", () => {
 
   beforeEach(() => {
     adapter = new AshbyAdapter();
-    vi.resetAllMocks();
+    mock.restore();
   });
 
   it("has the correct name", () => {
@@ -47,23 +48,22 @@ describe("AshbyAdapter", () => {
   });
 
   it("fetches the Ashby public job board endpoint", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    const fetchMock = stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     await adapter.fetchJobs("cursor");
 
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(BOARD_URL);
   });
 
   it("correctly maps job fields", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("cursor");
 
@@ -80,10 +80,10 @@ describe("AshbyAdapter", () => {
   });
 
   it("falls back to team and extracted salary when structured fields are missing", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("cursor");
 
@@ -93,10 +93,10 @@ describe("AshbyAdapter", () => {
   });
 
   it("fetches job content from the same public job board endpoint", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const content = await adapter.fetchJobContent("cursor", "ashby-001");
 
@@ -107,29 +107,29 @@ describe("AshbyAdapter", () => {
   });
 
   it("returns empty job content when a posting is missing", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const content = await adapter.fetchJobContent("cursor", "missing");
     expect(content).toEqual({ description: null, salary: null });
   });
 
   it("throws on non-ok HTTP response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: false,
       status: 500,
-    }));
+    });
 
     await expect(adapter.fetchJobs("cursor")).rejects.toThrow("Ashby API 500");
   });
 
   it("throws on unexpected payload shape", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => ({ data: {} }),
-    }));
+    });
 
     await expect(adapter.fetchJobs("cursor")).rejects.toThrow(
       "Ashby API returned an unexpected payload for cursor"
@@ -137,7 +137,7 @@ describe("AshbyAdapter", () => {
   });
 
   it("throws on network error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
+    stubFetchRejected(new Error("Network failure"));
 
     await expect(adapter.fetchJobs("cursor")).rejects.toThrow("Network failure");
   });

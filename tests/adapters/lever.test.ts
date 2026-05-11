@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { LeverAdapter } from "@worker/adapters/lever";
+import { stubFetchRejected, stubFetchResolved } from "../mock-fetch";
 
 const MOCK_RESPONSE = [
   {
@@ -29,7 +30,7 @@ describe("LeverAdapter", () => {
 
   beforeEach(() => {
     adapter = new LeverAdapter();
-    vi.resetAllMocks();
+    mock.restore();
   });
 
   it("has the correct name", () => {
@@ -37,25 +38,24 @@ describe("LeverAdapter", () => {
   });
 
   it("fetches from the correct URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    const fetchMock = stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     await adapter.fetchJobs("robinhood");
 
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.lever.co/v0/postings/robinhood?mode=json"
     );
   });
 
   it("correctly maps job fields", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("robinhood");
 
@@ -72,26 +72,26 @@ describe("LeverAdapter", () => {
   });
 
   it("maps null department when department is missing", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("robinhood");
     expect(jobs[1].department).toBeNull();
   });
 
   it("throws on non-ok HTTP response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: false,
       status: 403,
-    }));
+    });
 
     await expect(adapter.fetchJobs("unknown")).rejects.toThrow("Lever API 403");
   });
 
   it("throws on network error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
+    stubFetchRejected(new Error("Network failure"));
 
     await expect(adapter.fetchJobs("robinhood")).rejects.toThrow("Network failure");
   });

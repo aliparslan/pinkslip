@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { GreenhouseAdapter } from "@worker/adapters/greenhouse";
+import { stubFetchRejected, stubFetchResolved } from "../mock-fetch";
 
 const MOCK_RESPONSE = {
   jobs: [
@@ -27,7 +28,7 @@ describe("GreenhouseAdapter", () => {
 
   beforeEach(() => {
     adapter = new GreenhouseAdapter();
-    vi.resetAllMocks();
+    mock.restore();
   });
 
   it("has the correct name", () => {
@@ -35,25 +36,24 @@ describe("GreenhouseAdapter", () => {
   });
 
   it("fetches from the correct URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    const fetchMock = stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     await adapter.fetchJobs("anthropic");
 
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true"
     );
   });
 
   it("correctly maps job fields", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("anthropic");
 
@@ -69,26 +69,26 @@ describe("GreenhouseAdapter", () => {
   });
 
   it("maps null department when departments array is empty", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: true,
       json: async () => MOCK_RESPONSE,
-    }));
+    });
 
     const jobs = await adapter.fetchJobs("anthropic");
     expect(jobs[1].department).toBeNull();
   });
 
   it("throws on non-ok HTTP response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    stubFetchResolved({
       ok: false,
       status: 404,
-    }));
+    });
 
     await expect(adapter.fetchJobs("unknown-company")).rejects.toThrow("Greenhouse API 404");
   });
 
   it("throws on network error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network failure")));
+    stubFetchRejected(new Error("Network failure"));
 
     await expect(adapter.fetchJobs("anthropic")).rejects.toThrow("Network failure");
   });

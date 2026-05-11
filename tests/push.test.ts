@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, mock, spyOn, afterEach } from "bun:test";
 import {
   buildNotificationPayload,
   sendPushNotification,
@@ -78,12 +78,12 @@ const MOCK_VAPID: VapidConfig = {
 
 describe("sendPushNotification", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   // Test 4: Sends POST to the subscription endpoint
   it("sends a POST request to the subscription endpoint", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 201 })
     );
 
@@ -93,14 +93,14 @@ describe("sendPushNotification", () => {
 
     await sendPushNotification(MOCK_SUBSCRIPTION, payload, MOCK_VAPID);
 
-    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe(MOCK_SUBSCRIPTION.endpoint);
     expect((init as RequestInit).method).toBe("POST");
   });
 
   it("returns result.ok=true when push service responds with 2xx", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 201 })
     );
 
@@ -113,7 +113,7 @@ describe("sendPushNotification", () => {
   });
 
   it("returns result.ok=false when push service responds with 4xx", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 410 })
     );
 
