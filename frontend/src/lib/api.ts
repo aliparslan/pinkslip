@@ -103,6 +103,7 @@ export interface User {
 export interface AppFeatures {
   access_required: boolean;
   tailoring_enabled: boolean;
+  tailoring_provider: "gemini" | "anthropic" | null;
   tailoring_model: string;
 }
 
@@ -131,6 +132,17 @@ export interface Tailoring {
   resume_md_final: string | null;
   cover_letter_md_final: string | null;
   qa_json_final: string | null;
+}
+
+export interface TailorUsage {
+  provider: "gemini" | "anthropic";
+  model: string;
+  app_today: number;
+  user_today: number;
+  daily_limit: number | null;
+  app_remaining: number | null;
+  user_remaining: number | null;
+  resets_at: string;
 }
 
 export interface FetchRun {
@@ -340,6 +352,10 @@ export const api = {
   },
   tailor: {
     get: (jobId: string) => request<{ tailoring: Tailoring | null }>(`/tailor/${jobId}`),
+    usage: (model?: string) => {
+      const qs = model ? `?model=${encodeURIComponent(model)}` : "";
+      return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
+    },
     save: (
       id: string,
       data: {

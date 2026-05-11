@@ -1,14 +1,16 @@
 <script lang="ts">
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
-  import { api, type AppFeatures, type FetchRun } from "../lib/api";
+  import { api, type AppFeatures, type FetchRun, type TailorUsage } from "../lib/api";
   import {
-    DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_TAILOR_MODEL,
+    TAILOR_MODEL_OPTIONS,
     createLocalResumeAsset,
     downloadLocalResume,
     formatFileSize,
     loadLocalTailorKit,
     openLocalResume,
+    refreshLocalTailorKitResume,
     saveLocalTailorKit,
     updateLocalTailorKit,
     type LocalResumeAsset,
@@ -22,6 +24,7 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
 
   const DEFAULTS = {
     locations: "Remote, New York, San Francisco, Bay Area, Chicago, Boston, Washington DC, Seattle, Austin",
@@ -52,18 +55,32 @@
   let runs: FetchRun[] = $state([]);
   let refreshingAll: boolean = $state(false);
   let refreshLog: string[] = $state([]);
-  let localAnthropicKey: string = $state("");
-  let localAnthropicModel: string = $state(DEFAULT_ANTHROPIC_MODEL);
+  let localGeminiKey: string = $state("");
+  let localGeminiModel: string = $state(DEFAULT_TAILOR_MODEL);
   let localResume = $state<LocalResumeAsset | null>(null);
-  let showAnthropicKey: boolean = $state(false);
+  let tailorUsage: TailorUsage | null = $state(null);
+  let showGeminiKey: boolean = $state(false);
   let savingLocalSetup: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
+  type SettingsSection = "profile" | "jobs" | "tailoring" | "notifications" | "operations";
+  let activeSettingsSection: SettingsSection = $state("profile");
 
-  let browserTailoringReady = $derived(Boolean(localAnthropicKey.trim() && localResume && localResume.canTailor));
+  let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
+  let tailoringSetupReady = $derived.by(() =>
+    Boolean(hasLocalGeminiKey || (features !== null && features.tailoring_enabled))
+  );
   let localSetupLabel = $derived.by(() => {
-    if (browserTailoringReady) return "local ready";
-    if (localAnthropicKey.trim() || localResume) return "partial";
+    if (tailoringSetupReady) return hasLocalGeminiKey ? "your key ready" : "app key ready";
+    if (localGeminiKey.trim() || localResume) return "partial";
     return "off";
+  });
+  let activeUsageCount = $derived.by(() => {
+    if (!tailorUsage) return null;
+    return hasLocalGeminiKey ? tailorUsage.user_today : tailorUsage.app_today;
+  });
+  let activeUsageRemaining = $derived.by(() => {
+    if (!tailorUsage) return null;
+    return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.app_remaining;
   });
 
   const shortcuts = [
@@ -71,11 +88,32 @@
     { label: "Corpus", sub: "Edit the material tailoring pulls from", path: "/corpus" },
   ] as const;
 
+  const settingsSections: { id: SettingsSection; label: string; sub: string }[] = [
+    { id: "profile", label: "Profile", sub: "Identity" },
+    { id: "jobs", label: "Jobs", sub: "Search rules" },
+    { id: "tailoring", label: "Tailor", sub: "Resume setup" },
+    { id: "notifications", label: "Notify", sub: "Alerts" },
+    { id: "operations", label: "Ops", sub: "Fetch runs" },
+  ];
+
   function hydrateLocalSetup() {
     const localKit = loadLocalTailorKit();
-    localAnthropicKey = localKit.anthropicApiKey;
-    localAnthropicModel = localKit.anthropicModel || DEFAULT_ANTHROPIC_MODEL;
+    localGeminiKey = localKit.apiKey;
+    localGeminiModel = localKit.model || DEFAULT_TAILOR_MODEL;
     localResume = localKit.resume;
+  }
+
+  async function refreshSavedResumeText() {
+    const before = loadLocalTailorKit().resume;
+    const refreshed = await refreshLocalTailorKitResume();
+    localGeminiKey = refreshed.apiKey;
+    localGeminiModel = refreshed.model || DEFAULT_TAILOR_MODEL;
+    localResume = refreshed.resume;
+
+    if (!before?.canTailor && refreshed.resume?.canTailor && refreshed.resume.textFormat === "pdf") {
+      successMsg = "Extracted text from saved PDF. Resume is ready for tailoring.";
+      setTimeout(() => (successMsg = null), 3000);
+    }
   }
 
   async function loadSettings() {
@@ -132,8 +170,14 @@
     }
   }
 
+  async function loadTailorUsage() {
+    tailorUsage = await api.tailor.usage(localGeminiModel).then((res) => res.usage).catch(() => null);
+  }
+
   onMount(() => {
     hydrateLocalSetup();
+    void refreshSavedResumeText().catch(() => undefined);
+    void loadTailorUsage();
     loadSettings();
   });
 
@@ -185,11 +229,13 @@
     successMsg = null;
     try {
       saveLocalTailorKit({
-        anthropicApiKey: localAnthropicKey.trim(),
-        anthropicModel: localAnthropicModel.trim() || DEFAULT_ANTHROPIC_MODEL,
+        provider: "gemini",
+        apiKey: localGeminiKey.trim(),
+        model: localGeminiModel.trim() || DEFAULT_TAILOR_MODEL,
         resume: localResume,
       });
       hydrateLocalSetup();
+      await loadTailorUsage();
       successMsg = "Private tailoring setup saved on this device.";
       setTimeout(() => (successMsg = null), 3000);
     } catch (e: any) {
@@ -268,6 +314,23 @@
           </div>
         </div>
 
+        <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
+          {#each settingsSections as section}
+            <button
+              type="button"
+              class:active={activeSettingsSection === section.id}
+              class="settings-section-tab"
+              role="tab"
+              aria-selected={activeSettingsSection === section.id}
+              onclick={() => (activeSettingsSection = section.id)}
+            >
+              <span>{section.label}</span>
+              <small>{section.sub}</small>
+            </button>
+          {/each}
+        </div>
+
+        {#if activeSettingsSection === "profile"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
             Shortcuts
@@ -287,8 +350,10 @@
             {/each}
           </div>
         </section>
+        {/if}
 
         <!-- Job Preferences -->
+        {#if activeSettingsSection === "jobs"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Job preferences</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
@@ -331,8 +396,10 @@
             </div>
           </div>
         </section>
+        {/if}
 
         <!-- Notifications -->
+        {#if activeSettingsSection === "notifications"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Notifications</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; overflow: hidden;">
@@ -449,15 +516,17 @@
             </div>
           </div>
         </section>
+        {/if}
 
+        {#if activeSettingsSection === "tailoring"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Tailoring</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
               <div style="min-width: 0;">
-                <div style="font-size: 14px; font-weight: 500;">Browser-local setup</div>
+                <div style="font-size: 14px; font-weight: 500;">Gemini setup</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
-                  Resume and Anthropic key stay only in this browser. Tailor uses them privately when they are present.
+                  Your Gemini key is optional and overrides the app key when present. Resume files stay on this device until you run Tailor.
                 </div>
               </div>
               <span class="tag" style="flex-shrink: 0;">{localSetupLabel}</span>
@@ -465,14 +534,14 @@
 
             <div style="display: flex; flex-direction: column; gap: 12px;">
               <div>
-                <label for="anthropic-key" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Anthropic API key</label>
+                <label for="gemini-key" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Gemini API key override</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <input
-                    id="anthropic-key"
-                    type={showAnthropicKey ? "text" : "password"}
+                    id="gemini-key"
+                    type={showGeminiKey ? "text" : "password"}
                     class="input-field"
-                    placeholder="sk-ant-..."
-                    bind:value={localAnthropicKey}
+                    placeholder="AIza..."
+                    bind:value={localGeminiKey}
                     style="flex: 1;"
                     autocapitalize="off"
                     autocomplete="off"
@@ -481,10 +550,10 @@
                   <button
                     class="icon-btn icon-btn-surface"
                     type="button"
-                    aria-label={showAnthropicKey ? "Hide API key" : "Show API key"}
-                    onclick={() => (showAnthropicKey = !showAnthropicKey)}
+                    aria-label={showGeminiKey ? "Hide API key" : "Show API key"}
+                    onclick={() => (showGeminiKey = !showGeminiKey)}
                   >
-                    {#if showAnthropicKey}
+                    {#if showGeminiKey}
                       <EyeSlash size={18} />
                     {:else}
                       <Eye size={18} />
@@ -492,24 +561,59 @@
                   </button>
                 </div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 6px;">
-                  Stored only on this device. Get a key from Anthropic and paste it here.
+                  {#if hasLocalGeminiKey}
+                    Saved on this device and used for Tailor instead of the app key.
+                  {:else}
+                    Leave blank to use the app key when available.
+                  {/if}
                 </div>
               </div>
 
               <div>
-                <label for="anthropic-model" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Model</label>
-                <input
-                  id="anthropic-model"
-                  type="text"
-                  class="input-field"
-                  placeholder={DEFAULT_ANTHROPIC_MODEL}
-                  bind:value={localAnthropicModel}
-                  autocapitalize="off"
-                  spellcheck="false"
-                />
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 6px;">
-                  `claude-sonnet-4-20250514` is a good default for resume tailoring.
+                <label for="gemini-model" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Model</label>
+                <div class="select-field-wrap">
+                  <select
+                    id="gemini-model"
+                    class="input-field"
+                    bind:value={localGeminiModel}
+                    onchange={() => void loadTailorUsage()}
+                  >
+                    {#each TAILOR_MODEL_OPTIONS as option}
+                      <option value={option.value}>
+                        {option.label} · {option.note}
+                      </option>
+                    {/each}
+                  </select>
+                  <span class="select-chevron" aria-hidden="true">
+                    <CaretDown size={16} />
+                  </span>
                 </div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 6px;">
+                  The list only includes models we want this app to use. Pro/paid-only models are intentionally omitted.
+                </div>
+                {#if tailorUsage}
+                  <div class="usage-meter" aria-label="Tailoring API usage">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+                      <span>{hasLocalGeminiKey ? "Your key in Pinkslip today" : "App key today"}</span>
+                      <strong>
+                        {activeUsageCount ?? 0}{#if tailorUsage.daily_limit !== null}/{tailorUsage.daily_limit}{/if}
+                      </strong>
+                    </div>
+                    {#if tailorUsage.daily_limit !== null}
+                      <div class="usage-meter-track">
+                        <div
+                          class="usage-meter-fill"
+                          style="width: {Math.min(100, ((activeUsageCount ?? 0) / tailorUsage.daily_limit) * 100)}%;"
+                        ></div>
+                      </div>
+                      <div style="color: var(--color-ink-4);">
+                        {activeUsageRemaining ?? 0} left before the daily reset. Google may apply other project-wide limits outside Pinkslip.
+                      </div>
+                    {:else}
+                      <div style="color: var(--color-ink-4);">Live remaining quota is not exposed by this provider.</div>
+                    {/if}
+                  </div>
+                {/if}
               </div>
 
               <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -526,10 +630,10 @@
                   class="btn-secondary"
                   type="button"
                   style="display: inline-flex; align-items: center; gap: 7px;"
-                  onclick={() => window.open("https://console.anthropic.com/settings/keys", "_blank", "noopener,noreferrer")}
+                  onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
                 >
                   <ArrowSquareOut size={16} />
-                  Get Anthropic key
+                  Get Gemini key
                 </button>
               </div>
             </div>
@@ -541,7 +645,7 @@
                 <div>
                   <div style="font-size: 14px; font-weight: 500;">Resume source</div>
                   <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
-                    Best results come from Overleaf `.tex`, markdown, or plain text. PDFs can still be stored and re-downloaded.
+                    Upload `.tex`, PDF, markdown, or plain text. PDFs work when their text is selectable.
                   </div>
                 </div>
                 {#if localResume}
@@ -565,7 +669,13 @@
                   </div>
                   <div style="font-size: 12px; color: var(--color-ink-3);">
                     {#if localResume.canTailor}
-                      This file is ready for private tailoring on this device.
+                      {#if localResume.textFormat === "latex"}
+                        This TeX file is ready for tailoring. The source is preserved for layout-aware PDF export once the LaTeX compile path is enabled.
+                      {:else}
+                        This file is ready for tailoring.
+                      {/if}
+                    {:else if localResume.textFormat === "pdf"}
+                      This PDF is saved, but we couldn’t extract selectable text from it. Try an exported text PDF or upload `.tex`.
                     {:else}
                       This file is saved for viewing and download. Upload `.tex`, `.md`, or `.txt` to use it directly for tailoring.
                     {/if}
@@ -633,20 +743,24 @@
 
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
               <div style="min-width: 0;">
-                <div style="font-size: 14px; font-weight: 500;">Worker fallback</div>
+                <div style="font-size: 14px; font-weight: 500;">Key source</div>
                 <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
-                  {#if features?.tailoring_enabled}
-                    Shared server tailoring is also available with {features.tailoring_model}.
+                  {#if hasLocalGeminiKey}
+                    Tailor will use your saved Gemini key instead of the hidden app key.
+                  {:else if features?.tailoring_enabled}
+                    The hidden app key is available with {features.tailoring_model}.
                   {:else}
-                    Server-side tailoring is off right now, but local browser setup still works.
+                    The hidden app key is not configured yet. Add your own Gemini key above to tailor.
                   {/if}
                 </div>
               </div>
-              <span class="tag" style="flex-shrink: 0;">{features?.tailoring_enabled ? "server ready" : "server off"}</span>
+              <span class="tag" style="flex-shrink: 0;">{hasLocalGeminiKey ? "using yours" : features?.tailoring_enabled ? "app ready" : "app off"}</span>
             </div>
           </div>
         </section>
+        {/if}
 
+        {#if activeSettingsSection === "operations"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Operations</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
@@ -697,8 +811,8 @@
               </div>
             {:else}
               {#each runs.slice(0, 12) as run, index}
-                <div style="padding: 14px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-                  <div>
+                <div style="padding: 14px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; min-width: 0; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
+                  <div style="min-width: 0; flex: 1;">
                     <div style="font-size: 13.5px; font-weight: 600; text-transform: capitalize;">
                       {run.status} · {run.new_jobs_found} new · {run.companies_succeeded}/{run.companies_attempted}
                     </div>
@@ -706,19 +820,21 @@
                       {new Date(run.started_at).toLocaleString()} · {run.duration_ms ?? 0}ms
                     </div>
                     {#if run.errors_json}
-                      <div style="font-size: 11.5px; color: var(--color-bad); margin-top: 6px; max-width: 280px;">
+                      <div style="font-size: 11.5px; color: var(--color-bad); margin-top: 6px; overflow-wrap: anywhere;">
                         {run.errors_json}
                       </div>
                     {/if}
                   </div>
-                  <span class="tag">{run.notifications_sent} pushes</span>
+                  <span class="tag" style="align-self: flex-start;">{run.notifications_sent} pushes</span>
                 </div>
               {/each}
             {/if}
           </div>
         </section>
+        {/if}
 
         <!-- Save -->
+        {#if activeSettingsSection === "profile" || activeSettingsSection === "jobs" || activeSettingsSection === "notifications"}
         <button
           class="btn-primary btn-accent"
           style="width: 100%;"
@@ -727,6 +843,7 @@
         >
           {saving ? "Saving..." : "Save preferences"}
         </button>
+        {/if}
       </div>
     {/if}
   </div>

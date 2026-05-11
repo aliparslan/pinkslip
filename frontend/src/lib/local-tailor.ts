@@ -1,4 +1,27 @@
-export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+export const DEFAULT_TAILOR_PROVIDER = "gemini";
+export const DEFAULT_TAILOR_MODEL = "gemini-3.1-flash-lite";
+export const TAILOR_MODEL_OPTIONS = [
+  {
+    value: "gemini-3.1-flash-lite",
+    label: "Gemini 3.1 Flash Lite",
+    note: "default",
+  },
+  {
+    value: "gemini-3-flash",
+    label: "Gemini 3 Flash",
+    note: "quality mode",
+  },
+  {
+    value: "gemini-2.5-flash",
+    label: "Gemini 2.5 Flash",
+    note: "fallback",
+  },
+  {
+    value: "gemini-2.5-flash-lite",
+    label: "Gemini 2.5 Flash Lite",
+    note: "fallback",
+  },
+] as const;
 
 const KIT_KEY = "pinkslip.local-tailor-kit.v1";
 const DRAFTS_KEY = "pinkslip.local-tailor-drafts.v1";
@@ -11,13 +34,15 @@ export interface LocalResumeAsset {
   uploadedAt: string;
   dataUrl: string;
   textContent: string | null;
-  textFormat: "plain" | "markdown" | "latex" | "binary";
+  sourceTextContent?: string | null;
+  textFormat: "plain" | "markdown" | "latex" | "pdf" | "binary";
   canTailor: boolean;
 }
 
 export interface LocalTailorKit {
-  anthropicApiKey: string;
-  anthropicModel: string;
+  provider: typeof DEFAULT_TAILOR_PROVIDER;
+  apiKey: string;
+  model: string;
   resume: LocalResumeAsset | null;
 }
 
@@ -33,6 +58,13 @@ export interface LocalTailorDraft {
 
 interface DraftMap {
   [jobId: string]: LocalTailorDraft;
+}
+
+function normalizeTailorModel(model: string | undefined) {
+  const trimmed = model?.trim() ?? "";
+  return TAILOR_MODEL_OPTIONS.some((option) => option.value === trimmed)
+    ? trimmed
+    : DEFAULT_TAILOR_MODEL;
 }
 
 function hasBrowserStorage() {
@@ -73,6 +105,10 @@ function readAsText(file: File): Promise<string> {
   });
 }
 
+async function readDataUrlAsText(dataUrl: string) {
+  return dataUrlToBlob(dataUrl).text();
+}
+
 function extensionOf(fileName: string) {
   const match = fileName.toLowerCase().match(/\.([a-z0-9]+)$/);
   return match?.[1] ?? "";
@@ -82,6 +118,37 @@ export function isTextResumeFile(fileName: string, mimeType = "") {
   const ext = extensionOf(fileName);
   if (mimeType.startsWith("text/")) return true;
   return ["txt", "md", "markdown", "tex", "rtf"].includes(ext);
+}
+
+function isPdfResumeFile(fileName: string, mimeType = "") {
+  return mimeType === "application/pdf" || extensionOf(fileName) === "pdf";
+}
+
+async function extractPdfText(file: File): Promise<string> {
+  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.mjs?url"),
+  ]);
+
+  GlobalWorkerOptions.workerSrc = worker.default;
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdf = await getDocument({ data }).promise;
+  const pages: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+    if (text) pages.push(text);
+  }
+
+  await pdf.destroy();
+  return pages.join("\n\n").trim();
 }
 
 export function normalizeLatexResume(input: string) {
@@ -110,10 +177,12 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
 
   const dataUrl = await readAsDataUrl(file);
   let textContent: string | null = null;
+  let sourceTextContent: string | null = null;
   let textFormat: LocalResumeAsset["textFormat"] = "binary";
 
   if (isTextResumeFile(file.name, file.type)) {
     const rawText = await readAsText(file);
+    sourceTextContent = rawText.trim();
     if (extensionOf(file.name) === "tex") {
       textContent = normalizeLatexResume(rawText);
       textFormat = "latex";
@@ -124,6 +193,9 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
       textContent = rawText.trim();
       textFormat = "plain";
     }
+  } else if (isPdfResumeFile(file.name, file.type)) {
+    textFormat = "pdf";
+    textContent = await extractPdfText(file).catch(() => null);
   }
 
   return {
@@ -133,6 +205,7 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
     uploadedAt: new Date().toISOString(),
     dataUrl,
     textContent: textContent?.trim() || null,
+    sourceTextContent: sourceTextContent?.trim() || null,
     textFormat,
     canTailor: Boolean(textContent?.trim()),
   };
@@ -141,11 +214,9 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
 export function loadLocalTailorKit(): LocalTailorKit {
   const kit = readJson<Partial<LocalTailorKit>>(KIT_KEY, {});
   return {
-    anthropicApiKey: typeof kit.anthropicApiKey === "string" ? kit.anthropicApiKey : "",
-    anthropicModel:
-      typeof kit.anthropicModel === "string" && kit.anthropicModel.trim()
-        ? kit.anthropicModel.trim()
-        : DEFAULT_ANTHROPIC_MODEL,
+    provider: DEFAULT_TAILOR_PROVIDER,
+    apiKey: typeof kit.apiKey === "string" ? kit.apiKey : "",
+    model: normalizeTailorModel(kit.model),
     resume: kit.resume ?? null,
   };
 }
@@ -159,9 +230,66 @@ export function updateLocalTailorKit(patch: Partial<LocalTailorKit>) {
   saveLocalTailorKit({
     ...current,
     ...patch,
-    anthropicModel: (patch.anthropicModel ?? current.anthropicModel ?? DEFAULT_ANTHROPIC_MODEL).trim()
-      || DEFAULT_ANTHROPIC_MODEL,
+    provider: DEFAULT_TAILOR_PROVIDER,
+    model: normalizeTailorModel(patch.model ?? current.model),
   });
+}
+
+export async function refreshLocalResumeAssetText(
+  asset: LocalResumeAsset | null
+): Promise<LocalResumeAsset | null> {
+  if (!asset) {
+    return asset;
+  }
+
+  if (isTextResumeFile(asset.fileName, asset.mimeType) && !asset.sourceTextContent) {
+    const rawText = await readDataUrlAsText(asset.dataUrl).catch(() => null);
+    if (!rawText?.trim()) return asset;
+
+    const ext = extensionOf(asset.fileName);
+    const textFormat: LocalResumeAsset["textFormat"] =
+      ext === "tex" ? "latex" : ["md", "markdown"].includes(ext) ? "markdown" : "plain";
+    const textContent = textFormat === "latex" ? normalizeLatexResume(rawText) : rawText.trim();
+
+    return {
+      ...asset,
+      sourceTextContent: rawText.trim(),
+      textContent: textContent?.trim() || null,
+      textFormat,
+      canTailor: Boolean(textContent?.trim()),
+    };
+  }
+
+  if (asset.canTailor || !isPdfResumeFile(asset.fileName, asset.mimeType)) {
+    return asset;
+  }
+
+  const blob = dataUrlToBlob(asset.dataUrl);
+  const file = new File([blob], asset.fileName, {
+    type: asset.mimeType || blob.type || "application/pdf",
+  });
+  const textContent = await extractPdfText(file).catch(() => null);
+
+  return {
+    ...asset,
+    mimeType: asset.mimeType || blob.type || "application/pdf",
+    textContent: textContent?.trim() || null,
+    textFormat: "pdf",
+    canTailor: Boolean(textContent?.trim()),
+  };
+}
+
+export async function refreshLocalTailorKitResume(): Promise<LocalTailorKit> {
+  const current = loadLocalTailorKit();
+  const refreshedResume = await refreshLocalResumeAssetText(current.resume);
+  if (refreshedResume === current.resume) return current;
+
+  const next = {
+    ...current,
+    resume: refreshedResume,
+  };
+  saveLocalTailorKit(next);
+  return next;
 }
 
 function loadDraftMap() {
@@ -196,6 +324,12 @@ export function clearLocalTailorDraft(jobId: string) {
 
 export function getLocalResumeTailorText(kit: LocalTailorKit | null) {
   return kit?.resume?.textContent?.trim() ?? "";
+}
+
+export function getLocalResumeSourceTex(kit: LocalTailorKit | null) {
+  const resume = kit?.resume;
+  if (resume?.textFormat !== "latex") return null;
+  return resume.sourceTextContent?.trim() || null;
 }
 
 function dataUrlToBlob(dataUrl: string) {

@@ -4,18 +4,25 @@
   import { api, type Job, type Tailoring } from "../lib/api";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
   import {
-    DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_TAILOR_MODEL,
     getLocalResumeTailorText,
     loadLocalTailorDraft,
     loadLocalTailorKit,
+    refreshLocalTailorKitResume,
     saveLocalTailorDraft,
     type LocalTailorDraft,
     type LocalTailorKit,
   } from "../lib/local-tailor";
+  import {
+    buildTailoredResumePdf,
+    downloadPdfBytes,
+    tailoredResumePdfFileName,
+  } from "../lib/pdf-resume";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
+  import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
 
   let { jobId }: { jobId: string | null } = $props();
 
@@ -41,17 +48,18 @@
   });
   let saveTimer: number | null = $state(null);
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
-  let usingLocalTailor = $derived.by(() => {
-    return Boolean(localKit?.anthropicApiKey.trim() && getLocalResumeTailorText(localKit));
+  let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
+  let usingLocalRequest = $derived.by(() => {
+    return Boolean(localKit?.apiKey.trim() || localResumeText);
   });
   let activeModel = $derived.by(() => {
-    if (usingLocalTailor) {
-      return localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL;
+    if (usingLocalRequest) {
+      return localKit?.model?.trim() || DEFAULT_TAILOR_MODEL;
     }
     return tailoring?.model ?? null;
   });
   let outputBaseline = $derived.by(() => {
-    if (usingLocalTailor) {
+    if (usingLocalRequest) {
       return {
         resume: localDraft?.resumeText ?? "",
         cover: localDraft?.coverText ?? "",
@@ -107,7 +115,7 @@
     error = null;
     try {
       job = await api.jobs.get(jobId);
-      if (usingLocalTailor) {
+      if (usingLocalRequest) {
         hydrateFromLocalDraft(loadLocalTailorDraft(jobId));
       } else {
         const tailorRes = await api.tailor.get(jobId);
@@ -129,21 +137,18 @@
     editing = { resume: false, cover: false, qa: false };
 
     try {
-      if (!usingLocalTailor && localKit?.anthropicApiKey.trim() && localKit?.resume && !localKit.resume.canTailor) {
-        throw new Error("This saved resume can be viewed and downloaded, but upload a .tex, .md, or .txt file to tailor from it on this device.");
-      }
-
       const requestInit: RequestInit = {
         method: "POST",
         credentials: "include",
       };
 
-      if (usingLocalTailor) {
+      if (usingLocalRequest) {
         requestInit.headers = { "Content-Type": "application/json" };
         requestInit.body = JSON.stringify({
-          api_key: localKit?.anthropicApiKey.trim(),
-          model: localKit?.anthropicModel.trim() || DEFAULT_ANTHROPIC_MODEL,
-          resume_md: getLocalResumeTailorText(localKit),
+          provider: localKit?.provider ?? "gemini",
+          api_key: localKit?.apiKey.trim() || undefined,
+          model: localKit?.model.trim() || DEFAULT_TAILOR_MODEL,
+          resume_md: localResumeText || undefined,
         });
       }
 
@@ -189,13 +194,13 @@
               input: payload.tokens?.in ?? 0,
               output: payload.tokens?.out ?? 0,
             };
-            if (usingLocalTailor) {
+            if (usingLocalRequest) {
               const draft: LocalTailorDraft = {
                 jobId,
                 resumeText,
                 coverText,
                 qaText,
-                model: localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL,
+                model: localKit?.model?.trim() || DEFAULT_TAILOR_MODEL,
                 updatedAt: new Date().toISOString(),
                 tokenSummary,
               };
@@ -221,13 +226,13 @@
     if (saving) return false;
     saving = true;
     try {
-      if (usingLocalTailor && jobId) {
+      if (usingLocalRequest && jobId) {
         const draft: LocalTailorDraft = {
           jobId,
           resumeText,
           coverText,
           qaText,
-          model: localKit?.anthropicModel?.trim() || DEFAULT_ANTHROPIC_MODEL,
+          model: localKit?.model?.trim() || DEFAULT_TAILOR_MODEL,
           updatedAt: new Date().toISOString(),
           tokenSummary,
         };
@@ -288,6 +293,9 @@
     return renderMarkdownHtml(activeTab === "resume" ? resumeText : coverText);
   });
   let qaSections = $derived.by(() => parseQaSections(qaText));
+  let resumeDownloadReady = $derived.by(() => {
+    return Boolean(resumeText.trim() && !loading && !streaming && (tailoring || localDraft || tokenSummary));
+  });
 
   async function handleRegenerate() {
     if (streaming) return;
@@ -296,7 +304,7 @@
       const confirmed = window.confirm(
         hasPendingEdits
           ? "Regenerating will create a new version. Your current edits will be saved first so you can come back to them. Continue?"
-          : usingLocalTailor
+          : localResumeText
             ? "Generate a fresh version from your browser-local resume and this job?"
             : "Generate a fresh version from the current corpus and this job?"
       );
@@ -304,7 +312,7 @@
     }
 
     clearQueuedSave();
-    if (hasPendingEdits && (tailoring || usingLocalTailor)) {
+    if (hasPendingEdits && (tailoring || usingLocalRequest)) {
       const savedOkay = await saveEdits();
       if (!savedOkay) return;
     }
@@ -316,14 +324,35 @@
     await navigator.clipboard.writeText(currentText);
   }
 
+  async function downloadResumePdf() {
+    if (!resumeText.trim()) {
+      error = "Generate or paste a resume draft before downloading PDF.";
+      return;
+    }
+
+    try {
+      const bytes = await buildTailoredResumePdf(resumeText);
+      downloadPdfBytes(tailoredResumePdfFileName(job?.company_name, job?.title), bytes);
+    } catch (e: any) {
+      error = e.message ?? "Could not build the resume PDF";
+    }
+  }
+
   onMount(() => {
-    localKit = loadLocalTailorKit();
-    loadExisting().then(() => {
+    let cancelled = false;
+
+    (async () => {
+      localKit = await refreshLocalTailorKitResume().catch(() => loadLocalTailorKit());
+      if (cancelled) return;
+      await loadExisting();
+      if (cancelled) return;
       if (!tailoring && !localDraft) {
         void streamTailoring();
       }
-    });
+    })();
+
     return () => {
+      cancelled = true;
       clearQueuedSave();
     };
   });
@@ -364,7 +393,7 @@
     </div>
 
     <div class="stat-row" style="margin-bottom: 14px;">
-      <span>{usingLocalTailor ? "browser-local resume" : "shared corpus"}</span>
+      <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "shared corpus + your key" : "shared corpus"}</span>
       {#if streaming}
         <span>streaming live</span>
       {/if}
@@ -379,11 +408,22 @@
       {/if}
     </div>
 
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
       <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={copyCurrent}>
         <Copy size={15} />
         Copy
       </button>
+      {#if activeTab === "resume"}
+        <button
+          class="btn-secondary"
+          style="height: 40px; padding: 0 14px;"
+          onclick={downloadResumePdf}
+          disabled={!resumeDownloadReady}
+        >
+          <DownloadSimple size={15} />
+          Download PDF
+        </button>
+      {/if}
       <button
         class="btn-secondary"
         style="height: 40px; padding: 0 14px;"
