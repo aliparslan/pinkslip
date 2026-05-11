@@ -280,6 +280,10 @@ function bestSupportedCandidate(
   bullets: MarkdownBullet[],
   used: Set<number>
 ) {
+  if (/\\href\s*\{/.test(originalLatex)) {
+    return null;
+  }
+
   const originalPlain = latexToPlain(originalLatex);
   let best: { index: number; score: number } | null = null;
 

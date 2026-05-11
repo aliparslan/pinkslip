@@ -485,12 +485,13 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 2px;
+  padding: 3px;
   border: 1px solid oklch(0.40 0.014 340);
   border-radius: 999px;
   background: oklch(0.29 0.012 340);
   box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
 }
 
@@ -500,8 +501,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 
 .filter-button {
   width: fit-content;
-  height: 24px;
-  min-height: 24px;
+  height: 26px;
+  min-height: 26px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -568,6 +569,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   gap: 1px;
   padding: 0;
   overflow-x: auto;
+  overflow-y: visible;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -581,7 +583,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 
 .sort-segmented button {
   min-width: max-content;
-  height: 24px;
+  height: 26px;
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
@@ -994,6 +996,22 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   transition: background .15s, border-color .15s, color .15s;
 }
 .btn-secondary:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); }
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.42;
+  cursor: default;
+  background: color-mix(in oklch, var(--color-bg-elev) 72%, var(--color-line));
+  color: var(--color-ink-4);
+  border-color: var(--color-line);
+  transform: none;
+}
+
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover {
+  background: color-mix(in oklch, var(--color-bg-elev) 72%, var(--color-line));
+  border-color: var(--color-line);
+}
 
 .btn-danger {
   background: color-mix(in oklch, var(--color-bad) 12%, var(--color-bg-elev));
@@ -1471,6 +1489,51 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   color: var(--color-ink-3);
 }
 
+.settings-list-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-line-2);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.settings-list-row {
+  appearance: none;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 0.5px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
+
+.settings-list-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-list-row > span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-list-row:hover {
+  background: var(--color-bg-sunken);
+}
+
+.settings-list-row.active {
+  background: color-mix(in oklch, var(--color-accent) 10%, var(--color-bg-elev));
+  color: var(--color-ink);
+}
+
 .shortcut-row {
   appearance: none;
   width: 100%;
@@ -1543,6 +1606,46 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 0.5px solid var(--color-line);
 }
+
+.tailor-page-body {
+  padding: 18px 22px 28px;
+}
+
+.tailor-control-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--color-line-2);
+  border-radius: 14px;
+  background: var(--color-bg-elev);
+}
+
+.tailor-tab-row {
+  padding: 0;
+}
+
+.tailor-model-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.tailor-model-row label {
+  color: var(--color-ink-3);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (min-width: 560px) {
+  .tailor-control-card {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 240px);
+    align-items: center;
+  }
+}
+
 @keyframes page-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }

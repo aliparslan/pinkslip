@@ -5,12 +5,14 @@
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
   import {
     DEFAULT_TAILOR_MODEL,
+    TAILOR_MODEL_OPTIONS,
     getLocalResumeTailorText,
     getLocalResumeSourceTex,
     loadLocalTailorDraft,
     loadLocalTailorKit,
     refreshLocalTailorKitResume,
     saveLocalTailorDraft,
+    updateLocalTailorKit,
     type LocalTailorDraft,
     type LocalTailorKit,
   } from "../lib/local-tailor";
@@ -26,6 +28,7 @@
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
 
   let { jobId }: { jobId: string | null } = $props();
 
@@ -44,6 +47,9 @@
   let coverText = $state("");
   let qaText = $state("");
   let activeTab: TabId = $state("resume");
+  let copied = $state(false);
+  let copyTimer: number | null = $state(null);
+  let downloadingPdf = $state(false);
   let editing = $state<Record<TabId, boolean>>({
     resume: false,
     cover: false,
@@ -57,10 +63,7 @@
     return Boolean(localKit?.apiKey.trim() || localResumeText);
   });
   let activeModel = $derived.by(() => {
-    if (usingLocalRequest) {
-      return localKit?.model?.trim() || DEFAULT_TAILOR_MODEL;
-    }
-    return tailoring?.model ?? null;
+    return localKit?.model?.trim() || tailoring?.model || DEFAULT_TAILOR_MODEL;
   });
   let outputBaseline = $derived.by(() => {
     if (usingLocalRequest) {
@@ -144,17 +147,14 @@
       const requestInit: RequestInit = {
         method: "POST",
         credentials: "include",
-      };
-
-      if (usingLocalRequest) {
-        requestInit.headers = { "Content-Type": "application/json" };
-        requestInit.body = JSON.stringify({
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           provider: localKit?.provider ?? "gemini",
           api_key: localKit?.apiKey.trim() || undefined,
-          model: localKit?.model.trim() || DEFAULT_TAILOR_MODEL,
+          model: localKit?.model?.trim() || DEFAULT_TAILOR_MODEL,
           resume_md: localResumeText || undefined,
-        });
-      }
+        }),
+      };
 
       const res = await fetch(`/api/tailor/${jobId}`, {
         ...requestInit,
@@ -279,6 +279,14 @@
     }
   }
 
+  function handleModelChange(event: Event) {
+    const model = (event.currentTarget as HTMLSelectElement | null)?.value || DEFAULT_TAILOR_MODEL;
+    const current = localKit ?? loadLocalTailorKit();
+    const next = { ...current, model };
+    localKit = next;
+    updateLocalTailorKit({ model });
+  }
+
   let hasPendingEdits = $derived.by(() => {
     return (
       resumeText !== outputBaseline.resume
@@ -326,14 +334,23 @@
 
   async function copyCurrent() {
     await navigator.clipboard.writeText(currentText);
+    copied = true;
+    if (copyTimer !== null) {
+      window.clearTimeout(copyTimer);
+    }
+    copyTimer = window.setTimeout(() => {
+      copied = false;
+      copyTimer = null;
+    }, 1400);
   }
 
   async function downloadResumePdf() {
-    if (!resumeText.trim()) {
+    if (!resumeDownloadReady || downloadingPdf || !resumeText.trim()) {
       error = "Generate or paste a resume draft before downloading PDF.";
       return;
     }
 
+    downloadingPdf = true;
     try {
       const fileName = tailoredResumePdfFileName(job?.company_name, job?.title);
       const bytes = sourceTex
@@ -363,6 +380,8 @@
       downloadPdfBytes(fileName, bytes);
     } catch (e: any) {
       error = e.message ?? "Could not build the resume PDF";
+    } finally {
+      downloadingPdf = false;
     }
   }
 
@@ -382,6 +401,9 @@
     return () => {
       cancelled = true;
       clearQueuedSave();
+      if (copyTimer !== null) {
+        window.clearTimeout(copyTimer);
+      }
     };
   });
 </script>
@@ -398,26 +420,49 @@
     </div>
   </header>
 
-  <div style="padding: 0 22px 28px;">
+  <div class="tailor-page-body">
     {#if error}
       <div style="padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
         {error}
       </div>
     {/if}
 
-    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-      {#each [
-        { id: "resume", label: "Resume" },
-        { id: "cover", label: "Cover" },
-        { id: "qa", label: "QA" },
-      ] as tab}
-        <button
-          class={activeTab === tab.id ? "chip chip-active" : "chip"}
-          onclick={() => activeTab = tab.id as TabId}
-        >
-          {tab.label}
-        </button>
-      {/each}
+    <div class="tailor-control-card">
+      <div class="chip-wrap tailor-tab-row" role="tablist" aria-label="Tailor output tabs">
+        {#each [
+          { id: "resume", label: "Resume" },
+          { id: "cover", label: "Cover" },
+          { id: "qa", label: "QA" },
+        ] as tab}
+          <button
+            class={activeTab === tab.id ? "chip chip-active" : "chip"}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onclick={() => activeTab = tab.id as TabId}
+          >
+            {tab.label}
+          </button>
+        {/each}
+      </div>
+
+      <div class="tailor-model-row">
+        <label for="tailor-model">Model</label>
+        <div class="select-field-wrap">
+          <select
+            id="tailor-model"
+            class="input-field"
+            value={activeModel}
+            onchange={handleModelChange}
+          >
+            {#each TAILOR_MODEL_OPTIONS as option}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
+          <span class="select-chevron" aria-hidden="true">
+            <CaretDown size={16} />
+          </span>
+        </div>
+      </div>
     </div>
 
     <div class="stat-row" style="margin-bottom: 14px;">
@@ -439,17 +484,17 @@
     <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
       <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={copyCurrent}>
         <Copy size={15} />
-        Copy
+        {copied ? "Copied" : "Copy"}
       </button>
       {#if activeTab === "resume"}
         <button
           class="btn-secondary"
           style="height: 40px; padding: 0 14px;"
           onclick={downloadResumePdf}
-          disabled={!resumeDownloadReady}
+          disabled={!resumeDownloadReady || downloadingPdf}
         >
           <DownloadSimple size={15} />
-          Download PDF
+          {downloadingPdf ? "Building PDF..." : "Download PDF"}
         </button>
       {/if}
       <button

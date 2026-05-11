@@ -63,6 +63,7 @@
   let savingLocalSetup: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
   type SettingsSection = "profile" | "jobs" | "tailoring" | "notifications" | "operations";
+  type SettingsRowId = SettingsSection | "companies" | "corpus";
   let activeSettingsSection: SettingsSection = $state("profile");
 
   let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
@@ -83,17 +84,14 @@
     return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.app_remaining;
   });
 
-  const shortcuts = [
-    { label: "Companies", sub: "Manage the shared watchlist", path: "/companies" },
-    { label: "Corpus", sub: "Edit the material tailoring pulls from", path: "/corpus" },
-  ] as const;
-
-  const settingsSections: { id: SettingsSection; label: string; sub: string }[] = [
-    { id: "profile", label: "Profile", sub: "Identity" },
-    { id: "jobs", label: "Jobs", sub: "Search rules" },
-    { id: "tailoring", label: "Tailor", sub: "Resume setup" },
-    { id: "notifications", label: "Notify", sub: "Alerts" },
-    { id: "operations", label: "Ops", sub: "Fetch runs" },
+  const settingsSections: { id: SettingsRowId; label: string }[] = [
+    { id: "profile", label: "Profile" },
+    { id: "jobs", label: "Jobs" },
+    { id: "tailoring", label: "Tailor" },
+    { id: "companies", label: "Companies" },
+    { id: "corpus", label: "Corpus" },
+    { id: "notifications", label: "Notifications" },
+    { id: "operations", label: "Operations" },
   ];
 
   function hydrateLocalSetup() {
@@ -270,11 +268,23 @@
     successMsg = "Local resume removed.";
     setTimeout(() => (successMsg = null), 3000);
   }
+
+  function selectSettingsRow(id: SettingsRowId) {
+    if (id === "companies") {
+      navigate("/companies");
+      return;
+    }
+    if (id === "corpus") {
+      navigate("/corpus");
+      return;
+    }
+    activeSettingsSection = id;
+  }
 </script>
 
 <div class="page" style="padding-top: 0;">
   <div style="padding: 16px 16px 28px;">
-    <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 12px;">
+    <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 22px;">
       Profile
     </div>
 
@@ -314,43 +324,19 @@
           </div>
         </div>
 
-        <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
+        <div class="settings-list-card" aria-label="Profile settings sections">
           {#each settingsSections as section}
             <button
               type="button"
               class:active={activeSettingsSection === section.id}
-              class="settings-section-tab"
-              role="tab"
-              aria-selected={activeSettingsSection === section.id}
-              onclick={() => (activeSettingsSection = section.id)}
+              class="settings-list-row"
+              onclick={() => selectSettingsRow(section.id)}
             >
               <span>{section.label}</span>
-              <small>{section.sub}</small>
+              <CaretRight size={16} color="var(--color-ink-4)" />
             </button>
           {/each}
         </div>
-
-        {#if activeSettingsSection === "profile"}
-        <section>
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
-            Shortcuts
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            {#each shortcuts as shortcut, i}
-              <button
-                class="shortcut-row"
-                onclick={() => navigate(shortcut.path)}
-              >
-                <div style="min-width: 0; text-align: left;">
-                  <div style="font-size: 14px; font-weight: 600;">{shortcut.label}</div>
-                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{shortcut.sub}</div>
-                </div>
-                <CaretRight size={16} color="var(--color-ink-4)" />
-              </button>
-            {/each}
-          </div>
-        </section>
-        {/if}
 
         <!-- Job Preferences -->
         {#if activeSettingsSection === "jobs"}

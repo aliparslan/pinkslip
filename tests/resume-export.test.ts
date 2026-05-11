@@ -20,6 +20,7 @@ const SOURCE_TEX = String.raw`
   {Software Engineer}{Dallas, TX}
   \resumeItemListStart
     \resumeItem{Redesigned Kafka consumer service to achieve 100\% data retention for millions of monthly interactions via a Dead-Letter-Queue implementation}
+    \resumeItem{Published validation tooling work in \href{https://example.com/paper}{\underline{GigaScience}} with 250k+ genomic datasets}
     \resumeItem{Served as Learning \& Development Lead for 250+ associates, directing a 10-person committee}
   \resumeItemListEnd
 \end{document}
@@ -38,6 +39,7 @@ describe("resume export helpers", () => {
     expect(output).toContain(String.raw`\resumeSubheading`);
     expect(output).toContain(String.raw`\href{mailto:example@example.com}`);
     expect(output).toContain("Improved reliability for millions of monthly interactions");
+    expect(output).toContain(String.raw`\href{https://example.com/paper}{\underline{GigaScience}}`);
     expect(output).toContain("Served as Learning \\& Development Lead");
     expect(output).not.toContain("spacecraft telemetry");
   });
