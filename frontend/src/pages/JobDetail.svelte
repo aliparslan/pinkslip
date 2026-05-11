@@ -514,11 +514,12 @@
           Dismiss just for me
         </button>
         <button
-          class="btn-primary"
-          style="width: 100%; height: 48px; background: var(--color-bad); color: #fff; border-color: var(--color-bad);"
+          class="btn-secondary btn-danger"
+          style="width: 100%; height: 48px;"
           disabled={blocking}
           onclick={handleBlock}
         >
+          <Trash size={15} />
           {blocking ? "..." : "Block permanently"}
         </button>
         <button

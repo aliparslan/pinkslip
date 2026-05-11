@@ -564,7 +564,7 @@
         <div bind:this={loadMoreSentinel} style="height: 1px;"></div>
       {:else}
         <div style="padding: 24px 16px; text-align: center; color: var(--color-ink-4); font-size: 12px;">
-          End of feed
+          -- End of feed, go touch grass --
         </div>
       {/if}
     {/if}
