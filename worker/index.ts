@@ -17,6 +17,9 @@ import { runPollCycle } from "./poller";
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use("/*", cors({ origin: (origin) => origin || "*", credentials: true }));
 
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+
 app.post("/api/access", async (c) => {
   const accessCode = c.env.ACCESS_CODE?.trim();
   if (!accessCode) {
@@ -61,12 +64,18 @@ app.get("/api/me", async (c) => {
   const userId = c.get("userId");
   const user = await c.env.DB.prepare("SELECT id, name, created_at FROM users WHERE id = ?")
     .bind(userId).first();
+  const geminiEnabled = Boolean(c.env.GEMINI_API_KEY?.trim());
+  const anthropicEnabled = Boolean(c.env.ANTHROPIC_API_KEY?.trim());
+  const tailoringProvider = geminiEnabled ? "gemini" : anthropicEnabled ? "anthropic" : null;
   return c.json({
     user,
     features: {
       access_required: Boolean(c.env.ACCESS_CODE?.trim()),
-      tailoring_enabled: Boolean(c.env.ANTHROPIC_API_KEY?.trim()),
-      tailoring_model: c.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-20250514",
+      tailoring_enabled: geminiEnabled || anthropicEnabled,
+      tailoring_provider: tailoringProvider,
+      tailoring_model: tailoringProvider === "anthropic"
+        ? c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL
+        : c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
     },
   });
 });
