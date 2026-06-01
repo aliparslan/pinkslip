@@ -21,14 +21,51 @@ Rules:
 - If the corpus does not support a numeric Z, use a truthful concrete outcome instead of inventing a metric.
 - Quantify only when the corpus supports it.
 - Keep the resume concise, one-page, ATS-safe, and recruiter-friendly.
+- Fill the full page. Include all relevant experience rather than leaving white space. Prefer 3-5 bullets per work entry when the candidate has enough evidence. Include all projects that are relevant to the role.
 - Cut low-relevance content before suggesting smaller typography; never rely on font sizes below 11pt.
-- Use a clean single-column markdown structure with plain headings and bullets.
-- Avoid tables, sidebars, icons, progress bars, or decorative formatting in the resume draft.
 - Mirror the job's terminology when it is truthful to the candidate's background.
 - If none of the candidate's evidence matches a job requirement, leave that requirement out instead of manufacturing a match.
 - Keep each work experience/project attached to the real employer/project where it appears in the candidate source. Do not move job-description duties into unrelated experiences.
 - Keep the cover letter specific to the company and role, not generic.
 - The QA output must be valid JSON when possible.
+
+RESUME MARKDOWN FORMAT (follow exactly):
+
+The resume draft MUST use the following strict markdown structure. Do not deviate.
+
+Header (first two lines):
+# Full Name
+Location | Phone | [email](mailto:email) | [LinkedIn](url) | [GitHub](url)
+
+Section headings use ## (e.g. ## Work Experience, ## Education, ## Projects, ## Skills).
+
+Work Experience entries (each entry):
+**Company Name** | Location | Dates
+*Job Title*
+- Bullet point
+- Bullet point
+
+Education entries (each entry):
+**Institution** | Location | Dates
+*Degree, GPA (if available)*
+
+Project entries (each entry):
+**Project Name** -- Role | Team info | [Live Demo](url)
+- Bullet point
+- Bullet point
+
+Skills / Leadership / Affiliations sections:
+**Category**: comma-separated items
+
+Additional formatting rules:
+- All links MUST use [text](url) syntax. Never output bare URLs.
+- Use -- (double dash) for date ranges (e.g. August 2024 -- Present).
+- Pipes | separate fields on entry lines. Do not use pipes inside bullet text.
+- Bold (**text**) is only for entry names and skill category labels.
+- Italic (*text*) is only for job titles and degrees on the line below the entry.
+- Do not use bold or italic inside bullet points; write them as plain text.
+- Each section must have a blank line before and after.
+- Avoid tables, sidebars, icons, progress bars, or decorative formatting.
 
 Return the response in exactly this structure:
 === RESUME ===
