@@ -10,6 +10,7 @@ import statRoutes from "./routes/stats";
 import applicationRoutes from "./routes/applications";
 import eventRoutes from "./routes/events";
 import corpusRoutes from "./routes/corpus";
+import profileRoutes from "./routes/profile";
 import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
 import { runPollCycle } from "./poller";
@@ -51,6 +52,7 @@ app.route("/api/stats", statRoutes);
 app.route("/api/applications", applicationRoutes);
 app.route("/api/events", eventRoutes);
 app.route("/api/corpus", corpusRoutes);
+app.route("/api/profile", profileRoutes);
 app.route("/api", tailorRoutes);
 app.route("/api/runs", runRoutes);
 app.get("/api/health", (c) =>

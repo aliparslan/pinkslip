@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { getAdapter } from "../ats";
 import { getLatestCorpusVersion } from "./corpus";
+import { getProfile } from "./profile";
 import { buildTailorPrompt, TAILOR_SYSTEM } from "../tailor/prompt";
+import { serializeProfileForPrompt } from "../tailor/serialize-profile";
 import { parseTailoringText } from "../tailor/parse";
 import type {
   Env,
@@ -24,7 +26,6 @@ const GEMINI_DAILY_LIMITS: Record<string, number> = {
   "gemini-2.5-flash": 20,
   "gemini-2.5-flash-lite": 20,
 };
-const MAX_RENDER_SOURCE_CHARS = 1_000_000;
 
 type TailorProvider = "gemini" | "anthropic";
 type TailorKeySource = "app" | "user";
@@ -154,24 +155,6 @@ function nextUtcDay(date = new Date()) {
   const next = new Date(startOfUtcDay(date));
   next.setUTCDate(next.getUTCDate() + 1);
   return next.toISOString();
-}
-
-function renderEndpoint(baseUrl: string) {
-  const trimmed = baseUrl.trim();
-  return trimmed.endsWith("/render")
-    ? trimmed
-    : `${trimmed.replace(/\/+$/, "")}/render`;
-}
-
-function safePdfFileName(value?: string | null) {
-  const fallback = "tailored-resume.pdf";
-  const name = (value ?? fallback)
-    .replace(/[^\w .-]+/g, "-")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
-  if (!name) return fallback;
-  return name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
 }
 
 async function ensureTailorUsageTable(db: D1Database) {
@@ -620,72 +603,6 @@ tailor.get("/tailor/usage", async (c) => {
   return c.json({ usage });
 });
 
-tailor.post("/tailor/render", async (c) => {
-  const renderUrl = c.env.LATEX_RENDER_URL?.trim();
-  if (!renderUrl) {
-    return c.json(
-      { error: "PDF rendering is not configured yet. Set LATEX_RENDER_URL on the worker." },
-      503
-    );
-  }
-
-  const body =
-    (await c.req
-      .json<{
-        tex?: string;
-        source?: string;
-        format?: "latex" | "typst";
-        file_name?: string;
-      }>()
-      .catch(() => null)) ?? {};
-
-  const format = body.format === "typst" ? "typst" : "latex";
-  const source = (body.source ?? body.tex)?.trim();
-  if (!source) {
-    return c.json(
-      { error: `${format === "typst" ? "Typst" : "TeX"} source is required to render a PDF` },
-      400
-    );
-  }
-  if (source.length > MAX_RENDER_SOURCE_CHARS) {
-    return c.json({ error: "Resume source is too large to render" }, 413);
-  }
-
-  const headers = new Headers({ "Content-Type": "application/json" });
-  const token = c.env.LATEX_RENDER_TOKEN?.trim();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const renderResponse = await fetch(renderEndpoint(renderUrl), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ source, format }),
-  }).catch(() => null);
-
-  if (!renderResponse) {
-    return c.json({ error: "PDF renderer is unavailable" }, 503);
-  }
-
-  if (!renderResponse.ok) {
-    const payload = await renderResponse.json().catch(() => null) as { error?: string } | null;
-    const message = payload?.error?.trim() || "PDF rendering failed";
-    return new Response(JSON.stringify({ error: message }), {
-      status: renderResponse.status,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const pdf = await renderResponse.arrayBuffer();
-  return new Response(pdf, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${safePdfFileName(body.file_name)}"`,
-      "Cache-Control": "no-store",
-    },
-  });
-});
-
 tailor.get("/tailor/:job_id", async (c) => {
   const { job_id } = c.req.param();
   const row = await c.env.DB.prepare(
@@ -799,15 +716,22 @@ tailor.post("/tailor/:job_id", async (c) => {
   let sourceMd = "";
   let persist: { corpusVersionId: number } | undefined;
   const corpus = await getLatestCorpusVersion(c.env.DB);
+  const { data: profileData } = await getProfile(c.env.DB);
+
+  const hasProfile = profileData.contact.name || profileData.experience.length > 0;
 
   if (requestResumeMd) {
     sourceMd = buildCandidateEvidenceSource({
       resumeMd: requestResumeMd,
       corpusMd: corpus?.content_md,
     });
+  } else if (hasProfile) {
+    const profileMd = serializeProfileForPrompt(profileData, corpus?.content_md);
+    sourceMd = `PRIMARY RESUME SOURCE:\n${profileMd}`;
+    if (corpus) persist = { corpusVersionId: corpus.id };
   } else {
     if (!corpus) {
-      return c.json({ error: "Corpus not found" }, 400);
+      return c.json({ error: "No profile or corpus found. Please fill out your resume profile first." }, 400);
     }
     sourceMd = buildCandidateEvidenceSource({ corpusMd: corpus.content_md });
     persist = { corpusVersionId: corpus.id };

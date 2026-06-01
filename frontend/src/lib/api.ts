@@ -40,27 +40,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-async function requestBinary(path: string, options?: RequestInit): Promise<Uint8Array> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    ...options,
-  });
-
-  if (!res.ok) {
-    const contentType = res.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json")
-      ? await res.json().catch(() => null)
-      : await res.text().catch(() => null);
-    const data = typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : undefined;
-    const message = typeof data?.error === "string" ? data.error : `API error: ${res.status}`;
-    const code = typeof data?.code === "string" ? data.code : undefined;
-    throw new ApiError(message, res.status, code, payload);
-  }
-
-  return new Uint8Array(await res.arrayBuffer());
-}
-
 export interface Job {
   id: string;
   company_id: string;
@@ -134,6 +113,56 @@ export interface CorpusVersion {
   label: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type OptionalSectionKind = "leadership" | "certifications" | "publications" | "awards" | "volunteer";
+
+export interface OptionalSection {
+  kind: OptionalSectionKind;
+  items: Array<{ category: string; items: string }>;
+}
+
+export interface ResumeProfile {
+  contact: {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    linkedin: string;
+    github: string;
+    website: string;
+  };
+  experience: Array<{
+    id: string;
+    company: string;
+    title: string;
+    location: string;
+    startDate: string;
+    endDate: string;
+    bullets: string[];
+  }>;
+  education: Array<{
+    id: string;
+    institution: string;
+    degree: string;
+    location: string;
+    startDate: string;
+    endDate: string;
+    gpa?: string;
+  }>;
+  projects: Array<{
+    id: string;
+    name: string;
+    role: string;
+    teamInfo: string;
+    url: string;
+    bullets: string[];
+  }>;
+  skills: Array<{
+    category: string;
+    items: string;
+  }>;
+  optionalSections: OptionalSection[];
 }
 
 export interface Tailoring {
@@ -355,6 +384,15 @@ export const api = {
         body: JSON.stringify({ saved: false }),
       }),
   },
+  profile: {
+    get: () =>
+      request<{ data: ResumeProfile; id: number | null; updated_at: string | null }>("/profile"),
+    update: (data: ResumeProfile) =>
+      request<{ data: ResumeProfile; id: number | null; updated_at: string | null }>("/profile", {
+        method: "PUT",
+        body: JSON.stringify({ data }),
+      }),
+  },
   corpus: {
     get: () =>
       request<{ content_md: string; version_id: number | null; updated_at: string | null; label?: string | null }>("/corpus"),
@@ -377,11 +415,6 @@ export const api = {
       const qs = model ? `?model=${encodeURIComponent(model)}` : "";
       return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
     },
-    renderPdf: (source: string, fileName: string, format: "latex" | "typst" = "latex") =>
-      requestBinary("/tailor/render", {
-        method: "POST",
-        body: JSON.stringify({ source, format, file_name: fileName }),
-      }),
     save: (
       id: string,
       data: {
