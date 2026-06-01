@@ -14,7 +14,7 @@
   import Companies from "./pages/Companies.svelte";
   import Settings from "./pages/Settings.svelte";
   import Events from "./pages/Events.svelte";
-  import Corpus from "./pages/Corpus.svelte";
+  import Profile from "./pages/Profile.svelte";
   import Tailor from "./pages/Tailor.svelte";
   import TabBar from "./components/TabBar.svelte";
   import Onboarding from "./components/Onboarding.svelte";
@@ -25,7 +25,8 @@
     "/events": Events,
     "/profile": Settings,
     "/companies": Companies,
-    "/corpus": Corpus,
+    "/corpus": Profile,
+    "/resume": Profile,
     "/settings": Settings,
   };
 

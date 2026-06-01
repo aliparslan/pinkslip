@@ -1489,51 +1489,6 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
   color: var(--color-ink-3);
 }
 
-.settings-list-card {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-elev);
-  border: 1px solid var(--color-line-2);
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.settings-list-row {
-  appearance: none;
-  width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
-  border: 0;
-  border-bottom: 0.5px solid var(--color-line);
-  background: transparent;
-  color: var(--color-ink);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s, color .15s;
-}
-
-.settings-list-row:last-child {
-  border-bottom: 0;
-}
-
-.settings-list-row > span {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.settings-list-row:hover {
-  background: var(--color-bg-sunken);
-}
-
-.settings-list-row.active {
-  background: color-mix(in oklch, var(--color-accent) 10%, var(--color-bg-elev));
-  color: var(--color-ink);
-}
-
 .shortcut-row {
   appearance: none;
   width: 100%;

@@ -34,8 +34,7 @@ export interface LocalResumeAsset {
   uploadedAt: string;
   dataUrl: string;
   textContent: string | null;
-  sourceTextContent?: string | null;
-  textFormat: "plain" | "markdown" | "latex" | "pdf" | "binary";
+  textFormat: "plain" | "markdown" | "pdf" | "binary";
   canTailor: boolean;
 }
 
@@ -116,8 +115,9 @@ function extensionOf(fileName: string) {
 
 export function isTextResumeFile(fileName: string, mimeType = "") {
   const ext = extensionOf(fileName);
+  if (ext === "tex") return false;
   if (mimeType.startsWith("text/")) return true;
-  return ["txt", "md", "markdown", "tex", "rtf"].includes(ext);
+  return ["txt", "md", "markdown", "rtf"].includes(ext);
 }
 
 function isPdfResumeFile(fileName: string, mimeType = "") {
@@ -151,42 +151,29 @@ async function extractPdfText(file: File): Promise<string> {
   return pages.join("\n\n").trim();
 }
 
-export function normalizeLatexResume(input: string) {
-  return input
-    .replace(/%.*$/gm, "")
-    .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, "$2 ($1)")
-    .replace(/\\(?:textbf|textit|emph|underline)\{([^}]+)\}/g, "$1")
-    .replace(/\\section\*?\{([^}]+)\}/g, "\n## $1\n")
-    .replace(/\\subsection\*?\{([^}]+)\}/g, "\n### $1\n")
-    .replace(/\\subsubsection\*?\{([^}]+)\}/g, "\n#### $1\n")
-    .replace(/\\item\s*/g, "- ")
-    .replace(/\\begin\{[^}]+\}/g, "\n")
-    .replace(/\\end\{[^}]+\}/g, "\n")
-    .replace(/\\\\/g, "\n")
-    .replace(/\\[a-zA-Z@]+(\[[^\]]*\])?(\{[^}]*\})?/g, " ")
-    .replace(/[{}]/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
+function sanitizeLocalResumeAsset(asset: LocalResumeAsset | null | undefined): LocalResumeAsset | null {
+  if (!asset) return null;
+  if (extensionOf(asset.fileName) === "tex" || (asset as { textFormat?: string }).textFormat === "latex") {
+    return null;
+  }
+  return asset;
 }
 
 export async function createLocalResumeAsset(file: File): Promise<LocalResumeAsset> {
   if (file.size > MAX_RESUME_BYTES) {
     throw new Error("Resume uploads are capped at 2 MB for browser-local storage");
   }
+  if (extensionOf(file.name) === "tex") {
+    throw new Error("TeX uploads are not supported right now. Upload a PDF, markdown, or plain-text resume.");
+  }
 
   const dataUrl = await readAsDataUrl(file);
   let textContent: string | null = null;
-  let sourceTextContent: string | null = null;
   let textFormat: LocalResumeAsset["textFormat"] = "binary";
 
   if (isTextResumeFile(file.name, file.type)) {
     const rawText = await readAsText(file);
-    sourceTextContent = rawText.trim();
-    if (extensionOf(file.name) === "tex") {
-      textContent = normalizeLatexResume(rawText);
-      textFormat = "latex";
-    } else if (["md", "markdown"].includes(extensionOf(file.name))) {
+    if (["md", "markdown"].includes(extensionOf(file.name))) {
       textContent = rawText.trim();
       textFormat = "markdown";
     } else {
@@ -205,7 +192,6 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
     uploadedAt: new Date().toISOString(),
     dataUrl,
     textContent: textContent?.trim() || null,
-    sourceTextContent: sourceTextContent?.trim() || null,
     textFormat,
     canTailor: Boolean(textContent?.trim()),
   };
@@ -217,7 +203,7 @@ export function loadLocalTailorKit(): LocalTailorKit {
     provider: DEFAULT_TAILOR_PROVIDER,
     apiKey: typeof kit.apiKey === "string" ? kit.apiKey : "",
     model: normalizeTailorModel(kit.model),
-    resume: kit.resume ?? null,
+    resume: sanitizeLocalResumeAsset(kit.resume),
   };
 }
 
@@ -242,18 +228,21 @@ export async function refreshLocalResumeAssetText(
     return asset;
   }
 
-  if (isTextResumeFile(asset.fileName, asset.mimeType) && !asset.sourceTextContent) {
+  if (extensionOf(asset.fileName) === "tex" || (asset as { textFormat?: string }).textFormat === "latex") {
+    return null;
+  }
+
+  if (isTextResumeFile(asset.fileName, asset.mimeType) && !asset.textContent) {
     const rawText = await readDataUrlAsText(asset.dataUrl).catch(() => null);
     if (!rawText?.trim()) return asset;
 
     const ext = extensionOf(asset.fileName);
     const textFormat: LocalResumeAsset["textFormat"] =
-      ext === "tex" ? "latex" : ["md", "markdown"].includes(ext) ? "markdown" : "plain";
-    const textContent = textFormat === "latex" ? normalizeLatexResume(rawText) : rawText.trim();
+      ["md", "markdown"].includes(ext) ? "markdown" : "plain";
+    const textContent = rawText.trim();
 
     return {
       ...asset,
-      sourceTextContent: rawText.trim(),
       textContent: textContent?.trim() || null,
       textFormat,
       canTailor: Boolean(textContent?.trim()),
@@ -324,12 +313,6 @@ export function clearLocalTailorDraft(jobId: string) {
 
 export function getLocalResumeTailorText(kit: LocalTailorKit | null) {
   return kit?.resume?.textContent?.trim() ?? "";
-}
-
-export function getLocalResumeSourceTex(kit: LocalTailorKit | null) {
-  const resume = kit?.resume;
-  if (resume?.textFormat !== "latex") return null;
-  return resume.sourceTextContent?.trim() || null;
 }
 
 function dataUrlToBlob(dataUrl: string) {

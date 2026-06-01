@@ -63,7 +63,6 @@
   let savingLocalSetup: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
   type SettingsSection = "profile" | "jobs" | "tailoring" | "notifications" | "operations";
-  type SettingsRowId = SettingsSection | "companies" | "corpus";
   let activeSettingsSection: SettingsSection = $state("profile");
 
   let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
@@ -84,14 +83,17 @@
     return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.app_remaining;
   });
 
-  const settingsSections: { id: SettingsRowId; label: string }[] = [
-    { id: "profile", label: "Profile" },
-    { id: "jobs", label: "Jobs" },
-    { id: "tailoring", label: "Tailor" },
-    { id: "companies", label: "Companies" },
-    { id: "corpus", label: "Corpus" },
-    { id: "notifications", label: "Notifications" },
-    { id: "operations", label: "Operations" },
+  const shortcuts = [
+    { label: "Companies", sub: "Manage the shared watchlist", path: "/companies" },
+    { label: "Resume Profile", sub: "Structured resume data for tailoring", path: "/resume" },
+  ] as const;
+
+  const settingsSections: { id: SettingsSection; label: string; sub: string }[] = [
+    { id: "profile", label: "Profile", sub: "Identity" },
+    { id: "jobs", label: "Jobs", sub: "Search rules" },
+    { id: "tailoring", label: "Tailor", sub: "Resume setup" },
+    { id: "notifications", label: "Notify", sub: "Alerts" },
+    { id: "operations", label: "Ops", sub: "Fetch runs" },
   ];
 
   function hydrateLocalSetup() {
@@ -269,22 +271,11 @@
     setTimeout(() => (successMsg = null), 3000);
   }
 
-  function selectSettingsRow(id: SettingsRowId) {
-    if (id === "companies") {
-      navigate("/companies");
-      return;
-    }
-    if (id === "corpus") {
-      navigate("/corpus");
-      return;
-    }
-    activeSettingsSection = id;
-  }
 </script>
 
 <div class="page" style="padding-top: 0;">
   <div style="padding: 16px 16px 28px;">
-    <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 22px;">
+    <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 12px;">
       Profile
     </div>
 
@@ -324,19 +315,43 @@
           </div>
         </div>
 
-        <div class="settings-list-card" aria-label="Profile settings sections">
+        <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
           {#each settingsSections as section}
             <button
               type="button"
               class:active={activeSettingsSection === section.id}
-              class="settings-list-row"
-              onclick={() => selectSettingsRow(section.id)}
+              class="settings-section-tab"
+              role="tab"
+              aria-selected={activeSettingsSection === section.id}
+              onclick={() => (activeSettingsSection = section.id)}
             >
               <span>{section.label}</span>
-              <CaretRight size={16} color="var(--color-ink-4)" />
+              <small>{section.sub}</small>
             </button>
           {/each}
         </div>
+
+        {#if activeSettingsSection === "profile"}
+        <section>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
+            Shortcuts
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            {#each shortcuts as shortcut, i}
+              <button
+                class="shortcut-row"
+                onclick={() => navigate(shortcut.path)}
+              >
+                <div style="min-width: 0; text-align: left;">
+                  <div style="font-size: 14px; font-weight: 600;">{shortcut.label}</div>
+                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{shortcut.sub}</div>
+                </div>
+                <CaretRight size={16} color="var(--color-ink-4)" />
+              </button>
+            {/each}
+          </div>
+        </section>
+        {/if}
 
         <!-- Job Preferences -->
         {#if activeSettingsSection === "jobs"}
@@ -631,7 +646,7 @@
                 <div>
                   <div style="font-size: 14px; font-weight: 500;">Resume source</div>
                   <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
-                    Upload `.tex`, PDF, markdown, or plain text. PDFs work when their text is selectable.
+                    Upload a PDF, markdown, or plain-text resume. PDFs work when their text is selectable.
                   </div>
                 </div>
                 {#if localResume}
@@ -642,7 +657,7 @@
               <input
                 bind:this={resumeUploadInput}
                 type="file"
-                accept=".tex,.txt,.md,.markdown,.pdf,.rtf"
+                accept=".txt,.md,.markdown,.pdf,.rtf"
                 style="display: none;"
                 onchange={handleResumeUpload}
               />
@@ -655,15 +670,11 @@
                   </div>
                   <div style="font-size: 12px; color: var(--color-ink-3);">
                     {#if localResume.canTailor}
-                      {#if localResume.textFormat === "latex"}
-                        This TeX file is ready for tailoring. PDF export will compile from its preserved LaTeX template.
-                      {:else}
-                        This file is ready for tailoring.
-                      {/if}
+                      This file is ready for tailoring.
                     {:else if localResume.textFormat === "pdf"}
-                      This PDF is saved, but we couldn’t extract selectable text from it. Try an exported text PDF or upload `.tex`.
+                      This PDF is saved, but we couldn’t extract selectable text from it. Try an exported text PDF, markdown, or plain text.
                     {:else}
-                      This file is saved for viewing and download. Upload `.tex`, `.md`, or `.txt` to use it directly for tailoring.
+                      This file is saved for viewing and download. Upload a PDF, markdown, or plain text to use it directly for tailoring.
                     {/if}
                   </div>
                   <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
