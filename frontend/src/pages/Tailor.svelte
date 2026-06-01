@@ -1,13 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { navigate } from "../router";
-  import { api, type Job, type Tailoring } from "../lib/api";
+  import { api, type Job, type ResumeProfile, type Tailoring } from "../lib/api";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
   import {
     DEFAULT_TAILOR_MODEL,
     TAILOR_MODEL_OPTIONS,
     getLocalResumeTailorText,
-    getLocalResumeSourceTex,
     loadLocalTailorDraft,
     loadLocalTailorKit,
     refreshLocalTailorKitResume,
@@ -18,11 +17,10 @@
   } from "../lib/local-tailor";
   import {
     buildTailoredResumePdf,
-    downloadPdfBytes,
-    tailoredResumePdfFileName,
+    openPdfInNewTab,
   } from "../lib/pdf-resume";
-  import { buildTailoredResumeTex } from "../lib/latex-resume";
-  import { buildTailoredResumeTypst } from "../lib/typst-resume";
+  import { buildTypstResume, type ProfileContact, type ProfileProject } from "../lib/typst-resume";
+  import { compileTypstToPdf } from "../lib/typst-compiler";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -50,6 +48,8 @@
   let copied = $state(false);
   let copyTimer: number | null = $state(null);
   let downloadingPdf = $state(false);
+  let profileContact: ProfileContact | null = $state(null);
+  let profileProjects: ProfileProject[] | null = $state(null);
   let editing = $state<Record<TabId, boolean>>({
     resume: false,
     cover: false,
@@ -58,7 +58,6 @@
   let saveTimer: number | null = $state(null);
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
-  let sourceTex = $derived.by(() => getLocalResumeSourceTex(localKit));
   let usingLocalRequest = $derived.by(() => {
     return Boolean(localKit?.apiKey.trim() || localResumeText);
   });
@@ -318,7 +317,7 @@
           ? "Regenerating will create a new version. Your current edits will be saved first so you can come back to them. Continue?"
           : localResumeText
             ? "Generate a fresh version from your browser-local resume and this job?"
-            : "Generate a fresh version from the current corpus and this job?"
+            : "Generate a fresh version from your profile and this job?"
       );
       if (!confirmed) return;
     }
@@ -344,40 +343,30 @@
     }, 1400);
   }
 
-  async function downloadResumePdf() {
+  async function viewResumePdf() {
     if (!resumeDownloadReady || downloadingPdf || !resumeText.trim()) {
-      error = "Generate or paste a resume draft before downloading PDF.";
+      error = "Generate or paste a resume draft before viewing PDF.";
       return;
     }
 
     downloadingPdf = true;
     try {
-      const fileName = tailoredResumePdfFileName(job?.company_name, job?.title);
-      const bytes = sourceTex
-        ? await api.tailor.renderPdf(
-            buildTailoredResumeTex(resumeText, {
-              companyName: job?.company_name,
-              jobTitle: job?.title,
-              sourceTex,
-            }),
-            fileName,
-            "latex"
-          )
-        : await api.tailor.renderPdf(
-            buildTailoredResumeTypst(resumeText, {
-              companyName: job?.company_name,
-              jobTitle: job?.title,
-            }),
-            fileName,
-            "typst"
-          ).catch(async (renderError) => {
-            if (renderError?.message?.includes("not configured")) {
-              return buildTailoredResumePdf(resumeText);
-            }
-            throw renderError;
-          });
-
-      downloadPdfBytes(fileName, bytes);
+      try {
+        const typstSource = buildTypstResume(resumeText, {
+          companyName: job?.company_name,
+          jobTitle: job?.title,
+          profileContact,
+          profileProjects,
+        });
+        console.log("[pdf] Typst source generated, compiling...");
+        const bytes = await compileTypstToPdf(typstSource);
+        console.log("[pdf] Typst compilation succeeded:", bytes.byteLength, "bytes");
+        openPdfInNewTab(bytes);
+      } catch (typstErr: any) {
+        console.warn("[pdf] Typst compilation failed, falling back to pdf-lib:", typstErr);
+        const bytes = await buildTailoredResumePdf(resumeText, { density: "compact" });
+        openPdfInNewTab(bytes);
+      }
     } catch (e: any) {
       error = e.message ?? "Could not build the resume PDF";
     } finally {
@@ -389,7 +378,18 @@
     let cancelled = false;
 
     (async () => {
-      localKit = await refreshLocalTailorKitResume().catch(() => loadLocalTailorKit());
+      const [kit, profileRes] = await Promise.all([
+        refreshLocalTailorKitResume().catch(() => loadLocalTailorKit()),
+        api.profile.get().catch(() => null),
+      ]);
+      localKit = kit;
+      if (profileRes?.data) {
+        const c = profileRes.data.contact;
+        if (c.name || c.email) profileContact = c;
+        if (profileRes.data.projects.length > 0) {
+          profileProjects = profileRes.data.projects.map(p => ({ name: p.name, url: p.url }));
+        }
+      }
       if (cancelled) return;
       await loadExisting();
       if (cancelled) return;
@@ -466,7 +466,7 @@
     </div>
 
     <div class="stat-row" style="margin-bottom: 14px;">
-      <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "shared corpus + your key" : "shared corpus"}</span>
+      <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "your profile + your key" : "your profile"}</span>
       {#if streaming}
         <span>streaming live</span>
       {/if}
@@ -490,11 +490,11 @@
         <button
           class="btn-secondary"
           style="height: 40px; padding: 0 14px;"
-          onclick={downloadResumePdf}
+          onclick={viewResumePdf}
           disabled={!resumeDownloadReady || downloadingPdf}
         >
           <DownloadSimple size={15} />
-          {downloadingPdf ? "Building PDF..." : "Download PDF"}
+          {downloadingPdf ? "Building PDF..." : "View PDF"}
         </button>
       {/if}
       <button

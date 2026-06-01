@@ -8,8 +8,6 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "build:frontend": "cd frontend && bun run build",
-    "render:dev": "cd latex-renderer && bun run dev",
-    "render:docker": "docker build -t pinkslip-latex-renderer ./latex-renderer",
     "db:migrate": "wrangler d1 migrations apply pinkslip --local",
     "db:migrate:remote": "wrangler d1 migrations apply pinkslip --remote",
     "db:repair:local": "bun scripts/repair-local-db.mjs",
