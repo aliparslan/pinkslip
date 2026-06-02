@@ -6,6 +6,7 @@ import {
   sendPushNotification,
 } from "./push";
 import type { NotificationJob } from "./push";
+import { isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
 import type { Env, CompanyRow, PreferenceRow, PushSubscriptionRow } from "./types";
 import { getAdapter } from "./ats";
 
@@ -286,17 +287,20 @@ export async function sendNotificationsForJobs(
     publicKey: env.VAPID_PUBLIC_KEY,
     privateKey: env.VAPID_PRIVATE_KEY,
   };
+  const apnsConfig = resolveApnsConfig(env);
 
   const sendResults = await Promise.allSettled(
     subscriptions.map((sub) =>
-      sendPushNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        },
-        payload,
-        vapid
-      )
+      sub.platform === "ios" && apnsConfig
+        ? sendApnsNotification(sub.endpoint, payload, apnsConfig)
+        : sendPushNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            payload,
+            vapid
+          )
     )
   );
 
@@ -305,13 +309,23 @@ export async function sendNotificationsForJobs(
     const result = sendResults[i];
     if (result.status !== "fulfilled") continue;
 
+    const sub = subscriptions[i];
+    const isApns = sub.platform === "ios";
+    // iOS rows with APNs unconfigured were skipped (never sent); don't count them.
+    if (isApns && !apnsConfig) continue;
+
     if (result.value.ok) {
       notificationsSent++;
-    } else if (result.value.status === 410 || result.value.status === 404) {
-      await db
-        .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
-        .bind(subscriptions[i].endpoint)
-        .run();
+    } else {
+      const dead = isApns
+        ? isDeadApnsToken(result.value.status)
+        : result.value.status === 410 || result.value.status === 404;
+      if (dead) {
+        await db
+          .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
+          .bind(sub.endpoint)
+          .run();
+      }
     }
   }
 

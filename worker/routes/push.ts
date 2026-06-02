@@ -2,8 +2,43 @@ import { Hono } from "hono";
 import type { Env, PushSubscriptionRow, Variables } from "../types";
 import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
+import { resolveApnsConfig, sendApnsNotification } from "../apns";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+// POST /apns — Register a native iOS APNs device token for the current user.
+// The token is stored in the existing push_subscriptions table with
+// platform='ios' (device token in `endpoint`, empty p256dh/auth).
+push.post("/apns", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json<{ token: string }>().catch(() => null);
+  const token = body?.token?.trim();
+  if (!token) {
+    return c.json({ error: "Missing device token" }, 400);
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await c.env.DB.prepare(
+    `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at, platform)
+     VALUES (?, ?, ?, '', '', ?, 'ios')
+     ON CONFLICT(endpoint) DO UPDATE SET
+       user_id = excluded.user_id,
+       created_at = excluded.created_at,
+       platform = 'ios'`
+  )
+    .bind(id, userId, token, now)
+    .run();
+
+  const created = await c.env.DB.prepare(
+    "SELECT * FROM push_subscriptions WHERE endpoint = ?"
+  )
+    .bind(token)
+    .first<PushSubscriptionRow>();
+
+  return c.json(created, 201);
+});
 
 // POST /subscribe — Register push subscription
 push.post("/subscribe", async (c) => {
@@ -78,15 +113,29 @@ push.post("/test", async (c) => {
     publicKey: c.env.VAPID_PUBLIC_KEY,
     privateKey: c.env.VAPID_PRIVATE_KEY,
   };
+  const apnsConfig = resolveApnsConfig(c.env);
 
   const results: any[] = [];
   for (const sub of subs) {
-    const result = await sendPushNotification(
-      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-      payload,
-      vapid
-    );
-    results.push({ endpoint: sub.endpoint.slice(0, 60) + "...", ...result });
+    let result;
+    if (sub.platform === "ios") {
+      if (!apnsConfig) {
+        result = { ok: false, error: "APNs not configured (set APNS_* env vars)" };
+      } else {
+        result = await sendApnsNotification(sub.endpoint, payload, apnsConfig);
+      }
+    } else {
+      result = await sendPushNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+        vapid
+      );
+    }
+    results.push({
+      endpoint: sub.endpoint.slice(0, 60) + "...",
+      platform: sub.platform,
+      ...result,
+    });
   }
 
   return c.json({ sent: results.filter(r => r.ok).length, total: subs.length, results });

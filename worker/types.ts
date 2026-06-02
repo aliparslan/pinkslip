@@ -8,6 +8,14 @@ export interface Env {
   GEMINI_MODEL?: string;
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_MODEL?: string;
+  // APNs (native iOS push). Set APNS_KEY_ID/TEAM_ID/BUNDLE_ID as vars and
+  // APNS_PRIVATE_KEY (the .p8 PEM contents) as a secret. APNS_SANDBOX="true"
+  // targets the APNs sandbox host for Xcode debug / direct-install builds.
+  APNS_KEY_ID?: string;
+  APNS_TEAM_ID?: string;
+  APNS_BUNDLE_ID?: string;
+  APNS_PRIVATE_KEY?: string;
+  APNS_SANDBOX?: string;
 }
 
 export interface Variables {
@@ -106,6 +114,9 @@ export interface PushSubscriptionRow {
   p256dh: string;
   auth: string;
   created_at: string;
+  // "web" for Web Push (p256dh/auth populated) or "ios" for APNs (endpoint holds
+  // the device token; p256dh/auth are empty).
+  platform: string;
 }
 
 export interface ApplicationRow {

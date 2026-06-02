@@ -13,6 +13,7 @@ import corpusRoutes from "./routes/corpus";
 import profileRoutes from "./routes/profile";
 import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
+import authRoutes from "./routes/auth";
 import { runPollCycle } from "./poller";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -55,6 +56,7 @@ app.route("/api/corpus", corpusRoutes);
 app.route("/api/profile", profileRoutes);
 app.route("/api", tailorRoutes);
 app.route("/api/runs", runRoutes);
+app.route("/api/auth", authRoutes);
 app.get("/api/health", (c) =>
   c.json({
     ok: true,

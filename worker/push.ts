@@ -68,14 +68,14 @@ function asUint8Array(buffer: ArrayBuffer | ArrayBufferView): Uint8Array {
   return new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
 }
 
-function base64urlEncode(buffer: ArrayBuffer | ArrayBufferView): string {
+export function base64urlEncode(buffer: ArrayBuffer | ArrayBufferView): string {
   const bytes = asUint8Array(buffer);
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-function base64urlDecode(str: string): Uint8Array {
+export function base64urlDecode(str: string): Uint8Array {
   const padded = str.replace(/-/g, "+").replace(/_/g, "/");
   const padding = (4 - (padded.length % 4)) % 4;
   const b64 = padded + "=".repeat(padding);

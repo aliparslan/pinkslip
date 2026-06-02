@@ -307,10 +307,21 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ endpoint }),
       }),
+    // Native iOS: register an APNs device token for the current user.
+    registerApns: (token: string) =>
+      request<{ id: string }>("/push/apns", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
     test: (delay = 0) =>
       request<{ sent: number; total: number }>(`/push/test${delay ? `?delay=${delay}` : ""}`, {
         method: "POST",
       }),
+  },
+  auth: {
+    // Mint (or fetch) a bearer token for native extensions (Widgets, Share).
+    getToken: () =>
+      request<{ token: string }>("/auth/token", { method: "POST" }),
   },
   stats: {
     get: () =>
