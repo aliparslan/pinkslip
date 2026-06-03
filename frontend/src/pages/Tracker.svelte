@@ -204,7 +204,7 @@
               <div
                 role="menu"
                 tabindex="-1"
-                style="position: absolute; right: 12px; top: 100%; z-index: 20; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;"
+                style="position: absolute; right: 12px; top: 100%; z-index: 5; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => { if (e.key === 'Escape') menuOpenId = null; }}
               >
@@ -237,7 +237,7 @@
 
 {#if showCreate}
   <div
-    style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
     onclick={() => showCreate = false}
   >

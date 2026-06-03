@@ -402,7 +402,7 @@
 <!-- Edit company modal -->
 {#if editTarget}
   <div
-    style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
     onclick={() => { editTarget = null; }}
     onkeydown={(e) => { if (e.key === 'Escape') editTarget = null; }}
@@ -477,7 +477,7 @@
 <!-- Delete confirmation modal -->
 {#if deleteTarget}
   <div
-    style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
     onclick={() => { deleteTarget = null; }}
     onkeydown={(e) => { if (e.key === 'Escape') deleteTarget = null; }}

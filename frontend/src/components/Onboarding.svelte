@@ -74,9 +74,9 @@
   }
 </script>
 
-<div style="position: fixed; inset: 0; z-index: 60; background: var(--color-bg); display: flex; flex-direction: column; overflow-y: auto;">
-  <!-- Progress bars pinned to top -->
-  <div style="padding: 12px 24px 0; flex-shrink: 0;">
+<div style="position: fixed; inset: 0; z-index: 30; background: var(--color-bg); display: flex; flex-direction: column; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); overscroll-behavior: contain;">
+  <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island) -->
+  <div style="padding: 20px 24px 4px; flex-shrink: 0;">
     <div style="display: flex; gap: 6px;">
       {#each [1, 2, 3, 4, 5] as s}
         <div style="height: 3px; flex: 1; border-radius: 999px; background: {s <= step ? 'var(--color-accent)' : 'var(--color-line)'}; transition: background 0.3s;"></div>
@@ -84,9 +84,9 @@
     </div>
   </div>
 
-  <!-- Content centered -->
-  <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 32px 48px;">
-    <div style="width: 100%; max-width: 360px;">
+  <!-- Content: scroll region; margin auto centers it but stays scroll-safe when tall -->
+  <div style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 24px 32px 40px;">
+    <div style="width: 100%; max-width: 360px; margin: auto 0;">
 
       {#if step === 1}
         <div style="animation: fade-in 0.3s;">

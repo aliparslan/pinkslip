@@ -479,7 +479,7 @@
 <!-- Block confirmation modal -->
 {#if showBlockConfirm}
   <div
-    style="position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
+    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
     onclick={() => { showBlockConfirm = false; }}
     onkeydown={(e) => { if (e.key === 'Escape') showBlockConfirm = false; }}

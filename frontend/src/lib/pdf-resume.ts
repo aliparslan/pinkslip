@@ -383,7 +383,9 @@ export function downloadPdfBytes(fileName: string, bytes: Uint8Array) {
 
 export function openPdfInNewTab(bytes: Uint8Array) {
   if (typeof document === "undefined") return;
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+  const blob = new Blob([arrayBuffer], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 300_000);

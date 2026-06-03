@@ -44,7 +44,6 @@
         : null
   );
   let showTabBar = $derived(!isDetailPage && !isTailorPage);
-  let showShellHeader = $derived(!isDetailPage && !isTailorPage);
   let mode = $derived($themeMode);
   let isOnFeed = $derived(route === "/");
 
@@ -62,6 +61,12 @@
   let accessCode: string = $state("");
   let accessError: string | null = $state(null);
   let unlocking: boolean = $state(false);
+
+  // Hide the app chrome behind full-screen overlays (onboarding / access gate) so
+  // nothing renders — or scrolls — behind them.
+  let showShellHeader = $derived(
+    !isDetailPage && !isTailorPage && !showOnboarding && !showAccessGate
+  );
 
   async function bootstrapSession() {
     bootError = null;
@@ -110,6 +115,15 @@
   onMount(() => {
     bootstrapSession();
   });
+
+  // Lock the page behind full-screen overlays so nothing scrolls underneath
+  // (iOS WebView scrolls documentElement, so lock both html and body).
+  $effect(() => {
+    const lock = (sessionReady && showOnboarding) || showAccessGate;
+    const value = lock ? "hidden" : "";
+    document.documentElement.style.overflow = value;
+    document.body.style.overflow = value;
+  });
 </script>
 
 {#if showShellHeader}
@@ -148,15 +162,17 @@
 
 <div class="app-container min-h-screen pb-28">
   {#if sessionReady}
-    {#if isDetailPage}
-      <CurrentPage {jobId} />
-    {:else if isTailorPage}
-      <CurrentPage {jobId} />
-    {:else}
-      <CurrentPage />
-    {/if}
-    {#if showTabBar}
-      <TabBar />
+    {#if !showOnboarding}
+      {#if isDetailPage}
+        <CurrentPage {jobId} />
+      {:else if isTailorPage}
+        <CurrentPage {jobId} />
+      {:else}
+        <CurrentPage />
+      {/if}
+      {#if showTabBar}
+        <TabBar />
+      {/if}
     {/if}
   {:else if bootError}
     <div style="padding: 32px 22px 28px;">
@@ -176,7 +192,7 @@
 </div>
 
 {#if showAccessGate}
-  <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in oklch, var(--color-bg) 92%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 24px;">
+  <div style="position: fixed; inset: 0; z-index: 40; background: color-mix(in oklch, var(--color-bg) 92%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 24px;">
     <div style="width: min(100%, 360px); padding: 24px; border-radius: 20px; background: var(--color-bg-elev); border: 1px solid var(--color-line); box-shadow: 0 18px 50px rgba(0,0,0,0.16);">
       <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Enter the shared code</h2>
       <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 18px;">

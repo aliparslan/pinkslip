@@ -11,10 +11,13 @@ const config: CapacitorConfig = {
     // production origin (not capacitor://localhost) keeps cookies first-party.
     url: "https://pinkslip.alip.dev",
     cleartext: false,
+    // For local live-reload dev: set url to "http://localhost:5173" + cleartext true,
+    // run `vite` + `wrangler dev`, then `cap copy ios` and rebuild.
   },
   ios: {
-    // Show the web content under the status bar / home indicator like the PWA.
-    contentInset: "always",
+    // Run edge-to-edge; the web app handles status bar / home-indicator spacing
+    // itself via CSS env(safe-area-inset-*).
+    contentInset: "never",
   },
   plugins: {
     PushNotifications: {

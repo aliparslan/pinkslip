@@ -20,7 +20,7 @@
   }
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 z-40" aria-label="Main navigation" style="background: color-mix(in oklch, var(--color-bg) 94%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--color-line); box-shadow: 0 -1px 3px rgba(0,0,0,0.06);">
+<nav class="fixed bottom-0 left-0 right-0 z-10" aria-label="Main navigation" style="background: color-mix(in oklch, var(--color-bg) 94%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--color-line); box-shadow: 0 -1px 3px rgba(0,0,0,0.06);">
   <div class="app-container grid grid-cols-4" style="padding: 7px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);">
     {#each tabs as tab}
       {@const active = isActive(tab.path)}

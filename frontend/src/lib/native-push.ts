@@ -26,6 +26,10 @@ let initialized = false;
 
 export async function initNativePush(): Promise<void> {
   if (initialized || !isNativeIos()) return;
+  // Skip the native push permission prompt during local web dev (Vite dev server).
+  // Production iOS builds load the deployed `vite build` output (DEV=false), so push
+  // still registers there.
+  if ((import.meta as any).env?.DEV) return;
   initialized = true;
 
   // Deliver the APNs device token to the API as soon as registration succeeds.

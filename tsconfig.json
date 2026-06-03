@@ -19,5 +19,8 @@
     }
   },
   "include": ["worker/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist", "frontend"]
+  // This config targets the Worker/Bun runtime (no DOM lib). resume-export.test.ts
+  // imports frontend (DOM-using) code, so it's typechecked by the frontend project
+  // instead; bun still runs it via `bun test`.
+  "exclude": ["node_modules", "dist", "frontend", "tests/resume-export.test.ts"]
 }

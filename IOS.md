@@ -55,13 +55,14 @@ bunx cap add ios                  # generates frontend/ios + runs pod install
 Build & launch in the simulator (no Xcode GUI needed):
 
 ```sh
-xcrun simctl list devices available        # pick a booted-able device name
+xcrun simctl list devices available        # pick a device name that EXISTS on your machine
+# (Xcode 26 ships the iPhone 17 family — there is no "iPhone 16". Substitute below.)
 xcodebuild -workspace frontend/ios/App/App.xcworkspace \
   -scheme App -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 16' build
+  -destination 'platform=iOS Simulator,name=iPhone 17' build
 
 # Then boot + install + launch (path is printed by xcodebuild as TARGET_BUILD_DIR):
-xcrun simctl boot 'iPhone 16'
+xcrun simctl boot 'iPhone 17'
 open -a Simulator
 xcrun simctl install booted "$(xcodebuild -workspace frontend/ios/App/App.xcworkspace -scheme App -showBuildSettings 2>/dev/null | awk '/ TARGET_BUILD_DIR /{print $3}')/App.app"
 xcrun simctl launch booted dev.alip.pinkslip
