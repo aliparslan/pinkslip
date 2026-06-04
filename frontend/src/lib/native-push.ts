@@ -22,15 +22,11 @@ function handleNotificationUrl(data: unknown): void {
   }
 }
 
-let initialized = false;
+let listenersReady = false;
 
-export async function initNativePush(): Promise<void> {
-  if (initialized || !isNativeIos()) return;
-  // Skip the native push permission prompt during local web dev (Vite dev server).
-  // Production iOS builds load the deployed `vite build` output (DEV=false), so push
-  // still registers there.
-  if ((import.meta as any).env?.DEV) return;
-  initialized = true;
+async function ensureListeners(): Promise<void> {
+  if (listenersReady) return;
+  listenersReady = true;
 
   // Deliver the APNs device token to the API as soon as registration succeeds.
   await PushNotifications.addListener("registration", (token) => {
@@ -47,9 +43,33 @@ export async function initNativePush(): Promise<void> {
   await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
     handleNotificationUrl(action.notification.data);
   });
+}
 
-  const perm = await PushNotifications.requestPermissions();
+/**
+ * On launch: wire listeners and, if notifications are already authorized, register
+ * the device token silently. Does NOT prompt — that happens on a user action
+ * (the onboarding/settings "Enable" button) via enableNativePush().
+ */
+export async function initNativePush(): Promise<void> {
+  if (!isNativeIos()) return;
+  await ensureListeners();
+  const perm = await PushNotifications.checkPermissions();
   if (perm.receive === "granted") {
     await PushNotifications.register();
   }
+}
+
+/**
+ * User-initiated: request notification permission, then register for APNs.
+ * Returns the resulting status for the UI.
+ */
+export async function enableNativePush(): Promise<"enabled" | "denied"> {
+  if (!isNativeIos()) return "denied";
+  await ensureListeners();
+  const perm = await PushNotifications.requestPermissions();
+  if (perm.receive === "granted") {
+    await PushNotifications.register();
+    return "enabled";
+  }
+  return "denied";
 }

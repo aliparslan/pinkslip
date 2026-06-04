@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from "../lib/api";
   import { registerPush } from "../lib/push";
+  import { enableNativePush, isNativeIos } from "../lib/native-push";
   import Wrench from "phosphor-svelte/lib/Wrench";
   import Check from "phosphor-svelte/lib/Check";
 
@@ -60,7 +61,10 @@
   async function handleEnablePush() {
     enablingPush = true;
     try {
-      const ok = await registerPush();
+      // Native iOS app → APNs; web → Web Push.
+      const ok = isNativeIos()
+        ? (await enableNativePush()) === "enabled"
+        : await registerPush();
       pushStatus = ok ? "enabled" : "denied";
     } catch {
       pushStatus = "error";
@@ -259,7 +263,7 @@
             {#if pushStatus === "denied"}
               <div style="padding: 0 16px 14px;">
                 <div style="padding: 8px 12px; border-radius: 8px; background: color-mix(in oklch, var(--color-warn) 14%, transparent); color: var(--color-warn); font-size: 12px; line-height: 1.4;">
-                  Permission denied. You can enable notifications in your browser settings.
+                  Permission denied. {isNativeIos() ? "Turn on notifications for pinkslip in the iOS Settings app." : "You can enable notifications in your browser settings."}
                 </div>
               </div>
             {/if}
