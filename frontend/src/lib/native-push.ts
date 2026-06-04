@@ -1,9 +1,8 @@
 // Native iOS push (APNs) registration via Capacitor.
 //
-// On a real browser this is a no-op — Web Push (lib/push.ts) handles those.
-// Inside the Capacitor WebView it requests notification permission, registers
-// with APNs, ships the device token to the API (reusing the cookie session),
-// and deep-links into the hash router when a notification is tapped.
+// No-op outside the Capacitor iOS shell. Inside it: requests notification
+// permission, registers with APNs, ships the device token to the API (reusing
+// the cookie session), and deep-links into the hash router on notification tap.
 
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
@@ -57,6 +56,13 @@ export async function initNativePush(): Promise<void> {
   if (perm.receive === "granted") {
     await PushNotifications.register();
   }
+}
+
+/** Current notification permission as a UI status (no prompt). */
+export async function getNativePushStatus(): Promise<"enabled" | "disabled"> {
+  if (!isNativeIos()) return "disabled";
+  const perm = await PushNotifications.checkPermissions();
+  return perm.receive === "granted" ? "enabled" : "disabled";
 }
 
 /**

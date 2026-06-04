@@ -1,7 +1,6 @@
 <script lang="ts">
   import { api } from "../lib/api";
-  import { registerPush } from "../lib/push";
-  import { enableNativePush, isNativeIos } from "../lib/native-push";
+  import { enableNativePush } from "../lib/native-push";
   import Wrench from "phosphor-svelte/lib/Wrench";
   import Check from "phosphor-svelte/lib/Check";
 
@@ -61,10 +60,7 @@
   async function handleEnablePush() {
     enablingPush = true;
     try {
-      // Native iOS app → APNs; web → Web Push.
-      const ok = isNativeIos()
-        ? (await enableNativePush()) === "enabled"
-        : await registerPush();
+      const ok = (await enableNativePush()) === "enabled";
       pushStatus = ok ? "enabled" : "denied";
     } catch {
       pushStatus = "error";
@@ -207,38 +203,8 @@
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Stay in the loop</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
-            Add <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> to your homescreen and enable notifications so you never miss a match.
+            Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you the moment a high-scoring role drops.
           </p>
-
-          <!-- Add to homescreen instructions -->
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 16px;">
-            <div style="padding: 16px;">
-              <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Add to homescreen</div>
-              <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; gap: 10px; align-items: flex-start;">
-                  <div style="width: 22px; height: 22px; border-radius: 6px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">1</div>
-                  <div style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5;">
-                    Tap the <strong style="color: var(--color-ink);">Share</strong> button in your browser
-                    <span style="font-size: 12px; color: var(--color-ink-3); display: block; margin-top: 2px; font-family: var(--font-mono);">
-                      (square with arrow on Safari)
-                    </span>
-                  </div>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: flex-start;">
-                  <div style="width: 22px; height: 22px; border-radius: 6px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">2</div>
-                  <div style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5;">
-                    Scroll down and tap <strong style="color: var(--color-ink);">Add to Home Screen</strong>
-                  </div>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: flex-start;">
-                  <div style="width: 22px; height: 22px; border-radius: 6px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">3</div>
-                  <div style="font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5;">
-                    Tap <strong style="color: var(--color-ink);">Add</strong> to confirm
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- Push notifications -->
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 24px;">
@@ -263,7 +229,7 @@
             {#if pushStatus === "denied"}
               <div style="padding: 0 16px 14px;">
                 <div style="padding: 8px 12px; border-radius: 8px; background: color-mix(in oklch, var(--color-warn) 14%, transparent); color: var(--color-warn); font-size: 12px; line-height: 1.4;">
-                  Permission denied. {isNativeIos() ? "Turn on notifications for pinkslip in the iOS Settings app." : "You can enable notifications in your browser settings."}
+                  Permission denied. Turn on notifications for pinkslip in the iOS Settings app.
                 </div>
               </div>
             {/if}

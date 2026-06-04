@@ -15,7 +15,7 @@
     updateLocalTailorKit,
     type LocalResumeAsset,
   } from "../lib/local-tailor";
-  import { registerPush, syncExistingPushSubscription } from "../lib/push";
+  import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
   import { navigate } from "../router";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Eye from "phosphor-svelte/lib/Eye";
@@ -154,14 +154,10 @@
         runs = [];
       }
 
-      if ("serviceWorker" in navigator && "PushManager" in window) {
-        navigator.serviceWorker.ready.then(async (reg) => {
-          const sub = await reg.pushManager.getSubscription();
-          pushStatus = sub ? "enabled" : "disabled";
-          if (sub) {
-            await syncExistingPushSubscription().catch(() => false);
-          }
-        });
+      pushStatus = await getNativePushStatus();
+      // If already authorized, make sure the current device token is registered.
+      if (pushStatus === "enabled") {
+        await initNativePush().catch(() => {});
       }
     } catch (e: any) {
       error = e.message;
@@ -422,9 +418,9 @@
                     onclick={async () => {
                       enablingPush = true;
                       try {
-                        const ok = await registerPush();
+                        const ok = (await enableNativePush()) === "enabled";
                         pushStatus = ok ? "enabled" : "disabled";
-                        if (!ok) error = "Push permission denied or not supported";
+                        if (!ok) error = "Turn on notifications for pinkslip in the iOS Settings app.";
                       } catch (e: any) {
                         error = e.message;
                       } finally {
