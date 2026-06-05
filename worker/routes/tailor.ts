@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { getAdapter } from "../ats";
 import { getLatestCorpusVersion } from "./corpus";
-import { getProfile } from "./profile";
 import { buildTailorPrompt, TAILOR_SYSTEM } from "../tailor/prompt";
 import { serializeProfileForPrompt } from "../tailor/serialize-profile";
 import { parseTailoringText } from "../tailor/parse";
+import { getLatestUserTailoring, getUserProfile } from "../account";
 import type {
   Env,
   TailoringRow,
@@ -258,13 +258,14 @@ function textFromGeminiPayload(payload: any): string {
 async function persistTailoring(args: {
   db?: D1Database;
   persist?: { corpusVersionId: number };
+  userId: string;
   jobId: string;
   parsed: ReturnType<typeof parseTailoringText>;
   inputTokens: number;
   outputTokens: number;
   model: string;
 }): Promise<string | null> {
-  const { db, persist, jobId, parsed, inputTokens, outputTokens, model } = args;
+  const { db, persist, userId, jobId, parsed, inputTokens, outputTokens, model } = args;
   if (!persist || !db) return null;
 
   const tailoringId = crypto.randomUUID();
@@ -273,6 +274,7 @@ async function persistTailoring(args: {
   await db.prepare(
     `INSERT INTO tailorings (
        id,
+       user_id,
        job_id,
        corpus_version_id,
        resume_md,
@@ -282,9 +284,10 @@ async function persistTailoring(args: {
        output_tokens,
        model,
        created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     tailoringId,
+    userId,
     jobId,
     persist.corpusVersionId,
     parsed.resume_md,
@@ -407,6 +410,7 @@ async function streamAnthropicTailoring(args: {
   const tailoringId = await persistTailoring({
     db,
     persist,
+    userId: usage?.userId ?? "guest",
     jobId: job.id,
     parsed,
     inputTokens,
@@ -548,6 +552,7 @@ async function streamGeminiTailoring(args: {
   const tailoringId = await persistTailoring({
     db,
     persist,
+    userId: usage?.userId ?? "guest",
     jobId: job.id,
     parsed,
     inputTokens,
@@ -605,13 +610,7 @@ tailor.get("/tailor/usage", async (c) => {
 
 tailor.get("/tailor/:job_id", async (c) => {
   const { job_id } = c.req.param();
-  const row = await c.env.DB.prepare(
-    `SELECT *
-     FROM tailorings
-     WHERE job_id = ?
-     ORDER BY datetime(created_at) DESC, created_at DESC
-     LIMIT 1`
-  ).bind(job_id).first<TailoringRow>();
+  const row = await getLatestUserTailoring(c.env.DB, c.get("userId"), job_id);
 
   return c.json({ tailoring: row ? normalizeTailoring(row) : null });
 });
@@ -648,12 +647,12 @@ tailor.patch("/tailorings/:id", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `UPDATE tailorings SET ${clauses.join(", ")} WHERE id = ?`
-  ).bind(...bindings, id).run();
+    `UPDATE tailorings SET ${clauses.join(", ")} WHERE id = ? AND user_id = ?`
+  ).bind(...bindings, id, c.get("userId")).run();
 
   const updated = await c.env.DB.prepare(
-    `SELECT * FROM tailorings WHERE id = ?`
-  ).bind(id).first<TailoringRow>();
+    `SELECT * FROM tailorings WHERE id = ? AND user_id = ?`
+  ).bind(id, c.get("userId")).first<TailoringRow>();
 
   if (!updated) {
     return c.json({ error: "Tailoring not found" }, 404);
@@ -715,8 +714,8 @@ tailor.post("/tailor/:job_id", async (c) => {
 
   let sourceMd = "";
   let persist: { corpusVersionId: number } | undefined;
-  const corpus = await getLatestCorpusVersion(c.env.DB);
-  const { data: profileData } = await getProfile(c.env.DB);
+  const corpus = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
+  const { data: profileData } = await getUserProfile(c.env.DB, c.get("userId"));
 
   const hasProfile = profileData.contact.name || profileData.experience.length > 0;
 

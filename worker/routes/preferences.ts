@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import type { Env, PreferenceRow } from "../types";
+import type { Env, PreferenceRow, Variables } from "../types";
+import { readUserPreferences, writeUserPreferences } from "../account";
 
-const preferences = new Hono<{ Bindings: Env }>();
+const preferences = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const ALLOWED_KEYS = new Set([
   "locations",
@@ -24,22 +25,23 @@ function normalizePreferenceKey(key: string): string {
   return key === "notification_threshold" ? "notify_threshold" : key;
 }
 
-async function readPreferences(db: D1Database): Promise<Record<string, unknown>> {
-  const result = await db.prepare("SELECT key, value FROM preferences").all<PreferenceRow>();
-  const rows = result.results ?? [];
+async function readPreferences(db: D1Database, userId: string): Promise<Record<string, unknown>> {
+  const rows = await readUserPreferences(db, userId);
   const out: Record<string, unknown> = {};
-
-  for (const row of rows) {
-    const normalizedKey = normalizePreferenceKey(row.key);
-    out[normalizedKey] = parsePreferenceValue(row.value);
+  for (const [key, value] of Object.entries(rows)) {
+    const normalizedKey = normalizePreferenceKey(key);
+    if (normalizedKey === "notification_threshold") continue;
+    out[normalizedKey] =
+      typeof value === "string"
+        ? parsePreferenceValue(value)
+        : value;
   }
-
   return out;
 }
 
 // GET / — Get all preferences as key-value object
 preferences.get("/", async (c) => {
-  return c.json(await readPreferences(c.env.DB));
+  return c.json(await readPreferences(c.env.DB, c.get("userId")));
 });
 
 // PUT / — Update preferences
@@ -54,22 +56,16 @@ preferences.put("/", async (c) => {
     }
   }
 
-  const stmts = [...normalizedEntries.entries()].map(([key, value]) =>
-    c.env.DB.prepare("INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)")
-      .bind(key, JSON.stringify(value))
+  await writeUserPreferences(
+    c.env.DB,
+    c.get("userId"),
+    [...normalizedEntries.entries()].map(([key, value]) => ({
+      key,
+      value: JSON.stringify(value),
+    }))
   );
 
-  if (normalizedEntries.has("notify_threshold")) {
-    stmts.unshift(
-      c.env.DB.prepare("DELETE FROM preferences WHERE key = 'notification_threshold'")
-    );
-  }
-
-  if (stmts.length > 0) {
-    await c.env.DB.batch(stmts);
-  }
-
-  return c.json(await readPreferences(c.env.DB));
+  return c.json(await readPreferences(c.env.DB, c.get("userId")));
 });
 
 export default preferences;

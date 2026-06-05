@@ -1,23 +1,18 @@
 import { Hono } from "hono";
-import type { CorpusVersionRow, Env } from "../types";
+import type { CorpusVersionRow, Env, Variables } from "../types";
+import { copyCorpusVersion, getLatestUserCorpusVersion } from "../account";
 
-const corpus = new Hono<{ Bindings: Env }>();
+const corpus = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 export async function getLatestCorpusVersion(
-  db: D1Database
+  db: D1Database,
+  userId: string
 ): Promise<CorpusVersionRow | null> {
-  return db
-    .prepare(
-      `SELECT id, content_md, label, created_at, updated_at
-       FROM corpus_versions
-       ORDER BY datetime(updated_at) DESC, id DESC
-       LIMIT 1`
-    )
-    .first<CorpusVersionRow>();
+  return getLatestUserCorpusVersion(db, userId);
 }
 
 corpus.get("/", async (c) => {
-  const latest = await getLatestCorpusVersion(c.env.DB);
+  const latest = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
   if (!latest) {
     return c.json({ content_md: "", version_id: null, updated_at: null });
   }
@@ -34,34 +29,19 @@ corpus.put("/", async (c) => {
   const body =
     (await c.req.json<{ content_md?: string }>().catch(() => null)) ?? {};
   const contentMd = body.content_md?.trim() ?? "";
-  const now = new Date().toISOString();
-  const latest = await getLatestCorpusVersion(c.env.DB);
-
-  if (!latest) {
-    await c.env.DB.prepare(
-      `INSERT INTO corpus_versions (content_md, label, created_at, updated_at)
-       VALUES (?, ?, ?, ?)`
-    ).bind(contentMd, "corpus", now, now).run();
-
-    const created = await getLatestCorpusVersion(c.env.DB);
-    return c.json({
-      content_md: created?.content_md ?? contentMd,
-      version_id: created?.id ?? null,
-      updated_at: created?.updated_at ?? now,
-    });
-  }
-
-  await c.env.DB.prepare(
-    `UPDATE corpus_versions
-     SET content_md = ?, updated_at = ?
-     WHERE id = ?`
-  ).bind(contentMd, now, latest.id).run();
+  const versionId = await copyCorpusVersion(
+    c.env.DB,
+    c.get("userId"),
+    contentMd,
+    "corpus"
+  );
+  const created = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
 
   return c.json({
-    content_md: contentMd,
-    version_id: latest.id,
-    updated_at: now,
-    label: latest.label,
+    content_md: created?.content_md ?? contentMd,
+    version_id: created?.id ?? versionId,
+    updated_at: created?.updated_at ?? new Date().toISOString(),
+    label: created?.label ?? "corpus",
   });
 });
 
@@ -69,8 +49,9 @@ corpus.get("/versions", async (c) => {
   const result = await c.env.DB.prepare(
     `SELECT id, label, created_at, updated_at
      FROM corpus_versions
+     WHERE user_id = ?
      ORDER BY datetime(updated_at) DESC, id DESC`
-  ).all<Omit<CorpusVersionRow, "content_md">>();
+  ).bind(c.get("userId")).all<Omit<CorpusVersionRow, "content_md">>();
 
   return c.json({ versions: result.results ?? [] });
 });
@@ -78,10 +59,10 @@ corpus.get("/versions", async (c) => {
 corpus.get("/versions/:id", async (c) => {
   const { id } = c.req.param();
   const version = await c.env.DB.prepare(
-    `SELECT id, content_md, label, created_at, updated_at
+    `SELECT id, user_id, content_md, label, created_at, updated_at
      FROM corpus_versions
-     WHERE id = ?`
-  ).bind(id).first<CorpusVersionRow>();
+     WHERE id = ? AND user_id = ?`
+  ).bind(id, c.get("userId")).first<CorpusVersionRow>();
 
   if (!version) {
     return c.json({ error: "Version not found" }, 404);
@@ -93,23 +74,18 @@ corpus.get("/versions/:id", async (c) => {
 corpus.post("/snapshot", async (c) => {
   const body =
     (await c.req.json<{ label?: string }>().catch(() => null)) ?? {};
-  const latest = await getLatestCorpusVersion(c.env.DB);
+  const latest = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
   if (!latest) {
     return c.json({ error: "No corpus available" }, 400);
   }
 
-  const now = new Date().toISOString();
-  await c.env.DB.prepare(
-    `INSERT INTO corpus_versions (content_md, label, created_at, updated_at)
-     VALUES (?, ?, ?, ?)`
-  ).bind(
+  const versionId = await copyCorpusVersion(
+    c.env.DB,
+    c.get("userId"),
     latest.content_md,
-    body.label?.trim() || `snapshot ${now.slice(0, 16)}`,
-    now,
-    now
-  ).run();
-
-  const created = await getLatestCorpusVersion(c.env.DB);
+    body.label?.trim() || `snapshot ${new Date().toISOString().slice(0, 16)}`
+  );
+  const created = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
   return c.json({ version_id: created?.id ?? null });
 });
 
