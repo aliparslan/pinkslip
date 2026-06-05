@@ -7,8 +7,6 @@ import {
 } from "@worker/auth";
 import type { Env, Variables } from "@worker/types";
 
-// ─── Pure helpers ─────────────────────────────────────────────────────────────
-
 describe("parseBearerToken", () => {
   it("extracts the token from a Bearer header (case-insensitive)", () => {
     expect(parseBearerToken("Bearer abc.def")).toBe("abc.def");
@@ -32,23 +30,53 @@ describe("generateApiToken", () => {
   });
 });
 
-// ─── Bearer auth middleware path ──────────────────────────────────────────────
-
-// Minimal D1 stub: only the api_tokens lookup the middleware performs.
 function fakeDb(tokens: Record<string, string>): D1Database {
+  const sessions = new Map<string, { user_id: string; state: "guest" | "authenticated"; expires_at: string }>();
+  const users = new Set<string>(Object.values(tokens));
+
   return {
-    prepare(_sql: string) {
-      let bound: string;
+    prepare(sql: string) {
+      const normalized = sql.replace(/\s+/g, " ").trim();
+      let bindings: any[] = [];
       const stmt = {
-        bind(token: string) {
-          bound = token;
+        bind(...args: any[]) {
+          bindings = args;
           return stmt;
         },
         async first<T>() {
-          const userId = tokens[bound];
-          return (userId ? { user_id: userId } : null) as T | null;
+          if (normalized.includes("SELECT user_id FROM api_tokens WHERE token = ?")) {
+            const userId = tokens[bindings[0]];
+            return (userId ? { user_id: userId } : null) as T | null;
+          }
+          if (normalized.includes("SELECT id FROM users WHERE id = ? LIMIT 1")) {
+            return (users.has(bindings[0]) ? { id: bindings[0] } : null) as T | null;
+          }
+          if (normalized.includes("SELECT id, user_id, state, created_at, expires_at, revoked_at, last_seen_at FROM auth_sessions")) {
+            const session = sessions.get(bindings[0]);
+            return (session
+              ? {
+                  id: bindings[0],
+                  user_id: session.user_id,
+                  state: session.state,
+                  created_at: new Date().toISOString(),
+                  expires_at: session.expires_at,
+                  revoked_at: null,
+                  last_seen_at: new Date().toISOString(),
+                }
+              : null) as T | null;
+          }
+          return null as T | null;
         },
         async run() {
+          if (normalized.startsWith("INSERT INTO users")) {
+            users.add(bindings[0]);
+          } else if (normalized.startsWith("INSERT INTO auth_sessions")) {
+            sessions.set(bindings[0], {
+              user_id: bindings[1],
+              state: bindings[2],
+              expires_at: bindings[4],
+            });
+          }
           return {} as any;
         },
       };
@@ -60,13 +88,16 @@ function fakeDb(tokens: Record<string, string>): D1Database {
 function appWith(db: D1Database) {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
   app.use("/api/*", authMiddleware);
-  app.get("/api/whoami", (c) => c.json({ userId: c.get("userId") }));
+  app.get("/api/whoami", (c) => c.json({
+    userId: c.get("userId"),
+    sessionState: c.get("sessionState"),
+  }));
   return app;
 }
 
 const ENV = (db: D1Database) => ({ DB: db }) as unknown as Env;
 
-describe("authMiddleware bearer path", () => {
+describe("authMiddleware", () => {
   it("authenticates a valid bearer token and sets userId", async () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith(db);
@@ -77,7 +108,7 @@ describe("authMiddleware bearer path", () => {
       ENV(db)
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ userId: "user-42" });
+    expect(await res.json()).toEqual({ userId: "user-42", sessionState: "authenticated" });
   });
 
   it("rejects an invalid bearer token with 401", async () => {
@@ -91,5 +122,17 @@ describe("authMiddleware bearer path", () => {
     );
     expect(res.status).toBe(401);
     expect(((await res.json()) as { code: string }).code).toBe("invalid_token");
+  });
+
+  it("creates a guest session when no session cookie exists", async () => {
+    const db = fakeDb({});
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/whoami"),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { sessionState: string }).toMatchObject({ sessionState: "guest" });
+    expect(res.headers.get("set-cookie")).toContain("psid=");
   });
 });

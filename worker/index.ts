@@ -13,7 +13,8 @@ import corpusRoutes from "./routes/corpus";
 import profileRoutes from "./routes/profile";
 import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
-import authRoutes from "./routes/auth";
+import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/auth";
+import resumeAssetRoutes from "./routes/resume-assets";
 import { runPollCycle } from "./poller";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -43,7 +44,31 @@ app.post("/api/access", async (c) => {
   return c.json({ ok: true, required: true });
 });
 
+// Apple fetches this directly from /.well-known/ and does NOT follow redirects,
+// so both paths must serve the JSON body itself (no redirect). Keep `paths`
+// scoped to the magic-link route so only those links open the app.
+function appleAppSiteAssociation(env: Env) {
+  const teamId = env.APPLE_TEAM_ID?.trim() || env.APNS_TEAM_ID?.trim();
+  const appId = env.APPLE_APP_ID?.trim() || env.APNS_BUNDLE_ID?.trim() || "dev.alip.pinkslip";
+  return {
+    applinks: {
+      apps: [],
+      details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*"] }] : [],
+    },
+  };
+}
+
+const serveAasa = (c: { env: Env }) =>
+  new Response(JSON.stringify(appleAppSiteAssociation(c.env)), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+app.get("/apple-app-site-association", (c) => serveAasa(c));
+app.get("/.well-known/apple-app-site-association", (c) => serveAasa(c));
+
 app.use("/api/*", authMiddleware);
+app.use("/auth/email/verify", authMiddleware);
 
 app.route("/api/jobs", jobRoutes);
 app.route("/api/companies", companyRoutes);
@@ -54,9 +79,13 @@ app.route("/api/applications", applicationRoutes);
 app.route("/api/events", eventRoutes);
 app.route("/api/corpus", corpusRoutes);
 app.route("/api/profile", profileRoutes);
+app.route("/api/resume-assets", resumeAssetRoutes);
 app.route("/api", tailorRoutes);
 app.route("/api/runs", runRoutes);
 app.route("/api/auth", authRoutes);
+app.get("/auth/email/verify", async (c) =>
+  completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))
+);
 app.get("/api/health", (c) =>
   c.json({
     ok: true,
@@ -65,14 +94,12 @@ app.get("/api/health", (c) =>
   })
 );
 app.get("/api/me", async (c) => {
-  const userId = c.get("userId");
-  const user = await c.env.DB.prepare("SELECT id, name, created_at FROM users WHERE id = ?")
-    .bind(userId).first();
   const geminiEnabled = Boolean(c.env.GEMINI_API_KEY?.trim());
   const anthropicEnabled = Boolean(c.env.ANTHROPIC_API_KEY?.trim());
   const tailoringProvider = geminiEnabled ? "gemini" : anthropicEnabled ? "anthropic" : null;
+  const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
   return c.json({
-    user,
+    ...accountState,
     features: {
       access_required: Boolean(c.env.ACCESS_CODE?.trim()),
       tailoring_enabled: geminiEnabled || anthropicEnabled,
@@ -90,9 +117,8 @@ app.patch("/api/me", async (c) => {
     await c.env.DB.prepare("UPDATE users SET name = ? WHERE id = ?")
       .bind(body.name, userId).run();
   }
-  const user = await c.env.DB.prepare("SELECT id, name, created_at FROM users WHERE id = ?")
-    .bind(userId).first();
-  return c.json({ user });
+  const accountState = await buildAccountState(c.env.DB, userId, c.get("sessionState"));
+  return c.json(accountState);
 });
 app.post("/api/poll", async (c) => {
   const limit = Number(c.req.query("limit") ?? "0");
