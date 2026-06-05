@@ -1,16 +1,28 @@
 <script lang="ts">
   import { api } from "../lib/api";
+  import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush } from "../lib/native-push";
   import Wrench from "phosphor-svelte/lib/Wrench";
   import Check from "phosphor-svelte/lib/Check";
 
   let { onComplete }: { onComplete: (name: string) => void } = $props();
 
+  const TOTAL_STEPS = 6;
+
   let step: number = $state(1);
   let name: string = $state("");
   let saving: boolean = $state(false);
   let pushStatus: string = $state("idle");
   let enablingPush: boolean = $state(false);
+
+  // Final step: optional account creation. Guests can always skip and keep
+  // everything on-device — signing in folds the guest data into the account.
+  const appleAvailable = isNativeIosAuthAvailable();
+  let emailLogin: string = $state("");
+  let signingInWithApple: boolean = $state(false);
+  let sendingEmailLogin: boolean = $state(false);
+  let emailLinkSent: boolean = $state(false);
+  let accountError: string | null = $state(null);
 
   const roles = [
     "Software Engineer",
@@ -69,6 +81,37 @@
     }
   }
 
+  async function handleAppleLogin() {
+    if (signingInWithApple) return;
+    signingInWithApple = true;
+    accountError = null;
+    try {
+      const credential = await signInWithAppleNative();
+      await api.auth.signInWithApple(credential);
+      // Signed in — the guest data we just gathered now lives on the account.
+      finish();
+    } catch (e: any) {
+      if (e?.code === "CANCELED") return; // user dismissed the sheet — not an error
+      accountError = e?.message ?? "Could not complete Sign in with Apple.";
+    } finally {
+      signingInWithApple = false;
+    }
+  }
+
+  async function handleEmailLoginStart() {
+    if (!emailLogin.trim() || sendingEmailLogin) return;
+    sendingEmailLogin = true;
+    accountError = null;
+    try {
+      await api.auth.startEmailLogin(emailLogin.trim());
+      emailLinkSent = true;
+    } catch (e: any) {
+      accountError = e?.message ?? "Could not send the sign-in link.";
+    } finally {
+      sendingEmailLogin = false;
+    }
+  }
+
   function finish() {
     onComplete(name.trim());
   }
@@ -78,7 +121,7 @@
   <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island) -->
   <div style="padding: 20px 24px 4px; flex-shrink: 0;">
     <div style="display: flex; gap: 6px;">
-      {#each [1, 2, 3, 4, 5] as s}
+      {#each Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1) as s}
         <div style="height: 3px; flex: 1; border-radius: 999px; background: {s <= step ? 'var(--color-accent)' : 'var(--color-line)'}; transition: background 0.3s;"></div>
       {/each}
     </div>
@@ -242,8 +285,79 @@
             {/if}
           </div>
 
-          <button class="btn-primary btn-accent" style="width: 100%;" onclick={finish}>
-            Get started
+          <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 6}>
+            Continue
+          </button>
+        </div>
+
+      {:else if step === 6}
+        <div style="animation: fade-in 0.3s;">
+          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Save your progress</h2>
+          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
+            Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; you can keep everything on this device as a guest.
+          </p>
+
+          {#if accountError}
+            <div style="padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px; line-height: 1.4;">
+              {accountError}
+            </div>
+          {/if}
+
+          {#if appleAvailable}
+            <button
+              class="btn-primary btn-accent"
+              style="width: 100%; margin-bottom: 12px;"
+              disabled={signingInWithApple}
+              onclick={handleAppleLogin}
+            >
+              {signingInWithApple ? "Connecting..." : "Continue with Apple"}
+            </button>
+
+            <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0 16px;">
+              <div style="height: 0.5px; flex: 1; background: var(--color-line);"></div>
+              <span style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em;">or</span>
+              <div style="height: 0.5px; flex: 1; background: var(--color-line);"></div>
+            </div>
+          {/if}
+
+          {#if emailLinkSent}
+            <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 24px;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 4px;">
+                <Check size={16} weight="bold" color="var(--color-good)" /> Check your email
+              </div>
+              <div style="font-size: 12px; color: var(--color-ink-3); line-height: 1.45;">
+                We sent a sign-in link to {emailLogin.trim()}. Open it on this device to finish &mdash; the link expires in 15 minutes.
+              </div>
+            </div>
+          {:else}
+            <label for="onboarding-email" class="field-label" style="margin-bottom: 8px;">
+              Continue with email
+            </label>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 24px;">
+              <input
+                id="onboarding-email"
+                class="input-field"
+                type="email"
+                placeholder="you@example.com"
+                bind:value={emailLogin}
+                autocapitalize="off"
+                autocomplete="email"
+                spellcheck="false"
+                onkeydown={(e) => e.key === "Enter" && handleEmailLoginStart()}
+              />
+              <button
+                class="btn-secondary"
+                style="padding: 0 16px;"
+                disabled={sendingEmailLogin || !emailLogin.trim()}
+                onclick={handleEmailLoginStart}
+              >
+                {sendingEmailLogin ? "..." : "Send link"}
+              </button>
+            </div>
+          {/if}
+
+          <button class="btn-secondary" style="width: 100%;" onclick={finish}>
+            {emailLinkSent ? "Continue to pinkslip" : "Maybe later — keep using as guest"}
           </button>
         </div>
       {/if}

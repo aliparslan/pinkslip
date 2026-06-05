@@ -100,6 +100,18 @@ export interface User {
   created_at: string;
 }
 
+export interface SessionInfo {
+  state: "guest" | "authenticated";
+}
+
+export interface AccountInfo {
+  authenticated: boolean;
+  email: string | null;
+  provider?: "apple" | "email" | null;
+  providers: string[];
+  identity_count?: number;
+}
+
 export interface AppFeatures {
   access_required: boolean;
   tailoring_enabled: boolean;
@@ -233,6 +245,23 @@ export interface JobsListMeta {
   next_offset?: number;
 }
 
+export interface ResumeAssetRecord {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  extractedText: string | null;
+  dataUrl: string | null;
+}
+
+export interface MeResponse {
+  user: User | null;
+  session: SessionInfo;
+  account: AccountInfo | null;
+  features?: AppFeatures;
+}
+
 export const api = {
   jobs: {
     list: (params?: Record<string, string>) => {
@@ -322,6 +351,32 @@ export const api = {
     // Mint (or fetch) a bearer token for native extensions (Widgets, Share).
     getToken: () =>
       request<{ token: string }>("/auth/token", { method: "POST" }),
+    signInWithApple: (data: {
+      identityToken: string;
+      authorizationCode?: string;
+      user?: string;
+      email?: string;
+      fullName?: string;
+      nonce?: string;
+    }) =>
+      request<MeResponse>("/auth/apple/exchange", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    startEmailLogin: (email: string) =>
+      request<{ ok: boolean; expires_at: string }>("/auth/email/start", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+    verifyEmailToken: (token: string) =>
+      request<MeResponse>("/auth/email/verify", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+    logout: () =>
+      request<MeResponse>("/auth/logout", { method: "POST" }),
+    deleteAccount: () =>
+      request<MeResponse>("/auth/account", { method: "DELETE" }),
   },
   stats: {
     get: () =>
@@ -368,9 +423,9 @@ export const api = {
       request<void>(`/events/${id}`, { method: "DELETE" }),
   },
   me: {
-    get: () => request<{ user: User | null; features?: AppFeatures }>("/me"),
+    get: () => request<MeResponse>("/me"),
     update: (data: { name: string }) =>
-      request<{ user: User }>("/me", {
+      request<MeResponse>("/me", {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
@@ -403,6 +458,22 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ data }),
       }),
+  },
+  resumeAssets: {
+    get: () => request<{ asset: ResumeAssetRecord | null }>("/resume-assets"),
+    upload: (data: {
+      fileName: string;
+      mimeType: string;
+      size: number;
+      dataUrl: string;
+      extractedText?: string | null;
+    }) =>
+      request<{ asset: ResumeAssetRecord }>("/resume-assets", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    deleteActive: () =>
+      request<void>("/resume-assets/active", { method: "DELETE" }),
   },
   corpus: {
     get: () =>

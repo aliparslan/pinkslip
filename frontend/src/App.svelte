@@ -4,6 +4,7 @@
   import { themeMode, cycleTheme } from "./lib/theme";
   import { searchOpen } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
+  import { attachMagicLinkHandler } from "./lib/native-auth";
   import Sun from "phosphor-svelte/lib/Sun";
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
@@ -68,17 +69,24 @@
     !isDetailPage && !isTailorPage && !showOnboarding && !showAccessGate
   );
 
+  // Bumped on every bootstrap so a slow, superseded request (e.g. the initial
+  // guest load resolving after a magic-link sign-in) can't clobber newer state.
+  let bootGen = 0;
+
   async function bootstrapSession() {
+    const gen = ++bootGen;
     bootError = null;
     accessError = null;
     showAccessGate = false;
 
     try {
       const res = await api.me.get();
+      if (gen !== bootGen) return;
       userName = res.user?.name ?? "";
       showOnboarding = !userName;
       sessionReady = true;
     } catch (error) {
+      if (gen !== bootGen) return;
       sessionReady = false;
       if (error instanceof ApiError && error.status === 401 && error.code === "access_required") {
         showAccessGate = true;
@@ -86,7 +94,7 @@
       }
       bootError = error instanceof Error ? error.message : "Could not load pinkslip.";
     } finally {
-      booting = false;
+      if (gen === bootGen) booting = false;
     }
   }
 
@@ -112,8 +120,29 @@
     }
   }
 
+  // Magic-link sign-in: exchange the token in-app (like Sign in with Apple) so
+  // the WebView never navigates/reloads. Navigating to the server verify URL
+  // instead would 302-reload the app, and getLaunchUrl() would replay the
+  // (now-consumed) token on every mount → infinite "Starting up..." loop.
+  async function completeMagicLinkSignIn(token: string) {
+    try {
+      await api.auth.verifyEmailToken(token);
+      // Re-fetch with the new authenticated cookie. This bumps bootGen, so the
+      // initial guest bootstrap can't overwrite the signed-in state if it lands late.
+      await bootstrapSession();
+      navigate("/settings");
+    } catch {
+      // Invalid/expired link — leave the current session as-is. The user can
+      // request a fresh link from Settings.
+    }
+  }
+
   onMount(() => {
+    const detachMagicLink = attachMagicLinkHandler((token) => {
+      void completeMagicLinkSignIn(token);
+    });
     bootstrapSession();
+    return () => detachMagicLink();
   });
 
   // Lock the page behind full-screen overlays so nothing scrolls underneath

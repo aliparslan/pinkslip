@@ -1,7 +1,14 @@
 <script lang="ts">
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
-  import { api, type AppFeatures, type FetchRun, type TailorUsage } from "../lib/api";
+  import {
+    api,
+    type AccountInfo,
+    type AppFeatures,
+    type FetchRun,
+    type ResumeAssetRecord,
+    type TailorUsage,
+  } from "../lib/api";
   import {
     DEFAULT_TAILOR_MODEL,
     TAILOR_MODEL_OPTIONS,
@@ -15,6 +22,7 @@
     updateLocalTailorKit,
     type LocalResumeAsset,
   } from "../lib/local-tailor";
+  import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
   import { navigate } from "../router";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
@@ -43,6 +51,16 @@
 
   let displayName: string = $state("");
   let savedDisplayName: string = $state("");
+  let sessionState: "guest" | "authenticated" = $state("guest");
+  let account: AccountInfo | null = $state(null);
+  let emailLogin: string = $state("");
+  let sendingEmailLogin: boolean = $state(false);
+  let signingInWithApple: boolean = $state(false);
+  let signingOut: boolean = $state(false);
+  let deletingAccount: boolean = $state(false);
+  let remoteResume: ResumeAssetRecord | null = $state(null);
+  let syncingResume: boolean = $state(false);
+  let removingSyncedResume: boolean = $state(false);
   let locations: string = $state("");
   let roleKeywords: string = $state("");
   let negativeKeywords: string = $state("");
@@ -96,6 +114,43 @@
     { id: "operations", label: "Ops", sub: "Fetch runs" },
   ];
 
+  function inferTextFormat(fileName: string, mimeType: string): LocalResumeAsset["textFormat"] {
+    const lower = fileName.toLowerCase();
+    if (mimeType === "application/pdf" || lower.endsWith(".pdf")) return "pdf";
+    if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "markdown";
+    if (mimeType.startsWith("text/") || lower.endsWith(".txt") || lower.endsWith(".rtf")) return "plain";
+    return "binary";
+  }
+
+  function localResumeFromRemote(asset: ResumeAssetRecord): LocalResumeAsset | null {
+    if (!asset.dataUrl) return null;
+    const textFormat = inferTextFormat(asset.fileName, asset.mimeType);
+    return {
+      fileName: asset.fileName,
+      mimeType: asset.mimeType,
+      size: asset.size,
+      uploadedAt: asset.uploadedAt,
+      dataUrl: asset.dataUrl,
+      textContent: asset.extractedText,
+      textFormat,
+      canTailor: Boolean(asset.extractedText?.trim()),
+    };
+  }
+
+  async function loadRemoteResume(userSessionState: "guest" | "authenticated") {
+    if (userSessionState !== "authenticated") {
+      remoteResume = null;
+      return;
+    }
+
+    remoteResume = await api.resumeAssets.get().then((res) => res.asset).catch(() => null);
+    const remoteLocal = remoteResume ? localResumeFromRemote(remoteResume) : null;
+    if (remoteLocal && !localResume) {
+      localResume = remoteLocal;
+      updateLocalTailorKit({ resume: remoteLocal });
+    }
+  }
+
   function hydrateLocalSetup() {
     const localKit = loadLocalTailorKit();
     localGeminiKey = localKit.apiKey;
@@ -129,6 +184,8 @@
       if (meResult.status === "fulfilled") {
         displayName = meResult.value.user?.name ?? "";
         savedDisplayName = meResult.value.user?.name ?? "";
+        sessionState = meResult.value.session.state;
+        account = meResult.value.account ?? null;
         features = meResult.value.features ?? null;
       } else {
         throw meResult.reason;
@@ -154,6 +211,8 @@
         runs = [];
       }
 
+      await loadRemoteResume(sessionState);
+
       pushStatus = await getNativePushStatus();
       // If already authorized, make sure the current device token is registered.
       if (pushStatus === "enabled") {
@@ -170,8 +229,27 @@
     tailorUsage = await api.tailor.usage(localGeminiModel).then((res) => res.usage).catch(() => null);
   }
 
+  function consumeAuthFeedbackFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const authState = params.get("auth");
+    if (!authState) return;
+
+    if (authState === "email-success") {
+      successMsg = "Signed in from your email link.";
+      setTimeout(() => (successMsg = null), 3000);
+    } else if (authState === "email-expired") {
+      error = "That sign-in link expired. Send yourself a fresh one.";
+    }
+
+    params.delete("auth");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  }
+
   onMount(() => {
     hydrateLocalSetup();
+    consumeAuthFeedbackFromUrl();
     void refreshSavedResumeText().catch(() => undefined);
     void loadTailorUsage();
     loadSettings();
@@ -252,6 +330,9 @@
       localResume = asset;
       updateLocalTailorKit({ resume: asset });
       successMsg = `${asset.fileName} saved on this device.`;
+      if (sessionState === "authenticated") {
+        await syncResumeToAccount(asset).catch(() => undefined);
+      }
       setTimeout(() => (successMsg = null), 3000);
     } catch (e: any) {
       error = e.message;
@@ -265,6 +346,121 @@
     updateLocalTailorKit({ resume: null });
     successMsg = "Local resume removed.";
     setTimeout(() => (successMsg = null), 3000);
+  }
+
+  async function syncResumeToAccount(asset = localResume) {
+    if (sessionState !== "authenticated" || !asset) return;
+    syncingResume = true;
+    error = null;
+    try {
+      const result = await api.resumeAssets.upload({
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+        size: asset.size,
+        dataUrl: asset.dataUrl,
+        extractedText: asset.textContent,
+      });
+      remoteResume = result.asset;
+      successMsg = "Resume synced to your account.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      syncingResume = false;
+    }
+  }
+
+  async function useSyncedResumeOnThisDevice() {
+    const next = remoteResume ? localResumeFromRemote(remoteResume) : null;
+    if (!next) return;
+    localResume = next;
+    updateLocalTailorKit({ resume: next });
+    successMsg = "Using your synced resume on this device.";
+    setTimeout(() => (successMsg = null), 3000);
+  }
+
+  async function removeSyncedResume() {
+    removingSyncedResume = true;
+    error = null;
+    try {
+      await api.resumeAssets.deleteActive();
+      remoteResume = null;
+      successMsg = "Removed the synced resume from your account.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      removingSyncedResume = false;
+    }
+  }
+
+  async function handleAppleLogin() {
+    signingInWithApple = true;
+    error = null;
+    try {
+      const credential = await signInWithAppleNative();
+      await api.auth.signInWithApple(credential);
+      await loadSettings();
+      successMsg = "Signed in. Your pinkslip data now syncs across devices.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      if (e?.code === "CANCELED") return; // user dismissed the sheet — not an error
+      error = e.message ?? "Could not complete Sign in with Apple.";
+    } finally {
+      signingInWithApple = false;
+    }
+  }
+
+  async function handleEmailLoginStart() {
+    if (!emailLogin.trim() || sendingEmailLogin) return;
+    sendingEmailLogin = true;
+    error = null;
+    try {
+      await api.auth.startEmailLogin(emailLogin.trim());
+      successMsg = "Check your email for a sign-in link.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      sendingEmailLogin = false;
+    }
+  }
+
+  async function handleLogout() {
+    signingOut = true;
+    error = null;
+    try {
+      await api.auth.logout();
+      account = null;
+      sessionState = "guest";
+      remoteResume = null;
+      await loadSettings();
+      successMsg = "Signed out. You’re back in guest mode on this device.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      signingOut = false;
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm("Delete your account and synced data? This cannot be undone.")) return;
+    deletingAccount = true;
+    error = null;
+    try {
+      await api.auth.deleteAccount();
+      account = null;
+      sessionState = "guest";
+      remoteResume = null;
+      await loadSettings();
+      successMsg = "Account deleted. You can keep using pinkslip as a guest.";
+      setTimeout(() => (successMsg = null), 3000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      deletingAccount = false;
+    }
   }
 
 </script>
@@ -310,6 +506,78 @@
             />
           </div>
         </div>
+
+        <section>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">
+            Account
+          </div>
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+            {#if sessionState === "authenticated"}
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">
+                <div>
+                  <div style="font-size: 15px; font-weight: 600;">Signed in</div>
+                  <div style="font-size: 13px; color: var(--color-ink-3); margin-top: 4px;">
+                    {account?.email ?? "Your account is active"}{#if account?.provider} · via {account.provider === "apple" ? "Apple" : "email"}{/if}
+                  </div>
+                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 8px;">
+                    Jobs, profile, preferences, and your synced resume can follow you across devices.
+                  </div>
+                </div>
+                <span class="tag">sync on</span>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-secondary" type="button" onclick={handleLogout} disabled={signingOut}>
+                  {signingOut ? "Signing out..." : "Sign out"}
+                </button>
+                <button class="btn-secondary" type="button" onclick={handleDeleteAccount} disabled={deletingAccount}>
+                  {deletingAccount ? "Deleting..." : "Delete account"}
+                </button>
+              </div>
+            {:else}
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">
+                <div>
+                  <div style="font-size: 15px; font-weight: 600;">Using pinkslip as guest on this device</div>
+                  <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 8px;">
+                    Create an account to sync your jobs, profile, and resume across devices.
+                  </div>
+                </div>
+                <span class="tag">guest</span>
+              </div>
+
+              {#if isNativeIosAuthAvailable()}
+                <button
+                  class="btn-primary btn-accent"
+                  type="button"
+                  onclick={handleAppleLogin}
+                  disabled={signingInWithApple}
+                >
+                  {signingInWithApple ? "Connecting..." : "Continue with Apple"}
+                </button>
+              {/if}
+
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end;">
+                <div>
+                  <label for="email-login" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Continue with email</label>
+                  <input
+                    id="email-login"
+                    type="email"
+                    class="input-field"
+                    placeholder="you@example.com"
+                    bind:value={emailLogin}
+                    autocapitalize="off"
+                    autocomplete="email"
+                    spellcheck="false"
+                    onkeydown={(event) => event.key === "Enter" && void handleEmailLoginStart()}
+                  />
+                </div>
+                <button class="btn-secondary" type="button" onclick={handleEmailLoginStart} disabled={sendingEmailLogin || !emailLogin.trim()}>
+                  {sendingEmailLogin ? "Sending..." : "Send link"}
+                </button>
+              </div>
+            {/if}
+          </div>
+        </section>
 
         <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
           {#each settingsSections as section}
@@ -731,6 +999,57 @@
                 </div>
               {/if}
             </div>
+
+            {#if sessionState === "authenticated"}
+              <div style="height: 0.5px; background: var(--color-line);"></div>
+
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                  <div>
+                    <div style="font-size: 14px; font-weight: 500;">Synced resume</div>
+                    <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
+                      Keep one active resume on your account so it’s ready on your other devices.
+                    </div>
+                  </div>
+                  <span class="tag">{remoteResume ? "account ready" : "not synced"}</span>
+                </div>
+
+                {#if remoteResume}
+                  <div style="margin-top: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="font-size: 14px; font-weight: 600;">{remoteResume.fileName}</div>
+                    <div style="font-size: 12px; color: var(--color-ink-3);">
+                      {formatFileSize(remoteResume.size)} · synced {new Date(remoteResume.uploadedAt).toLocaleDateString()}
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      <button class="btn-secondary" type="button" onclick={useSyncedResumeOnThisDevice}>
+                        Use on this device
+                      </button>
+                      {#if localResume}
+                        <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
+                          {syncingResume ? "Syncing..." : "Replace with local copy"}
+                        </button>
+                      {/if}
+                      <button class="btn-secondary" type="button" onclick={removeSyncedResume} disabled={removingSyncedResume}>
+                        {removingSyncedResume ? "Removing..." : "Remove from account"}
+                      </button>
+                    </div>
+                  </div>
+                {:else}
+                  <div style="margin-top: 12px; padding: 14px; border-radius: 12px; border: 1px dashed var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 10px;">
+                    <div style="font-size: 13px; color: var(--color-ink-3);">
+                      Nothing is synced to your account yet.
+                    </div>
+                    {#if localResume}
+                      <div>
+                        <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
+                          {syncingResume ? "Syncing..." : "Sync this resume"}
+                        </button>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {/if}
 
             <div style="height: 0.5px; background: var(--color-line);"></div>
 
