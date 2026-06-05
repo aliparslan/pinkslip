@@ -31,16 +31,13 @@ async function ensureListeners(): Promise<void> {
   await PushNotifications.addListener("registration", (token) => {
     api.push
       .registerApns(token.value)
-      .then(() => { try { window.alert("✅ Push token saved to the server"); } catch {} })
       .catch((err) => {
         console.error("APNs token registration failed:", err);
-        try { window.alert("⚠️ Got a token, but saving it failed: " + (err?.message ?? String(err))); } catch {}
       });
   });
 
   await PushNotifications.addListener("registrationError", (err) => {
     console.error("APNs registration error:", err);
-    try { window.alert("⚠️ iOS push registration failed: " + JSON.stringify(err)); } catch {}
   });
 
   // Tapping a notification (app backgrounded/closed) deep-links into the app.
