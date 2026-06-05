@@ -1,12 +1,19 @@
 import { createMiddleware } from "hono/factory";
-import type { Env, Variables } from "./types";
+import type {
+  AuthIdentityRow,
+  AuthSessionRow,
+  Env,
+  Variables,
+} from "./types";
+import { randomOpaqueToken } from "./crypto";
 
 export const COOKIE_NAMES = {
-  user: "psid",
+  session: "psid",
   access: "psaccess",
 } as const;
 
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2; // 2 years
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2;
+const SESSION_TTL_MS = COOKIE_MAX_AGE * 1000;
 
 export function parseCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
@@ -30,19 +37,161 @@ export function buildCookie(
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
-/** Extracts the token from an `Authorization: Bearer <token>` header. */
+export function buildClearedCookie(name: string, requestUrl: string): string {
+  const secure = new URL(requestUrl).protocol === "https:";
+  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
+}
+
 export function parseBearerToken(header: string | undefined): string | undefined {
   if (!header) return undefined;
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || undefined;
 }
 
-/** Generates an opaque 256-bit API token (base64url, ~43 chars). */
 export function generateApiToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return randomOpaqueToken(32);
+}
+
+export function generateSessionId(): string {
+  return randomOpaqueToken(32);
+}
+
+export async function ensureUserExists(db: D1Database, userId: string) {
+  await db.prepare(
+    "INSERT INTO users (id) VALUES (?) ON CONFLICT (id) DO NOTHING"
+  ).bind(userId).run();
+}
+
+export async function loadActiveSession(
+  db: D1Database,
+  sessionId: string
+): Promise<AuthSessionRow | null> {
+  const now = new Date().toISOString();
+  const row = await db.prepare(
+    `SELECT id, user_id, state, created_at, expires_at, revoked_at, last_seen_at
+     FROM auth_sessions
+     WHERE id = ?
+       AND revoked_at IS NULL
+       AND datetime(expires_at) > datetime(?)`
+  ).bind(sessionId, now).first<AuthSessionRow>();
+
+  if (!row) return null;
+
+  await db.prepare(
+    "UPDATE auth_sessions SET last_seen_at = ? WHERE id = ?"
+  ).bind(now, sessionId).run().catch(() => undefined);
+
+  return row;
+}
+
+export async function createSession(
+  db: D1Database,
+  userId: string,
+  state: "guest" | "authenticated"
+): Promise<AuthSessionRow> {
+  await ensureUserExists(db, userId);
+  const now = new Date();
+  const row: AuthSessionRow = {
+    id: generateSessionId(),
+    user_id: userId,
+    state,
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
+    revoked_at: null,
+    last_seen_at: now.toISOString(),
+  };
+
+  await db.prepare(
+    `INSERT INTO auth_sessions (id, user_id, state, created_at, expires_at, revoked_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, NULL, ?)`
+  ).bind(
+    row.id,
+    row.user_id,
+    row.state,
+    row.created_at,
+    row.expires_at,
+    row.last_seen_at
+  ).run();
+
+  return row;
+}
+
+export async function revokeSession(db: D1Database, sessionId: string | null | undefined) {
+  if (!sessionId) return;
+  await db.prepare(
+    "UPDATE auth_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL"
+  ).bind(new Date().toISOString(), sessionId).run();
+}
+
+export async function revokeAllSessionsForUser(db: D1Database, userId: string) {
+  await db.prepare(
+    "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL"
+  ).bind(new Date().toISOString(), userId).run();
+}
+
+export async function revokeApiTokensForUser(db: D1Database, userId: string) {
+  await db.prepare("DELETE FROM api_tokens WHERE user_id = ?").bind(userId).run();
+}
+
+export async function getPrimaryIdentity(
+  db: D1Database,
+  userId: string
+): Promise<AuthIdentityRow | null> {
+  return db.prepare(
+    `SELECT id, user_id, provider, provider_subject, email, email_verified, created_at, last_used_at
+     FROM auth_identities
+     WHERE user_id = ?
+     ORDER BY CASE provider WHEN 'apple' THEN 0 ELSE 1 END, datetime(created_at) ASC
+     LIMIT 1`
+  ).bind(userId).first<AuthIdentityRow>();
+}
+
+export async function countIdentitiesForUser(db: D1Database, userId: string): Promise<number> {
+  const row = await db.prepare(
+    "SELECT COUNT(*) AS count FROM auth_identities WHERE user_id = ?"
+  ).bind(userId).first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
+export async function createGuestSession(
+  db: D1Database,
+  userId = crypto.randomUUID()
+): Promise<AuthSessionRow> {
+  return createSession(db, userId, "guest");
+}
+
+export async function replaceSession(
+  db: D1Database,
+  currentSessionId: string | null,
+  userId: string,
+  state: "guest" | "authenticated"
+): Promise<AuthSessionRow> {
+  if (currentSessionId) {
+    await revokeSession(db, currentSessionId);
+  }
+  return createSession(db, userId, state);
+}
+
+async function resolveBearerUser(db: D1Database, bearer: string): Promise<string | null> {
+  const row = await db.prepare(
+    "SELECT user_id FROM api_tokens WHERE token = ?"
+  ).bind(bearer).first<{ user_id: string }>();
+  if (!row?.user_id) return null;
+  await db.prepare(
+    "UPDATE api_tokens SET last_used_at = ? WHERE token = ?"
+  ).bind(new Date().toISOString(), bearer).run().catch(() => undefined);
+  return row.user_id;
+}
+
+async function loadLegacyUserIfPresent(
+  db: D1Database,
+  cookieValue: string | undefined
+): Promise<string | null> {
+  if (!cookieValue) return null;
+  const row = await db.prepare(
+    "SELECT id FROM users WHERE id = ? LIMIT 1"
+  ).bind(cookieValue).first<{ id: string }>();
+  return row?.id ?? null;
 }
 
 export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Variables }>(
@@ -53,18 +202,15 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       return;
     }
 
-    // Native clients (iOS app + extensions) authenticate with a bearer token
-    // instead of cookies. A valid token was minted from an already-authorized
-    // session, so it bypasses the access-code cookie gate.
     const bearer = parseBearerToken(c.req.header("authorization"));
     if (bearer) {
-      const row = await c.env.DB.prepare(
-        "SELECT user_id FROM api_tokens WHERE token = ?"
-      ).bind(bearer).first<{ user_id: string }>();
-      if (!row?.user_id) {
+      const bearerUserId = await resolveBearerUser(c.env.DB, bearer);
+      if (!bearerUserId) {
         return c.json({ error: "Invalid token", code: "invalid_token" }, 401);
       }
-      c.set("userId", row.user_id);
+      c.set("userId", bearerUserId);
+      c.set("sessionId", null);
+      c.set("sessionState", "authenticated");
       await next();
       return;
     }
@@ -79,22 +225,30 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       }
     }
 
-    let userId = parseCookie(cookieHeader, COOKIE_NAMES.user);
+    const rawSessionCookie = parseCookie(cookieHeader, COOKIE_NAMES.session);
+    let session = rawSessionCookie
+      ? await loadActiveSession(c.env.DB, rawSessionCookie)
+      : null;
 
-    if (!userId) {
-      userId = crypto.randomUUID();
+    if (!session) {
+      const legacyUserId = await loadLegacyUserIfPresent(c.env.DB, rawSessionCookie);
+      if (legacyUserId) {
+        session = await createGuestSession(c.env.DB, legacyUserId);
+      } else {
+        session = await createGuestSession(c.env.DB);
+      }
+
       c.header(
         "Set-Cookie",
-        buildCookie(COOKIE_NAMES.user, userId, c.req.url),
+        buildCookie(COOKIE_NAMES.session, session.id, c.req.url),
         { append: true }
       );
     }
 
-    await c.env.DB.prepare(
-      "INSERT INTO users (id) VALUES (?) ON CONFLICT (id) DO NOTHING"
-    ).bind(userId).run();
+    c.set("userId", session.user_id);
+    c.set("sessionId", session.id);
+    c.set("sessionState", session.state);
 
-    c.set("userId", userId);
     await next();
   }
 );

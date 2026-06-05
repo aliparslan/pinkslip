@@ -1,9 +1,25 @@
 export interface Env {
   DB: D1Database;
+  RESUME_BUCKET?: R2Bucket;
+  EMAIL?: {
+    send(message: {
+      to: string;
+      from: { email: string; name?: string };
+      subject: string;
+      html?: string;
+      text?: string;
+      replyTo?: string | { email: string; name?: string };
+      headers?: Record<string, string>;
+    }): Promise<EmailSendResult>;
+  };
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
   VAPID_SUBJECT: string;
   ACCESS_CODE?: string;
+  APPLE_APP_ID?: string;
+  APPLE_TEAM_ID?: string;
+  EMAIL_FROM_ADDRESS?: string;
+  EMAIL_FROM_NAME?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
   ANTHROPIC_API_KEY?: string;
@@ -20,6 +36,8 @@ export interface Env {
 
 export interface Variables {
   userId: string;
+  sessionId: string | null;
+  sessionState: "guest" | "authenticated";
 }
 
 export interface UserRow {
@@ -64,12 +82,15 @@ export interface JobRow {
 }
 
 export interface PreferenceRow {
+  user_id?: string | null;
   key: string;
   value: string;
+  updated_at?: string | null;
 }
 
 export interface CorpusVersionRow {
   id: number;
+  user_id?: string | null;
   content_md: string;
   label: string | null;
   created_at: string;
@@ -78,6 +99,7 @@ export interface CorpusVersionRow {
 
 export interface TailoringRow {
   id: string;
+  user_id?: string | null;
   job_id: string;
   corpus_version_id: number;
   resume_md: string | null;
@@ -146,10 +168,44 @@ export interface EventRow {
 }
 
 export interface ProfileRow {
-  id: number;
+  user_id?: string | null;
+  id?: number;
   data: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuthSessionRow {
+  id: string;
+  user_id: string;
+  state: "guest" | "authenticated";
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  last_seen_at: string | null;
+}
+
+export interface AuthIdentityRow {
+  id: string;
+  user_id: string;
+  provider: "apple" | "email";
+  provider_subject: string;
+  email: string | null;
+  email_verified: number;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface ResumeAssetRow {
+  id: string;
+  user_id: string;
+  file_name: string;
+  mime_type: string;
+  size: number;
+  uploaded_at: string;
+  storage_key: string;
+  extracted_text: string | null;
+  is_active: number;
 }
 
 export type OptionalSectionKind = "leadership" | "certifications" | "publications" | "awards" | "volunteer";
