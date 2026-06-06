@@ -8,5 +8,7 @@ export default defineConfig({
   },
   plugins: [svelte(), tailwindcss()],
   build: { outDir: "dist" },
-  server: { proxy: { "/api": "http://localhost:8787" } },
+  // `host: true` exposes the dev server on the LAN so a physical iPhone can load
+  // it for live-reload; the /api proxy still runs on the Mac (→ wrangler :8787).
+  server: { host: true, proxy: { "/api": "http://localhost:8787" } },
 });

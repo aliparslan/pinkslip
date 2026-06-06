@@ -1,5 +1,6 @@
 <script lang="ts">
   import { currentRoute, navigate } from "../router";
+  import { hapticLight } from "../lib/haptics";
   import House from "phosphor-svelte/lib/House";
   import Notepad from "phosphor-svelte/lib/Notepad";
   import CalendarDots from "phosphor-svelte/lib/CalendarDots";
@@ -18,6 +19,17 @@
     if (path === "/") return route === "/" || route === "";
     return route.startsWith(path);
   }
+
+  function selectTab(path: string): void {
+    if (isActive(path)) {
+      // Re-tapping the current tab scrolls to top, like native iOS.
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      hapticLight();
+      return;
+    }
+    hapticLight();
+    navigate(path);
+  }
 </script>
 
 <nav class="fixed bottom-0 left-0 right-0 z-10" aria-label="Main navigation" style="background: color-mix(in oklch, var(--color-bg) 94%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--color-line); box-shadow: 0 -1px 3px rgba(0,0,0,0.06);">
@@ -27,7 +39,7 @@
       <button
         class="flex flex-col items-center gap-1 py-1.5 transition-colors"
         style="color: {active ? 'var(--color-ink)' : 'var(--color-ink-3)'}; font-family: var(--font-sans); font-size: 11px; font-weight: {active ? '600' : '500'}; border-radius: 12px; background: transparent;"
-        onclick={() => navigate(tab.path)}
+        onclick={() => selectTab(tab.path)}
         aria-current={active ? "page" : undefined}
       >
         <tab.icon size={22} weight={active ? "fill" : "regular"} />

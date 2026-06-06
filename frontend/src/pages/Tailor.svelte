@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import { api, type Job, type ResumeProfile, type Tailoring } from "../lib/api";
+  import { hapticSuccess } from "../lib/haptics";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
   import {
     DEFAULT_TAILOR_MODEL,
@@ -193,6 +195,7 @@
             coverText = parsed.cover;
             qaText = parsed.qa;
           } else if (payload.type === "done") {
+            hapticSuccess();
             tokenSummary = {
               input: payload.tokens?.in ?? 0,
               output: payload.tokens?.out ?? 0,
@@ -410,7 +413,7 @@
 
 <div class="page" style="padding-top: 0;">
   <header class="page-replacement-header" style="justify-content: flex-start; padding-left: 18px; padding-right: 18px;">
-    <button class="icon-btn" aria-label="Back" onclick={() => navigate(jobId ? `/jobs/${jobId}` : "/")}>
+    <button class="icon-btn" aria-label="Back" onclick={() => { if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/"); }}>
       <ArrowLeft size={18} />
     </button>
     <div style="min-width: 0; flex: 1;">

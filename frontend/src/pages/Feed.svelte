@@ -49,8 +49,13 @@
   import { viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
+  import { flip } from "svelte/animate";
+  import { cubicOut } from "svelte/easing";
   import X from "phosphor-svelte/lib/X";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
+  import ArrowClockwise from "phosphor-svelte/lib/ArrowClockwise";
+  import { hapticMedium } from "../lib/haptics";
+  import { dragDismiss } from "../lib/drag-dismiss";
 
   const LOCATIONS = ["All", "Remote", "NYC", "SF Bay Area", "Chicago", "Boston", "DC"];
   const YOE_OPTIONS = [
@@ -91,6 +96,80 @@
   let nextOffset: number = $state(feedCache.nextOffset);
   let lastAutoRefreshAt = 0;
   let searchTimer: number | null = $state(null);
+
+  // ── Pull-to-refresh ─────────────────────────────────────────────────────────
+  const PTR_TRIGGER = 72; // px pulled before a release fires a refresh
+  const PTR_MAX = 110; // px the indicator can travel
+  let pageEl: HTMLElement | undefined = $state(undefined);
+  let pullY = $state(0);
+  let pulling = $state(false);
+  let ptrCandidate = false;
+  let ptrArmed = false;
+  let ptrStartY = 0;
+
+  function removeJob(id: string) {
+    jobs = jobs.filter((j) => j.id !== id);
+    removeFeedNavigationJob(id);
+  }
+
+  function onPtrStart(e: TouchEvent) {
+    if (refreshing || loading || window.scrollY > 0) return;
+    const t = e.touches[0];
+    if (!t) return;
+    ptrStartY = t.clientY;
+    ptrCandidate = true;
+    ptrArmed = false;
+  }
+
+  function onPtrMove(e: TouchEvent) {
+    if (!ptrCandidate) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const dy = t.clientY - ptrStartY;
+    if (dy <= 0 || window.scrollY > 0) {
+      if (pulling) {
+        pulling = false;
+        pullY = 0;
+      }
+      ptrCandidate = false;
+      return;
+    }
+    pulling = true;
+    e.preventDefault();
+    pullY = Math.min(PTR_MAX, dy * 0.5); // resistance
+    const armed = pullY >= PTR_TRIGGER;
+    if (armed !== ptrArmed) {
+      ptrArmed = armed;
+      if (armed) hapticMedium();
+    }
+  }
+
+  async function onPtrEnd() {
+    if (!ptrCandidate) return;
+    ptrCandidate = false;
+    if (!pulling) return;
+    pulling = false;
+    if (pullY >= PTR_TRIGGER) {
+      pullY = 52; // hold the spinner while loading
+      await triggerRefresh();
+    }
+    pullY = 0;
+  }
+
+  $effect(() => {
+    const el = pageEl;
+    if (!el) return;
+    el.addEventListener("touchstart", onPtrStart, { passive: true });
+    el.addEventListener("touchmove", onPtrMove, { passive: false });
+    el.addEventListener("touchend", onPtrEnd, { passive: true });
+    el.addEventListener("touchcancel", onPtrEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onPtrStart);
+      el.removeEventListener("touchmove", onPtrMove);
+      el.removeEventListener("touchend", onPtrEnd);
+      el.removeEventListener("touchcancel", onPtrEnd);
+    };
+  });
   let searchInputEl: HTMLInputElement | undefined = $state(undefined);
   let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
   let requestVersion = 0;
@@ -454,7 +533,21 @@
   });
 </script>
 
-<div class="page" style="padding-top: 0;">
+<div
+  class="page"
+  bind:this={pageEl}
+  style="padding-top: 0; transform: translateY({pullY}px); transition: {pulling ? 'none' : 'transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1)'};"
+>
+  <!-- Pull-to-refresh spinner, revealed in the gap as the page is dragged down -->
+  <div
+    aria-hidden="true"
+    style="position: absolute; top: -42px; left: 0; right: 0; height: 42px; display: flex; align-items: center; justify-content: center; color: var(--color-ink-3); opacity: {Math.min(1, pullY / PTR_TRIGGER)};"
+  >
+    <span style="display: inline-flex; {refreshing ? 'animation: spin 0.8s linear infinite;' : `transform: rotate(${pullY * 2.4}deg);`}">
+      <ArrowClockwise size={20} weight="bold" />
+    </span>
+  </div>
+
   <!-- Search bar (toggled from header or always visible) -->
   {#if showSearch || searchQuery}
     <div style="padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid var(--color-line);">
@@ -553,7 +646,9 @@
       </div>
     {:else}
       {#each jobs as job (job.id)}
-        <JobRow {job} viewed={viewed.has(job.id)} onDismiss={(id) => { jobs = jobs.filter(j => j.id !== id); removeFeedNavigationJob(id); }} />
+        <div animate:flip={{ duration: 240, easing: cubicOut }}>
+          <JobRow {job} viewed={viewed.has(job.id)} onDismiss={removeJob} />
+        </div>
       {/each}
       {#if loadingMore}
         <div style="padding: 18px 16px; text-align: center; color: var(--color-ink-3); font-size: 13px;">
@@ -573,7 +668,7 @@
 
 {#if filtersOpen}
   <button type="button" class="sheet-backdrop" aria-label="Close filters" onclick={() => (filtersOpen = false)}></button>
-  <div class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Feed filters">
+  <div class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Feed filters" use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}>
     <div class="sheet-handle"></div>
     <div class="filter-sheet-header">
       <div>

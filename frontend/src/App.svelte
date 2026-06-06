@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { currentRoute, navigate } from "./router";
+  import { onMount, tick } from "svelte";
+  import { currentRoute, navigate, routeDepth, backTargetRoute } from "./router";
   import { themeMode, cycleTheme } from "./lib/theme";
   import { searchOpen } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
   import { attachMagicLinkHandler } from "./lib/native-auth";
+  import { hapticLight } from "./lib/haptics";
+  import { registerBackHandler } from "./lib/nav-back";
   import Sun from "phosphor-svelte/lib/Sun";
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
@@ -51,6 +53,182 @@
   function toggleSearch() {
     if (!isOnFeed) navigate("/");
     searchOpen.update((v) => !v);
+  }
+
+  // ── Interactive swipe-back ──────────────────────────────────────────────────
+  // A left-edge drag translates the live page (foreground) to the right, revealing
+  // the previous screen (underlay) with a parallax + dim, UIKit-style. Release past
+  // the threshold (or with enough velocity) commits the navigation; otherwise it
+  // springs back. Transforms are written imperatively for 60fps.
+  let fgEl = $state<HTMLElement | undefined>();
+  let underlayEl = $state<HTMLElement | undefined>();
+  let dimEl = $state<HTMLElement | undefined>();
+
+  let underlayRoute = $state<string | null>(null); // previous page, mounted only while swiping
+  let swiping = $state(false); // finger down with the horizontal lock engaged
+
+  function pageFor(r: string): { Comp: any; jid: string | null } {
+    if (r.startsWith("/jobs/")) return { Comp: JobDetail, jid: r.split("/jobs/")[1] };
+    if (r.startsWith("/tailor/")) return { Comp: Tailor, jid: r.split("/tailor/")[1] };
+    return { Comp: routes[r] ?? Feed, jid: null };
+  }
+  let UnderlayComp = $derived(underlayRoute ? pageFor(underlayRoute).Comp : null);
+  let underlayJobId = $derived(underlayRoute ? pageFor(underlayRoute).jid : null);
+  let underlayHasShellHeader = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
+
+  const EDGE = 28; // px from the left edge a swipe must start within
+  const SETTLE = 280; // ms for the release animation
+  const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
+
+  let width = 0;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
+  let lastT = 0;
+  let velocity = 0; // px/ms
+  let candidate = false; // touch began at the edge on a backable page
+  let locked = false; // confirmed a horizontal drag
+  let settling = false; // release animation in flight
+  let target: string | null = null;
+
+  function paint(dx: number) {
+    const p = width ? Math.min(1, Math.max(0, dx / width)) : 0;
+    if (fgEl) fgEl.style.transform = `translateX(${dx}px)`;
+    if (underlayEl) underlayEl.style.transform = `translateX(${-(1 - p) * width * 0.3}px)`;
+    if (dimEl) dimEl.style.opacity = `${(1 - p) * 0.14}`;
+  }
+
+  function onTouchStart(e: TouchEvent) {
+    if (settling || swiping) return;
+    target = backTargetRoute(route);
+    if (!target) return;
+    const t = e.touches[0];
+    if (!t || t.clientX > EDGE) return;
+    width = window.innerWidth;
+    startX = lastX = t.clientX;
+    startY = t.clientY;
+    lastT = performance.now();
+    velocity = 0;
+    candidate = true;
+    locked = false;
+  }
+
+  function onTouchMove(e: TouchEvent) {
+    if (!candidate) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (!locked) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        candidate = false; // vertical intent — let the page scroll
+        return;
+      }
+      locked = true;
+      swiping = true;
+      underlayRoute = target; // mount the previous page underneath
+      document.body.classList.add("nav-animating");
+    }
+
+    e.preventDefault(); // we own this gesture now; block vertical scroll
+    const now = performance.now();
+    const dt = now - lastT;
+    if (dt > 0) velocity = (t.clientX - lastX) / dt;
+    lastX = t.clientX;
+    lastT = now;
+    paint(Math.max(0, dx));
+  }
+
+  function onTouchEnd() {
+    if (!candidate) return;
+    candidate = false;
+    if (!locked) return;
+    locked = false;
+
+    const dx = Math.max(0, lastX - startX);
+    const commit = dx > width * 0.4 || velocity > 0.35;
+    const dest = target;
+    settling = true;
+    swiping = false;
+
+    if (fgEl) fgEl.style.transition = `transform ${SETTLE}ms ${EASE}`;
+    if (underlayEl) underlayEl.style.transition = `transform ${SETTLE}ms ${EASE}`;
+    if (dimEl) dimEl.style.transition = `opacity ${SETTLE}ms ${EASE}`;
+
+    if (commit) {
+      hapticLight();
+      if (fgEl) fgEl.style.transform = `translateX(${width}px)`;
+      if (underlayEl) underlayEl.style.transform = "translateX(0)";
+      if (dimEl) dimEl.style.opacity = "0";
+    } else {
+      paint(0); // spring back
+    }
+
+    window.setTimeout(async () => {
+      if (commit && dest) {
+        navigate(dest); // foreground re-renders as the destination page…
+        await tick();
+      }
+      // …then drop the inline transforms so it sits naturally in place. When
+      // committing, foreground and underlay now show the same page, so removing
+      // the underlay is seamless.
+      if (fgEl) {
+        fgEl.style.transition = "";
+        fgEl.style.transform = "";
+      }
+      underlayRoute = null;
+      settling = false;
+      document.body.classList.remove("nav-animating");
+    }, SETTLE + 20);
+  }
+
+  // Non-passive touchmove so we can preventDefault the vertical scroll mid-swipe.
+  $effect(() => {
+    const el = fgEl;
+    if (!el) return;
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  });
+
+  // Programmatic back (header back buttons): play the same pop slide as a swipe.
+  async function animateBack(dest: string) {
+    if (settling || swiping) return;
+    settling = true;
+    width = window.innerWidth;
+    underlayRoute = dest;
+    document.body.classList.add("nav-animating");
+    await tick(); // underlay mounts
+
+    // Seed start positions without a transition…
+    if (fgEl) { fgEl.style.transition = "none"; fgEl.style.transform = "translateX(0)"; }
+    if (underlayEl) { underlayEl.style.transition = "none"; underlayEl.style.transform = `translateX(${-width * 0.3}px)`; }
+    if (dimEl) { dimEl.style.transition = "none"; dimEl.style.opacity = "0.14"; }
+    void fgEl?.offsetWidth; // force reflow so the next frame animates
+
+    requestAnimationFrame(() => {
+      hapticLight();
+      if (fgEl) { fgEl.style.transition = `transform ${SETTLE}ms ${EASE}`; fgEl.style.transform = `translateX(${width}px)`; }
+      if (underlayEl) { underlayEl.style.transition = `transform ${SETTLE}ms ${EASE}`; underlayEl.style.transform = "translateX(0)"; }
+      if (dimEl) { dimEl.style.transition = `opacity ${SETTLE}ms ${EASE}`; dimEl.style.opacity = "0"; }
+      window.setTimeout(async () => {
+        navigate(dest);
+        await tick();
+        if (fgEl) { fgEl.style.transition = ""; fgEl.style.transform = ""; }
+        underlayRoute = null;
+        settling = false;
+        document.body.classList.remove("nav-animating");
+      }, SETTLE + 20);
+    });
   }
 
   let showOnboarding: boolean = $state(false);
@@ -141,8 +319,17 @@
     const detachMagicLink = attachMagicLinkHandler((token) => {
       void completeMagicLinkSignIn(token);
     });
+    const detachBack = registerBackHandler(() => {
+      const dest = backTargetRoute(route);
+      if (!dest) return false;
+      void animateBack(dest);
+      return true;
+    });
     bootstrapSession();
-    return () => detachMagicLink();
+    return () => {
+      detachMagicLink();
+      detachBack();
+    };
   });
 
   // Lock the page behind full-screen overlays so nothing scrolls underneath
@@ -155,7 +342,11 @@
   });
 </script>
 
-{#if showShellHeader}
+<!-- Always-on blurred strip over the status bar / Dynamic Island so scrolled
+     content never collides with the system clock. Zero-height off-notch devices. -->
+<div class="status-bar-scrim" aria-hidden="true"></div>
+
+{#snippet shellHeader()}
   <!-- Top bar -->
   <header class="app-shell-header">
     <div class="app-shell-header-inner">
@@ -187,9 +378,26 @@
       </div>
     </div>
   </header>
+{/snippet}
+
+<!-- Underlay: the previous screen, mounted only during a back-swipe -->
+{#if underlayRoute && UnderlayComp}
+  <div class="nav-underlay" bind:this={underlayEl} style="transform: translateX(-30%);" aria-hidden="true">
+    {#if underlayHasShellHeader}
+      {@render shellHeader()}
+    {/if}
+    <div class="app-container min-h-screen pb-28">
+      <UnderlayComp jobId={underlayJobId} />
+    </div>
+    <div class="nav-underlay-dim" bind:this={dimEl} style="opacity: 0.14;"></div>
+  </div>
 {/if}
 
-<div class="app-container min-h-screen pb-28">
+{#if showShellHeader}
+  {@render shellHeader()}
+{/if}
+
+<div class="app-container min-h-screen pb-28 nav-foreground" class:is-swiping={swiping} bind:this={fgEl}>
   {#if sessionReady}
     {#if !showOnboarding}
       {#if isDetailPage}

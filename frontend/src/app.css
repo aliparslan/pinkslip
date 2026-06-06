@@ -215,10 +215,20 @@ body {
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  overscroll-behavior-x: none;
+  /* Kill whole-page rubber-banding on both axes; scrolling lives in inner
+     containers, so the shell itself shouldn't bounce in the WKWebView. */
+  overscroll-behavior: none;
 }
 
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+
+/* iOS WKWebView zooms when a focused field's font is < 16px. Enforce 16px on
+   form controls in the native shell only, so the web/desktop sizing is untouched. */
+html.native-ios input,
+html.native-ios textarea,
+html.native-ios select {
+  font-size: 16px;
+}
 
 /* ── Typography ──────────────────────────────────────────── */
 
@@ -1604,6 +1614,78 @@ input[type="checkbox"]:checked::after { transform: translateX(18px); }
 @keyframes page-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
+}
+
+/* ── Interactive swipe-back (iOS-style push/pop) ─────────────────────────────
+   The foreground is the live page; during a back-swipe it translates right to
+   reveal the previous screen (the underlay), which parallax-shifts in and is
+   dimmed while covered. App.svelte drives the transforms imperatively. */
+/* Blurred strip pinned over the status bar / Dynamic Island. Height collapses
+   to 0 on devices without a top safe-area inset, so it's inert on the web. */
+.status-bar-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 30;
+  background: color-mix(in oklch, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  pointer-events: none;
+}
+body.nav-animating .status-bar-scrim {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--color-bg);
+}
+
+.nav-foreground {
+  position: relative;
+  z-index: 1;
+  background: var(--color-bg);
+}
+.nav-foreground.is-swiping {
+  will-change: transform;
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22);
+}
+.nav-underlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none; /* visual only; the foreground owns all touches */
+  will-change: transform;
+}
+
+.nav-underlay-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+}
+
+/* While a nav animation is running, drop the expensive header/tab-bar blur
+   (compositing a full-screen backdrop-filter mid-transform is what jitters). */
+body.nav-animating .page-replacement-header,
+body.nav-animating .app-shell-header {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--color-bg) !important;
+}
+body.nav-animating .page { animation: none; }
+
+/* Tactile press feedback — every primary tappable surface dips slightly.
+   (These classes already include `transform` in their own transitions.) */
+.btn-primary:active,
+.btn-secondary:active,
+.btn-action:active,
+.btn-mini:active,
+.icon-btn:active,
+.filter-button:active,
+.brand-home-button:active,
+.chip:active {
+  transform: scale(0.96);
 }
 
 

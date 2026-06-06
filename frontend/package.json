@@ -25,8 +25,12 @@
   "dependencies": {
     "@capacitor/app": "^6.0.2",
     "@capacitor/core": "^6.2.0",
+    "@capacitor/haptics": "^6",
     "@capacitor/ios": "^6.2.0",
+    "@capacitor/keyboard": "^6",
     "@capacitor/push-notifications": "^6.0.4",
+    "@capacitor/share": "^6",
+    "@capacitor/status-bar": "^6",
     "@myriaddreamin/typst.ts": "^0.7.0-rc2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.7.284",
