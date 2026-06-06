@@ -1,106 +1,86 @@
+# pinkslip — frontend (Svelte 5 + Vite + Capacitor)
 
-Default to using Bun instead of Node.js.
+A mobile-first job-alert app. The frontend is a **Svelte 5 single-page app built
+with Vite**, served as static assets by the Cloudflare Worker in `../worker`, and
+wrapped as a native iOS app by **Capacitor** (`ios/`).
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+> ⚠️ This file used to be the generic `bun init` template and told agents to use
+> `Bun.serve()` + React + "don't use Vite." **That was wrong** and never matched
+> this project. The stack described below is authoritative.
 
-## APIs
+## Stack
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+- **Svelte 5** with runes — `$state`, `$derived`, `$props`, `$effect`. Do **not**
+  use the legacy `export let` / `$:` API.
+- **Vite 8** — dev server + bundler. `vite build` → `dist/`, which the Worker
+  serves via `[assets]` and Capacitor packages into the iOS app.
+- **Tailwind CSS v4** — CSS-first, **no `tailwind.config.js`**. Design tokens live
+  in the `@theme {}` block in `src/app.css` (OKLCH colors, radii, font families).
+- **Capacitor 6** — native iOS shell (push, haptics, share, status-bar, keyboard).
+  Native setup + on-device testing live in `../IOS.md`.
+- **TypeScript**, strict mode.
 
-## Testing
+## Toolchain: Bun and Vite are not alternatives — they sit at different layers
 
-Use `bun test` to run tests.
+Bun is the **package manager / script runner / test runner**. Vite is the
+**frontend bundler**. You use both: `bun run build` runs `vite build`.
 
-```ts#index.test.ts
-import { test, expect } from "bun:test";
+| Task | Command |
+| --- | --- |
+| Install deps | `bun install` |
+| Frontend dev server (LAN-exposed, proxies `/api` → wrangler `:8787`) | `bun run dev` |
+| Production build | `bun run build` (→ `vite build`) |
+| Type-check | `bun run check` (→ `svelte-check`) |
+| Re-sync the iOS app after a web change | `bun run ios:sync` |
+| Run the Worker locally (from repo root) | `bun run dev` (wrangler) |
+| Tests (from repo root) | `bun test` |
 
-test("hello world", () => {
-  expect(1).toBe(1);
-});
-```
+**Do not** replace Vite with `Bun.serve()` / HTML-imports: the Svelte and
+Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
+`dist/` bundle (Worker assets + Capacitor), not a Bun server.
 
-## Frontend
+## Layout
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+- `src/pages/` — route screens (Feed, JobDetail, Tailor, Tracker, Events,
+  Profile, Settings, Companies, Corpus).
+- `src/components/` — shared UI (JobRow, TabBar, ScoreBadge, FilterChips, …).
+- `src/lib/` — non-UI logic: `api.ts` (typed client), scoring, formatting,
+  pdf/typst resume generation, native bridges (`native-*.ts`), stores.
+- `src/router.ts` — tiny hash router. `App.svelte` drives the iOS-style
+  push/pop + edge-swipe-back.
+- `src/app.css` — global design system: `@theme` tokens + shared component
+  classes (`.btn-primary`, `.chip`, `.card-base`, `.surface-card`, …).
 
-Server:
+## Styling conventions
 
-```ts#index.ts
-import index from "./index.html"
+1. **Tokens, not literals.** Use the CSS variables from `@theme`
+   (`var(--color-ink)`, `var(--radius-md)`, `var(--font-sans)`). Don't hardcode
+   hex/oklch or one-off px radii in components.
+2. **Shared primitives** (buttons, chips, cards, sheets) stay as classes in
+   `src/app.css`.
+3. **Component-specific styles** go in the component's scoped `<style>` block
+   (see the bottom of `JobRow.svelte` for the reference pattern).
+4. **Reserve inline `style="…"`** for genuinely dynamic values only
+   (e.g. `transform: translateX({x}px)`), not static styling.
 
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
+We are consolidating styling onto the above — don't add new inline-style soup,
+and don't introduce a competing styling system.
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+## API + data
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+- Client: `src/lib/api.ts` — typed `api.*` namespaces; all calls hit `/api` with
+  credentials. Add new endpoints here, typed.
+- Backend: Hono Worker in `../worker`, routes under `../worker/routes/`.
+  Storage: Cloudflare D1 (SQLite, `../migrations/`) + R2 (resume assets).
 
-With the following `frontend.tsx`:
+## Tests
 
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
+`bun test` from the repo root. Tests use **`bun:test`** (Jest-style API), not
+vitest. (`vitest.config.ts` at the root is legacy and unused.)
 
-// import .css files directly and it works
-import './index.css';
+## Don'ts
 
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+- Don't remove `Wrench`-icon / "coming soon" placeholders — they're intentional
+  roadmap markers, not dead code.
+- Don't add `tailwind.config.js` (v4 is CSS-first via `@theme`).
+- Don't reach for `any`; the API client and worker types are fully typed.
