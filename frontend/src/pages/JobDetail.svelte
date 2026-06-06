@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import { api } from "../lib/api";
+  import { hapticLight } from "../lib/haptics";
+  import { shareLink } from "../lib/share";
   import { getAdjacentJobIds } from "../lib/feed-navigation";
   import {
     extractPlainTextFromHtml,
@@ -22,6 +25,7 @@
   import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
   import ClockCounterClockwise from "phosphor-svelte/lib/ClockCounterClockwise";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
+  import ShareNetwork from "phosphor-svelte/lib/ShareNetwork";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import X from "phosphor-svelte/lib/X";
@@ -117,10 +121,21 @@
     }
   }
 
+  function shareJob() {
+    if (!job) return;
+    hapticLight();
+    void shareLink({
+      title: `${job.title} · ${job.company_name}`,
+      text: `${job.title} at ${job.company_name}`,
+      url: job.url || window.location.href,
+    });
+  }
+
   async function toggleSave() {
     if (!jobId) return;
     const newVal = !saved;
     saved = newVal;
+    hapticLight();
     try {
       if (newVal) {
         await api.savedJobs.save(jobId);
@@ -181,7 +196,7 @@
 <div class="page" style="padding-top: 0;">
   <!-- Header -->
   <header class="page-replacement-header">
-    <button class="icon-btn" aria-label="Back" onclick={() => navigate("/")}>
+    <button class="icon-btn" aria-label="Back" onclick={() => { if (!requestBack()) navigate("/"); }}>
       <ArrowLeft size={18} />
     </button>
     {#if job?.closed_at}
@@ -199,6 +214,9 @@
           <ArrowSquareOut size={18} color="var(--color-ink-3)" />
         </a>
       {/if}
+      <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
+        <ShareNetwork size={18} color="var(--color-ink-3)" />
+      </button>
       <button class="icon-btn" aria-label="Block job" onclick={() => { showBlockConfirm = true; }}>
         <Trash size={18} color="var(--color-ink-3)" />
       </button>
