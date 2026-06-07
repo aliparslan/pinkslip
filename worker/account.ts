@@ -15,6 +15,7 @@ const LEGACY_PREFERENCE_KEYS = new Set([
   "negative_keywords",
   "notify_threshold",
   "notification_threshold",
+  "search_profile",
 ]);
 
 const EMPTY_PROFILE: ResumeProfile = {
@@ -414,6 +415,33 @@ export async function mergeGuestDataIntoAccount(
   if (sourceUserId === targetUserId) return;
 
   await copyMissingPreferences(db, sourceUserId, targetUserId);
+  await db.prepare(
+    `INSERT INTO user_search_profiles (
+       user_id, profile_json, match_threshold, notifications_enabled,
+       onboarding_version, onboarding_completed_at, match_cursor_seen_at,
+       created_at, updated_at
+     )
+     SELECT ?, profile_json, match_threshold, notifications_enabled,
+            onboarding_version, onboarding_completed_at, NULL, created_at, updated_at
+     FROM user_search_profiles
+     WHERE user_id = ?
+     ON CONFLICT(user_id) DO UPDATE SET
+       profile_json = excluded.profile_json,
+       match_threshold = excluded.match_threshold,
+       notifications_enabled = excluded.notifications_enabled,
+       onboarding_version = excluded.onboarding_version,
+       onboarding_completed_at = excluded.onboarding_completed_at,
+       match_cursor_seen_at = NULL,
+       updated_at = excluded.updated_at
+     WHERE datetime(excluded.updated_at) > datetime(user_search_profiles.updated_at)`
+  ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
+  await db.prepare("DELETE FROM user_job_matches WHERE user_id = ?")
+    .bind(targetUserId)
+    .run()
+    .catch(() => undefined);
+  await db.prepare(
+    "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"
+  ).bind(targetUserId).run().catch(() => undefined);
 
   await db.batch([
     db.prepare(

@@ -76,6 +76,8 @@ export interface JobRow {
   location_score: number;
   department_score: number;
   recency_score: number;
+  match_reasons_json?: string;
+  scorer_version?: string | null;
   dismissed: number;
   description: string | null;
   salary: string | null;

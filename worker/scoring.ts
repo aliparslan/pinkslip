@@ -1,4 +1,8 @@
 import type { JobListing } from "./adapters/types";
+import {
+  profileExperienceRange,
+  type SearchProfileV1,
+} from "../shared/search-profile";
 
 export interface ScoringPrefs {
   locations: string[];
@@ -6,6 +10,8 @@ export interface ScoringPrefs {
   max_yoe: number;
   role_keywords: string[];
   negative_keywords: string[];
+  department_keywords?: string[];
+  search_profile?: SearchProfileV1;
 }
 
 export const SCORE_COMPONENT_MAX = {
@@ -137,9 +143,13 @@ interface TitleResult {
 function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
   const lower = title.toLowerCase();
 
-  // Collect all negative keywords: built-in + prefs.negative_keywords
+  // Structured profiles treat seniority separately; legacy preferences keep
+  // the original built-in early-career exclusions.
   const negatives = Array.from(
-    new Set([...BUILTIN_NEGATIVE_KEYWORDS, ...prefs.negative_keywords.map((k) => k.toLowerCase())])
+    new Set([
+      ...(prefs.search_profile ? [] : BUILTIN_NEGATIVE_KEYWORDS),
+      ...prefs.negative_keywords.map((k) => k.toLowerCase()),
+    ])
   );
 
   // Check negative keywords first — any match disqualifies the job
@@ -155,7 +165,16 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
     return { score: SCORE_COMPONENT_MAX.title, disqualified: false };
   }
 
-  // Combine prefs.role_keywords (high priority) with built-in high keywords
+  if (prefs.search_profile) {
+    for (const kw of prefs.role_keywords.map((keyword) => keyword.toLowerCase())) {
+      if (containsKeyword(lower, kw)) {
+        return { score: SCORE_COMPONENT_MAX.title, disqualified: false };
+      }
+    }
+    return { score: 0, disqualified: false };
+  }
+
+  // Legacy profiles combine user terms with the original software defaults.
   const highKeywords = Array.from(
     new Set([...HIGH_TITLE_KEYWORDS, ...prefs.role_keywords.map((k) => k.toLowerCase())])
   );
@@ -191,6 +210,60 @@ function scoreYoeFit(description: string | null, title: string, prefs: ScoringPr
   }
 
   return 15;
+}
+
+interface YoeResult {
+  score: number;
+  disqualified: boolean;
+}
+
+function scorePersonalizedYoe(
+  description: string | null,
+  title: string,
+  profile: SearchProfileV1
+): YoeResult {
+  const lower = [title, description ?? ""].join("\n").toLowerCase();
+  const levels = new Set(profile.target_levels);
+  const internship = /\b(?:intern|internship|co-op)\b/.test(lower);
+  const newGrad = /\b(?:new grad|new graduate|early career|entry level|graduate|campus)\b/.test(lower);
+  const staffPlus = /\b(?:staff|principal|distinguished|fellow|head of|director|vice president|vp)\b/.test(lower);
+  const senior = /\b(?:senior|sr\.?|lead)\b/.test(lower);
+
+  if (internship) {
+    return levels.has("internship")
+      ? { score: 25, disqualified: false }
+      : { score: 0, disqualified: true };
+  }
+  if (staffPlus) {
+    if (levels.has("staff_plus")) return { score: 25, disqualified: false };
+    if (levels.has("senior") && profile.stretch_tolerance !== "strict") return { score: 10, disqualified: false };
+    return { score: 0, disqualified: true };
+  }
+  if (senior) {
+    if (levels.has("senior") || levels.has("staff_plus")) {
+      return { score: 25, disqualified: false };
+    }
+    if (levels.has("mid_level") && profile.stretch_tolerance !== "strict") return { score: 10, disqualified: false };
+    return { score: 0, disqualified: true };
+  }
+  if (newGrad) {
+    if (levels.has("new_grad") || levels.has("early_career")) {
+      return { score: 25, disqualified: false };
+    }
+    if (levels.has("internship")) return { score: 10, disqualified: false };
+    return { score: 5, disqualified: false };
+  }
+
+  const match = lower.match(YOE_PATTERN);
+  if (match) {
+    const requiredYears = parseInt(match[1], 10);
+    const target = profileExperienceRange(profile);
+    if (requiredYears <= target.maxYears) return { score: 25, disqualified: false };
+    if (requiredYears <= target.maxYears + 2) return { score: 10, disqualified: false };
+    return { score: 0, disqualified: true };
+  }
+
+  return { score: 15, disqualified: false };
 }
 
 // ─── Location Match (0–20) ───────────────────────────────────────────────────
@@ -298,7 +371,12 @@ function scoreLocationMatch(location: string, prefs: ScoringPrefs): LocationResu
 
   if (!loc) return { score: 10, disqualified: false };
 
-  if (loc === "remote" || loc.includes("remote")) return { score: 20, disqualified: false };
+  if (loc === "remote" || loc.includes("remote")) {
+    if (prefs.search_profile && !prefs.search_profile.work_modes.includes("remote")) {
+      return { score: 0, disqualified: true };
+    }
+    return { score: 20, disqualified: false };
+  }
 
   if (loc === "multiple" || loc === "various" || loc.includes("multiple") || loc.includes("various"))
     return { score: 10, disqualified: false };
@@ -308,6 +386,13 @@ function scoreLocationMatch(location: string, prefs: ScoringPrefs): LocationResu
     if (prefLower === "remote") continue;
     if (loc.includes(prefLower)) return { score: 20, disqualified: false };
     if (prefLower.includes(loc) && loc.length >= 3) return { score: 20, disqualified: false };
+  }
+
+  if (
+    prefs.search_profile
+    && (prefs.search_profile.location_ids.length === 0 || prefs.search_profile.relocation_willing)
+  ) {
+    return { score: 15, disqualified: false };
   }
 
   return { score: 0, disqualified: false };
@@ -325,11 +410,14 @@ const ENG_DEPARTMENTS = [
   "infrastructure",
 ];
 
-function scoreDepartmentMatch(department: string | null): number {
+function scoreDepartmentMatch(department: string | null, prefs: ScoringPrefs): number {
   if (department === null || department.trim() === "") return 5;
 
   const lower = department.toLowerCase();
-  for (const dep of ENG_DEPARTMENTS) {
+  const departments = prefs.search_profile
+    ? prefs.department_keywords ?? []
+    : ENG_DEPARTMENTS;
+  for (const dep of departments) {
     if (lower.includes(dep)) return 10;
   }
 
@@ -387,24 +475,26 @@ export function normalizeScore(rawScore: number): number {
 
 export function scoreJob(job: JobListing, prefs: ScoringPrefs): ScoreBreakdown {
   const titleResult = scoreTitleMatch(job.title, prefs);
-  const yoeScore = scoreYoeFit(job.description, job.title, prefs);
+  const yoeResult = prefs.search_profile
+    ? scorePersonalizedYoe(job.description, job.title, prefs.search_profile)
+    : { score: scoreYoeFit(job.description, job.title, prefs), disqualified: false };
   const locResult = scoreLocationMatch(job.location, prefs);
-  const deptScore = scoreDepartmentMatch(job.department);
+  const deptScore = scoreDepartmentMatch(job.department, prefs);
   const recencyScore = scoreRecency(job.postedAt);
 
   let total: number;
-  if (titleResult.disqualified || locResult.disqualified) {
-    total = Math.min(15, yoeScore + locResult.score + deptScore + recencyScore);
+  if (titleResult.disqualified || locResult.disqualified || yoeResult.disqualified) {
+    total = Math.min(15, yoeResult.score + locResult.score + deptScore + recencyScore);
   } else if (titleResult.score === 0) {
-    total = Math.min(29, yoeScore + locResult.score + deptScore + recencyScore);
+    total = Math.min(29, yoeResult.score + locResult.score + deptScore + recencyScore);
   } else {
-    total = titleResult.score + yoeScore + locResult.score + deptScore + recencyScore;
+    total = titleResult.score + yoeResult.score + locResult.score + deptScore + recencyScore;
   }
 
   return {
     score: total,
     title_score: titleResult.disqualified ? 0 : titleResult.score,
-    yoe_score: yoeScore,
+    yoe_score: yoeResult.score,
     location_score: locResult.score,
     department_score: deptScore,
     recency_score: recencyScore,
