@@ -81,6 +81,49 @@ export interface Company {
   last_poll_status: string | null;
   last_poll_error: string | null;
   last_polled_at: string | null;
+  blocked?: boolean | number;
+}
+
+export interface ContentReport {
+  id: string;
+  company_id: string | null;
+  job_id: string | null;
+  report_type: string;
+  notes: string;
+  status: "open" | "resolved" | "dismissed";
+  admin_response: string | null;
+  created_at: string;
+  company_name: string | null;
+  job_title: string | null;
+}
+
+export interface ScorerRollout {
+  scorer_version: string;
+  mode: "off" | "shadow" | "active";
+  cohort_percent: number;
+  updated_at: string;
+}
+
+export interface ProductMetrics {
+  period_days: number;
+  notification_latency_seconds: number;
+  notification_open_rate: number;
+  notifications_sent: number;
+  apply_clicks_within_one_hour: number;
+  high_score_dismissal_rate: number;
+  users_with_enough_matches: number;
+  total_profiles: number;
+  onboarding_completion_rate: number;
+  profile_adjustments: number;
+  tailoring_to_application_rate: number;
+  open_reports: number;
+  scorer_audits: Array<{
+    candidate_version: string;
+    comparisons: number;
+    average_delta: number;
+    major_disagreements: number;
+  }>;
+  events: Record<string, number>;
 }
 
 export interface Application {
@@ -338,6 +381,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    block: (id: string) =>
+      request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "POST" }),
+    restore: (id: string) =>
+      request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "DELETE" }),
   },
   preferences: {
     get: () => request<PreferenceState>("/preferences"),
@@ -349,6 +396,20 @@ export const api = {
       }),
   },
   push: {
+    settings: () =>
+      request<{ enabled: boolean; push_enabled: boolean; threshold: number; updated_at: string | null }>("/push/settings"),
+    updateSettings: (data: { enabled?: boolean; push_enabled?: boolean; threshold?: number }) =>
+      request<{ enabled: boolean; push_enabled: boolean; threshold: number }>("/push/settings", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    opened: (jobIds: string | string[]) =>
+      request<void>("/push/opened", {
+        method: "POST",
+        body: JSON.stringify({
+          job_ids: Array.isArray(jobIds) ? jobIds : [jobIds],
+        }),
+      }),
     subscribe: (subscription: PushSubscription) =>
       request<{ ok: boolean }>("/push/subscribe", {
         method: "POST",
@@ -542,6 +603,44 @@ export const api = {
         `/poll${limit ? `?limit=${limit}` : ""}`,
         { method: "POST" }
       ),
+  },
+  interactions: {
+    report: (data: {
+      company_id?: string;
+      job_id?: string;
+      report_type: string;
+      notes?: string;
+    }) =>
+      request<{ id: string; status: string }>("/interactions/reports", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    reports: (status = "open") =>
+      request<{ reports: ContentReport[] }>(`/interactions/reports?status=${encodeURIComponent(status)}`),
+    updateReport: (id: string, data: { status: string; admin_response?: string }) =>
+      request<{ ok: boolean }>(`/interactions/reports/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    event: (data: {
+      event_name: string;
+      entity_type?: string;
+      entity_id?: string;
+      properties?: Record<string, string | number | boolean>;
+    }) =>
+      request<void>("/interactions/events", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+  metrics: {
+    get: () => request<ProductMetrics>("/metrics"),
+    rollouts: () => request<{ rollouts: ScorerRollout[] }>("/metrics/rollouts"),
+    updateRollout: (version: string, data: { mode: ScorerRollout["mode"]; cohort_percent: number }) =>
+      request<{ rollout: ScorerRollout }>(`/metrics/rollouts/${encodeURIComponent(version)}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
   },
 };
 import type { SearchProfileV1 } from "../../../shared/search-profile";

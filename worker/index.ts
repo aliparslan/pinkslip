@@ -15,6 +15,8 @@ import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
 import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/auth";
 import resumeAssetRoutes from "./routes/resume-assets";
+import interactionRoutes from "./routes/interactions";
+import metricRoutes from "./routes/metrics";
 import { runPollCycle } from "./poller";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -82,6 +84,8 @@ app.route("/api/profile", profileRoutes);
 app.route("/api/resume-assets", resumeAssetRoutes);
 app.route("/api", tailorRoutes);
 app.route("/api/runs", runRoutes);
+app.route("/api/interactions", interactionRoutes);
+app.route("/api/metrics", metricRoutes);
 app.route("/api/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
   completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))

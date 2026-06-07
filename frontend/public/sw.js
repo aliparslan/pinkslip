@@ -88,20 +88,32 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? event.notification.tag ?? "/";
+  const jobIds = Array.isArray(event.notification.data?.job_ids)
+    ? event.notification.data.job_ids
+    : [];
 
   event.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then(async (windowClients) => {
+    Promise.all([
+      jobIds.length > 0
+        ? fetch("/api/push/opened", {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ job_ids: jobIds }),
+          }).catch(() => undefined)
+        : Promise.resolve(),
+      clients.matchAll({ type: "window", includeUncontrolled: true })
+        .then(async (windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin)) {
             await client.focus();
             await client.navigate(self.location.origin + "/#" + url);
-            client.postMessage({ type: "pinkslip:notification-opened", url });
+            client.postMessage({ type: "pinkslip:notification-opened", url, jobIds });
             return;
           }
         }
         return clients.openWindow(self.location.origin + "/#" + url);
-      })
+      }),
+    ])
   );
 });

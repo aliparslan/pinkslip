@@ -5,6 +5,7 @@ import { buildTailorPrompt, TAILOR_SYSTEM } from "../tailor/prompt";
 import { serializeProfileForPrompt } from "../tailor/serialize-profile";
 import { parseTailoringText } from "../tailor/parse";
 import { getLatestUserTailoring, getUserProfile } from "../account";
+import { recordProductEvent } from "../product-events";
 import type {
   Env,
   TailoringRow,
@@ -315,6 +316,7 @@ async function streamAnthropicTailoring(args: {
   };
   usage?: {
     userId: string;
+    sessionId?: string | null;
     keySource: TailorKeySource;
     provider: TailorProvider;
   };
@@ -428,13 +430,21 @@ async function streamAnthropicTailoring(args: {
     },
   });
 
-  if (usage) {
+  if (usage && db) {
     await recordTailorUsage({
       db,
       userId: usage.userId,
       keySource: usage.keySource,
       provider: usage.provider,
       model,
+    }).catch(() => undefined);
+    await recordProductEvent(db, {
+      userId: usage.userId,
+      sessionId: usage.sessionId,
+      name: "tailoring_completed",
+      entityType: "job",
+      entityId: job.id,
+      properties: { provider: usage.provider, model },
     }).catch(() => undefined);
   }
 }
@@ -452,6 +462,7 @@ async function streamGeminiTailoring(args: {
   };
   usage?: {
     userId: string;
+    sessionId?: string | null;
     keySource: TailorKeySource;
     provider: TailorProvider;
   };
@@ -570,13 +581,21 @@ async function streamGeminiTailoring(args: {
     },
   });
 
-  if (usage) {
+  if (usage && db) {
     await recordTailorUsage({
       db,
       userId: usage.userId,
       keySource: usage.keySource,
       provider: usage.provider,
       model,
+    }).catch(() => undefined);
+    await recordProductEvent(db, {
+      userId: usage.userId,
+      sessionId: usage.sessionId,
+      name: "tailoring_completed",
+      entityType: "job",
+      entityId: job.id,
+      properties: { provider: usage.provider, model },
     }).catch(() => undefined);
   }
 }
@@ -742,6 +761,14 @@ tailor.post("/tailor/:job_id", async (c) => {
       ? c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
       : c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL);
   const safeModel = provider === "gemini" ? normalizeGeminiModel(model) : model;
+  await recordProductEvent(c.env.DB, {
+    userId: c.get("userId"),
+    sessionId: c.get("sessionId"),
+    name: "tailoring_started",
+    entityType: "job",
+    entityId: job_id,
+    properties: { provider, model: safeModel },
+  }).catch(() => undefined);
   const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
@@ -761,6 +788,7 @@ tailor.post("/tailor/:job_id", async (c) => {
           persist: localMode ? undefined : persist,
           usage: {
             userId: c.get("userId"),
+            sessionId: c.get("sessionId"),
             keySource,
             provider,
           },

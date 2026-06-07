@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { isAdminUser, requireAdmin } from "../auth";
 import type { Env, CompanyRow, Variables } from "../types";
 import { loadPreferencesForPoll, pollCompany, sendNotificationsForJobs } from "../poller";
+import { matchJobsForAllProfiles } from "../user-job-scores";
 import { verifyCompanySource } from "../ats";
 
 const companies = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -23,20 +24,26 @@ companies.get("/", async (c) => {
     c.get("sessionState")
   );
 
-  const conditions: string[] = admin ? [] : ["enabled = 1"];
+  const conditions: string[] = admin ? [] : ["c.enabled = 1"];
   const bindings: string[] = [];
 
   if (ats_type !== undefined) {
-    conditions.push("ats_type = ?");
+    conditions.push("c.ats_type = ?");
     bindings.push(ats_type);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const result = await c.env.DB.prepare(
-    `SELECT * FROM companies ${where} ORDER BY name ASC`
+    `SELECT c.*,
+       CAST(EXISTS(
+         SELECT 1 FROM user_blocked_companies ubc
+         WHERE ubc.user_id = ? AND ubc.company_id = c.id
+       ) AS INTEGER) AS blocked
+     FROM companies c ${where}
+     ORDER BY c.name ASC`
   )
-    .bind(...bindings)
+    .bind(c.get("userId"), ...bindings)
     .all<CompanyRow>();
 
   return c.json({ companies: result.results ?? [] });
@@ -239,6 +246,10 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
   const now = new Date().toISOString();
   try {
     const newJobs = await pollCompany(company, db, prefs);
+    await matchJobsForAllProfiles(
+      db,
+      newJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+    );
     const notificationsSent = await sendNotificationsForJobs(
       db,
       c.env,

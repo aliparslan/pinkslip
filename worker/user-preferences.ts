@@ -214,6 +214,15 @@ export async function saveUserPreferenceState(
   const changed = JSON.stringify(current.search_profile) !== JSON.stringify(nextProfile);
 
   await persistTypedProfile(db, userId, nextProfile);
+  if (input.search_profile !== undefined) {
+    await db.prepare(
+      `INSERT INTO user_notification_settings (user_id, enabled, push_enabled, updated_at)
+       VALUES (?, ?, 1, ?)
+       ON CONFLICT(user_id) DO UPDATE SET
+         enabled = excluded.enabled,
+         updated_at = excluded.updated_at`
+    ).bind(userId, nextProfile.notifications_enabled ? 1 : 0, new Date().toISOString()).run();
+  }
 
   const experience = profileExperienceRange(nextProfile);
   const legacyLocations = [

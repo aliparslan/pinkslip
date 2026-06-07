@@ -10,6 +10,7 @@ import {
   ensureUserJobScores,
   invalidateJobScores,
 } from "../user-job-scores";
+import { recordProductEvent } from "../product-events";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JOB_LIST_FIELDS = `
@@ -247,8 +248,16 @@ jobs.get("/", async (c) => {
   };
   const hasAdvancedFilters = Object.values(advancedFilters).some((value) => value !== null);
 
-  const conditions: string[] = ["c.enabled = 1", "j.closed_at IS NULL"];
+  const conditions: string[] = [
+    "c.enabled = 1",
+    "j.closed_at IS NULL",
+    `NOT EXISTS (
+      SELECT 1 FROM user_blocked_companies ubc
+      WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
+    )`,
+  ];
   const bindings: (string | number)[] = [userId, userId, userId];
+  bindings.push(userId);
 
   // Default excludes dismissed unless explicitly requested
   if (dismissed === "true") {
@@ -475,6 +484,13 @@ jobs.patch("/:id", async (c) => {
         `DELETE FROM dismissed_jobs WHERE user_id = ? AND job_id = ?`
       ).bind(userId, id).run();
     }
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: body.dismissed ? "job_dismissed" : "job_restored",
+      entityType: "job",
+      entityId: id,
+    }).catch(() => undefined);
   }
 
   // Sync saved_jobs table (scoped to user)
@@ -488,6 +504,13 @@ jobs.patch("/:id", async (c) => {
         `DELETE FROM saved_jobs WHERE user_id = ? AND job_id = ?`
       ).bind(userId, id).run();
     }
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: body.saved ? "job_saved" : "job_unsaved",
+      entityType: "job",
+      entityId: id,
+    }).catch(() => undefined);
   }
 
   const updated = await c.env.DB.prepare(
@@ -543,8 +566,12 @@ jobs.get("/saved/list", async (c) => {
      JOIN companies c ON j.company_id = c.id
      JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ?
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+     WHERE NOT EXISTS (
+       SELECT 1 FROM user_blocked_companies ubc
+       WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
+     )
      ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC`
-  ).bind(userId, userId, userId, userId).all<JobListRow>();
+  ).bind(userId, userId, userId, userId, userId).all<JobListRow>();
 
   return c.json({ jobs: (result.results ?? []).map(serializeJob) });
 });

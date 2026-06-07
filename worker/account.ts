@@ -456,7 +456,51 @@ export async function mergeGuestDataIntoAccount(
        FROM dismissed_jobs
        WHERE user_id = ?`
     ).bind(targetUserId, sourceUserId),
+    db.prepare(
+      `INSERT OR IGNORE INTO user_blocked_companies (user_id, company_id, blocked_at)
+       SELECT ?, company_id, blocked_at
+       FROM user_blocked_companies
+       WHERE user_id = ?`
+    ).bind(targetUserId, sourceUserId),
   ]);
+
+  await db.prepare(
+    `INSERT INTO user_notification_settings (
+       user_id, enabled, push_enabled, threshold, updated_at
+     )
+     SELECT ?, enabled, push_enabled, threshold, updated_at
+     FROM user_notification_settings
+     WHERE user_id = ?
+     ON CONFLICT(user_id) DO UPDATE SET
+       enabled = excluded.enabled,
+       push_enabled = excluded.push_enabled,
+       threshold = excluded.threshold,
+       updated_at = excluded.updated_at
+     WHERE datetime(excluded.updated_at) > datetime(user_notification_settings.updated_at)`
+  ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
+
+  await db.batch([
+    db.prepare(
+      `INSERT OR IGNORE INTO notification_candidates (
+         id, user_id, job_id, channel, score, status, attempt_count, last_error,
+         created_at, last_attempt_at, sent_at, opened_at
+       )
+       SELECT id, ?, job_id, channel, score, status, attempt_count, last_error,
+              created_at, last_attempt_at, sent_at, opened_at
+       FROM notification_candidates
+       WHERE user_id = ?`
+    ).bind(targetUserId, sourceUserId),
+    db.prepare(
+      `INSERT OR IGNORE INTO scorer_audits (
+         user_id, job_id, stable_version, candidate_version, stable_score,
+         candidate_score, delta, reasons_json, created_at
+       )
+       SELECT ?, job_id, stable_version, candidate_version, stable_score,
+              candidate_score, delta, reasons_json, created_at
+       FROM scorer_audits
+       WHERE user_id = ?`
+    ).bind(targetUserId, sourceUserId),
+  ]).catch(() => undefined);
 
   const conflictingJobIds = await db.prepare(
     `SELECT a.job_id
@@ -506,6 +550,8 @@ export async function mergeGuestDataIntoAccount(
     db.prepare("UPDATE applications SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailorings SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE content_reports SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE product_events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
   ]);
 
   await mergeSingletonProfile(db, sourceUserId, targetUserId, sourceLabel);
@@ -546,6 +592,11 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM saved_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM dismissed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM applications WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM user_blocked_companies WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM user_notification_settings WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM notification_candidates WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM scorer_audits WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM content_reports WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM users WHERE id = ?").bind(userId),
   ]);
 

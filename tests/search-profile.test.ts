@@ -4,7 +4,7 @@ import {
   normalizeSearchProfile,
 } from "../shared/search-profile";
 import { classifyJob } from "@worker/job-features";
-import { scoreJobForProfile } from "@worker/user-job-scores";
+import { scoreJobForProfile, scorerCohortBucket } from "@worker/user-job-scores";
 import { scoreJob } from "@worker/scoring";
 import {
   preferenceStateFromRecord,
@@ -81,6 +81,13 @@ describe("search profile", () => {
 });
 
 describe("personalized scoring", () => {
+  test("assigns scorer rollout cohorts deterministically", () => {
+    const first = scorerCohortBucket("user-123");
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(100);
+    expect(scorerCohortBucket("user-123")).toBe(first);
+  });
+
   test("a product profile favors product management over software engineering", () => {
     const prefs = scoringPrefsFromState({
       search_profile: normalizeSearchProfile({

@@ -11,41 +11,69 @@ stats.get("/", async (c) => {
   const [totalResult, todayResult, companiesResult, appsResult, savedResult, lastPollResult] = await Promise.all([
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count
-       FROM jobs j
+       FROM user_job_matches ujm
+       JOIN jobs j ON j.id = ujm.job_id
        JOIN companies c ON j.company_id = c.id
-       WHERE c.enabled = 1
+       JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
+       WHERE ujm.user_id = ?
+         AND c.enabled = 1
          AND j.closed_at IS NULL
+         AND ujm.score >= CAST(ROUND(usp.match_threshold * 0.95) AS INTEGER)
          AND NOT EXISTS (
            SELECT 1
            FROM dismissed_jobs d
            WHERE d.user_id = ? AND d.job_id = j.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocked_companies ubc
+           WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
          )`
     )
-      .bind(userId)
+      .bind(userId, userId, userId)
       .first<{ count: number }>(),
     c.env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM jobs j
+      `SELECT COUNT(*) AS count FROM user_job_matches ujm
+       JOIN jobs j ON j.id = ujm.job_id
        JOIN companies c ON j.company_id = c.id
-       WHERE c.enabled = 1
+       JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
+       WHERE ujm.user_id = ?
+         AND c.enabled = 1
          AND j.closed_at IS NULL
+         AND ujm.score >= CAST(ROUND(usp.match_threshold * 0.95) AS INTEGER)
          AND substr(j.first_seen_at, 1, 10) = ?
          AND NOT EXISTS (
            SELECT 1
            FROM dismissed_jobs d
            WHERE d.user_id = ? AND d.job_id = j.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocked_companies ubc
+           WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
          )`
     )
-      .bind(today, userId)
+      .bind(userId, today, userId, userId)
       .first<{ count: number }>(),
     c.env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM companies WHERE enabled = 1"
-    ).first<{ count: number }>(),
+      `SELECT COUNT(*) AS count FROM companies c
+       WHERE c.enabled = 1
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocked_companies ubc
+           WHERE ubc.user_id = ? AND ubc.company_id = c.id
+         )`
+    ).bind(userId).first<{ count: number }>(),
     c.env.DB.prepare(
       "SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND stage NOT IN ('Rejected', 'Ghosted')"
     ).bind(userId).first<{ count: number }>().catch(() => ({ count: 0 })),
     c.env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM saved_jobs WHERE user_id = ?"
-    ).bind(userId).first<{ count: number }>().catch(() => ({ count: 0 })),
+      `SELECT COUNT(*) AS count
+       FROM saved_jobs s
+       JOIN jobs j ON j.id = s.job_id
+       WHERE s.user_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocked_companies ubc
+           WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
+         )`
+    ).bind(userId, userId).first<{ count: number }>().catch(() => ({ count: 0 })),
     c.env.DB.prepare(
       "SELECT value AS ts FROM preferences WHERE key = 'last_polled_at'"
     ).first<{ ts: string | null }>().catch(() => ({ ts: null })),

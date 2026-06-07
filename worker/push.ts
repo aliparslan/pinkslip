@@ -9,7 +9,7 @@ export interface NotificationJob {
 export interface NotificationPayload {
   title: string;
   body: string;
-  data: { url: string };
+  data: { url: string; job_ids?: string[] };
 }
 
 /**
@@ -26,7 +26,7 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
     return {
       title: jobs[0].company,
       body: jobs[0].title,
-      data: { url: `/jobs/${jobs[0].jobId}` },
+      data: { url: `/jobs/${jobs[0].jobId}`, job_ids: [jobs[0].jobId] },
     };
   }
 
@@ -39,7 +39,7 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
   return {
     title: `${count} new jobs`,
     body,
-    data: { url: "/" },
+    data: { url: "/", job_ids: jobs.map((job) => job.jobId) },
   };
 }
 

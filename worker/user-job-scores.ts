@@ -19,6 +19,8 @@ export interface UserJobMatch {
   breakdown: ScoreBreakdown;
   reasons: string[];
   plausible: boolean;
+  shadowScore: number;
+  shadowReasons: string[];
 }
 
 interface FeatureColumns {
@@ -40,6 +42,11 @@ interface FeatureColumns {
 }
 
 type MatchableJobRow = FeatureJobRow & FeatureColumns;
+type ScorerRollout = {
+  scorer_version: string;
+  mode: "off" | "shadow" | "active";
+  cohort_percent: number;
+};
 
 function parseJsonList<T extends string>(value: string): T[] {
   try {
@@ -178,21 +185,56 @@ export function scoreJobForProfile(
     && !sponsorshipDisqualified
     && (selectedSpecialty || customTitle || breakdown.title_score > 0)
     && normalized >= 25;
+  const shadowReasons: string[] = [];
+  let shadowScore = breakdown.score;
+  if (features.specialties.includes(profile.primary_role)) {
+    shadowScore += 3;
+    shadowReasons.push("primary_role_bonus");
+  } else if (selectedSpecialty) {
+    shadowScore -= 2;
+    shadowReasons.push("secondary_role_penalty");
+  }
+  if (features.min_years === null && features.seniority === "unknown") {
+    shadowScore -= 3;
+    shadowReasons.push("unknown_experience_penalty");
+  }
+  if (features.confidence < 0.6) {
+    shadowScore -= 3;
+    shadowReasons.push("low_classifier_confidence");
+  }
+  shadowScore = Math.max(0, Math.min(95, shadowScore));
   return {
     jobId,
     breakdown,
     reasons: buildReasons(listing, features, profile, breakdown),
     plausible,
+    shadowScore,
+    shadowReasons,
   };
+}
+
+async function loadScorerRollout(db: D1Database): Promise<ScorerRollout | null> {
+  return db.prepare(
+    `SELECT scorer_version, mode, cohort_percent
+     FROM scorer_rollouts
+     WHERE mode != 'off'
+     ORDER BY datetime(updated_at) DESC
+     LIMIT 1`
+  ).first<ScorerRollout>();
 }
 
 async function storeMatches(db: D1Database, userId: string, matches: UserJobMatch[]) {
   const plausible = matches.filter((match) => match.plausible);
   if (plausible.length === 0) return;
   const now = new Date().toISOString();
+  const rollout = await loadScorerRollout(db);
+  const candidateEnabled = Boolean(
+    rollout && scorerCohortBucket(userId) < rollout.cohort_percent
+  );
   for (let offset = 0; offset < plausible.length; offset += 75) {
-    await db.batch(plausible.slice(offset, offset + 75).map(({ jobId, breakdown, reasons }) =>
-      db.prepare(
+    await db.batch(plausible.slice(offset, offset + 75).map((match) => {
+      const candidateActive = candidateEnabled && rollout?.mode === "active";
+      return db.prepare(
         `INSERT INTO user_job_matches (
            user_id, job_id, score, title_score, yoe_score, location_score,
            department_score, recency_score, reasons_json, scorer_version,
@@ -211,16 +253,66 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
            updated_at = excluded.updated_at`
       ).bind(
         userId,
-        jobId,
-        breakdown.score,
-        breakdown.title_score,
-        breakdown.yoe_score,
-        breakdown.location_score,
-        breakdown.department_score,
-        breakdown.recency_score,
-        JSON.stringify(reasons),
-        MATCH_SCORER_VERSION,
+        match.jobId,
+        candidateActive ? match.shadowScore : match.breakdown.score,
+        match.breakdown.title_score,
+        match.breakdown.yoe_score,
+        match.breakdown.location_score,
+        match.breakdown.department_score,
+        match.breakdown.recency_score,
+        JSON.stringify(match.reasons),
+        candidateActive ? rollout!.scorer_version : MATCH_SCORER_VERSION,
         now,
+        now
+      );
+    }));
+  }
+  if (rollout && candidateEnabled) {
+    await storeScorerAudits(db, userId, plausible, rollout);
+  }
+}
+
+export function scorerCohortBucket(userId: string): number {
+  let hash = 2166136261;
+  for (const char of userId) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % 100;
+}
+
+async function storeScorerAudits(
+  db: D1Database,
+  userId: string,
+  matches: UserJobMatch[],
+  rollout: ScorerRollout
+) {
+  if (matches.length === 0) return;
+
+  const now = new Date().toISOString();
+  for (let offset = 0; offset < matches.length; offset += 75) {
+    await db.batch(matches.slice(offset, offset + 75).map((match) =>
+      db.prepare(
+        `INSERT INTO scorer_audits (
+           user_id, job_id, stable_version, candidate_version,
+           stable_score, candidate_score, delta, reasons_json, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, job_id, candidate_version) DO UPDATE SET
+           stable_version = excluded.stable_version,
+           stable_score = excluded.stable_score,
+           candidate_score = excluded.candidate_score,
+           delta = excluded.delta,
+           reasons_json = excluded.reasons_json,
+           created_at = excluded.created_at`
+      ).bind(
+        userId,
+        match.jobId,
+        MATCH_SCORER_VERSION,
+        rollout.scorer_version,
+        match.breakdown.score,
+        match.shadowScore,
+        match.shadowScore - match.breakdown.score,
+        JSON.stringify(match.shadowReasons),
         now
       )
     ));
@@ -273,9 +365,14 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
 }
 
 async function removeStaleMatches(db: D1Database, userId: string) {
+  const rollout = await loadScorerRollout(db);
+  const activeVersion = rollout?.mode === "active"
+    && scorerCohortBucket(userId) < rollout.cohort_percent
+    ? rollout.scorer_version
+    : MATCH_SCORER_VERSION;
   const cleanup = await db.prepare(
     "DELETE FROM user_job_matches WHERE user_id = ? AND scorer_version != ?"
-  ).bind(userId, MATCH_SCORER_VERSION).run();
+  ).bind(userId, activeVersion).run();
   if ((cleanup.meta.changes ?? 0) > 0) {
     await db.prepare(
       "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"

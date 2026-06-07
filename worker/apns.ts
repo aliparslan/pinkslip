@@ -120,6 +120,7 @@ export function buildApnsBody(payload: NotificationPayload): string {
       sound: "default",
     },
     url: payload.data.url,
+    job_ids: payload.data.job_ids ?? [],
   });
 }
 

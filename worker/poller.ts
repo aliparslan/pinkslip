@@ -1,22 +1,16 @@
 import type { JobListing } from "./adapters/types";
-import { normalizeScore, scoreJob } from "./scoring";
+import { scoreJob } from "./scoring";
 import type { ScoringPrefs } from "./scoring";
-import {
-  buildNotificationPayload,
-  sendPushNotification,
-} from "./push";
-import type { NotificationJob } from "./push";
-import { isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
-import type { Env, CompanyRow, PreferenceRow, PushSubscriptionRow } from "./types";
+import type { Env, CompanyRow, PreferenceRow } from "./types";
 import { getAdapter } from "./ats";
 import {
-  loadUserPreferenceState,
-} from "./user-preferences";
-import {
   matchJobsForAllProfiles,
-  scoreListingsForUser,
 } from "./user-job-scores";
 import { upsertJobFeatures } from "./job-features";
+import {
+  createNotificationCandidates,
+  deliverPendingNotifications,
+} from "./notification-delivery";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -280,90 +274,10 @@ export async function sendNotificationsForJobs(
   env: Env,
   jobs: NewJobMeta[]
 ): Promise<number> {
-  if (jobs.length === 0) return 0;
-
-  const subsResult = await db
-    .prepare("SELECT * FROM push_subscriptions")
-    .all<PushSubscriptionRow>();
-  const subscriptions = subsResult.results ?? [];
-  if (subscriptions.length === 0) return 0;
-
-  const vapid = {
-    subject: env.VAPID_SUBJECT,
-    publicKey: env.VAPID_PUBLIC_KEY,
-    privateKey: env.VAPID_PRIVATE_KEY,
-  };
-  const apnsConfig = resolveApnsConfig(env);
-  const subscriptionsByUser = new Map<string, PushSubscriptionRow[]>();
-  for (const subscription of subscriptions) {
-    if (!subscription.user_id) continue;
-    const existing = subscriptionsByUser.get(subscription.user_id) ?? [];
-    existing.push(subscription);
-    subscriptionsByUser.set(subscription.user_id, existing);
+  if (jobs.length > 0) {
+    await createNotificationCandidates(db, jobs.map((job) => job.jobId));
   }
-
-  let notificationsSent = 0;
-  for (const [userId, userSubscriptions] of subscriptionsByUser) {
-    const state = await loadUserPreferenceState(db, userId);
-    const personalized = await scoreListingsForUser(
-      db,
-      userId,
-      jobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
-    );
-    const qualifyingIds = new Set(
-      personalized
-        .filter((match) => match.plausible && normalizeScore(match.breakdown.score) >= state.notify_threshold)
-        .map((match) => match.jobId)
-    );
-    const qualifying = jobs.filter((job) => qualifyingIds.has(job.jobId));
-    if (qualifying.length === 0) continue;
-
-    const notifJobs: NotificationJob[] = qualifying.map((job) => ({
-      company: job.company,
-      title: job.title,
-      jobId: job.jobId,
-    }));
-    const payload = buildNotificationPayload(notifJobs);
-    const sendResults = await Promise.allSettled(
-      userSubscriptions.map((sub) =>
-        sub.platform === "ios" && apnsConfig
-          ? sendApnsNotification(sub.endpoint, payload, apnsConfig)
-          : sendPushNotification(
-              {
-                endpoint: sub.endpoint,
-                keys: { p256dh: sub.p256dh, auth: sub.auth },
-              },
-              payload,
-              vapid
-            )
-      )
-    );
-
-    for (let index = 0; index < sendResults.length; index++) {
-      const result = sendResults[index];
-      if (result.status !== "fulfilled") continue;
-
-      const sub = userSubscriptions[index];
-      const isApns = sub.platform === "ios";
-      if (isApns && !apnsConfig) continue;
-
-      if (result.value.ok) {
-        notificationsSent++;
-      } else {
-        const dead = isApns
-          ? isDeadApnsToken(result.value.status)
-          : result.value.status === 410 || result.value.status === 404;
-        if (dead) {
-          await db
-            .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
-            .bind(sub.endpoint)
-            .run();
-        }
-      }
-    }
-  }
-
-  return notificationsSent;
+  return deliverPendingNotifications(db, env);
 }
 
 // ─── runPollCycle ─────────────────────────────────────────────────────────────
@@ -485,6 +399,19 @@ export async function runPollCycle(
     `DELETE FROM jobs WHERE closed_at IS NOT NULL AND datetime(closed_at) < datetime('now', '-7 days')
      AND id NOT IN (SELECT job_id FROM applications WHERE job_id IS NOT NULL)`
   ).run();
+  await db.batch([
+    db.prepare(
+      "DELETE FROM product_events WHERE datetime(occurred_at) < datetime('now', '-180 days')"
+    ),
+    db.prepare(
+      "DELETE FROM scorer_audits WHERE datetime(created_at) < datetime('now', '-90 days')"
+    ),
+    db.prepare(
+      `DELETE FROM notification_candidates
+       WHERE status IN ('sent', 'failed', 'skipped')
+         AND datetime(created_at) < datetime('now', '-180 days')`
+    ),
+  ]);
 
   if (trackRuns) {
     await db.prepare(

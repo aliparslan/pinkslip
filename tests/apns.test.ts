@@ -85,6 +85,7 @@ describe("buildApnsBody", () => {
     expect(body.aps.alert.body).toBe("SWE");
     expect(body.aps.sound).toBe("default");
     expect(body.url).toBe("/jobs/abc123");
+    expect(body.job_ids).toEqual(["abc123"]);
   });
 });
 

@@ -17,6 +17,7 @@ describe("buildNotificationPayload", () => {
     expect(result.title).toBe("Anthropic");
     expect(result.body).toBe("Software Engineer");
     expect(result.data.url).toBe("/jobs/abc123");
+    expect(result.data.job_ids).toEqual(["abc123"]);
   });
 
   // Test 2: 5+ jobs
@@ -36,6 +37,7 @@ describe("buildNotificationPayload", () => {
     expect(result.body).toContain("Cohere");
     expect(result.body).not.toContain("DeepMind");
     expect(result.data.url).toBe("/");
+    expect(result.data.job_ids).toEqual(["1", "2", "3", "4", "5"]);
   });
 
   // Test 3: 2-4 jobs
@@ -52,6 +54,7 @@ describe("buildNotificationPayload", () => {
     expect(result.body).toContain("Mistral");
     expect(result.body).not.toContain("and more");
     expect(result.data.url).toBe("/");
+    expect(result.data.job_ids).toEqual(["10", "11", "12"]);
   });
 });
 

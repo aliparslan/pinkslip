@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Variables, ApplicationRow } from "../types";
+import { recordProductEvent } from "../product-events";
 
 const applications = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -73,6 +74,15 @@ applications.post("/", async (c) => {
   const row = await c.env.DB.prepare(`SELECT * FROM applications WHERE id = ?`)
     .bind(id)
     .first<ApplicationRow>();
+
+  await recordProductEvent(c.env.DB, {
+    userId,
+    sessionId: c.get("sessionId"),
+    name: "application_added",
+    entityType: body.job_id ? "job" : "application",
+    entityId: body.job_id ?? id,
+    properties: { source: body.job_id ? "job_detail" : "tracker" },
+  }).catch(() => undefined);
 
   return c.json(row, 201);
 });

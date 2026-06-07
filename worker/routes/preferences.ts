@@ -41,9 +41,13 @@ preferences.get("/preview", async (c) => {
      WHERE ujm.user_id = ?
        AND c.enabled = 1
        AND j.closed_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM user_blocked_companies ubc
+         WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
+       )
      ORDER BY ujm.score DESC, datetime(j.first_seen_at) DESC
      LIMIT 5`
-  ).bind(userId).all<{
+  ).bind(userId, userId).all<{
     id: string;
     title: string;
     location: string;

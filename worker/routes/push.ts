@@ -3,8 +3,105 @@ import type { Env, PushSubscriptionRow, Variables } from "../types";
 import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 import { resolveApnsConfig, sendApnsNotification } from "../apns";
+import { recordProductEvent } from "../product-events";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+push.get("/settings", async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT
+       COALESCE(uns.enabled, usp.notifications_enabled, 0) AS enabled,
+       COALESCE(uns.push_enabled, 1) AS push_enabled,
+       COALESCE(uns.threshold, usp.match_threshold, 50) AS threshold,
+       COALESCE(uns.updated_at, usp.updated_at) AS updated_at
+     FROM users u
+     LEFT JOIN user_notification_settings uns ON uns.user_id = u.id
+     LEFT JOIN user_search_profiles usp ON usp.user_id = u.id
+     WHERE u.id = ?`
+  ).bind(c.get("userId")).first<{
+    enabled: number;
+    push_enabled: number;
+    threshold: number;
+    updated_at: string;
+  }>();
+  return c.json({
+    enabled: row?.enabled === 1,
+    push_enabled: row?.push_enabled !== 0,
+    threshold: row?.threshold ?? 50,
+    updated_at: row?.updated_at ?? null,
+  });
+});
+
+push.put("/settings", async (c) => {
+  const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean; threshold?: number }>();
+  const existing = await c.env.DB.prepare(
+    "SELECT enabled, push_enabled, threshold FROM user_notification_settings WHERE user_id = ?"
+  ).bind(c.get("userId")).first<{ enabled: number; push_enabled: number; threshold: number }>();
+  const enabled = body.enabled ?? (existing?.enabled === 1);
+  const pushEnabled = body.push_enabled ?? (existing?.push_enabled !== 0);
+  const threshold = Number.isFinite(Number(body.threshold))
+    ? Math.max(0, Math.min(100, Math.round(Number(body.threshold))))
+    : existing?.threshold ?? 50;
+  await c.env.DB.prepare(
+    `INSERT INTO user_notification_settings (user_id, enabled, push_enabled, threshold, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       enabled = excluded.enabled,
+       push_enabled = excluded.push_enabled,
+       threshold = excluded.threshold,
+       updated_at = excluded.updated_at`
+  ).bind(
+    c.get("userId"),
+    enabled ? 1 : 0,
+    pushEnabled ? 1 : 0,
+    threshold,
+    new Date().toISOString()
+  ).run();
+  await c.env.DB.prepare(
+    "UPDATE user_search_profiles SET notifications_enabled = ?, updated_at = ? WHERE user_id = ?"
+  ).bind(enabled ? 1 : 0, new Date().toISOString(), c.get("userId")).run();
+  await c.env.DB.prepare(
+    `UPDATE notification_candidates
+     SET status = 'skipped', last_error = 'Notification settings changed'
+     WHERE user_id = ?
+       AND status IN ('pending', 'retry')
+       AND (? = 0 OR ? = 0 OR score < CAST(ROUND(? * 0.95) AS INTEGER))`
+  ).bind(
+    c.get("userId"),
+    enabled ? 1 : 0,
+    pushEnabled ? 1 : 0,
+    threshold
+  ).run();
+  return c.json({ enabled, push_enabled: pushEnabled, threshold });
+});
+
+push.post("/opened", async (c) => {
+  const body = await c.req.json<{ job_id?: string; job_ids?: string[] }>();
+  const jobIds = [...new Set([
+    ...(Array.isArray(body.job_ids) ? body.job_ids : []),
+    ...(body.job_id ? [body.job_id] : []),
+  ].filter((jobId) => typeof jobId === "string" && jobId.length > 0))].slice(0, 50);
+  if (jobIds.length === 0) return c.json({ error: "Missing job id" }, 400);
+  const openedAt = new Date().toISOString();
+  const updates = await c.env.DB.batch(jobIds.map((jobId) =>
+    c.env.DB.prepare(
+      `UPDATE notification_candidates
+       SET opened_at = ?
+       WHERE user_id = ? AND job_id = ? AND status = 'sent' AND opened_at IS NULL`
+    ).bind(openedAt, c.get("userId"), jobId)
+  ));
+  const newlyOpened = jobIds.filter((_, index) => (updates[index].meta.changes ?? 0) > 0);
+  await Promise.all(newlyOpened.map((jobId) =>
+    recordProductEvent(c.env.DB, {
+      userId: c.get("userId"),
+      sessionId: c.get("sessionId"),
+      name: "notification_opened",
+      entityType: "job",
+      entityId: jobId,
+    }).catch(() => undefined)
+  ));
+  return c.body(null, 204);
+});
 
 // POST /apns — Register a native iOS APNs device token for the current user.
 // The token is stored in the existing push_subscriptions table with

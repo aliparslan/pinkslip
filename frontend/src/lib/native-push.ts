@@ -15,7 +15,14 @@ export function isNativeIos(): boolean {
 
 /** Routes a tapped notification's payload to the right screen. */
 function handleNotificationUrl(data: unknown): void {
-  const url = (data as { url?: string } | undefined)?.url;
+  const payload = data as { url?: string; job_ids?: unknown } | undefined;
+  const jobIds = Array.isArray(payload?.job_ids)
+    ? payload.job_ids.filter((jobId): jobId is string => typeof jobId === "string")
+    : [];
+  if (jobIds.length > 0) {
+    void api.push.opened(jobIds).catch(() => undefined);
+  }
+  const url = payload?.url;
   if (typeof url === "string" && url.startsWith("/")) {
     navigate(url);
   }
