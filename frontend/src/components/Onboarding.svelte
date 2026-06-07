@@ -35,6 +35,17 @@
   let sendingEmailLogin: boolean = $state(false);
   let emailLinkSent: boolean = $state(false);
   let accountError: string | null = $state(null);
+  let onboardingStartRecorded = false;
+
+  $effect(() => {
+    if (onboardingStartRecorded) return;
+    onboardingStartRecorded = true;
+    void api.interactions.event({
+      event_name: "onboarding_started",
+      entity_type: "onboarding",
+      properties: { onboarding_version: ONBOARDING_VERSION },
+    }).catch(() => undefined);
+  });
 
   async function handleNameSubmit() {
     const trimmed = name.trim();
@@ -102,6 +113,11 @@
         },
       });
       profile = normalizeSearchProfile(saved.search_profile);
+      await api.interactions.event({
+        event_name: "onboarding_completed",
+        entity_type: "onboarding",
+        properties: { onboarding_version: ONBOARDING_VERSION },
+      }).catch(() => undefined);
       step = 6;
     } catch (e: any) {
       profileError = e?.message ?? "Could not finish your search profile.";

@@ -5,8 +5,11 @@
     api,
     type AccountInfo,
     type AppFeatures,
+    type ContentReport,
     type FetchRun,
+    type ProductMetrics,
     type ResumeAssetRecord,
+    type ScorerRollout,
     type TailorUsage,
   } from "../lib/api";
   import {
@@ -27,6 +30,8 @@
   import { syncSessionAccess } from "../lib/session-access";
   import {
     DEFAULT_SEARCH_PROFILE,
+    LOCATION_OPTIONS,
+    ROLE_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
   } from "../../../shared/search-profile";
@@ -63,12 +68,18 @@
   let removingSyncedResume: boolean = $state(false);
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let notificationThreshold: number = $state(50);
+  let notificationEnabled: boolean = $state(false);
+  let profileEditing: boolean = $state(false);
   let pushStatus: string = $state("disabled");
   let testingNotif: string | null = $state(null);
   let features: AppFeatures | null = $state(null);
   let runs: FetchRun[] = $state([]);
   let refreshingAll: boolean = $state(false);
   let refreshLog: string[] = $state([]);
+  let productMetrics: ProductMetrics | null = $state(null);
+  let reports: ContentReport[] = $state([]);
+  let scorerRollouts: ScorerRollout[] = $state([]);
+  let updatingRollout: string | null = $state(null);
   let localGeminiKey: string = $state("");
   let localGeminiModel: string = $state(DEFAULT_TAILOR_MODEL);
   let localResume = $state<LocalResumeAsset | null>(null);
@@ -111,6 +122,21 @@
   ];
   let visibleSettingsSections = $derived(
     settingsSections.filter((section) => section.id !== "operations" || isAdmin)
+  );
+  let primaryRoleLabel = $derived(
+    ROLE_OPTIONS.find((role) => role.id === searchProfile.primary_role)?.label ?? "Not set"
+  );
+  let specialtyLabels = $derived(
+    ROLE_OPTIONS
+      .filter((role) => role.id !== searchProfile.primary_role && searchProfile.roles.includes(role.id))
+      .map((role) => role.shortLabel)
+      .join(", ") || "No secondary roles"
+  );
+  let metroLabels = $derived(
+    LOCATION_OPTIONS
+      .filter((location) => searchProfile.location_ids.includes(location.id))
+      .map((location) => location.label)
+      .join(", ") || "Any US metro"
   );
 
   function inferTextFormat(fileName: string, mimeType: string): LocalResumeAsset["textFormat"] {
@@ -174,9 +200,10 @@
     loading = true;
     error = null;
     try {
-      const [prefsResult, meResult] = await Promise.allSettled([
+      const [prefsResult, meResult, notificationResult] = await Promise.allSettled([
         api.preferences.get(),
         api.me.get(),
+        api.push.settings(),
       ]);
 
       if (meResult.status === "fulfilled") {
@@ -198,10 +225,25 @@
       } else {
         throw prefsResult.reason;
       }
+      if (notificationResult.status === "fulfilled") {
+        notificationEnabled = notificationResult.value.enabled;
+        notificationThreshold = notificationResult.value.threshold;
+      }
 
       runs = isAdmin
         ? await api.runs.list(50).then((result) => result.runs ?? []).catch(() => [])
         : [];
+      if (isAdmin) {
+        [productMetrics, reports, scorerRollouts] = await Promise.all([
+          api.metrics.get().catch(() => null),
+          api.interactions.reports("open").then((result) => result.reports).catch(() => []),
+          api.metrics.rollouts().then((result) => result.rollouts).catch(() => []),
+        ]);
+      } else {
+        productMetrics = null;
+        reports = [];
+        scorerRollouts = [];
+      }
 
       await loadRemoteResume(sessionState);
 
@@ -262,13 +304,21 @@
       const savedPreferences = await api.preferences.update({
         search_profile: {
           ...searchProfile,
-          notifications_enabled: pushStatus === "enabled",
-          match_threshold: notificationThreshold,
+          notifications_enabled: notificationEnabled,
         },
-        notify_threshold: notificationThreshold,
+      });
+      await api.push.updateSettings({
+        enabled: notificationEnabled,
+        push_enabled: true,
+        threshold: notificationThreshold,
       });
       searchProfile = normalizeSearchProfile(savedPreferences.search_profile);
-      notificationThreshold = savedPreferences.notify_threshold;
+      await api.interactions.event({
+        event_name: "search_profile_adjusted",
+        entity_type: "search_profile",
+        properties: { source: "settings", threshold: searchProfile.match_threshold },
+      }).catch(() => undefined);
+      profileEditing = false;
       successMsg = "Preferences saved.";
       setTimeout(() => (successMsg = null), 3000);
     } catch (e: any) {
@@ -280,7 +330,47 @@
 
   function resetToDefaults() {
     searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
-    notificationThreshold = 50;
+  }
+
+  function formatLatency(seconds: number) {
+    if (seconds < 60) return `${Math.round(seconds)} sec`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+    return `${Math.round((seconds / 3600) * 10) / 10} hr`;
+  }
+
+  async function moderateReport(id: string, status: "resolved" | "dismissed") {
+    try {
+      await api.interactions.updateReport(id, { status });
+      reports = reports.filter((report) => report.id !== id);
+      if (productMetrics) {
+        productMetrics = {
+          ...productMetrics,
+          open_reports: Math.max(0, productMetrics.open_reports - 1),
+        };
+      }
+    } catch (e: any) {
+      error = e.message;
+    }
+  }
+
+  async function saveRollout(rollout: ScorerRollout) {
+    if (updatingRollout) return;
+    updatingRollout = rollout.scorer_version;
+    try {
+      const result = await api.metrics.updateRollout(rollout.scorer_version, {
+        mode: rollout.mode,
+        cohort_percent: rollout.cohort_percent,
+      });
+      scorerRollouts = scorerRollouts.map((item) =>
+        item.scorer_version === result.rollout.scorer_version ? result.rollout : item
+      );
+      successMsg = "Scorer rollout updated. Matches will rebuild as users return.";
+      setTimeout(() => (successMsg = null), 3500);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      updatingRollout = null;
+    }
   }
 
   async function saveLocalSetup() {
@@ -613,12 +703,51 @@
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Search profile</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 24px;">
-            <SearchProfileFields bind:profile={searchProfile} />
-            <div style="display: flex; justify-content: flex-end;">
-              <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={resetToDefaults}>
-                Reset defaults
+            {#if profileEditing}
+              <SearchProfileFields bind:profile={searchProfile} />
+              <div style="display: flex; justify-content: space-between; gap: 8px;">
+                <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={resetToDefaults}>
+                  Reset defaults
+                </button>
+                <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={() => { profileEditing = false; }}>
+                  Close editor
+                </button>
+              </div>
+            {:else}
+              <div class="profile-summary-grid">
+                <div class="profile-summary-item">
+                  <span>Primary role</span>
+                  <strong>{primaryRoleLabel}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Also targeting</span>
+                  <strong>{specialtyLabels}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Experience</span>
+                  <strong>{searchProfile.years_experience} years · {searchProfile.target_levels.map((level) => level.replaceAll("_", " ")).join(", ")}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Work modes</span>
+                  <strong>{searchProfile.work_modes.join(", ")}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Preferred metros</span>
+                  <strong>{metroLabels}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Authorization</span>
+                  <strong>{searchProfile.work_authorization.replaceAll("_", " ")} · {searchProfile.relocation_willing ? "open to relocation" : "no relocation"}</strong>
+                </div>
+                <div class="profile-summary-item">
+                  <span>Feed threshold</span>
+                  <strong>{searchProfile.match_threshold}+</strong>
+                </div>
+              </div>
+              <button class="btn-secondary" onclick={() => { profileEditing = true; }}>
+                Edit search profile
               </button>
-            </div>
+            {/if}
           </div>
         </section>
 
@@ -629,6 +758,23 @@
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Notifications</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; overflow: hidden;">
+            <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+              <div>
+                <div style="font-size: 14px; font-weight: 600;">Job alerts</div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Master switch for personalized alerts</div>
+              </div>
+              <button
+                class="btn-secondary"
+                class:active={notificationEnabled}
+                style="height: 34px; padding: 0 14px;"
+                onclick={() => { notificationEnabled = !notificationEnabled; }}
+              >
+                {notificationEnabled ? "On" : "Off"}
+              </button>
+            </div>
+
+            <div style="height: 0.5px; background: var(--color-line);"></div>
+
             <!-- Push toggle -->
             <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
               <div>
@@ -649,15 +795,7 @@
                       try {
                         const ok = (await enableNativePush()) === "enabled";
                         pushStatus = ok ? "enabled" : "disabled";
-                        if (ok) {
-                          const saved = await api.preferences.update({
-                            search_profile: {
-                              ...searchProfile,
-                              notifications_enabled: true,
-                            },
-                          });
-                          searchProfile = normalizeSearchProfile(saved.search_profile);
-                        }
+                        if (ok) notificationEnabled = true;
                         if (!ok) error = "Turn on notifications for pinkslip in the iOS Settings app.";
                       } catch (e: any) {
                         error = e.message;
@@ -677,7 +815,10 @@
             <!-- Threshold -->
             <div style="padding: 16px 18px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                <div style="font-size: 14px; font-weight: 500;">Score threshold</div>
+                <div>
+                  <div style="font-size: 14px; font-weight: 500;">Alert threshold</div>
+                  <div style="font-size: 11px; color: var(--color-ink-3); margin-top: 2px;">Does not change what appears in your feed</div>
+                </div>
                 <span style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--color-accent);">
                   {notificationThreshold}
                 </span>
@@ -1043,6 +1184,109 @@
         {/if}
 
         {#if isAdmin && activeSettingsSection === "operations"}
+        {#if productMetrics}
+        <section>
+          <div class="section-label" style="margin-bottom: 10px;">Product health · last 30 days</div>
+          <div class="ops-metric-grid">
+            <div class="ops-metric"><span>Job to alert</span><strong>{formatLatency(productMetrics.notification_latency_seconds)}</strong></div>
+            <div class="ops-metric"><span>Alert open rate</span><strong>{productMetrics.notification_open_rate}%</strong></div>
+            <div class="ops-metric"><span>Viable profiles</span><strong>{productMetrics.users_with_enough_matches}/{productMetrics.total_profiles}</strong></div>
+            <div class="ops-metric"><span>Onboarding complete</span><strong>{productMetrics.onboarding_completion_rate}%</strong></div>
+            <div class="ops-metric"><span>Fast apply clicks</span><strong>{productMetrics.apply_clicks_within_one_hour}</strong></div>
+            <div class="ops-metric"><span>High-score dismiss</span><strong>{productMetrics.high_score_dismissal_rate}%</strong></div>
+            <div class="ops-metric"><span>Tailor to apply</span><strong>{productMetrics.tailoring_to_application_rate}%</strong></div>
+            <div class="ops-metric"><span>Profile adjustments</span><strong>{productMetrics.profile_adjustments}</strong></div>
+          </div>
+        </section>
+        {/if}
+
+        <section>
+          <div class="section-label" style="margin-bottom: 10px;">Scorer rollout</div>
+          <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 14px;">
+            {#if scorerRollouts.length === 0}
+              <div style="font-size: 13px; color: var(--color-ink-3);">No candidate scorer is configured.</div>
+            {:else}
+              {#each scorerRollouts as rollout}
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <div style="display: flex; justify-content: space-between; gap: 12px;">
+                    <div>
+                      <div style="font-size: 14px; font-weight: 600;">{rollout.scorer_version}</div>
+                      <div style="font-size: 11px; color: var(--color-ink-3); margin-top: 3px;">
+                        Shadow records comparisons. Active changes feed scores only for the selected cohort.
+                      </div>
+                    </div>
+                    <span class="tag">{rollout.mode}</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
+                    <div>
+                      <label class="field-label" for="rollout-mode-{rollout.scorer_version}">Mode</label>
+                      <select id="rollout-mode-{rollout.scorer_version}" class="input-field" bind:value={rollout.mode}>
+                        <option value="off">Off</option>
+                        <option value="shadow">Shadow</option>
+                        <option value="active">Active</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="field-label" for="rollout-cohort-{rollout.scorer_version}">Cohort %</label>
+                      <input
+                        id="rollout-cohort-{rollout.scorer_version}"
+                        class="input-field"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        bind:value={rollout.cohort_percent}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    class="btn-secondary"
+                    onclick={() => saveRollout(rollout)}
+                    disabled={updatingRollout !== null}
+                  >
+                    {updatingRollout === rollout.scorer_version ? "Updating..." : "Apply rollout"}
+                  </button>
+                  {#each productMetrics?.scorer_audits.filter((audit) => audit.candidate_version === rollout.scorer_version) ?? [] as audit}
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3);">
+                      {audit.comparisons} comparisons · avg {audit.average_delta >= 0 ? "+" : ""}{audit.average_delta} · {audit.major_disagreements} major disagreements
+                    </div>
+                  {/each}
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </section>
+
+        <section>
+          <div class="section-label" style="margin-bottom: 10px;">Open reports</div>
+          <div class="surface-list">
+            {#if reports.length === 0}
+              <div style="padding: 18px; font-size: 13px; color: var(--color-ink-3);">Nothing needs review.</div>
+            {:else}
+              {#each reports as report, index}
+                <div style="padding: 14px 16px; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
+                  <div style="display: flex; justify-content: space-between; gap: 10px;">
+                    <div style="font-size: 13.5px; font-weight: 600;">
+                      {report.job_title ?? report.company_name ?? "Unknown listing"}
+                    </div>
+                    <span class="tag">{report.report_type.replaceAll("_", " ")}</span>
+                  </div>
+                  {#if report.job_title && report.company_name}
+                    <div style="font-size: 11.5px; color: var(--color-ink-3); margin-top: 3px;">{report.company_name}</div>
+                  {/if}
+                  {#if report.notes}
+                    <div style="font-size: 12.5px; color: var(--color-ink-2); margin-top: 8px; line-height: 1.45;">{report.notes}</div>
+                  {/if}
+                  <div class="action-row compact" style="margin-top: 10px;">
+                    <button class="btn-secondary" onclick={() => moderateReport(report.id, "dismissed")}>Dismiss</button>
+                    <button class="btn-primary btn-accent" onclick={() => moderateReport(report.id, "resolved")}>Resolve</button>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </section>
+
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Operations</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
