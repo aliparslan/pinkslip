@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import type { Env, FetchRunRow } from "../types";
+import { requireAdmin } from "../auth";
+import type { Env, FetchRunRow, Variables } from "../types";
 
-const runs = new Hono<{ Bindings: Env }>();
+const runs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
   try {
@@ -18,7 +19,7 @@ async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
   }
 }
 
-runs.get("/", async (c) => {
+runs.get("/", requireAdmin, async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10) || 50, 100);
 
   if (!(await hasFetchRunsTable(c.env.DB))) {

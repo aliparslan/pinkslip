@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { requireAdmin } from "../auth";
 import type { Env, Variables, JobRow, CompanyRow } from "../types";
 import { getAdapter } from "../ats";
 import { loadPreferencesForPoll } from "../poller";
@@ -548,7 +549,7 @@ jobs.patch("/:id", async (c) => {
 });
 
 // DELETE /:id/block — Permanently block a job globally (never returns from polls)
-jobs.delete("/:id/block", async (c) => {
+jobs.delete("/:id/block", requireAdmin, async (c) => {
   const { id } = c.req.param();
 
   const job = await c.env.DB.prepare(

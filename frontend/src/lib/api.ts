@@ -97,6 +97,7 @@ export interface Application {
 export interface User {
   id: string;
   name: string;
+  role: "user" | "admin";
   created_at: string;
 }
 
@@ -259,6 +260,7 @@ export interface MeResponse {
   user: User | null;
   session: SessionInfo;
   account: AccountInfo | null;
+  is_admin: boolean;
   features?: AppFeatures;
 }
 

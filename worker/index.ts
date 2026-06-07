@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env, Variables } from "./types";
-import { authMiddleware, buildCookie, COOKIE_NAMES } from "./auth";
+import { authMiddleware, buildCookie, COOKIE_NAMES, requireAdmin } from "./auth";
 import jobRoutes from "./routes/jobs";
 import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
@@ -120,7 +120,7 @@ app.patch("/api/me", async (c) => {
   const accountState = await buildAccountState(c.env.DB, userId, c.get("sessionState"));
   return c.json(accountState);
 });
-app.post("/api/poll", async (c) => {
+app.post("/api/poll", requireAdmin, async (c) => {
   const limit = Number(c.req.query("limit") ?? "0");
   const result = await runPollCycle(c.env, {
     scope: "manual",

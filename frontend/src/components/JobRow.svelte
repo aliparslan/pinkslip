@@ -5,6 +5,7 @@
   import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
+  import { sessionAccess } from "../lib/session-access";
   import { hapticLight, hapticMedium } from "../lib/haptics";
   import Trash from "phosphor-svelte/lib/Trash";
   import X from "phosphor-svelte/lib/X";
@@ -30,11 +31,15 @@
 
   const ACTION_DELETE_WIDTH = 84;
   const ACTION_DISMISS_WIDTH = 84;
-  const ACTION_TOTAL_WIDTH = ACTION_DELETE_WIDTH + ACTION_DISMISS_WIDTH;
   const OPEN_THRESHOLD = 56; // release past this → snap open to the two buttons
-  const COMMIT_THRESHOLD = ACTION_TOTAL_WIDTH + 34; // pull past this → full-swipe dismiss
   const RUBBER = 0.5; // resistance once dragged beyond the revealed buttons
 
+  let actionTotalWidth = $derived(
+    $sessionAccess.isAdmin
+      ? ACTION_DELETE_WIDTH + ACTION_DISMISS_WIDTH
+      : ACTION_DISMISS_WIDTH
+  );
+  let commitThreshold = $derived(actionTotalWidth + 34);
   let scorePercent = $derived(normalizeJobScore(job.score));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let displaySalary = $derived(job.salary ?? extractSalaryFromHtml(job.description));
@@ -79,13 +84,13 @@
     swiping = false;
     pointerId = null;
     const abs = Math.abs(swipeX);
-    if (committing || abs >= COMMIT_THRESHOLD) {
+    if (committing || abs >= commitThreshold) {
       void fullSwipeDismiss();
       return;
     }
     if (abs >= OPEN_THRESHOLD) {
-      if (swipeX !== -ACTION_TOTAL_WIDTH) hapticLight();
-      snapTo(-ACTION_TOTAL_WIDTH);
+      if (swipeX !== -actionTotalWidth) hapticLight();
+      snapTo(-actionTotalWidth);
     } else {
       snapTo(0);
     }
@@ -122,16 +127,16 @@
     const abs = -desired;
 
     let next: number;
-    if (abs >= COMMIT_THRESHOLD) {
+    if (abs >= commitThreshold) {
       next = Math.max(-rowWidth, desired); // follow the finger into the fill
-    } else if (abs > ACTION_TOTAL_WIDTH) {
-      next = -(ACTION_TOTAL_WIDTH + (abs - ACTION_TOTAL_WIDTH) * RUBBER); // rubber-band
+    } else if (abs > actionTotalWidth) {
+      next = -(actionTotalWidth + (abs - actionTotalWidth) * RUBBER); // rubber-band
     } else {
       next = desired;
     }
     swipeX = next;
 
-    const nowCommitting = abs >= COMMIT_THRESHOLD;
+    const nowCommitting = abs >= commitThreshold;
     if (nowCommitting !== committing) {
       committing = nowCommitting;
       if (nowCommitting) hapticMedium(); // "release to dismiss" tick
@@ -149,16 +154,18 @@
   {#if swipeX < -0.5}
     <!-- Action layer sits underneath; the row slides over to uncover it. -->
     <div class="swipe-actions" class:committing>
-      <button
-        class="swipe-action swipe-action-delete"
-        style="width: {ACTION_DELETE_WIDTH}px;"
-        aria-label="Delete for everyone"
-        onclick={(event) => { event.stopPropagation(); void blockJob(); }}
-        disabled={dismissing}
-      >
-        <Trash size={18} weight="regular" />
-        <span>Delete</span>
-      </button>
+      {#if $sessionAccess.isAdmin}
+        <button
+          class="swipe-action swipe-action-delete"
+          style="width: {ACTION_DELETE_WIDTH}px;"
+          aria-label="Delete for everyone"
+          onclick={(event) => { event.stopPropagation(); void blockJob(); }}
+          disabled={dismissing}
+        >
+          <Trash size={18} weight="regular" />
+          <span>Delete</span>
+        </button>
+      {/if}
       <button
         class="swipe-action swipe-action-dismiss"
         style={committing ? "flex: 1;" : `width: ${ACTION_DISMISS_WIDTH}px;`}

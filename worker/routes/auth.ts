@@ -23,7 +23,7 @@ const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 async function loadUser(db: D1Database, userId: string) {
   return db.prepare(
-    "SELECT id, name, created_at FROM users WHERE id = ?"
+    "SELECT id, name, role, created_at FROM users WHERE id = ?"
   ).bind(userId).first<UserRow>();
 }
 
@@ -68,6 +68,7 @@ export async function buildAccountState(
     return {
       user: null,
       session: { state: sessionState },
+      is_admin: false,
       account: sessionState === "authenticated"
         ? { authenticated: true, email: null, providers: [] as string[] }
         : null,
@@ -78,6 +79,7 @@ export async function buildAccountState(
     return {
       user,
       session: { state: sessionState },
+      is_admin: false,
       account: null,
     };
   }
@@ -90,6 +92,7 @@ export async function buildAccountState(
   return {
     user,
     session: { state: sessionState },
+    is_admin: user.role === "admin",
     account: {
       authenticated: true,
       email: primaryIdentity?.email ?? null,

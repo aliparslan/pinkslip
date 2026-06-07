@@ -3,6 +3,7 @@ import type {
   AuthIdentityRow,
   AuthSessionRow,
   Env,
+  UserRow,
   Variables,
 } from "./types";
 import { randomOpaqueToken } from "./crypto";
@@ -61,6 +62,55 @@ export async function ensureUserExists(db: D1Database, userId: string) {
     "INSERT INTO users (id) VALUES (?) ON CONFLICT (id) DO NOTHING"
   ).bind(userId).run();
 }
+
+export async function getUserRole(
+  db: D1Database,
+  userId: string
+): Promise<UserRow["role"]> {
+  const row = await db.prepare(
+    "SELECT role FROM users WHERE id = ? LIMIT 1"
+  ).bind(userId).first<Pick<UserRow, "role">>();
+  return row?.role === "admin" ? "admin" : "user";
+}
+
+export async function isAdminUser(
+  db: D1Database,
+  userId: string,
+  sessionState: Variables["sessionState"]
+): Promise<boolean> {
+  return sessionState === "authenticated"
+    && await getUserRole(db, userId) === "admin";
+}
+
+export const requireAuthenticated = createMiddleware<{
+  Bindings: Env;
+  Variables: Variables;
+}>(async (c, next) => {
+  if (c.get("sessionState") !== "authenticated") {
+    return c.json(
+      { error: "Sign in required", code: "authentication_required" },
+      401
+    );
+  }
+  await next();
+});
+
+export const requireAdmin = createMiddleware<{
+  Bindings: Env;
+  Variables: Variables;
+}>(async (c, next) => {
+  if (!(await isAdminUser(
+    c.env.DB,
+    c.get("userId"),
+    c.get("sessionState")
+  ))) {
+    return c.json(
+      { error: "Admin access required", code: "admin_required" },
+      403
+    );
+  }
+  await next();
+});
 
 export async function loadActiveSession(
   db: D1Database,

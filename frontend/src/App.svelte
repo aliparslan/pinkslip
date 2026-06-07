@@ -5,6 +5,7 @@
   import { searchOpen } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
   import { attachMagicLinkHandler } from "./lib/native-auth";
+  import { syncSessionAccess } from "./lib/session-access";
   import { hapticLight } from "./lib/haptics";
   import { registerBackHandler } from "./lib/nav-back";
   import Sun from "phosphor-svelte/lib/Sun";
@@ -260,6 +261,7 @@
     try {
       const res = await api.me.get();
       if (gen !== bootGen) return;
+      syncSessionAccess(res);
       userName = res.user?.name ?? "";
       showOnboarding = !userName;
       sessionReady = true;

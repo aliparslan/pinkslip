@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import type { Env, CompanyRow } from "../types";
+import { isAdminUser, requireAdmin } from "../auth";
+import type { Env, CompanyRow, Variables } from "../types";
 import { loadPreferencesForPoll, pollCompany, sendNotificationsForJobs } from "../poller";
 import { verifyCompanySource } from "../ats";
 
-const companies = new Hono<{ Bindings: Env }>();
+const companies = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 function normalizeAtsSlug(slug: string): string {
   return slug.trim();
@@ -16,8 +17,13 @@ function isUniqueConstraintError(error: unknown): boolean {
 // GET / — List companies
 companies.get("/", async (c) => {
   const { ats_type } = c.req.query();
+  const admin = await isAdminUser(
+    c.env.DB,
+    c.get("userId"),
+    c.get("sessionState")
+  );
 
-  const conditions: string[] = [];
+  const conditions: string[] = admin ? [] : ["enabled = 1"];
   const bindings: string[] = [];
 
   if (ats_type !== undefined) {
@@ -37,7 +43,7 @@ companies.get("/", async (c) => {
 });
 
 // POST /verify — Test an ATS slug without persisting it
-companies.post("/verify", async (c) => {
+companies.post("/verify", requireAdmin, async (c) => {
   const body = await c.req.json<{
     ats_type: CompanyRow["ats_type"];
     ats_slug: string;
@@ -62,7 +68,7 @@ companies.post("/verify", async (c) => {
 });
 
 // POST / — Add company
-companies.post("/", async (c) => {
+companies.post("/", requireAdmin, async (c) => {
   const body = await c.req.json<{
     name: string;
     ats_type: CompanyRow["ats_type"];
@@ -118,7 +124,7 @@ companies.post("/", async (c) => {
 });
 
 // PATCH /:id — Update company
-companies.patch("/:id", async (c) => {
+companies.patch("/:id", requireAdmin, async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{
     enabled?: boolean;
@@ -215,7 +221,7 @@ companies.patch("/:id", async (c) => {
 });
 
 // POST /:id/poll — Trigger a poll for a single company
-companies.post("/:id/poll", async (c) => {
+companies.post("/:id/poll", requireAdmin, async (c) => {
   const { id } = c.req.param();
   const db = c.env.DB;
 
@@ -259,7 +265,7 @@ companies.post("/:id/poll", async (c) => {
 });
 
 // DELETE /:id — Delete company
-companies.delete("/:id", async (c) => {
+companies.delete("/:id", requireAdmin, async (c) => {
   const { id } = c.req.param();
 
   await c.env.DB.prepare("DELETE FROM companies WHERE id = ?")

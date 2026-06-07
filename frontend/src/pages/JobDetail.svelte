@@ -6,6 +6,7 @@
   import { hapticLight } from "../lib/haptics";
   import { shareLink } from "../lib/share";
   import { getAdjacentJobIds } from "../lib/feed-navigation";
+  import { sessionAccess } from "../lib/session-access";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
@@ -217,9 +218,11 @@
       <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
         <ShareNetwork size={18} color="var(--color-ink-3)" />
       </button>
-      <button class="icon-btn" aria-label="Block job" onclick={() => { showBlockConfirm = true; }}>
-        <Trash size={18} color="var(--color-ink-3)" />
-      </button>
+      {#if $sessionAccess.isAdmin}
+        <button class="icon-btn" aria-label="Block job" onclick={() => { showBlockConfirm = true; }}>
+          <Trash size={18} color="var(--color-ink-3)" />
+        </button>
+      {/if}
       <button class="icon-btn" aria-label="Save" onclick={toggleSave}>
         <BookmarkSimple size={20} weight={saved ? "fill" : "regular"} color={saved ? "var(--color-accent)" : "var(--color-ink-2)"} />
       </button>
@@ -495,7 +498,7 @@
 {/if}
 
 <!-- Block confirmation modal -->
-{#if showBlockConfirm}
+{#if $sessionAccess.isAdmin && showBlockConfirm}
   <div
     style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"

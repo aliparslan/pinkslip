@@ -43,6 +43,7 @@ export interface Variables {
 export interface UserRow {
   id: string;
   name: string;
+  role: "user" | "admin";
   created_at: string;
 }
 

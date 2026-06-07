@@ -24,6 +24,7 @@
   } from "../lib/local-tailor";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
+  import { syncSessionAccess } from "../lib/session-access";
   import { navigate } from "../router";
   import Slider from "../components/Slider.svelte";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
@@ -54,6 +55,7 @@
   let savedDisplayName: string = $state("");
   let sessionState: "guest" | "authenticated" = $state("guest");
   let account: AccountInfo | null = $state(null);
+  let isAdmin: boolean = $state(false);
   let emailLogin: string = $state("");
   let sendingEmailLogin: boolean = $state(false);
   let signingInWithApple: boolean = $state(false);
@@ -103,7 +105,7 @@
   });
 
   const shortcuts = [
-    { label: "Companies", sub: "Manage the shared watchlist", path: "/companies" },
+    { label: "Company Catalog", sub: "Browse companies monitored by pinkslip", path: "/companies" },
     { label: "Resume Profile", sub: "Structured resume data for tailoring", path: "/resume" },
   ] as const;
 
@@ -176,10 +178,9 @@
     loading = true;
     error = null;
     try {
-      const [prefsResult, meResult, runsResult] = await Promise.allSettled([
+      const [prefsResult, meResult] = await Promise.allSettled([
         api.preferences.get(),
         api.me.get(),
-        api.runs.list(50),
       ]);
 
       if (meResult.status === "fulfilled") {
@@ -187,6 +188,8 @@
         savedDisplayName = meResult.value.user?.name ?? "";
         sessionState = meResult.value.session.state;
         account = meResult.value.account ?? null;
+        isAdmin = meResult.value.is_admin === true;
+        syncSessionAccess(meResult.value);
         features = meResult.value.features ?? null;
       } else {
         throw meResult.reason;
@@ -206,11 +209,9 @@
         throw prefsResult.reason;
       }
 
-      if (runsResult.status === "fulfilled") {
-        runs = runsResult.value.runs ?? [];
-      } else {
-        runs = [];
-      }
+      runs = isAdmin
+        ? await api.runs.list(50).then((result) => result.runs ?? []).catch(() => [])
+        : [];
 
       await loadRemoteResume(sessionState);
 
@@ -581,7 +582,7 @@
         </section>
 
         <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
-          {#each settingsSections as section}
+          {#each settingsSections.filter((section) => section.id !== "operations" || isAdmin) as section}
             <button
               type="button"
               class:active={activeSettingsSection === section.id}
@@ -1073,7 +1074,7 @@
         </section>
         {/if}
 
-        {#if activeSettingsSection === "operations"}
+        {#if isAdmin && activeSettingsSection === "operations"}
         <section>
           <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Operations</div>
           <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">

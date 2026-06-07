@@ -5,11 +5,12 @@
   import Switch from "./Switch.svelte";
   import type { Company } from "../lib/api";
 
-  let { company, onToggle, onDelete, onEdit }: {
+  let { company, admin = false, onToggle, onDelete, onEdit }: {
     company: Company;
-    onToggle: (id: string, enabled: boolean) => void;
-    onDelete: (id: string, name: string) => void;
-    onEdit: (id: string) => void;
+    admin?: boolean;
+    onToggle?: (id: string, enabled: boolean) => void;
+    onDelete?: (id: string, name: string) => void;
+    onEdit?: (id: string) => void;
   } = $props();
 
   const atsUrls: Record<string, (slug: string) => string> = {
@@ -36,33 +37,37 @@
     </div>
     <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
       <span class="tag">{company.ats_type}</span>
-      <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.ats_slug}</span>
-      {#if hasError}
+      {#if admin}
+        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.ats_slug}</span>
+      {/if}
+      {#if admin && hasError}
         <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">ERR</span>
       {/if}
     </div>
   </div>
-  <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
-    <button
-      class="icon-btn"
-      style="width: 32px; height: 32px;"
-      aria-label="Edit {company.name}"
-      onclick={() => onEdit(company.id)}
-    >
-      <PencilSimple size={15} color={hasError ? "var(--color-bad)" : "var(--color-ink-3)"} />
-    </button>
-    <button
-      class="icon-btn"
-      style="width: 32px; height: 32px;"
-      aria-label="Delete {company.name}"
-      onclick={() => onDelete(company.id, company.name)}
-    >
-      <Trash size={15} color="var(--color-ink-3)" />
-    </button>
-  </div>
-  <Switch
-    checked={Boolean(company.enabled)}
-    onCheckedChange={(v) => onToggle(company.id, v)}
-    aria-label="Enable {company.name}"
-  />
+  {#if admin}
+    <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+      <button
+        class="icon-btn"
+        style="width: 32px; height: 32px;"
+        aria-label="Edit {company.name}"
+        onclick={() => onEdit?.(company.id)}
+      >
+        <PencilSimple size={15} color={hasError ? "var(--color-bad)" : "var(--color-ink-3)"} />
+      </button>
+      <button
+        class="icon-btn"
+        style="width: 32px; height: 32px;"
+        aria-label="Delete {company.name}"
+        onclick={() => onDelete?.(company.id, company.name)}
+      >
+        <Trash size={15} color="var(--color-ink-3)" />
+      </button>
+    </div>
+    <Switch
+      checked={Boolean(company.enabled)}
+      onCheckedChange={(v) => onToggle?.(company.id, v)}
+      aria-label="Enable {company.name}"
+    />
+  {/if}
 </div>

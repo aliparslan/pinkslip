@@ -4,6 +4,8 @@ import {
   authMiddleware,
   generateApiToken,
   parseBearerToken,
+  requireAdmin,
+  requireAuthenticated,
 } from "@worker/auth";
 import type { Env, Variables } from "@worker/types";
 
@@ -30,9 +32,15 @@ describe("generateApiToken", () => {
   });
 });
 
-function fakeDb(tokens: Record<string, string>): D1Database {
+function fakeDb(
+  tokens: Record<string, string>,
+  roles: Record<string, "user" | "admin"> = {}
+): D1Database {
   const sessions = new Map<string, { user_id: string; state: "guest" | "authenticated"; expires_at: string }>();
   const users = new Set<string>(Object.values(tokens));
+  const userRoles = new Map<string, "user" | "admin">(
+    Object.values(tokens).map((userId) => [userId, roles[userId] ?? "user"])
+  );
 
   return {
     prepare(sql: string) {
@@ -50,6 +58,10 @@ function fakeDb(tokens: Record<string, string>): D1Database {
           }
           if (normalized.includes("SELECT id FROM users WHERE id = ? LIMIT 1")) {
             return (users.has(bindings[0]) ? { id: bindings[0] } : null) as T | null;
+          }
+          if (normalized.includes("SELECT role FROM users WHERE id = ? LIMIT 1")) {
+            const role = userRoles.get(bindings[0]);
+            return (role ? { role } : null) as T | null;
           }
           if (normalized.includes("SELECT id, user_id, state, created_at, expires_at, revoked_at, last_seen_at FROM auth_sessions")) {
             const session = sessions.get(bindings[0]);
@@ -70,6 +82,7 @@ function fakeDb(tokens: Record<string, string>): D1Database {
         async run() {
           if (normalized.startsWith("INSERT INTO users")) {
             users.add(bindings[0]);
+            if (!userRoles.has(bindings[0])) userRoles.set(bindings[0], "user");
           } else if (normalized.startsWith("INSERT INTO auth_sessions")) {
             sessions.set(bindings[0], {
               user_id: bindings[1],
@@ -92,6 +105,8 @@ function appWith(db: D1Database) {
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
+  app.get("/api/signed-in", requireAuthenticated, (c) => c.json({ ok: true }));
+  app.post("/api/admin", requireAdmin, (c) => c.json({ ok: true }));
   return app;
 }
 
@@ -134,5 +149,47 @@ describe("authMiddleware", () => {
     expect(res.status).toBe(200);
     expect((await res.json()) as { sessionState: string }).toMatchObject({ sessionState: "guest" });
     expect(res.headers.get("set-cookie")).toContain("psid=");
+  });
+
+  it("rejects guests from authenticated-only routes", async () => {
+    const db = fakeDb({});
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/signed-in"),
+      ENV(db)
+    );
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { code: string }).code).toBe("authentication_required");
+  });
+
+  it("rejects an authenticated non-admin from admin routes", async () => {
+    const db = fakeDb({ "good-token": "user-42" });
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/admin", {
+        method: "POST",
+        headers: { authorization: "Bearer good-token" },
+      }),
+      ENV(db)
+    );
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("admin_required");
+  });
+
+  it("allows an authenticated admin through admin routes", async () => {
+    const db = fakeDb(
+      { "admin-token": "admin-1" },
+      { "admin-1": "admin" }
+    );
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/admin", {
+        method: "POST",
+        headers: { authorization: "Bearer admin-token" },
+      }),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
   });
 });

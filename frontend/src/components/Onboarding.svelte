@@ -2,6 +2,7 @@
   import { api } from "../lib/api";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush } from "../lib/native-push";
+  import { syncSessionAccess } from "../lib/session-access";
   import Wrench from "phosphor-svelte/lib/Wrench";
   import Check from "phosphor-svelte/lib/Check";
 
@@ -87,7 +88,8 @@
     accountError = null;
     try {
       const credential = await signInWithAppleNative();
-      await api.auth.signInWithApple(credential);
+      const accountState = await api.auth.signInWithApple(credential);
+      syncSessionAccess(accountState);
       // Signed in — the guest data we just gathered now lives on the account.
       finish();
     } catch (e: any) {

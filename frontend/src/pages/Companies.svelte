@@ -2,6 +2,7 @@
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
+  import { sessionAccess } from "../lib/session-access";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Plus from "phosphor-svelte/lib/Plus";
@@ -241,17 +242,21 @@
           Companies
         </h1>
         <p class="page-subtitle">
-          Shared watchlist, source health, and quick fixes for anything that falls out of sync.
+          {#if $sessionAccess.isAdmin}
+            Shared catalog, source health, and polling controls.
+          {:else}
+            Companies pinkslip monitors directly for new roles.
+          {/if}
         </p>
       </div>
     </div>
     <div class="stat-row" style="margin-bottom: 16px;">
       <span><strong style="color: var(--color-ink);">{enabledCount}</strong> active</span>
       <span><strong style="color: var(--color-ink);">{companies.length}</strong> total</span>
-      {#if errorCount > 0}
+      {#if $sessionAccess.isAdmin && errorCount > 0}
         <span><strong style="color: var(--color-bad);">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
       {/if}
-      {#if !showDisabled}
+      {#if $sessionAccess.isAdmin && !showDisabled}
         <span>disabled hidden</span>
       {/if}
     </div>
@@ -272,37 +277,39 @@
             onSelect={(f) => (selectedAts = f)}
           />
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <button
-            class="btn-secondary"
-            style="height: 32px; padding: 0 12px; font-size: 12px;"
-            onclick={() => showDisabled = !showDisabled}
-          >
-            {showDisabled ? "Hide disabled" : "Show disabled"}
-          </button>
-          {#if filteredCompanies.length > 0}
+        {#if $sessionAccess.isAdmin}
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
             <button
               class="btn-secondary"
               style="height: 32px; padding: 0 12px; font-size: 12px;"
-              onclick={() => toggleAll(!filteredAllEnabled)}
+              onclick={() => showDisabled = !showDisabled}
             >
-              {filteredAllEnabled ? "Deselect all" : "Select all"}
+              {showDisabled ? "Hide disabled" : "Show disabled"}
             </button>
-          {/if}
-          <button
-            class="btn-primary btn-accent"
-            style="height: 32px; padding: 0 12px; font-size: 12px; gap: 4px;"
-            onclick={() => { showAddForm = !showAddForm; }}
-          >
-            <Plus size={12} weight="bold" />
-            Add
-          </button>
-        </div>
+            {#if filteredCompanies.length > 0}
+              <button
+                class="btn-secondary"
+                style="height: 32px; padding: 0 12px; font-size: 12px;"
+                onclick={() => toggleAll(!filteredAllEnabled)}
+              >
+                {filteredAllEnabled ? "Deselect all" : "Select all"}
+              </button>
+            {/if}
+            <button
+              class="btn-primary btn-accent"
+              style="height: 32px; padding: 0 12px; font-size: 12px; gap: 4px;"
+              onclick={() => { showAddForm = !showAddForm; }}
+            >
+              <Plus size={12} weight="bold" />
+              Add
+            </button>
+          </div>
+        {/if}
       </div>
     </div>
 
     <!-- Add company form -->
-    {#if showAddForm}
+    {#if $sessionAccess.isAdmin && showAddForm}
       <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); margin-bottom: 20px; animation: fade-in 0.2s;">
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Add a company</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -387,12 +394,20 @@
         <div class="h-display" style="font-size: 24px; color: var(--color-ink-2); margin-bottom: 8px;">
           No companies found
         </div>
-        <div style="font-size: 13px;">Adjust your filters or add a company.</div>
+        <div style="font-size: 13px;">
+          {$sessionAccess.isAdmin ? "Adjust your filters or add a company." : "Try a different search or source filter."}
+        </div>
       </div>
     {:else}
       <div class="surface-list">
         {#each filteredCompanies as company (company.id)}
-          <CompanyRow {company} onToggle={handleToggle} onDelete={promptDelete} onEdit={openEdit} />
+          <CompanyRow
+            {company}
+            admin={$sessionAccess.isAdmin}
+            onToggle={handleToggle}
+            onDelete={promptDelete}
+            onEdit={openEdit}
+          />
         {/each}
       </div>
     {/if}
@@ -400,7 +415,7 @@
 </div>
 
 <!-- Edit company modal -->
-{#if editTarget}
+{#if $sessionAccess.isAdmin && editTarget}
   <div
     style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
@@ -475,7 +490,7 @@
 {/if}
 
 <!-- Delete confirmation modal -->
-{#if deleteTarget}
+{#if $sessionAccess.isAdmin && deleteTarget}
   <div
     style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
     role="presentation"
