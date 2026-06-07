@@ -9,6 +9,14 @@ import type { NotificationJob } from "./push";
 import { isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
 import type { Env, CompanyRow, PreferenceRow, PushSubscriptionRow } from "./types";
 import { getAdapter } from "./ats";
+import {
+  loadUserPreferenceState,
+} from "./user-preferences";
+import {
+  matchJobsForAllProfiles,
+  scoreListingsForUser,
+} from "./user-job-scores";
+import { upsertJobFeatures } from "./job-features";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +36,7 @@ export interface NewJobMeta {
   title: string;
   jobId: string;
   score: number;
+  listing: JobListing;
 }
 
 interface CompanyPollError {
@@ -251,11 +260,16 @@ export async function pollCompany(
       title: job.title,
       jobId: id,
       score: breakdown.score,
+      listing: job,
     });
   }
 
   if (insertStmts.length > 0) {
     await db.batch(insertStmts);
+    await upsertJobFeatures(
+      db,
+      newMeta.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+    );
   }
 
   return newMeta;
@@ -264,11 +278,9 @@ export async function pollCompany(
 export async function sendNotificationsForJobs(
   db: D1Database,
   env: Env,
-  jobs: NewJobMeta[],
-  threshold: number
+  jobs: NewJobMeta[]
 ): Promise<number> {
-  const qualifying = jobs.filter((j) => normalizeScore(j.score) >= threshold);
-  if (qualifying.length === 0) return 0;
+  if (jobs.length === 0) return 0;
 
   const subsResult = await db
     .prepare("SELECT * FROM push_subscriptions")
@@ -276,55 +288,77 @@ export async function sendNotificationsForJobs(
   const subscriptions = subsResult.results ?? [];
   if (subscriptions.length === 0) return 0;
 
-  const notifJobs: NotificationJob[] = qualifying.map((j) => ({
-    company: j.company,
-    title: j.title,
-    jobId: j.jobId,
-  }));
-  const payload = buildNotificationPayload(notifJobs);
   const vapid = {
     subject: env.VAPID_SUBJECT,
     publicKey: env.VAPID_PUBLIC_KEY,
     privateKey: env.VAPID_PRIVATE_KEY,
   };
   const apnsConfig = resolveApnsConfig(env);
-
-  const sendResults = await Promise.allSettled(
-    subscriptions.map((sub) =>
-      sub.platform === "ios" && apnsConfig
-        ? sendApnsNotification(sub.endpoint, payload, apnsConfig)
-        : sendPushNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: { p256dh: sub.p256dh, auth: sub.auth },
-            },
-            payload,
-            vapid
-          )
-    )
-  );
+  const subscriptionsByUser = new Map<string, PushSubscriptionRow[]>();
+  for (const subscription of subscriptions) {
+    if (!subscription.user_id) continue;
+    const existing = subscriptionsByUser.get(subscription.user_id) ?? [];
+    existing.push(subscription);
+    subscriptionsByUser.set(subscription.user_id, existing);
+  }
 
   let notificationsSent = 0;
-  for (let i = 0; i < sendResults.length; i++) {
-    const result = sendResults[i];
-    if (result.status !== "fulfilled") continue;
+  for (const [userId, userSubscriptions] of subscriptionsByUser) {
+    const state = await loadUserPreferenceState(db, userId);
+    const personalized = await scoreListingsForUser(
+      db,
+      userId,
+      jobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+    );
+    const qualifyingIds = new Set(
+      personalized
+        .filter((match) => match.plausible && normalizeScore(match.breakdown.score) >= state.notify_threshold)
+        .map((match) => match.jobId)
+    );
+    const qualifying = jobs.filter((job) => qualifyingIds.has(job.jobId));
+    if (qualifying.length === 0) continue;
 
-    const sub = subscriptions[i];
-    const isApns = sub.platform === "ios";
-    // iOS rows with APNs unconfigured were skipped (never sent); don't count them.
-    if (isApns && !apnsConfig) continue;
+    const notifJobs: NotificationJob[] = qualifying.map((job) => ({
+      company: job.company,
+      title: job.title,
+      jobId: job.jobId,
+    }));
+    const payload = buildNotificationPayload(notifJobs);
+    const sendResults = await Promise.allSettled(
+      userSubscriptions.map((sub) =>
+        sub.platform === "ios" && apnsConfig
+          ? sendApnsNotification(sub.endpoint, payload, apnsConfig)
+          : sendPushNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: { p256dh: sub.p256dh, auth: sub.auth },
+              },
+              payload,
+              vapid
+            )
+      )
+    );
 
-    if (result.value.ok) {
-      notificationsSent++;
-    } else {
-      const dead = isApns
-        ? isDeadApnsToken(result.value.status)
-        : result.value.status === 410 || result.value.status === 404;
-      if (dead) {
-        await db
-          .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
-          .bind(sub.endpoint)
-          .run();
+    for (let index = 0; index < sendResults.length; index++) {
+      const result = sendResults[index];
+      if (result.status !== "fulfilled") continue;
+
+      const sub = userSubscriptions[index];
+      const isApns = sub.platform === "ios";
+      if (isApns && !apnsConfig) continue;
+
+      if (result.value.ok) {
+        notificationsSent++;
+      } else {
+        const dead = isApns
+          ? isDeadApnsToken(result.value.status)
+          : result.value.status === 410 || result.value.status === 404;
+        if (dead) {
+          await db
+            .prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
+            .bind(sub.endpoint)
+            .run();
+        }
       }
     }
   }
@@ -385,8 +419,6 @@ export async function runPollCycle(
 
   // 2. Load preferences
   const prefs = await loadPreferencesForPoll(db);
-  const threshold = prefs.notify_threshold ?? 50;
-
   // 2b. Write last_polled_at early so it reflects cycle start even if we time out
   const now = new Date().toISOString();
   await db.prepare(
@@ -437,10 +469,15 @@ export async function runPollCycle(
     await db.batch(statusStmts);
   }
 
+  await matchJobsForAllProfiles(
+    db,
+    allNewJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+  );
+
   // 5. Send push notifications
   let notificationsSent = 0;
   if (sendNotifications) {
-    notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs, threshold);
+    notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs);
   }
 
   // Purge jobs closed for over 7 days (but preserve applied jobs)

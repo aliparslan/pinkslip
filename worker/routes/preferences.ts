@@ -1,71 +1,73 @@
 import { Hono } from "hono";
-import type { Env, PreferenceRow, Variables } from "../types";
-import { readUserPreferences, writeUserPreferences } from "../account";
+import type { Env, Variables } from "../types";
+import {
+  loadUserPreferenceState,
+  saveUserPreferenceState,
+} from "../user-preferences";
+import { ensureUserJobMatchesReady } from "../user-job-scores";
 
 const preferences = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-const ALLOWED_KEYS = new Set([
-  "locations",
-  "min_yoe",
-  "max_yoe",
-  "role_keywords",
-  "negative_keywords",
-  "notify_threshold",
-]);
-
-function parsePreferenceValue(value: string): unknown {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-function normalizePreferenceKey(key: string): string {
-  return key === "notification_threshold" ? "notify_threshold" : key;
-}
-
-async function readPreferences(db: D1Database, userId: string): Promise<Record<string, unknown>> {
-  const rows = await readUserPreferences(db, userId);
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(rows)) {
-    const normalizedKey = normalizePreferenceKey(key);
-    if (normalizedKey === "notification_threshold") continue;
-    out[normalizedKey] =
-      typeof value === "string"
-        ? parsePreferenceValue(value)
-        : value;
-  }
-  return out;
-}
-
 // GET / — Get all preferences as key-value object
 preferences.get("/", async (c) => {
-  return c.json(await readPreferences(c.env.DB, c.get("userId")));
+  return c.json(await loadUserPreferenceState(c.env.DB, c.get("userId")));
 });
 
 // PUT / — Update preferences
 preferences.put("/", async (c) => {
   const body = await c.req.json<Record<string, unknown>>();
-  const normalizedEntries = new Map<string, unknown>();
-
-  for (const [key, value] of Object.entries(body)) {
-    const normalizedKey = normalizePreferenceKey(key);
-    if (ALLOWED_KEYS.has(normalizedKey)) {
-      normalizedEntries.set(normalizedKey, value);
-    }
-  }
-
-  await writeUserPreferences(
+  const state = await saveUserPreferenceState(
     c.env.DB,
     c.get("userId"),
-    [...normalizedEntries.entries()].map(([key, value]) => ({
-      key,
-      value: JSON.stringify(value),
-    }))
+    {
+      search_profile: body.search_profile,
+      notify_threshold: body.notify_threshold ?? body.notification_threshold,
+    }
   );
+  return c.json(state);
+});
 
-  return c.json(await readPreferences(c.env.DB, c.get("userId")));
+preferences.get("/preview", async (c) => {
+  const userId = c.get("userId");
+  await ensureUserJobMatchesReady(c.env.DB, userId, 5);
+  const result = await c.env.DB.prepare(
+    `SELECT
+       j.id, j.title, j.location, j.posted_at, j.first_seen_at, j.salary,
+       c.name AS company_name, c.website AS company_domain,
+       ujm.score, ujm.reasons_json AS match_reasons_json
+     FROM user_job_matches ujm
+     JOIN jobs j ON j.id = ujm.job_id
+     JOIN companies c ON c.id = j.company_id
+     WHERE ujm.user_id = ?
+       AND c.enabled = 1
+       AND j.closed_at IS NULL
+     ORDER BY ujm.score DESC, datetime(j.first_seen_at) DESC
+     LIMIT 5`
+  ).bind(userId).all<{
+    id: string;
+    title: string;
+    location: string;
+    posted_at: string | null;
+    first_seen_at: string;
+    salary: string | null;
+    company_name: string;
+    company_domain: string;
+    score: number;
+    match_reasons_json: string;
+  }>();
+  return c.json({
+    jobs: (result.results ?? []).map((job) => {
+      let reasons: string[] = [];
+      try {
+        const parsed = JSON.parse(job.match_reasons_json);
+        reasons = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        reasons = [];
+      }
+      const { match_reasons_json: _, ...rest } = job;
+      return { ...rest, match_reasons: reasons };
+    }),
+  });
 });
 
 export default preferences;

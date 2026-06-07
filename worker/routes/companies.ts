@@ -242,8 +242,7 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
     const notificationsSent = await sendNotificationsForJobs(
       db,
       c.env,
-      newJobs,
-      prefs.notify_threshold ?? 50
+      newJobs
     );
     await db
       .prepare("UPDATE companies SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ? WHERE id = ?")
