@@ -259,11 +259,16 @@
     showAccessGate = false;
 
     try {
-      const res = await api.me.get();
+      const [res, preferences] = await Promise.all([
+        api.me.get(),
+        api.preferences.get(),
+      ]);
       if (gen !== bootGen) return;
       syncSessionAccess(res);
       userName = res.user?.name ?? "";
-      showOnboarding = !userName;
+      showOnboarding = !userName
+        || preferences.search_profile.onboarding_version < 2
+        || !preferences.search_profile.onboarding_completed_at;
       sessionReady = true;
     } catch (error) {
       if (gen !== bootGen) return;

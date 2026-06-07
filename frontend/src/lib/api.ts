@@ -67,6 +67,8 @@ export interface Job {
   saved?: boolean | number;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
+  match_reasons?: string[];
+  scorer_version?: string | null;
 }
 
 export interface Company {
@@ -264,6 +266,24 @@ export interface MeResponse {
   features?: AppFeatures;
 }
 
+export interface PreferenceState {
+  search_profile: SearchProfileV1;
+  notify_threshold: number;
+}
+
+export interface MatchPreviewJob {
+  id: string;
+  title: string;
+  location: string;
+  posted_at: string | null;
+  first_seen_at: string;
+  salary: string | null;
+  company_name: string;
+  company_domain: string;
+  score: number;
+  match_reasons: string[];
+}
+
 export const api = {
   jobs: {
     list: (params?: Record<string, string>) => {
@@ -320,9 +340,10 @@ export const api = {
       }),
   },
   preferences: {
-    get: () => request<Record<string, unknown>>("/preferences"),
-    update: (prefs: Record<string, unknown>) =>
-      request<Record<string, unknown>>("/preferences", {
+    get: () => request<PreferenceState>("/preferences"),
+    preview: () => request<{ jobs: MatchPreviewJob[] }>("/preferences/preview"),
+    update: (prefs: Partial<PreferenceState>) =>
+      request<PreferenceState>("/preferences", {
         method: "PUT",
         body: JSON.stringify(prefs),
       }),
@@ -523,3 +544,4 @@ export const api = {
       ),
   },
 };
+import type { SearchProfileV1 } from "../../../shared/search-profile";
