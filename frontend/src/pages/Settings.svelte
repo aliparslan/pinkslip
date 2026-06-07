@@ -25,8 +25,14 @@
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
+  import {
+    DEFAULT_SEARCH_PROFILE,
+    normalizeSearchProfile,
+    type SearchProfileV1,
+  } from "../../../shared/search-profile";
   import { navigate } from "../router";
   import Slider from "../components/Slider.svelte";
+  import SearchProfileFields from "../components/SearchProfileFields.svelte";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Eye from "phosphor-svelte/lib/Eye";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
@@ -35,15 +41,6 @@
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
-
-  const DEFAULTS = {
-    locations: "Remote, New York, San Francisco, Bay Area, Chicago, Boston, Washington DC, Seattle, Austin",
-    roleKeywords: "software engineer, fullstack, backend, frontend, forward deployed engineer",
-    negativeKeywords: "senior, sr, lead, staff, principal, director, vice president, vp, head of, manager, intern",
-    minYoe: 0,
-    maxYoe: 2,
-    notificationThreshold: 50,
-  } as const;
 
   let enablingPush: boolean = $state(false);
   let loading: boolean = $state(true);
@@ -64,11 +61,7 @@
   let remoteResume: ResumeAssetRecord | null = $state(null);
   let syncingResume: boolean = $state(false);
   let removingSyncedResume: boolean = $state(false);
-  let locations: string = $state("");
-  let roleKeywords: string = $state("");
-  let negativeKeywords: string = $state("");
-  let minYoe: number = $state(0);
-  let maxYoe: number = $state(10);
+  let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let notificationThreshold: number = $state(50);
   let pushStatus: string = $state("disabled");
   let testingNotif: string | null = $state(null);
@@ -116,6 +109,9 @@
     { id: "notifications", label: "Notify", sub: "Alerts" },
     { id: "operations", label: "Ops", sub: "Fetch runs" },
   ];
+  let visibleSettingsSections = $derived(
+    settingsSections.filter((section) => section.id !== "operations" || isAdmin)
+  );
 
   function inferTextFormat(fileName: string, mimeType: string): LocalResumeAsset["textFormat"] {
     const lower = fileName.toLowerCase();
@@ -197,14 +193,8 @@
 
       if (prefsResult.status === "fulfilled") {
         const prefs = prefsResult.value;
-        locations = ((prefs.locations as string[] | undefined) ?? []).join(", ");
-        roleKeywords = ((prefs.role_keywords as string[] | undefined) ?? []).join(", ");
-        negativeKeywords = ((prefs.negative_keywords as string[] | undefined) ?? []).join(", ");
-        minYoe = (prefs.min_yoe as number | undefined) ?? 0;
-        maxYoe = (prefs.max_yoe as number | undefined) ?? 10;
-        notificationThreshold = (prefs.notify_threshold as number | undefined)
-          ?? (prefs.notification_threshold as number | undefined)
-          ?? 50;
+        searchProfile = normalizeSearchProfile(prefs.search_profile);
+        notificationThreshold = prefs.notify_threshold ?? 50;
       } else {
         throw prefsResult.reason;
       }
@@ -257,10 +247,6 @@
     loadSettings();
   });
 
-  function parseList(str: string): string[] {
-    return str.split(",").map((s) => s.trim()).filter(Boolean);
-  }
-
   async function handleSave() {
     saving = true;
     error = null;
@@ -273,14 +259,16 @@
         displayName = trimmedName;
       }
 
-      await api.preferences.update({
-        locations: parseList(locations),
-        role_keywords: parseList(roleKeywords),
-        negative_keywords: parseList(negativeKeywords),
-        min_yoe: minYoe,
-        max_yoe: maxYoe,
+      const savedPreferences = await api.preferences.update({
+        search_profile: {
+          ...searchProfile,
+          notifications_enabled: pushStatus === "enabled",
+          match_threshold: notificationThreshold,
+        },
         notify_threshold: notificationThreshold,
       });
+      searchProfile = normalizeSearchProfile(savedPreferences.search_profile);
+      notificationThreshold = savedPreferences.notify_threshold;
       successMsg = "Preferences saved.";
       setTimeout(() => (successMsg = null), 3000);
     } catch (e: any) {
@@ -291,12 +279,8 @@
   }
 
   function resetToDefaults() {
-    locations = DEFAULTS.locations;
-    roleKeywords = DEFAULTS.roleKeywords;
-    negativeKeywords = DEFAULTS.negativeKeywords;
-    minYoe = DEFAULTS.minYoe;
-    maxYoe = DEFAULTS.maxYoe;
-    notificationThreshold = DEFAULTS.notificationThreshold;
+    searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
+    notificationThreshold = 50;
   }
 
   async function saveLocalSetup() {
@@ -581,8 +565,13 @@
           </div>
         </section>
 
-        <div class="settings-section-tabs" role="tablist" aria-label="Profile settings sections">
-          {#each settingsSections.filter((section) => section.id !== "operations" || isAdmin) as section}
+        <div
+          class="settings-section-tabs"
+          style={`--settings-section-count: ${visibleSettingsSections.length}`}
+          role="tablist"
+          aria-label="Profile settings sections"
+        >
+          {#each visibleSettingsSections as section}
             <button
               type="button"
               class:active={activeSettingsSection === section.id}
@@ -622,23 +611,9 @@
         <!-- Job Preferences -->
         {#if activeSettingsSection === "jobs"}
         <section>
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Job preferences</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
-            <div>
-              <label for="locations" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Locations</label>
-              <input id="locations" type="text" class="input-field" placeholder="Remote, NYC, SF" bind:value={locations} />
-              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Comma-separated</span>
-            </div>
-            <div>
-              <label for="role-keywords" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Role keywords</label>
-              <input id="role-keywords" type="text" class="input-field" placeholder="Software Engineer, SWE, Fullstack" bind:value={roleKeywords} />
-              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Comma-separated</span>
-            </div>
-            <div>
-              <label for="neg-keywords" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Negative keywords</label>
-              <input id="neg-keywords" type="text" class="input-field" placeholder="Intern, Sales, Senior Staff" bind:value={negativeKeywords} />
-              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); margin-top: 4px; display: block;">Jobs with these words score lower</span>
-            </div>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Search profile</div>
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 24px;">
+            <SearchProfileFields bind:profile={searchProfile} />
             <div style="display: flex; justify-content: flex-end;">
               <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={resetToDefaults}>
                 Reset defaults
@@ -647,22 +622,6 @@
           </div>
         </section>
 
-        <!-- Experience -->
-        <section>
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px;">Experience range</div>
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 18px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div>
-                <label for="min-yoe" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Min YOE</label>
-                <input id="min-yoe" type="number" class="input-field" min="0" max="20" bind:value={minYoe} />
-              </div>
-              <div>
-                <label for="max-yoe" style="font-size: 13px; font-weight: 500; margin-bottom: 6px; display: block;">Max YOE</label>
-                <input id="max-yoe" type="number" class="input-field" min="0" max="20" bind:value={maxYoe} />
-              </div>
-            </div>
-          </div>
-        </section>
         {/if}
 
         <!-- Notifications -->
@@ -690,6 +649,15 @@
                       try {
                         const ok = (await enableNativePush()) === "enabled";
                         pushStatus = ok ? "enabled" : "disabled";
+                        if (ok) {
+                          const saved = await api.preferences.update({
+                            search_profile: {
+                              ...searchProfile,
+                              notifications_enabled: true,
+                            },
+                          });
+                          searchProfile = normalizeSearchProfile(saved.search_profile);
+                        }
                         if (!ok) error = "Turn on notifications for pinkslip in the iOS Settings app.";
                       } catch (e: any) {
                         error = e.message;

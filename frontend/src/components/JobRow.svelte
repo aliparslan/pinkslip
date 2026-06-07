@@ -224,6 +224,9 @@
           {/if}
         </div>
       {/if}
+      {#if job.match_reasons?.length}
+        <div class="job-row__reasons">{job.match_reasons.slice(0, 2).join(" · ")}</div>
+      {/if}
     </div>
   </div>
 </div>
@@ -299,6 +302,15 @@
     margin-top: 2px;
     font-size: var(--fs-xs);
     color: var(--color-ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .job-row__reasons {
+    margin-top: 3px;
+    color: var(--color-accent);
+    font-size: 10px;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
