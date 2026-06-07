@@ -4,7 +4,8 @@
   "description": "Personal job alerting PWA on Cloudflare Workers",
   "scripts": {
     "dev": "bun run db:repair:local && wrangler dev",
-    "deploy": "bun run build:frontend && wrangler deploy",
+    "dev:prod-data": "bun run build:frontend && wrangler dev --remote",
+    "deploy": "bun run db:migrate:remote && bun run build:frontend && wrangler deploy",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "build:frontend": "cd frontend && bun run build",

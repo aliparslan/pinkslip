@@ -135,6 +135,25 @@ app.post("/api/poll", requireAdmin, async (c) => {
   });
 });
 
+app.onError((error, c) => {
+  const requestId = c.req.header("cf-ray") ?? crypto.randomUUID();
+  console.error("Unhandled request error", {
+    requestId,
+    method: c.req.method,
+    path: c.req.path,
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+  return c.json(
+    {
+      error: "Something went wrong while loading pinkslip. Please try again.",
+      code: "internal_error",
+      request_id: requestId,
+    },
+    500
+  );
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
