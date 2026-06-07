@@ -93,7 +93,9 @@ app.get("/auth/email/verify", async (c) =>
 app.get("/api/health", (c) =>
   c.json({
     ok: true,
-    version: "local",
+    version: ["localhost", "127.0.0.1", "::1"].includes(new URL(c.req.url).hostname)
+      ? "local"
+      : "production",
     timestamp: new Date().toISOString(),
   })
 );
