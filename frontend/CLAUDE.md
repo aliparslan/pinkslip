@@ -66,6 +66,18 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
 We are consolidating styling onto the above — don't add new inline-style soup,
 and don't introduce a competing styling system.
 
+## UI primitives (Bits UI)
+
+Interactive primitives use **Bits UI v2** (headless: behaviour + ARIA + keyboard)
+wrapped in thin components that wear our CSS. Prefer these over raw inputs:
+
+- Toggles → `components/Switch.svelte` (not `<input type="checkbox">`)
+- Sliders → `components/Slider.svelte` (not `<input type="range">`)
+
+Bits parts render `data-*` attributes (e.g. `[data-state="checked"]`); style via
+our classes in `app.css`. Keep custom gestures (swipe rows, pull-to-refresh,
+back-swipe) hand-rolled — Bits only covers standard primitives.
+
 ## API + data
 
 - Client: `src/lib/api.ts` — typed `api.*` namespaces; all calls hit `/api` with

@@ -2,6 +2,7 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import CompanyLogo from "./CompanyLogo.svelte";
+  import Switch from "./Switch.svelte";
   import type { Company } from "../lib/api";
 
   let { company, onToggle, onDelete, onEdit }: {
@@ -59,10 +60,9 @@
       <Trash size={15} color="var(--color-ink-3)" />
     </button>
   </div>
-  <input
-    type="checkbox"
+  <Switch
     checked={Boolean(company.enabled)}
-    onchange={(e) => onToggle(company.id, (e.target as HTMLInputElement).checked)}
+    onCheckedChange={(v) => onToggle(company.id, v)}
     aria-label="Enable {company.name}"
   />
 </div>

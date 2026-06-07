@@ -145,7 +145,7 @@
   }
 </script>
 
-<div style="position: relative; overflow: hidden; border-bottom: 0.5px solid var(--color-line); background: var(--color-bg);">
+<div class="job-row-wrap">
   {#if swipeX < -0.5}
     <!-- Action layer sits underneath; the row slides over to uncover it. -->
     <div class="swipe-actions" class:committing>
@@ -174,9 +174,12 @@
 
   <div
     bind:this={rowEl}
+    class="job-row"
+    class:viewed={viewed && Math.abs(swipeX) < 0.5 && !dismissing}
+    class:dismissing
     role="button"
     tabindex="0"
-    style="display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; cursor: pointer; padding: 10px 16px; position: relative; background: var(--color-bg); overflow: hidden; transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'}; will-change: transform; touch-action: pan-y; {(viewed && Math.abs(swipeX) < 0.5 && !dismissing) ? 'opacity: 0.5;' : ''} {dismissing ? 'pointer-events: none;' : ''}"
+    style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
     onclick={handleClick}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
     onpointerdown={onPointerDown}
@@ -185,29 +188,29 @@
     onpointercancel={settleSwipe}
   >
     <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={24} />
-    <div style="min-width: 0; overflow: hidden;">
-      <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-ink-3); font-family: var(--font-sans); margin-bottom: 1px;">
-        <span style="font-weight: 600; color: var(--color-ink); flex-shrink: 0;">{job.company_name}</span>
-        <span style="opacity: 0.4;">·</span>
-        <span style="flex-shrink: 0;">{timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
+    <div class="job-row__body">
+      <div class="job-row__meta">
+        <span class="job-row__company">{job.company_name}</span>
+        <span class="job-row__dot">·</span>
+        <span class="job-row__time">{timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
         {#if !viewed}
-          <span style="color: var(--color-accent); font-weight: 700; letter-spacing: 0.04em; flex-shrink: 0;">NEW</span>
+          <span class="job-row__new">NEW</span>
         {/if}
-        <span style="flex: 1;"></span>
-        <span style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor}; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; flex-shrink: 0;">
+        <span
+          class="job-row__score"
+          style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
+        >
           {scorePercent}
         </span>
       </div>
-      <div style="font-size: 15px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-        {job.title}
-      </div>
+      <div class="job-row__title">{job.title}</div>
       {#if job.location || displaySalary}
-        <div style="font-size: 12px; color: var(--color-ink-3); display: flex; align-items: center; gap: 6px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <div class="job-row__sub">
           {#if job.location}
             <span>{job.location}</span>
           {/if}
           {#if job.location && displaySalary}
-            <span style="opacity: 0.4;">·</span>
+            <span class="job-row__dot">·</span>
           {/if}
           {#if displaySalary}
             <span>{displaySalary}</span>
@@ -219,6 +222,81 @@
 </div>
 
 <style>
+  .job-row-wrap {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 0.5px solid var(--color-line);
+    background: var(--color-bg);
+  }
+
+  .job-row {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px var(--space-4);
+    position: relative;
+    background: var(--color-bg);
+    overflow: hidden;
+    cursor: pointer;
+    will-change: transform;
+    touch-action: pan-y;
+  }
+  .job-row.viewed { opacity: 0.5; }
+  .job-row.dismissing { pointer-events: none; }
+
+  .job-row__body { min-width: 0; overflow: hidden; }
+
+  .job-row__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 1px;
+    font-family: var(--font-sans);
+    font-size: var(--fs-2xs);
+    color: var(--color-ink-3);
+  }
+  .job-row__company { flex-shrink: 0; font-weight: 600; color: var(--color-ink); }
+  .job-row__dot { opacity: 0.4; }
+  .job-row__time { flex-shrink: 0; }
+  .job-row__new {
+    flex-shrink: 0;
+    color: var(--color-accent);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .job-row__score {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: var(--radius-xs);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .job-row__title {
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .job-row__sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: var(--fs-xs);
+    color: var(--color-ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .swipe-actions {
     position: absolute;
     inset: 0;

@@ -123,6 +123,30 @@
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Type scale ── use var(--fs-*) instead of one-off px font sizes. */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 15px;
+  --fs-md: 17px;
+  --fs-lg: 20px;
+  --fs-xl: 24px;
+  --fs-2xl: 28px;
+  --fs-3xl: 32px;
+
+  /* ── Spacing scale (4px base) ── use var(--space-*) for padding/gap/margin. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* ── Minimum comfortable tap target (iOS HIG / WCAG 2.5.5). */
+  --tap-min: 44px;
 }
 
 @theme {
@@ -130,6 +154,7 @@
   --font-sans: "American Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Founders Grotesk Mono", "American Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -142,8 +167,8 @@
   --color-bg-sunken: oklch(0.14 0.01 340);
   --color-ink: oklch(0.96 0.006 340);
   --color-ink-2: oklch(0.80 0.01 340);
-  --color-ink-3: oklch(0.62 0.012 340);
-  --color-ink-4: oklch(0.48 0.01 340);
+  --color-ink-3: oklch(0.66 0.012 340);
+  --color-ink-4: oklch(0.58 0.01 340);
   --color-line: oklch(0.30 0.012 340);
   --color-line-2: oklch(0.36 0.014 340);
   --color-accent: oklch(0.72 0.18 350);
@@ -164,7 +189,7 @@
     --color-ink: oklch(0.16 0.012 340);
     --color-ink-2: oklch(0.35 0.014 340);
     --color-ink-3: oklch(0.52 0.012 340);
-    --color-ink-4: oklch(0.7 0.01 340);
+    --color-ink-4: oklch(0.6 0.01 340);
     --color-line: oklch(0.9 0.01 340);
     --color-line-2: oklch(0.83 0.012 340);
     --color-accent: oklch(0.58 0.2 350);
@@ -183,7 +208,7 @@
   --color-ink: oklch(0.16 0.012 340);
   --color-ink-2: oklch(0.35 0.014 340);
   --color-ink-3: oklch(0.52 0.012 340);
-  --color-ink-4: oklch(0.7 0.01 340);
+  --color-ink-4: oklch(0.6 0.01 340);
   --color-line: oklch(0.9 0.01 340);
   --color-line-2: oklch(0.83 0.012 340);
   --color-accent: oklch(0.58 0.2 350);
@@ -385,7 +410,7 @@ html.native-ios select {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
+  height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-full);
   border: 1px solid var(--color-line-2);
@@ -497,7 +522,7 @@ html.native-ios select {
   gap: 2px;
   padding: 3px;
   border: 1px solid oklch(0.40 0.014 340);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: oklch(0.29 0.012 340);
   box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
   overflow-x: auto;
@@ -511,15 +536,15 @@ html.native-ios select {
 
 .filter-button {
   width: fit-content;
-  height: 26px;
-  min-height: 26px;
+  height: 30px;
+  min-height: 30px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: oklch(0.82 0.01 340);
   font-size: 11.5px;
@@ -581,7 +606,7 @@ html.native-ios select {
   overflow-x: auto;
   overflow-y: visible;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: transparent;
   box-shadow: none;
   scrollbar-width: none;
@@ -593,10 +618,10 @@ html.native-ios select {
 
 .sort-segmented button {
   min-width: max-content;
-  height: 26px;
+  height: 30px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: oklch(0.76 0.01 340);
   font-size: 11.5px;
@@ -933,8 +958,8 @@ html.native-ios select {
 /* ── Buttons ─────────────────────────────────────────────── */
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 10px;
@@ -1081,8 +1106,8 @@ html.native-ios select {
 }
 
 .save-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
@@ -1287,49 +1312,70 @@ select.input-field {
   to { transform: rotate(360deg); }
 }
 
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
+/* Bits UI <Slider> (see components/Slider.svelte). Track is the ::before line;
+   Bits positions Range (left/width) and Thumb; we only style appearance. */
+.slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 20px;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
   height: 3px;
+  border-radius: var(--radius-full);
   background: var(--color-line-2);
+}
+.slider__range {
+  position: absolute;
+  height: 3px;
   border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+.slider__thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  cursor: pointer;
+}
+.slider__thumb:focus-visible {
   outline: none;
-  box-shadow: none;
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  border: 0;
-  box-shadow: none;
-  cursor: pointer;
-}
-input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  border: 0;
-  box-shadow: none;
-  cursor: pointer;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-accent) 30%, transparent);
 }
 
-input[type="checkbox"] {
+/* iOS-style toggle. Rendered by Bits UI's <Switch> (button[role="switch"]);
+   see components/Switch.svelte. Driven off data-state, not :checked. */
+.switch {
   -webkit-appearance: none;
   appearance: none;
+  flex-shrink: 0;
   width: 44px;
   height: 26px;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-full);
   background: var(--color-line);
   cursor: pointer;
   position: relative;
   transition: background .2s;
 }
-input[type="checkbox"]::after {
-  content: "";
+.switch[data-state="checked"] { background: var(--color-accent); }
+.switch:disabled { opacity: 0.5; cursor: default; }
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 45%, transparent);
+}
+.switch-thumb {
+  display: block;
   position: absolute;
   left: 3px;
   top: 3px;
@@ -1339,8 +1385,7 @@ input[type="checkbox"]::after {
   background: white;
   transition: transform .2s;
 }
-input[type="checkbox"]:checked { background: var(--color-accent); }
-input[type="checkbox"]:checked::after { transform: translateX(18px); }
+.switch[data-state="checked"] .switch-thumb { transform: translateX(18px); }
 
 /* ── Stage badges ────────────────────────────────────────── */
 

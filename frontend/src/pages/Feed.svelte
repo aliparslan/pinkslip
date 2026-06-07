@@ -49,6 +49,8 @@
   import { viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
+  import Slider from "../components/Slider.svelte";
+  import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import X from "phosphor-svelte/lib/X";
@@ -666,21 +668,28 @@
   </div>
 </div>
 
-{#if filtersOpen}
-  <button type="button" class="sheet-backdrop" aria-label="Close filters" onclick={() => (filtersOpen = false)}></button>
-  <div class="sheet filter-sheet" role="dialog" aria-modal="true" aria-label="Feed filters" use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}>
-    <div class="sheet-handle"></div>
-    <div class="filter-sheet-header">
-      <div>
-        <div class="section-label">Feed</div>
-        <h2 class="h-display" style="font-size: 26px;">Filters</h2>
-      </div>
-      <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
-        <X size={18} />
-      </button>
-    </div>
+<Dialog.Root bind:open={filtersOpen}>
+  <Dialog.Portal>
+    <Dialog.Overlay class="sheet-backdrop" />
+    <Dialog.Content>
+      {#snippet child({ props })}
+        <div
+          {...props}
+          class="sheet filter-sheet"
+          use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}
+        >
+          <div class="sheet-handle"></div>
+          <div class="filter-sheet-header">
+            <div>
+              <div class="section-label">Feed</div>
+              <Dialog.Title class="h-display" style="font-size: 26px;">Filters</Dialog.Title>
+            </div>
+            <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
+              <X size={18} />
+            </button>
+          </div>
 
-    <div class="filter-sheet-body">
+          <div class="filter-sheet-body">
       <section class="filter-group">
         <div class="filter-group-title">Location</div>
         <div class="filter-option-grid">
@@ -743,7 +752,7 @@
           </div>
           <div class="filter-value">{minMatch}</div>
         </div>
-        <input type="range" min="0" max="100" step="5" bind:value={minMatch} />
+        <Slider min={0} max={100} step={5} bind:value={minMatch} />
       </section>
 
       <section class="filter-group">
@@ -759,9 +768,12 @@
       </section>
     </div>
 
-    <div class="filter-sheet-actions action-row">
-      <button class="btn-secondary" onclick={resetFilters}>Reset</button>
-      <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply filters</button>
-    </div>
-  </div>
-{/if}
+          <div class="filter-sheet-actions action-row">
+            <button class="btn-secondary" onclick={resetFilters}>Reset</button>
+            <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply filters</button>
+          </div>
+        </div>
+      {/snippet}
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>

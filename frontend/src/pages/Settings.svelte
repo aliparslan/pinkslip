@@ -25,6 +25,7 @@
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
   import { navigate } from "../router";
+  import Slider from "../components/Slider.svelte";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Eye from "phosphor-svelte/lib/Eye";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
@@ -712,7 +713,7 @@
                   {notificationThreshold}
                 </span>
               </div>
-              <input type="range" min="0" max="100" step="5" style="width: 100%;" bind:value={notificationThreshold} />
+              <Slider min={0} max={100} step={5} bind:value={notificationThreshold} />
               <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4);">
                 <span>0</span>
                 <span>50</span>

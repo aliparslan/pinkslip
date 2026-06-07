@@ -32,6 +32,7 @@
     "@capacitor/share": "^6",
     "@capacitor/status-bar": "^6",
     "@myriaddreamin/typst.ts": "^0.7.0-rc2",
+    "bits-ui": "^2.18.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.7.284",
     "phosphor-svelte": "^3.1.0",
