@@ -56,6 +56,12 @@
   import X from "phosphor-svelte/lib/X";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import { dragDismiss } from "../lib/drag-dismiss";
+  import {
+    DEFAULT_SEARCH_PROFILE,
+    normalizeSearchProfile,
+    type LocationId,
+    type SearchProfile,
+  } from "../../../shared/search-profile";
 
   const LOCATIONS = ["All", "Remote", "NYC", "SF Bay Area", "Chicago", "Boston", "DC"];
   const YOE_OPTIONS = [
@@ -90,6 +96,9 @@
   let filtersOpen: boolean = $state(false);
   let notifyThreshold: number = $state(feedCache.notifyThreshold);
   let profileThreshold: number = $state(50);
+  let currentProfile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
+  let showProfileConfirm: boolean = $state(false);
+  let savingProfileFilters: boolean = $state(false);
   let lastPolled: string | null = $state(feedCache.lastPolled);
   let refreshing: boolean = $state(false);
   let loadingMore: boolean = $state(false);
@@ -233,7 +242,8 @@
         if (version !== requestVersion) return;
 
         notifyThreshold = prefsRes.notify_threshold ?? 50;
-        profileThreshold = prefsRes.search_profile.match_threshold ?? notifyThreshold;
+        currentProfile = normalizeSearchProfile(prefsRes.search_profile);
+        profileThreshold = currentProfile.match_threshold ?? notifyThreshold;
         if (!feedCache.hydrated) minMatch = profileThreshold;
         lastPolled = statsRes.lastPolled ?? null;
       }
@@ -242,6 +252,13 @@
       if (version !== requestVersion) return;
 
       const incoming = jobsRes.jobs ?? [];
+      if (!append && incoming.length > 0) {
+        void api.interactions.event({
+          event_name: "job_displayed",
+          entity_type: "feed",
+          properties: { count: incoming.length },
+        }).catch(() => undefined);
+      }
       if (append) {
         jobs = [...jobs, ...incoming];
       } else {
@@ -352,6 +369,67 @@
     maxYoe = "";
     minMatch = profileThreshold;
     savedOnly = false;
+    showProfileConfirm = false;
+  }
+
+  const locationProfileMap: Record<string, LocationId> = {
+    NYC: "new_york",
+    "SF Bay Area": "sf_bay",
+    Chicago: "chicago",
+    Boston: "boston",
+    DC: "washington_dc",
+  };
+
+  let profileFilterChanges = $derived.by(() => {
+    const changes: string[] = [];
+    if (minMatch !== currentProfile.match_threshold) {
+      changes.push(`Default match threshold: ${currentProfile.match_threshold} → ${minMatch}`);
+    }
+    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
+      const labels = selectedLocations.join(", ");
+      changes.push(`Preferred locations: ${labels}`);
+    }
+    return changes;
+  });
+
+  async function saveCompatibleFiltersToProfile() {
+    if (savingProfileFilters || profileFilterChanges.length === 0) return;
+    savingProfileFilters = true;
+    try {
+      const locationIds = selectedLocations
+        .map((location) => locationProfileMap[location])
+        .filter((location): location is LocationId => Boolean(location));
+      const includesRemote = selectedLocations.includes("Remote");
+      const locationSelected = !(selectedLocations.length === 1 && selectedLocations[0] === "All");
+      const nextProfile = normalizeSearchProfile({
+        ...currentProfile,
+        match_threshold: minMatch,
+        location_ids: locationSelected ? locationIds : currentProfile.location_ids,
+        work_modes: locationSelected
+          ? includesRemote
+            ? [...new Set([...currentProfile.work_modes, "remote"])]
+            : currentProfile.work_modes.filter((mode) => mode !== "remote")
+          : currentProfile.work_modes,
+      });
+      const saved = await api.preferences.update({
+        search_profile: nextProfile,
+        notify_threshold: notifyThreshold,
+      });
+      currentProfile = normalizeSearchProfile(saved.search_profile);
+      profileThreshold = currentProfile.match_threshold;
+      await api.interactions.event({
+        event_name: "search_profile_adjusted",
+        entity_type: "search_profile",
+        properties: { source: "feed_filters", threshold: profileThreshold },
+      }).catch(() => undefined);
+      showProfileConfirm = false;
+      filtersOpen = false;
+      await loadFeed(true);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      savingProfileFilters = false;
+    }
   }
 
   async function applyFilterSheet() {
@@ -597,8 +675,8 @@
           <div class="sheet-handle"></div>
           <div class="filter-sheet-header">
             <div>
-              <div class="section-label">Feed</div>
-              <Dialog.Title class="h-display" style="font-size: 26px;">Filters</Dialog.Title>
+              <div class="section-label">Temporary controls</div>
+              <Dialog.Title class="h-display" style="font-size: 26px;">Filter this view</Dialog.Title>
             </div>
             <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
               <X size={18} />
@@ -684,8 +762,29 @@
       </section>
     </div>
 
+          {#if showProfileConfirm}
+            <div style="margin: 0 16px 12px; padding: 14px; border: 1px solid var(--color-line-2); border-radius: 13px; background: var(--color-bg-sunken);">
+              <div style="font-size: 13px; font-weight: 700; margin-bottom: 7px;">Update your search profile?</div>
+              {#each profileFilterChanges as change}
+                <div style="font-size: 11px; color: var(--color-ink-3); line-height: 1.5;">{change}</div>
+              {/each}
+              <div style="font-size: 10px; color: var(--color-ink-4); line-height: 1.4; margin-top: 7px;">
+                Salary, experience, sorting, search text, and saved-only remain temporary.
+              </div>
+              <div class="action-row compact" style="margin-top: 11px;">
+                <button class="btn-secondary" onclick={() => { showProfileConfirm = false; }}>Cancel</button>
+                <button class="btn-primary btn-accent" onclick={saveCompatibleFiltersToProfile} disabled={savingProfileFilters}>
+                  {savingProfileFilters ? "Saving..." : "Update profile"}
+                </button>
+              </div>
+            </div>
+          {/if}
+
           <div class="filter-sheet-actions action-row">
-            <button class="btn-secondary" onclick={resetFilters}>Reset</button>
+            <button class="btn-secondary" onclick={resetFilters}>Reset to profile</button>
+            {#if profileFilterChanges.length > 0 && !showProfileConfirm}
+              <button class="btn-secondary" onclick={() => { showProfileConfirm = true; }}>Update profile</button>
+            {/if}
             <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply filters</button>
           </div>
         </div>

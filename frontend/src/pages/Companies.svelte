@@ -9,11 +9,13 @@
   import Warning from "phosphor-svelte/lib/Warning";
 
   const ATS_TYPES = ["All", "greenhouse", "lever", "ashby", "custom"];
+  const USER_VIEWS = ["All", "Hidden"];
 
   let companies: Company[] = $state([]);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
   let selectedAts: string = $state("All");
+  let selectedView: string = $state("All");
   let search: string = $state("");
   let showDisabled: boolean = $state(false);
 
@@ -39,6 +41,9 @@
   let deleteTarget: { id: string; name: string } | null = $state(null);
   let deleting: boolean = $state(false);
   let toast: string | null = $state(null);
+  let reportTarget: { id: string; name: string } | null = $state(null);
+  let reportNotes: string = $state("");
+  let reporting: boolean = $state(false);
 
   let filteredCompanies = $derived(
     companies.filter((c) => {
@@ -48,7 +53,9 @@
         query === "" ||
         c.name.toLowerCase().includes(query) ||
         c.ats_slug.toLowerCase().includes(query);
-      const matchesVisibility = showDisabled || Boolean(c.enabled);
+      const matchesVisibility = $sessionAccess.isAdmin
+        ? showDisabled || Boolean(c.enabled)
+        : selectedView === "Hidden" ? Boolean(c.blocked) : !c.blocked;
       return matchesAts && matchesSearch && matchesVisibility;
     })
   );
@@ -70,6 +77,50 @@
     } catch (e: any) {
       companies = companies.map((c) => (c.id === id ? { ...c, enabled: !enabled } : c));
       error = e.message;
+    }
+  }
+
+  async function handleBlock(id: string) {
+    companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
+    try {
+      await api.companies.block(id);
+      toast = "Company hidden from your feed";
+      setTimeout(() => { toast = null; }, 2200);
+    } catch (e: any) {
+      companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
+      error = e.message;
+    }
+  }
+
+  async function handleRestore(id: string) {
+    companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
+    try {
+      await api.companies.restore(id);
+      toast = "Company restored";
+      setTimeout(() => { toast = null; }, 2200);
+    } catch (e: any) {
+      companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
+      error = e.message;
+    }
+  }
+
+  async function submitCompanyReport() {
+    if (!reportTarget || reporting) return;
+    reporting = true;
+    try {
+      await api.interactions.report({
+        company_id: reportTarget.id,
+        report_type: "broken_source",
+        notes: reportNotes,
+      });
+      toast = `Report sent for ${reportTarget.name}`;
+      reportTarget = null;
+      reportNotes = "";
+      setTimeout(() => { toast = null; }, 2400);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      reporting = false;
     }
   }
 
@@ -266,16 +317,24 @@
       <input
         class="input-field"
         type="search"
-        placeholder="Search companies or ATS slugs"
+        placeholder={$sessionAccess.isAdmin ? "Search companies or ATS slugs" : "Search companies"}
         bind:value={search}
       />
       <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
         <div style="min-width: 0;">
-          <FilterChips
-            filters={ATS_TYPES}
-            selected={selectedAts}
-            onSelect={(f) => (selectedAts = f)}
-          />
+          {#if $sessionAccess.isAdmin}
+            <FilterChips
+              filters={ATS_TYPES}
+              selected={selectedAts}
+              onSelect={(f) => (selectedAts = f)}
+            />
+          {:else}
+            <FilterChips
+              filters={USER_VIEWS}
+              selected={selectedView}
+              onSelect={(f) => (selectedView = f)}
+            />
+          {/if}
         </div>
         {#if $sessionAccess.isAdmin}
           <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
@@ -395,7 +454,7 @@
           No companies found
         </div>
         <div style="font-size: 13px;">
-          {$sessionAccess.isAdmin ? "Adjust your filters or add a company." : "Try a different search or source filter."}
+          {$sessionAccess.isAdmin ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You have not hidden any companies." : "Try a different company name."}
         </div>
       </div>
     {:else}
@@ -407,6 +466,9 @@
             onToggle={handleToggle}
             onDelete={promptDelete}
             onEdit={openEdit}
+            onBlock={handleBlock}
+            onRestore={handleRestore}
+            onReport={(id, name) => { reportTarget = { id, name }; }}
           />
         {/each}
       </div>
@@ -515,7 +577,7 @@
       <p style="font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
         This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.
         <br /><br />
-        If you just want to stop seeing their jobs, <strong>hide</strong> them instead.
+        If you only want to pause this source, disable it for everyone instead.
       </p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button
@@ -523,7 +585,7 @@
           style="width: 100%;"
           onclick={handleHide}
         >
-          Just hide it
+          Disable for everyone
         </button>
         <button
           class="btn-primary"
@@ -538,6 +600,40 @@
           onclick={() => { deleteTarget = null; }}
         >
           Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if !$sessionAccess.isAdmin && reportTarget}
+  <div class="modal-backdrop" role="presentation" onclick={() => { if (!reporting) reportTarget = null; }}>
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="company-report-title"
+      tabindex="-1"
+      onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => { if (event.key === "Escape" && !reporting) reportTarget = null; }}
+    >
+      <div id="company-report-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">
+        Report {reportTarget.name}
+      </div>
+      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
+        Let us know if its careers source is stale, broken, or missing jobs.
+      </p>
+      <textarea
+        class="input-field"
+        rows="4"
+        placeholder="What did you notice?"
+        bind:value={reportNotes}
+        style="height: auto; resize: vertical; margin-bottom: 14px;"
+      ></textarea>
+      <div class="action-row">
+        <button class="btn-secondary" onclick={() => { reportTarget = null; }} disabled={reporting}>Cancel</button>
+        <button class="btn-primary btn-accent" onclick={submitCompanyReport} disabled={reporting}>
+          {reporting ? "Sending..." : "Send report"}
         </button>
       </div>
     </div>

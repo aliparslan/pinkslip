@@ -33,6 +33,8 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import Warning from "phosphor-svelte/lib/Warning";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import EyeSlash from "phosphor-svelte/lib/EyeSlash";
+  import Flag from "phosphor-svelte/lib/Flag";
 
   let { jobId }: { jobId: string | null } = $props();
 
@@ -49,6 +51,13 @@
   let descriptionPending: boolean = $state(false);
   let descriptionRefreshTimer: number | null = $state(null);
   let descriptionRefreshAttempts: number = $state(0);
+  let hidingCompany: boolean = $state(false);
+  let showReport: boolean = $state(false);
+  let reportType: string = $state("incorrect_details");
+  let reportNotes: string = $state("");
+  let reporting: boolean = $state(false);
+  let reportSent: boolean = $state(false);
+  let openedJobId: string | null = null;
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
 
@@ -75,6 +84,15 @@
     try {
       const nextJob = await api.jobs.get(jobId);
       syncJobState(nextJob);
+      if (openedJobId !== jobId) {
+        openedJobId = jobId;
+        void api.interactions.event({
+          event_name: "job_opened",
+          entity_type: "job",
+          entity_id: jobId,
+          properties: { score: normalizeJobScore(nextJob.score ?? 0) },
+        }).catch(() => undefined);
+      }
 
       if (descriptionPending && descriptionRefreshAttempts < MAX_DESCRIPTION_REFRESH_ATTEMPTS) {
         clearDescriptionRefreshTimer();
@@ -158,6 +176,40 @@
     } catch (e: any) {
       error = e.message;
       blocking = false;
+    }
+  }
+
+  async function hideCompany() {
+    if (!job?.company_id || hidingCompany) return;
+    hidingCompany = true;
+    try {
+      await api.companies.block(job.company_id);
+      navigate("/");
+    } catch (e: any) {
+      error = e.message;
+      hidingCompany = false;
+    }
+  }
+
+  async function submitReport() {
+    if (!jobId || reporting) return;
+    reporting = true;
+    try {
+      await api.interactions.report({
+        job_id: jobId,
+        report_type: reportType,
+        notes: reportNotes,
+      });
+      reportSent = true;
+      window.setTimeout(() => {
+        showReport = false;
+        reportSent = false;
+        reportNotes = "";
+      }, 1000);
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      reporting = false;
     }
   }
 
@@ -362,6 +414,16 @@
             {dismissing ? "..." : "Dismiss for me"}
           </button>
         </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button class="btn-secondary btn-action" onclick={hideCompany} disabled={hidingCompany}>
+            <EyeSlash size={15} />
+            {hidingCompany ? "..." : `Hide ${job.company_name}`}
+          </button>
+          <button class="btn-secondary btn-action" onclick={() => { showReport = true; }}>
+            <Flag size={15} />
+            Report listing
+          </button>
+        </div>
       </div>
 
       <div style="height: 0.5px; background: var(--color-line);"></div>
@@ -468,6 +530,14 @@
           rel="noopener noreferrer"
           class="btn-primary btn-accent btn-action"
           style="text-decoration: none;"
+          onclick={() => {
+            void api.interactions.event({
+              event_name: "apply_clicked",
+              entity_type: "job",
+              entity_id: jobId ?? undefined,
+              properties: { score: scorePercent },
+            }).catch(() => undefined);
+          }}
         >
           Apply
           <ArrowSquareOut size={18} weight="regular" />
@@ -493,6 +563,50 @@
       >
         <ArrowRight size={18} />
       </button>
+    </div>
+  </div>
+{/if}
+
+{#if showReport}
+  <div
+    class="modal-backdrop"
+    role="presentation"
+    onclick={() => { if (!reporting) showReport = false; }}
+    onkeydown={(event) => { if (event.key === "Escape" && !reporting) showReport = false; }}
+  >
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="report-title"
+      tabindex="-1"
+      onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => { if (event.key === "Escape" && !reporting) showReport = false; }}
+    >
+      <div id="report-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">What looks wrong?</div>
+      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
+        Reports go to the pinkslip admin queue. They do not contact the employer.
+      </p>
+      <select class="input-field" bind:value={reportType} style="margin-bottom: 10px;">
+        <option value="expired_listing">Listing is closed</option>
+        <option value="incorrect_details">Details are incorrect</option>
+        <option value="duplicate_listing">Duplicate listing</option>
+        <option value="broken_source">Company source is broken</option>
+        <option value="other">Something else</option>
+      </select>
+      <textarea
+        class="input-field"
+        rows="4"
+        placeholder="Optional context"
+        bind:value={reportNotes}
+        style="height: auto; resize: vertical; margin-bottom: 14px;"
+      ></textarea>
+      <div class="action-row">
+        <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
+        <button class="btn-primary btn-accent" onclick={submitReport} disabled={reporting || reportSent}>
+          {reportSent ? "Reported" : reporting ? "Sending..." : "Send report"}
+        </button>
+      </div>
     </div>
   </div>
 {/if}

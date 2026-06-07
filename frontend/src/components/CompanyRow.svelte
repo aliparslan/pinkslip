@@ -1,16 +1,22 @@
 <script lang="ts">
   import Trash from "phosphor-svelte/lib/Trash";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
+  import EyeSlash from "phosphor-svelte/lib/EyeSlash";
+  import ArrowCounterClockwise from "phosphor-svelte/lib/ArrowCounterClockwise";
+  import Flag from "phosphor-svelte/lib/Flag";
   import CompanyLogo from "./CompanyLogo.svelte";
   import Switch from "./Switch.svelte";
   import type { Company } from "../lib/api";
 
-  let { company, admin = false, onToggle, onDelete, onEdit }: {
+  let { company, admin = false, onToggle, onDelete, onEdit, onBlock, onRestore, onReport }: {
     company: Company;
     admin?: boolean;
     onToggle?: (id: string, enabled: boolean) => void;
     onDelete?: (id: string, name: string) => void;
     onEdit?: (id: string) => void;
+    onBlock?: (id: string) => void;
+    onRestore?: (id: string) => void;
+    onReport?: (id: string, name: string) => void;
   } = $props();
 
   const atsUrls: Record<string, (slug: string) => string> = {
@@ -69,5 +75,33 @@
       onCheckedChange={(v) => onToggle?.(company.id, v)}
       aria-label="Enable {company.name}"
     />
+  {:else if company.blocked}
+    <button
+      class="btn-secondary"
+      style="height: 34px; padding: 0 11px; font-size: 11px; flex-shrink: 0;"
+      onclick={() => onRestore?.(company.id)}
+    >
+      <ArrowCounterClockwise size={14} />
+      Restore
+    </button>
+  {:else}
+    <div style="display: flex; gap: 2px; flex-shrink: 0;">
+      <button
+        class="icon-btn"
+        style="width: 34px; height: 34px;"
+        aria-label="Report a problem with {company.name}"
+        onclick={() => onReport?.(company.id, company.name)}
+      >
+        <Flag size={15} color="var(--color-ink-3)" />
+      </button>
+      <button
+        class="icon-btn"
+        style="width: 34px; height: 34px;"
+        aria-label="Hide {company.name}"
+        onclick={() => onBlock?.(company.id)}
+      >
+        <EyeSlash size={16} color="var(--color-ink-3)" />
+      </button>
+    </div>
   {/if}
 </div>
