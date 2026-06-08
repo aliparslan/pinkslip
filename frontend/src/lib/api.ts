@@ -97,6 +97,21 @@ export interface ContentReport {
   job_title: string | null;
 }
 
+export interface FeedbackSubmission {
+  id: string;
+  user_id: string;
+  submission_type: "company_request" | "feature_request" | "general_feedback";
+  title: string;
+  details: string;
+  careers_url: string | null;
+  status: "new" | "planned" | "resolved" | "declined";
+  admin_response: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  user_name?: string | null;
+}
+
 export interface ScorerRollout {
   scorer_version: string;
   mode: "off" | "shadow" | "active";
@@ -117,6 +132,7 @@ export interface ProductMetrics {
   profile_adjustments: number;
   tailoring_to_application_rate: number;
   open_reports: number;
+  open_feedback: number;
   scorer_audits: Array<{
     candidate_version: string;
     comparisons: number;
@@ -619,6 +635,28 @@ export const api = {
       request<{ reports: ContentReport[] }>(`/interactions/reports?status=${encodeURIComponent(status)}`),
     updateReport: (id: string, data: { status: string; admin_response?: string }) =>
       request<{ ok: boolean }>(`/interactions/reports/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    submitFeedback: (data: {
+      submission_type: FeedbackSubmission["submission_type"];
+      title: string;
+      details?: string;
+      careers_url?: string;
+    }) =>
+      request<{ feedback: FeedbackSubmission; duplicate: boolean }>("/interactions/feedback", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    feedback: (status = "active") =>
+      request<{ feedback: FeedbackSubmission[] }>(
+        `/interactions/feedback?status=${encodeURIComponent(status)}`
+      ),
+    updateFeedback: (
+      id: string,
+      data: { status: FeedbackSubmission["status"]; admin_response?: string }
+    ) =>
+      request<{ ok: boolean }>(`/interactions/feedback/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),

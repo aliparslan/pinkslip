@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
+import { validateFeedbackInput } from "../feedback";
 import { recordProductEvent } from "../product-events";
 import type { Env, Variables } from "../types";
 
@@ -142,6 +143,129 @@ interactions.patch("/reports/:id", requireAdmin, async (c) => {
     new Date().toISOString(),
     c.req.param("id")
   ).run();
+  return c.json({ ok: true });
+});
+
+interactions.post("/feedback", async (c) => {
+  const body = await c.req.json<{
+    submission_type?: string;
+    title?: string;
+    details?: string;
+    careers_url?: string;
+  }>().catch(() => ({}));
+  const validation = validateFeedbackInput(body);
+  if (!validation.ok) {
+    return c.json({ error: validation.error }, 400);
+  }
+
+  const userId = c.get("userId");
+  const feedback = validation.value;
+  const existing = await c.env.DB.prepare(
+    `SELECT *
+     FROM feedback_submissions
+     WHERE user_id = ?
+       AND submission_type = ?
+       AND lower(title) = lower(?)
+       AND status IN ('new', 'planned')
+     ORDER BY datetime(created_at) DESC
+     LIMIT 1`
+  ).bind(userId, feedback.submission_type, feedback.title).first();
+  if (existing) {
+    return c.json({ feedback: existing, duplicate: true });
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO feedback_submissions (
+       id, user_id, submission_type, title, details, careers_url,
+       status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?)`
+  ).bind(
+    id,
+    userId,
+    feedback.submission_type,
+    feedback.title,
+    feedback.details,
+    feedback.careers_url,
+    now,
+    now
+  ).run();
+  await recordProductEvent(c.env.DB, {
+    userId,
+    sessionId: c.get("sessionId"),
+    name: "feedback_submitted",
+    entityType: "feedback",
+    entityId: id,
+    properties: { feedback_type: feedback.submission_type },
+  }).catch(() => undefined);
+
+  return c.json({
+    feedback: {
+      id,
+      user_id: userId,
+      ...feedback,
+      status: "new",
+      admin_response: null,
+      created_at: now,
+      updated_at: now,
+      resolved_at: null,
+    },
+    duplicate: false,
+  }, 201);
+});
+
+interactions.get("/feedback", requireAdmin, async (c) => {
+  const status = c.req.query("status") ?? "active";
+  if (!["active", "new", "planned", "resolved", "declined", "all"].includes(status)) {
+    return c.json({ error: "Invalid feedback status" }, 400);
+  }
+
+  const result = await c.env.DB.prepare(
+    `SELECT f.*, u.name AS user_name
+     FROM feedback_submissions f
+     LEFT JOIN users u ON u.id = f.user_id
+     WHERE (
+       ? = 'all'
+       OR (? = 'active' AND f.status IN ('new', 'planned'))
+       OR f.status = ?
+     )
+     ORDER BY
+       CASE f.status WHEN 'new' THEN 0 WHEN 'planned' THEN 1 ELSE 2 END,
+       datetime(f.created_at) DESC
+     LIMIT 200`
+  ).bind(status, status, status).all();
+  return c.json({ feedback: result.results ?? [] });
+});
+
+interactions.patch("/feedback/:id", requireAdmin, async (c) => {
+  const body: { status?: string; admin_response?: string } = await c.req
+    .json<{ status?: string; admin_response?: string }>()
+    .catch(() => ({}));
+  const status = body.status;
+  if (!status || !["new", "planned", "resolved", "declined"].includes(status)) {
+    return c.json({ error: "Invalid feedback status" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await c.env.DB.prepare(
+    `UPDATE feedback_submissions
+     SET status = ?,
+         admin_response = ?,
+         updated_at = ?,
+         resolved_at = CASE WHEN ? IN ('resolved', 'declined') THEN ? ELSE NULL END
+     WHERE id = ?`
+  ).bind(
+    status,
+    body.admin_response?.trim().slice(0, 1000) ?? null,
+    now,
+    status,
+    now,
+    c.req.param("id")
+  ).run();
+  if (!result.meta.changes) {
+    return c.json({ error: "Feedback not found" }, 404);
+  }
   return c.json({ ok: true });
 });
 

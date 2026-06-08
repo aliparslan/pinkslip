@@ -551,6 +551,7 @@ export async function mergeGuestDataIntoAccount(
     db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailorings SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE content_reports SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE feedback_submissions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE product_events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
   ]);
 
@@ -597,6 +598,7 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM notification_candidates WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM scorer_audits WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM content_reports WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM feedback_submissions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM users WHERE id = ?").bind(userId),
   ]);
 

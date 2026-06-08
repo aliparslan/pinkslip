@@ -3,6 +3,7 @@ const ALLOWED_PROPERTIES = new Set([
   "score",
   "threshold",
   "report_type",
+  "feedback_type",
   "status",
   "provider",
   "model",

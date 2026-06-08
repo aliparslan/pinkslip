@@ -47,6 +47,7 @@ metrics.get("/", async (c) => {
     viableUsers,
     scorerAudits,
     openReports,
+    openFeedback,
     promptApplyClicks,
     highScoreOutcomes,
     tailoringConversions,
@@ -96,6 +97,9 @@ metrics.get("/", async (c) => {
     ).all<ScorerAuditRow>(),
     db.prepare(
       "SELECT COUNT(*) AS count FROM content_reports WHERE status = 'open'"
+    ).first<CountRow>(),
+    db.prepare(
+      "SELECT COUNT(*) AS count FROM feedback_submissions WHERE status IN ('new', 'planned')"
     ).first<CountRow>(),
     db.prepare(
       `SELECT COUNT(DISTINCT pe.user_id || ':' || pe.entity_id) AS count
@@ -166,6 +170,7 @@ metrics.get("/", async (c) => {
       ? Math.round((convertedTailorings / completedTailorings) * 1000) / 10
       : 0,
     open_reports: Number(openReports?.count ?? 0),
+    open_feedback: Number(openFeedback?.count ?? 0),
     scorer_audits: scorerAudits.results ?? [],
     events,
   });

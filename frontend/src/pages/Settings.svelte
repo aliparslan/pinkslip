@@ -6,6 +6,7 @@
     type AccountInfo,
     type AppFeatures,
     type ContentReport,
+    type FeedbackSubmission,
     type FetchRun,
     type ProductMetrics,
     type ResumeAssetRecord,
@@ -78,6 +79,7 @@
   let refreshLog: string[] = $state([]);
   let productMetrics: ProductMetrics | null = $state(null);
   let reports: ContentReport[] = $state([]);
+  let feedbackInbox: FeedbackSubmission[] = $state([]);
   let scorerRollouts: ScorerRollout[] = $state([]);
   let updatingRollout: string | null = $state(null);
   let localGeminiKey: string = $state("");
@@ -87,6 +89,12 @@
   let showGeminiKey: boolean = $state(false);
   let savingLocalSetup: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
+  let showFeedbackForm: boolean = $state(false);
+  let feedbackType: "feature_request" | "general_feedback" = $state("feature_request");
+  let feedbackTitle: string = $state("");
+  let feedbackDetails: string = $state("");
+  let submittingFeedback: boolean = $state(false);
+  let feedbackError: string | null = $state(null);
   type SettingsSection = "profile" | "jobs" | "tailoring" | "notifications" | "operations";
   let activeSettingsSection: SettingsSection = $state("profile");
 
@@ -234,14 +242,16 @@
         ? await api.runs.list(50).then((result) => result.runs ?? []).catch(() => [])
         : [];
       if (isAdmin) {
-        [productMetrics, reports, scorerRollouts] = await Promise.all([
+        [productMetrics, reports, feedbackInbox, scorerRollouts] = await Promise.all([
           api.metrics.get().catch(() => null),
           api.interactions.reports("open").then((result) => result.reports).catch(() => []),
+          api.interactions.feedback("active").then((result) => result.feedback).catch(() => []),
           api.metrics.rollouts().then((result) => result.rollouts).catch(() => []),
         ]);
       } else {
         productMetrics = null;
         reports = [];
+        feedbackInbox = [];
         scorerRollouts = [];
       }
 
@@ -347,6 +357,56 @@
           ...productMetrics,
           open_reports: Math.max(0, productMetrics.open_reports - 1),
         };
+      }
+    } catch (e: any) {
+      error = e.message;
+    }
+  }
+
+  async function submitProductFeedback() {
+    const title = feedbackTitle.trim();
+    if (title.length < 2 || submittingFeedback) return;
+    submittingFeedback = true;
+    feedbackError = null;
+    try {
+      const result = await api.interactions.submitFeedback({
+        submission_type: feedbackType,
+        title,
+        details: feedbackDetails.trim(),
+      });
+      showFeedbackForm = false;
+      feedbackType = "feature_request";
+      feedbackTitle = "";
+      feedbackDetails = "";
+      successMsg = result.duplicate
+        ? "That idea is already in your feedback queue."
+        : "Feedback sent. Thank you for helping shape pinkslip.";
+      setTimeout(() => (successMsg = null), 3200);
+    } catch (e: any) {
+      feedbackError = e.message;
+    } finally {
+      submittingFeedback = false;
+    }
+  }
+
+  async function moderateFeedback(
+    id: string,
+    status: "planned" | "resolved" | "declined"
+  ) {
+    try {
+      await api.interactions.updateFeedback(id, { status });
+      if (status === "planned") {
+        feedbackInbox = feedbackInbox.map((item) =>
+          item.id === id ? { ...item, status: "planned", updated_at: new Date().toISOString() } : item
+        );
+      } else {
+        feedbackInbox = feedbackInbox.filter((item) => item.id !== id);
+        if (productMetrics) {
+          productMetrics = {
+            ...productMetrics,
+            open_feedback: Math.max(0, productMetrics.open_feedback - 1),
+          };
+        }
       }
     } catch (e: any) {
       error = e.message;
@@ -695,6 +755,26 @@
               </button>
             {/each}
           </div>
+        </section>
+
+        <section>
+          <div class="section-label" style="margin-bottom: 10px;">Help shape pinkslip</div>
+          <button
+            class="shortcut-row"
+            type="button"
+            onclick={() => {
+              feedbackError = null;
+              showFeedbackForm = true;
+            }}
+          >
+            <div style="min-width: 0; text-align: left;">
+              <div style="font-size: 14px; font-weight: 600;">Send feedback</div>
+              <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">
+                Suggest a feature or tell us what is getting in your way
+              </div>
+            </div>
+            <CaretRight size={16} color="var(--color-ink-4)" />
+          </button>
         </section>
         {/if}
 
@@ -1196,6 +1276,8 @@
             <div class="ops-metric"><span>High-score dismiss</span><strong>{productMetrics.high_score_dismissal_rate}%</strong></div>
             <div class="ops-metric"><span>Tailor to apply</span><strong>{productMetrics.tailoring_to_application_rate}%</strong></div>
             <div class="ops-metric"><span>Profile adjustments</span><strong>{productMetrics.profile_adjustments}</strong></div>
+            <div class="ops-metric"><span>Active feedback</span><strong>{productMetrics.open_feedback}</strong></div>
+            <div class="ops-metric"><span>Open reports</span><strong>{productMetrics.open_reports}</strong></div>
           </div>
         </section>
         {/if}
@@ -1251,6 +1333,54 @@
                       {audit.comparisons} comparisons · avg {audit.average_delta >= 0 ? "+" : ""}{audit.average_delta} · {audit.major_disagreements} major disagreements
                     </div>
                   {/each}
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </section>
+
+        <section>
+          <div class="section-label" style="margin-bottom: 10px;">Feedback inbox</div>
+          <div class="surface-list">
+            {#if feedbackInbox.length === 0}
+              <div style="padding: 18px; font-size: 13px; color: var(--color-ink-3);">No active suggestions.</div>
+            {:else}
+              {#each feedbackInbox as item, index}
+                <div style="padding: 14px 16px; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
+                  <div style="display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;">
+                    <div style="min-width: 0;">
+                      <div style="font-size: 13.5px; font-weight: 600;">{item.title}</div>
+                      <div style="font-size: 11.5px; color: var(--color-ink-3); margin-top: 3px;">
+                        {item.user_name || "User"} · {new Date(item.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                      <span class="tag">{item.submission_type.replaceAll("_", " ")}</span>
+                      {#if item.status === "planned"}
+                        <span class="tag">planned</span>
+                      {/if}
+                    </div>
+                  </div>
+                  {#if item.details}
+                    <div style="font-size: 12.5px; color: var(--color-ink-2); margin-top: 8px; line-height: 1.45; white-space: pre-wrap;">{item.details}</div>
+                  {/if}
+                  {#if item.careers_url}
+                    <a
+                      href={item.careers_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style="display: inline-block; font-size: 12px; color: var(--color-accent); margin-top: 8px; overflow-wrap: anywhere;"
+                    >
+                      Open careers page
+                    </a>
+                  {/if}
+                  <div class="action-row compact" style="margin-top: 10px;">
+                    <button class="btn-secondary" onclick={() => moderateFeedback(item.id, "declined")}>Decline</button>
+                    {#if item.status !== "planned"}
+                      <button class="btn-secondary" onclick={() => moderateFeedback(item.id, "planned")}>Plan</button>
+                    {/if}
+                    <button class="btn-primary btn-accent" onclick={() => moderateFeedback(item.id, "resolved")}>Resolve</button>
+                  </div>
                 </div>
               {/each}
             {/if}
@@ -1374,3 +1504,71 @@
     {/if}
   </div>
 </div>
+
+{#if showFeedbackForm}
+  <div class="modal-backdrop" role="presentation" onclick={() => { if (!submittingFeedback) showFeedbackForm = false; }}>
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedback-form-title"
+      tabindex="-1"
+      onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => { if (event.key === "Escape" && !submittingFeedback) showFeedbackForm = false; }}
+    >
+      <div id="feedback-form-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">
+        Send feedback
+      </div>
+      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
+        Small frustrations and ambitious ideas are both useful. Tell us what would make your job search faster.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label for="feedback-type" class="field-label">Feedback type</label>
+          <select id="feedback-type" class="input-field" bind:value={feedbackType}>
+            <option value="feature_request">Feature idea</option>
+            <option value="general_feedback">General feedback</option>
+          </select>
+        </div>
+        <div>
+          <label for="feedback-title" class="field-label">Title</label>
+          <input
+            id="feedback-title"
+            class="input-field"
+            type="text"
+            maxlength="160"
+            placeholder={feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
+            bind:value={feedbackTitle}
+          />
+        </div>
+        <div>
+          <label for="feedback-details" class="field-label">Details <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+          <textarea
+            id="feedback-details"
+            class="input-field"
+            rows="6"
+            maxlength="2000"
+            placeholder="What problem would this solve, or what happened?"
+            bind:value={feedbackDetails}
+            style="height: auto; resize: vertical;"
+          ></textarea>
+        </div>
+        {#if feedbackError}
+          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+            {feedbackError}
+          </div>
+        {/if}
+      </div>
+      <div class="action-row" style="margin-top: 16px;">
+        <button class="btn-secondary" onclick={() => { showFeedbackForm = false; }} disabled={submittingFeedback}>Cancel</button>
+        <button
+          class="btn-primary btn-accent"
+          onclick={submitProductFeedback}
+          disabled={submittingFeedback || feedbackTitle.trim().length < 2}
+        >
+          {submittingFeedback ? "Sending..." : "Send feedback"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

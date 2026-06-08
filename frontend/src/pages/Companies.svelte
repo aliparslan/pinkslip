@@ -44,6 +44,12 @@
   let reportTarget: { id: string; name: string } | null = $state(null);
   let reportNotes: string = $state("");
   let reporting: boolean = $state(false);
+  let showCompanyRequest: boolean = $state(false);
+  let requestCompanyName: string = $state("");
+  let requestCareersUrl: string = $state("");
+  let requestCompanyNotes: string = $state("");
+  let requestingCompany: boolean = $state(false);
+  let requestCompanyError: string | null = $state(null);
 
   let filteredCompanies = $derived(
     companies.filter((c) => {
@@ -121,6 +127,33 @@
       error = e.message;
     } finally {
       reporting = false;
+    }
+  }
+
+  async function submitCompanyRequest() {
+    const companyName = requestCompanyName.trim();
+    if (!companyName || requestingCompany) return;
+    requestingCompany = true;
+    requestCompanyError = null;
+    try {
+      const result = await api.interactions.submitFeedback({
+        submission_type: "company_request",
+        title: companyName,
+        careers_url: requestCareersUrl.trim() || undefined,
+        details: requestCompanyNotes.trim(),
+      });
+      showCompanyRequest = false;
+      requestCompanyName = "";
+      requestCareersUrl = "";
+      requestCompanyNotes = "";
+      toast = result.duplicate
+        ? "That company is already in your request queue"
+        : "Company request sent";
+      setTimeout(() => { toast = null; }, 2600);
+    } catch (e: any) {
+      requestCompanyError = e.message;
+    } finally {
+      requestingCompany = false;
     }
   }
 
@@ -363,6 +396,19 @@
               Add
             </button>
           </div>
+        {:else}
+          <button
+            class="btn-secondary"
+            style="height: 36px; padding: 0 14px; font-size: 12px; gap: 5px; align-self: flex-start;"
+            onclick={() => {
+              requestCompanyName = search.trim();
+              requestCompanyError = null;
+              showCompanyRequest = true;
+            }}
+          >
+            <Plus size={13} weight="bold" />
+            Request a company
+          </button>
         {/if}
       </div>
     </div>
@@ -600,6 +646,77 @@
           onclick={() => { deleteTarget = null; }}
         >
           Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if !$sessionAccess.isAdmin && showCompanyRequest}
+  <div class="modal-backdrop" role="presentation" onclick={() => { if (!requestingCompany) showCompanyRequest = false; }}>
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="company-request-title"
+      tabindex="-1"
+      onclick={(event) => event.stopPropagation()}
+      onkeydown={(event) => { if (event.key === "Escape" && !requestingCompany) showCompanyRequest = false; }}
+    >
+      <div id="company-request-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">
+        Request a company
+      </div>
+      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
+        Tell us which company should join the catalog. A careers link helps us find the right source faster.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label for="request-company-name" class="field-label">Company name</label>
+          <input
+            id="request-company-name"
+            class="input-field"
+            type="text"
+            maxlength="160"
+            placeholder="e.g. Figma"
+            bind:value={requestCompanyName}
+          />
+        </div>
+        <div>
+          <label for="request-careers-url" class="field-label">Careers URL <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+          <input
+            id="request-careers-url"
+            class="input-field"
+            type="url"
+            placeholder="https://company.com/careers"
+            bind:value={requestCareersUrl}
+          />
+        </div>
+        <div>
+          <label for="request-company-notes" class="field-label">Notes <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+          <textarea
+            id="request-company-notes"
+            class="input-field"
+            rows="4"
+            maxlength="2000"
+            placeholder="Anything useful about the company or its job board"
+            bind:value={requestCompanyNotes}
+            style="height: auto; resize: vertical;"
+          ></textarea>
+        </div>
+        {#if requestCompanyError}
+          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+            {requestCompanyError}
+          </div>
+        {/if}
+      </div>
+      <div class="action-row" style="margin-top: 16px;">
+        <button class="btn-secondary" onclick={() => { showCompanyRequest = false; }} disabled={requestingCompany}>Cancel</button>
+        <button
+          class="btn-primary btn-accent"
+          onclick={submitCompanyRequest}
+          disabled={requestingCompany || requestCompanyName.trim().length < 2}
+        >
+          {requestingCompany ? "Sending..." : "Send request"}
         </button>
       </div>
     </div>
