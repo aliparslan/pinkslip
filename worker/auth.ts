@@ -6,7 +6,7 @@ import type {
   UserRow,
   Variables,
 } from "./types";
-import { randomOpaqueToken } from "./crypto";
+import { randomOpaqueToken, sha256Hex } from "./crypto";
 
 export const COOKIE_NAMES = {
   session: "psid",
@@ -14,6 +14,7 @@ export const COOKIE_NAMES = {
 } as const;
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2;
+export const ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const SESSION_TTL_MS = COOKIE_MAX_AGE * 1000;
 
 export function parseCookie(header: string | undefined, name: string): string | undefined {
@@ -55,6 +56,10 @@ export function generateApiToken(): string {
 
 export function generateSessionId(): string {
   return randomOpaqueToken(32);
+}
+
+export async function accessGrantValue(accessCode: string): Promise<string> {
+  return sha256Hex(`pinkslip-access:${accessCode}`);
 }
 
 export async function ensureUserExists(db: D1Database, userId: string) {
@@ -258,6 +263,13 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       if (!bearerUserId) {
         return c.json({ error: "Invalid token", code: "invalid_token" }, 401);
       }
+      // A bearer token only represents an authenticated account if the user
+      // actually has a sign-in identity. This rejects any token minted while the
+      // user was still a guest, which would otherwise be silently elevated to
+      // "authenticated" and bypass every requireAuthenticated guard.
+      if ((await countIdentitiesForUser(c.env.DB, bearerUserId)) === 0) {
+        return c.json({ error: "Invalid token", code: "invalid_token" }, 401);
+      }
       c.set("userId", bearerUserId);
       c.set("sessionId", null);
       c.set("sessionState", "authenticated");
@@ -270,7 +282,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
 
     if (accessCode) {
       const grantedCode = parseCookie(cookieHeader, COOKIE_NAMES.access);
-      if (grantedCode !== accessCode) {
+      if (grantedCode !== await accessGrantValue(accessCode)) {
         return c.json({ error: "Access required", code: "access_required" }, 401);
       }
     }

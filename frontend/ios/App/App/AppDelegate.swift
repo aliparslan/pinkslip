@@ -72,7 +72,8 @@ public class AppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCont
             "authorizationCode": authorizationCode ?? "",
             "user": credential.user,
             "email": credential.email ?? "",
-            "fullName": fullName
+            "fullName": fullName,
+            "state": credential.state ?? ""
         ])
     }
 

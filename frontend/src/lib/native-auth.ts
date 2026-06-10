@@ -15,6 +15,13 @@ interface AppleSignInPlugin {
 
 const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 
+function randomBase64Url(byteLength = 32) {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 export function isNativeIosAuthAvailable() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 }
@@ -23,7 +30,13 @@ export async function signInWithAppleNative() {
   if (!isNativeIosAuthAvailable()) {
     throw new Error("Sign in with Apple is only available in the iOS app.");
   }
-  return AppleSignIn.signIn();
+  const nonce = randomBase64Url();
+  const state = randomBase64Url();
+  const credential = await AppleSignIn.signIn({ nonce, state });
+  if (credential.state !== state) {
+    throw new Error("Apple sign-in state verification failed.");
+  }
+  return { ...credential, nonce };
 }
 
 export function isMagicLinkUrl(url: string) {

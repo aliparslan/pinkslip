@@ -34,12 +34,18 @@ describe("generateApiToken", () => {
 
 function fakeDb(
   tokens: Record<string, string>,
-  roles: Record<string, "user" | "admin"> = {}
+  roles: Record<string, "user" | "admin"> = {},
+  identityCounts?: Record<string, number>
 ): D1Database {
   const sessions = new Map<string, { user_id: string; state: "guest" | "authenticated"; expires_at: string }>();
   const users = new Set<string>(Object.values(tokens));
   const userRoles = new Map<string, "user" | "admin">(
     Object.values(tokens).map((userId) => [userId, roles[userId] ?? "user"])
+  );
+  // Real bearer users are authenticated and therefore have a sign-in identity, so
+  // default every token's user to 1 identity unless a test overrides the count.
+  const identityCount = new Map<string, number>(
+    Object.values(tokens).map((userId) => [userId, identityCounts?.[userId] ?? 1])
   );
 
   return {
@@ -62,6 +68,9 @@ function fakeDb(
           if (normalized.includes("SELECT role FROM users WHERE id = ? LIMIT 1")) {
             const role = userRoles.get(bindings[0]);
             return (role ? { role } : null) as T | null;
+          }
+          if (normalized.includes("COUNT(*) AS count FROM auth_identities")) {
+            return { count: identityCount.get(bindings[0]) ?? 0 } as T | null;
           }
           if (normalized.includes("SELECT id, user_id, state, created_at, expires_at, revoked_at, last_seen_at FROM auth_sessions")) {
             const session = sessions.get(bindings[0]);
@@ -124,6 +133,22 @@ describe("authMiddleware", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: "user-42", sessionState: "authenticated" });
+  });
+
+  it("rejects a bearer token whose user has no sign-in identity (guest-minted)", async () => {
+    // Regression: a guest could mint a token via /api/auth/token and then be
+    // treated as fully authenticated. A token only counts as authenticated when
+    // its user has an actual sign-in identity.
+    const db = fakeDb({ "guest-token": "guest-9" }, {}, { "guest-9": 0 });
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/whoami", {
+        headers: { authorization: "Bearer guest-token" },
+      }),
+      ENV(db)
+    );
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { code: string }).code).toBe("invalid_token");
   });
 
   it("rejects an invalid bearer token with 401", async () => {

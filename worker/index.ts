@@ -1,7 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env, Variables } from "./types";
-import { authMiddleware, buildCookie, COOKIE_NAMES, requireAdmin } from "./auth";
+import {
+  ACCESS_COOKIE_MAX_AGE,
+  accessGrantValue,
+  authMiddleware,
+  buildCookie,
+  COOKIE_NAMES,
+  requireAdmin,
+} from "./auth";
 import jobRoutes from "./routes/jobs";
 import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
@@ -20,7 +27,46 @@ import metricRoutes from "./routes/metrics";
 import { runPollCycle } from "./poller";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-app.use("/*", cors({ origin: (origin) => origin || "*", credentials: true }));
+
+// Credentialed CORS must NOT reflect arbitrary origins, or any website could make
+// authenticated requests as the signed-in user and read the responses. Allow only
+// our own web origin, the native Capacitor shells, and localhost during dev.
+const ALLOWED_ORIGINS = new Set([
+  "https://pinkslip.alip.dev",
+  "capacitor://localhost",
+  "ionic://localhost",
+]);
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+app.use(
+  "/*",
+  cors({
+    origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
+    credentials: true,
+  })
+);
+
+// Baseline security headers on Worker responses. The static app shell sets its
+// own (richer) headers via frontend/public/_headers, since Cloudflare Assets
+// serves it without invoking the Worker.
+app.use("/*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  c.header(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+  );
+});
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -31,15 +77,46 @@ app.post("/api/access", async (c) => {
     return c.json({ ok: true, required: false });
   }
 
+  const requestIp = (
+    c.req.header("cf-connecting-ip")
+    ?? c.req.header("x-forwarded-for")?.split(",")[0]
+    ?? "unknown"
+  ).trim();
+  const recentFailures = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS count
+     FROM access_attempts
+     WHERE request_ip = ?
+       AND datetime(attempted_at) > datetime('now', '-15 minutes')`
+  ).bind(requestIp).first<{ count: number }>().catch(() => ({ count: 0 }));
+  if ((recentFailures?.count ?? 0) >= 10) {
+    return c.json(
+      { error: "Too many attempts. Try again later.", code: "access_rate_limited" },
+      429,
+      { "Retry-After": "900" }
+    );
+  }
+
   const body = await c.req.json<{ code?: string }>().catch(() => null);
   const submittedCode = body?.code?.trim() ?? "";
   if (submittedCode !== accessCode) {
+    await c.env.DB.prepare(
+      "INSERT INTO access_attempts (id, request_ip, attempted_at) VALUES (?, ?, ?)"
+    ).bind(crypto.randomUUID(), requestIp, new Date().toISOString()).run().catch(() => undefined);
     return c.json({ error: "Invalid access code", code: "access_denied" }, 401);
   }
 
+  await c.env.DB.prepare("DELETE FROM access_attempts WHERE request_ip = ?")
+    .bind(requestIp)
+    .run()
+    .catch(() => undefined);
   c.header(
     "Set-Cookie",
-    buildCookie(COOKIE_NAMES.access, accessCode, c.req.url),
+    buildCookie(
+      COOKIE_NAMES.access,
+      await accessGrantValue(accessCode),
+      c.req.url,
+      ACCESS_COOKIE_MAX_AGE
+    ),
     { append: true }
   );
 

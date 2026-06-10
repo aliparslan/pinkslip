@@ -13,6 +13,7 @@ import {
   generateApiToken,
   getPrimaryIdentity,
   replaceSession,
+  requireAuthenticated,
   revokeApiTokensForUser,
 } from "../auth";
 import { randomOpaqueToken, sha256Hex } from "../crypto";
@@ -126,7 +127,10 @@ async function signInWithIdentity(
   const normalizedEmail = args.email ? normalizeEmail(args.email) : null;
 
   const directIdentity = await findIdentityByProviderSubject(db, args.provider, args.providerSubject);
-  const linkedIdentity = !directIdentity && normalizedEmail
+  // Only auto-link to an existing account by email when the provider asserts the
+  // email is verified. Linking on an unverified/attacker-supplied address would
+  // allow taking over another user's account.
+  const linkedIdentity = !directIdentity && normalizedEmail && args.emailVerified
     ? await findIdentityByEmail(db, normalizedEmail)
     : null;
 
@@ -208,7 +212,7 @@ async function consumeEmailLoginToken(db: D1Database, rawToken: string) {
   return row;
 }
 
-auth.post("/token", async (c) => {
+auth.post("/token", requireAuthenticated, async (c) => {
   const userId = c.get("userId");
 
   const existing = await c.env.DB.prepare(
@@ -241,8 +245,12 @@ auth.post("/apple/exchange", async (c) => {
   if (!identityToken) {
     return c.json({ error: "Missing identity token" }, 400);
   }
+  const nonce = body?.nonce?.trim();
+  if (!nonce) {
+    return c.json({ error: "Missing Apple sign-in nonce" }, 400);
+  }
 
-  const verified = await verifyAppleIdentityToken(c.env, identityToken, body?.nonce?.trim() || undefined)
+  const verified = await verifyAppleIdentityToken(c.env, identityToken, nonce)
     .catch((error) => {
       const message = error instanceof Error ? error.message : "Apple sign-in failed";
       return c.json({ error: message, code: "invalid_apple_token" }, 401);
@@ -259,7 +267,10 @@ auth.post("/apple/exchange", async (c) => {
   await signInWithIdentity(c, {
     provider: "apple",
     providerSubject: verified.sub,
-    email: body?.email?.trim() || verified.email || null,
+    // Trust ONLY the email inside Apple's signed identity token. The request body
+    // is attacker-controlled, so using body.email here let any Apple user link to
+    // (and take over) another account by submitting that account's address.
+    email: verified.email || null,
     emailVerified: verified.email_verified === true || verified.email_verified === "true",
     fullName: body?.fullName?.trim() || null,
   });
@@ -267,26 +278,61 @@ auth.post("/apple/exchange", async (c) => {
   return c.json(await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")));
 });
 
+// Basic shape check — not full RFC 5322, just enough to reject junk before we
+// pay to send anything.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 auth.post("/email/start", async (c) => {
   const body = await c.req.json<{ email?: string; redirect_uri?: string }>().catch(() => null);
   const email = normalizeEmail(body?.email ?? "");
-  if (!email || !email.includes("@")) {
+  if (!email || email.length > 254 || !EMAIL_PATTERN.test(email)) {
     return c.json({ error: "Enter a valid email address" }, 400);
+  }
+
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const requestIp = c.req.header("cf-connecting-ip")?.trim() || null;
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  // Rate limit per email (60s cooldown, 5/hour) and per IP (20/hour). On limit we
+  // succeed silently: we neither send another email nor reveal account existence.
+  const emailCounts = await c.env.DB.prepare(
+    `SELECT
+       COUNT(*) AS last_hour,
+       SUM(CASE WHEN datetime(created_at) > datetime(?) THEN 1 ELSE 0 END) AS last_minute
+     FROM email_login_tokens
+     WHERE email = ? AND datetime(created_at) > datetime(?)`
+  ).bind(oneMinuteAgo, email, oneHourAgo).first<{ last_hour: number; last_minute: number }>();
+
+  const ipCount = requestIp
+    ? await c.env.DB.prepare(
+        `SELECT COUNT(*) AS last_hour FROM email_login_tokens
+         WHERE request_ip = ? AND datetime(created_at) > datetime(?)`
+      ).bind(requestIp, oneHourAgo).first<{ last_hour: number }>()
+    : null;
+
+  const rateLimited =
+    (emailCounts?.last_minute ?? 0) >= 1 ||
+    (emailCounts?.last_hour ?? 0) >= 5 ||
+    (ipCount?.last_hour ?? 0) >= 20;
+
+  if (rateLimited) {
+    return c.json({ ok: true, expires_at: expiresAt });
   }
 
   const rawToken = randomOpaqueToken(32);
   const tokenHash = await sha256Hex(rawToken);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   await c.env.DB.prepare(
-    `INSERT INTO email_login_tokens (id, email, token_hash, expires_at, redirect_uri, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO email_login_tokens (id, email, token_hash, expires_at, redirect_uri, request_ip, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     crypto.randomUUID(),
     email,
     tokenHash,
     expiresAt,
     body?.redirect_uri?.trim() || null,
+    requestIp,
     new Date().toISOString()
   ).run();
 
