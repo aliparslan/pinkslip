@@ -29,6 +29,7 @@ push.get("/settings", async (c) => {
     push_enabled: row?.push_enabled !== 0,
     threshold: row?.threshold ?? 50,
     updated_at: row?.updated_at ?? null,
+    vapid_public_key: c.env.VAPID_PUBLIC_KEY?.trim() || null,
   });
 });
 
@@ -72,6 +73,24 @@ push.put("/settings", async (c) => {
     pushEnabled ? 1 : 0,
     threshold
   ).run();
+  if (enabled && pushEnabled) {
+    await c.env.DB.prepare(
+      `UPDATE notification_candidates
+       SET status = 'retry', attempt_count = 0, last_error = NULL
+       WHERE user_id = ?
+         AND status IN ('failed', 'skipped')
+         AND score >= CAST(ROUND(? * 0.95) AS INTEGER)`
+    ).bind(c.get("userId"), threshold).run();
+    await c.env.DB.prepare(
+      `UPDATE notification_deliveries
+       SET status = 'retry', attempt_count = 0, last_error = NULL
+       WHERE candidate_id IN (
+         SELECT id FROM notification_candidates
+         WHERE user_id = ? AND status = 'retry'
+       )
+         AND status = 'failed'`
+    ).bind(c.get("userId")).run();
+  }
   return c.json({ enabled, push_enabled: pushEnabled, threshold });
 });
 
@@ -110,8 +129,14 @@ push.post("/apns", async (c) => {
   const userId = c.get("userId");
   const body = await c.req.json<{ token: string }>().catch(() => null);
   const token = body?.token?.trim();
-  if (!token) {
+  if (!token || !/^[a-f0-9]{64,400}$/i.test(token)) {
     return c.json({ error: "Missing device token" }, 400);
+  }
+  const owner = await c.env.DB.prepare(
+    "SELECT user_id FROM push_subscriptions WHERE endpoint = ?"
+  ).bind(token).first<{ user_id: string | null }>();
+  if (owner?.user_id && owner.user_id !== userId) {
+    return c.json({ error: "This device is already registered to another account" }, 409);
   }
 
   const id = crypto.randomUUID();
@@ -143,7 +168,17 @@ push.post("/subscribe", async (c) => {
   const body = await c.req.json<{
     endpoint: string;
     keys: { p256dh: string; auth: string };
-  }>();
+  }>().catch(() => null);
+  const endpoint = body?.endpoint?.trim();
+  if (!endpoint || !endpoint.startsWith("https://") || !body?.keys?.p256dh || !body.keys.auth) {
+    return c.json({ error: "Invalid push subscription" }, 400);
+  }
+  const owner = await c.env.DB.prepare(
+    "SELECT user_id FROM push_subscriptions WHERE endpoint = ?"
+  ).bind(endpoint).first<{ user_id: string | null }>();
+  if (owner?.user_id && owner.user_id !== userId) {
+    return c.json({ error: "This browser is already registered to another account" }, 409);
+  }
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -157,13 +192,13 @@ push.post("/subscribe", async (c) => {
        auth = excluded.auth,
        created_at = excluded.created_at`
   )
-    .bind(id, userId, body.endpoint, body.keys.p256dh, body.keys.auth, now)
+    .bind(id, userId, endpoint, body.keys.p256dh.slice(0, 500), body.keys.auth.slice(0, 500), now)
     .run();
 
   const created = await c.env.DB.prepare(
     "SELECT * FROM push_subscriptions WHERE endpoint = ?"
   )
-    .bind(body.endpoint)
+    .bind(endpoint)
     .first<PushSubscriptionRow>();
 
   return c.json(created, 201);
@@ -171,12 +206,14 @@ push.post("/subscribe", async (c) => {
 
 // DELETE /subscribe — Remove subscription by endpoint
 push.delete("/subscribe", async (c) => {
-  const body = await c.req.json<{ endpoint: string }>();
+  const body = await c.req.json<{ endpoint?: string }>().catch(() => null);
+  const endpoint = body?.endpoint?.trim();
+  if (!endpoint) return c.json({ error: "Missing push endpoint" }, 400);
 
   await c.env.DB.prepare(
-    "DELETE FROM push_subscriptions WHERE endpoint = ?"
+    "DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?"
   )
-    .bind(body.endpoint)
+    .bind(endpoint, c.get("userId"))
     .run();
 
   return c.body(null, 204);

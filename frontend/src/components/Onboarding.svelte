@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, type MatchPreviewJob } from "../lib/api";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
-  import { enableNativePush } from "../lib/native-push";
+  import { enableNativePush, isNativeIos } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
   import {
     DEFAULT_SEARCH_PROFILE,
@@ -27,8 +27,9 @@
   let previewJobs: MatchPreviewJob[] = $state([]);
   let previewLoading: boolean = $state(false);
 
-  // Final step: optional account creation. Guests can always skip and keep
-  // everything on-device — signing in folds the guest data into the account.
+  // Final step: optional account creation. Guests can always skip; their data is
+  // stored server-side against the session cookie and signing in folds that guest
+  // data into the account.
   const appleAvailable = isNativeIosAuthAvailable();
   let emailLogin: string = $state("");
   let signingInWithApple: boolean = $state(false);
@@ -351,7 +352,7 @@
             {#if pushStatus === "denied"}
               <div style="padding: 0 16px 14px;">
                 <div style="padding: 8px 12px; border-radius: 8px; background: color-mix(in oklch, var(--color-warn) 14%, transparent); color: var(--color-warn); font-size: 12px; line-height: 1.4;">
-                  Permission denied. Turn on notifications for pinkslip in the iOS Settings app.
+                  Permission denied. Turn on notifications for pinkslip in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
                 </div>
               </div>
             {/if}
@@ -373,7 +374,7 @@
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Save your progress</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
-            Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; you can keep everything on this device as a guest.
+            Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; as a guest, your data is saved to this app and tied to this browser session until you sign in.
           </p>
 
           {#if accountError}

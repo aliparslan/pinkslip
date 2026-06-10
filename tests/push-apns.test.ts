@@ -38,6 +38,10 @@ function fakeDb() {
             const token = binds[0] as string;
             return (token === "good-token" ? { user_id: "user-abc" } : null) as T | null;
           }
+          if (sql.includes("COUNT(*) AS count FROM auth_identities")) {
+            // The bearer user is a real authenticated account, so it has an identity.
+            return { count: 1 } as T | null;
+          }
           if (sql.includes("FROM push_subscriptions WHERE endpoint")) {
             const endpoint = binds[0] as string;
             return (rows.get(endpoint) ?? null) as T | null;
@@ -59,6 +63,7 @@ function appWith(db: D1Database) {
 
 describe("POST /api/push/apns", () => {
   it("stores an iOS device token for the authenticated user", async () => {
+    const deviceToken = "ab".repeat(32);
     const db = fakeDb();
     const app = appWith(db);
     const res = await (app.fetch as any)(
@@ -68,14 +73,14 @@ describe("POST /api/push/apns", () => {
           "content-type": "application/json",
           authorization: "Bearer good-token",
         },
-        body: JSON.stringify({ token: "ABCD1234" }),
+        body: JSON.stringify({ token: deviceToken }),
       }),
       { DB: db } as Env
     );
 
     expect(res.status).toBe(201);
     const body = (await res.json()) as PushSubscriptionRow;
-    expect(body.endpoint).toBe("ABCD1234");
+    expect(body.endpoint).toBe(deviceToken);
     expect(body.platform).toBe("ios");
     expect(body.user_id).toBe("user-abc");
   });

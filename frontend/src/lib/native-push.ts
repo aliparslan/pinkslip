@@ -1,8 +1,6 @@
 // Native iOS push (APNs) registration via Capacitor.
 //
-// No-op outside the Capacitor iOS shell. Inside it: requests notification
-// permission, registers with APNs, ships the device token to the API (reusing
-// the cookie session), and deep-links into the hash router on notification tap.
+// Native iOS uses APNs. Browsers use the bundled service worker + Web Push.
 
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
@@ -29,6 +27,28 @@ function handleNotificationUrl(data: unknown): void {
 }
 
 let listenersReady = false;
+let serviceWorkerPromise: Promise<ServiceWorkerRegistration> | null = null;
+
+function webPushSupported() {
+  return !isNativeIos()
+    && "serviceWorker" in navigator
+    && "PushManager" in window
+    && "Notification" in window;
+}
+
+function decodeVapidKey(value: string) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const raw = atob(padded);
+  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+}
+
+function ensureWebServiceWorker() {
+  if (!serviceWorkerPromise) {
+    serviceWorkerPromise = navigator.serviceWorker.register("/sw.js?v=2");
+  }
+  return serviceWorkerPromise;
+}
 
 async function ensureListeners(): Promise<void> {
   if (listenersReady) return;
@@ -59,19 +79,28 @@ async function ensureListeners(): Promise<void> {
  * (the onboarding/settings "Enable" button) via enableNativePush().
  */
 export async function initNativePush(): Promise<void> {
-  if (!isNativeIos()) return;
-  await ensureListeners();
-  const perm = await PushNotifications.checkPermissions();
-  if (perm.receive === "granted") {
-    await PushNotifications.register();
+  if (isNativeIos()) {
+    await ensureListeners();
+    const perm = await PushNotifications.checkPermissions();
+    if (perm.receive === "granted") {
+      await PushNotifications.register();
+    }
+    return;
+  }
+  if (webPushSupported()) {
+    await ensureWebServiceWorker();
   }
 }
 
 /** Current notification permission as a UI status (no prompt). */
 export async function getNativePushStatus(): Promise<"enabled" | "disabled"> {
-  if (!isNativeIos()) return "disabled";
-  const perm = await PushNotifications.checkPermissions();
-  return perm.receive === "granted" ? "enabled" : "disabled";
+  if (isNativeIos()) {
+    const perm = await PushNotifications.checkPermissions();
+    return perm.receive === "granted" ? "enabled" : "disabled";
+  }
+  if (!webPushSupported() || Notification.permission !== "granted") return "disabled";
+  const registration = await ensureWebServiceWorker();
+  return await registration.pushManager.getSubscription() ? "enabled" : "disabled";
 }
 
 /**
@@ -79,12 +108,29 @@ export async function getNativePushStatus(): Promise<"enabled" | "disabled"> {
  * Returns the resulting status for the UI.
  */
 export async function enableNativePush(): Promise<"enabled" | "denied"> {
-  if (!isNativeIos()) return "denied";
-  await ensureListeners();
-  const perm = await PushNotifications.requestPermissions();
-  if (perm.receive === "granted") {
-    await PushNotifications.register();
-    return "enabled";
+  if (isNativeIos()) {
+    await ensureListeners();
+    const perm = await PushNotifications.requestPermissions();
+    if (perm.receive === "granted") {
+      await PushNotifications.register();
+      return "enabled";
+    }
+    return "denied";
   }
-  return "denied";
+  if (!webPushSupported()) return "denied";
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return "denied";
+  const registration = await ensureWebServiceWorker();
+  const settings = await api.push.settings();
+  if (!settings.vapid_public_key) {
+    throw new Error("Web push is not configured.");
+  }
+  const subscription = await registration.pushManager.getSubscription()
+    ?? await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeVapidKey(settings.vapid_public_key),
+    });
+  await api.push.subscribe(subscription);
+  return "enabled";
 }

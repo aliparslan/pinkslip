@@ -13,6 +13,7 @@
     type ScorerRollout,
     type TailorUsage,
   } from "../lib/api";
+  import { focusTrap } from "../lib/focus-trap";
   import {
     DEFAULT_TAILOR_MODEL,
     TAILOR_MODEL_OPTIONS,
@@ -27,7 +28,7 @@
     type LocalResumeAsset,
   } from "../lib/local-tailor";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
-  import { enableNativePush, getNativePushStatus, initNativePush } from "../lib/native-push";
+  import { enableNativePush, getNativePushStatus, initNativePush, isNativeIos } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
   import {
     DEFAULT_SEARCH_PROFILE,
@@ -876,7 +877,9 @@
                         const ok = (await enableNativePush()) === "enabled";
                         pushStatus = ok ? "enabled" : "disabled";
                         if (ok) notificationEnabled = true;
-                        if (!ok) error = "Turn on notifications for pinkslip in the iOS Settings app.";
+                        if (!ok) {
+                          error = `Turn on notifications for pinkslip in ${isNativeIos() ? "iOS Settings" : "your browser settings"}.`;
+                        }
                       } catch (e: any) {
                         error = e.message;
                       } finally {
@@ -1511,6 +1514,7 @@
       class="modal-card"
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="feedback-form-title"
       tabindex="-1"
       onclick={(event) => event.stopPropagation()}
