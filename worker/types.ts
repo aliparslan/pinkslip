@@ -47,10 +47,22 @@ export interface UserRow {
   created_at: string;
 }
 
+export type CompanySourceType =
+  | "greenhouse"
+  | "lever"
+  | "ashby"
+  | "workday"
+  | "rippling"
+  | "gem"
+  | "smartrecruiters"
+  | "yc"
+  | "custom";
+
 export interface CompanyRow {
   id: string;
   name: string;
   ats_type: "greenhouse" | "lever" | "ashby" | "custom";
+  source_type: CompanySourceType | null;
   ats_slug: string;
   website: string;
   enabled: number;
@@ -159,6 +171,7 @@ export interface ApplicationRow {
 
 export interface EventRow {
   id: string;
+  user_id: string | null;
   company_id: string | null;
   company_name: string;
   title: string;

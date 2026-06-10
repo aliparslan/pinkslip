@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
+import { ensureEligibleJobs } from "../job-scope";
 
 const stats = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -7,6 +8,7 @@ const stats = new Hono<{ Bindings: Env; Variables: Variables }>();
 stats.get("/", async (c) => {
   const userId = c.get("userId");
   const today = new Date().toISOString().slice(0, 10);
+  await ensureEligibleJobs(c.env.DB);
 
   const [totalResult, todayResult, companiesResult, appsResult, savedResult, lastPollResult] = await Promise.all([
     c.env.DB.prepare(
@@ -69,6 +71,7 @@ stats.get("/", async (c) => {
        FROM saved_jobs s
        JOIN jobs j ON j.id = s.job_id
        WHERE s.user_id = ?
+         AND j.closed_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM user_blocked_companies ubc
            WHERE ubc.user_id = ? AND ubc.company_id = j.company_id

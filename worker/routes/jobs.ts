@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
-import type { Env, Variables, JobRow, CompanyRow } from "../types";
+import type { Env, Variables, JobRow, CompanySourceType } from "../types";
 import { getAdapter } from "../ats";
 import { loadPreferencesForPoll } from "../poller";
 import { scoreJob } from "../scoring";
@@ -9,10 +9,17 @@ import {
   ensureUserJobMatchesReady,
   ensureUserJobScores,
   invalidateJobScores,
+  rescoreJobForMatchedUsers,
 } from "../user-job-scores";
 import { recordProductEvent } from "../product-events";
+import { ensureEligibleJobs } from "../job-scope";
+import { isUsJobLocation } from "../us-jobs";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
+jobs.use("/*", async (c, next) => {
+  await ensureEligibleJobs(c.env.DB);
+  await next();
+});
 const JOB_LIST_FIELDS = `
   j.id,
   j.company_id,
@@ -184,11 +191,15 @@ function extractRequiredYoe(row: Pick<JobListRow, "title" | "description">): num
   if (/\b(?:junior|new grad|new graduate|entry level|early career)\b/.test(text)) return 0;
   if (/\b(?:senior|sr\.?|staff|principal|lead)\b/.test(text)) return 5;
 
-  const rangeMatch = text.match(/\b(\d{1,2})\s*(?:\+|–|-|to)\s*(\d{1,2})?\s*(?:years?|yrs?)\b/);
+  const rangeMatch = text.match(/\b(\d{1,2})\s*(?:\+|–|-|to)\s*(\d{1,2})?\s*(?:years?|yrs?)\b(?!\s*ago)/);
   if (rangeMatch) return Number.parseInt(rangeMatch[1], 10);
 
-  const yearMatch = text.match(/\b(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b/);
-  if (yearMatch) return Number.parseInt(yearMatch[1], 10);
+  // Require a requirement cue so a stray "5 years ago" doesn't read as a YOE bar.
+  const qualified =
+    text.match(/\b(?:at least|minimum of|minimum|min\.?|requires?|require)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/)
+    ?? text.match(/\b(\d{1,2})\s*\+\s*(?:years?|yrs?)\b(?!\s*ago)/)
+    ?? text.match(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+|related\s+|work\s+|hands-on\s+)?experience\b/);
+  if (qualified) return Number.parseInt(qualified[1], 10);
 
   return null;
 }
@@ -236,8 +247,10 @@ jobs.get("/", async (c) => {
     max_yoe,
   } = c.req.query();
 
-  const limitVal = Math.min(parseInt(limit ?? "300", 10) || 300, 1000);
-  const offsetVal = parseInt(offset ?? "0", 10) || 0;
+  const parsedLimit = parseInt(limit ?? "300", 10);
+  const parsedOffset = parseInt(offset ?? "0", 10);
+  const limitVal = Math.max(1, Math.min(Number.isFinite(parsedLimit) ? parsedLimit : 300, 1000));
+  const offsetVal = Math.max(0, Number.isFinite(parsedOffset) ? parsedOffset : 0);
   const minSalary = min_salary !== undefined ? parseInt(min_salary, 10) : Number.NaN;
   const maxSalary = max_salary !== undefined ? parseInt(max_salary, 10) : Number.NaN;
   const maxYoe = max_yoe !== undefined ? parseInt(max_yoe, 10) : Number.NaN;
@@ -337,7 +350,7 @@ jobs.get("/", async (c) => {
     LIMIT ? OFFSET ?
   `;
 
-  bindings.push(hasAdvancedFilters ? 1000 : limitVal, hasAdvancedFilters ? 0 : offsetVal);
+  bindings.push(hasAdvancedFilters ? 1000 : limitVal + 1, hasAdvancedFilters ? 0 : offsetVal);
 
   const stmt = c.env.DB.prepare(sql);
   const result = await stmt.bind(...bindings).all<JobListRow>();
@@ -346,7 +359,7 @@ jobs.get("/", async (c) => {
     : (result.results ?? []);
   const rows = hasAdvancedFilters
     ? filteredRows.slice(offsetVal, offsetVal + limitVal)
-    : filteredRows;
+    : filteredRows.slice(0, limitVal);
 
   return c.json({
     jobs: rows.map(serializeJob),
@@ -355,7 +368,7 @@ jobs.get("/", async (c) => {
       count: rows.length,
       has_more: hasAdvancedFilters
         ? offsetVal + rows.length < filteredRows.length
-        : rows.length === limitVal,
+        : filteredRows.length > limitVal,
       next_offset: offsetVal + rows.length,
     },
   });
@@ -374,26 +387,37 @@ async function backfillJobContent(
     description: string | null;
     salary: string | null;
     ats_type: string;
+    source_type: string | null;
     ats_slug: string;
-  }
+  },
+  viewerUserId?: string
 ) {
-  const adapter = getAdapter(job.ats_type as CompanyRow["ats_type"]);
+  const adapter = getAdapter((job.source_type ?? job.ats_type) as CompanySourceType);
   if (!adapter) return;
 
-  const content = await adapter.fetchJobContent(job.ats_slug, job.external_id);
-  if (!content.description && !content.salary) return;
+  const content = await adapter.fetchJobContent(job.ats_slug, job.external_id, job.url);
+  if (!content.description && !content.salary && !content.location && !content.postedAt) return;
+  if (content.location && !isUsJobLocation(content.location)) {
+    await db.prepare(
+      "UPDATE jobs SET closed_at = ? WHERE id = ? AND closed_at IS NULL"
+    ).bind(new Date().toISOString(), job.id).run();
+    await invalidateJobScores(db, job.id);
+    return;
+  }
 
   const nextDescription = content.description ?? job.description;
   const nextSalary = content.salary ?? job.salary;
+  const nextLocation = content.location ?? job.location;
+  const nextPostedAt = content.postedAt ?? job.posted_at;
   const prefs = await loadPreferencesForPoll(db);
   const breakdown = scoreJob(
     {
       externalId: job.external_id,
       title: job.title,
       url: job.url,
-      location: job.location,
+      location: nextLocation,
       department: job.department,
-      postedAt: job.posted_at,
+      postedAt: nextPostedAt,
       description: nextDescription,
       salary: nextSalary,
     } satisfies JobListing,
@@ -410,6 +434,14 @@ async function backfillJobContent(
     sets.push("salary = ?");
     vals.push(content.salary);
   }
+  if (content.location) {
+    sets.push("location = ?");
+    vals.push(content.location);
+  }
+  if (content.postedAt) {
+    sets.push("posted_at = ?");
+    vals.push(content.postedAt);
+  }
   sets.push("score = ?", "title_score = ?", "yoe_score = ?", "location_score = ?", "department_score = ?", "recency_score = ?");
   vals.push(
     breakdown.score,
@@ -421,7 +453,9 @@ async function backfillJobContent(
   );
   vals.push(job.id);
   await db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).bind(...vals).run();
-  await invalidateJobScores(db, job.id);
+  // Re-score (don't blanket-invalidate) so the job keeps its place in the feeds
+  // of users it still matches, with an updated score from the new content.
+  await rescoreJobForMatchedUsers(db, job.id, viewerUserId);
 }
 
 // GET /:id — Job detail (backfills description on demand)
@@ -432,14 +466,14 @@ jobs.get("/:id", async (c) => {
   await ensureUserJobScores(db, userId, [id]);
 
   const result = await db.prepare(
-    `SELECT ${JOB_DETAIL_FIELDS}, c.ats_type, c.ats_slug
+    `SELECT ${JOB_DETAIL_FIELDS}, c.ats_type, c.source_type, c.ats_slug
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
-     WHERE j.id = ?`
+     WHERE j.id = ? AND j.closed_at IS NULL`
   )
     .bind(userId, userId, userId, id)
-    .first<JobListRow & { ats_type: string; ats_slug: string }>();
+    .first<JobListRow & { ats_type: string; source_type: string | null; ats_slug: string }>();
 
   if (!result) {
     return c.json({ error: "Not found" }, 404);
@@ -449,7 +483,7 @@ jobs.get("/:id", async (c) => {
   if (result.description === null) {
     contentPending = true;
     c.executionCtx.waitUntil(
-      backfillJobContent(db, result).catch((error) => {
+      backfillJobContent(db, result, userId).catch((error) => {
         console.error("Description backfill failed:", error);
       })
     );
@@ -518,7 +552,7 @@ jobs.patch("/:id", async (c) => {
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
-     WHERE j.id = ?`
+     WHERE j.id = ? AND j.closed_at IS NULL`
   )
     .bind(userId, userId, userId, id)
     .first<JobListRow>();
@@ -566,7 +600,8 @@ jobs.get("/saved/list", async (c) => {
      JOIN companies c ON j.company_id = c.id
      JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ?
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
-     WHERE NOT EXISTS (
+     WHERE j.closed_at IS NULL
+       AND NOT EXISTS (
        SELECT 1 FROM user_blocked_companies ubc
        WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
      )

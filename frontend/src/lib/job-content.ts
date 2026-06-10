@@ -49,7 +49,20 @@ function isHeadingEl(node: Element, root: Element): string | null {
   return null;
 }
 
-export function parseJobDescription(html: string): DescSection[] {
+// Some sources (notably Greenhouse) return descriptions as entity-encoded HTML
+// (e.g. "&lt;p&gt;…&lt;/p&gt;"), which otherwise renders as literal "<p>" text.
+// Decode once when we see encoded tags but no real tags. The guard prevents
+// double-decoding content that is already real HTML.
+function decodeEntitiesIfEncoded(html: string): string {
+  if (!/&lt;\/?[a-z]/i.test(html)) return html;
+  if (/<[a-z][\s\S]*>/i.test(html)) return html;
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = html;
+  return textarea.value;
+}
+
+export function parseJobDescription(rawHtml: string): DescSection[] {
+  const html = decodeEntitiesIfEncoded(rawHtml);
   const div = document.createElement("div");
   div.innerHTML = html;
 
@@ -139,7 +152,7 @@ const SALARY_PATTERNS = [
 export function extractSalaryFromHtml(html: string | null | undefined): string | null {
   if (!html) return null;
   const div = document.createElement("div");
-  div.innerHTML = html;
+  div.innerHTML = decodeEntitiesIfEncoded(html);
   const text = normalizeText(div.textContent ?? "");
   if (!text) return null;
 
@@ -165,7 +178,7 @@ export function extractSalaryFromHtml(html: string | null | undefined): string |
 export function extractPlainTextFromHtml(html: string | null | undefined): string {
   if (!html) return "";
   const div = document.createElement("div");
-  div.innerHTML = html;
+  div.innerHTML = decodeEntitiesIfEncoded(html);
   return normalizeText(div.textContent ?? "");
 }
 
@@ -205,6 +218,25 @@ function isBoilerplateBlock(text: string): boolean {
   return /equal opportunity|reasonable accommodation|pay transparency|privacy notice|applicant privacy|do not discriminate|diversity and inclusion|diversity, equity/i.test(text);
 }
 
+// Only treat a block as removable boilerplate when it is *mostly* boilerplate.
+// Otherwise an outer container that merely contains an EEO paragraph (common with
+// Greenhouse, which wraps the whole posting in one <div>) would delete the entire
+// description. Containers that wrap substantial non-boilerplate content are kept;
+// the boilerplate paragraphs inside them get removed individually.
+function blockIsMostlyBoilerplate(el: Element): boolean {
+  const text = normalizeText(el.textContent ?? "");
+  if (!isBoilerplateBlock(text)) return false;
+  for (const child of Array.from(
+    el.querySelectorAll("p, li, ul, ol, div, section, h1, h2, h3, h4, h5, h6")
+  )) {
+    const childText = normalizeText(child.textContent ?? "");
+    if (childText.length > 40 && !isBoilerplateBlock(childText)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function sanitizeUrl(value: string): string | null {
   try {
     const url = new URL(value, window.location.origin);
@@ -221,15 +253,17 @@ export function sanitizeJobDescriptionHtml(html: string | null | undefined): str
   if (!html) return "";
 
   const template = document.createElement("template");
-  template.innerHTML = html;
+  template.innerHTML = decodeEntitiesIfEncoded(html);
 
   template.content.querySelectorAll("script, style, iframe, object, embed, img, video, audio, form, input, button").forEach((el) => {
     el.remove();
   });
 
   for (const el of Array.from(template.content.querySelectorAll("*"))) {
-    const text = normalizeText(el.textContent ?? "");
-    if (BLOCK_TAGS.has(el.tagName) && isBoilerplateBlock(text)) {
+    // Skip elements already removed via an ancestor in a previous iteration.
+    if (!template.content.contains(el)) continue;
+
+    if (BLOCK_TAGS.has(el.tagName) && blockIsMostlyBoilerplate(el)) {
       el.remove();
       continue;
     }
@@ -239,12 +273,16 @@ export function sanitizeJobDescriptionHtml(html: string | null | undefined): str
       continue;
     }
 
+    // Capture the link target BEFORE stripping attributes — otherwise the href is
+    // already gone and the link resolves to the app's own origin.
+    const originalHref = el.tagName === "A" ? el.getAttribute("href") : null;
+
     for (const attr of Array.from(el.attributes)) {
       el.removeAttribute(attr.name);
     }
 
     if (el.tagName === "A") {
-      const href = sanitizeUrl((el as HTMLAnchorElement).href);
+      const href = originalHref ? sanitizeUrl(originalHref) : null;
       if (href) {
         el.setAttribute("href", href);
         el.setAttribute("target", "_blank");

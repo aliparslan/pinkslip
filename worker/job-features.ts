@@ -9,7 +9,7 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-export const JOB_CLASSIFIER_VERSION = "deterministic-v3";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v4";
 
 export interface JobFeatures {
   role_family: RoleFamily;
@@ -53,10 +53,19 @@ export function parseExperienceRequirement(
   description: string | null
 ): { min: number | null; max: number | null } {
   const text = `${title}\n${description ?? ""}`.toLowerCase();
-  const range = text.match(/\b(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b/);
+  // Explicit range, e.g. "3-5 years" — but not "3-5 years ago".
+  const range = text.match(/\b(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b(?!\s*ago)/);
   if (range) return { min: Number(range[1]), max: Number(range[2]) };
-  const minimum = text.match(/\b(?:at least|minimum of|min\.?)?\s*(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/);
-  if (minimum) return { min: Number(minimum[1]), max: null };
+  // A bare "N years" elsewhere in the description ("founded 3 years ago",
+  // "10 years of free snacks") is not an experience requirement. Require a
+  // requirement cue: an explicit qualifier ("at least/minimum N years", "N+
+  // years") or an experience-context phrase ("N years of experience").
+  const qualified = text.match(/\b(?:at least|minimum of|minimum|min\.?|requires?|require)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/);
+  if (qualified) return { min: Number(qualified[1]), max: null };
+  const plus = text.match(/\b(\d{1,2})\s*\+\s*(?:years?|yrs?)\b(?!\s*ago)/);
+  if (plus) return { min: Number(plus[1]), max: null };
+  const withExperience = text.match(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+|related\s+|work\s+|hands-on\s+)?experience\b/);
+  if (withExperience) return { min: Number(withExperience[1]), max: null };
   if (/\b(?:intern|internship|new grad|new graduate|entry level|early career)\b/.test(text)) {
     return { min: 0, max: 2 };
   }

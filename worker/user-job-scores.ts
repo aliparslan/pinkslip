@@ -429,6 +429,38 @@ export async function ensureUserJobMatchesReady(
   }
 }
 
+// The on-demand warm-up (ensureUserJobMatchesReady) stops at 25 matches and never
+// scans past the most recent jobs, so older strong matches never surface. Each
+// cron tick, advance the scoring cursor by one batch for a few users who still
+// have eligible jobs older than their cursor. Fully caught-up users are skipped,
+// so the backlog drains over a few ticks and then this becomes a no-op.
+export async function advanceBacklogScoring(
+  db: D1Database,
+  maxUsers = 15
+): Promise<number> {
+  const users = await db.prepare(
+    `SELECT usp.user_id
+     FROM user_search_profiles usp
+     WHERE usp.match_cursor_seen_at IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM jobs j
+         JOIN companies c ON c.id = j.company_id
+         WHERE c.enabled = 1
+           AND j.closed_at IS NULL
+           AND datetime(j.first_seen_at) < datetime(usp.match_cursor_seen_at)
+       )
+     ORDER BY datetime(usp.updated_at) ASC
+     LIMIT ?`
+  ).bind(maxUsers).all<{ user_id: string }>();
+
+  let advanced = 0;
+  for (const { user_id: userId } of users.results ?? []) {
+    const matches = await ensureUserJobScores(db, userId).catch(() => [] as UserJobMatch[]);
+    if (matches.length > 0) advanced += 1;
+  }
+  return advanced;
+}
+
 export async function scoreListingsForUser(
   db: D1Database,
   userId: string,
@@ -459,4 +491,35 @@ export async function invalidateJobScores(db: D1Database, jobId: string) {
     db.prepare("DELETE FROM user_job_matches WHERE job_id = ?").bind(jobId).run(),
     db.prepare("DELETE FROM job_features WHERE job_id = ?").bind(jobId).run(),
   ]);
+}
+
+// Used after a job's content changes (e.g. description backfilled on open).
+// Recompute its features and re-score it for everyone who currently has it in
+// their feed — plus the viewer who triggered the change — so it stays visible
+// with an updated score instead of being dropped from every feed until some
+// future warm-up happens to reach it. A job that genuinely stops matching is
+// removed only for the users it no longer fits.
+export async function rescoreJobForMatchedUsers(
+  db: D1Database,
+  jobId: string,
+  viewerUserId?: string
+) {
+  await db.prepare("DELETE FROM job_features WHERE job_id = ?").bind(jobId).run();
+  await ensureJobFeaturesForIds(db, [jobId]);
+
+  const matchedUsers = await db.prepare(
+    "SELECT DISTINCT user_id FROM user_job_matches WHERE job_id = ?"
+  ).bind(jobId).all<{ user_id: string }>();
+  const userIds = new Set((matchedUsers.results ?? []).map((row) => row.user_id));
+  if (viewerUserId) userIds.add(viewerUserId);
+
+  for (const userId of userIds) {
+    const matches = await ensureUserJobScores(db, userId, [jobId]);
+    const match = matches.find((entry) => entry.jobId === jobId);
+    if (!match?.plausible) {
+      await db.prepare(
+        "DELETE FROM user_job_matches WHERE user_id = ? AND job_id = ?"
+      ).bind(userId, jobId).run();
+    }
+  }
 }

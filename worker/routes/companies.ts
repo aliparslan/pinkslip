@@ -1,14 +1,65 @@
 import { Hono } from "hono";
 import { isAdminUser, requireAdmin } from "../auth";
-import type { Env, CompanyRow, Variables } from "../types";
+import type { Env, CompanyRow, CompanySourceType, Variables } from "../types";
 import { loadPreferencesForPoll, pollCompany, sendNotificationsForJobs } from "../poller";
 import { matchJobsForAllProfiles } from "../user-job-scores";
 import { verifyCompanySource } from "../ats";
+import { normalizeGemSource } from "../adapters/gem";
+import { normalizeRipplingSource } from "../adapters/rippling";
+import { normalizeSmartRecruitersSource } from "../adapters/smartrecruiters";
+import { normalizeWorkdaySource } from "../adapters/workday";
+import { normalizeYcSource } from "../adapters/yc";
 
 const companies = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-function normalizeAtsSlug(slug: string): string {
-  return slug.trim();
+const KNOWN_SOURCE_TYPES = new Set<CompanySourceType>([
+  "greenhouse", "lever", "ashby", "workday", "rippling", "gem", "smartrecruiters", "yc", "custom",
+]);
+
+function assertKnownSourceType(value: string): asserts value is CompanySourceType {
+  if (!KNOWN_SOURCE_TYPES.has(value as CompanySourceType)) {
+    throw new Error(`Unknown ATS type "${value}"`);
+  }
+}
+
+function effectiveSourceType(company: Pick<CompanyRow, "ats_type" | "source_type">) {
+  return company.source_type ?? company.ats_type;
+}
+
+function storedAtsType(sourceType: CompanySourceType): CompanyRow["ats_type"] {
+  return ["greenhouse", "lever", "ashby"].includes(sourceType)
+    ? sourceType as CompanyRow["ats_type"]
+    : "custom";
+}
+
+function normalizeAtsSlug(sourceType: CompanySourceType, slug: string): string {
+  switch (sourceType) {
+    case "workday":
+      return normalizeWorkdaySource(slug);
+    case "rippling":
+      return normalizeRipplingSource(slug);
+    case "gem":
+      return normalizeGemSource(slug);
+    case "smartrecruiters":
+      return normalizeSmartRecruitersSource(slug);
+    case "yc":
+      return normalizeYcSource(slug);
+    case "greenhouse":
+    case "lever":
+    case "ashby": {
+      const trimmed = slug.trim();
+      if (/\s/.test(trimmed) || /:\/\//.test(trimmed) || trimmed.includes("/")) {
+        throw new Error(`Enter just the ${sourceType} board token, not a full URL`);
+      }
+      return trimmed;
+    }
+    default:
+      return slug.trim();
+  }
+}
+
+function serializeCompany<T extends CompanyRow>(company: T) {
+  return { ...company, ats_type: effectiveSourceType(company) };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -28,7 +79,7 @@ companies.get("/", async (c) => {
   const bindings: string[] = [];
 
   if (ats_type !== undefined) {
-    conditions.push("c.ats_type = ?");
+    conditions.push("COALESCE(c.source_type, c.ats_type) = ?");
     bindings.push(ats_type);
   }
 
@@ -46,20 +97,21 @@ companies.get("/", async (c) => {
     .bind(c.get("userId"), ...bindings)
     .all<CompanyRow>();
 
-  return c.json({ companies: result.results ?? [] });
+  return c.json({ companies: (result.results ?? []).map(serializeCompany) });
 });
 
 // POST /verify — Test an ATS slug without persisting it
 companies.post("/verify", requireAdmin, async (c) => {
   const body = await c.req.json<{
-    ats_type: CompanyRow["ats_type"];
+    ats_type: CompanySourceType;
     ats_slug: string;
   }>();
 
   try {
+    const atsSlug = normalizeAtsSlug(body.ats_type, body.ats_slug);
     const jobs = await verifyCompanySource({
       ats_type: body.ats_type,
-      ats_slug: body.ats_slug.trim(),
+      ats_slug: atsSlug,
     });
     return c.json({
       ok: true,
@@ -78,20 +130,27 @@ companies.post("/verify", requireAdmin, async (c) => {
 companies.post("/", requireAdmin, async (c) => {
   const body = await c.req.json<{
     name: string;
-    ats_type: CompanyRow["ats_type"];
+    ats_type: CompanySourceType;
     ats_slug: string;
     website?: string;
   }>();
 
-  const name = body.name.trim();
-  const atsSlug = normalizeAtsSlug(body.ats_slug);
+  const name = body.name?.trim() ?? "";
+  let atsSlug: string;
+  try {
+    assertKnownSourceType(body.ats_type);
+    atsSlug = normalizeAtsSlug(body.ats_type, body.ats_slug);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "Invalid ATS source" }, 400);
+  }
   if (!name || !atsSlug) {
     return c.json({ error: "Company name and ATS slug are required" }, 400);
   }
 
   const duplicate = await c.env.DB.prepare(
     `SELECT id, name FROM companies
-     WHERE ats_type = ? AND LOWER(TRIM(ats_slug)) = LOWER(TRIM(?))
+     WHERE COALESCE(source_type, ats_type) = ?
+       AND LOWER(TRIM(ats_slug)) = LOWER(TRIM(?))
      LIMIT 1`
   )
     .bind(body.ats_type, atsSlug)
@@ -109,10 +168,18 @@ companies.post("/", requireAdmin, async (c) => {
 
   try {
     await c.env.DB.prepare(
-      `INSERT INTO companies (id, name, ats_type, ats_slug, website, enabled, added_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`
+      `INSERT INTO companies (id, name, ats_type, source_type, ats_slug, website, enabled, added_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?)`
     )
-      .bind(id, name, body.ats_type, atsSlug, body.website?.trim() || null, now)
+      .bind(
+        id,
+        name,
+        storedAtsType(body.ats_type),
+        body.ats_type,
+        atsSlug,
+        body.website?.trim() || null,
+        now
+      )
       .run();
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -127,7 +194,7 @@ companies.post("/", requireAdmin, async (c) => {
     .bind(id)
     .first<CompanyRow>();
 
-  return c.json(created, 201);
+  return c.json(created ? serializeCompany(created) : null, 201);
 });
 
 // PATCH /:id — Update company
@@ -137,9 +204,27 @@ companies.patch("/:id", requireAdmin, async (c) => {
     enabled?: boolean;
     name?: string;
     ats_slug?: string;
-    ats_type?: CompanyRow["ats_type"];
+    ats_type?: CompanySourceType;
     website?: string;
   }>();
+
+  const current = await c.env.DB.prepare(
+    "SELECT * FROM companies WHERE id = ?"
+  )
+    .bind(id)
+    .first<CompanyRow>();
+  if (!current) return c.json({ error: "Not found" }, 404);
+
+  const nextAtsType = body.ats_type ?? effectiveSourceType(current);
+  let nextAtsSlug = current.ats_slug;
+  if (body.ats_slug !== undefined || body.ats_type !== undefined) {
+    try {
+      if (body.ats_type !== undefined) assertKnownSourceType(body.ats_type);
+      nextAtsSlug = normalizeAtsSlug(nextAtsType as CompanySourceType, body.ats_slug ?? current.ats_slug);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "Invalid ATS source" }, 400);
+    }
+  }
 
   const setClauses: string[] = [];
   const bindings: (string | number)[] = [];
@@ -156,12 +241,16 @@ companies.patch("/:id", requireAdmin, async (c) => {
 
   if (body.ats_slug !== undefined) {
     setClauses.push("ats_slug = ?");
-    bindings.push(normalizeAtsSlug(body.ats_slug));
+    bindings.push(nextAtsSlug);
   }
 
   if (body.ats_type !== undefined) {
-    setClauses.push("ats_type = ?");
-    bindings.push(body.ats_type);
+    setClauses.push("ats_type = ?", "source_type = ?");
+    bindings.push(storedAtsType(body.ats_type), body.ats_type);
+    if (body.ats_slug === undefined && nextAtsSlug !== current.ats_slug) {
+      setClauses.push("ats_slug = ?");
+      bindings.push(nextAtsSlug);
+    }
   }
 
   if (body.website !== undefined) {
@@ -175,22 +264,15 @@ companies.patch("/:id", requireAdmin, async (c) => {
 
   bindings.push(id);
 
-  const nextAtsType = body.ats_type;
-  const nextAtsSlug = body.ats_slug !== undefined ? normalizeAtsSlug(body.ats_slug) : undefined;
-  if (nextAtsType !== undefined || nextAtsSlug !== undefined) {
-    const current = await c.env.DB.prepare("SELECT ats_type, ats_slug FROM companies WHERE id = ?")
-      .bind(id)
-      .first<Pick<CompanyRow, "ats_type" | "ats_slug">>();
-    if (!current) return c.json({ error: "Not found" }, 404);
-
+  if (body.ats_type !== undefined || body.ats_slug !== undefined) {
     const duplicate = await c.env.DB.prepare(
       `SELECT id, name FROM companies
        WHERE id != ?
-         AND ats_type = ?
+         AND COALESCE(source_type, ats_type) = ?
          AND LOWER(TRIM(ats_slug)) = LOWER(TRIM(?))
        LIMIT 1`
     )
-      .bind(id, nextAtsType ?? current.ats_type, nextAtsSlug ?? current.ats_slug)
+      .bind(id, nextAtsType, nextAtsSlug)
       .first<{ id: string; name: string }>();
 
     if (duplicate) {
@@ -224,7 +306,7 @@ companies.patch("/:id", requireAdmin, async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
-  return c.json(updated);
+  return c.json(serializeCompany(updated));
 });
 
 // POST /:id/poll — Trigger a poll for a single company
@@ -261,7 +343,11 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
       .run();
 
     const updated = await db.prepare("SELECT * FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
-    return c.json({ ...updated, new_jobs: newJobs.length, notifications_sent: notificationsSent });
+    return c.json({
+      ...(updated ? serializeCompany(updated) : updated),
+      new_jobs: newJobs.length,
+      notifications_sent: notificationsSent,
+    });
   } catch (e: any) {
     const errMsg = e instanceof Error ? e.message : String(e);
     await db
@@ -270,7 +356,10 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
       .run();
 
     const updated = await db.prepare("SELECT * FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
-    return c.json({ ...updated, poll_error: errMsg }, 200);
+    return c.json({
+      ...(updated ? serializeCompany(updated) : updated),
+      poll_error: errMsg,
+    }, 200);
   }
 });
 

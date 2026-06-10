@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, Variables } from "../types";
+import { ensureEligibleJobs } from "../job-scope";
 
 const metrics = new Hono<{ Bindings: Env; Variables: Variables }>();
 metrics.use("/*", requireAdmin);
@@ -41,6 +42,7 @@ interface RolloutRow {
 
 metrics.get("/", async (c) => {
   const db = c.env.DB;
+  await ensureEligibleJobs(db);
   const [
     notificationLatency,
     eventCounts,
@@ -205,10 +207,11 @@ metrics.patch("/rollouts/:version", async (c) => {
     return c.json({ error: "Scorer rollout not found" }, 404);
   }
 
-  await c.env.DB.batch([
-    c.env.DB.prepare("DELETE FROM user_job_matches"),
-    c.env.DB.prepare("UPDATE user_search_profiles SET match_cursor_seen_at = NULL"),
-  ]);
+  // Do NOT wipe user_job_matches here. A synchronous full-table DELETE empties
+  // every feed at once and can time out on a production-sized database (and it
+  // ran even for shadow changes, which don't affect stored scores). Each user's
+  // matches are re-scored lazily by removeStaleMatches() on their next feed load,
+  // which only clears rows whose scorer_version no longer matches their cohort.
   const rollout = await c.env.DB.prepare(
     `SELECT scorer_version, mode, cohort_percent, updated_at
      FROM scorer_rollouts WHERE scorer_version = ?`

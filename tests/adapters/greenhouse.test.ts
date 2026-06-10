@@ -45,7 +45,8 @@ describe("GreenhouseAdapter", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true"
+      "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true",
+      expect.objectContaining({ signal: expect.anything() })
     );
   });
 

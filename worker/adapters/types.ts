@@ -12,10 +12,12 @@ export interface JobListing {
 export interface JobContent {
   description: string | null;
   salary: string | null;
+  location?: string | null;
+  postedAt?: string | null;
 }
 
 export interface ATSAdapter {
   name: string;
   fetchJobs(slug: string): Promise<JobListing[]>;
-  fetchJobContent(slug: string, externalId: string): Promise<JobContent>;
+  fetchJobContent(slug: string, externalId: string, jobUrl?: string): Promise<JobContent>;
 }

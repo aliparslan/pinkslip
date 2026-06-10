@@ -23,6 +23,11 @@
     greenhouse: (s) => `https://boards.greenhouse.io/${s}`,
     lever: (s) => `https://jobs.lever.co/${s}`,
     ashby: (s) => `https://jobs.ashbyhq.com/${s}`,
+    workday: (s) => s,
+    rippling: (s) => `https://ats.rippling.com/${s}/jobs`,
+    gem: (s) => `https://jobs.gem.com/${s}`,
+    smartrecruiters: (s) => `https://jobs.smartrecruiters.com/${s}`,
+    yc: (s) => `https://www.ycombinator.com/companies/${s}/jobs`,
   };
 
   let careersUrl = $derived(atsUrls[company.ats_type]?.(company.ats_slug) ?? null);

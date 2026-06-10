@@ -5,6 +5,7 @@ import {
   saveUserPreferenceState,
 } from "../user-preferences";
 import { ensureUserJobMatchesReady } from "../user-job-scores";
+import { ensureEligibleJobs } from "../job-scope";
 
 const preferences = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -29,6 +30,7 @@ preferences.put("/", async (c) => {
 
 preferences.get("/preview", async (c) => {
   const userId = c.get("userId");
+  await ensureEligibleJobs(c.env.DB);
   await ensureUserJobMatchesReady(c.env.DB, userId, 5);
   const result = await c.env.DB.prepare(
     `SELECT

@@ -1,5 +1,6 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
 import { extractSalaryFromHtml } from "./salary";
+import { fetchWithTimeout } from "../http";
 
 interface AshbyJobPosting {
   id: string;
@@ -53,7 +54,7 @@ export class AshbyAdapter implements ATSAdapter {
 
   async fetchJobs(slug: string): Promise<JobListing[]> {
     try {
-      const response = await fetch(ashbyBoardUrl(slug));
+      const response = await fetchWithTimeout(ashbyBoardUrl(slug));
 
       if (!response.ok) {
         throw new Error(`Ashby API ${response.status}`);
@@ -67,7 +68,7 @@ export class AshbyAdapter implements ATSAdapter {
   }
 
   async fetchJobContent(slug: string, externalId: string): Promise<JobContent> {
-    const res = await fetch(ashbyBoardUrl(slug));
+    const res = await fetchWithTimeout(ashbyBoardUrl(slug));
     if (!res.ok) return { description: null, salary: null };
     const data: AshbyResponse = await res.json();
     const posting = getAshbyJobs(data, slug).find((p) => p.id === externalId);

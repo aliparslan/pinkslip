@@ -2,8 +2,9 @@ import type { JobListing } from "./adapters/types";
 import { scoreJob } from "./scoring";
 import type { ScoringPrefs } from "./scoring";
 import type { Env, CompanyRow, PreferenceRow } from "./types";
-import { getAdapter } from "./ats";
+import { getAdapter, getCompanySourceType } from "./ats";
 import {
+  advanceBacklogScoring,
   matchJobsForAllProfiles,
 } from "./user-job-scores";
 import { upsertJobFeatures } from "./job-features";
@@ -11,6 +12,11 @@ import {
   createNotificationCandidates,
   deliverPendingNotifications,
 } from "./notification-delivery";
+import { ensureEligibleJobs, isEligibleJobListing } from "./job-scope";
+
+// A job must be absent from this many consecutive (trustworthy) polls before it
+// is closed, so a single partial/failed ATS response can't remove valid jobs.
+const CLOSE_AFTER_MISSES = 2;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -151,61 +157,74 @@ export async function pollCompany(
   prefs: ScoringPrefs
 ): Promise<NewJobMeta[]> {
   // 1. Pick adapter by ats_type
-  const adapter = getAdapter(company.ats_type);
+  const adapter = getAdapter(getCompanySourceType(company));
 
   if (!adapter) return [];
 
   // 2. Fetch jobs from ATS
-  const fetched = await adapter.fetchJobs(company.ats_slug);
+  const fetchedSnapshot = await adapter.fetchJobs(company.ats_slug);
+  const fetched = fetchedSnapshot.filter(isEligibleJobListing);
   const fetchedExtIds = new Set(fetched.map((j) => j.externalId));
 
-  // 3. Load existing + blocked external_ids for this company
+  // 3. Load existing (with open/closed state) + blocked external_ids for this company
   const [existing, blocked] = await Promise.all([
     db
-      .prepare("SELECT external_id FROM jobs WHERE company_id = ?")
+      .prepare("SELECT external_id, closed_at FROM jobs WHERE company_id = ?")
       .bind(company.id)
-      .all<{ external_id: string }>(),
+      .all<{ external_id: string; closed_at: string | null }>(),
     db
       .prepare("SELECT external_id FROM blocked_jobs WHERE company_id = ?")
       .bind(company.id)
       .all<{ external_id: string }>(),
   ]);
 
-  const existingIds = new Set<string>(
-    (existing.results ?? []).map((r) => r.external_id)
-  );
+  const existingRows = existing.results ?? [];
+  const existingIds = new Set<string>(existingRows.map((r) => r.external_id));
+  const openExistingCount = existingRows.filter((r) => r.closed_at === null).length;
   const blockedIds = new Set<string>(
     (blocked.results ?? []).map((r) => r.external_id)
   );
 
-  // 4. Mark closed jobs (in DB but no longer on ATS) and reopen returned ones
+  // 4. Reconcile open/closed state. Guard against partial/failed ATS responses:
+  //    if the fetch returned far fewer jobs than we currently have open, treat it
+  //    as incomplete and do NOT close the missing ones (a partial page would
+  //    otherwise wipe valid jobs from every feed). Returned jobs are always
+  //    reopened + reset; absent jobs are only closed after CLOSE_AFTER_MISSES
+  //    consecutive misses so one bad page can't nuke the board.
   const now = new Date().toISOString();
-  if (fetched.length > 0) {
-    const closeStmts = [];
-    const reopenStmts = [];
-    for (const extId of existingIds) {
-      if (!fetchedExtIds.has(extId)) {
-        closeStmts.push(
-          db
-            .prepare(
-              "UPDATE jobs SET closed_at = ? WHERE company_id = ? AND external_id = ? AND closed_at IS NULL"
-            )
-            .bind(now, company.id, extId)
-        );
-      } else {
-        reopenStmts.push(
-          db
-            .prepare(
-              "UPDATE jobs SET closed_at = NULL WHERE company_id = ? AND external_id = ? AND closed_at IS NOT NULL"
-            )
-            .bind(company.id, extId)
-        );
-      }
+  const responseLooksComplete =
+    fetchedSnapshot.length > 0
+    && (openExistingCount < 8 || fetchedSnapshot.length >= Math.floor(openExistingCount * 0.5));
+
+  const updateStmts = [];
+  for (const extId of existingIds) {
+    if (fetchedExtIds.has(extId)) {
+      updateStmts.push(
+        db
+          .prepare(
+            `UPDATE jobs SET missed_polls = 0, closed_at = NULL
+             WHERE company_id = ? AND external_id = ? AND (missed_polls != 0 OR closed_at IS NOT NULL)`
+          )
+          .bind(company.id, extId)
+      );
+    } else if (responseLooksComplete) {
+      updateStmts.push(
+        db
+          .prepare(
+            `UPDATE jobs
+             SET missed_polls = missed_polls + 1,
+                 closed_at = CASE
+                   WHEN closed_at IS NULL AND missed_polls + 1 >= ? THEN ?
+                   ELSE closed_at END
+             WHERE company_id = ? AND external_id = ?`
+          )
+          .bind(CLOSE_AFTER_MISSES, now, company.id, extId)
+      );
     }
-    const allUpdateStmts = [...closeStmts, ...reopenStmts];
-    if (allUpdateStmts.length > 0) {
-      await db.batch(allUpdateStmts);
-    }
+    // Suspect (partial) response → leave absent jobs untouched this cycle.
+  }
+  if (updateStmts.length > 0) {
+    await db.batch(updateStmts);
   }
 
   // 5. Diff: new = fetched but not in existing and not blocked
@@ -300,15 +319,16 @@ export async function runPollCycle(
   const scope = options.scope ?? "cron";
   const sendNotifications = options.sendNotifications ?? true;
   const companyLimit =
-    options.limit === null
+    options.limit === undefined || options.limit === null
       ? null
-      : Math.max(1, options.limit ?? 30);
+      : Math.max(1, options.limit);
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   const startedAtMs = Date.now();
   const pollErrors: CompanyPollError[] = [];
   const log: string[] = [];
   const trackRuns = await hasFetchRunsTable(db);
+  await ensureEligibleJobs(db);
 
   if (trackRuns) {
     await db.prepare(
@@ -321,7 +341,7 @@ export async function runPollCycle(
   const companySql = `
     SELECT *
     FROM companies
-    WHERE enabled = 1 AND ats_type != 'custom'
+    WHERE enabled = 1 AND COALESCE(source_type, ats_type) != 'custom'
     ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
     ${companyLimit === null ? "" : "LIMIT ?"}
   `;
@@ -333,12 +353,7 @@ export async function runPollCycle(
 
   // 2. Load preferences
   const prefs = await loadPreferencesForPoll(db);
-  // 2b. Write last_polled_at early so it reflects cycle start even if we time out
   const now = new Date().toISOString();
-  await db.prepare(
-    `INSERT INTO preferences (key, value) VALUES ('last_polled_at', ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).bind(now).run();
 
   // 3. Fan out pollCompany() calls
   const results = await runWithConcurrency(
@@ -382,6 +397,12 @@ export async function runPollCycle(
   if (statusStmts.length > 0) {
     await db.batch(statusStmts);
   }
+  // Only report the cycle as fresh after every selected company has settled.
+  // If the Worker times out mid-poll, the previous timestamp remains visible.
+  await db.prepare(
+    `INSERT INTO preferences (key, value) VALUES ('last_polled_at', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).bind(new Date().toISOString()).run();
 
   await matchJobsForAllProfiles(
     db,
@@ -394,11 +415,32 @@ export async function runPollCycle(
     notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs);
   }
 
-  // Purge jobs closed for over 7 days (but preserve applied jobs)
+  // 5b. Incrementally score older jobs for a few active users so backlog matches
+  //     surface in the feed over time (notifications above only cover new jobs).
+  if (scope === "cron") {
+    await advanceBacklogScoring(db).catch((error) => {
+      log.push(`backlog scoring error: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }
+
+  // Purge jobs closed for over 7 days, but preserve any a user still has a stake
+  // in — applied OR saved — so saved roles don't silently vanish from their list.
   await db.prepare(
     `DELETE FROM jobs WHERE closed_at IS NOT NULL AND datetime(closed_at) < datetime('now', '-7 days')
-     AND id NOT IN (SELECT job_id FROM applications WHERE job_id IS NOT NULL)`
+     AND id NOT IN (SELECT job_id FROM applications WHERE job_id IS NOT NULL)
+     AND id NOT IN (SELECT job_id FROM saved_jobs)`
   ).run();
+  await Promise.all([
+    db.prepare(
+      "DELETE FROM email_login_tokens WHERE datetime(expires_at) < datetime('now', '-7 days')"
+    ).run(),
+    db.prepare(
+      "DELETE FROM access_attempts WHERE datetime(attempted_at) < datetime('now', '-1 day')"
+    ).run().catch(() => undefined),
+    db.prepare(
+      "DELETE FROM tailor_usage WHERE datetime(created_at) < datetime('now', '-30 days')"
+    ).run().catch(() => undefined),
+  ]);
   await db.batch([
     db.prepare(
       "DELETE FROM product_events WHERE datetime(occurred_at) < datetime('now', '-180 days')"

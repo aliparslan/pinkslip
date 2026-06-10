@@ -56,7 +56,10 @@ describe("AshbyAdapter", () => {
     await adapter.fetchJobs("cursor");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(BOARD_URL);
+    expect(fetchMock).toHaveBeenCalledWith(
+      BOARD_URL,
+      expect.objectContaining({ signal: expect.anything() })
+    );
   });
 
   it("correctly maps job fields", async () => {

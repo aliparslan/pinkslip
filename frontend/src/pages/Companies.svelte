@@ -2,14 +2,62 @@
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
+  import { focusTrap } from "../lib/focus-trap";
   import { sessionAccess } from "../lib/session-access";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Plus from "phosphor-svelte/lib/Plus";
   import Warning from "phosphor-svelte/lib/Warning";
 
-  const ATS_TYPES = ["All", "greenhouse", "lever", "ashby", "custom"];
+  const ATS_TYPES = [
+    "All",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "workday",
+    "rippling",
+    "gem",
+    "smartrecruiters",
+    "yc",
+    "custom",
+  ];
   const USER_VIEWS = ["All", "Hidden"];
+
+  const SOURCE_INPUTS: Record<string, { label: string; type: string; placeholder: string }> = {
+    workday: {
+      label: "Board URL",
+      type: "url",
+      placeholder: "https://company.wd5.myworkdayjobs.com/en-US/Site",
+    },
+    rippling: {
+      label: "Board slug or URL",
+      type: "text",
+      placeholder: "e.g. pace",
+    },
+    gem: {
+      label: "Board slug or URL",
+      type: "text",
+      placeholder: "e.g. gem",
+    },
+    smartrecruiters: {
+      label: "Company identifier or URL",
+      type: "text",
+      placeholder: "e.g. smartrecruiters",
+    },
+    yc: {
+      label: "YC company slug or URL",
+      type: "text",
+      placeholder: "e.g. onechronos",
+    },
+  };
+
+  function sourceInput(type: string) {
+    return SOURCE_INPUTS[type] ?? {
+      label: "ATS slug",
+      type: "text",
+      placeholder: "e.g. stripe",
+    };
+  }
 
   let companies: Company[] = $state([]);
   let loading: boolean = $state(true);
@@ -429,11 +477,22 @@
                 <option value="greenhouse">Greenhouse</option>
                 <option value="lever">Lever</option>
                 <option value="ashby">Ashby</option>
+                <option value="workday">Workday</option>
+                <option value="rippling">Rippling</option>
+                <option value="gem">Gem</option>
+                <option value="smartrecruiters">SmartRecruiters</option>
+                <option value="yc">Y Combinator</option>
               </select>
             </div>
             <div style="flex: 1;">
-              <label for="add-slug" class="field-label">ATS slug</label>
-              <input id="add-slug" class="input-field" type="text" placeholder="e.g. stripe" bind:value={addSlug} />
+              <label for="add-slug" class="field-label">{sourceInput(addAtsType).label}</label>
+              <input
+                id="add-slug"
+                class="input-field"
+                type={sourceInput(addAtsType).type}
+                placeholder={sourceInput(addAtsType).placeholder}
+                bind:value={addSlug}
+              />
             </div>
           </div>
           <div>
@@ -533,6 +592,7 @@
     <div
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="edit-title"
       tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
@@ -552,11 +612,22 @@
               <option value="greenhouse">Greenhouse</option>
               <option value="lever">Lever</option>
               <option value="ashby">Ashby</option>
+              <option value="workday">Workday</option>
+              <option value="rippling">Rippling</option>
+              <option value="gem">Gem</option>
+              <option value="smartrecruiters">SmartRecruiters</option>
+              <option value="yc">Y Combinator</option>
             </select>
           </div>
           <div style="flex: 1;">
-            <label for="edit-slug" class="field-label">ATS slug</label>
-            <input id="edit-slug" class="input-field" type="text" bind:value={editTarget.ats_slug} />
+            <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
+            <input
+              id="edit-slug"
+              class="input-field"
+              type={sourceInput(editTarget.ats_type).type}
+              placeholder={sourceInput(editTarget.ats_type).placeholder}
+              bind:value={editTarget.ats_slug}
+            />
           </div>
         </div>
         {#if editVerifyError}
@@ -608,6 +679,7 @@
     <div
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="delete-title"
       tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
@@ -658,6 +730,7 @@
       class="modal-card"
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="company-request-title"
       tabindex="-1"
       onclick={(event) => event.stopPropagation()}
@@ -729,6 +802,7 @@
       class="modal-card"
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="company-report-title"
       tabindex="-1"
       onclick={(event) => event.stopPropagation()}

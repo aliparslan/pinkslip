@@ -87,8 +87,8 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
-  // Test 5: Partial location score for empty location string
-  it("gives partial location score (10) for empty location string", () => {
+  // Test 5: Ambiguous locations are not US-eligible
+  it("disqualifies an empty location string", () => {
     const jobWithLocation = makeJob({
       title: "Software Engineer",
       location: "Remote",
@@ -104,7 +104,8 @@ describe("scoreJob", () => {
     const scoreWithLocation = scoreJob(jobWithLocation, DEFAULT_PREFS).score;
     const scoreWithoutLocation = scoreJob(jobWithoutLocation, DEFAULT_PREFS).score;
     expect(scoreWithLocation).toBeGreaterThan(scoreWithoutLocation);
-    expect(scoreWithoutLocation).toBeGreaterThan(0);
+    expect(scoreJob(jobWithoutLocation, DEFAULT_PREFS).location_score).toBe(0);
+    expect(scoreWithoutLocation).toBeLessThan(30);
   });
 
   // Test 6: Zero location score for non-preferred city vs Remote scoring 20

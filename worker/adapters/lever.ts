@@ -1,5 +1,6 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
 import { extractSalaryFromHtml, formatLeverSalary } from "./salary";
+import { fetchWithTimeout } from "../http";
 
 interface LeverPosting {
   id: string;
@@ -21,7 +22,7 @@ export class LeverAdapter implements ATSAdapter {
   async fetchJobs(slug: string): Promise<JobListing[]> {
     try {
       const url = `https://api.lever.co/v0/postings/${slug}?mode=json`;
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
 
       if (!response.ok) {
         throw new Error(`Lever API ${response.status}`);
@@ -49,7 +50,7 @@ export class LeverAdapter implements ATSAdapter {
 
   async fetchJobContent(slug: string, externalId: string): Promise<JobContent> {
     const url = `https://api.lever.co/v0/postings/${slug}/${externalId}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) return { description: null, salary: null };
     const posting: LeverPosting = await res.json();
     return {

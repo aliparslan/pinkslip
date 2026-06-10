@@ -1,4 +1,5 @@
 import type { JobListing } from "./adapters/types";
+import { isUsJobLocation } from "./us-jobs";
 import {
   profileExperienceRange,
   type SearchProfileV1,
@@ -268,67 +269,6 @@ function scorePersonalizedYoe(
 
 // ─── Location Match (0–20) ───────────────────────────────────────────────────
 
-const US_STATES = new Set([
-  "al","ak","az","ar","ca","co","ct","de","fl","ga","hi","id","il","in","ia",
-  "ks","ky","la","me","md","ma","mi","mn","ms","mo","mt","ne","nv","nh","nj",
-  "nm","ny","nc","nd","oh","ok","or","pa","ri","sc","sd","tn","tx","ut","vt",
-  "va","wa","wv","wi","wy","dc",
-]);
-
-const NON_US_REMOTE_MARKERS = [
-  "canada",
-  "ontario",
-  "british columbia",
-  "alberta",
-  "quebec",
-  "toronto",
-  "vancouver",
-  "montreal",
-  "united kingdom",
-  "uk",
-  "ireland",
-  "europe",
-  "emea",
-  "apac",
-  "latam",
-  "latin america",
-  "australia",
-  "new zealand",
-  "india",
-  "singapore",
-  "japan",
-  "germany",
-  "france",
-  "spain",
-  "italy",
-  "netherlands",
-  "poland",
-  "portugal",
-  "sweden",
-  "switzerland",
-  "international",
-  "global",
-  "worldwide",
-  "anywhere",
-  "americas",
-  "north america",
-];
-
-const US_REMOTE_MARKERS = [
-  "united states",
-  "u.s.",
-  "u.s.a",
-  "usa",
-  ", us",
-  "us only",
-  "remote us",
-  "remote-us",
-  "within the us",
-  "within us",
-  "anywhere in the us",
-  "nationwide",
-];
-
 function mentionsPreferredUsLocation(loc: string, prefs: ScoringPrefs): boolean {
   for (const preferred of prefs.locations) {
     const prefLower = preferred.toLowerCase();
@@ -339,26 +279,6 @@ function mentionsPreferredUsLocation(loc: string, prefs: ScoringPrefs): boolean 
   return false;
 }
 
-function isUSOrRemote(location: string, prefs: ScoringPrefs): boolean {
-  const loc = location.trim().toLowerCase();
-  if (!loc) return true;
-  if (loc.includes("remote")) {
-    if (NON_US_REMOTE_MARKERS.some((marker) => loc.includes(marker))) return false;
-    if (US_REMOTE_MARKERS.some((marker) => loc.includes(marker))) return true;
-    if (mentionsPreferredUsLocation(loc, prefs)) return true;
-    const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
-    if (stateMatch && US_STATES.has(stateMatch[1])) return true;
-    return true;
-  }
-  if (loc.includes("united states") || loc.includes(", us")) return true;
-  if (loc === "multiple" || loc === "various" || loc.includes("multiple")) return true;
-  // Match ", XX" where XX is a US state abbreviation
-  const stateMatch = loc.match(/,\s*([a-z]{2})(?:\s|$|,)/);
-  if (stateMatch && US_STATES.has(stateMatch[1])) return true;
-  // Check if location matches any preferred location (user's prefs are US cities)
-  return mentionsPreferredUsLocation(loc, prefs);
-}
-
 interface LocationResult {
   score: number;
   disqualified: boolean;
@@ -367,9 +287,7 @@ interface LocationResult {
 function scoreLocationMatch(location: string, prefs: ScoringPrefs): LocationResult {
   const loc = location.trim().toLowerCase();
 
-  if (!isUSOrRemote(location, prefs)) return { score: 0, disqualified: true };
-
-  if (!loc) return { score: 10, disqualified: false };
+  if (!isUsJobLocation(location)) return { score: 0, disqualified: true };
 
   if (loc === "remote" || loc.includes("remote")) {
     if (prefs.search_profile && !prefs.search_profile.work_modes.includes("remote")) {
@@ -377,9 +295,6 @@ function scoreLocationMatch(location: string, prefs: ScoringPrefs): LocationResu
     }
     return { score: 20, disqualified: false };
   }
-
-  if (loc === "multiple" || loc === "various" || loc.includes("multiple") || loc.includes("various"))
-    return { score: 10, disqualified: false };
 
   for (const preferred of prefs.locations) {
     const prefLower = preferred.toLowerCase();

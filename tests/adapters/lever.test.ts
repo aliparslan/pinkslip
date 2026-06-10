@@ -47,7 +47,8 @@ describe("LeverAdapter", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.lever.co/v0/postings/robinhood?mode=json"
+      "https://api.lever.co/v0/postings/robinhood?mode=json",
+      expect.objectContaining({ signal: expect.anything() })
     );
   });
 
