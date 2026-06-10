@@ -24,6 +24,7 @@ export const TAILOR_MODEL_OPTIONS = [
 ] as const;
 
 const KIT_KEY = "pinkslip.local-tailor-kit.v1";
+const API_KEY_SESSION_KEY = "pinkslip.local-tailor-api-key.v1";
 const DRAFTS_KEY = "pinkslip.local-tailor-drafts.v1";
 const MAX_RESUME_BYTES = 2 * 1024 * 1024;
 
@@ -199,16 +200,38 @@ export async function createLocalResumeAsset(file: File): Promise<LocalResumeAss
 
 export function loadLocalTailorKit(): LocalTailorKit {
   const kit = readJson<Partial<LocalTailorKit>>(KIT_KEY, {});
+  const persistedApiKey = typeof kit.apiKey === "string" ? kit.apiKey : "";
+  let apiKey = persistedApiKey;
+  try {
+    apiKey = window.sessionStorage.getItem(API_KEY_SESSION_KEY) ?? persistedApiKey;
+    if (persistedApiKey) {
+      window.sessionStorage.setItem(API_KEY_SESSION_KEY, persistedApiKey);
+      writeJson(KIT_KEY, { ...kit, apiKey: "" });
+    }
+  } catch {
+    // Storage can be disabled; keep the in-memory value for this load.
+  }
   return {
     provider: DEFAULT_TAILOR_PROVIDER,
-    apiKey: typeof kit.apiKey === "string" ? kit.apiKey : "",
+    apiKey,
     model: normalizeTailorModel(kit.model),
     resume: sanitizeLocalResumeAsset(kit.resume),
   };
 }
 
 export function saveLocalTailorKit(next: LocalTailorKit) {
-  writeJson(KIT_KEY, next);
+  // API keys live only for the current browser session. Persist the resume/model,
+  // but never leave the raw provider credential in durable localStorage.
+  writeJson(KIT_KEY, { ...next, apiKey: "" });
+  try {
+    if (next.apiKey) {
+      window.sessionStorage.setItem(API_KEY_SESSION_KEY, next.apiKey);
+    } else {
+      window.sessionStorage.removeItem(API_KEY_SESSION_KEY);
+    }
+  } catch {
+    // The current in-memory UI state still works when browser storage is blocked.
+  }
 }
 
 export function updateLocalTailorKit(patch: Partial<LocalTailorKit>) {

@@ -6,6 +6,7 @@ import { serializeProfileForPrompt } from "../tailor/serialize-profile";
 import { parseTailoringText } from "../tailor/parse";
 import { getLatestUserTailoring, getUserProfile } from "../account";
 import { recordProductEvent } from "../product-events";
+import { ensureEligibleJobs } from "../job-scope";
 import type {
   Env,
   TailoringRow,
@@ -13,6 +14,10 @@ import type {
 } from "../types";
 
 const tailor = new Hono<{ Bindings: Env; Variables: Variables }>();
+tailor.use("/*", async (c, next) => {
+  await ensureEligibleJobs(c.env.DB);
+  await next();
+});
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const ALLOWED_GEMINI_MODELS = new Set([
@@ -28,6 +33,11 @@ const GEMINI_DAILY_LIMITS: Record<string, number> = {
   "gemini-2.5-flash-lite": 20,
 };
 
+// App-key ("we pay") tailoring quotas. Requests that supply the user's own API
+// key bill the user, so they are not capped here.
+const APP_USER_DAILY_LIMIT = 15; // per user (incl. guests) per UTC day
+const APP_GLOBAL_DAILY_FALLBACK = 1000; // all users per day when the provider has no documented daily limit
+
 type TailorProvider = "gemini" | "anthropic";
 type TailorKeySource = "app" | "user";
 
@@ -35,9 +45,11 @@ interface JobForTailor {
   id: string;
   external_id: string;
   title: string;
+  url: string;
   description: string | null;
   company_name: string;
   ats_type: string;
+  source_type: string | null;
   ats_slug: string;
 }
 
@@ -62,13 +74,15 @@ async function loadJobForTailor(
          j.id,
          j.external_id,
          j.title,
+         j.url,
          j.description,
          c.name AS company_name,
          c.ats_type,
+         c.source_type,
          c.ats_slug
        FROM jobs j
        JOIN companies c ON c.id = j.company_id
-       WHERE j.id = ?`
+       WHERE j.id = ? AND j.closed_at IS NULL`
     )
     .bind(jobId)
     .first<JobForTailor>();
@@ -79,10 +93,10 @@ async function ensureJobDescription(
   job: JobForTailor
 ): Promise<string | null> {
   if (job.description) return job.description;
-  const adapter = getAdapter(job.ats_type as never);
+  const adapter = getAdapter((job.source_type ?? job.ats_type) as never);
   if (!adapter) return null;
 
-  const content = await adapter.fetchJobContent(job.ats_slug, job.external_id);
+  const content = await adapter.fetchJobContent(job.ats_slug, job.external_id, job.url);
   if (!content.description) return null;
 
   await db.prepare(
@@ -243,6 +257,54 @@ async function loadTailorUsage(args: {
     user_remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - userToday),
     resets_at: nextUtcDay(),
   };
+}
+
+// Enforce the app-key tailoring quota: a per-user daily cap (so one user/guest
+// can't drain the budget or rack up cost) plus the provider's global daily cap.
+async function reserveAppTailorQuota(
+  db: D1Database,
+  userId: string,
+  provider: TailorProvider,
+  model: string
+): Promise<{ ok: true } | { ok: false; resets_at: string }> {
+  await ensureTailorUsageTable(db);
+  const today = startOfUtcDay();
+  const globalLimit = provider === "gemini"
+    ? GEMINI_DAILY_LIMITS[model] ?? APP_GLOBAL_DAILY_FALLBACK
+    : APP_GLOBAL_DAILY_FALLBACK;
+
+  // Reserve quota in the same SQLite statement that checks both limits. This
+  // prevents concurrent requests from all passing a read-only count check before
+  // any of them records usage.
+  const result = await db.prepare(
+    `INSERT INTO tailor_usage (id, user_id, key_source, provider, model, created_at)
+     SELECT ?, ?, 'app', ?, ?, ?
+     WHERE (
+       SELECT COUNT(*) FROM tailor_usage
+       WHERE key_source = 'app' AND user_id = ? AND created_at >= ?
+     ) < ?
+       AND (
+         SELECT COUNT(*) FROM tailor_usage
+         WHERE key_source = 'app' AND provider = ? AND model = ? AND created_at >= ?
+       ) < ?`
+  ).bind(
+    crypto.randomUUID(),
+    userId,
+    provider,
+    model,
+    new Date().toISOString(),
+    userId,
+    today,
+    APP_USER_DAILY_LIMIT,
+    provider,
+    model,
+    today,
+    globalLimit
+  ).run();
+  if ((result.meta.changes ?? 0) === 0) {
+    return { ok: false, resets_at: nextUtcDay() };
+  }
+  return { ok: true };
 }
 
 function textFromGeminiPayload(payload: any): string {
@@ -431,13 +493,15 @@ async function streamAnthropicTailoring(args: {
   });
 
   if (usage && db) {
-    await recordTailorUsage({
-      db,
-      userId: usage.userId,
-      keySource: usage.keySource,
-      provider: usage.provider,
-      model,
-    }).catch(() => undefined);
+    if (usage.keySource !== "app") {
+      await recordTailorUsage({
+        db,
+        userId: usage.userId,
+        keySource: usage.keySource,
+        provider: usage.provider,
+        model,
+      }).catch(() => undefined);
+    }
     await recordProductEvent(db, {
       userId: usage.userId,
       sessionId: usage.sessionId,
@@ -582,13 +646,15 @@ async function streamGeminiTailoring(args: {
   });
 
   if (usage && db) {
-    await recordTailorUsage({
-      db,
-      userId: usage.userId,
-      keySource: usage.keySource,
-      provider: usage.provider,
-      model,
-    }).catch(() => undefined);
+    if (usage.keySource !== "app") {
+      await recordTailorUsage({
+        db,
+        userId: usage.userId,
+        keySource: usage.keySource,
+        provider: usage.provider,
+        model,
+      }).catch(() => undefined);
+    }
     await recordProductEvent(db, {
       userId: usage.userId,
       sessionId: usage.sessionId,
@@ -644,6 +710,13 @@ tailor.patch("/tailorings/:id", async (c) => {
         user_edited_qa_json?: string;
       }>()
       .catch(() => null)) ?? {};
+  if (
+    (body.user_edited_resume_md?.length ?? 0) > 200_000
+    || (body.user_edited_cover_md?.length ?? 0) > 100_000
+    || (body.user_edited_qa_json?.length ?? 0) > 100_000
+  ) {
+    return c.json({ error: "Tailoring edits are too large" }, 413);
+  }
 
   const clauses: string[] = [];
   const bindings: string[] = [];
@@ -696,6 +769,9 @@ tailor.post("/tailor/:job_id", async (c) => {
   const requestApiKey = body.api_key?.trim();
   const requestModel = body.model?.trim();
   const requestResumeMd = body.resume_md?.trim();
+  if (requestResumeMd && requestResumeMd.length > 200_000) {
+    return c.json({ error: "Resume input is capped at 200,000 characters" }, 413);
+  }
   const localMode = Boolean(requestApiKey || requestResumeMd);
   const keySource: TailorKeySource = requestApiKey ? "user" : "app";
   const provider: TailorProvider =
@@ -761,6 +837,23 @@ tailor.post("/tailor/:job_id", async (c) => {
       ? c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
       : c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL);
   const safeModel = provider === "gemini" ? normalizeGeminiModel(model) : model;
+
+  // Enforce the daily quota when we're paying (app key). User-supplied keys are
+  // the user's own cost and are not capped here.
+  if (keySource === "app") {
+    const quota = await reserveAppTailorQuota(c.env.DB, c.get("userId"), provider, safeModel);
+    if (!quota.ok) {
+      return c.json(
+        {
+          error: "You've hit today's tailoring limit. Add your own Gemini API key in Profile to keep going, or try again tomorrow.",
+          code: "tailor_quota_exceeded",
+          resets_at: quota.resets_at,
+        },
+        429
+      );
+    }
+  }
+
   await recordProductEvent(c.env.DB, {
     userId: c.get("userId"),
     sessionId: c.get("sessionId"),

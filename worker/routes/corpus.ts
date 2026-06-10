@@ -26,21 +26,43 @@ corpus.get("/", async (c) => {
 });
 
 corpus.put("/", async (c) => {
+  const userId = c.get("userId");
   const body =
     (await c.req.json<{ content_md?: string }>().catch(() => null)) ?? {};
   const contentMd = body.content_md?.trim() ?? "";
-  const versionId = await copyCorpusVersion(
-    c.env.DB,
-    c.get("userId"),
-    contentMd,
-    "corpus"
-  );
-  const created = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
+  if (contentMd.length > 200_000) {
+    return c.json({ error: "Corpus content is capped at 200,000 characters" }, 413);
+  }
+  const latest = await getLatestCorpusVersion(c.env.DB, userId);
 
+  // Unchanged content → don't create another version (autosave fires often).
+  if (latest && latest.content_md === contentMd) {
+    return c.json({
+      content_md: latest.content_md,
+      version_id: latest.id,
+      updated_at: latest.updated_at,
+      label: latest.label,
+    });
+  }
+
+  const now = new Date().toISOString();
+  let versionId: number;
+  if (latest && latest.label === "corpus") {
+    // Roll the working autosave version in place instead of piling up history.
+    // User-created snapshots use other labels and are preserved.
+    await c.env.DB.prepare(
+      "UPDATE corpus_versions SET content_md = ?, updated_at = ? WHERE id = ? AND user_id = ?"
+    ).bind(contentMd, now, latest.id, userId).run();
+    versionId = latest.id;
+  } else {
+    versionId = await copyCorpusVersion(c.env.DB, userId, contentMd, "corpus");
+  }
+
+  const created = await getLatestCorpusVersion(c.env.DB, userId);
   return c.json({
     content_md: created?.content_md ?? contentMd,
     version_id: created?.id ?? versionId,
-    updated_at: created?.updated_at ?? new Date().toISOString(),
+    updated_at: created?.updated_at ?? now,
     label: created?.label ?? "corpus",
   });
 });

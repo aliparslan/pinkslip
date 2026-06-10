@@ -210,8 +210,10 @@ describe("pdf-lib fallback", () => {
     expect(tailoredResumePdfFileName(null, null)).toBe("tailored-resume.pdf");
   });
 
-  test("throws when content is too long for one page", async () => {
+  test("paginates content that is too long for one page", async () => {
     const longText = "# Name\nemail@example.com\n\nExperience\n" + "Company | Date\n".repeat(200);
-    expect(async () => await buildTailoredResumePdf(longText)).toThrow();
+    const onePage = await buildTailoredResumePdf(SAMPLE_MARKDOWN);
+    const bytes = await buildTailoredResumePdf(longText);
+    expect(bytes.length).toBeGreaterThan(onePage.length);
   });
 });

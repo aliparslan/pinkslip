@@ -19,10 +19,10 @@
   } from "../lib/local-tailor";
   import {
     buildTailoredResumePdf,
+    downloadPdfBytes,
     openPdfInNewTab,
+    tailoredResumePdfFileName,
   } from "../lib/pdf-resume";
-  import { buildTypstResume, type ProfileContact, type ProfileProject } from "../lib/typst-resume";
-  import { compileTypstToPdf } from "../lib/typst-compiler";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
   import Copy from "phosphor-svelte/lib/Copy";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
@@ -50,8 +50,6 @@
   let copied = $state(false);
   let copyTimer: number | null = $state(null);
   let downloadingPdf = $state(false);
-  let profileContact: ProfileContact | null = $state(null);
-  let profileProjects: ProfileProject[] | null = $state(null);
   let editing = $state<Record<TabId, boolean>>({
     resume: false,
     cover: false,
@@ -353,24 +351,19 @@
     }
 
     downloadingPdf = true;
+    const preview = window.open("", "_blank");
     try {
-      try {
-        const typstSource = buildTypstResume(resumeText, {
-          companyName: job?.company_name,
-          jobTitle: job?.title,
-          profileContact,
-          profileProjects,
-        });
-        console.log("[pdf] Typst source generated, compiling...");
-        const bytes = await compileTypstToPdf(typstSource);
-        console.log("[pdf] Typst compilation succeeded:", bytes.byteLength, "bytes");
-        openPdfInNewTab(bytes);
-      } catch (typstErr: any) {
-        console.warn("[pdf] Typst compilation failed, falling back to pdf-lib:", typstErr);
-        const bytes = await buildTailoredResumePdf(resumeText, { density: "compact" });
-        openPdfInNewTab(bytes);
+      // Use the bundled renderer so resume content never executes remote compiler
+      // code or depends on a CDN being available at download time.
+      const bytes = await buildTailoredResumePdf(resumeText, { density: "compact" });
+      if (!openPdfInNewTab(bytes, preview)) {
+        downloadPdfBytes(
+          tailoredResumePdfFileName(job?.company_name, job?.title),
+          bytes
+        );
       }
     } catch (e: any) {
+      preview?.close();
       error = e.message ?? "Could not build the resume PDF";
     } finally {
       downloadingPdf = false;
@@ -381,18 +374,8 @@
     let cancelled = false;
 
     (async () => {
-      const [kit, profileRes] = await Promise.all([
-        refreshLocalTailorKitResume().catch(() => loadLocalTailorKit()),
-        api.profile.get().catch(() => null),
-      ]);
+      const kit = await refreshLocalTailorKitResume().catch(() => loadLocalTailorKit());
       localKit = kit;
-      if (profileRes?.data) {
-        const c = profileRes.data.contact;
-        if (c.name || c.email) profileContact = c;
-        if (profileRes.data.projects.length > 0) {
-          profileProjects = profileRes.data.projects.map(p => ({ name: p.name, url: p.url }));
-        }
-      }
       if (cancelled) return;
       await loadExisting();
       if (cancelled) return;

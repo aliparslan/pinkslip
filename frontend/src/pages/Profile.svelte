@@ -33,6 +33,7 @@
   let notes = $state("");
   let savedAt = $state<string | null>(null);
   let autosaveTimer: number | null = $state(null);
+  let saveAgain = false;
   let importing = $state(false);
   let importInput: HTMLInputElement | null = $state(null);
 
@@ -113,18 +114,41 @@
     } catch (e: any) { error = e.message; } finally { loading = false; }
   }
 
-  async function saveAll() {
-    if (saving) return; saving = true; error = null;
+  async function saveAll(keepalive = false) {
+    if (saving) {
+      saveAgain = true;
+      return;
+    }
+    saving = true; error = null;
     try {
-      const [profileRes] = await Promise.all([api.profile.update(profile), api.corpus.update(notes)]);
+      const [profileRes] = await Promise.all([
+        api.profile.update(profile, { keepalive }),
+        api.corpus.update(notes, { keepalive }),
+      ]);
       savedAt = profileRes.updated_at;
       success = "Saved"; setTimeout(() => { success = null; }, 1600);
-    } catch (e: any) { error = e.message; } finally { saving = false; }
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      saving = false;
+      if (saveAgain) {
+        saveAgain = false;
+        void saveAll(keepalive);
+      }
+    }
   }
 
   function queueAutosave() {
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(() => { saveAll(); }, 30000);
+    autosaveTimer = window.setTimeout(() => { autosaveTimer = null; saveAll(); }, 2000);
+  }
+  // Flush any pending autosave immediately. Called on unmount / backgrounding so
+  // edits made within the debounce window aren't silently dropped on navigation.
+  function flushAutosave() {
+    if (autosaveTimer === null) return;
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+    void saveAll(true);
   }
   function handleInput() { queueAutosave(); }
 
@@ -155,7 +179,17 @@
     } catch (e: any) { error = `Could not parse PDF: ${e.message}`; } finally { importing = false; input.value = ""; }
   }
 
-  onMount(() => { loadAll(); return () => { if (autosaveTimer !== null) window.clearTimeout(autosaveTimer); }; });
+  onMount(() => {
+    loadAll();
+    const onHidden = () => { if (document.visibilityState === "hidden") flushAutosave(); };
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", flushAutosave);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", flushAutosave);
+      flushAutosave();
+    };
+  });
 </script>
 
 <div class="page">
@@ -171,7 +205,7 @@
           <UploadSimple size={14} />
           {importing ? "Importing..." : "Import PDF"}
         </button>
-        <button class="btn-primary btn-accent" style="height: 36px; padding: 0 14px; font-size: 12px;" onclick={saveAll} disabled={saving}>
+        <button class="btn-primary btn-accent" style="height: 36px; padding: 0 14px; font-size: 12px;" onclick={() => saveAll()} disabled={saving}>
           {saving ? "Saving..." : "Save"}
         </button>
       </div>

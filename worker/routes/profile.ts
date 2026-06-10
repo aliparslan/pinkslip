@@ -18,6 +18,9 @@ profile.put("/", async (c) => {
   if (!body?.data) {
     return c.json({ error: "Missing data field" }, 400);
   }
+  if (JSON.stringify(body.data).length > 500_000) {
+    return c.json({ error: "Resume profile is too large" }, 413);
+  }
 
   const saved = await saveUserProfile(c.env.DB, c.get("userId"), body.data);
   return c.json({

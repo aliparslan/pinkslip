@@ -200,7 +200,7 @@ export async function buildTailoredResumePdf(markdown: string, options?: Tailore
 
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const oblique = await pdf.embedFont(StandardFonts.HelveticaOblique);
@@ -214,7 +214,8 @@ export async function buildTailoredResumePdf(markdown: string, options?: Tailore
 
   const ensureSpace = (height: number) => {
     if (y - height < MARGIN_BOTTOM) {
-      throw new Error("This draft is too long for a one-page PDF at the chosen density. Shorten the resume, then download again.");
+      page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      y = PAGE_HEIGHT - MARGIN_TOP;
     }
   };
 
@@ -381,12 +382,18 @@ export function downloadPdfBytes(fileName: string, bytes: Uint8Array) {
   }
 }
 
-export function openPdfInNewTab(bytes: Uint8Array) {
-  if (typeof document === "undefined") return;
+export function openPdfInNewTab(bytes: Uint8Array, target?: Window | null): boolean {
+  if (typeof document === "undefined") return false;
   const arrayBuffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(arrayBuffer).set(bytes);
   const blob = new Blob([arrayBuffer], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const preview = target ?? window.open("", "_blank");
+  if (!preview) {
+    URL.revokeObjectURL(url);
+    return false;
+  }
+  preview.location.href = url;
   setTimeout(() => URL.revokeObjectURL(url), 300_000);
+  return true;
 }
