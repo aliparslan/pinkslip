@@ -413,7 +413,13 @@ export const api = {
   },
   push: {
     settings: () =>
-      request<{ enabled: boolean; push_enabled: boolean; threshold: number; updated_at: string | null }>("/push/settings"),
+      request<{
+        enabled: boolean;
+        push_enabled: boolean;
+        threshold: number;
+        updated_at: string | null;
+        vapid_public_key: string | null;
+      }>("/push/settings"),
     updateSettings: (data: { enabled?: boolean; push_enabled?: boolean; threshold?: number }) =>
       request<{ enabled: boolean; push_enabled: boolean; threshold: number }>("/push/settings", {
         method: "PUT",
@@ -553,10 +559,11 @@ export const api = {
   profile: {
     get: () =>
       request<{ data: ResumeProfile; id: number | null; updated_at: string | null }>("/profile"),
-    update: (data: ResumeProfile) =>
+    update: (data: ResumeProfile, options?: { keepalive?: boolean }) =>
       request<{ data: ResumeProfile; id: number | null; updated_at: string | null }>("/profile", {
         method: "PUT",
         body: JSON.stringify({ data }),
+        keepalive: options?.keepalive,
       }),
   },
   resumeAssets: {
@@ -578,10 +585,11 @@ export const api = {
   corpus: {
     get: () =>
       request<{ content_md: string; version_id: number | null; updated_at: string | null; label?: string | null }>("/corpus"),
-    update: (content_md: string) =>
+    update: (content_md: string, options?: { keepalive?: boolean }) =>
       request<{ content_md: string; version_id: number | null; updated_at: string | null; label?: string | null }>("/corpus", {
         method: "PUT",
         body: JSON.stringify({ content_md }),
+        keepalive: options?.keepalive,
       }),
     versions: () => request<{ versions: Array<Omit<CorpusVersion, "content_md">> }>("/corpus/versions"),
     version: (id: number | string) => request<CorpusVersion>(`/corpus/versions/${id}`),
@@ -621,6 +629,10 @@ export const api = {
       ),
   },
   interactions: {
+    viewedJobs: () =>
+      request<{ job_ids: string[] }>("/interactions/viewed-jobs"),
+    markViewed: (jobId: string) =>
+      request<void>(`/interactions/viewed-jobs/${jobId}`, { method: "POST" }),
     report: (data: {
       company_id?: string;
       job_id?: string;

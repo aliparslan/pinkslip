@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../lib/api";
+  import { focusTrap } from "../lib/focus-trap";
   import { timeAgo } from "../lib/utils";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
@@ -22,6 +23,7 @@
 
   let events: EventItem[] = $state([]);
   let loading: boolean = $state(true);
+  let loadError: string | null = $state(null);
   let showCreate: boolean = $state(false);
   let creating: boolean = $state(false);
   let formError: string | null = $state(null);
@@ -72,11 +74,13 @@
 
   async function loadEvents() {
     loading = true;
+    loadError = null;
     try {
       const res = await api.events.list({ upcoming: "true" });
       events = (res.events ?? []) as EventItem[];
-    } catch {
-      events = [];
+    } catch (e: any) {
+      // Surface load failures instead of rendering them as an empty list.
+      loadError = e?.message || "Couldn't load your events.";
     } finally {
       loading = false;
     }
@@ -128,6 +132,7 @@
   }
 
   async function deleteEvent(id: string) {
+    if (!confirm("Delete this event? This can't be undone.")) return;
     events = events.filter((e) => e.id !== id);
     try {
       await api.events.delete(id);
@@ -170,6 +175,16 @@
   {#if loading}
     <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
       Loading...
+    </div>
+  {:else if loadError}
+    <div style="text-align: center; padding: 48px 24px;">
+      <div class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+        Couldn't load events
+      </div>
+      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
+        {loadError}
+      </div>
+      <button class="btn-secondary" onclick={loadEvents}>Try again</button>
     </div>
   {:else if events.length === 0}
     <div style="text-align: center; padding: 48px 24px;">
@@ -254,12 +269,14 @@
     <div
       role="dialog"
       aria-modal="true"
+      use:focusTrap
+      aria-labelledby="create-event-title"
       tabindex="-1"
       style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 16px; padding: 20px; animation: fade-in 0.15s;"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => { if (e.key === "Escape") showCreate = false; }}
     >
-      <div class="h-display" style="font-size: 22px; margin-bottom: 6px;">Add event</div>
+      <div id="create-event-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">Add event</div>
       <div style="font-size: 13px; color: var(--color-ink-3); margin-bottom: 16px;">
         Recruiter calls, onsites, take-home deadlines.
       </div>
@@ -269,9 +286,10 @@
         </div>
       {/if}
       <div style="display: flex; flex-direction: column; gap: 10px;">
-        <input class="input-field" placeholder="Event title" bind:value={createTitle} />
+        <input class="input-field" aria-label="Event title" placeholder="Event title" bind:value={createTitle} />
         <input
           class="input-field"
+          aria-label="Company"
           placeholder="Company (optional)"
           list="event-companies"
           bind:value={createCompanyText}
@@ -283,10 +301,10 @@
           {/each}
         </datalist>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <input class="input-field" type="date" bind:value={createDate} />
-          <input class="input-field" type="time" bind:value={createTime} />
+          <input class="input-field" aria-label="Event date" type="date" bind:value={createDate} />
+          <input class="input-field" aria-label="Event time" type="time" bind:value={createTime} />
         </div>
-        <select class="input-field" bind:value={createType}>
+        <select class="input-field" aria-label="Event type" bind:value={createType}>
           <option value="call">Recruiter call</option>
           <option value="screen">Phone screen</option>
           <option value="onsite">Onsite / Virtual onsite</option>
@@ -294,8 +312,8 @@
           <option value="offer">Offer deadline</option>
           <option value="other">Other</option>
         </select>
-        <input class="input-field" placeholder="Join link (optional)" bind:value={createUrl} />
-        <input class="input-field" placeholder="Location (optional)" bind:value={createLocation} />
+        <input class="input-field" aria-label="Join link" placeholder="Join link (optional)" bind:value={createUrl} />
+        <input class="input-field" aria-label="Location" placeholder="Location (optional)" bind:value={createLocation} />
       </div>
       <div class="action-row" style="margin-top: 16px;">
         <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleCreate} disabled={creating || !createTitle.trim() || !createDate}>

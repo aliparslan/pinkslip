@@ -6,6 +6,42 @@ import type { Env, Variables } from "../types";
 
 const interactions = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+interactions.get("/viewed-jobs", async (c) => {
+  const result = await c.env.DB.prepare(
+    `SELECT job_id FROM viewed_jobs
+     WHERE user_id = ?
+     ORDER BY datetime(viewed_at) DESC
+     LIMIT 2000`
+  ).bind(c.get("userId")).all<{ job_id: string }>();
+  return c.json({ job_ids: (result.results ?? []).map((row) => row.job_id) });
+});
+
+interactions.post("/viewed-jobs/:id", async (c) => {
+  const userId = c.get("userId");
+  const jobId = c.req.param("id");
+  const job = await c.env.DB.prepare("SELECT id FROM jobs WHERE id = ?")
+    .bind(jobId)
+    .first<{ id: string }>();
+  if (!job) return c.json({ error: "Job not found" }, 404);
+
+  await c.env.DB.prepare(
+    `INSERT INTO viewed_jobs (user_id, job_id, viewed_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(user_id, job_id) DO UPDATE SET viewed_at = excluded.viewed_at`
+  ).bind(userId, jobId, new Date().toISOString()).run();
+  await c.env.DB.prepare(
+    `DELETE FROM viewed_jobs
+     WHERE user_id = ?
+       AND job_id NOT IN (
+         SELECT job_id FROM viewed_jobs
+         WHERE user_id = ?
+         ORDER BY datetime(viewed_at) DESC
+         LIMIT 2000
+       )`
+  ).bind(userId, userId).run();
+  return c.body(null, 204);
+});
+
 interactions.post("/companies/:id/block", async (c) => {
   const userId = c.get("userId");
   const companyId = c.req.param("id");
@@ -294,6 +330,17 @@ interactions.post("/events", async (c) => {
   if (!body.event_name || !allowedEvents.has(body.event_name)) {
     return c.json({ error: "Unsupported event" }, 400);
   }
+
+  // Bound client-reported metric inflation: drop events past a generous per-user
+  // per-minute budget. (Properties are already allowlisted in recordProductEvent.)
+  const recent = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS count FROM product_events
+     WHERE user_id = ? AND datetime(occurred_at) > datetime('now', '-1 minute')`
+  ).bind(c.get("userId")).first<{ count: number }>();
+  if ((recent?.count ?? 0) >= 120) {
+    return c.body(null, 204);
+  }
+
   await recordProductEvent(c.env.DB, {
     userId: c.get("userId"),
     sessionId: c.get("sessionId"),

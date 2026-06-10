@@ -1,31 +1,28 @@
 import { writable } from "svelte/store";
+import { api } from "./api";
 
-const KEY = "pinkslip_viewed";
-const MAX = 2000;
+let current = new Set<string>();
+let currentUserId: string | null = null;
 
-function load(): Set<string> {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch {
-    return new Set();
-  }
+/** Account-scoped viewed jobs synchronized through the API. */
+export const viewedJobs = writable<Set<string>>(current);
+
+export function setViewedJobsSession(userId: string | null) {
+  if (userId === currentUserId) return;
+  currentUserId = userId;
+  current = new Set();
+  viewedJobs.set(new Set());
 }
 
-function persist(s: Set<string>) {
-  const arr = [...s];
-  if (arr.length > MAX) arr.splice(0, arr.length - MAX);
-  localStorage.setItem(KEY, JSON.stringify(arr));
+export async function syncViewedJobs() {
+  const result = await api.interactions.viewedJobs();
+  current = new Set([...result.job_ids, ...current]);
+  viewedJobs.set(new Set(current));
 }
 
-const _set = load();
-
-/** Reactive store of viewed job IDs. Subscribe with $viewedJobs. */
-export const viewedJobs = writable<Set<string>>(_set);
-
-/** Mark a job as viewed (persists to localStorage). */
+/** Mark locally immediately, then persist for the current account. */
 export function markViewed(id: string) {
-  _set.add(id);
-  persist(_set);
-  viewedJobs.set(new Set(_set));
+  current.add(id);
+  viewedJobs.set(new Set(current));
+  void api.interactions.markViewed(id).catch(() => undefined);
 }

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { navigate } from "../router";
   import { api } from "../lib/api";
+  import { focusTrap } from "../lib/focus-trap";
   import { timeAgo, companyMark } from "../lib/utils";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
@@ -17,6 +18,7 @@
 
   let apps: App[] = $state([]);
   let loading: boolean = $state(true);
+  let loadError: string | null = $state(null);
   let menuOpenId: string | null = $state(null);
   let showCreate = $state(false);
   let creating = $state(false);
@@ -50,11 +52,14 @@
 
   async function reloadApps() {
     loading = true;
+    loadError = null;
     try {
       const res = await api.applications.list();
       apps = (res.applications ?? []) as App[];
-    } catch {
-      apps = [];
+    } catch (e: any) {
+      // Distinguish a real fetch failure from a genuinely empty tracker, so an
+      // outage doesn't silently look like "no applications yet".
+      loadError = e?.message || "Couldn't load your applications.";
     } finally {
       loading = false;
     }
@@ -87,9 +92,10 @@
   }
 
   async function deleteApplication(appId: string) {
+    menuOpenId = null;
+    if (!confirm("Delete this application? This can't be undone.")) return;
     const previous = apps;
     apps = apps.filter((app) => app.id !== appId);
-    menuOpenId = null;
     try {
       await api.applications.delete(appId);
     } catch {
@@ -140,6 +146,16 @@
   {#if loading}
     <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
       Loading...
+    </div>
+  {:else if loadError}
+    <div style="text-align: center; padding: 48px 24px;">
+      <div class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+        Couldn't load applications
+      </div>
+      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
+        {loadError}
+      </div>
+      <button class="btn-secondary" onclick={reloadApps}>Try again</button>
     </div>
   {:else if apps.length === 0}
     <div style="text-align: center; padding: 48px 24px;">
@@ -244,6 +260,8 @@
     <div
       role="dialog"
       aria-modal="true"
+      use:focusTrap
+      aria-labelledby="create-application-title"
       tabindex="-1"
       style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 16px; padding: 20px;"
       onclick={(event) => event.stopPropagation()}
@@ -251,7 +269,7 @@
         if (event.key === "Escape") showCreate = false;
       }}
     >
-      <div class="h-display" style="font-size: 24px; margin-bottom: 6px;">Add application</div>
+      <div id="create-application-title" class="h-display" style="font-size: 24px; margin-bottom: 6px;">Add application</div>
       <div style="font-size: 13px; color: var(--color-ink-3); margin-bottom: 16px;">
         Track referrals, recruiter leads, and anything outside the watched feeds.
       </div>
@@ -261,15 +279,15 @@
         </div>
       {/if}
       <div style="display: flex; flex-direction: column; gap: 10px;">
-        <input class="input-field" placeholder="Company" bind:value={createCompany} />
-        <input class="input-field" placeholder="Title" bind:value={createTitle} />
-        <select class="input-field" bind:value={createStage}>
+        <input class="input-field" aria-label="Company" placeholder="Company" bind:value={createCompany} />
+        <input class="input-field" aria-label="Title" placeholder="Title" bind:value={createTitle} />
+        <select class="input-field" aria-label="Application stage" bind:value={createStage}>
           {#each ALL_STAGES as stage}
             <option value={stage}>{stage}</option>
           {/each}
         </select>
-        <input class="input-field" placeholder="Next step note" bind:value={createNext} />
-        <input class="input-field" placeholder="URL (optional)" bind:value={createUrl} />
+        <input class="input-field" aria-label="Next step note" placeholder="Next step note" bind:value={createNext} />
+        <input class="input-field" aria-label="Application URL" placeholder="URL (optional)" bind:value={createUrl} />
       </div>
       <div class="action-row" style="margin-top: 16px;">
         <button class="btn-primary btn-accent" style="flex: 1;" onclick={createApplication} disabled={creating}>

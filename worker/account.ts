@@ -7,17 +7,6 @@ import type {
   TailoringRow,
 } from "./types";
 
-const LEGACY_PREFERENCE_KEYS = new Set([
-  "locations",
-  "min_yoe",
-  "max_yoe",
-  "role_keywords",
-  "negative_keywords",
-  "notify_threshold",
-  "notification_threshold",
-  "search_profile",
-]);
-
 const EMPTY_PROFILE: ResumeProfile = {
   contact: { name: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "" },
   experience: [],
@@ -55,39 +44,13 @@ export async function saveMergeBackup(
   ).run();
 }
 
-async function hasUserPreferenceRows(db: D1Database, userId: string) {
-  const row = await db.prepare(
-    "SELECT 1 AS ok FROM user_preferences WHERE user_id = ? LIMIT 1"
-  ).bind(userId).first<{ ok: number }>();
-  return Boolean(row?.ok);
-}
-
-export async function ensureUserPreferencesMigrated(db: D1Database, userId: string) {
-  if (await hasUserPreferenceRows(db, userId)) return;
-
-  const legacy = await db.prepare(
-    "SELECT key, value FROM preferences"
-  ).all<PreferenceRow>();
-  const rows = (legacy.results ?? []).filter((row) => LEGACY_PREFERENCE_KEYS.has(row.key));
-  if (rows.length === 0) return;
-
-  const now = new Date().toISOString();
-  await db.batch(
-    rows.map((row) =>
-      db.prepare(
-        `INSERT INTO user_preferences (user_id, key, value, updated_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-      ).bind(userId, row.key === "notification_threshold" ? "notify_threshold" : row.key, row.value, now)
-    )
-  );
-}
-
 export async function readUserPreferences(
   db: D1Database,
   userId: string
 ): Promise<Record<string, unknown>> {
-  await ensureUserPreferencesMigrated(db, userId);
+  // NOTE: Preferences are strictly per-user. We deliberately do NOT fall back to
+  // the legacy global `preferences` table here — doing so leaked the original
+  // single-user owner's search profile to every fresh guest account.
   const result = await db.prepare(
     `SELECT key, value, updated_at
      FROM user_preferences
@@ -143,31 +106,10 @@ export async function getUserProfile(
     }
   }
 
-  const legacy = await db.prepare(
-    `SELECT data, created_at, updated_at
-     FROM profile
-     ORDER BY id DESC
-     LIMIT 1`
-  ).first<{ data: string; created_at: string; updated_at: string }>();
-
-  if (!legacy) {
-    return { data: EMPTY_PROFILE, updated_at: null };
-  }
-
-  await db.prepare(
-    `INSERT INTO user_profiles (user_id, data, created_at, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(user_id) DO NOTHING`
-  ).bind(userId, legacy.data, legacy.created_at, legacy.updated_at).run();
-
-  try {
-    return {
-      data: { ...EMPTY_PROFILE, ...(JSON.parse(legacy.data) as ResumeProfile) },
-      updated_at: legacy.updated_at,
-    };
-  } catch {
-    return { data: EMPTY_PROFILE, updated_at: legacy.updated_at };
-  }
+  // No per-user profile yet → return an empty profile. We deliberately do NOT
+  // fall back to the legacy global `profile` table; that leaked the original
+  // owner's resume/contact details into every fresh guest account.
+  return { data: EMPTY_PROFILE, updated_at: null };
 }
 
 export async function saveUserProfile(
@@ -197,24 +139,9 @@ export async function getLatestUserCorpusVersion(
      LIMIT 1`
   ).bind(userId).first<CorpusVersionRow>();
 
-  if (userVersion) return userVersion;
-
-  const legacy = await db.prepare(
-    `SELECT id, user_id, content_md, label, created_at, updated_at
-     FROM corpus_versions
-     WHERE user_id IS NULL
-     ORDER BY datetime(updated_at) DESC, id DESC
-     LIMIT 1`
-  ).first<CorpusVersionRow>();
-
-  if (!legacy) return null;
-
-  const copiedId = await copyCorpusVersion(db, userId, legacy.content_md, legacy.label);
-  return db.prepare(
-    `SELECT id, user_id, content_md, label, created_at, updated_at
-     FROM corpus_versions
-     WHERE id = ?`
-  ).bind(copiedId).first<CorpusVersionRow>();
+  // No legacy `user_id IS NULL` fallback: a shared global corpus would leak the
+  // owner's resume corpus into every fresh guest account.
+  return userVersion ?? null;
 }
 
 export async function copyCorpusVersion(
@@ -246,42 +173,8 @@ export async function getLatestUserTailoring(
      ORDER BY datetime(created_at) DESC, created_at DESC
      LIMIT 1`
   ).bind(userId, jobId).first<TailoringRow>();
-  if (row) return row;
-
-  const legacy = await db.prepare(
-    `SELECT *
-     FROM tailorings
-     WHERE user_id IS NULL AND job_id = ?
-     ORDER BY datetime(created_at) DESC, created_at DESC
-     LIMIT 1`
-  ).bind(jobId).first<TailoringRow>();
-
-  if (!legacy) return null;
-
-  const newId = crypto.randomUUID();
-  await db.prepare(
-    `INSERT INTO tailorings (
-       id, user_id, job_id, corpus_version_id, resume_md, cover_letter_md, qa_json,
-       input_tokens, output_tokens, model, created_at, user_edited_resume_md, user_edited_cover_md, user_edited_qa_json
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    newId,
-    userId,
-    legacy.job_id,
-    legacy.corpus_version_id,
-    legacy.resume_md,
-    legacy.cover_letter_md,
-    legacy.qa_json,
-    legacy.input_tokens,
-    legacy.output_tokens,
-    legacy.model,
-    legacy.created_at,
-    legacy.user_edited_resume_md,
-    legacy.user_edited_cover_md,
-    legacy.user_edited_qa_json
-  ).run();
-
-  return db.prepare("SELECT * FROM tailorings WHERE id = ?").bind(newId).first<TailoringRow>();
+  // No legacy `user_id IS NULL` fallback: tailorings are private per user.
+  return row ?? null;
 }
 
 export async function getActiveResumeAsset(
@@ -298,9 +191,6 @@ export async function getActiveResumeAsset(
 }
 
 async function copyMissingPreferences(db: D1Database, sourceUserId: string, targetUserId: string) {
-  await ensureUserPreferencesMigrated(db, sourceUserId);
-  await ensureUserPreferencesMigrated(db, targetUserId);
-
   const source = await db.prepare(
     "SELECT key, value, updated_at FROM user_preferences WHERE user_id = ?"
   ).bind(sourceUserId).all<PreferenceRow>();
@@ -462,6 +352,18 @@ export async function mergeGuestDataIntoAccount(
        FROM user_blocked_companies
        WHERE user_id = ?`
     ).bind(targetUserId, sourceUserId),
+    db.prepare(
+      `INSERT INTO viewed_jobs (user_id, job_id, viewed_at)
+       SELECT ?, job_id, viewed_at
+       FROM viewed_jobs
+       WHERE user_id = ?
+       ON CONFLICT(user_id, job_id) DO UPDATE SET
+         viewed_at = CASE
+           WHEN datetime(excluded.viewed_at) > datetime(viewed_jobs.viewed_at)
+             THEN excluded.viewed_at
+           ELSE viewed_jobs.viewed_at
+         END`
+    ).bind(targetUserId, sourceUserId),
   ]);
 
   await db.prepare(
@@ -479,17 +381,21 @@ export async function mergeGuestDataIntoAccount(
      WHERE datetime(excluded.updated_at) > datetime(user_notification_settings.updated_at)`
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
 
+  await db.prepare(
+    `DELETE FROM notification_candidates
+     WHERE user_id = ?
+       AND EXISTS (
+         SELECT 1 FROM notification_candidates target
+         WHERE target.user_id = ?
+           AND target.job_id = notification_candidates.job_id
+           AND target.channel = notification_candidates.channel
+       )`
+  ).bind(sourceUserId, targetUserId).run().catch(() => undefined);
+  await db.prepare(
+    "UPDATE notification_candidates SET user_id = ? WHERE user_id = ?"
+  ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
+
   await db.batch([
-    db.prepare(
-      `INSERT OR IGNORE INTO notification_candidates (
-         id, user_id, job_id, channel, score, status, attempt_count, last_error,
-         created_at, last_attempt_at, sent_at, opened_at
-       )
-       SELECT id, ?, job_id, channel, score, status, attempt_count, last_error,
-              created_at, last_attempt_at, sent_at, opened_at
-       FROM notification_candidates
-       WHERE user_id = ?`
-    ).bind(targetUserId, sourceUserId),
     db.prepare(
       `INSERT OR IGNORE INTO scorer_audits (
          user_id, job_id, stable_version, candidate_version, stable_score,
@@ -548,6 +454,7 @@ export async function mergeGuestDataIntoAccount(
 
   await db.batch([
     db.prepare("UPDATE applications SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailorings SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE content_reports SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
@@ -575,7 +482,16 @@ export async function deleteUserAccountData(
   ).bind(userId).all<{ storage_key: string }>();
   if (bucket) {
     await Promise.all(
-      (assets.results ?? []).map((asset) => bucket.delete(asset.storage_key).catch(() => undefined))
+      (assets.results ?? []).map((asset) =>
+        bucket.delete(asset.storage_key).catch((error) => {
+          // Don't block account deletion on R2, but log so orphaned objects are
+          // discoverable rather than silently leaked.
+          console.error("Failed to delete resume object during account deletion", {
+            storage_key: asset.storage_key,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        })
+      )
     );
   }
 
@@ -592,6 +508,7 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM user_profiles WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM saved_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM dismissed_jobs WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM viewed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM applications WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_blocked_companies WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_notification_settings WHERE user_id = ?").bind(userId),

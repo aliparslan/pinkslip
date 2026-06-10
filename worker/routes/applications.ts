@@ -4,6 +4,16 @@ import { recordProductEvent } from "../product-events";
 
 const applications = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+const ALLOWED_STAGES = new Set([
+  "Applied", "Screen", "Interview", "Offer", "Rejected", "Ghosted",
+]);
+
+function cleanUrl(value: string | undefined): string {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed.slice(0, 2000) : "";
+}
+
 // GET / — List applications for current user
 applications.get("/", async (c) => {
   const userId = c.get("userId");
@@ -43,33 +53,66 @@ applications.post("/", async (c) => {
     url?: string;
   }>();
 
+  const companyName = body.company_name?.trim();
+  const title = body.title?.trim();
+  if (!companyName || !title) {
+    return c.json({ error: "company_name and title are required", code: "invalid_application" }, 400);
+  }
+  const stage = body.stage ?? "Applied";
+  if (!ALLOWED_STAGES.has(stage)) {
+    return c.json({ error: "Invalid stage", code: "invalid_application" }, 400);
+  }
+
+  const url = cleanUrl(body.url);
+  if (body.url?.trim() && !url) {
+    return c.json({ error: "Application URLs must start with http:// or https://", code: "invalid_application" }, 400);
+  }
   if (body.job_id) {
-    const existing = await c.env.DB.prepare(
-      `SELECT * FROM applications WHERE user_id = ? AND job_id = ?`
-    ).bind(userId, body.job_id).first<ApplicationRow>();
+    const job = await c.env.DB.prepare("SELECT id FROM jobs WHERE id = ?")
+      .bind(body.job_id)
+      .first<{ id: string }>();
+    if (!job) return c.json({ error: "Job not found", code: "invalid_application" }, 404);
+  }
+
+  const loadExisting = () =>
+    c.env.DB.prepare(`SELECT * FROM applications WHERE user_id = ? AND job_id = ?`)
+      .bind(userId, body.job_id).first<ApplicationRow>();
+
+  if (body.job_id) {
+    const existing = await loadExisting();
     if (existing) return c.json(existing, 200);
   }
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  await c.env.DB.prepare(
-    `INSERT INTO applications (id, user_id, job_id, company_name, title, stage, next, url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      id,
-      userId,
-      body.job_id ?? null,
-      body.company_name,
-      body.title,
-      body.stage ?? "Applied",
-      body.next ?? "",
-      body.url ?? "",
-      now,
-      now
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO applications (id, user_id, job_id, company_name, title, stage, next, url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run();
+      .bind(
+        id,
+        userId,
+        body.job_id ?? null,
+        companyName.slice(0, 200),
+        title.slice(0, 300),
+        stage,
+        (body.next ?? "").slice(0, 2000),
+        url,
+        now,
+        now
+      )
+      .run();
+  } catch (error) {
+    // A concurrent create for the same job lost the race on the unique index —
+    // return the row the other request committed instead of failing.
+    if (body.job_id) {
+      const existing = await loadExisting();
+      if (existing) return c.json(existing, 200);
+    }
+    throw error;
+  }
 
   const row = await c.env.DB.prepare(`SELECT * FROM applications WHERE id = ?`)
     .bind(id)
@@ -99,17 +142,24 @@ applications.patch("/:id", async (c) => {
     url?: string;
   }>();
 
+  if (body.stage !== undefined && !ALLOWED_STAGES.has(body.stage)) {
+    return c.json({ error: "Invalid stage", code: "invalid_application" }, 400);
+  }
+  if (body.url !== undefined && body.url.trim() && !cleanUrl(body.url)) {
+    return c.json({ error: "Application URLs must start with http:// or https://", code: "invalid_application" }, 400);
+  }
+
   const now = new Date().toISOString();
   const setClauses: string[] = ["updated_at = ?"];
   const bindings: (string | number)[] = [now];
 
   if (body.company_name !== undefined) {
     setClauses.push("company_name = ?");
-    bindings.push(body.company_name);
+    bindings.push((body.company_name.trim() || "Untitled").slice(0, 200));
   }
   if (body.title !== undefined) {
     setClauses.push("title = ?");
-    bindings.push(body.title);
+    bindings.push((body.title.trim() || "Untitled").slice(0, 300));
   }
   if (body.stage !== undefined) {
     setClauses.push("stage = ?");
@@ -117,11 +167,11 @@ applications.patch("/:id", async (c) => {
   }
   if (body.next !== undefined) {
     setClauses.push("next = ?");
-    bindings.push(body.next);
+    bindings.push(body.next.slice(0, 2000));
   }
   if (body.url !== undefined) {
     setClauses.push("url = ?");
-    bindings.push(body.url);
+    bindings.push(cleanUrl(body.url));
   }
 
   bindings.push(id, userId);

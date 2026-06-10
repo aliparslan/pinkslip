@@ -3,10 +3,12 @@
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { api } from "../lib/api";
+  import { focusTrap } from "../lib/focus-trap";
   import { hapticLight } from "../lib/haptics";
   import { shareLink } from "../lib/share";
   import { getAdjacentJobIds } from "../lib/feed-navigation";
   import { sessionAccess } from "../lib/session-access";
+  import { markViewed } from "../lib/viewed";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
@@ -86,6 +88,7 @@
       syncJobState(nextJob);
       if (openedJobId !== jobId) {
         openedJobId = jobId;
+        markViewed(jobId);
         void api.interactions.event({
           event_name: "job_opened",
           entity_type: "job",
@@ -578,6 +581,7 @@
       class="modal-card"
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="report-title"
       tabindex="-1"
       onclick={(event) => event.stopPropagation()}
@@ -622,6 +626,7 @@
     <div
       role="dialog"
       aria-modal="true"
+      use:focusTrap
       aria-labelledby="block-title"
       tabindex="-1"
       style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"

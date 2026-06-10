@@ -15,6 +15,10 @@
     maxSalaryK: string;
     maxYoe: string;
     notifyThreshold: number;
+    // True only when the user has set a match filter that differs from their
+    // saved profile threshold. When false, the feed follows the profile
+    // threshold so changing it in Settings actually controls the feed.
+    customMinMatch: boolean;
     nextOffset: number;
     hasMore: boolean;
     hydrated: boolean;
@@ -34,6 +38,7 @@
     maxSalaryK: "",
     maxYoe: "",
     notifyThreshold: 50,
+    customMinMatch: false,
     nextOffset: 0,
     hasMore: true,
     hydrated: false,
@@ -46,7 +51,7 @@
   import { JOB_SCORE_RAW_MAX } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import { searchOpen, unviewedCount } from "../lib/feed-state";
-  import { viewedJobs } from "../lib/viewed";
+  import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Slider from "../components/Slider.svelte";
@@ -173,6 +178,7 @@
     feedCache.maxSalaryK = maxSalaryK;
     feedCache.maxYoe = maxYoe;
     feedCache.notifyThreshold = notifyThreshold;
+    feedCache.customMinMatch = minMatch !== profileThreshold;
     feedCache.nextOffset = nextOffset;
     feedCache.hasMore = hasMore;
     feedCache.hydrated = true;
@@ -244,7 +250,10 @@
         notifyThreshold = prefsRes.notify_threshold ?? 50;
         currentProfile = normalizeSearchProfile(prefsRes.search_profile);
         profileThreshold = currentProfile.match_threshold ?? notifyThreshold;
-        if (!feedCache.hydrated) minMatch = profileThreshold;
+        // Follow the saved profile threshold unless the user has an active custom
+        // match filter. Without this, the feed kept filtering at a stale cached
+        // value after the threshold changed in Settings.
+        if (!feedCache.customMinMatch) minMatch = profileThreshold;
         lastPolled = statsRes.lastPolled ?? null;
       }
 
@@ -477,6 +486,7 @@
   }
 
   onMount(() => {
+    void syncViewedJobs().catch(() => undefined);
     if (feedCache.hydrated && feedCache.jobs.length > 0) {
       loading = false;
       refreshIfStale();
