@@ -15,9 +15,11 @@
     return domain.replace(/^https?:\/\//, "").split("/")[0];
   });
 
+  // Served via our worker proxy (cached), so the browser never talks to
+  // Google's favicon service directly about which companies the user views.
   let logoUrl = $derived(
     cleanDomain && !imgFailed
-      ? `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`
+      ? `/api/logo?domain=${encodeURIComponent(cleanDomain)}`
       : null
   );
 

@@ -176,6 +176,29 @@ app.get("/api/health", (c) =>
     timestamp: new Date().toISOString(),
   })
 );
+// Company favicon proxy. The app never hits Google's favicon service from the
+// user's device (no third party learns which companies they browse); responses
+// cache at the edge and in the browser for a day.
+app.get("/api/logo", async (c) => {
+  const domain = (c.req.query("domain") ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
+    return c.json({ error: "Invalid domain" }, 400);
+  }
+  const upstream = await fetch(
+    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
+    { cf: { cacheEverything: true, cacheTtl: 86400 } }
+  );
+  if (!upstream.ok || !upstream.body) {
+    return c.json({ error: "Logo unavailable" }, 404);
+  }
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      "content-type": upstream.headers.get("content-type") ?? "image/png",
+      "cache-control": "public, max-age=86400",
+    },
+  });
+});
 app.get("/api/me", async (c) => {
   const geminiEnabled = Boolean(c.env.GEMINI_API_KEY?.trim());
   const anthropicEnabled = Boolean(c.env.ANTHROPIC_API_KEY?.trim());

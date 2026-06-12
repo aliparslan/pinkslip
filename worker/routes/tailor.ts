@@ -788,8 +788,13 @@ tailor.post("/tailor/:job_id", async (c) => {
       ? c.env.GEMINI_API_KEY?.trim()
       : c.env.ANTHROPIC_API_KEY?.trim());
   if (!apiKey) {
+    // `code` lets the app render a guided setup card instead of a raw error.
+    // The message stays free of env-var jargon — it's shown to job seekers.
     return c.json(
-      { error: "Add a Gemini API key in Profile, or configure GEMINI_API_KEY on the worker." },
+      {
+        error: "Tailoring isn't set up yet. Add a free Gemini API key in Profile → Tailor to enable it.",
+        code: "tailor_not_configured",
+      },
       503
     );
   }

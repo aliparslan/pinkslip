@@ -14,6 +14,7 @@ import {
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
+import { LOCATION_OPTIONS } from "../../shared/search-profile";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 jobs.use("/*", async (c, next) => {
@@ -123,6 +124,12 @@ function serializeJob(row: JobListRow) {
 
 const LOCATION_ALIASES: Record<string, string[]> = {
   Remote: ["remote"],
+  // Metro ids from the shared catalog — what the app sends. Covers every
+  // onboarding metro (Seattle, Austin, LA, …), not just the original six.
+  ...Object.fromEntries(
+    LOCATION_OPTIONS.map((option) => [option.id, [...option.aliases]])
+  ),
+  // Legacy display-label keys, kept so older clients' saved filters still work.
   NYC: ["new york", "nyc", "brooklyn"],
   "SF Bay Area": [
     "san francisco",
