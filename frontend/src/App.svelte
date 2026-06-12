@@ -12,26 +12,37 @@
   import Moon from "phosphor-svelte/lib/Moon";
   import CircleHalf from "phosphor-svelte/lib/CircleHalf";
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
+  import type { Component } from "svelte";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
   import Tracker from "./pages/Tracker.svelte";
   import Companies from "./pages/Companies.svelte";
-  import Settings from "./pages/Settings.svelte";
   import Events from "./pages/Events.svelte";
   import Profile from "./pages/Profile.svelte";
+  import ResumeProfile from "./pages/ResumeProfile.svelte";
+  import Corpus from "./pages/Corpus.svelte";
   import Tailor from "./pages/Tailor.svelte";
   import TabBar from "./components/TabBar.svelte";
   import Onboarding from "./components/Onboarding.svelte";
 
-  const routes: Record<string, any> = {
-    "/": Feed,
-    "/tracker": Tracker,
-    "/events": Events,
-    "/profile": Settings,
-    "/companies": Companies,
-    "/corpus": Profile,
-    "/resume": Profile,
-    "/settings": Settings,
+  // Page components match their route names: /profile renders Profile (the
+  // tab with account + settings sections), /resume the structured resume
+  // editor, /corpus the versioned master-story editor.
+  type PageComponent = Component<{ jobId?: string | null }>;
+  // Tab pages declare no props; Svelte ignores the extra `jobId` the generic
+  // render sites pass. One widening here keeps every page un-`any`-typed.
+  const asPage = (component: Component<never> | PageComponent): PageComponent =>
+    component as PageComponent;
+
+  const routes: Record<string, PageComponent> = {
+    "/": asPage(Feed),
+    "/tracker": asPage(Tracker),
+    "/events": asPage(Events),
+    "/profile": asPage(Profile),
+    "/companies": asPage(Companies),
+    "/corpus": asPage(Corpus),
+    "/resume": asPage(ResumeProfile),
+    "/settings": asPage(Profile),
   };
 
   let route = $derived($currentRoute);
@@ -68,7 +79,7 @@
   let underlayRoute = $state<string | null>(null); // previous page, mounted only while swiping
   let swiping = $state(false); // finger down with the horizontal lock engaged
 
-  function pageFor(r: string): { Comp: any; jid: string | null } {
+  function pageFor(r: string): { Comp: PageComponent; jid: string | null } {
     if (r.startsWith("/jobs/")) return { Comp: JobDetail, jid: r.split("/jobs/")[1] };
     if (r.startsWith("/tailor/")) return { Comp: Tailor, jid: r.split("/tailor/")[1] };
     return { Comp: routes[r] ?? Feed, jid: null };
@@ -455,7 +466,7 @@
         onkeydown={(event) => event.key === "Enter" && handleAccessSubmit()}
       />
       {#if accessError}
-        <div style="margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 13px;">
+        <div class="alert alert-error" style="margin-top: 12px;">
           {accessError}
         </div>
       {/if}
