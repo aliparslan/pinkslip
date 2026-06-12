@@ -33,38 +33,6 @@
 }
 
 @font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-semibold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-bold.woff2") format("woff2");
-  font-weight: 700 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Founders Grotesk Text";
   src: url("/fonts/founders/founders-grotesk-text-regular.woff2") format("woff2");
   font-weight: 400;
@@ -121,6 +89,11 @@
 }
 
 :root {
+  /* Native form controls (date/time pickers, scrollbars) follow the app theme.
+     `data-mode` is always set — resolved by the inline script in index.html on
+     first paint and kept in sync by lib/theme.ts. */
+  color-scheme: dark;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
@@ -128,12 +101,13 @@
   --fs-2xs: 11px;
   --fs-xs: 12px;
   --fs-sm: 13px;
+  --fs-md: 14px;
   --fs-base: 15px;
-  --fs-md: 17px;
-  --fs-lg: 20px;
-  --fs-xl: 24px;
-  --fs-2xl: 28px;
-  --fs-3xl: 32px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 28px;
+  --fs-4xl: 32px;
 
   /* ── Spacing scale (4px base) ── use var(--space-*) for padding/gap/margin. */
   --space-1: 4px;
@@ -150,15 +124,15 @@
 }
 
 @theme {
-  --font-display: "American Grotesk", "Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "American Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "American Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Founders Grotesk Mono", "American Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Founders Grotesk Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 28px;
+  --radius-xl: 24px;
   --radius-full: 999px;
 
   /* Dark theme (default) — pink-tinted neutrals matching light mode */
@@ -178,30 +152,26 @@
   --color-good: oklch(0.72 0.14 145);
   --color-warn: oklch(0.78 0.15 65);
   --color-bad: oklch(0.72 0.18 25);
+
+  /* Inset control surfaces (feed filter/sort bar). Tokenized so the light
+     theme overrides values instead of duplicating whole rule blocks. */
+  --color-control-bg: oklch(0.29 0.012 340);
+  --color-control-border: oklch(0.40 0.014 340);
+  --color-control-active-bg: oklch(0.17 0.01 340);
+  --color-control-active-ink: oklch(0.98 0.004 340);
+  --color-control-highlight: oklch(1 0 0 / 0.08);
+  --shadow-control-active: 0 1px 5px oklch(0 0 0 / 0.28);
+
+  /* Shared scrim behind modals and sheets. */
+  --color-scrim: oklch(0 0 0 / 0.42);
 }
 
-/* Light theme overrides */
-@media (prefers-color-scheme: light) {
-  :root:not([data-mode="dark"]) {
-    --color-bg: oklch(0.98 0.005 340);
-    --color-bg-elev: oklch(1 0 0);
-    --color-bg-sunken: oklch(0.955 0.008 340);
-    --color-ink: oklch(0.16 0.012 340);
-    --color-ink-2: oklch(0.35 0.014 340);
-    --color-ink-3: oklch(0.52 0.012 340);
-    --color-ink-4: oklch(0.6 0.01 340);
-    --color-line: oklch(0.9 0.01 340);
-    --color-line-2: oklch(0.83 0.012 340);
-    --color-accent: oklch(0.58 0.2 350);
-    --color-accent-ink: oklch(0.99 0.005 340);
-    --color-accent-soft: oklch(0.94 0.04 350);
-    --color-accent-soft-ink: oklch(0.38 0.16 350);
-    --color-good: oklch(0.5 0.14 145);
-    --color-warn: oklch(0.6 0.16 65);
-    --color-bad: oklch(0.5 0.18 25);
-  }
-}
+/* Light theme overrides. JS always resolves "system" to a concrete mode and
+   sets data-mode (see index.html + lib/theme.ts), so this single block is the
+   only light-mode CSS — no parallel @media (prefers-color-scheme) copies. */
 [data-mode="light"] {
+  color-scheme: light;
+
   --color-bg: oklch(0.98 0.005 340);
   --color-bg-elev: oklch(1 0 0);
   --color-bg-sunken: oklch(0.955 0.008 340);
@@ -218,6 +188,13 @@
   --color-good: oklch(0.5 0.14 145);
   --color-warn: oklch(0.6 0.16 65);
   --color-bad: oklch(0.5 0.18 25);
+
+  --color-control-bg: oklch(0.90 0.006 340);
+  --color-control-border: oklch(0.83 0.012 340);
+  --color-control-active-bg: oklch(1 0 0);
+  --color-control-active-ink: oklch(0.16 0.012 340);
+  --color-control-highlight: oklch(1 0 0 / 0.48);
+  --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.12);
 }
 
 * { box-sizing: border-box; }
@@ -235,7 +212,7 @@ body {
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 15px;
+  font-size: var(--fs-base);
   line-height: 1.45;
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
@@ -266,14 +243,9 @@ html.native-ios select {
   margin: 0;
 }
 
-.page-title {
-  letter-spacing: 0;
-}
-
+/* Keeps the brand name from wrapping between "pink" and "slip". */
 .brand-word {
   display: inline-block;
-  font: inherit;
-  color: inherit;
 }
 
 .brand-word-pink {
@@ -286,7 +258,7 @@ html.native-ios select {
   padding: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -309,7 +281,7 @@ html.native-ios select {
 }
 
 .section-title {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--color-ink-2);
@@ -317,18 +289,59 @@ html.native-ios select {
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.01em;
+  color: var(--color-ink-3);
+}
+
+/* Mono small-caps section eyebrow (was repeated inline across Settings). */
+.section-eyebrow {
+  display: block;
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--color-ink-3);
 }
 
 .field-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--color-ink-2);
+}
+
+/* ── Alerts (inline message banners) ─────────────────────── */
+
+.alert {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.alert-error {
+  background: color-mix(in oklch, var(--color-bad) 14%, transparent);
+  color: var(--color-bad);
+}
+
+.alert-success {
+  background: color-mix(in oklch, var(--color-good) 14%, transparent);
+  color: var(--color-good);
+}
+
+.alert-warn {
+  background: color-mix(in oklch, var(--color-warn) 14%, transparent);
+  color: var(--color-warn);
+}
+
+.alert-accent {
+  background: color-mix(in oklch, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-soft-ink);
 }
 
 /* ── Stat row ────────────────────────────────────────────── */
@@ -340,7 +353,7 @@ html.native-ios select {
   column-gap: 0;
   row-gap: 6px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--color-ink-3);
   letter-spacing: 0.01em;
@@ -353,8 +366,13 @@ html.native-ios select {
 }
 .stat-row > * + *::before {
   content: "·";
-  margin: 0 12px;
+  margin: 0 var(--space-3);
   color: var(--color-ink-4);
+}
+
+.stat-warn {
+  color: var(--color-warn);
+  font-weight: 600;
 }
 
 .job-meta-strip {
@@ -372,7 +390,7 @@ html.native-ios select {
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 1.35;
   font-weight: 600;
   color: var(--color-ink-3);
@@ -388,22 +406,6 @@ html.native-ios select {
   overflow-wrap: anywhere;
 }
 
-/* ── Card ────────────────────────────────────────────────── */
-
-.card-base {
-  background: var(--color-bg-elev);
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: border-color .15s, transform .12s ease;
-  position: relative;
-}
-.card-base:hover {
-  border-color: var(--color-line-2);
-}
-.card-base:active { transform: scale(0.97); }
-
 /* ── Chip / Tag ──────────────────────────────────────────── */
 
 .chip {
@@ -411,13 +413,13 @@ html.native-ios select {
   align-items: center;
   gap: 6px;
   height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-line-2);
   background: var(--color-bg);
   color: var(--color-ink-2);
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -435,7 +437,7 @@ html.native-ios select {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 1px 0 4px;
 }
 
@@ -474,7 +476,7 @@ html.native-ios select {
 .chip-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   overflow-x: auto;
   overflow-y: hidden;
   padding: 1px 14px 4px 1px;
@@ -493,11 +495,11 @@ html.native-ios select {
   flex-shrink: 0;
   height: 20px;
   padding: 0 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: var(--color-bg-sunken);
   color: var(--color-ink-3);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -510,7 +512,16 @@ html.native-ios select {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 16px 10px;
+  padding: 0 var(--space-4) 10px;
+}
+
+/* Filters action + sort segmented control side by side. The Filters button is
+   its own pill so it doesn't read as a fourth sort option. */
+.feed-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .feed-control-row {
@@ -521,10 +532,10 @@ html.native-ios select {
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border: 1px solid oklch(0.40 0.014 340);
+  border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
-  background: oklch(0.29 0.012 340);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
+  background: var(--color-control-bg);
+  box-shadow: inset 0 1px 0 var(--color-control-highlight);
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: none;
@@ -535,19 +546,18 @@ html.native-ios select {
 }
 
 .filter-button {
-  width: fit-content;
-  height: 30px;
-  min-height: 30px;
+  height: var(--tap-min);
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: oklch(0.82 0.01 340);
-  font-size: 11.5px;
+  padding: 0 14px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  background: var(--color-control-bg);
+  box-shadow: inset 0 1px 0 var(--color-control-highlight);
+  color: var(--color-ink-2);
+  font-size: var(--fs-xs);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -556,13 +566,13 @@ html.native-ios select {
 
 .filter-button:hover {
   color: var(--color-ink);
-  background: color-mix(in oklch, white 5%, transparent);
+  background: color-mix(in oklch, var(--color-control-active-bg) 30%, var(--color-control-bg));
 }
 
 .filter-button.active {
-  background: oklch(0.17 0.01 340);
-  color: oklch(0.98 0.004 340);
-  box-shadow: 0 1px 5px color-mix(in oklch, black 28%, transparent);
+  background: var(--color-control-active-bg);
+  color: var(--color-control-active-ink);
+  box-shadow: var(--shadow-control-active);
 }
 
 .filter-button:active {
@@ -576,10 +586,10 @@ html.native-ios select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--color-accent);
   color: var(--color-accent-ink);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   line-height: 1;
 }
@@ -587,7 +597,7 @@ html.native-ios select {
 .filter-summary {
   max-width: 100%;
   color: var(--color-ink-3);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -618,13 +628,13 @@ html.native-ios select {
 
 .sort-segmented button {
   min-width: max-content;
-  height: 30px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: oklch(0.76 0.01 340);
-  font-size: 11.5px;
+  color: var(--color-ink-2);
+  font-size: var(--fs-xs);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -633,99 +643,13 @@ html.native-ios select {
 }
 
 .sort-segmented button.active {
-  background: oklch(0.17 0.01 340);
-  color: oklch(0.98 0.004 340);
-  box-shadow: 0 1px 5px color-mix(in oklch, black 28%, transparent);
+  background: var(--color-control-active-bg);
+  color: var(--color-control-active-ink);
+  box-shadow: var(--shadow-control-active);
 }
 
 .sort-segmented button:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 42%, transparent);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-mode="dark"]) .feed-control-row {
-    border-color: var(--color-line-2);
-    background: oklch(0.90 0.006 340);
-    box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
-  }
-
-  :root:not([data-mode="dark"]) .filter-button {
-    color: var(--color-ink-2);
-  }
-
-  :root:not([data-mode="dark"]) .filter-button:hover {
-    background: color-mix(in oklch, white 38%, transparent);
-    color: var(--color-ink);
-  }
-
-  :root:not([data-mode="dark"]) .filter-button.active {
-    background: var(--color-bg-elev);
-    color: var(--color-ink);
-    box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
-  }
-
-  :root:not([data-mode="dark"]) .sort-segmented {
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  :root:not([data-mode="dark"]) .sort-segmented button {
-    color: var(--color-ink-2);
-  }
-
-  :root:not([data-mode="dark"]) .sort-segmented button.active {
-    background: var(--color-bg-elev);
-    color: var(--color-ink);
-    box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
-  }
-}
-
-[data-mode="light"] .feed-control-row {
-  border-color: var(--color-line-2);
-  background: oklch(0.90 0.006 340);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, white 48%, transparent);
-}
-
-[data-mode="light"] .filter-button {
-  color: var(--color-ink-2);
-}
-
-[data-mode="light"] .filter-button:hover {
-  background: color-mix(in oklch, white 38%, transparent);
-  color: var(--color-ink);
-}
-
-[data-mode="light"] .filter-button.active {
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
-}
-
-[data-mode="light"] .sort-segmented {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-
-[data-mode="light"] .sort-segmented button {
-  color: var(--color-ink-2);
-}
-
-[data-mode="light"] .sort-segmented button.active {
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  box-shadow: 0 1px 4px color-mix(in oklch, black 12%, transparent);
-}
-
-.filter-sheet {
-  left: 50%;
-  right: auto;
-  width: min(100%, 480px);
-  transform: translateX(-50%);
-  animation: filter-sheet-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
-  border: 1px solid var(--color-line);
-  border-bottom: 0;
 }
 
 .filter-sheet-header {
@@ -733,7 +657,7 @@ html.native-ios select {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   border-bottom: 0.5px solid var(--color-line);
 }
 
@@ -753,20 +677,20 @@ html.native-ios select {
 
 .filter-group-title {
   color: var(--color-ink-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .filter-help {
   margin-top: 2px;
   color: var(--color-ink-3);
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .filter-option-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .filter-option-grid.compact {
@@ -777,11 +701,11 @@ html.native-ios select {
   height: 34px;
   padding: 0 10px;
   border: 1px solid var(--color-line-2);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--color-ink-2);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--fs-xs);
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: background .15s, color .15s, border-color .15s;
@@ -805,8 +729,8 @@ html.native-ios select {
   flex-direction: column;
   gap: 6px;
   color: var(--color-ink-3);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--fs-xs);
+  font-weight: 600;
 }
 
 .filter-money-input {
@@ -830,8 +754,8 @@ html.native-ios select {
   background: transparent;
   color: var(--color-ink);
   font: inherit;
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--fs-md);
+  font-weight: 600;
 }
 
 .filter-money-input input::placeholder {
@@ -843,7 +767,7 @@ html.native-ios select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .filter-value {
@@ -852,38 +776,28 @@ html.native-ios select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--color-bg-sunken);
   color: var(--color-ink);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--fs-xs);
+  font-weight: 700;
 }
 
 .filter-toggle {
   width: 100%;
-  min-height: 42px;
-  padding: 0 13px;
+  min-height: 48px;
+  padding: 10px 13px;
   border: 1px solid var(--color-line-2);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-elev);
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
-  cursor: pointer;
-}
-
-.filter-toggle span:last-child {
-  color: var(--color-ink-3);
-  font-size: 12px;
 }
 
 .filter-toggle.active {
   border-color: color-mix(in oklch, var(--color-accent) 55%, var(--color-line-2));
   background: color-mix(in oklch, var(--color-accent) 13%, var(--color-bg-elev));
-}
-
-.filter-toggle.active span:last-child {
-  color: var(--color-accent-soft-ink);
 }
 
 .filter-sheet-actions {
@@ -897,15 +811,15 @@ html.native-ios select {
 
 .action-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .action-row > .btn-primary,
 .action-row > .btn-secondary {
   min-height: 44px;
   height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
+  padding: 0 var(--space-4);
+  font-size: var(--fs-md);
 }
 
 .action-row.compact > .btn-primary,
@@ -913,7 +827,7 @@ html.native-ios select {
   min-height: 42px;
   height: 42px;
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .filter-sheet-actions.action-row {
@@ -942,7 +856,7 @@ html.native-ios select {
   place-items: center;
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--color-ink-2);
   letter-spacing: -0.02em;
   flex-shrink: 0;
@@ -958,8 +872,8 @@ html.native-ios select {
 /* ── Buttons ─────────────────────────────────────────────── */
 
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   display: grid;
   place-items: center;
   border-radius: 10px;
@@ -970,6 +884,13 @@ html.native-ios select {
   transition: background .15s, color .15s;
 }
 .icon-btn:hover { background: var(--color-bg-sunken); color: var(--color-ink-2); }
+
+/* Compact icon button for inside list rows (still a reasonable tap target). */
+.icon-btn-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
 
 .icon-btn-surface {
   background: var(--color-bg-elev);
@@ -988,16 +909,16 @@ html.native-ios select {
   color: var(--color-bg);
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-base);
   letter-spacing: -0.01em;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: opacity .15s, transform .1s, border-color .15s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -1017,9 +938,9 @@ html.native-ios select {
   border: 1px solid var(--color-line-2);
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   height: 40px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border-radius: 10px;
   cursor: pointer;
   display: inline-flex;
@@ -1032,12 +953,14 @@ html.native-ios select {
 }
 .btn-secondary:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); }
 
+/* Disabled, but still legible: the label keeps enough contrast to read what
+   the blocked action is (the old 0.42 opacity made buttons near-invisible). */
 .btn-primary:disabled,
 .btn-secondary:disabled {
-  opacity: 0.42;
+  opacity: 0.6;
   cursor: default;
   background: color-mix(in oklch, var(--color-bg-elev) 72%, var(--color-line));
-  color: var(--color-ink-4);
+  color: var(--color-ink-3);
   border-color: var(--color-line);
   transform: none;
 }
@@ -1063,7 +986,7 @@ html.native-ios select {
   width: 100%;
   height: 42px;
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .job-action-bar-wrap {
@@ -1072,7 +995,7 @@ html.native-ios select {
   right: 0;
   bottom: 0;
   z-index: 15;
-  padding: 10px 16px calc(var(--safe-bottom) + 10px);
+  padding: 10px var(--space-4) calc(var(--safe-bottom) + 10px);
   background: color-mix(in oklch, var(--color-bg) 94%, transparent);
   border-top: 1px solid var(--color-line);
   backdrop-filter: blur(20px) saturate(180%);
@@ -1085,13 +1008,13 @@ html.native-ios select {
   width: 100%;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .job-step-btn {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .job-step-btn:disabled {
@@ -1102,12 +1025,12 @@ html.native-ios select {
 .btn-mini {
   height: 38px;
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .save-btn {
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border-radius: 10px;
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
@@ -1127,14 +1050,14 @@ html.native-ios select {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border-radius: 10px;
   background: var(--color-bg);
   border: 1px solid var(--color-line-2);
   font: inherit;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--fs-base);
   outline: none;
   width: 100%;
   transition: border-color .15s, background-color .15s;
@@ -1178,13 +1101,13 @@ select.input-field {
   border: 1px solid var(--color-line-2);
   color: var(--color-ink-3);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   line-height: 1.4;
 }
 
 .usage-meter strong {
   color: var(--color-ink);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1192,7 +1115,7 @@ select.input-field {
   height: 4px;
   overflow: hidden;
   margin: 8px 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--color-line-2);
 }
 
@@ -1207,7 +1130,7 @@ select.input-field {
 .tailor-textarea {
   min-height: 360px;
   height: auto;
-  padding: 16px;
+  padding: var(--space-4);
   align-items: flex-start;
   line-height: 1.6;
   font-family: var(--font-mono);
@@ -1218,7 +1141,7 @@ select.input-field {
   padding: 18px;
   min-height: 360px;
   word-break: break-word;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   line-height: 1.7;
   color: var(--color-ink-2);
 }
@@ -1232,10 +1155,10 @@ select.input-field {
   line-height: 1.2;
 }
 
-.prose-output h1 { font-size: 24px; }
-.prose-output h2 { font-size: 20px; }
+.prose-output h1 { font-size: var(--fs-2xl); }
+.prose-output h2 { font-size: var(--fs-xl); }
 .prose-output h3 { font-size: 16px; }
-.prose-output h4 { font-size: 14px; }
+.prose-output h4 { font-size: var(--fs-md); }
 
 .prose-output p {
   margin: 0 0 12px;
@@ -1258,10 +1181,10 @@ select.input-field {
 .prose-output code {
   display: inline-block;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--color-bg-sunken);
   border: 1px solid var(--color-line);
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .qa-block + .qa-block {
@@ -1294,10 +1217,10 @@ select.input-field {
   box-shadow:
     0 14px 36px rgba(0,0,0,0.18),
     0 0 0 1px color-mix(in oklch, var(--color-good) 10%, transparent) inset;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 999px;
+  padding: 10px var(--space-4);
+  border-radius: var(--radius-full);
   text-align: center;
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -1395,9 +1318,9 @@ select.input-field {
   gap: 6px;
   height: 22px;
   padding: 0 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: -0.005em;
 }
@@ -1424,14 +1347,14 @@ select.input-field {
 .divider { height: 0.5px; background: var(--color-line); margin: 0; }
 
 .page-frame {
-  padding: 16px 16px 28px;
+  padding: var(--space-4) var(--space-4) 28px;
 }
 
 .page-hero {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 14px;
 }
 
@@ -1444,7 +1367,7 @@ select.input-field {
 
 .page-subtitle {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--color-ink-3);
   max-width: 38ch;
@@ -1453,37 +1376,37 @@ select.input-field {
 .surface-card {
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .surface-card-padded {
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
 }
 
 .surface-list {
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .list-section-label {
-  padding: 14px 16px 8px;
+  padding: 14px var(--space-4) 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 12px;
+  gap: var(--space-3);
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--color-ink-3);
 }
 
 .list-section-count {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--color-ink-4);
   font-variant-numeric: tabular-nums;
 }
@@ -1516,7 +1439,7 @@ select.input-field {
 }
 
 .settings-section-tab > span {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1526,7 +1449,7 @@ select.input-field {
   max-width: 100%;
   overflow: hidden;
   color: var(--color-ink-4);
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-family: var(--font-mono);
   font-weight: 600;
   text-overflow: ellipsis;
@@ -1551,10 +1474,10 @@ select.input-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 12px 14px;
   border: 1px solid var(--color-line-2);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-elev);
   color: var(--color-ink);
   cursor: pointer;
@@ -1586,7 +1509,7 @@ select.input-field {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: calc(var(--safe-top) + 10px) 16px 10px;
+  padding: calc(var(--safe-top) + 10px) var(--space-4) 10px;
   background: color-mix(in oklch, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -1606,7 +1529,7 @@ select.input-field {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: calc(var(--safe-top) + 8px) 12px 10px;
+  padding: calc(var(--safe-top) + 8px) var(--space-3) 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1624,9 +1547,9 @@ select.input-field {
 .tailor-control-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 14px;
-  padding: 12px;
+  padding: var(--space-3);
   border: 1px solid var(--color-line-2);
   border-radius: 14px;
   background: var(--color-bg-elev);
@@ -1636,19 +1559,6 @@ select.input-field {
   padding: 0;
 }
 
-.tailor-model-row {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.tailor-model-row label {
-  color: var(--color-ink-3);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1656,32 +1566,44 @@ select.input-field {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: rgb(24 20 18 / 48%);
+  padding: var(--space-6);
+  background: var(--color-scrim);
   backdrop-filter: blur(5px);
 }
 
 .modal-card {
   width: min(100%, 380px);
-  padding: 24px;
+  padding: var(--space-6);
   border: 1px solid var(--color-line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--color-bg-elev);
-  box-shadow: 0 24px 80px rgb(24 20 18 / 22%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
   animation: fade-in 150ms ease-out;
+}
+
+.modal-title {
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+
+.modal-subtitle {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-3);
+  line-height: 1.5;
 }
 
 .profile-summary-grid,
 .ops-metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .profile-summary-item,
 .ops-metric {
   min-width: 0;
-  padding: 12px;
+  padding: var(--space-3);
   border: 1px solid var(--color-line-2);
   border-radius: 11px;
   background: var(--color-bg-sunken);
@@ -1693,7 +1615,7 @@ select.input-field {
   margin-bottom: 5px;
   color: var(--color-ink-3);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -1703,7 +1625,7 @@ select.input-field {
   display: block;
   overflow-wrap: anywhere;
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.35;
 }
 
@@ -1711,13 +1633,6 @@ select.input-field {
   .profile-summary-grid,
   .ops-metric-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (min-width: 560px) {
-  .tailor-control-card {
-    grid-template-columns: minmax(0, 1fr) minmax(190px, 240px);
-    align-items: center;
   }
 }
 
@@ -1805,7 +1720,7 @@ body.nav-animating .page { animation: none; }
   width: 100%;
   border: 0;
   padding: 0;
-  background: rgba(0, 0, 0, 0.32);
+  background: var(--color-scrim);
   z-index: 20;
   animation: fade-in 0.2s;
   cursor: pointer;
@@ -1816,7 +1731,7 @@ body.nav-animating .page { animation: none; }
   right: 0;
   bottom: 0;
   background: var(--color-bg);
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   z-index: 21;
   max-height: 92vh;
   display: flex;
@@ -1851,7 +1766,7 @@ body.nav-animating .page { animation: none; }
 
 .skeleton {
   background: var(--color-line);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   animation: skeleton-pulse 1.2s ease-in-out infinite;
 }
 @keyframes skeleton-pulse {
@@ -1865,7 +1780,7 @@ body.nav-animating .page { animation: none; }
 .job-description h2,
 .job-description h3,
 .job-description h4 {
-  font-size: 15px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--color-ink);
   margin: 18px 0 8px;
@@ -1875,7 +1790,7 @@ body.nav-animating .page { animation: none; }
 .job-description p {
   margin: 0 0 12px;
   color: var(--color-ink-2);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.62;
 }
 
@@ -1888,7 +1803,7 @@ body.nav-animating .page { animation: none; }
 
 .job-description li {
   margin-bottom: 7px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.56;
 }
 
