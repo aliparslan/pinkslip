@@ -10,9 +10,10 @@
     normalizeSearchProfile,
     type SearchProfile,
   } from "../../../shared/search-profile";
-  import { normalizeJobScore } from "../lib/scoring";
+  import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
   import SearchProfileFields from "./SearchProfileFields.svelte";
   import Check from "phosphor-svelte/lib/Check";
+  import Spinner from "./Spinner.svelte";
 
   let { onComplete }: { onComplete: (name: string) => void } = $props();
 
@@ -39,6 +40,12 @@
   let emailLinkSent: boolean = $state(false);
   let accountError: string | null = $state(null);
   let onboardingStartRecorded = false;
+  let scrollEl: HTMLDivElement | null = $state(null);
+
+  $effect(() => {
+    step;
+    if (scrollEl) scrollEl.scrollTop = 0;
+  });
 
   $effect(() => {
     if (onboardingStartRecorded) return;
@@ -184,7 +191,7 @@
        steps — centering left huge dead space on short steps). The mask fades
        content out as it scrolls under the progress strip instead of clipping
        it mid-line. -->
-  <div class="onboarding-scroll" style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 20px 32px 40px;">
+  <div bind:this={scrollEl} class="onboarding-scroll" style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 20px 32px 40px;">
     <div style="width: 100%; max-width: 360px; margin: 0;">
 
       {#if step === 1}
@@ -196,11 +203,11 @@
               <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
               <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
             </svg>
-            <span class="h-display" style="font-size: 30px; line-height: 1;">
+            <span class="h-display h-display-lg" style="line-height: 1;">
               <span style="color: var(--color-accent);">pink</span>slip
             </span>
           </div>
-          <h2 class="h-display" style="font-size: 26px; margin-bottom: 8px;">Beat the crowd</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Beat the crowd</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
             Get alerted the moment roles drop &mdash; before everyone else applies. We scan company job boards every 15 minutes so you never miss a match.
           </p>
@@ -226,13 +233,14 @@
             disabled={!name.trim() || saving}
             onclick={handleNameSubmit}
           >
-            {saving ? "..." : "Continue"}
+            {#if saving}<Spinner />{/if}
+            Continue
           </button>
         </div>
 
       {:else if step === 2}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">What are you targeting?</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">What are you targeting?</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Pick one or several role families. This directly controls which jobs rise in your feed.
           </p>
@@ -251,7 +259,7 @@
 
       {:else if step === 3}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">What level fits?</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">What level fits?</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Add your real experience, then choose the levels you want us to include.
           </p>
@@ -265,7 +273,7 @@
 
       {:else if step === 4}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Where can you work?</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Where can you work?</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Choose work modes, preferred metros, authorization, and whether relocation is on the table.
           </p>
@@ -285,19 +293,23 @@
             disabled={saving || profile.work_modes.length === 0}
             onclick={handleProfileSubmit}
           >
-            {saving ? "Matching..." : "Show my matches"}
+            {#if saving}<Spinner />{/if}
+            Show my matches
           </button>
         </div>
 
       {:else if step === 5}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">This is your starting line</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">This is your starting line</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
             These are real jobs in pinkslip right now. The labels explain why each one made the cut.
           </p>
 
           {#if previewLoading}
-            <div class="preview-empty">Classifying and matching current jobs...</div>
+            <div class="preview-empty loading-label" aria-busy="true">
+              <Spinner label="Matching current jobs" />
+              <span>Matching current jobs</span>
+            </div>
           {:else if previewJobs.length === 0}
             <div class="preview-empty">
               No confident matches yet. Broaden a role, level, metro, or work mode — or
@@ -306,18 +318,21 @@
           {:else}
             <div class="preview-list">
               {#each previewJobs as job}
+                {@const scorePercent = normalizeJobScore(job.score)}
+                {@const scoreColor = scoreToneFromPercent(scorePercent)}
                 <div class="preview-job">
                   <div class="preview-job-top">
                     <span>{job.company_name}</span>
-                    <strong>{normalizeJobScore(job.score)}</strong>
+                    <strong
+                      class="preview-score"
+                      style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
+                    >{scorePercent}</strong>
                   </div>
                   <div class="preview-job-title">{job.title}</div>
                   <div class="preview-job-location">{job.location || "Location not specified"}</div>
-                  <div class="preview-reasons">
-                    {#each job.match_reasons.slice(0, 3) as reason}
-                      <span>{reason}</span>
-                    {/each}
-                  </div>
+                  {#if job.match_reasons.length}
+                    <div class="preview-reasons">{job.match_reasons.slice(0, 2).join(" · ")}</div>
+                  {/if}
                 </div>
               {/each}
             </div>
@@ -334,20 +349,21 @@
           <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 20px;">
             <button class="btn-secondary" style="padding: 0 18px;" onclick={() => step = 2}>Adjust</button>
             <button class="btn-primary btn-accent" disabled={saving || previewLoading} onclick={acceptPreview}>
-              {saving ? "Saving..." : previewJobs.length === 0 ? "Continue anyway" : "Use this feed"}
+              {#if saving}<Spinner />{/if}
+              {previewJobs.length === 0 ? "Continue anyway" : "Use this feed"}
             </button>
           </div>
         </div>
 
       {:else if step === 6}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Stay in the loop</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Stay in the loop</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you the moment a high-scoring role drops.
           </p>
 
           <!-- Push notifications -->
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 24px;">
+          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 24px;">
             <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
               <div>
                 <div style="font-size: 14px; font-weight: 600;">Push notifications</div>
@@ -358,11 +374,12 @@
               {:else}
                 <button
                   class="btn-secondary"
-                  style="height: 34px; padding: 0 16px; font-size: 13px;"
+                  style="height: 40px; padding: 0 16px; font-size: var(--fs-sm);"
                   disabled={enablingPush}
                   onclick={handleEnablePush}
                 >
-                  {enablingPush ? "..." : "Enable"}
+                  {#if enablingPush}<Spinner />{/if}
+                  Enable
                 </button>
               {/if}
             </div>
@@ -389,7 +406,7 @@
 
       {:else if step === 7}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Save your progress</h2>
+          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Save your progress</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; as a guest, your data is saved to this app and tied to this browser session until you sign in.
           </p>
@@ -407,7 +424,8 @@
               disabled={signingInWithApple}
               onclick={handleAppleLogin}
             >
-              {signingInWithApple ? "Connecting..." : "Continue with Apple"}
+              {#if signingInWithApple}<Spinner />{/if}
+              Continue with Apple
             </button>
 
             <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0 16px;">
@@ -418,7 +436,7 @@
           {/if}
 
           {#if emailLinkSent}
-            <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 24px;">
+            <div style="padding: 16px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 24px;">
               <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 4px;">
                 <Check size={16} weight="bold" color="var(--color-good)" /> Check your email
               </div>
@@ -448,7 +466,8 @@
                 disabled={sendingEmailLogin || !emailLogin.trim()}
                 onclick={handleEmailLoginStart}
               >
-                {sendingEmailLogin ? "..." : "Send link"}
+                {#if sendingEmailLogin}<Spinner />{/if}
+                Send link
               </button>
             </div>
           {/if}
@@ -472,12 +491,13 @@
   }
 
   .preview-list { display: flex; flex-direction: column; gap: 9px; }
-  .preview-job { padding: 13px 14px; border: 1px solid var(--color-line-2); border-radius: 13px; background: var(--color-bg-sunken); }
+  .preview-job { padding: 13px 14px; border: 1px solid var(--color-line-2); border-radius: var(--radius-md); background: var(--color-bg-sunken); }
   .preview-job-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  .preview-job-top strong { color: var(--color-accent); font-family: var(--font-mono); }
+  /* Score badge + reason line mirror JobRow exactly, so the preview teaches
+     the same visual grammar the feed uses (semantic tone, not brand pink). */
+  .preview-score { padding: 1px 6px; border-radius: var(--radius-xs); font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
   .preview-job-title { margin-top: 3px; color: var(--color-ink); font-size: var(--fs-md); font-weight: 600; line-height: 1.3; }
   .preview-job-location { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  .preview-reasons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-  .preview-reasons span { padding: 4px 8px; border-radius: var(--radius-full); background: var(--color-accent-soft); color: var(--color-accent-soft-ink); font-size: var(--fs-2xs); font-weight: 600; }
-  .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-2); border-radius: 14px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.5; text-align: center; }
+  .preview-reasons { margin-top: 8px; color: var(--color-accent); font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-2); border-radius: var(--radius-lg); color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.5; text-align: center; }
 </style>

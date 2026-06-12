@@ -172,25 +172,32 @@
       </div>
     </div>
 
-    <label class="years-field">
+    <div class="years-field">
       <span>
         <strong>Relevant experience</strong>
         <small>Count experience that transfers to your target role.</small>
       </span>
-      <span class="years-control">
-        <input
-          type="number"
-          min="0"
-          max="40"
-          value={profile.years_experience}
-          oninput={(event) => profile = {
-            ...profile,
-            years_experience: Math.max(0, Math.min(40, Number(event.currentTarget.value) || 0)),
-          }}
-        />
+      <!-- Custom stepper: the native number input renders a UA-styled white
+           spinner box that punches a hole in the dark theme. -->
+      <span class="years-control" role="group" aria-label="Years of relevant experience">
+        <button
+          type="button"
+          class="years-step"
+          aria-label="Decrease years"
+          disabled={profile.years_experience <= 0}
+          onclick={() => profile = { ...profile, years_experience: Math.max(0, profile.years_experience - 1) }}
+        >−</button>
+        <span class="years-value" aria-live="polite">{profile.years_experience}</span>
+        <button
+          type="button"
+          class="years-step"
+          aria-label="Increase years"
+          disabled={profile.years_experience >= 40}
+          onclick={() => profile = { ...profile, years_experience: Math.min(40, profile.years_experience + 1) }}
+        >+</button>
         <span>years</span>
       </span>
-    </label>
+    </div>
 
     <div class="subfield">
       <div class="subfield-label">Levels to include</div>
@@ -340,7 +347,7 @@
     color: var(--color-ink-2);
     transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
   }
-  .choice-card { min-height: 48px; padding: 10px 12px; border-radius: 11px; text-align: left; font-size: var(--fs-sm); font-weight: 600; }
+  .choice-card { min-height: 48px; padding: 10px 12px; border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 600; }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
   .choice-card.active, .experience-choice.active, .location-chip.active, .relocation-row.active {
     border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
@@ -353,7 +360,7 @@
     min-height: 62px;
     padding: 11px 14px;
     border: 1px solid var(--color-line-2);
-    border-radius: 13px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-sunken);
     display: flex;
     align-items: center;
@@ -364,8 +371,31 @@
   .years-field strong, .relocation-row strong { font-size: var(--fs-sm); }
   .years-field small, .relocation-row small, .empty-help { color: var(--color-ink-3); font-size: var(--fs-2xs); line-height: 1.35; }
   .years-control { display: flex; align-items: center; gap: 6px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  .years-control input { width: 54px; height: 36px; border: 1px solid var(--color-line-2); border-radius: 9px; background: var(--color-bg); color: var(--color-ink); text-align: center; font: 600 var(--fs-md) var(--font-mono); }
-  .experience-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-line-2); border-radius: 13px; }
+  .years-step {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-ink-2);
+    font: 600 var(--fs-lg) var(--font-sans);
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, color .15s, transform .1s;
+  }
+  .years-step:hover { background: var(--color-bg-sunken); color: var(--color-ink); }
+  .years-step:active { transform: scale(0.96); }
+  .years-step:disabled { opacity: 0.4; cursor: default; transform: none; }
+  .years-value {
+    min-width: 34px;
+    text-align: center;
+    color: var(--color-ink);
+    font: 600 var(--fs-md) var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .experience-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-line-2); border-radius: var(--radius-md); }
   .experience-choice { min-height: 56px; padding: 11px 14px; border: 0; border-bottom: 0.5px solid var(--color-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
   .experience-choice:last-child { border-bottom: 0; }
   .experience-choice span:first-child, .work-mode { display: flex; flex-direction: column; gap: 2px; }

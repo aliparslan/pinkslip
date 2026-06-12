@@ -24,6 +24,7 @@
   import Tailor from "./pages/Tailor.svelte";
   import TabBar from "./components/TabBar.svelte";
   import Onboarding from "./components/Onboarding.svelte";
+  import Spinner from "./components/Spinner.svelte";
 
   // Page components match their route names: /profile renders Profile (the
   // tab with account + settings sections), /resume the structured resume
@@ -376,7 +377,7 @@
           <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
           <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
         </svg>
-        <span class="h-display" style="font-size: 22px; line-height: 1;">
+        <span class="h-display h-display-sm" style="line-height: 1;">
           <span style="color: var(--color-accent);">pink</span>slip
         </span>
       </button>
@@ -431,8 +432,8 @@
     {/if}
   {:else if bootError}
     <div style="padding: 32px 22px 28px;">
-      <div style="padding: 18px; border-radius: 16px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
-        <div class="h-display" style="font-size: 22px; margin-bottom: 6px;">Couldn’t load the app</div>
+      <div style="padding: 18px; border-radius: var(--radius-lg); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
+        <div class="h-display h-display-sm" style="margin-bottom: 6px;">Couldn’t load the app</div>
         <div style="font-size: 14px; margin-bottom: 14px;">{bootError}</div>
         <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>
           Try again
@@ -440,16 +441,16 @@
       </div>
     </div>
   {:else}
-    <div style="padding: 48px 22px 28px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
-      {booting ? "Starting up..." : "Waiting for access..."}
+    <div class="page-loading" aria-busy="true">
+      <Spinner size={22} label={booting ? "Starting up" : "Waiting for access"} />
     </div>
   {/if}
 </div>
 
 {#if showAccessGate}
   <div style="position: fixed; inset: 0; z-index: 40; background: color-mix(in oklch, var(--color-bg) 92%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 24px;">
-    <div style="width: min(100%, 360px); padding: 24px; border-radius: 20px; background: var(--color-bg-elev); border: 1px solid var(--color-line); box-shadow: 0 18px 50px rgba(0,0,0,0.16);">
-      <h2 class="h-display" style="font-size: 28px; margin-bottom: 8px;">Enter the shared code</h2>
+    <div style="width: min(100%, 360px); padding: 24px; border-radius: var(--radius-lg); background: var(--color-bg-elev); border: 1px solid var(--color-line); box-shadow: 0 18px 50px rgba(0,0,0,0.16);">
+      <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Enter the shared code</h2>
       <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 18px;">
         <span class="brand-word"><span class="brand-word-pink">Pink</span>slip</span>
         keeps shared state for your group, so the app now checks a single access code before it loads.

@@ -31,6 +31,7 @@
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
+  import Spinner from "../components/Spinner.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -414,7 +415,9 @@
     </button>
     <div style="min-width: 0; flex: 1;">
       <div style="font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        {job?.company_name ?? "Preparing"}{#if job?.title} · {job.title}{/if}
+        <!-- Single expression: Svelte trims the leading space at an {#if}
+             boundary, which used to render "Company· Title". -->
+        {job?.title ? `${job?.company_name ?? "Preparing"} · ${job.title}` : job?.company_name ?? "Preparing"}
       </div>
     </div>
   </header>
@@ -427,13 +430,11 @@
     {/if}
 
     {#if loading}
-      <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3);">
-        Loading...
-      </div>
+      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if setupNeeded}
       <!-- Tailoring isn't configured: a setup path, not a dead end. -->
       <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
-        <h2 class="h-display" style="font-size: 22px;">Set up tailoring</h2>
+        <h2 class="h-display h-display-sm">Set up tailoring</h2>
         <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
           Tailoring writes a resume, cover letter, and interview prep for this exact job.
           It needs a free Gemini API key — adding yours takes about two minutes:
@@ -443,13 +444,13 @@
           <li>Paste it in Profile → Tailor and save.</li>
           <li>Come back here and generate.</li>
         </ol>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
-          <button class="btn-primary btn-accent" style="height: 44px; padding: 0 16px;" onclick={openTailorSettings}>
+        <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">
+          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={openTailorSettings}>
             Open Tailor settings
           </button>
           <a
             class="btn-secondary"
-            style="height: 44px; text-decoration: none;"
+            style="text-decoration: none;"
             href="https://aistudio.google.com/app/apikey"
             target="_blank"
             rel="noopener noreferrer"
@@ -462,29 +463,31 @@
     {:else if !hasAnyOutput && !streaming}
       <!-- First visit for this job: explicit generate (it spends quota). -->
       <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
-        <h2 class="h-display" style="font-size: 22px;">Tailor for this job</h2>
+        <h2 class="h-display h-display-sm">Tailor for this job</h2>
         <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
           One tap writes a tailored resume, cover letter, and interview prep from
           {localResumeText ? "your uploaded resume" : "your resume profile"} and this job's description.
           You can edit everything afterwards.
         </p>
         <div>
-          <button class="btn-primary btn-accent" style="height: 48px; padding: 0 18px;" onclick={() => void startGeneration()}>
+          <button class="btn-primary btn-accent" style="padding: 0 18px;" onclick={() => void startGeneration()}>
             <MagicWand size={17} />
             Generate
           </button>
         </div>
       </div>
     {:else}
-      <div class="tailor-control-card">
-        <div class="chip-wrap tailor-tab-row" role="tablist" aria-label="Tailor output tabs">
+      <!-- Document tabs are view switching, not value selection, so they wear
+           the segmented-control language (ink), same as the feed sort. -->
+      <div class="feed-control-row" style="margin-bottom: 12px;">
+        <div class="sort-segmented" role="tablist" aria-label="Tailor output tabs">
           {#each [
             { id: "resume", label: "Resume" },
             { id: "cover", label: "Cover" },
             { id: "qa", label: "QA" },
           ] as tab}
             <button
-              class={activeTab === tab.id ? "chip chip-active" : "chip"}
+              class:active={activeTab === tab.id}
               role="tab"
               aria-selected={activeTab === tab.id}
               onclick={() => activeTab = tab.id as TabId}
@@ -501,7 +504,7 @@
           <span>streaming live</span>
         {/if}
         {#if saving}
-          <span>saving edits</span>
+          <span class="loading-label"><Spinner size={12} /> saving edits</span>
         {/if}
         {#if tokenSummary}
           <span>{tokenSummary.input} in / {tokenSummary.output} out</span>
@@ -523,8 +526,8 @@
             onclick={viewResumePdf}
             disabled={!resumeDownloadReady || downloadingPdf}
           >
-            <DownloadSimple size={15} />
-            {downloadingPdf ? "Building PDF..." : "View PDF"}
+            {#if downloadingPdf}<Spinner />{:else}<DownloadSimple size={15} />{/if}
+            View PDF
           </button>
         {/if}
         <button
@@ -536,10 +539,8 @@
           {editing[activeTab] ? "Stop editing" : "Edit"}
         </button>
         <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={handleRegenerate} disabled={streaming}>
-          <span class:spin={streaming} style="display: inline-flex;">
-            <ArrowsClockwise size={15} />
-          </span>
-          {streaming ? "Working..." : "Regenerate"}
+          {#if streaming}<Spinner />{:else}<ArrowsClockwise size={15} />{/if}
+          Regenerate
         </button>
       </div>
 

@@ -7,6 +7,7 @@
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Modal from "../components/Modal.svelte";
+  import Spinner from "../components/Spinner.svelte";
   import Plus from "phosphor-svelte/lib/Plus";
 
   const ATS_TYPES = [
@@ -370,7 +371,7 @@
   <div class="page-frame" style="padding-left: 22px; padding-right: 22px;">
     <div class="page-hero" style="margin-bottom: 10px;">
       <div class="page-hero-copy">
-        <h1 class="h-display" style="font-size: 30px; margin: 0;">
+        <h1 class="h-display h-display-lg" style="margin: 0;">
           Companies
         </h1>
         <p class="page-subtitle">
@@ -447,7 +448,7 @@
         {:else}
           <button
             class="btn-secondary"
-            style="height: 36px; padding: 0 14px; font-size: 12px; gap: 5px; align-self: flex-start;"
+            style="height: 40px; padding: 0 14px; font-size: var(--fs-xs); gap: 5px; align-self: flex-start;"
             onclick={() => {
               requestCompanyName = search.trim();
               requestCompanyError = null;
@@ -463,7 +464,7 @@
 
     <!-- Add company form -->
     {#if $sessionAccess.isAdmin && showAddForm}
-      <div style="padding: 16px; border-radius: 14px; background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); margin-bottom: 20px; animation: fade-in 0.2s;">
+      <div style="padding: 16px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); margin-bottom: 20px; animation: fade-in 0.2s;">
         <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Add a company</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           <div>
@@ -515,7 +516,8 @@
               disabled={!addSlug.trim() || addVerifyBusy}
               onclick={verifyAddSource}
             >
-              {addVerifyBusy ? "..." : "Verify"}
+              {#if addVerifyBusy}<Spinner />{/if}
+              Verify
             </button>
             <button
               class="btn-primary btn-accent"
@@ -523,7 +525,8 @@
               disabled={!addName.trim() || !addSlug.trim() || adding}
               onclick={handleAdd}
             >
-              {adding ? "..." : "Add company"}
+              {#if adding}<Spinner />{/if}
+              Add company
             </button>
             <button
               class="btn-secondary"
@@ -540,12 +543,12 @@
       <div class="surface-list">
         {#each Array(5) as _, i}
           <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; {i > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-            <div class="skeleton" style="width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;"></div>
+            <div class="skeleton" style="width: 36px; height: 36px; border-radius: var(--radius-sm); flex-shrink: 0;"></div>
             <div style="flex: 1;">
               <div class="skeleton" style="width: 45%; height: 13px; margin-bottom: 6px;"></div>
               <div class="skeleton" style="width: 25%; height: 10px;"></div>
             </div>
-            <div class="skeleton" style="width: 44px; height: 26px; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 44px; height: 26px; border-radius: var(--radius-full);"></div>
           </div>
         {/each}
       </div>
@@ -555,7 +558,7 @@
       </div>
     {:else if filteredCompanies.length === 0}
       <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <div class="h-display" style="font-size: 24px; color: var(--color-ink-2); margin-bottom: 8px;">
+        <div class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
           No companies found
         </div>
         <div style="font-size: 13px;">
@@ -641,7 +644,8 @@
           disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
           onclick={verifyEditSource}
         >
-          {editVerifyBusy ? "..." : "Verify"}
+          {#if editVerifyBusy}<Spinner />{/if}
+          Verify
         </button>
         <button
           class="btn-primary btn-accent"
@@ -649,7 +653,8 @@
           disabled={!editTarget.name.trim() || !editTarget.ats_slug.trim() || saving}
           onclick={handleSaveEdit}
         >
-          {saving ? "..." : "Save"}
+          {#if saving}<Spinner />{/if}
+          Save
         </button>
       </div>
     </div>
@@ -683,7 +688,8 @@
         disabled={deleting}
         onclick={handleDelete}
       >
-        {deleting ? "..." : "Delete permanently"}
+        {#if deleting}<Spinner />{/if}
+        Delete permanently
       </button>
       <button
         style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
@@ -715,7 +721,7 @@
         />
       </div>
       <div>
-        <label for="request-careers-url" class="field-label">Careers URL <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+        <label for="request-careers-url" class="field-label">Careers URL <span class="label-opt">optional</span></label>
         <input
           id="request-careers-url"
           class="input-field"
@@ -725,7 +731,7 @@
         />
       </div>
       <div>
-        <label for="request-company-notes" class="field-label">Notes <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+        <label for="request-company-notes" class="field-label">Notes <span class="label-opt">optional</span></label>
         <textarea
           id="request-company-notes"
           class="input-field"
@@ -750,7 +756,8 @@
         onclick={submitCompanyRequest}
         disabled={requestingCompany || requestCompanyName.trim().length < 2}
       >
-        {requestingCompany ? "Sending..." : "Send request"}
+        {#if requestingCompany}<Spinner />{/if}
+        Send request
       </button>
     </div>
   </Modal>
@@ -773,7 +780,8 @@
     <div class="action-row">
       <button class="btn-secondary" onclick={() => { reportTarget = null; }} disabled={reporting}>Cancel</button>
       <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitCompanyReport} disabled={reporting}>
-        {reporting ? "Sending..." : "Send report"}
+        {#if reporting}<Spinner />{/if}
+        Send report
       </button>
     </div>
   </Modal>

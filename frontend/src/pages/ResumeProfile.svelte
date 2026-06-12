@@ -7,6 +7,7 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import Spinner from "../components/Spinner.svelte";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
 
   const EMPTY_PROFILE: ResumeProfile = {
@@ -19,11 +20,11 @@
   };
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
-    leadership: "Leadership & Affiliations",
+    leadership: "Leadership & affiliations",
     certifications: "Certifications",
     publications: "Publications",
-    awards: "Awards & Honors",
-    volunteer: "Volunteer Experience",
+    awards: "Awards & honors",
+    volunteer: "Volunteer experience",
   };
 
   let loading = $state(true);
@@ -197,17 +198,18 @@
   <div class="page-frame">
     <div class="page-hero">
       <div class="page-hero-copy">
-        <h1 class="h-display" style="font-size: 28px; margin: 0;">Resume profile</h1>
+        <h1 class="h-display h-display-lg" style="margin: 0;">Resume profile</h1>
         <p class="page-subtitle">Source of truth for tailored PDFs. Links and contact info are pulled directly from here.</p>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
         <input type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} style="display: none;" />
-        <button class="btn-secondary" style="height: 36px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" onclick={() => importInput?.click()} disabled={importing}>
-          <UploadSimple size={14} />
-          {importing ? "Importing..." : "Import PDF"}
+        <button class="btn-secondary btn-mini" style="padding: 0 12px;" onclick={() => importInput?.click()} disabled={importing}>
+          {#if importing}<Spinner />{:else}<UploadSimple size={14} />{/if}
+          Import PDF
         </button>
-        <button class="btn-primary btn-accent" style="height: 36px; padding: 0 14px; font-size: 12px;" onclick={() => saveAll()} disabled={saving}>
-          {saving ? "Saving..." : "Save"}
+        <button class="btn-primary btn-accent btn-mini" style="padding: 0 14px;" onclick={() => saveAll()} disabled={saving}>
+          {#if saving}<Spinner />{/if}
+          Save
         </button>
       </div>
     </div>
@@ -216,34 +218,34 @@
     {#if success}<div class="alert alert-success" style="margin-bottom: 14px;">{success}</div>{/if}
 
     {#if loading}
-      <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">Loading...</div>
+      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
       <!-- Contact -->
       <div class="card">
         <button class="card-header" onclick={() => toggleSection("contact")}>
           {#if expandedSections.has("contact")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Contact Info</span>
+          <span class="card-title">Contact info</span>
         </button>
         {#if expandedSections.has("contact")}
           <div class="card-body">
             <div class="grid-2">
-              <label class="field"><span>Full name <em class="req">*</em></span><input class="input-field" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
-              <label class="field"><span>Email <em class="req">*</em></span><input class="input-field" type="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
-              <label class="field"><span>Phone <em class="req">*</em></span><input class="input-field" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
-              <label class="field"><span>Location <em class="req">*</em></span><input class="input-field" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
-              <label class="field"><span>LinkedIn</span>
+              <label class="field"><span>Full name</span><input class="input-field" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
+              <label class="field"><span>Email</span><input class="input-field" type="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
+              <label class="field"><span>Phone</span><input class="input-field" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
+              <label class="field"><span>Location</span><input class="input-field" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
+              <label class="field"><span>LinkedIn <span class="label-opt">optional</span></span>
                 <div class="prefixed-input">
                   <span class="input-prefix">linkedin.com/in/</span>
                   <input class="input-field prefixed" bind:value={profile.contact.linkedin} oninput={handleInput} placeholder="username" />
                 </div>
               </label>
-              <label class="field"><span>GitHub</span>
+              <label class="field"><span>GitHub <span class="label-opt">optional</span></span>
                 <div class="prefixed-input">
                   <span class="input-prefix">github.com/</span>
                   <input class="input-field prefixed" bind:value={profile.contact.github} oninput={handleInput} placeholder="username" />
                 </div>
               </label>
-              <label class="field span-2"><span>Website</span><input class="input-field" bind:value={profile.contact.website} oninput={handleInput} placeholder="https://yoursite.com" /></label>
+              <label class="field span-2"><span>Website <span class="label-opt">optional</span></span><input class="input-field" bind:value={profile.contact.website} oninput={handleInput} placeholder="https://yoursite.com" /></label>
             </div>
           </div>
         {/if}
@@ -253,7 +255,7 @@
       <div class="card">
         <button class="card-header" onclick={() => toggleSection("experience")}>
           {#if expandedSections.has("experience")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Work Experience</span>
+          <span class="card-title">Work experience</span>
           <span class="card-count">{profile.experience.length}</span>
         </button>
         {#if expandedSections.has("experience")}
@@ -265,8 +267,8 @@
                   <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
-                  <label class="field"><span>Company <em class="req">*</em></span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
-                  <label class="field"><span>Title <em class="req">*</em></span><input class="input-field" bind:value={exp.title} oninput={handleInput} placeholder="Job title" /></label>
+                  <label class="field"><span>Company</span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
+                  <label class="field"><span>Title</span><input class="input-field" bind:value={exp.title} oninput={handleInput} placeholder="Job title" /></label>
                   <label class="field"><span>Location</span><input class="input-field" bind:value={exp.location} oninput={handleInput} placeholder="City, ST" /></label>
                   <label class="field"><span>Start</span><input class="input-field" bind:value={exp.startDate} oninput={handleInput} placeholder="Month Year" /></label>
                   <label class="field"><span>End</span><input class="input-field" bind:value={exp.endDate} oninput={handleInput} placeholder="Present" /></label>
@@ -308,7 +310,7 @@
                   <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
-                  <label class="field span-2"><span>Institution <em class="req">*</em></span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
+                  <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
                   <label class="field span-2"><span>Degree</span><input class="input-field" bind:value={edu.degree} oninput={handleInput} placeholder="B.S. Computer Science" /></label>
                   <label class="field"><span>Location</span><input class="input-field" bind:value={edu.location} oninput={handleInput} placeholder="City, ST" /></label>
                   <label class="field"><span>GPA</span><input class="input-field" bind:value={edu.gpa} oninput={handleInput} placeholder="3.9" /></label>
@@ -338,7 +340,7 @@
                   <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
-                  <label class="field"><span>Name <em class="req">*</em></span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
+                  <label class="field"><span>Name</span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
                   <label class="field"><span>Role</span><input class="input-field" bind:value={proj.role} oninput={handleInput} placeholder="Full Stack" /></label>
                   <label class="field"><span>Team</span><input class="input-field" bind:value={proj.teamInfo} oninput={handleInput} placeholder="Solo / Team of 5" /></label>
                   <label class="field"><span>URL</span><input class="input-field" bind:value={proj.url} oninput={handleInput} placeholder="https://project-url.com" /></label>
@@ -429,7 +431,7 @@
       <div class="card">
         <button class="card-header" onclick={() => toggleSection("notes")}>
           {#if expandedSections.has("notes")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Notes & Extra Context</span>
+          <span class="card-title">Notes &amp; extra context</span>
         </button>
         {#if expandedSections.has("notes")}
           <div class="card-body">
@@ -451,7 +453,7 @@
 </div>
 
 <style>
-  .card { border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
+  .card { border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; }
   .card-header { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
   .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }
   .card-header-row { display: flex; align-items: center; }
@@ -465,13 +467,12 @@
   .field { display: flex; flex-direction: column; gap: 3px; }
   .field > span { font-size: 11px; font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
   .field.span-2, .span-2 { grid-column: 1 / -1; }
-  .req { font-style: normal; color: var(--color-accent); }
 
-  .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-bg-sunken); overflow: hidden; height: 40px; }
+  .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-bg-sunken); overflow: hidden; height: 40px; }
   .input-prefix { padding: 0 0 0 12px; font-size: 12px; color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
   .input-field.prefixed { border: none; background: transparent; border-radius: 0; padding-left: 2px; height: 100%; }
 
-  .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; }
   .entry-top { display: flex; align-items: center; justify-content: space-between; }
   .entry-title { font-size: 12px; font-weight: 600; color: var(--color-ink-2); }
 
@@ -479,15 +480,15 @@
   .bullets-label { font-size: 11px; font-weight: 500; color: var(--color-ink-4); }
   .bullet-row { display: flex; align-items: center; gap: 6px; }
   .bullet-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-ink-4); flex-shrink: 0; }
-  .bullet-input { flex: 1; font-size: 12px; height: 34px; }
+  .bullet-input { flex: 1; font-size: 12px; height: 40px; }
   .btn-add-bullet { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: 11px; cursor: pointer; padding: 4px 0; margin-top: 2px; }
   .btn-add-bullet:hover { color: var(--color-ink-2); }
 
   .add-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; font-size: 12px; }
 
   .kv-row { display: flex; gap: 8px; align-items: center; }
-  .kv-key { width: 120px; flex-shrink: 0; font-size: 12px; height: 34px; }
-  .kv-val { flex: 1; font-size: 12px; height: 34px; }
+  .kv-key { width: 120px; flex-shrink: 0; font-size: 12px; height: 40px; }
+  .kv-val { flex: 1; font-size: 12px; height: 40px; }
 
   .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 0; }
   .add-section-label { font-size: 11px; font-weight: 500; color: var(--color-ink-4); }

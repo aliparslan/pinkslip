@@ -8,6 +8,7 @@
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
+  import Spinner from "../components/Spinner.svelte";
   import Slider from "../components/Slider.svelte";
   import Switch from "../components/Switch.svelte";
   import { Dialog } from "bits-ui";
@@ -65,7 +66,7 @@
   const SORT_OPTIONS: { label: string; value: FeedSort; hint: string }[] = [
     { label: "Newest", value: "last_posted", hint: "Sort by when the company posted the job" },
     { label: "Just found", value: "last_seen", hint: "Sort by when pinkslip first found the job" },
-    { label: "Score", value: "score", hint: "Sort by match score" },
+    { label: "Match score", value: "score", hint: "Sort by match score" },
   ];
 
   // Show the staleness warning once the poller is clearly behind its
@@ -513,7 +514,7 @@
         bind:this={searchInputEl}
         type="text"
         class="input-field"
-        style="flex: 1; height: 36px; font-size: var(--fs-md); border-radius: var(--radius-sm);"
+        style="flex: 1; height: 40px; font-size: var(--fs-md); border-radius: var(--radius-sm);"
         placeholder="Search jobs or companies..."
         value={feed.searchQuery}
         oninput={(e) => scheduleSearch((e.currentTarget as HTMLInputElement).value)}
@@ -594,7 +595,7 @@
       </div>
     {:else if feed.jobs.length === 0}
       <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+        <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
           {feed.savedOnly ? "No saved jobs yet" : "Nothing here"}
         </h2>
         <div style="font-size: var(--fs-sm); margin-bottom: 14px;">
@@ -602,7 +603,8 @@
         </div>
         <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
           <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh now"}
+            {#if refreshing}<Spinner />{/if}
+            Refresh now
           </button>
         </div>
       </div>
@@ -613,8 +615,9 @@
         </div>
       {/each}
       {#if loadingMore}
-        <div style="padding: 18px 16px; text-align: center; color: var(--color-ink-3); font-size: var(--fs-sm);">
-          Loading more…
+        <div class="loading-label" style="padding: 18px 16px; color: var(--color-ink-3); font-size: var(--fs-sm);" aria-busy="true">
+          <Spinner label="Loading more jobs" />
+          <span>Loading more jobs</span>
         </div>
       {/if}
       {#if feed.hasMore}
@@ -642,7 +645,7 @@
           <div class="filter-sheet-header">
             <div>
               <div class="section-label">Temporary controls</div>
-              <Dialog.Title class="h-display" style="font-size: 26px;">Filter this view</Dialog.Title>
+              <Dialog.Title class="h-display h-display-md">Filter this view</Dialog.Title>
             </div>
             <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
               <X size={18} />
@@ -728,7 +731,7 @@
           </div>
 
           {#if showProfileConfirm}
-            <div style="margin: 0 16px 12px; padding: 14px; border: 1px solid var(--color-line-2); border-radius: 13px; background: var(--color-bg-sunken);">
+            <div style="margin: 0 16px 12px; padding: 14px; border: 1px solid var(--color-line-2); border-radius: var(--radius-md); background: var(--color-bg-sunken);">
               <div style="font-size: var(--fs-sm); font-weight: 700; margin-bottom: 7px;">Update your search profile?</div>
               {#each profileFilterChanges as change}
                 <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); line-height: 1.5;">{change}</div>
@@ -739,7 +742,8 @@
               <div class="action-row compact" style="margin-top: 11px;">
                 <button class="btn-secondary" onclick={() => { showProfileConfirm = false; }}>Cancel</button>
                 <button class="btn-primary btn-accent" onclick={saveCompatibleFiltersToProfile} disabled={savingProfileFilters}>
-                  {savingProfileFilters ? "Saving..." : "Update profile"}
+                  {#if savingProfileFilters}<Spinner />{/if}
+                  Update profile
                 </button>
               </div>
             </div>

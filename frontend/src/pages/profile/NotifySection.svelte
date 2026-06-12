@@ -6,6 +6,7 @@
   import { enableNativePush, isNativeIos } from "../../lib/native-push";
   import Slider from "../../components/Slider.svelte";
   import Switch from "../../components/Switch.svelte";
+  import Spinner from "../../components/Spinner.svelte";
 
   let {
     notificationEnabled = $bindable(),
@@ -82,12 +83,12 @@
         </span>
         {#if pushStatus !== "enabled"}
           <button
-            class="btn-secondary"
-            style="height: 32px; padding: 0 14px; font-size: var(--fs-xs);"
+            class="btn-secondary btn-mini"
             disabled={enablingPush}
             onclick={handleEnablePush}
           >
-            {enablingPush ? "..." : "Enable"}
+            {#if enablingPush}<Spinner />{/if}
+            Enable
           </button>
         {/if}
       </div>

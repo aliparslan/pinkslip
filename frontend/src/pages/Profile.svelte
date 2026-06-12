@@ -22,6 +22,7 @@
   import NotifySection from "./profile/NotifySection.svelte";
   import AdminSection from "./profile/AdminSection.svelte";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import Spinner from "../components/Spinner.svelte";
 
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -48,10 +49,11 @@
 
   let activeSettingsSection: SettingsSection = $state("profile");
 
+  // Labels match the destination page titles exactly.
   const shortcuts = [
-    { label: "Company Catalog", sub: "Browse companies monitored by pinkslip", path: "/companies" },
-    { label: "Resume Profile", sub: "Structured resume data for tailoring", path: "/resume" },
-    { label: "Master Story", sub: "Versioned freeform notes the tailor pulls from", path: "/corpus" },
+    { label: "Companies", sub: "Browse companies monitored by pinkslip", path: "/companies" },
+    { label: "Resume profile", sub: "Structured resume data for tailoring", path: "/resume" },
+    { label: "Master story", sub: "Versioned freeform notes the tailor pulls from", path: "/corpus" },
   ] as const;
 
   const settingsSections: { id: SettingsSection; label: string; sub: string }[] = [
@@ -276,14 +278,12 @@
 
 <div class="page" style="padding-top: 0;">
   <div class="page-frame">
-    <h1 class="h-display" style="font-size: 28px; letter-spacing: -0.02em; margin-bottom: 12px;">
+    <h1 class="h-display h-display-lg" style="margin-bottom: 12px;">
       Profile
     </h1>
 
     {#if loading}
-      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
-        Loading...
-      </div>
+      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
       {#if successMsg}
         <div class="toast-wrap">
@@ -421,7 +421,8 @@
             onclick={() => performSave(false)}
             disabled={savingPrefs}
           >
-            {savingPrefs ? "Saving..." : "Save preferences"}
+            {#if savingPrefs}<Spinner />{/if}
+            Save preferences
           </button>
         {/if}
       </div>
@@ -456,7 +457,7 @@
         />
       </div>
       <div>
-        <label for="feedback-details" class="field-label">Details <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+        <label for="feedback-details" class="field-label">Details <span class="label-opt">optional</span></label>
         <textarea
           id="feedback-details"
           class="input-field"
@@ -481,7 +482,8 @@
         onclick={submitProductFeedback}
         disabled={submittingFeedback || feedbackTitle.trim().length < 2}
       >
-        {submittingFeedback ? "Sending..." : "Send feedback"}
+        {#if submittingFeedback}<Spinner />{/if}
+        Send feedback
       </button>
     </div>
   </Modal>

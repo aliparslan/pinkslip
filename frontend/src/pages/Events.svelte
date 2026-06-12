@@ -8,6 +8,7 @@
   import Plus from "phosphor-svelte/lib/Plus";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import Trash from "phosphor-svelte/lib/Trash";
+  import Spinner from "../components/Spinner.svelte";
 
   type EventItem = {
     id: string;
@@ -170,7 +171,7 @@
   <div class="page-frame" style="padding-bottom: 8px;">
     <div class="page-hero">
       <div class="page-hero-copy">
-        <h1 class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+        <h1 class="h-display h-display-lg">
           Events
         </h1>
         <p class="page-subtitle">
@@ -179,7 +180,7 @@
       </div>
       <button
         class="btn-secondary"
-        style="height: 36px; padding: 0 12px; font-size: var(--fs-xs);"
+        style="height: 40px; padding: 0 12px; font-size: var(--fs-xs);"
         onclick={() => showCreate = true}
       >
         <Plus size={14} />
@@ -192,12 +193,10 @@
   </div>
 
   {#if loading}
-    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
-      Loading...
-    </div>
+    <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
   {:else if loadError}
     <div style="text-align: center; padding: 48px 24px;">
-      <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
         Couldn't load events
       </h2>
       <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
@@ -210,7 +209,7 @@
       <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 0.5px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
         <CalendarBlank size={24} />
       </div>
-      <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
         No upcoming events
       </h2>
       <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
@@ -325,7 +324,8 @@
         Cancel
       </button>
       <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleCreate} disabled={creating || !createTitle.trim() || !createDate}>
-        {creating ? "Saving..." : "Add event"}
+        {#if creating}<Spinner />{/if}
+        Add event
       </button>
     </div>
   </Modal>
@@ -342,8 +342,8 @@
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (deleteTarget = null)} disabled={deleting}>Cancel</button>
       <button class="btn-secondary btn-danger" style="flex: 1;" onclick={confirmDelete} disabled={deleting}>
-        <Trash size={15} />
-        {deleting ? "Deleting..." : "Delete"}
+        {#if deleting}<Spinner />{:else}<Trash size={15} />{/if}
+        Delete
       </button>
     </div>
   </Modal>

@@ -52,7 +52,7 @@
         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.ats_slug}</span>
       {/if}
       {#if admin && hasError}
-        <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">ERR</span>
+        <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: var(--radius-xs); flex-shrink: 0;">ERR</span>
       {/if}
     </div>
   </div>
@@ -81,7 +81,7 @@
   {:else if company.blocked}
     <button
       class="btn-secondary"
-      style="height: 36px; padding: 0 11px; font-size: var(--fs-xs); flex-shrink: 0;"
+      style="height: 40px; padding: 0 11px; font-size: var(--fs-xs); flex-shrink: 0;"
       onclick={() => onRestore?.(company.id)}
     >
       <ArrowCounterClockwise size={14} />

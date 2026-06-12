@@ -9,6 +9,7 @@
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
   import DotsThree from "phosphor-svelte/lib/DotsThree";
+  import Spinner from "../components/Spinner.svelte";
 
   type Stage = "Applied" | "Screen" | "Interview" | "Offer" | "Rejected" | "Ghosted";
   type App = { id: string; company_name: string; company_domain?: string; title: string; stage: Stage; next: string; updated_at: string; job_id?: string | null; url?: string };
@@ -138,7 +139,7 @@
   <div class="page-frame">
     <div class="page-hero">
       <div class="page-hero-copy">
-        <h1 class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+        <h1 class="h-display h-display-lg">
           Tracker
         </h1>
         <p class="page-subtitle">
@@ -147,7 +148,7 @@
       </div>
       <button
         class="btn-secondary"
-        style="height: 36px; padding: 0 12px; flex-shrink: 0; font-size: var(--fs-xs);"
+        style="flex-shrink: 0;"
         aria-label="Add application"
         onclick={() => showCreate = true}
       >
@@ -162,12 +163,10 @@
   </div>
 
   {#if loading}
-    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
-      Loading...
-    </div>
+    <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
   {:else if loadError}
     <div style="text-align: center; padding: 48px 24px;">
-      <h2 class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
         Couldn't load applications
       </h2>
       <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
@@ -180,7 +179,7 @@
       <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
         <Briefcase size={24} />
       </div>
-      <h2 class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
         No applications yet
       </h2>
       <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
@@ -300,7 +299,8 @@
         Cancel
       </button>
       <button class="btn-primary btn-accent" style="flex: 1;" onclick={createApplication} disabled={creating}>
-        {creating ? "Saving..." : "Add"}
+        {#if creating}<Spinner />{/if}
+        Add
       </button>
     </div>
   </Modal>
@@ -317,8 +317,8 @@
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (deleteTarget = null)} disabled={deleting}>Cancel</button>
       <button class="btn-secondary btn-danger" style="flex: 1;" onclick={confirmDelete} disabled={deleting}>
-        <Trash size={15} />
-        {deleting ? "Deleting..." : "Delete"}
+        {#if deleting}<Spinner />{:else}<Trash size={15} />{/if}
+        Delete
       </button>
     </div>
   </Modal>

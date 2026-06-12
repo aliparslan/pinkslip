@@ -142,7 +142,8 @@
   --color-ink: oklch(0.96 0.006 340);
   --color-ink-2: oklch(0.80 0.01 340);
   --color-ink-3: oklch(0.66 0.012 340);
-  --color-ink-4: oklch(0.58 0.01 340);
+  /* 4.6:1 on bg-elev / 5.2:1 on bg — keep AA for 11-12px captions on cards. */
+  --color-ink-4: oklch(0.62 0.01 340);
   --color-line: oklch(0.30 0.012 340);
   --color-line-2: oklch(0.36 0.014 340);
   --color-accent: oklch(0.72 0.18 350);
@@ -178,7 +179,8 @@
   --color-ink: oklch(0.16 0.012 340);
   --color-ink-2: oklch(0.35 0.014 340);
   --color-ink-3: oklch(0.52 0.012 340);
-  --color-ink-4: oklch(0.6 0.01 340);
+  /* 4.6:1 on bg / 4.9:1 on white cards (AA). */
+  --color-ink-4: oklch(0.55 0.01 340);
   --color-line: oklch(0.9 0.01 340);
   --color-line-2: oklch(0.83 0.012 340);
   --color-accent: oklch(0.58 0.2 350);
@@ -186,7 +188,8 @@
   --color-accent-soft: oklch(0.94 0.04 350);
   --color-accent-soft-ink: oklch(0.38 0.16 350);
   --color-good: oklch(0.5 0.14 145);
-  --color-warn: oklch(0.6 0.16 65);
+  /* 4.7:1 on bg — amber score badges stay AA at small sizes in light mode. */
+  --color-warn: oklch(0.55 0.14 65);
   --color-bad: oklch(0.5 0.18 25);
 
   --color-control-bg: oklch(0.90 0.006 340);
@@ -243,6 +246,24 @@ html.native-ios select {
   margin: 0;
 }
 
+/* Display sizes — the only three. Pair with .h-display; never set one-off
+   font sizes on headings in components. lg = page titles, md = modal/sheet/
+   detail titles, sm = empty-state and sub-headings. */
+.h-display-lg {
+  font-size: var(--fs-3xl);
+  letter-spacing: -0.02em;
+}
+
+.h-display-md {
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.015em;
+}
+
+.h-display-sm {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.01em;
+}
+
 /* Keeps the brand name from wrapping between "pink" and "slip". */
 .brand-word {
   display: inline-block;
@@ -260,7 +281,7 @@ html.native-ios select {
   align-items: center;
   gap: var(--space-2);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-ink);
   cursor: pointer;
@@ -313,6 +334,14 @@ html.native-ios select {
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--color-ink-2);
+}
+
+/* Optional-field marker. Convention: required is the default and unmarked;
+   only optional fields carry this suffix (never asterisks). */
+.label-opt {
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-4);
 }
 
 /* ── Alerts (inline message banners) ─────────────────────── */
@@ -426,12 +455,15 @@ html.native-ios select {
   transition: all .15s;
 }
 .chip:hover { background: var(--color-bg-sunken); }
+/* Selected chips speak the one selection language: accent-soft fill + accent
+   border (same as SearchProfileFields). Ink-inversion is reserved for
+   view-switching segmented tracks (.sort-segmented, .settings-section-tab). */
 .chip-active {
-  background: var(--color-ink);
-  color: var(--color-bg);
-  border-color: var(--color-ink);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-soft-ink);
+  border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
 }
-.chip-active:hover { background: var(--color-ink); }
+.chip-active:hover { background: var(--color-accent-soft); }
 
 .chip-wrap {
   display: flex;
@@ -628,7 +660,7 @@ html.native-ios select {
 
 .sort-segmented button {
   min-width: max-content;
-  height: 36px;
+  height: 40px;
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
@@ -698,7 +730,7 @@ html.native-ios select {
 }
 
 .filter-choice {
-  height: 34px;
+  height: 40px;
   padding: 0 10px;
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-full);
@@ -712,9 +744,9 @@ html.native-ios select {
 }
 
 .filter-choice.active {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  color: var(--color-bg);
+  background: var(--color-accent-soft);
+  border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
+  color: var(--color-accent-soft-ink);
 }
 
 .filter-input-grid {
@@ -734,14 +766,14 @@ html.native-ios select {
 }
 
 .filter-money-input {
-  height: 38px;
+  height: 40px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   padding: 0 11px;
   border: 1px solid var(--color-line-2);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-bg);
   color: var(--color-ink-3);
 }
@@ -816,16 +848,16 @@ html.native-ios select {
 
 .action-row > .btn-primary,
 .action-row > .btn-secondary {
-  min-height: 44px;
-  height: 44px;
+  min-height: 48px;
+  height: 48px;
   padding: 0 var(--space-4);
   font-size: var(--fs-md);
 }
 
 .action-row.compact > .btn-primary,
 .action-row.compact > .btn-secondary {
-  min-height: 42px;
-  height: 42px;
+  min-height: 40px;
+  height: 40px;
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -836,8 +868,8 @@ html.native-ios select {
 
 .filter-sheet-actions.action-row > .btn-primary,
 .filter-sheet-actions.action-row > .btn-secondary {
-  min-height: 46px;
-  height: 46px;
+  min-height: 48px;
+  height: 48px;
 }
 
 @keyframes filter-sheet-in {
@@ -850,7 +882,7 @@ html.native-ios select {
 .logo-mark {
   width: 44px;
   height: 44px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-sunken);
   display: grid;
   place-items: center;
@@ -876,7 +908,7 @@ html.native-ios select {
   height: var(--tap-min);
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -885,10 +917,10 @@ html.native-ios select {
 }
 .icon-btn:hover { background: var(--color-bg-sunken); color: var(--color-ink-2); }
 
-/* Compact icon button for inside list rows (still a reasonable tap target). */
+/* Compact icon button for inside list rows. */
 .icon-btn-sm {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-sm);
 }
 
@@ -941,7 +973,7 @@ html.native-ios select {
   font-size: var(--fs-sm);
   height: 40px;
   padding: 0 var(--space-4);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -984,7 +1016,7 @@ html.native-ios select {
 
 .btn-action {
   width: 100%;
-  height: 42px;
+  height: 40px;
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -1007,14 +1039,20 @@ html.native-ios select {
   margin: 0 auto;
   width: 100%;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr) 48px;
   gap: var(--space-2);
 }
 
 .job-step-btn {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-md);
+}
+
+/* The sticky bar is the page's primary CTA row — full 48px tier, while
+   .btn-action elsewhere (inline action grids) stays on the 40px tier. */
+.job-action-bar > .btn-action {
+  height: 48px;
 }
 
 .job-step-btn:disabled {
@@ -1023,7 +1061,7 @@ html.native-ios select {
 }
 
 .btn-mini {
-  height: 38px;
+  height: 40px;
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -1031,7 +1069,7 @@ html.native-ios select {
 .save-btn {
   width: var(--tap-min);
   height: var(--tap-min);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
   display: grid;
@@ -1051,7 +1089,7 @@ html.native-ios select {
   align-items: center;
   gap: 10px;
   padding: 0 var(--space-3);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--color-bg);
   border: 1px solid var(--color-line-2);
   font: inherit;
@@ -1080,7 +1118,10 @@ select.input-field {
 }
 
 .select-field-wrap .input-field {
+  min-width: 0;
+  width: 100%;
   padding-right: 38px;
+  text-overflow: ellipsis;
 }
 
 .select-chevron {
@@ -1096,7 +1137,7 @@ select.input-field {
 .usage-meter {
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-sunken);
   border: 1px solid var(--color-line-2);
   color: var(--color-ink-3);
@@ -1228,6 +1269,24 @@ select.input-field {
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+/* Centered page/section loading state — pair with <Spinner>. Replaces the
+   old bare "Loading..." text blocks. */
+.page-loading {
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-ink-3);
+}
+
+.loading-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 @keyframes spin {
@@ -1417,7 +1476,7 @@ select.input-field {
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--color-line-2);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--color-bg-sunken);
 }
 
@@ -1425,7 +1484,8 @@ select.input-field {
   min-width: 0;
   min-height: 54px;
   border: 0;
-  border-radius: 10px;
+  /* Concentric with the 16px track: inner radius = outer − padding. */
+  border-radius: calc(var(--radius-lg) - 6px);
   background: transparent;
   color: var(--color-ink-3);
   display: flex;
@@ -1544,21 +1604,6 @@ select.input-field {
   padding: 18px 22px 28px;
 }
 
-.tailor-control-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  margin-bottom: 14px;
-  padding: var(--space-3);
-  border: 1px solid var(--color-line-2);
-  border-radius: 14px;
-  background: var(--color-bg-elev);
-}
-
-.tailor-tab-row {
-  padding: 0;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1582,7 +1627,8 @@ select.input-field {
 }
 
 .modal-title {
-  font-size: 22px;
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.015em;
   margin: 0 0 6px;
 }
 
@@ -1605,7 +1651,7 @@ select.input-field {
   min-width: 0;
   padding: var(--space-3);
   border: 1px solid var(--color-line-2);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-sunken);
 }
 

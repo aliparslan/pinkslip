@@ -12,6 +12,7 @@
     type ScorerRollout,
   } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
+  import Spinner from "../../components/Spinner.svelte";
 
   let {
     onError,
@@ -130,9 +131,7 @@
 </script>
 
 {#if loading}
-  <div style="padding: 32px 0; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
-    Loading ops...
-  </div>
+  <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading operations" /></div>
 {:else}
   {#if productMetrics}
     <section>
@@ -297,11 +296,12 @@
         </div>
         <button
           class="btn-secondary"
-          style="width: 100%; height: 44px; padding: 0 14px;"
+          style="width: 100%; height: 48px; padding: 0 14px;"
           disabled={refreshingAll}
           onclick={refreshAllCompanies}
         >
-          {refreshingAll ? "Running..." : "Run now"}
+          {#if refreshingAll}<Spinner />{/if}
+          Run now
         </button>
       </div>
       {#if refreshLog.length > 0}

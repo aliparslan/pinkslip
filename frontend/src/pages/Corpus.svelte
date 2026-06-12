@@ -3,6 +3,7 @@
   import { api, type CorpusVersion } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import Modal from "../components/Modal.svelte";
+  import Spinner from "../components/Spinner.svelte";
 
   let loading = $state(true);
   let saving = $state(false);
@@ -129,7 +130,7 @@
 
 <div class="page">
   <div style="padding: 0 22px 28px;">
-    <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
+    <h1 class="h-display h-display-lg" style="margin-bottom: 14px;">
       Your master story
     </h1>
     <div class="stat-row" style="margin-bottom: 18px;">
@@ -166,20 +167,18 @@
           </option>
         {/each}
       </select>
-      <button class="btn-secondary" style="height: 44px; padding: 0 16px;" onclick={openSnapshotModal}>
+      <button class="btn-secondary" style="height: 48px; padding: 0 16px;" onclick={openSnapshotModal}>
         Save as new version
       </button>
       {#if isReadonly && currentVersionId !== null}
-        <button class="btn-secondary" style="height: 44px; padding: 0 16px;" onclick={() => handleVersionChange(String(currentVersionId))}>
+        <button class="btn-secondary" style="height: 48px; padding: 0 16px;" onclick={() => handleVersionChange(String(currentVersionId))}>
           Back to live
         </button>
       {/if}
     </div>
 
     {#if loading}
-      <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono);">
-        Loading...
-      </div>
+      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
       <textarea
         class="input-field corpus-textarea"
@@ -214,7 +213,8 @@
     <div class="action-row" style="margin-top: 16px;">
       <button class="btn-secondary" onclick={() => (showSnapshotModal = false)} disabled={snapshotting}>Cancel</button>
       <button class="btn-primary btn-accent" style="flex: 1;" onclick={snapshotCorpus} disabled={snapshotting || !snapshotLabel.trim()}>
-        {snapshotting ? "Saving..." : "Save snapshot"}
+        {#if snapshotting}<Spinner />{/if}
+        Save snapshot
       </button>
     </div>
   </Modal>

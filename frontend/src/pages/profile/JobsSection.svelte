@@ -40,10 +40,10 @@
     {#if profileEditing}
       <SearchProfileFields bind:profile={searchProfile} />
       <div style="display: flex; justify-content: space-between; gap: 8px;">
-        <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={resetToDefaults}>
+        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={resetToDefaults}>
           Reset defaults
         </button>
-        <button class="btn-secondary" style="height: 36px; padding: 0 14px;" onclick={() => { profileEditing = false; }}>
+        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={() => { profileEditing = false; }}>
           Close editor
         </button>
       </div>
@@ -74,7 +74,7 @@
           <strong>{searchProfile.work_authorization.replaceAll("_", " ")} · {searchProfile.relocation_willing ? "open to relocation" : "no relocation"}</strong>
         </div>
         <div class="profile-summary-item">
-          <span>Feed threshold</span>
+          <span>Min match score</span>
           <strong>{searchProfile.match_threshold}+</strong>
         </div>
       </div>

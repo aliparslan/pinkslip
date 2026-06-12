@@ -49,6 +49,10 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
   Slider, …). All dialogs go through `Modal.svelte` (backdrop + focus trap +
   Escape, primary button LAST in action rows) — never `window.confirm`/`prompt`
   or hand-rolled overlays.
+- Overlay roles are deliberate: dense temporary view controls use the feed
+  bottom sheet; short forms and confirmations use centered `Modal.svelte`;
+  row-scoped actions may use an anchored popover. Do not swap patterns without
+  changing the interaction's role.
 - `src/lib/` — non-UI logic: `api.ts` (typed client), scoring, formatting,
   pdf/typst resume generation, native bridges (`native-*.ts`), stores
   (`feed-store.svelte.ts` holds the shared feed state).

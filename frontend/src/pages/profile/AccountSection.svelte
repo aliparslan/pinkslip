@@ -5,6 +5,7 @@
   import { errorMessage } from "../../lib/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../../lib/native-auth";
   import Modal from "../../components/Modal.svelte";
+  import Spinner from "../../components/Spinner.svelte";
 
   let {
     sessionState,
@@ -127,7 +128,8 @@
           onclick={handleAppleLogin}
           disabled={signingInWithApple}
         >
-          {signingInWithApple ? "Connecting..." : "Continue with Apple"}
+          {#if signingInWithApple}<Spinner />{/if}
+          Continue with Apple
         </button>
       {/if}
 
@@ -147,7 +149,8 @@
           />
         </div>
         <button class="btn-secondary" type="button" onclick={handleEmailLoginStart} disabled={sendingEmailLogin || !emailLogin.trim()}>
-          {sendingEmailLogin ? "Sending..." : "Send link"}
+          {#if sendingEmailLogin}<Spinner />{/if}
+          Send link
         </button>
       </div>
     {/if}
@@ -165,7 +168,8 @@
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (showDeleteConfirm = false)} disabled={deletingAccount}>Cancel</button>
       <button class="btn-secondary btn-danger" style="flex: 1;" onclick={handleDeleteAccount} disabled={deletingAccount}>
-        {deletingAccount ? "Deleting..." : "Delete account"}
+        {#if deletingAccount}<Spinner />{/if}
+        Delete account
       </button>
     </div>
   </Modal>

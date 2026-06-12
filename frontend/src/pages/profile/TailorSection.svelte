@@ -24,6 +24,7 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import Spinner from "../../components/Spinner.svelte";
 
   let {
     sessionState,
@@ -295,7 +296,7 @@
         {#if tailorUsage}
           <div class="usage-meter" aria-label="Tailoring API usage">
             <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
-              <span>{hasLocalGeminiKey ? "Your key in Pinkslip today" : "App key today"}</span>
+              <span>{hasLocalGeminiKey ? "Your key in pinkslip today" : "App key today"}</span>
               <strong>
                 {activeUsageCount ?? 0}{#if tailorUsage.daily_limit !== null}/{tailorUsage.daily_limit}{/if}
               </strong>
@@ -308,7 +309,7 @@
                 ></div>
               </div>
               <div style="color: var(--color-ink-4);">
-                {activeUsageRemaining ?? 0} left before the daily reset. Google may apply other project-wide limits outside Pinkslip.
+                {activeUsageRemaining ?? 0} left before the daily reset. Google may apply other project-wide limits outside pinkslip.
               </div>
             {:else}
               <div style="color: var(--color-ink-4);">Live remaining quota is not exposed by this provider.</div>
@@ -324,7 +325,8 @@
           onclick={saveLocalSetup}
           disabled={savingLocalSetup}
         >
-          {savingLocalSetup ? "Saving..." : "Save local setup"}
+          {#if savingLocalSetup}<Spinner />{/if}
+          Save local setup
         </button>
         <button
           class="btn-secondary"

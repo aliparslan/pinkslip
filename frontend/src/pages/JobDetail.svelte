@@ -41,6 +41,7 @@
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Flag from "phosphor-svelte/lib/Flag";
+  import Spinner from "../components/Spinner.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -341,9 +342,7 @@
 
   <div style="padding: 18px 20px 112px;">
     {#if loading}
-      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: var(--fs-xs);">
-        Loading...
-      </div>
+      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
       <div class="alert alert-error">
         {error}
@@ -356,7 +355,7 @@
           <div class="section-label" style="margin-bottom: 4px;">
             {job.company_name}{#if job.department} {" · "}{job.department}{/if}
           </div>
-          <h1 class="h-display" style="font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-top: 0;">
+          <h1 class="h-display h-display-md" style="line-height: 1.15; margin-top: 0;">
             {job.title}
           </h1>
         </div>
@@ -444,22 +443,22 @@
             disabled={applied || applying}
             onclick={markApplied}
           >
-            <CheckCircle size={16} />
-            {applied ? "Tracked ✓" : applying ? "..." : "Mark as applied"}
+            {#if applying}<Spinner />{:else}<CheckCircle size={16} />{/if}
+            {applied ? "Tracked ✓" : "Mark as applied"}
           </button>
           <button
             class="btn-secondary btn-action"
             onclick={handleDismiss}
             disabled={dismissing}
           >
-            <X size={15} />
-            {dismissing ? "..." : "Dismiss for me"}
+            {#if dismissing}<Spinner />{:else}<X size={15} />{/if}
+            Dismiss for me
           </button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
           <button class="btn-secondary btn-action" onclick={hideCompany} disabled={hidingCompany}>
-            <EyeSlash size={15} />
-            {hidingCompany ? "..." : `Hide ${job.company_name}`}
+            {#if hidingCompany}<Spinner />{:else}<EyeSlash size={15} />{/if}
+            Hide {job.company_name}
           </button>
           <button class="btn-secondary btn-action" onclick={() => { showReport = true; }}>
             <Flag size={15} />
@@ -634,7 +633,8 @@
     <div class="action-row">
       <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
       <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitReport} disabled={reporting || reportSent}>
-        {reportSent ? "Reported" : reporting ? "Sending..." : "Send report"}
+        {#if reporting}<Spinner />{/if}
+        {reportSent ? "Reported" : "Send report"}
       </button>
     </div>
   </Modal>
@@ -668,8 +668,8 @@
         disabled={blocking}
         onclick={handleBlock}
       >
-        <Trash size={15} />
-        {blocking ? "..." : "Block permanently"}
+        {#if blocking}<Spinner />{:else}<Trash size={15} />{/if}
+        Block permanently
       </button>
       <button
         style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
