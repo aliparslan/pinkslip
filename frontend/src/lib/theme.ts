@@ -16,20 +16,28 @@ function resolvedMode(mode: ThemeMode): "light" | "dark" {
 
 export const resolvedTheme = derived(themeMode, ($m) => resolvedMode($m));
 
+// `data-mode` is ALWAYS set to the resolved light/dark value ("system" is
+// resolved here, and re-resolved when the OS theme changes). CSS therefore only
+// needs `[data-mode="light"]` overrides — no duplicated
+// `@media (prefers-color-scheme)` blocks. index.html mirrors this logic in an
+// inline script so the first paint is already correct.
 function applyTheme(mode: ThemeMode) {
   const html = document.documentElement;
-  if (mode === "system") {
-    html.removeAttribute("data-mode");
-  } else {
-    html.setAttribute("data-mode", mode);
-  }
-  const isDark = resolvedMode(mode) === "dark";
+  const resolved = resolvedMode(mode);
+  html.setAttribute("data-mode", resolved);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", isDark ? "#271a21" : "#fbf9fa");
+  if (meta) meta.setAttribute("content", resolved === "dark" ? "#271a21" : "#fbf9fa");
   localStorage.setItem("pinkslip-theme", mode);
 }
 
 themeMode.subscribe(applyTheme);
+
+// Follow live OS theme changes while in "system" mode.
+if (typeof window !== "undefined") {
+  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+    themeMode.update((m) => m); // re-run applyTheme with the current mode
+  });
+}
 
 export function cycleTheme() {
   themeMode.update((m) => {

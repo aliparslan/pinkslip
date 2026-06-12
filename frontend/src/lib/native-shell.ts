@@ -18,6 +18,15 @@ export function initNativeShell(): void {
   document.documentElement.classList.add("native-app");
   if (isNativeIos()) document.documentElement.classList.add("native-ios");
 
+  // App-like fixed viewport only inside the native shell. The web build keeps
+  // pinch-zoom enabled (WCAG 1.4.4), so index.html ships the permissive tag.
+  document
+    .querySelector('meta[name="viewport"]')
+    ?.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    );
+
   initStatusBar();
   // The interactive swipe-back gesture lives in App.svelte (it needs to render
   // the previous page underneath), so there's nothing more to wire here.
