@@ -2,9 +2,9 @@
   import { onMount } from "svelte";
   import { navigate } from "../router";
   import { api } from "../lib/api";
-  import { focusTrap } from "../lib/focus-trap";
-  import { timeAgo, companyMark } from "../lib/utils";
+  import { timeAgo, errorMessage } from "../lib/utils";
   import CompanyLogo from "../components/CompanyLogo.svelte";
+  import Modal from "../components/Modal.svelte";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
@@ -28,6 +28,8 @@
   let createNext = $state("");
   let createUrl = $state("");
   let formError: string | null = $state(null);
+  let deleteTarget: App | null = $state(null);
+  let deleting = $state(false);
 
   let activeCt = $derived(apps.filter((a) => a.stage !== "Rejected" && a.stage !== "Ghosted").length);
 
@@ -38,6 +40,18 @@
       if (items.length > 0) g[stage] = items;
     }
     return g;
+  });
+
+  // Close the open stage menu when tapping anywhere outside it.
+  $effect(() => {
+    if (!menuOpenId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-stage-menu]")) return;
+      menuOpenId = null;
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
   });
 
   async function setStage(appId: string, stage: Stage) {
@@ -56,10 +70,10 @@
     try {
       const res = await api.applications.list();
       apps = (res.applications ?? []) as App[];
-    } catch (e: any) {
+    } catch (e) {
       // Distinguish a real fetch failure from a genuinely empty tracker, so an
       // outage doesn't silently look like "no applications yet".
-      loadError = e?.message || "Couldn't load your applications.";
+      loadError = errorMessage(e, "Couldn't load your applications.");
     } finally {
       loading = false;
     }
@@ -84,22 +98,26 @@
       createStage = "Applied";
       createNext = "";
       createUrl = "";
-    } catch (e: any) {
-      formError = e.message;
+    } catch (e) {
+      formError = errorMessage(e);
     } finally {
       creating = false;
     }
   }
 
-  async function deleteApplication(appId: string) {
-    menuOpenId = null;
-    if (!confirm("Delete this application? This can't be undone.")) return;
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+    deleting = true;
+    const target = deleteTarget;
     const previous = apps;
-    apps = apps.filter((app) => app.id !== appId);
+    apps = apps.filter((app) => app.id !== target.id);
     try {
-      await api.applications.delete(appId);
+      await api.applications.delete(target.id);
+      deleteTarget = null;
     } catch {
       apps = previous;
+    } finally {
+      deleting = false;
     }
   }
 
@@ -120,16 +138,16 @@
   <div class="page-frame">
     <div class="page-hero">
       <div class="page-hero-copy">
-        <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+        <h1 class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
           Tracker
-        </div>
+        </h1>
         <p class="page-subtitle">
           Keep a clean view of active loops, one-off applications, and where each conversation stands.
         </p>
       </div>
       <button
         class="btn-secondary"
-        style="height: 34px; padding: 0 12px; flex-shrink: 0; font-size: 12px;"
+        style="height: 36px; padding: 0 12px; flex-shrink: 0; font-size: var(--fs-xs);"
         aria-label="Add application"
         onclick={() => showCreate = true}
       >
@@ -144,28 +162,28 @@
   </div>
 
   {#if loading}
-    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
+    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
       Loading...
     </div>
   {:else if loadError}
     <div style="text-align: center; padding: 48px 24px;">
-      <div class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
         Couldn't load applications
-      </div>
-      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
+      </h2>
+      <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
         {loadError}
       </div>
       <button class="btn-secondary" onclick={reloadApps}>Try again</button>
     </div>
   {:else if apps.length === 0}
     <div style="text-align: center; padding: 48px 24px;">
-      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
         <Briefcase size={24} />
       </div>
-      <div class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display" style="font-size: 20px; color: var(--color-ink-2); margin-bottom: 8px;">
         No applications yet
-      </div>
-      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
+      </h2>
+      <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
         Track jobs from the feed or add one-off applications from referrals, recruiters, and random links.
       </div>
     </div>
@@ -187,10 +205,10 @@
           >
             <CompanyLogo name={app.company_name} domain={app.company_domain} size={24} />
             <div style="min-width: 0;">
-              <div style="font-size: 14px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <div style="font-size: var(--fs-md); font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {app.title}
               </div>
-              <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+              <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 3px; display: flex; align-items: center; gap: 6px;">
                 <span>{app.company_name}</span>
                 {#if app.next}
                   <span style="opacity: 0.5;">·</span>
@@ -200,14 +218,15 @@
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
               <div style="text-align: right;">
-                <div style="font-size: 11px; color: var(--color-ink-3); font-variant-numeric: tabular-nums;">
+                <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); font-variant-numeric: tabular-nums;">
                   {timeAgo(app.updated_at)}
                 </div>
               </div>
               <button
-                class="icon-btn"
-                style="width: 28px; height: 28px; flex-shrink: 0;"
+                class="icon-btn icon-btn-sm"
+                style="flex-shrink: 0;"
                 aria-label="Change stage"
+                data-stage-menu
                 onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === app.id ? null : app.id; }}
               >
                 <DotsThree size={16} weight="bold" color="var(--color-ink-3)" />
@@ -220,13 +239,14 @@
               <div
                 role="menu"
                 tabindex="-1"
-                style="position: absolute; right: 12px; top: 100%; z-index: 5; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;"
+                data-stage-menu
+                style="position: absolute; right: 12px; top: 100%; z-index: 5; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: var(--radius-md); padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => { if (e.key === 'Escape') menuOpenId = null; }}
               >
                 {#each ALL_STAGES as s}
                   <button
-                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: {app.stage === s ? 'var(--color-bg-sunken)' : 'transparent'}; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--color-ink); font-weight: {app.stage === s ? '600' : '400'};"
+                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: {app.stage === s ? 'var(--color-bg-sunken)' : 'transparent'}; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); font-weight: {app.stage === s ? '600' : '400'};"
                     onclick={() => setStage(app.id, s)}
                   >
                     <span class="stage-badge stage-{s.toLowerCase()}" style="pointer-events: none;">
@@ -234,10 +254,10 @@
                     </span>
                   </button>
                 {/each}
-                <div style="height: 0.5px; background: var(--color-line); margin: 4px 0;"></div>
+                <div class="divider" style="margin: 4px 0;"></div>
                 <button
-                  style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: transparent; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--color-bad);"
-                  onclick={() => deleteApplication(app.id)}
+                  style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: transparent; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--fs-sm); color: var(--color-bad);"
+                  onclick={() => { menuOpenId = null; deleteTarget = app; }}
                 >
                   <Trash size={14} />
                   Delete
@@ -252,51 +272,54 @@
 </div>
 
 {#if showCreate}
-  <div
-    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
-    role="presentation"
-    onclick={() => showCreate = false}
+  <Modal
+    title="Add application"
+    subtitle="Track referrals, recruiter leads, and anything outside the watched feeds."
+    busy={creating}
+    maxWidth={360}
+    onclose={() => (showCreate = false)}
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="create-application-title"
-      tabindex="-1"
-      style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 16px; padding: 20px;"
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => {
-        if (event.key === "Escape") showCreate = false;
-      }}
-    >
-      <div id="create-application-title" class="h-display" style="font-size: 24px; margin-bottom: 6px;">Add application</div>
-      <div style="font-size: 13px; color: var(--color-ink-3); margin-bottom: 16px;">
-        Track referrals, recruiter leads, and anything outside the watched feeds.
+    {#if formError}
+      <div class="alert alert-error" style="margin-bottom: 12px;">
+        {formError}
       </div>
-      {#if formError}
-        <div style="padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
-          {formError}
-        </div>
-      {/if}
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <input class="input-field" aria-label="Company" placeholder="Company" bind:value={createCompany} />
-        <input class="input-field" aria-label="Title" placeholder="Title" bind:value={createTitle} />
-        <select class="input-field" aria-label="Application stage" bind:value={createStage}>
-          {#each ALL_STAGES as stage}
-            <option value={stage}>{stage}</option>
-          {/each}
-        </select>
-        <input class="input-field" aria-label="Next step note" placeholder="Next step note" bind:value={createNext} />
-        <input class="input-field" aria-label="Application URL" placeholder="URL (optional)" bind:value={createUrl} />
-      </div>
-      <div class="action-row" style="margin-top: 16px;">
-        <button class="btn-primary btn-accent" style="flex: 1;" onclick={createApplication} disabled={creating}>
-          {creating ? "Saving..." : "Add"}
-        </button>
-        <button class="btn-secondary" onclick={() => showCreate = false}>
-          Cancel
-        </button>
-      </div>
+    {/if}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <input class="input-field" aria-label="Company" placeholder="Company" bind:value={createCompany} />
+      <input class="input-field" aria-label="Title" placeholder="Title" bind:value={createTitle} />
+      <select class="input-field" aria-label="Application stage" bind:value={createStage}>
+        {#each ALL_STAGES as stage}
+          <option value={stage}>{stage}</option>
+        {/each}
+      </select>
+      <input class="input-field" aria-label="Next step note" placeholder="Next step note" bind:value={createNext} />
+      <input class="input-field" aria-label="Application URL" placeholder="URL (optional)" bind:value={createUrl} />
     </div>
-  </div>
+    <div class="action-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick={() => showCreate = false} disabled={creating}>
+        Cancel
+      </button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={createApplication} disabled={creating}>
+        {creating ? "Saving..." : "Add"}
+      </button>
+    </div>
+  </Modal>
+{/if}
+
+{#if deleteTarget}
+  <Modal
+    title="Delete this application?"
+    subtitle="{deleteTarget.title} at {deleteTarget.company_name} will be removed. This can't be undone."
+    busy={deleting}
+    maxWidth={340}
+    onclose={() => (deleteTarget = null)}
+  >
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => (deleteTarget = null)} disabled={deleting}>Cancel</button>
+      <button class="btn-secondary btn-danger" style="flex: 1;" onclick={confirmDelete} disabled={deleting}>
+        <Trash size={15} />
+        {deleting ? "Deleting..." : "Delete"}
+      </button>
+    </div>
+  </Modal>
 {/if}

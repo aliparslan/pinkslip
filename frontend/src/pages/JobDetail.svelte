@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { fly } from "svelte/transition";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
-  import { api } from "../lib/api";
-  import { focusTrap } from "../lib/focus-trap";
+  import { api, type Job } from "../lib/api";
+  import { errorMessage } from "../lib/utils";
   import { hapticLight } from "../lib/haptics";
   import { shareLink } from "../lib/share";
   import { getAdjacentJobIds } from "../lib/feed-navigation";
+  import { feed } from "../lib/feed-store.svelte";
   import { sessionAccess } from "../lib/session-access";
   import { markViewed } from "../lib/viewed";
   import {
@@ -20,8 +22,10 @@
     scoreToneFromPercent,
   } from "../lib/scoring";
   import CompanyLogo from "../components/CompanyLogo.svelte";
+  import Modal from "../components/Modal.svelte";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
-  import ArrowRight from "phosphor-svelte/lib/ArrowRight";
+  import CaretLeft from "phosphor-svelte/lib/CaretLeft";
+  import CaretRight from "phosphor-svelte/lib/CaretRight";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import MapPin from "phosphor-svelte/lib/MapPin";
   import Money from "phosphor-svelte/lib/Money";
@@ -33,16 +37,18 @@
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import X from "phosphor-svelte/lib/X";
   import Trash from "phosphor-svelte/lib/Trash";
-  import Warning from "phosphor-svelte/lib/Warning";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Flag from "phosphor-svelte/lib/Flag";
 
-  let { jobId }: { jobId: string | null } = $props();
+  let { jobId = null }: { jobId?: string | null } = $props();
 
-  let job: any = $state(null);
+  type ScoreKey = "title_score" | "yoe_score" | "location_score" | "department_score" | "recency_score";
+
+  let job = $state<Job | null>(null);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
+  let toastMsg: string | null = $state(null);
   let dismissing: boolean = $state(false);
   let saved: boolean = $state(false);
   let applied: boolean = $state(false);
@@ -51,8 +57,6 @@
   let showBlockConfirm: boolean = $state(false);
   let blocking: boolean = $state(false);
   let descriptionPending: boolean = $state(false);
-  let descriptionRefreshTimer: number | null = $state(null);
-  let descriptionRefreshAttempts: number = $state(0);
   let hidingCompany: boolean = $state(false);
   let showReport: boolean = $state(false);
   let reportType: string = $state("incorrect_details");
@@ -60,6 +64,9 @@
   let reporting: boolean = $state(false);
   let reportSent: boolean = $state(false);
   let openedJobId: string | null = null;
+  let descriptionRefreshTimer: number | null = null;
+  let descriptionRefreshAttempts = 0;
+  let toastTimer: number | null = null;
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
 
@@ -70,7 +77,20 @@
     }
   }
 
-  function syncJobState(nextJob: any) {
+  function showToast(message: string) {
+    toastMsg = message;
+    if (toastTimer !== null) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toastMsg = null;
+      toastTimer = null;
+    }, 2500);
+  }
+
+  function removeFromFeedStore(id: string) {
+    feed.jobs = feed.jobs.filter((item) => item.id !== id);
+  }
+
+  function syncJobState(nextJob: Job) {
     job = nextJob;
     saved = Boolean(nextJob?.saved);
     descriptionPending = Boolean(nextJob?.content_pending && !nextJob?.description);
@@ -106,9 +126,9 @@
       } else if (!descriptionPending) {
         clearDescriptionRefreshTimer();
       }
-    } catch (e: any) {
+    } catch (e) {
       if (!silent || !job) {
-        error = e.message;
+        error = errorMessage(e);
       }
     } finally {
       loading = false;
@@ -129,16 +149,41 @@
 
   onDestroy(() => {
     clearDescriptionRefreshTimer();
+    if (toastTimer !== null) window.clearTimeout(toastTimer);
   });
+
+  async function markApplied() {
+    if (!jobId || !job || applying || applied) return;
+    applying = true;
+    try {
+      await api.applications.create({
+        job_id: jobId,
+        company_name: job.company_name,
+        title: job.title,
+        url: job.url ?? "",
+      });
+      applied = true;
+      // Tracked now, so it leaves the feed — but stay here and confirm,
+      // instead of silently dumping the user back to the feed.
+      removeFromFeedStore(jobId);
+      void api.jobs.dismiss(jobId).catch(() => undefined);
+      showToast("Added to Tracker ✓");
+    } catch (e) {
+      error = errorMessage(e);
+    } finally {
+      applying = false;
+    }
+  }
 
   async function handleDismiss() {
     if (!jobId) return;
     dismissing = true;
     try {
       await api.jobs.dismiss(jobId);
+      removeFromFeedStore(jobId);
       navigate("/");
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
       dismissing = false;
     }
   }
@@ -164,9 +209,9 @@
       } else {
         await api.savedJobs.unsave(jobId);
       }
-    } catch (e: any) {
+    } catch (e) {
       saved = !newVal;
-      error = e.message;
+      error = errorMessage(e);
     }
   }
 
@@ -175,9 +220,10 @@
     blocking = true;
     try {
       await api.jobs.block(jobId);
+      removeFromFeedStore(jobId);
       navigate("/");
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
       blocking = false;
     }
   }
@@ -187,9 +233,10 @@
     hidingCompany = true;
     try {
       await api.companies.block(job.company_id);
+      feed.jobs = feed.jobs.filter((item) => item.company_id !== job?.company_id);
       navigate("/");
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
       hidingCompany = false;
     }
   }
@@ -209,8 +256,8 @@
         reportSent = false;
         reportNotes = "";
       }, 1000);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       reporting = false;
     }
@@ -222,13 +269,12 @@
     });
   }
 
-  let scoreRaw = $derived(job?.score ?? 0);
-  let scorePercent = $derived(normalizeJobScore(scoreRaw));
+  let scorePercent = $derived(normalizeJobScore(job?.score ?? 0));
   let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let adjacentJobs = $derived(getAdjacentJobIds(jobId));
 
-  const scoreBreakdownKeys = [
+  const scoreBreakdownKeys: { label: string; key: ScoreKey; max: number }[] = [
     { label: "Title", key: "title_score", max: 30 },
     { label: "YOE", key: "yoe_score", max: 25 },
     { label: "Location", key: "location_score", max: 20 },
@@ -284,13 +330,21 @@
     </div>
   </header>
 
+  {#if toastMsg}
+    <div class="toast-wrap">
+      <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
+        {toastMsg}
+      </div>
+    </div>
+  {/if}
+
   <div style="padding: 18px 20px 112px;">
     {#if loading}
-      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: 12px;">
+      <div style="text-align: center; padding: 48px 0; color: var(--color-ink-3); font-size: var(--fs-xs);">
         Loading...
       </div>
     {:else if error}
-      <div style="padding: 16px 18px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 14px;">
+      <div class="alert alert-error">
         {error}
       </div>
     {:else if job}
@@ -335,20 +389,20 @@
         {/if}
       </div>
 
-      <div style="height: 0.5px; background: var(--color-line); margin-bottom: 16px;"></div>
+      <div class="divider" style="margin-bottom: 16px;"></div>
 
       <!-- Match score -->
       <div class="surface-card-padded" style="margin-bottom: 16px;">
         <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px;">
           <div>
-            <div class="section-label">
+            <h2 class="section-label" style="margin: 0;">
               Match score
-            </div>
+            </h2>
             <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
               <span style="font-family: var(--font-display); font-weight: 700; font-size: 36px; color: {scoreColor}; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">
                 {scorePercent}
               </span>
-              <span style="font-size: 14px; font-weight: 600; color: var(--color-ink);">
+              <span style="font-size: var(--fs-md); font-weight: 600; color: var(--color-ink);">
                 {scoreLabel}
               </span>
             </div>
@@ -357,7 +411,8 @@
             type="button"
             onclick={() => scoreExpanded = !scoreExpanded}
             class="btn-secondary"
-            style="height: 32px; padding: 0 10px; font-size: 12px;"
+            style="height: 32px; padding: 0 10px; font-size: var(--fs-xs);"
+            aria-expanded={scoreExpanded}
           >
             why?
             <CaretDown size={12} style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});" />
@@ -368,11 +423,11 @@
           <div style="display: flex; flex-direction: column;">
             {#each scoreBreakdownKeys as { label, key, max }}
               <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 7px 0; border-top: 0.5px solid var(--color-line);">
-                <span style="font-size: 13px; color: var(--color-ink); font-weight: 500;">{label}</span>
-                <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: 999px; overflow: hidden;">
-                  <div style="height: 100%; background: {(job[key] ?? 0) === max ? 'var(--color-good)' : 'var(--color-accent)'}; width: {((job[key] ?? 0) / max) * 100}%; border-radius: 999px;"></div>
+                <span style="font-size: var(--fs-sm); color: var(--color-ink); font-weight: 500;">{label}</span>
+                <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: var(--radius-full); overflow: hidden;">
+                  <div style="height: 100%; background: {(job[key] ?? 0) === max ? 'var(--color-good)' : 'var(--color-accent)'}; width: {((job[key] ?? 0) / max) * 100}%; border-radius: var(--radius-full);"></div>
                 </div>
-                <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right;">
+                <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-ink-3); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right;">
                   {job[key] ?? 0}/{max}
                 </span>
               </div>
@@ -386,27 +441,10 @@
           <button
             class="btn-secondary btn-action"
             disabled={applied || applying}
-            onclick={async () => {
-              if (!jobId || !job) return;
-              applying = true;
-              try {
-                await api.applications.create({
-                  job_id: jobId,
-                  company_name: job.company_name,
-                  title: job.title,
-                  url: job.url ?? "",
-                });
-                applied = true;
-                await api.jobs.dismiss(jobId);
-                navigate("/");
-              } catch (e: any) {
-                error = e.message;
-                applying = false;
-              }
-            }}
+            onclick={markApplied}
           >
             <CheckCircle size={16} />
-            {applied ? "Tracked" : applying ? "..." : "Mark as applied"}
+            {applied ? "Tracked ✓" : applying ? "..." : "Mark as applied"}
           </button>
           <button
             class="btn-secondary btn-action"
@@ -429,15 +467,15 @@
         </div>
       </div>
 
-      <div style="height: 0.5px; background: var(--color-line);"></div>
+      <div class="divider"></div>
 
       <!-- About the role -->
       {#if descriptionPending}
         <div style="padding: 16px 0 24px;">
-          <div class="section-title" style="margin-bottom: 8px;">
+          <h2 class="section-title" style="margin-bottom: 8px;">
             About the role
-          </div>
-          <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
+          </h2>
+          <p style="margin: 0 0 12px; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
             Pulling the full posting now. This usually lands in a second or two.
           </p>
           <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
@@ -446,9 +484,9 @@
         </div>
       {:else if sanitizedDescription}
         <div style="padding: 16px 0 24px;">
-          <div class="section-title" style="margin-bottom: 10px;">
+          <h2 class="section-title" style="margin-bottom: 10px;">
             About the role
-          </div>
+          </h2>
           <div class="job-description">
             {@html sanitizedDescription}
           </div>
@@ -457,7 +495,7 @@
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: var(--color-accent); font-size: var(--fs-sm); font-weight: 600; text-decoration: none;"
             >
               Read full description
               <ArrowSquareOut size={13} />
@@ -466,10 +504,10 @@
         </div>
       {:else if plainDescription}
         <div style="padding: 16px 0 24px;">
-          <div class="section-title" style="margin-bottom: 8px;">
+          <h2 class="section-title" style="margin-bottom: 8px;">
             About the role
-          </div>
-          <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
+          </h2>
+          <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
             {plainDescription}
           </p>
           {#if job.url}
@@ -477,7 +515,7 @@
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: none; background: transparent; color: var(--color-accent); cursor: pointer; padding: 0; font-size: 13px; font-weight: 600; text-decoration: none;"
+              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: var(--color-accent); font-size: var(--fs-sm); font-weight: 600; text-decoration: none;"
             >
               Read full description
               <ArrowSquareOut size={13} />
@@ -486,10 +524,10 @@
         </div>
       {:else}
         <div style="padding: 16px 0 24px;">
-          <div class="section-title" style="margin-bottom: 8px;">
+          <h2 class="section-title" style="margin-bottom: 8px;">
             About the role
-          </div>
-          <p style="margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--color-ink-2);">
+          </h2>
+          <p style="margin: 0 0 12px; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -518,13 +556,14 @@
 {#if !loading && !error && job}
   <div class="job-action-bar-wrap">
     <div class="job-action-bar">
+      <!-- Carets (not arrows) so prev/next job isn't mistaken for Back. -->
       <button
         class="icon-btn icon-btn-surface job-step-btn"
-        aria-label="Previous job"
+        aria-label="Previous job in feed"
         disabled={!adjacentJobs.previousId}
         onclick={() => navigateToAdjacent(adjacentJobs.previousId)}
       >
-        <ArrowLeft size={18} />
+        <CaretLeft size={18} />
       </button>
       {#if job.url}
         <a
@@ -560,115 +599,83 @@
       </button>
       <button
         class="icon-btn icon-btn-surface job-step-btn"
-        aria-label="Next job"
+        aria-label="Next job in feed"
         disabled={!adjacentJobs.nextId}
         onclick={() => navigateToAdjacent(adjacentJobs.nextId)}
       >
-        <ArrowRight size={18} />
+        <CaretRight size={18} />
       </button>
     </div>
   </div>
 {/if}
 
 {#if showReport}
-  <div
-    class="modal-backdrop"
-    role="presentation"
-    onclick={() => { if (!reporting) showReport = false; }}
-    onkeydown={(event) => { if (event.key === "Escape" && !reporting) showReport = false; }}
+  <Modal
+    title="What looks wrong?"
+    subtitle="Reports go to the pinkslip admin queue. They do not contact the employer."
+    busy={reporting}
+    onclose={() => (showReport = false)}
   >
-    <div
-      class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="report-title"
-      tabindex="-1"
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => { if (event.key === "Escape" && !reporting) showReport = false; }}
-    >
-      <div id="report-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">What looks wrong?</div>
-      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
-        Reports go to the pinkslip admin queue. They do not contact the employer.
-      </p>
-      <select class="input-field" bind:value={reportType} style="margin-bottom: 10px;">
-        <option value="expired_listing">Listing is closed</option>
-        <option value="incorrect_details">Details are incorrect</option>
-        <option value="duplicate_listing">Duplicate listing</option>
-        <option value="broken_source">Company source is broken</option>
-        <option value="other">Something else</option>
-      </select>
-      <textarea
-        class="input-field"
-        rows="4"
-        placeholder="Optional context"
-        bind:value={reportNotes}
-        style="height: auto; resize: vertical; margin-bottom: 14px;"
-      ></textarea>
-      <div class="action-row">
-        <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
-        <button class="btn-primary btn-accent" onclick={submitReport} disabled={reporting || reportSent}>
-          {reportSent ? "Reported" : reporting ? "Sending..." : "Send report"}
-        </button>
-      </div>
+    <select class="input-field" bind:value={reportType} style="margin-bottom: 10px;">
+      <option value="expired_listing">Listing is closed</option>
+      <option value="incorrect_details">Details are incorrect</option>
+      <option value="duplicate_listing">Duplicate listing</option>
+      <option value="broken_source">Company source is broken</option>
+      <option value="other">Something else</option>
+    </select>
+    <textarea
+      class="input-field"
+      rows="4"
+      placeholder="Optional context"
+      bind:value={reportNotes}
+      style="height: auto; resize: vertical; margin-bottom: 14px;"
+    ></textarea>
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitReport} disabled={reporting || reportSent}>
+        {reportSent ? "Reported" : reporting ? "Sending..." : "Send report"}
+      </button>
     </div>
-  </div>
+  </Modal>
 {/if}
 
-<!-- Block confirmation modal -->
+<!-- Block confirmation (admin) -->
 {#if $sessionAccess.isAdmin && showBlockConfirm}
-  <div
-    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
-    role="presentation"
-    onclick={() => { showBlockConfirm = false; }}
-    onkeydown={(e) => { if (e.key === 'Escape') showBlockConfirm = false; }}
+  <Modal
+    title="Block this job?"
+    busy={blocking}
+    maxWidth={340}
+    onclose={() => (showBlockConfirm = false)}
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="block-title"
-      tabindex="-1"
-      style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => { if (e.key === 'Escape') showBlockConfirm = false; }}
-    >
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-        <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">
-          <Warning size={18} color="var(--color-bad)" />
-        </div>
-        <div id="block-title" style="font-size: 17px; font-weight: 600;">Block this job?</div>
-      </div>
-      <p style="font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
-        This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
-        <br /><br />
-        If you only want it gone from your own list, use <strong>Dismiss just for me</strong> instead.
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button
-          class="btn-secondary"
-          style="width: 100%; height: 48px;"
-          onclick={() => { showBlockConfirm = false; handleDismiss(); }}
-        >
-          <X size={15} />
-          Dismiss just for me
-        </button>
-        <button
-          class="btn-secondary btn-danger"
-          style="width: 100%; height: 48px;"
-          disabled={blocking}
-          onclick={handleBlock}
-        >
-          <Trash size={15} />
-          {blocking ? "..." : "Block permanently"}
-        </button>
-        <button
-          style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: 13px; color: var(--color-ink-3); padding: 8px 0;"
-          onclick={() => { showBlockConfirm = false; }}
-        >
-          Cancel
-        </button>
-      </div>
+    <p style="font-size: var(--fs-sm); color: var(--color-ink-2); line-height: 1.5; margin: 0 0 20px;">
+      This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
+      <br /><br />
+      If you only want it gone from your own list, use <strong>Dismiss for me</strong> instead.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button
+        class="btn-secondary"
+        style="width: 100%; height: 48px;"
+        onclick={() => { showBlockConfirm = false; handleDismiss(); }}
+      >
+        <X size={15} />
+        Dismiss for me
+      </button>
+      <button
+        class="btn-secondary btn-danger"
+        style="width: 100%; height: 48px;"
+        disabled={blocking}
+        onclick={handleBlock}
+      >
+        <Trash size={15} />
+        {blocking ? "..." : "Block permanently"}
+      </button>
+      <button
+        style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
+        onclick={() => { showBlockConfirm = false; }}
+      >
+        Cancel
+      </button>
     </div>
-  </div>
+  </Modal>
 {/if}

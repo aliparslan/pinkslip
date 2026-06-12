@@ -2,18 +2,18 @@
   import { onMount } from "svelte";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
-  import { api, type Job, type ResumeProfile, type Tailoring } from "../lib/api";
+  import { api, type Job, type Tailoring } from "../lib/api";
+  import { errorMessage } from "../lib/utils";
   import { hapticSuccess } from "../lib/haptics";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
+  import { setPendingSettingsSection } from "../lib/settings-section";
   import {
     DEFAULT_TAILOR_MODEL,
-    TAILOR_MODEL_OPTIONS,
     getLocalResumeTailorText,
     loadLocalTailorDraft,
     loadLocalTailorKit,
     refreshLocalTailorKitResume,
     saveLocalTailorDraft,
-    updateLocalTailorKit,
     type LocalTailorDraft,
     type LocalTailorKit,
   } from "../lib/local-tailor";
@@ -23,14 +23,16 @@
     openPdfInNewTab,
     tailoredResumePdfFileName,
   } from "../lib/pdf-resume";
+  import Modal from "../components/Modal.svelte";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
+  import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import Copy from "phosphor-svelte/lib/Copy";
+  import MagicWand from "phosphor-svelte/lib/MagicWand";
   import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
-  import CaretDown from "phosphor-svelte/lib/CaretDown";
 
-  let { jobId }: { jobId: string | null } = $props();
+  let { jobId = null }: { jobId?: string | null } = $props();
 
   type TabId = "resume" | "cover" | "qa";
 
@@ -38,6 +40,9 @@
   let streaming = $state(false);
   let saving = $state(false);
   let error: string | null = $state(null);
+  // Tailoring has no usable API key (neither personal nor app-wide). Rendered
+  // as a setup card with a path forward, not a raw error string.
+  let setupNeeded = $state(false);
   let job: Job | null = $state(null);
   let tailoring: Tailoring | null = $state(null);
   let localKit: LocalTailorKit | null = $state(null);
@@ -48,14 +53,15 @@
   let qaText = $state("");
   let activeTab: TabId = $state("resume");
   let copied = $state(false);
-  let copyTimer: number | null = $state(null);
   let downloadingPdf = $state(false);
+  let showRegenerateConfirm = $state(false);
   let editing = $state<Record<TabId, boolean>>({
     resume: false,
     cover: false,
     qa: false,
   });
-  let saveTimer: number | null = $state(null);
+  let copyTimer: number | null = null;
+  let saveTimer: number | null = null;
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
   let usingLocalRequest = $derived.by(() => {
@@ -64,6 +70,9 @@
   let activeModel = $derived.by(() => {
     return localKit?.model?.trim() || tailoring?.model || DEFAULT_TAILOR_MODEL;
   });
+  let hasAnyOutput = $derived(
+    Boolean(resumeText || coverText || qaText || tailoring || localDraft)
+  );
   let outputBaseline = $derived.by(() => {
     if (usingLocalRequest) {
       return {
@@ -127,8 +136,8 @@
         const tailorRes = await api.tailor.get(jobId);
         hydrateFromTailoring(tailorRes.tailoring);
       }
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -138,6 +147,7 @@
     if (!jobId || streaming) return;
     streaming = true;
     error = null;
+    setupNeeded = false;
     rawStream = "";
     tokenSummary = null;
     editing = { resume: false, cover: false, qa: false };
@@ -160,7 +170,11 @@
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null) as { error?: string; code?: string } | null;
+        if (data?.code === "tailor_not_configured") {
+          setupNeeded = true;
+          return;
+        }
         throw new Error(data?.error ?? `Tailoring failed (${res.status})`);
       }
       if (!res.body) {
@@ -219,8 +233,8 @@
           }
         }
       }
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       streaming = false;
     }
@@ -254,8 +268,8 @@
       });
       hydrateFromTailoring(saved.tailoring);
       return true;
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
       return false;
     } finally {
       saving = false;
@@ -279,14 +293,6 @@
     }
   }
 
-  function handleModelChange(event: Event) {
-    const model = (event.currentTarget as HTMLSelectElement | null)?.value || DEFAULT_TAILOR_MODEL;
-    const current = localKit ?? loadLocalTailorKit();
-    const next = { ...current, model };
-    localKit = next;
-    updateLocalTailorKit({ model });
-  }
-
   let hasPendingEdits = $derived.by(() => {
     return (
       resumeText !== outputBaseline.resume
@@ -308,28 +314,37 @@
   let resumeDownloadReady = $derived.by(() => {
     return Boolean(resumeText.trim() && !loading && !streaming && (tailoring || localDraft || tokenSummary));
   });
-
-  async function handleRegenerate() {
-    if (streaming) return;
-
-    if (resumeText || coverText || qaText || tailoring) {
-      const confirmed = window.confirm(
-        hasPendingEdits
-          ? "Regenerating will create a new version. Your current edits will be saved first so you can come back to them. Continue?"
-          : localResumeText
-            ? "Generate a fresh version from your browser-local resume and this job?"
-            : "Generate a fresh version from your profile and this job?"
-      );
-      if (!confirmed) return;
+  let regenerateMessage = $derived.by(() => {
+    if (hasPendingEdits) {
+      return "Regenerating creates a new version. Your current edits are saved first so you can come back to them.";
     }
+    return localResumeText
+      ? "Generate a fresh version from your browser-local resume and this job?"
+      : "Generate a fresh version from your profile and this job?";
+  });
 
+  function handleRegenerate() {
+    if (streaming) return;
+    if (hasAnyOutput) {
+      showRegenerateConfirm = true;
+      return;
+    }
+    void startGeneration();
+  }
+
+  async function startGeneration() {
+    showRegenerateConfirm = false;
     clearQueuedSave();
     if (hasPendingEdits && (tailoring || usingLocalRequest)) {
       const savedOkay = await saveEdits();
       if (!savedOkay) return;
     }
-
     await streamTailoring();
+  }
+
+  function openTailorSettings() {
+    setPendingSettingsSection("tailoring");
+    navigate("/profile");
   }
 
   async function copyCurrent() {
@@ -362,9 +377,9 @@
           bytes
         );
       }
-    } catch (e: any) {
+    } catch (e) {
       preview?.close();
-      error = e.message ?? "Could not build the resume PDF";
+      error = errorMessage(e, "Could not build the resume PDF");
     } finally {
       downloadingPdf = false;
     }
@@ -378,10 +393,8 @@
       localKit = kit;
       if (cancelled) return;
       await loadExisting();
-      if (cancelled) return;
-      if (!tailoring && !localDraft) {
-        void streamTailoring();
-      }
+      // No auto-generation: the first run costs quota, so it waits for an
+      // explicit "Generate" tap (see the empty-state card below).
     })();
 
     return () => {
@@ -400,7 +413,7 @@
       <ArrowLeft size={18} />
     </button>
     <div style="min-width: 0; flex: 1;">
-      <div style="font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <div style="font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
         {job?.company_name ?? "Preparing"}{#if job?.title} · {job.title}{/if}
       </div>
     </div>
@@ -408,103 +421,129 @@
 
   <div class="tailor-page-body">
     {#if error}
-      <div style="padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
+      <div class="alert alert-error" style="margin-bottom: 14px;">
         {error}
       </div>
     {/if}
-
-    <div class="tailor-control-card">
-      <div class="chip-wrap tailor-tab-row" role="tablist" aria-label="Tailor output tabs">
-        {#each [
-          { id: "resume", label: "Resume" },
-          { id: "cover", label: "Cover" },
-          { id: "qa", label: "QA" },
-        ] as tab}
-          <button
-            class={activeTab === tab.id ? "chip chip-active" : "chip"}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onclick={() => activeTab = tab.id as TabId}
-          >
-            {tab.label}
-          </button>
-        {/each}
-      </div>
-
-      <div class="tailor-model-row">
-        <label for="tailor-model">Model</label>
-        <div class="select-field-wrap">
-          <select
-            id="tailor-model"
-            class="input-field"
-            value={activeModel}
-            onchange={handleModelChange}
-          >
-            {#each TAILOR_MODEL_OPTIONS as option}
-              <option value={option.value}>{option.label}</option>
-            {/each}
-          </select>
-          <span class="select-chevron" aria-hidden="true">
-            <CaretDown size={16} />
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div class="stat-row" style="margin-bottom: 14px;">
-      <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "your profile + your key" : "your profile"}</span>
-      {#if streaming}
-        <span>streaming live</span>
-      {/if}
-      {#if saving}
-        <span>saving edits</span>
-      {/if}
-      {#if tokenSummary}
-        <span>{tokenSummary.input} in / {tokenSummary.output} out</span>
-      {/if}
-      {#if activeModel}
-        <span>{activeModel}</span>
-      {/if}
-    </div>
-
-    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-      <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={copyCurrent}>
-        <Copy size={15} />
-        {copied ? "Copied" : "Copy"}
-      </button>
-      {#if activeTab === "resume"}
-        <button
-          class="btn-secondary"
-          style="height: 40px; padding: 0 14px;"
-          onclick={viewResumePdf}
-          disabled={!resumeDownloadReady || downloadingPdf}
-        >
-          <DownloadSimple size={15} />
-          {downloadingPdf ? "Building PDF..." : "View PDF"}
-        </button>
-      {/if}
-      <button
-        class="btn-secondary"
-        style="height: 40px; padding: 0 14px;"
-        onclick={() => editing = { ...editing, [activeTab]: !editing[activeTab] }}
-      >
-        <PencilSimple size={15} />
-        {editing[activeTab] ? "Stop editing" : "Edit"}
-      </button>
-      <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={handleRegenerate} disabled={streaming}>
-        <span class:spin={streaming} style="display: inline-flex;">
-          <ArrowsClockwise size={15} />
-        </span>
-        {streaming ? "Working..." : "Regenerate"}
-      </button>
-    </div>
 
     {#if loading}
       <div style="padding: 48px 0; text-align: center; color: var(--color-ink-3);">
         Loading...
       </div>
+    {:else if setupNeeded}
+      <!-- Tailoring isn't configured: a setup path, not a dead end. -->
+      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+        <h2 class="h-display" style="font-size: 22px;">Set up tailoring</h2>
+        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          Tailoring writes a resume, cover letter, and interview prep for this exact job.
+          It needs a free Gemini API key — adding yours takes about two minutes:
+        </p>
+        <ol style="margin: 0; padding-left: 20px; font-size: var(--fs-sm); line-height: 1.7; color: var(--color-ink-2);">
+          <li>Grab a free key from Google AI Studio.</li>
+          <li>Paste it in Profile → Tailor and save.</li>
+          <li>Come back here and generate.</li>
+        </ol>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+          <button class="btn-primary btn-accent" style="height: 44px; padding: 0 16px;" onclick={openTailorSettings}>
+            Open Tailor settings
+          </button>
+          <a
+            class="btn-secondary"
+            style="height: 44px; text-decoration: none;"
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ArrowSquareOut size={16} />
+            Get a free key
+          </a>
+        </div>
+      </div>
+    {:else if !hasAnyOutput && !streaming}
+      <!-- First visit for this job: explicit generate (it spends quota). -->
+      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+        <h2 class="h-display" style="font-size: 22px;">Tailor for this job</h2>
+        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          One tap writes a tailored resume, cover letter, and interview prep from
+          {localResumeText ? "your uploaded resume" : "your resume profile"} and this job's description.
+          You can edit everything afterwards.
+        </p>
+        <div>
+          <button class="btn-primary btn-accent" style="height: 48px; padding: 0 18px;" onclick={() => void startGeneration()}>
+            <MagicWand size={17} />
+            Generate
+          </button>
+        </div>
+      </div>
     {:else}
-      <div style="border-radius: 18px; border: 1px solid var(--color-line); background: var(--color-bg-elev); overflow: hidden;">
+      <div class="tailor-control-card">
+        <div class="chip-wrap tailor-tab-row" role="tablist" aria-label="Tailor output tabs">
+          {#each [
+            { id: "resume", label: "Resume" },
+            { id: "cover", label: "Cover" },
+            { id: "qa", label: "QA" },
+          ] as tab}
+            <button
+              class={activeTab === tab.id ? "chip chip-active" : "chip"}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onclick={() => activeTab = tab.id as TabId}
+            >
+              {tab.label}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <div class="stat-row" style="margin-bottom: 14px;">
+        <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "your profile + your key" : "your profile"}</span>
+        {#if streaming}
+          <span>streaming live</span>
+        {/if}
+        {#if saving}
+          <span>saving edits</span>
+        {/if}
+        {#if tokenSummary}
+          <span>{tokenSummary.input} in / {tokenSummary.output} out</span>
+        {/if}
+        {#if activeModel}
+          <span>{activeModel}</span>
+        {/if}
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={copyCurrent}>
+          <Copy size={15} />
+          {copied ? "Copied" : "Copy"}
+        </button>
+        {#if activeTab === "resume"}
+          <button
+            class="btn-secondary"
+            style="height: 40px; padding: 0 14px;"
+            onclick={viewResumePdf}
+            disabled={!resumeDownloadReady || downloadingPdf}
+          >
+            <DownloadSimple size={15} />
+            {downloadingPdf ? "Building PDF..." : "View PDF"}
+          </button>
+        {/if}
+        <button
+          class="btn-secondary"
+          style="height: 40px; padding: 0 14px;"
+          onclick={() => editing = { ...editing, [activeTab]: !editing[activeTab] }}
+        >
+          <PencilSimple size={15} />
+          {editing[activeTab] ? "Stop editing" : "Edit"}
+        </button>
+        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={handleRegenerate} disabled={streaming}>
+          <span class:spin={streaming} style="display: inline-flex;">
+            <ArrowsClockwise size={15} />
+          </span>
+          {streaming ? "Working..." : "Regenerate"}
+        </button>
+      </div>
+
+      <div style="border-radius: var(--radius-lg); border: 1px solid var(--color-line); background: var(--color-bg-elev); overflow: hidden;">
         {#if editing.resume && activeTab === "resume"}
           <textarea class="input-field tailor-textarea" bind:value={resumeText} oninput={queueSave}></textarea>
         {:else if editing.cover && activeTab === "cover"}
@@ -533,3 +572,18 @@
     {/if}
   </div>
 </div>
+
+{#if showRegenerateConfirm}
+  <Modal
+    title="Regenerate?"
+    subtitle={regenerateMessage}
+    onclose={() => (showRegenerateConfirm = false)}
+  >
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => (showRegenerateConfirm = false)}>Cancel</button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={() => void startGeneration()}>
+        Regenerate
+      </button>
+    </div>
+  </Modal>
+{/if}

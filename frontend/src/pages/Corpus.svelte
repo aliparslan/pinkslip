@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, type CorpusVersion } from "../lib/api";
+  import { errorMessage } from "../lib/utils";
+  import Modal from "../components/Modal.svelte";
 
   let loading = $state(true);
   let saving = $state(false);
@@ -11,7 +13,10 @@
   let selectedVersionId = $state<number | null>(null);
   let versions = $state<Array<Omit<CorpusVersion, "content_md">>>([]);
   let savedAt = $state<string | null>(null);
-  let autosaveTimer: number | null = $state(null);
+  let autosaveTimer: number | null = null;
+  let showSnapshotModal = $state(false);
+  let snapshotLabel = $state("");
+  let snapshotting = $state(false);
 
   let isReadonly = $derived(
     selectedVersionId !== null && currentVersionId !== null && selectedVersionId !== currentVersionId
@@ -30,8 +35,8 @@
       selectedVersionId = latest.version_id ?? null;
       savedAt = latest.updated_at ?? null;
       versions = versionRes.versions ?? [];
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -52,8 +57,8 @@
       }, 1600);
       const versionRes = await api.corpus.versions();
       versions = versionRes.versions ?? [];
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       saving = false;
     }
@@ -84,23 +89,31 @@
       const version = await api.corpus.version(nextId);
       content = version.content_md;
       savedAt = version.updated_at;
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     }
   }
 
+  function openSnapshotModal() {
+    snapshotLabel = `snapshot ${new Date().toLocaleDateString()}`;
+    showSnapshotModal = true;
+  }
+
   async function snapshotCorpus() {
-    const label = window.prompt("Snapshot label", `snapshot ${new Date().toLocaleDateString()}`);
-    if (label === null) return;
+    if (snapshotting) return;
+    snapshotting = true;
     try {
-      await api.corpus.snapshot(label.trim());
+      await api.corpus.snapshot(snapshotLabel.trim());
+      showSnapshotModal = false;
       await loadCorpus();
       success = "Snapshot saved";
       setTimeout(() => {
         success = null;
       }, 2000);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
+    } finally {
+      snapshotting = false;
     }
   }
 
@@ -116,7 +129,7 @@
 
 <div class="page">
   <div style="padding: 0 22px 28px;">
-    <h1 class="h-display page-title" style="font-size: 30px; margin-bottom: 14px;">
+    <h1 class="h-display" style="font-size: 30px; margin-bottom: 14px;">
       Your master story
     </h1>
     <div class="stat-row" style="margin-bottom: 18px;">
@@ -130,12 +143,12 @@
     </div>
 
     {#if error}
-      <div style="padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
+      <div class="alert alert-error" style="margin-bottom: 14px;">
         {error}
       </div>
     {/if}
     {#if success}
-      <div style="padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good);">
+      <div class="alert alert-success" style="margin-bottom: 14px;">
         {success}
       </div>
     {/if}
@@ -153,7 +166,7 @@
           </option>
         {/each}
       </select>
-      <button class="btn-secondary" style="height: 44px; padding: 0 16px;" onclick={snapshotCorpus}>
+      <button class="btn-secondary" style="height: 44px; padding: 0 16px;" onclick={openSnapshotModal}>
         Save as new version
       </button>
       {#if isReadonly && currentVersionId !== null}
@@ -180,3 +193,29 @@
     {/if}
   </div>
 </div>
+
+{#if showSnapshotModal}
+  <Modal
+    title="Save as new version"
+    subtitle="Snapshots are read-only copies you can come back to later."
+    busy={snapshotting}
+    maxWidth={340}
+    onclose={() => (showSnapshotModal = false)}
+  >
+    <label for="snapshot-label" class="field-label">Snapshot label</label>
+    <input
+      id="snapshot-label"
+      class="input-field"
+      type="text"
+      maxlength="80"
+      bind:value={snapshotLabel}
+      onkeydown={(e) => e.key === "Enter" && void snapshotCorpus()}
+    />
+    <div class="action-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick={() => (showSnapshotModal = false)} disabled={snapshotting}>Cancel</button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={snapshotCorpus} disabled={snapshotting || !snapshotLabel.trim()}>
+        {snapshotting ? "Saving..." : "Save snapshot"}
+      </button>
+    </div>
+  </Modal>
+{/if}

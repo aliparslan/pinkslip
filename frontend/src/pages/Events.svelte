@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "../lib/api";
-  import { focusTrap } from "../lib/focus-trap";
-  import { timeAgo } from "../lib/utils";
+  import { errorMessage } from "../lib/utils";
   import CompanyLogo from "../components/CompanyLogo.svelte";
+  import Modal from "../components/Modal.svelte";
   import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
   import Plus from "phosphor-svelte/lib/Plus";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
@@ -27,6 +27,8 @@
   let showCreate: boolean = $state(false);
   let creating: boolean = $state(false);
   let formError: string | null = $state(null);
+  let deleteTarget: EventItem | null = $state(null);
+  let deleting: boolean = $state(false);
 
   // Form fields
   let createTitle: string = $state("");
@@ -48,19 +50,28 @@
     return { company_id: undefined, company_name: text };
   });
 
-  // Group events by day
+  // Group events by day. Dates outside the current year include the year so
+  // far-out deadlines can't collide with this year's labels.
   let grouped = $derived.by(() => {
     const g: Record<string, EventItem[]> = {};
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     for (const e of events) {
       const d = new Date(e.event_date);
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
 
       let label: string;
       if (d.toDateString() === today.toDateString()) label = "Today";
       else if (d.toDateString() === tomorrow.toDateString()) label = "Tomorrow";
-      else label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      else {
+        label = d.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          ...(d.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}),
+        });
+      }
 
       if (!g[label]) g[label] = [];
       g[label].push(e);
@@ -78,9 +89,9 @@
     try {
       const res = await api.events.list({ upcoming: "true" });
       events = (res.events ?? []) as EventItem[];
-    } catch (e: any) {
+    } catch (e) {
       // Surface load failures instead of rendering them as an empty list.
-      loadError = e?.message || "Couldn't load your events.";
+      loadError = errorMessage(e, "Couldn't load your events.");
     } finally {
       loading = false;
     }
@@ -89,7 +100,9 @@
   async function loadCompanies() {
     try {
       const res = await api.companies.list();
-      companies = (res.companies ?? []).filter((c: any) => c.enabled).map((c: any) => ({ id: c.id, name: c.name, website: c.website }));
+      companies = (res.companies ?? [])
+        .filter((c) => c.enabled)
+        .map((c) => ({ id: c.id, name: c.name, website: c.website }));
     } catch {
       companies = [];
     }
@@ -124,20 +137,26 @@
       createUrl = "";
       createType = "call";
       createLocation = "";
-    } catch (e: any) {
-      formError = e.message;
+    } catch (e) {
+      formError = errorMessage(e);
     } finally {
       creating = false;
     }
   }
 
-  async function deleteEvent(id: string) {
-    if (!confirm("Delete this event? This can't be undone.")) return;
-    events = events.filter((e) => e.id !== id);
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+    deleting = true;
+    const target = deleteTarget;
+    events = events.filter((e) => e.id !== target.id);
     try {
-      await api.events.delete(id);
+      await api.events.delete(target.id);
+      deleteTarget = null;
     } catch {
       loadEvents();
+      deleteTarget = null;
+    } finally {
+      deleting = false;
     }
   }
 
@@ -151,16 +170,16 @@
   <div class="page-frame" style="padding-bottom: 8px;">
     <div class="page-hero">
       <div class="page-hero-copy">
-        <div class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
+        <h1 class="h-display" style="font-size: 28px; letter-spacing: -0.02em;">
           Events
-        </div>
+        </h1>
         <p class="page-subtitle">
           Recruiter calls, onsites, and deadlines in one calmer timeline.
         </p>
       </div>
       <button
         class="btn-secondary"
-        style="height: 34px; padding: 0 12px; font-size: 12px;"
+        style="height: 36px; padding: 0 12px; font-size: var(--fs-xs);"
         onclick={() => showCreate = true}
       >
         <Plus size={14} />
@@ -173,28 +192,28 @@
   </div>
 
   {#if loading}
-    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 12px;">
+    <div style="padding: 48px 16px; text-align: center; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-xs);">
       Loading...
     </div>
   {:else if loadError}
     <div style="text-align: center; padding: 48px 24px;">
-      <div class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
         Couldn't load events
-      </div>
-      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
+      </h2>
+      <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto 16px;">
         {loadError}
       </div>
       <button class="btn-secondary" onclick={loadEvents}>Try again</button>
     </div>
   {:else if events.length === 0}
     <div style="text-align: center; padding: 48px 24px;">
-      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: var(--color-bg-sunken); border: 0.5px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 0.5px solid var(--color-line); margin-bottom: 16px; color: var(--color-ink-3);">
         <CalendarBlank size={24} />
       </div>
-      <div class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+      <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
         No upcoming events
-      </div>
-      <div style="font-size: 13px; color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
+      </h2>
+      <div style="font-size: var(--fs-sm); color: var(--color-ink-3); line-height: 1.5; max-width: 280px; margin: 0 auto;">
         Add recruiter calls, onsites, and deadlines to keep track of what's coming up.
       </div>
     </div>
@@ -211,20 +230,20 @@
               <div style="font-size: 16px; font-weight: 700; color: var(--color-ink); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">
                 {formatTime(event.event_date)}
               </div>
-              <div style="font-size: 10px; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 3px;">
+              <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 3px;">
                 {event.event_type}
               </div>
             </div>
             <div style="min-width: 0;">
-              <div style="font-size: 14px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <div style="font-size: var(--fs-md); font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {event.title}
               </div>
               {#if event.company_name}
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px;">
+                <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 3px;">
                   {event.company_name}{#if event.location} · {event.location}{/if}
                 </div>
               {:else if event.location}
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 3px;">
+                <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 3px;">
                   {event.location}
                 </div>
               {/if}
@@ -235,8 +254,7 @@
                   href={event.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="icon-btn"
-                  style="width: 32px; height: 32px;"
+                  class="icon-btn icon-btn-sm"
                   aria-label="Join link"
                   onclick={(e) => e.stopPropagation()}
                 >
@@ -244,10 +262,9 @@
                 </a>
               {/if}
               <button
-                class="icon-btn"
-                style="width: 32px; height: 32px;"
+                class="icon-btn icon-btn-sm"
                 aria-label="Delete event"
-                onclick={() => deleteEvent(event.id)}
+                onclick={() => (deleteTarget = event)}
               >
                 <Trash size={14} color="var(--color-ink-3)" />
               </button>
@@ -261,68 +278,73 @@
 
 <!-- Create event modal -->
 {#if showCreate}
-  <div
-    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
-    role="presentation"
-    onclick={() => showCreate = false}
+  <Modal
+    title="Add event"
+    subtitle="Recruiter calls, onsites, take-home deadlines."
+    busy={creating}
+    maxWidth={360}
+    onclose={() => (showCreate = false)}
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="create-event-title"
-      tabindex="-1"
-      style="width: 100%; max-width: 360px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 16px; padding: 20px; animation: fade-in 0.15s;"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => { if (e.key === "Escape") showCreate = false; }}
-    >
-      <div id="create-event-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">Add event</div>
-      <div style="font-size: 13px; color: var(--color-ink-3); margin-bottom: 16px;">
-        Recruiter calls, onsites, take-home deadlines.
+    {#if formError}
+      <div class="alert alert-error" style="margin-bottom: 12px;">
+        {formError}
       </div>
-      {#if formError}
-        <div style="padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
-          {formError}
-        </div>
-      {/if}
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <input class="input-field" aria-label="Event title" placeholder="Event title" bind:value={createTitle} />
-        <input
-          class="input-field"
-          aria-label="Company"
-          placeholder="Company (optional)"
-          list="event-companies"
-          bind:value={createCompanyText}
-          autocomplete="off"
-        />
-        <datalist id="event-companies">
-          {#each companies as co}
-            <option value={co.name}></option>
-          {/each}
-        </datalist>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <input class="input-field" aria-label="Event date" type="date" bind:value={createDate} />
-          <input class="input-field" aria-label="Event time" type="time" bind:value={createTime} />
-        </div>
-        <select class="input-field" aria-label="Event type" bind:value={createType}>
-          <option value="call">Recruiter call</option>
-          <option value="screen">Phone screen</option>
-          <option value="onsite">Onsite / Virtual onsite</option>
-          <option value="take-home">Take-home deadline</option>
-          <option value="offer">Offer deadline</option>
-          <option value="other">Other</option>
-        </select>
-        <input class="input-field" aria-label="Join link" placeholder="Join link (optional)" bind:value={createUrl} />
-        <input class="input-field" aria-label="Location" placeholder="Location (optional)" bind:value={createLocation} />
+    {/if}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <input class="input-field" aria-label="Event title" placeholder="Event title" bind:value={createTitle} />
+      <input
+        class="input-field"
+        aria-label="Company"
+        placeholder="Company (optional)"
+        list="event-companies"
+        bind:value={createCompanyText}
+        autocomplete="off"
+      />
+      <datalist id="event-companies">
+        {#each companies as co}
+          <option value={co.name}></option>
+        {/each}
+      </datalist>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <input class="input-field" aria-label="Event date" type="date" bind:value={createDate} />
+        <input class="input-field" aria-label="Event time" type="time" bind:value={createTime} />
       </div>
-      <div class="action-row" style="margin-top: 16px;">
-        <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleCreate} disabled={creating || !createTitle.trim() || !createDate}>
-          {creating ? "Saving..." : "Add event"}
-        </button>
-        <button class="btn-secondary" onclick={() => showCreate = false}>
-          Cancel
-        </button>
-      </div>
+      <select class="input-field" aria-label="Event type" bind:value={createType}>
+        <option value="call">Recruiter call</option>
+        <option value="screen">Phone screen</option>
+        <option value="onsite">Onsite / Virtual onsite</option>
+        <option value="take-home">Take-home deadline</option>
+        <option value="offer">Offer deadline</option>
+        <option value="other">Other</option>
+      </select>
+      <input class="input-field" aria-label="Join link" placeholder="Join link (optional)" bind:value={createUrl} />
+      <input class="input-field" aria-label="Location" placeholder="Location (optional)" bind:value={createLocation} />
     </div>
-  </div>
+    <div class="action-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick={() => showCreate = false} disabled={creating}>
+        Cancel
+      </button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleCreate} disabled={creating || !createTitle.trim() || !createDate}>
+        {creating ? "Saving..." : "Add event"}
+      </button>
+    </div>
+  </Modal>
+{/if}
+
+{#if deleteTarget}
+  <Modal
+    title="Delete this event?"
+    subtitle="{deleteTarget.title} will be removed. This can't be undone."
+    busy={deleting}
+    maxWidth={340}
+    onclose={() => (deleteTarget = null)}
+  >
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => (deleteTarget = null)} disabled={deleting}>Cancel</button>
+      <button class="btn-secondary btn-danger" style="flex: 1;" onclick={confirmDelete} disabled={deleting}>
+        <Trash size={15} />
+        {deleting ? "Deleting..." : "Delete"}
+      </button>
+    </div>
+  </Modal>
 {/if}

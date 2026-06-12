@@ -1,60 +1,15 @@
-<script lang="ts" module>
-  import type { Job as FeedJob } from "../lib/api";
-
-  type FeedSort = "last_seen" | "last_posted" | "score";
-
-  type FeedCache = {
-    jobs: FeedJob[];
-    lastPolled: string | null;
-    selectedLocations: string[];
-    sortBy: FeedSort;
-    searchQuery: string;
-    savedOnly: boolean;
-    minMatch: number;
-    minSalaryK: string;
-    maxSalaryK: string;
-    maxYoe: string;
-    notifyThreshold: number;
-    // True only when the user has set a match filter that differs from their
-    // saved profile threshold. When false, the feed follows the profile
-    // threshold so changing it in Settings actually controls the feed.
-    customMinMatch: boolean;
-    nextOffset: number;
-    hasMore: boolean;
-    hydrated: boolean;
-  };
-
-  const PAGE_SIZE = 25;
-
-  const feedCache: FeedCache = {
-    jobs: [],
-    lastPolled: null,
-    selectedLocations: ["All"],
-    sortBy: "last_seen",
-    searchQuery: "",
-    savedOnly: false,
-    minMatch: 50,
-    minSalaryK: "",
-    maxSalaryK: "",
-    maxYoe: "",
-    notifyThreshold: 50,
-    customMinMatch: false,
-    nextOffset: 0,
-    hasMore: true,
-    hydrated: false,
-  };
-</script>
-
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, type Job } from "../lib/api";
   import { JOB_SCORE_RAW_MAX } from "../lib/scoring";
-  import { timeAgo } from "../lib/utils";
+  import { timeAgo, errorMessage } from "../lib/utils";
   import { searchOpen, unviewedCount } from "../lib/feed-state";
+  import { feed, PAGE_SIZE, type FeedSort } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Slider from "../components/Slider.svelte";
+  import Switch from "../components/Switch.svelte";
   import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
@@ -63,12 +18,40 @@
   import { dragDismiss } from "../lib/drag-dismiss";
   import {
     DEFAULT_SEARCH_PROFILE,
+    LOCATION_OPTIONS,
     normalizeSearchProfile,
     type LocationId,
     type SearchProfile,
   } from "../../../shared/search-profile";
 
-  const LOCATIONS = ["All", "Remote", "NYC", "SF Bay Area", "Chicago", "Boston", "DC"];
+  // Compact chip labels for the shared metro catalog. The filter sends metro
+  // IDs to the API, so every onboarding metro is filterable here too.
+  const METRO_SHORT_LABELS: Record<LocationId, string> = {
+    sf_bay: "SF Bay Area",
+    new_york: "NYC",
+    chicago: "Chicago",
+    boston: "Boston",
+    washington_dc: "DC",
+    seattle: "Seattle",
+    austin: "Austin",
+    los_angeles: "LA",
+    denver: "Denver",
+    atlanta: "Atlanta",
+  };
+
+  const LOCATION_CHOICES: { id: string; label: string }[] = [
+    { id: "All", label: "All" },
+    { id: "Remote", label: "Remote" },
+    ...LOCATION_OPTIONS.map((option) => ({
+      id: option.id,
+      label: METRO_SHORT_LABELS[option.id] ?? option.label,
+    })),
+  ];
+
+  function locationLabel(id: string): string {
+    return LOCATION_CHOICES.find((choice) => choice.id === id)?.label ?? id;
+  }
+
   const YOE_OPTIONS = [
     { label: "Any", value: "" },
     { label: "0-1", value: "1" },
@@ -79,83 +62,78 @@
     { label: "0-8", value: "8" },
   ];
 
-  let jobs: Job[] = $state([...feedCache.jobs]);
-  let loading: boolean = $state(!feedCache.hydrated && feedCache.jobs.length === 0);
-  let error: string | null = $state(null);
-  let selectedLocations: string[] = $state([...feedCache.selectedLocations]);
-  type FeedSort = "last_seen" | "last_posted" | "score";
-
-  const SORT_OPTIONS: { label: string; value: FeedSort }[] = [
-    { label: "Last posted", value: "last_posted" },
-    { label: "Last seen", value: "last_seen" },
-    { label: "Score", value: "score" },
+  const SORT_OPTIONS: { label: string; value: FeedSort; hint: string }[] = [
+    { label: "Newest", value: "last_posted", hint: "Sort by when the company posted the job" },
+    { label: "Just found", value: "last_seen", hint: "Sort by when pinkslip first found the job" },
+    { label: "Score", value: "score", hint: "Sort by match score" },
   ];
 
-  let sortBy: FeedSort = $state(feedCache.sortBy);
-  let searchQuery: string = $state(feedCache.searchQuery);
-  let savedOnly: boolean = $state(feedCache.savedOnly);
-  let minMatch: number = $state(feedCache.minMatch);
-  let minSalaryK: string = $state(feedCache.minSalaryK);
-  let maxSalaryK: string = $state(feedCache.maxSalaryK);
-  let maxYoe: string = $state(feedCache.maxYoe);
+  // Show the staleness warning once the poller is clearly behind its
+  // 15-minute schedule (not just between runs).
+  const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+
+  let loading: boolean = $state(!feed.hydrated && feed.jobs.length === 0);
+  let error: string | null = $state(null);
   let filtersOpen: boolean = $state(false);
-  let notifyThreshold: number = $state(feedCache.notifyThreshold);
   let profileThreshold: number = $state(50);
   let currentProfile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let showProfileConfirm: boolean = $state(false);
   let savingProfileFilters: boolean = $state(false);
-  let lastPolled: string | null = $state(feedCache.lastPolled);
   let refreshing: boolean = $state(false);
   let loadingMore: boolean = $state(false);
-  let hasMore: boolean = $state(feedCache.hasMore);
-  let nextOffset: number = $state(feedCache.nextOffset);
   let lastAutoRefreshAt = 0;
-  let searchTimer: number | null = $state(null);
-
-  function removeJob(id: string) {
-    jobs = jobs.filter((j) => j.id !== id);
-    removeFeedNavigationJob(id);
-  }
+  let searchTimer: number | null = null;
   let searchInputEl: HTMLInputElement | undefined = $state(undefined);
   let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
   let requestVersion = 0;
+
+  function removeJob(id: string) {
+    feed.jobs = feed.jobs.filter((j) => j.id !== id);
+    removeFeedNavigationJob(id);
+  }
 
   let viewed = $derived($viewedJobs);
   let showSearch = $derived($searchOpen);
 
   let newToday = $derived.by(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
+    return feed.jobs.filter((j) => j.first_seen_at?.startsWith(today)).length;
   });
-  let showingLabel = $derived(hasMore ? `${jobs.length}+ showing` : `${jobs.length} showing`);
+  let showingLabel = $derived(feed.hasMore ? `${feed.jobs.length}+ showing` : `${feed.jobs.length} showing`);
+  let pollStale = $derived(
+    Boolean(feed.lastPolled && Date.now() - new Date(feed.lastPolled).getTime() > POLL_STALE_AFTER_MS)
+  );
+  let hasLocationFilter = $derived(
+    !(feed.selectedLocations.length === 1 && feed.selectedLocations[0] === "All")
+  );
   let activeFilterCount = $derived.by(() => {
     let count = 0;
-    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) count += 1;
-    if (minSalaryK.trim() || maxSalaryK.trim()) count += 1;
-    if (maxYoe) count += 1;
-    if (minMatch !== profileThreshold) count += 1;
-    if (savedOnly) count += 1;
+    if (hasLocationFilter) count += 1;
+    if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
+    if (feed.maxYoe) count += 1;
+    if (feed.minMatch !== profileThreshold) count += 1;
+    if (feed.savedOnly) count += 1;
     return count;
   });
   let filterSummary = $derived.by(() => {
     const parts: string[] = [];
-    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
-      parts.push(selectedLocations.join(", "));
+    if (hasLocationFilter) {
+      parts.push(feed.selectedLocations.map(locationLabel).join(", "));
     }
-    if (minSalaryK.trim() || maxSalaryK.trim()) {
-      const min = minSalaryK.trim() ? `$${minSalaryK.trim()}K` : "Any";
-      const max = maxSalaryK.trim() ? `$${maxSalaryK.trim()}K` : "Any";
+    if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) {
+      const min = feed.minSalaryK.trim() ? `$${feed.minSalaryK.trim()}K` : "Any";
+      const max = feed.maxSalaryK.trim() ? `$${feed.maxSalaryK.trim()}K` : "Any";
       parts.push(`${min}-${max}`);
     }
-    if (maxYoe) parts.push(`<= ${maxYoe} YOE`);
-    if (minMatch !== profileThreshold) parts.push(`${minMatch}+ match`);
-    if (savedOnly) parts.push("Saved");
+    if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
+    if (feed.minMatch !== profileThreshold) parts.push(`${feed.minMatch}+ match`);
+    if (feed.savedOnly) parts.push("Saved");
     return parts.length > 0 ? parts.join(" · ") : "Your matches";
   });
 
   // Drive the bell badge
   $effect(() => {
-    const count = jobs.filter((j) => !viewed.has(j.id)).length;
+    const count = feed.jobs.filter((j) => !viewed.has(j.id)).length;
     unviewedCount.set(count);
   });
 
@@ -166,51 +144,32 @@
     }
   });
 
-  function syncFeedCache() {
-    feedCache.jobs = [...jobs];
-    feedCache.lastPolled = lastPolled;
-    feedCache.selectedLocations = [...selectedLocations];
-    feedCache.sortBy = sortBy;
-    feedCache.searchQuery = searchQuery;
-    feedCache.savedOnly = savedOnly;
-    feedCache.minMatch = minMatch;
-    feedCache.minSalaryK = minSalaryK;
-    feedCache.maxSalaryK = maxSalaryK;
-    feedCache.maxYoe = maxYoe;
-    feedCache.notifyThreshold = notifyThreshold;
-    feedCache.customMinMatch = minMatch !== profileThreshold;
-    feedCache.nextOffset = nextOffset;
-    feedCache.hasMore = hasMore;
-    feedCache.hydrated = true;
-    setFeedNavigationJobs(jobs);
-  }
-
   function thresholdToRaw(threshold: number): number {
     return Math.max(0, Math.min(JOB_SCORE_RAW_MAX, Math.round((threshold / 100) * JOB_SCORE_RAW_MAX)));
   }
 
   function buildFeedParams(limit = PAGE_SIZE, offset = 0) {
     const params: Record<string, string> = {
-      sort: sortBy,
+      sort: feed.sortBy,
       limit: String(limit),
       offset: String(offset),
     };
 
-    if (minMatch > 0) params.min_score = String(thresholdToRaw(minMatch));
-    if (searchQuery.trim()) {
-      params.q = searchQuery.trim();
+    if (feed.minMatch > 0) params.min_score = String(thresholdToRaw(feed.minMatch));
+    if (feed.searchQuery.trim()) {
+      params.q = feed.searchQuery.trim();
     }
-    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
-      params.locations = selectedLocations.join(",");
+    if (hasLocationFilter) {
+      params.locations = feed.selectedLocations.join(",");
     }
-    if (savedOnly) {
+    if (feed.savedOnly) {
       params.saved = "true";
     }
-    const minSalary = parseInt(minSalaryK, 10);
-    const maxSalary = parseInt(maxSalaryK, 10);
+    const minSalary = parseInt(feed.minSalaryK, 10);
+    const maxSalary = parseInt(feed.maxSalaryK, 10);
     if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
     if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
-    if (maxYoe) params.max_yoe = maxYoe;
+    if (feed.maxYoe) params.max_yoe = feed.maxYoe;
 
     return params;
   }
@@ -225,7 +184,7 @@
     const append = options?.append ?? false;
     const limit = options?.limit ?? PAGE_SIZE;
     const offset = options?.offset ?? 0;
-    const hadJobs = jobs.length > 0;
+    const hadJobs = feed.jobs.length > 0;
     const version = ++requestVersion;
 
     if (append) {
@@ -247,14 +206,14 @@
 
         if (version !== requestVersion) return;
 
-        notifyThreshold = prefsRes.notify_threshold ?? 50;
+        feed.notifyThreshold = prefsRes.notify_threshold ?? 50;
         currentProfile = normalizeSearchProfile(prefsRes.search_profile);
-        profileThreshold = currentProfile.match_threshold ?? notifyThreshold;
+        profileThreshold = currentProfile.match_threshold ?? feed.notifyThreshold;
         // Follow the saved profile threshold unless the user has an active custom
         // match filter. Without this, the feed kept filtering at a stale cached
         // value after the threshold changed in Settings.
-        if (!feedCache.customMinMatch) minMatch = profileThreshold;
-        lastPolled = statsRes.lastPolled ?? null;
+        if (!feed.customMinMatch) feed.minMatch = profileThreshold;
+        feed.lastPolled = statsRes.lastPolled ?? null;
       }
 
       const jobsRes = await api.jobs.list(buildFeedParams(limit, offset));
@@ -269,18 +228,19 @@
         }).catch(() => undefined);
       }
       if (append) {
-        jobs = [...jobs, ...incoming];
+        feed.jobs = [...feed.jobs, ...incoming];
       } else {
-        jobs = incoming;
+        feed.jobs = incoming;
       }
 
-      hasMore = Boolean(jobsRes.meta?.has_more);
-      nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
-      syncFeedCache();
-    } catch (e: any) {
+      feed.hasMore = Boolean(jobsRes.meta?.has_more);
+      feed.nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
+      feed.hydrated = true;
+      setFeedNavigationJobs(feed.jobs);
+    } catch (e) {
       if (version !== requestVersion) return;
       if (!hadJobs || !append) {
-        error = e.message;
+        error = errorMessage(e);
       }
     } finally {
       if (version === requestVersion) {
@@ -291,7 +251,7 @@
   }
 
   async function loadFeed(silent = false) {
-    const preservedCount = Math.max(feedCache.jobs.length, jobs.length, PAGE_SIZE);
+    const preservedCount = Math.max(feed.jobs.length, PAGE_SIZE);
     await loadFeedPage({
       silent,
       append: false,
@@ -301,12 +261,12 @@
   }
 
   async function loadMore() {
-    if (loading || loadingMore || refreshing || !hasMore) return;
+    if (loading || loadingMore || refreshing || !feed.hasMore) return;
     await loadFeedPage({
       silent: true,
       append: true,
       limit: PAGE_SIZE,
-      offset: nextOffset,
+      offset: feed.nextOffset,
     });
   }
 
@@ -321,32 +281,33 @@
     maxYoe?: string;
   }) {
     if (updates?.selectedLocations !== undefined) {
-      selectedLocations = updates.selectedLocations;
+      feed.selectedLocations = updates.selectedLocations;
     }
     if (updates?.sortBy !== undefined) {
-      sortBy = updates.sortBy;
+      feed.sortBy = updates.sortBy;
     }
     if (updates?.searchQuery !== undefined) {
-      searchQuery = updates.searchQuery;
+      feed.searchQuery = updates.searchQuery;
     }
     if (updates?.savedOnly !== undefined) {
-      savedOnly = updates.savedOnly;
+      feed.savedOnly = updates.savedOnly;
     }
     if (updates?.minMatch !== undefined) {
-      minMatch = updates.minMatch;
+      feed.minMatch = updates.minMatch;
     }
     if (updates?.minSalaryK !== undefined) {
-      minSalaryK = updates.minSalaryK;
+      feed.minSalaryK = updates.minSalaryK;
     }
     if (updates?.maxSalaryK !== undefined) {
-      maxSalaryK = updates.maxSalaryK;
+      feed.maxSalaryK = updates.maxSalaryK;
     }
     if (updates?.maxYoe !== undefined) {
-      maxYoe = updates.maxYoe;
+      feed.maxYoe = updates.maxYoe;
     }
+    feed.customMinMatch = feed.minMatch !== profileThreshold;
     error = null;
-    hasMore = true;
-    nextOffset = 0;
+    feed.hasMore = true;
+    feed.nextOffset = 0;
     await loadFeedPage({
       silent: true,
       append: false,
@@ -355,47 +316,42 @@
     });
   }
 
-  function toggleLocationFilter(location: string) {
-    if (location === "All") {
-      selectedLocations = ["All"];
+  function toggleLocationFilter(id: string) {
+    if (id === "All") {
+      feed.selectedLocations = ["All"];
       return;
     }
 
-    const current = selectedLocations.filter((item) => item !== "All");
-    selectedLocations = current.includes(location)
-      ? current.filter((item) => item !== location)
-      : [...current, location];
+    const current = feed.selectedLocations.filter((item) => item !== "All");
+    feed.selectedLocations = current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id];
 
-    if (selectedLocations.length === 0) {
-      selectedLocations = ["All"];
+    if (feed.selectedLocations.length === 0) {
+      feed.selectedLocations = ["All"];
     }
   }
 
   function resetFilters() {
-    selectedLocations = ["All"];
-    minSalaryK = "";
-    maxSalaryK = "";
-    maxYoe = "";
-    minMatch = profileThreshold;
-    savedOnly = false;
+    feed.selectedLocations = ["All"];
+    feed.minSalaryK = "";
+    feed.maxSalaryK = "";
+    feed.maxYoe = "";
+    feed.minMatch = profileThreshold;
+    feed.customMinMatch = false;
+    feed.savedOnly = false;
     showProfileConfirm = false;
   }
 
-  const locationProfileMap: Record<string, LocationId> = {
-    NYC: "new_york",
-    "SF Bay Area": "sf_bay",
-    Chicago: "chicago",
-    Boston: "boston",
-    DC: "washington_dc",
-  };
+  const VALID_LOCATION_IDS = new Set<string>(LOCATION_OPTIONS.map((option) => option.id));
 
   let profileFilterChanges = $derived.by(() => {
     const changes: string[] = [];
-    if (minMatch !== currentProfile.match_threshold) {
-      changes.push(`Default match threshold: ${currentProfile.match_threshold} → ${minMatch}`);
+    if (feed.minMatch !== currentProfile.match_threshold) {
+      changes.push(`Default match threshold: ${currentProfile.match_threshold} → ${feed.minMatch}`);
     }
-    if (!(selectedLocations.length === 1 && selectedLocations[0] === "All")) {
-      const labels = selectedLocations.join(", ");
+    if (hasLocationFilter) {
+      const labels = feed.selectedLocations.map(locationLabel).join(", ");
       changes.push(`Preferred locations: ${labels}`);
     }
     return changes;
@@ -405,16 +361,14 @@
     if (savingProfileFilters || profileFilterChanges.length === 0) return;
     savingProfileFilters = true;
     try {
-      const locationIds = selectedLocations
-        .map((location) => locationProfileMap[location])
-        .filter((location): location is LocationId => Boolean(location));
-      const includesRemote = selectedLocations.includes("Remote");
-      const locationSelected = !(selectedLocations.length === 1 && selectedLocations[0] === "All");
+      const locationIds = feed.selectedLocations
+        .filter((id): id is LocationId => VALID_LOCATION_IDS.has(id));
+      const includesRemote = feed.selectedLocations.includes("Remote");
       const nextProfile = normalizeSearchProfile({
         ...currentProfile,
-        match_threshold: minMatch,
-        location_ids: locationSelected ? locationIds : currentProfile.location_ids,
-        work_modes: locationSelected
+        match_threshold: feed.minMatch,
+        location_ids: hasLocationFilter ? locationIds : currentProfile.location_ids,
+        work_modes: hasLocationFilter
           ? includesRemote
             ? [...new Set([...currentProfile.work_modes, "remote"])]
             : currentProfile.work_modes.filter((mode) => mode !== "remote")
@@ -422,10 +376,11 @@
       });
       const saved = await api.preferences.update({
         search_profile: nextProfile,
-        notify_threshold: notifyThreshold,
+        notify_threshold: feed.notifyThreshold,
       });
       currentProfile = normalizeSearchProfile(saved.search_profile);
       profileThreshold = currentProfile.match_threshold;
+      feed.customMinMatch = feed.minMatch !== profileThreshold;
       await api.interactions.event({
         event_name: "search_profile_adjusted",
         entity_type: "search_profile",
@@ -434,8 +389,8 @@
       showProfileConfirm = false;
       filtersOpen = false;
       await loadFeed(true);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       savingProfileFilters = false;
     }
@@ -444,17 +399,17 @@
   async function applyFilterSheet() {
     filtersOpen = false;
     await applyFeedFilters({
-      selectedLocations: [...selectedLocations],
-      minSalaryK,
-      maxSalaryK,
-      maxYoe,
-      minMatch,
-      savedOnly,
+      selectedLocations: [...feed.selectedLocations],
+      minSalaryK: feed.minSalaryK,
+      maxSalaryK: feed.maxSalaryK,
+      maxYoe: feed.maxYoe,
+      minMatch: feed.minMatch,
+      savedOnly: feed.savedOnly,
     });
   }
 
   function scheduleSearch(nextValue: string) {
-    searchQuery = nextValue;
+    feed.searchQuery = nextValue;
     if (searchTimer !== null) {
       window.clearTimeout(searchTimer);
     }
@@ -465,7 +420,7 @@
   }
 
   function closeSearch() {
-    searchQuery = "";
+    feed.searchQuery = "";
     searchOpen.set(false);
     void applyFeedFilters({ searchQuery: "" });
   }
@@ -487,7 +442,7 @@
 
   onMount(() => {
     void syncViewedJobs().catch(() => undefined);
-    if (feedCache.hydrated && feedCache.jobs.length > 0) {
+    if (feed.hydrated && feed.jobs.length > 0) {
       loading = false;
       refreshIfStale();
     } else {
@@ -548,28 +503,24 @@
     };
   });
 
-  $effect(() => {
-    syncFeedCache();
-  });
 </script>
 
 <div class="page" style="padding-top: 0;">
   <!-- Search bar (toggled from header or always visible) -->
-  {#if showSearch || searchQuery}
+  {#if showSearch || feed.searchQuery}
     <div style="padding: 8px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid var(--color-line);">
       <input
         bind:this={searchInputEl}
         type="text"
         class="input-field"
-        style="flex: 1; height: 36px; font-size: 14px; border-radius: 8px;"
+        style="flex: 1; height: 36px; font-size: var(--fs-md); border-radius: var(--radius-sm);"
         placeholder="Search jobs or companies..."
-        value={searchQuery}
+        value={feed.searchQuery}
         oninput={(e) => scheduleSearch((e.currentTarget as HTMLInputElement).value)}
         onkeydown={(e) => { if (e.key === 'Escape') closeSearch(); }}
       />
       <button
-        class="icon-btn"
-        style="width: 32px; height: 32px; flex-shrink: 0;"
+        class="icon-btn icon-btn-sm"
         aria-label="Close search"
         onclick={closeSearch}
       >
@@ -582,14 +533,16 @@
   <div class="stat-row" style="padding: 10px 16px 12px; justify-content: flex-start;">
     <span>{newToday} new today</span>
     <span>{showingLabel}</span>
-    {#if lastPolled}
-      <span>polled {timeAgo(lastPolled)}</span>
+    {#if feed.lastPolled}
+      <span class:stat-warn={pollStale}>
+        {pollStale ? `⚠ data may be stale · updated ${timeAgo(feed.lastPolled)}` : `updated ${timeAgo(feed.lastPolled)}`}
+      </span>
     {/if}
   </div>
 
   <!-- Filters + sort -->
   <div class="feed-controls">
-    <div class="feed-control-row" aria-label="Feed controls">
+    <div class="feed-controls-bar">
       <button
         class="filter-button"
         class:active={activeFilterCount > 0}
@@ -602,29 +555,32 @@
           <span class="filter-count">{activeFilterCount}</span>
         {/if}
       </button>
-      <div class="sort-segmented" aria-label="Sort jobs">
-        {#each SORT_OPTIONS as option}
-          <button
-            class:active={sortBy === option.value}
-            aria-pressed={sortBy === option.value}
-            onclick={() => void applyFeedFilters({ sortBy: option.value })}
-          >
-            {option.label}
-          </button>
-        {/each}
+      <div class="feed-control-row" aria-label="Sort jobs">
+        <div class="sort-segmented">
+          {#each SORT_OPTIONS as option}
+            <button
+              class:active={feed.sortBy === option.value}
+              aria-pressed={feed.sortBy === option.value}
+              title={option.hint}
+              onclick={() => void applyFeedFilters({ sortBy: option.value })}
+            >
+              {option.label}
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
     <div class="filter-summary">{filterSummary}</div>
   </div>
 
-  <div style="height: 0.5px; background: var(--color-line);"></div>
+  <div class="divider"></div>
 
   <!-- Job rows -->
   <div>
     {#if loading}
       {#each Array(6) as _}
         <div style="display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--color-line);">
-          <div class="skeleton" style="width: 24px; height: 24px; border-radius: 6px;"></div>
+          <div class="skeleton" style="width: 24px; height: 24px;"></div>
           <div>
             <div class="skeleton" style="width: 45%; height: 8px; margin-bottom: 6px;"></div>
             <div class="skeleton" style="width: 72%; height: 12px; margin-bottom: 6px;"></div>
@@ -633,16 +589,16 @@
         </div>
       {/each}
     {:else if error}
-      <div style="padding: 16px; margin: 16px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 14px;">
+      <div class="alert alert-error" style="margin: 16px;">
         {error}
       </div>
-    {:else if jobs.length === 0}
+    {:else if feed.jobs.length === 0}
       <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <div class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
-          {savedOnly ? "No saved jobs yet" : "Nothing here"}
-        </div>
-        <div style="font-size: 13px; margin-bottom: 14px;">
-          {savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or check back later."}
+        <h2 class="h-display" style="font-size: 22px; color: var(--color-ink-2); margin-bottom: 8px;">
+          {feed.savedOnly ? "No saved jobs yet" : "Nothing here"}
+        </h2>
+        <div style="font-size: var(--fs-sm); margin-bottom: 14px;">
+          {feed.savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or check back later."}
         </div>
         <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
           <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
@@ -651,20 +607,20 @@
         </div>
       </div>
     {:else}
-      {#each jobs as job (job.id)}
+      {#each feed.jobs as job (job.id)}
         <div animate:flip={{ duration: 240, easing: cubicOut }}>
           <JobRow {job} viewed={viewed.has(job.id)} onDismiss={removeJob} />
         </div>
       {/each}
       {#if loadingMore}
-        <div style="padding: 18px 16px; text-align: center; color: var(--color-ink-3); font-size: 13px;">
+        <div style="padding: 18px 16px; text-align: center; color: var(--color-ink-3); font-size: var(--fs-sm);">
           Loading more…
         </div>
       {/if}
-      {#if hasMore}
+      {#if feed.hasMore}
         <div bind:this={loadMoreSentinel} style="height: 1px;"></div>
       {:else}
-        <div style="padding: 24px 16px; text-align: center; color: var(--color-ink-4); font-size: 12px;">
+        <div style="padding: 24px 16px; text-align: center; color: var(--color-ink-4); font-size: var(--fs-xs);">
           -- End of feed, go touch grass --
         </div>
       {/if}
@@ -694,91 +650,90 @@
           </div>
 
           <div class="filter-sheet-body">
-      <section class="filter-group">
-        <div class="filter-group-title">Location</div>
-        <div class="filter-option-grid">
-          {#each LOCATIONS as location}
-            <button
-              class="filter-choice"
-              class:active={selectedLocations.includes(location)}
-              aria-pressed={selectedLocations.includes(location)}
-              onclick={() => toggleLocationFilter(location)}
-            >
-              {location}
-            </button>
-          {/each}
-        </div>
-      </section>
+            <section class="filter-group">
+              <div class="filter-group-title">Location</div>
+              <div class="filter-option-grid">
+                {#each LOCATION_CHOICES as choice}
+                  <button
+                    class="filter-choice"
+                    class:active={feed.selectedLocations.includes(choice.id)}
+                    aria-pressed={feed.selectedLocations.includes(choice.id)}
+                    onclick={() => toggleLocationFilter(choice.id)}
+                  >
+                    {choice.label}
+                  </button>
+                {/each}
+              </div>
+            </section>
 
-      <section class="filter-group">
-        <div class="filter-group-title">Salary</div>
-        <div class="filter-input-grid">
-          <label>
-            <span>Min</span>
-            <div class="filter-money-input">
-              <span>$</span>
-              <input inputmode="numeric" placeholder="120" bind:value={minSalaryK} />
-              <span>K</span>
-            </div>
-          </label>
-          <label>
-            <span>Max</span>
-            <div class="filter-money-input">
-              <span>$</span>
-              <input inputmode="numeric" placeholder="250" bind:value={maxSalaryK} />
-              <span>K</span>
-            </div>
-          </label>
-        </div>
-      </section>
+            <section class="filter-group">
+              <div class="filter-group-title">Salary</div>
+              <div class="filter-input-grid">
+                <label>
+                  <span>Min</span>
+                  <div class="filter-money-input">
+                    <span>$</span>
+                    <input inputmode="numeric" placeholder="120" bind:value={feed.minSalaryK} />
+                    <span>K</span>
+                  </div>
+                </label>
+                <label>
+                  <span>Max</span>
+                  <div class="filter-money-input">
+                    <span>$</span>
+                    <input inputmode="numeric" placeholder="250" bind:value={feed.maxSalaryK} />
+                    <span>K</span>
+                  </div>
+                </label>
+              </div>
+            </section>
 
-      <section class="filter-group">
-        <div class="filter-group-title">Experience</div>
-        <div class="filter-option-grid compact">
-          {#each YOE_OPTIONS as option}
-            <button
-              class="filter-choice"
-              class:active={maxYoe === option.value}
-              aria-pressed={maxYoe === option.value}
-              onclick={() => (maxYoe = option.value)}
-            >
-              {option.label}
-            </button>
-          {/each}
-        </div>
-      </section>
+            <section class="filter-group">
+              <div class="filter-group-title">Experience</div>
+              <div class="filter-option-grid compact">
+                {#each YOE_OPTIONS as option}
+                  <button
+                    class="filter-choice"
+                    class:active={feed.maxYoe === option.value}
+                    aria-pressed={feed.maxYoe === option.value}
+                    onclick={() => (feed.maxYoe = option.value)}
+                  >
+                    {option.label}
+                  </button>
+                {/each}
+              </div>
+            </section>
 
-      <section class="filter-group">
-        <div class="filter-row">
-          <div>
-            <div class="filter-group-title">Match score</div>
-            <div class="filter-help">{minMatch}+ minimum</div>
+            <section class="filter-group">
+              <div class="filter-row">
+                <div>
+                  <div class="filter-group-title">Match score</div>
+                  <div class="filter-help">{feed.minMatch}+ minimum</div>
+                </div>
+                <div class="filter-value">{feed.minMatch}</div>
+              </div>
+              <Slider min={0} max={100} step={5} bind:value={feed.minMatch} />
+            </section>
+
+            <section class="filter-group">
+              <div class="filter-toggle" class:active={feed.savedOnly}>
+                <span>Saved jobs only</span>
+                <Switch
+                  checked={feed.savedOnly}
+                  onCheckedChange={(value) => (feed.savedOnly = value)}
+                  aria-label="Saved jobs only"
+                />
+              </div>
+            </section>
           </div>
-          <div class="filter-value">{minMatch}</div>
-        </div>
-        <Slider min={0} max={100} step={5} bind:value={minMatch} />
-      </section>
-
-      <section class="filter-group">
-        <button
-          class="filter-toggle"
-          class:active={savedOnly}
-          aria-pressed={savedOnly}
-          onclick={() => (savedOnly = !savedOnly)}
-        >
-          <span>Saved jobs only</span>
-          <span>{savedOnly ? "On" : "Off"}</span>
-        </button>
-      </section>
-    </div>
 
           {#if showProfileConfirm}
             <div style="margin: 0 16px 12px; padding: 14px; border: 1px solid var(--color-line-2); border-radius: 13px; background: var(--color-bg-sunken);">
-              <div style="font-size: 13px; font-weight: 700; margin-bottom: 7px;">Update your search profile?</div>
+              <div style="font-size: var(--fs-sm); font-weight: 700; margin-bottom: 7px;">Update your search profile?</div>
               {#each profileFilterChanges as change}
-                <div style="font-size: 11px; color: var(--color-ink-3); line-height: 1.5;">{change}</div>
+                <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); line-height: 1.5;">{change}</div>
               {/each}
-              <div style="font-size: 10px; color: var(--color-ink-4); line-height: 1.4; margin-top: 7px;">
+              <div style="font-size: var(--fs-2xs); color: var(--color-ink-4); line-height: 1.4; margin-top: 7px;">
                 Salary, experience, sorting, search text, and saved-only remain temporary.
               </div>
               <div class="action-row compact" style="margin-top: 11px;">

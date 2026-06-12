@@ -34,6 +34,10 @@
   const OPEN_THRESHOLD = 56; // release past this → snap open to the two buttons
   const RUBBER = 0.5; // resistance once dragged beyond the revealed buttons
 
+  // "NEW" only while the badge is honest: unviewed AND actually fresh.
+  // (A 36-day-old listing labelled NEW undermines the whole speed pitch.)
+  const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
   let actionTotalWidth = $derived(
     $sessionAccess.isAdmin
       ? ACTION_DELETE_WIDTH + ACTION_DISMISS_WIDTH
@@ -43,6 +47,9 @@
   let scorePercent = $derived(normalizeJobScore(job.score));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let displaySalary = $derived(job.salary ?? extractSalaryFromHtml(job.description));
+  let isFresh = $derived(
+    Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
+  );
 
   function handleClick() {
     if (Math.abs(swipeX) > 4) {
@@ -200,7 +207,7 @@
         <span class="job-row__company">{job.company_name}</span>
         <span class="job-row__dot">·</span>
         <span class="job-row__time">{timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
-        {#if !viewed}
+        {#if !viewed && isFresh}
           <span class="job-row__new">NEW</span>
         {/if}
         <span
@@ -309,13 +316,12 @@
   .job-row__reasons {
     margin-top: 3px;
     color: var(--color-accent);
-    font-size: 10px;
+    font-size: var(--fs-2xs);
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .swipe-actions {
     position: absolute;
     inset: 0;
