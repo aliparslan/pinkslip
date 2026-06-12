@@ -2,12 +2,12 @@
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
-  import { focusTrap } from "../lib/focus-trap";
+  import { errorMessage } from "../lib/utils";
   import { sessionAccess } from "../lib/session-access";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
+  import Modal from "../components/Modal.svelte";
   import Plus from "phosphor-svelte/lib/Plus";
-  import Warning from "phosphor-svelte/lib/Warning";
 
   const ATS_TYPES = [
     "All",
@@ -120,7 +120,7 @@
     api.companies
       .list()
       .then((res) => { companies = res.companies ?? []; })
-      .catch((e) => { error = e.message; })
+      .catch((e) => { error = errorMessage(e); })
       .finally(() => { loading = false; });
   });
 
@@ -128,9 +128,9 @@
     companies = companies.map((c) => (c.id === id ? { ...c, enabled } : c));
     try {
       await api.companies.toggle(id, enabled);
-    } catch (e: any) {
+    } catch (e) {
       companies = companies.map((c) => (c.id === id ? { ...c, enabled: !enabled } : c));
-      error = e.message;
+      error = errorMessage(e);
     }
   }
 
@@ -140,9 +140,9 @@
       await api.companies.block(id);
       toast = "Company hidden from your feed";
       setTimeout(() => { toast = null; }, 2200);
-    } catch (e: any) {
+    } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
-      error = e.message;
+      error = errorMessage(e);
     }
   }
 
@@ -152,9 +152,9 @@
       await api.companies.restore(id);
       toast = "Company restored";
       setTimeout(() => { toast = null; }, 2200);
-    } catch (e: any) {
+    } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
-      error = e.message;
+      error = errorMessage(e);
     }
   }
 
@@ -171,8 +171,8 @@
       reportTarget = null;
       reportNotes = "";
       setTimeout(() => { toast = null; }, 2400);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       reporting = false;
     }
@@ -198,8 +198,8 @@
         ? "That company is already in your request queue"
         : "Company request sent";
       setTimeout(() => { toast = null; }, 2600);
-    } catch (e: any) {
-      requestCompanyError = e.message;
+    } catch (e) {
+      requestCompanyError = errorMessage(e);
     } finally {
       requestingCompany = false;
     }
@@ -225,8 +225,8 @@
       showAddForm = false;
       addVerifyError = null;
       addVerifyMsg = null;
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       adding = false;
     }
@@ -265,8 +265,8 @@
         toast = `${targetName} fixed` + (pollResult.new_jobs ? ` — ${pollResult.new_jobs} new jobs` : "");
       }
       setTimeout(() => { toast = null; }, 3000);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       saving = false;
     }
@@ -289,8 +289,8 @@
           result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
         );
       }
-    } catch (e: any) {
-      addVerifyError = e.message;
+    } catch (e) {
+      addVerifyError = errorMessage(e);
     } finally {
       addVerifyBusy = false;
     }
@@ -313,8 +313,8 @@
           result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
         );
       }
-    } catch (e: any) {
-      editVerifyError = e.message;
+    } catch (e) {
+      editVerifyError = errorMessage(e);
     } finally {
       editVerifyBusy = false;
     }
@@ -343,8 +343,8 @@
       deleteTarget = null;
       toast = `${name} deleted`;
       setTimeout(() => { toast = null; }, 2500);
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = errorMessage(e);
     } finally {
       deleting = false;
     }
@@ -359,9 +359,9 @@
     companies = companies.map(c => ids.includes(c.id) ? { ...c, enabled: enable } : c);
     try {
       await Promise.all(ids.map(id => api.companies.toggle(id, enable)));
-    } catch (e: any) {
+    } catch (e) {
       companies = companies.map(c => ids.includes(c.id) ? { ...c, enabled: !enable } : c);
-      error = e.message;
+      error = errorMessage(e);
     }
   }
 </script>
@@ -370,7 +370,7 @@
   <div class="page-frame" style="padding-left: 22px; padding-right: 22px;">
     <div class="page-hero" style="margin-bottom: 10px;">
       <div class="page-hero-copy">
-        <h1 class="h-display page-title" style="font-size: 30px; margin: 0;">
+        <h1 class="h-display" style="font-size: 30px; margin: 0;">
           Companies
         </h1>
         <p class="page-subtitle">
@@ -500,12 +500,12 @@
             <input id="add-website" class="input-field" type="url" placeholder="https://stripe.com" bind:value={addWebsite} />
           </div>
           {#if addVerifyError}
-            <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+            <div class="alert alert-error" style="font-size: var(--fs-xs);">
               {addVerifyError}
             </div>
           {/if}
           {#if addVerifyMsg}
-            <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good); font-size: 12px;">
+            <div class="alert alert-success" style="font-size: var(--fs-xs);">
               {addVerifyMsg}
             </div>
           {/if}
@@ -550,7 +550,7 @@
         {/each}
       </div>
     {:else if error}
-      <div style="padding: 16px 18px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 14px;">
+      <div class="alert alert-error">
         {error}
       </div>
     {:else if filteredCompanies.length === 0}
@@ -583,252 +583,200 @@
 
 <!-- Edit company modal -->
 {#if $sessionAccess.isAdmin && editTarget}
-  <div
-    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
-    role="presentation"
-    onclick={() => { editTarget = null; }}
-    onkeydown={(e) => { if (e.key === 'Escape') editTarget = null; }}
+  <Modal
+    title="Edit company"
+    busy={saving}
+    maxWidth={340}
+    onclose={() => (editTarget = null)}
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="edit-title"
-      tabindex="-1"
-      style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => { if (e.key === 'Escape') editTarget = null; }}
-    >
-      <div id="edit-title" style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Edit company</div>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <div>
-          <label for="edit-name" class="field-label">Name</label>
-          <input id="edit-name" class="input-field" type="text" bind:value={editTarget.name} />
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div>
+        <label for="edit-name" class="field-label">Name</label>
+        <input id="edit-name" class="input-field" type="text" bind:value={editTarget.name} />
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
+          <label for="edit-ats" class="field-label">ATS type</label>
+          <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
+            <option value="greenhouse">Greenhouse</option>
+            <option value="lever">Lever</option>
+            <option value="ashby">Ashby</option>
+            <option value="workday">Workday</option>
+            <option value="rippling">Rippling</option>
+            <option value="gem">Gem</option>
+            <option value="smartrecruiters">SmartRecruiters</option>
+            <option value="yc">Y Combinator</option>
+          </select>
         </div>
-        <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;">
-            <label for="edit-ats" class="field-label">ATS type</label>
-            <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
-              <option value="greenhouse">Greenhouse</option>
-              <option value="lever">Lever</option>
-              <option value="ashby">Ashby</option>
-              <option value="workday">Workday</option>
-              <option value="rippling">Rippling</option>
-              <option value="gem">Gem</option>
-              <option value="smartrecruiters">SmartRecruiters</option>
-              <option value="yc">Y Combinator</option>
-            </select>
-          </div>
-          <div style="flex: 1;">
-            <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
-            <input
-              id="edit-slug"
-              class="input-field"
-              type={sourceInput(editTarget.ats_type).type}
-              placeholder={sourceInput(editTarget.ats_type).placeholder}
-              bind:value={editTarget.ats_slug}
-            />
-          </div>
-        </div>
-        {#if editVerifyError}
-          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
-            {editVerifyError}
-          </div>
-        {/if}
-        {#if editVerifyMsg}
-          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good); font-size: 12px;">
-            {editVerifyMsg}
-          </div>
-        {/if}
-        <div class="action-row compact" style="margin-top: 4px;">
-          <button
-            class="btn-secondary"
-            disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
-            onclick={verifyEditSource}
-          >
-            {editVerifyBusy ? "..." : "Verify"}
-          </button>
-          <button
-            class="btn-primary btn-accent"
-            style="flex: 1;"
-            disabled={!editTarget.name.trim() || !editTarget.ats_slug.trim() || saving}
-            onclick={handleSaveEdit}
-          >
-            {saving ? "..." : "Save"}
-          </button>
-          <button
-            class="btn-secondary"
-            onclick={() => { editTarget = null; }}
-          >
-            Cancel
-          </button>
+        <div style="flex: 1;">
+          <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
+          <input
+            id="edit-slug"
+            class="input-field"
+            type={sourceInput(editTarget.ats_type).type}
+            placeholder={sourceInput(editTarget.ats_type).placeholder}
+            bind:value={editTarget.ats_slug}
+          />
         </div>
       </div>
+      {#if editVerifyError}
+        <div class="alert alert-error" style="font-size: var(--fs-xs);">
+          {editVerifyError}
+        </div>
+      {/if}
+      {#if editVerifyMsg}
+        <div class="alert alert-success" style="font-size: var(--fs-xs);">
+          {editVerifyMsg}
+        </div>
+      {/if}
+      <div class="action-row compact" style="margin-top: 4px;">
+        <button
+          class="btn-secondary"
+          onclick={() => { editTarget = null; }}
+        >
+          Cancel
+        </button>
+        <button
+          class="btn-secondary"
+          disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
+          onclick={verifyEditSource}
+        >
+          {editVerifyBusy ? "..." : "Verify"}
+        </button>
+        <button
+          class="btn-primary btn-accent"
+          style="flex: 1;"
+          disabled={!editTarget.name.trim() || !editTarget.ats_slug.trim() || saving}
+          onclick={handleSaveEdit}
+        >
+          {saving ? "..." : "Save"}
+        </button>
+      </div>
     </div>
-  </div>
+  </Modal>
 {/if}
 
 <!-- Delete confirmation modal -->
 {#if $sessionAccess.isAdmin && deleteTarget}
-  <div
-    style="position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 24px;"
-    role="presentation"
-    onclick={() => { deleteTarget = null; }}
-    onkeydown={(e) => { if (e.key === 'Escape') deleteTarget = null; }}
+  <Modal
+    title="Remove {deleteTarget.name}?"
+    busy={deleting}
+    maxWidth={340}
+    onclose={() => (deleteTarget = null)}
   >
-    <div
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="delete-title"
-      tabindex="-1"
-      style="width: 100%; max-width: 340px; background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: 18px; padding: 24px; animation: fade-in 0.15s;"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => { if (e.key === 'Escape') deleteTarget = null; }}
-    >
-      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-        <div style="width: 36px; height: 36px; border-radius: 10px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); display: flex; align-items: center; justify-content: center;">
-          <Warning size={18} color="var(--color-bad)" />
-        </div>
-        <div id="delete-title" style="font-size: 17px; font-weight: 600;">Remove {deleteTarget.name}?</div>
-      </div>
-      <p style="font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
-        This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.
-        <br /><br />
-        If you only want to pause this source, disable it for everyone instead.
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button
-          class="btn-secondary"
-          style="width: 100%;"
-          onclick={handleHide}
-        >
-          Disable for everyone
-        </button>
-        <button
-          class="btn-primary"
-          style="width: 100%; background: var(--color-bad); color: #fff; border-color: var(--color-bad);"
-          disabled={deleting}
-          onclick={handleDelete}
-        >
-          {deleting ? "..." : "Delete permanently"}
-        </button>
-        <button
-          style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: 13px; color: var(--color-ink-3); padding: 8px 0;"
-          onclick={() => { deleteTarget = null; }}
-        >
-          Cancel
-        </button>
-      </div>
+    <p style="font-size: var(--fs-sm); color: var(--color-ink-2); line-height: 1.5; margin: 0 0 20px;">
+      This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.
+      <br /><br />
+      If you only want to pause this source, disable it for everyone instead.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button
+        class="btn-secondary"
+        style="width: 100%;"
+        onclick={handleHide}
+      >
+        Disable for everyone
+      </button>
+      <button
+        class="btn-secondary btn-danger"
+        style="width: 100%;"
+        disabled={deleting}
+        onclick={handleDelete}
+      >
+        {deleting ? "..." : "Delete permanently"}
+      </button>
+      <button
+        style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
+        onclick={() => { deleteTarget = null; }}
+      >
+        Cancel
+      </button>
     </div>
-  </div>
+  </Modal>
 {/if}
 
 {#if !$sessionAccess.isAdmin && showCompanyRequest}
-  <div class="modal-backdrop" role="presentation" onclick={() => { if (!requestingCompany) showCompanyRequest = false; }}>
-    <div
-      class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="company-request-title"
-      tabindex="-1"
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => { if (event.key === "Escape" && !requestingCompany) showCompanyRequest = false; }}
-    >
-      <div id="company-request-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">
-        Request a company
+  <Modal
+    title="Request a company"
+    subtitle="Tell us which company should join the catalog. A careers link helps us find the right source faster."
+    busy={requestingCompany}
+    onclose={() => (showCompanyRequest = false)}
+  >
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label for="request-company-name" class="field-label">Company name</label>
+        <input
+          id="request-company-name"
+          class="input-field"
+          type="text"
+          maxlength="160"
+          placeholder="e.g. Figma"
+          bind:value={requestCompanyName}
+        />
       </div>
-      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
-        Tell us which company should join the catalog. A careers link helps us find the right source faster.
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <div>
-          <label for="request-company-name" class="field-label">Company name</label>
-          <input
-            id="request-company-name"
-            class="input-field"
-            type="text"
-            maxlength="160"
-            placeholder="e.g. Figma"
-            bind:value={requestCompanyName}
-          />
-        </div>
-        <div>
-          <label for="request-careers-url" class="field-label">Careers URL <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
-          <input
-            id="request-careers-url"
-            class="input-field"
-            type="url"
-            placeholder="https://company.com/careers"
-            bind:value={requestCareersUrl}
-          />
-        </div>
-        <div>
-          <label for="request-company-notes" class="field-label">Notes <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
-          <textarea
-            id="request-company-notes"
-            class="input-field"
-            rows="4"
-            maxlength="2000"
-            placeholder="Anything useful about the company or its job board"
-            bind:value={requestCompanyNotes}
-            style="height: auto; resize: vertical;"
-          ></textarea>
-        </div>
-        {#if requestCompanyError}
-          <div style="padding: 10px 12px; border-radius: 12px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
-            {requestCompanyError}
-          </div>
-        {/if}
+      <div>
+        <label for="request-careers-url" class="field-label">Careers URL <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+        <input
+          id="request-careers-url"
+          class="input-field"
+          type="url"
+          placeholder="https://company.com/careers"
+          bind:value={requestCareersUrl}
+        />
       </div>
-      <div class="action-row" style="margin-top: 16px;">
-        <button class="btn-secondary" onclick={() => { showCompanyRequest = false; }} disabled={requestingCompany}>Cancel</button>
-        <button
-          class="btn-primary btn-accent"
-          onclick={submitCompanyRequest}
-          disabled={requestingCompany || requestCompanyName.trim().length < 2}
-        >
-          {requestingCompany ? "Sending..." : "Send request"}
-        </button>
+      <div>
+        <label for="request-company-notes" class="field-label">Notes <span style="font-weight: 400; color: var(--color-ink-4);">optional</span></label>
+        <textarea
+          id="request-company-notes"
+          class="input-field"
+          rows="4"
+          maxlength="2000"
+          placeholder="Anything useful about the company or its job board"
+          bind:value={requestCompanyNotes}
+          style="height: auto; resize: vertical;"
+        ></textarea>
       </div>
+      {#if requestCompanyError}
+        <div class="alert alert-error" style="font-size: var(--fs-xs);">
+          {requestCompanyError}
+        </div>
+      {/if}
     </div>
-  </div>
+    <div class="action-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick={() => { showCompanyRequest = false; }} disabled={requestingCompany}>Cancel</button>
+      <button
+        class="btn-primary btn-accent"
+        style="flex: 1;"
+        onclick={submitCompanyRequest}
+        disabled={requestingCompany || requestCompanyName.trim().length < 2}
+      >
+        {requestingCompany ? "Sending..." : "Send request"}
+      </button>
+    </div>
+  </Modal>
 {/if}
 
 {#if !$sessionAccess.isAdmin && reportTarget}
-  <div class="modal-backdrop" role="presentation" onclick={() => { if (!reporting) reportTarget = null; }}>
-    <div
-      class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap
-      aria-labelledby="company-report-title"
-      tabindex="-1"
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => { if (event.key === "Escape" && !reporting) reportTarget = null; }}
-    >
-      <div id="company-report-title" class="h-display" style="font-size: 22px; margin-bottom: 6px;">
-        Report {reportTarget.name}
-      </div>
-      <p style="font-size: 12px; color: var(--color-ink-3); line-height: 1.5; margin-bottom: 16px;">
-        Let us know if its careers source is stale, broken, or missing jobs.
-      </p>
-      <textarea
-        class="input-field"
-        rows="4"
-        placeholder="What did you notice?"
-        bind:value={reportNotes}
-        style="height: auto; resize: vertical; margin-bottom: 14px;"
-      ></textarea>
-      <div class="action-row">
-        <button class="btn-secondary" onclick={() => { reportTarget = null; }} disabled={reporting}>Cancel</button>
-        <button class="btn-primary btn-accent" onclick={submitCompanyReport} disabled={reporting}>
-          {reporting ? "Sending..." : "Send report"}
-        </button>
-      </div>
+  <Modal
+    title="Report {reportTarget.name}"
+    subtitle="Let us know if its careers source is stale, broken, or missing jobs."
+    busy={reporting}
+    onclose={() => (reportTarget = null)}
+  >
+    <textarea
+      class="input-field"
+      rows="4"
+      placeholder="What did you notice?"
+      bind:value={reportNotes}
+      style="height: auto; resize: vertical; margin-bottom: 14px;"
+    ></textarea>
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => { reportTarget = null; }} disabled={reporting}>Cancel</button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitCompanyReport} disabled={reporting}>
+        {reporting ? "Sending..." : "Send report"}
+      </button>
     </div>
-  </div>
+  </Modal>
 {/if}
 
 <!-- Toast -->

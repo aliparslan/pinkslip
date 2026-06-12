@@ -104,12 +104,13 @@
       {#each ROLE_OPTIONS as role}
         <button
           type="button"
-          class="choice-card"
+          class="choice-card role-card"
           class:active={profile.roles.includes(role.id)}
           aria-pressed={profile.roles.includes(role.id)}
           onclick={() => toggleRole(role.id)}
         >
           <span>{role.label}</span>
+          <span class="choice-check">{profile.roles.includes(role.id) ? "✓" : ""}</span>
         </button>
       {/each}
     </div>
@@ -192,7 +193,7 @@
     </label>
 
     <div class="subfield">
-      <div class="subfield-label">Roles to include</div>
+      <div class="subfield-label">Levels to include</div>
       <div class="experience-list">
         {#each EXPERIENCE_OPTIONS as option}
           <button
@@ -326,18 +327,20 @@
 <style>
   .profile-field-section { display: flex; flex-direction: column; gap: 14px; }
   .profile-field-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .profile-field-title { font-size: 15px; font-weight: 650; color: var(--color-ink); }
-  .profile-field-help { margin-top: 3px; color: var(--color-ink-3); font-size: 12px; line-height: 1.4; }
-  .selection-count { flex-shrink: 0; color: var(--color-accent); font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .profile-field-title { font-size: var(--fs-base); font-weight: 600; color: var(--color-ink); }
+  .profile-field-help { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.4; }
+  .selection-count { flex-shrink: 0; color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
   .choice-grid { display: grid; gap: 8px; }
   .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Multi-select cards show a ✓ (same affordance as the levels list). */
+  .role-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .choice-card, .experience-choice, .location-chip, .relocation-row {
     border: 1px solid var(--color-line-2);
     background: var(--color-bg-sunken);
     color: var(--color-ink-2);
     transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
   }
-  .choice-card { min-height: 48px; padding: 10px 12px; border-radius: 11px; text-align: left; font-size: 13px; font-weight: 600; }
+  .choice-card { min-height: 48px; padding: 10px 12px; border-radius: 11px; text-align: left; font-size: var(--fs-sm); font-weight: 600; }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
   .choice-card.active, .experience-choice.active, .location-chip.active, .relocation-row.active {
     border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
@@ -345,7 +348,7 @@
     color: var(--color-accent-soft-ink);
   }
   .subfield { display: flex; flex-direction: column; gap: 8px; }
-  .subfield-label { color: var(--color-ink-2); font-size: 12px; font-weight: 650; }
+  .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
   .years-field, .relocation-row {
     min-height: 62px;
     padding: 11px 14px;
@@ -358,27 +361,27 @@
     gap: 12px;
   }
   .years-field > span:first-child, .relocation-row > span:first-child { display: flex; flex-direction: column; gap: 2px; text-align: left; }
-  .years-field strong, .relocation-row strong { font-size: 13px; }
-  .years-field small, .relocation-row small, .empty-help { color: var(--color-ink-3); font-size: 10px; line-height: 1.35; }
-  .years-control { display: flex; align-items: center; gap: 6px; color: var(--color-ink-3); font-size: 11px; }
-  .years-control input { width: 54px; height: 36px; border: 1px solid var(--color-line-2); border-radius: 9px; background: var(--color-bg); color: var(--color-ink); text-align: center; font: 650 14px var(--font-mono); }
+  .years-field strong, .relocation-row strong { font-size: var(--fs-sm); }
+  .years-field small, .relocation-row small, .empty-help { color: var(--color-ink-3); font-size: var(--fs-2xs); line-height: 1.35; }
+  .years-control { display: flex; align-items: center; gap: 6px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
+  .years-control input { width: 54px; height: 36px; border: 1px solid var(--color-line-2); border-radius: 9px; background: var(--color-bg); color: var(--color-ink); text-align: center; font: 600 var(--fs-md) var(--font-mono); }
   .experience-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-line-2); border-radius: 13px; }
   .experience-choice { min-height: 56px; padding: 11px 14px; border: 0; border-bottom: 0.5px solid var(--color-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
   .experience-choice:last-child { border-bottom: 0; }
   .experience-choice span:first-child, .work-mode { display: flex; flex-direction: column; gap: 2px; }
-  .experience-choice strong, .work-mode strong { font-size: 13px; font-weight: 650; }
-  .experience-choice small, .work-mode small { color: var(--color-ink-3); font-size: 10px; line-height: 1.3; }
+  .experience-choice strong, .work-mode strong { font-size: var(--fs-sm); font-weight: 600; }
+  .experience-choice small, .work-mode small { color: var(--color-ink-3); font-size: var(--fs-2xs); line-height: 1.3; }
   .choice-check { width: 18px; color: var(--color-accent); font-weight: 800; text-align: center; }
   .stretch-grid, .authorization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .work-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-  .location-chip { padding: 8px 11px; border-radius: 999px; font-size: 12px; font-weight: 550; }
+  .location-chip { padding: 8px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
   .relocation-row { width: 100%; color: var(--color-ink-2); }
   .advanced-fields { border-top: 0.5px solid var(--color-line); padding-top: 12px; }
-  .advanced-fields summary { cursor: pointer; color: var(--color-ink-3); font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+  .advanced-fields summary { cursor: pointer; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; }
   .advanced-body { display: flex; flex-direction: column; gap: 13px; padding-top: 13px; }
-  .advanced-body label { display: flex; flex-direction: column; gap: 6px; color: var(--color-ink-2); font-size: 12px; font-weight: 600; }
-  .advanced-body small { color: var(--color-ink-4); font-size: 10px; font-weight: 400; line-height: 1.4; }
+  .advanced-body label { display: flex; flex-direction: column; gap: 6px; color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
+  .advanced-body small { color: var(--color-ink-4); font-size: var(--fs-2xs); font-weight: 400; line-height: 1.4; }
   @media (max-width: 430px) {
     .stretch-grid, .authorization-grid { grid-template-columns: 1fr; }
   }

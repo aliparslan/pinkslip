@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, type MatchPreviewJob } from "../lib/api";
+  import { errorMessage } from "../lib/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, isNativeIos } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
@@ -19,6 +20,7 @@
 
   let step: number = $state(1);
   let name: string = $state("");
+  let nameError: string | null = $state(null);
   let saving: boolean = $state(false);
   let pushStatus: string = $state("idle");
   let enablingPush: boolean = $state(false);
@@ -52,11 +54,14 @@
     const trimmed = name.trim();
     if (!trimmed || saving) return;
     saving = true;
+    nameError = null;
     try {
       await api.me.update({ name: trimmed });
-      saving = false;
       step = 2;
-    } catch {
+    } catch (e) {
+      // Surface the failure — a silently dead Continue button looks broken.
+      nameError = errorMessage(e, "Could not save your name. Check your connection and try again.");
+    } finally {
       saving = false;
     }
   }
@@ -93,8 +98,8 @@
       previewLoading = true;
       step = 5;
       previewJobs = await api.preferences.preview().then((result) => result.jobs);
-    } catch (e: any) {
-      profileError = e?.message ?? "Could not save your search profile.";
+    } catch (e) {
+      profileError = errorMessage(e, "Could not save your search profile.");
     } finally {
       saving = false;
       previewLoading = false;
@@ -120,8 +125,8 @@
         properties: { onboarding_version: ONBOARDING_VERSION },
       }).catch(() => undefined);
       step = 6;
-    } catch (e: any) {
-      profileError = e?.message ?? "Could not finish your search profile.";
+    } catch (e) {
+      profileError = errorMessage(e, "Could not finish your search profile.");
     } finally {
       saving = false;
     }
@@ -137,9 +142,9 @@
       syncSessionAccess(accountState);
       // Signed in — the guest data we just gathered now lives on the account.
       finish();
-    } catch (e: any) {
-      if (e?.code === "CANCELED") return; // user dismissed the sheet — not an error
-      accountError = e?.message ?? "Could not complete Sign in with Apple.";
+    } catch (e) {
+      if ((e as { code?: string })?.code === "CANCELED") return; // user dismissed the sheet — not an error
+      accountError = errorMessage(e, "Could not complete Sign in with Apple.");
     } finally {
       signingInWithApple = false;
     }
@@ -152,8 +157,8 @@
     try {
       await api.auth.startEmailLogin(emailLogin.trim());
       emailLinkSent = true;
-    } catch (e: any) {
-      accountError = e?.message ?? "Could not send the sign-in link.";
+    } catch (e) {
+      accountError = errorMessage(e, "Could not send the sign-in link.");
     } finally {
       sendingEmailLogin = false;
     }
@@ -165,18 +170,22 @@
 </script>
 
 <div style="position: fixed; inset: 0; z-index: 30; background: var(--color-bg); display: flex; flex-direction: column; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); overscroll-behavior: contain;">
-  <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island) -->
-  <div style="padding: 20px 24px 4px; flex-shrink: 0;">
+  <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island).
+       Solid background so scrolled content never shows through behind them. -->
+  <div style="padding: 20px 24px 8px; flex-shrink: 0; background: var(--color-bg);">
     <div style="display: flex; gap: 6px;">
       {#each Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1) as s}
-        <div style="height: 3px; flex: 1; border-radius: 999px; background: {s <= step ? 'var(--color-accent)' : 'var(--color-line)'}; transition: background 0.3s;"></div>
+        <div style="height: 3px; flex: 1; border-radius: var(--radius-full); background: {s <= step ? 'var(--color-accent)' : 'var(--color-line)'}; transition: background 0.3s;"></div>
       {/each}
     </div>
   </div>
 
-  <!-- Content: scroll region; margin auto centers it but stays scroll-safe when tall -->
-  <div style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 24px 32px 40px;">
-    <div style="width: 100%; max-width: 360px; margin: auto 0;">
+  <!-- Content: top-aligned scroll region (consistent across short and tall
+       steps — centering left huge dead space on short steps). The mask fades
+       content out as it scrolls under the progress strip instead of clipping
+       it mid-line. -->
+  <div class="onboarding-scroll" style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 20px 32px 40px;">
+    <div style="width: 100%; max-width: 360px; margin: 0;">
 
       {#if step === 1}
         <div style="animation: fade-in 0.3s;">
@@ -206,6 +215,11 @@
             bind:value={name}
             onkeydown={(e) => e.key === "Enter" && handleNameSubmit()}
           />
+          {#if nameError}
+            <div class="alert alert-error" style="margin-top: 12px; font-size: var(--fs-xs);">
+              {nameError}
+            </div>
+          {/if}
           <button
             class="btn-primary btn-accent"
             style="width: 100%; margin-top: 16px;"
@@ -260,7 +274,7 @@
           </div>
 
           {#if profileError}
-            <div style="padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px; line-height: 1.4;">
+            <div class="alert alert-error" style="margin-bottom: 16px; font-size: var(--fs-xs);">
               {profileError}
             </div>
           {/if}
@@ -286,7 +300,8 @@
             <div class="preview-empty">Classifying and matching current jobs...</div>
           {:else if previewJobs.length === 0}
             <div class="preview-empty">
-              No confident matches yet. Go back and broaden a role, level, metro, or work mode.
+              No confident matches yet. Broaden a role, level, metro, or work mode — or
+              continue anyway; new jobs land every 15 minutes.
             </div>
           {:else}
             <div class="preview-list">
@@ -309,15 +324,17 @@
           {/if}
 
           {#if profileError}
-            <div style="padding: 10px 12px; border-radius: 8px; margin: 16px 0; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px;">
+            <div class="alert alert-error" style="margin: 16px 0; font-size: var(--fs-xs);">
               {profileError}
             </div>
           {/if}
 
+          <!-- 0 matches is not a dead end: the user can still proceed, since
+               new jobs arrive every poll. -->
           <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 20px;">
             <button class="btn-secondary" style="padding: 0 18px;" onclick={() => step = 2}>Adjust</button>
-            <button class="btn-primary btn-accent" disabled={saving || previewJobs.length === 0} onclick={acceptPreview}>
-              {saving ? "Saving..." : "Use this feed"}
+            <button class="btn-primary btn-accent" disabled={saving || previewLoading} onclick={acceptPreview}>
+              {saving ? "Saving..." : previewJobs.length === 0 ? "Continue anyway" : "Use this feed"}
             </button>
           </div>
         </div>
@@ -351,14 +368,14 @@
             </div>
             {#if pushStatus === "denied"}
               <div style="padding: 0 16px 14px;">
-                <div style="padding: 8px 12px; border-radius: 8px; background: color-mix(in oklch, var(--color-warn) 14%, transparent); color: var(--color-warn); font-size: 12px; line-height: 1.4;">
+                <div class="alert alert-warn" style="font-size: var(--fs-xs);">
                   Permission denied. Turn on notifications for pinkslip in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
                 </div>
               </div>
             {/if}
             {#if pushStatus === "error"}
               <div style="padding: 0 16px 14px;">
-                <div style="padding: 8px 12px; border-radius: 8px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px; line-height: 1.4;">
+                <div class="alert alert-error" style="font-size: var(--fs-xs);">
                   Something went wrong. You can set up notifications later in Settings.
                 </div>
               </div>
@@ -378,7 +395,7 @@
           </p>
 
           {#if accountError}
-            <div style="padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad); font-size: 12px; line-height: 1.4;">
+            <div class="alert alert-error" style="margin-bottom: 16px; font-size: var(--fs-xs);">
               {accountError}
             </div>
           {/if}
@@ -447,13 +464,20 @@
 </div>
 
 <style>
+  /* Fade content out as it slides under the progress strip (instead of a hard
+     mid-line clip at the scroll boundary). */
+  .onboarding-scroll {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 16px);
+    mask-image: linear-gradient(to bottom, transparent 0, black 16px);
+  }
+
   .preview-list { display: flex; flex-direction: column; gap: 9px; }
   .preview-job { padding: 13px 14px; border: 1px solid var(--color-line-2); border-radius: 13px; background: var(--color-bg-sunken); }
-  .preview-job-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--color-ink-3); font-size: 11px; }
+  .preview-job-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
   .preview-job-top strong { color: var(--color-accent); font-family: var(--font-mono); }
-  .preview-job-title { margin-top: 3px; color: var(--color-ink); font-size: 14px; font-weight: 650; line-height: 1.3; }
-  .preview-job-location { margin-top: 3px; color: var(--color-ink-3); font-size: 11px; }
+  .preview-job-title { margin-top: 3px; color: var(--color-ink); font-size: var(--fs-md); font-weight: 600; line-height: 1.3; }
+  .preview-job-location { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
   .preview-reasons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-  .preview-reasons span { padding: 4px 7px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent-soft-ink); font-size: 9px; font-weight: 650; }
-  .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-3); border-radius: 14px; color: var(--color-ink-3); font-size: 12px; line-height: 1.5; text-align: center; }
+  .preview-reasons span { padding: 4px 8px; border-radius: var(--radius-full); background: var(--color-accent-soft); color: var(--color-accent-soft-ink); font-size: var(--fs-2xs); font-weight: 600; }
+  .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-2); border-radius: 14px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.5; text-align: center; }
 </style>

@@ -52,23 +52,21 @@
         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.ats_slug}</span>
       {/if}
       {#if admin && hasError}
-        <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">ERR</span>
+        <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">ERR</span>
       {/if}
     </div>
   </div>
   {#if admin}
     <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
       <button
-        class="icon-btn"
-        style="width: 32px; height: 32px;"
+        class="icon-btn icon-btn-sm"
         aria-label="Edit {company.name}"
         onclick={() => onEdit?.(company.id)}
       >
         <PencilSimple size={15} color={hasError ? "var(--color-bad)" : "var(--color-ink-3)"} />
       </button>
       <button
-        class="icon-btn"
-        style="width: 32px; height: 32px;"
+        class="icon-btn icon-btn-sm"
         aria-label="Delete {company.name}"
         onclick={() => onDelete?.(company.id, company.name)}
       >
@@ -83,7 +81,7 @@
   {:else if company.blocked}
     <button
       class="btn-secondary"
-      style="height: 34px; padding: 0 11px; font-size: 11px; flex-shrink: 0;"
+      style="height: 36px; padding: 0 11px; font-size: var(--fs-xs); flex-shrink: 0;"
       onclick={() => onRestore?.(company.id)}
     >
       <ArrowCounterClockwise size={14} />
@@ -92,16 +90,14 @@
   {:else}
     <div style="display: flex; gap: 2px; flex-shrink: 0;">
       <button
-        class="icon-btn"
-        style="width: 34px; height: 34px;"
+        class="icon-btn icon-btn-sm"
         aria-label="Report a problem with {company.name}"
         onclick={() => onReport?.(company.id, company.name)}
       >
         <Flag size={15} color="var(--color-ink-3)" />
       </button>
       <button
-        class="icon-btn"
-        style="width: 34px; height: 34px;"
+        class="icon-btn icon-btn-sm"
         aria-label="Hide {company.name}"
         onclick={() => onBlock?.(company.id)}
       >

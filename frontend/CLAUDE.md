@@ -41,27 +41,40 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
 
 ## Layout
 
-- `src/pages/` — route screens (Feed, JobDetail, Tailor, Tracker, Events,
-  Profile, Settings, Companies, Corpus).
-- `src/components/` — shared UI (JobRow, TabBar, ScoreBadge, FilterChips, …).
+- `src/pages/` — route screens, named after their routes: Feed, JobDetail,
+  Tailor, Tracker, Events, Profile (`/profile` — account + settings sections,
+  composed from `src/pages/profile/*Section.svelte`), ResumeProfile
+  (`/resume`), Corpus (`/corpus`), Companies.
+- `src/components/` — shared UI (JobRow, TabBar, Modal, FilterChips, Switch,
+  Slider, …). All dialogs go through `Modal.svelte` (backdrop + focus trap +
+  Escape, primary button LAST in action rows) — never `window.confirm`/`prompt`
+  or hand-rolled overlays.
 - `src/lib/` — non-UI logic: `api.ts` (typed client), scoring, formatting,
-  pdf/typst resume generation, native bridges (`native-*.ts`), stores.
+  pdf/typst resume generation, native bridges (`native-*.ts`), stores
+  (`feed-store.svelte.ts` holds the shared feed state).
 - `src/router.ts` — tiny hash router. `App.svelte` drives the iOS-style
   push/pop + edge-swipe-back.
 - `src/app.css` — global design system: `@theme` tokens + shared component
-  classes (`.btn-primary`, `.chip`, `.card-base`, `.surface-card`, …).
+  classes (`.btn-primary`, `.chip`, `.surface-card`, `.alert-*`,
+  `.section-eyebrow`, …).
 
 ## Styling conventions
 
-1. **Tokens, not literals.** Use the CSS variables from `@theme`
-   (`var(--color-ink)`, `var(--radius-md)`, `var(--font-sans)`). Don't hardcode
-   hex/oklch or one-off px radii in components.
-2. **Shared primitives** (buttons, chips, cards, sheets) stay as classes in
-   `src/app.css`.
+1. **Tokens, not literals.** Use the CSS variables from `@theme` and `:root`
+   (`var(--color-ink)`, `var(--radius-md)`, `var(--fs-sm)`, `var(--space-4)`).
+   Don't hardcode hex/oklch, one-off px radii, or off-scale font sizes in
+   components. Minimum text size is `--fs-2xs` (11px).
+2. **Shared primitives** (buttons, chips, cards, sheets, alerts) stay as
+   classes in `src/app.css`.
 3. **Component-specific styles** go in the component's scoped `<style>` block
    (see the bottom of `JobRow.svelte` for the reference pattern).
 4. **Reserve inline `style="…"`** for genuinely dynamic values only
    (e.g. `transform: translateX({x}px)`), not static styling.
+5. **Theming is `data-mode` only.** JS resolves "system" and always sets
+   `data-mode` on `<html>` (inline script in `index.html` + `lib/theme.ts`), so
+   light-mode CSS lives in the single `[data-mode="light"]` block. Never add
+   `@media (prefers-color-scheme)` blocks — that's how the old duplicated
+   theme CSS happened.
 
 We are consolidating styling onto the above — don't add new inline-style soup,
 and don't introduce a competing styling system.
