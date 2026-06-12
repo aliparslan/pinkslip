@@ -14,6 +14,7 @@
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
+    normalizeSalaryText,
     sanitizeJobDescriptionHtml,
   } from "../lib/job-content";
   import {
@@ -283,7 +284,7 @@
   ];
 
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
-  let displaySalary = $derived(job?.salary ?? extractedSalary);
+  let displaySalary = $derived(normalizeSalaryText(job?.salary ?? extractedSalary));
   let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description) : "");
   let plainDescription = $derived.by(() => {
     return extractPlainTextFromHtml(job?.description);

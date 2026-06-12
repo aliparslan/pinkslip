@@ -1,7 +1,7 @@
 <script lang="ts">
   import { navigate } from "../router";
   import { api, type Job } from "../lib/api";
-  import { extractSalaryFromHtml } from "../lib/job-content";
+  import { extractSalaryFromHtml, normalizeSalaryText } from "../lib/job-content";
   import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
@@ -46,7 +46,7 @@
   let commitThreshold = $derived(actionTotalWidth + 34);
   let scorePercent = $derived(normalizeJobScore(job.score));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
-  let displaySalary = $derived(job.salary ?? extractSalaryFromHtml(job.description));
+  let displaySalary = $derived(normalizeSalaryText(job.salary ?? extractSalaryFromHtml(job.description)));
   let isFresh = $derived(
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
   );

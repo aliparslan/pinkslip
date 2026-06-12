@@ -149,6 +149,18 @@ const SALARY_PATTERNS = [
   /\$[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:\/\s*(?:yr|year|annually|annual|hr|hour|hourly))/gi,
 ];
 
+/* ATS feeds disagree on range punctuation ("$114,000 - $184,000",
+   "$114,000—$184,000", "120K to 150K"); normalize every range to a bare
+   en dash so adjacent feed rows always match. */
+export function normalizeSalaryText(salary: string | null | undefined): string | null {
+  if (!salary) return null;
+  const cleaned = salary.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned
+    .replace(/(\d[\d,.]*(?:\s?[kK])?)(?:\s+to\s+|\s*[-–—]\s*)([$£€¥]?\s?\d)/g, "$1–$2")
+    .replace(/([$£€¥])\s+(\d)/g, "$1$2");
+}
+
 export function extractSalaryFromHtml(html: string | null | undefined): string | null {
   if (!html) return null;
   const div = document.createElement("div");
