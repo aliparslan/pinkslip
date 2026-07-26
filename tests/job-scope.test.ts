@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { isEligibleJobListing, isTargetJobTitle } from "@worker/job-scope";
 
 describe("job ingestion scope", () => {
-  it("keeps supported technical and product roles across seniority levels", () => {
+  it("keeps supported technical roles and rejects removed product roles", () => {
     expect(isTargetJobTitle("Software Development Engineer II")).toBe(true);
-    expect(isTargetJobTitle("Senior Product Manager, Growth")).toBe(true);
+    expect(isTargetJobTitle("Senior Product Manager, Growth")).toBe(false);
     expect(isTargetJobTitle("Staff Machine Learning Engineer")).toBe(true);
-    expect(isTargetJobTitle("Principal Product Designer")).toBe(true);
-    expect(isTargetJobTitle("Technical Program Manager, Infrastructure")).toBe(true);
+    expect(isTargetJobTitle("Principal Product Designer")).toBe(false);
+    expect(isTargetJobTitle("Technical Program Manager, Infrastructure")).toBe(false);
     expect(isTargetJobTitle("Software Engineering Intern")).toBe(true);
   });
 
@@ -29,7 +29,7 @@ describe("job ingestion scope", () => {
   it("uses a specific department to rescue compact technical titles", () => {
     expect(isTargetJobTitle("Engineer II", "Software Engineering")).toBe(true);
     expect(isTargetJobTitle("Engineer II", "Manufacturing")).toBe(false);
-    expect(isTargetJobTitle("Designer", "Product Design")).toBe(true);
+    expect(isTargetJobTitle("Designer", "Product Design")).toBe(false);
   });
 
   it("requires both target scope and US eligibility", () => {

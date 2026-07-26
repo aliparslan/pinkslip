@@ -15,15 +15,9 @@ export const feed = $state({
   sortBy: "score" as FeedSort,
   searchQuery: "",
   savedOnly: false,
-  minMatch: 50,
   minSalaryK: "",
   maxSalaryK: "",
   maxYoe: "",
-  notifyThreshold: 50,
-  // True only while the user has a match filter that differs from their saved
-  // profile threshold. When false, the feed follows the profile threshold so
-  // changing it in Settings actually controls the feed.
-  customMinMatch: false,
   nextOffset: 0,
   hasMore: true,
   hydrated: false,

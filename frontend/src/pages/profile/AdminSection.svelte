@@ -121,7 +121,7 @@
         <div class="ops-metric"><span>Accounts created</span><strong>{productMetrics.accounts_created}</strong></div>
         <div class="ops-metric"><span>Push registrations</span><strong>{productMetrics.push_registrations}</strong></div>
         <div class="ops-metric"><span>Fast apply clicks</span><strong>{productMetrics.apply_clicks_within_one_hour}</strong></div>
-        <div class="ops-metric"><span>High-score dismiss</span><strong>{productMetrics.high_score_dismissal_rate}%</strong></div>
+        <div class="ops-metric"><span>Recommended dismiss</span><strong>{productMetrics.high_score_dismissal_rate}%</strong></div>
         <div class="ops-metric"><span>Tailor to apply</span><strong>{productMetrics.tailoring_to_application_rate}%</strong></div>
         <div class="ops-metric"><span>Profile adjustments</span><strong>{productMetrics.profile_adjustments}</strong></div>
         <div class="ops-metric"><span>Active feedback</span><strong>{productMetrics.open_feedback}</strong></div>

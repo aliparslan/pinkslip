@@ -38,9 +38,10 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
 ## Layout
 
 - `src/pages/` — route screens, named after their routes: Feed, JobDetail,
-  Tailor, Tracker, Events, Profile (`/profile` — account + settings sections,
+  Tailor, Profile (`/profile` — account + settings sections,
   composed from `src/pages/profile/*Section.svelte`), ResumeProfile
-  (`/resume`), Corpus (`/corpus`), Companies.
+  (`/resume`), Corpus (`/corpus`), Companies. Tracker and Events are retained
+  as deferred screens but are intentionally not routed or shown in navigation.
 - `src/components/` — shared UI (JobRow, TabBar, Modal, FilterChips, Switch,
   Slider, …). All dialogs go through `Modal.svelte` (backdrop + focus trap +
   Escape, primary button LAST in action rows) — never `window.confirm`/`prompt`
@@ -49,7 +50,7 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
   bottom sheet; short forms and confirmations use centered `Modal.svelte`;
   row-scoped actions may use an anchored popover. Do not swap patterns without
   changing the interaction's role.
-- `src/lib/` — non-UI logic: `api.ts` (typed client), scoring, formatting,
+- `src/lib/` — non-UI logic: `api.ts` (typed client), formatting,
   pdf/typst resume generation, native bridges (`native-*.ts`), stores
   (`feed-store.svelte.ts` holds the shared feed state).
 - `src/router.ts` — tiny hash router. `App.svelte` drives the iOS-style
@@ -64,6 +65,8 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
    (`var(--color-ink)`, `var(--radius-md)`, `var(--fs-sm)`, `var(--space-4)`).
    Don't hardcode hex/oklch, one-off px radii, or off-scale font sizes in
    components. Minimum text size is `--fs-2xs` (11px).
+   Inter Variable is the primary and display family; Founders Grotesk Mono is
+   reserved for compact metadata and operational labels.
 2. **Shared primitives** (buttons, chips, cards, sheets, alerts) stay as
    classes in `src/app.css`.
 3. **Component-specific styles** go in the component's scoped `<style>` block

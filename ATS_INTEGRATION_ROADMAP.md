@@ -615,7 +615,7 @@ privacy problems than storing every user's browser state on the server.
 #### Stage 2: Trusted Auto-Submit
 
 - Let users define explicit rules by company, role, location, salary, seniority,
-  sponsorship, and minimum match score.
+  sponsorship and notification preferences.
 - Auto-submit only when every required answer is already approved.
 - Stop for CAPTCHA, login, verification, novel questions, demographic/EEO
   questions, assessments, or ambiguous answers.

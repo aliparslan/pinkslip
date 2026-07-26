@@ -14,14 +14,11 @@
 
   let profileEditing: boolean = $state(false);
 
-  let primaryRoleLabel = $derived(
-    ROLE_OPTIONS.find((role) => role.id === searchProfile.primary_role)?.label ?? "Not set"
-  );
-  let specialtyLabels = $derived(
+  let roleLabels = $derived(
     ROLE_OPTIONS
-      .filter((role) => role.id !== searchProfile.primary_role && searchProfile.roles.includes(role.id))
-      .map((role) => role.shortLabel)
-      .join(", ") || "No secondary roles"
+      .filter((role) => searchProfile.roles.includes(role.id))
+      .map((role) => role.label)
+      .join(", ") || "Not set"
   );
   let metroLabels = $derived(
     LOCATION_OPTIONS
@@ -51,12 +48,8 @@
     {:else}
       <div class="profile-summary-grid">
         <div class="profile-summary-item">
-          <span>Primary role</span>
-          <strong>{primaryRoleLabel}</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Also targeting</span>
-          <strong>{specialtyLabels}</strong>
+          <span>Target roles</span>
+          <strong>{roleLabels}</strong>
         </div>
         <div class="profile-summary-item">
           <span>Experience band</span>
@@ -73,10 +66,6 @@
         <div class="profile-summary-item">
           <span>Authorization</span>
           <strong>{searchProfile.work_authorization.replaceAll("_", " ")} · {searchProfile.relocation_willing ? "open to relocation" : "no relocation"}</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Min match score</span>
-          <strong>{searchProfile.match_threshold}+</strong>
         </div>
       </div>
       <button class="btn-secondary" onclick={() => { profileEditing = true; }}>

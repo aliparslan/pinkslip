@@ -15,9 +15,7 @@
   import type { Component } from "svelte";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
-  import Tracker from "./pages/Tracker.svelte";
   import Companies from "./pages/Companies.svelte";
-  import Events from "./pages/Events.svelte";
   import Profile from "./pages/Profile.svelte";
   import ResumeProfile from "./pages/ResumeProfile.svelte";
   import Corpus from "./pages/Corpus.svelte";
@@ -37,8 +35,6 @@
 
   const routes: Record<string, PageComponent> = {
     "/": asPage(Feed),
-    "/tracker": asPage(Tracker),
-    "/events": asPage(Events),
     "/profile": asPage(Profile),
     "/companies": asPage(Companies),
     "/corpus": asPage(Corpus),

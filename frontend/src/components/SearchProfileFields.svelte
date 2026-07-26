@@ -47,7 +47,7 @@
     profile = {
       ...profile,
       roles,
-      primary_role: roles.includes(profile.primary_role) ? profile.primary_role : roles[0],
+      primary_role: roles[0],
     };
   }
 
@@ -95,25 +95,6 @@
         </button>
       {/each}
     </div>
-
-    {#if profile.roles.length > 1}
-      <div class="subfield">
-        <div class="subfield-label">Primary role</div>
-        <div class="location-grid">
-          {#each ROLE_OPTIONS.filter((role) => profile.roles.includes(role.id)) as role}
-            <button
-              type="button"
-              class="location-chip"
-              class:active={profile.primary_role === role.id}
-              aria-pressed={profile.primary_role === role.id}
-              onclick={() => profile = { ...profile, primary_role: role.id }}
-            >
-              {role.shortLabel}
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
 
     {#if showAdvanced}
       <details class="advanced-fields">
@@ -228,7 +209,7 @@
     >
       <span>
         <strong>Open to relocation</strong>
-        <small>Include strong matches outside your preferred metros.</small>
+        <small>Include relevant roles outside your preferred metros.</small>
       </span>
       <span class="choice-check">{profile.relocation_willing ? "✓" : ""}</span>
     </button>

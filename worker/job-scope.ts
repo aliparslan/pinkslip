@@ -22,10 +22,6 @@ const SUPPORTED_TITLE_PATTERNS = [
   "cloud architect",
   "developer advocate",
   "developer relations",
-  "ux researcher",
-  "user researcher",
-  "product researcher",
-  "design engineer",
   "quantitative developer",
   "quantitative researcher",
 ] as const;
@@ -66,21 +62,12 @@ function containsPhrase(text: string, phrase: string) {
   return new RegExp(`\\b${escaped}\\b`, "i").test(text);
 }
 
-function isSupportedManagerTitle(title: string) {
-  return containsPhrase(title, "product manager")
-    || containsPhrase(title, "technical program manager")
-    || (
-      containsPhrase(title, "program manager")
-      && /\btechnical\b/.test(title)
-    );
-}
-
 export function isTargetJobTitle(title: string, department?: string | null): boolean {
   const normalizedTitle = title.trim().toLowerCase();
   const normalizedDepartment = department?.trim().toLowerCase() ?? "";
   if (!normalizedTitle) return false;
 
-  if (MANAGEMENT_PATTERN.test(normalizedTitle) && !isSupportedManagerTitle(normalizedTitle)) {
+  if (MANAGEMENT_PATTERN.test(normalizedTitle)) {
     return false;
   }
 
@@ -94,8 +81,8 @@ export function isTargetJobTitle(title: string, department?: string | null): boo
 
   // Some ATS boards publish compact titles such as "Engineer I". Only accept
   // those when the department supplies a specific software/data signal.
-  if (/^(?:associate |junior |senior |staff |principal )?(?:engineer|developer|designer|scientist)(?: [ivx]+|\s*\d+)?$/i.test(title.trim())) {
-    return /\b(?:software|data|machine learning|artificial intelligence|security|product design|infrastructure|platform)\b/
+  if (/^(?:associate |junior |senior |staff |principal )?(?:engineer|developer|scientist)(?: [ivx]+|\s*\d+)?$/i.test(title.trim())) {
+    return /\b(?:software|data|machine learning|artificial intelligence|security|infrastructure|platform)\b/
       .test(normalizedDepartment);
   }
 
@@ -115,7 +102,7 @@ export function isEligibleJobListing(
 }
 
 export async function ensureEligibleJobs(db: D1Database): Promise<number> {
-  const cleanupVersion = "eligible-jobs-v2";
+  const cleanupVersion = "eligible-jobs-v3";
   const state = await db.prepare(
     "SELECT value FROM preferences WHERE key = 'eligible_jobs_cleanup_version'"
   ).first<{ value: string }>();

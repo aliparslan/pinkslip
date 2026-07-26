@@ -2,16 +2,12 @@
   import { currentRoute, navigate } from "../router";
   import { hapticLight } from "../lib/haptics";
   import House from "phosphor-svelte/lib/House";
-  import Notepad from "phosphor-svelte/lib/Notepad";
-  import CalendarDots from "phosphor-svelte/lib/CalendarDots";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
 
   let route = $derived($currentRoute);
 
   const tabs = [
     { label: "Feed", path: "/", icon: House },
-    { label: "Tracker", path: "/tracker", icon: Notepad },
-    { label: "Events", path: "/events", icon: CalendarDots },
     { label: "Profile", path: "/profile", icon: UserCircle },
   ] as const;
 
@@ -64,7 +60,7 @@
   }
   .tab-bar__inner {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     padding: 6px 12px calc(env(safe-area-inset-bottom, 0px) + 4px);
   }
   .tab-bar__item {

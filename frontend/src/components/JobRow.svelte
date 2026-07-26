@@ -2,7 +2,6 @@
   import { navigate } from "../router";
   import { api, type Job } from "../lib/api";
   import { extractSalaryFromHtml, normalizeSalaryText } from "../lib/job-content";
-  import { normalizeJobScore, scoreLabelFromPercent, scoreToneFromPercent } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
   import { sessionAccess } from "../lib/session-access";
@@ -44,9 +43,6 @@
       : ACTION_DISMISS_WIDTH
   );
   let commitThreshold = $derived(actionTotalWidth + 34);
-  let scorePercent = $derived(normalizeJobScore(job.score));
-  let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
-  let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let displaySalary = $derived(normalizeSalaryText(job.salary ?? extractSalaryFromHtml(job.description)));
   let isFresh = $derived(
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
@@ -211,12 +207,6 @@
         {#if !viewed && isFresh}
           <span class="job-row__new">NEW</span>
         {/if}
-        <span
-          class="job-row__score"
-          style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
-        >
-          {scoreLabel}
-        </span>
       </div>
       <div class="job-row__title">{job.title}</div>
       {#if job.location || displaySalary}
@@ -282,16 +272,6 @@
     color: var(--color-accent);
     font-weight: 700;
     letter-spacing: 0.04em;
-  }
-  .job-row__score {
-    margin-left: auto;
-    flex-shrink: 0;
-    padding: 1px 6px;
-    border-radius: var(--radius-xs);
-    font-size: var(--fs-2xs);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
   }
   .job-row__title {
     font-size: var(--fs-base);

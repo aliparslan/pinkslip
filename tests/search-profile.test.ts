@@ -30,17 +30,17 @@ function job(overrides: Partial<JobListing>): JobListing {
 describe("search profile", () => {
   test("normalizes unknown values without losing a valid selection", () => {
     const profile = normalizeSearchProfile({
-      roles: ["product_management", "not-a-role", "product_management"],
+      roles: ["backend", "not-a-role", "backend"],
       target_levels: ["mid_level"],
       years_experience: 4,
       work_modes: ["hybrid", "onsite"],
       location_ids: ["new_york", "not-a-location"],
       custom_locations: ["Raleigh", "Raleigh"],
-      custom_titles: ["Growth Product Manager"],
+      custom_titles: ["Distributed Systems Engineer"],
       excluded_titles: ["Sales"],
     });
 
-    expect(profile.roles).toEqual(["product_management"]);
+    expect(profile.roles).toEqual(["backend"]);
     expect(profile.target_levels).toEqual(["mid_level"]);
     expect(profile.years_experience).toBe(4);
     expect(profile.location_ids).toEqual(["new_york"]);
@@ -68,6 +68,15 @@ describe("search profile", () => {
     expect(preferenceStateFromRecord({}).search_profile).toEqual(DEFAULT_SEARCH_PROFILE);
   });
 
+  test("drops product, program, and design roles from older profiles", () => {
+    const profile = normalizeSearchProfile({
+      roles: ["product_management", "technical_program_management", "design"],
+    });
+
+    expect(profile.roles).toEqual(DEFAULT_SEARCH_PROFILE.roles);
+    expect(profile.primary_role).toBe(DEFAULT_SEARCH_PROFILE.roles[0]);
+  });
+
   test("uses an empty metro list to represent anywhere in the selected country", () => {
     const profile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
@@ -81,37 +90,30 @@ describe("search profile", () => {
 });
 
 describe("personalized scoring", () => {
-  test("a product profile favors product management over software engineering", () => {
+  test("a backend profile favors backend engineering over an unrelated role", () => {
     const prefs = scoringPrefsFromState({
       search_profile: normalizeSearchProfile({
         ...DEFAULT_SEARCH_PROFILE,
-        roles: ["product_management"],
-        primary_role: "product_management",
-        target_levels: ["mid_level"],
+        roles: ["backend"],
+        target_levels: ["early_career"],
         work_modes: ["remote"],
         location_ids: [],
       }),
       notify_threshold: 50,
     });
 
-    const productScore = scoreJob(job({
-      title: "Technical Product Manager",
-      department: "Product",
-      description: "You have 4+ years of experience shipping technical products.",
-    }), prefs).score;
-    const softwareScore = scoreJob(job({
+    const backendScore = scoreJob(job({
       title: "Backend Software Engineer",
-      description: "You have 4+ years of experience building APIs.",
+      description: "You have 2+ years of experience building APIs.",
     }), prefs).score;
-    const unrelatedProgramScore = scoreJob(job({
+    const unrelatedScore = scoreJob(job({
       title: "Safety Operations Program Manager",
       department: "Safety",
-      description: "You have 4+ years of experience operating safety programs.",
+      description: "You have 2+ years of experience operating safety programs.",
     }), prefs).score;
 
-    expect(productScore).toBeGreaterThanOrEqual(80);
-    expect(softwareScore).toBeLessThan(30);
-    expect(unrelatedProgramScore).toBeLessThan(30);
+    expect(backendScore).toBeGreaterThanOrEqual(80);
+    expect(unrelatedScore).toBeLessThan(30);
   });
 
   test("senior ML roles fit a senior ML profile but not an early-career profile", () => {
@@ -160,7 +162,7 @@ describe("personalized scoring", () => {
 });
 
 describe("job features and match explanations", () => {
-  test("classifies an obvious product role without an LLM", () => {
+  test("does not classify a removed product role as a supported specialty", () => {
     const features = classifyJob(job({
       title: "Senior Product Manager, Growth",
       department: "Product",
@@ -169,14 +171,14 @@ describe("job features and match explanations", () => {
       salary: "$180K-$220K USD",
     }));
 
-    expect(features.role_family).toBe("product");
-    expect(features.specialties).toContain("product_management");
-    expect(features.seniority).toBe("senior");
+    expect(features.role_family).toBe("other");
+    expect(features.specialties).toEqual([]);
+    expect(features.seniority).toBe("manager");
     expect(features.min_years).toBe(5);
     expect(features.work_mode).toBe("hybrid");
     expect(features.metro_areas).toContain("new_york");
     expect(features.salary_min).toBe(180000);
-    expect(features.confidence).toBeGreaterThan(0.8);
+    expect(features.confidence).toBeLessThan(0.5);
   });
 
   test("produces readable reasons for a plausible match", () => {
@@ -203,15 +205,14 @@ describe("job features and match explanations", () => {
 
   test("does not retain a role beyond the selected stretch tolerance", () => {
     const listing = job({
-      title: "Product Manager, Devices",
+      title: "Backend Engineer, Devices",
       location: "Mountain View, CA",
-      department: "Product",
-      description: "This role requires at least 10 years of product management experience.",
+      department: "Engineering",
+      description: "This role requires at least 10 years of backend engineering experience.",
     });
     const profile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
-      primary_role: "product_management",
-      roles: ["product_management"],
+      roles: ["backend"],
       years_experience: 4,
       target_levels: ["mid_level"],
       stretch_tolerance: "balanced",
@@ -241,7 +242,7 @@ describe("job features and match explanations", () => {
     expect(match.plausible).toBe(false);
   });
 
-  test("does not infer product management from a broad Product department", () => {
+  test("does not infer a supported engineering specialty from a broad Product department", () => {
     const listing = job({
       title: "Customer Engineer",
       department: "Product",
@@ -250,27 +251,25 @@ describe("job features and match explanations", () => {
     });
     const profile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
-      primary_role: "product_management",
-      roles: ["product_management"],
+      roles: ["backend"],
       target_levels: ["mid_level"],
     });
     const features = classifyJob(listing);
     const match = scoreJobForProfile("job-4", listing, features, profile);
 
-    expect(features.specialties).not.toContain("product_management");
+    expect(features.specialties).not.toContain("backend");
     expect(match.plausible).toBe(false);
   });
 
   test("keeps principal roles out of the feed", () => {
     const listing = job({
-      title: "Principal Product Manager",
-      department: "Product",
-      description: "Lead the long-term product strategy.",
+      title: "Principal Backend Engineer",
+      department: "Engineering",
+      description: "Lead the long-term infrastructure strategy.",
     });
     const profile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
-      primary_role: "product_management",
-      roles: ["product_management"],
+      roles: ["backend"],
       years_experience: 4,
       target_levels: ["mid_level"],
       stretch_tolerance: "balanced",

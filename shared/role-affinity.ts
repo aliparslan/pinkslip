@@ -2,17 +2,14 @@ import type { RoleId } from "./search-profile";
 
 const RELATED_ROLES: Record<RoleId, readonly RoleId[]> = {
   software_engineering: ["frontend", "backend", "full_stack", "mobile", "data_engineering", "machine_learning", "infrastructure", "security"],
-  frontend: ["full_stack", "software_engineering", "mobile", "design"],
+  frontend: ["full_stack", "software_engineering", "mobile"],
   backend: ["full_stack", "software_engineering", "infrastructure", "data_engineering", "security"],
-  full_stack: ["frontend", "backend", "software_engineering", "design"],
+  full_stack: ["frontend", "backend", "software_engineering"],
   mobile: ["frontend", "software_engineering", "full_stack"],
   data_engineering: ["backend", "infrastructure", "machine_learning", "software_engineering"],
   machine_learning: ["data_engineering", "backend", "software_engineering"],
-  product_management: ["technical_program_management", "design"],
-  technical_program_management: ["product_management", "software_engineering", "infrastructure"],
   infrastructure: ["backend", "security", "data_engineering", "software_engineering"],
   security: ["infrastructure", "backend", "software_engineering"],
-  design: ["frontend", "full_stack", "product_management"],
 };
 
 /**
@@ -22,21 +19,20 @@ const RELATED_ROLES: Record<RoleId, readonly RoleId[]> = {
  */
 export function roleAffinity(
   candidate: RoleId,
-  primaryRole: RoleId,
+  _primaryRole: RoleId,
   selectedRoles: readonly RoleId[]
 ): number {
-  if (candidate === primaryRole) return 1;
-  if (selectedRoles.includes(candidate)) return 0.9;
-  if (RELATED_ROLES[primaryRole].includes(candidate)) return 0.75;
-  if (selectedRoles.some((selected) => RELATED_ROLES[selected].includes(candidate))) return 0.65;
+  if (selectedRoles.includes(candidate)) return 1;
+  if (selectedRoles.some((selected) => RELATED_ROLES[selected].includes(candidate))) return 0.75;
   return 0;
 }
 
 export function closestSelectedRole(
   candidate: RoleId,
-  primaryRole: RoleId,
+  _primaryRole: RoleId,
   selectedRoles: readonly RoleId[]
 ): RoleId | null {
-  if (candidate === primaryRole || RELATED_ROLES[primaryRole].includes(candidate)) return primaryRole;
-  return selectedRoles.find((selected) => selected === candidate || RELATED_ROLES[selected].includes(candidate)) ?? null;
+  return selectedRoles.find((selected) => selected === candidate)
+    ?? selectedRoles.find((selected) => RELATED_ROLES[selected].includes(candidate))
+    ?? null;
 }

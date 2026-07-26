@@ -59,10 +59,10 @@ describe("classifyJob", () => {
     salary: null,
   });
 
-  it("does not mistake individual-contributor TPM titles for people managers", () => {
-    expect(classifyJob(listing("Technical Program Manager")).seniority).toBe("unknown");
+  it("treats removed program-management titles as management", () => {
+    expect(classifyJob(listing("Technical Program Manager")).seniority).toBe("manager");
     expect(classifyJob(listing("Technical Program Manager", "2+ years of experience"))).toMatchObject({
-      seniority: "early_career",
+      seniority: "manager",
       min_years: 2,
     });
   });

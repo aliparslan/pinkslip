@@ -17,11 +17,6 @@
     normalizeSalaryText,
     sanitizeJobDescriptionHtml,
   } from "../lib/job-content";
-  import {
-    normalizeJobScore,
-    scoreLabelFromPercent,
-    scoreToneFromPercent,
-  } from "../lib/scoring";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import Modal from "../components/Modal.svelte";
   import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
@@ -34,7 +29,6 @@
   import ClockCounterClockwise from "phosphor-svelte/lib/ClockCounterClockwise";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import ShareNetwork from "phosphor-svelte/lib/ShareNetwork";
-  import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import X from "phosphor-svelte/lib/X";
   import Trash from "phosphor-svelte/lib/Trash";
@@ -45,8 +39,6 @@
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
-  type ScoreKey = "title_score" | "yoe_score" | "location_score" | "department_score" | "recency_score";
-
   let job = $state<Job | null>(null);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -55,7 +47,6 @@
   let saved: boolean = $state(false);
   let applied: boolean = $state(false);
   let applying: boolean = $state(false);
-  let scoreExpanded: boolean = $state(false);
   let showBlockConfirm: boolean = $state(false);
   let blocking: boolean = $state(false);
   let descriptionPending: boolean = $state(false);
@@ -115,7 +106,7 @@
           event_name: "job_opened",
           entity_type: "job",
           entity_id: jobId,
-          properties: { score: normalizeJobScore(nextJob.score ?? 0) },
+          properties: {},
         }).catch(() => undefined);
       }
 
@@ -169,7 +160,7 @@
       // instead of silently dumping the user back to the feed.
       removeFromFeedStore(jobId);
       void api.jobs.dismiss(jobId).catch(() => undefined);
-      showToast("Added to Tracker ✓");
+      showToast("Marked as applied ✓");
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -271,18 +262,7 @@
     });
   }
 
-  let scorePercent = $derived(normalizeJobScore(job?.score ?? 0));
-  let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
-  let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let adjacentJobs = $derived(getAdjacentJobIds(jobId));
-
-  const scoreBreakdownKeys: { label: string; key: ScoreKey; max: number }[] = [
-    { label: "Title", key: "title_score", max: 30 },
-    { label: "YOE", key: "yoe_score", max: 25 },
-    { label: "Location", key: "location_score", max: 20 },
-    { label: "Department", key: "department_score", max: 10 },
-    { label: "Recency", key: "recency_score", max: 10 },
-  ];
 
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
   let displaySalary = $derived(normalizeSalaryText(job?.salary ?? extractedSalary));
@@ -391,47 +371,16 @@
 
       <div class="divider" style="margin-bottom: 16px;"></div>
 
-      <!-- Match score -->
-      <div class="surface-card-padded" style="margin-bottom: 16px;">
-        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px;">
-          <div>
-            <h2 class="section-label" style="margin: 0;">
-              Match score
-            </h2>
-            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
-              <span style="font-family: var(--font-display); font-weight: 700; font-size: 28px; color: {scoreColor}; letter-spacing: -0.03em;">
-                {scoreLabel}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onclick={() => scoreExpanded = !scoreExpanded}
-            class="btn-secondary"
-            style="height: 32px; padding: 0 10px; font-size: var(--fs-xs);"
-            aria-expanded={scoreExpanded}
-          >
-            why?
-            <CaretDown size={12} style="transition: transform .2s; transform: rotate({scoreExpanded ? '180deg' : '0'});" />
-          </button>
-        </div>
-
-        {#if scoreExpanded}
-          <div style="display: flex; flex-direction: column;">
-            {#each scoreBreakdownKeys as { label, key, max }}
-              <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 7px 0; border-top: 0.5px solid var(--color-line);">
-                <span style="font-size: var(--fs-sm); color: var(--color-ink); font-weight: 500;">{label}</span>
-                <div style="width: 80px; height: 4px; background: var(--color-line-2); border-radius: var(--radius-full); overflow: hidden;">
-                  <div style="height: 100%; background: {(job[key] ?? 0) === max ? 'var(--color-good)' : 'var(--color-accent)'}; width: {((job[key] ?? 0) / max) * 100}%; border-radius: var(--radius-full);"></div>
-                </div>
-                <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-ink-3); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right;">
-                  {job[key] ?? 0}/{max}
-                </span>
-              </div>
+      {#if job.match_reasons?.length}
+        <div class="surface-card-padded" style="margin-bottom: 16px;">
+          <h2 class="section-label" style="margin: 0 0 10px;">Why this job</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+            {#each job.match_reasons as reason}
+              <span class="tag">{reason}</span>
             {/each}
           </div>
-        {/if}
-      </div>
+        </div>
+      {/if}
 
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -441,7 +390,7 @@
             onclick={markApplied}
           >
             {#if applying}<Spinner />{:else}<CheckCircle size={16} />{/if}
-            {applied ? "Tracked ✓" : "Mark as applied"}
+            {applied ? "Applied ✓" : "Mark as applied"}
           </button>
           <button
             class="btn-secondary btn-action"
@@ -574,7 +523,7 @@
               event_name: "apply_clicked",
               entity_type: "job",
               entity_id: jobId ?? undefined,
-              properties: { score: scorePercent },
+              properties: {},
             }).catch(() => undefined);
           }}
         >

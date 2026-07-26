@@ -23,7 +23,9 @@ function randomBase64Url(byteLength = 32) {
 }
 
 export function isNativeIosAuthAvailable() {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  return Capacitor.isNativePlatform()
+    && Capacitor.getPlatform() === "ios"
+    && Capacitor.isPluginAvailable("AppleSignIn");
 }
 
 export async function signInWithAppleNative() {

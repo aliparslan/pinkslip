@@ -3,12 +3,12 @@ import { diversifyRankedJobs } from "@worker/job-ranking";
 import { roleAffinity } from "../shared/role-affinity";
 
 describe("role affinity", () => {
-  test("orders primary, selected, adjacent, and unrelated roles", () => {
+  test("treats every selected role equally, then adjacent and unrelated roles", () => {
     const selected = ["backend", "frontend"] as const;
     expect(roleAffinity("backend", "backend", selected)).toBe(1);
-    expect(roleAffinity("frontend", "backend", selected)).toBe(0.9);
+    expect(roleAffinity("frontend", "backend", selected)).toBe(1);
     expect(roleAffinity("infrastructure", "backend", selected)).toBe(0.75);
-    expect(roleAffinity("product_management", "backend", selected)).toBe(0);
+    expect(roleAffinity("machine_learning", "backend", selected)).toBe(0);
   });
 });
 

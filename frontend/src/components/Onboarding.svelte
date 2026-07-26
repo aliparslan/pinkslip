@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, type MatchPreviewJob } from "../lib/api";
+  import { api } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../lib/native-auth";
   import { enableNativePush, isNativeIos } from "../lib/native-push";
@@ -10,14 +10,13 @@
     normalizeSearchProfile,
     type SearchProfile,
   } from "../../../shared/search-profile";
-  import { normalizeJobScore, scoreLabelFromPercent, scoreToneFromPercent } from "../lib/scoring";
   import SearchProfileFields from "./SearchProfileFields.svelte";
   import Check from "phosphor-svelte/lib/Check";
   import Spinner from "./Spinner.svelte";
 
   let { onComplete }: { onComplete: (name: string) => void } = $props();
 
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 4;
 
   let step: number = $state(1);
   let name: string = $state("");
@@ -26,8 +25,6 @@
   let enablingPush: boolean = $state(false);
   let profile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let profileError: string | null = $state(null);
-  let previewJobs: MatchPreviewJob[] = $state([]);
-  let previewLoading: boolean = $state(false);
 
   // Final step: optional account creation. Guests can always skip; their data is
   // stored server-side against the session cookie and signing in folds that guest
@@ -83,27 +80,6 @@
     profileError = null;
     try {
       const saved = await api.preferences.update({
-        search_profile: profile,
-        notify_threshold: profile.match_threshold,
-      });
-      profile = normalizeSearchProfile(saved.search_profile);
-      previewLoading = true;
-      step = 3;
-      previewJobs = await api.preferences.preview().then((result) => result.jobs);
-    } catch (e) {
-      profileError = errorMessage(e, "Could not save your search profile.");
-    } finally {
-      saving = false;
-      previewLoading = false;
-    }
-  }
-
-  async function acceptPreview() {
-    if (saving) return;
-    saving = true;
-    profileError = null;
-    try {
-      const saved = await api.preferences.update({
         search_profile: {
           ...profile,
           onboarding_version: ONBOARDING_VERSION,
@@ -116,9 +92,9 @@
         entity_type: "onboarding",
         properties: { onboarding_version: ONBOARDING_VERSION },
       }).catch(() => undefined);
-      step = 4;
+      step = 3;
     } catch (e) {
-      profileError = errorMessage(e, "Could not finish your search profile.");
+      profileError = errorMessage(e, "Could not save your search profile.");
     } finally {
       saving = false;
     }
@@ -206,7 +182,7 @@
           </div>
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Beat the crowd</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
-            Pick the work you want. We&rsquo;ll immediately show the strongest early-career matches already in pinkslip.
+            Pick the work you want. We&rsquo;ll show you relevant early-career roles already in pinkslip.
           </p>
           <h3 class="section-label" style="margin-bottom: 12px;">What are you targeting?</h3>
           <div style="margin-bottom: 24px;">
@@ -245,72 +221,15 @@
             onclick={handleProfileSubmit}
           >
             {#if saving}<Spinner />{/if}
-            Show my matches
+            Save preferences
           </button>
         </div>
 
       {:else if step === 3}
         <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">This is your starting line</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
-            These are real jobs in pinkslip right now. The labels explain why each one made the cut.
-          </p>
-
-          {#if previewLoading}
-            <div class="preview-empty loading-label" aria-busy="true">
-              <Spinner label="Matching current jobs" />
-              <span>Matching current jobs</span>
-            </div>
-          {:else if previewJobs.length === 0}
-            <div class="preview-empty">
-              No confident matches yet. Broaden a role, metro, or work mode — or
-              continue anyway; new jobs land every 15 minutes.
-            </div>
-          {:else}
-            <div class="preview-list">
-              {#each previewJobs as job}
-                {@const scorePercent = normalizeJobScore(job.score)}
-                {@const scoreColor = scoreToneFromPercent(scorePercent)}
-                <div class="preview-job">
-                  <div class="preview-job-top">
-                    <span>{job.company_name}</span>
-                    <strong
-                      class="preview-score"
-                      style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
-                    >{scoreLabelFromPercent(scorePercent)}</strong>
-                  </div>
-                  <div class="preview-job-title">{job.title}</div>
-                  <div class="preview-job-location">{job.location || "Location not specified"}</div>
-                  {#if job.match_reasons.length}
-                    <div class="preview-reasons">{job.match_reasons.slice(0, 2).join(" · ")}</div>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          {/if}
-
-          {#if profileError}
-            <div class="alert alert-error" style="margin: 16px 0; font-size: var(--fs-xs);">
-              {profileError}
-            </div>
-          {/if}
-
-          <!-- 0 matches is not a dead end: the user can still proceed, since
-               new jobs arrive every poll. -->
-          <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 20px;">
-            <button class="btn-secondary" style="padding: 0 18px;" onclick={() => step = 1}>Adjust</button>
-            <button class="btn-primary btn-accent" disabled={saving || previewLoading} onclick={acceptPreview}>
-              {#if saving}<Spinner />{/if}
-              {previewJobs.length === 0 ? "Continue anyway" : "Use this feed"}
-            </button>
-          </div>
-        </div>
-
-      {:else if step === 4}
-        <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Stay in the loop</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
-            Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you the moment a high-scoring role drops.
+            Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you when a new role fits your search.
           </p>
 
           <!-- Push notifications -->
@@ -318,7 +237,7 @@
             <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
               <div>
                 <div style="font-size: 14px; font-weight: 600;">Push notifications</div>
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Get alerted for high-scoring jobs</div>
+                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Get alerted about relevant new jobs</div>
               </div>
               {#if pushStatus === "enabled"}
                 <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-good); font-weight: 500;">Enabled</span>
@@ -341,7 +260,7 @@
           </div>
 
           {#if pushStatus === "enabled"}
-            <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 5}>
+            <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 4}>
               Continue
             </button>
           {:else}
@@ -354,11 +273,11 @@
               {#if enablingPush}<Spinner />{/if}
               Enable notifications
             </button>
-            <button class="onboarding-skip" onclick={() => step = 5}>Not now</button>
+            <button class="onboarding-skip" onclick={() => step = 4}>Not now</button>
           {/if}
         </div>
 
-      {:else if step === 5}
+      {:else if step === 4}
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Save your progress</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
@@ -457,16 +376,6 @@
     mask-image: linear-gradient(to bottom, transparent 0, black 16px);
   }
 
-  .preview-list { display: flex; flex-direction: column; gap: 9px; }
-  .preview-job { padding: 13px 14px; border: 1px solid var(--color-line-2); border-radius: var(--radius-md); background: var(--color-bg-sunken); }
-  .preview-job-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  /* Score badge + reason line mirror JobRow exactly, so the preview teaches
-     the same visual grammar the feed uses (semantic tone, not brand pink). */
-  .preview-score { padding: 1px 6px; border-radius: var(--radius-xs); font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-  .preview-job-title { margin-top: 3px; color: var(--color-ink); font-size: var(--fs-md); font-weight: 600; line-height: 1.3; }
-  .preview-job-location { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  .preview-reasons { margin-top: 8px; color: var(--color-accent); font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-2); border-radius: var(--radius-lg); color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.5; text-align: center; }
   .onboarding-skip { width: 100%; margin-top: 12px; padding: 10px; border: 0; background: transparent; color: var(--color-ink-3); font-size: var(--fs-sm); cursor: pointer; }
   .onboarding-skip:hover { color: var(--color-ink); }
   .onboarding-skip:disabled { opacity: 0.5; cursor: default; }

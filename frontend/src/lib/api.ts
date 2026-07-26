@@ -14,12 +14,25 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    ...options,
-  });
+async function request<T>(path: string, options?: RequestInit, timeoutMs = 20_000): Promise<T> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   if (res.status === 204) {
     return undefined as T;
@@ -319,19 +332,6 @@ export interface PreferenceState {
   notify_threshold: number;
 }
 
-export interface MatchPreviewJob {
-  id: string;
-  title: string;
-  location: string;
-  posted_at: string | null;
-  first_seen_at: string;
-  salary: string | null;
-  company_name: string;
-  company_domain: string;
-  score: number;
-  match_reasons: string[];
-}
-
 export const api = {
   jobs: {
     list: (params?: Record<string, string>) => {
@@ -355,7 +355,7 @@ export const api = {
   companies: {
     list: (atsType?: string) => {
       const qs = atsType ? `?ats_type=${atsType}` : "";
-      return request<{ companies: Company[] }>(`/companies${qs}`);
+      return request<{ companies: Company[] }>(`/companies${qs}`, undefined, 12_000);
     },
     toggle: (id: string, enabled: boolean) =>
       request<Company>(`/companies/${id}`, {
@@ -368,7 +368,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
     poll: (id: string) =>
-      request<Company & { new_jobs?: number }>(`/companies/${id}/poll`, { method: "POST" }),
+      request<Company & { new_jobs?: number }>(`/companies/${id}/poll`, { method: "POST" }, 60_000),
     delete: (id: string) =>
       request<void>(`/companies/${id}`, { method: "DELETE" }),
     create: (data: {
@@ -393,7 +393,6 @@ export const api = {
   },
   preferences: {
     get: () => request<PreferenceState>("/preferences"),
-    preview: () => request<{ jobs: MatchPreviewJob[] }>("/preferences/preview"),
     update: (prefs: Partial<PreferenceState>) =>
       request<PreferenceState>("/preferences", {
         method: "PUT",

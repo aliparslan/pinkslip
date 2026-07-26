@@ -1,22 +1,18 @@
 <script lang="ts">
-  // Notification settings: master switch, push enrollment, alert threshold,
-  // and test sends.
+  // Notification settings: master switch, push enrollment, and test sends.
   import { api } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import { enableNativePush, isNativeIos } from "../../lib/native-push";
-  import Slider from "../../components/Slider.svelte";
   import Switch from "../../components/Switch.svelte";
   import Spinner from "../../components/Spinner.svelte";
 
   let {
     notificationEnabled = $bindable(),
-    notificationThreshold = $bindable(),
     pushStatus = $bindable(),
     onError,
     onSuccess,
   }: {
     notificationEnabled: boolean;
-    notificationThreshold: number;
     pushStatus: string;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
@@ -75,7 +71,7 @@
     <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
       <div>
         <div style="font-size: var(--fs-md); font-weight: 500;">Push notifications</div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">Get notified for high-scoring jobs</div>
+        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">Get notified about relevant new jobs</div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); color: {pushStatus === 'enabled' ? 'var(--color-good)' : 'var(--color-ink-4)'};">
@@ -91,27 +87,6 @@
             Enable
           </button>
         {/if}
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Threshold -->
-    <div style="padding: 16px 18px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-        <div>
-          <div style="font-size: var(--fs-md); font-weight: 500;">Alert threshold</div>
-          <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); margin-top: 2px;">Does not change what appears in your feed</div>
-        </div>
-        <span style="font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 600; color: var(--color-accent);">
-          {notificationThreshold}
-        </span>
-      </div>
-      <Slider min={0} max={100} step={5} bind:value={notificationThreshold} />
-      <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-4);">
-        <span>0</span>
-        <span>50</span>
-        <span>100</span>
       </div>
     </div>
 

@@ -115,14 +115,21 @@
     })
   );
 
-  onMount(() => {
+  async function loadCompanies() {
     loading = true;
     error = null;
-    api.companies
-      .list()
-      .then((res) => { companies = res.companies ?? []; })
-      .catch((e) => { error = errorMessage(e); })
-      .finally(() => { loading = false; });
+    try {
+      const result = await api.companies.list();
+      companies = result.companies ?? [];
+    } catch (e) {
+      error = errorMessage(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  onMount(() => {
+    void loadCompanies();
   });
 
   async function handleToggle(id: string, enabled: boolean) {
@@ -553,8 +560,11 @@
         {/each}
       </div>
     {:else if error}
-      <div class="alert alert-error">
-        {error}
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+        <div class="alert alert-error" style="width: 100%;">
+          {error}
+        </div>
+        <button class="btn-secondary" onclick={loadCompanies}>Try again</button>
       </div>
     {:else if filteredCompanies.length === 0}
       <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">

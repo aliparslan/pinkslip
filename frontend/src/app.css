@@ -1,36 +1,5 @@
 @import "tailwindcss";
-
-@font-face {
-  font-family: "American Grotesk";
-  src: url("/fonts/american/american-grotesk-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "American Grotesk";
-  src: url("/fonts/american/american-grotesk-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "American Grotesk";
-  src: url("/fonts/american/american-grotesk-bold.woff2") format("woff2");
-  font-weight: 600 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "American Grotesk";
-  src: url("/fonts/american/american-grotesk-heavy.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
+@import "@fontsource-variable/inter/wght.css";
 
 @font-face {
   font-family: "Founders Grotesk Text";
@@ -124,8 +93,8 @@
 }
 
 @theme {
-  --font-display: "American Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "American Grotesk", "Founders Grotesk Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Founders Grotesk Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 6px;

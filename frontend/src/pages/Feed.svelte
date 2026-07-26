@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api, type Job } from "../lib/api";
-  import { JOB_SCORE_RAW_MAX } from "../lib/scoring";
   import { timeAgo, errorMessage } from "../lib/utils";
   import { searchOpen, unviewedCount } from "../lib/feed-state";
   import { feed, PAGE_SIZE, type FeedSort } from "../lib/feed-store.svelte";
@@ -9,7 +8,6 @@
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
-  import Slider from "../components/Slider.svelte";
   import Switch from "../components/Switch.svelte";
   import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
@@ -64,9 +62,9 @@
   ];
 
   const SORT_OPTIONS: { label: string; value: FeedSort; hint: string }[] = [
+    { label: "Recommended", value: "score", hint: "Put the most relevant jobs first" },
     { label: "Newest", value: "last_posted", hint: "Sort by when the company posted the job" },
     { label: "Just found", value: "last_seen", hint: "Sort by when pinkslip first found the job" },
-    { label: "Match score", value: "score", hint: "Sort by match score" },
   ];
 
   // Show the staleness warning once the poller is clearly behind its
@@ -76,7 +74,6 @@
   let loading: boolean = $state(!feed.hydrated && feed.jobs.length === 0);
   let error: string | null = $state(null);
   let filtersOpen: boolean = $state(false);
-  let profileThreshold: number = $state(50);
   let currentProfile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let showProfileConfirm: boolean = $state(false);
   let savingProfileFilters: boolean = $state(false);
@@ -112,7 +109,6 @@
     if (hasLocationFilter) count += 1;
     if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
     if (feed.maxYoe) count += 1;
-    if (feed.minMatch !== profileThreshold) count += 1;
     if (feed.savedOnly) count += 1;
     return count;
   });
@@ -127,9 +123,8 @@
       parts.push(`${min}-${max}`);
     }
     if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
-    if (feed.minMatch !== profileThreshold) parts.push(`${feed.minMatch}+ match`);
     if (feed.savedOnly) parts.push("Saved");
-    return parts.length > 0 ? parts.join(" · ") : "Your matches";
+    return parts.length > 0 ? parts.join(" · ") : "Recommended for you";
   });
 
   // Drive the bell badge
@@ -145,10 +140,6 @@
     }
   });
 
-  function thresholdToRaw(threshold: number): number {
-    return Math.max(0, Math.min(JOB_SCORE_RAW_MAX, Math.round((threshold / 100) * JOB_SCORE_RAW_MAX)));
-  }
-
   function buildFeedParams(limit = PAGE_SIZE, offset = 0) {
     const params: Record<string, string> = {
       sort: feed.sortBy,
@@ -156,7 +147,6 @@
       offset: String(offset),
     };
 
-    if (feed.minMatch > 0) params.min_score = String(thresholdToRaw(feed.minMatch));
     if (feed.searchQuery.trim()) {
       params.q = feed.searchQuery.trim();
     }
@@ -207,13 +197,7 @@
 
         if (version !== requestVersion) return;
 
-        feed.notifyThreshold = prefsRes.notify_threshold ?? 50;
         currentProfile = normalizeSearchProfile(prefsRes.search_profile);
-        profileThreshold = currentProfile.match_threshold ?? feed.notifyThreshold;
-        // Follow the saved profile threshold unless the user has an active custom
-        // match filter. Without this, the feed kept filtering at a stale cached
-        // value after the threshold changed in Settings.
-        if (!feed.customMinMatch) feed.minMatch = profileThreshold;
         feed.lastPolled = statsRes.lastPolled ?? null;
       }
 
@@ -276,7 +260,6 @@
     sortBy?: FeedSort;
     searchQuery?: string;
     savedOnly?: boolean;
-    minMatch?: number;
     minSalaryK?: string;
     maxSalaryK?: string;
     maxYoe?: string;
@@ -293,9 +276,6 @@
     if (updates?.savedOnly !== undefined) {
       feed.savedOnly = updates.savedOnly;
     }
-    if (updates?.minMatch !== undefined) {
-      feed.minMatch = updates.minMatch;
-    }
     if (updates?.minSalaryK !== undefined) {
       feed.minSalaryK = updates.minSalaryK;
     }
@@ -305,7 +285,6 @@
     if (updates?.maxYoe !== undefined) {
       feed.maxYoe = updates.maxYoe;
     }
-    feed.customMinMatch = feed.minMatch !== profileThreshold;
     error = null;
     feed.hasMore = true;
     feed.nextOffset = 0;
@@ -338,8 +317,6 @@
     feed.minSalaryK = "";
     feed.maxSalaryK = "";
     feed.maxYoe = "";
-    feed.minMatch = profileThreshold;
-    feed.customMinMatch = false;
     feed.savedOnly = false;
     showProfileConfirm = false;
   }
@@ -348,9 +325,6 @@
 
   let profileFilterChanges = $derived.by(() => {
     const changes: string[] = [];
-    if (feed.minMatch !== currentProfile.match_threshold) {
-      changes.push(`Default match threshold: ${currentProfile.match_threshold} → ${feed.minMatch}`);
-    }
     if (hasLocationFilter) {
       const labels = feed.selectedLocations.map(locationLabel).join(", ");
       changes.push(`Preferred locations: ${labels}`);
@@ -367,7 +341,6 @@
       const includesRemote = feed.selectedLocations.includes("Remote");
       const nextProfile = normalizeSearchProfile({
         ...currentProfile,
-        match_threshold: feed.minMatch,
         location_ids: hasLocationFilter ? locationIds : currentProfile.location_ids,
         work_modes: hasLocationFilter
           ? includesRemote
@@ -377,15 +350,12 @@
       });
       const saved = await api.preferences.update({
         search_profile: nextProfile,
-        notify_threshold: feed.notifyThreshold,
       });
       currentProfile = normalizeSearchProfile(saved.search_profile);
-      profileThreshold = currentProfile.match_threshold;
-      feed.customMinMatch = feed.minMatch !== profileThreshold;
       await api.interactions.event({
         event_name: "search_profile_adjusted",
         entity_type: "search_profile",
-        properties: { source: "feed_filters", threshold: profileThreshold },
+        properties: { source: "feed_filters" },
       }).catch(() => undefined);
       showProfileConfirm = false;
       filtersOpen = false;
@@ -404,7 +374,6 @@
       minSalaryK: feed.minSalaryK,
       maxSalaryK: feed.maxSalaryK,
       maxYoe: feed.maxYoe,
-      minMatch: feed.minMatch,
       savedOnly: feed.savedOnly,
     });
   }
@@ -708,17 +677,6 @@
             </section>
 
             <section class="filter-group">
-              <div class="filter-row">
-                <div>
-                  <div class="filter-group-title">Match score</div>
-                  <div class="filter-help">{feed.minMatch}+ minimum</div>
-                </div>
-                <div class="filter-value">{feed.minMatch}</div>
-              </div>
-              <Slider min={0} max={100} step={5} bind:value={feed.minMatch} />
-            </section>
-
-            <section class="filter-group">
               <div class="filter-toggle" class:active={feed.savedOnly}>
                 <span>Saved jobs only</span>
                 <Switch
@@ -750,7 +708,7 @@
           {/if}
 
           <div class="filter-sheet-actions action-row">
-            <button class="btn-secondary" onclick={resetFilters}>Reset to profile</button>
+            <button class="btn-secondary" onclick={resetFilters}>Reset filters</button>
             {#if profileFilterChanges.length > 0 && !showProfileConfirm}
               <button class="btn-secondary" onclick={() => { showProfileConfirm = true; }}>Update profile</button>
             {/if}

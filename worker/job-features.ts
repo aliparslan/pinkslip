@@ -9,7 +9,7 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-export const JOB_CLASSIFIER_VERSION = "deterministic-v4";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v5";
 
 export interface JobFeatures {
   role_family: RoleFamily;
@@ -78,10 +78,7 @@ function classifySeniority(
 ): JobFeatures["seniority"] {
   const text = title.toLowerCase();
   if (/\b(?:chief|vice president|vp|head of)\b/.test(text)) return "executive";
-  if (
-    /\b(?:manager|director)\b/.test(text)
-    && !/\b(?:product|technical program) manager\b/.test(text)
-  ) return "manager";
+  if (/\b(?:manager|director)\b/.test(text)) return "manager";
   if (/\b(?:staff|principal|distinguished|fellow)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
   if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";

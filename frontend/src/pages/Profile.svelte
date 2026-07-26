@@ -36,7 +36,6 @@
   let isAdmin: boolean = $state(false);
   let features: AppFeatures | null = $state(null);
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
-  let notificationThreshold: number = $state(50);
   let notificationEnabled: boolean = $state(false);
   let pushStatus: string = $state("disabled");
 
@@ -94,7 +93,6 @@
       name: displayName.trim(),
       profile: searchProfile,
       enabled: notificationEnabled,
-      threshold: notificationThreshold,
     });
   }
 
@@ -139,7 +137,6 @@
       await api.push.updateSettings({
         enabled: notificationEnabled,
         push_enabled: true,
-        threshold: notificationThreshold,
       });
       const normalized = normalizeSearchProfile(savedPreferences.search_profile);
       if (currentKey() === sentKey) {
@@ -153,7 +150,7 @@
       void api.interactions.event({
         event_name: "search_profile_adjusted",
         entity_type: "search_profile",
-        properties: { source: "settings", threshold: searchProfile.match_threshold },
+        properties: { source: "settings" },
       }).catch(() => undefined);
       if (!silent) showSuccess("Preferences saved.");
     } catch (e) {
@@ -188,13 +185,11 @@
       if (prefsResult.status === "fulfilled") {
         const prefs = prefsResult.value;
         searchProfile = normalizeSearchProfile(prefs.search_profile);
-        notificationThreshold = prefs.notify_threshold ?? 50;
       } else {
         throw prefsResult.reason;
       }
       if (notificationResult.status === "fulfilled") {
         notificationEnabled = notificationResult.value.enabled;
-        notificationThreshold = notificationResult.value.threshold;
       }
 
       pushStatus = await getNativePushStatus();
@@ -402,7 +397,6 @@
         {#if activeSettingsSection === "notifications"}
           <NotifySection
             bind:notificationEnabled
-            bind:notificationThreshold
             bind:pushStatus
             onError={showError}
             onSuccess={showSuccess}

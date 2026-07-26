@@ -20,8 +20,9 @@ import { loadUserPreferenceState, scoringPrefsFromState } from "./user-preferenc
 import { closestSelectedRole, roleAffinity } from "../shared/role-affinity";
 
 // Bump whenever scoring semantics change so cached user_job_matches are rebuilt.
-// v5 narrows the product to the fixed new-grad/early-career band.
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-6";
+// v7 removes primary-role weighting and the deferred product/program/design
+// specialties while keeping relevance ranking as an internal concern.
+export const MATCH_SCORER_VERSION = "profile-v2-deterministic-7";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -354,7 +355,7 @@ export async function ensureUserJobMatchesReady(
 }
 
 // The on-demand warm-up (ensureUserJobMatchesReady) stops at 25 matches and never
-// scans past the most recent jobs, so older strong matches never surface. Each
+// scans past the most recent jobs, so older relevant jobs never surface. Each
 // cron tick, advance the scoring cursor by one batch for a few users who still
 // have eligible jobs older than their cursor. Fully caught-up users are skipped,
 // so the backlog drains over a few ticks and then this becomes a no-op.

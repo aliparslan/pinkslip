@@ -59,22 +59,6 @@ export const ROLE_OPTIONS = [
     departments: ["machine learning", "ml", "ai", "research", "data"],
   },
   {
-    id: "product_management",
-    family: "product",
-    label: "Product Management",
-    shortLabel: "Product",
-    keywords: ["product manager", "product lead", "product owner", "growth product manager"],
-    departments: ["product"],
-  },
-  {
-    id: "technical_program_management",
-    family: "product",
-    label: "Technical Program Management",
-    shortLabel: "TPM",
-    keywords: ["technical program manager", "technical program management"],
-    departments: ["program management", "technical program management", "product"],
-  },
-  {
     id: "infrastructure",
     family: "engineering",
     label: "Infrastructure & SRE",
@@ -89,14 +73,6 @@ export const ROLE_OPTIONS = [
     shortLabel: "Security",
     keywords: ["security engineer", "application security", "product security", "security researcher"],
     departments: ["security", "engineering"],
-  },
-  {
-    id: "design",
-    family: "design",
-    label: "Product Design",
-    shortLabel: "Design",
-    keywords: ["product designer", "ux designer", "ui designer", "design systems"],
-    departments: ["design", "product"],
   },
 ] as const;
 
@@ -239,9 +215,6 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
     : {};
   const roles = stringList(input.roles, ROLE_OPTIONS.length).filter((role): role is RoleId => ROLE_IDS.has(role));
   const selectedRoles = roles.length > 0 ? roles : [...DEFAULT_SEARCH_PROFILE.roles];
-  const primaryRole = typeof input.primary_role === "string" && selectedRoles.includes(input.primary_role as RoleId)
-    ? input.primary_role as RoleId
-    : selectedRoles[0];
   const legacyLevel = levelFromLegacy(input.experience_level);
   const targetLevels = stringList(input.target_levels, EXPERIENCE_OPTIONS.length)
     .filter((level): level is ExperienceLevel => EXPERIENCE_IDS.has(level));
@@ -252,7 +225,10 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
 
   return {
     version: SEARCH_PROFILE_VERSION,
-    primary_role: primaryRole,
+    // Kept in the stored shape for backward compatibility with the ranking
+    // pipeline. The product no longer asks users to designate a primary role;
+    // selection order is the single internal source of truth.
+    primary_role: selectedRoles[0],
     roles: selectedRoles,
     years_experience: numberInRange(
       input.years_experience,

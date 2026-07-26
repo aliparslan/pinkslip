@@ -27,6 +27,7 @@
   let signingOut: boolean = $state(false);
   let deletingAccount: boolean = $state(false);
   let showDeleteConfirm: boolean = $state(false);
+  let showRestartConfirm: boolean = $state(false);
 
   async function handleAppleLogin() {
     signingInWithApple = true;
@@ -60,8 +61,10 @@
     signingOut = true;
     try {
       await api.auth.logout();
-      await onReload();
-      onSuccess("Signed out. You’re back in guest mode on this device.");
+      const nextUrl = new URL(window.location.href);
+      nextUrl.hash = "/";
+      window.history.replaceState({}, "", nextUrl.toString());
+      window.location.reload();
     } catch (e) {
       onError(errorMessage(e));
     } finally {
@@ -103,8 +106,8 @@
       </div>
 
       <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-        <button class="btn-secondary" type="button" onclick={handleLogout} disabled={signingOut}>
-          {signingOut ? "Signing out..." : "Sign out"}
+        <button class="btn-secondary" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
+          Log out &amp; restart setup
         </button>
         <button class="btn-secondary btn-danger" type="button" onclick={() => (showDeleteConfirm = true)} disabled={deletingAccount}>
           Delete account
@@ -153,9 +156,33 @@
           Send link
         </button>
       </div>
+
+      <button class="btn-secondary" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
+        Restart onboarding
+      </button>
     {/if}
   </div>
 </section>
+
+{#if showRestartConfirm}
+  <Modal
+    title={sessionState === "authenticated" ? "Log out and restart setup?" : "Restart onboarding?"}
+    subtitle={sessionState === "authenticated"
+      ? "You’ll be signed out on this device and return to the first setup screen. Your account data stays saved."
+      : "This starts a new guest profile. The jobs and preferences in this guest session will no longer be accessible."}
+    busy={signingOut}
+    maxWidth={340}
+    onclose={() => (showRestartConfirm = false)}
+  >
+    <div class="action-row">
+      <button class="btn-secondary" onclick={() => (showRestartConfirm = false)} disabled={signingOut}>Cancel</button>
+      <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleLogout} disabled={signingOut}>
+        {#if signingOut}<Spinner />{/if}
+        Restart setup
+      </button>
+    </div>
+  </Modal>
+{/if}
 
 {#if showDeleteConfirm}
   <Modal
