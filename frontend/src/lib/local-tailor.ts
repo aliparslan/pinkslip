@@ -328,12 +328,6 @@ export function saveLocalTailorDraft(draft: LocalTailorDraft) {
   saveDraftMap(trimmed);
 }
 
-export function clearLocalTailorDraft(jobId: string) {
-  const drafts = loadDraftMap();
-  delete drafts[jobId];
-  saveDraftMap(drafts);
-}
-
 export function getLocalResumeTailorText(kit: LocalTailorKit | null) {
   return kit?.resume?.textContent?.trim() ?? "";
 }

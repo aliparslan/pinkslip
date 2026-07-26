@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Admin-only operations: product metrics, scorer rollouts, feedback inbox,
+  // Admin-only operations: product metrics, feedback inbox,
   // content reports, and poller controls. Loads its own data on mount so the
   // user-facing Profile page doesn't carry any of this.
   import { onMount } from "svelte";
@@ -9,7 +9,6 @@
     type FeedbackSubmission,
     type FetchRun,
     type ProductMetrics,
-    type ScorerRollout,
   } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import Spinner from "../../components/Spinner.svelte";
@@ -27,8 +26,6 @@
   let productMetrics: ProductMetrics | null = $state(null);
   let reports: ContentReport[] = $state([]);
   let feedbackInbox: FeedbackSubmission[] = $state([]);
-  let scorerRollouts: ScorerRollout[] = $state([]);
-  let updatingRollout: string | null = $state(null);
   let refreshingAll: boolean = $state(false);
   let refreshLog: string[] = $state([]);
 
@@ -41,12 +38,11 @@
   async function loadAdminData() {
     loading = true;
     try {
-      [runs, productMetrics, reports, feedbackInbox, scorerRollouts] = await Promise.all([
+      [runs, productMetrics, reports, feedbackInbox] = await Promise.all([
         api.runs.list(50).then((result) => result.runs ?? []).catch(() => []),
         api.metrics.get().catch(() => null),
         api.interactions.reports("open").then((result) => result.reports).catch(() => []),
         api.interactions.feedback("active").then((result) => result.feedback).catch(() => []),
-        api.metrics.rollouts().then((result) => result.rollouts).catch(() => []),
       ]);
     } finally {
       loading = false;
@@ -92,25 +88,6 @@
     }
   }
 
-  async function saveRollout(rollout: ScorerRollout) {
-    if (updatingRollout) return;
-    updatingRollout = rollout.scorer_version;
-    try {
-      const result = await api.metrics.updateRollout(rollout.scorer_version, {
-        mode: rollout.mode,
-        cohort_percent: rollout.cohort_percent,
-      });
-      scorerRollouts = scorerRollouts.map((item) =>
-        item.scorer_version === result.rollout.scorer_version ? result.rollout : item
-      );
-      onSuccess("Scorer rollout updated. Matches will rebuild as users return.");
-    } catch (e) {
-      onError(errorMessage(e));
-    } finally {
-      updatingRollout = null;
-    }
-  }
-
   async function refreshAllCompanies() {
     refreshingAll = true;
     try {
@@ -141,6 +118,8 @@
         <div class="ops-metric"><span>Alert open rate</span><strong>{productMetrics.notification_open_rate}%</strong></div>
         <div class="ops-metric"><span>Viable profiles</span><strong>{productMetrics.users_with_enough_matches}/{productMetrics.total_profiles}</strong></div>
         <div class="ops-metric"><span>Onboarding complete</span><strong>{productMetrics.onboarding_completion_rate}%</strong></div>
+        <div class="ops-metric"><span>Accounts created</span><strong>{productMetrics.accounts_created}</strong></div>
+        <div class="ops-metric"><span>Push registrations</span><strong>{productMetrics.push_registrations}</strong></div>
         <div class="ops-metric"><span>Fast apply clicks</span><strong>{productMetrics.apply_clicks_within_one_hour}</strong></div>
         <div class="ops-metric"><span>High-score dismiss</span><strong>{productMetrics.high_score_dismissal_rate}%</strong></div>
         <div class="ops-metric"><span>Tailor to apply</span><strong>{productMetrics.tailoring_to_application_rate}%</strong></div>
@@ -150,63 +129,6 @@
       </div>
     </section>
   {/if}
-
-  <section>
-    <h2 class="section-label" style="display: block; margin-bottom: 10px;">Scorer rollout</h2>
-    <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 14px;">
-      {#if scorerRollouts.length === 0}
-        <div style="font-size: var(--fs-sm); color: var(--color-ink-3);">No candidate scorer is configured.</div>
-      {:else}
-        {#each scorerRollouts as rollout}
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div style="display: flex; justify-content: space-between; gap: 12px;">
-              <div>
-                <div style="font-size: var(--fs-md); font-weight: 600;">{rollout.scorer_version}</div>
-                <div style="font-size: var(--fs-2xs); color: var(--color-ink-3); margin-top: 3px;">
-                  Shadow records comparisons. Active changes feed scores only for the selected cohort.
-                </div>
-              </div>
-              <span class="tag">{rollout.mode}</span>
-            </div>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;">
-              <div>
-                <label class="field-label" for="rollout-mode-{rollout.scorer_version}">Mode</label>
-                <select id="rollout-mode-{rollout.scorer_version}" class="input-field" bind:value={rollout.mode}>
-                  <option value="off">Off</option>
-                  <option value="shadow">Shadow</option>
-                  <option value="active">Active</option>
-                </select>
-              </div>
-              <div>
-                <label class="field-label" for="rollout-cohort-{rollout.scorer_version}">Cohort %</label>
-                <input
-                  id="rollout-cohort-{rollout.scorer_version}"
-                  class="input-field"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="5"
-                  bind:value={rollout.cohort_percent}
-                />
-              </div>
-            </div>
-            <button
-              class="btn-secondary"
-              onclick={() => saveRollout(rollout)}
-              disabled={updatingRollout !== null}
-            >
-              {updatingRollout === rollout.scorer_version ? "Updating..." : "Apply rollout"}
-            </button>
-            {#each productMetrics?.scorer_audits.filter((audit) => audit.candidate_version === rollout.scorer_version) ?? [] as audit}
-              <div style="font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-3);">
-                {audit.comparisons} comparisons · avg {audit.average_delta >= 0 ? "+" : ""}{audit.average_delta} · {audit.major_disagreements} major disagreements
-              </div>
-            {/each}
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </section>
 
   <section>
     <h2 class="section-label" style="display: block; margin-bottom: 10px;">Feedback inbox</h2>

@@ -1,4 +1,11 @@
-import { LOCATION_OPTIONS, ROLE_OPTIONS, roleLabel, type SearchProfile } from "../shared/search-profile";
+import {
+  isEligibleSeniority,
+  LOCATION_OPTIONS,
+  MAX_YEARS_EXPERIENCE,
+  ROLE_OPTIONS,
+  roleLabel,
+  type SearchProfile,
+} from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 import {
   classifyJob,
@@ -10,8 +17,11 @@ import {
 } from "./job-features";
 import { normalizeScore, scoreJob, type ScoreBreakdown } from "./scoring";
 import { loadUserPreferenceState, scoringPrefsFromState } from "./user-preferences";
+import { closestSelectedRole, roleAffinity } from "../shared/role-affinity";
 
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-4";
+// Bump whenever scoring semantics change so cached user_job_matches are rebuilt.
+// v5 narrows the product to the fixed new-grad/early-career band.
+export const MATCH_SCORER_VERSION = "profile-v2-deterministic-6";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -19,8 +29,6 @@ export interface UserJobMatch {
   breakdown: ScoreBreakdown;
   reasons: string[];
   plausible: boolean;
-  shadowScore: number;
-  shadowReasons: string[];
 }
 
 interface FeatureColumns {
@@ -42,12 +50,6 @@ interface FeatureColumns {
 }
 
 type MatchableJobRow = FeatureJobRow & FeatureColumns;
-type ScorerRollout = {
-  scorer_version: string;
-  mode: "off" | "shadow" | "active";
-  cohort_percent: number;
-};
-
 function parseJsonList<T extends string>(value: string): T[] {
   try {
     const parsed = JSON.parse(value);
@@ -86,9 +88,25 @@ function buildReasons(
   breakdown: ScoreBreakdown
 ): string[] {
   const reasons: string[] = [];
-  const matchedRole = features.specialties.find((specialty) => profile.roles.includes(specialty));
-  if (matchedRole) {
-    reasons.push(`${roleLabel(matchedRole)} role`);
+  const matchedRole = features.specialties
+    .map((specialty) => ({ specialty, affinity: roleAffinity(specialty, profile.primary_role, profile.roles) }))
+    .sort((a, b) => b.affinity - a.affinity)[0];
+  const date = listing.postedAt ? new Date(listing.postedAt) : null;
+  if (date && Number.isFinite(date.getTime()) && Date.now() - date.getTime() < 24 * 60 * 60 * 1000) {
+    reasons.push("New today");
+  }
+
+  if (features.min_years !== null) {
+    reasons.push(features.min_years === 0 ? "Entry-level requirement" : `Asks for ${features.min_years}+ years`);
+  } else if (features.seniority === "new_grad" || features.seniority === "early_career") {
+    reasons.push("Early-career level");
+  }
+
+  if (matchedRole?.affinity) {
+    const selectedRole = closestSelectedRole(matchedRole.specialty, profile.primary_role, profile.roles);
+    reasons.push(matchedRole.affinity >= 0.9
+      ? `Matches your ${roleLabel(matchedRole.specialty)} focus`
+      : `Related to your ${roleLabel(selectedRole ?? profile.primary_role)} focus`);
   } else if (breakdown.title_score > 0) {
     reasons.push(`${roleLabel(profile.primary_role)} title match`);
   }
@@ -101,20 +119,13 @@ function buildReasons(
     if (metro && profile.location_ids.includes(metro.id)) reasons.push(metro.label);
   }
 
-  if (features.min_years !== null) {
-    reasons.push(`Asks for ${features.min_years}+ years`);
-  } else if (features.seniority !== "unknown") {
+  if (features.min_years === null && !["unknown", "new_grad", "early_career"].includes(features.seniority)) {
     const level = features.seniority.replaceAll("_", " ");
     reasons.push(`${level[0].toUpperCase()}${level.slice(1)} level`);
   }
 
   if (profile.work_authorization === "sponsorship" && features.sponsorship_available === true) {
     reasons.push("Sponsorship available");
-  }
-
-  const date = listing.postedAt ? new Date(listing.postedAt) : null;
-  if (date && Number.isFinite(date.getTime()) && Date.now() - date.getTime() < 24 * 60 * 60 * 1000) {
-    reasons.push("New today");
   }
 
   return [...new Set(reasons)].slice(0, 4);
@@ -130,44 +141,43 @@ export function scoreJobForProfile(
     search_profile: profile,
     notify_threshold: profile.match_threshold,
   }));
-  const selectedSpecialty = features.specialties.some((specialty) => profile.roles.includes(specialty));
+  const strongestRoleAffinity = Math.max(
+    0,
+    ...features.specialties.map((specialty) => roleAffinity(specialty, profile.primary_role, profile.roles))
+  );
+  const selectedSpecialty = strongestRoleAffinity > 0;
   const customTitle = profile.custom_titles.some((title) => listing.title.toLowerCase().includes(title.toLowerCase()));
-  const titleScore = selectedSpecialty || customTitle ? 30 : base.title_score;
-  const stretchYears = profile.stretch_tolerance === "strict"
-    ? 0
-    : profile.stretch_tolerance === "balanced"
-      ? 2
-      : 4;
+  const titleScore = customTitle
+    ? 29
+    : strongestRoleAffinity >= 1
+      ? 30
+      : strongestRoleAffinity >= 0.9
+        ? 27
+        : strongestRoleAffinity > 0
+          ? 22
+          : base.title_score;
+  // Seniority is a fixed band, not a comparison against the user's selection.
+  // The old form was `featureRank > Math.max(...target_levels) + allowance`,
+  // which enforced a ceiling and no floor: selecting "Senior" alongside "Early
+  // career" raised the ceiling to staff+ and admitted everything beneath it.
+  const seniorityDisqualified = !isEligibleSeniority(features.seniority);
+
+  // A stated requirement above the ceiling is the only hard experience signal.
+  // A posting that states nothing is NOT excluded — see ELIGIBLE_SENIORITIES.
   const experienceDisqualified = features.min_years !== null
-    && features.min_years > profile.years_experience + stretchYears;
-  const seniorityRank: Record<JobFeatures["seniority"], number> = {
-    internship: 0,
-    new_grad: 1,
-    early_career: 2,
-    mid_level: 3,
-    senior: 4,
-    staff_plus: 5,
-    manager: 5,
-    executive: 6,
-    unknown: -1,
-  };
-  const targetRank = Math.max(...profile.target_levels.map((level) => seniorityRank[level]));
-  const levelAllowance = profile.stretch_tolerance === "strict"
-    ? 0
-    : profile.stretch_tolerance === "balanced"
-      ? 1
-      : 2;
-  const featureRank = seniorityRank[features.seniority];
-  const seniorityDisqualified = featureRank >= 0 && featureRank > targetRank + levelAllowance;
+    && features.min_years > MAX_YEARS_EXPERIENCE;
+
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
     && features.sponsorship_available === false;
+
+  // An explicitly in-band requirement ranks above a posting that says nothing,
+  // so genuine new-grad listings float above the generic majority rather than
+  // being lost among them.
   const yoeScore = features.min_years === null
-    ? base.yoe_score
-    : features.min_years <= profile.years_experience
-      ? 25
-      : experienceDisqualified
-        ? 0
-        : 10;
+    ? 19
+    : features.min_years <= MAX_YEARS_EXPERIENCE
+      ? 25 - features.min_years
+      : 0;
   const rawScore = experienceDisqualified || seniorityDisqualified || sponsorshipDisqualified
     ? Math.min(15, base.location_score + base.department_score + base.recency_score)
     : titleScore === 0
@@ -185,55 +195,20 @@ export function scoreJobForProfile(
     && !sponsorshipDisqualified
     && (selectedSpecialty || customTitle || breakdown.title_score > 0)
     && normalized >= 25;
-  const shadowReasons: string[] = [];
-  let shadowScore = breakdown.score;
-  if (features.specialties.includes(profile.primary_role)) {
-    shadowScore += 3;
-    shadowReasons.push("primary_role_bonus");
-  } else if (selectedSpecialty) {
-    shadowScore -= 2;
-    shadowReasons.push("secondary_role_penalty");
-  }
-  if (features.min_years === null && features.seniority === "unknown") {
-    shadowScore -= 3;
-    shadowReasons.push("unknown_experience_penalty");
-  }
-  if (features.confidence < 0.6) {
-    shadowScore -= 3;
-    shadowReasons.push("low_classifier_confidence");
-  }
-  shadowScore = Math.max(0, Math.min(95, shadowScore));
   return {
     jobId,
     breakdown,
     reasons: buildReasons(listing, features, profile, breakdown),
     plausible,
-    shadowScore,
-    shadowReasons,
   };
-}
-
-async function loadScorerRollout(db: D1Database): Promise<ScorerRollout | null> {
-  return db.prepare(
-    `SELECT scorer_version, mode, cohort_percent
-     FROM scorer_rollouts
-     WHERE mode != 'off'
-     ORDER BY datetime(updated_at) DESC
-     LIMIT 1`
-  ).first<ScorerRollout>();
 }
 
 async function storeMatches(db: D1Database, userId: string, matches: UserJobMatch[]) {
   const plausible = matches.filter((match) => match.plausible);
   if (plausible.length === 0) return;
   const now = new Date().toISOString();
-  const rollout = await loadScorerRollout(db);
-  const candidateEnabled = Boolean(
-    rollout && scorerCohortBucket(userId) < rollout.cohort_percent
-  );
   for (let offset = 0; offset < plausible.length; offset += 75) {
     await db.batch(plausible.slice(offset, offset + 75).map((match) => {
-      const candidateActive = candidateEnabled && rollout?.mode === "active";
       return db.prepare(
         `INSERT INTO user_job_matches (
            user_id, job_id, score, title_score, yoe_score, location_score,
@@ -254,68 +229,18 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
       ).bind(
         userId,
         match.jobId,
-        candidateActive ? match.shadowScore : match.breakdown.score,
+        match.breakdown.score,
         match.breakdown.title_score,
         match.breakdown.yoe_score,
         match.breakdown.location_score,
         match.breakdown.department_score,
         match.breakdown.recency_score,
         JSON.stringify(match.reasons),
-        candidateActive ? rollout!.scorer_version : MATCH_SCORER_VERSION,
+        MATCH_SCORER_VERSION,
         now,
         now
       );
     }));
-  }
-  if (rollout && candidateEnabled) {
-    await storeScorerAudits(db, userId, plausible, rollout);
-  }
-}
-
-export function scorerCohortBucket(userId: string): number {
-  let hash = 2166136261;
-  for (const char of userId) {
-    hash ^= char.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash) % 100;
-}
-
-async function storeScorerAudits(
-  db: D1Database,
-  userId: string,
-  matches: UserJobMatch[],
-  rollout: ScorerRollout
-) {
-  if (matches.length === 0) return;
-
-  const now = new Date().toISOString();
-  for (let offset = 0; offset < matches.length; offset += 75) {
-    await db.batch(matches.slice(offset, offset + 75).map((match) =>
-      db.prepare(
-        `INSERT INTO scorer_audits (
-           user_id, job_id, stable_version, candidate_version,
-           stable_score, candidate_score, delta, reasons_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(user_id, job_id, candidate_version) DO UPDATE SET
-           stable_version = excluded.stable_version,
-           stable_score = excluded.stable_score,
-           candidate_score = excluded.candidate_score,
-           delta = excluded.delta,
-           reasons_json = excluded.reasons_json,
-           created_at = excluded.created_at`
-      ).bind(
-        userId,
-        match.jobId,
-        MATCH_SCORER_VERSION,
-        rollout.scorer_version,
-        match.breakdown.score,
-        match.shadowScore,
-        match.shadowScore - match.breakdown.score,
-        JSON.stringify(match.shadowReasons),
-        now
-      )
-    ));
   }
 }
 
@@ -339,8 +264,12 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
   const cursor = await db.prepare(
     "SELECT match_cursor_seen_at FROM user_search_profiles WHERE user_id = ?"
   ).bind(userId).first<{ match_cursor_seen_at: string | null }>();
+  // No datetime() wrapping: first_seen_at is written with toISOString(), and
+  // fixed-format ISO-8601 sorts lexicographically exactly as it sorts
+  // chronologically. Wrapping the column in a function made idx_jobs_first_seen
+  // unusable and forced a full scan + sort of every open job on each call.
   const cursorClause = cursor?.match_cursor_seen_at
-    ? "AND datetime(j.first_seen_at) < datetime(?)"
+    ? "AND j.first_seen_at < ?"
     : "";
   const bindings: Array<string | number> = cursor?.match_cursor_seen_at
     ? [cursor.match_cursor_seen_at, MATCH_WARM_BATCH_SIZE]
@@ -359,20 +288,15 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
        ${cursorClause}
-     ORDER BY datetime(j.first_seen_at) DESC
+     ORDER BY j.first_seen_at DESC
      LIMIT ?`
   ).bind(...bindings).all<MatchableJobRow>();
 }
 
 async function removeStaleMatches(db: D1Database, userId: string) {
-  const rollout = await loadScorerRollout(db);
-  const activeVersion = rollout?.mode === "active"
-    && scorerCohortBucket(userId) < rollout.cohort_percent
-    ? rollout.scorer_version
-    : MATCH_SCORER_VERSION;
   const cleanup = await db.prepare(
     "DELETE FROM user_job_matches WHERE user_id = ? AND scorer_version != ?"
-  ).bind(userId, activeVersion).run();
+  ).bind(userId, MATCH_SCORER_VERSION).run();
   if ((cleanup.meta.changes ?? 0) > 0) {
     await db.prepare(
       "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"
@@ -436,22 +360,37 @@ export async function ensureUserJobMatchesReady(
 // so the backlog drains over a few ticks and then this becomes a no-op.
 export async function advanceBacklogScoring(
   db: D1Database,
-  maxUsers = 15
+  maxUsers = 1
 ): Promise<number> {
+  // This was a correlated EXISTS: for every profile it re-scanned open jobs
+  // joined to companies, calling datetime() twice per row — ~94 profiles ×
+  // ~3,600 open jobs in one statement. That is what exceeded D1's CPU limit and
+  // killed the cron every 15 minutes from 2026-06-17 onward.
+  //
+  // "Some open job is older than this cursor" is equivalent to "this cursor is
+  // newer than the oldest open job", so the whole correlated scan collapses to
+  // one aggregate plus a plain indexed string comparison.
+  const oldest = await db.prepare(
+    `SELECT MIN(j.first_seen_at) AS first_seen_at
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     WHERE c.enabled = 1 AND j.closed_at IS NULL`
+  ).first<{ first_seen_at: string | null }>();
+  if (!oldest?.first_seen_at) return 0;
+
+  // One user is intentional. A batch evaluates up to 750 jobs and can take
+  // substantial D1 work; attempting 15 sequentially hit the database CPU limit
+  // before fetch_runs could reach its completion update. Active users still
+  // warm four batches on demand, while cron drains one inactive user's backlog
+  // per tick.
   const users = await db.prepare(
-    `SELECT usp.user_id
-     FROM user_search_profiles usp
-     WHERE usp.match_cursor_seen_at IS NOT NULL
-       AND EXISTS (
-         SELECT 1 FROM jobs j
-         JOIN companies c ON c.id = j.company_id
-         WHERE c.enabled = 1
-           AND j.closed_at IS NULL
-           AND datetime(j.first_seen_at) < datetime(usp.match_cursor_seen_at)
-       )
-     ORDER BY datetime(usp.updated_at) ASC
+    `SELECT user_id
+     FROM user_search_profiles
+     WHERE match_cursor_seen_at IS NOT NULL
+       AND match_cursor_seen_at > ?
+     ORDER BY updated_at ASC
      LIMIT ?`
-  ).bind(maxUsers).all<{ user_id: string }>();
+  ).bind(oldest.first_seen_at, maxUsers).all<{ user_id: string }>();
 
   let advanced = 0;
   for (const { user_id: userId } of users.results ?? []) {

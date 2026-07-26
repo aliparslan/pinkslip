@@ -28,6 +28,11 @@ function handleNotificationUrl(data: unknown): void {
 
 let listenersReady = false;
 let serviceWorkerPromise: Promise<ServiceWorkerRegistration> | null = null;
+let nativeRegistration: {
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: Error) => void;
+} | null = null;
 
 function webPushSupported() {
   return !isNativeIos()
@@ -55,15 +60,19 @@ async function ensureListeners(): Promise<void> {
   listenersReady = true;
 
   // Deliver the APNs device token to the API as soon as registration succeeds.
-  await PushNotifications.addListener("registration", (token) => {
-    api.push
-      .registerApns(token.value)
-      .catch((err) => {
-        console.error("APNs token registration failed:", err);
-      });
+  await PushNotifications.addListener("registration", async (token) => {
+    try {
+      await api.push.registerApns(token.value);
+      nativeRegistration?.resolve();
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error("APNs token registration failed");
+      nativeRegistration?.reject(failure);
+      console.error("APNs token registration failed:", failure);
+    }
   });
 
   await PushNotifications.addListener("registrationError", (err) => {
+    nativeRegistration?.reject(new Error(err.error || "APNs registration failed"));
     console.error("APNs registration error:", err);
   });
 
@@ -71,6 +80,35 @@ async function ensureListeners(): Promise<void> {
   await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
     handleNotificationUrl(action.notification.data);
   });
+}
+
+async function registerNativeDevice(): Promise<void> {
+  if (nativeRegistration) return nativeRegistration.promise;
+
+  let resolveRegistration!: () => void;
+  let rejectRegistration!: (error: Error) => void;
+  const promise = new Promise<void>((resolve, reject) => {
+    resolveRegistration = resolve;
+    rejectRegistration = reject;
+  });
+  const registration = {
+    promise,
+    resolve: resolveRegistration,
+    reject: rejectRegistration,
+  };
+  nativeRegistration = registration;
+
+  const timeout = window.setTimeout(
+    () => registration.reject(new Error("Timed out while registering this device for notifications")),
+    15_000
+  );
+  try {
+    await PushNotifications.register();
+    await promise;
+  } finally {
+    window.clearTimeout(timeout);
+    if (nativeRegistration === registration) nativeRegistration = null;
+  }
 }
 
 /**
@@ -83,7 +121,9 @@ export async function initNativePush(): Promise<void> {
     await ensureListeners();
     const perm = await PushNotifications.checkPermissions();
     if (perm.receive === "granted") {
-      await PushNotifications.register();
+      void registerNativeDevice().catch((error) => {
+        console.error("APNs refresh registration failed:", error);
+      });
     }
     return;
   }
@@ -112,7 +152,7 @@ export async function enableNativePush(): Promise<"enabled" | "denied"> {
     await ensureListeners();
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive === "granted") {
-      await PushNotifications.register();
+      await registerNativeDevice();
       return "enabled";
     }
     return "denied";

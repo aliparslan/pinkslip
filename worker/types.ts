@@ -37,7 +37,7 @@ export interface Env {
 export interface Variables {
   userId: string;
   sessionId: string | null;
-  sessionState: "guest" | "authenticated";
+  sessionState: "anonymous" | "guest" | "authenticated";
 }
 
 export interface UserRow {

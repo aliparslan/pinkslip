@@ -7,7 +7,9 @@ import {
   requireAdmin,
   requireAuthenticated,
 } from "@worker/auth";
+import preferenceRoutes from "@worker/routes/preferences";
 import type { Env, Variables } from "@worker/types";
+import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../shared/search-profile";
 
 describe("parseBearerToken", () => {
   it("extracts the token from a Bearer header (case-insensitive)", () => {
@@ -110,10 +112,15 @@ function fakeDb(
 function appWith(db: D1Database) {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
   app.use("/api/*", authMiddleware);
-  app.get("/api/whoami", (c) => c.json({
+  app.get("/api/me", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
+  app.post("/api/whoami", (c) => c.json({
+    userId: c.get("userId"),
+    sessionState: c.get("sessionState"),
+  }));
+  app.route("/api/preferences", preferenceRoutes);
   app.get("/api/signed-in", requireAuthenticated, (c) => c.json({ ok: true }));
   app.post("/api/admin", requireAdmin, (c) => c.json({ ok: true }));
   return app;
@@ -126,7 +133,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith(db);
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami", {
+      new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer good-token" },
       }),
       ENV(db)
@@ -142,7 +149,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "guest-token": "guest-9" }, {}, { "guest-9": 0 });
     const app = appWith(db);
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami", {
+      new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer guest-token" },
       }),
       ENV(db)
@@ -155,7 +162,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith(db);
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami", {
+      new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer nope" },
       }),
       ENV(db)
@@ -164,11 +171,38 @@ describe("authMiddleware", () => {
     expect(((await res.json()) as { code: string }).code).toBe("invalid_token");
   });
 
-  it("creates a guest session when no session cookie exists", async () => {
+  it("keeps passive reads anonymous without creating a session", async () => {
     const db = fakeDb({});
     const app = appWith(db);
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami"),
+      new Request("http://localhost/api/me"),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: "", sessionState: "anonymous" });
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("returns default preferences anonymously without creating a session", async () => {
+    const db = fakeDb({});
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/preferences"),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      search_profile: normalizeSearchProfile(DEFAULT_SEARCH_PROFILE),
+      notify_threshold: DEFAULT_SEARCH_PROFILE.match_threshold,
+    });
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("creates a guest session on the first state-changing action", async () => {
+    const db = fakeDb({});
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/whoami", { method: "POST" }),
       ENV(db)
     );
     expect(res.status).toBe(200);
@@ -179,8 +213,13 @@ describe("authMiddleware", () => {
   it("rejects guests from authenticated-only routes", async () => {
     const db = fakeDb({});
     const app = appWith(db);
+    const guest = await (app.fetch as any)(
+      new Request("http://localhost/api/whoami", { method: "POST" }),
+      ENV(db)
+    );
+    const cookie = guest.headers.get("set-cookie")?.split(";")[0] ?? "";
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/signed-in"),
+      new Request("http://localhost/api/signed-in", { headers: { cookie } }),
       ENV(db)
     );
     expect(res.status).toBe(401);

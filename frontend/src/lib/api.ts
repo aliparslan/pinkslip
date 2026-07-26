@@ -112,13 +112,6 @@ export interface FeedbackSubmission {
   user_name?: string | null;
 }
 
-export interface ScorerRollout {
-  scorer_version: string;
-  mode: "off" | "shadow" | "active";
-  cohort_percent: number;
-  updated_at: string;
-}
-
 export interface ProductMetrics {
   period_days: number;
   notification_latency_seconds: number;
@@ -129,16 +122,12 @@ export interface ProductMetrics {
   users_with_enough_matches: number;
   total_profiles: number;
   onboarding_completion_rate: number;
+  accounts_created: number;
+  push_registrations: number;
   profile_adjustments: number;
   tailoring_to_application_rate: number;
   open_reports: number;
   open_feedback: number;
-  scorer_audits: Array<{
-    candidate_version: string;
-    comparisons: number;
-    average_delta: number;
-    major_disagreements: number;
-  }>;
   events: Record<string, number>;
 }
 
@@ -163,7 +152,7 @@ export interface User {
 }
 
 export interface SessionInfo {
-  state: "guest" | "authenticated";
+  state: "anonymous" | "guest" | "authenticated";
 }
 
 export interface AccountInfo {
@@ -685,12 +674,6 @@ export const api = {
   },
   metrics: {
     get: () => request<ProductMetrics>("/metrics"),
-    rollouts: () => request<{ rollouts: ScorerRollout[] }>("/metrics/rollouts"),
-    updateRollout: (version: string, data: { mode: ScorerRollout["mode"]; cohort_percent: number }) =>
-      request<{ rollout: ScorerRollout }>(`/metrics/rollouts/${encodeURIComponent(version)}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
   },
 };
 import type { SearchProfileV1 } from "../../../shared/search-profile";

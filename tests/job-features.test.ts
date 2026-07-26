@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { parseExperienceRequirement } from "@worker/job-features";
+import { classifyJob, parseExperienceRequirement } from "@worker/job-features";
+import type { JobListing } from "@worker/adapters/types";
 
 describe("parseExperienceRequirement", () => {
   it("reads an explicit range", () => {
@@ -43,5 +44,30 @@ describe("parseExperienceRequirement", () => {
 
   it("still recognizes early-career roles", () => {
     expect(parseExperienceRequirement("New Grad Engineer", null)).toEqual({ min: 0, max: 2 });
+  });
+});
+
+describe("classifyJob", () => {
+  const listing = (title: string, description: string | null = null): JobListing => ({
+    externalId: "job-1",
+    title,
+    url: "https://example.com/job-1",
+    location: "Remote - US",
+    department: "Program Management",
+    postedAt: null,
+    description,
+    salary: null,
+  });
+
+  it("does not mistake individual-contributor TPM titles for people managers", () => {
+    expect(classifyJob(listing("Technical Program Manager")).seniority).toBe("unknown");
+    expect(classifyJob(listing("Technical Program Manager", "2+ years of experience"))).toMatchObject({
+      seniority: "early_career",
+      min_years: 2,
+    });
+  });
+
+  it("still classifies engineering managers as managers", () => {
+    expect(classifyJob(listing("Engineering Manager")).seniority).toBe("manager");
   });
 });

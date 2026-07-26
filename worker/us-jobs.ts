@@ -1,4 +1,3 @@
-import type { JobListing } from "./adapters/types";
 
 const US_STATE_NAMES = [
   "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
@@ -71,8 +70,4 @@ export function isUsJobLocation(location: string): boolean {
 
   // 4. Unqualified remote roles are eligible; unknown onsite locations are rejected.
   return /\b(remote|distributed|work from home)\b/.test(normalized);
-}
-
-export function isUsJobListing(job: Pick<JobListing, "location">): boolean {
-  return isUsJobLocation(job.location);
 }

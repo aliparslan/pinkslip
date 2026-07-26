@@ -1,12 +1,25 @@
 import { Hono } from "hono";
 import { getAdapter } from "../ats";
 import { getLatestCorpusVersion } from "./corpus";
-import { buildTailorPrompt, TAILOR_SYSTEM } from "../tailor/prompt";
 import { serializeProfileForPrompt } from "../tailor/serialize-profile";
 import { parseTailoringText } from "../tailor/parse";
+import {
+  streamAnthropicTailoring,
+  streamGeminiTailoring,
+  writeSse,
+} from "../tailor/providers";
 import { getLatestUserTailoring, getUserProfile } from "../account";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
+import {
+  GEMINI_DAILY_LIMITS,
+  loadTailorUsage,
+  nextUtcDay,
+  recordTailorUsage,
+  reserveAppTailorQuota,
+  type TailorKeySource,
+  type TailorProvider,
+} from "../tailor/usage";
 import type {
   Env,
   TailoringRow,
@@ -26,21 +39,6 @@ const ALLOWED_GEMINI_MODELS = new Set([
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
 ]);
-const GEMINI_DAILY_LIMITS: Record<string, number> = {
-  "gemini-3.1-flash-lite": 500,
-  "gemini-3-flash": 20,
-  "gemini-2.5-flash": 20,
-  "gemini-2.5-flash-lite": 20,
-};
-
-// App-key ("we pay") tailoring quotas. Requests that supply the user's own API
-// key bill the user, so they are not capped here.
-const APP_USER_DAILY_LIMIT = 15; // per user (incl. guests) per UTC day
-const APP_GLOBAL_DAILY_FALLBACK = 1000; // all users per day when the provider has no documented daily limit
-
-type TailorProvider = "gemini" | "anthropic";
-type TailorKeySource = "app" | "user";
-
 interface JobForTailor {
   id: string;
   external_id: string;
@@ -108,29 +106,6 @@ async function ensureJobDescription(
   return content.description;
 }
 
-function writeSse(
-  writer: WritableStreamDefaultWriter<Uint8Array>,
-  encoder: TextEncoder,
-  payload: Record<string, unknown>
-) {
-  return writer.write(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-}
-
-function cleanProviderError(
-  provider: string,
-  status: number,
-  body: string
-): string {
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string } };
-    const message = parsed.error?.message?.trim();
-    if (message) return `${provider} request failed (${status}): ${message}`;
-  } catch {
-    // Avoid returning raw provider bodies because prompts may include resume data.
-  }
-  return `${provider} request failed (${status})`;
-}
-
 function normalizeGeminiModel(model: string): string {
   const normalized = (model.trim() || DEFAULT_GEMINI_MODEL).replace(/^models\//, "");
   return ALLOWED_GEMINI_MODELS.has(normalized) ? normalized : DEFAULT_GEMINI_MODEL;
@@ -160,162 +135,6 @@ ${corpusMd}`);
   }
 
   return sections.join("\n\n---\n\n").trim();
-}
-
-function startOfUtcDay(date = new Date()) {
-  return `${date.toISOString().slice(0, 10)}T00:00:00.000Z`;
-}
-
-function nextUtcDay(date = new Date()) {
-  const next = new Date(startOfUtcDay(date));
-  next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString();
-}
-
-async function ensureTailorUsageTable(db: D1Database) {
-  await db.prepare(
-    `CREATE TABLE IF NOT EXISTS tailor_usage (
-      id TEXT PRIMARY KEY,
-      user_id TEXT,
-      key_source TEXT NOT NULL,
-      provider TEXT NOT NULL,
-      model TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`
-  ).run();
-  await db.prepare(
-    `CREATE INDEX IF NOT EXISTS idx_tailor_usage_provider_model_created
-      ON tailor_usage(provider, model, created_at)`
-  ).run();
-  await db.prepare(
-    `CREATE INDEX IF NOT EXISTS idx_tailor_usage_user_created
-      ON tailor_usage(user_id, created_at)`
-  ).run();
-}
-
-async function recordTailorUsage(args: {
-  db?: D1Database;
-  userId: string;
-  keySource: TailorKeySource;
-  provider: TailorProvider;
-  model: string;
-}) {
-  if (!args.db) return;
-  await ensureTailorUsageTable(args.db);
-  await args.db.prepare(
-    `INSERT INTO tailor_usage (id, user_id, key_source, provider, model, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).bind(
-    crypto.randomUUID(),
-    args.userId,
-    args.keySource,
-    args.provider,
-    args.model,
-    new Date().toISOString()
-  ).run();
-}
-
-async function loadTailorUsage(args: {
-  db: D1Database;
-  userId: string;
-  provider: TailorProvider;
-  model: string;
-}) {
-  await ensureTailorUsageTable(args.db);
-  const today = startOfUtcDay();
-  const [app, user] = await Promise.all([
-    args.db.prepare(
-      `SELECT COUNT(*) AS count
-       FROM tailor_usage
-       WHERE key_source = 'app'
-         AND provider = ?
-         AND model = ?
-         AND created_at >= ?`
-    ).bind(args.provider, args.model, today).first<{ count: number }>(),
-    args.db.prepare(
-      `SELECT COUNT(*) AS count
-       FROM tailor_usage
-       WHERE key_source = 'user'
-         AND user_id = ?
-         AND provider = ?
-         AND model = ?
-         AND created_at >= ?`
-    ).bind(args.userId, args.provider, args.model, today).first<{ count: number }>(),
-  ]);
-
-  const dailyLimit = args.provider === "gemini" ? GEMINI_DAILY_LIMITS[args.model] ?? null : null;
-  const appToday = app?.count ?? 0;
-  const userToday = user?.count ?? 0;
-
-  return {
-    provider: args.provider,
-    model: args.model,
-    app_today: appToday,
-    user_today: userToday,
-    daily_limit: dailyLimit,
-    app_remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - appToday),
-    user_remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - userToday),
-    resets_at: nextUtcDay(),
-  };
-}
-
-// Enforce the app-key tailoring quota: a per-user daily cap (so one user/guest
-// can't drain the budget or rack up cost) plus the provider's global daily cap.
-async function reserveAppTailorQuota(
-  db: D1Database,
-  userId: string,
-  provider: TailorProvider,
-  model: string
-): Promise<{ ok: true } | { ok: false; resets_at: string }> {
-  await ensureTailorUsageTable(db);
-  const today = startOfUtcDay();
-  const globalLimit = provider === "gemini"
-    ? GEMINI_DAILY_LIMITS[model] ?? APP_GLOBAL_DAILY_FALLBACK
-    : APP_GLOBAL_DAILY_FALLBACK;
-
-  // Reserve quota in the same SQLite statement that checks both limits. This
-  // prevents concurrent requests from all passing a read-only count check before
-  // any of them records usage.
-  const result = await db.prepare(
-    `INSERT INTO tailor_usage (id, user_id, key_source, provider, model, created_at)
-     SELECT ?, ?, 'app', ?, ?, ?
-     WHERE (
-       SELECT COUNT(*) FROM tailor_usage
-       WHERE key_source = 'app' AND user_id = ? AND created_at >= ?
-     ) < ?
-       AND (
-         SELECT COUNT(*) FROM tailor_usage
-         WHERE key_source = 'app' AND provider = ? AND model = ? AND created_at >= ?
-       ) < ?`
-  ).bind(
-    crypto.randomUUID(),
-    userId,
-    provider,
-    model,
-    new Date().toISOString(),
-    userId,
-    today,
-    APP_USER_DAILY_LIMIT,
-    provider,
-    model,
-    today,
-    globalLimit
-  ).run();
-  if ((result.meta.changes ?? 0) === 0) {
-    return { ok: false, resets_at: nextUtcDay() };
-  }
-  return { ok: true };
-}
-
-function textFromGeminiPayload(payload: any): string {
-  if (payload.error?.message) {
-    throw new Error(`Gemini streaming error: ${payload.error.message}`);
-  }
-
-  return (payload.candidates ?? [])
-    .flatMap((candidate: any) => candidate.content?.parts ?? [])
-    .map((part: any) => (typeof part.text === "string" ? part.text : ""))
-    .join("");
 }
 
 async function persistTailoring(args: {
@@ -363,307 +182,6 @@ async function persistTailoring(args: {
   ).run();
 
   return tailoringId;
-}
-
-async function streamAnthropicTailoring(args: {
-  apiKey: string;
-  model: string;
-  sourceMd: string;
-  job: JobForTailor & { description: string };
-  writer: WritableStreamDefaultWriter<Uint8Array>;
-  encoder: TextEncoder;
-  db?: D1Database;
-  persist?: {
-    corpusVersionId: number;
-  };
-  usage?: {
-    userId: string;
-    sessionId?: string | null;
-    keySource: TailorKeySource;
-    provider: TailorProvider;
-  };
-}) {
-  const { apiKey, model, sourceMd, job, db, persist, usage, writer, encoder } = args;
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2400,
-      system: TAILOR_SYSTEM,
-      stream: true,
-      messages: [
-        {
-          role: "user",
-          content: buildTailorPrompt(
-            {
-              title: job.title,
-              company: job.company_name,
-              description: job.description,
-            },
-            sourceMd
-          ),
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok || !response.body) {
-    const body = await response.text().catch(() => "");
-    throw new Error(cleanProviderError("Anthropic", response.status, body));
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullText = "";
-  let inputTokens = 0;
-  let outputTokens = 0;
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, "");
-
-    while (buffer.includes("\n\n")) {
-      const boundary = buffer.indexOf("\n\n");
-      const rawEvent = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      if (!rawEvent.trim()) continue;
-
-      const dataLines = rawEvent
-        .split("\n")
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.slice(5).trim());
-
-      if (dataLines.length === 0) continue;
-
-      const payload = JSON.parse(dataLines.join("\n"));
-      switch (payload.type) {
-        case "message_start":
-          inputTokens = payload.message?.usage?.input_tokens ?? inputTokens;
-          break;
-        case "content_block_delta":
-          if (payload.delta?.type === "text_delta" && payload.delta.text) {
-            fullText += payload.delta.text;
-            await writeSse(writer, encoder, {
-              type: "chunk",
-              text: payload.delta.text,
-            });
-          }
-          break;
-        case "message_delta":
-          outputTokens = payload.usage?.output_tokens ?? outputTokens;
-          break;
-        case "error":
-          throw new Error(
-            payload.error?.message || "Anthropic streaming error"
-          );
-        default:
-          break;
-      }
-    }
-  }
-
-  const parsed = parseTailoringText(fullText);
-  const tailoringId = await persistTailoring({
-    db,
-    persist,
-    userId: usage?.userId ?? "guest",
-    jobId: job.id,
-    parsed,
-    inputTokens,
-    outputTokens,
-    model,
-  });
-
-  await writeSse(writer, encoder, {
-    type: "done",
-    tailoring_id: tailoringId,
-    persisted: Boolean(tailoringId),
-    tokens: {
-      in: inputTokens,
-      out: outputTokens,
-    },
-  });
-
-  if (usage && db) {
-    if (usage.keySource !== "app") {
-      await recordTailorUsage({
-        db,
-        userId: usage.userId,
-        keySource: usage.keySource,
-        provider: usage.provider,
-        model,
-      }).catch(() => undefined);
-    }
-    await recordProductEvent(db, {
-      userId: usage.userId,
-      sessionId: usage.sessionId,
-      name: "tailoring_completed",
-      entityType: "job",
-      entityId: job.id,
-      properties: { provider: usage.provider, model },
-    }).catch(() => undefined);
-  }
-}
-
-async function streamGeminiTailoring(args: {
-  apiKey: string;
-  model: string;
-  sourceMd: string;
-  job: JobForTailor & { description: string };
-  writer: WritableStreamDefaultWriter<Uint8Array>;
-  encoder: TextEncoder;
-  db?: D1Database;
-  persist?: {
-    corpusVersionId: number;
-  };
-  usage?: {
-    userId: string;
-    sessionId?: string | null;
-    keySource: TailorKeySource;
-    provider: TailorProvider;
-  };
-}) {
-  const { apiKey, sourceMd, job, db, persist, usage, writer, encoder } = args;
-  const model = normalizeGeminiModel(args.model);
-  const prompt = buildTailorPrompt(
-    {
-      title: job.title,
-      company: job.company_name,
-      description: job.description,
-    },
-    sourceMd
-  );
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: TAILOR_SYSTEM }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 2400,
-          temperature: 0.15,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok || !response.body) {
-    const body = await response.text().catch(() => "");
-    throw new Error(cleanProviderError("Gemini", response.status, body));
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullText = "";
-  let inputTokens = 0;
-  let outputTokens = 0;
-
-  async function handleEvent(rawEvent: string) {
-    if (!rawEvent.trim()) return;
-    const dataLines = rawEvent
-      .split("\n")
-      .filter((line) => line.startsWith("data:"))
-      .map((line) => line.slice(5).trim());
-
-    if (dataLines.length === 0) return;
-    const data = dataLines.join("\n");
-    if (!data || data === "[DONE]") return;
-
-    const payload = JSON.parse(data);
-    const chunk = textFromGeminiPayload(payload);
-    if (chunk) {
-      fullText += chunk;
-      await writeSse(writer, encoder, {
-        type: "chunk",
-        text: chunk,
-      });
-    }
-
-    const usage = payload.usageMetadata;
-    inputTokens = usage?.promptTokenCount ?? inputTokens;
-    outputTokens = usage?.candidatesTokenCount ?? outputTokens;
-  }
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, "");
-
-    while (buffer.includes("\n\n")) {
-      const boundary = buffer.indexOf("\n\n");
-      const rawEvent = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      await handleEvent(rawEvent);
-    }
-  }
-
-  if (buffer.trim()) {
-    await handleEvent(buffer);
-  }
-
-  const parsed = parseTailoringText(fullText);
-  const tailoringId = await persistTailoring({
-    db,
-    persist,
-    userId: usage?.userId ?? "guest",
-    jobId: job.id,
-    parsed,
-    inputTokens,
-    outputTokens,
-    model,
-  });
-
-  await writeSse(writer, encoder, {
-    type: "done",
-    tailoring_id: tailoringId,
-    persisted: Boolean(tailoringId),
-    tokens: {
-      in: inputTokens,
-      out: outputTokens,
-    },
-  });
-
-  if (usage && db) {
-    if (usage.keySource !== "app") {
-      await recordTailorUsage({
-        db,
-        userId: usage.userId,
-        keySource: usage.keySource,
-        provider: usage.provider,
-        model,
-      }).catch(() => undefined);
-    }
-    await recordProductEvent(db, {
-      userId: usage.userId,
-      sessionId: usage.sessionId,
-      name: "tailoring_completed",
-      entityType: "job",
-      entityId: job.id,
-      properties: { provider: usage.provider, model },
-    }).catch(() => undefined);
-  }
 }
 
 tailor.get("/tailor/usage", async (c) => {
@@ -798,6 +316,15 @@ tailor.post("/tailor/:job_id", async (c) => {
       503
     );
   }
+  if (keySource === "app" && c.get("sessionState") !== "authenticated") {
+    return c.json(
+      {
+        error: "Sign in to use pinkslip's included tailoring, or add your own Gemini API key in Profile.",
+        code: "authentication_required",
+      },
+      401
+    );
+  }
 
   const job = await loadJobForTailor(c.env.DB, job_id);
   if (!job) {
@@ -877,22 +404,47 @@ tailor.post("/tailor/:job_id", async (c) => {
         const streamTailoring =
           provider === "gemini" ? streamGeminiTailoring : streamAnthropicTailoring;
 
-        await streamTailoring({
+        const result = await streamTailoring({
           apiKey,
           model: safeModel,
           sourceMd,
           job: { ...job, description },
-          db: c.env.DB,
-          persist: localMode ? undefined : persist,
-          usage: {
-            userId: c.get("userId"),
-            sessionId: c.get("sessionId"),
-            keySource,
-            provider,
-          },
           writer,
           encoder,
         });
+        const tailoringId = await persistTailoring({
+          db: c.env.DB,
+          persist: localMode ? undefined : persist,
+          userId: c.get("userId"),
+          jobId: job.id,
+          parsed: result.parsed,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          model: safeModel,
+        });
+        await writeSse(writer, encoder, {
+          type: "done",
+          tailoring_id: tailoringId,
+          persisted: Boolean(tailoringId),
+          tokens: { in: result.inputTokens, out: result.outputTokens },
+        });
+        if (keySource !== "app") {
+          await recordTailorUsage({
+            db: c.env.DB,
+            userId: c.get("userId"),
+            keySource,
+            provider,
+            model: safeModel,
+          }).catch(() => undefined);
+        }
+        await recordProductEvent(c.env.DB, {
+          userId: c.get("userId"),
+          sessionId: c.get("sessionId"),
+          name: "tailoring_completed",
+          entityType: "job",
+          entityId: job.id,
+          properties: { provider, model: safeModel },
+        }).catch(() => undefined);
       } catch (error) {
         await writeSse(writer, encoder, {
           type: "error",

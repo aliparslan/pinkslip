@@ -278,8 +278,7 @@
       if (gen !== bootGen) return;
       syncSessionAccess(res);
       userName = res.user?.name ?? "";
-      showOnboarding = !userName
-        || preferences.search_profile.onboarding_version < 2
+      showOnboarding = preferences.search_profile.onboarding_version < 2
         || !preferences.search_profile.onboarding_completed_at;
       sessionReady = true;
     } catch (error) {

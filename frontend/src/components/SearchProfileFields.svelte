@@ -1,13 +1,10 @@
 <script lang="ts">
   import {
-    EXPERIENCE_OPTIONS,
     LOCATION_OPTIONS,
     ROLE_OPTIONS,
-    type ExperienceLevel,
     type LocationId,
     type RoleId,
     type SearchProfile,
-    type StretchTolerance,
     type WorkAuthorization,
     type WorkMode,
   } from "../../../shared/search-profile";
@@ -26,11 +23,6 @@
   let excludedTitlesText = $derived(profile.excluded_titles.join(", "));
   let customLocationsText = $derived(profile.custom_locations.join(", "));
 
-  const stretchOptions: Array<{ id: StretchTolerance; label: string; detail: string }> = [
-    { id: "strict", label: "Strict", detail: "Stay very close to your experience" },
-    { id: "balanced", label: "Balanced", detail: "Include a reasonable next step" },
-    { id: "ambitious", label: "Ambitious", detail: "Show credible stretch roles too" },
-  ];
   const workModes: Array<{ id: WorkMode; label: string }> = [
     { id: "remote", label: "Remote" },
     { id: "hybrid", label: "Hybrid" },
@@ -56,17 +48,6 @@
       ...profile,
       roles,
       primary_role: roles.includes(profile.primary_role) ? profile.primary_role : roles[0],
-    };
-  }
-
-  function toggleLevel(level: ExperienceLevel) {
-    const selected = profile.target_levels.includes(level);
-    if (selected && profile.target_levels.length === 1) return;
-    profile = {
-      ...profile,
-      target_levels: selected
-        ? profile.target_levels.filter((item) => item !== level)
-        : [...profile.target_levels, level],
     };
   }
 
@@ -124,6 +105,7 @@
               type="button"
               class="location-chip"
               class:active={profile.primary_role === role.id}
+              aria-pressed={profile.primary_role === role.id}
               onclick={() => profile = { ...profile, primary_role: role.id }}
             >
               {role.shortLabel}
@@ -167,73 +149,12 @@
   <section class="profile-field-section">
     <div class="profile-field-heading">
       <div>
-        <div class="profile-field-title">Experience and level</div>
-        <div class="profile-field-help">Tell us where you are and where you want to go.</div>
-      </div>
-    </div>
-
-    <div class="years-field">
-      <span>
-        <strong>Relevant experience</strong>
-        <small>Count experience that transfers to your target role.</small>
-      </span>
-      <!-- Custom stepper: the native number input renders a UA-styled white
-           spinner box that punches a hole in the dark theme. -->
-      <span class="years-control" role="group" aria-label="Years of relevant experience">
-        <button
-          type="button"
-          class="years-step"
-          aria-label="Decrease years"
-          disabled={profile.years_experience <= 0}
-          onclick={() => profile = { ...profile, years_experience: Math.max(0, profile.years_experience - 1) }}
-        >−</button>
-        <span class="years-value" aria-live="polite">{profile.years_experience}</span>
-        <button
-          type="button"
-          class="years-step"
-          aria-label="Increase years"
-          disabled={profile.years_experience >= 40}
-          onclick={() => profile = { ...profile, years_experience: Math.min(40, profile.years_experience + 1) }}
-        >+</button>
-        <span>years</span>
-      </span>
-    </div>
-
-    <div class="subfield">
-      <div class="subfield-label">Levels to include</div>
-      <div class="experience-list">
-        {#each EXPERIENCE_OPTIONS as option}
-          <button
-            type="button"
-            class="experience-choice"
-            class:active={profile.target_levels.includes(option.id)}
-            aria-pressed={profile.target_levels.includes(option.id)}
-            onclick={() => toggleLevel(option.id)}
-          >
-            <span>
-              <strong>{option.label}</strong>
-              <small>{option.detail}</small>
-            </span>
-            <span class="choice-check">{profile.target_levels.includes(option.id) ? "✓" : ""}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    <div class="subfield">
-      <div class="subfield-label">Stretch tolerance</div>
-      <div class="stretch-grid">
-        {#each stretchOptions as option}
-          <button
-            type="button"
-            class="choice-card work-mode"
-            class:active={profile.stretch_tolerance === option.id}
-            onclick={() => profile = { ...profile, stretch_tolerance: option.id }}
-          >
-            <strong>{option.label}</strong>
-            <small>{option.detail}</small>
-          </button>
-        {/each}
+        <div class="profile-field-title">Experience level</div>
+        <div class="profile-field-help">
+          pinkslip only tracks new-grad and early-career roles &mdash; anything asking
+          for more than 3 years, plus senior, staff and management titles, is filtered
+          out. Postings that don't state a requirement are kept.
+        </div>
       </div>
     </div>
   </section>
@@ -339,9 +260,9 @@
   .selection-count { flex-shrink: 0; color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
   .choice-grid { display: grid; gap: 8px; }
   .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* Multi-select cards show a ✓ (same affordance as the levels list). */
+  /* Multi-select cards show a ✓. */
   .role-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .choice-card, .experience-choice, .location-chip, .relocation-row {
+  .choice-card, .location-chip, .relocation-row {
     border: 1px solid var(--color-line-2);
     background: var(--color-bg-sunken);
     color: var(--color-ink-2);
@@ -349,60 +270,15 @@
   }
   .choice-card { min-height: 48px; padding: 10px 12px; border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 600; }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
-  .choice-card.active, .experience-choice.active, .location-chip.active, .relocation-row.active {
+  .choice-card.active, .location-chip.active, .relocation-row.active {
     border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
     background: var(--color-accent-soft);
     color: var(--color-accent-soft-ink);
   }
   .subfield { display: flex; flex-direction: column; gap: 8px; }
   .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
-  .years-field, .relocation-row {
-    min-height: 62px;
-    padding: 11px 14px;
-    border: 1px solid var(--color-line-2);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-sunken);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .years-field > span:first-child, .relocation-row > span:first-child { display: flex; flex-direction: column; gap: 2px; text-align: left; }
-  .years-field strong, .relocation-row strong { font-size: var(--fs-sm); }
-  .years-field small, .relocation-row small, .empty-help { color: var(--color-ink-3); font-size: var(--fs-2xs); line-height: 1.35; }
-  .years-control { display: flex; align-items: center; gap: 6px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
-  .years-step {
-    width: 40px;
-    height: 40px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--color-line-2);
-    border-radius: var(--radius-sm);
-    background: var(--color-bg);
-    color: var(--color-ink-2);
-    font: 600 var(--fs-lg) var(--font-sans);
-    line-height: 1;
-    cursor: pointer;
-    transition: background .15s, color .15s, transform .1s;
-  }
-  .years-step:hover { background: var(--color-bg-sunken); color: var(--color-ink); }
-  .years-step:active { transform: scale(0.96); }
-  .years-step:disabled { opacity: 0.4; cursor: default; transform: none; }
-  .years-value {
-    min-width: 34px;
-    text-align: center;
-    color: var(--color-ink);
-    font: 600 var(--fs-md) var(--font-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  .experience-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-line-2); border-radius: var(--radius-md); }
-  .experience-choice { min-height: 56px; padding: 11px 14px; border: 0; border-bottom: 0.5px solid var(--color-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
-  .experience-choice:last-child { border-bottom: 0; }
-  .experience-choice span:first-child, .work-mode { display: flex; flex-direction: column; gap: 2px; }
-  .experience-choice strong, .work-mode strong { font-size: var(--fs-sm); font-weight: 600; }
-  .experience-choice small, .work-mode small { color: var(--color-ink-3); font-size: var(--fs-2xs); line-height: 1.3; }
   .choice-check { width: 18px; color: var(--color-accent); font-weight: 800; text-align: center; }
-  .stretch-grid, .authorization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .authorization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .work-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .location-chip { padding: 8px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
@@ -413,7 +289,7 @@
   .advanced-body label { display: flex; flex-direction: column; gap: 6px; color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
   .advanced-body small { color: var(--color-ink-4); font-size: var(--fs-2xs); font-weight: 400; line-height: 1.4; }
   @media (max-width: 430px) {
-    .stretch-grid, .authorization-grid { grid-template-columns: 1fr; }
+    .authorization-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 390px) {
     .role-grid { grid-template-columns: 1fr; }

@@ -263,6 +263,10 @@ app.onError((error, c) => {
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    // The rejection is deliberately NOT swallowed. Swallowing it is what let the
+    // poll cycle die every 15 minutes for six weeks while Cloudflare reported
+    // `outcome: "ok"` with zero exceptions — nothing anywhere went red. Log for
+    // context, then rethrow so the invocation is recorded as failed.
     ctx.waitUntil(
       runPollCycle(env)
         .then((result) => {
@@ -270,6 +274,7 @@ export default {
         })
         .catch((err) => {
           console.error("Poll cycle failed:", err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
+          throw err;
         })
     );
   },

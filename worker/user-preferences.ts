@@ -14,7 +14,7 @@ import {
   type RoleId,
   type SearchProfile,
 } from "../shared/search-profile";
-import { readUserPreferences, writeUserPreferences } from "./account";
+import { readUserPreferences } from "./account";
 import type { ScoringPrefs } from "./scoring";
 
 export interface UserPreferenceState {
@@ -191,10 +191,6 @@ export function scoringPrefsFromState(state: UserPreferenceState): ScoringPrefs 
   };
 }
 
-export async function loadUserScoringPrefs(db: D1Database, userId: string): Promise<ScoringPrefs> {
-  return scoringPrefsFromState(await loadUserPreferenceState(db, userId));
-}
-
 export async function saveUserPreferenceState(
   db: D1Database,
   userId: string,
@@ -224,33 +220,9 @@ export async function saveUserPreferenceState(
     ).bind(userId, nextProfile.notifications_enabled ? 1 : 0, new Date().toISOString()).run();
   }
 
-  const experience = profileExperienceRange(nextProfile);
-  const legacyLocations = [
-    ...(nextProfile.work_modes.includes("remote") ? ["Remote"] : []),
-    ...LOCATION_OPTIONS.filter((option) => nextProfile.location_ids.includes(option.id)).map((option) => option.label),
-    ...nextProfile.custom_locations,
-  ];
-  await writeUserPreferences(db, userId, [
-    { key: "search_profile", value: JSON.stringify(nextProfile) },
-    { key: "notify_threshold", value: JSON.stringify(threshold) },
-    { key: "locations", value: JSON.stringify(legacyLocations) },
-    { key: "min_yoe", value: JSON.stringify(experience.minYears) },
-    { key: "max_yoe", value: JSON.stringify(experience.maxYears) },
-    { key: "role_keywords", value: JSON.stringify(profileRoleKeywords(nextProfile)) },
-    { key: "negative_keywords", value: JSON.stringify(nextProfile.excluded_titles) },
-  ]);
-
   if (changed) {
     await db.prepare("DELETE FROM user_job_matches WHERE user_id = ?").bind(userId).run();
   }
 
   return { search_profile: nextProfile, notify_threshold: threshold };
-}
-
-export function completeOnboarding(profile: SearchProfile): SearchProfile {
-  return normalizeSearchProfile({
-    ...profile,
-    onboarding_version: ONBOARDING_VERSION,
-    onboarding_completed_at: new Date().toISOString(),
-  });
 }

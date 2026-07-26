@@ -10,6 +10,7 @@ const ALLOWED_PROPERTIES = new Set([
   "count",
   "latency_ms",
   "onboarding_version",
+  "platform",
 ]);
 
 function sanitizeProperties(properties: Record<string, unknown>) {

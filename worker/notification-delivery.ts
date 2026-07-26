@@ -3,6 +3,7 @@ import { recordProductEvent } from "./product-events";
 import { buildNotificationPayload, sendPushNotification, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
+import { SCORE_RAW_PER_PERCENT } from "../shared/scoring";
 
 interface CandidateRow {
   id: string;
@@ -45,7 +46,7 @@ export async function createNotificationCandidates(
        AND j.closed_at IS NULL
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       AND ujm.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * 0.95) AS INTEGER)
+       AND ujm.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
@@ -122,12 +123,12 @@ export async function deliverPendingNotifications(
        AND j.closed_at IS NULL
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       AND nc.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * 0.95) AS INTEGER)
+       AND nc.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
-     ORDER BY datetime(nc.created_at) ASC
+     ORDER BY nc.created_at ASC
      LIMIT ?`
   ).bind(limit).all<CandidateRow>();
   const available = candidates.results ?? [];
@@ -266,6 +267,23 @@ export async function deliverPendingNotifications(
           ? isDeadApnsToken(result.status)
           : result.status === 404 || result.status === 410;
         if (dead) {
+          // notification_deliveries.subscription_id cascades from
+          // push_subscriptions, so deleting the subscription here also deletes
+          // every delivery row that recorded WHY the send failed. That is how
+          // 13 candidates ended up marked "No registered push subscription"
+          // with an empty notification_deliveries table and no way to tell that
+          // the real cause was a rejected token. Stamp the actual push-service
+          // error onto the candidates before the cascade erases it.
+          await db.batch(claimed.map((delivery) =>
+            db.prepare(
+              `UPDATE notification_candidates
+               SET last_error = ?
+               WHERE id = ?`
+            ).bind(
+              `${sub.platform} subscription rejected (${result.status}) — token removed`.slice(0, 1000),
+              delivery.candidate_id
+            )
+          ));
           await db.prepare("DELETE FROM push_subscriptions WHERE id = ?")
             .bind(sub.id)
             .run();
@@ -306,7 +324,11 @@ export async function deliverPendingNotifications(
           db,
           [candidate],
           total === 0 ? "skipped" : "failed",
-          total === 0 ? "No registered push subscription" : "Delivery failed on every registered device"
+          total === 0 ? "No registered push subscription" : "Delivery failed on every registered device",
+          // A dead subscription cascades its delivery rows away. Keep the
+          // push-service rejection stamped above instead of immediately
+          // replacing it with the less useful "no subscription" fallback.
+          total === 0
         );
       }
     }
@@ -318,12 +340,13 @@ async function markCandidates(
   db: D1Database,
   candidates: CandidateRow[],
   status: "retry" | "failed" | "skipped",
-  error: string
+  error: string,
+  preserveExistingError = false
 ) {
   await db.batch(candidates.map((candidate) =>
     db.prepare(
       `UPDATE notification_candidates
-       SET status = ?, last_error = ?
+       SET status = ?, last_error = ${preserveExistingError ? "COALESCE(last_error, ?)" : "?"}
        WHERE id = ?`
     ).bind(status, error.slice(0, 1000), candidate.id)
   ));

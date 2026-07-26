@@ -17,7 +17,7 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2;
 export const ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const SESSION_TTL_MS = COOKIE_MAX_AGE * 1000;
 
-export function parseCookie(header: string | undefined, name: string): string | undefined {
+function parseCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
   const match = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   const rawValue = match?.[1];
@@ -39,11 +39,6 @@ export function buildCookie(
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
-export function buildClearedCookie(name: string, requestUrl: string): string {
-  const secure = new URL(requestUrl).protocol === "https:";
-  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
-}
-
 export function parseBearerToken(header: string | undefined): string | undefined {
   if (!header) return undefined;
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -54,7 +49,7 @@ export function generateApiToken(): string {
   return randomOpaqueToken(32);
 }
 
-export function generateSessionId(): string {
+function generateSessionId(): string {
   return randomOpaqueToken(32);
 }
 
@@ -62,13 +57,13 @@ export async function accessGrantValue(accessCode: string): Promise<string> {
   return sha256Hex(`pinkslip-access:${accessCode}`);
 }
 
-export async function ensureUserExists(db: D1Database, userId: string) {
+async function ensureUserExists(db: D1Database, userId: string) {
   await db.prepare(
     "INSERT INTO users (id) VALUES (?) ON CONFLICT (id) DO NOTHING"
   ).bind(userId).run();
 }
 
-export async function getUserRole(
+async function getUserRole(
   db: D1Database,
   userId: string
 ): Promise<UserRow["role"]> {
@@ -117,7 +112,7 @@ export const requireAdmin = createMiddleware<{
   await next();
 });
 
-export async function loadActiveSession(
+async function loadActiveSession(
   db: D1Database,
   sessionId: string
 ): Promise<AuthSessionRow | null> {
@@ -139,7 +134,7 @@ export async function loadActiveSession(
   return row;
 }
 
-export async function createSession(
+async function createSession(
   db: D1Database,
   userId: string,
   state: "guest" | "authenticated"
@@ -171,17 +166,11 @@ export async function createSession(
   return row;
 }
 
-export async function revokeSession(db: D1Database, sessionId: string | null | undefined) {
+async function revokeSession(db: D1Database, sessionId: string | null | undefined) {
   if (!sessionId) return;
   await db.prepare(
     "UPDATE auth_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL"
   ).bind(new Date().toISOString(), sessionId).run();
-}
-
-export async function revokeAllSessionsForUser(db: D1Database, userId: string) {
-  await db.prepare(
-    "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL"
-  ).bind(new Date().toISOString(), userId).run();
 }
 
 export async function revokeApiTokensForUser(db: D1Database, userId: string) {
@@ -296,15 +285,42 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       const legacyUserId = await loadLegacyUserIfPresent(c.env.DB, rawSessionCookie);
       if (legacyUserId) {
         session = await createGuestSession(c.env.DB, legacyUserId);
-      } else {
+      } else if (
+        !["GET", "HEAD", "OPTIONS"].includes(c.req.method)
+        || pathname === "/auth/email/verify"
+      ) {
+        // A visitor becomes a guest only on their first state-changing action.
+        // Passive page loads, crawlers, previews, and health checks must not turn
+        // into permanent users and sessions in D1.
         session = await createGuestSession(c.env.DB);
       }
 
-      c.header(
-        "Set-Cookie",
-        buildCookie(COOKIE_NAMES.session, session.id, c.req.url),
-        { append: true }
-      );
+      if (session) {
+        c.header(
+          "Set-Cookie",
+          buildCookie(COOKIE_NAMES.session, session.id, c.req.url),
+          { append: true }
+        );
+      }
+    }
+
+    if (!session) {
+      const anonymousReads = new Set([
+        "/api/me",
+        "/api/preferences",
+        "/api/logo",
+      ]);
+      if (!anonymousReads.has(pathname)) {
+        return c.json(
+          { error: "Start a session before using this feature", code: "session_required" },
+          401
+        );
+      }
+      c.set("userId", "");
+      c.set("sessionId", null);
+      c.set("sessionState", "anonymous");
+      await next();
+      return;
     }
 
     c.set("userId", session.user_id);

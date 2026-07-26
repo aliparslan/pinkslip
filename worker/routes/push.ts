@@ -4,6 +4,7 @@ import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 import { resolveApnsConfig, sendApnsNotification } from "../apns";
 import { recordProductEvent } from "../product-events";
+import { SCORE_RAW_PER_PERCENT } from "../../shared/scoring";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -66,7 +67,7 @@ push.put("/settings", async (c) => {
      SET status = 'skipped', last_error = 'Notification settings changed'
      WHERE user_id = ?
        AND status IN ('pending', 'retry')
-       AND (? = 0 OR ? = 0 OR score < CAST(ROUND(? * 0.95) AS INTEGER))`
+       AND (? = 0 OR ? = 0 OR score < CAST(ROUND(? * ${SCORE_RAW_PER_PERCENT}) AS INTEGER))`
   ).bind(
     c.get("userId"),
     enabled ? 1 : 0,
@@ -79,7 +80,7 @@ push.put("/settings", async (c) => {
        SET status = 'retry', attempt_count = 0, last_error = NULL
        WHERE user_id = ?
          AND status IN ('failed', 'skipped')
-         AND score >= CAST(ROUND(? * 0.95) AS INTEGER)`
+         AND score >= CAST(ROUND(? * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)`
     ).bind(c.get("userId"), threshold).run();
     await c.env.DB.prepare(
       `UPDATE notification_deliveries
@@ -159,6 +160,17 @@ push.post("/apns", async (c) => {
     .bind(token)
     .first<PushSubscriptionRow>();
 
+  if (!owner) {
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: "push_registered",
+      entityType: "push_subscription",
+      entityId: created?.id ?? id,
+      properties: { platform: "ios" },
+    }).catch(() => undefined);
+  }
+
   return c.json(created, 201);
 });
 
@@ -200,6 +212,17 @@ push.post("/subscribe", async (c) => {
   )
     .bind(endpoint)
     .first<PushSubscriptionRow>();
+
+  if (!owner) {
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: "push_registered",
+      entityType: "push_subscription",
+      entityId: created?.id ?? id,
+      properties: { platform: "web" },
+    }).catch(() => undefined);
+  }
 
   return c.json(created, 201);
 });

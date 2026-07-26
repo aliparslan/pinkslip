@@ -12,7 +12,7 @@ export const feed = $state({
   jobs: [] as Job[],
   lastPolled: null as string | null,
   selectedLocations: ["All"] as string[],
-  sortBy: "last_seen" as FeedSort,
+  sortBy: "score" as FeedSort,
   searchQuery: "",
   savedOnly: false,
   minMatch: 50,

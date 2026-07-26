@@ -14,6 +14,8 @@ import {
 } from "./notification-delivery";
 import { ensureEligibleJobs, isEligibleJobListing } from "./job-scope";
 
+const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
+
 // A job must be absent from this many consecutive (trustworthy) polls before it
 // is closed, so a single partial/failed ATS response can't remove valid jobs.
 const CLOSE_AFTER_MISSES = 2;
@@ -331,6 +333,25 @@ export async function runPollCycle(
   await ensureEligibleJobs(db);
 
   if (trackRuns) {
+    // Reap runs that never reached the completion UPDATE. A cron tick that is
+    // killed mid-cycle (D1 CPU reset, isolate eviction) leaves its row stuck at
+    // 'running' forever; 5,949 such rows had accumulated before this existed,
+    // hiding the fact that no run had finished since 2026-06-17. Anything still
+    // 'running' when the next 15-minute tick begins is dead. Use a 14-minute
+    // cutoff so normal scheduler jitter does not leave the previous run 20ms on
+    // the wrong side of an exact 15-minute comparison for another full cycle.
+    await db.prepare(
+      `UPDATE fetch_runs
+       SET status = 'error',
+           errors_json = COALESCE(errors_json, ?),
+           finished_at = ?
+       WHERE status = 'running' AND started_at < ?`
+    ).bind(
+      JSON.stringify([{ error: "Run did not complete — worker terminated before finishing" }]),
+      startedAt,
+      new Date(startedAtMs - 14 * 60 * 1000).toISOString()
+    ).run().catch(() => undefined);
+
     await db.prepare(
       `INSERT INTO fetch_runs (id, scope, status, started_at)
        VALUES (?, ?, 'running', ?)`
@@ -419,16 +440,41 @@ export async function runPollCycle(
   //     surface in the feed over time (notifications above only cover new jobs).
   if (scope === "cron") {
     await advanceBacklogScoring(db).catch((error) => {
-      log.push(`backlog scoring error: ${error instanceof Error ? error.message : String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("Backlog scoring failed:", message);
+      log.push(`backlog scoring error: ${message}`);
     });
   }
 
   // Purge jobs closed for over 7 days, but preserve any a user still has a stake
   // in — applied OR saved — so saved roles don't silently vanish from their list.
+  // closed_at is written with toISOString(), so compare against a bound ISO
+  // cutoff rather than datetime('now', …). datetime() on the column defeated any
+  // index and forced a full scan of every job row on every cycle; the SQLite
+  // 'now' form also renders as "YYYY-MM-DD HH:MM:SS", which does NOT compare
+  // correctly against ISO-8601 strings, so both sides have to move together.
+  // NOT EXISTS also replaces NOT IN: a single NULL job_id in the subquery would
+  // make NOT IN match nothing at all and silently disable the purge entirely.
+  // Delete incrementally. Production accumulated 13,447 eligible rows while
+  // this maintenance step was broken; trying to cascade all of them in one D1
+  // statement reset the database even after the date predicate was indexed.
+  // At 100 per 15-minute tick that backlog drains in under a day and a half,
+  // while steady-state purges remain tiny.
   await db.prepare(
-    `DELETE FROM jobs WHERE closed_at IS NOT NULL AND datetime(closed_at) < datetime('now', '-7 days')
-     AND id NOT IN (SELECT job_id FROM applications WHERE job_id IS NOT NULL)
-     AND id NOT IN (SELECT job_id FROM saved_jobs)`
+    `DELETE FROM jobs
+     WHERE id IN (
+       SELECT j.id
+       FROM jobs j
+       WHERE j.closed_at IS NOT NULL
+         AND j.closed_at < ?
+         AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id)
+         AND NOT EXISTS (SELECT 1 FROM saved_jobs s WHERE s.job_id = j.id)
+       ORDER BY j.closed_at ASC
+       LIMIT ?
+     )`
+  ).bind(
+    new Date(startedAtMs - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    CLOSED_JOB_PURGE_BATCH_SIZE
   ).run();
   await Promise.all([
     db.prepare(
@@ -444,9 +490,6 @@ export async function runPollCycle(
   await db.batch([
     db.prepare(
       "DELETE FROM product_events WHERE datetime(occurred_at) < datetime('now', '-180 days')"
-    ),
-    db.prepare(
-      "DELETE FROM scorer_audits WHERE datetime(created_at) < datetime('now', '-90 days')"
     ),
     db.prepare(
       `DELETE FROM notification_candidates

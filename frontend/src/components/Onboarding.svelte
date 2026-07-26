@@ -10,18 +10,17 @@
     normalizeSearchProfile,
     type SearchProfile,
   } from "../../../shared/search-profile";
-  import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
+  import { normalizeJobScore, scoreLabelFromPercent, scoreToneFromPercent } from "../lib/scoring";
   import SearchProfileFields from "./SearchProfileFields.svelte";
   import Check from "phosphor-svelte/lib/Check";
   import Spinner from "./Spinner.svelte";
 
   let { onComplete }: { onComplete: (name: string) => void } = $props();
 
-  const TOTAL_STEPS = 7;
+  const TOTAL_STEPS = 5;
 
   let step: number = $state(1);
   let name: string = $state("");
-  let nameError: string | null = $state(null);
   let saving: boolean = $state(false);
   let pushStatus: string = $state("idle");
   let enablingPush: boolean = $state(false);
@@ -47,30 +46,16 @@
     if (scrollEl) scrollEl.scrollTop = 0;
   });
 
-  $effect(() => {
-    if (onboardingStartRecorded) return;
-    onboardingStartRecorded = true;
-    void api.interactions.event({
-      event_name: "onboarding_started",
-      entity_type: "onboarding",
-      properties: { onboarding_version: ONBOARDING_VERSION },
-    }).catch(() => undefined);
-  });
-
-  async function handleNameSubmit() {
-    const trimmed = name.trim();
-    if (!trimmed || saving) return;
-    saving = true;
-    nameError = null;
-    try {
-      await api.me.update({ name: trimmed });
-      step = 2;
-    } catch (e) {
-      // Surface the failure — a silently dead Continue button looks broken.
-      nameError = errorMessage(e, "Could not save your name. Check your connection and try again.");
-    } finally {
-      saving = false;
+  async function beginOnboarding() {
+    if (!onboardingStartRecorded) {
+      onboardingStartRecorded = true;
+      await api.interactions.event({
+        event_name: "onboarding_started",
+        entity_type: "onboarding",
+        properties: { onboarding_version: ONBOARDING_VERSION },
+      }).catch(() => undefined);
     }
+    step = 2;
   }
 
   async function handleEnablePush() {
@@ -103,7 +88,7 @@
       });
       profile = normalizeSearchProfile(saved.search_profile);
       previewLoading = true;
-      step = 5;
+      step = 3;
       previewJobs = await api.preferences.preview().then((result) => result.jobs);
     } catch (e) {
       profileError = errorMessage(e, "Could not save your search profile.");
@@ -131,7 +116,7 @@
         entity_type: "onboarding",
         properties: { onboarding_version: ONBOARDING_VERSION },
       }).catch(() => undefined);
-      step = 6;
+      step = 4;
     } catch (e) {
       profileError = errorMessage(e, "Could not finish your search profile.");
     } finally {
@@ -144,11 +129,12 @@
     signingInWithApple = true;
     accountError = null;
     try {
+      if (name.trim()) await api.me.update({ name: name.trim() });
       const credential = await signInWithAppleNative();
       const accountState = await api.auth.signInWithApple(credential);
       syncSessionAccess(accountState);
       // Signed in — the guest data we just gathered now lives on the account.
-      finish();
+      await finish();
     } catch (e) {
       if ((e as { code?: string })?.code === "CANCELED") return; // user dismissed the sheet — not an error
       accountError = errorMessage(e, "Could not complete Sign in with Apple.");
@@ -162,6 +148,7 @@
     sendingEmailLogin = true;
     accountError = null;
     try {
+      if (name.trim()) await api.me.update({ name: name.trim() });
       await api.auth.startEmailLogin(emailLogin.trim());
       emailLinkSent = true;
     } catch (e) {
@@ -171,8 +158,18 @@
     }
   }
 
-  function finish() {
-    onComplete(name.trim());
+  async function finish() {
+    if (saving) return;
+    saving = true;
+    accountError = null;
+    try {
+      if (name.trim()) await api.me.update({ name: name.trim() });
+      onComplete(name.trim());
+    } catch (e) {
+      accountError = errorMessage(e, "Could not finish setup. Check your connection and try again.");
+    } finally {
+      saving = false;
+    }
   }
 </script>
 
@@ -209,41 +206,9 @@
           </div>
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Beat the crowd</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
-            Get alerted the moment roles drop &mdash; before everyone else applies. We scan company job boards every 15 minutes so you never miss a match.
+            Pick the work you want. We&rsquo;ll immediately show the strongest early-career matches already in pinkslip.
           </p>
-          <label for="onboarding-name" class="field-label" style="margin-bottom: 8px;">
-            Your name
-          </label>
-          <input
-            id="onboarding-name"
-            class="input-field"
-            type="text"
-            placeholder="e.g. Alex"
-            bind:value={name}
-            onkeydown={(e) => e.key === "Enter" && handleNameSubmit()}
-          />
-          {#if nameError}
-            <div class="alert alert-error" style="margin-top: 12px; font-size: var(--fs-xs);">
-              {nameError}
-            </div>
-          {/if}
-          <button
-            class="btn-primary btn-accent"
-            style="width: 100%; margin-top: 16px;"
-            disabled={!name.trim() || saving}
-            onclick={handleNameSubmit}
-          >
-            {#if saving}<Spinner />{/if}
-            Continue
-          </button>
-        </div>
-
-      {:else if step === 2}
-        <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">What are you targeting?</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
-            Pick one or several role families. This directly controls which jobs rise in your feed.
-          </p>
+          <h3 class="section-label" style="margin-bottom: 12px;">What are you targeting?</h3>
           <div style="margin-bottom: 24px;">
             <SearchProfileFields bind:profile section="roles" showAdvanced={false} />
           </div>
@@ -251,27 +216,13 @@
             class="btn-primary btn-accent"
             style="width: 100%;"
             disabled={profile.roles.length === 0}
-            onclick={() => step = 3}
+            onclick={beginOnboarding}
           >
             Continue
           </button>
         </div>
 
-      {:else if step === 3}
-        <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">What level fits?</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
-            Add your real experience, then choose the levels you want us to include.
-          </p>
-          <div style="margin-bottom: 24px;">
-            <SearchProfileFields bind:profile section="experience" showAdvanced={false} />
-          </div>
-          <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 4}>
-            Continue
-          </button>
-        </div>
-
-      {:else if step === 4}
+      {:else if step === 2}
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Where can you work?</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
@@ -298,7 +249,7 @@
           </button>
         </div>
 
-      {:else if step === 5}
+      {:else if step === 3}
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">This is your starting line</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 20px;">
@@ -312,7 +263,7 @@
             </div>
           {:else if previewJobs.length === 0}
             <div class="preview-empty">
-              No confident matches yet. Broaden a role, level, metro, or work mode — or
+              No confident matches yet. Broaden a role, metro, or work mode — or
               continue anyway; new jobs land every 15 minutes.
             </div>
           {:else}
@@ -326,7 +277,7 @@
                     <strong
                       class="preview-score"
                       style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
-                    >{scorePercent}</strong>
+                    >{scoreLabelFromPercent(scorePercent)}</strong>
                   </div>
                   <div class="preview-job-title">{job.title}</div>
                   <div class="preview-job-location">{job.location || "Location not specified"}</div>
@@ -347,7 +298,7 @@
           <!-- 0 matches is not a dead end: the user can still proceed, since
                new jobs arrive every poll. -->
           <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; margin-top: 20px;">
-            <button class="btn-secondary" style="padding: 0 18px;" onclick={() => step = 2}>Adjust</button>
+            <button class="btn-secondary" style="padding: 0 18px;" onclick={() => step = 1}>Adjust</button>
             <button class="btn-primary btn-accent" disabled={saving || previewLoading} onclick={acceptPreview}>
               {#if saving}<Spinner />{/if}
               {previewJobs.length === 0 ? "Continue anyway" : "Use this feed"}
@@ -355,7 +306,7 @@
           </div>
         </div>
 
-      {:else if step === 6}
+      {:else if step === 4}
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Stay in the loop</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
@@ -371,16 +322,6 @@
               </div>
               {#if pushStatus === "enabled"}
                 <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-good); font-weight: 500;">Enabled</span>
-              {:else}
-                <button
-                  class="btn-secondary"
-                  style="height: 40px; padding: 0 16px; font-size: var(--fs-sm);"
-                  disabled={enablingPush}
-                  onclick={handleEnablePush}
-                >
-                  {#if enablingPush}<Spinner />{/if}
-                  Enable
-                </button>
               {/if}
             </div>
             {#if pushStatus === "denied"}
@@ -399,17 +340,43 @@
             {/if}
           </div>
 
-          <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 7}>
-            Continue
-          </button>
+          {#if pushStatus === "enabled"}
+            <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 5}>
+              Continue
+            </button>
+          {:else}
+            <button
+              class="btn-primary btn-accent"
+              style="width: 100%;"
+              disabled={enablingPush}
+              onclick={handleEnablePush}
+            >
+              {#if enablingPush}<Spinner />{/if}
+              Enable notifications
+            </button>
+            <button class="onboarding-skip" onclick={() => step = 5}>Not now</button>
+          {/if}
         </div>
 
-      {:else if step === 7}
+      {:else if step === 5}
         <div style="animation: fade-in 0.3s;">
           <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Save your progress</h2>
           <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
             Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; as a guest, your data is saved to this app and tied to this browser session until you sign in.
           </p>
+
+          <label for="onboarding-name" class="field-label" style="margin-bottom: 8px;">
+            Your name <span style="color: var(--color-ink-3); font-weight: 400;">(optional)</span>
+          </label>
+          <input
+            id="onboarding-name"
+            class="input-field"
+            type="text"
+            placeholder="e.g. Alex"
+            bind:value={name}
+            autocomplete="name"
+            style="margin-bottom: 20px;"
+          />
 
           {#if accountError}
             <div class="alert alert-error" style="margin-bottom: 16px; font-size: var(--fs-xs);">
@@ -448,7 +415,7 @@
             <label for="onboarding-email" class="field-label" style="margin-bottom: 8px;">
               Continue with email
             </label>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 24px;">
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
               <input
                 id="onboarding-email"
                 class="input-field"
@@ -461,8 +428,8 @@
                 onkeydown={(e) => e.key === "Enter" && handleEmailLoginStart()}
               />
               <button
-                class="btn-secondary"
-                style="padding: 0 16px;"
+                class="btn-primary btn-accent"
+                style="width: 100%;"
                 disabled={sendingEmailLogin || !emailLogin.trim()}
                 onclick={handleEmailLoginStart}
               >
@@ -472,7 +439,7 @@
             </div>
           {/if}
 
-          <button class="btn-secondary" style="width: 100%;" onclick={finish}>
+          <button class="onboarding-skip" disabled={saving} onclick={() => void finish()}>
             {emailLinkSent ? "Continue to pinkslip" : "Maybe later — keep using as guest"}
           </button>
         </div>
@@ -500,4 +467,7 @@
   .preview-job-location { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-2xs); }
   .preview-reasons { margin-top: 8px; color: var(--color-accent); font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .preview-empty { padding: 24px 18px; border: 1px dashed var(--color-line-2); border-radius: var(--radius-lg); color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.5; text-align: center; }
+  .onboarding-skip { width: 100%; margin-top: 12px; padding: 10px; border: 0; background: transparent; color: var(--color-ink-3); font-size: var(--fs-sm); cursor: pointer; }
+  .onboarding-skip:hover { color: var(--color-ink); }
+  .onboarding-skip:disabled { opacity: 0.5; cursor: default; }
 </style>

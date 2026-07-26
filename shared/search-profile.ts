@@ -114,6 +114,40 @@ export const EXPERIENCE_OPTIONS = [
 
 export type ExperienceLevel = (typeof EXPERIENCE_OPTIONS)[number]["id"];
 export type StretchTolerance = "strict" | "balanced" | "ambitious";
+
+// ─── The band pinkslip serves ────────────────────────────────────────────────
+//
+// pinkslip targets exactly one audience: new grads through roughly three years.
+// This is deliberately a constant and not a user preference. When level was
+// user-selectable the filter compared against Math.max(target_levels), which put
+// a ceiling on seniority but no floor — so ticking "Senior" alongside "Early
+// career" removed the floor entirely and filled the feed with staff+ roles.
+// A fixed band cannot express that bug.
+
+/** Highest stated years-of-experience requirement still considered a match. */
+export const MAX_YEARS_EXPERIENCE = 3;
+
+/**
+ * Seniorities kept in the feed.
+ *
+ * `unknown` is included on purpose. Seniority is inferred from the job title, so
+ * a posting whose title carries no level marker ("Software Engineer, Data")
+ * lands here — and those are the single largest source of supply: 401 of the 685
+ * eligible postings in production. A title with no seniority marker is usually
+ * open to new grads, so excluding them would discard most of the catalog.
+ */
+export const ELIGIBLE_SENIORITIES = [
+  "new_grad",
+  "early_career",
+  "mid_level",
+  "unknown",
+] as const satisfies readonly (ExperienceLevel | "unknown")[];
+
+export type EligibleSeniority = (typeof ELIGIBLE_SENIORITIES)[number];
+
+export function isEligibleSeniority(seniority: string): boolean {
+  return (ELIGIBLE_SENIORITIES as readonly string[]).includes(seniority);
+}
 export type WorkMode = "remote" | "hybrid" | "onsite";
 export type WorkAuthorization = "authorized" | "sponsorship" | "not_sure";
 
@@ -159,8 +193,8 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   version: SEARCH_PROFILE_VERSION,
   primary_role: "software_engineering",
   roles: ["software_engineering", "frontend", "backend", "full_stack"],
-  years_experience: 2,
-  target_levels: ["early_career"],
+  years_experience: 1,
+  target_levels: ["new_grad", "early_career"],
   stretch_tolerance: "balanced",
   countries: ["US"],
   location_ids: ["sf_bay", "new_york", "chicago", "boston", "washington_dc", "seattle", "austin"],

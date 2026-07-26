@@ -395,19 +395,6 @@ export async function mergeGuestDataIntoAccount(
     "UPDATE notification_candidates SET user_id = ? WHERE user_id = ?"
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
 
-  await db.batch([
-    db.prepare(
-      `INSERT OR IGNORE INTO scorer_audits (
-         user_id, job_id, stable_version, candidate_version, stable_score,
-         candidate_score, delta, reasons_json, created_at
-       )
-       SELECT ?, job_id, stable_version, candidate_version, stable_score,
-              candidate_score, delta, reasons_json, created_at
-       FROM scorer_audits
-       WHERE user_id = ?`
-    ).bind(targetUserId, sourceUserId),
-  ]).catch(() => undefined);
-
   const conflictingJobIds = await db.prepare(
     `SELECT a.job_id
      FROM applications a
@@ -513,7 +500,6 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM user_blocked_companies WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_notification_settings WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM notification_candidates WHERE user_id = ?").bind(userId),
-    db.prepare("DELETE FROM scorer_audits WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM content_reports WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM feedback_submissions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM users WHERE id = ?").bind(userId),

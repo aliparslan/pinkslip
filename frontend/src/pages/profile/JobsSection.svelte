@@ -4,6 +4,7 @@
   import {
     DEFAULT_SEARCH_PROFILE,
     LOCATION_OPTIONS,
+    MAX_YEARS_EXPERIENCE,
     ROLE_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
@@ -58,8 +59,8 @@
           <strong>{specialtyLabels}</strong>
         </div>
         <div class="profile-summary-item">
-          <span>Experience</span>
-          <strong>{searchProfile.years_experience} years · {searchProfile.target_levels.map((level) => level.replaceAll("_", " ")).join(", ")}</strong>
+          <span>Experience band</span>
+          <strong>New grad to early career · up to {MAX_YEARS_EXPERIENCE} years required</strong>
         </div>
         <div class="profile-summary-item">
           <span>Work modes</span>

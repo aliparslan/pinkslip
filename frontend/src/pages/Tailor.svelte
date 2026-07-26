@@ -44,6 +44,7 @@
   // Tailoring has no usable API key (neither personal nor app-wide). Rendered
   // as a setup card with a path forward, not a raw error string.
   let setupNeeded = $state(false);
+  let signInNeeded = $state(false);
   let job: Job | null = $state(null);
   let tailoring: Tailoring | null = $state(null);
   let localKit: LocalTailorKit | null = $state(null);
@@ -149,6 +150,7 @@
     streaming = true;
     error = null;
     setupNeeded = false;
+    signInNeeded = false;
     rawStream = "";
     tokenSummary = null;
     editing = { resume: false, cover: false, qa: false };
@@ -174,6 +176,10 @@
         const data = await res.json().catch(() => null) as { error?: string; code?: string } | null;
         if (data?.code === "tailor_not_configured") {
           setupNeeded = true;
+          return;
+        }
+        if (data?.code === "authentication_required") {
+          signInNeeded = true;
           return;
         }
         throw new Error(data?.error ?? `Tailoring failed (${res.status})`);
@@ -431,6 +437,19 @@
 
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+    {:else if signInNeeded}
+      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+        <h2 class="h-display h-display-sm">Sign in for included tailoring</h2>
+        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          The included AI quota is available to signed-in accounts so it can be protected fairly. You can also add your own Gemini key and keep using tailoring as a guest.
+        </p>
+        <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">
+          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={() => navigate("/profile")}>
+            Open account settings
+          </button>
+          <button class="btn-secondary" onclick={openTailorSettings}>Use my own key</button>
+        </div>
+      </div>
     {:else if setupNeeded}
       <!-- Tailoring isn't configured: a setup path, not a dead end. -->
       <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">

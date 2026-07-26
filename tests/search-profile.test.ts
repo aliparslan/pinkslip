@@ -4,7 +4,7 @@ import {
   normalizeSearchProfile,
 } from "../shared/search-profile";
 import { classifyJob } from "@worker/job-features";
-import { scoreJobForProfile, scorerCohortBucket } from "@worker/user-job-scores";
+import { scoreJobForProfile } from "@worker/user-job-scores";
 import { scoreJob } from "@worker/scoring";
 import {
   preferenceStateFromRecord,
@@ -81,13 +81,6 @@ describe("search profile", () => {
 });
 
 describe("personalized scoring", () => {
-  test("assigns scorer rollout cohorts deterministically", () => {
-    const first = scorerCohortBucket("user-123");
-    expect(first).toBeGreaterThanOrEqual(0);
-    expect(first).toBeLessThan(100);
-    expect(scorerCohortBucket("user-123")).toBe(first);
-  });
-
   test("a product profile favors product management over software engineering", () => {
     const prefs = scoringPrefsFromState({
       search_profile: normalizeSearchProfile({
@@ -203,7 +196,7 @@ describe("job features and match explanations", () => {
     const match = scoreJobForProfile("job-1", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(true);
-    expect(match.reasons).toContain("Backend role");
+    expect(match.reasons).toContain("Matches your Backend focus");
     expect(match.reasons).toContain("Remote US");
     expect(match.reasons).toContain("Asks for 2+ years");
   });
@@ -268,7 +261,7 @@ describe("job features and match explanations", () => {
     expect(match.plausible).toBe(false);
   });
 
-  test("keeps principal roles out of a balanced mid-level profile", () => {
+  test("keeps principal roles out of the feed", () => {
     const listing = job({
       title: "Principal Product Manager",
       department: "Product",
@@ -285,5 +278,70 @@ describe("job features and match explanations", () => {
     const match = scoreJobForProfile("job-5", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(false);
+  });
+});
+
+// pinkslip serves one fixed band: new grad through ~3 years. These pin both
+// edges, because the previous implementation only had a ceiling.
+describe("the new-grad band", () => {
+  const newGradProfile = (overrides: Record<string, unknown> = {}) =>
+    normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      primary_role: "backend",
+      roles: ["backend"],
+      work_modes: ["remote", "hybrid", "onsite"],
+      ...overrides,
+    });
+
+  const scored = (title: string, description: string | null, overrides = {}) => {
+    const listing = job({ title, location: "Remote - US", description });
+    return scoreJobForProfile("j", listing, classifyJob(listing), newGradProfile(overrides));
+  };
+
+  test("includes a posting that states no experience requirement", () => {
+    // The largest single source of supply — 401 of 685 eligible production
+    // postings state no years requirement at all.
+    const match = scored("Backend Engineer", "Build and operate our APIs.");
+    expect(match.plausible).toBe(true);
+  });
+
+  test("includes a requirement at the ceiling and excludes one above it", () => {
+    expect(scored("Backend Engineer", "At least 3 years of experience.").plausible).toBe(true);
+    expect(scored("Backend Engineer", "At least 4 years of experience.").plausible).toBe(false);
+  });
+
+  test("ranks an explicit in-band requirement above an unstated one", () => {
+    const stated = scored("Backend Engineer", "At least 2 years of experience.");
+    const unstated = scored("Backend Engineer", "Build and operate our APIs.");
+    expect(stated.breakdown.yoe_score).toBeGreaterThan(unstated.breakdown.yoe_score);
+  });
+
+  test("excludes senior, staff and internship titles", () => {
+    expect(scored("Senior Backend Engineer", "Build APIs.").plausible).toBe(false);
+    expect(scored("Staff Backend Engineer", "Build APIs.").plausible).toBe(false);
+    expect(scored("Backend Engineer Intern", "Build APIs.").plausible).toBe(false);
+  });
+
+  test("widening target_levels cannot raise the ceiling", () => {
+    // The original defect: seniority was compared against
+    // Math.max(...target_levels) + allowance, so asking for senior roles
+    // alongside early-career ones removed the floor and let staff+ in.
+    const withSeniorSelected = scored("Member of Technical Staff", "Build APIs.", {
+      target_levels: ["new_grad", "early_career", "senior", "staff_plus"],
+      stretch_tolerance: "ambitious",
+    });
+    expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
+      .toBe("staff_plus");
+    expect(withSeniorSelected.plausible).toBe(false);
+  });
+
+  test("a description mentioning senior colleagues does not exclude the job", () => {
+    // Seniority must come from the title only. Reading it out of the
+    // description flipped ordinary phrasing into a senior classification.
+    const match = scored(
+      "Backend Engineer",
+      "You will work with senior engineers and lead projects end to end."
+    );
+    expect(match.plausible).toBe(true);
   });
 });

@@ -32,7 +32,7 @@
     onError,
     onSuccess,
   }: {
-    sessionState: "guest" | "authenticated";
+    sessionState: "anonymous" | "guest" | "authenticated";
     features: AppFeatures | null;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;

@@ -399,10 +399,7 @@
               Match score
             </h2>
             <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
-              <span style="font-family: var(--font-display); font-weight: 700; font-size: 36px; color: {scoreColor}; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">
-                {scorePercent}
-              </span>
-              <span style="font-size: var(--fs-md); font-weight: 600; color: var(--color-ink);">
+              <span style="font-family: var(--font-display); font-weight: 700; font-size: 28px; color: {scoreColor}; letter-spacing: -0.03em;">
                 {scoreLabel}
               </span>
             </div>

@@ -39,15 +39,6 @@ export async function signInWithAppleNative() {
   return { ...credential, nonce };
 }
 
-export function isMagicLinkUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return parsed.pathname === "/auth/email/verify";
-  } catch {
-    return false;
-  }
-}
-
 function magicLinkToken(url: string | undefined | null): string | null {
   if (!url) return null;
   try {

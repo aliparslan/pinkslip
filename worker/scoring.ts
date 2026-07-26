@@ -4,6 +4,14 @@ import {
   profileExperienceRange,
   type SearchProfileV1,
 } from "../shared/search-profile";
+import { parseExperienceRequirement } from "./job-features";
+import {
+  normalizeScorePercent,
+  SCORE_COMPONENT_MAX,
+  SCORE_RAW_MAX,
+} from "../shared/scoring";
+
+export { SCORE_COMPONENT_MAX, SCORE_RAW_MAX } from "../shared/scoring";
 
 export interface ScoringPrefs {
   locations: string[];
@@ -14,21 +22,6 @@ export interface ScoringPrefs {
   department_keywords?: string[];
   search_profile?: SearchProfileV1;
 }
-
-export const SCORE_COMPONENT_MAX = {
-  title: 30,
-  yoe: 25,
-  location: 20,
-  department: 10,
-  recency: 10,
-} as const;
-
-export const SCORE_RAW_MAX =
-  SCORE_COMPONENT_MAX.title
-  + SCORE_COMPONENT_MAX.yoe
-  + SCORE_COMPONENT_MAX.location
-  + SCORE_COMPONENT_MAX.department
-  + SCORE_COMPONENT_MAX.recency;
 
 // ─── Title Match (0–30) ──────────────────────────────────────────────────────
 
@@ -193,18 +186,15 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
 
 // ─── YOE Fit (0–25) ──────────────────────────────────────────────────────────
 
-// Patterns like "2+ years", "3-5 years", "up to 5 years"
-const YOE_PATTERN = /(\d+)\s*(?:\+|–|-|to)?\s*\d*\s*(?:years?|yrs?)/i;
-
 function scoreYoeFit(description: string | null, title: string, prefs: ScoringPrefs): number {
-  const lower = [description ?? "", title].join("\n").toLowerCase();
+  const lower = title.toLowerCase();
 
   if (containsKeyword(lower, "junior") || containsKeyword(lower, "new grad")) return 25;
   if (/\bsenior\b/.test(lower) || /\bsr\.?\b/.test(lower)) return 5;
 
-  const match = lower.match(YOE_PATTERN);
-  if (match) {
-    const years = parseInt(match[1], 10);
+  const requirement = parseExperienceRequirement(title, description);
+  if (requirement.min !== null) {
+    const years = requirement.min;
     if (years <= prefs.max_yoe) return 25;
     if (years <= prefs.max_yoe + 2) return 10;
     return 0;
@@ -223,7 +213,7 @@ function scorePersonalizedYoe(
   title: string,
   profile: SearchProfileV1
 ): YoeResult {
-  const lower = [title, description ?? ""].join("\n").toLowerCase();
+  const lower = title.toLowerCase();
   const levels = new Set(profile.target_levels);
   const internship = /\b(?:intern|internship|co-op)\b/.test(lower);
   const newGrad = /\b(?:new grad|new graduate|early career|entry level|graduate|campus)\b/.test(lower);
@@ -255,9 +245,9 @@ function scorePersonalizedYoe(
     return { score: 5, disqualified: false };
   }
 
-  const match = lower.match(YOE_PATTERN);
-  if (match) {
-    const requiredYears = parseInt(match[1], 10);
+  const requirement = parseExperienceRequirement(title, description);
+  if (requirement.min !== null) {
+    const requiredYears = requirement.min;
     const target = profileExperienceRange(profile);
     if (requiredYears <= target.maxYears) return { score: 25, disqualified: false };
     if (requiredYears <= target.maxYears + 2) return { score: 10, disqualified: false };
@@ -351,10 +341,10 @@ function scoreRecency(postedAt: string | null): number {
 
   const ageDays = (Date.now() - posted.getTime()) / ONE_DAY_MS;
 
-  if (ageDays < 1) return 10;
-  if (ageDays < 2) return 7;
-  if (ageDays < 7) return 3;
-  return 0;
+  // A smooth 30-day decay gives recency useful ordering power without creating
+  // enormous 10/7/3/0 tie buckets. Tenths are deliberate and safe in SQLite's
+  // numeric affinity even though the historical column declaration is INTEGER.
+  return Math.max(0, Math.min(10, Math.round((10 - ageDays / 3) * 10) / 10));
 }
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
@@ -384,8 +374,7 @@ export interface ScoreBreakdown {
 }
 
 export function normalizeScore(rawScore: number): number {
-  if (!Number.isFinite(rawScore) || rawScore <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((rawScore / SCORE_RAW_MAX) * 100)));
+  return normalizeScorePercent(rawScore);
 }
 
 export function scoreJob(job: JobListing, prefs: ScoringPrefs): ScoreBreakdown {

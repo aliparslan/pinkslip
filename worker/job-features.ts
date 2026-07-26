@@ -78,7 +78,10 @@ function classifySeniority(
 ): JobFeatures["seniority"] {
   const text = title.toLowerCase();
   if (/\b(?:chief|vice president|vp|head of)\b/.test(text)) return "executive";
-  if (/\b(?:manager|director)\b/.test(text) && !/\bproduct manager\b/.test(text)) return "manager";
+  if (
+    /\b(?:manager|director)\b/.test(text)
+    && !/\b(?:product|technical program) manager\b/.test(text)
+  ) return "manager";
   if (/\b(?:staff|principal|distinguished|fellow)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
   if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";
@@ -247,7 +250,7 @@ export async function ensureJobFeatures(db: D1Database, limit = 750) {
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
        AND (jf.job_id IS NULL OR jf.classifier_version != ?)
-     ORDER BY datetime(j.first_seen_at) DESC
+     ORDER BY j.first_seen_at DESC
      LIMIT ?`
   ).bind(JOB_CLASSIFIER_VERSION, limit).all<FeatureJobRow>();
   const rows = result.results ?? [];

@@ -31,7 +31,7 @@
 
   let displayName: string = $state("");
   let savedDisplayName: string = $state("");
-  let sessionState: "guest" | "authenticated" = $state("guest");
+  let sessionState: "anonymous" | "guest" | "authenticated" = $state("guest");
   let account: AccountInfo | null = $state(null);
   let isAdmin: boolean = $state(false);
   let features: AppFeatures | null = $state(null);

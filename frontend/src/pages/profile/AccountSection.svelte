@@ -14,7 +14,7 @@
     onSuccess,
     onReload,
   }: {
-    sessionState: "guest" | "authenticated";
+    sessionState: "anonymous" | "guest" | "authenticated";
     account: AccountInfo | null;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;

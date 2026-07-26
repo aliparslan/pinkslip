@@ -6,11 +6,17 @@ import {
 } from "../user-preferences";
 import { ensureUserJobMatchesReady } from "../user-job-scores";
 import { ensureEligibleJobs } from "../job-scope";
+import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../../shared/search-profile";
+import { diversifyRankedJobs } from "../job-ranking";
 
 const preferences = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // GET / — Get all preferences as key-value object
 preferences.get("/", async (c) => {
+  if (c.get("sessionState") === "anonymous") {
+    const searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
+    return c.json({ search_profile: searchProfile, notify_threshold: searchProfile.match_threshold });
+  }
   return c.json(await loadUserPreferenceState(c.env.DB, c.get("userId")));
 });
 
@@ -34,7 +40,7 @@ preferences.get("/preview", async (c) => {
   await ensureUserJobMatchesReady(c.env.DB, userId, 5);
   const result = await c.env.DB.prepare(
     `SELECT
-       j.id, j.title, j.location, j.posted_at, j.first_seen_at, j.salary,
+       j.id, j.company_id, j.title, j.location, j.posted_at, j.first_seen_at, j.salary,
        c.name AS company_name, c.website AS company_domain,
        ujm.score, ujm.reasons_json AS match_reasons_json
      FROM user_job_matches ujm
@@ -47,10 +53,11 @@ preferences.get("/preview", async (c) => {
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
        )
-     ORDER BY ujm.score DESC, datetime(j.first_seen_at) DESC
-     LIMIT 5`
+     ORDER BY ujm.score DESC, j.first_seen_at DESC
+     LIMIT 25`
   ).bind(userId, userId).all<{
     id: string;
+    company_id: string;
     title: string;
     location: string;
     posted_at: string | null;
@@ -62,7 +69,7 @@ preferences.get("/preview", async (c) => {
     match_reasons_json: string;
   }>();
   return c.json({
-    jobs: (result.results ?? []).map((job) => {
+    jobs: diversifyRankedJobs(result.results ?? [], 5).map((job) => {
       let reasons: string[] = [];
       try {
         const parsed = JSON.parse(job.match_reasons_json);

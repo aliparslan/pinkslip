@@ -4,10 +4,6 @@ A mobile-first job-alert app. The frontend is a **Svelte 5 single-page app built
 with Vite**, served as static assets by the Cloudflare Worker in `../worker`, and
 wrapped as a native iOS app by **Capacitor** (`ios/`).
 
-> ⚠️ This file used to be the generic `bun init` template and told agents to use
-> `Bun.serve()` + React + "don't use Vite." **That was wrong** and never matched
-> this project. The stack described below is authoritative.
-
 ## Stack
 
 - **Svelte 5** with runes — `$state`, `$derived`, `$props`, `$effect`. Do **not**
@@ -105,7 +101,7 @@ back-swipe) hand-rolled — Bits only covers standard primitives.
 ## Tests
 
 `bun test` from the repo root. Tests use **`bun:test`** (Jest-style API), not
-vitest. (`vitest.config.ts` at the root is legacy and unused.)
+Vitest.
 
 ## Don'ts
 

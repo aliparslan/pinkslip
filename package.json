@@ -1,13 +1,14 @@
 {
   "name": "pinkslip",
   "version": "1.0.0",
-  "description": "Personal job alerting PWA on Cloudflare Workers",
+  "description": "Early-career job discovery, alerts, and application tooling",
   "scripts": {
-    "dev": "bun run db:repair:local && wrangler dev",
+    "dev": "bun run db:repair:local && bun run db:migrate && wrangler dev",
     "dev:prod-data": "bun run build:frontend && wrangler dev --remote",
     "deploy": "bun run db:migrate:remote && bun run build:frontend && wrangler deploy",
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "check": "bunx tsc --noEmit && cd frontend && bun run check",
     "build:frontend": "cd frontend && bun run build",
     "db:migrate": "wrangler d1 migrations apply pinkslip --local",
     "db:migrate:remote": "wrangler d1 migrations apply pinkslip --remote",
@@ -25,11 +26,11 @@
     "hono": "^4.12.16"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260503.1",
+    "@cloudflare/workers-types": "5.20260722.1",
     "@types/bun": "^1.3.13",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.3",
     "web-push": "^3.6.7",
-    "wrangler": "^4.98.0"
+    "wrangler": "4.114.0"
   }
 }

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
+import { SCORE_RAW_PER_PERCENT } from "../../shared/scoring";
 
 const stats = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -20,7 +21,7 @@ stats.get("/", async (c) => {
        WHERE ujm.user_id = ?
          AND c.enabled = 1
          AND j.closed_at IS NULL
-         AND ujm.score >= CAST(ROUND(usp.match_threshold * 0.95) AS INTEGER)
+         AND ujm.score >= CAST(ROUND(usp.match_threshold * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
          AND NOT EXISTS (
            SELECT 1
            FROM dismissed_jobs d
@@ -41,7 +42,7 @@ stats.get("/", async (c) => {
        WHERE ujm.user_id = ?
          AND c.enabled = 1
          AND j.closed_at IS NULL
-         AND ujm.score >= CAST(ROUND(usp.match_threshold * 0.95) AS INTEGER)
+         AND ujm.score >= CAST(ROUND(usp.match_threshold * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
          AND substr(j.first_seen_at, 1, 10) = ?
          AND NOT EXISTS (
            SELECT 1

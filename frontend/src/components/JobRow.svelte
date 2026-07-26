@@ -2,7 +2,7 @@
   import { navigate } from "../router";
   import { api, type Job } from "../lib/api";
   import { extractSalaryFromHtml, normalizeSalaryText } from "../lib/job-content";
-  import { normalizeJobScore, scoreToneFromPercent } from "../lib/scoring";
+  import { normalizeJobScore, scoreLabelFromPercent, scoreToneFromPercent } from "../lib/scoring";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
   import { sessionAccess } from "../lib/session-access";
@@ -45,6 +45,7 @@
   );
   let commitThreshold = $derived(actionTotalWidth + 34);
   let scorePercent = $derived(normalizeJobScore(job.score));
+  let scoreLabel = $derived(scoreLabelFromPercent(scorePercent));
   let scoreColor = $derived(scoreToneFromPercent(scorePercent));
   let displaySalary = $derived(normalizeSalaryText(job.salary ?? extractSalaryFromHtml(job.description)));
   let isFresh = $derived(
@@ -214,7 +215,7 @@
           class="job-row__score"
           style="background: color-mix(in oklch, {scoreColor} 12%, var(--color-bg)); color: {scoreColor};"
         >
-          {scorePercent}
+          {scoreLabel}
         </span>
       </div>
       <div class="job-row__title">{job.title}</div>

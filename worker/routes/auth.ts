@@ -18,6 +18,7 @@ import {
 } from "../auth";
 import { randomOpaqueToken, sha256Hex } from "../crypto";
 import { sendMagicLinkEmail } from "../email";
+import { recordProductEvent } from "../product-events";
 import type { AuthIdentityRow, Env, UserRow, Variables } from "../types";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -62,9 +63,9 @@ async function updateUserNameIfBlank(db: D1Database, userId: string, suggestedNa
 export async function buildAccountState(
   db: D1Database,
   userId: string,
-  sessionState: "guest" | "authenticated"
+  sessionState: Variables["sessionState"]
 ) {
-  const user = await loadUser(db, userId);
+  const user = sessionState === "anonymous" ? null : await loadUser(db, userId);
   if (!user) {
     return {
       user: null,
@@ -135,6 +136,7 @@ async function signInWithIdentity(
     : null;
 
   const targetUserId = directIdentity?.user_id ?? linkedIdentity?.user_id ?? currentUserId;
+  const createdAccount = !directIdentity && !linkedIdentity;
 
   if ((directIdentity || linkedIdentity) && currentUserId !== targetUserId) {
     await mergeGuestDataIntoAccount(db, {
@@ -186,6 +188,15 @@ async function signInWithIdentity(
   c.set("userId", targetUserId);
   c.set("sessionId", nextSession.id);
   c.set("sessionState", "authenticated");
+  if (createdAccount) {
+    await recordProductEvent(db, {
+      userId: targetUserId,
+      sessionId: nextSession.id,
+      name: "account_created",
+      entityType: "account",
+      properties: { provider: args.provider },
+    }).catch(() => undefined);
+  }
   return nextSession;
 }
 

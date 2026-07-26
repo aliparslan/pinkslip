@@ -1,9 +1,12 @@
-export const JOB_SCORE_RAW_MAX = 95;
+import {
+  normalizeScorePercent,
+  SCORE_RAW_MAX,
+} from "../../../shared/scoring";
+
+export const JOB_SCORE_RAW_MAX = SCORE_RAW_MAX;
 
 export function normalizeJobScore(rawScore: number | null | undefined): number {
-  const score = rawScore ?? 0;
-  if (!Number.isFinite(score) || score <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((score / JOB_SCORE_RAW_MAX) * 100)));
+  return normalizeScorePercent(rawScore);
 }
 
 export function scoreLabelFromPercent(scorePercent: number): string {
