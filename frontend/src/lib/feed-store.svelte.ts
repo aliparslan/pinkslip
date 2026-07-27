@@ -9,6 +9,7 @@ export const PAGE_SIZE = 25;
 export const feed = $state({
   jobs: [] as Job[],
   lastPolled: null as string | null,
+  lastLoadedAt: 0,
   selectedLocations: ["All"] as string[],
   searchQuery: "",
   savedOnly: false,

@@ -4,6 +4,7 @@
 // All of it is a no-op on the web, so this can be called unconditionally at boot.
 
 import { Capacitor } from "@capacitor/core";
+import { Keyboard } from "@capacitor/keyboard";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { resolvedTheme } from "./theme";
 
@@ -28,8 +29,25 @@ export function initNativeShell(): void {
     );
 
   initStatusBar();
+  installReturnKeyDismissal();
   // The interactive swipe-back gesture lives in App.svelte (it needs to render
   // the previous page underneath), so there's nothing more to wire here.
+}
+
+function installReturnKeyDismissal(): void {
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (["button", "checkbox", "file", "radio", "range", "reset", "submit"].includes(input.type)) return;
+
+    // Let field-specific Enter behavior run first, then mirror a native Done /
+    // Search key by resigning focus and explicitly dismissing the keyboard.
+    window.requestAnimationFrame(() => {
+      input.blur();
+      void Keyboard.hide().catch(() => undefined);
+    });
+  });
 }
 
 /**

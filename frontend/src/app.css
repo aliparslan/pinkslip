@@ -2678,6 +2678,14 @@ body.nav-animating .screen-nav {
   }
 }
 
+/* Native tab bars do not float above the software keyboard. Keeping the page
+   padding avoids a layout jump; the dock returns as soon as focus leaves. */
+@media (max-width: 899px) {
+  body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus) .tab-bar {
+    display: none;
+  }
+}
+
 /* ── Job description (ATS HTML content) ─────────────────── */
 
 .job-description h1,

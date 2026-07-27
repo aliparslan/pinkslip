@@ -36,7 +36,7 @@ const config: CapacitorConfig = {
     },
     Keyboard: {
       // Resize the WebView when the keyboard appears so focused inputs aren't
-      // covered (and the sticky tab bar slides up with it).
+      // covered. CSS hides the mobile tab bar while a field has focus.
       resize: "native",
     },
   },

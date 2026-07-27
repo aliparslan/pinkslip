@@ -60,13 +60,15 @@
   // Show the staleness warning once the poller is clearly behind its
   // 15-minute schedule (not just between runs).
   const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+  // Returning from Job Detail should preserve the exact list. Ambient focus
+  // events may refresh it later without changing it underneath back navigation.
+  const FEED_REFRESH_AFTER_MS = 5 * 60 * 1000;
 
   let loading: boolean = $state(!feed.hydrated && feed.jobs.length === 0);
   let error: string | null = $state(null);
   let filtersOpen: boolean = $state(false);
   let refreshing: boolean = $state(false);
   let loadingMore: boolean = $state(false);
-  let lastAutoRefreshAt = 0;
   let searchTimer: number | null = null;
   let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
   let requestVersion = 0;
@@ -210,6 +212,7 @@
       feed.hasMore = Boolean(jobsRes.meta?.has_more);
       feed.nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
       feed.hydrated = true;
+      feed.lastLoadedAt = Date.now();
       setFeedNavigationJobs(feed.jobs);
     } catch (e) {
       if (version !== requestVersion) return;
@@ -336,6 +339,18 @@
     }, 220);
   }
 
+  function commitSearch(event: KeyboardEvent) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (searchTimer !== null) {
+      window.clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    const input = event.currentTarget as HTMLInputElement;
+    input.blur();
+    void applyFeedFilters({ searchQuery: input.value });
+  }
+
   async function triggerRefresh() {
     if (refreshing) return;
     refreshing = true;
@@ -344,10 +359,10 @@
     refreshing = false;
   }
 
-  async function refreshIfStale() {
+  async function refreshIfStale(force = false) {
     const now = Date.now();
-    if (refreshing || loading || now - lastAutoRefreshAt < 1500) return;
-    lastAutoRefreshAt = now;
+    if (refreshing || loading) return;
+    if (!force && feed.hydrated && now - feed.lastLoadedAt < FEED_REFRESH_AFTER_MS) return;
     await loadFeed(true);
   }
 
@@ -369,7 +384,6 @@
     void syncViewedJobs().catch(() => undefined);
     if (feed.hydrated && feed.jobs.length > 0) {
       loading = false;
-      refreshIfStale();
     } else {
       loadFeed();
     }
@@ -389,7 +403,7 @@
         event.data?.type === "pinkslip:push"
         || event.data?.type === "pinkslip:notification-opened"
       ) {
-        refreshIfStale();
+        refreshIfStale(true);
       }
     };
 
@@ -442,10 +456,12 @@
         <MagnifyingGlass size={16} aria-hidden="true" />
         <input
           type="search"
+          enterkeyhint="search"
           placeholder="Search"
           aria-label="Search jobs or companies"
           value={feed.searchQuery}
           oninput={(event) => scheduleSearch(event.currentTarget.value)}
+          onkeydown={commitSearch}
         />
       </label>
       <button

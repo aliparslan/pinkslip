@@ -413,9 +413,16 @@
       <input
         class="input-field"
         type="search"
+        enterkeyhint="search"
         aria-label="Search companies"
         placeholder={$sessionAccess.isAdmin ? "Search companies or ATS slugs" : "Search companies"}
         bind:value={search}
+        onkeydown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
       />
       <div class="stack-md flex-fill">
         <div class="flex-fill">
