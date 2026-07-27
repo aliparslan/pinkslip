@@ -57,6 +57,13 @@ const JOB_LIST_FIELDS = `
       WHERE s.user_id = ? AND s.job_id = j.id
     ) AS INTEGER
   ) AS saved,
+  CAST(
+    EXISTS(
+      SELECT 1
+      FROM applications a
+      WHERE a.user_id = ? AND a.job_id = j.id
+    ) AS INTEGER
+  ) AS applied,
   c.name AS company_name,
   c.website AS company_domain
 `;
@@ -96,6 +103,13 @@ const JOB_DETAIL_FIELDS = `
       WHERE s.user_id = ? AND s.job_id = j.id
     ) AS INTEGER
   ) AS saved,
+  CAST(
+    EXISTS(
+      SELECT 1
+      FROM applications a
+      WHERE a.user_id = ? AND a.job_id = j.id
+    ) AS INTEGER
+  ) AS applied,
   c.name AS company_name,
   c.website AS company_domain
 `;
@@ -104,6 +118,8 @@ type JobListRow = JobRow & {
   company_name: string;
   company_domain: string;
   saved: number;
+  applied: number;
+  applied_at?: string;
   match_reasons_json: string;
   match_reasons?: string[];
   scorer_version?: string | null;
@@ -277,7 +293,7 @@ jobs.get("/", async (c) => {
       WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
     )`,
   ];
-  const bindings: (string | number)[] = [userId, userId, userId];
+  const bindings: (string | number)[] = [userId, userId, userId, userId];
   bindings.push(userId);
 
   // Default excludes dismissed unless explicitly requested
@@ -341,16 +357,17 @@ jobs.get("/", async (c) => {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const shouldDiversify = sort === "score" && company_id === undefined && dismissed !== "true";
+  const effectiveSort = sort ?? "score";
+  const shouldDiversify = effectiveSort === "score" && company_id === undefined && dismissed !== "true";
   // first_seen_at is an ISO-8601 string written by toISOString(), so it orders
   // correctly as plain text and can use idx_jobs_first_seen; wrapping it in
   // datetime() forced a full scan and made the trailing duplicate tiebreak
   // (`, j.first_seen_at DESC`) look meaningful when it was the same column.
   // posted_at keeps its datetime() — it comes from ATS feeds in mixed formats.
   const orderBy =
-    sort === "score"
+    effectiveSort === "score"
       ? "us.score DESC, j.first_seen_at DESC"
-      : sort === "last_posted"
+      : effectiveSort === "last_posted"
         ? "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC"
         : "j.first_seen_at DESC";
 
@@ -494,9 +511,9 @@ jobs.get("/:id", async (c) => {
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
-     WHERE j.id = ? AND j.closed_at IS NULL`
+     WHERE j.id = ?`
   )
-    .bind(userId, userId, userId, id)
+    .bind(userId, userId, userId, userId, id)
     .first<JobListRow & { ats_type: string; source_type: string | null; ats_slug: string }>();
 
   if (!result) {
@@ -524,10 +541,10 @@ jobs.get("/:id", async (c) => {
 jobs.patch("/:id", async (c) => {
   const userId = c.get("userId");
   const { id } = c.req.param();
-  const body = await c.req.json<{ dismissed?: boolean; saved?: boolean }>();
+  const body = await c.req.json<{ dismissed?: boolean; saved?: boolean; applied?: boolean }>();
   await ensureUserJobScores(c.env.DB, userId, [id]);
 
-  if (body.dismissed === undefined && body.saved === undefined) {
+  if (body.dismissed === undefined && body.saved === undefined && body.applied === undefined) {
     return c.json({ error: "No fields to update" }, 400);
   }
 
@@ -571,6 +588,42 @@ jobs.patch("/:id", async (c) => {
     }).catch(() => undefined);
   }
 
+  if (body.applied !== undefined) {
+    if (body.applied) {
+      const now = new Date().toISOString();
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO applications (
+           id, job_id, company_name, title, stage, next, url, created_at, updated_at, user_id
+         )
+         SELECT ?, j.id, c.name, j.title, 'Applied', '', COALESCE(j.url, ''), ?, ?, ?
+         FROM jobs j
+         JOIN companies c ON c.id = j.company_id
+         WHERE j.id = ?`
+      ).bind(crypto.randomUUID(), now, now, userId, id).run();
+      await c.env.DB.prepare(
+        `UPDATE applications
+         SET company_name = (SELECT c.name FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?),
+             title = (SELECT title FROM jobs WHERE id = ?),
+             stage = 'Applied',
+             next = '',
+             url = COALESCE((SELECT url FROM jobs WHERE id = ?), ''),
+             updated_at = ?
+         WHERE user_id = ? AND job_id = ?`
+      ).bind(id, id, id, now, userId, id).run();
+    } else {
+      await c.env.DB.prepare(
+        `DELETE FROM applications WHERE user_id = ? AND job_id = ?`
+      ).bind(userId, id).run();
+    }
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: body.applied ? "application_added" : "application_removed",
+      entityType: "job",
+      entityId: id,
+    }).catch(() => undefined);
+  }
+
   const updated = await c.env.DB.prepare(
     `SELECT ${JOB_DETAIL_FIELDS}
      FROM jobs j
@@ -578,7 +631,7 @@ jobs.patch("/:id", async (c) => {
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE j.id = ? AND j.closed_at IS NULL`
   )
-    .bind(userId, userId, userId, id)
+    .bind(userId, userId, userId, userId, id)
     .first<JobListRow>();
 
   if (!updated) {
@@ -630,6 +683,24 @@ jobs.get("/saved/list", async (c) => {
        WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
      )
      ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC`
+  ).bind(userId, userId, userId, userId, userId, userId).all<JobListRow>();
+
+  return c.json({ jobs: (result.results ?? []).map(serializeJob) });
+});
+
+// GET /applied/list — Lightweight application history. This intentionally
+// ignores the legacy pipeline stages; an application is simply present or not.
+jobs.get("/applied/list", async (c) => {
+  const userId = c.get("userId");
+  await ensureUserJobScores(c.env.DB, userId);
+  const result = await c.env.DB.prepare(
+    `SELECT ${JOB_LIST_FIELDS}, a.created_at AS applied_at
+     FROM applications a
+     JOIN jobs j ON j.id = a.job_id
+     JOIN companies c ON j.company_id = c.id
+     LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+     WHERE a.user_id = ?
+     ORDER BY datetime(a.created_at) DESC, a.id DESC`
   ).bind(userId, userId, userId, userId, userId).all<JobListRow>();
 
   return c.json({ jobs: (result.results ?? []).map(serializeJob) });

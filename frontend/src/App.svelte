@@ -1,22 +1,17 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { currentRoute, navigate, routeDepth, backTargetRoute } from "./router";
-  import { themeMode, cycleTheme } from "./lib/theme";
-  import { searchOpen } from "./lib/feed-state";
   import { api, ApiError } from "./lib/api";
   import { attachMagicLinkHandler } from "./lib/native-auth";
   import { syncSessionAccess } from "./lib/session-access";
   import { hapticLight } from "./lib/haptics";
   import { registerBackHandler } from "./lib/nav-back";
-  import Sun from "phosphor-svelte/lib/Sun";
-  import Moon from "phosphor-svelte/lib/Moon";
-  import CircleHalf from "phosphor-svelte/lib/CircleHalf";
-  import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import type { Component } from "svelte";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
   import Companies from "./pages/Companies.svelte";
   import Profile from "./pages/Profile.svelte";
+  import JobLibrary from "./pages/JobLibrary.svelte";
   import ResumeProfile from "./pages/ResumeProfile.svelte";
   import Corpus from "./pages/Corpus.svelte";
   import Tailor from "./pages/Tailor.svelte";
@@ -40,6 +35,8 @@
     "/corpus": asPage(Corpus),
     "/resume": asPage(ResumeProfile),
     "/settings": asPage(Profile),
+    "/my-jobs/saved": asPage(JobLibrary),
+    "/my-jobs/applied": asPage(JobLibrary),
   };
 
   let route = $derived($currentRoute);
@@ -56,13 +53,6 @@
         : null
   );
   let showTabBar = $derived(!isDetailPage && !isTailorPage);
-  let mode = $derived($themeMode);
-  let isOnFeed = $derived(route === "/");
-
-  function toggleSearch() {
-    if (!isOnFeed) navigate("/");
-    searchOpen.update((v) => !v);
-  }
 
   // ── Interactive swipe-back ──────────────────────────────────────────────────
   // A left-edge drag translates the live page (foreground) to the right, revealing
@@ -376,20 +366,6 @@
           <span style="color: var(--color-accent);">pink</span>slip
         </span>
       </button>
-      <div style="display: flex; align-items: center; gap: 2px;">
-        <button class="icon-btn" onclick={toggleSearch} aria-label="Search jobs">
-          <MagnifyingGlass size={18} weight="regular" />
-        </button>
-        <button class="icon-btn" onclick={cycleTheme} aria-label="Toggle theme">
-          {#if mode === "system"}
-            <Sun size={18} weight="regular" />
-          {:else if mode === "light"}
-            <Moon size={18} weight="regular" />
-          {:else}
-            <CircleHalf size={18} weight="regular" />
-          {/if}
-        </button>
-      </div>
     </div>
   </header>
 {/snippet}

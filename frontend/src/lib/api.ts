@@ -78,6 +78,8 @@ export interface Job {
   ats_type?: string;
   ats_slug?: string;
   saved?: boolean | number;
+  applied?: boolean | number;
+  applied_at?: string;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
   match_reasons?: string[];
@@ -338,6 +340,11 @@ export const api = {
       }),
     block: (id: string) =>
       request<void>(`/jobs/${id}/block`, { method: "DELETE" }),
+    markApplied: (id: string) =>
+      request<Job>(`/jobs/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ applied: true, dismissed: true }),
+      }),
   },
   companies: {
     list: (atsType?: string) => {
@@ -465,7 +472,7 @@ export const api = {
         totalJobs: number;
         newToday: number;
         activeCompanies: number;
-        activeApplications: number;
+        appliedJobs: number;
         savedJobs: number;
         lastPolled: string | null;
       }>("/stats"),
@@ -497,6 +504,9 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ saved: false }),
       }),
+  },
+  appliedJobs: {
+    list: () => request<{ jobs: Job[] }>("/jobs/applied/list"),
   },
   profile: {
     get: () =>

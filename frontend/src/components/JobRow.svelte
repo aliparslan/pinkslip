@@ -1,7 +1,8 @@
 <script lang="ts">
   import { navigate } from "../router";
+  import { setJobDetailReturnRoute } from "../lib/job-navigation";
   import { api, type Job } from "../lib/api";
-  import { extractSalaryFromHtml, normalizeSalaryText } from "../lib/job-content";
+  import { extractSalaryFromHtml, formatJobLocation, normalizeSalaryText } from "../lib/job-content";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
   import { sessionAccess } from "../lib/session-access";
@@ -10,10 +11,13 @@
   import X from "phosphor-svelte/lib/X";
   import CompanyLogo from "./CompanyLogo.svelte";
 
-  let { job, viewed = false, onDismiss }: {
+  let { job, viewed = false, onDismiss, returnTo = "/", swipeActions = true, contextLabel }: {
     job: Job;
     viewed?: boolean;
     onDismiss?: (id: string) => void;
+    returnTo?: string;
+    swipeActions?: boolean;
+    contextLabel?: string;
   } = $props();
 
   let dismissing: boolean = $state(false);
@@ -43,7 +47,10 @@
       : ACTION_DISMISS_WIDTH
   );
   let commitThreshold = $derived(actionTotalWidth + 34);
-  let displaySalary = $derived(normalizeSalaryText(job.salary ?? extractSalaryFromHtml(job.description)));
+  let displaySalary = $derived(normalizeSalaryText(
+    job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
+  ));
+  let displayLocation = $derived(formatJobLocation(job.location));
   let isFresh = $derived(
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
   );
@@ -54,6 +61,7 @@
       return;
     }
     markViewed(job.id);
+    setJobDetailReturnRoute(returnTo);
     navigate(`/jobs/${job.id}`);
   }
 
@@ -101,6 +109,7 @@
   }
 
   function onPointerDown(e: PointerEvent) {
+    if (!swipeActions) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointerId = e.pointerId;
     startX = e.clientX;
@@ -155,7 +164,7 @@
 </script>
 
 <div class="job-row-wrap">
-  {#if swipeX < -0.5}
+  {#if swipeActions && swipeX < -0.5}
     <!-- Action layer sits underneath; the row slides over to uncover it. -->
     <div class="swipe-actions" class:committing>
       {#if $sessionAccess.isAdmin}
@@ -203,27 +212,24 @@
       <div class="job-row__meta">
         <span class="job-row__company">{job.company_name}</span>
         <span class="job-row__dot">·</span>
-        <span class="job-row__time">{timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
-        {#if !viewed && isFresh}
+        <span class="job-row__time">{contextLabel ?? timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
+        {#if !contextLabel && !viewed && isFresh}
           <span class="job-row__new">NEW</span>
         {/if}
       </div>
       <div class="job-row__title">{job.title}</div>
-      {#if job.location || displaySalary}
+      {#if displayLocation || displaySalary}
         <div class="job-row__sub">
-          {#if job.location}
-            <span>{job.location}</span>
+          {#if displayLocation}
+            <span class="job-row__location">{displayLocation}</span>
           {/if}
-          {#if job.location && displaySalary}
+          {#if displayLocation && displaySalary}
             <span class="job-row__dot">·</span>
           {/if}
           {#if displaySalary}
-            <span>{displaySalary}</span>
+            <span class="job-row__salary">{displaySalary}</span>
           {/if}
         </div>
-      {/if}
-      {#if job.match_reasons?.length}
-        <div class="job-row__reasons">{job.match_reasons.slice(0, 2).join(" · ")}</div>
       {/if}
     </div>
   </div>
@@ -265,7 +271,7 @@
     color: var(--color-ink-3);
   }
   .job-row__company { flex-shrink: 0; font-weight: 600; color: var(--color-ink); }
-  .job-row__dot { opacity: 0.4; }
+  .job-row__dot { flex-shrink: 0; opacity: 0.4; }
   .job-row__time { flex-shrink: 0; }
   .job-row__new {
     flex-shrink: 0;
@@ -294,15 +300,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .job-row__reasons {
-    margin-top: 3px;
-    color: var(--color-accent);
-    font-size: var(--fs-2xs);
-    font-weight: 600;
-    white-space: nowrap;
+  .job-row__location {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .job-row__salary { flex-shrink: 0; }
   .swipe-actions {
     position: absolute;
     inset: 0;

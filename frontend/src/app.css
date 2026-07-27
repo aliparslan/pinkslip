@@ -244,6 +244,7 @@ html.native-ios select {
 
 .brand-home-button {
   min-width: 0;
+  min-height: 44px;
   margin: -6px 0 -6px -6px;
   padding: 6px;
   display: inline-flex;
@@ -513,28 +514,72 @@ html.native-ios select {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 0 var(--space-4) 8px;
+  padding: 10px var(--space-4) 8px;
 }
 
-/* A quiet two-action toolbar: filtering opens the full sheet while sorting
-   exposes only its current value until the native menu is opened. */
-.feed-controls-bar {
+/* One control surface keeps search and filtering together. */
+.feed-toolbar {
+  min-width: 0;
+  height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+}
+
+.feed-toolbar:focus-within {
+  border-color: var(--color-control-border);
+}
+
+.feed-search {
+  min-width: 0;
+  height: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: 7px;
+  padding: 0 10px;
+  color: var(--color-ink-3);
+}
+
+.feed-search:focus-within {
+  color: var(--color-ink-2);
+}
+
+.feed-search input {
   min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.feed-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.feed-search input::placeholder {
+  color: var(--color-ink-4);
 }
 
 .filter-button {
-  height: 38px;
+  height: 100%;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 11px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-full);
+  padding: 0 10px;
+  border: 0;
+  border-left: 1px solid var(--color-line);
+  border-radius: 0;
   background: transparent;
   color: var(--color-ink-2);
   font-size: var(--fs-xs);
@@ -550,7 +595,6 @@ html.native-ios select {
 }
 
 .filter-button.active {
-  border-color: color-mix(in oklch, var(--color-accent) 45%, var(--color-line-2));
   background: var(--color-accent-soft);
   color: var(--color-accent-soft-ink);
 }
@@ -574,49 +618,6 @@ html.native-ios select {
   line-height: 1;
 }
 
-.feed-sort-control {
-  position: relative;
-  min-width: 0;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding-left: 11px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--color-ink-3);
-  transition: border-color .15s, background .15s, color .15s;
-}
-
-.feed-sort-control:hover,
-.feed-sort-control:focus-within {
-  border-color: var(--color-control-border);
-  background: var(--color-bg-elev);
-  color: var(--color-ink-2);
-}
-
-.feed-sort-control select {
-  min-width: 0;
-  height: 100%;
-  padding: 0 27px 0 0;
-  border: 0;
-  appearance: none;
-  background: transparent;
-  color: var(--color-ink-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 650;
-  cursor: pointer;
-  outline: none;
-}
-
-.feed-sort-caret {
-  position: absolute;
-  right: 10px;
-  pointer-events: none;
-}
-
 .filter-summary {
   max-width: 100%;
   color: var(--color-ink-3);
@@ -625,6 +626,47 @@ html.native-ios select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.feed-stale-notice {
+  min-height: 36px;
+  margin: 0 var(--space-4) 8px;
+  padding: 6px 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--color-warn) 10%, transparent);
+  color: var(--color-warn);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+
+.feed-stale-notice > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-stale-notice button {
+  min-height: 32px;
+  padding: 0 5px;
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+@media (max-width: 350px) {
+  .feed-search,
+  .filter-button {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
 /* ── Segmented controls ─────────────────────────────────── */
@@ -679,7 +721,7 @@ html.native-ios select {
 .filter-sheet-header {
   padding: 14px 18px 10px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   border-bottom: 0.5px solid var(--color-line);
@@ -688,6 +730,8 @@ html.native-ios select {
 .filter-sheet-body {
   padding: 14px 18px 8px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -718,11 +762,11 @@ html.native-ios select {
 }
 
 .filter-option-grid.compact {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .filter-choice {
-  height: 40px;
+  height: 44px;
   padding: 0 10px;
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-full);
@@ -739,6 +783,90 @@ html.native-ios select {
   background: var(--color-accent-soft);
   border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
   color: var(--color-accent-soft-ink);
+}
+
+.filter-location-select {
+  position: relative;
+}
+
+.filter-location-select summary {
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.filter-location-select summary::-webkit-details-marker {
+  display: none;
+}
+
+.filter-location-select summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-location-select[open] summary {
+  border-color: var(--color-control-border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.filter-location-select[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.filter-location-options {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% - 1px);
+  left: 0;
+  right: 0;
+  max-height: min(264px, 38vh);
+  overflow-y: auto;
+  border: 1px solid var(--color-control-border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-bg);
+  box-shadow: 0 12px 28px oklch(0 0 0 / 0.16);
+}
+
+.filter-location-options button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-top: 0.5px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-location-options button:first-child {
+  border-top: 0;
+}
+
+.filter-location-options button.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-soft-ink);
+  font-weight: 650;
 }
 
 .filter-input-grid {
@@ -758,7 +886,7 @@ html.native-ios select {
 }
 
 .filter-money-input {
-  height: 40px;
+  height: 44px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -831,6 +959,10 @@ html.native-ios select {
   gap: 10px;
   border-top: 0.5px solid var(--color-line);
   background: color-mix(in oklch, var(--color-bg) 96%, transparent);
+}
+
+.filter-sheet-actions.single {
+  grid-template-columns: 1fr;
 }
 
 .action-row {
@@ -1361,44 +1493,149 @@ select.input-field {
 }
 .switch[data-state="checked"] .switch-thumb { transform: translateX(18px); }
 
-/* ── Stage badges ────────────────────────────────────────── */
-
-.stage-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  padding: 0 9px;
-  border-radius: var(--radius-xs);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  font-weight: 500;
-  letter-spacing: -0.005em;
-}
-.stage-badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-}
-.stage-applied  { background: color-mix(in oklch, var(--color-ink-3) 12%, transparent); color: var(--color-ink-2); }
-.stage-applied .dot  { background: var(--color-ink-3); }
-.stage-screen   { background: color-mix(in oklch, var(--color-warn) 14%, transparent); color: var(--color-warn); }
-.stage-screen .dot   { background: var(--color-warn); }
-.stage-interview { background: color-mix(in oklch, var(--color-accent) 14%, transparent); color: var(--color-accent-soft-ink); }
-.stage-interview .dot { background: var(--color-accent); }
-.stage-offer    { background: color-mix(in oklch, var(--color-good) 14%, transparent); color: var(--color-good); }
-.stage-offer .dot    { background: var(--color-good); }
-.stage-rejected { background: color-mix(in oklch, var(--color-bad) 12%, transparent); color: var(--color-bad); }
-.stage-rejected .dot { background: var(--color-bad); }
-.stage-ghosted  { background: var(--color-bg-sunken); color: var(--color-ink-4); border: 0.5px dashed var(--color-line-2); }
-.stage-ghosted .dot  { background: var(--color-ink-4); }
-
 /* ── Layout ──────────────────────────────────────────────── */
 
 .divider { height: 0.5px; background: var(--color-line); margin: 0; }
 
 .page-frame {
   padding: var(--space-4) var(--space-4) 28px;
+}
+
+.profile-job-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-job-stat {
+  min-height: 68px;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 9px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-job-stat > svg:first-child {
+  grid-row: 1 / 3;
+  color: var(--color-ink-3);
+}
+
+.profile-job-stat strong {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
+.profile-job-stat span {
+  color: var(--color-ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.profile-job-stat > svg:last-child {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  color: var(--color-ink-4);
+}
+
+.my-jobs-heading {
+  margin-bottom: 14px;
+}
+
+.my-jobs-heading h1 {
+  margin: 0 0 4px;
+}
+
+.my-jobs-heading p {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.my-jobs-tabs {
+  height: 44px;
+  margin-bottom: 14px;
+  padding: 3px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+}
+
+.my-jobs-tabs button {
+  min-width: 0;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--color-ink-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.my-jobs-tabs button.active {
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-control-active);
+}
+
+.my-jobs-tabs small {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-sunken);
+  color: var(--color-ink-3);
+  font-size: var(--fs-2xs);
+}
+
+.my-jobs-list {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.my-jobs-list > :last-child {
+  border-bottom: 0;
+}
+
+.my-jobs-empty {
+  padding: 44px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--color-ink-3);
+}
+
+.my-jobs-empty h2 {
+  margin: 10px 0 5px;
+  color: var(--color-ink-2);
+  font-size: var(--fs-lg);
+}
+
+.my-jobs-empty p {
+  max-width: 30ch;
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
 }
 
 .page-hero {

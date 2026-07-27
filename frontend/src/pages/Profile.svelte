@@ -9,6 +9,7 @@
   import { getNativePushStatus, initNativePush } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
   import { consumePendingSettingsSection, type SettingsSection } from "../lib/settings-section";
+  import { themeMode, type ThemeMode } from "../lib/theme";
   import {
     DEFAULT_SEARCH_PROFILE,
     normalizeSearchProfile,
@@ -21,7 +22,10 @@
   import TailorSection from "./profile/TailorSection.svelte";
   import NotifySection from "./profile/NotifySection.svelte";
   import AdminSection from "./profile/AdminSection.svelte";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
+  import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import Spinner from "../components/Spinner.svelte";
 
   let loading: boolean = $state(true);
@@ -38,6 +42,8 @@
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let notificationEnabled: boolean = $state(false);
   let pushStatus: string = $state("disabled");
+  let savedJobCount = $state(0);
+  let appliedJobCount = $state(0);
 
   let showFeedbackForm: boolean = $state(false);
   let feedbackType: "feature_request" | "general_feedback" = $state("feature_request");
@@ -47,6 +53,7 @@
   let feedbackError: string | null = $state(null);
 
   let activeSettingsSection: SettingsSection = $state("profile");
+  let mode = $derived($themeMode);
 
   // Labels match the destination page titles exactly.
   const shortcuts = [
@@ -164,10 +171,11 @@
     loading = true;
     error = null;
     try {
-      const [prefsResult, meResult, notificationResult] = await Promise.allSettled([
+      const [prefsResult, meResult, notificationResult, statsResult] = await Promise.allSettled([
         api.preferences.get(),
         api.me.get(),
         api.push.settings(),
+        api.stats.get(),
       ]);
 
       if (meResult.status === "fulfilled") {
@@ -190,6 +198,10 @@
       }
       if (notificationResult.status === "fulfilled") {
         notificationEnabled = notificationResult.value.enabled;
+      }
+      if (statsResult.status === "fulfilled") {
+        savedJobCount = statsResult.value.savedJobs;
+        appliedJobCount = statsResult.value.appliedJobs;
       }
 
       pushStatus = await getNativePushStatus();
@@ -343,6 +355,24 @@
 
         {#if activeSettingsSection === "profile"}
           <section>
+            <h2 class="section-eyebrow">My jobs</h2>
+            <div class="profile-job-stats">
+              <button class="profile-job-stat" onclick={() => navigate("/my-jobs/saved")}>
+                <BookmarkSimple size={20} />
+                <strong>{savedJobCount}</strong>
+                <span>Saved</span>
+                <CaretRight size={15} />
+              </button>
+              <button class="profile-job-stat" onclick={() => navigate("/my-jobs/applied")}>
+                <CheckCircle size={20} />
+                <strong>{appliedJobCount}</strong>
+                <span>Applied</span>
+                <CaretRight size={15} />
+              </button>
+            </div>
+          </section>
+
+          <section>
             <h2 class="section-eyebrow">Shortcuts</h2>
             <div style="display: flex; flex-direction: column; gap: 8px;">
               {#each shortcuts as shortcut}
@@ -357,6 +387,26 @@
                   <CaretRight size={16} color="var(--color-ink-4)" />
                 </button>
               {/each}
+            </div>
+          </section>
+
+          <section>
+            <h2 class="section-eyebrow">Appearance</h2>
+            <div class="surface-card" style="padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+              <label for="theme-select" style="font-size: var(--fs-md); font-weight: 600;">Theme</label>
+              <div class="select-field-wrap" style="width: min(48%, 160px);">
+                <select
+                  id="theme-select"
+                  class="input-field"
+                  value={mode}
+                  onchange={(event) => themeMode.set(event.currentTarget.value as ThemeMode)}
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+                <span class="select-chevron" aria-hidden="true"><CaretDown size={15} /></span>
+              </div>
             </div>
           </section>
 

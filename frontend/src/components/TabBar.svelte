@@ -1,18 +1,19 @@
 <script lang="ts">
   import { currentRoute, navigate } from "../router";
   import { hapticLight } from "../lib/haptics";
-  import House from "phosphor-svelte/lib/House";
+  import CardsThree from "phosphor-svelte/lib/CardsThree";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
 
   let route = $derived($currentRoute);
 
   const tabs = [
-    { label: "Feed", path: "/", icon: House },
+    { label: "Feed", path: "/", icon: CardsThree },
     { label: "Profile", path: "/profile", icon: UserCircle },
   ] as const;
 
   function isActive(path: string): boolean {
     if (path === "/") return route === "/" || route === "";
+    if (path === "/profile" && route.startsWith("/my-jobs/")) return true;
     return route.startsWith(path);
   }
 

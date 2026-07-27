@@ -65,7 +65,7 @@ stats.get("/", async (c) => {
          )`
     ).bind(userId).first<{ count: number }>(),
     c.env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND stage NOT IN ('Rejected', 'Ghosted')"
+      "SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND job_id IS NOT NULL"
     ).bind(userId).first<{ count: number }>().catch(() => ({ count: 0 })),
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count
@@ -87,7 +87,7 @@ stats.get("/", async (c) => {
     totalJobs: totalResult?.count ?? 0,
     newToday: todayResult?.count ?? 0,
     activeCompanies: companiesResult?.count ?? 0,
-    activeApplications: appsResult?.count ?? 0,
+    appliedJobs: appsResult?.count ?? 0,
     savedJobs: savedResult?.count ?? 0,
     lastPolled: lastPollResult?.ts ?? null,
   });

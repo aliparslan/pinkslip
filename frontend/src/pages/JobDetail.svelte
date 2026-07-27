@@ -86,6 +86,7 @@
   function syncJobState(nextJob: Job) {
     job = nextJob;
     saved = Boolean(nextJob?.saved);
+    applied = Boolean(nextJob?.applied);
     descriptionPending = Boolean(nextJob?.content_pending && !nextJob?.description);
   }
 
@@ -149,14 +150,10 @@
     if (!jobId || !job || applying || applied) return;
     applying = true;
     try {
-      // This used to also write an `applications` row for the Tracker screen.
-      // Tracker is gone, so that record would be write-only — nothing could ever
-      // display it. The useful half is kept: marking a job applied takes it out
-      // of the feed so it stops resurfacing.
-      await api.jobs.dismiss(jobId);
+      await api.jobs.markApplied(jobId);
       applied = true;
       removeFromFeedStore(jobId);
-      showToast("Marked as applied ✓");
+      showToast("Added to applied jobs ✓");
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -261,7 +258,9 @@
   let adjacentJobs = $derived(getAdjacentJobIds(jobId));
 
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
-  let displaySalary = $derived(normalizeSalaryText(job?.salary ?? extractedSalary));
+  let displaySalary = $derived(normalizeSalaryText(
+    job?.salary?.trim() ? job.salary : extractedSalary
+  ));
   let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description) : "");
   let plainDescription = $derived.by(() => {
     return extractPlainTextFromHtml(job?.description);
@@ -386,7 +385,7 @@
             onclick={markApplied}
           >
             {#if applying}<Spinner />{:else}<CheckCircle size={16} />{/if}
-            {applied ? "Applied ✓" : "Mark as applied"}
+            {applied ? "Applied ✓" : "I applied"}
           </button>
           <button
             class="btn-secondary btn-action"

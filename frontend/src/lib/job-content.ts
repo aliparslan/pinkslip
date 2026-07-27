@@ -2,6 +2,64 @@ function normalizeText(value: string): string {
   return value.replace(/ /g, " ").replace(/\s+/g, " ").trim();
 }
 
+const LOCATION_ABBREVIATIONS: Record<string, string> = {
+  California: "CA",
+  Colorado: "CO",
+  "District of Columbia": "DC",
+  Georgia: "GA",
+  Illinois: "IL",
+  Massachusetts: "MA",
+  "New York": "NY",
+  Texas: "TX",
+  Washington: "WA",
+};
+
+function normalizeLocationPart(value: string): string {
+  let part = normalizeText(value)
+    .replace(/\s*\((?:US|USA|United States)\)\s*$/i, "")
+    .replace(/\s+-\s+(?:US|USA|United States)\s*$/i, "")
+    .replace(/,?\s+(?:US|USA|United States(?: of America)?)\s*$/i, "")
+    .trim();
+
+  if (/^(?:remote|remote anywhere|anywhere remote)$/i.test(part)) return "Remote";
+  if (/^remote[- ]friendly\s*\(travel[- ]required\)$/i.test(part)) {
+    return "Remote-friendly (travel)";
+  }
+  if (/^remote[- ]friendly$/i.test(part)) return "Remote-friendly";
+  part = part.replace(/^New York City(?=,|$)/i, "New York");
+
+  for (const [state, abbreviation] of Object.entries(LOCATION_ABBREVIATIONS)) {
+    part = part.replace(new RegExp(`,\\s*${state}$`, "i"), `, ${abbreviation}`);
+  }
+
+  return part;
+}
+
+// ATS feeds often send a long list (sometimes with country names repeated).
+// Keep the first meaningful place visible and summarize the rest for feed rows;
+// the full source location remains available on the job detail screen.
+export function formatJobLocation(location: string | null | undefined): string | null {
+  if (!location) return null;
+  const parts = location
+    .split(/\s*(?:;|\||\s\/\s)\s*/)
+    .map(normalizeLocationPart)
+    .filter(Boolean);
+  const unique = [...new Set(parts.map((part) => part.toLowerCase()))]
+    .map((key) => parts.find((part) => part.toLowerCase() === key) as string);
+
+  if (unique.length === 0) return null;
+  if (unique.length === 1) return unique[0];
+
+  const remoteIndex = unique.findIndex((part) => part === "Remote");
+  if (remoteIndex >= 0) {
+    return `Remote +${unique.length - 1}`;
+  }
+  if (unique.length === 2 && `${unique[0]} + ${unique[1]}`.length <= 34) {
+    return `${unique[0]} + ${unique[1]}`;
+  }
+  return `${unique[0]} +${unique.length - 1}`;
+}
+
 // Some sources (notably Greenhouse) return descriptions as entity-encoded HTML
 // (e.g. "&lt;p&gt;…&lt;/p&gt;"), which otherwise renders as literal "<p>" text.
 // Decode once when we see encoded tags but no real tags. The guard prevents

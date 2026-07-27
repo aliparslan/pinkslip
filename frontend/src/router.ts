@@ -1,4 +1,5 @@
 import { writable, derived } from "svelte/store";
+import { getJobDetailReturnRoute } from "./lib/job-navigation";
 
 const hash = writable(window.location.hash.slice(1) || "/");
 
@@ -25,6 +26,6 @@ export function backTargetRoute(route: string): string | null {
     const id = route.split("/tailor/")[1];
     return id ? `/jobs/${id}` : "/";
   }
-  if (route.startsWith("/jobs/")) return "/";
+  if (route.startsWith("/jobs/")) return getJobDetailReturnRoute();
   return null;
 }
