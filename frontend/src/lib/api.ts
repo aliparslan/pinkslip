@@ -96,6 +96,14 @@ export interface Company {
   last_poll_status: string | null;
   last_poll_error: string | null;
   last_polled_at: string | null;
+  /** Consecutive failed polls; 0 once a poll succeeds. */
+  poll_failure_count?: number;
+  /**
+   * When this source was first quarantined ("broken since"). Quarantined
+   * sources back off to one retry a day instead of every 15 minutes, and are
+   * listed under the admin "Needs fixing" filter.
+   */
+  quarantined_at?: string | null;
   blocked?: boolean | number;
 }
 
@@ -559,10 +567,15 @@ export const api = {
     list: (limit = 50) => request<{ runs: FetchRun[] }>(`/runs?limit=${limit}`),
   },
   ops: {
+    // A full poll cycle takes 57-76s against ~220 companies, so the default 20s
+    // request timeout aborted this every single time — "Run now" could not
+    // succeed, and reported "taking longer than expected" while the cycle
+    // actually completed server-side. Matches the per-company poll's allowance.
     refreshAll: (limit?: number) =>
       request<{ companiesPolled: number; newJobsFound: number; log: string[] }>(
         `/poll${limit ? `?limit=${limit}` : ""}`,
-        { method: "POST" }
+        { method: "POST" },
+        120_000
       ),
   },
   interactions: {

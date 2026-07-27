@@ -70,6 +70,14 @@ export interface CompanyRow {
   last_poll_status: string | null;
   last_poll_error: string | null;
   last_polled_at: string | null;
+  /** Consecutive failed polls; reset to 0 on any success. */
+  poll_failure_count: number;
+  /**
+   * Set once the failure streak crosses QUARANTINE_AFTER_FAILURES. Quarantined
+   * sources are retried on a 24h backoff instead of every 15 minutes, and are
+   * surfaced to admins as needing attention. Cleared on the next success.
+   */
+  quarantined_at: string | null;
 }
 
 export interface JobRow {

@@ -72,9 +72,13 @@ xcrun simctl launch booted dev.alip.pinkslip
 ```
 
 **Verify:** the live app loads; you can browse Feed → Job detail → Tailor →
-Profile; relaunching keeps you logged in (cookie session persists in the WebView).
+Me; relaunching keeps you logged in (cookie session persists in the WebView).
 
-> After any web change: `cd frontend && bun run ios:sync` (rebuilds + `cap sync`).
+The committed iOS shell loads `https://pinkslip.alip.dev`, so an ordinary web
+deployment updates the TestFlight app without a new native build. Run
+`cd frontend && bun run ios:sync` and create a new iOS build only when changing
+native code, Capacitor plugins/configuration, entitlements, icons, launch assets,
+or the bundled offline fallback.
 
 ---
 
@@ -140,7 +144,7 @@ curl -s 'https://pinkslip.alip.dev/api/me' -H "Authorization: Bearer $TOKEN" | j
 Native Xcode targets added under `frontend/ios/App/`, each reading the bearer
 token from the App Group Keychain:
 
-- **Widget (WidgetKit)** — `GET /api/jobs?sort=score&min_score=…`, deep-link on tap.
+- **Widget (WidgetKit)** — show the newest matching jobs and deep-link on tap.
 - **Share Extension** — share a careers URL → `POST /api/companies/verify` then `/api/companies`.
 - **Shortcuts / App Intents** — "Show new jobs", "Tailor resume for…".
 

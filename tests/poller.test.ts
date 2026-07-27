@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { diffJobs, runWithConcurrency } from "@worker/poller";
+import {
+  diffJobs,
+  nextQuarantineState,
+  QUARANTINE_AFTER_FAILURES,
+  runWithConcurrency,
+} from "@worker/poller";
 import type { JobListing } from "@worker/adapters/types";
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -102,5 +107,31 @@ describe("runWithConcurrency", () => {
       { status: "fulfilled", value: 6 },
       { status: "fulfilled", value: 8 },
     ]);
+  });
+});
+
+describe("nextQuarantineState", () => {
+  const NOW = "2026-07-27T12:00:00.000Z";
+
+  it("does not quarantine a transient blip", () => {
+    // 46 of 221 sources fail permanently, but timeouts and 502s happen to
+    // healthy ones too — those must not be taken out of rotation.
+    expect(nextQuarantineState(0, null, NOW)).toEqual({ failureCount: 1, quarantinedAt: null });
+    expect(nextQuarantineState(1, null, NOW)).toEqual({ failureCount: 2, quarantinedAt: null });
+  });
+
+  it("quarantines once the streak reaches the threshold", () => {
+    const state = nextQuarantineState(QUARANTINE_AFTER_FAILURES - 1, null, NOW);
+    expect(state.failureCount).toBe(QUARANTINE_AFTER_FAILURES);
+    expect(state.quarantinedAt).toBe(NOW);
+  });
+
+  it("preserves the original quarantine timestamp across later failures", () => {
+    // quarantined_at is the "broken since" value an admin reads. Overwriting it
+    // on every 24h retry would make every dead source look newly broken.
+    const first = "2026-07-01T09:30:00.000Z";
+    const state = nextQuarantineState(12, first, NOW);
+    expect(state.failureCount).toBe(13);
+    expect(state.quarantinedAt).toBe(first);
   });
 });

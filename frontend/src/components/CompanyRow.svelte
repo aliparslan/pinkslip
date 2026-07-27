@@ -32,6 +32,14 @@
 
   let careersUrl = $derived(atsUrls[company.ats_type]?.(company.ats_slug) ?? null);
   let hasError = $derived(company.last_poll_status === "error");
+  // Quarantined = failing persistently, so polling has backed off to once a day.
+  // Distinct from a one-off error, which is still retried every 15 minutes.
+  let isQuarantined = $derived(Boolean(company.quarantined_at));
+  let brokenSince = $derived(
+    company.quarantined_at
+      ? new Date(company.quarantined_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : null
+  );
 </script>
 
 <div class="grouped-row company-row">
@@ -50,8 +58,20 @@
       <div class="company-meta">
         <span class="tag">{company.ats_type}</span>
         <span class="mono-value quiet truncate">{company.ats_slug}</span>
-        {#if hasError}<span class="status-badge bad">ERR</span>{/if}
+        {#if isQuarantined}
+          <span class="status-badge bad">PAUSED</span>
+        {:else if hasError}
+          <span class="status-badge bad">ERR</span>
+        {/if}
       </div>
+      {#if isQuarantined && company.last_poll_error}
+        <!-- Show the reason inline: a quarantined source is one you have to fix
+             by hand, and having to open each row to discover it is 404 vs a
+             timeout is what let these accumulate unnoticed. -->
+        <div class="company-quarantine-reason truncate">
+          {company.last_poll_error}{brokenSince ? ` · since ${brokenSince}` : ""}
+        </div>
+      {/if}
     {/if}
   </div>
   {#if admin}
@@ -122,5 +142,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+  .company-quarantine-reason {
+    margin-top: 3px;
+    color: var(--color-bad);
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
   }
 </style>

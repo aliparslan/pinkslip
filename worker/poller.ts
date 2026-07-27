@@ -20,6 +20,37 @@ const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 // is closed, so a single partial/failed ATS response can't remove valid jobs.
 const CLOSE_AFTER_MISSES = 2;
 
+/**
+ * Consecutive failures before a source is quarantined. Three keeps a transient
+ * upstream blip (a timeout, a 502) from quarantining a healthy company, while
+ * catching a genuinely dead slug within ~45 minutes.
+ */
+export const QUARANTINE_AFTER_FAILURES = 3;
+
+/** How long a quarantined source waits before it is retried. */
+export const QUARANTINE_RETRY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Failure bookkeeping for a source that just failed to poll.
+ *
+ * `quarantined_at` records when the source *first* entered quarantine and is
+ * deliberately preserved across subsequent failures — it is the "broken since"
+ * timestamp an admin needs, so it must not be overwritten on every retry.
+ */
+export function nextQuarantineState(
+  previousFailureCount: number,
+  existingQuarantinedAt: string | null,
+  now: string
+): { failureCount: number; quarantinedAt: string | null } {
+  const failureCount = previousFailureCount + 1;
+  return {
+    failureCount,
+    quarantinedAt: failureCount >= QUARANTINE_AFTER_FAILURES
+      ? existingQuarantinedAt ?? now
+      : existingQuarantinedAt,
+  };
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PollerPrefs extends ScoringPrefs {
@@ -358,18 +389,29 @@ export async function runPollCycle(
     ).bind(runId, scope, startedAt).run();
   }
 
-  // 1. Load enabled non-custom companies
+  // 1. Load enabled non-custom companies.
+  //
+  // Quarantined sources (see nextQuarantineState) are skipped unless their last
+  // attempt is older than the retry window, so a permanently broken slug costs
+  // one request a day instead of 96 — but still heals itself if it starts
+  // working again, with no manual intervention. `enabled` is untouched, so a
+  // quarantined company stays distinct from one deliberately turned off.
+  const quarantineRetryBefore = new Date(startedAtMs - QUARANTINE_RETRY_MS).toISOString();
   const companySql = `
     SELECT *
     FROM companies
     WHERE enabled = 1 AND COALESCE(source_type, ats_type) != 'custom'
+      AND (
+        quarantined_at IS NULL
+        OR last_polled_at IS NULL
+        OR last_polled_at < ?
+      )
     ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
     ${companyLimit === null ? "" : "LIMIT ?"}
   `;
-  const companyStmt = db.prepare(companySql);
   const companiesResult = companyLimit === null
-    ? await companyStmt.all<CompanyRow>()
-    : await companyStmt.bind(companyLimit).all<CompanyRow>();
+    ? await db.prepare(companySql).bind(quarantineRetryBefore).all<CompanyRow>()
+    : await db.prepare(companySql).bind(quarantineRetryBefore, companyLimit).all<CompanyRow>();
   const companies = companiesResult.results ?? [];
 
   // 2. Load preferences
@@ -392,9 +434,14 @@ export async function runPollCycle(
     if (result.status === "fulfilled") {
       allNewJobs.push(...result.value);
       log.push(`${company.name}: ${result.value.length} new`);
+      // A success clears the failure streak and releases quarantine, so a slug
+      // that starts working again returns to the normal 15-minute cadence.
       statusStmts.push(
         db.prepare(
-          "UPDATE companies SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ? WHERE id = ?"
+          `UPDATE companies
+           SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ?,
+               poll_failure_count = 0, quarantined_at = NULL
+           WHERE id = ?`
         ).bind(now, company.id)
       );
     } else {
@@ -407,11 +454,22 @@ export async function runPollCycle(
         companyName: company.name,
         error: errMsg,
       });
-      log.push(`${company.name}: ERROR ${errMsg}`);
+      const quarantine = nextQuarantineState(
+        company.poll_failure_count ?? 0,
+        company.quarantined_at ?? null,
+        now
+      );
+      log.push(
+        `${company.name}: ERROR ${errMsg}`
+        + (quarantine.quarantinedAt && !company.quarantined_at ? " (quarantined)" : "")
+      );
       statusStmts.push(
         db.prepare(
-          "UPDATE companies SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ? WHERE id = ?"
-        ).bind(errMsg, now, company.id)
+          `UPDATE companies
+           SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ?,
+               poll_failure_count = ?, quarantined_at = ?
+           WHERE id = ?`
+        ).bind(errMsg, now, quarantine.failureCount, quarantine.quarantinedAt, company.id)
       );
     }
   }

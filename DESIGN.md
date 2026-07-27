@@ -1,146 +1,119 @@
 # pinkslip design overview
 
-## Product idea
+## Product and core loop
 
-pinkslip is a focused early-career job discovery tool. It should feel faster and
-calmer than a traditional job board: show useful new roles, explain why they are
-relevant in plain language, and help the user act without turning the search into
-a dashboard.
+pinkslip is a focused early-career job discovery app for software, data/AI,
+infrastructure, and security roles. It should feel faster and calmer than a
+traditional job board.
 
-The current product serves US new-grad and early-career candidates in software,
-data/AI, infrastructure, and security roles. Product management, program
-management, and product design are intentionally out of scope.
+The core loop is deliberately small:
+
+1. Discover the newest relevant jobs in Feed.
+2. Evaluate a job without redundant labels or scoring language.
+3. Save it, tailor materials, or apply on the original posting.
+4. Return to saved and applied jobs from Me.
 
 ## Design principles
 
-1. **Signal before controls.** The feed is the product. Preferences shape it,
-   while sorting and filters stay compact and secondary.
-2. **Useful, not falsely precise.** Relevance is expressed through human-readable
-   reasons. Numeric scores, thresholds, and match tiers are implementation
-   details and must not appear in the interface.
-3. **One obvious next action.** Each screen has a clear primary action: continue,
-   open a role, apply, tailor, or save preferences.
-4. **Mobile-native rhythm.** Controls use comfortable touch targets, sticky
-   actions respect safe areas, and common iOS behaviors such as swipe-back,
-   haptics, and re-tapping a tab to scroll to the top are preserved.
-5. **Progressive disclosure.** Advanced title rules, account details, and
-   operational tools stay behind explicit controls or admin access.
-6. **Honest states.** Loading, empty, error, stale-data, and destructive-action
-   states always explain what is happening and provide a way forward.
+1. **The job is the signal.** Matching happens behind the interface; scores,
+   relevance reasons, and feed-sort jargon do not belong in the product.
+2. **One clear action hierarchy.** Primary actions are obvious, secondary actions
+   stay nearby, and rare or destructive actions live behind More.
+3. **Mobile, not imitation iOS.** Use familiar navigation, gestures, keyboard
+   behavior, touch targets, and safe areas while keeping pinkslip's own visual
+   identity.
+4. **Progressive disclosure.** Search details, account management, and admin
+   controls appear only where they are needed.
+5. **Honest states.** Loading, empty, error, stale-data, and destructive states
+   explain what happened and provide a next step.
+6. **Earn every element.** Repeated headings, helper copy, decorative containers,
+   and persistent controls should be removed unless they improve comprehension or
+   action.
 
-## Visual language
+## Visual system
 
-### Typography
-
-- **Primary and display:** Inter Variable, self-hosted through Fontsource.
-- **Metadata:** Founders Grotesk Mono for compact status, time, and operational
-  labels where a monospaced texture improves scanning.
-- Display type uses tighter tracking; body copy favors 13–15 px sizes with
-  generous line height. Small labels should remain concise because uppercase
-  metadata becomes noisy quickly on a phone.
-
-### Color
-
-- Pink is the sole brand accent and marks identity, selection, and primary
-  actions.
-- Warm pink-tinted neutrals form the background and elevated surfaces in both
-  light and dark themes.
-- Green, amber, and red are reserved for success, warning, and destructive/error
-  states; they do not represent job quality.
-- Text and divider tokens provide a consistent four-level hierarchy rather than
-  ad hoc opacity.
-
-### Shape and elevation
-
-- Corners range from 6 px for compact tags to 16 px for cards and sheets.
-- Borders do most of the grouping work. Shadows are light and reserved for
-  floating navigation, sheets, and toasts.
-- Lists are preferred over grids for jobs and companies because they scan more
-  efficiently on narrow screens.
+- Inter Variable is the primary typeface. Founders Grotesk Mono is reserved for
+  compact metadata where its texture helps scanning.
+- Pink is the sole brand accent. Green, amber, and red are reserved for semantic
+  status, warning, and destructive states.
+- Neutral surfaces, borders, and spacing establish hierarchy. Shadows are
+  reserved for floating navigation, sheets, menus, and toasts.
+- Lists are preferred for jobs, companies, and settings on narrow screens.
+- Shared tokens and primitives define type, spacing, radii, color, buttons,
+  fields, sheets, cards, and rows. Page-specific styling stays scoped.
 
 ## Information architecture
 
-The primary navigation is deliberately reduced to two destinations:
+The primary navigation has two destinations:
 
-- **Feed:** recommended jobs, search, sorting, filters, and job detail.
-- **Profile:** account, search preferences, tailoring setup, notifications, and
-  shortcuts to Companies, Resume profile, and Master story.
+- **Feed:** newest matching jobs, search, filters, and job detail.
+- **Me:** Saved and Applied jobs, search preferences, resume profile, master
+  story, tailoring setup, notifications, companies, appearance, feedback,
+  account, and admin tools when authorized.
 
-Tracker and Events are deferred. Their code and data remain available for a later
-release, but they are not routes in the current product navigation.
+Saved and Applied are a lightweight personal job library, not a recruiting-stage
+roadmap. Appearance and feedback remain inline settings rather than separate
+destinations.
 
 ## Screen behavior
 
-### Onboarding
-
-Four short steps establish target roles, work location/eligibility, optional
-notifications, and optional account sync. Onboarding does not ask for a primary
-role and does not insert a preview screen between preferences and the product.
-
 ### Feed
 
-The default order is **Recommended**, with Newest and Just found as explicit
-alternatives. Filters cover location, salary, experience, and saved jobs. Job
-rows prioritize company, title, freshness, location, compensation, and concise
-relevance reasons.
+Jobs are always ordered by posted date, newest first. Search and filters share a
+single compact control area. Filters cover location, salary, experience, and
+saved state; Reset appears only after a value changes.
+
+Each row prioritizes company, a one-line title, posted date, normalized location,
+and salary when available. Viewed styling may remain as a useful state cue. Feed
+rows do not explain why a job matched.
 
 ### Job detail
 
-Company and role identity lead, followed by practical metadata and plain-language
-relevance reasons. Apply and Tailor stay available in the bottom action bar.
-Secondary actions—save, dismiss, hide company, and report—remain visible but do
-not compete with Apply.
+The screen navigation stays compact and does not repeat the job title. Share,
+Save, and More live in the header. Company and posted date lead the content;
+duplicate section headings and matching explanations are omitted.
 
-### Profile
+Apply and Tailor are the main actions. Mark applied and Dismiss remain directly
+visible. Hide company and Report live in More. Apply opens the original posting,
+so a separate Show original action is unnecessary.
 
-Account state appears first. Every user can restart onboarding; signed-in users
-can log out and restart while retaining account data, while guests receive a
-clear warning that a new guest profile cannot recover the old session.
+### Me
 
-Search settings describe selected roles as a single set. Notification settings
-use one job-alert switch without exposing a numeric relevance threshold.
+Me is a grouped settings and personal-data screen rather than a dashboard. Saved
+and Applied provide useful counts and direct access to those jobs. Search,
+Materials, App, Account, and admin-only controls are separated by plain section
+labels and compact rows.
 
-### Companies
+### Supporting screens
 
-The company catalog is a utility reached from Profile. It supports search,
-hide/restore, source reporting, and admin controls. Requests have a bounded
-loading state and a visible retry path so the screen cannot remain a skeleton
-indefinitely.
-
-## Components and states
-
-- **Primary button:** pink fill; one per decision area.
-- **Secondary button:** neutral surface/border for reversible or lower-priority
-  actions.
-- **Danger action:** explicit red treatment plus confirmation for irreversible
-  account or catalog changes.
-- **Tags/chips:** selection, metadata, or relevance reasons—not numerical quality
-  badges.
-- **Surface card/list:** consistent container for grouped settings and scannable
-  records.
-- **Modal/bottom sheet:** focused confirmation or temporary controls; always has
-  a clear close/cancel path.
-- **Loading:** skeletons for known list structure, spinner for indeterminate
-  operations, followed by an error and retry if the request times out.
+- Companies is searchable, keeps admin controls out of the default path, and
+  offers Request a company only after a search returns no match.
+- Resume profile uses consistent elevated surfaces and focuses on structured
+  information needed for tailoring.
+- Master story is one current source of truth, with no version IDs or history.
+- Onboarding asks only for information needed to create the initial feed. Role
+  choices use compact pills and relocation uses a standard select.
 
 ## Accessibility and interaction baseline
 
-- Interactive controls target at least 44 px where space allows.
-- Selection is conveyed through state and accessible attributes, not color alone.
-- Icon-only actions have labels.
-- Focus order follows visual order, keyboard activation is supported on custom
-  rows, and motion is brief and functional.
-- Safe-area insets protect the status bar and home indicator in the iOS WebView.
-- Small text and muted colors must continue to meet readable contrast in both
-  themes.
+- Interactive controls target at least 44 px where practical.
+- Selection is not conveyed by color alone; icon-only actions have labels.
+- Focus order follows visual order, custom rows support keyboard activation, and
+  dialogs trap focus and close with Escape.
+- Enter submits or commits a mobile field and dismisses the keyboard where the
+  action is complete.
+- Sheets lock the page behind them and support drag-to-dismiss from the sheet.
+- Safe-area insets protect the status bar and home indicator; the tab bar stays
+  out of the way while the keyboard is open.
+- Reduced motion, readable contrast, and visible focus states are supported in
+  both themes.
 
-## Next design priorities
+## Next priorities
 
-1. Reduce long location strings and dense job metadata on the smallest screens.
-2. Consolidate repeated micro-labels and uppercase eyebrow text.
-3. Test onboarding and job-detail comprehension with new users before restoring
-   more destinations.
-4. Revisit Tracker and Events only after Feed, Profile, Apply, and Tailor are
-   consistently reliable.
-5. Add automated visual checks for light/dark themes at compact iPhone and wider
-   desktop breakpoints.
+1. Add automated mobile interaction and accessibility tests for the core loop.
+2. Make PWA updates deterministic so deployed assets cannot remain stale.
+3. Simplify Tailoring so provider, model, quota, and sync mechanics stay behind
+   an optional Advanced control.
+4. Split the largest feature files only at clear behavioral boundaries.
+5. Improve ingestion quality and source coverage without adding feed complexity.
+6. Add a wider responsive layout when desktop becomes an active product target.

@@ -1,5 +1,15 @@
 # ATS Integration Roadmap
 
+## Status (July 2026)
+
+Direct adapters are implemented for Greenhouse, Lever, Ashby, Workday,
+Rippling, Gem, and SmartRecruiters. Curated YC company boards are also
+supported. The main remaining architecture work is custom-site detection,
+canonical multi-source deduplication, and queue-based source scheduling.
+
+The research below remains the source-expansion plan. Completed phases are
+marked so it is not mistaken for a description of the current implementation.
+
 ## Goal
 
 Pinkslip should discover a company's canonical posting as quickly as practical,
@@ -26,7 +36,8 @@ The current model is intentionally simple:
   concurrency 6.
 - `custom` companies are excluded from polling.
 
-That works for Greenhouse, Lever, and Ashby, but it cannot safely support:
+That works for the currently implemented direct adapters, but it cannot safely
+support:
 
 - Multiple sources for one company.
 - A company changing ATS providers.
@@ -68,7 +79,7 @@ Use this gate before building an adapter:
 
 | Source | Recommendation | Notes |
 | --- | --- | --- |
-| Workday | Highest-priority broad adapter | It is common among the large, mature technology and enterprise companies missing from the current catalog. Public career sites use structured JSON requests, but the interface is not documented as a public third-party API. |
+| Workday | Implemented; expand curated sites | It is common among large, mature technology and enterprise companies. Public career sites use structured JSON requests, but the interface is not documented as a public third-party API. |
 | Custom-site detection | Build alongside Workday | Provider detection, JSON-LD, sitemaps, and structured feeds can recover branded sites such as Spotify and Shopify without pretending every site is a new ATS. |
 | Rippling ATS | Implemented; add curated boards | Strong startup relevance. Pinkslip uses Rippling's public board JSON endpoint with complete pagination and structured detail pages. |
 | Gem ATS | Implemented; add curated boards | Gem publishes a public Job Board API with live postings, descriptions, departments, offices, and publication dates. |
@@ -518,11 +529,11 @@ The admin UI should show companies separately from their sources and support:
 Exit condition: the next adapter is justified by a concrete list of important
 companies, not generic ATS adoption.
 
-### Phase 1: Highest-Coverage Direct Adapter
+### Phase 1: Highest-Coverage Direct Adapter — completed
 
-- Implement Workday if the audit confirms it unlocks the largest target group.
-- Otherwise implement the provider with the highest target-company yield.
-- Add strict pagination, completeness, and schema-drift tests.
+- Workday support and adapter tests are implemented.
+- Continue adding sites only after verifying that they expose stable, complete
+  snapshots.
 
 Exit condition: a meaningful set of missing marquee companies is polling
 reliably.
@@ -538,10 +549,11 @@ reliably.
 Exit condition: branded careers URLs either resolve to a verified source or
 produce a clear unsupported/review result.
 
-### Phase 3: Selective Additional Direct Adapters
+### Phase 3: Selective Additional Direct Adapters — partially completed
 
-- Rippling or Gem based on audited target coverage.
-- Avature or SmartRecruiters based on audited target coverage.
+- Rippling, Gem, and SmartRecruiters are implemented.
+- Avature and other enterprise families remain conditional on named target
+  coverage.
 - Add enterprise families only when they unlock named target companies.
 
 Ship one adapter at a time with fixtures, verification, and production source
@@ -569,9 +581,10 @@ one notification candidate.
 Exit condition: adding sources does not increase the oldest direct source's
 poll delay beyond its configured cadence.
 
-### Phase 6: Approved Networks
+### Phase 6: Approved Networks — partially completed
 
-- Seek formal access for YC first, then Wellfound.
+- Curated company-scoped YC boards are implemented. Seek formal access before
+  any broader network ingestion, then evaluate Wellfound.
 - Ingest only native or otherwise unique listings.
 - Resolve upstream apply URLs and dedupe before notification.
 - Consider Welcome to the Jungle only if native unique-job yield is proven.

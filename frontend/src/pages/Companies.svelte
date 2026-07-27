@@ -70,6 +70,7 @@
   let selectedView: string = $state("All");
   let search: string = $state("");
   let showDisabled: boolean = $state(false);
+  let showQuarantinedOnly: boolean = $state(false);
 
   // Add company form
   let showAddForm: boolean = $state(false);
@@ -114,9 +115,14 @@
       const matchesVisibility = $sessionAccess.isAdmin
         ? showDisabled || Boolean(c.enabled)
         : selectedView === "Hidden" ? Boolean(c.blocked) : !c.blocked;
-      return matchesAts && matchesSearch && matchesVisibility;
+      const matchesQuarantine = !showQuarantinedOnly || Boolean(c.quarantined_at);
+      return matchesAts && matchesSearch && matchesVisibility && matchesQuarantine;
     })
   );
+  // Quarantined sources are still enabled and still retried daily — they just
+  // stopped burning a request every 15 minutes. Surfacing the count keeps them
+  // from rotting unnoticed, which is how 34 dead slugs quietly became 46.
+  let quarantinedCount = $derived(companies.filter((c) => Boolean(c.quarantined_at)).length);
   let requestCandidate = $derived(search.trim());
   let hasExactCompanyMatch = $derived(
     requestCandidate.length > 0
@@ -448,6 +454,15 @@
             >
               {showDisabled ? "Hide disabled" : "Show disabled"}
             </button>
+            {#if quarantinedCount > 0}
+              <button
+                class="btn-secondary btn-compact"
+                class:active={showQuarantinedOnly}
+                onclick={() => showQuarantinedOnly = !showQuarantinedOnly}
+              >
+                {showQuarantinedOnly ? "Show all" : `Needs fixing (${quarantinedCount})`}
+              </button>
+            {/if}
             {#if filteredCompanies.length > 0}
               <button
                 class="btn-secondary btn-compact"

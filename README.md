@@ -90,6 +90,6 @@ it because it changes production data and code.
 - `scripts/` — local database maintenance
 - `IOS.md` — iOS build, APNs setup, and device testing
 
-Scheduled polling and source expansion are intentionally parked for a later
-workstream. The current refactor keeps the existing schedule and adapters
-unchanged while improving everything downstream of ingestion.
+The current polling and matching pipeline is live. Future source expansion,
+deduplication, and ingestion hardening are tracked in
+`ATS_INTEGRATION_ROADMAP.md`.
