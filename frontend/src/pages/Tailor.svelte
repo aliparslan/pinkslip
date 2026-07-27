@@ -6,7 +6,6 @@
   import { errorMessage } from "../lib/utils";
   import { hapticSuccess } from "../lib/haptics";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
-  import { setPendingSettingsSection } from "../lib/settings-section";
   import {
     DEFAULT_TAILOR_MODEL,
     getLocalResumeTailorText,
@@ -350,8 +349,7 @@
   }
 
   function openTailorSettings() {
-    setPendingSettingsSection("tailoring");
-    navigate("/profile");
+    navigate("/you/tailoring");
   }
 
   async function copyCurrent() {
@@ -444,7 +442,7 @@
           The included AI quota is available to signed-in accounts so it can be protected fairly. You can also add your own Gemini key and keep using tailoring as a guest.
         </p>
         <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">
-          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={() => navigate("/profile")}>
+          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={() => navigate("/you/account")}>
             Open account settings
           </button>
           <button class="btn-secondary" onclick={openTailorSettings}>Use my own key</button>
@@ -460,7 +458,7 @@
         </p>
         <ol style="margin: 0; padding-left: 20px; font-size: var(--fs-sm); line-height: 1.7; color: var(--color-ink-2);">
           <li>Grab a free key from Google AI Studio.</li>
-          <li>Paste it in Profile → Tailor and save.</li>
+          <li>Paste it in You → Tailoring and save.</li>
           <li>Come back here and generate.</li>
         </ol>
         <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">

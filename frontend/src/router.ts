@@ -17,6 +17,7 @@ export function navigate(path: string) {
 export function routeDepth(route: string): number {
   if (route.startsWith("/tailor/")) return 2;
   if (route.startsWith("/jobs/")) return 1;
+  if (route.startsWith("/you/")) return 1;
   return 0;
 }
 
@@ -27,5 +28,6 @@ export function backTargetRoute(route: string): string | null {
     return id ? `/jobs/${id}` : "/";
   }
   if (route.startsWith("/jobs/")) return getJobDetailReturnRoute();
+  if (route.startsWith("/you/")) return "/you";
   return null;
 }

@@ -19,9 +19,8 @@
   import Onboarding from "./components/Onboarding.svelte";
   import Spinner from "./components/Spinner.svelte";
 
-  // Page components match their route names: /profile renders Profile (the
-  // tab with account + settings sections), /resume the structured resume
-  // editor, /corpus the versioned master-story editor.
+  // /you is the compact account/settings home. Its focused destinations reuse
+  // the same stateful page component so autosaved edits survive navigation.
   type PageComponent = Component<{ jobId?: string | null }>;
   // Tab pages declare no props; Svelte ignores the extra `jobId` the generic
   // render sites pass. One widening here keeps every page un-`any`-typed.
@@ -30,6 +29,12 @@
 
   const routes: Record<string, PageComponent> = {
     "/": asPage(Feed),
+    "/you": asPage(Profile),
+    "/you/preferences": asPage(Profile),
+    "/you/alerts": asPage(Profile),
+    "/you/tailoring": asPage(Profile),
+    "/you/account": asPage(Profile),
+    "/you/operations": asPage(Profile),
     "/profile": asPage(Profile),
     "/companies": asPage(Companies),
     "/corpus": asPage(Corpus),
@@ -52,7 +57,12 @@
         ? route.split("/tailor/")[1]
         : null
   );
-  let showTabBar = $derived(!isDetailPage && !isTailorPage);
+  let mobileTabBarVisible = $derived([
+    "/",
+    "/you",
+    "/profile",
+    "/settings",
+  ].includes(route));
 
   // ── Interactive swipe-back ──────────────────────────────────────────────────
   // A left-edge drag translates the live page (foreground) to the right, revealing
@@ -73,7 +83,7 @@
   }
   let UnderlayComp = $derived(underlayRoute ? pageFor(underlayRoute).Comp : null);
   let underlayJobId = $derived(underlayRoute ? pageFor(underlayRoute).jid : null);
-  let underlayHasShellHeader = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
+  let underlayHasMobileTabs = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
 
   const EDGE = 28; // px from the left edge a swipe must start within
   const SETTLE = 280; // ms for the release animation
@@ -240,12 +250,6 @@
   let accessError: string | null = $state(null);
   let unlocking: boolean = $state(false);
 
-  // Hide the app chrome behind full-screen overlays (onboarding / access gate) so
-  // nothing renders — or scrolls — behind them.
-  let showShellHeader = $derived(
-    !isDetailPage && !isTailorPage && !showOnboarding && !showAccessGate
-  );
-
   // Bumped on every bootstrap so a slow, superseded request (e.g. the initial
   // guest load resolving after a magic-link sign-in) can't clobber newer state.
   let bootGen = 0;
@@ -312,10 +316,10 @@
       // Re-fetch with the new authenticated cookie. This bumps bootGen, so the
       // initial guest bootstrap can't overwrite the signed-in state if it lands late.
       await bootstrapSession();
-      navigate("/settings");
+      navigate("/you/account");
     } catch {
       // Invalid/expired link — leave the current session as-is. The user can
-      // request a fresh link from Settings.
+      // request a fresh link from Account.
     }
   }
 
@@ -350,44 +354,22 @@
      content never collides with the system clock. Zero-height off-notch devices. -->
 <div class="status-bar-scrim" aria-hidden="true"></div>
 
-{#snippet shellHeader()}
-  <!-- Top bar -->
-  <header class="app-shell-header">
-    <div class="app-shell-header-inner">
-      <button class="brand-home-button" aria-label="Go to feed" onclick={() => navigate("/")}>
-        <!-- pinkslip icon -->
-        <svg width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true" style="transform: rotate(-8deg); flex-shrink: 0;">
-          <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="0.5"/>
-          <rect x="5" y="6" width="12" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-          <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-          <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
-        </svg>
-        <span class="h-display h-display-sm" style="line-height: 1;">
-          <span style="color: var(--color-accent);">pink</span>slip
-        </span>
-      </button>
-    </div>
-  </header>
-{/snippet}
-
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
 {#if underlayRoute && UnderlayComp}
   <div class="nav-underlay" bind:this={underlayEl} style="transform: translateX(-30%);" aria-hidden="true">
-    {#if underlayHasShellHeader}
-      {@render shellHeader()}
-    {/if}
-    <div class="app-container min-h-screen pb-28">
+    <div class="app-content-shell nav-underlay-content" class:mobile-tabs-visible={underlayHasMobileTabs}>
       <UnderlayComp jobId={underlayJobId} />
     </div>
     <div class="nav-underlay-dim" bind:this={dimEl} style="opacity: 0.14;"></div>
   </div>
 {/if}
 
-{#if showShellHeader}
-  {@render shellHeader()}
-{/if}
-
-<div class="app-container min-h-screen pb-28 nav-foreground" class:is-swiping={swiping} bind:this={fgEl}>
+<div
+  class="app-content-shell nav-foreground"
+  class:is-swiping={swiping}
+  class:mobile-tabs-visible={mobileTabBarVisible}
+  bind:this={fgEl}
+>
   {#if sessionReady}
     {#if !showOnboarding}
       {#if isDetailPage}
@@ -397,9 +379,7 @@
       {:else}
         <CurrentPage />
       {/if}
-      {#if showTabBar}
-        <TabBar />
-      {/if}
+      <TabBar mobileHidden={!mobileTabBarVisible} />
     {/if}
   {:else if bootError}
     <div style="padding: 32px 22px 28px;">

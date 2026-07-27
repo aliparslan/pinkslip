@@ -3,29 +3,17 @@
   import SearchProfileFields from "../../components/SearchProfileFields.svelte";
   import {
     DEFAULT_SEARCH_PROFILE,
-    LOCATION_OPTIONS,
-    MAX_YEARS_EXPERIENCE,
-    ROLE_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
   } from "../../../../shared/search-profile";
 
-  let { searchProfile = $bindable() }: { searchProfile: SearchProfileV1 } = $props();
-
-  let profileEditing: boolean = $state(false);
-
-  let roleLabels = $derived(
-    ROLE_OPTIONS
-      .filter((role) => searchProfile.roles.includes(role.id))
-      .map((role) => role.label)
-      .join(", ") || "Not set"
-  );
-  let metroLabels = $derived(
-    LOCATION_OPTIONS
-      .filter((location) => searchProfile.location_ids.includes(location.id))
-      .map((location) => location.label)
-      .join(", ") || "Any US metro"
-  );
+  let {
+    searchProfile = $bindable(),
+    showHeading = true,
+  }: {
+    searchProfile: SearchProfileV1;
+    showHeading?: boolean;
+  } = $props();
 
   function resetToDefaults() {
     searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
@@ -33,44 +21,13 @@
 </script>
 
 <section>
-  <h2 class="section-eyebrow">Search profile</h2>
+  {#if showHeading}<h2 class="section-eyebrow">Search profile</h2>{/if}
   <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 24px;">
-    {#if profileEditing}
-      <SearchProfileFields bind:profile={searchProfile} />
-      <div style="display: flex; justify-content: space-between; gap: 8px;">
-        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={resetToDefaults}>
-          Reset defaults
-        </button>
-        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={() => { profileEditing = false; }}>
-          Close editor
-        </button>
-      </div>
-    {:else}
-      <div class="profile-summary-grid">
-        <div class="profile-summary-item">
-          <span>Target roles</span>
-          <strong>{roleLabels}</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Experience band</span>
-          <strong>New grad to early career · up to {MAX_YEARS_EXPERIENCE} years required</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Work modes</span>
-          <strong>{searchProfile.work_modes.join(", ")}</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Preferred metros</span>
-          <strong>{metroLabels}</strong>
-        </div>
-        <div class="profile-summary-item">
-          <span>Authorization</span>
-          <strong>{searchProfile.work_authorization.replaceAll("_", " ")} · {searchProfile.relocation_willing ? "open to relocation" : "no relocation"}</strong>
-        </div>
-      </div>
-      <button class="btn-secondary" onclick={() => { profileEditing = true; }}>
-        Edit search profile
+    <SearchProfileFields bind:profile={searchProfile} />
+    <div>
+      <button class="btn-secondary" onclick={resetToDefaults}>
+        Reset defaults
       </button>
-    {/if}
+    </div>
   </div>
 </section>

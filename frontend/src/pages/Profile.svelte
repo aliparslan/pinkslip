@@ -1,32 +1,61 @@
 <script lang="ts">
-  // The Profile tab: account, identity, and the settings sections. Each
-  // section lives in pages/profile/* — this page only owns shared state
-  // (session, search profile, notification prefs) and persistence.
   import { fly } from "svelte/transition";
   import { onMount } from "svelte";
+  import type { Component } from "svelte";
   import { api, type AccountInfo, type AppFeatures } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { getNativePushStatus, initNativePush } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
-  import { consumePendingSettingsSection, type SettingsSection } from "../lib/settings-section";
   import { themeMode, type ThemeMode } from "../lib/theme";
+  import { loadLocalTailorKit } from "../lib/local-tailor";
   import {
     DEFAULT_SEARCH_PROFILE,
+    LOCATION_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
   } from "../../../shared/search-profile";
-  import { navigate } from "../router";
+  import { currentRoute, navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import Modal from "../components/Modal.svelte";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import AccountSection from "./profile/AccountSection.svelte";
   import JobsSection from "./profile/JobsSection.svelte";
   import TailorSection from "./profile/TailorSection.svelte";
   import NotifySection from "./profile/NotifySection.svelte";
   import AdminSection from "./profile/AdminSection.svelte";
+  import Bell from "phosphor-svelte/lib/Bell";
+  import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
+  import Buildings from "phosphor-svelte/lib/Buildings";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
-  import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
+  import ChatCircleDots from "phosphor-svelte/lib/ChatCircleDots";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
+  import FileText from "phosphor-svelte/lib/FileText";
+  import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import PaintBrush from "phosphor-svelte/lib/PaintBrush";
+  import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
+  import UserCircle from "phosphor-svelte/lib/UserCircle";
+  import Wrench from "phosphor-svelte/lib/Wrench";
+
+  type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "operations";
+  type PhosphorIcon = Component<{ size?: number | string }>;
+
+  const destinationTitles: Record<YouDestination, string> = {
+    preferences: "Job preferences",
+    alerts: "Job alerts",
+    tailoring: "Tailoring",
+    account: "Account",
+    operations: "Operations",
+  };
+  const destinationIds = new Set<YouDestination>(Object.keys(destinationTitles) as YouDestination[]);
+
+  let route = $derived($currentRoute);
+  let destination = $derived.by<YouDestination | null>(() => {
+    if (!route.startsWith("/you/")) return null;
+    const value = route.slice("/you/".length) as YouDestination;
+    return destinationIds.has(value) ? value : null;
+  });
 
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -35,8 +64,8 @@
 
   let displayName: string = $state("");
   let savedDisplayName: string = $state("");
-  let sessionState: "anonymous" | "guest" | "authenticated" = $state("guest");
-  let account: AccountInfo | null = $state(null);
+  let sessionState = $state<"anonymous" | "guest" | "authenticated">("guest");
+  let account = $state<AccountInfo | null>(null);
   let isAdmin: boolean = $state(false);
   let features: AppFeatures | null = $state(null);
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
@@ -44,6 +73,8 @@
   let pushStatus: string = $state("disabled");
   let savedJobCount = $state(0);
   let appliedJobCount = $state(0);
+  let resumeReady = $state(false);
+  let tailoringReady = $state(false);
 
   let showFeedbackForm: boolean = $state(false);
   let feedbackType: "feature_request" | "general_feedback" = $state("feature_request");
@@ -52,25 +83,26 @@
   let submittingFeedback: boolean = $state(false);
   let feedbackError: string | null = $state(null);
 
-  let activeSettingsSection: SettingsSection = $state("profile");
   let mode = $derived($themeMode);
-
-  // Labels match the destination page titles exactly.
-  const shortcuts = [
-    { label: "Companies", sub: "Browse companies monitored by pinkslip", path: "/companies" },
-    { label: "Resume profile", sub: "Structured resume data for tailoring", path: "/resume" },
-    { label: "Master story", sub: "Versioned freeform notes the tailor pulls from", path: "/corpus" },
-  ] as const;
-
-  const settingsSections: { id: SettingsSection; label: string; sub: string }[] = [
-    { id: "profile", label: "Profile", sub: "Identity" },
-    { id: "jobs", label: "Jobs", sub: "Search rules" },
-    { id: "tailoring", label: "Tailor", sub: "Resume setup" },
-    { id: "notifications", label: "Notify", sub: "Alerts" },
-    { id: "operations", label: "Ops", sub: "Fetch runs" },
-  ];
-  let visibleSettingsSections = $derived(
-    settingsSections.filter((section) => section.id !== "operations" || isAdmin)
+  let preferenceSummary = $derived.by(() => {
+    const roleCount = searchProfile.roles.length;
+    const locations = LOCATION_OPTIONS.filter((option) => searchProfile.location_ids.includes(option.id));
+    const location = locations.length === 0
+      ? "Anywhere in the US"
+      : locations.length === 1
+        ? locations[0]?.label ?? "1 location"
+        : `${locations[0]?.label ?? "Locations"} +${locations.length - 1}`;
+    return `${roleCount} ${roleCount === 1 ? "role" : "roles"} · ${location}`;
+  });
+  let alertsSummary = $derived(
+    notificationEnabled
+      ? pushStatus === "enabled" ? "On" : "On · finish device setup"
+      : "Off"
+  );
+  let accountSummary = $derived(
+    sessionState === "authenticated"
+      ? account?.email ?? "Signed in"
+      : "Guest · sign in to sync"
   );
 
   function showSuccess(message: string) {
@@ -86,10 +118,8 @@
     error = message;
   }
 
-  // ── Autosave ───────────────────────────────────────────────────────────────
-  // Name, search profile, and notification prefs save automatically (debounced)
-  // so edits aren't lost when switching tabs. The manual button stays as an
-  // explicit flush with visible confirmation.
+  // Name, job preferences, and alerts autosave. Focused settings pages do not
+  // need a permanent Save button competing with their actual controls.
   let loaded = false;
   let lastSavedKey = $state("");
   let savingPrefs = $state(false);
@@ -104,12 +134,12 @@
   }
 
   $effect(() => {
-    const key = currentKey(); // tracks every saved field
+    const key = currentKey();
     if (!loaded || key === lastSavedKey) return;
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
     autosaveTimer = window.setTimeout(() => {
       autosaveTimer = null;
-      void performSave(true);
+      void performSave();
     }, 1200);
   });
 
@@ -117,16 +147,12 @@
     if (autosaveTimer === null) return;
     window.clearTimeout(autosaveTimer);
     autosaveTimer = null;
-    void performSave(true);
+    void performSave();
   }
 
-  async function performSave(silent = false) {
+  async function performSave() {
     if (savingPrefs || !loaded) return;
     savingPrefs = true;
-    if (!silent) {
-      error = null;
-      successMsg = null;
-    }
     const sentKey = currentKey();
     try {
       const trimmedName = displayName.trim();
@@ -147,19 +173,16 @@
       });
       const normalized = normalizeSearchProfile(savedPreferences.search_profile);
       if (currentKey() === sentKey) {
-        // Only adopt the server-normalized profile if nothing changed while
-        // the request was in flight (don't clobber in-progress edits).
         searchProfile = normalized;
         lastSavedKey = currentKey();
       } else {
-        lastSavedKey = sentKey; // current edits differ → autosave re-runs
+        lastSavedKey = sentKey;
       }
       void api.interactions.event({
         event_name: "search_profile_adjusted",
         entity_type: "search_profile",
         properties: { source: "settings" },
       }).catch(() => undefined);
-      if (!silent) showSuccess("Preferences saved.");
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -171,31 +194,26 @@
     loading = true;
     error = null;
     try {
-      const [prefsResult, meResult, notificationResult, statsResult] = await Promise.allSettled([
+      const [prefsResult, meResult, notificationResult, statsResult, resumeResult] = await Promise.allSettled([
         api.preferences.get(),
         api.me.get(),
         api.push.settings(),
         api.stats.get(),
+        api.profile.get(),
       ]);
 
-      if (meResult.status === "fulfilled") {
-        displayName = meResult.value.user?.name ?? "";
-        savedDisplayName = meResult.value.user?.name ?? "";
-        sessionState = meResult.value.session.state;
-        account = meResult.value.account ?? null;
-        isAdmin = meResult.value.is_admin === true;
-        syncSessionAccess(meResult.value);
-        features = meResult.value.features ?? null;
-      } else {
-        throw meResult.reason;
-      }
+      if (meResult.status !== "fulfilled") throw meResult.reason;
+      displayName = meResult.value.user?.name ?? "";
+      savedDisplayName = displayName;
+      sessionState = meResult.value.session.state;
+      account = meResult.value.account ?? null;
+      isAdmin = meResult.value.is_admin === true;
+      features = meResult.value.features ?? null;
+      syncSessionAccess(meResult.value);
 
-      if (prefsResult.status === "fulfilled") {
-        const prefs = prefsResult.value;
-        searchProfile = normalizeSearchProfile(prefs.search_profile);
-      } else {
-        throw prefsResult.reason;
-      }
+      if (prefsResult.status !== "fulfilled") throw prefsResult.reason;
+      searchProfile = normalizeSearchProfile(prefsResult.value.search_profile);
+
       if (notificationResult.status === "fulfilled") {
         notificationEnabled = notificationResult.value.enabled;
       }
@@ -204,8 +222,18 @@
         appliedJobCount = statsResult.value.appliedJobs;
       }
 
+      const localKit = loadLocalTailorKit();
+      const structuredResume = resumeResult.status === "fulfilled" ? resumeResult.value.data : null;
+      resumeReady = Boolean(
+        localKit.resume?.canTailor
+        || structuredResume?.contact.name
+        || structuredResume?.experience.length
+        || structuredResume?.education.length
+        || structuredResume?.projects.length
+      );
+      tailoringReady = Boolean(localKit.apiKey.trim() || features?.tailoring_enabled);
+
       pushStatus = await getNativePushStatus();
-      // If already authorized, make sure the current device token is registered.
       if (pushStatus === "enabled") {
         await initNativePush().catch(() => {});
       }
@@ -261,13 +289,13 @@
     }
   }
 
+  function backToYou() {
+    if (!requestBack()) navigate("/you");
+  }
+
   onMount(() => {
-    const pendingSection = consumePendingSettingsSection();
-    if (pendingSection && pendingSection !== "operations") {
-      activeSettingsSection = pendingSection;
-    }
     consumeAuthFeedbackFromUrl();
-    loadSettings();
+    void loadSettings();
 
     const onHidden = () => {
       if (document.visibilityState === "hidden") flushAutosave();
@@ -281,124 +309,160 @@
       if (successTimer !== null) window.clearTimeout(successTimer);
     };
   });
+
 </script>
 
-<div class="page" style="padding-top: 0;">
-  <div class="page-frame">
-    <h1 class="h-display h-display-lg" style="margin-bottom: 12px;">
-      Profile
-    </h1>
+{#snippet destinationRow(label: string, detail: string, path: string, Icon: PhosphorIcon)}
+  <button class="you-settings-row" type="button" onclick={() => navigate(path)}>
+    <span class="you-settings-row-icon"><Icon size={18} /></span>
+    <span class="you-settings-row-copy">
+      <strong>{label}</strong>
+      <small>{detail}</small>
+    </span>
+    <CaretRight size={16} />
+  </button>
+{/snippet}
 
-    {#if loading}
-      <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
-    {:else}
-      {#if successMsg}
-        <div class="toast-wrap">
-          <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
-            {successMsg}
-          </div>
-        </div>
-      {/if}
-      <div style="display: flex; flex-direction: column; gap: 24px;">
+{#if successMsg}
+  <div class="toast-wrap">
+    <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
+      {successMsg}
+    </div>
+  </div>
+{/if}
+
+{#if destination}
+  <div class="page pushed-screen">
+    <ScreenNav
+      title={destinationTitles[destination]}
+      backLabel="Back to You"
+      onBack={backToYou}
+    />
+
+    <div class="page-frame you-destination-page">
+      {#if loading}
+        <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+      {:else}
         {#if error}
-          <div class="alert alert-error">
-            {error}
-          </div>
+          <div class="alert alert-error" style="margin-bottom: 14px;">{error}</div>
+        {/if}
+        {#if savingPrefs}
+          <div class="you-saving-state">Saving changes…</div>
         {/if}
 
-        <!-- Avatar + name -->
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background: var(--color-accent); color: var(--color-accent-ink); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 20px; flex-shrink: 0;">
-            {(displayName || "?").charAt(0).toUpperCase()}
-          </div>
-          <div style="flex: 1; min-width: 0;">
-            <input
-              id="display-name"
-              type="text"
-              class="input-field"
-              placeholder="Your name"
-              aria-label="Your name"
-              bind:value={displayName}
-              style="font-size: 16px; font-weight: 600; background: var(--color-bg-elev);"
+        {#if destination === "preferences"}
+          <JobsSection bind:searchProfile showHeading={false} />
+        {:else if destination === "alerts"}
+          <NotifySection
+            bind:notificationEnabled
+            bind:pushStatus
+            showHeading={false}
+            onError={showError}
+            onSuccess={showSuccess}
+          />
+        {:else if destination === "tailoring"}
+          <TailorSection
+            {sessionState}
+            {features}
+            showHeading={false}
+            onError={showError}
+            onSuccess={showSuccess}
+          />
+        {:else if destination === "account"}
+          <div class="you-account-stack">
+            <section class="you-focus-card">
+              <label for="display-name">
+                <span class="field-label">Display name</span>
+                <input
+                  id="display-name"
+                  type="text"
+                  class="input-field"
+                  placeholder="Your name"
+                  bind:value={displayName}
+                />
+              </label>
+            </section>
+            <AccountSection
+              {sessionState}
+              {account}
+              showHeading={false}
+              onError={showError}
+              onSuccess={showSuccess}
+              onReload={loadSettings}
             />
           </div>
-        </div>
+        {:else if destination === "operations" && isAdmin}
+          <AdminSection onError={showError} onSuccess={showSuccess} />
+        {:else if destination === "operations"}
+          <div class="alert alert-error">Operations are only available to administrators.</div>
+        {/if}
+      {/if}
+    </div>
+  </div>
+{:else}
+  <div class="page root-screen">
+    <header class="root-screen-header">
+      <h1 class="h-display h-display-lg">You</h1>
+    </header>
 
-        <AccountSection
-          {sessionState}
-          {account}
-          onError={showError}
-          onSuccess={showSuccess}
-          onReload={loadSettings}
-        />
+    <div class="page-frame you-page">
 
-        <div
-          class="settings-section-tabs"
-          style={`--settings-section-count: ${visibleSettingsSections.length}`}
-          role="tablist"
-          aria-label="Profile settings sections"
-        >
-          {#each visibleSettingsSections as section}
-            <button
-              type="button"
-              class:active={activeSettingsSection === section.id}
-              class="settings-section-tab"
-              role="tab"
-              aria-selected={activeSettingsSection === section.id}
-              onclick={() => (activeSettingsSection = section.id)}
-            >
-              <span>{section.label}</span>
-              <small>{section.sub}</small>
+      {#if loading}
+        <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+      {:else}
+        {#if error}
+          <div class="alert alert-error">{error}</div>
+        {/if}
+
+        <section>
+          <h2 class="section-eyebrow">My jobs</h2>
+          <div class="profile-job-stats">
+            <button class="profile-job-stat" onclick={() => navigate("/my-jobs/saved")}>
+              <BookmarkSimple size={20} />
+              <strong>{savedJobCount}</strong>
+              <span>Saved</span>
+              <CaretRight size={15} />
             </button>
-          {/each}
-        </div>
+            <button class="profile-job-stat" onclick={() => navigate("/my-jobs/applied")}>
+              <CheckCircle size={20} />
+              <strong>{appliedJobCount}</strong>
+              <span>Applied</span>
+              <CaretRight size={15} />
+            </button>
+          </div>
+        </section>
 
-        {#if activeSettingsSection === "profile"}
-          <section>
-            <h2 class="section-eyebrow">My jobs</h2>
-            <div class="profile-job-stats">
-              <button class="profile-job-stat" onclick={() => navigate("/my-jobs/saved")}>
-                <BookmarkSimple size={20} />
-                <strong>{savedJobCount}</strong>
-                <span>Saved</span>
-                <CaretRight size={15} />
-              </button>
-              <button class="profile-job-stat" onclick={() => navigate("/my-jobs/applied")}>
-                <CheckCircle size={20} />
-                <strong>{appliedJobCount}</strong>
-                <span>Applied</span>
-                <CaretRight size={15} />
-              </button>
-            </div>
-          </section>
+        <section>
+          <h2 class="section-eyebrow">Search</h2>
+          <div class="you-settings-list">
+            {@render destinationRow("Job preferences", preferenceSummary, "/you/preferences", SlidersHorizontal)}
+            {@render destinationRow("Job alerts", alertsSummary, "/you/alerts", Bell)}
+          </div>
+        </section>
 
-          <section>
-            <h2 class="section-eyebrow">Shortcuts</h2>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              {#each shortcuts as shortcut}
-                <button
-                  class="shortcut-row"
-                  onclick={() => navigate(shortcut.path)}
-                >
-                  <div style="min-width: 0; text-align: left;">
-                    <div style="font-size: var(--fs-md); font-weight: 600;">{shortcut.label}</div>
-                    <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{shortcut.sub}</div>
-                  </div>
-                  <CaretRight size={16} color="var(--color-ink-4)" />
-                </button>
-              {/each}
-            </div>
-          </section>
+        <section>
+          <h2 class="section-eyebrow">Materials</h2>
+          <div class="you-settings-list">
+            {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/resume", FileText)}
+            {@render destinationRow("Tailoring", tailoringReady ? "Ready" : "Finish setup", "/you/tailoring", MagicWand)}
+          </div>
+        </section>
 
-          <section>
-            <h2 class="section-eyebrow">Appearance</h2>
-            <div class="surface-card" style="padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-              <label for="theme-select" style="font-size: var(--fs-md); font-weight: 600;">Theme</label>
-              <div class="select-field-wrap" style="width: min(48%, 160px);">
+        <section>
+          <h2 class="section-eyebrow">App</h2>
+          <div class="you-settings-list">
+            {@render destinationRow("Companies", "Browse and manage employers", "/companies", Buildings)}
+            <div class="you-settings-row you-settings-row-static">
+              <span class="you-settings-row-icon"><PaintBrush size={18} /></span>
+              <span class="you-settings-row-copy">
+                <strong>Appearance</strong>
+                <small>Theme</small>
+              </span>
+              <div class="select-field-wrap you-inline-select">
                 <select
-                  id="theme-select"
                   class="input-field"
                   value={mode}
+                  aria-label="Theme"
                   onchange={(event) => themeMode.set(event.currentTarget.value as ThemeMode)}
                 >
                   <option value="system">System</option>
@@ -408,71 +472,45 @@
                 <span class="select-chevron" aria-hidden="true"><CaretDown size={15} /></span>
               </div>
             </div>
-          </section>
+            <div class="you-settings-row you-settings-row-static">
+              <span class="you-settings-row-icon"><ChatCircleDots size={18} /></span>
+              <span class="you-settings-row-copy">
+                <strong>Help and feedback</strong>
+                <small>Ideas, problems, and support</small>
+              </span>
+              <button
+                class="btn-secondary you-inline-action"
+                type="button"
+                onclick={() => {
+                  feedbackError = null;
+                  showFeedbackForm = true;
+                }}
+              >
+                Send feedback
+              </button>
+            </div>
+          </div>
+        </section>
 
+        <section>
+          <h2 class="section-eyebrow">Account</h2>
+          <div class="you-settings-list">
+            {@render destinationRow("Account", accountSummary, "/you/account", UserCircle)}
+          </div>
+        </section>
+
+        {#if isAdmin}
           <section>
-            <h2 class="section-label" style="display: block; margin-bottom: 10px;">Help shape pinkslip</h2>
-            <button
-              class="shortcut-row"
-              type="button"
-              onclick={() => {
-                feedbackError = null;
-                showFeedbackForm = true;
-              }}
-            >
-              <div style="min-width: 0; text-align: left;">
-                <div style="font-size: var(--fs-md); font-weight: 600;">Send feedback</div>
-                <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">
-                  Suggest a feature or tell us what is getting in your way
-                </div>
-              </div>
-              <CaretRight size={16} color="var(--color-ink-4)" />
-            </button>
+            <h2 class="section-eyebrow">Admin</h2>
+            <div class="you-settings-list">
+              {@render destinationRow("Operations", "Product health and moderation", "/you/operations", Wrench)}
+            </div>
           </section>
         {/if}
-
-        {#if activeSettingsSection === "jobs"}
-          <JobsSection bind:searchProfile />
-        {/if}
-
-        {#if activeSettingsSection === "tailoring"}
-          <TailorSection
-            {sessionState}
-            {features}
-            onError={showError}
-            onSuccess={showSuccess}
-          />
-        {/if}
-
-        {#if activeSettingsSection === "notifications"}
-          <NotifySection
-            bind:notificationEnabled
-            bind:pushStatus
-            onError={showError}
-            onSuccess={showSuccess}
-          />
-        {/if}
-
-        {#if isAdmin && activeSettingsSection === "operations"}
-          <AdminSection onError={showError} onSuccess={showSuccess} />
-        {/if}
-
-        <!-- Changes autosave; this is an explicit flush with confirmation. -->
-        {#if activeSettingsSection === "profile" || activeSettingsSection === "jobs" || activeSettingsSection === "notifications"}
-          <button
-            class="btn-primary btn-accent"
-            style="width: 100%;"
-            onclick={() => performSave(false)}
-            disabled={savingPrefs}
-          >
-            {#if savingPrefs}<Spinner />{/if}
-            Save preferences
-          </button>
-        {/if}
-      </div>
-    {/if}
+      {/if}
+    </div>
   </div>
-</div>
+{/if}
 
 {#if showFeedbackForm}
   <Modal
@@ -513,9 +551,7 @@
         ></textarea>
       </div>
       {#if feedbackError}
-        <div class="alert alert-error">
-          {feedbackError}
-        </div>
+        <div class="alert alert-error">{feedbackError}</div>
       {/if}
     </div>
     <div class="action-row" style="margin-top: 16px;">

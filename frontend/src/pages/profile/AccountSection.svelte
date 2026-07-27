@@ -13,12 +13,14 @@
     onError,
     onSuccess,
     onReload,
+    showHeading = true,
   }: {
     sessionState: "anonymous" | "guest" | "authenticated";
     account: AccountInfo | null;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
     onReload: () => Promise<void>;
+    showHeading?: boolean;
   } = $props();
 
   let emailLogin: string = $state("");
@@ -89,7 +91,7 @@
 </script>
 
 <section>
-  <h2 class="section-eyebrow">Account</h2>
+  {#if showHeading}<h2 class="section-eyebrow">Account</h2>{/if}
   <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
     {#if sessionState === "authenticated"}
       <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">

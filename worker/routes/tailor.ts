@@ -310,7 +310,7 @@ tailor.post("/tailor/:job_id", async (c) => {
     // The message stays free of env-var jargon — it's shown to job seekers.
     return c.json(
       {
-        error: "Tailoring isn't set up yet. Add a free Gemini API key in Profile → Tailor to enable it.",
+        error: "Tailoring isn't set up yet. Add a free Gemini API key in You → Tailoring to enable it.",
         code: "tailor_not_configured",
       },
       503
@@ -319,7 +319,7 @@ tailor.post("/tailor/:job_id", async (c) => {
   if (keySource === "app" && c.get("sessionState") !== "authenticated") {
     return c.json(
       {
-        error: "Sign in to use pinkslip's included tailoring, or add your own Gemini API key in Profile.",
+        error: "Sign in to use pinkslip's included tailoring, or add your own Gemini API key in You → Tailoring.",
         code: "authentication_required",
       },
       401
@@ -377,7 +377,7 @@ tailor.post("/tailor/:job_id", async (c) => {
     if (!quota.ok) {
       return c.json(
         {
-          error: "You've hit today's tailoring limit. Add your own Gemini API key in Profile to keep going, or try again tomorrow.",
+          error: "You've hit today's tailoring limit. Add your own Gemini API key in You → Tailoring to keep going, or try again tomorrow.",
           code: "tailor_quota_exceeded",
           resets_at: quota.resets_at,
         },

@@ -430,7 +430,11 @@
 
 </script>
 
-<div class="page" style="padding-top: 0;">
+<div class="page root-screen feed-page">
+  <header class="root-screen-header">
+    <h1 class="h-display h-display-lg">Feed</h1>
+  </header>
+
   <!-- Search and filtering share one compact control surface. -->
   <div class="feed-controls">
     <div class="feed-toolbar">

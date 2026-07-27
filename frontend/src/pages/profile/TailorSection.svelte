@@ -31,11 +31,13 @@
     features,
     onError,
     onSuccess,
+    showHeading = true,
   }: {
     sessionState: "anonymous" | "guest" | "authenticated";
     features: AppFeatures | null;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
+    showHeading?: boolean;
   } = $props();
 
   let localGeminiKey: string = $state("");
@@ -222,7 +224,7 @@
 </script>
 
 <section>
-  <h2 class="section-eyebrow">Tailoring</h2>
+  {#if showHeading}<h2 class="section-eyebrow">Tailoring</h2>{/if}
   <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 16px;">
     <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
       <div style="min-width: 0;">

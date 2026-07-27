@@ -65,6 +65,12 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-mobile-width: 480px;
+  --app-page-width: 840px;
+  --app-nav-wide: 224px;
+  --screen-gutter: 16px;
+  --screen-nav-height: 56px;
+  --mobile-tab-bar-height: 72px;
 
   /* ── Type scale ── use var(--fs-*) instead of one-off px font sizes. */
   --fs-2xs: 11px;
@@ -93,7 +99,7 @@
 }
 
 @theme {
-  --font-display: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Founders Grotesk Text", "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Founders Grotesk Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -242,35 +248,6 @@ html.native-ios select {
   color: var(--color-accent);
 }
 
-.brand-home-button {
-  min-width: 0;
-  min-height: 44px;
-  margin: -6px 0 -6px -6px;
-  padding: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-ink);
-  cursor: pointer;
-  outline: none;
-  transition: background .15s, transform .15s;
-}
-
-.brand-home-button:hover {
-  background: var(--color-bg-sunken);
-}
-
-.brand-home-button:active {
-  transform: scale(0.98);
-}
-
-.brand-home-button:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-accent) 55%, transparent);
-}
-
 .section-title {
   font-size: var(--fs-md);
   font-weight: 600;
@@ -369,11 +346,6 @@ html.native-ios select {
   color: var(--color-ink-4);
 }
 
-.stat-warn {
-  color: var(--color-warn);
-  font-weight: 600;
-}
-
 .job-meta-strip {
   display: flex;
   flex-wrap: wrap;
@@ -426,8 +398,7 @@ html.native-ios select {
 }
 .chip:hover { background: var(--color-bg-sunken); }
 /* Selected chips speak the one selection language: accent-soft fill + accent
-   border (same as SearchProfileFields). Ink-inversion is reserved for
-   view-switching segmented tracks (.sort-segmented, .settings-section-tab). */
+   border (same as SearchProfileFields). */
 .chip-active {
   background: var(--color-accent-soft);
   color: var(--color-accent-soft-ink);
@@ -749,12 +720,6 @@ html.native-ios select {
   font-weight: 700;
 }
 
-.filter-help {
-  margin-top: 2px;
-  color: var(--color-ink-3);
-  font-size: var(--fs-xs);
-}
-
 .filter-option-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -914,25 +879,11 @@ html.native-ios select {
   color: var(--color-ink-4);
 }
 
-.filter-row,
 .filter-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-}
-
-.filter-value {
-  min-width: 38px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background: var(--color-bg-sunken);
-  color: var(--color-ink);
-  font-size: var(--fs-xs);
-  font-weight: 700;
 }
 
 .filter-toggle {
@@ -1163,14 +1114,8 @@ html.native-ios select {
   margin: 0 auto;
   width: 100%;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr) 48px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
-}
-
-.job-step-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
 }
 
 /* The sticky bar is the page's primary CTA row — full 48px tier, while
@@ -1179,9 +1124,145 @@ html.native-ios select {
   height: 48px;
 }
 
-.job-step-btn:disabled {
-  opacity: 0.35;
+
+.job-header-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.job-detail-content {
+  padding-bottom: 112px;
+}
+
+.job-detail-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.job-detail-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.job-detail-company-line {
+  min-width: 0;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-detail-company {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-detail-title {
+  margin: 0;
+  line-height: 1.15;
+}
+
+.job-detail-meta {
+  margin-bottom: 16px;
+}
+
+.job-state-actions {
+  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.job-description-section {
+  padding: 4px 0 24px;
+}
+
+.job-description-heading {
+  margin-bottom: 10px;
+}
+
+.job-description-lede {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+.job-description-lede.with-action {
+  margin-bottom: 12px;
+}
+
+.text-link {
+  color: var(--color-accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.job-description-link {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.job-more-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  appearance: none;
+  border: 0;
+  background: transparent;
+}
+
+.job-more-menu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(260px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 16%);
+}
+
+.job-more-menu button {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.job-more-menu button:hover {
+  background: var(--color-bg-sunken);
+  color: var(--color-ink);
+}
+
+.job-more-menu button:disabled {
+  opacity: 0.55;
   cursor: default;
+}
+
+.job-more-menu button.danger {
+  color: var(--color-bad);
 }
 
 .btn-mini {
@@ -1189,21 +1270,6 @@ html.native-ios select {
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
-
-.save-btn {
-  width: var(--tap-min);
-  height: var(--tap-min);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elev);
-  border: 1px solid var(--color-line-2);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  color: var(--color-ink-3);
-  flex-shrink: 0;
-  transition: all .15s;
-}
-.save-btn:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); color: var(--color-ink-2); }
 
 /* ── Form controls ───────────────────────────────────────── */
 
@@ -1498,6 +1564,9 @@ select.input-field {
 .divider { height: 0.5px; background: var(--color-line); margin: 0; }
 
 .page-frame {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
   padding: var(--space-4) var(--space-4) 28px;
 }
 
@@ -1543,6 +1612,152 @@ select.input-field {
   grid-column: 3;
   grid-row: 1 / 3;
   color: var(--color-ink-4);
+}
+
+.you-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.you-page > section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.you-settings-list {
+  overflow: hidden;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+}
+
+.you-settings-row {
+  appearance: none;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-top: 0.5px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.you-settings-row:first-child {
+  border-top: 0;
+}
+
+.you-settings-row:hover {
+  background: var(--color-bg-sunken);
+}
+
+.you-settings-row-static {
+  cursor: default;
+}
+
+.you-settings-row-static:hover {
+  background: transparent;
+}
+
+.you-settings-row-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+  color: var(--color-ink-2);
+}
+
+.you-settings-row-copy {
+  min-width: 0;
+}
+
+.you-settings-row-copy strong,
+.you-settings-row-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.you-settings-row-copy strong {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.you-settings-row-copy small {
+  margin-top: 2px;
+  color: var(--color-ink-3);
+  font-size: var(--fs-xs);
+}
+
+.you-settings-row > svg {
+  color: var(--color-ink-4);
+}
+
+.you-inline-select {
+  width: 116px;
+}
+
+.you-inline-select .input-field {
+  height: 40px;
+  padding-left: 12px;
+  padding-right: 32px;
+}
+
+.you-inline-action {
+  min-width: 112px;
+  padding-left: 12px;
+  padding-right: 12px;
+  white-space: nowrap;
+}
+
+.you-destination-page {
+  padding-top: 18px;
+}
+
+.you-saving-state {
+  margin-bottom: 10px;
+  color: var(--color-ink-3);
+  font-size: var(--fs-xs);
+  text-align: right;
+}
+
+.you-focus-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+}
+
+.you-focus-card h2 {
+  margin: 0;
+  font-size: var(--fs-base);
+}
+
+.you-focus-card p {
+  margin: 4px 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.you-account-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .my-jobs-heading {
@@ -1681,156 +1896,173 @@ select.input-field {
   overflow: hidden;
 }
 
-.list-section-label {
-  padding: 14px var(--space-4) 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--color-ink-3);
-}
-
-.list-section-count {
-  font-size: var(--fs-xs);
-  color: var(--color-ink-4);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-section-tabs {
-  display: grid;
-  grid-template-columns: repeat(var(--settings-section-count, 4), minmax(0, 1fr));
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-sunken);
-}
-
-.settings-section-tab {
-  min-width: 0;
-  min-height: 54px;
-  border: 0;
-  /* Concentric with the 16px track: inner radius = outer − padding. */
-  border-radius: calc(var(--radius-lg) - 6px);
-  background: transparent;
-  color: var(--color-ink-3);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  cursor: pointer;
-  font: inherit;
-  transition: background-color .15s, color .15s, box-shadow .15s;
-}
-
-.settings-section-tab > span {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.settings-section-tab > small {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--color-ink-4);
-  font-size: var(--fs-2xs);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.settings-section-tab.active {
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
-}
-
-.settings-section-tab.active > small {
-  color: var(--color-ink-3);
-}
-
-.shortcut-row {
-  appearance: none;
-  width: 100%;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 12px 14px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s, border-color .15s, transform .1s;
-}
-
-.shortcut-row:hover {
-  background: var(--color-bg-sunken);
-  border-color: var(--color-line-2);
-}
-
-.shortcut-row:active {
-  transform: scale(0.99);
-}
-
 .page {
   padding-top: 22px;
   animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-.app-container {
-  max-width: 480px;
-  margin: 0 auto;
-  width: 100%;
+.root-screen,
+.pushed-screen {
+  padding-top: 0;
 }
 
-.app-shell-header {
+.root-screen {
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+}
+
+.root-screen-header {
+  min-height: 68px;
+  padding: 18px var(--screen-gutter) 10px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.root-screen-header h1 {
+  margin: 0;
+}
+
+.feed-page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.app-content-shell {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: var(--app-mobile-width);
+  margin: 0 auto;
+  background: var(--color-bg);
+}
+
+.app-content-shell.mobile-tabs-visible {
+  padding-bottom: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
+}
+
+.page-replacement-header,
+.screen-nav {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: calc(var(--safe-top) + 10px) var(--space-4) 10px;
+  min-height: calc(var(--screen-nav-height) + var(--safe-top));
+  padding: calc(var(--safe-top) + 6px) 10px 6px;
   background: color-mix(in oklch, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 0.5px solid var(--color-line);
 }
 
-.app-shell-header-inner {
-  max-width: 480px;
-  margin: 0 auto;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .page-replacement-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: calc(var(--safe-top) + 8px) var(--space-3) 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0.5px solid var(--color-line);
+}
+
+.screen-nav {
+  display: grid;
+  grid-template-columns: minmax(var(--tap-min), 1fr) minmax(0, auto) minmax(var(--tap-min), 1fr);
+  align-items: center;
+}
+
+.screen-nav__leading,
+.screen-nav__trailing {
+  min-width: var(--tap-min);
+  display: flex;
+  align-items: center;
+}
+
+.screen-nav__leading {
+  justify-content: flex-start;
+}
+
+.screen-nav__trailing {
+  justify-content: flex-end;
+}
+
+.screen-nav__back {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  margin-left: -4px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.screen-nav__title {
+  max-width: min(46vw, 300px);
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-content {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 18px var(--screen-gutter) 28px;
 }
 
 .tailor-page-body {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
   padding: 18px 22px 28px;
+}
+
+@media (min-width: 900px) {
+  body {
+    background: var(--color-bg-sunken);
+  }
+
+  .app-content-shell {
+    width: min(var(--app-page-width), calc(100vw - var(--app-nav-wide)));
+    max-width: var(--app-page-width);
+    margin-left: max(var(--app-nav-wide), calc(50vw - 308px));
+    margin-right: 0;
+  }
+
+  .app-content-shell.mobile-tabs-visible {
+    padding-bottom: 0;
+  }
+
+  .root-screen {
+    padding-top: 0;
+  }
+
+  .root-screen-header {
+    min-height: 92px;
+    padding-top: 36px;
+  }
+
+  .page-replacement-header,
+  .screen-nav {
+    min-height: 60px;
+    padding-top: 8px;
+  }
+
+  .screen-nav__title {
+    max-width: 420px;
+  }
+
+  .job-action-bar-wrap {
+    left: var(--app-nav-wide);
+  }
+
+  .job-action-bar {
+    max-width: 720px;
+  }
 }
 
 .modal-backdrop {
@@ -1868,14 +2100,12 @@ select.input-field {
   line-height: 1.5;
 }
 
-.profile-summary-grid,
 .ops-metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
-.profile-summary-item,
 .ops-metric {
   min-width: 0;
   padding: var(--space-3);
@@ -1884,7 +2114,6 @@ select.input-field {
   background: var(--color-bg-sunken);
 }
 
-.profile-summary-item span,
 .ops-metric span {
   display: block;
   margin-bottom: 5px;
@@ -1895,7 +2124,6 @@ select.input-field {
   text-transform: uppercase;
 }
 
-.profile-summary-item strong,
 .ops-metric strong {
   display: block;
   overflow-wrap: anywhere;
@@ -1905,7 +2133,6 @@ select.input-field {
 }
 
 @media (max-width: 420px) {
-  .profile-summary-grid,
   .ops-metric-grid {
     grid-template-columns: 1fr;
   }
@@ -1968,7 +2195,7 @@ body.nav-animating .status-bar-scrim {
 /* While a nav animation is running, drop the expensive header/tab-bar blur
    (compositing a full-screen backdrop-filter mid-transform is what jitters). */
 body.nav-animating .page-replacement-header,
-body.nav-animating .app-shell-header {
+body.nav-animating .screen-nav {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background: var(--color-bg) !important;
@@ -1983,7 +2210,7 @@ body.nav-animating .page { animation: none; }
 .btn-mini:active,
 .icon-btn:active,
 .filter-button:active,
-.brand-home-button:active,
+.screen-nav__back:active,
 .chip:active {
   transform: scale(0.96);
 }
@@ -2106,8 +2333,3 @@ body.nav-animating .page { animation: none; }
 .job-description iframe {
   display: none;
 }
-
-/* ── Scrollbar ───────────────────────────────────────────── */
-
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

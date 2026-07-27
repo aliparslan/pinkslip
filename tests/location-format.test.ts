@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { formatJobLocation } from "../frontend/src/lib/job-content";
+import {
+  formatJobLocation,
+  isDuplicateLeadingJobHeading,
+} from "../frontend/src/lib/job-content";
 
 describe("formatJobLocation", () => {
   it("removes repeated country detail", () => {
@@ -21,5 +24,25 @@ describe("formatJobLocation", () => {
   it("passes through empty locations", () => {
     expect(formatJobLocation(null)).toBeNull();
     expect(formatJobLocation("  ")).toBeNull();
+  });
+});
+
+describe("isDuplicateLeadingJobHeading", () => {
+  it("recognizes headings already supplied by the detail page", () => {
+    expect(isDuplicateLeadingJobHeading("About the Role")).toBe(true);
+    expect(isDuplicateLeadingJobHeading("Job Description")).toBe(true);
+  });
+
+  it("recognizes a repeated job title or company name", () => {
+    const context = { title: "Software Engineer", companyName: "Acme" };
+    expect(isDuplicateLeadingJobHeading("Software Engineer", context)).toBe(true);
+    expect(isDuplicateLeadingJobHeading("Software Engineer at Acme", context)).toBe(true);
+    expect(isDuplicateLeadingJobHeading("Acme", context)).toBe(true);
+  });
+
+  it("preserves useful section headings", () => {
+    const context = { title: "Software Engineer", companyName: "Acme" };
+    expect(isDuplicateLeadingJobHeading("Responsibilities", context)).toBe(false);
+    expect(isDuplicateLeadingJobHeading("Qualifications", context)).toBe(false);
   });
 });

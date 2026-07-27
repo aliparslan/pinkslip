@@ -11,11 +11,13 @@
     pushStatus = $bindable(),
     onError,
     onSuccess,
+    showHeading = true,
   }: {
     notificationEnabled: boolean;
     pushStatus: string;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
+    showHeading?: boolean;
   } = $props();
 
   let enablingPush: boolean = $state(false);
@@ -51,7 +53,7 @@
 </script>
 
 <section>
-  <h2 class="section-eyebrow">Notifications</h2>
+  {#if showHeading}<h2 class="section-eyebrow">Notifications</h2>{/if}
   <div class="surface-card" style="overflow: hidden;">
     <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
       <div>

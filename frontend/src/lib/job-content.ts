@@ -2,6 +2,39 @@ function normalizeText(value: string): string {
   return value.replace(/ /g, " ").replace(/\s+/g, " ").trim();
 }
 
+function normalizeHeading(value: string): string {
+  return normalizeText(value)
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+const REPEATED_DESCRIPTION_SECTION_LABELS = new Set([
+  "about the role",
+  "about the job",
+  "job description",
+]);
+
+function isRepeatedDescriptionSectionLabel(value: string): boolean {
+  return REPEATED_DESCRIPTION_SECTION_LABELS.has(normalizeHeading(value));
+}
+
+export function isDuplicateLeadingJobHeading(
+  heading: string,
+  context: { title?: string | null; companyName?: string | null } = {}
+): boolean {
+  const normalized = normalizeHeading(heading);
+  if (!normalized) return false;
+
+  if (isRepeatedDescriptionSectionLabel(heading)) return true;
+
+  const title = normalizeHeading(context.title ?? "");
+  const company = normalizeHeading(context.companyName ?? "");
+  return normalized === title
+    || normalized === company
+    || Boolean(title && company && normalized === `${title} at ${company}`);
+}
+
 const LOCATION_ABBREVIATIONS: Record<string, string> = {
   California: "CA",
   Colorado: "CO",
@@ -189,7 +222,10 @@ function sanitizeUrl(value: string): string | null {
   return null;
 }
 
-export function sanitizeJobDescriptionHtml(html: string | null | undefined): string {
+export function sanitizeJobDescriptionHtml(
+  html: string | null | undefined,
+  context: { title?: string | null; companyName?: string | null } = {}
+): string {
   if (!html) return "";
 
   const template = document.createElement("template");
@@ -237,5 +273,32 @@ export function sanitizeJobDescriptionHtml(html: string | null | undefined): str
     if (!normalizeText(el.textContent ?? "")) el.remove();
   });
 
+  // This section label is already supplied by the app. Some ATS descriptions
+  // repeat it after a short company introduction instead of at the first node.
+  template.content.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading) => {
+    if (isRepeatedDescriptionSectionLabel(heading.textContent ?? "")) heading.remove();
+  });
+
+  // The page already establishes the role and its "About the role" section.
+  // Remove only matching headings at the very start of the ATS content, while
+  // preserving meaningful headings such as Responsibilities or Qualifications.
+  while (true) {
+    const firstTextNode = findFirstMeaningfulTextNode(template.content);
+    const leadingHeading = firstTextNode?.parentElement?.closest("h1, h2, h3, h4, h5, h6");
+    if (!leadingHeading || !isDuplicateLeadingJobHeading(leadingHeading.textContent ?? "", context)) break;
+    leadingHeading.remove();
+  }
+
   return template.innerHTML.trim();
+}
+
+function findFirstMeaningfulTextNode(root: Node): Text | null {
+  for (const child of Array.from(root.childNodes)) {
+    if (child.nodeType === 3 && normalizeText(child.textContent ?? "")) {
+      return child as Text;
+    }
+    const nested = findFirstMeaningfulTextNode(child);
+    if (nested) return nested;
+  }
+  return null;
 }

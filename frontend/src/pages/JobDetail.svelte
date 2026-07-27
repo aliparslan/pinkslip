@@ -7,7 +7,6 @@
   import { errorMessage } from "../lib/utils";
   import { hapticLight } from "../lib/haptics";
   import { shareLink } from "../lib/share";
-  import { getAdjacentJobIds } from "../lib/feed-navigation";
   import { feed } from "../lib/feed-store.svelte";
   import { sessionAccess } from "../lib/session-access";
   import { markViewed } from "../lib/viewed";
@@ -19,16 +18,13 @@
   } from "../lib/job-content";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import Modal from "../components/Modal.svelte";
-  import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
-  import CaretLeft from "phosphor-svelte/lib/CaretLeft";
-  import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import MapPin from "phosphor-svelte/lib/MapPin";
   import Money from "phosphor-svelte/lib/Money";
-  import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
-  import ClockCounterClockwise from "phosphor-svelte/lib/ClockCounterClockwise";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
-  import ShareNetwork from "phosphor-svelte/lib/ShareNetwork";
+  import Export from "phosphor-svelte/lib/Export";
+  import DotsThree from "phosphor-svelte/lib/DotsThree";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import X from "phosphor-svelte/lib/X";
   import Trash from "phosphor-svelte/lib/Trash";
@@ -48,6 +44,7 @@
   let applied: boolean = $state(false);
   let applying: boolean = $state(false);
   let showBlockConfirm: boolean = $state(false);
+  let showMore: boolean = $state(false);
   let blocking: boolean = $state(false);
   let descriptionPending: boolean = $state(false);
   let hidingCompany: boolean = $state(false);
@@ -255,57 +252,79 @@
     });
   }
 
-  let adjacentJobs = $derived(getAdjacentJobIds(jobId));
-
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
   let displaySalary = $derived(normalizeSalaryText(
     job?.salary?.trim() ? job.salary : extractedSalary
   ));
-  let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description) : "");
+  let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description, {
+    title: job.title,
+    companyName: job.company_name,
+  }) : "");
   let plainDescription = $derived.by(() => {
     return extractPlainTextFromHtml(job?.description);
   });
 
-  function navigateToAdjacent(id: string | null) {
-    if (!id) return;
-    navigate(`/jobs/${id}`);
-  }
 </script>
 
-<div class="page" style="padding-top: 0;">
-  <!-- Header -->
-  <header class="page-replacement-header">
-    <button class="icon-btn" aria-label="Back" onclick={() => { if (!requestBack()) navigate("/"); }}>
-      <ArrowLeft size={18} />
-    </button>
-    {#if job?.closed_at}
-      <div class="tag" style="height: 22px;">closed</div>
-    {/if}
-    <div style="display: flex; gap: 2px;">
-      {#if job?.url}
-        <a
-          class="icon-btn"
-          aria-label="Open original posting"
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ArrowSquareOut size={18} color="var(--color-ink-3)" />
-        </a>
-      {/if}
+<svelte:window onkeydown={(event) => {
+  if (event.key === "Escape") showMore = false;
+}} />
+
+<div class="page pushed-screen">
+  <ScreenNav
+    title={job?.title ?? "Job"}
+    onBack={() => { if (!requestBack()) navigate("/"); }}
+  >
+    {#snippet trailing()}
+      <div class="job-header-actions">
       <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
-        <ShareNetwork size={18} color="var(--color-ink-3)" />
+        <Export size={19} color="var(--color-ink-3)" />
       </button>
-      {#if $sessionAccess.isAdmin}
-        <button class="icon-btn" aria-label="Block job" onclick={() => { showBlockConfirm = true; }}>
-          <Trash size={18} color="var(--color-ink-3)" />
-        </button>
-      {/if}
       <button class="icon-btn" aria-label="Save" onclick={toggleSave}>
         <BookmarkSimple size={20} weight={saved ? "fill" : "regular"} color={saved ? "var(--color-accent)" : "var(--color-ink-2)"} />
       </button>
-    </div>
-  </header>
+      <button
+        class="icon-btn"
+        aria-label="More job actions"
+        aria-haspopup="menu"
+        aria-expanded={showMore}
+        onclick={() => { showMore = !showMore; }}
+      >
+        <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
+      </button>
+      {#if showMore}
+        <button class="job-more-scrim" aria-label="Close job actions" onclick={() => { showMore = false; }}></button>
+        <div class="job-more-menu" role="menu" aria-label="More job actions">
+          <button
+            role="menuitem"
+            disabled={hidingCompany}
+            onclick={() => { showMore = false; void hideCompany(); }}
+          >
+            {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
+            <span>Hide {job?.company_name ?? "company"}</span>
+          </button>
+          <button
+            role="menuitem"
+            onclick={() => { showMore = false; showReport = true; }}
+          >
+            <Flag size={17} />
+            <span>Report listing</span>
+          </button>
+          {#if $sessionAccess.isAdmin}
+            <button
+              class="danger"
+              role="menuitem"
+              onclick={() => { showMore = false; showBlockConfirm = true; }}
+            >
+              <Trash size={17} />
+              <span>Block for everyone</span>
+            </button>
+          {/if}
+        </div>
+      {/if}
+      </div>
+    {/snippet}
+  </ScreenNav>
 
   {#if toastMsg}
     <div class="toast-wrap">
@@ -315,7 +334,7 @@
     </div>
   {/if}
 
-  <div style="padding: 18px 20px 112px;">
+  <div class="screen-content job-detail-content">
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
@@ -324,20 +343,25 @@
       </div>
     {:else if job}
       <!-- Company + Title header -->
-      <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px;">
+      <div class="job-detail-identity">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
-        <div style="flex: 1; min-width: 0;">
-          <div class="section-label" style="margin-bottom: 4px;">
-            {job.company_name}{#if job.department} {" · "}{job.department}{/if}
+        <div class="job-detail-heading">
+          <div class="job-detail-company-line">
+            <div class="section-label job-detail-company">
+              {job.company_name}{#if job.posted_at} {" · Posted "}{formatDate(job.posted_at)}{/if}
+            </div>
+            {#if job.closed_at}
+              <div class="tag">closed</div>
+            {/if}
           </div>
-          <h1 class="h-display h-display-md" style="line-height: 1.15; margin-top: 0;">
+          <h1 class="h-display h-display-md job-detail-title">
             {job.title}
           </h1>
         </div>
       </div>
 
       <!-- Metadata row -->
-      <div class="job-meta-strip" style="margin-bottom: 16px;">
+      <div class="job-meta-strip job-detail-meta">
         {#if job.location}
           <div class="job-meta-item">
             <MapPin size={15} />
@@ -350,35 +374,9 @@
             <span>{displaySalary}</span>
           </div>
         {/if}
-        {#if job.posted_at}
-          <div class="job-meta-item">
-            <CalendarBlank size={15} />
-            <span>posted {formatDate(job.posted_at)}</span>
-          </div>
-        {/if}
-        {#if job.first_seen_at}
-          <div class="job-meta-item">
-            <ClockCounterClockwise size={15} />
-            <span>seen {formatDate(job.first_seen_at)}</span>
-          </div>
-        {/if}
       </div>
 
-      <div class="divider" style="margin-bottom: 16px;"></div>
-
-      {#if job.match_reasons?.length}
-        <div class="surface-card-padded" style="margin-bottom: 16px;">
-          <h2 class="section-label" style="margin: 0 0 10px;">Why this job</h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 7px;">
-            {#each job.match_reasons as reason}
-              <span class="tag">{reason}</span>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
-      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <div class="job-state-actions">
           <button
             class="btn-secondary btn-action"
             disabled={applied || applying}
@@ -395,28 +393,15 @@
             {#if dismissing}<Spinner />{:else}<X size={15} />{/if}
             Dismiss for me
           </button>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <button class="btn-secondary btn-action" onclick={hideCompany} disabled={hidingCompany}>
-            {#if hidingCompany}<Spinner />{:else}<EyeSlash size={15} />{/if}
-            Hide {job.company_name}
-          </button>
-          <button class="btn-secondary btn-action" onclick={() => { showReport = true; }}>
-            <Flag size={15} />
-            Report listing
-          </button>
-        </div>
       </div>
-
-      <div class="divider"></div>
 
       <!-- About the role -->
       {#if descriptionPending}
-        <div style="padding: 16px 0 24px;">
-          <h2 class="section-title" style="margin-bottom: 8px;">
+        <div class="job-description-section">
+          <h2 class="section-title job-description-heading">
             About the role
           </h2>
-          <p style="margin: 0 0 12px; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          <p class="job-description-lede with-action">
             Pulling the full posting now. This usually lands in a second or two.
           </p>
           <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
@@ -424,8 +409,8 @@
           </button>
         </div>
       {:else if sanitizedDescription}
-        <div style="padding: 16px 0 24px;">
-          <h2 class="section-title" style="margin-bottom: 10px;">
+        <div class="job-description-section">
+          <h2 class="section-title job-description-heading">
             About the role
           </h2>
           <div class="job-description">
@@ -436,7 +421,7 @@
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: var(--color-accent); font-size: var(--fs-sm); font-weight: 600; text-decoration: none;"
+              class="text-link job-description-link"
             >
               Read full description
               <ArrowSquareOut size={13} />
@@ -444,11 +429,11 @@
           {/if}
         </div>
       {:else if plainDescription}
-        <div style="padding: 16px 0 24px;">
-          <h2 class="section-title" style="margin-bottom: 8px;">
+        <div class="job-description-section">
+          <h2 class="section-title job-description-heading">
             About the role
           </h2>
-          <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          <p class="job-description-lede">
             {plainDescription}
           </p>
           {#if job.url}
@@ -456,7 +441,7 @@
               href={job.url}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; color: var(--color-accent); font-size: var(--fs-sm); font-weight: 600; text-decoration: none;"
+              class="text-link job-description-link"
             >
               Read full description
               <ArrowSquareOut size={13} />
@@ -464,11 +449,11 @@
           {/if}
         </div>
       {:else}
-        <div style="padding: 16px 0 24px;">
-          <h2 class="section-title" style="margin-bottom: 8px;">
+        <div class="job-description-section">
+          <h2 class="section-title job-description-heading">
             About the role
           </h2>
-          <p style="margin: 0 0 12px; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+          <p class="job-description-lede with-action">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -497,15 +482,6 @@
 {#if !loading && !error && job}
   <div class="job-action-bar-wrap">
     <div class="job-action-bar">
-      <!-- Carets (not arrows) so prev/next job isn't mistaken for Back. -->
-      <button
-        class="icon-btn icon-btn-surface job-step-btn"
-        aria-label="Previous job in feed"
-        disabled={!adjacentJobs.previousId}
-        onclick={() => navigateToAdjacent(adjacentJobs.previousId)}
-      >
-        <CaretLeft size={18} />
-      </button>
       {#if job.url}
         <a
           href={job.url}
@@ -522,29 +498,21 @@
             }).catch(() => undefined);
           }}
         >
-          Apply
           <ArrowSquareOut size={18} weight="regular" />
+          Apply
         </a>
       {:else}
         <button class="btn-primary btn-accent btn-action" disabled>
-          Apply
           <ArrowSquareOut size={18} weight="regular" />
+          Apply
         </button>
       {/if}
       <button
         class="btn-secondary btn-action"
         onclick={() => jobId && navigate(`/tailor/${jobId}`)}
       >
-        Tailor
         <MagicWand size={16} />
-      </button>
-      <button
-        class="icon-btn icon-btn-surface job-step-btn"
-        aria-label="Next job in feed"
-        disabled={!adjacentJobs.nextId}
-        onclick={() => navigateToAdjacent(adjacentJobs.nextId)}
-      >
-        <CaretRight size={18} />
+        Tailor
       </button>
     </div>
   </div>
