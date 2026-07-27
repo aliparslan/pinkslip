@@ -4,6 +4,13 @@ import AuthenticationServices
 
 class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
+        // iOS 26 automatically adds a soft scroll-edge fade above scroll views.
+        // pinkslip renders its own web navigation, so the effect becomes an
+        // unexplained gray gradient across the status-bar safe area.
+        if #available(iOS 26.0, *) {
+            webView?.scrollView.topEdgeEffect.isHidden = true
+        }
+
         // App-local plugins are NOT auto-discovered (Capacitor only auto-registers
         // plugins from capacitor.config.json's packageClassList). And
         // registerPluginType() is a no-op while autoRegisterPlugins is true (the
