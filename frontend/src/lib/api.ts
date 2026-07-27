@@ -144,19 +144,6 @@ export interface ProductMetrics {
   events: Record<string, number>;
 }
 
-export interface Application {
-  id: string;
-  user_id: string | null;
-  job_id: string | null;
-  company_name: string;
-  title: string;
-  stage: string;
-  next: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface User {
   id: string;
   name: string;
@@ -482,39 +469,6 @@ export const api = {
         savedJobs: number;
         lastPolled: string | null;
       }>("/stats"),
-  },
-  applications: {
-    list: (stage?: string) => {
-      const qs = stage ? `?stage=${stage}` : "";
-      return request<{ applications: Application[] }>(`/applications${qs}`);
-    },
-    create: (data: { job_id?: string; company_name: string; title: string; stage?: string; next?: string; url?: string }) =>
-      request<Application>("/applications", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    update: (id: string, data: { company_name?: string; title?: string; stage?: string; next?: string; url?: string }) =>
-      request<Application>(`/applications/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
-      request<void>(`/applications/${id}`, { method: "DELETE" }),
-  },
-  events: {
-    list: (params?: { company_id?: string; upcoming?: string }) => {
-      const qs = params ? "?" + new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
-      ).toString() : "";
-      return request<{ events: Record<string, unknown>[] }>(`/events${qs}`);
-    },
-    create: (data: { company_id?: string; company_name?: string; title: string; description?: string; event_type?: string; event_date: string; location?: string; url?: string }) =>
-      request<Record<string, unknown>>("/events", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
-      request<void>(`/events/${id}`, { method: "DELETE" }),
   },
   me: {
     get: () => request<MeResponse>("/me"),

@@ -149,17 +149,13 @@
     if (!jobId || !job || applying || applied) return;
     applying = true;
     try {
-      await api.applications.create({
-        job_id: jobId,
-        company_name: job.company_name,
-        title: job.title,
-        url: job.url ?? "",
-      });
+      // This used to also write an `applications` row for the Tracker screen.
+      // Tracker is gone, so that record would be write-only — nothing could ever
+      // display it. The useful half is kept: marking a job applied takes it out
+      // of the feed so it stops resurfacing.
+      await api.jobs.dismiss(jobId);
       applied = true;
-      // Tracked now, so it leaves the feed — but stay here and confirm,
-      // instead of silently dumping the user back to the feed.
       removeFromFeedStore(jobId);
-      void api.jobs.dismiss(jobId).catch(() => undefined);
       showToast("Marked as applied ✓");
     } catch (e) {
       error = errorMessage(e);

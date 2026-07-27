@@ -40,8 +40,7 @@ Tailwind-v4 integrations are Vite plugins, and the deploy model is a static
 - `src/pages/` — route screens, named after their routes: Feed, JobDetail,
   Tailor, Profile (`/profile` — account + settings sections,
   composed from `src/pages/profile/*Section.svelte`), ResumeProfile
-  (`/resume`), Corpus (`/corpus`), Companies. Tracker and Events are retained
-  as deferred screens but are intentionally not routed or shown in navigation.
+  (`/resume`), Corpus (`/corpus`), Companies.
 - `src/components/` — shared UI (JobRow, TabBar, Modal, FilterChips, Switch,
   Slider, …). All dialogs go through `Modal.svelte` (backdrop + focus trap +
   Escape, primary button LAST in action rows) — never `window.confirm`/`prompt`
