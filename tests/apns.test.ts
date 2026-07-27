@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterEach, mock, spyOn } from "bun:tes
 import {
   buildApnsBody,
   buildApnsJwt,
+  apnsReason,
   isDeadApnsToken,
   resolveApnsConfig,
   sendApnsNotification,
@@ -163,10 +164,43 @@ describe("resolveApnsConfig", () => {
 });
 
 describe("isDeadApnsToken", () => {
-  it("flags 410 and 400 as dead", () => {
+  it("treats 410 as unconditionally dead", () => {
     expect(isDeadApnsToken(410)).toBe(true);
-    expect(isDeadApnsToken(400)).toBe(true);
     expect(isDeadApnsToken(200)).toBe(false);
     expect(isDeadApnsToken(undefined)).toBe(false);
+  });
+
+  it("removes the token on 400 only when the reason names a token problem", () => {
+    expect(isDeadApnsToken(400, '{"reason":"BadDeviceToken"}')).toBe(true);
+    expect(isDeadApnsToken(400, '{"reason":"DeviceTokenNotForTopic"}')).toBe(true);
+    expect(isDeadApnsToken(400, '{"reason":"Unregistered"}')).toBe(true);
+  });
+
+  it("does NOT remove the token when a 400 is our own bug", () => {
+    // Previously every 400 deleted the subscription, so one malformed request
+    // could permanently unsubscribe a device for a defect on our side.
+    expect(isDeadApnsToken(400, '{"reason":"BadTopic"}')).toBe(false);
+    expect(isDeadApnsToken(400, '{"reason":"MissingTopic"}')).toBe(false);
+    expect(isDeadApnsToken(400, '{"reason":"PayloadTooLarge"}')).toBe(false);
+    expect(isDeadApnsToken(400, '{"reason":"BadPriority"}')).toBe(false);
+  });
+
+  it("refuses to guess when the reason is missing or unparseable", () => {
+    expect(isDeadApnsToken(400)).toBe(false);
+    expect(isDeadApnsToken(400, "not json")).toBe(false);
+    expect(isDeadApnsToken(400, "{}")).toBe(false);
+  });
+});
+
+describe("apnsReason", () => {
+  it("extracts the reason APNs reports", () => {
+    expect(apnsReason('{"reason":"BadDeviceToken"}')).toBe("BadDeviceToken");
+  });
+
+  it("returns null rather than throwing on junk", () => {
+    expect(apnsReason(undefined)).toBeNull();
+    expect(apnsReason("")).toBeNull();
+    expect(apnsReason("<html>502</html>")).toBeNull();
+    expect(apnsReason('{"reason":123}')).toBeNull();
   });
 });

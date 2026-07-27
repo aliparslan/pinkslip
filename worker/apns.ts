@@ -129,6 +129,29 @@ export function buildApnsBody(payload: NotificationPayload): string {
  * Returns the same PushResult shape as sendPushNotification so callers can
  * treat web and native results uniformly (including 410-style cleanup).
  */
+async function postToApns(
+  host: string,
+  deviceToken: string,
+  body: string,
+  jwt: string,
+  bundleId: string
+): Promise<PushResult> {
+  const response = await fetch(`https://${host}/3/device/${deviceToken}`, {
+    method: "POST",
+    headers: {
+      authorization: `bearer ${jwt}`,
+      "apns-topic": bundleId,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      "content-type": "application/json",
+    },
+    body,
+  });
+
+  const responseBody = await response.text();
+  return { ok: response.ok, status: response.status, body: responseBody };
+}
+
 export async function sendApnsNotification(
   deviceToken: string,
   payload: NotificationPayload,
@@ -136,23 +159,31 @@ export async function sendApnsNotification(
 ): Promise<PushResult> {
   try {
     const jwt = await buildApnsJwt(config);
-    const host = config.sandbox ? APNS_HOST_SANDBOX : APNS_HOST_PRODUCTION;
     const body = buildApnsBody(payload);
+    const primary = config.sandbox ? APNS_HOST_SANDBOX : APNS_HOST_PRODUCTION;
+    const fallback = config.sandbox ? APNS_HOST_PRODUCTION : APNS_HOST_SANDBOX;
 
-    const response = await fetch(`https://${host}/3/device/${deviceToken}`, {
-      method: "POST",
-      headers: {
-        authorization: `bearer ${jwt}`,
-        "apns-topic": config.bundleId,
-        "apns-push-type": "alert",
-        "apns-priority": "10",
-        "content-type": "application/json",
-      },
-      body,
-    });
+    const result = await postToApns(primary, deviceToken, body, jwt, config.bundleId);
 
-    const responseBody = await response.text();
-    return { ok: response.ok, status: response.status, body: responseBody };
+    // A device token is only valid against the environment that issued it: an
+    // `aps-environment: development` build registers a sandbox token, a
+    // TestFlight/App Store build registers a production one. Picking the wrong
+    // host produces exactly one symptom — 400 BadDeviceToken — which is
+    // indistinguishable from a genuinely dead token.
+    //
+    // During development both build types are installed at various times, so
+    // rather than force a config flag to be flipped by hand (and silently
+    // unsubscribe the device when it is wrong), try the other environment before
+    // concluding anything. Costs one extra request, and only on failure.
+    if (result.status === 400 && apnsReason(result.body) === "BadDeviceToken") {
+      const retried = await postToApns(fallback, deviceToken, body, jwt, config.bundleId);
+      if (retried.ok) return retried;
+      // Both environments rejected it — now the token really is bad. Report the
+      // second result so the caller sees a reason reflecting a real attempt.
+      return retried;
+    }
+
+    return result;
   } catch (e: any) {
     return { ok: false, error: e.message };
   }
@@ -177,7 +208,50 @@ export function resolveApnsConfig(env: Env): ApnsConfig | null {
   };
 }
 
-/** APNs status codes that mean the device token is dead and should be removed. */
-export function isDeadApnsToken(status: number | undefined): boolean {
-  return status === 410 || status === 400;
+/**
+ * APNs returns its real diagnosis in the response body, e.g. {"reason":"BadDeviceToken"}.
+ * A bare status is nearly useless: 400 alone cannot distinguish "this token is
+ * dead" from "we sent a malformed request".
+ */
+export function apnsReason(body: string | undefined): string | null {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body) as { reason?: unknown };
+    return typeof parsed.reason === "string" ? parsed.reason : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reasons that genuinely mean the device token will never work again.
+ * Everything else 400 covers — BadTopic, MissingTopic, BadPriority,
+ * PayloadTooLarge, BadExpirationDate — is a bug on OUR side, and deleting the
+ * user's subscription for those is both destructive and self-inflicted: it
+ * silently unsubscribes them from a defect we caused, and they have to notice
+ * and re-enable notifications by hand.
+ */
+const DEAD_TOKEN_REASONS = new Set([
+  "BadDeviceToken",
+  "DeviceTokenNotForTopic",
+  "Unregistered",
+  "ExpiredToken",
+]);
+
+/**
+ * Whether the device token is dead and should be removed.
+ *
+ * 410 always means gone. For 400 we require the reason to actually name a token
+ * problem — previously any 400 removed the subscription, which is how a single
+ * malformed request could permanently unsubscribe a device.
+ */
+export function isDeadApnsToken(
+  status: number | undefined,
+  body?: string
+): boolean {
+  if (status === 410) return true;
+  if (status !== 400) return false;
+  const reason = apnsReason(body);
+  // No parseable reason: don't guess, and don't destroy the subscription.
+  return reason !== null && DEAD_TOKEN_REASONS.has(reason);
 }

@@ -1,4 +1,4 @@
-import { isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
+import { apnsReason, isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
 import { recordProductEvent } from "./product-events";
 import { buildNotificationPayload, sendPushNotification, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
@@ -249,6 +249,15 @@ export async function deliverPendingNotifications(
           ).bind(new Date().toISOString(), delivery.candidate_id, delivery.subscription_id)
         ));
       } else {
+        // APNs puts its actual diagnosis in the body ({"reason":"BadDeviceToken"}),
+        // and we were fetching it and discarding it — leaving only a bare status,
+        // which cannot distinguish a dead token from a request we malformed.
+        const reason = sub.platform === "ios" ? apnsReason(result.body) : null;
+        const failureDetail = ("error" in result && result.error
+          ? result.error
+          : `Push service returned ${result.status}${reason ? ` (${reason})` : ""}`
+        ).slice(0, 1000);
+
         await db.batch(claimed.map((delivery) =>
           db.prepare(
             `UPDATE notification_deliveries
@@ -256,15 +265,13 @@ export async function deliverPendingNotifications(
              WHERE candidate_id = ? AND subscription_id = ?`
           ).bind(
             failureStatusAfterAttempt(delivery.attempt_count),
-            ("error" in result && result.error
-              ? result.error
-              : `Push service returned ${result.status}`).slice(0, 1000),
+            failureDetail,
             delivery.candidate_id,
             delivery.subscription_id
           )
         ));
         const dead = sub.platform === "ios"
-          ? isDeadApnsToken(result.status)
+          ? isDeadApnsToken(result.status, result.body)
           : result.status === 404 || result.status === 410;
         if (dead) {
           // notification_deliveries.subscription_id cascades from
@@ -280,7 +287,7 @@ export async function deliverPendingNotifications(
                SET last_error = ?
                WHERE id = ?`
             ).bind(
-              `${sub.platform} subscription rejected (${result.status}) — token removed`.slice(0, 1000),
+              `${sub.platform} subscription rejected (${result.status}${reason ? ` ${reason}` : ""}) — token removed`.slice(0, 1000),
               delivery.candidate_id
             )
           ));
