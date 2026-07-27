@@ -41,3 +41,10 @@ bun.lockb
 .vscode/
 .cache/
 .eslintcache
+
+# local browser traces and design-reference screenshots
+.playwright-mcp/
+sample-pics/
+
+# generated when Xcode Cloud is opened; shared schemes remain trackable
+frontend/ios/App/App.xcodeproj/xcshareddata/xcodecloud/

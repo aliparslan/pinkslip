@@ -17,7 +17,10 @@ plugin JS); the native project is generated at `frontend/ios/`.
 2. **APNs Auth Key**: Keys → create a key with *Apple Push Notifications service
    (APNs)* enabled. Download the `AuthKey_XXXXXXXXXX.p8` (one-time download).
    Note the **Key ID** (10 chars) and your **Team ID** (10 chars).
-3. **App Group** (for Phase 5 extensions): `group.dev.alip.pinkslip`.
+
+An App Group is not required for the current app. Register
+`group.dev.alip.pinkslip` only when the Phase 5 Widget or Share Extension is
+implemented, then add it to the app and extension provisioning profiles.
 
 ### Wire the APNs key into the Worker
 

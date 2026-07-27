@@ -12,6 +12,8 @@
   import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
+  import ArrowsDownUp from "phosphor-svelte/lib/ArrowsDownUp";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
   import X from "phosphor-svelte/lib/X";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import { dragDismiss } from "../lib/drag-dismiss";
@@ -124,7 +126,7 @@
     }
     if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
     if (feed.savedOnly) parts.push("Saved");
-    return parts.length > 0 ? parts.join(" · ") : "Recommended for you";
+    return parts.join(" · ");
   });
 
   // Drive the bell badge
@@ -525,22 +527,26 @@
           <span class="filter-count">{activeFilterCount}</span>
         {/if}
       </button>
-      <div class="feed-control-row" aria-label="Sort jobs">
-        <div class="sort-segmented">
+      <div class="feed-sort-control">
+        <ArrowsDownUp size={14} weight="bold" aria-hidden="true" />
+        <select
+          aria-label="Sort jobs"
+          title={SORT_OPTIONS.find((option) => option.value === feed.sortBy)?.hint}
+          value={feed.sortBy}
+          onchange={(event) => void applyFeedFilters({
+            sortBy: event.currentTarget.value as FeedSort,
+          })}
+        >
           {#each SORT_OPTIONS as option}
-            <button
-              class:active={feed.sortBy === option.value}
-              aria-pressed={feed.sortBy === option.value}
-              title={option.hint}
-              onclick={() => void applyFeedFilters({ sortBy: option.value })}
-            >
-              {option.label}
-            </button>
+            <option value={option.value}>{option.label}</option>
           {/each}
-        </div>
+        </select>
+        <CaretDown class="feed-sort-caret" size={12} weight="bold" aria-hidden="true" />
       </div>
     </div>
-    <div class="filter-summary">{filterSummary}</div>
+    {#if filterSummary}
+      <div class="filter-summary">{filterSummary}</div>
+    {/if}
   </div>
 
   <div class="divider"></div>
