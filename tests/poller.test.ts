@@ -5,6 +5,7 @@ import {
   QUARANTINE_AFTER_FAILURES,
   runWithConcurrency,
 } from "@worker/poller";
+import { buildSourceAlertPayload } from "@worker/admin-alerts";
 import type { JobListing } from "@worker/adapters/types";
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -133,5 +134,26 @@ describe("nextQuarantineState", () => {
     const state = nextQuarantineState(12, first, NOW);
     expect(state.failureCount).toBe(13);
     expect(state.quarantinedAt).toBe(first);
+  });
+});
+
+describe("buildSourceAlertPayload", () => {
+  it("names the broken sources rather than only counting them", () => {
+    // The first thing you want to know is whether it is one obscure board or
+    // something central, so the companies are named in the body.
+    const payload = buildSourceAlertPayload(
+      [{ name: "Stripe", error: "Greenhouse API 404" }],
+      12
+    );
+    expect(payload.title).toBe("1 job source stopped working");
+    expect(payload.body).toBe("Stripe — 12 total need fixing");
+    expect(payload.data.url).toBe("/companies");
+  });
+
+  it("caps the list and reports the overflow", () => {
+    const sources = ["A", "B", "C", "D", "E"].map((name) => ({ name, error: null }));
+    const payload = buildSourceAlertPayload(sources, 46);
+    expect(payload.title).toBe("5 job sources stopped working");
+    expect(payload.body).toBe("A, B, C +2 more — 46 total need fixing");
   });
 });

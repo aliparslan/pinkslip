@@ -13,6 +13,10 @@ import {
   deliverPendingNotifications,
 } from "./notification-delivery";
 import { ensureEligibleJobs, isEligibleJobListing } from "./job-scope";
+import {
+  notifyAdminsOfQuarantinedSources,
+  type QuarantinedSource,
+} from "./admin-alerts";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 
@@ -428,6 +432,10 @@ export async function runPollCycle(
   // 4. Collect all new jobs and batch-update poll status per company
   const allNewJobs: NewJobMeta[] = [];
   const statusStmts = [];
+  // Sources that crossed into quarantine on *this* cycle. Alerting only on the
+  // transition is self-deduplicating: a source quarantines once, so admins get
+  // one message per breakage rather than one every 15 minutes forever.
+  const newlyQuarantined: QuarantinedSource[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const company = companies[i];
@@ -459,6 +467,9 @@ export async function runPollCycle(
         company.quarantined_at ?? null,
         now
       );
+      if (quarantine.quarantinedAt && !company.quarantined_at) {
+        newlyQuarantined.push({ name: company.name, error: errMsg });
+      }
       log.push(
         `${company.name}: ERROR ${errMsg}`
         + (quarantine.quarantinedAt && !company.quarantined_at ? " (quarantined)" : "")
@@ -492,6 +503,25 @@ export async function runPollCycle(
   let notificationsSent = 0;
   if (sendNotifications) {
     notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs);
+
+    // 5a. Tell admins when a source breaks. Wrapped so an alerting failure can
+    //     never take down the poll cycle it is reporting on.
+    if (newlyQuarantined.length > 0) {
+      await (async () => {
+        const total = await db.prepare(
+          "SELECT COUNT(*) AS count FROM companies WHERE quarantined_at IS NOT NULL"
+        ).first<{ count: number }>();
+        const alerted = await notifyAdminsOfQuarantinedSources(
+          db,
+          env,
+          newlyQuarantined,
+          total?.count ?? newlyQuarantined.length
+        );
+        log.push(`quarantine alert: ${newlyQuarantined.length} new, ${alerted} admin device(s) notified`);
+      })().catch((error) => {
+        log.push(`quarantine alert failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
   }
 
   // 5b. Incrementally score older jobs for a few active users so backlog matches
