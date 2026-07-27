@@ -324,7 +324,7 @@
 {/snippet}
 
 {#if successMsg}
-  <div class="toast-wrap">
+  <div class="toast-wrap" role="status" aria-live="polite">
     <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
       {successMsg}
     </div>
@@ -344,10 +344,10 @@
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
       {:else}
         {#if error}
-          <div class="alert alert-error alert-spaced">{error}</div>
+          <div class="alert alert-error alert-spaced" role="alert">{error}</div>
         {/if}
         {#if savingPrefs}
-          <div class="you-saving-state">Saving changes…</div>
+          <div class="you-saving-state" role="status" aria-live="polite">Saving changes…</div>
         {/if}
 
         {#if destination === "preferences"}
@@ -394,7 +394,7 @@
         {:else if destination === "operations" && isAdmin}
           <AdminSection onError={showError} onSuccess={showSuccess} />
         {:else if destination === "operations"}
-          <div class="alert alert-error">Operations are only available to administrators.</div>
+          <div class="alert alert-error" role="alert">Operations are only available to administrators.</div>
         {/if}
       {/if}
     </div>
@@ -411,7 +411,7 @@
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
       {:else}
         {#if error}
-          <div class="alert alert-error">{error}</div>
+          <div class="alert alert-error" role="alert">{error}</div>
         {/if}
 
         <section>
@@ -550,7 +550,7 @@
         ></textarea>
       </div>
       {#if feedbackError}
-        <div class="alert alert-error">{feedbackError}</div>
+        <div class="alert alert-error" role="alert">{feedbackError}</div>
       {/if}
     </div>
     <div class="action-row modal-actions">

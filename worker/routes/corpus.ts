@@ -14,14 +14,12 @@ export async function getLatestCorpusVersion(
 corpus.get("/", async (c) => {
   const latest = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
   if (!latest) {
-    return c.json({ content_md: "", version_id: null, updated_at: null });
+    return c.json({ content_md: "", updated_at: null });
   }
 
   return c.json({
     content_md: latest.content_md,
-    version_id: latest.id,
     updated_at: latest.updated_at,
-    label: latest.label,
   });
 });
 
@@ -35,80 +33,30 @@ corpus.put("/", async (c) => {
   }
   const latest = await getLatestCorpusVersion(c.env.DB, userId);
 
-  // Unchanged content → don't create another version (autosave fires often).
+  // Unchanged content avoids a needless write when autosave fires on blur.
   if (latest && latest.content_md === contentMd) {
     return c.json({
       content_md: latest.content_md,
-      version_id: latest.id,
       updated_at: latest.updated_at,
-      label: latest.label,
     });
   }
 
   const now = new Date().toISOString();
-  let versionId: number;
-  if (latest && latest.label === "corpus") {
-    // Roll the working autosave version in place instead of piling up history.
-    // User-created snapshots use other labels and are preserved.
+  if (latest) {
+    // Master story is one working document. Keep the row as an implementation
+    // detail instead of exposing or accumulating user-facing history.
     await c.env.DB.prepare(
-      "UPDATE corpus_versions SET content_md = ?, updated_at = ? WHERE id = ? AND user_id = ?"
+      "UPDATE corpus_versions SET content_md = ?, label = 'corpus', updated_at = ? WHERE id = ? AND user_id = ?"
     ).bind(contentMd, now, latest.id, userId).run();
-    versionId = latest.id;
   } else {
-    versionId = await copyCorpusVersion(c.env.DB, userId, contentMd, "corpus");
+    await copyCorpusVersion(c.env.DB, userId, contentMd, "corpus");
   }
 
   const created = await getLatestCorpusVersion(c.env.DB, userId);
   return c.json({
     content_md: created?.content_md ?? contentMd,
-    version_id: created?.id ?? versionId,
     updated_at: created?.updated_at ?? now,
-    label: created?.label ?? "corpus",
   });
-});
-
-corpus.get("/versions", async (c) => {
-  const result = await c.env.DB.prepare(
-    `SELECT id, label, created_at, updated_at
-     FROM corpus_versions
-     WHERE user_id = ?
-     ORDER BY datetime(updated_at) DESC, id DESC`
-  ).bind(c.get("userId")).all<Omit<CorpusVersionRow, "content_md">>();
-
-  return c.json({ versions: result.results ?? [] });
-});
-
-corpus.get("/versions/:id", async (c) => {
-  const { id } = c.req.param();
-  const version = await c.env.DB.prepare(
-    `SELECT id, user_id, content_md, label, created_at, updated_at
-     FROM corpus_versions
-     WHERE id = ? AND user_id = ?`
-  ).bind(id, c.get("userId")).first<CorpusVersionRow>();
-
-  if (!version) {
-    return c.json({ error: "Version not found" }, 404);
-  }
-
-  return c.json(version);
-});
-
-corpus.post("/snapshot", async (c) => {
-  const body =
-    (await c.req.json<{ label?: string }>().catch(() => null)) ?? {};
-  const latest = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
-  if (!latest) {
-    return c.json({ error: "No corpus available" }, 400);
-  }
-
-  const versionId = await copyCorpusVersion(
-    c.env.DB,
-    c.get("userId"),
-    latest.content_md,
-    body.label?.trim() || `snapshot ${new Date().toISOString().slice(0, 16)}`
-  );
-  const created = await getLatestCorpusVersion(c.env.DB, c.get("userId"));
-  return c.json({ version_id: created?.id ?? null });
 });
 
 export default corpus;

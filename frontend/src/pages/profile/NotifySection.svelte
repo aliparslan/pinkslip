@@ -90,25 +90,19 @@
       </div>
     </div>
 
-    <!-- Poll interval -->
-    <div class="grouped-row">
-      <div class="row-title">Poll interval</div>
-      <span class="mono-value">Every 15 min</span>
-    </div>
-
     <!-- Test notifications -->
     <div class="grouped-row grouped-row-block">
       <div class="row-title grouped-row-heading">Test notifications</div>
       {#if testingNotif}
-        <div class="alert alert-accent mono-value grouped-row-alert">
+        <div class="alert alert-accent mono-value grouped-row-alert" role="status" aria-live="polite">
           {testingNotif}
         </div>
       {/if}
       <div class="action-grid">
-        <button class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(0)}>
+        <button type="button" class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(0)}>
           Send now
         </button>
-        <button class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(5)}>
+        <button type="button" class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(5)}>
           Send in 5s
         </button>
       </div>

@@ -492,7 +492,7 @@
         </div>
       {/each}
     {:else if error}
-      <div class="alert alert-error feed-error">
+      <div class="alert alert-error feed-error" role="alert">
         {error}
       </div>
     {:else if feed.jobs.length === 0}

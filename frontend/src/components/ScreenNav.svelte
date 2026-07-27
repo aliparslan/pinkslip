@@ -17,11 +17,11 @@
 
 <header class="screen-nav">
   <div class="screen-nav__leading">
-    <button class="screen-nav__back" aria-label={backLabel} onclick={onBack}>
+    <button type="button" class="screen-nav__back" aria-label={backLabel} onclick={onBack}>
       <CaretLeft size={22} weight="bold" />
     </button>
   </div>
-  <div class="screen-nav__title" title={title}>{title}</div>
+  <div class="screen-nav__title" title={title || undefined} aria-hidden={!title}>{title}</div>
   <div class="screen-nav__trailing">
     {#if trailing}
       {@render trailing()}

@@ -272,7 +272,8 @@
 
 <div class="page pushed-screen">
   <ScreenNav
-    title={job?.title ?? "Job"}
+    title=""
+    backLabel="Back to feed"
     onBack={() => { if (!requestBack()) navigate("/"); }}
   >
     {#snippet trailing()}
@@ -327,7 +328,7 @@
   </ScreenNav>
 
   {#if toastMsg}
-    <div class="toast-wrap">
+    <div class="toast-wrap" role="status" aria-live="polite">
       <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
         {toastMsg}
       </div>
@@ -338,7 +339,7 @@
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
-      <div class="alert alert-error">
+      <div class="alert alert-error" role="alert">
         {error}
       </div>
     {:else if job}

@@ -35,6 +35,11 @@
   let { jobId = null }: { jobId?: string | null } = $props();
 
   type TabId = "resume" | "cover" | "qa";
+  const outputTabs: { id: TabId; label: string }[] = [
+    { id: "resume", label: "Resume" },
+    { id: "cover", label: "Cover" },
+    { id: "qa", label: "QA" },
+  ];
 
   let loading = $state(true);
   let streaming = $state(false);
@@ -74,6 +79,27 @@
   let hasAnyOutput = $derived(
     Boolean(resumeText || coverText || qaText || tailoring || localDraft)
   );
+
+  function selectOutputTab(tab: TabId, moveFocus = false) {
+    activeTab = tab;
+    if (moveFocus) {
+      window.requestAnimationFrame(() => {
+        document.getElementById(`tailor-tab-${tab}`)?.focus();
+      });
+    }
+  }
+
+  function handleOutputTabKeydown(event: KeyboardEvent) {
+    const current = outputTabs.findIndex((tab) => tab.id === activeTab);
+    let next = current;
+    if (event.key === "ArrowRight") next = (current + 1) % outputTabs.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + outputTabs.length) % outputTabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = outputTabs.length - 1;
+    else return;
+    event.preventDefault();
+    selectOutputTab(outputTabs[next].id, true);
+  }
   let outputBaseline = $derived.by(() => {
     if (usingLocalRequest) {
       return {
@@ -420,7 +446,7 @@
 
   <div class="tailor-page-body">
     {#if error}
-      <div class="alert alert-error alert-spaced">
+      <div class="alert alert-error alert-spaced" role="alert">
         {error}
       </div>
     {/if}
@@ -489,16 +515,17 @@
            segmented-control language. -->
       <div class="feed-control-row tailor-tabs">
         <div class="segmented-control" role="tablist" aria-label="Tailor output tabs">
-          {#each [
-            { id: "resume", label: "Resume" },
-            { id: "cover", label: "Cover" },
-            { id: "qa", label: "QA" },
-          ] as tab}
+          {#each outputTabs as tab}
             <button
+              id={`tailor-tab-${tab.id}`}
+              type="button"
               class:active={activeTab === tab.id}
               role="tab"
               aria-selected={activeTab === tab.id}
-              onclick={() => activeTab = tab.id as TabId}
+              aria-controls="tailor-document-panel"
+              tabindex={activeTab === tab.id ? 0 : -1}
+              onclick={() => selectOutputTab(tab.id)}
+              onkeydown={handleOutputTabKeydown}
             >
               {tab.label}
             </button>
@@ -550,13 +577,18 @@
         </button>
       </div>
 
-      <div class="tailor-document">
+      <div
+        id="tailor-document-panel"
+        class="tailor-document"
+        role="tabpanel"
+        aria-labelledby={`tailor-tab-${activeTab}`}
+      >
         {#if editing.resume && activeTab === "resume"}
-          <textarea class="input-field tailor-textarea" bind:value={resumeText} oninput={queueSave}></textarea>
+          <textarea aria-label="Tailored resume" class="input-field tailor-textarea" bind:value={resumeText} oninput={queueSave}></textarea>
         {:else if editing.cover && activeTab === "cover"}
-          <textarea class="input-field tailor-textarea" bind:value={coverText} oninput={queueSave}></textarea>
+          <textarea aria-label="Cover letter" class="input-field tailor-textarea" bind:value={coverText} oninput={queueSave}></textarea>
         {:else if editing.qa && activeTab === "qa"}
-          <textarea class="input-field tailor-textarea" bind:value={qaText} oninput={queueSave}></textarea>
+          <textarea aria-label="Interview preparation" class="input-field tailor-textarea" bind:value={qaText} oninput={queueSave}></textarea>
         {:else}
           {#if activeTab === "qa"}
             <div class="tailor-output prose-output">

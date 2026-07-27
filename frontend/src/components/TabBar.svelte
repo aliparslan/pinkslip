@@ -47,7 +47,7 @@
 
 <nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation">
   <div class="tab-bar__inner">
-    <button class="tab-bar__brand" aria-label="Go to feed" onclick={() => selectTab("/")}>
+    <button type="button" class="tab-bar__brand" aria-label="Go to feed" onclick={() => selectTab("/")}>
       <svg class="tab-bar__mark" width="22" height="26" viewBox="0 0 22 26" fill="none" aria-hidden="true">
         <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" />
         <rect x="5" y="6" width="12" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.52" />
@@ -61,6 +61,7 @@
     {#each tabs as tab}
       {@const active = isActive(tab.path)}
       <button
+        type="button"
         class="tab-bar__item"
         class:active
         onclick={() => selectTab(tab.path)}
@@ -95,7 +96,7 @@
   .tab-bar__links {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    padding: 6px 12px calc(env(safe-area-inset-bottom, 0px) + 4px);
+    padding: 4px 12px max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
   }
   .tab-bar__brand {
     display: none;

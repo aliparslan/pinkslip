@@ -70,7 +70,7 @@
   --app-nav-wide: 224px;
   --screen-gutter: 16px;
   --screen-nav-height: 56px;
-  --mobile-tab-bar-height: 72px;
+  --mobile-tab-bar-height: 56px;
 
   /* ── Type scale ── use var(--fs-*) instead of one-off px font sizes. */
   --fs-2xs: 11px;
@@ -413,54 +413,6 @@ html.native-ios select {
   align-items: center;
   gap: var(--space-2);
   padding: 1px 0 4px;
-}
-
-.chip-rail {
-  position: relative;
-}
-
-.chip-rail::before,
-.chip-rail::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 4px;
-  width: 22px;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0;
-  transition: opacity .16s ease;
-}
-
-.chip-rail::before {
-  left: 0;
-  background: linear-gradient(90deg, var(--color-bg) 0%, color-mix(in oklch, var(--color-bg) 80%, transparent) 58%, transparent 100%);
-}
-
-.chip-rail::after {
-  right: 0;
-  background: linear-gradient(270deg, var(--color-bg) 0%, color-mix(in oklch, var(--color-bg) 80%, transparent) 58%, transparent 100%);
-}
-
-.chip-rail.fade-left::before,
-.chip-rail.fade-right::after {
-  opacity: 1;
-}
-
-.chip-strip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 1px 14px 4px 1px;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.chip-strip::-webkit-scrollbar {
-  display: none;
 }
 
 .tag {
@@ -994,8 +946,8 @@ html.native-ios select {
 }
 
 .icon-btn-xs {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   border-radius: var(--radius-xs);
 }
@@ -1485,46 +1437,6 @@ select.input-field {
   to { transform: rotate(360deg); }
 }
 
-/* Bits UI <Slider> (see components/Slider.svelte). Track is the ::before line;
-   Bits positions Range (left/width) and Thumb; we only style appearance. */
-.slider {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 20px;
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-.slider::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  border-radius: var(--radius-full);
-  background: var(--color-line-2);
-}
-.slider__range {
-  position: absolute;
-  height: 3px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-}
-.slider__thumb {
-  display: block;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  cursor: pointer;
-}
-.slider__thumb:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-accent) 30%, transparent);
-}
-
 /* iOS-style toggle. Rendered by Bits UI's <Switch> (button[role="switch"]);
    see components/Switch.svelte. Driven off data-state, not :checked. */
 .switch {
@@ -1559,6 +1471,11 @@ select.input-field {
   transition: transform .2s;
 }
 .switch[data-state="checked"] .switch-thumb { transform: translateX(18px); }
+.switch::after {
+  content: "";
+  position: absolute;
+  inset: -9px 0;
+}
 
 /* ── Layout ──────────────────────────────────────────────── */
 
@@ -1841,8 +1758,7 @@ select.input-field {
   line-height: 1.5;
 }
 
-.companies-page,
-.corpus-page {
+.companies-page {
   padding-left: 22px;
   padding-right: 22px;
 }
@@ -1856,17 +1772,9 @@ select.input-field {
 
 .muted-card { background: var(--color-bg-sunken); }
 
-.form-reveal { animation: fade-in 0.2s; }
-
 .btn-compact {
-  height: 32px;
   padding: 0 12px;
   gap: 4px;
-  font-size: var(--fs-xs);
-}
-
-.compact-request {
-  align-self: flex-start;
   font-size: var(--fs-xs);
 }
 
@@ -1940,18 +1848,43 @@ select.input-field {
 .tailor-meta,
 .feed-empty-copy { margin-bottom: 14px; }
 
-.corpus-stats { margin-bottom: 18px; }
-
-.corpus-toolbar {
-  margin-bottom: 14px;
-  gap: 10px;
-}
-
-.corpus-version-select { max-width: 240px; }
-
 .corpus-editor {
   min-height: 68vh;
   resize: vertical;
+}
+
+.corpus-intro { margin-bottom: 12px; }
+
+.save-state {
+  min-height: 18px;
+  margin-right: auto;
+  color: var(--color-ink-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+.company-request-row {
+  appearance: none;
+  width: 100%;
+  min-height: 62px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-top: 0.5px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.company-request-row:first-child { border-top: 0; }
+.company-request-row > svg { flex-shrink: 0; color: var(--color-accent); }
+
+:where(button, a, input, textarea, select, summary, [role="button"]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 @media (max-width: 540px) {
@@ -2387,16 +2320,6 @@ select.input-field {
   text-align: center;
 }
 
-.page {
-  padding-top: 22px;
-  animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-.root-screen,
-.pushed-screen {
-  padding-top: 0;
-}
-
 .root-screen {
   min-height: 100dvh;
   padding-top: var(--safe-top);
@@ -2620,17 +2543,12 @@ select.input-field {
   }
 }
 
-@keyframes page-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-
 /* ── Interactive swipe-back (iOS-style push/pop) ─────────────────────────────
    The foreground is the live page; during a back-swipe it translates right to
    reveal the previous screen (the underlay), which parallax-shifts in and is
    dimmed while covered. App.svelte drives the transforms imperatively. */
-/* Blurred strip pinned over the status bar / Dynamic Island. Height collapses
-   to 0 on devices without a top safe-area inset, so it's inert on the web. */
+/* Solid strip over the status bar / Dynamic Island. Height collapses to 0 on
+   devices without a top safe-area inset, so it's inert on the web. */
 .status-bar-scrim {
   position: fixed;
   top: 0;
@@ -2638,14 +2556,10 @@ select.input-field {
   right: 0;
   height: env(safe-area-inset-top, 0px);
   z-index: 30;
-  background: color-mix(in oklch, var(--color-bg) 80%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--color-bg);
   pointer-events: none;
 }
 body.nav-animating .status-bar-scrim {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   background: var(--color-bg);
 }
 
@@ -2681,8 +2595,6 @@ body.nav-animating .screen-nav {
   -webkit-backdrop-filter: none !important;
   background: var(--color-bg) !important;
 }
-body.nav-animating .page { animation: none; }
-
 /* Tactile press feedback — every primary tappable surface dips slightly.
    (These classes already include `transform` in their own transitions.) */
 .btn-primary:active,
@@ -2755,6 +2667,15 @@ body.nav-animating .page { animation: none; }
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── Job description (ATS HTML content) ─────────────────── */

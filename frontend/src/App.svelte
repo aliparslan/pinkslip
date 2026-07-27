@@ -85,7 +85,7 @@
   let underlayJobId = $derived(underlayRoute ? pageFor(underlayRoute).jid : null);
   let underlayHasMobileTabs = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
 
-  const EDGE = 28; // px from the left edge a swipe must start within
+  const EDGE = 44; // generous iOS-sized edge target for swipe-back
   const SETTLE = 280; // ms for the release animation
   const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
 
@@ -108,6 +108,7 @@
   }
 
   function onTouchStart(e: TouchEvent) {
+    candidate = false;
     if (settling || swiping) return;
     target = backTargetRoute(route);
     if (!target) return;
@@ -350,8 +351,8 @@
   });
 </script>
 
-<!-- Always-on blurred strip over the status bar / Dynamic Island so scrolled
-     content never collides with the system clock. Zero-height off-notch devices. -->
+<!-- Solid status-bar backing keeps content clear of the system clock without
+     WebKit's dark backdrop-filter gradient. Zero-height off-notch devices. -->
 <div class="status-bar-scrim" aria-hidden="true"></div>
 
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
@@ -418,7 +419,7 @@
         onkeydown={(event) => event.key === "Enter" && handleAccessSubmit()}
       />
       {#if accessError}
-        <div class="alert alert-error access-alert">
+        <div class="alert alert-error access-alert" role="alert">
           {accessError}
         </div>
       {/if}

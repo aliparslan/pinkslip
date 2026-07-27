@@ -172,14 +172,6 @@ export interface AppFeatures {
   tailoring_model: string;
 }
 
-export interface CorpusVersion {
-  id: number;
-  content_md: string;
-  label: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export type OptionalSectionKind = "leadership" | "certifications" | "publications" | "awards" | "volunteer";
 
 export interface OptionalSection {
@@ -536,19 +528,12 @@ export const api = {
   },
   corpus: {
     get: () =>
-      request<{ content_md: string; version_id: number | null; updated_at: string | null; label?: string | null }>("/corpus"),
+      request<{ content_md: string; updated_at: string | null }>("/corpus"),
     update: (content_md: string, options?: { keepalive?: boolean }) =>
-      request<{ content_md: string; version_id: number | null; updated_at: string | null; label?: string | null }>("/corpus", {
+      request<{ content_md: string; updated_at: string | null }>("/corpus", {
         method: "PUT",
         body: JSON.stringify({ content_md }),
         keepalive: options?.keepalive,
-      }),
-    versions: () => request<{ versions: Array<Omit<CorpusVersion, "content_md">> }>("/corpus/versions"),
-    version: (id: number | string) => request<CorpusVersion>(`/corpus/versions/${id}`),
-    snapshot: (label: string) =>
-      request<{ version_id: number | null }>("/corpus/snapshot", {
-        method: "POST",
-        body: JSON.stringify({ label }),
       }),
   },
   tailor: {

@@ -46,15 +46,13 @@
         <div class="company-name truncate">{company.name}</div>
       {/if}
     </div>
-    <div class="company-meta">
-      <span class="tag">{company.ats_type}</span>
-      {#if admin}
+    {#if admin}
+      <div class="company-meta">
+        <span class="tag">{company.ats_type}</span>
         <span class="mono-value quiet truncate">{company.ats_slug}</span>
-      {/if}
-      {#if admin && hasError}
-        <span class="status-badge bad">ERR</span>
-      {/if}
-    </div>
+        {#if hasError}<span class="status-badge bad">ERR</span>{/if}
+      </div>
+    {/if}
   </div>
   {#if admin}
     <div class="icon-cluster">

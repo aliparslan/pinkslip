@@ -43,7 +43,7 @@
   let importInput: HTMLInputElement | null = $state(null);
 
   type SectionId = "contact" | "experience" | "education" | "projects" | "skills" | "notes" | OptionalSectionKind;
-  let expandedSections = $state<Set<string>>(new Set(["contact", "experience", "education", "projects", "skills", "notes"]));
+  let expandedSections = $state<Set<string>>(new Set(["contact"]));
 
   let availableOptionalSections = $derived.by(() => {
     const active = new Set(profile.optionalSections.map(s => s.kind));
@@ -201,26 +201,25 @@
   <ScreenNav title="Resume profile" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame">
     <div class="page-toolbar">
+        <span class="save-state" role="status" aria-live="polite">
+          {saving ? "Saving…" : savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
+        </span>
         <input class="visually-hidden-input" type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} />
-        <button class="btn-secondary btn-mini" onclick={() => importInput?.click()} disabled={importing}>
+        <button type="button" class="btn-secondary btn-mini" onclick={() => importInput?.click()} disabled={importing}>
           {#if importing}<Spinner />{:else}<UploadSimple size={14} />{/if}
           Import PDF
         </button>
-        <button class="btn-primary btn-accent btn-mini" onclick={() => saveAll()} disabled={saving}>
-          {#if saving}<Spinner />{/if}
-          Save
-        </button>
     </div>
 
-    {#if error}<div class="alert alert-error alert-spaced">{error}</div>{/if}
-    {#if success}<div class="alert alert-success alert-spaced">{success}</div>{/if}
+    {#if error}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
+    {#if success}<div class="alert alert-success alert-spaced" role="status">{success}</div>{/if}
 
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
       <!-- Contact -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("contact")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("contact")} onclick={() => toggleSection("contact")}>
           {#if expandedSections.has("contact")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Contact info</span>
         </button>
@@ -251,7 +250,7 @@
 
       <!-- Experience -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("experience")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("experience")} onclick={() => toggleSection("experience")}>
           {#if expandedSections.has("experience")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Work experience</span>
           <span class="card-count">{profile.experience.length}</span>
@@ -262,7 +261,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{exp.company || exp.title || "New position"}</span>
-                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {exp.company || exp.title || 'position'}" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Company</span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
@@ -276,25 +275,25 @@
                   {#each exp.bullets as bullet, bIdx}
                     <div class="bullet-row">
                       <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" bind:value={exp.bullets[bIdx]} oninput={handleInput} placeholder="Accomplishment or responsibility..."
+                      <input class="input-field bullet-input" aria-label="Work experience bullet {bIdx + 1}" bind:value={exp.bullets[bIdx]} oninput={handleInput} placeholder="Accomplishment or responsibility..."
                         onkeydown={(e) => {
                           if (e.key === "Enter") { e.preventDefault(); profile.experience[expIdx].bullets = addBullet(exp.bullets, bIdx); }
                           if (e.key === "Backspace" && !bullet && exp.bullets.length > 1) { e.preventDefault(); profile.experience[expIdx].bullets = removeBullet(exp.bullets, bIdx); }
                         }} />
                     </div>
                   {/each}
-                  <button class="btn-add-bullet" onclick={() => { profile.experience[expIdx].bullets = [...exp.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
+                  <button type="button" class="btn-add-bullet" onclick={() => { profile.experience[expIdx].bullets = [...exp.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
                 </div>
               </div>
             {/each}
-            <button class="btn-secondary add-btn" onclick={addExperience}><Plus size={13} /> Add position</button>
+            <button type="button" class="btn-secondary add-btn" onclick={addExperience}><Plus size={13} /> Add position</button>
           </div>
         {/if}
       </div>
 
       <!-- Education -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("education")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("education")} onclick={() => toggleSection("education")}>
           {#if expandedSections.has("education")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Education</span>
           <span class="card-count">{profile.education.length}</span>
@@ -305,7 +304,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{edu.institution || "New entry"}</span>
-                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {edu.institution || 'education entry'}" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
@@ -317,14 +316,14 @@
                 </div>
               </div>
             {/each}
-            <button class="btn-secondary add-btn" onclick={addEducation}><Plus size={13} /> Add education</button>
+            <button type="button" class="btn-secondary add-btn" onclick={addEducation}><Plus size={13} /> Add education</button>
           </div>
         {/if}
       </div>
 
       <!-- Projects -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("projects")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("projects")} onclick={() => toggleSection("projects")}>
           {#if expandedSections.has("projects")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Projects</span>
           <span class="card-count">{profile.projects.length}</span>
@@ -335,7 +334,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{proj.name || "New project"}</span>
-                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {proj.name || 'project'}" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Name</span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
@@ -348,25 +347,25 @@
                   {#each proj.bullets as bullet, bIdx}
                     <div class="bullet-row">
                       <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" bind:value={proj.bullets[bIdx]} oninput={handleInput} placeholder="What you built or achieved..."
+                      <input class="input-field bullet-input" aria-label="Project bullet {bIdx + 1}" bind:value={proj.bullets[bIdx]} oninput={handleInput} placeholder="What you built or achieved..."
                         onkeydown={(e) => {
                           if (e.key === "Enter") { e.preventDefault(); profile.projects[projIdx].bullets = addBullet(proj.bullets, bIdx); }
                           if (e.key === "Backspace" && !bullet && proj.bullets.length > 1) { e.preventDefault(); profile.projects[projIdx].bullets = removeBullet(proj.bullets, bIdx); }
                         }} />
                     </div>
                   {/each}
-                  <button class="btn-add-bullet" onclick={() => { profile.projects[projIdx].bullets = [...proj.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
+                  <button type="button" class="btn-add-bullet" onclick={() => { profile.projects[projIdx].bullets = [...proj.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
                 </div>
               </div>
             {/each}
-            <button class="btn-secondary add-btn" onclick={addProject}><Plus size={13} /> Add project</button>
+            <button type="button" class="btn-secondary add-btn" onclick={addProject}><Plus size={13} /> Add project</button>
           </div>
         {/if}
       </div>
 
       <!-- Skills -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("skills")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("skills")} onclick={() => toggleSection("skills")}>
           {#if expandedSections.has("skills")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Skills</span>
           <span class="card-count">{profile.skills.length}</span>
@@ -375,12 +374,12 @@
           <div class="card-body">
             {#each profile.skills as skill, idx}
               <div class="kv-row">
-                <input class="input-field kv-key" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
-                <input class="input-field kv-val" bind:value={skill.items} oninput={handleInput} placeholder="Comma-separated items" />
-                <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
+                <input class="input-field kv-key" aria-label="Skill category" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
+                <input class="input-field kv-val" aria-label="Skills" bind:value={skill.items} oninput={handleInput} placeholder="Comma-separated items" />
+                <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove skill category" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
               </div>
             {/each}
-            <button class="btn-secondary add-btn" onclick={addSkill}><Plus size={13} /> Add category</button>
+            <button type="button" class="btn-secondary add-btn" onclick={addSkill}><Plus size={13} /> Add category</button>
           </div>
         {/if}
       </div>
@@ -391,23 +390,23 @@
           <!-- Toggle and remove are sibling buttons (interactive controls
                can't nest inside each other), sharing one header row. -->
           <div class="card-header-row">
-            <button class="card-header card-header-toggle" onclick={() => toggleSection(section.kind)}>
+            <button type="button" class="card-header card-header-toggle" aria-expanded={expandedSections.has(section.kind)} onclick={() => toggleSection(section.kind)}>
               {#if expandedSections.has(section.kind)}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
               <span class="card-title">{OPTIONAL_SECTION_LABELS[section.kind]}</span>
               <span class="card-count">{section.items.length}</span>
             </button>
-            <button class="icon-btn icon-btn-surface card-header-remove" aria-label="Remove section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
+            <button type="button" class="icon-btn icon-btn-surface card-header-remove" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
           </div>
           {#if expandedSections.has(section.kind)}
             <div class="card-body">
               {#each section.items as item, idx}
                 <div class="kv-row">
-                  <input class="input-field kv-key" bind:value={item.category} oninput={handleInput} placeholder="Label" />
-                  <input class="input-field kv-val" bind:value={item.items} oninput={handleInput} placeholder="Details" />
-                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
+                  <input class="input-field kv-key" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} label" bind:value={item.category} oninput={handleInput} placeholder="Label" />
+                  <input class="input-field kv-val" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} details" bind:value={item.items} oninput={handleInput} placeholder="Details" />
+                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} item" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
                 </div>
               {/each}
-              <button class="btn-secondary add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={13} /> Add item</button>
+              <button type="button" class="btn-secondary add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={13} /> Add item</button>
             </div>
           {/if}
         </div>
@@ -418,7 +417,7 @@
         <div class="add-section-area">
           <span class="add-section-label">Add section:</span>
           {#each availableOptionalSections as kind}
-            <button class="btn-secondary add-btn" onclick={() => addOptionalSection(kind)}>
+            <button type="button" class="btn-secondary add-btn" onclick={() => addOptionalSection(kind)}>
               <Plus size={12} /> {OPTIONAL_SECTION_LABELS[kind]}
             </button>
           {/each}
@@ -427,7 +426,7 @@
 
       <!-- Notes -->
       <div class="card">
-        <button class="card-header" onclick={() => toggleSection("notes")}>
+        <button type="button" class="card-header" aria-expanded={expandedSections.has("notes")} onclick={() => toggleSection("notes")}>
           {#if expandedSections.has("notes")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
           <span class="card-title">Notes &amp; extra context</span>
         </button>
@@ -441,11 +440,6 @@
         {/if}
       </div>
 
-      {#if savedAt}
-        <div class="saved-stamp">
-          saved {new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-        </div>
-      {/if}
     {/if}
   </div>
 </div>
@@ -453,13 +447,12 @@
 <style>
   .notes-help { margin: 0 0 8px; color: var(--color-ink-4); font-size: var(--fs-2xs); line-height: 1.5; }
   .notes-field { min-height: 160px; }
-  .saved-stamp { margin-top: 10px; color: var(--color-ink-4); font-family: var(--font-mono); font-size: var(--fs-2xs); text-align: right; }
-  .card { border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; }
-  .card-header { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
+  .card { border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; background: var(--color-bg-elev); }
+  .card-header { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
   .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }
   .card-header-row { display: flex; align-items: center; }
   .card-header-toggle { flex: 1; min-width: 0; }
-  .card-header-remove { width: 28px; height: 28px; margin-right: 12px; flex-shrink: 0; }
+  .card-header-remove { width: 40px; height: 40px; margin-right: 8px; flex-shrink: 0; }
   .card-title { font-weight: 600; font-size: var(--fs-sm); }
   .card-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-4); }
   .card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; border-top: 0.5px solid var(--color-line); }
@@ -473,7 +466,7 @@
   .input-prefix { padding: 0 0 0 12px; font-size: 12px; color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
   .input-field.prefixed { border: none; background: transparent; border-radius: 0; padding-left: 2px; height: 100%; }
 
-  .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; }
+  .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-sunken); }
   .entry-top { display: flex; align-items: center; justify-content: space-between; }
   .entry-title { font-size: 12px; font-weight: 600; color: var(--color-ink-2); }
 
@@ -482,10 +475,10 @@
   .bullet-row { display: flex; align-items: center; gap: 6px; }
   .bullet-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-ink-4); flex-shrink: 0; }
   .bullet-input { flex: 1; font-size: 12px; height: 40px; }
-  .btn-add-bullet { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: 11px; cursor: pointer; padding: 4px 0; margin-top: 2px; }
+  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: 11px; cursor: pointer; padding: 0 8px 0 0; }
   .btn-add-bullet:hover { color: var(--color-ink-2); }
 
-  .add-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; font-size: 12px; }
+  .add-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 12px; font-size: 12px; }
 
   .kv-row { display: flex; gap: 8px; align-items: center; }
   .kv-key { width: 120px; flex-shrink: 0; font-size: 12px; height: 40px; }

@@ -117,6 +117,23 @@
       return matchesAts && matchesSearch && matchesVisibility;
     })
   );
+  let requestCandidate = $derived(search.trim());
+  let hasExactCompanyMatch = $derived(
+    requestCandidate.length > 0
+      && companies.some((company) => company.name.trim().toLowerCase() === requestCandidate.toLowerCase())
+  );
+  let showRequestCandidate = $derived(
+    !$sessionAccess.isAdmin
+      && selectedView === "All"
+      && requestCandidate.length >= 2
+      && !hasExactCompanyMatch
+  );
+
+  function openCompanyRequest() {
+    requestCompanyName = requestCandidate;
+    requestCompanyError = null;
+    showCompanyRequest = true;
+  }
 
   async function loadCompanies() {
     loading = true;
@@ -380,22 +397,23 @@
 <div class="page pushed-screen">
   <ScreenNav title="Companies" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame companies-page">
-    <div class="stat-row companies-stats">
-      <span><strong class="stat-number">{enabledCount}</strong> active</span>
-      <span><strong class="stat-number">{companies.length}</strong> total</span>
-      {#if $sessionAccess.isAdmin && errorCount > 0}
-        <span><strong class="stat-number bad">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
-      {/if}
-      {#if $sessionAccess.isAdmin && !showDisabled}
-        <span>disabled hidden</span>
-      {/if}
-    </div>
+    {#if $sessionAccess.isAdmin}
+      <div class="stat-row companies-stats">
+        <span><strong class="stat-number">{enabledCount}</strong> active</span>
+        <span><strong class="stat-number">{companies.length}</strong> total</span>
+        {#if errorCount > 0}
+          <span><strong class="stat-number bad">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
+        {/if}
+        {#if !showDisabled}<span>disabled hidden</span>{/if}
+      </div>
+    {/if}
 
     <!-- Filter chips + toggle all -->
-    <div class="content-card stack-md page-block">
+    <div class="stack-md page-block">
       <input
         class="input-field"
         type="search"
+        aria-label="Search companies"
         placeholder={$sessionAccess.isAdmin ? "Search companies or ATS slugs" : "Search companies"}
         bind:value={search}
       />
@@ -439,25 +457,13 @@
               Add
             </button>
           </div>
-        {:else}
-          <button
-            class="btn-secondary compact-request"
-            onclick={() => {
-              requestCompanyName = search.trim();
-              requestCompanyError = null;
-              showCompanyRequest = true;
-            }}
-          >
-            <Plus size={13} weight="bold" />
-            Request a company
-          </button>
         {/if}
       </div>
     </div>
 
     <!-- Add company form -->
     {#if $sessionAccess.isAdmin && showAddForm}
-      <div class="content-card stack-md page-block form-reveal muted-card">
+      <div class="content-card stack-md page-block muted-card">
         <div class="row-title">Add a company</div>
         <div class="form-stack">
           <div>
@@ -494,12 +500,12 @@
             <input id="add-website" class="input-field" type="url" placeholder="https://stripe.com" bind:value={addWebsite} />
           </div>
           {#if addVerifyError}
-            <div class="alert alert-error alert-compact">
+            <div class="alert alert-error alert-compact" role="alert">
               {addVerifyError}
             </div>
           {/if}
           {#if addVerifyMsg}
-            <div class="alert alert-success alert-compact">
+            <div class="alert alert-success alert-compact" role="status">
               {addVerifyMsg}
             </div>
           {/if}
@@ -546,12 +552,12 @@
       </div>
     {:else if error}
       <div class="stack-sm align-start">
-        <div class="alert alert-error full-width">
+        <div class="alert alert-error full-width" role="alert">
           {error}
         </div>
         <button class="btn-secondary" onclick={loadCompanies}>Try again</button>
       </div>
-    {:else if filteredCompanies.length === 0}
+    {:else if filteredCompanies.length === 0 && !showRequestCandidate}
       <div class="empty-state">
         <div class="h-display h-display-sm empty-state-title">
           No companies found
@@ -574,6 +580,15 @@
             onReport={(id, name) => { reportTarget = { id, name }; }}
           />
         {/each}
+        {#if showRequestCandidate}
+          <button type="button" class="company-request-row" onclick={openCompanyRequest}>
+            <span class="grouped-row-copy">
+              <span class="row-title">Request “{requestCandidate}”</span>
+              <span class="helper-text">Not seeing the company you want?</span>
+            </span>
+            <Plus size={17} weight="bold" aria-hidden="true" />
+          </button>
+        {/if}
       </div>
     {/if}
   </div>
@@ -618,12 +633,12 @@
         </div>
       </div>
       {#if editVerifyError}
-        <div class="alert alert-error alert-compact">
+        <div class="alert alert-error alert-compact" role="alert">
           {editVerifyError}
         </div>
       {/if}
       {#if editVerifyMsg}
-        <div class="alert alert-success alert-compact">
+        <div class="alert alert-success alert-compact" role="status">
           {editVerifyMsg}
         </div>
       {/if}
@@ -734,7 +749,7 @@
         ></textarea>
       </div>
       {#if requestCompanyError}
-        <div class="alert alert-error alert-compact">
+        <div class="alert alert-error alert-compact" role="alert">
           {requestCompanyError}
         </div>
       {/if}
@@ -778,7 +793,7 @@
 
 <!-- Toast -->
 {#if toast}
-  <div class="toast-wrap">
+  <div class="toast-wrap" role="status" aria-live="polite">
     <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
       {toast}
     </div>

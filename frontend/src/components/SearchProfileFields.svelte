@@ -13,10 +13,12 @@
     profile = $bindable(),
     section = "all",
     showAdvanced = true,
+    showHeadings = true,
   }: {
     profile: SearchProfile;
     section?: "all" | "roles" | "experience" | "locations";
     showAdvanced?: boolean;
+    showHeadings?: boolean;
   } = $props();
 
   let customTitlesText = $derived(profile.custom_titles.join(", "));
@@ -74,13 +76,15 @@
 
 {#if section === "all" || section === "roles"}
   <section class="profile-field-section">
-    <div class="profile-field-heading">
-      <div>
-        <div class="profile-field-title">Target roles</div>
-        <div class="profile-field-help">Choose the work you would genuinely apply for.</div>
+    {#if showHeadings}
+      <div class="profile-field-heading">
+        <div>
+          <div class="profile-field-title">Target roles</div>
+          <div class="profile-field-help">Choose the work you would genuinely apply for.</div>
+        </div>
+        <span class="selection-count">{profile.roles.length} selected</span>
       </div>
-      <span class="selection-count">{profile.roles.length} selected</span>
-    </div>
+    {/if}
     <div class="choice-grid role-grid">
       {#each ROLE_OPTIONS as role}
         <button
@@ -143,12 +147,14 @@
 
 {#if section === "all" || section === "locations"}
   <section class="profile-field-section">
-    <div class="profile-field-heading">
-      <div>
-        <div class="profile-field-title">Location and work eligibility</div>
-        <div class="profile-field-help">This prevents attractive but unusable matches.</div>
+    {#if showHeadings}
+      <div class="profile-field-heading">
+        <div>
+          <div class="profile-field-title">Location and work eligibility</div>
+          <div class="profile-field-help">This prevents attractive but unusable matches.</div>
+        </div>
       </div>
-    </div>
+    {/if}
 
     <div class="subfield">
       <div class="subfield-label">US work authorization</div>
@@ -158,6 +164,7 @@
             type="button"
             class="choice-card work-mode"
             class:active={profile.work_authorization === option.id}
+            aria-pressed={profile.work_authorization === option.id}
             onclick={() => profile = { ...profile, work_authorization: option.id }}
           >
             <strong>{option.label}</strong>
@@ -175,6 +182,7 @@
             type="button"
             class="choice-card work-mode"
             class:active={profile.work_modes.includes(mode.id)}
+            aria-pressed={profile.work_modes.includes(mode.id)}
             onclick={() => toggleWorkMode(mode.id)}
           >
             <strong>{mode.label}</strong>
@@ -205,12 +213,10 @@
       type="button"
       class="relocation-row"
       class:active={profile.relocation_willing}
+      aria-pressed={profile.relocation_willing}
       onclick={() => profile = { ...profile, relocation_willing: !profile.relocation_willing }}
     >
-      <span>
-        <strong>Open to relocation</strong>
-        <small>Include relevant roles outside your preferred metros.</small>
-      </span>
+      <strong>Open to relocation</strong>
       <span class="choice-check">{profile.relocation_willing ? "✓" : ""}</span>
     </button>
 
@@ -240,16 +246,18 @@
   .profile-field-help { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.4; }
   .selection-count { flex-shrink: 0; color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
   .choice-grid { display: grid; gap: 8px; }
-  .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* Multi-select cards show a ✓. */
-  .role-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .role-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .choice-card, .location-chip, .relocation-row {
     border: 1px solid var(--color-line-2);
     background: var(--color-bg-sunken);
     color: var(--color-ink-2);
+    font-family: inherit;
+    cursor: pointer;
     transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
   }
   .choice-card { min-height: 48px; padding: 10px 12px; border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 600; }
+  .role-card { min-height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-full); }
+  .role-card .choice-check { width: auto; }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
   .choice-card.active, .location-chip.active, .relocation-row.active {
     border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
@@ -262,8 +270,8 @@
   .authorization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .work-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-  .location-chip { padding: 8px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
-  .relocation-row { width: 100%; color: var(--color-ink-2); }
+  .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
+  .relocation-row { width: 100%; min-height: 44px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-radius: var(--radius-full); color: var(--color-ink-2); font-size: var(--fs-sm); text-align: left; }
   .advanced-fields { border-top: 0.5px solid var(--color-line); padding-top: 12px; }
   .advanced-fields summary { cursor: pointer; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; }
   .advanced-body { display: flex; flex-direction: column; gap: 13px; padding-top: 13px; }
@@ -271,8 +279,5 @@
   .advanced-body small { color: var(--color-ink-4); font-size: var(--fs-2xs); font-weight: 400; line-height: 1.4; }
   @media (max-width: 430px) {
     .authorization-grid { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 390px) {
-    .role-grid { grid-template-columns: 1fr; }
   }
 </style>

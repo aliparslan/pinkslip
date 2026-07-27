@@ -160,10 +160,7 @@
     </div>
   </div>
 
-  <!-- Content: top-aligned scroll region (consistent across short and tall
-       steps — centering left huge dead space on short steps). The mask fades
-       content out as it scrolls under the progress strip instead of clipping
-       it mid-line. -->
+  <!-- Top-aligned scrolling keeps short and tall steps anchored consistently. -->
   <div bind:this={scrollEl} class="onboarding-scroll">
     <div class="onboarding-content">
 
@@ -186,7 +183,7 @@
           </p>
           <h3 class="section-label onboarding-section-label">What are you targeting?</h3>
           <div class="onboarding-fields">
-            <SearchProfileFields bind:profile section="roles" showAdvanced={false} />
+            <SearchProfileFields bind:profile section="roles" showAdvanced={false} showHeadings={false} />
           </div>
           <button
             class="btn-primary btn-accent full-width"
@@ -201,14 +198,14 @@
         <div class="onboarding-step">
           <h2 class="h-display h-display-lg onboarding-title">Where can you work?</h2>
           <p class="onboarding-copy">
-            Choose work modes, preferred metros, authorization, and whether relocation is on the table.
+            Choose where and how you can work.
           </p>
           <div class="onboarding-fields">
-            <SearchProfileFields bind:profile section="locations" showAdvanced={false} />
+            <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
 
           {#if profileError}
-            <div class="alert alert-error onboarding-alert">
+            <div class="alert alert-error onboarding-alert" role="alert">
               {profileError}
             </div>
           {/if}
@@ -250,7 +247,7 @@
             {/if}
             {#if pushStatus === "error"}
               <div class="onboarding-notification-note">
-                <div class="alert alert-error alert-compact">
+                <div class="alert alert-error alert-compact" role="alert">
                   Something went wrong. You can set up notifications later in Settings.
                 </div>
               </div>
@@ -270,7 +267,7 @@
               {#if enablingPush}<Spinner />{/if}
               Enable notifications
             </button>
-            <button class="onboarding-skip" onclick={() => step = 4}>Not now</button>
+            <button type="button" class="onboarding-skip" onclick={() => step = 4}>Not now</button>
           {/if}
         </div>
 
@@ -294,7 +291,7 @@
           />
 
           {#if accountError}
-            <div class="alert alert-error onboarding-alert">
+            <div class="alert alert-error onboarding-alert" role="alert">
               {accountError}
             </div>
           {/if}
@@ -352,7 +349,7 @@
             </div>
           {/if}
 
-          <button class="onboarding-skip" disabled={saving} onclick={() => void finish()}>
+          <button type="button" class="onboarding-skip" disabled={saving} onclick={() => void finish()}>
             {emailLinkSent ? "Continue to pinkslip" : "Maybe later — keep using as guest"}
           </button>
         </div>
@@ -397,8 +394,6 @@
     background: var(--color-accent);
   }
 
-  /* Fade content out as it slides under the progress strip (instead of a hard
-     mid-line clip at the scroll boundary). */
   .onboarding-scroll {
     min-height: 0;
     flex: 1;
@@ -407,8 +402,6 @@
     justify-content: center;
     align-items: flex-start;
     padding: var(--space-5) var(--space-8) var(--space-10);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 16px);
-    mask-image: linear-gradient(to bottom, transparent 0, black 16px);
   }
 
   .onboarding-content {

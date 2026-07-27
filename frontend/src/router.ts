@@ -1,11 +1,35 @@
 import { writable, derived } from "svelte/store";
 import { getJobDetailReturnRoute } from "./lib/job-navigation";
 
-const hash = writable(window.location.hash.slice(1) || "/");
+const initialPath = window.location.hash.slice(1) || "/";
+const hash = writable(initialPath);
+const scrollPositions = new Map<string, number>();
+let activePath = initialPath;
+
+function setDocumentScroll(top: number) {
+  window.scrollTo(0, top);
+  document.scrollingElement?.scrollTo({ top, left: 0, behavior: "auto" });
+}
+
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
 
 window.addEventListener("hashchange", () => {
-  hash.set(window.location.hash.slice(1) || "/");
+  const nextPath = window.location.hash.slice(1) || "/";
+  const previousPath = activePath;
+  scrollPositions.set(previousPath, window.scrollY);
+  activePath = nextPath;
+  hash.set(nextPath);
+
+  // Pushed screens always open at their navigation bar. Returning to a
+  // shallower route restores its prior position, matching a native stack.
+  const returning = routeDepth(nextPath) < routeDepth(previousPath);
+  const nextScroll = returning ? (scrollPositions.get(nextPath) ?? 0) : 0;
+  window.requestAnimationFrame(() => setDocumentScroll(nextScroll));
 });
+
+window.requestAnimationFrame(() => setDocumentScroll(0));
 
 export const currentRoute = derived(hash, ($hash) => $hash || "/");
 
