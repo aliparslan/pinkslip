@@ -23,7 +23,7 @@
     tailoredResumePdfFileName,
   } from "../lib/pdf-resume";
   import Modal from "../components/Modal.svelte";
-  import ArrowLeft from "phosphor-svelte/lib/ArrowLeft";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import Copy from "phosphor-svelte/lib/Copy";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
@@ -412,23 +412,15 @@
   });
 </script>
 
-<div class="page" style="padding-top: 0;">
-  <header class="page-replacement-header" style="justify-content: flex-start; padding-left: 18px; padding-right: 18px;">
-    <button class="icon-btn" aria-label="Back" onclick={() => { if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/"); }}>
-      <ArrowLeft size={18} />
-    </button>
-    <div style="min-width: 0; flex: 1;">
-      <div style="font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        <!-- Single expression: Svelte trims the leading space at an {#if}
-             boundary, which used to render "Company· Title". -->
-        {job?.title ? `${job?.company_name ?? "Preparing"} · ${job.title}` : job?.company_name ?? "Preparing"}
-      </div>
-    </div>
-  </header>
+<div class="page pushed-screen">
+  <ScreenNav
+    title={job?.title ? `${job?.company_name ?? "Preparing"} · ${job.title}` : job?.company_name ?? "Preparing"}
+    onBack={() => { if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/"); }}
+  />
 
   <div class="tailor-page-body">
     {#if error}
-      <div class="alert alert-error" style="margin-bottom: 14px;">
+      <div class="alert alert-error alert-spaced">
         {error}
       </div>
     {/if}
@@ -436,13 +428,13 @@
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if signInNeeded}
-      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+      <div class="content-card stack-md">
         <h2 class="h-display h-display-sm">Sign in for included tailoring</h2>
-        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+        <p class="body-copy">
           The included AI quota is available to signed-in accounts so it can be protected fairly. You can also add your own Gemini key and keep using tailoring as a guest.
         </p>
-        <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">
-          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={() => navigate("/you/account")}>
+        <div class="button-cluster card-actions">
+          <button class="btn-primary btn-accent" onclick={() => navigate("/you/account")}>
             Open account settings
           </button>
           <button class="btn-secondary" onclick={openTailorSettings}>Use my own key</button>
@@ -450,24 +442,23 @@
       </div>
     {:else if setupNeeded}
       <!-- Tailoring isn't configured: a setup path, not a dead end. -->
-      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+      <div class="content-card stack-md">
         <h2 class="h-display h-display-sm">Set up tailoring</h2>
-        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+        <p class="body-copy">
           Tailoring writes a resume, cover letter, and interview prep for this exact job.
           It needs a free Gemini API key — adding yours takes about two minutes:
         </p>
-        <ol style="margin: 0; padding-left: 20px; font-size: var(--fs-sm); line-height: 1.7; color: var(--color-ink-2);">
+        <ol class="ordered-steps">
           <li>Grab a free key from Google AI Studio.</li>
-          <li>Paste it in You → Tailoring and save.</li>
+          <li>Paste it in Me → Tailoring and save.</li>
           <li>Come back here and generate.</li>
         </ol>
-        <div class="action-row compact" style="flex-wrap: wrap; margin-top: 4px;">
-          <button class="btn-primary btn-accent" style="padding: 0 16px;" onclick={openTailorSettings}>
+        <div class="button-cluster card-actions">
+          <button class="btn-primary btn-accent" onclick={openTailorSettings}>
             Open Tailor settings
           </button>
           <a
-            class="btn-secondary"
-            style="text-decoration: none;"
+            class="btn-secondary button-link"
             href="https://aistudio.google.com/app/apikey"
             target="_blank"
             rel="noopener noreferrer"
@@ -479,25 +470,25 @@
       </div>
     {:else if !hasAnyOutput && !streaming}
       <!-- First visit for this job: explicit generate (it spends quota). -->
-      <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px;">
+      <div class="content-card stack-md">
         <h2 class="h-display h-display-sm">Tailor for this job</h2>
-        <p style="margin: 0; font-size: var(--fs-md); line-height: 1.55; color: var(--color-ink-2);">
+        <p class="body-copy">
           One tap writes a tailored resume, cover letter, and interview prep from
           {localResumeText ? "your uploaded resume" : "your resume profile"} and this job's description.
           You can edit everything afterwards.
         </p>
         <div>
-          <button class="btn-primary btn-accent" style="padding: 0 18px;" onclick={() => void startGeneration()}>
+          <button class="btn-primary btn-accent" onclick={() => void startGeneration()}>
             <MagicWand size={17} />
             Generate
           </button>
         </div>
       </div>
     {:else}
-      <!-- Document tabs are view switching, not value selection, so they wear
-           the segmented-control language (ink), same as the feed sort. -->
-      <div class="feed-control-row" style="margin-bottom: 12px;">
-        <div class="sort-segmented" role="tablist" aria-label="Tailor output tabs">
+      <!-- Document tabs are view switching, so they use the shared compact
+           segmented-control language. -->
+      <div class="feed-control-row tailor-tabs">
+        <div class="segmented-control" role="tablist" aria-label="Tailor output tabs">
           {#each [
             { id: "resume", label: "Resume" },
             { id: "cover", label: "Cover" },
@@ -515,7 +506,7 @@
         </div>
       </div>
 
-      <div class="stat-row" style="margin-bottom: 14px;">
+      <div class="stat-row tailor-meta">
         <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "your profile + your key" : "your profile"}</span>
         {#if streaming}
           <span>streaming live</span>
@@ -531,15 +522,14 @@
         {/if}
       </div>
 
-      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={copyCurrent}>
+      <div class="button-cluster tailor-toolbar">
+        <button class="btn-secondary" onclick={copyCurrent}>
           <Copy size={15} />
           {copied ? "Copied" : "Copy"}
         </button>
         {#if activeTab === "resume"}
           <button
             class="btn-secondary"
-            style="height: 40px; padding: 0 14px;"
             onclick={viewResumePdf}
             disabled={!resumeDownloadReady || downloadingPdf}
           >
@@ -549,19 +539,18 @@
         {/if}
         <button
           class="btn-secondary"
-          style="height: 40px; padding: 0 14px;"
           onclick={() => editing = { ...editing, [activeTab]: !editing[activeTab] }}
         >
           <PencilSimple size={15} />
           {editing[activeTab] ? "Stop editing" : "Edit"}
         </button>
-        <button class="btn-secondary" style="height: 40px; padding: 0 14px;" onclick={handleRegenerate} disabled={streaming}>
+        <button class="btn-secondary" onclick={handleRegenerate} disabled={streaming}>
           {#if streaming}<Spinner />{:else}<ArrowsClockwise size={15} />{/if}
           Regenerate
         </button>
       </div>
 
-      <div style="border-radius: var(--radius-lg); border: 1px solid var(--color-line); background: var(--color-bg-elev); overflow: hidden;">
+      <div class="tailor-document">
         {#if editing.resume && activeTab === "resume"}
           <textarea class="input-field tailor-textarea" bind:value={resumeText} oninput={queueSave}></textarea>
         {:else if editing.cover && activeTab === "cover"}
@@ -599,7 +588,7 @@
   >
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (showRegenerateConfirm = false)}>Cancel</button>
-      <button class="btn-primary btn-accent" style="flex: 1;" onclick={() => void startGeneration()}>
+      <button class="btn-primary btn-accent flex-fill" onclick={() => void startGeneration()}>
         Regenerate
       </button>
     </div>

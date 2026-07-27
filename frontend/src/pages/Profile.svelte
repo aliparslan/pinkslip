@@ -335,7 +335,7 @@
   <div class="page pushed-screen">
     <ScreenNav
       title={destinationTitles[destination]}
-      backLabel="Back to You"
+      backLabel="Back to Me"
       onBack={backToYou}
     />
 
@@ -344,7 +344,7 @@
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
       {:else}
         {#if error}
-          <div class="alert alert-error" style="margin-bottom: 14px;">{error}</div>
+          <div class="alert alert-error alert-spaced">{error}</div>
         {/if}
         {#if savingPrefs}
           <div class="you-saving-state">Saving changes…</div>
@@ -402,7 +402,7 @@
 {:else}
   <div class="page root-screen">
     <header class="root-screen-header">
-      <h1 class="h-display h-display-lg">You</h1>
+      <h1 class="h-display h-display-lg">Me</h1>
     </header>
 
     <div class="page-frame you-page">
@@ -434,7 +434,7 @@
 
         <section>
           <h2 class="section-eyebrow">Search</h2>
-          <div class="you-settings-list">
+          <div class="surface-list">
             {@render destinationRow("Job preferences", preferenceSummary, "/you/preferences", SlidersHorizontal)}
             {@render destinationRow("Job alerts", alertsSummary, "/you/alerts", Bell)}
           </div>
@@ -442,7 +442,7 @@
 
         <section>
           <h2 class="section-eyebrow">Materials</h2>
-          <div class="you-settings-list">
+          <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? "Ready" : "Finish setup", "/you/tailoring", MagicWand)}
           </div>
@@ -450,7 +450,7 @@
 
         <section>
           <h2 class="section-eyebrow">App</h2>
-          <div class="you-settings-list">
+          <div class="surface-list">
             {@render destinationRow("Companies", "Browse and manage employers", "/companies", Buildings)}
             <div class="you-settings-row you-settings-row-static">
               <span class="you-settings-row-icon"><PaintBrush size={18} /></span>
@@ -494,7 +494,7 @@
 
         <section>
           <h2 class="section-eyebrow">Account</h2>
-          <div class="you-settings-list">
+          <div class="surface-list">
             {@render destinationRow("Account", accountSummary, "/you/account", UserCircle)}
           </div>
         </section>
@@ -502,7 +502,7 @@
         {#if isAdmin}
           <section>
             <h2 class="section-eyebrow">Admin</h2>
-            <div class="you-settings-list">
+            <div class="surface-list">
               {@render destinationRow("Operations", "Product health and moderation", "/you/operations", Wrench)}
             </div>
           </section>
@@ -519,7 +519,7 @@
     busy={submittingFeedback}
     onclose={() => (showFeedbackForm = false)}
   >
-    <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div class="form-stack loose">
       <div>
         <label for="feedback-type" class="field-label">Feedback type</label>
         <select id="feedback-type" class="input-field" bind:value={feedbackType}>
@@ -542,23 +542,21 @@
         <label for="feedback-details" class="field-label">Details <span class="label-opt">optional</span></label>
         <textarea
           id="feedback-details"
-          class="input-field"
+          class="input-field textarea-field"
           rows="6"
           maxlength="2000"
           placeholder="What problem would this solve, or what happened?"
           bind:value={feedbackDetails}
-          style="height: auto; resize: vertical;"
         ></textarea>
       </div>
       {#if feedbackError}
         <div class="alert alert-error">{feedbackError}</div>
       {/if}
     </div>
-    <div class="action-row" style="margin-top: 16px;">
+    <div class="action-row modal-actions">
       <button class="btn-secondary" onclick={() => { showFeedbackForm = false; }} disabled={submittingFeedback}>Cancel</button>
       <button
-        class="btn-primary btn-accent"
-        style="flex: 1;"
+        class="btn-primary btn-accent flex-fill"
         onclick={submitProductFeedback}
         disabled={submittingFeedback || feedbackTitle.trim().length < 2}
       >

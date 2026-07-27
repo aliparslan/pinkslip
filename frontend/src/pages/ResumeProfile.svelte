@@ -2,12 +2,15 @@
   import { onMount } from "svelte";
   import { api, type ResumeProfile, type OptionalSectionKind } from "../lib/api";
   import { errorMessage } from "../lib/utils";
+  import { navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import { parsePdfToProfile } from "../lib/pdf-to-profile";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import Spinner from "../components/Spinner.svelte";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
 
   const EMPTY_PROFILE: ResumeProfile = {
@@ -194,28 +197,23 @@
   });
 </script>
 
-<div class="page">
+<div class="page pushed-screen">
+  <ScreenNav title="Resume profile" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame">
-    <div class="page-hero">
-      <div class="page-hero-copy">
-        <h1 class="h-display h-display-lg" style="margin: 0;">Resume profile</h1>
-        <p class="page-subtitle">Source of truth for tailored PDFs. Links and contact info are pulled directly from here.</p>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-        <input type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} style="display: none;" />
-        <button class="btn-secondary btn-mini" style="padding: 0 12px;" onclick={() => importInput?.click()} disabled={importing}>
+    <div class="page-toolbar">
+        <input class="visually-hidden-input" type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} />
+        <button class="btn-secondary btn-mini" onclick={() => importInput?.click()} disabled={importing}>
           {#if importing}<Spinner />{:else}<UploadSimple size={14} />{/if}
           Import PDF
         </button>
-        <button class="btn-primary btn-accent btn-mini" style="padding: 0 14px;" onclick={() => saveAll()} disabled={saving}>
+        <button class="btn-primary btn-accent btn-mini" onclick={() => saveAll()} disabled={saving}>
           {#if saving}<Spinner />{/if}
           Save
         </button>
-      </div>
     </div>
 
-    {#if error}<div class="alert alert-error" style="margin-bottom: 14px;">{error}</div>{/if}
-    {#if success}<div class="alert alert-success" style="margin-bottom: 14px;">{success}</div>{/if}
+    {#if error}<div class="alert alert-error alert-spaced">{error}</div>{/if}
+    {#if success}<div class="alert alert-success alert-spaced">{success}</div>{/if}
 
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
@@ -264,7 +262,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{exp.company || exp.title || "New position"}</span>
-                  <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
+                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Company</span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
@@ -307,7 +305,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{edu.institution || "New entry"}</span>
-                  <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
+                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
@@ -337,7 +335,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{proj.name || "New project"}</span>
-                  <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px;" aria-label="Remove" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
+                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Name</span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
@@ -379,7 +377,7 @@
               <div class="kv-row">
                 <input class="input-field kv-key" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
                 <input class="input-field kv-val" bind:value={skill.items} oninput={handleInput} placeholder="Comma-separated items" />
-                <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px; flex-shrink: 0;" aria-label="Remove" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
+                <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
               </div>
             {/each}
             <button class="btn-secondary add-btn" onclick={addSkill}><Plus size={13} /> Add category</button>
@@ -406,7 +404,7 @@
                 <div class="kv-row">
                   <input class="input-field kv-key" bind:value={item.category} oninput={handleInput} placeholder="Label" />
                   <input class="input-field kv-val" bind:value={item.items} oninput={handleInput} placeholder="Details" />
-                  <button class="icon-btn icon-btn-surface" style="width: 28px; height: 28px; flex-shrink: 0;" aria-label="Remove" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
+                  <button class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
                 </div>
               {/each}
               <button class="btn-secondary add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={13} /> Add item</button>
@@ -435,16 +433,16 @@
         </button>
         {#if expandedSections.has("notes")}
           <div class="card-body">
-            <p style="font-size: 11px; color: var(--color-ink-4); margin: 0 0 8px; line-height: 1.5;">
+            <p class="notes-help">
               Free-form notes for the AI — extra context, narrative details, things that don't fit in the structured fields above.
             </p>
-            <textarea class="input-field" style="min-height: 160px; resize: vertical; height: auto;" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context..."></textarea>
+            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context..."></textarea>
           </div>
         {/if}
       </div>
 
       {#if savedAt}
-        <div style="text-align: right; font-size: 11px; color: var(--color-ink-4); margin-top: 10px; font-family: var(--font-mono);">
+        <div class="saved-stamp">
           saved {new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </div>
       {/if}
@@ -453,6 +451,9 @@
 </div>
 
 <style>
+  .notes-help { margin: 0 0 8px; color: var(--color-ink-4); font-size: var(--fs-2xs); line-height: 1.5; }
+  .notes-field { min-height: 160px; }
+  .saved-stamp { margin-top: 10px; color: var(--color-ink-4); font-family: var(--font-mono); font-size: var(--fs-2xs); text-align: right; }
   .card { border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; }
   .card-header { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
   .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }

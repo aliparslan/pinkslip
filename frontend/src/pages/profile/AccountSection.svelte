@@ -92,22 +92,22 @@
 
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Account</h2>{/if}
-  <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+  <div class="content-card stack-lg">
     {#if sessionState === "authenticated"}
-      <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">
-        <div>
-          <div style="font-size: var(--fs-base); font-weight: 600;">Signed in</div>
-          <div style="font-size: var(--fs-sm); color: var(--color-ink-3); margin-top: 4px;">
+      <div class="split-row start">
+        <div class="flex-fill">
+          <div class="row-title">Signed in</div>
+          <div class="helper-text account-identity">
             {account?.email ?? "Your account is active"}{#if account?.provider} · via {account.provider === "apple" ? "Apple" : "email"}{/if}
           </div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 8px;">
+          <div class="helper-text account-explainer">
             Jobs, profile, preferences, and your synced resume can follow you across devices.
           </div>
         </div>
         <span class="tag">sync on</span>
       </div>
 
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      <div class="button-cluster">
         <button class="btn-secondary" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
           Log out &amp; restart setup
         </button>
@@ -116,10 +116,10 @@
         </button>
       </div>
     {:else}
-      <div style="display: flex; justify-content: space-between; gap: 12px; align-items: start;">
-        <div>
-          <div style="font-size: var(--fs-base); font-weight: 600;">Using pinkslip as guest on this device</div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 8px;">
+      <div class="split-row start">
+        <div class="flex-fill">
+          <div class="row-title">Using pinkslip as guest on this device</div>
+          <div class="helper-text account-explainer">
             Create an account to sync your jobs, profile, and resume across devices.
           </div>
         </div>
@@ -138,7 +138,7 @@
         </button>
       {/if}
 
-      <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end;">
+      <div class="inline-form-row">
         <div>
           <label for="email-login" class="field-label">Continue with email</label>
           <input
@@ -178,7 +178,7 @@
   >
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (showRestartConfirm = false)} disabled={signingOut}>Cancel</button>
-      <button class="btn-primary btn-accent" style="flex: 1;" onclick={handleLogout} disabled={signingOut}>
+      <button class="btn-primary btn-accent flex-fill" onclick={handleLogout} disabled={signingOut}>
         {#if signingOut}<Spinner />{/if}
         Restart setup
       </button>
@@ -196,7 +196,7 @@
   >
     <div class="action-row">
       <button class="btn-secondary" onclick={() => (showDeleteConfirm = false)} disabled={deletingAccount}>Cancel</button>
-      <button class="btn-secondary btn-danger" style="flex: 1;" onclick={handleDeleteAccount} disabled={deletingAccount}>
+      <button class="btn-secondary btn-danger flex-fill" onclick={handleDeleteAccount} disabled={deletingAccount}>
         {#if deletingAccount}<Spinner />{/if}
         Delete account
       </button>

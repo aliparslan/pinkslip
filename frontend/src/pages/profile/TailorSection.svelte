@@ -225,28 +225,27 @@
 
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Tailoring</h2>{/if}
-  <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 16px;">
-    <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
-      <div style="min-width: 0;">
-        <div style="font-size: var(--fs-md); font-weight: 500;">Gemini setup</div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">
+  <div class="content-card stack-lg">
+    <div class="split-row start">
+      <div class="flex-fill">
+        <div class="row-title">Gemini setup</div>
+        <div class="helper-text">
           Your Gemini key is optional and overrides the app key when present. Resume files stay on this device until you run Tailor.
         </div>
       </div>
-      <span class="tag" style="flex-shrink: 0;">{localSetupLabel}</span>
+      <span class="tag">{localSetupLabel}</span>
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div class="stack-md">
       <div>
         <label for="gemini-key" class="field-label">Gemini API key override</label>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div class="field-action">
           <input
             id="gemini-key"
             type={showGeminiKey ? "text" : "password"}
-            class="input-field"
+            class="input-field flex-fill"
             placeholder="AIza..."
             bind:value={localGeminiKey}
-            style="flex: 1;"
             autocapitalize="off"
             autocomplete="off"
             spellcheck="false"
@@ -264,7 +263,7 @@
             {/if}
           </button>
         </div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 6px;">
+        <div class="helper-text field-help">
           {#if hasLocalGeminiKey}
             Saved on this device and used for Tailor instead of the app key.
           {:else}
@@ -292,12 +291,12 @@
             <CaretDown size={16} />
           </span>
         </div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 6px;">
+        <div class="helper-text field-help">
           The list only includes models we want this app to use. Pro/paid-only models are intentionally omitted.
         </div>
         {#if tailorUsage}
           <div class="usage-meter" aria-label="Tailoring API usage">
-            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline;">
+            <div class="split-row baseline">
               <span>{hasLocalGeminiKey ? "Your key in pinkslip today" : "App key today"}</span>
               <strong>
                 {activeUsageCount ?? 0}{#if tailorUsage.daily_limit !== null}/{tailorUsage.daily_limit}{/if}
@@ -310,17 +309,17 @@
                   style="width: {Math.min(100, ((activeUsageCount ?? 0) / tailorUsage.daily_limit) * 100)}%;"
                 ></div>
               </div>
-              <div style="color: var(--color-ink-4);">
+              <div class="usage-meter-note">
                 {activeUsageRemaining ?? 0} left before the daily reset. Google may apply other project-wide limits outside pinkslip.
               </div>
             {:else}
-              <div style="color: var(--color-ink-4);">Live remaining quota is not exposed by this provider.</div>
+              <div class="usage-meter-note">Live remaining quota is not exposed by this provider.</div>
             {/if}
           </div>
         {/if}
       </div>
 
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      <div class="button-cluster">
         <button
           class="btn-secondary"
           type="button"
@@ -344,10 +343,10 @@
     <div class="divider"></div>
 
     <div>
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-        <div>
-          <div style="font-size: var(--fs-md); font-weight: 500;">Resume source</div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">
+      <div class="split-row">
+        <div class="flex-fill">
+          <div class="row-title">Resume source</div>
+          <div class="helper-text">
             Upload a PDF, markdown, or plain-text resume. PDFs work when their text is selectable.
           </div>
         </div>
@@ -360,17 +359,17 @@
         bind:this={resumeUploadInput}
         type="file"
         accept=".txt,.md,.markdown,.pdf,.rtf"
-        style="display: none;"
+        class="visually-hidden-input"
         onchange={handleResumeUpload}
       />
 
       {#if localResume}
-        <div style="margin-top: 12px; padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 8px;">
-          <div style="font-size: var(--fs-md); font-weight: 600;">{localResume.fileName}</div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3);">
+        <div class="inset-panel">
+          <div class="inset-panel-title">{localResume.fileName}</div>
+          <div class="inset-panel-meta">
             {formatFileSize(localResume.size)} · added {new Date(localResume.uploadedAt).toLocaleDateString()}
           </div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3);">
+          <div class="inset-panel-meta">
             {#if localResume.canTailor}
               This file is ready for tailoring.
             {:else if localResume.textFormat === "pdf"}
@@ -379,7 +378,7 @@
               This file is saved for viewing and download. Upload a PDF, markdown, or plain text to use it directly for tailoring.
             {/if}
           </div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+          <div class="button-cluster inset-panel-actions">
             <button class="btn-secondary" type="button" onclick={() => resumeUploadInput?.click()}>
               <UploadSimple size={16} />
               Replace
@@ -399,8 +398,8 @@
           </div>
         </div>
       {:else}
-        <div style="margin-top: 12px; padding: 14px; border-radius: var(--radius-md); border: 1px dashed var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 10px;">
-          <div style="font-size: var(--fs-sm); color: var(--color-ink-3);">
+        <div class="inset-panel empty">
+          <div class="surface-empty-copy">
             No local resume saved yet.
           </div>
           <div>
@@ -417,10 +416,10 @@
       <div class="divider"></div>
 
       <div>
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-          <div>
-            <div style="font-size: var(--fs-md); font-weight: 500;">Synced resume</div>
-            <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">
+        <div class="split-row">
+          <div class="flex-fill">
+            <div class="row-title">Synced resume</div>
+            <div class="helper-text">
               Keep one active resume on your account so it’s ready on your other devices.
             </div>
           </div>
@@ -428,12 +427,12 @@
         </div>
 
         {#if remoteResume}
-          <div style="margin-top: 12px; padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 8px;">
-            <div style="font-size: var(--fs-md); font-weight: 600;">{remoteResume.fileName}</div>
-            <div style="font-size: var(--fs-xs); color: var(--color-ink-3);">
+          <div class="inset-panel">
+            <div class="inset-panel-title">{remoteResume.fileName}</div>
+            <div class="inset-panel-meta">
               {formatFileSize(remoteResume.size)} · synced {new Date(remoteResume.uploadedAt).toLocaleDateString()}
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <div class="button-cluster">
               <button class="btn-secondary" type="button" onclick={useSyncedResumeOnThisDevice}>
                 Use on this device
               </button>
@@ -448,8 +447,8 @@
             </div>
           </div>
         {:else}
-          <div style="margin-top: 12px; padding: 14px; border-radius: var(--radius-md); border: 1px dashed var(--color-line-2); background: var(--color-bg-sunken); display: flex; flex-direction: column; gap: 10px;">
-            <div style="font-size: var(--fs-sm); color: var(--color-ink-3);">
+          <div class="inset-panel empty">
+            <div class="surface-empty-copy">
               Nothing is synced to your account yet.
             </div>
             {#if localResume}
@@ -466,10 +465,10 @@
 
     <div class="divider"></div>
 
-    <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;">
-      <div style="min-width: 0;">
-        <div style="font-size: var(--fs-md); font-weight: 500;">Key source</div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">
+    <div class="split-row start">
+      <div class="flex-fill">
+        <div class="row-title">Key source</div>
+        <div class="helper-text">
           {#if hasLocalGeminiKey}
             Tailor will use your saved Gemini key instead of the hidden app key.
           {:else if features?.tailoring_enabled}
@@ -479,7 +478,7 @@
           {/if}
         </div>
       </div>
-      <span class="tag" style="flex-shrink: 0;">{hasLocalGeminiKey ? "using yours" : features?.tailoring_enabled ? "app ready" : "app off"}</span>
+      <span class="tag">{hasLocalGeminiKey ? "using yours" : features?.tailoring_enabled ? "app ready" : "app off"}</span>
     </div>
   </div>
 </section>

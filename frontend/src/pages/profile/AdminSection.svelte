@@ -112,7 +112,7 @@
 {:else}
   {#if productMetrics}
     <section>
-      <h2 class="section-label" style="display: block; margin-bottom: 10px;">Product health · last 30 days</h2>
+      <h2 class="section-label section-heading">Product health · last 30 days</h2>
       <div class="ops-metric-grid">
         <div class="ops-metric"><span>Job to alert</span><strong>{formatLatency(productMetrics.notification_latency_seconds)}</strong></div>
         <div class="ops-metric"><span>Alert open rate</span><strong>{productMetrics.notification_open_rate}%</strong></div>
@@ -131,21 +131,21 @@
   {/if}
 
   <section>
-    <h2 class="section-label" style="display: block; margin-bottom: 10px;">Feedback inbox</h2>
+    <h2 class="section-label section-heading">Feedback inbox</h2>
     <div class="surface-list">
       {#if feedbackInbox.length === 0}
-        <div style="padding: 18px; font-size: var(--fs-sm); color: var(--color-ink-3);">No active suggestions.</div>
+        <div class="surface-empty">No active suggestions.</div>
       {:else}
-        {#each feedbackInbox as item, index}
-          <div style="padding: 14px 16px; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-            <div style="display: flex; justify-content: space-between; gap: 10px; align-items: flex-start;">
-              <div style="min-width: 0;">
-                <div style="font-size: var(--fs-md); font-weight: 600;">{item.title}</div>
-                <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 3px;">
+        {#each feedbackInbox as item}
+          <div class="list-entry">
+            <div class="list-entry-header">
+              <div class="list-entry-copy">
+                <div class="list-entry-title">{item.title}</div>
+                <div class="list-entry-meta">
                   {item.user_name || "User"} · {new Date(item.created_at).toLocaleDateString()}
                 </div>
               </div>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+              <div class="tag-cluster">
                 <span class="tag">{item.submission_type.replaceAll("_", " ")}</span>
                 {#if item.status === "planned"}
                   <span class="tag">planned</span>
@@ -153,19 +153,19 @@
               </div>
             </div>
             {#if item.details}
-              <div style="font-size: var(--fs-sm); color: var(--color-ink-2); margin-top: 8px; line-height: 1.45; white-space: pre-wrap;">{item.details}</div>
+              <div class="list-entry-detail">{item.details}</div>
             {/if}
             {#if item.careers_url}
               <a
                 href={item.careers_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style="display: inline-block; font-size: var(--fs-xs); color: var(--color-accent); margin-top: 8px; overflow-wrap: anywhere;"
+                class="text-link list-entry-link"
               >
                 Open careers page
               </a>
             {/if}
-            <div class="action-row compact" style="margin-top: 10px;">
+            <div class="action-row compact list-entry-actions">
               <button class="btn-secondary" onclick={() => moderateFeedback(item.id, "declined")}>Decline</button>
               {#if item.status !== "planned"}
                 <button class="btn-secondary" onclick={() => moderateFeedback(item.id, "planned")}>Plan</button>
@@ -179,26 +179,26 @@
   </section>
 
   <section>
-    <h2 class="section-label" style="display: block; margin-bottom: 10px;">Open reports</h2>
+    <h2 class="section-label section-heading">Open reports</h2>
     <div class="surface-list">
       {#if reports.length === 0}
-        <div style="padding: 18px; font-size: var(--fs-sm); color: var(--color-ink-3);">Nothing needs review.</div>
+        <div class="surface-empty">Nothing needs review.</div>
       {:else}
-        {#each reports as report, index}
-          <div style="padding: 14px 16px; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <div style="font-size: var(--fs-md); font-weight: 600;">
+        {#each reports as report}
+          <div class="list-entry">
+            <div class="list-entry-header">
+              <div class="list-entry-title">
                 {report.job_title ?? report.company_name ?? "Unknown listing"}
               </div>
               <span class="tag">{report.report_type.replaceAll("_", " ")}</span>
             </div>
             {#if report.job_title && report.company_name}
-              <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 3px;">{report.company_name}</div>
+              <div class="list-entry-meta">{report.company_name}</div>
             {/if}
             {#if report.notes}
-              <div style="font-size: var(--fs-sm); color: var(--color-ink-2); margin-top: 8px; line-height: 1.45;">{report.notes}</div>
+              <div class="list-entry-detail">{report.notes}</div>
             {/if}
-            <div class="action-row compact" style="margin-top: 10px;">
+            <div class="action-row compact list-entry-actions">
               <button class="btn-secondary" onclick={() => moderateReport(report.id, "dismissed")}>Dismiss</button>
               <button class="btn-primary btn-accent" onclick={() => moderateReport(report.id, "resolved")}>Resolve</button>
             </div>
@@ -210,15 +210,14 @@
 
   <section>
     <h2 class="section-eyebrow">Operations</h2>
-    <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
-      <div style="display: flex; flex-direction: column; align-items: stretch; gap: 12px;">
+    <div class="content-card stack-lg">
+      <div class="stack-md">
         <div>
-          <div style="font-size: var(--fs-md); font-weight: 500;">Force refresh all companies</div>
-          <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">Runs the full poll loop right now for every active company.</div>
+          <div class="row-title">Force refresh all companies</div>
+          <div class="helper-text">Runs the full poll loop right now for every active company.</div>
         </div>
         <button
-          class="btn-secondary"
-          style="width: 100%; height: 48px; padding: 0 14px;"
+          class="btn-secondary full-width tall-control"
           disabled={refreshingAll}
           onclick={refreshAllCompanies}
         >
@@ -227,7 +226,7 @@
         </button>
       </div>
       {#if refreshLog.length > 0}
-        <div style="padding: 12px 14px; border-radius: var(--radius-md); background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-3); display: flex; flex-direction: column; gap: 4px;">
+        <div class="log-panel">
           {#each refreshLog.slice(0, 8) as line}
             <div>{line}</div>
           {/each}
@@ -240,26 +239,26 @@
     <h2 class="section-eyebrow">Recent fetch runs</h2>
     <div class="surface-list">
       {#if runs.length === 0}
-        <div style="padding: 18px; font-size: var(--fs-sm); color: var(--color-ink-3);">
+        <div class="surface-empty">
           No fetch runs yet.
         </div>
       {:else}
-        {#each runs.slice(0, 12) as run, index}
-          <div style="padding: 14px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; min-width: 0; {index > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-            <div style="min-width: 0; flex: 1;">
-              <div style="font-size: var(--fs-md); font-weight: 600; text-transform: capitalize;">
+        {#each runs.slice(0, 12) as run}
+          <div class="list-entry split-row start">
+            <div class="list-entry-copy">
+              <div class="list-entry-title run-title">
                 {run.status} · {run.new_jobs_found} new · {run.companies_succeeded}/{run.companies_attempted}
               </div>
-              <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 4px; font-family: var(--font-mono);">
+              <div class="list-entry-meta mono-value">
                 {new Date(run.started_at).toLocaleString()} · {run.duration_ms ?? 0}ms
               </div>
               {#if run.errors_json}
-                <div style="font-size: var(--fs-xs); color: var(--color-bad); margin-top: 6px; overflow-wrap: anywhere;">
+                <div class="run-error">
                   {run.errors_json}
                 </div>
               {/if}
             </div>
-            <span class="tag" style="align-self: flex-start;">{run.notifications_sent} pushes</span>
+            <span class="tag align-start">{run.notifications_sent} pushes</span>
           </div>
         {/each}
       {/if}

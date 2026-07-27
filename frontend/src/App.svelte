@@ -356,11 +356,11 @@
 
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
 {#if underlayRoute && UnderlayComp}
-  <div class="nav-underlay" bind:this={underlayEl} style="transform: translateX(-30%);" aria-hidden="true">
+  <div class="nav-underlay" bind:this={underlayEl} aria-hidden="true">
     <div class="app-content-shell nav-underlay-content" class:mobile-tabs-visible={underlayHasMobileTabs}>
       <UnderlayComp jobId={underlayJobId} />
     </div>
-    <div class="nav-underlay-dim" bind:this={dimEl} style="opacity: 0.14;"></div>
+    <div class="nav-underlay-dim" bind:this={dimEl}></div>
   </div>
 {/if}
 
@@ -382,10 +382,10 @@
       <TabBar mobileHidden={!mobileTabBarVisible} />
     {/if}
   {:else if bootError}
-    <div style="padding: 32px 22px 28px;">
-      <div style="padding: 18px; border-radius: var(--radius-lg); background: color-mix(in oklch, var(--color-bad) 14%, transparent); color: var(--color-bad);">
-        <div class="h-display h-display-sm" style="margin-bottom: 6px;">Couldn’t load the app</div>
-        <div style="font-size: 14px; margin-bottom: 14px;">{bootError}</div>
+    <div class="boot-error-wrap">
+      <div class="boot-error-card">
+        <div class="h-display h-display-sm boot-error-title">Couldn’t load the app</div>
+        <div class="boot-error-copy">{bootError}</div>
         <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>
           Try again
         </button>
@@ -399,14 +399,14 @@
 </div>
 
 {#if showAccessGate}
-  <div style="position: fixed; inset: 0; z-index: 40; background: color-mix(in oklch, var(--color-bg) 92%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 24px;">
-    <div style="width: min(100%, 360px); padding: 24px; border-radius: var(--radius-lg); background: var(--color-bg-elev); border: 1px solid var(--color-line); box-shadow: 0 18px 50px rgba(0,0,0,0.16);">
-      <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Enter the shared code</h2>
-      <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 18px;">
+  <div class="access-gate">
+    <div class="access-card">
+      <h2 class="h-display h-display-lg access-title">Enter the shared code</h2>
+      <p class="access-copy">
         <span class="brand-word"><span class="brand-word-pink">Pink</span>slip</span>
         keeps shared state for your group, so the app now checks a single access code before it loads.
       </p>
-      <label for="access-code" class="field-label" style="margin-bottom: 8px;">
+      <label for="access-code" class="field-label access-label">
         Access code
       </label>
       <input
@@ -418,13 +418,12 @@
         onkeydown={(event) => event.key === "Enter" && handleAccessSubmit()}
       />
       {#if accessError}
-        <div class="alert alert-error" style="margin-top: 12px;">
+        <div class="alert alert-error access-alert">
           {accessError}
         </div>
       {/if}
       <button
-        class="btn-primary btn-accent"
-        style="width: 100%; margin-top: 16px;"
+        class="btn-primary btn-accent full-width access-submit"
         disabled={!accessCode.trim() || unlocking}
         onclick={handleAccessSubmit}
       >

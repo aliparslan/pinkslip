@@ -3,11 +3,14 @@
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
   import { errorMessage } from "../lib/utils";
+  import { navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import Plus from "phosphor-svelte/lib/Plus";
 
   const ATS_TYPES = [
@@ -374,27 +377,14 @@
   }
 </script>
 
-<div class="page">
-  <div class="page-frame" style="padding-left: 22px; padding-right: 22px;">
-    <div class="page-hero" style="margin-bottom: 10px;">
-      <div class="page-hero-copy">
-        <h1 class="h-display h-display-lg" style="margin: 0;">
-          Companies
-        </h1>
-        <p class="page-subtitle">
-          {#if $sessionAccess.isAdmin}
-            Shared catalog, source health, and polling controls.
-          {:else}
-            Companies pinkslip monitors directly for new roles.
-          {/if}
-        </p>
-      </div>
-    </div>
-    <div class="stat-row" style="margin-bottom: 16px;">
-      <span><strong style="color: var(--color-ink);">{enabledCount}</strong> active</span>
-      <span><strong style="color: var(--color-ink);">{companies.length}</strong> total</span>
+<div class="page pushed-screen">
+  <ScreenNav title="Companies" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+  <div class="page-frame companies-page">
+    <div class="stat-row companies-stats">
+      <span><strong class="stat-number">{enabledCount}</strong> active</span>
+      <span><strong class="stat-number">{companies.length}</strong> total</span>
       {#if $sessionAccess.isAdmin && errorCount > 0}
-        <span><strong style="color: var(--color-bad);">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
+        <span><strong class="stat-number bad">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
       {/if}
       {#if $sessionAccess.isAdmin && !showDisabled}
         <span>disabled hidden</span>
@@ -402,15 +392,15 @@
     </div>
 
     <!-- Filter chips + toggle all -->
-    <div class="surface-card-padded" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+    <div class="content-card stack-md page-block">
       <input
         class="input-field"
         type="search"
         placeholder={$sessionAccess.isAdmin ? "Search companies or ATS slugs" : "Search companies"}
         bind:value={search}
       />
-      <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
-        <div style="min-width: 0;">
+      <div class="stack-md flex-fill">
+        <div class="flex-fill">
           {#if $sessionAccess.isAdmin}
             <FilterChips
               filters={ATS_TYPES}
@@ -426,26 +416,23 @@
           {/if}
         </div>
         {#if $sessionAccess.isAdmin}
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <div class="button-cluster">
             <button
-              class="btn-secondary"
-              style="height: 32px; padding: 0 12px; font-size: 12px;"
+              class="btn-secondary btn-compact"
               onclick={() => showDisabled = !showDisabled}
             >
               {showDisabled ? "Hide disabled" : "Show disabled"}
             </button>
             {#if filteredCompanies.length > 0}
               <button
-                class="btn-secondary"
-                style="height: 32px; padding: 0 12px; font-size: 12px;"
+                class="btn-secondary btn-compact"
                 onclick={() => toggleAll(!filteredAllEnabled)}
               >
                 {filteredAllEnabled ? "Deselect all" : "Select all"}
               </button>
             {/if}
             <button
-              class="btn-primary btn-accent"
-              style="height: 32px; padding: 0 12px; font-size: 12px; gap: 4px;"
+              class="btn-primary btn-accent btn-compact"
               onclick={() => { showAddForm = !showAddForm; }}
             >
               <Plus size={12} weight="bold" />
@@ -454,8 +441,7 @@
           </div>
         {:else}
           <button
-            class="btn-secondary"
-            style="height: 40px; padding: 0 14px; font-size: var(--fs-xs); gap: 5px; align-self: flex-start;"
+            class="btn-secondary compact-request"
             onclick={() => {
               requestCompanyName = search.trim();
               requestCompanyError = null;
@@ -471,15 +457,15 @@
 
     <!-- Add company form -->
     {#if $sessionAccess.isAdmin && showAddForm}
-      <div style="padding: 16px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line-2); margin-bottom: 20px; animation: fade-in 0.2s;">
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Add a company</div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div class="content-card stack-md page-block form-reveal muted-card">
+        <div class="row-title">Add a company</div>
+        <div class="form-stack">
           <div>
             <label for="add-name" class="field-label">Company name</label>
             <input id="add-name" class="input-field" type="text" placeholder="e.g. Stripe" bind:value={addName} />
           </div>
-          <div style="display: flex; gap: 10px;">
-            <div style="flex: 1;">
+          <div class="form-grid-2">
+            <div class="flex-fill">
               <label for="add-ats" class="field-label">ATS type</label>
               <select id="add-ats" class="input-field" bind:value={addAtsType}>
                 <option value="greenhouse">Greenhouse</option>
@@ -492,7 +478,7 @@
                 <option value="yc">Y Combinator</option>
               </select>
             </div>
-            <div style="flex: 1;">
+            <div class="flex-fill">
               <label for="add-slug" class="field-label">{sourceInput(addAtsType).label}</label>
               <input
                 id="add-slug"
@@ -508,16 +494,16 @@
             <input id="add-website" class="input-field" type="url" placeholder="https://stripe.com" bind:value={addWebsite} />
           </div>
           {#if addVerifyError}
-            <div class="alert alert-error" style="font-size: var(--fs-xs);">
+            <div class="alert alert-error alert-compact">
               {addVerifyError}
             </div>
           {/if}
           {#if addVerifyMsg}
-            <div class="alert alert-success" style="font-size: var(--fs-xs);">
+            <div class="alert alert-success alert-compact">
               {addVerifyMsg}
             </div>
           {/if}
-          <div class="action-row compact" style="margin-top: 4px;">
+          <div class="action-row compact card-actions">
             <button
               class="btn-secondary"
               disabled={!addSlug.trim() || addVerifyBusy}
@@ -527,8 +513,7 @@
               Verify
             </button>
             <button
-              class="btn-primary btn-accent"
-              style="flex: 1;"
+              class="btn-primary btn-accent flex-fill"
               disabled={!addName.trim() || !addSlug.trim() || adding}
               onclick={handleAdd}
             >
@@ -548,30 +533,30 @@
 
     {#if loading}
       <div class="surface-list">
-        {#each Array(5) as _, i}
-          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; {i > 0 ? 'border-top: 0.5px solid var(--color-line);' : ''}">
-            <div class="skeleton" style="width: 36px; height: 36px; border-radius: var(--radius-sm); flex-shrink: 0;"></div>
-            <div style="flex: 1;">
-              <div class="skeleton" style="width: 45%; height: 13px; margin-bottom: 6px;"></div>
-              <div class="skeleton" style="width: 25%; height: 10px;"></div>
+        {#each Array(5) as _}
+          <div class="grouped-row company-skeleton-row">
+            <div class="skeleton company-skeleton-logo"></div>
+            <div class="flex-fill">
+              <div class="skeleton company-skeleton-title"></div>
+              <div class="skeleton company-skeleton-meta"></div>
             </div>
-            <div class="skeleton" style="width: 44px; height: 26px; border-radius: var(--radius-full);"></div>
+            <div class="skeleton company-skeleton-switch"></div>
           </div>
         {/each}
       </div>
     {:else if error}
-      <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
-        <div class="alert alert-error" style="width: 100%;">
+      <div class="stack-sm align-start">
+        <div class="alert alert-error full-width">
           {error}
         </div>
         <button class="btn-secondary" onclick={loadCompanies}>Try again</button>
       </div>
     {:else if filteredCompanies.length === 0}
-      <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <div class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
+      <div class="empty-state">
+        <div class="h-display h-display-sm empty-state-title">
           No companies found
         </div>
-        <div style="font-size: 13px;">
+        <div class="empty-state-copy">
           {$sessionAccess.isAdmin ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You have not hidden any companies." : "Try a different company name."}
         </div>
       </div>
@@ -602,13 +587,13 @@
     maxWidth={340}
     onclose={() => (editTarget = null)}
   >
-    <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="form-stack">
       <div>
         <label for="edit-name" class="field-label">Name</label>
         <input id="edit-name" class="input-field" type="text" bind:value={editTarget.name} />
       </div>
-      <div style="display: flex; gap: 10px;">
-        <div style="flex: 1;">
+      <div class="form-grid-2">
+        <div class="flex-fill">
           <label for="edit-ats" class="field-label">ATS type</label>
           <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
             <option value="greenhouse">Greenhouse</option>
@@ -621,7 +606,7 @@
             <option value="yc">Y Combinator</option>
           </select>
         </div>
-        <div style="flex: 1;">
+        <div class="flex-fill">
           <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
           <input
             id="edit-slug"
@@ -633,16 +618,16 @@
         </div>
       </div>
       {#if editVerifyError}
-        <div class="alert alert-error" style="font-size: var(--fs-xs);">
+        <div class="alert alert-error alert-compact">
           {editVerifyError}
         </div>
       {/if}
       {#if editVerifyMsg}
-        <div class="alert alert-success" style="font-size: var(--fs-xs);">
+        <div class="alert alert-success alert-compact">
           {editVerifyMsg}
         </div>
       {/if}
-      <div class="action-row compact" style="margin-top: 4px;">
+      <div class="action-row compact card-actions">
         <button
           class="btn-secondary"
           onclick={() => { editTarget = null; }}
@@ -658,8 +643,7 @@
           Verify
         </button>
         <button
-          class="btn-primary btn-accent"
-          style="flex: 1;"
+          class="btn-primary btn-accent flex-fill"
           disabled={!editTarget.name.trim() || !editTarget.ats_slug.trim() || saving}
           onclick={handleSaveEdit}
         >
@@ -679,22 +663,20 @@
     maxWidth={340}
     onclose={() => (deleteTarget = null)}
   >
-    <p style="font-size: var(--fs-sm); color: var(--color-ink-2); line-height: 1.5; margin: 0 0 20px;">
+    <p class="modal-copy">
       This will permanently delete <strong>{deleteTarget.name}</strong> and all its job listings from the database. This affects all users.
       <br /><br />
       If you only want to pause this source, disable it for everyone instead.
     </p>
-    <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="stack-sm">
       <button
-        class="btn-secondary"
-        style="width: 100%;"
+        class="btn-secondary full-width"
         onclick={handleHide}
       >
         Disable for everyone
       </button>
       <button
-        class="btn-secondary btn-danger"
-        style="width: 100%;"
+        class="btn-secondary btn-danger full-width"
         disabled={deleting}
         onclick={handleDelete}
       >
@@ -702,7 +684,7 @@
         Delete permanently
       </button>
       <button
-        style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
+        class="text-button"
         onclick={() => { deleteTarget = null; }}
       >
         Cancel
@@ -718,7 +700,7 @@
     busy={requestingCompany}
     onclose={() => (showCompanyRequest = false)}
   >
-    <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div class="form-stack loose">
       <div>
         <label for="request-company-name" class="field-label">Company name</label>
         <input
@@ -744,25 +726,23 @@
         <label for="request-company-notes" class="field-label">Notes <span class="label-opt">optional</span></label>
         <textarea
           id="request-company-notes"
-          class="input-field"
+          class="input-field textarea-field"
           rows="4"
           maxlength="2000"
           placeholder="Anything useful about the company or its job board"
           bind:value={requestCompanyNotes}
-          style="height: auto; resize: vertical;"
         ></textarea>
       </div>
       {#if requestCompanyError}
-        <div class="alert alert-error" style="font-size: var(--fs-xs);">
+        <div class="alert alert-error alert-compact">
           {requestCompanyError}
         </div>
       {/if}
     </div>
-    <div class="action-row" style="margin-top: 16px;">
+    <div class="action-row modal-actions">
       <button class="btn-secondary" onclick={() => { showCompanyRequest = false; }} disabled={requestingCompany}>Cancel</button>
       <button
-        class="btn-primary btn-accent"
-        style="flex: 1;"
+        class="btn-primary btn-accent flex-fill"
         onclick={submitCompanyRequest}
         disabled={requestingCompany || requestCompanyName.trim().length < 2}
       >
@@ -781,15 +761,14 @@
     onclose={() => (reportTarget = null)}
   >
     <textarea
-      class="input-field"
+      class="input-field textarea-field textarea-spaced"
       rows="4"
       placeholder="What did you notice?"
       bind:value={reportNotes}
-      style="height: auto; resize: vertical; margin-bottom: 14px;"
     ></textarea>
     <div class="action-row">
       <button class="btn-secondary" onclick={() => { reportTarget = null; }} disabled={reporting}>Cancel</button>
-      <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitCompanyReport} disabled={reporting}>
+      <button class="btn-primary btn-accent flex-fill" onclick={submitCompanyReport} disabled={reporting}>
         {#if reporting}<Spinner />{/if}
         Send report
       </button>

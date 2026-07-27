@@ -2,10 +2,12 @@
   import { onMount } from "svelte";
   import { api, type Job } from "../lib/api";
   import { currentRoute, navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import { errorMessage, timeAgo } from "../lib/utils";
   import { setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
+  import ScreenNav from "../components/ScreenNav.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
 
@@ -45,13 +47,9 @@
   });
 </script>
 
-<div class="page" style="padding-top: 0;">
+<div class="page pushed-screen">
+  <ScreenNav title="My jobs" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame my-jobs-page">
-    <div class="my-jobs-heading">
-      <h1 class="h-display h-display-lg">My jobs</h1>
-      <p>Your shortlist and application history.</p>
-    </div>
-
     <div class="my-jobs-tabs" role="tablist" aria-label="My jobs">
       <button
         class:active={activeView === "saved"}

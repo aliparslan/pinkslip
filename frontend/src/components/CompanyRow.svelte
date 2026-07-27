@@ -34,30 +34,30 @@
   let hasError = $derived(company.last_poll_status === "error");
 </script>
 
-<div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 0.5px solid var(--color-line);">
+<div class="grouped-row company-row">
   <CompanyLogo name={company.name} domain={company.website} size={36} />
-  <div style="flex: 1; min-width: 0;">
-    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+  <div class="flex-fill">
+    <div class="company-name-row">
       {#if careersUrl}
-        <a href={careersUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 600; font-size: 14px; color: var(--color-ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" onclick={(e) => e.stopPropagation()}>
+        <a class="company-name truncate" href={careersUrl} target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>
           {company.name}
         </a>
       {:else}
-        <div style="font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.name}</div>
+        <div class="company-name truncate">{company.name}</div>
       {/if}
     </div>
-    <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+    <div class="company-meta">
       <span class="tag">{company.ats_type}</span>
       {#if admin}
-        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{company.ats_slug}</span>
+        <span class="mono-value quiet truncate">{company.ats_slug}</span>
       {/if}
       {#if admin && hasError}
-        <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; color: var(--color-bad); background: color-mix(in oklch, var(--color-bad) 12%, transparent); padding: 1px 6px; border-radius: var(--radius-xs); flex-shrink: 0;">ERR</span>
+        <span class="status-badge bad">ERR</span>
       {/if}
     </div>
   </div>
   {#if admin}
-    <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+    <div class="icon-cluster">
       <button
         class="icon-btn icon-btn-sm"
         aria-label="Edit {company.name}"
@@ -80,15 +80,14 @@
     />
   {:else if company.blocked}
     <button
-      class="btn-secondary"
-      style="height: 40px; padding: 0 11px; font-size: var(--fs-xs); flex-shrink: 0;"
+      class="btn-secondary row-action"
       onclick={() => onRestore?.(company.id)}
     >
       <ArrowCounterClockwise size={14} />
       Restore
     </button>
   {:else}
-    <div style="display: flex; gap: 2px; flex-shrink: 0;">
+    <div class="icon-cluster">
       <button
         class="icon-btn icon-btn-sm"
         aria-label="Report a problem with {company.name}"
@@ -106,3 +105,24 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .company-row { gap: 12px; }
+  .company-name-row {
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+  .company-name {
+    color: var(--color-ink);
+    font-size: var(--fs-md);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .company-meta {
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>

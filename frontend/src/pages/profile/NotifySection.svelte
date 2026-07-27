@@ -54,11 +54,11 @@
 
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Notifications</h2>{/if}
-  <div class="surface-card" style="overflow: hidden;">
-    <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
-      <div>
-        <div style="font-size: var(--fs-md); font-weight: 600;">Job alerts</div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">Master switch for personalized alerts</div>
+  <div class="surface-list">
+    <div class="grouped-row">
+      <div class="grouped-row-copy">
+        <div class="row-title">Job alerts</div>
+        <div class="helper-text">Master switch for personalized alerts</div>
       </div>
       <Switch
         checked={notificationEnabled}
@@ -67,16 +67,14 @@
       />
     </div>
 
-    <div class="divider"></div>
-
     <!-- Push toggle -->
-    <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
-      <div>
-        <div style="font-size: var(--fs-md); font-weight: 500;">Push notifications</div>
-        <div style="font-size: var(--fs-xs); color: var(--color-ink-3); margin-top: 2px;">Get notified about relevant new jobs</div>
+    <div class="grouped-row">
+      <div class="grouped-row-copy">
+        <div class="row-title">Push notifications</div>
+        <div class="helper-text">Get notified about relevant new jobs</div>
       </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-family: var(--font-mono); font-size: var(--fs-2xs); color: {pushStatus === 'enabled' ? 'var(--color-good)' : 'var(--color-ink-4)'};">
+      <div class="field-action">
+        <span class="mono-value" class:good={pushStatus === "enabled"} class:quiet={pushStatus !== "enabled"}>
           {pushStatus}
         </span>
         {#if pushStatus !== "enabled"}
@@ -92,29 +90,25 @@
       </div>
     </div>
 
-    <div class="divider"></div>
-
     <!-- Poll interval -->
-    <div style="padding: 16px 18px; display: flex; align-items: center; justify-content: space-between;">
-      <div style="font-size: var(--fs-md); font-weight: 500;">Poll interval</div>
-      <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--color-ink-3);">Every 15 min</span>
+    <div class="grouped-row">
+      <div class="row-title">Poll interval</div>
+      <span class="mono-value">Every 15 min</span>
     </div>
 
-    <div class="divider"></div>
-
     <!-- Test notifications -->
-    <div style="padding: 16px 18px;">
-      <div style="font-size: var(--fs-md); font-weight: 500; margin-bottom: 10px;">Test notifications</div>
+    <div class="grouped-row grouped-row-block">
+      <div class="row-title grouped-row-heading">Test notifications</div>
       {#if testingNotif}
-        <div class="alert alert-accent" style="font-family: var(--font-mono); font-size: var(--fs-xs); margin-bottom: 14px;">
+        <div class="alert alert-accent mono-value grouped-row-alert">
           {testingNotif}
         </div>
       {/if}
-      <div style="display: flex; gap: 8px;">
-        <button class="btn-secondary" style="flex: 1;" disabled={!!testingNotif} onclick={() => sendTest(0)}>
+      <div class="action-grid">
+        <button class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(0)}>
           Send now
         </button>
-        <button class="btn-secondary" style="flex: 1;" disabled={!!testingNotif} onclick={() => sendTest(5)}>
+        <button class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(5)}>
           Send in 5s
         </button>
       </div>

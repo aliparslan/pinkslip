@@ -482,28 +482,28 @@
   <div>
     {#if loading}
       {#each Array(6) as _}
-        <div style="display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--color-line);">
-          <div class="skeleton" style="width: 24px; height: 24px;"></div>
-          <div>
-            <div class="skeleton" style="width: 45%; height: 8px; margin-bottom: 6px;"></div>
-            <div class="skeleton" style="width: 72%; height: 12px; margin-bottom: 6px;"></div>
-            <div class="skeleton" style="width: 50%; height: 8px;"></div>
+        <div class="feed-skeleton-row">
+          <div class="skeleton feed-skeleton-logo"></div>
+          <div class="feed-skeleton-copy">
+            <div class="skeleton feed-skeleton-line feed-skeleton-company"></div>
+            <div class="skeleton feed-skeleton-line feed-skeleton-title"></div>
+            <div class="skeleton feed-skeleton-line feed-skeleton-meta"></div>
           </div>
         </div>
       {/each}
     {:else if error}
-      <div class="alert alert-error" style="margin: 16px;">
+      <div class="alert alert-error feed-error">
         {error}
       </div>
     {:else if feed.jobs.length === 0}
-      <div style="text-align: center; padding: 48px 24px; color: var(--color-ink-3);">
-        <h2 class="h-display h-display-sm" style="color: var(--color-ink-2); margin-bottom: 8px;">
+      <div class="empty-state">
+        <h2 class="h-display h-display-sm empty-state-title">
           {feed.savedOnly ? "No saved jobs yet" : "Nothing here"}
         </h2>
-        <div style="font-size: var(--fs-sm); margin-bottom: 14px;">
+        <div class="empty-state-copy feed-empty-copy">
           {feed.savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or check back later."}
         </div>
-        <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+        <div class="button-cluster center">
           <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
             {#if refreshing}<Spinner />{/if}
             Refresh now
@@ -517,15 +517,15 @@
         </div>
       {/each}
       {#if loadingMore}
-        <div class="loading-label" style="padding: 18px 16px; color: var(--color-ink-3); font-size: var(--fs-sm);" aria-busy="true">
+        <div class="loading-label feed-loading-more" aria-busy="true">
           <Spinner label="Loading more jobs" />
           <span>Loading more jobs</span>
         </div>
       {/if}
       {#if feed.hasMore}
-        <div bind:this={loadMoreSentinel} style="height: 1px;"></div>
+        <div bind:this={loadMoreSentinel} class="feed-sentinel"></div>
       {:else}
-        <div style="padding: 24px 16px; text-align: center; color: var(--color-ink-4); font-size: var(--fs-xs);">
+        <div class="feed-end">
           -- End of feed, go touch grass --
         </div>
       {/if}

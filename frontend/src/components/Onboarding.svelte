@@ -149,13 +149,13 @@
   }
 </script>
 
-<div style="position: fixed; inset: 0; z-index: 30; background: var(--color-bg); display: flex; flex-direction: column; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); overscroll-behavior: contain;">
+<div class="onboarding">
   <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island).
        Solid background so scrolled content never shows through behind them. -->
-  <div style="padding: 20px 24px 8px; flex-shrink: 0; background: var(--color-bg);">
-    <div style="display: flex; gap: 6px;">
+  <div class="onboarding-progress">
+    <div class="onboarding-progress-track">
       {#each Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1) as s}
-        <div style="height: 3px; flex: 1; border-radius: var(--radius-full); background: {s <= step ? 'var(--color-accent)' : 'var(--color-line)'}; transition: background 0.3s;"></div>
+        <div class="onboarding-progress-segment" class:active={s <= step}></div>
       {/each}
     </div>
   </div>
@@ -164,33 +164,32 @@
        steps — centering left huge dead space on short steps). The mask fades
        content out as it scrolls under the progress strip instead of clipping
        it mid-line. -->
-  <div bind:this={scrollEl} class="onboarding-scroll" style="flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; padding: 20px 32px 40px;">
-    <div style="width: 100%; max-width: 360px; margin: 0;">
+  <div bind:this={scrollEl} class="onboarding-scroll">
+    <div class="onboarding-content">
 
       {#if step === 1}
-        <div style="animation: fade-in 0.3s;">
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-            <svg width="32" height="38" viewBox="0 0 22 26" fill="none" style="transform: rotate(-8deg); flex-shrink: 0;">
+        <div class="onboarding-step">
+          <div class="onboarding-brand">
+            <svg class="onboarding-brand-mark" width="32" height="38" viewBox="0 0 22 26" fill="none">
               <rect x="1" y="1" width="20" height="24" rx="3" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="0.5"/>
               <rect x="5" y="6" width="12" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
               <rect x="5" y="10" width="9" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
               <rect x="5" y="14" width="11" height="1.5" rx="0.75" fill="var(--color-accent-ink)" opacity="0.5"/>
             </svg>
-            <span class="h-display h-display-lg" style="line-height: 1;">
-              <span style="color: var(--color-accent);">pink</span>slip
+            <span class="h-display h-display-lg onboarding-wordmark">
+              <span class="brand-word-pink">pink</span>slip
             </span>
           </div>
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Beat the crowd</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.55; margin-bottom: 32px;">
+          <h2 class="h-display h-display-lg onboarding-title">Beat the crowd</h2>
+          <p class="onboarding-copy intro">
             Pick the work you want. We&rsquo;ll show you relevant early-career roles already in pinkslip.
           </p>
-          <h3 class="section-label" style="margin-bottom: 12px;">What are you targeting?</h3>
-          <div style="margin-bottom: 24px;">
+          <h3 class="section-label onboarding-section-label">What are you targeting?</h3>
+          <div class="onboarding-fields">
             <SearchProfileFields bind:profile section="roles" showAdvanced={false} />
           </div>
           <button
-            class="btn-primary btn-accent"
-            style="width: 100%;"
+            class="btn-primary btn-accent full-width"
             disabled={profile.roles.length === 0}
             onclick={beginOnboarding}
           >
@@ -199,24 +198,23 @@
         </div>
 
       {:else if step === 2}
-        <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Where can you work?</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
+        <div class="onboarding-step">
+          <h2 class="h-display h-display-lg onboarding-title">Where can you work?</h2>
+          <p class="onboarding-copy">
             Choose work modes, preferred metros, authorization, and whether relocation is on the table.
           </p>
-          <div style="margin-bottom: 24px;">
+          <div class="onboarding-fields">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} />
           </div>
 
           {#if profileError}
-            <div class="alert alert-error" style="margin-bottom: 16px; font-size: var(--fs-xs);">
+            <div class="alert alert-error onboarding-alert">
               {profileError}
             </div>
           {/if}
 
           <button
-            class="btn-primary btn-accent"
-            style="width: 100%;"
+            class="btn-primary btn-accent full-width"
             disabled={saving || profile.work_modes.length === 0}
             onclick={handleProfileSubmit}
           >
@@ -226,33 +224,33 @@
         </div>
 
       {:else if step === 3}
-        <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Stay in the loop</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
+        <div class="onboarding-step">
+          <h2 class="h-display h-display-lg onboarding-title">Stay in the loop</h2>
+          <p class="onboarding-copy">
             Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you when a new role fits your search.
           </p>
 
           <!-- Push notifications -->
-          <div style="background: var(--color-bg-elev); border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 24px;">
-            <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <div style="font-size: 14px; font-weight: 600;">Push notifications</div>
-                <div style="font-size: 12px; color: var(--color-ink-3); margin-top: 2px;">Get alerted about relevant new jobs</div>
+          <div class="surface-list onboarding-notification-card">
+            <div class="grouped-row">
+              <div class="grouped-row-copy">
+                <div class="row-title">Push notifications</div>
+                <div class="helper-text">Get alerted about relevant new jobs</div>
               </div>
               {#if pushStatus === "enabled"}
-                <span style="font-family: var(--font-mono); font-size: 12px; color: var(--color-good); font-weight: 500;">Enabled</span>
+                <span class="mono-value good">Enabled</span>
               {/if}
             </div>
             {#if pushStatus === "denied"}
-              <div style="padding: 0 16px 14px;">
-                <div class="alert alert-warn" style="font-size: var(--fs-xs);">
+              <div class="onboarding-notification-note">
+                <div class="alert alert-warn alert-compact">
                   Permission denied. Turn on notifications for pinkslip in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
                 </div>
               </div>
             {/if}
             {#if pushStatus === "error"}
-              <div style="padding: 0 16px 14px;">
-                <div class="alert alert-error" style="font-size: var(--fs-xs);">
+              <div class="onboarding-notification-note">
+                <div class="alert alert-error alert-compact">
                   Something went wrong. You can set up notifications later in Settings.
                 </div>
               </div>
@@ -260,13 +258,12 @@
           </div>
 
           {#if pushStatus === "enabled"}
-            <button class="btn-primary btn-accent" style="width: 100%;" onclick={() => step = 4}>
+            <button class="btn-primary btn-accent full-width" onclick={() => step = 4}>
               Continue
             </button>
           {:else}
             <button
-              class="btn-primary btn-accent"
-              style="width: 100%;"
+              class="btn-primary btn-accent full-width"
               disabled={enablingPush}
               onclick={handleEnablePush}
             >
@@ -278,35 +275,33 @@
         </div>
 
       {:else if step === 4}
-        <div style="animation: fade-in 0.3s;">
-          <h2 class="h-display h-display-lg" style="margin-bottom: 8px;">Save your progress</h2>
-          <p style="font-size: 14px; color: var(--color-ink-2); line-height: 1.5; margin-bottom: 24px;">
+        <div class="onboarding-step">
+          <h2 class="h-display h-display-lg onboarding-title">Save your progress</h2>
+          <p class="onboarding-copy">
             Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; as a guest, your data is saved to this app and tied to this browser session until you sign in.
           </p>
 
-          <label for="onboarding-name" class="field-label" style="margin-bottom: 8px;">
-            Your name <span style="color: var(--color-ink-3); font-weight: 400;">(optional)</span>
+          <label for="onboarding-name" class="field-label onboarding-field-label">
+            Your name <span class="label-opt">(optional)</span>
           </label>
           <input
             id="onboarding-name"
-            class="input-field"
+            class="input-field onboarding-name"
             type="text"
             placeholder="e.g. Alex"
             bind:value={name}
             autocomplete="name"
-            style="margin-bottom: 20px;"
           />
 
           {#if accountError}
-            <div class="alert alert-error" style="margin-bottom: 16px; font-size: var(--fs-xs);">
+            <div class="alert alert-error onboarding-alert">
               {accountError}
             </div>
           {/if}
 
           {#if appleAvailable}
             <button
-              class="btn-primary btn-accent"
-              style="width: 100%; margin-bottom: 12px;"
+              class="btn-primary btn-accent onboarding-apple"
               disabled={signingInWithApple}
               onclick={handleAppleLogin}
             >
@@ -314,27 +309,27 @@
               Continue with Apple
             </button>
 
-            <div style="display: flex; align-items: center; gap: 12px; margin: 4px 0 16px;">
-              <div style="height: 0.5px; flex: 1; background: var(--color-line);"></div>
-              <span style="font-size: 11px; color: var(--color-ink-3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em;">or</span>
-              <div style="height: 0.5px; flex: 1; background: var(--color-line);"></div>
+            <div class="onboarding-divider">
+              <div></div>
+              <span>or</span>
+              <div></div>
             </div>
           {/if}
 
           {#if emailLinkSent}
-            <div style="padding: 16px; border-radius: var(--radius-lg); background: var(--color-bg-sunken); border: 1px solid var(--color-line); margin-bottom: 24px;">
-              <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 4px;">
+            <div class="onboarding-email-sent">
+              <div class="onboarding-email-sent-title">
                 <Check size={16} weight="bold" color="var(--color-good)" /> Check your email
               </div>
-              <div style="font-size: 12px; color: var(--color-ink-3); line-height: 1.45;">
+              <div class="helper-text">
                 We sent a sign-in link to {emailLogin.trim()}. Open it on this device to finish &mdash; the link expires in 15 minutes.
               </div>
             </div>
           {:else}
-            <label for="onboarding-email" class="field-label" style="margin-bottom: 8px;">
+            <label for="onboarding-email" class="field-label onboarding-field-label">
               Continue with email
             </label>
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+            <div class="stack-sm onboarding-email-form">
               <input
                 id="onboarding-email"
                 class="input-field"
@@ -347,8 +342,7 @@
                 onkeydown={(e) => e.key === "Enter" && handleEmailLoginStart()}
               />
               <button
-                class="btn-primary btn-accent"
-                style="width: 100%;"
+                class="btn-primary btn-accent full-width"
                 disabled={sendingEmailLogin || !emailLogin.trim()}
                 onclick={handleEmailLoginStart}
               >
@@ -369,14 +363,180 @@
 </div>
 
 <style>
+  .onboarding {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    padding: var(--safe-top) 0 var(--safe-bottom);
+    background: var(--color-bg);
+    overscroll-behavior: contain;
+  }
+
+  .onboarding-progress {
+    flex-shrink: 0;
+    padding: var(--space-5) var(--space-6) var(--space-2);
+    background: var(--color-bg);
+  }
+
+  .onboarding-progress-track {
+    display: flex;
+    gap: 6px;
+  }
+
+  .onboarding-progress-segment {
+    height: 3px;
+    flex: 1;
+    border-radius: var(--radius-full);
+    background: var(--color-line);
+    transition: background 180ms ease;
+  }
+
+  .onboarding-progress-segment.active {
+    background: var(--color-accent);
+  }
+
   /* Fade content out as it slides under the progress strip (instead of a hard
      mid-line clip at the scroll boundary). */
   .onboarding-scroll {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: var(--space-5) var(--space-8) var(--space-10);
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 16px);
     mask-image: linear-gradient(to bottom, transparent 0, black 16px);
   }
 
-  .onboarding-skip { width: 100%; margin-top: 12px; padding: 10px; border: 0; background: transparent; color: var(--color-ink-3); font-size: var(--fs-sm); cursor: pointer; }
+  .onboarding-content {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .onboarding-step {
+    animation: fade-in 300ms ease both;
+  }
+
+  .onboarding-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: var(--space-3);
+  }
+
+  .onboarding-brand-mark {
+    flex-shrink: 0;
+    transform: rotate(-8deg);
+  }
+
+  .onboarding-wordmark {
+    line-height: 1;
+  }
+
+  .onboarding-title {
+    margin-bottom: var(--space-2);
+  }
+
+  .onboarding-copy {
+    margin: 0 0 var(--space-6);
+    color: var(--color-ink-2);
+    font-size: var(--fs-md);
+    line-height: 1.5;
+  }
+
+  .onboarding-copy.intro {
+    margin-bottom: var(--space-8);
+    line-height: 1.55;
+  }
+
+  .onboarding-section-label,
+  .onboarding-field-label {
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+
+  .onboarding-fields,
+  .onboarding-notification-card,
+  .onboarding-email-form {
+    margin-bottom: var(--space-6);
+  }
+
+  .onboarding-alert {
+    margin-bottom: var(--space-4);
+    font-size: var(--fs-xs);
+  }
+
+  .onboarding-notification-note {
+    padding: 0 var(--space-4) 14px;
+  }
+
+  .onboarding-name {
+    margin-bottom: var(--space-5);
+  }
+
+  .onboarding-apple {
+    width: 100%;
+    margin-bottom: var(--space-3);
+  }
+
+  .onboarding-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-1) 0 var(--space-4);
+  }
+
+  .onboarding-divider > div {
+    height: 1px;
+    flex: 1;
+    background: var(--color-line);
+  }
+
+  .onboarding-divider span {
+    color: var(--color-ink-4);
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .onboarding-email-sent {
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elev);
+  }
+
+  .onboarding-email-sent-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+
+  .onboarding-skip {
+    width: 100%;
+    min-height: var(--tap-min);
+    margin-top: var(--space-3);
+    padding: 10px;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+  }
+
   .onboarding-skip:hover { color: var(--color-ink); }
   .onboarding-skip:disabled { opacity: 0.5; cursor: default; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>

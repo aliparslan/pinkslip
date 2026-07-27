@@ -2,8 +2,11 @@
   import { onMount } from "svelte";
   import { api, type CorpusVersion } from "../lib/api";
   import { errorMessage } from "../lib/utils";
+  import { navigate } from "../router";
+  import { requestBack } from "../lib/nav-back";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
+  import ScreenNav from "../components/ScreenNav.svelte";
 
   let loading = $state(true);
   let saving = $state(false);
@@ -128,12 +131,10 @@
   });
 </script>
 
-<div class="page">
-  <div style="padding: 0 22px 28px;">
-    <h1 class="h-display h-display-lg" style="margin-bottom: 14px;">
-      Your master story
-    </h1>
-    <div class="stat-row" style="margin-bottom: 18px;">
+<div class="page pushed-screen">
+  <ScreenNav title="Master story" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+  <div class="page-frame corpus-page">
+    <div class="stat-row corpus-stats">
       <span>{versions.length} version{versions.length === 1 ? "" : "s"}</span>
       {#if savedAt}
         <span>saved {new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
@@ -144,20 +145,19 @@
     </div>
 
     {#if error}
-      <div class="alert alert-error" style="margin-bottom: 14px;">
+      <div class="alert alert-error alert-spaced">
         {error}
       </div>
     {/if}
     {#if success}
-      <div class="alert alert-success" style="margin-bottom: 14px;">
+      <div class="alert alert-success alert-spaced">
         {success}
       </div>
     {/if}
 
-    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;">
+    <div class="button-cluster corpus-toolbar">
       <select
-        class="input-field"
-        style="max-width: 240px;"
+        class="input-field corpus-version-select"
         bind:value={selectedVersionId}
         onchange={(event) => handleVersionChange((event.currentTarget as HTMLSelectElement).value)}
       >
@@ -167,11 +167,11 @@
           </option>
         {/each}
       </select>
-      <button class="btn-secondary" style="height: 48px; padding: 0 16px;" onclick={openSnapshotModal}>
+      <button class="btn-secondary tall-control" onclick={openSnapshotModal}>
         Save as new version
       </button>
       {#if isReadonly && currentVersionId !== null}
-        <button class="btn-secondary" style="height: 48px; padding: 0 16px;" onclick={() => handleVersionChange(String(currentVersionId))}>
+        <button class="btn-secondary tall-control" onclick={() => handleVersionChange(String(currentVersionId))}>
           Back to live
         </button>
       {/if}
@@ -181,8 +181,7 @@
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
       <textarea
-        class="input-field corpus-textarea"
-        style="min-height: 68vh; resize: vertical;"
+        class="input-field corpus-textarea corpus-editor"
         bind:value={content}
         readonly={isReadonly}
         oninput={queueAutosave}
@@ -210,9 +209,9 @@
       bind:value={snapshotLabel}
       onkeydown={(e) => e.key === "Enter" && void snapshotCorpus()}
     />
-    <div class="action-row" style="margin-top: 16px;">
+    <div class="action-row modal-actions">
       <button class="btn-secondary" onclick={() => (showSnapshotModal = false)} disabled={snapshotting}>Cancel</button>
-      <button class="btn-primary btn-accent" style="flex: 1;" onclick={snapshotCorpus} disabled={snapshotting || !snapshotLabel.trim()}>
+      <button class="btn-primary btn-accent flex-fill" onclick={snapshotCorpus} disabled={snapshotting || !snapshotLabel.trim()}>
         {#if snapshotting}<Spinner />{/if}
         Save snapshot
       </button>

@@ -456,7 +456,7 @@
           <p class="job-description-lede with-action">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <div class="button-cluster">
             <button class="btn-secondary btn-mini" onclick={() => void loadJobDetail(true)}>
               Try again
             </button>
@@ -465,8 +465,7 @@
                 href={job.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="btn-secondary btn-mini"
-                style="text-decoration: none;"
+                class="btn-secondary btn-mini button-link"
               >
                 Open original
               </a>
@@ -487,8 +486,7 @@
           href={job.url}
           target="_blank"
           rel="noopener noreferrer"
-          class="btn-primary btn-accent btn-action"
-          style="text-decoration: none;"
+          class="btn-primary btn-accent btn-action button-link"
           onclick={() => {
             void api.interactions.event({
               event_name: "apply_clicked",
@@ -525,26 +523,27 @@
     busy={reporting}
     onclose={() => (showReport = false)}
   >
-    <select class="input-field" bind:value={reportType} style="margin-bottom: 10px;">
-      <option value="expired_listing">Listing is closed</option>
-      <option value="incorrect_details">Details are incorrect</option>
-      <option value="duplicate_listing">Duplicate listing</option>
-      <option value="broken_source">Company source is broken</option>
-      <option value="other">Something else</option>
-    </select>
-    <textarea
-      class="input-field"
-      rows="4"
-      placeholder="Optional context"
-      bind:value={reportNotes}
-      style="height: auto; resize: vertical; margin-bottom: 14px;"
-    ></textarea>
-    <div class="action-row">
-      <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
-      <button class="btn-primary btn-accent" style="flex: 1;" onclick={submitReport} disabled={reporting || reportSent}>
-        {#if reporting}<Spinner />{/if}
-        {reportSent ? "Reported" : "Send report"}
-      </button>
+    <div class="form-stack">
+      <select class="input-field" bind:value={reportType}>
+        <option value="expired_listing">Listing is closed</option>
+        <option value="incorrect_details">Details are incorrect</option>
+        <option value="duplicate_listing">Duplicate listing</option>
+        <option value="broken_source">Company source is broken</option>
+        <option value="other">Something else</option>
+      </select>
+      <textarea
+        class="input-field textarea-field"
+        rows="4"
+        placeholder="Optional context"
+        bind:value={reportNotes}
+      ></textarea>
+      <div class="action-row">
+        <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
+        <button class="btn-primary btn-accent flex-fill" onclick={submitReport} disabled={reporting || reportSent}>
+          {#if reporting}<Spinner />{/if}
+          {reportSent ? "Reported" : "Send report"}
+        </button>
+      </div>
     </div>
   </Modal>
 {/if}
@@ -557,23 +556,21 @@
     maxWidth={340}
     onclose={() => (showBlockConfirm = false)}
   >
-    <p style="font-size: var(--fs-sm); color: var(--color-ink-2); line-height: 1.5; margin: 0 0 20px;">
+    <p class="modal-copy">
       This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
       <br /><br />
       If you only want it gone from your own list, use <strong>Dismiss for me</strong> instead.
     </p>
-    <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="stack-sm">
       <button
-        class="btn-secondary"
-        style="width: 100%; height: 48px;"
+        class="btn-secondary full-width tall-control"
         onclick={() => { showBlockConfirm = false; handleDismiss(); }}
       >
         <X size={15} />
         Dismiss for me
       </button>
       <button
-        class="btn-secondary btn-danger"
-        style="width: 100%; height: 48px;"
+        class="btn-secondary btn-danger full-width tall-control"
         disabled={blocking}
         onclick={handleBlock}
       >
@@ -581,7 +578,7 @@
         Block permanently
       </button>
       <button
-        style="appearance: none; border: 0; background: transparent; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink-3); padding: 8px 0;"
+        class="text-button"
         onclick={() => { showBlockConfirm = false; }}
       >
         Cancel

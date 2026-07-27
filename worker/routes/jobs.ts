@@ -15,7 +15,6 @@ import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
 import { LOCATION_OPTIONS } from "../../shared/search-profile";
-import { diversifyRankedJobs } from "../job-ranking";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 jobs.use("/*", async (c, next) => {
@@ -264,7 +263,6 @@ jobs.get("/", async (c) => {
     location,
     locations,
     saved,
-    sort,
     q,
     min_salary,
     max_salary,
@@ -357,19 +355,10 @@ jobs.get("/", async (c) => {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const effectiveSort = sort ?? "score";
-  const shouldDiversify = effectiveSort === "score" && company_id === undefined && dismissed !== "true";
-  // first_seen_at is an ISO-8601 string written by toISOString(), so it orders
-  // correctly as plain text and can use idx_jobs_first_seen; wrapping it in
-  // datetime() forced a full scan and made the trailing duplicate tiebreak
-  // (`, j.first_seen_at DESC`) look meaningful when it was the same column.
-  // posted_at keeps its datetime() — it comes from ATS feeds in mixed formats.
-  const orderBy =
-    effectiveSort === "score"
-      ? "us.score DESC, j.first_seen_at DESC"
-      : effectiveSort === "last_posted"
-        ? "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC"
-        : "j.first_seen_at DESC";
+  // The feed has one implicit order: the newest posting date first. Some ATS
+  // feeds omit or mangle posted_at, so fall back to the stable ingestion time.
+  // first_seen_at and id make pagination deterministic when dates match.
+  const orderBy = "COALESCE(datetime(j.posted_at), datetime(j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
 
   const sql = `
     SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}
@@ -381,13 +370,10 @@ jobs.get("/", async (c) => {
     LIMIT ? OFFSET ?
   `;
 
-  const requestedThrough = offsetVal + limitVal;
   const queryLimit = hasAdvancedFilters
     ? 1000
-    : shouldDiversify
-      ? Math.min(1000, Math.max(requestedThrough * 4, requestedThrough + 1))
-      : limitVal + 1;
-  const queryOffset = shouldDiversify ? 0 : hasAdvancedFilters ? 0 : offsetVal;
+    : limitVal + 1;
+  const queryOffset = hasAdvancedFilters ? 0 : offsetVal;
   bindings.push(queryLimit, queryOffset);
 
   const stmt = c.env.DB.prepare(sql);
@@ -395,21 +381,18 @@ jobs.get("/", async (c) => {
   const filteredRows = hasAdvancedFilters
     ? (result.results ?? []).filter((row) => passesAdvancedFilters(row, advancedFilters))
     : (result.results ?? []);
-  const rankedRows = shouldDiversify
-    ? diversifyRankedJobs(filteredRows, Math.min(filteredRows.length, requestedThrough + 1))
-    : filteredRows;
-  const rows = hasAdvancedFilters || shouldDiversify
-    ? rankedRows.slice(offsetVal, offsetVal + limitVal)
-    : rankedRows.slice(0, limitVal);
+  const rows = hasAdvancedFilters
+    ? filteredRows.slice(offsetVal, offsetVal + limitVal)
+    : filteredRows.slice(0, limitVal);
 
   return c.json({
     jobs: rows.map(serializeJob),
     meta: {
-      total: rankedRows.length,
+      total: filteredRows.length,
       count: rows.length,
-      has_more: hasAdvancedFilters || shouldDiversify
-        ? offsetVal + rows.length < rankedRows.length || (result.results ?? []).length === queryLimit
-        : rankedRows.length > limitVal,
+      has_more: hasAdvancedFilters
+        ? offsetVal + rows.length < filteredRows.length || (result.results ?? []).length === queryLimit
+        : filteredRows.length > limitVal,
       next_offset: offsetVal + rows.length,
     },
   });

@@ -10,7 +10,7 @@
 
   const tabs = [
     { label: "Feed", path: "/", icon: CardsThree },
-    { label: "You", path: "/you", icon: UserCircle },
+    { label: "Me", path: "/you", icon: UserCircle },
   ] as const;
 
   function isActive(path: string): boolean {

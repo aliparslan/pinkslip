@@ -22,7 +22,7 @@
 
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Search profile</h2>{/if}
-  <div class="surface-card" style="padding: 18px; display: flex; flex-direction: column; gap: 24px;">
+  <div class="content-card stack-lg">
     <SearchProfileFields bind:profile={searchProfile} />
     <div>
       <button class="btn-secondary" onclick={resetToDefaults}>

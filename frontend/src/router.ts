@@ -18,6 +18,8 @@ export function routeDepth(route: string): number {
   if (route.startsWith("/tailor/")) return 2;
   if (route.startsWith("/jobs/")) return 1;
   if (route.startsWith("/you/")) return 1;
+  if (route.startsWith("/my-jobs/")) return 1;
+  if (["/companies", "/resume", "/corpus"].includes(route)) return 1;
   return 0;
 }
 
@@ -29,5 +31,7 @@ export function backTargetRoute(route: string): string | null {
   }
   if (route.startsWith("/jobs/")) return getJobDetailReturnRoute();
   if (route.startsWith("/you/")) return "/you";
+  if (route.startsWith("/my-jobs/")) return "/you";
+  if (["/companies", "/resume", "/corpus"].includes(route)) return "/you";
   return null;
 }
