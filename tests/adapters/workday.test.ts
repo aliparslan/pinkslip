@@ -96,6 +96,47 @@ describe("WorkdayAdapter", () => {
     expect(jobs[1].location).toBe("2 Locations, United States");
   });
 
+  it("dates the \"Posted 30+ Days Ago\" bucket instead of dropping it", async () => {
+    // Workday buckets anything older than a month as "Posted 30+ Days Ago".
+    // The optional "+" used to fall through to null, leaving 53% of open
+    // Workday jobs undated while every other source had none missing.
+    const fetchMock = mock()
+      .mockResolvedValueOnce(response({ total: 1, jobPostings: [], facets: US_COUNTRY_FACET }))
+      .mockResolvedValueOnce(response({
+        total: 2,
+        jobPostings: [
+          {
+            title: "Old Engineer",
+            externalPath: "/job/Austin/Old-Engineer_R900",
+            locationsText: "Austin, TX",
+            postedOn: "Posted 30+ Days Ago",
+            bulletFields: ["R900"],
+          },
+          {
+            title: "Unparseable Engineer",
+            externalPath: "/job/Austin/Unparseable_R901",
+            locationsText: "Austin, TX",
+            postedOn: "Sometime last quarter",
+            bulletFields: ["R901"],
+          },
+        ],
+        facets: [],
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const jobs = await adapter.fetchJobs(SOURCE_URL);
+
+    // Lower bound, not an exact date: at least 30 days old.
+    expect(jobs[0].postedAt).not.toBeNull();
+    const ageDays =
+      (Date.now() - new Date(jobs[0].postedAt as string).getTime()) / 86_400_000;
+    expect(ageDays).toBeGreaterThanOrEqual(29.5);
+    expect(ageDays).toBeLessThan(31.5);
+
+    // A genuinely unrecognised label must still yield null rather than a guess.
+    expect(jobs[1].postedAt).toBeNull();
+  });
+
   it("paginates in 20-job pages", async () => {
     const firstPage = Array.from({ length: 20 }, (_, index) => ({
       title: `Job ${index}`,

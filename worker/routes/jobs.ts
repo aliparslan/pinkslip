@@ -17,6 +17,14 @@ import { isUsJobLocation } from "../us-jobs";
 import { LOCATION_OPTIONS } from "../../shared/search-profile";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+/**
+ * Dated postings older than this never appear in the feed — they are almost
+ * always filled or abandoned. Applies only to jobs that carry a real date;
+ * undated postings are governed by the `posted` filter instead.
+ */
+export const MAX_POSTED_AGE_DAYS = 30;
+
 jobs.use("/*", async (c, next) => {
   await ensureEligibleJobs(c.env.DB);
   await next();
@@ -267,6 +275,7 @@ jobs.get("/", async (c) => {
     min_salary,
     max_salary,
     max_yoe,
+    posted,
   } = c.req.query();
 
   const parsedLimit = parseInt(limit ?? "300", 10);
@@ -290,6 +299,18 @@ jobs.get("/", async (c) => {
       SELECT 1 FROM user_blocked_companies ubc
       WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
     )`,
+    // A posting with a real date older than 30 days is almost always filled or
+    // abandoned, so it never belongs in the feed.
+    //
+    // Undated jobs are deliberately kept. They are not "unknown age" — they come
+    // from boards that only list a role while it is genuinely open (startups),
+    // so absence of a date is itself a freshness signal.
+    //
+    // datetime() is REQUIRED here, unlike first_seen_at: posted_at comes from
+    // upstream ATS feeds in mixed formats — Greenhouse emits "-04:00" offsets,
+    // Ashby "+00:00", Lever/Workday "Z" — so lexicographic comparison would sort
+    // local times against UTC times incorrectly.
+    `(j.posted_at IS NULL OR datetime(j.posted_at) >= datetime('now', '-${MAX_POSTED_AGE_DAYS} days'))`,
   ];
   const bindings: (string | number)[] = [userId, userId, userId, userId];
   bindings.push(userId);
@@ -315,6 +336,15 @@ jobs.get("/", async (c) => {
     bindings.push(userId);
   }
   // dismissed=all → no filter
+
+  // `posted=undated` isolates postings from boards that publish no date. Those
+  // are overwhelmingly startup roles, which stay listed only while genuinely
+  // open — so "no date" is a useful signal to filter *for*, not a gap to hide.
+  if (posted === "undated") {
+    conditions.push("j.posted_at IS NULL");
+  } else if (posted === "dated") {
+    conditions.push("j.posted_at IS NOT NULL");
+  }
 
   if (company_id !== undefined) {
     conditions.push("j.company_id = ?");

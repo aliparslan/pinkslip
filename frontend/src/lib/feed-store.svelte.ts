@@ -13,6 +13,10 @@ export const feed = $state({
   selectedLocations: ["All"] as string[],
   searchQuery: "",
   savedOnly: false,
+  // "any" | "dated" | "undated". Undated postings come from boards that list a
+  // role only while it is genuinely open (startups), so it is a signal to
+  // filter *for*, not a gap.
+  postedFilter: "any" as "any" | "dated" | "undated",
   minSalaryK: "",
   maxSalaryK: "",
   maxYoe: "",

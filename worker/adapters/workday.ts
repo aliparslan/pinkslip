@@ -108,7 +108,15 @@ function postedAtFromLabel(label: string | undefined, now = new Date()) {
     return result.toISOString();
   }
 
-  const match = normalized.match(/^posted (\d+) days? ago$/);
+  // Workday buckets anything older than a month as "Posted 30+ Days Ago". The
+  // optional `+` used to fall through to null, which is why 53% of open Workday
+  // jobs had no posted_at while Greenhouse/Ashby/Lever had none missing at all.
+  //
+  // The bucketed form is a LOWER BOUND — the job is at least this old, possibly
+  // far older. That is still strictly better than null: it sorts and displays
+  // sensibly, and scoreRecency already scores anything past 7 days at 0, so
+  // treating "30+" as exactly 30 cannot distort matching.
+  const match = normalized.match(/^posted (\d+)\+? days? ago$/);
   if (!match) return null;
   result.setUTCDate(result.getUTCDate() - Number(match[1]));
   return result.toISOString();

@@ -57,6 +57,15 @@
     { label: "0-3", value: "3" },
   ];
 
+  // Mirrors MAX_POSTED_AGE_DAYS in worker/routes/jobs.ts — the server always
+  // enforces it; this is only for the explanatory hint.
+  const MAX_POSTED_AGE_DAYS = 30;
+  const POSTED_OPTIONS: Array<{ label: string; value: "any" | "dated" | "undated" }> = [
+    { label: "All", value: "any" },
+    { label: "Dated", value: "dated" },
+    { label: "Undated", value: "undated" },
+  ];
+
   // Show the staleness warning once the poller is clearly behind its
   // 15-minute schedule (not just between runs).
   const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -77,6 +86,7 @@
   let draftMaxSalaryK = $state("");
   let draftMaxYoe = $state("");
   let draftSavedOnly = $state(false);
+  let draftPostedFilter: "any" | "dated" | "undated" = $state("any");
 
   function removeJob(id: string) {
     feed.jobs = feed.jobs.filter((j) => j.id !== id);
@@ -96,6 +106,7 @@
     if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
     if (feed.maxYoe) count += 1;
     if (feed.savedOnly) count += 1;
+    if (feed.postedFilter !== "any") count += 1;
     return count;
   });
   let draftHasLocationFilter = $derived(
@@ -107,6 +118,7 @@
     if (draftMinSalaryK.trim() || draftMaxSalaryK.trim()) count += 1;
     if (draftMaxYoe) count += 1;
     if (draftSavedOnly) count += 1;
+    if (draftPostedFilter !== "any") count += 1;
     return count;
   });
   let locationSummary = $derived.by(() => {
@@ -133,6 +145,8 @@
     }
     if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
     if (feed.savedOnly) parts.push("Saved");
+    if (feed.postedFilter === "undated") parts.push("Undated");
+    if (feed.postedFilter === "dated") parts.push("Dated");
     return parts.join(" · ");
   });
 
@@ -156,6 +170,7 @@
     if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
     if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
     if (feed.maxYoe) params.max_yoe = feed.maxYoe;
+    if (feed.postedFilter !== "any") params.posted = feed.postedFilter;
 
     return params;
   }
@@ -254,6 +269,7 @@
     minSalaryK?: string;
     maxSalaryK?: string;
     maxYoe?: string;
+    postedFilter?: "any" | "dated" | "undated";
   }) {
     if (updates?.selectedLocations !== undefined) {
       feed.selectedLocations = updates.selectedLocations;
@@ -272,6 +288,9 @@
     }
     if (updates?.maxYoe !== undefined) {
       feed.maxYoe = updates.maxYoe;
+    }
+    if (updates?.postedFilter !== undefined) {
+      feed.postedFilter = updates.postedFilter;
     }
     error = null;
     feed.hasMore = true;
@@ -306,6 +325,7 @@
     draftMaxSalaryK = feed.maxSalaryK;
     draftMaxYoe = feed.maxYoe;
     draftSavedOnly = feed.savedOnly;
+    draftPostedFilter = feed.postedFilter;
     filtersOpen = true;
   }
 
@@ -315,6 +335,7 @@
     draftMaxSalaryK = "";
     draftMaxYoe = "";
     draftSavedOnly = false;
+    draftPostedFilter = "any";
   }
 
   async function applyFilterSheet() {
@@ -325,6 +346,7 @@
       maxSalaryK: draftMaxSalaryK,
       maxYoe: draftMaxYoe,
       savedOnly: draftSavedOnly,
+      postedFilter: draftPostedFilter,
     });
   }
 
@@ -629,6 +651,27 @@
                   </button>
                 {/each}
               </div>
+            </section>
+
+            <section class="filter-group">
+              <div class="filter-group-title">Posting date</div>
+              <div class="filter-option-grid compact">
+                {#each POSTED_OPTIONS as option}
+                  <button
+                    class="filter-choice"
+                    class:active={draftPostedFilter === option.value}
+                    aria-pressed={draftPostedFilter === option.value}
+                    onclick={() => (draftPostedFilter = option.value)}
+                  >
+                    {option.label}
+                  </button>
+                {/each}
+              </div>
+              <p class="filter-group-hint">
+                Dated roles are always limited to the last {MAX_POSTED_AGE_DAYS} days.
+                Undated roles come from boards that list a job only while it is
+                genuinely open.
+              </p>
             </section>
 
             <section class="filter-group">
