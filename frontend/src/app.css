@@ -1,73 +1,46 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter/wght.css";
 
+/* ── Untitled Sans (Klim) ─────────────────────────────────────────────────────
+   EVALUATION ONLY. These are Klim *test* fonts — the filenames keep their
+   "test-" prefix so that stays obvious. The test licence permits internal
+   evaluation but forbids commercial / customer-facing use, so this must not
+   ship to production until a full licence is purchased. See
+   ~/Desktop/klimtestfonts/klim-test-font-licence-agreement-8-november-2018.txt
+
+   Variable roman, one file, whole weight axis — 12K, less than two static cuts
+   would cost. Every existing font-weight (400/500/600/650/700/750/800) keeps
+   working exactly as it did under Inter Variable, so this is a drop-in swap. */
 @font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-regular.woff2") format("woff2");
+  font-family: "Untitled Sans";
+  src: url("/fonts/untitled/test-untitled-sans-vf-roman.woff2") format("woff2-variations"),
+       url("/fonts/untitled/test-untitled-sans-vf-roman.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Pitch (Klim) — mono, same test-licence terms as above. Used only where figures
+   must align: salaries, match scores, counts. Monospaced by construction, so
+   numbers line up without depending on a tabular-figure feature. */
+@font-face {
+  font-family: "Pitch";
+  src: url("/fonts/pitch/test-pitch-regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-medium.woff2") format("woff2");
+  font-family: "Pitch";
+  src: url("/fonts/pitch/test-pitch-medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-semibold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Text";
-  src: url("/fonts/founders/founders-grotesk-text-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Text";
-  src: url("/fonts/founders/founders-grotesk-text-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Text";
-  src: url("/fonts/founders/founders-grotesk-text-semibold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Mono";
-  src: url("/fonts/founders/founders-grotesk-mono-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Mono";
-  src: url("/fonts/founders/founders-grotesk-mono-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Founders Grotesk Mono";
-  src: url("/fonts/founders/founders-grotesk-mono-semibold.woff2") format("woff2");
+  font-family: "Pitch";
+  src: url("/fonts/pitch/test-pitch-semibold.woff2") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -115,9 +88,11 @@
 }
 
 @theme {
-  --font-display: "Founders Grotesk", "Founders Grotesk Text", "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Founders Grotesk Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* Untitled Sans carries display and body — deliberately neutral, so the
+     information does the talking. Pitch handles figures only. */
+  --font-display: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Pitch", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
