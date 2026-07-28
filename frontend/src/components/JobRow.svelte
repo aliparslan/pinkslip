@@ -349,7 +349,8 @@
     align-items: center;
     gap: 6px;
     padding: 6px;
-    background: var(--color-bg-sunken);
+    background: color-mix(in oklch, var(--color-bg-sunken) 94%, black);
+    box-shadow: inset 0 1px 2px oklch(0 0 0 / 10%);
   }
 
   .swipe-action {

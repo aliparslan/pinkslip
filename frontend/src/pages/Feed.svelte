@@ -829,7 +829,7 @@
       <button class="btn-secondary flex-fill" onclick={() => (blockCandidate = null)} disabled={blockingJob}>Cancel</button>
       <button class="btn-secondary btn-danger flex-fill" onclick={blockJobForEveryone} disabled={blockingJob}>
         {#if blockingJob}<Spinner />{/if}
-        Block for everyone
+        Yes, block
       </button>
     </div>
   </Modal>
