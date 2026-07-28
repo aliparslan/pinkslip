@@ -322,6 +322,9 @@ export interface PreferenceState {
 }
 
 export const api = {
+  bootstrap: {
+    get: () => request<{ me: MeResponse; preferences: PreferenceState }>("/bootstrap", undefined, 12_000),
+  },
   jobs: {
     list: (params?: Record<string, string>) => {
       const qs = params ? "?" + new URLSearchParams(params).toString() : "";

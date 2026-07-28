@@ -306,6 +306,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
 
     if (!session) {
       const anonymousReads = new Set([
+        "/api/bootstrap",
         "/api/me",
         "/api/preferences",
         "/api/logo",

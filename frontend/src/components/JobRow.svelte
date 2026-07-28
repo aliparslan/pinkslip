@@ -182,7 +182,7 @@
       <button
         class="swipe-action swipe-action-dismiss"
         style={committing ? "flex: 1;" : `width: ${ACTION_DISMISS_WIDTH}px;`}
-        aria-label="Dismiss for me"
+        aria-label="Not interested"
         onclick={(event) => { event.stopPropagation(); void dismiss(); }}
         disabled={dismissing}
       >

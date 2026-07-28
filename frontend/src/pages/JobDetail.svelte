@@ -392,7 +392,7 @@
             disabled={dismissing}
           >
             {#if dismissing}<Spinner />{:else}<X size={15} />{/if}
-            Dismiss for me
+            Not interested
           </button>
       </div>
 
@@ -560,7 +560,7 @@
     <p class="modal-copy">
       This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
       <br /><br />
-      If you only want it gone from your own list, use <strong>Dismiss for me</strong> instead.
+      If you only want it gone from your own list, use <strong>Not interested</strong> instead.
     </p>
     <div class="stack-sm">
       <button
@@ -568,7 +568,7 @@
         onclick={() => { showBlockConfirm = false; handleDismiss(); }}
       >
         <X size={15} />
-        Dismiss for me
+        Not interested
       </button>
       <button
         class="btn-secondary btn-danger full-width tall-control"

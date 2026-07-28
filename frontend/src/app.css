@@ -2,6 +2,38 @@
 @import "@fontsource-variable/inter/wght.css";
 
 @font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Founders Grotesk";
+  src: url("/fonts/founders/founders-grotesk-bold.woff2") format("woff2");
+  font-weight: 700 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Founders Grotesk Text";
   src: url("/fonts/founders/founders-grotesk-text-regular.woff2") format("woff2");
   font-weight: 400;
@@ -99,7 +131,7 @@
 }
 
 @theme {
-  --font-display: "Founders Grotesk Text", "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Founders Grotesk", "Founders Grotesk Text", "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "Inter Variable", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Founders Grotesk Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -249,6 +281,7 @@ html.native-ios select {
 }
 
 .section-title {
+  font-family: var(--font-display);
   font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -263,16 +296,17 @@ html.native-ios select {
   color: var(--color-ink-3);
 }
 
-/* Mono small-caps section eyebrow (was repeated inline across Settings). */
+/* Quiet section heading used to group settings and profile rows. */
 .section-eyebrow {
   display: block;
-  margin: 0 0 10px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-ink-3);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--color-ink-2);
 }
 
 .field-label {
@@ -387,7 +421,7 @@ html.native-ios select {
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-line-2);
-  background: var(--color-bg);
+  background: var(--color-bg-elev);
   color: var(--color-ink-2);
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
@@ -750,7 +784,7 @@ html.native-ios select {
   border: 1px solid var(--color-control-border);
   border-top: 0;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  background: var(--color-bg);
+  background: var(--color-bg-elev);
   box-shadow: 0 12px 28px oklch(0 0 0 / 0.16);
 }
 
@@ -808,7 +842,7 @@ html.native-ios select {
   padding: 0 11px;
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-md);
-  background: var(--color-bg);
+  background: var(--color-bg-elev);
   color: var(--color-ink-3);
 }
 
@@ -1031,6 +1065,22 @@ html.native-ios select {
   border-color: var(--color-line);
 }
 
+/* Sign in with Apple follows Apple's familiar black treatment everywhere it
+   appears, while the pink fill remains reserved for pinkslip's own CTAs. */
+.btn-apple {
+  background: #000;
+  border-color: #1c1c1e;
+  color: #fff;
+}
+
+.btn-apple:hover { background: #111; opacity: 1; }
+.btn-apple:disabled,
+.btn-apple:disabled:hover {
+  background: #000;
+  border-color: #1c1c1e;
+  color: #fff;
+}
+
 .btn-danger {
   background: color-mix(in oklch, var(--color-bad) 12%, var(--color-bg-elev));
   border-color: color-mix(in oklch, var(--color-bad) 34%, var(--color-line-2));
@@ -1233,7 +1283,7 @@ html.native-ios select {
   gap: 10px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--color-bg);
+  background: var(--color-bg-elev);
   border: 1px solid var(--color-line-2);
   font: inherit;
   font-family: var(--font-sans);
@@ -1417,12 +1467,27 @@ select.input-field {
 /* Centered page/section loading state — pair with <Spinner>. Replaces the
    old bare "Loading..." text blocks. */
 .page-loading {
-  padding: 48px 16px;
+  min-height: clamp(
+    280px,
+    calc(100dvh - var(--screen-nav-height) - var(--mobile-tab-bar-height) - var(--safe-top) - var(--safe-bottom) - 32px),
+    640px
+  );
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   color: var(--color-ink-3);
+}
+
+.page-loading > .spin {
+  width: 28px;
+  height: 28px;
+}
+
+.app-content-shell > .page-loading {
+  min-height: 100dvh;
 }
 
 .loading-label {
@@ -2005,6 +2070,7 @@ select.input-field {
 }
 
 .row-title {
+  font-family: var(--font-display);
   color: var(--color-ink);
   font-size: var(--fs-md);
   font-weight: 600;
@@ -2405,8 +2471,9 @@ select.input-field {
   max-width: min(46vw, 300px);
   overflow: hidden;
   color: var(--color-ink);
-  font-size: var(--fs-sm);
-  font-weight: 650;
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  font-weight: 600;
   line-height: 1.2;
   text-align: center;
   text-overflow: ellipsis;

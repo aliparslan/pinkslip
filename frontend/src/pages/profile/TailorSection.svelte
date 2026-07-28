@@ -56,9 +56,8 @@
     Boolean(hasLocalGeminiKey || (features !== null && features.tailoring_enabled))
   );
   let localSetupLabel = $derived.by(() => {
-    if (tailoringSetupReady) return hasLocalGeminiKey ? "your key ready" : "app key ready";
-    if (localGeminiKey.trim() || localResume) return "partial";
-    return "off";
+    if (tailoringSetupReady) return hasLocalGeminiKey ? "Your key" : "Included";
+    return "Needs setup";
   });
   let activeUsageCount = $derived.by(() => {
     if (!tailorUsage) return null;
@@ -140,7 +139,7 @@
       });
       hydrateLocalSetup();
       await loadTailorUsage();
-      onSuccess("Private tailoring setup saved on this device.");
+      onSuccess("Tailoring settings saved on this device.");
     } catch (e) {
       onError(errorMessage(e));
     } finally {
@@ -228,9 +227,10 @@
   <div class="content-card stack-lg">
     <div class="split-row start">
       <div class="flex-fill">
-        <div class="row-title">Gemini setup</div>
+        <div class="row-title">AI tailoring</div>
         <div class="helper-text">
-          Your Gemini key is optional and overrides the app key when present. Resume files stay on this device until you run Tailor.
+          Use the included AI, or add your own Gemini key. Your resume stays on this
+          device until you tailor an application.
         </div>
       </div>
       <span class="tag">{localSetupLabel}</span>
@@ -238,7 +238,7 @@
 
     <div class="stack-md">
       <div>
-        <label for="gemini-key" class="field-label">Gemini API key override</label>
+        <label for="gemini-key" class="field-label">Gemini API key</label>
         <div class="field-action">
           <input
             id="gemini-key"
@@ -265,9 +265,9 @@
         </div>
         <div class="helper-text field-help">
           {#if hasLocalGeminiKey}
-            Saved on this device and used for Tailor instead of the app key.
+            Saved only on this device.
           {:else}
-            Leave blank to use the app key when available.
+            Leave blank to use included tailoring when available.
           {/if}
         </div>
       </div>
@@ -292,12 +292,12 @@
           </span>
         </div>
         <div class="helper-text field-help">
-          The list only includes models we want this app to use. Pro/paid-only models are intentionally omitted.
+          Only the supported free-tier models appear here.
         </div>
         {#if tailorUsage}
           <div class="usage-meter" aria-label="Tailoring API usage">
             <div class="split-row baseline">
-              <span>{hasLocalGeminiKey ? "Your key in pinkslip today" : "App key today"}</span>
+              <span>{hasLocalGeminiKey ? "Your usage today" : "Included uses today"}</span>
               <strong>
                 {activeUsageCount ?? 0}{#if tailorUsage.daily_limit !== null}/{tailorUsage.daily_limit}{/if}
               </strong>
@@ -310,10 +310,10 @@
                 ></div>
               </div>
               <div class="usage-meter-note">
-                {activeUsageRemaining ?? 0} left before the daily reset. Google may apply other project-wide limits outside pinkslip.
+                {activeUsageRemaining ?? 0} left today. Google may also enforce project-wide limits.
               </div>
             {:else}
-              <div class="usage-meter-note">Live remaining quota is not exposed by this provider.</div>
+              <div class="usage-meter-note">No daily limit is reported for this model.</div>
             {/if}
           </div>
         {/if}
@@ -327,7 +327,7 @@
           disabled={savingLocalSetup}
         >
           {#if savingLocalSetup}<Spinner />{/if}
-          Save local setup
+          Save settings
         </button>
         <button
           class="btn-secondary"
@@ -335,7 +335,7 @@
           onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
         >
           <ArrowSquareOut size={16} />
-          Get Gemini key
+          Get a Gemini key
         </button>
       </div>
     </div>
@@ -345,7 +345,7 @@
     <div>
       <div class="split-row">
         <div class="flex-fill">
-          <div class="row-title">Resume source</div>
+          <div class="row-title">Resume</div>
           <div class="helper-text">
             Upload a PDF, markdown, or plain-text resume. PDFs work when their text is selectable.
           </div>
@@ -467,18 +467,17 @@
 
     <div class="split-row start">
       <div class="flex-fill">
-        <div class="row-title">Key source</div>
+        <div class="row-title">Tailoring access</div>
         <div class="helper-text">
           {#if hasLocalGeminiKey}
-            Tailor will use your saved Gemini key instead of the hidden app key.
+            Tailoring will use your Gemini key on this device.
           {:else if features?.tailoring_enabled}
-            The hidden app key is available with {features.tailoring_model}.
+            Included tailoring is ready.
           {:else}
-            The hidden app key is not configured yet. Add your own Gemini key above to tailor.
+            Add a Gemini key above to enable tailoring on this device.
           {/if}
         </div>
       </div>
-      <span class="tag">{hasLocalGeminiKey ? "using yours" : features?.tailoring_enabled ? "app ready" : "app off"}</span>
     </div>
   </div>
 </section>

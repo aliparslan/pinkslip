@@ -5,13 +5,23 @@
   import { enableNativePush, isNativeIos } from "../lib/native-push";
   import { syncSessionAccess } from "../lib/session-access";
   import {
+    createLocalResumeAsset,
+    formatFileSize,
+    loadLocalTailorKit,
+    updateLocalTailorKit,
+    type LocalResumeAsset,
+  } from "../lib/local-tailor";
+  import {
     DEFAULT_SEARCH_PROFILE,
     ONBOARDING_VERSION,
     normalizeSearchProfile,
     type SearchProfile,
   } from "../../../shared/search-profile";
   import SearchProfileFields from "./SearchProfileFields.svelte";
+  import AppleMark from "./AppleMark.svelte";
+  import CaretLeft from "phosphor-svelte/lib/CaretLeft";
   import Check from "phosphor-svelte/lib/Check";
+  import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import Spinner from "./Spinner.svelte";
 
   let { onComplete }: { onComplete: (name: string) => void } = $props();
@@ -23,6 +33,10 @@
   let saving: boolean = $state(false);
   let pushStatus: string = $state("idle");
   let enablingPush: boolean = $state(false);
+  let resume: LocalResumeAsset | null = $state(loadLocalTailorKit().resume);
+  let resumeUploadInput: HTMLInputElement | null = $state(null);
+  let resumeUploading: boolean = $state(false);
+  let resumeError: string | null = $state(null);
   let profile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let profileError: string | null = $state(null);
 
@@ -55,6 +69,18 @@
     step = 2;
   }
 
+  function goBack() {
+    if (
+      step <= 1
+      || saving
+      || enablingPush
+      || resumeUploading
+      || signingInWithApple
+      || sendingEmailLogin
+    ) return;
+    step -= 1;
+  }
+
   async function handleEnablePush() {
     enablingPush = true;
     try {
@@ -71,6 +97,41 @@
     } finally {
       enablingPush = false;
     }
+  }
+
+  async function handleResumeUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file || resumeUploading) return;
+
+    resumeUploading = true;
+    resumeError = null;
+    try {
+      resume = await createLocalResumeAsset(file);
+      updateLocalTailorKit({ resume });
+    } catch (e) {
+      resumeError = errorMessage(e, "Could not add that resume.");
+    } finally {
+      resumeUploading = false;
+      if (input) input.value = "";
+    }
+  }
+
+  function removeResume() {
+    resume = null;
+    resumeError = null;
+    updateLocalTailorKit({ resume: null });
+  }
+
+  async function syncResumeAfterSignIn() {
+    if (!resume) return;
+    await api.resumeAssets.upload({
+      fileName: resume.fileName,
+      mimeType: resume.mimeType,
+      size: resume.size,
+      dataUrl: resume.dataUrl,
+      extractedText: resume.textContent,
+    });
   }
 
   async function handleProfileSubmit() {
@@ -109,6 +170,7 @@
       const credential = await signInWithAppleNative();
       const accountState = await api.auth.signInWithApple(credential);
       syncSessionAccess(accountState);
+      await syncResumeAfterSignIn().catch(() => undefined);
       // Signed in — the guest data we just gathered now lives on the account.
       await finish();
     } catch (e) {
@@ -150,13 +212,22 @@
 </script>
 
 <div class="onboarding">
-  <!-- Progress bars pinned to top (clear of the status bar / Dynamic Island).
-       Solid background so scrolled content never shows through behind them. -->
+  <!-- Navigation and progress stay clear of the status bar / Dynamic Island. -->
   <div class="onboarding-progress">
-    <div class="onboarding-progress-track">
-      {#each Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1) as s}
-        <div class="onboarding-progress-segment" class:active={s <= step}></div>
-      {/each}
+    <div class="onboarding-progress-row">
+      {#if step > 1}
+        <button type="button" class="onboarding-back" aria-label="Back" onclick={goBack}>
+          <CaretLeft size={22} weight="bold" />
+        </button>
+      {:else}
+        <span class="onboarding-back-spacer" aria-hidden="true"></span>
+      {/if}
+      <div class="onboarding-progress-track" aria-label={`Step ${step} of ${TOTAL_STEPS}`}>
+        {#each Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1) as s}
+          <div class="onboarding-progress-segment" class:active={s <= step}></div>
+        {/each}
+      </div>
+      <span class="onboarding-step-count">{step} of {TOTAL_STEPS}</span>
     </div>
   </div>
 
@@ -179,9 +250,8 @@
           </div>
           <h2 class="h-display h-display-lg onboarding-title">Beat the crowd</h2>
           <p class="onboarding-copy intro">
-            Pick the work you want. We&rsquo;ll show you relevant early-career roles already in pinkslip.
+            Choose the roles you want. We&rsquo;ll alert you the moment we see a new posting.
           </p>
-          <h3 class="section-label onboarding-section-label">What are you targeting?</h3>
           <div class="onboarding-fields">
             <SearchProfileFields bind:profile section="roles" showAdvanced={false} showHeadings={false} />
           </div>
@@ -197,10 +267,7 @@
       {:else if step === 2}
         <div class="onboarding-step">
           <h2 class="h-display h-display-lg onboarding-title">Where can you work?</h2>
-          <p class="onboarding-copy">
-            Choose where and how you can work.
-          </p>
-          <div class="onboarding-fields">
+          <div class="onboarding-fields onboarding-fields-after-title">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
 
@@ -224,58 +291,93 @@
         <div class="onboarding-step">
           <h2 class="h-display h-display-lg onboarding-title">Stay in the loop</h2>
           <p class="onboarding-copy">
-            Turn on notifications so <span class="brand-word"><span class="brand-word-pink">pink</span>slip</span> can alert you when a new role fits your search.
+            Get an alert when a new role fits your search.
           </p>
 
-          <!-- Push notifications -->
-          <div class="surface-list onboarding-notification-card">
-            <div class="grouped-row">
-              <div class="grouped-row-copy">
-                <div class="row-title">Push notifications</div>
-                <div class="helper-text">Get alerted about relevant new jobs</div>
-              </div>
-              {#if pushStatus === "enabled"}
-                <span class="mono-value good">Enabled</span>
-              {/if}
-            </div>
-            {#if pushStatus === "denied"}
-              <div class="onboarding-notification-note">
-                <div class="alert alert-warn alert-compact">
-                  Permission denied. Turn on notifications for pinkslip in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
-                </div>
-              </div>
-            {/if}
-            {#if pushStatus === "error"}
-              <div class="onboarding-notification-note">
-                <div class="alert alert-error alert-compact" role="alert">
-                  Something went wrong. You can set up notifications later in Settings.
-                </div>
-              </div>
-            {/if}
-          </div>
-
           {#if pushStatus === "enabled"}
-            <button class="btn-primary btn-accent full-width" onclick={() => step = 4}>
-              Continue
-            </button>
+            <div class="onboarding-inline-success">
+              <Check size={16} weight="bold" /> Notifications are on
+            </div>
           {:else}
             <button
-              class="btn-primary btn-accent full-width"
+              class="btn-secondary full-width onboarding-notification-action"
               disabled={enablingPush}
               onclick={handleEnablePush}
             >
               {#if enablingPush}<Spinner />{/if}
               Enable notifications
             </button>
-            <button type="button" class="onboarding-skip" onclick={() => step = 4}>Not now</button>
           {/if}
+
+          {#if pushStatus === "denied"}
+            <div class="alert alert-warn alert-compact onboarding-alert">
+              Permission denied. Turn on notifications in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
+            </div>
+          {/if}
+          {#if pushStatus === "error"}
+            <div class="alert alert-error alert-compact onboarding-alert" role="alert">
+              Couldn&rsquo;t enable notifications. You can try again later in Settings.
+            </div>
+          {/if}
+
+          <div class="onboarding-divider onboarding-section-divider">
+            <div></div>
+          </div>
+
+          <div class="onboarding-resume-heading">
+            <div>
+              <div class="row-title">Add your resume <span class="label-opt">(optional)</span></div>
+              <div class="helper-text">Use it to tailor applications to each role.</div>
+            </div>
+          </div>
+
+          <input
+            bind:this={resumeUploadInput}
+            type="file"
+            accept=".txt,.md,.markdown,.pdf,.rtf"
+            class="visually-hidden-input"
+            onchange={handleResumeUpload}
+          />
+
+          {#if resume}
+            <div class="onboarding-resume-file">
+              <div class="onboarding-resume-copy">
+                <div class="onboarding-resume-name">{resume.fileName}</div>
+                <div class="helper-text">{formatFileSize(resume.size)}</div>
+              </div>
+              <div class="onboarding-resume-actions">
+                <button class="btn-secondary btn-mini" type="button" onclick={() => resumeUploadInput?.click()}>
+                  Replace
+                </button>
+                <button class="onboarding-remove" type="button" onclick={removeResume}>Remove</button>
+              </div>
+            </div>
+          {:else}
+            <button
+              class="onboarding-upload"
+              type="button"
+              disabled={resumeUploading}
+              onclick={() => resumeUploadInput?.click()}
+            >
+              {#if resumeUploading}<Spinner />{:else}<UploadSimple size={17} />{/if}
+              Upload resume
+            </button>
+          {/if}
+
+          {#if resumeError}
+            <div class="alert alert-error alert-compact onboarding-alert" role="alert">{resumeError}</div>
+          {/if}
+
+          <button class="btn-primary btn-accent full-width onboarding-step-cta" onclick={() => step = 4}>
+            Continue
+          </button>
         </div>
 
       {:else if step === 4}
         <div class="onboarding-step">
           <h2 class="h-display h-display-lg onboarding-title">Save your progress</h2>
           <p class="onboarding-copy">
-            Create an account so your jobs, profile, preferences, and resume follow you across devices. Totally optional &mdash; as a guest, your data is saved to this app and tied to this browser session until you sign in.
+            Guest mode still works, but you&rsquo;ll only be able to browse jobs. Sign in to save your progress.
           </p>
 
           <label for="onboarding-name" class="field-label onboarding-field-label">
@@ -298,11 +400,12 @@
 
           {#if appleAvailable}
             <button
-              class="btn-primary btn-accent onboarding-apple"
+              class="btn-primary btn-apple onboarding-apple"
               disabled={signingInWithApple}
               onclick={handleAppleLogin}
             >
               {#if signingInWithApple}<Spinner />{/if}
+              <AppleMark />
               Continue with Apple
             </button>
 
@@ -339,7 +442,7 @@
                 onkeydown={(e) => e.key === "Enter" && handleEmailLoginStart()}
               />
               <button
-                class="btn-primary btn-accent full-width"
+                class="btn-secondary full-width"
                 disabled={sendingEmailLogin || !emailLogin.trim()}
                 onclick={handleEmailLoginStart}
               >
@@ -349,8 +452,14 @@
             </div>
           {/if}
 
-          <button type="button" class="onboarding-skip" disabled={saving} onclick={() => void finish()}>
-            {emailLinkSent ? "Continue to pinkslip" : "Maybe later — keep using as guest"}
+          <button
+            type="button"
+            class="btn-primary btn-accent full-width onboarding-enter"
+            disabled={saving}
+            onclick={() => void finish()}
+          >
+            {#if saving}<Spinner />{/if}
+            {emailLinkSent ? "Let’s go!" : "Let me in!"}
           </button>
         </div>
       {/if}
@@ -373,9 +482,37 @@
 
   .onboarding-progress {
     flex-shrink: 0;
-    padding: var(--space-5) var(--space-6) var(--space-2);
+    padding: var(--space-2) var(--space-4) 0;
     background: var(--color-bg);
   }
+
+  .onboarding-progress-row {
+    min-height: var(--tap-min);
+    display: grid;
+    grid-template-columns: var(--tap-min) minmax(0, 1fr) var(--tap-min);
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .onboarding-back,
+  .onboarding-back-spacer {
+    width: var(--tap-min);
+    height: var(--tap-min);
+  }
+
+  .onboarding-back {
+    margin-left: -4px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .onboarding-back:hover { background: var(--color-bg-elev); }
 
   .onboarding-progress-track {
     display: flex;
@@ -394,6 +531,14 @@
     background: var(--color-accent);
   }
 
+  .onboarding-step-count {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    line-height: 1;
+    text-align: right;
+    white-space: nowrap;
+  }
+
   .onboarding-scroll {
     min-height: 0;
     flex: 1;
@@ -407,6 +552,7 @@
   .onboarding-content {
     width: 100%;
     max-width: 360px;
+    margin-block: auto;
   }
 
   .onboarding-step {
@@ -445,16 +591,18 @@
     line-height: 1.55;
   }
 
-  .onboarding-section-label,
   .onboarding-field-label {
     display: block;
     margin-bottom: var(--space-2);
   }
 
   .onboarding-fields,
-  .onboarding-notification-card,
   .onboarding-email-form {
     margin-bottom: var(--space-6);
+  }
+
+  .onboarding-fields-after-title {
+    margin-top: var(--space-6);
   }
 
   .onboarding-alert {
@@ -462,8 +610,89 @@
     font-size: var(--fs-xs);
   }
 
-  .onboarding-notification-note {
-    padding: 0 var(--space-4) 14px;
+  .onboarding-notification-action {
+    margin-bottom: var(--space-3);
+  }
+
+  .onboarding-inline-success {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-good);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+
+  .onboarding-section-divider {
+    margin: var(--space-5) 0;
+  }
+
+  .onboarding-resume-heading {
+    margin-bottom: var(--space-3);
+  }
+
+  .onboarding-upload,
+  .onboarding-resume-file {
+    width: 100%;
+    min-height: 52px;
+    margin-bottom: var(--space-4);
+    border: 1px dashed var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--color-bg-elev) 55%, transparent);
+  }
+
+  .onboarding-upload {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .onboarding-upload:disabled { opacity: 0.55; cursor: default; }
+
+  .onboarding-resume-file {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-style: solid;
+  }
+
+  .onboarding-resume-copy { min-width: 0; }
+  .onboarding-resume-name {
+    overflow: hidden;
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .onboarding-resume-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .onboarding-remove {
+    min-height: 34px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+  }
+
+  .onboarding-step-cta {
+    margin-top: var(--space-2);
   }
 
   .onboarding-name {
@@ -513,20 +742,9 @@
     font-weight: 600;
   }
 
-  .onboarding-skip {
-    width: 100%;
-    min-height: var(--tap-min);
+  .onboarding-enter {
     margin-top: var(--space-3);
-    padding: 10px;
-    border: 0;
-    background: transparent;
-    color: var(--color-ink-3);
-    font-size: var(--fs-sm);
-    cursor: pointer;
   }
-
-  .onboarding-skip:hover { color: var(--color-ink); }
-  .onboarding-skip:disabled { opacity: 0.5; cursor: default; }
 
   @keyframes fade-in {
     from { opacity: 0; transform: translateY(4px); }

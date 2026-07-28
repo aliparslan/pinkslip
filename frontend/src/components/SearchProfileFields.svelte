@@ -8,6 +8,9 @@
     type WorkAuthorization,
     type WorkMode,
   } from "../../../shared/search-profile";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import Check from "phosphor-svelte/lib/Check";
+  import Switch from "./Switch.svelte";
 
   let {
     profile = $bindable(),
@@ -25,16 +28,50 @@
   let excludedTitlesText = $derived(profile.excluded_titles.join(", "));
   let customLocationsText = $derived(profile.custom_locations.join(", "));
 
-  const workModes: Array<{ id: WorkMode; label: string }> = [
+  const workModeOptions: Array<{ id: WorkMode; label: string }> = [
     { id: "remote", label: "Remote" },
     { id: "hybrid", label: "Hybrid" },
     { id: "onsite", label: "On-site" },
   ];
-  const authorizationOptions: Array<{ id: WorkAuthorization; label: string; detail: string }> = [
-    { id: "authorized", label: "Authorized", detail: "No sponsorship needed" },
-    { id: "sponsorship", label: "Need sponsorship", detail: "Prioritize open employers" },
-    { id: "not_sure", label: "Not sure", detail: "Keep options broad" },
+  const authorizationOptions: Array<{ id: WorkAuthorization; label: string }> = [
+    { id: "authorized", label: "Authorized to work in the US" },
+    { id: "sponsorship", label: "I need sponsorship" },
+    { id: "not_sure", label: "I’m not sure" },
   ];
+  let workModePicker: HTMLDetailsElement | null = $state(null);
+  let workModeSummary = $derived(
+    profile.work_modes.length === workModeOptions.length
+      ? "Any work mode"
+      : workModeOptions
+          .filter((option) => profile.work_modes.includes(option.id))
+          .map((option) => option.label)
+          .join(", "),
+  );
+
+  $effect(() => {
+    function closeWorkModePicker(event: PointerEvent) {
+      if (
+        workModePicker?.open
+        && event.target instanceof Node
+        && !workModePicker.contains(event.target)
+      ) {
+        workModePicker.open = false;
+      }
+    }
+
+    function closeWorkModePickerWithEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !workModePicker?.open) return;
+      workModePicker.open = false;
+      workModePicker.querySelector<HTMLElement>("summary")?.focus();
+    }
+
+    document.addEventListener("pointerdown", closeWorkModePicker);
+    document.addEventListener("keydown", closeWorkModePickerWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeWorkModePicker);
+      document.removeEventListener("keydown", closeWorkModePickerWithEscape);
+    };
+  });
 
   function parseList(value: string): string[] {
     return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
@@ -60,7 +97,9 @@
       ...profile,
       work_modes: selected
         ? profile.work_modes.filter((item) => item !== mode)
-        : [...profile.work_modes, mode],
+        : workModeOptions
+            .map((option) => option.id)
+            .filter((item) => item === mode || profile.work_modes.includes(item)),
     };
   }
 
@@ -95,7 +134,6 @@
           onclick={() => toggleRole(role.id)}
         >
           <span>{role.label}</span>
-          <span class="choice-check">{profile.roles.includes(role.id) ? "✓" : ""}</span>
         </button>
       {/each}
     </div>
@@ -136,9 +174,9 @@
       <div>
         <div class="profile-field-title">Experience level</div>
         <div class="profile-field-help">
-          pinkslip only tracks new-grad and early-career roles &mdash; anything asking
-          for more than 3 years, plus senior, staff and management titles, is filtered
-          out. Postings that don't state a requirement are kept.
+          Your feed is limited to new-grad and early-career roles. Jobs asking for
+          more than 3 years&mdash;or using senior, staff, or management titles&mdash;are
+          filtered out. Jobs without a stated requirement stay in.
         </div>
       </div>
     </div>
@@ -151,44 +189,73 @@
       <div class="profile-field-heading">
         <div>
           <div class="profile-field-title">Location and work eligibility</div>
-          <div class="profile-field-help">This prevents attractive but unusable matches.</div>
+          <div class="profile-field-help">Only show roles you can actually take.</div>
         </div>
       </div>
     {/if}
 
     <div class="subfield">
       <div class="subfield-label">US work authorization</div>
-      <div class="authorization-grid">
-        {#each authorizationOptions as option}
-          <button
-            type="button"
-            class="choice-card work-mode"
-            class:active={profile.work_authorization === option.id}
-            aria-pressed={profile.work_authorization === option.id}
-            onclick={() => profile = { ...profile, work_authorization: option.id }}
-          >
-            <strong>{option.label}</strong>
-            <small>{option.detail}</small>
-          </button>
-        {/each}
+      <div class="select-field-wrap">
+        <select
+          class="input-field tall-control"
+          value={profile.work_authorization}
+          onchange={(event) => profile = {
+            ...profile,
+            work_authorization: event.currentTarget.value as WorkAuthorization,
+          }}
+        >
+          {#each authorizationOptions as option}
+            <option value={option.id}>{option.label}</option>
+          {/each}
+        </select>
+        <span class="select-chevron"><CaretDown size={15} weight="bold" /></span>
       </div>
     </div>
 
     <div class="subfield">
       <div class="subfield-label">Work mode</div>
-      <div class="work-mode-grid">
-        {#each workModes as mode}
-          <button
-            type="button"
-            class="choice-card work-mode"
-            class:active={profile.work_modes.includes(mode.id)}
-            aria-pressed={profile.work_modes.includes(mode.id)}
-            onclick={() => toggleWorkMode(mode.id)}
-          >
-            <strong>{mode.label}</strong>
-          </button>
-        {/each}
+      <details
+        bind:this={workModePicker}
+        class="work-mode-picker"
+      >
+        <summary class="work-mode-trigger">
+          <span>{workModeSummary || "Choose work modes"}</span>
+          <span class="work-mode-chevron" aria-hidden="true">
+            <CaretDown size={15} weight="bold" />
+          </span>
+        </summary>
+        <div class="work-mode-menu" aria-label="Work modes">
+          {#each workModeOptions as option}
+            <button
+              type="button"
+              class="work-mode-option"
+              class:active={profile.work_modes.includes(option.id)}
+              aria-pressed={profile.work_modes.includes(option.id)}
+              onclick={() => toggleWorkMode(option.id)}
+            >
+              <span>{option.label}</span>
+              <span class="work-mode-check" aria-hidden="true">
+                {#if profile.work_modes.includes(option.id)}
+                  <Check size={14} weight="bold" />
+                {/if}
+              </span>
+            </button>
+          {/each}
+        </div>
+      </details>
+    </div>
+
+    <div class="anywhere-row">
+      <div>
+        <div class="anywhere-title">Open to anywhere</div>
+        <div class="anywhere-help">Include roles outside your preferred metros.</div>
       </div>
+      <Switch
+        checked={profile.relocation_willing}
+        onCheckedChange={(value) => profile = { ...profile, relocation_willing: value }}
+        aria-label="Open to anywhere"
+      />
     </div>
 
     <div class="subfield">
@@ -206,19 +273,7 @@
           </button>
         {/each}
       </div>
-      <small class="empty-help">Leave metros empty to include any US location that fits your work mode.</small>
     </div>
-
-    <button
-      type="button"
-      class="relocation-row"
-      class:active={profile.relocation_willing}
-      aria-pressed={profile.relocation_willing}
-      onclick={() => profile = { ...profile, relocation_willing: !profile.relocation_willing }}
-    >
-      <strong>Open to relocation</strong>
-      <span class="choice-check">{profile.relocation_willing ? "✓" : ""}</span>
-    </button>
 
     {#if showAdvanced}
       <details class="advanced-fields">
@@ -244,40 +299,105 @@
   .profile-field-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .profile-field-title { font-size: var(--fs-base); font-weight: 600; color: var(--color-ink); }
   .profile-field-help { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.4; }
-  .selection-count { flex-shrink: 0; color: var(--color-accent); font-family: var(--font-mono); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
+  .selection-count { flex-shrink: 0; color: var(--color-ink-3); font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 600; }
   .choice-grid { display: grid; gap: 8px; }
   .role-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-  .choice-card, .location-chip, .relocation-row {
+  .choice-card, .location-chip {
     border: 1px solid var(--color-line-2);
-    background: var(--color-bg-sunken);
+    background: var(--color-bg-elev);
     color: var(--color-ink-2);
     font-family: inherit;
     cursor: pointer;
     transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
   }
   .choice-card { min-height: 48px; padding: 10px 12px; border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 600; }
-  .role-card { min-height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-full); }
-  .role-card .choice-check { width: auto; }
+  .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
-  .choice-card.active, .location-chip.active, .relocation-row.active {
+  .choice-card.active, .location-chip.active {
     border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
     background: var(--color-accent-soft);
     color: var(--color-accent-soft-ink);
   }
   .subfield { display: flex; flex-direction: column; gap: 8px; }
   .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
-  .choice-check { width: 18px; color: var(--color-accent); font-weight: 800; text-align: center; }
-  .authorization-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .work-mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .work-mode-picker { position: relative; }
+  .work-mode-trigger {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elev);
+    color: var(--color-ink);
+    font-size: var(--fs-md);
+    cursor: pointer;
+    list-style: none;
+  }
+  .work-mode-trigger::-webkit-details-marker { display: none; }
+  .work-mode-chevron {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: var(--color-ink-3);
+    transition: transform 140ms ease;
+  }
+  .work-mode-picker[open] .work-mode-chevron { transform: rotate(180deg); }
+  .work-mode-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 8;
+    padding: 5px;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elev);
+    box-shadow: 0 14px 36px rgb(0 0 0 / 18%);
+  }
+  .work-mode-option {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-ink-2);
+    font-size: var(--fs-md);
+    text-align: left;
+    cursor: pointer;
+  }
+  .work-mode-option:hover { background: var(--color-bg-sunken); }
+  .work-mode-option.active { color: var(--color-ink); }
+  .work-mode-check {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-xs);
+    color: var(--color-accent-soft-ink);
+  }
+  .work-mode-option.active .work-mode-check {
+    border-color: color-mix(in oklch, var(--color-accent) 34%, var(--color-line-2));
+    background: color-mix(in oklch, var(--color-accent) 9%, var(--color-bg-elev));
+  }
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
-  .relocation-row { width: 100%; min-height: 44px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-radius: var(--radius-full); color: var(--color-ink-2); font-size: var(--fs-sm); text-align: left; }
+  .anywhere-row { min-height: 52px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .anywhere-title { color: var(--color-ink); font-size: var(--fs-sm); font-weight: 600; }
+  .anywhere-help { margin-top: 2px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.35; }
   .advanced-fields { border-top: 0.5px solid var(--color-line); padding-top: 12px; }
-  .advanced-fields summary { cursor: pointer; color: var(--color-ink-3); font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600; }
+  .advanced-fields summary { cursor: pointer; color: var(--color-ink-3); font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 600; }
   .advanced-body { display: flex; flex-direction: column; gap: 13px; padding-top: 13px; }
   .advanced-body label { display: flex; flex-direction: column; gap: 6px; color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 600; }
   .advanced-body small { color: var(--color-ink-4); font-size: var(--fs-2xs); font-weight: 400; line-height: 1.4; }
-  @media (max-width: 430px) {
-    .authorization-grid { grid-template-columns: 1fr; }
-  }
 </style>

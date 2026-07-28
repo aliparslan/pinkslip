@@ -6,6 +6,7 @@
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../../lib/native-auth";
   import Modal from "../../components/Modal.svelte";
   import Spinner from "../../components/Spinner.svelte";
+  import AppleMark from "../../components/AppleMark.svelte";
 
   let {
     sessionState,
@@ -118,22 +119,22 @@
     {:else}
       <div class="split-row start">
         <div class="flex-fill">
-          <div class="row-title">Using pinkslip as guest on this device</div>
+          <div class="row-title">Browsing as a guest</div>
           <div class="helper-text account-explainer">
-            Create an account to sync your jobs, profile, and resume across devices.
+            Sign in to sync your jobs, preferences, and resume across devices.
           </div>
         </div>
-        <span class="tag">guest</span>
       </div>
 
       {#if isNativeIosAuthAvailable()}
         <button
-          class="btn-primary btn-accent"
+          class="btn-primary btn-apple full-width"
           type="button"
           onclick={handleAppleLogin}
           disabled={signingInWithApple}
         >
           {#if signingInWithApple}<Spinner />{/if}
+          <AppleMark />
           Continue with Apple
         </button>
       {/if}
@@ -159,7 +160,7 @@
         </button>
       </div>
 
-      <button class="btn-secondary" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
+      <button class="text-button" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
         Restart onboarding
       </button>
     {/if}

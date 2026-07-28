@@ -178,6 +178,11 @@ export async function loadUserPreferenceState(db: D1Database, userId: string): P
   return legacy;
 }
 
+export function defaultUserPreferenceState(): UserPreferenceState {
+  const searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
+  return { search_profile: searchProfile, notify_threshold: searchProfile.match_threshold };
+}
+
 export function scoringPrefsFromState(state: UserPreferenceState): ScoringPrefs {
   const experience = profileExperienceRange(state.search_profile);
   return {

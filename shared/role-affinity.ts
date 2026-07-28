@@ -8,6 +8,7 @@ const RELATED_ROLES: Record<RoleId, readonly RoleId[]> = {
   mobile: ["frontend", "software_engineering", "full_stack"],
   data_engineering: ["backend", "infrastructure", "machine_learning", "software_engineering"],
   machine_learning: ["data_engineering", "backend", "software_engineering"],
+  research: [],
   infrastructure: ["backend", "security", "data_engineering", "software_engineering"],
   security: ["infrastructure", "backend", "software_engineering"],
 };

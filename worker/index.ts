@@ -23,6 +23,10 @@ import resumeAssetRoutes from "./routes/resume-assets";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
 import { runPollCycle } from "./poller";
+import {
+  defaultUserPreferenceState,
+  loadUserPreferenceState,
+} from "./user-preferences";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -68,6 +72,20 @@ app.use("/*", async (c, next) => {
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+
+function appFeatures(env: Env) {
+  const geminiEnabled = Boolean(env.GEMINI_API_KEY?.trim());
+  const anthropicEnabled = Boolean(env.ANTHROPIC_API_KEY?.trim());
+  const tailoringProvider = geminiEnabled ? "gemini" : anthropicEnabled ? "anthropic" : null;
+  return {
+    access_required: Boolean(env.ACCESS_CODE?.trim()),
+    tailoring_enabled: geminiEnabled || anthropicEnabled,
+    tailoring_provider: tailoringProvider,
+    tailoring_model: tailoringProvider === "anthropic"
+      ? env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL
+      : env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
+  };
+}
 
 app.post("/api/access", async (c) => {
   const accessCode = c.env.ACCESS_CODE?.trim();
@@ -196,20 +214,23 @@ app.get("/api/logo", async (c) => {
   });
 });
 app.get("/api/me", async (c) => {
-  const geminiEnabled = Boolean(c.env.GEMINI_API_KEY?.trim());
-  const anthropicEnabled = Boolean(c.env.ANTHROPIC_API_KEY?.trim());
-  const tailoringProvider = geminiEnabled ? "gemini" : anthropicEnabled ? "anthropic" : null;
   const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
   return c.json({
     ...accountState,
-    features: {
-      access_required: Boolean(c.env.ACCESS_CODE?.trim()),
-      tailoring_enabled: geminiEnabled || anthropicEnabled,
-      tailoring_provider: tailoringProvider,
-      tailoring_model: tailoringProvider === "anthropic"
-        ? c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL
-        : c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
-    },
+    features: appFeatures(c.env),
+  });
+});
+app.get("/api/bootstrap", async (c) => {
+  const sessionState = c.get("sessionState");
+  const [accountState, preferences] = await Promise.all([
+    buildAccountState(c.env.DB, c.get("userId"), sessionState),
+    sessionState === "anonymous"
+      ? Promise.resolve(defaultUserPreferenceState())
+      : loadUserPreferenceState(c.env.DB, c.get("userId")),
+  ]);
+  return c.json({
+    me: { ...accountState, features: appFeatures(c.env) },
+    preferences,
   });
 });
 app.patch("/api/me", async (c) => {

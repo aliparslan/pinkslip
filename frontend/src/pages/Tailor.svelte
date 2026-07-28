@@ -38,7 +38,7 @@
   const outputTabs: { id: TabId; label: string }[] = [
     { id: "resume", label: "Resume" },
     { id: "cover", label: "Cover" },
-    { id: "qa", label: "QA" },
+    { id: "qa", label: "Interview" },
   ];
 
   let loading = $state(true);
@@ -351,7 +351,7 @@
       return "Regenerating creates a new version. Your current edits are saved first so you can come back to them.";
     }
     return localResumeText
-      ? "Generate a fresh version from your browser-local resume and this job?"
+      ? "Generate a fresh version from your uploaded resume and this job?"
       : "Generate a fresh version from your profile and this job?";
   });
 
@@ -457,7 +457,8 @@
       <div class="content-card stack-md">
         <h2 class="h-display h-display-sm">Sign in for included tailoring</h2>
         <p class="body-copy">
-          The included AI quota is available to signed-in accounts so it can be protected fairly. You can also add your own Gemini key and keep using tailoring as a guest.
+          Included tailoring is available after sign-in. Or add your own Gemini key
+          to keep tailoring as a guest.
         </p>
         <div class="button-cluster card-actions">
           <button class="btn-primary btn-accent" onclick={() => navigate("/you/account")}>
@@ -471,8 +472,8 @@
       <div class="content-card stack-md">
         <h2 class="h-display h-display-sm">Set up tailoring</h2>
         <p class="body-copy">
-          Tailoring writes a resume, cover letter, and interview prep for this exact job.
-          It needs a free Gemini API key — adding yours takes about two minutes:
+          Tailoring creates a resume, cover letter, and interview prep for this job.
+          Add a free Gemini API key to get started:
         </p>
         <ol class="ordered-steps">
           <li>Grab a free key from Google AI Studio.</li>
@@ -534,15 +535,15 @@
       </div>
 
       <div class="stat-row tailor-meta">
-        <span>{localResumeText ? "browser-local resume" : localKit?.apiKey.trim() ? "your profile + your key" : "your profile"}</span>
+        <span>{localResumeText ? "Using uploaded resume" : "Using resume profile"}</span>
         {#if streaming}
-          <span>streaming live</span>
+          <span>Writing…</span>
         {/if}
         {#if saving}
-          <span class="loading-label"><Spinner size={12} /> saving edits</span>
+          <span class="loading-label"><Spinner size={12} /> Saving edits…</span>
         {/if}
         {#if tokenSummary}
-          <span>{tokenSummary.input} in / {tokenSummary.output} out</span>
+          <span>{tokenSummary.input} input · {tokenSummary.output} output tokens</span>
         {/if}
         {#if activeModel}
           <span>{activeModel}</span>

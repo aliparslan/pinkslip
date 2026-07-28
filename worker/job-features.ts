@@ -9,7 +9,7 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-export const JOB_CLASSIFIER_VERSION = "deterministic-v5";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v6";
 
 export interface JobFeatures {
   role_family: RoleFamily;

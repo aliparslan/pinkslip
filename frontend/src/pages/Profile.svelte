@@ -476,7 +476,7 @@
               <span class="you-settings-row-icon"><ChatCircleDots size={18} /></span>
               <span class="you-settings-row-copy">
                 <strong>Help and feedback</strong>
-                <small>Ideas, problems, and support</small>
+                <small>Ideas and support</small>
               </span>
               <button
                 class="btn-secondary you-inline-action"

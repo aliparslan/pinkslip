@@ -198,7 +198,7 @@
 </script>
 
 <div class="page pushed-screen">
-  <ScreenNav title="Resume profile" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+  <ScreenNav title="Resume" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame">
     <div class="page-toolbar">
         <span class="save-state" role="status" aria-live="polite">
@@ -462,7 +462,7 @@
   .field > span { font-size: 11px; font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
   .field.span-2, .span-2 { grid-column: 1 / -1; }
 
-  .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-bg-sunken); overflow: hidden; height: 40px; }
+  .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-bg-elev); overflow: hidden; height: 40px; }
   .input-prefix { padding: 0 0 0 12px; font-size: 12px; color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
   .input-field.prefixed { border: none; background: transparent; border-radius: 0; padding-left: 2px; height: 100%; }
 

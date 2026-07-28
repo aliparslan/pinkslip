@@ -53,8 +53,8 @@
 
   const YOE_OPTIONS = [
     { label: "Any", value: "" },
-    { label: "0-1", value: "1" },
-    { label: "0-3", value: "3" },
+    { label: "0–1 yr", value: "1" },
+    { label: "0–3 yrs", value: "3" },
   ];
 
   // Mirrors MAX_POSTED_AGE_DAYS in worker/routes/jobs.ts — the server always
@@ -564,7 +564,7 @@
         <div bind:this={loadMoreSentinel} class="feed-sentinel"></div>
       {:else}
         <div class="feed-end">
-          -- End of feed, go touch grass --
+          You&rsquo;re all caught up. Go touch grass.
         </div>
       {/if}
     {/if}
@@ -668,9 +668,8 @@
                 {/each}
               </div>
               <p class="filter-group-hint">
-                Dated roles are always limited to the last {MAX_POSTED_AGE_DAYS} days.
-                Undated roles come from boards that list a job only while it is
-                genuinely open.
+                Dated posts show the last {MAX_POSTED_AGE_DAYS} days. Undated posts
+                stay while their source lists them.
               </p>
             </section>
 

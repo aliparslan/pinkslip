@@ -20,9 +20,9 @@ import { loadUserPreferenceState, scoringPrefsFromState } from "./user-preferenc
 import { closestSelectedRole, roleAffinity } from "../shared/role-affinity";
 
 // Bump whenever scoring semantics change so cached user_job_matches are rebuilt.
-// v7 removes primary-role weighting and the deferred product/program/design
-// specialties while keeping relevance ranking as an internal concern.
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-7";
+// v8 keeps unrelated classified specialties out of a user's feed while still
+// allowing explicit overlaps such as Research Software Engineer → SWE + Research.
+export const MATCH_SCORER_VERSION = "profile-v2-deterministic-8";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -156,7 +156,9 @@ export function scoreJobForProfile(
         ? 27
         : strongestRoleAffinity > 0
           ? 22
-          : base.title_score;
+          : features.specialties.length > 0
+            ? 0
+            : base.title_score;
   // Seniority is a fixed band, not a comparison against the user's selection.
   // The old form was `featureRank > Math.max(...target_levels) + allowance`,
   // which enforced a ceiling and no floor: selecting "Senior" alongside "Early

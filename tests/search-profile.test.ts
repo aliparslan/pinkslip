@@ -203,6 +203,39 @@ describe("job features and match explanations", () => {
     expect(match.reasons).toContain("Asks for 2+ years");
   });
 
+  test("separates research roles while preserving real SWE overlap", () => {
+    const hybridListing = job({
+      title: "Research Software Engineer",
+      department: "Research",
+      description: "Build evaluation systems for an applied research team.",
+    });
+    const researchListing = job({
+      title: "Research Scientist",
+      department: "Research",
+      description: "Develop new model evaluation methods.",
+    });
+    const hybridFeatures = classifyJob(hybridListing);
+    const researchFeatures = classifyJob(researchListing);
+    const softwareProfile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["software_engineering"],
+      location_ids: [],
+    });
+    const researchProfile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["research"],
+      primary_role: "research",
+      location_ids: [],
+    });
+
+    expect(hybridFeatures.specialties).toEqual(["software_engineering", "research"]);
+    expect(scoreJobForProfile("hybrid-job", hybridListing, hybridFeatures, softwareProfile).plausible).toBe(true);
+    expect(scoreJobForProfile("hybrid-job", hybridListing, hybridFeatures, researchProfile).plausible).toBe(true);
+    expect(researchFeatures.specialties).toEqual(["research"]);
+    expect(scoreJobForProfile("research-job", researchListing, researchFeatures, softwareProfile).plausible).toBe(false);
+    expect(scoreJobForProfile("research-job", researchListing, researchFeatures, researchProfile).plausible).toBe(true);
+  });
+
   test("does not retain a role beyond the selected stretch tolerance", () => {
     const listing = job({
       title: "Backend Engineer, Devices",

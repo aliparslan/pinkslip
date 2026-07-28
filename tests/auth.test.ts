@@ -116,6 +116,10 @@ function appWith(db: D1Database) {
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
+  app.get("/api/bootstrap", (c) => c.json({
+    userId: c.get("userId"),
+    sessionState: c.get("sessionState"),
+  }));
   app.post("/api/whoami", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
@@ -176,6 +180,18 @@ describe("authMiddleware", () => {
     const app = appWith(db);
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/me"),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: "", sessionState: "anonymous" });
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("allows the combined bootstrap read without creating a session", async () => {
+    const db = fakeDb({});
+    const app = appWith(db);
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/bootstrap"),
       ENV(db)
     );
     expect(res.status).toBe(200);

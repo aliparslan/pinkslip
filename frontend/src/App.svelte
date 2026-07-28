@@ -4,6 +4,7 @@
   import { api, ApiError } from "./lib/api";
   import { attachMagicLinkHandler } from "./lib/native-auth";
   import { syncSessionAccess } from "./lib/session-access";
+  import { loadLocalTailorKit } from "./lib/local-tailor";
   import { hapticLight } from "./lib/haptics";
   import { registerBackHandler } from "./lib/nav-back";
   import type { Component } from "svelte";
@@ -262,10 +263,7 @@
     showAccessGate = false;
 
     try {
-      const [res, preferences] = await Promise.all([
-        api.me.get(),
-        api.preferences.get(),
-      ]);
+      const { me: res, preferences } = await api.bootstrap.get();
       if (gen !== bootGen) return;
       syncSessionAccess(res);
       userName = res.user?.name ?? "";
@@ -314,6 +312,16 @@
   async function completeMagicLinkSignIn(token: string) {
     try {
       await api.auth.verifyEmailToken(token);
+      const resume = loadLocalTailorKit().resume;
+      if (resume) {
+        await api.resumeAssets.upload({
+          fileName: resume.fileName,
+          mimeType: resume.mimeType,
+          size: resume.size,
+          dataUrl: resume.dataUrl,
+          extractedText: resume.textContent,
+        }).catch(() => undefined);
+      }
       // Re-fetch with the new authenticated cookie. This bumps bootGen, so the
       // initial guest bootstrap can't overwrite the signed-in state if it lands late.
       await bootstrapSession();

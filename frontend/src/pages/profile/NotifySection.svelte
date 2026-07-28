@@ -40,11 +40,11 @@
   }
 
   async function sendTest(delaySeconds: number) {
-    testingNotif = delaySeconds > 0 ? `Sending in ${delaySeconds}s...` : "Sending...";
+    testingNotif = delaySeconds > 0 ? `Sending in ${delaySeconds} seconds…` : "Sending…";
     try {
       const res = await api.push.test(delaySeconds);
       testingNotif = null;
-      onSuccess(`Sent to ${res.sent} device(s)`);
+      onSuccess(res.sent > 0 ? "Test notification sent." : "No registered device received the test.");
     } catch (e) {
       testingNotif = null;
       onError(errorMessage(e));
@@ -58,7 +58,7 @@
     <div class="grouped-row">
       <div class="grouped-row-copy">
         <div class="row-title">Job alerts</div>
-        <div class="helper-text">Master switch for personalized alerts</div>
+        <div class="helper-text">Pause or resume all job alerts</div>
       </div>
       <Switch
         checked={notificationEnabled}
@@ -74,8 +74,8 @@
         <div class="helper-text">Get notified about relevant new jobs</div>
       </div>
       <div class="field-action">
-        <span class="mono-value" class:good={pushStatus === "enabled"} class:quiet={pushStatus !== "enabled"}>
-          {pushStatus}
+        <span class="setting-status" class:good={pushStatus === "enabled"}>
+          {pushStatus === "enabled" ? "On" : "Off"}
         </span>
         {#if pushStatus !== "enabled"}
           <button
@@ -90,22 +90,33 @@
       </div>
     </div>
 
-    <!-- Test notifications -->
-    <div class="grouped-row grouped-row-block">
-      <div class="row-title grouped-row-heading">Test notifications</div>
-      {#if testingNotif}
-        <div class="alert alert-accent mono-value grouped-row-alert" role="status" aria-live="polite">
-          {testingNotif}
+    {#if pushStatus === "enabled"}
+      <div class="grouped-row">
+        <div class="grouped-row-copy">
+          <div class="row-title">Test notification</div>
+          <div class="helper-text" role="status" aria-live="polite">
+            {testingNotif ?? "Make sure alerts reach this device"}
+          </div>
         </div>
-      {/if}
-      <div class="action-grid">
-        <button type="button" class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(0)}>
-          Send now
-        </button>
-        <button type="button" class="btn-secondary" disabled={!!testingNotif} onclick={() => sendTest(5)}>
-          Send in 5s
-        </button>
+        <div class="button-cluster">
+          <button type="button" class="btn-secondary btn-mini" disabled={!!testingNotif} onclick={() => sendTest(0)}>
+            Send now
+          </button>
+          <button type="button" class="btn-secondary btn-mini" disabled={!!testingNotif} onclick={() => sendTest(5)}>
+            In 5 seconds
+          </button>
+        </div>
       </div>
-    </div>
+    {/if}
   </div>
 </section>
+
+<style>
+  .setting-status {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
+
+  .setting-status.good { color: var(--color-good); }
+</style>
