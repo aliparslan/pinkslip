@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { fly } from "svelte/transition";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { api, type Job } from "../lib/api";
@@ -10,6 +9,9 @@
   import { feed } from "../lib/feed-store.svelte";
   import { sessionAccess } from "../lib/session-access";
   import { markViewed } from "../lib/viewed";
+  import { feedback } from "../lib/feedback.svelte";
+  import { applicationIntent } from "../lib/application-intent.svelte";
+  import { presentPending } from "../lib/task-presentation.svelte";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
@@ -38,11 +40,11 @@
   let job = $state<Job | null>(null);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
-  let toastMsg: string | null = $state(null);
   let dismissing: boolean = $state(false);
   let saved: boolean = $state(false);
   let applied: boolean = $state(false);
   let applying: boolean = $state(false);
+  let applyingPending: boolean = $state(false);
   let showBlockConfirm: boolean = $state(false);
   let showMore: boolean = $state(false);
   let blocking: boolean = $state(false);
@@ -52,11 +54,9 @@
   let reportType: string = $state("incorrect_details");
   let reportNotes: string = $state("");
   let reporting: boolean = $state(false);
-  let reportSent: boolean = $state(false);
   let openedJobId: string | null = null;
   let descriptionRefreshTimer: number | null = null;
   let descriptionRefreshAttempts = 0;
-  let toastTimer: number | null = null;
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
 
@@ -65,15 +65,6 @@
       window.clearTimeout(descriptionRefreshTimer);
       descriptionRefreshTimer = null;
     }
-  }
-
-  function showToast(message: string) {
-    toastMsg = message;
-    if (toastTimer !== null) window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => {
-      toastMsg = null;
-      toastTimer = null;
-    }, 2500);
   }
 
   function removeFromFeedStore(id: string) {
@@ -114,6 +105,9 @@
           descriptionRefreshAttempts += 1;
           await loadJobDetail(true);
         }, nextJob.content_refresh_after_ms ?? 1500);
+      } else if (descriptionPending) {
+        descriptionPending = false;
+        clearDescriptionRefreshTimer();
       } else if (!descriptionPending) {
         clearDescriptionRefreshTimer();
       }
@@ -140,21 +134,39 @@
 
   onDestroy(() => {
     clearDescriptionRefreshTimer();
-    if (toastTimer !== null) window.clearTimeout(toastTimer);
   });
 
   async function markApplied() {
     if (!jobId || !job || applying || applied) return;
     applying = true;
     try {
-      await api.jobs.markApplied(jobId);
+      await presentPending(
+        () => api.jobs.markApplied(jobId),
+        (pending) => { applyingPending = pending; },
+      );
       applied = true;
       removeFromFeedStore(jobId);
-      showToast("Added to applied jobs ✓");
+      feedback.success("Added to applied jobs");
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not mark this job as applied."));
     } finally {
       applying = false;
+      applyingPending = false;
+    }
+  }
+
+  async function openApplication() {
+    if (!job?.url) return;
+    void api.interactions.event({
+      event_name: "apply_clicked",
+      entity_type: "job",
+      entity_id: jobId ?? undefined,
+      properties: {},
+    }).catch(() => undefined);
+    try {
+      await applicationIntent.open(job);
+    } catch (e) {
+      feedback.error(errorMessage(e, "Could not open the application page."));
     }
   }
 
@@ -166,7 +178,7 @@
       removeFromFeedStore(jobId);
       navigate("/");
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not dismiss this job."));
       dismissing = false;
     }
   }
@@ -194,7 +206,7 @@
       }
     } catch (e) {
       saved = !newVal;
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not update your saved jobs."));
     }
   }
 
@@ -206,7 +218,7 @@
       removeFromFeedStore(jobId);
       navigate("/");
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not block this job."));
       blocking = false;
     }
   }
@@ -219,7 +231,7 @@
       feed.jobs = feed.jobs.filter((item) => item.company_id !== job?.company_id);
       navigate("/");
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not hide this company."));
       hidingCompany = false;
     }
   }
@@ -233,14 +245,11 @@
         report_type: reportType,
         notes: reportNotes,
       });
-      reportSent = true;
-      window.setTimeout(() => {
-        showReport = false;
-        reportSent = false;
-        reportNotes = "";
-      }, 1000);
+      showReport = false;
+      reportNotes = "";
+      feedback.success("Report sent. Thanks for helping keep listings accurate.");
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not send that report."));
     } finally {
       reporting = false;
     }
@@ -256,6 +265,11 @@
   let displaySalary = $derived(normalizeSalaryText(
     job?.salary?.trim() ? job.salary : extractedSalary
   ));
+  let matchReasons = $derived(
+    job?.match_reasons
+      ?.filter((reason) => reason.toLowerCase() !== "new today")
+      .slice(0, 4) ?? []
+  );
   let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description, {
     title: job.title,
     companyName: job.company_name,
@@ -327,20 +341,17 @@
     {/snippet}
   </ScreenNav>
 
-  {#if toastMsg}
-    <div class="toast-wrap" role="status" aria-live="polite">
-      <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
-        {toastMsg}
-      </div>
-    </div>
-  {/if}
-
   <div class="screen-content job-detail-content">
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
-      <div class="alert alert-error" role="alert">
-        {error}
+      <div class="job-detail-error" role="alert">
+        <h1 class="h-display h-display-sm">This job didn&rsquo;t load</h1>
+        <p>{error.toLowerCase().includes("not found") ? "The listing may have been removed since the alert was sent." : "Check your connection and try once more."}</p>
+        <div class="button-cluster">
+          <button class="btn-primary btn-accent" onclick={() => void loadJobDetail()}>Try again</button>
+          <button class="btn-secondary" onclick={() => { if (!requestBack()) navigate("/"); }}>Back to jobs</button>
+        </div>
       </div>
     {:else if job}
       <!-- Company + Title header -->
@@ -377,13 +388,24 @@
         {/if}
       </div>
 
+      {#if matchReasons.length}
+        <section class="job-match-panel" aria-labelledby="job-match-heading">
+          <h2 id="job-match-heading">Why it matches</h2>
+          <ul>
+            {#each matchReasons as reason}
+              <li><span aria-hidden="true"></span>{reason}</li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+
       <div class="job-state-actions">
           <button
             class="btn-secondary btn-action"
             disabled={applied || applying}
             onclick={markApplied}
           >
-            {#if applying}<Spinner />{:else}<CheckCircle size={16} />{/if}
+            {#if applyingPending}<Spinner />{:else}<CheckCircle size={16} />{/if}
             {applied ? "Applied ✓" : "I applied"}
           </button>
           <button
@@ -458,7 +480,7 @@
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div class="button-cluster">
-            <button class="btn-secondary btn-mini" onclick={() => void loadJobDetail(true)}>
+            <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
               Try again
             </button>
             {#if job.url}
@@ -483,23 +505,14 @@
   <div class="job-action-bar-wrap">
     <div class="job-action-bar">
       {#if job.url}
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           class="btn-primary btn-accent btn-action button-link"
-          onclick={() => {
-            void api.interactions.event({
-              event_name: "apply_clicked",
-              entity_type: "job",
-              entity_id: jobId ?? undefined,
-              properties: {},
-            }).catch(() => undefined);
-          }}
+          onclick={openApplication}
         >
           <ArrowSquareOut size={18} weight="regular" />
           Apply
-        </a>
+        </button>
       {:else}
         <button class="btn-primary btn-accent btn-action" disabled>
           <ArrowSquareOut size={18} weight="regular" />
@@ -516,6 +529,62 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .job-detail-error {
+    padding: 44px 4px;
+  }
+
+  .job-detail-error p {
+    max-width: 34ch;
+    margin: 8px 0 18px;
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+
+  .job-match-panel {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
+  }
+
+  .job-match-panel h2 {
+    margin: 0 0 var(--space-2);
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .job-match-panel ul {
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-2);
+    list-style: none;
+  }
+
+  .job-match-panel li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    line-height: 1.35;
+  }
+
+  .job-match-panel li span {
+    width: 5px;
+    height: 5px;
+    flex: none;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    transform: translateY(-2px);
+  }
+</style>
 
 {#if showReport}
   <Modal
@@ -540,9 +609,9 @@
       ></textarea>
       <div class="action-row">
         <button class="btn-secondary" onclick={() => { showReport = false; }} disabled={reporting}>Cancel</button>
-        <button class="btn-primary btn-accent flex-fill" onclick={submitReport} disabled={reporting || reportSent}>
+        <button class="btn-primary btn-accent flex-fill" onclick={submitReport} disabled={reporting}>
           {#if reporting}<Spinner />{/if}
-          {reportSent ? "Reported" : "Send report"}
+          Send report
         </button>
       </div>
     </div>

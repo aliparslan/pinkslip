@@ -51,6 +51,11 @@
     job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
   ));
   let displayLocation = $derived(formatJobLocation(job.location));
+  let matchReason = $derived(
+    job.match_reasons?.find((reason) => reason.toLowerCase() !== "new today")
+      ?? job.match_reasons?.[0]
+      ?? null
+  );
   let isFresh = $derived(
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
   );
@@ -214,7 +219,7 @@
         <span class="job-row__dot">·</span>
         <span class="job-row__time">{contextLabel ?? timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
         {#if !contextLabel && !viewed && isFresh}
-          <span class="job-row__new">NEW</span>
+          <span class="job-row__new" aria-label="New job" title="New job"></span>
         {/if}
       </div>
       <div class="job-row__title">{job.title}</div>
@@ -229,6 +234,12 @@
           {#if displaySalary}
             <span class="job-row__salary">{displaySalary}</span>
           {/if}
+        </div>
+      {/if}
+      {#if matchReason}
+        <div class="job-row__reason">
+          <span aria-hidden="true"></span>
+          {matchReason}
         </div>
       {/if}
     </div>
@@ -270,18 +281,20 @@
     font-size: var(--fs-2xs);
     color: var(--color-ink-3);
   }
-  .job-row__company { flex-shrink: 0; font-weight: 600; color: var(--color-ink); }
+  .job-row__company { flex-shrink: 0; font-weight: 500; color: var(--color-ink); }
   .job-row__dot { flex-shrink: 0; opacity: 0.4; }
   .job-row__time { flex-shrink: 0; }
   .job-row__new {
-    flex-shrink: 0;
-    color: var(--color-accent);
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-soft);
   }
   .job-row__title {
     font-size: var(--fs-base);
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.25;
     letter-spacing: -0.01em;
     color: var(--color-ink);
@@ -306,6 +319,27 @@
     text-overflow: ellipsis;
   }
   .job-row__salary { flex-shrink: 0; }
+  .job-row__reason {
+    min-width: 0;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .job-row__reason > span {
+    width: 4px;
+    height: 4px;
+    flex: none;
+    border-radius: var(--radius-full);
+    background: var(--color-ink-4);
+  }
   .swipe-actions {
     position: absolute;
     inset: 0;
@@ -325,8 +359,8 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
+    font-size: var(--fs-2xs);
+    font-weight: 500;
     letter-spacing: 0.02em;
     background: var(--color-bg-sunken);
   }

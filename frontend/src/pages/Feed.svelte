@@ -6,6 +6,7 @@
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
+  import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
   import { Dialog } from "bits-ui";
@@ -13,6 +14,7 @@
   import { cubicOut } from "svelte/easing";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Check from "phosphor-svelte/lib/Check";
+  import ClockCountdown from "phosphor-svelte/lib/ClockCountdown";
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
@@ -80,6 +82,14 @@
   let loadingMore: boolean = $state(false);
   let searchTimer: number | null = null;
   let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
+  let feedPage: HTMLDivElement | undefined = $state(undefined);
+  let pullOffset = $state(0);
+  let pullArmed = $state(false);
+  let pullSettling = $state(false);
+  let pullTimer: number | null = null;
+  let pullCandidate = false;
+  let pullStartX = 0;
+  let pullStartY = 0;
   let requestVersion = 0;
   let draftSelectedLocations: string[] = $state(["All"]);
   let draftMinSalaryK = $state("");
@@ -402,6 +412,66 @@
     };
   });
 
+  function finishPull(showStatus: boolean) {
+    pullCandidate = false;
+    pullArmed = showStatus;
+    pullSettling = true;
+    pullOffset = showStatus ? 58 : 0;
+    if (pullTimer !== null) window.clearTimeout(pullTimer);
+    pullTimer = window.setTimeout(() => {
+      pullOffset = 0;
+      pullTimer = window.setTimeout(() => {
+        pullArmed = false;
+        pullSettling = false;
+        pullTimer = null;
+      }, 240);
+    }, showStatus ? 1_250 : 240);
+  }
+
+  $effect(() => {
+    const element = feedPage;
+    if (!element) return;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      pullCandidate = false;
+      if (pullSettling || filtersOpen || window.scrollY > 0 || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      pullStartX = touch.clientX;
+      pullStartY = touch.clientY;
+      pullCandidate = true;
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!pullCandidate) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - pullStartX;
+      const dy = touch.clientY - pullStartY;
+      if (dy <= 0 || Math.abs(dx) > dy) {
+        finishPull(false);
+        return;
+      }
+      if (dy < 6) return;
+      event.preventDefault();
+      pullOffset = Math.min(68, Math.round((1 - Math.exp(-dy / 105)) * 82));
+      pullArmed = pullOffset >= 44;
+    };
+    const handleTouchEnd = () => {
+      if (!pullCandidate) return;
+      finishPull(pullArmed);
+    };
+
+    element.addEventListener("touchstart", handleTouchStart, { passive: true });
+    element.addEventListener("touchmove", handleTouchMove, { passive: false });
+    element.addEventListener("touchend", handleTouchEnd, { passive: true });
+    element.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    return () => {
+      element.removeEventListener("touchstart", handleTouchStart);
+      element.removeEventListener("touchmove", handleTouchMove);
+      element.removeEventListener("touchend", handleTouchEnd);
+      element.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  });
+
   onMount(() => {
     void syncViewedJobs().catch(() => undefined);
     if (feed.hydrated && feed.jobs.length > 0) {
@@ -442,6 +512,7 @@
       if (searchTimer !== null) {
         window.clearTimeout(searchTimer);
       }
+      if (pullTimer !== null) window.clearTimeout(pullTimer);
     };
   });
 
@@ -466,10 +537,8 @@
 
 </script>
 
-<div class="page root-screen feed-page">
-  <header class="root-screen-header">
-    <h1 class="h-display h-display-lg">Feed</h1>
-  </header>
+<div bind:this={feedPage} class="page root-screen feed-page" class:pull-settling={pullSettling}>
+  <RootHeader title="Feed" subtitle="Roles matched to your search" />
 
   <!-- Search and filtering share one compact control surface. -->
   <div class="feed-controls">
@@ -498,6 +567,17 @@
           <span class="filter-count">{activeFilterCount}</span>
         {/if}
       </button>
+    </div>
+    <div
+      class="feed-pull-reveal"
+      class:armed={pullArmed}
+      style:height={`${pullOffset}px`}
+      style:opacity={Math.min(1, pullOffset / 34)}
+      role="status"
+      aria-hidden={!pullArmed}
+    >
+      <ClockCountdown size={17} weight="bold" aria-hidden="true" />
+      <span>Updates every 15 minutes. You&rsquo;re caught up.</span>
     </div>
     {#if filterSummary}
       <div class="filter-summary">{filterSummary}</div>
