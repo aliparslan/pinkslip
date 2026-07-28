@@ -111,9 +111,9 @@
         <span class="tag">sync on</span>
       </div>
 
-      <div class="button-cluster">
+      <div class="action-grid">
         <button class="btn-secondary" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
-          Log out &amp; restart setup
+          Log out
         </button>
         <button class="btn-secondary btn-danger" type="button" onclick={() => (showDeleteConfirm = true)} disabled={deletingAccount}>
           Delete account
@@ -172,19 +172,19 @@
 
 {#if showRestartConfirm}
   <Modal
-    title={sessionState === "authenticated" ? "Log out and restart setup?" : "Restart onboarding?"}
+    title={sessionState === "authenticated" ? "Log out?" : "Restart onboarding?"}
     subtitle={sessionState === "authenticated"
-      ? "You’ll be signed out on this device and return to the first setup screen. Your account data stays saved."
+      ? "You’ll be signed out on this device. Your account data stays saved."
       : "This starts a new guest profile. The jobs and preferences in this guest session will no longer be accessible."}
     busy={signingOut}
     maxWidth={340}
     onclose={() => (showRestartConfirm = false)}
   >
     <div class="action-row">
-      <button class="btn-secondary" onclick={() => (showRestartConfirm = false)} disabled={signingOut}>Cancel</button>
+      <button class="btn-secondary flex-fill" onclick={() => (showRestartConfirm = false)} disabled={signingOut}>Cancel</button>
       <button class="btn-primary btn-accent flex-fill" onclick={handleLogout} disabled={signingOut}>
         {#if signingOut}<Spinner />{/if}
-        Restart setup
+        {sessionState === "authenticated" ? "Log out" : "Restart"}
       </button>
     </div>
   </Modal>
@@ -199,7 +199,7 @@
     onclose={() => (showDeleteConfirm = false)}
   >
     <div class="action-row">
-      <button class="btn-secondary" onclick={() => (showDeleteConfirm = false)} disabled={deletingAccount}>Cancel</button>
+      <button class="btn-secondary flex-fill" onclick={() => (showDeleteConfirm = false)} disabled={deletingAccount}>Cancel</button>
       <button class="btn-secondary btn-danger flex-fill" onclick={handleDeleteAccount} disabled={deletingAccount}>
         {#if deletingAccount}<Spinner />{/if}
         Delete account

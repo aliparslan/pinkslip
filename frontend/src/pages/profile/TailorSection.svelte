@@ -251,7 +251,7 @@
             spellcheck="false"
           />
           <button
-            class="icon-btn icon-btn-surface"
+            class="icon-btn icon-btn-surface field-action-control"
             type="button"
             aria-label={showGeminiKey ? "Hide API key" : "Show API key"}
             onclick={() => (showGeminiKey = !showGeminiKey)}
@@ -319,9 +319,9 @@
         {/if}
       </div>
 
-      <div class="button-cluster">
+      <div class="action-grid">
         <button
-          class="btn-secondary"
+          class="btn-primary"
           type="button"
           onclick={saveLocalSetup}
           disabled={savingLocalSetup}
@@ -335,7 +335,7 @@
           onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
         >
           <ArrowSquareOut size={16} />
-          Get a Gemini key
+          Get API key
         </button>
       </div>
     </div>
@@ -378,7 +378,7 @@
               This file is saved for viewing and download. Upload a PDF, markdown, or plain text to use it directly for tailoring.
             {/if}
           </div>
-          <div class="button-cluster inset-panel-actions">
+          <div class="action-grid compact inset-panel-actions">
             <button class="btn-secondary" type="button" onclick={() => resumeUploadInput?.click()}>
               <UploadSimple size={16} />
               Replace
@@ -391,7 +391,7 @@
               <DownloadSimple size={16} />
               Download
             </button>
-            <button class="btn-secondary" type="button" onclick={removeLocalResume}>
+            <button class="btn-secondary btn-danger" type="button" onclick={removeLocalResume}>
               <Trash size={16} />
               Remove
             </button>
@@ -403,7 +403,7 @@
             No local resume saved yet.
           </div>
           <div>
-            <button class="btn-secondary" type="button" onclick={() => resumeUploadInput?.click()}>
+            <button class="btn-secondary full-width" type="button" onclick={() => resumeUploadInput?.click()}>
               <UploadSimple size={16} />
               Upload resume
             </button>
@@ -432,17 +432,17 @@
             <div class="inset-panel-meta">
               {formatFileSize(remoteResume.size)} · synced {new Date(remoteResume.uploadedAt).toLocaleDateString()}
             </div>
-            <div class="button-cluster">
+            <div class="action-grid compact">
               <button class="btn-secondary" type="button" onclick={useSyncedResumeOnThisDevice}>
-                Use on this device
+                Use locally
               </button>
               {#if localResume}
                 <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
-                  {syncingResume ? "Syncing..." : "Replace with local copy"}
+                  {syncingResume ? "Syncing..." : "Sync local copy"}
                 </button>
               {/if}
-              <button class="btn-secondary" type="button" onclick={removeSyncedResume} disabled={removingSyncedResume}>
-                {removingSyncedResume ? "Removing..." : "Remove from account"}
+              <button class="btn-secondary btn-danger" type="button" onclick={removeSyncedResume} disabled={removingSyncedResume}>
+                {removingSyncedResume ? "Removing..." : "Remove synced copy"}
               </button>
             </div>
           </div>
@@ -453,7 +453,7 @@
             </div>
             {#if localResume}
               <div>
-                <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
+                <button class="btn-secondary full-width" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
                   {syncingResume ? "Syncing..." : "Sync this resume"}
                 </button>
               </div>

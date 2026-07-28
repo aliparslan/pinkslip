@@ -461,7 +461,7 @@
           Included tailoring is available after sign-in. Or add your own Gemini key
           to keep tailoring as a guest.
         </p>
-        <div class="button-cluster card-actions">
+        <div class="action-grid card-actions">
           <button class="btn-primary btn-accent" onclick={() => navigate("/you/account")}>
             Open account settings
           </button>
@@ -481,7 +481,7 @@
           <li>Paste it in You → Tailoring and save.</li>
           <li>Come back here and generate.</li>
         </ol>
-        <div class="button-cluster card-actions">
+        <div class="action-grid card-actions">
           <button class="btn-primary btn-accent" onclick={openTailorSettings}>
             Open Tailor settings
           </button>
@@ -506,7 +506,7 @@
           You can edit everything afterwards.
         </p>
         <div>
-          <button class="btn-primary btn-accent" onclick={() => void startGeneration()}>
+          <button class="btn-primary btn-accent full-width" onclick={() => void startGeneration()}>
             <MagicWand size={17} />
             Generate
           </button>
@@ -549,7 +549,7 @@
         {/if}
       </div>
 
-      <div class="button-cluster tailor-toolbar">
+      <div class="action-grid compact tailor-toolbar">
         <button class="btn-secondary" onclick={copyCurrent}>
           <Copy size={15} />
           Copy
@@ -619,7 +619,7 @@
     onclose={() => (showRegenerateConfirm = false)}
   >
     <div class="action-row">
-      <button class="btn-secondary" onclick={() => (showRegenerateConfirm = false)}>Cancel</button>
+      <button class="btn-secondary flex-fill" onclick={() => (showRegenerateConfirm = false)}>Cancel</button>
       <button class="btn-primary btn-accent flex-fill" onclick={() => void startGeneration()}>
         Regenerate
       </button>
