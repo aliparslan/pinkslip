@@ -4,6 +4,11 @@ import AuthenticationServices
 
 class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
+        if let scrollView = webView?.scrollView {
+            scrollView.bounces = true
+            scrollView.alwaysBounceVertical = true
+        }
+
         // iOS 26 automatically adds a soft scroll-edge fade above scroll views.
         // pinkslip renders its own web navigation, so the effect becomes an
         // unexplained gray gradient across the status-bar safe area.
