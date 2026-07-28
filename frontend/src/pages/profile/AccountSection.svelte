@@ -4,6 +4,7 @@
   import { api, type AccountInfo } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../../lib/native-auth";
+  import { syncSessionAccess } from "../../lib/session-access";
   import Modal from "../../components/Modal.svelte";
   import Spinner from "../../components/Spinner.svelte";
   import AppleMark from "../../components/AppleMark.svelte";
@@ -36,7 +37,8 @@
     signingInWithApple = true;
     try {
       const credential = await signInWithAppleNative();
-      await api.auth.signInWithApple(credential);
+      const response = await api.auth.signInWithApple(credential);
+      syncSessionAccess(response);
       await onReload();
       onSuccess("Signed in. Your pinkslip data now syncs across devices.");
     } catch (e) {
@@ -79,7 +81,8 @@
     if (deletingAccount) return;
     deletingAccount = true;
     try {
-      await api.auth.deleteAccount();
+      const response = await api.auth.deleteAccount();
+      syncSessionAccess(response);
       showDeleteConfirm = false;
       await onReload();
       onSuccess("Account deleted. You can keep using pinkslip as a guest.");

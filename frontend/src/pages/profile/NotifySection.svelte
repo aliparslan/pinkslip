@@ -115,7 +115,7 @@
   .setting-status {
     color: var(--color-ink-4);
     font-size: var(--fs-xs);
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .setting-status.good { color: var(--color-good); }

@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import type { Component } from "svelte";
   import { api, type AccountInfo, type AppFeatures } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { getNativePushStatus, initNativePush } from "../lib/native-push";
-  import { syncSessionAccess } from "../lib/session-access";
+  import { sessionAccess, syncSessionAccess } from "../lib/session-access";
   import { themeMode, type ThemeMode } from "../lib/theme";
   import { loadLocalTailorKit } from "../lib/local-tailor";
   import {
@@ -16,30 +15,30 @@
   } from "../../../shared/search-profile";
   import { currentRoute, navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
-  import Modal from "../components/Modal.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
   import AccountSection from "./profile/AccountSection.svelte";
   import JobsSection from "./profile/JobsSection.svelte";
   import TailorSection from "./profile/TailorSection.svelte";
   import NotifySection from "./profile/NotifySection.svelte";
-  import AdminSection from "./profile/AdminSection.svelte";
   import Bell from "phosphor-svelte/lib/Bell";
-  import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import Buildings from "phosphor-svelte/lib/Buildings";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import ChatCircleDots from "phosphor-svelte/lib/ChatCircleDots";
-  import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import FileText from "phosphor-svelte/lib/FileText";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import Notebook from "phosphor-svelte/lib/Notebook";
   import PaintBrush from "phosphor-svelte/lib/PaintBrush";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
+  import SaveStatus from "../components/SaveStatus.svelte";
+  import RootHeader from "../components/RootHeader.svelte";
+  import { feedback } from "../lib/feedback.svelte";
+  import { SavePresentation } from "../lib/task-presentation.svelte";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
   import Wrench from "phosphor-svelte/lib/Wrench";
 
-  type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "operations";
+  type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "feedback";
   type PhosphorIcon = Component<{ size?: number | string }>;
 
   let { routeOverride }: { routeOverride?: string } = $props();
@@ -49,7 +48,7 @@
     alerts: "Job alerts",
     tailoring: "Tailoring",
     account: "Account",
-    operations: "Operations",
+    feedback: "Send feedback",
   };
   const destinationIds = new Set<YouDestination>(Object.keys(destinationTitles) as YouDestination[]);
 
@@ -62,24 +61,20 @@
 
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
-  let successMsg: string | null = $state(null);
-  let successTimer: number | null = null;
+  const savePresentation = new SavePresentation();
 
-  let displayName: string = $state("");
-  let savedDisplayName: string = $state("");
-  let sessionState = $state<"anonymous" | "guest" | "authenticated">("guest");
-  let account = $state<AccountInfo | null>(null);
-  let isAdmin: boolean = $state(false);
-  let features: AppFeatures | null = $state(null);
+  let displayName: string = $state($sessionAccess.user?.name ?? "");
+  let savedDisplayName: string = $state($sessionAccess.user?.name ?? "");
+  let sessionState = $state<"anonymous" | "guest" | "authenticated">($sessionAccess.state);
+  let account = $state<AccountInfo | null>($sessionAccess.account);
+  let isAdmin: boolean = $state($sessionAccess.isAdmin);
+  let features: AppFeatures | null = $state($sessionAccess.features);
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let notificationEnabled: boolean = $state(false);
   let pushStatus: string = $state("disabled");
-  let savedJobCount = $state(0);
-  let appliedJobCount = $state(0);
   let resumeReady = $state(false);
   let tailoringReady = $state(false);
 
-  let showFeedbackForm: boolean = $state(false);
   let feedbackType: "feature_request" | "general_feedback" = $state("feature_request");
   let feedbackTitle: string = $state("");
   let feedbackDetails: string = $state("");
@@ -109,12 +104,7 @@
   );
 
   function showSuccess(message: string) {
-    successMsg = message;
-    if (successTimer !== null) window.clearTimeout(successTimer);
-    successTimer = window.setTimeout(() => {
-      successMsg = null;
-      successTimer = null;
-    }, 3000);
+    feedback.success(message);
   }
 
   function showError(message: string) {
@@ -126,6 +116,7 @@
   let loaded = false;
   let lastSavedKey = $state("");
   let savingPrefs = $state(false);
+  let saveAgain = false;
   let autosaveTimer: number | null = null;
 
   function currentKey(): string {
@@ -139,6 +130,7 @@
   $effect(() => {
     const key = currentKey();
     if (!loaded || key === lastSavedKey) return;
+    savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
     autosaveTimer = window.setTimeout(() => {
       autosaveTimer = null;
@@ -154,8 +146,13 @@
   }
 
   async function performSave() {
-    if (savingPrefs || !loaded) return;
+    if (!loaded) return;
+    if (savingPrefs) {
+      saveAgain = true;
+      return;
+    }
     savingPrefs = true;
+    const presentationGeneration = savePresentation.begin();
     const sentKey = currentKey();
     try {
       const trimmedName = displayName.trim();
@@ -186,45 +183,49 @@
         entity_type: "search_profile",
         properties: { source: "settings" },
       }).catch(() => undefined);
+      savePresentation.succeed(presentationGeneration);
     } catch (e) {
-      error = errorMessage(e);
+      const message = errorMessage(e);
+      error = message;
+      savePresentation.fail(presentationGeneration, message);
     } finally {
       savingPrefs = false;
+      if (saveAgain) {
+        saveAgain = false;
+        void performSave();
+      }
     }
   }
 
   async function loadSettings() {
     loading = true;
     error = null;
+    const knownSessionState = $sessionAccess.state;
     try {
-      const [prefsResult, meResult, notificationResult, statsResult, resumeResult] = await Promise.allSettled([
-        api.preferences.get(),
-        api.me.get(),
+      const [bootstrapResult, notificationResult, resumeResult] = await Promise.allSettled([
+        api.bootstrap.get(),
         api.push.settings(),
-        api.stats.get(),
         api.profile.get(),
       ]);
 
-      if (meResult.status !== "fulfilled") throw meResult.reason;
-      displayName = meResult.value.user?.name ?? "";
-      savedDisplayName = displayName;
-      sessionState = meResult.value.session.state;
-      account = meResult.value.account ?? null;
-      isAdmin = meResult.value.is_admin === true;
-      features = meResult.value.features ?? null;
-      syncSessionAccess(meResult.value);
+      if (bootstrapResult.status !== "fulfilled") throw bootstrapResult.reason;
+      const { me, preferences } = bootstrapResult.value;
+      if (knownSessionState === "authenticated" && me.session.state !== "authenticated") {
+        throw new Error("We couldn’t verify your session. Your signed-in state is unchanged; try loading again.");
+      }
 
-      if (prefsResult.status !== "fulfilled") throw prefsResult.reason;
-      searchProfile = normalizeSearchProfile(prefsResult.value.search_profile);
+      displayName = me.user?.name ?? "";
+      savedDisplayName = displayName;
+      sessionState = me.session.state;
+      account = me.account ?? null;
+      isAdmin = me.is_admin === true;
+      features = me.features ?? null;
+      syncSessionAccess(me);
+      searchProfile = normalizeSearchProfile(preferences.search_profile);
 
       if (notificationResult.status === "fulfilled") {
         notificationEnabled = notificationResult.value.enabled;
       }
-      if (statsResult.status === "fulfilled") {
-        savedJobCount = statsResult.value.savedJobs;
-        appliedJobCount = statsResult.value.appliedJobs;
-      }
-
       const localKit = loadLocalTailorKit();
       const structuredResume = resumeResult.status === "fulfilled" ? resumeResult.value.data : null;
       resumeReady = Boolean(
@@ -242,6 +243,7 @@
       }
 
       lastSavedKey = currentKey();
+      savePresentation.hydrate(null);
       loaded = true;
     } catch (e) {
       error = errorMessage(e);
@@ -278,10 +280,10 @@
         title,
         details: feedbackDetails.trim(),
       });
-      showFeedbackForm = false;
       feedbackType = "feature_request";
       feedbackTitle = "";
       feedbackDetails = "";
+      backToYou();
       showSuccess(result.duplicate
         ? "That idea is already in your feedback queue."
         : "Feedback sent. Thank you for helping shape pinkslip.");
@@ -309,7 +311,7 @@
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", flushAutosave);
       flushAutosave();
-      if (successTimer !== null) window.clearTimeout(successTimer);
+      savePresentation.destroy();
     };
   });
 
@@ -326,19 +328,11 @@
   </button>
 {/snippet}
 
-{#if successMsg}
-  <div class="toast-wrap" role="status" aria-live="polite">
-    <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
-      {successMsg}
-    </div>
-  </div>
-{/if}
-
 {#if destination}
   <div class="page pushed-screen">
     <ScreenNav
       title={destinationTitles[destination]}
-      backLabel="Back to Me"
+      backLabel="Back to You"
       onBack={backToYou}
     />
 
@@ -349,9 +343,7 @@
         {#if error}
           <div class="alert alert-error alert-spaced" role="alert">{error}</div>
         {/if}
-        {#if savingPrefs}
-          <div class="you-saving-state" role="status" aria-live="polite">Saving changes…</div>
-        {/if}
+        <div class="you-saving-state"><SaveStatus phase={savePresentation.phase} /></div>
 
         {#if destination === "preferences"}
           <JobsSection bind:searchProfile showHeading={false} />
@@ -371,6 +363,55 @@
             onError={showError}
             onSuccess={showSuccess}
           />
+        {:else if destination === "feedback"}
+          <form class="feedback-page-form" onsubmit={(event) => { event.preventDefault(); void submitProductFeedback(); }}>
+            <p class="feedback-page-intro">
+              Found something rough or have an idea? Send it our way.
+            </p>
+            <div class="form-stack loose">
+              <div>
+                <label for="feedback-type" class="field-label">Feedback type</label>
+                <div class="select-field-wrap">
+                  <select id="feedback-type" class="input-field tall-control" bind:value={feedbackType}>
+                    <option value="feature_request">Feature idea</option>
+                    <option value="general_feedback">General feedback</option>
+                  </select>
+                  <span class="select-chevron" aria-hidden="true"><CaretDown size={15} /></span>
+                </div>
+              </div>
+              <div>
+                <label for="feedback-title" class="field-label">Title</label>
+                <input
+                  id="feedback-title"
+                  class="input-field tall-control"
+                  type="text"
+                  maxlength="160"
+                  placeholder={feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
+                  bind:value={feedbackTitle}
+                />
+              </div>
+              <div>
+                <label for="feedback-details" class="field-label">Details <span class="label-opt">optional</span></label>
+                <textarea
+                  id="feedback-details"
+                  class="input-field textarea-field feedback-textarea"
+                  rows="7"
+                  maxlength="2000"
+                  placeholder="What problem would this solve, or what happened?"
+                  bind:value={feedbackDetails}
+                ></textarea>
+              </div>
+              {#if feedbackError}<div class="alert alert-error" role="alert">{feedbackError}</div>{/if}
+            </div>
+            <button
+              class="btn-primary btn-accent full-width feedback-submit"
+              type="submit"
+              disabled={submittingFeedback || feedbackTitle.trim().length < 2}
+            >
+              {#if submittingFeedback}<Spinner />{/if}
+              Send feedback
+            </button>
+          </form>
         {:else if destination === "account"}
           <div class="you-account-stack">
             <section class="you-focus-card">
@@ -394,19 +435,13 @@
               onReload={loadSettings}
             />
           </div>
-        {:else if destination === "operations" && isAdmin}
-          <AdminSection onError={showError} onSuccess={showSuccess} />
-        {:else if destination === "operations"}
-          <div class="alert alert-error" role="alert">Operations are only available to administrators.</div>
         {/if}
       {/if}
     </div>
   </div>
 {:else}
   <div class="page root-screen">
-    <header class="root-screen-header">
-      <h1 class="h-display h-display-lg">Me</h1>
-    </header>
+    <RootHeader title="You" subtitle="Your search, materials, and account" />
 
     <div class="page-frame you-page">
 
@@ -418,44 +453,26 @@
         {/if}
 
         <section>
-          <h2 class="section-eyebrow">My jobs</h2>
-          <div class="profile-job-stats">
-            <button class="profile-job-stat" onclick={() => navigate("/my-jobs/saved")}>
-              <BookmarkSimple size={20} />
-              <strong>{savedJobCount}</strong>
-              <span>Saved</span>
-              <CaretRight size={15} />
-            </button>
-            <button class="profile-job-stat" onclick={() => navigate("/my-jobs/applied")}>
-              <CheckCircle size={20} />
-              <strong>{appliedJobCount}</strong>
-              <span>Applied</span>
-              <CaretRight size={15} />
-            </button>
-          </div>
-        </section>
-
-        <section>
           <h2 class="section-eyebrow">Search</h2>
           <div class="surface-list">
             {@render destinationRow("Job preferences", preferenceSummary, "/you/preferences", SlidersHorizontal)}
             {@render destinationRow("Job alerts", alertsSummary, "/you/alerts", Bell)}
+            {@render destinationRow("Company preferences", "Hidden companies and requests", "/you/companies", Buildings)}
           </div>
         </section>
 
         <section>
           <h2 class="section-eyebrow">Materials</h2>
           <div class="surface-list">
-            {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/resume", FileText)}
+            {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/you/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? "Ready" : "Finish setup", "/you/tailoring", MagicWand)}
-            {@render destinationRow("Master story", "Projects, outcomes, and talking points", "/corpus", Notebook)}
+            {@render destinationRow("Master story", "Projects, outcomes, and talking points", "/you/story", Notebook)}
           </div>
         </section>
 
         <section>
           <h2 class="section-eyebrow">App</h2>
           <div class="surface-list">
-            {@render destinationRow("Companies", "Browse and manage employers", "/companies", Buildings)}
             <div class="you-settings-row you-settings-row-static">
               <span class="you-settings-row-icon"><PaintBrush size={18} /></span>
               <span class="you-settings-row-copy">
@@ -476,23 +493,7 @@
                 <span class="select-chevron" aria-hidden="true"><CaretDown size={15} /></span>
               </div>
             </div>
-            <div class="you-settings-row you-settings-row-static">
-              <span class="you-settings-row-icon"><ChatCircleDots size={18} /></span>
-              <span class="you-settings-row-copy">
-                <strong>Help and feedback</strong>
-                <small>Ideas and support</small>
-              </span>
-              <button
-                class="btn-secondary you-inline-action"
-                type="button"
-                onclick={() => {
-                  feedbackError = null;
-                  showFeedbackForm = true;
-                }}
-              >
-                Send feedback
-              </button>
-            </div>
+            {@render destinationRow("Help and feedback", "Ideas and support", "/you/feedback", ChatCircleDots)}
           </div>
         </section>
 
@@ -507,66 +508,11 @@
           <section>
             <h2 class="section-eyebrow">Admin</h2>
             <div class="surface-list">
-              {@render destinationRow("Operations", "Product health and moderation", "/you/operations", Wrench)}
+              {@render destinationRow("Admin workspace", "Product health and moderation", "/admin", Wrench)}
             </div>
           </section>
         {/if}
       {/if}
     </div>
   </div>
-{/if}
-
-{#if showFeedbackForm}
-  <Modal
-    title="Send feedback"
-    subtitle="Small frustrations and ambitious ideas are both useful. Tell us what would make your job search faster."
-    busy={submittingFeedback}
-    onclose={() => (showFeedbackForm = false)}
-  >
-    <div class="form-stack loose">
-      <div>
-        <label for="feedback-type" class="field-label">Feedback type</label>
-        <select id="feedback-type" class="input-field" bind:value={feedbackType}>
-          <option value="feature_request">Feature idea</option>
-          <option value="general_feedback">General feedback</option>
-        </select>
-      </div>
-      <div>
-        <label for="feedback-title" class="field-label">Title</label>
-        <input
-          id="feedback-title"
-          class="input-field"
-          type="text"
-          maxlength="160"
-          placeholder={feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
-          bind:value={feedbackTitle}
-        />
-      </div>
-      <div>
-        <label for="feedback-details" class="field-label">Details <span class="label-opt">optional</span></label>
-        <textarea
-          id="feedback-details"
-          class="input-field textarea-field"
-          rows="6"
-          maxlength="2000"
-          placeholder="What problem would this solve, or what happened?"
-          bind:value={feedbackDetails}
-        ></textarea>
-      </div>
-      {#if feedbackError}
-        <div class="alert alert-error" role="alert">{feedbackError}</div>
-      {/if}
-    </div>
-    <div class="action-row modal-actions">
-      <button class="btn-secondary" onclick={() => { showFeedbackForm = false; }} disabled={submittingFeedback}>Cancel</button>
-      <button
-        class="btn-primary btn-accent flex-fill"
-        onclick={submitProductFeedback}
-        disabled={submittingFeedback || feedbackTitle.trim().length < 2}
-      >
-        {#if submittingFeedback}<Spinner />{/if}
-        Send feedback
-      </button>
-    </div>
-  </Modal>
 {/if}

@@ -4,14 +4,16 @@
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
-  import { parsePdfToProfile } from "../lib/pdf-to-profile";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
+  import SaveStatus from "../components/SaveStatus.svelte";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
+  import { feedback } from "../lib/feedback.svelte";
+  import { SavePresentation } from "../lib/task-presentation.svelte";
 
   const EMPTY_PROFILE: ResumeProfile = {
     contact: { name: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "" },
@@ -33,10 +35,9 @@
   let loading = $state(true);
   let saving = $state(false);
   let error: string | null = $state(null);
-  let success: string | null = $state(null);
+  const savePresentation = new SavePresentation();
   let profile: ResumeProfile = $state({ ...EMPTY_PROFILE });
   let notes = $state("");
-  let savedAt = $state<string | null>(null);
   let autosaveTimer: number | null = null;
   let saveAgain = false;
   let importing = $state(false);
@@ -114,7 +115,7 @@
         optSections = [{ kind: "leadership" as const, items: (d as any).leadership }];
       }
       profile = { ...EMPTY_PROFILE, ...d, optionalSections: optSections };
-      savedAt = profileRes.updated_at;
+      savePresentation.hydrate(profileRes.updated_at);
       notes = corpusRes.content_md ?? "";
     } catch (e) { error = errorMessage(e); } finally { loading = false; }
   }
@@ -125,15 +126,17 @@
       return;
     }
     saving = true; error = null;
+    const presentationGeneration = savePresentation.begin();
     try {
       const [profileRes] = await Promise.all([
         api.profile.update(profile, { keepalive }),
         api.corpus.update(notes, { keepalive }),
       ]);
-      savedAt = profileRes.updated_at;
-      success = "Saved"; setTimeout(() => { success = null; }, 1600);
+      savePresentation.succeed(presentationGeneration, profileRes.updated_at ?? new Date().toISOString());
     } catch (e) {
-      error = errorMessage(e);
+      const message = errorMessage(e);
+      error = message;
+      savePresentation.fail(presentationGeneration, message);
     } finally {
       saving = false;
       if (saveAgain) {
@@ -144,8 +147,9 @@
   }
 
   function queueAutosave() {
+    savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(() => { autosaveTimer = null; saveAll(); }, 2000);
+    autosaveTimer = window.setTimeout(() => { autosaveTimer = null; saveAll(); }, 800);
   }
   // Flush any pending autosave immediately. Called on unmount / backgrounding so
   // edits made within the debounce window aren't silently dropped on navigation.
@@ -163,6 +167,7 @@
     if (!file) return;
     importing = true; error = null;
     try {
+      const { parsePdfToProfile } = await import("../lib/pdf-to-profile");
       const parsed = await parsePdfToProfile(file);
       if (parsed.contact) {
         const c = parsed.contact;
@@ -178,8 +183,7 @@
       if (parsed.education?.length && !profile.education.length) profile.education = parsed.education;
       if (parsed.projects?.length && !profile.projects.length) profile.projects = parsed.projects;
       if (parsed.skills?.length && !profile.skills.length) profile.skills = parsed.skills;
-      success = "Imported from PDF. Review and correct any fields that need fixing.";
-      setTimeout(() => { success = null; }, 4000);
+      feedback.success("PDF imported. Review any fields that need correcting.");
       queueAutosave();
     } catch (e) { error = `Could not parse PDF: ${errorMessage(e)}`; } finally { importing = false; input.value = ""; }
   }
@@ -193,31 +197,32 @@
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", flushAutosave);
       flushAutosave();
+      savePresentation.destroy();
     };
   });
 </script>
 
 <div class="page pushed-screen">
-  <ScreenNav title="Resume" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+  <ScreenNav title="Resume" onBack={() => { if (!requestBack()) navigate("/you"); }}>
+    {#snippet trailing()}<SaveStatus phase={savePresentation.phase} />{/snippet}
+  </ScreenNav>
   <div class="page-frame">
-    <div class="page-toolbar">
-        <span class="save-state" role="status" aria-live="polite">
-          {saving ? "Saving…" : savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
-        </span>
-        <input class="visually-hidden-input" type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} />
-        <button type="button" class="btn-secondary btn-mini" onclick={() => importInput?.click()} disabled={importing}>
-          {#if importing}<Spinner />{:else}<UploadSimple size={14} />{/if}
-          Import PDF
-        </button>
-    </div>
-
     {#if error}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
-    {#if success}<div class="alert alert-success alert-spaced" role="status">{success}</div>{/if}
-
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else}
-      <!-- Contact -->
+      <input class="visually-hidden-input" type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} />
+      <button type="button" class="resume-import" onclick={() => importInput?.click()} disabled={importing}>
+        <span class="resume-import-icon">
+          {#if importing}<Spinner />{:else}<UploadSimple size={19} />{/if}
+        </span>
+        <span class="resume-import-copy">
+          <strong>{importing ? "Importing PDF…" : "Import from PDF"}</strong>
+          <small>Fill empty fields from an existing resume</small>
+        </span>
+        <CaretRight size={17} aria-hidden="true" />
+      </button>
+
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("contact")} onclick={() => toggleSection("contact")}>
           {#if expandedSections.has("contact")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
@@ -231,16 +236,10 @@
               <label class="field"><span>Phone</span><input class="input-field" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
               <label class="field"><span>Location</span><input class="input-field" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
               <label class="field"><span>LinkedIn <span class="label-opt">optional</span></span>
-                <div class="prefixed-input">
-                  <span class="input-prefix">linkedin.com/in/</span>
-                  <input class="input-field prefixed" bind:value={profile.contact.linkedin} oninput={handleInput} placeholder="username" />
-                </div>
+                <input class="input-field" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" />
               </label>
               <label class="field"><span>GitHub <span class="label-opt">optional</span></span>
-                <div class="prefixed-input">
-                  <span class="input-prefix">github.com/</span>
-                  <input class="input-field prefixed" bind:value={profile.contact.github} oninput={handleInput} placeholder="username" />
-                </div>
+                <input class="input-field" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" />
               </label>
               <label class="field span-2"><span>Website <span class="label-opt">optional</span></span><input class="input-field" bind:value={profile.contact.website} oninput={handleInput} placeholder="https://yoursite.com" /></label>
             </div>
@@ -412,12 +411,11 @@
         </div>
       {/each}
 
-      <!-- Add section menu -->
       {#if availableOptionalSections.length > 0}
         <div class="add-section-area">
           <span class="add-section-label">Add section:</span>
           {#each availableOptionalSections as kind}
-            <button type="button" class="btn-secondary add-btn" onclick={() => addOptionalSection(kind)}>
+            <button type="button" class="btn-secondary section-chip" onclick={() => addOptionalSection(kind)}>
               <Plus size={12} /> {OPTIONAL_SECTION_LABELS[kind]}
             </button>
           {/each}
@@ -445,46 +443,51 @@
 </div>
 
 <style>
-  .notes-help { margin: 0 0 8px; color: var(--color-ink-4); font-size: var(--fs-xs); line-height: 1.5; }
+  .resume-import { width: 100%; min-height: 64px; margin-bottom: var(--space-3); padding: 10px 12px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); background: var(--color-bg-elev); color: var(--color-ink); text-align: left; cursor: pointer; }
+  .resume-import:hover { background: var(--color-bg-sunken); }
+  .resume-import:disabled { opacity: 0.65; cursor: default; }
+  .resume-import-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--color-bg-sunken); color: var(--color-ink-2); }
+  .resume-import-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .resume-import-copy strong { font-size: var(--fs-sm); font-weight: 600; }
+  .resume-import-copy small { overflow: hidden; color: var(--color-ink-3); font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
+  .resume-import > :global(svg) { color: var(--color-ink-4); }
+  .notes-help { margin: 0 0 var(--space-2); color: var(--color-ink-4); font-size: var(--fs-xs); line-height: 1.5; }
   .notes-field { min-height: 160px; }
   .card { border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; background: var(--color-bg-elev); }
-  .card-header { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
+  .card-header { width: 100%; min-height: 48px; display: flex; align-items: center; gap: var(--space-2); padding: 10px var(--space-4); background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
   .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }
   .card-header-row { display: flex; align-items: center; }
   .card-header-toggle { flex: 1; min-width: 0; }
-  .card-header-remove { width: 40px; height: 40px; margin-right: 8px; flex-shrink: 0; }
-  .card-title { font-weight: 600; font-size: var(--fs-sm); }
+  .card-header-remove { width: 40px; height: 40px; margin-right: var(--space-2); flex-shrink: 0; }
+  .card-title { font-weight: 500; font-size: var(--fs-sm); }
   .card-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-4); }
-  .card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; border-top: 0.5px solid var(--color-line); }
+  .card-body { padding: 14px var(--space-4) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); border-top: 0.5px solid var(--color-line); }
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field { display: flex; flex-direction: column; gap: 3px; }
   .field > span { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
   .field.span-2, .span-2 { grid-column: 1 / -1; }
 
-  .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-bg-elev); overflow: hidden; height: 40px; }
-  .input-prefix { padding: 0 0 0 12px; font-size: var(--fs-xs); color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
-  .input-field.prefixed { border: none; background: transparent; border-radius: 0; padding-left: 2px; height: 100%; }
-
-  .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-sunken); }
+  .entry { padding: var(--space-3); border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-sunken); }
   .entry-top { display: flex; align-items: center; justify-content: space-between; }
-  .entry-title { font-size: var(--fs-xs); font-weight: 600; color: var(--color-ink-2); }
+  .entry-title { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-2); }
 
   .bullets { display: flex; flex-direction: column; gap: 5px; }
   .bullets-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
   .bullet-row { display: flex; align-items: center; gap: 6px; }
   .bullet-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-ink-4); flex-shrink: 0; }
   .bullet-input { flex: 1; }
-  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: var(--fs-xs); cursor: pointer; padding: 0 8px 0 0; }
+  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1); background: none; border: none; color: var(--color-ink-4); font-size: var(--fs-xs); cursor: pointer; padding: 0 var(--space-2) 0 0; }
   .btn-add-bullet:hover { color: var(--color-ink-2); }
 
-  .add-btn { align-self: flex-start; padding: 0 12px; }
+  .add-btn { align-self: flex-start; padding: 0 var(--space-3); }
+  .section-chip { height: 34px; padding: 0 10px; border-radius: var(--radius-sm); font-size: var(--fs-xs); }
 
-  .kv-row { display: flex; gap: 8px; align-items: center; }
+  .kv-row { display: flex; gap: var(--space-2); align-items: center; }
   .kv-key { width: 120px; flex-shrink: 0; }
   .kv-val { flex: 1; }
 
-  .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 0; }
+  .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: 10px; padding: 10px 0; }
   .add-section-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
 
   @media (max-width: 540px) {

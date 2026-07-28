@@ -15,24 +15,43 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit, timeoutMs = 20_000): Promise<T> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  let res: Response;
-  try {
-    res = await fetch(`${BASE}${path}`, {
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      ...options,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (controller.signal.aborted) {
-      throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+  const method = (options?.method ?? "GET").toUpperCase();
+  const attempts = method === "GET" ? 2 : 1;
+  const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
+  let res: Response | null = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      res = await fetch(`${BASE}${path}`, {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        ...options,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (attempt + 1 < attempts) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
+        continue;
+      }
+      if (controller.signal.aborted) {
+        throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
     }
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
+
+    if (retryableStatuses.has(res.status) && attempt + 1 < attempts) {
+      await res.body?.cancel().catch(() => undefined);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
+      continue;
+    }
+    break;
   }
+
+  if (!res) throw new ApiError("Could not reach pinkslip. Please try again.", 503, "network_unavailable");
 
   if (res.status === 204) {
     return undefined as T;

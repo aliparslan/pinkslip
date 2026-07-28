@@ -31,6 +31,9 @@
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Spinner from "../components/Spinner.svelte";
+  import SaveStatus from "../components/SaveStatus.svelte";
+  import { SavePresentation } from "../lib/task-presentation.svelte";
+  import { feedback } from "../lib/feedback.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -58,7 +61,6 @@
   let coverText = $state("");
   let qaText = $state("");
   let activeTab: TabId = $state("resume");
-  let copied = $state(false);
   let downloadingPdf = $state(false);
   let showRegenerateConfirm = $state(false);
   let editing = $state<Record<TabId, boolean>>({
@@ -66,8 +68,8 @@
     cover: false,
     qa: false,
   });
-  let copyTimer: number | null = null;
   let saveTimer: number | null = null;
+  const savePresentation = new SavePresentation();
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
   let usingLocalRequest = $derived.by(() => {
@@ -159,9 +161,11 @@
       job = await api.jobs.get(jobId);
       if (usingLocalRequest) {
         hydrateFromLocalDraft(loadLocalTailorDraft(jobId));
+        savePresentation.hydrate(localDraft?.updatedAt ?? null);
       } else {
         const tailorRes = await api.tailor.get(jobId);
         hydrateFromTailoring(tailorRes.tailoring);
+        savePresentation.hydrate(tailorRes.tailoring?.created_at ?? null);
       }
     } catch (e) {
       error = errorMessage(e);
@@ -275,6 +279,7 @@
   async function saveEdits(): Promise<boolean> {
     if (saving) return false;
     saving = true;
+    const presentationGeneration = savePresentation.begin();
     try {
       if (usingLocalRequest && jobId) {
         const draft: LocalTailorDraft = {
@@ -288,6 +293,7 @@
         };
         saveLocalTailorDraft(draft);
         hydrateFromLocalDraft(draft);
+        savePresentation.succeed(presentationGeneration, draft.updatedAt);
         return true;
       }
 
@@ -299,9 +305,12 @@
         user_edited_qa_json: qaText,
       });
       hydrateFromTailoring(saved.tailoring);
+      savePresentation.succeed(presentationGeneration);
       return true;
     } catch (e) {
-      error = errorMessage(e);
+      const message = errorMessage(e);
+      error = message;
+      savePresentation.fail(presentationGeneration, message);
       return false;
     } finally {
       saving = false;
@@ -309,6 +318,7 @@
   }
 
   function queueSave() {
+    savePresentation.markDirty();
     if (saveTimer !== null) {
       window.clearTimeout(saveTimer);
     }
@@ -380,14 +390,7 @@
 
   async function copyCurrent() {
     await navigator.clipboard.writeText(currentText);
-    copied = true;
-    if (copyTimer !== null) {
-      window.clearTimeout(copyTimer);
-    }
-    copyTimer = window.setTimeout(() => {
-      copied = false;
-      copyTimer = null;
-    }, 1400);
+    feedback.success("Copied to clipboard");
   }
 
   async function viewResumePdf() {
@@ -431,9 +434,7 @@
     return () => {
       cancelled = true;
       clearQueuedSave();
-      if (copyTimer !== null) {
-        window.clearTimeout(copyTimer);
-      }
+      savePresentation.destroy();
     };
   });
 </script>
@@ -477,7 +478,7 @@
         </p>
         <ol class="ordered-steps">
           <li>Grab a free key from Google AI Studio.</li>
-          <li>Paste it in Me → Tailoring and save.</li>
+          <li>Paste it in You → Tailoring and save.</li>
           <li>Come back here and generate.</li>
         </ol>
         <div class="button-cluster card-actions">
@@ -539,9 +540,7 @@
         {#if streaming}
           <span>Writing…</span>
         {/if}
-        {#if saving}
-          <span class="loading-label"><Spinner size={12} /> Saving edits…</span>
-        {/if}
+        <SaveStatus phase={savePresentation.phase} />
         {#if tokenSummary}
           <span>{tokenSummary.input} input · {tokenSummary.output} output tokens</span>
         {/if}
@@ -553,7 +552,7 @@
       <div class="button-cluster tailor-toolbar">
         <button class="btn-secondary" onclick={copyCurrent}>
           <Copy size={15} />
-          {copied ? "Copied" : "Copy"}
+          Copy
         </button>
         {#if activeTab === "resume"}
           <button

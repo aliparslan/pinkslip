@@ -6,12 +6,14 @@
   import { requestBack } from "../lib/nav-back";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
+  import SaveStatus from "../components/SaveStatus.svelte";
+  import { SavePresentation } from "../lib/task-presentation.svelte";
 
   let loading = $state(true);
   let saving = $state(false);
   let error: string | null = $state(null);
   let content = $state("");
-  let savedAt = $state<string | null>(null);
+  const savePresentation = new SavePresentation();
   let autosaveTimer: number | null = null;
   let saveAgain = false;
 
@@ -21,7 +23,7 @@
     try {
       const latest = await api.corpus.get();
       content = latest.content_md ?? "";
-      savedAt = latest.updated_at ?? null;
+      savePresentation.hydrate(latest.updated_at ?? null);
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -35,12 +37,15 @@
       return;
     }
     saving = true;
+    const presentationGeneration = savePresentation.begin();
     error = null;
     try {
       const result = await api.corpus.update(content);
-      savedAt = result.updated_at ?? new Date().toISOString();
+      savePresentation.succeed(presentationGeneration, result.updated_at ?? new Date().toISOString());
     } catch (e) {
-      error = errorMessage(e);
+      const message = errorMessage(e);
+      error = message;
+      savePresentation.fail(presentationGeneration, message);
     } finally {
       saving = false;
       if (saveAgain) {
@@ -51,11 +56,12 @@
   }
 
   function queueAutosave() {
+    savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
     autosaveTimer = window.setTimeout(() => {
       autosaveTimer = null;
       void saveCorpus();
-    }, 2000);
+    }, 800);
   }
 
   function flushAutosave() {
@@ -76,6 +82,7 @@
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", flushAutosave);
       flushAutosave();
+      savePresentation.destroy();
     };
   });
 </script>
@@ -102,13 +109,7 @@
         aria-label="Master story"
         placeholder="Add projects, metrics, stories, strengths, and concrete examples…"
       ></textarea>
-      <div class="save-state" role="status" aria-live="polite">
-        {#if saving}
-          Saving…
-        {:else if savedAt}
-          Saved {new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-        {/if}
-      </div>
+      <div class="save-state"><SaveStatus phase={savePresentation.phase} /></div>
     {/if}
   </div>
 </div>
