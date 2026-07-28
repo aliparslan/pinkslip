@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api } from "../lib/api";
+  import { api, type Job } from "../lib/api";
   import { timeAgo, errorMessage } from "../lib/utils";
   import { feed, PAGE_SIZE } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
@@ -9,6 +9,8 @@
   import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
+  import Modal from "../components/Modal.svelte";
+  import { feedback } from "../lib/feedback.svelte";
   import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
@@ -97,10 +99,42 @@
   let draftMaxYoe = $state("");
   let draftSavedOnly = $state(false);
   let draftPostedFilter: "any" | "dated" | "undated" = $state("any");
+  let blockCandidate: Job | null = $state(null);
+  let blockingJob = $state(false);
+  const hiddenJobPositions = new Map<string, number>();
 
   function removeJob(id: string) {
+    const index = feed.jobs.findIndex((job) => job.id === id);
+    if (index >= 0) hiddenJobPositions.set(id, index);
     feed.jobs = feed.jobs.filter((j) => j.id !== id);
     removeFeedNavigationJob(id);
+  }
+
+  function restoreJob(job: Job) {
+    if (feed.jobs.some((item) => item.id === job.id)) return;
+    const nextJobs = [...feed.jobs];
+    const index = Math.min(hiddenJobPositions.get(job.id) ?? 0, nextJobs.length);
+    nextJobs.splice(index, 0, job);
+    hiddenJobPositions.delete(job.id);
+    feed.jobs = nextJobs;
+    setFeedNavigationJobs(nextJobs);
+  }
+
+  async function blockJobForEveryone() {
+    if (!blockCandidate || blockingJob) return;
+    const job = blockCandidate;
+    blockingJob = true;
+    try {
+      await api.jobs.block(job.id);
+      removeJob(job.id);
+      hiddenJobPositions.delete(job.id);
+      blockCandidate = null;
+      feedback.success("Job blocked for everyone");
+    } catch (e) {
+      feedback.error(errorMessage(e, "Could not block that job."));
+    } finally {
+      blockingJob = false;
+    }
   }
 
   let viewed = $derived($viewedJobs);
@@ -631,7 +665,13 @@
     {:else}
       {#each feed.jobs as job (job.id)}
         <div animate:flip={{ duration: 240, easing: cubicOut }}>
-          <JobRow {job} viewed={viewed.has(job.id)} onDismiss={removeJob} />
+          <JobRow
+            {job}
+            viewed={viewed.has(job.id)}
+            onDismiss={removeJob}
+            onRestore={restoreJob}
+            onBlockRequest={(candidate) => (blockCandidate = candidate)}
+          />
         </div>
       {/each}
       {#if loadingMore}
@@ -776,3 +816,21 @@
     </Dialog.Content>
   </Dialog.Portal>
 </Dialog.Root>
+
+{#if blockCandidate}
+  <Modal
+    title="Block this job?"
+    subtitle={`This permanently hides ${blockCandidate.title} at ${blockCandidate.company_name} from everyone.`}
+    busy={blockingJob}
+    maxWidth={350}
+    onclose={() => (blockCandidate = null)}
+  >
+    <div class="action-row">
+      <button class="btn-secondary flex-fill" onclick={() => (blockCandidate = null)} disabled={blockingJob}>Cancel</button>
+      <button class="btn-secondary btn-danger flex-fill" onclick={blockJobForEveryone} disabled={blockingJob}>
+        {#if blockingJob}<Spinner />{/if}
+        Block for everyone
+      </button>
+    </div>
+  </Modal>
+{/if}

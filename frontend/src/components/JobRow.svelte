@@ -5,16 +5,19 @@
   import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
+  import { feedback } from "../lib/feedback.svelte";
+  import { hapticLight } from "../lib/haptics";
   import { sessionAccess } from "../lib/session-access";
-  import { hapticLight, hapticMedium } from "../lib/haptics";
-  import Trash from "phosphor-svelte/lib/Trash";
-  import X from "phosphor-svelte/lib/X";
+  import EyeSlash from "phosphor-svelte/lib/EyeSlash";
+  import Prohibit from "phosphor-svelte/lib/Prohibit";
   import CompanyLogo from "./CompanyLogo.svelte";
 
-  let { job, viewed = false, onDismiss, returnTo = "/", swipeActions = true, contextLabel }: {
+  let { job, viewed = false, onDismiss, onRestore, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel }: {
     job: Job;
     viewed?: boolean;
     onDismiss?: (id: string) => void;
+    onRestore?: (job: Job) => void;
+    onBlockRequest?: (job: Job) => void;
     returnTo?: string;
     swipeActions?: boolean;
     contextLabel?: string;
@@ -22,31 +25,31 @@
 
   let dismissing: boolean = $state(false);
   let swipeX: number = $state(0);
-  let committing: boolean = $state(false); // pulled far enough to full-swipe dismiss
   let swiping: boolean = $state(false);
   let startX = 0;
   let startY = 0;
   let startOffsetX = 0;
-  let rowWidth = 420;
   let locked = false;
   let pointerId: number | null = null;
   let rowEl: HTMLDivElement | undefined = $state(undefined);
 
-  const ACTION_DELETE_WIDTH = 84;
-  const ACTION_DISMISS_WIDTH = 84;
-  const OPEN_THRESHOLD = 56; // release past this → snap open to the two buttons
-  const RUBBER = 0.5; // resistance once dragged beyond the revealed buttons
+  const ACTION_PADDING = 12;
+  const ACTION_GAP = 6;
+  const SINGLE_ACTION_WIDTH = 80;
+  const ADMIN_ACTION_WIDTH = 74;
+  const MAX_OVERDRAG = 18;
+  const RUBBER = 0.16;
 
   // "NEW" only while the badge is honest: unviewed AND actually fresh.
   // (A 36-day-old listing labelled NEW undermines the whole speed pitch.)
   const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
+  let hasAdminAction = $derived($sessionAccess.isAdmin && Boolean(onBlockRequest));
+  let actionButtonWidth = $derived(hasAdminAction ? ADMIN_ACTION_WIDTH : SINGLE_ACTION_WIDTH);
   let actionTotalWidth = $derived(
-    $sessionAccess.isAdmin
-      ? ACTION_DELETE_WIDTH + ACTION_DISMISS_WIDTH
-      : ACTION_DISMISS_WIDTH
+    ACTION_PADDING + actionButtonWidth * (hasAdminAction ? 2 : 1) + (hasAdminAction ? ACTION_GAP : 0)
   );
-  let commitThreshold = $derived(actionTotalWidth + 34);
+  let openThreshold = $derived(Math.min(64, actionTotalWidth * 0.42));
   let displaySalary = $derived(formatCompactSalaryText(
     job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
   ));
@@ -74,38 +77,48 @@
     swipeX = target;
   }
 
-  // Slide the row fully off-screen (kept opaque, so it never ghosts over the
-  // action buttons), then run the action and remove it — the list flips the gap
-  // closed. Used by both the action buttons and the full-swipe gesture.
-  async function slideOffAndRemove(action: () => Promise<unknown>) {
-    if (dismissing) return;
+  async function slideOffAndRemove(action: () => Promise<unknown>): Promise<boolean> {
+    if (dismissing) return false;
     dismissing = true;
     swipeX = -(rowEl?.offsetWidth ?? 420);
-    await new Promise((r) => setTimeout(r, 320));
+    await new Promise((resolve) => setTimeout(resolve, 240));
     try {
       await action();
       onDismiss?.(job.id);
+      return true;
     } catch {
       dismissing = false;
-      committing = false;
       swipeX = 0;
+      feedback.error("Could not hide that job. Try again.");
+      return false;
     }
   }
 
-  const dismiss = () => slideOffAndRemove(() => api.jobs.dismiss(job.id));
-  const blockJob = () => slideOffAndRemove(() => api.jobs.block(job.id));
-  const fullSwipeDismiss = dismiss;
+  async function dismiss() {
+    const hidden = await slideOffAndRemove(() => api.jobs.dismiss(job.id));
+    if (!hidden) return;
+
+    feedback.show({
+      message: "Job hidden from your feed",
+      action: {
+        label: "Undo",
+        run: async () => {
+          try {
+            await api.jobs.undismiss(job.id);
+            onRestore?.(job);
+          } catch {
+            feedback.error("Could not restore that job.");
+          }
+        },
+      },
+    });
+  }
 
   function settleSwipe() {
     if (!swiping) return;
     swiping = false;
     pointerId = null;
-    const abs = Math.abs(swipeX);
-    if (committing || abs >= commitThreshold) {
-      void fullSwipeDismiss();
-      return;
-    }
-    if (abs >= OPEN_THRESHOLD) {
+    if (Math.abs(swipeX) >= openThreshold) {
       if (swipeX !== -actionTotalWidth) hapticLight();
       snapTo(-actionTotalWidth);
     } else {
@@ -120,7 +133,6 @@
     startX = e.clientX;
     startY = e.clientY;
     startOffsetX = swipeX;
-    rowWidth = rowEl?.offsetWidth ?? 420;
     locked = false;
     swiping = false;
     rowEl?.setPointerCapture(e.pointerId);
@@ -143,22 +155,9 @@
 
     const desired = Math.min(0, startOffsetX + dx);
     const abs = -desired;
-
-    let next: number;
-    if (abs >= commitThreshold) {
-      next = Math.max(-rowWidth, desired); // follow the finger into the fill
-    } else if (abs > actionTotalWidth) {
-      next = -(actionTotalWidth + (abs - actionTotalWidth) * RUBBER); // rubber-band
-    } else {
-      next = desired;
-    }
-    swipeX = next;
-
-    const nowCommitting = abs >= commitThreshold;
-    if (nowCommitting !== committing) {
-      committing = nowCommitting;
-      if (nowCommitting) hapticMedium(); // "release to dismiss" tick
-    }
+    swipeX = abs > actionTotalWidth
+      ? -(actionTotalWidth + Math.min(MAX_OVERDRAG, (abs - actionTotalWidth) * RUBBER))
+      : desired;
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -170,30 +169,32 @@
 
 <div class="job-row-wrap">
   {#if swipeActions && swipeX < -0.5}
-    <!-- Action layer sits underneath; the row slides over to uncover it. -->
-    <div class="swipe-actions" class:committing>
-      {#if $sessionAccess.isAdmin}
-        <button
-          class="swipe-action swipe-action-delete"
-          style="width: {ACTION_DELETE_WIDTH}px;"
-          aria-label="Delete for everyone"
-          onclick={(event) => { event.stopPropagation(); void blockJob(); }}
-          disabled={dismissing}
-        >
-          <Trash size={18} weight="regular" />
-          <span>Delete</span>
-        </button>
-      {/if}
+    <div class="swipe-actions">
       <button
-        class="swipe-action swipe-action-dismiss"
-        style={committing ? "flex: 1;" : `width: ${ACTION_DISMISS_WIDTH}px;`}
-        aria-label="Not interested"
+        class="swipe-action"
+        style="width: {actionButtonWidth}px;"
+        aria-label="Hide this job"
         onclick={(event) => { event.stopPropagation(); void dismiss(); }}
         disabled={dismissing}
       >
-        <X size={18} weight="regular" />
-        <span>Dismiss</span>
+        <EyeSlash size={18} weight="regular" />
+        <span>Hide</span>
       </button>
+      {#if hasAdminAction}
+        <button
+          class="swipe-action danger"
+          style="width: {actionButtonWidth}px;"
+          aria-label="Block this job for everyone"
+          onclick={(event) => {
+            event.stopPropagation();
+            snapTo(0);
+            onBlockRequest?.(job);
+          }}
+        >
+          <Prohibit size={18} weight="regular" />
+          <span>Block</span>
+        </button>
+      {/if}
     </div>
   {/if}
 
@@ -204,7 +205,7 @@
     class:dismissing
     role="button"
     tabindex="0"
-    style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
+    style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
     onclick={handleClick}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
     onpointerdown={onPointerDown}
@@ -345,42 +346,33 @@
     inset: 0;
     display: flex;
     justify-content: flex-end;
-    align-items: stretch;
-    /* When the user pulls into the commit zone, the whole strip reads as the
-       dismiss action so the over-pull fills with its colour, not an empty gap. */
-    background: color-mix(in oklch, var(--color-bad) 12%, var(--color-bg));
-  }
-
-  .swipe-action {
-    border: 0;
-    border-left: 1px solid var(--color-line);
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 6px;
-    font-size: var(--fs-2xs);
-    font-weight: 500;
-    letter-spacing: 0.02em;
+    padding: 6px;
     background: var(--color-bg-sunken);
   }
 
-  .swipe-action-delete {
-    color: var(--color-warn);
-    background: color-mix(in oklch, var(--color-warn) 12%, var(--color-bg));
-  }
-
-  .swipe-action-dismiss {
-    color: var(--color-bad);
-    background: color-mix(in oklch, var(--color-bad) 12%, var(--color-bg));
-  }
-
-  /* In the commit zone, Delete recedes and Dismiss owns the row. */
-  .swipe-actions.committing .swipe-action-delete {
-    opacity: 0;
+  .swipe-action {
+    align-self: stretch;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: var(--color-ink-2);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    background: var(--color-bg-elev);
+    box-shadow: var(--shadow-control-active);
   }
 
   .swipe-action:active {
-    filter: brightness(1.04);
+    background: var(--color-control-bg);
+  }
+
+  .swipe-action.danger {
+    color: var(--color-bad);
   }
 </style>
