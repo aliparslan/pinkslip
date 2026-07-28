@@ -26,7 +26,7 @@ function applyTheme(mode: ThemeMode) {
   const resolved = resolvedMode(mode);
   html.setAttribute("data-mode", resolved);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", resolved === "dark" ? "#271a21" : "#fbf9fa");
+  if (meta) meta.setAttribute("content", resolved === "dark" ? "#18171a" : "#faf9f7");
   localStorage.setItem("pinkslip-theme", mode);
 }
 

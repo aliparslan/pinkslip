@@ -5,14 +5,10 @@
     <!-- Zoom stays enabled on the web (WCAG 1.4.4); the Capacitor shell opts
          into the app-like fixed viewport at runtime (see lib/native-shell.ts). -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#271a21" />
+    <meta name="theme-color" content="#18171a" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <!-- One variable file covers every weight, so this single preload replaces
-         what used to be a per-cut preload. Pitch is not preloaded: it is only
-         used for figures, well below the fold on first paint. -->
-    <link rel="preload" href="/fonts/untitled/test-untitled-sans-vf-roman.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>pinkslip</title>

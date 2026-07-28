@@ -1,7 +1,4 @@
 <script lang="ts">
-  // Single shared dialog scaffold: backdrop + card + focus trap + Escape /
-  // backdrop-click dismissal. Pages provide the body (form, actions) as
-  // children; action rows should put the primary button LAST (right side).
   import type { Snippet } from "svelte";
   import { focusTrap } from "../lib/focus-trap";
 
@@ -15,7 +12,6 @@
   }: {
     title: string;
     subtitle?: string;
-    /** While true, Escape / backdrop-click won't dismiss (request in flight). */
     busy?: boolean;
     maxWidth?: number;
     onclose: () => void;
@@ -42,7 +38,7 @@
     use:focusTrap
     aria-labelledby={titleId}
     tabindex="-1"
-    style="max-width: {maxWidth}px;"
+    style="--modal-max-width: {maxWidth}px;"
     onclick={(event) => event.stopPropagation()}
     onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
   >

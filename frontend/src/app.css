@@ -1,177 +1,18 @@
 @import "tailwindcss";
-
-/* ── Untitled Sans (Klim) ─────────────────────────────────────────────────────
-   EVALUATION ONLY. These are Klim *test* fonts — the filenames keep their
-   "test-" prefix so that stays obvious. The test licence permits internal
-   evaluation but forbids commercial / customer-facing use, so this must not
-   ship to production until a full licence is purchased. See
-   ~/Desktop/klimtestfonts/klim-test-font-licence-agreement-8-november-2018.txt
-
-   Variable roman, one file, whole weight axis — 12K, less than two static cuts
-   would cost. Every existing font-weight (400/500/600/650/700/750/800) keeps
-   working exactly as it did under Inter Variable, so this is a drop-in swap. */
-@font-face {
-  font-family: "Untitled Sans";
-  src: url("/fonts/untitled/test-untitled-sans-vf-roman.woff2") format("woff2-variations"),
-       url("/fonts/untitled/test-untitled-sans-vf-roman.woff2") format("woff2");
-  font-weight: 300 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Pitch (Klim) — mono, same test-licence terms as above. Used only where figures
-   must align: salaries, match scores, counts. Monospaced by construction, so
-   numbers line up without depending on a tabular-figure feature. */
-@font-face {
-  font-family: "Pitch";
-  src: url("/fonts/pitch/test-pitch-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Pitch";
-  src: url("/fonts/pitch/test-pitch-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Pitch";
-  src: url("/fonts/pitch/test-pitch-semibold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-:root {
-  /* Native form controls (date/time pickers, scrollbars) follow the app theme.
-     `data-mode` is always set — resolved by the inline script in index.html on
-     first paint and kept in sync by lib/theme.ts. */
-  color-scheme: dark;
-
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --app-mobile-width: 480px;
-  --app-page-width: 840px;
-  --app-nav-wide: 224px;
-  --screen-gutter: 16px;
-  --screen-nav-height: 56px;
-  --mobile-tab-bar-height: 56px;
-
-  /* ── Type scale ── use var(--fs-*) instead of one-off px font sizes. */
-  --fs-2xs: 11px;
-  --fs-xs: 12px;
-  --fs-sm: 13px;
-  --fs-md: 14px;
-  --fs-base: 15px;
-  --fs-lg: 17px;
-  --fs-xl: 20px;
-  --fs-2xl: 24px;
-  --fs-3xl: 28px;
-  --fs-4xl: 32px;
-
-  /* ── Spacing scale (4px base) ── use var(--space-*) for padding/gap/margin. */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-
-  /* ── Minimum comfortable tap target (iOS HIG / WCAG 2.5.5). */
-  --tap-min: 44px;
-}
-
-@theme {
-  /* Untitled Sans carries display and body — deliberately neutral, so the
-     information does the talking. Pitch handles figures only. */
-  --font-display: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Pitch", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 999px;
-
-  /* Dark theme (default) — pink-tinted neutrals matching light mode */
-  --color-bg: oklch(0.18 0.01 340);
-  --color-bg-elev: oklch(0.23 0.012 340);
-  --color-bg-sunken: oklch(0.14 0.01 340);
-  --color-ink: oklch(0.96 0.006 340);
-  --color-ink-2: oklch(0.80 0.01 340);
-  --color-ink-3: oklch(0.66 0.012 340);
-  /* 4.6:1 on bg-elev / 5.2:1 on bg — keep AA for 11-12px captions on cards. */
-  --color-ink-4: oklch(0.62 0.01 340);
-  --color-line: oklch(0.30 0.012 340);
-  --color-line-2: oklch(0.36 0.014 340);
-  --color-accent: oklch(0.72 0.18 350);
-  --color-accent-ink: oklch(0.15 0.01 350);
-  --color-accent-soft: oklch(0.26 0.06 350);
-  --color-accent-soft-ink: oklch(0.84 0.13 350);
-  --color-good: oklch(0.72 0.14 145);
-  --color-warn: oklch(0.78 0.15 65);
-  --color-bad: oklch(0.72 0.18 25);
-
-  /* Inset control surfaces (feed filter/sort bar). Tokenized so the light
-     theme overrides values instead of duplicating whole rule blocks. */
-  --color-control-bg: oklch(0.29 0.012 340);
-  --color-control-border: oklch(0.40 0.014 340);
-  --color-control-active-bg: oklch(0.17 0.01 340);
-  --color-control-active-ink: oklch(0.98 0.004 340);
-  --color-control-highlight: oklch(1 0 0 / 0.08);
-  --shadow-control-active: 0 1px 5px oklch(0 0 0 / 0.28);
-
-  /* Shared scrim behind modals and sheets. */
-  --color-scrim: oklch(0 0 0 / 0.42);
-}
-
-/* Light theme overrides. JS always resolves "system" to a concrete mode and
-   sets data-mode (see index.html + lib/theme.ts), so this single block is the
-   only light-mode CSS — no parallel @media (prefers-color-scheme) copies. */
-[data-mode="light"] {
-  color-scheme: light;
-
-  --color-bg: oklch(0.98 0.005 340);
-  --color-bg-elev: oklch(1 0 0);
-  --color-bg-sunken: oklch(0.955 0.008 340);
-  --color-ink: oklch(0.16 0.012 340);
-  --color-ink-2: oklch(0.35 0.014 340);
-  --color-ink-3: oklch(0.52 0.012 340);
-  /* 4.6:1 on bg / 4.9:1 on white cards (AA). */
-  --color-ink-4: oklch(0.55 0.01 340);
-  --color-line: oklch(0.9 0.01 340);
-  --color-line-2: oklch(0.83 0.012 340);
-  --color-accent: oklch(0.58 0.2 350);
-  --color-accent-ink: oklch(0.99 0.005 340);
-  --color-accent-soft: oklch(0.94 0.04 350);
-  --color-accent-soft-ink: oklch(0.38 0.16 350);
-  --color-good: oklch(0.5 0.14 145);
-  /* 4.7:1 on bg — amber score badges stay AA at small sizes in light mode. */
-  --color-warn: oklch(0.55 0.14 65);
-  --color-bad: oklch(0.5 0.18 25);
-
-  --color-control-bg: oklch(0.90 0.006 340);
-  --color-control-border: oklch(0.83 0.012 340);
-  --color-control-active-bg: oklch(1 0 0);
-  --color-control-active-ink: oklch(0.16 0.012 340);
-  --color-control-highlight: oklch(1 0 0 / 0.48);
-  --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.12);
-}
+@import "./styles/tokens.css";
 
 * { box-sizing: border-box; }
 
+/* stylelint-disable-next-line selector-max-id, selector-max-specificity */
 html, body, #app {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -182,13 +23,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--fs-base);
-  line-height: 1.45;
+  font-weight: 450;
+  line-height: 1.5;
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  /* Kill whole-page rubber-banding on both axes; scrolling lives in inner
-     containers, so the shell itself shouldn't bounce in the WKWebView. */
-  overscroll-behavior: none;
+  overscroll-behavior: none auto;
 }
 
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -204,7 +44,7 @@ html.native-ios textarea {
 
 .h-display {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0;
   line-height: 1.05;
   color: var(--color-ink);
@@ -215,8 +55,8 @@ html.native-ios textarea {
    font sizes on headings in components. lg = page titles, md = modal/sheet/
    detail titles, sm = empty-state and sub-headings. */
 .h-display-lg {
-  font-size: var(--fs-3xl);
-  letter-spacing: -0.02em;
+  font-size: var(--fs-4xl);
+  letter-spacing: -0.022em;
 }
 
 .h-display-md {
@@ -250,21 +90,19 @@ html.native-ios textarea {
 .section-label {
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--color-ink-3);
+  letter-spacing: 0;
+  color: var(--color-ink-4);
 }
 
-/* Quiet section heading used to group settings and profile rows. */
 .section-eyebrow {
   display: block;
   margin: 0 0 8px;
   font-family: var(--font-display);
-  font-size: var(--fs-base);
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -0.01em;
-  text-transform: none;
-  color: var(--color-ink-2);
+  letter-spacing: 0;
+  color: var(--color-ink-4);
 }
 
 .field-label {
@@ -307,19 +145,13 @@ html.native-ios textarea {
   color: var(--color-warn);
 }
 
-.alert-accent {
-  background: color-mix(in oklch, var(--color-accent) 14%, transparent);
-  color: var(--color-accent-soft-ink);
-}
-
 /* ── Stat row ────────────────────────────────────────────── */
 
 .stat-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 0;
-  row-gap: 6px;
+  gap: 6px 0;
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
   font-weight: 500;
@@ -342,8 +174,7 @@ html.native-ios textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 14px;
-  row-gap: 7px;
+  gap: 7px 14px;
   color: var(--color-ink-3);
 }
 
@@ -355,7 +186,7 @@ html.native-ios textarea {
   max-width: 100%;
   font-size: var(--fs-sm);
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-ink-3);
 }
 
@@ -389,15 +220,14 @@ html.native-ios textarea {
   transition: all .15s;
 }
 .chip:hover { background: var(--color-bg-sunken); }
-/* Selected chips speak the one selection language: accent-soft fill + accent
-   border (same as SearchProfileFields). */
 .chip-active,
 .filter-choice.active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-soft-ink);
-  border-color: color-mix(in oklch, var(--color-accent) 65%, var(--color-line));
+  background: var(--color-selection-bg);
+  color: var(--color-selection-ink);
+  border-color: var(--color-selection-bg);
+  font-weight: 600;
 }
-.chip-active:hover { background: var(--color-accent-soft); }
+.chip-active:hover { background: var(--color-selection-bg); }
 
 .chip-wrap {
   display: flex;
@@ -411,16 +241,15 @@ html.native-ios textarea {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  height: 20px;
+  height: 22px;
   padding: 0 7px;
   border-radius: var(--radius-xs);
   background: var(--color-bg-sunken);
   color: var(--color-ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--fs-2xs);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -499,7 +328,7 @@ html.native-ios textarea {
   background: transparent;
   color: var(--color-ink-2);
   font-size: var(--fs-xs);
-  font-weight: 650;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: background .15s, color .15s, transform .15s, box-shadow .15s;
@@ -530,7 +359,7 @@ html.native-ios textarea {
   background: var(--color-accent);
   color: var(--color-accent-ink);
   font-size: var(--fs-2xs);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -555,7 +384,7 @@ html.native-ios textarea {
   background: color-mix(in oklch, var(--color-warn) 10%, transparent);
   color: var(--color-warn);
   font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .feed-stale-notice > span {
@@ -573,7 +402,7 @@ html.native-ios textarea {
   background: transparent;
   color: currentColor;
   font: inherit;
-  font-weight: 750;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -595,8 +424,7 @@ html.native-ios textarea {
   display: inline-flex;
   gap: 1px;
   padding: 0;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: auto visible;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -617,7 +445,7 @@ html.native-ios textarea {
   background: transparent;
   color: var(--color-ink-2);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   outline: none;
@@ -663,7 +491,7 @@ html.native-ios textarea {
 .filter-group-title {
   color: var(--color-ink-2);
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .filter-option-grid {
@@ -684,7 +512,7 @@ html.native-ios textarea {
   background: transparent;
   color: var(--color-ink-2);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: background .15s, color .15s, border-color .15s;
@@ -706,7 +534,7 @@ html.native-ios textarea {
   background: var(--color-bg-elev);
   color: var(--color-ink-2);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   list-style: none;
 }
@@ -769,9 +597,9 @@ html.native-ios textarea {
 }
 
 .filter-location-options button.active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-soft-ink);
-  font-weight: 650;
+  background: var(--color-selection-bg);
+  color: var(--color-selection-ink);
+  font-weight: 600;
 }
 
 .filter-input-grid,
@@ -788,7 +616,7 @@ html.native-ios textarea {
   gap: 6px;
   color: var(--color-ink-3);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .filter-money-input {
@@ -813,7 +641,7 @@ html.native-ios textarea {
   color: var(--color-ink);
   font: inherit;
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .filter-money-input input::placeholder {
@@ -833,12 +661,7 @@ html.native-ios textarea {
   justify-content: space-between;
   gap: var(--space-3);
   font-size: var(--fs-sm);
-  font-weight: 700;
-}
-
-.filter-toggle.active {
-  border-color: color-mix(in oklch, var(--color-accent) 55%, var(--color-line-2));
-  background: color-mix(in oklch, var(--color-accent) 13%, var(--color-bg-elev));
+  font-weight: 500;
 }
 
 .filter-sheet-actions {
@@ -953,26 +776,31 @@ html.native-ios textarea {
   background: var(--color-bg-sunken);
 }
 
-.btn-primary {
+.btn-primary,
+.btn-secondary {
   -webkit-appearance: none;
   appearance: none;
+  height: var(--control-height);
+  padding: 0 var(--space-4);
   border: 1px solid var(--color-line-2);
-  background: var(--color-ink);
-  color: var(--color-bg);
+  border-radius: var(--radius-md);
   font-family: var(--font-sans);
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--fs-base);
   letter-spacing: -0.01em;
-  height: 48px;
-  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: opacity .15s, transform .1s, border-color .15s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   -webkit-user-select: none;
   user-select: none;
+  transition: background .15s, border-color .15s, color .15s, opacity .15s, transform .1s;
+}
+
+.btn-primary {
+  background: var(--color-ink);
+  color: var(--color-bg);
 }
 .btn-primary:hover { opacity: 0.9; }
 .btn-primary:active { transform: scale(0.98); }
@@ -983,25 +811,8 @@ html.native-ios textarea {
 }
 
 .btn-secondary {
-  -webkit-appearance: none;
-  appearance: none;
   background: var(--color-bg-elev);
   color: var(--color-ink);
-  border: 1px solid var(--color-line-2);
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--fs-md);
-  height: 40px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  -webkit-user-select: none;
-  user-select: none;
-  transition: background .15s, border-color .15s, color .15s;
 }
 .btn-secondary:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); }
 
@@ -1052,7 +863,7 @@ html.native-ios textarea {
 
 .btn-action {
   width: 100%;
-  height: 40px;
+  height: var(--control-height-compact);
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -1079,8 +890,6 @@ html.native-ios textarea {
   gap: var(--space-2);
 }
 
-/* The sticky bar is the page's primary CTA row — full 48px tier, while
-   .btn-action elsewhere (inline action grids) stays on the 40px tier. */
 .job-action-bar > .btn-action {
   height: 48px;
 }
@@ -1093,8 +902,8 @@ html.native-ios textarea {
   gap: 2px;
 }
 
-.job-detail-content {
-  padding-bottom: 112px;
+.screen-content.job-detail-content {
+  padding-bottom: calc(132px + var(--safe-bottom));
 }
 
 .job-detail-identity {
@@ -1162,7 +971,7 @@ html.native-ios textarea {
 .text-link {
   color: var(--color-accent);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -1227,7 +1036,7 @@ html.native-ios textarea {
 }
 
 .btn-mini {
-  height: 40px;
+  height: var(--control-height-compact);
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -1250,6 +1059,7 @@ html.native-ios textarea {
   outline: none;
   width: 100%;
   transition: border-color .15s, background-color .15s;
+  appearance: none;
   -webkit-appearance: none;
 }
 .input-field:focus {
@@ -1332,7 +1142,7 @@ select.input-field {
   margin: 0;
   padding: 18px;
   min-height: 360px;
-  word-break: break-word;
+  overflow-wrap: break-word;
   font-size: var(--fs-md);
   line-height: 1.7;
   color: var(--color-ink-2);
@@ -1389,37 +1199,11 @@ select.input-field {
   margin-bottom: 0;
 }
 
-.toast-wrap {
-  position: fixed;
-  top: calc(var(--safe-top) + 64px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  pointer-events: none;
-  width: calc(100% - 32px);
-  display: flex;
-  justify-content: center;
-}
-
-.toast-pill {
-  max-width: min(100%, 420px);
-  background: color-mix(in oklch, var(--color-good) 13%, var(--color-bg-elev));
-  color: var(--color-ink);
-  border: 1px solid color-mix(in oklch, var(--color-good) 40%, var(--color-line-2));
-  box-shadow:
-    0 14px 36px rgba(0,0,0,0.18),
-    0 0 0 1px color-mix(in oklch, var(--color-good) 10%, transparent) inset;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  padding: 10px var(--space-4);
-  border-radius: var(--radius-full);
-  text-align: center;
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-}
-
 .spin {
-  animation: spin 1s linear infinite;
+  opacity: 0;
+  animation:
+    spin 1s linear infinite,
+    spinner-reveal var(--duration-instant) var(--ease-standard) 280ms both;
 }
 
 /* Centered page/section loading state — pair with <Spinner>. Replaces the
@@ -1458,6 +1242,11 @@ select.input-field {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes spinner-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* iOS-style toggle. Rendered by Bits UI's <Switch> (button[role="switch"]);
@@ -1517,50 +1306,6 @@ select.input-field {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.profile-job-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.profile-job-stat {
-  min-height: 68px;
-  padding: 11px 12px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 9px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elev);
-  color: var(--color-ink);
-  text-align: left;
-  cursor: pointer;
-}
-
-.profile-job-stat > svg:first-child {
-  grid-row: 1 / 3;
-  color: var(--color-ink-3);
-}
-
-.profile-job-stat strong {
-  font-size: var(--fs-lg);
-  line-height: 1;
-}
-
-.profile-job-stat span {
-  color: var(--color-ink-3);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-}
-
-.profile-job-stat > svg:last-child {
-  grid-column: 3;
-  grid-row: 1 / 3;
-  color: var(--color-ink-4);
 }
 
 .you-page {
@@ -1657,13 +1402,6 @@ select.input-field {
   font-weight: 500;
 }
 
-.you-inline-action {
-  min-width: 112px;
-  padding-left: 12px;
-  padding-right: 12px;
-  white-space: nowrap;
-}
-
 .you-destination-page {
   padding-top: 18px;
 }
@@ -1703,6 +1441,27 @@ select.input-field {
   gap: 16px;
 }
 
+.feedback-page-form {
+  width: 100%;
+  max-width: 520px;
+}
+
+.feedback-page-intro {
+  max-width: 40ch;
+  margin: 0 0 20px;
+  color: var(--color-ink-2);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+.feedback-textarea {
+  min-height: 176px;
+}
+
+.feedback-submit {
+  margin-top: 20px;
+}
+
 .my-jobs-tabs {
   height: 44px;
   margin-bottom: 14px;
@@ -1727,7 +1486,7 @@ select.input-field {
   color: var(--color-ink-3);
   font: inherit;
   font-size: var(--fs-sm);
-  font-weight: 650;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -1783,24 +1542,13 @@ select.input-field {
 }
 
 .companies-page {
-  padding-left: 22px;
-  padding-right: 22px;
+  padding-left: var(--screen-gutter);
+  padding-right: var(--screen-gutter);
 }
-
-.companies-stats { margin-bottom: 16px; }
-
-.stat-number { color: var(--color-ink); }
-.stat-number.bad { color: var(--color-bad); }
 
 .page-block { margin-bottom: 20px; }
 
 .muted-card { background: var(--color-bg-sunken); }
-
-.btn-compact {
-  padding: 0 12px;
-  gap: 4px;
-  font-size: var(--fs-xs);
-}
 
 .alert-compact { font-size: var(--fs-xs); }
 
@@ -1864,6 +1612,10 @@ select.input-field {
 
 .textarea-field {
   height: auto;
+  min-height: 128px;
+  padding: 12px;
+  display: block;
+  line-height: 1.5;
   resize: vertical;
 }
 
@@ -1883,7 +1635,6 @@ select.input-field {
   min-height: 18px;
   margin-right: auto;
   color: var(--color-ink-4);
-  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
 }
 
@@ -2005,9 +1756,9 @@ select.input-field {
 
 .status-badge {
   flex-shrink: 0;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: var(--radius-xs);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--fs-2xs);
   font-weight: 600;
 }
@@ -2015,11 +1766,6 @@ select.input-field {
 .status-badge.bad {
   background: color-mix(in oklch, var(--color-bad) 12%, transparent);
   color: var(--color-bad);
-}
-
-.section-heading {
-  display: block;
-  margin: 0 0 10px;
 }
 
 .row-title {
@@ -2115,7 +1861,7 @@ select.input-field {
 .list-entry-title {
   color: var(--color-ink);
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -2194,7 +1940,7 @@ select.input-field {
 .inset-panel-title {
   color: var(--color-ink);
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .inset-panel-meta {
@@ -2207,28 +1953,6 @@ select.input-field {
 .visually-hidden-input { display: none; }
 
 .tall-control { height: 48px; }
-
-.log-panel {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-sunken);
-  color: var(--color-ink-3);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-}
-
-.run-title { text-transform: capitalize; }
-
-.run-error {
-  margin-top: 6px;
-  overflow-wrap: anywhere;
-  color: var(--color-bad);
-  font-size: var(--fs-xs);
-}
 
 .align-start { align-self: flex-start; }
 
@@ -2361,6 +2085,32 @@ body.nav-animating .page,
   margin: 0 auto;
 }
 
+.feed-pull-reveal {
+  height: 0;
+  padding: 0 var(--space-4);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--color-ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.feed-pull-reveal svg {
+  flex: none;
+  color: var(--color-ink-4);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.feed-pull-reveal.armed svg { transform: scale(1.08); }
+
+.feed-page.pull-settling .feed-pull-reveal {
+  transition: height var(--duration-standard) var(--ease-standard), opacity var(--duration-fast) ease;
+}
+
 .app-content-shell {
   min-height: 100dvh;
   width: 100%;
@@ -2373,22 +2123,25 @@ body.nav-animating .page,
   padding-bottom: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
 }
 
+.app-content-shell.admin-shell-active {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
 .screen-nav {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(var(--tap-min), 1fr) minmax(0, auto) minmax(var(--tap-min), 1fr);
+  align-items: center;
   min-height: calc(var(--screen-nav-height) + var(--safe-top));
   padding: calc(var(--safe-top) + 6px) 10px 6px;
   background: color-mix(in oklch, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 0.5px solid var(--color-line);
-}
-
-.screen-nav {
-  display: grid;
-  grid-template-columns: minmax(var(--tap-min), 1fr) minmax(0, auto) minmax(var(--tap-min), 1fr);
-  align-items: center;
 }
 
 .screen-nav__leading,
@@ -2453,10 +2206,16 @@ body.nav-animating .page,
   }
 
   .app-content-shell {
-    width: min(var(--app-page-width), calc(100vw - var(--app-nav-wide)));
-    max-width: var(--app-page-width);
-    margin-left: max(var(--app-nav-wide), calc(50vw - 308px));
+    width: calc(100vw - var(--app-nav-wide));
+    max-width: none;
+    margin-left: var(--app-nav-wide);
     margin-right: 0;
+  }
+
+  .app-content-shell.admin-shell-active {
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
   .app-content-shell.mobile-tabs-visible {
@@ -2504,6 +2263,7 @@ body.nav-animating .page,
 
 .modal-card {
   width: min(100%, 380px);
+  max-width: var(--modal-max-width, 380px);
   padding: var(--space-6);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
@@ -2525,41 +2285,24 @@ body.nav-animating .page,
   line-height: 1.5;
 }
 
-.ops-metric-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
 
-.ops-metric {
-  min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-sunken);
-}
-
-.ops-metric span {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--color-ink-3);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.ops-metric strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: var(--color-ink);
-  font-size: var(--fs-sm);
-  line-height: 1.35;
-}
-
-@media (max-width: 420px) {
-  .ops-metric-grid {
-    grid-template-columns: 1fr;
+  .modal-card {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - var(--safe-top) - 12px);
+    padding: 20px 18px calc(var(--safe-bottom) + 18px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    animation: sheet-in var(--duration-standard) var(--ease-standard);
   }
 }
 
@@ -2574,7 +2317,7 @@ body.nav-animating .page,
   top: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-top, 0px);
+  height: env(safe-area-inset-top, 0);
   z-index: 30;
   background: var(--color-bg);
   pointer-events: none;
@@ -2601,6 +2344,11 @@ body.nav-animating .status-bar-scrim {
   will-change: transform;
 }
 
+.nav-underlay-content {
+  min-height: 100dvh;
+  will-change: transform;
+}
+
 .nav-underlay-dim {
   position: absolute;
   inset: 0;
@@ -2609,12 +2357,16 @@ body.nav-animating .status-bar-scrim {
 }
 
 /* While a nav animation is running, drop the expensive header/tab-bar blur
-   (compositing a full-screen backdrop-filter mid-transform is what jitters). */
+   (compositing a full-screen backdrop-filter mid-transform is what jitters).
+   !important guarantees this wins over any state-specific .screen-nav variant
+   that might apply mid-transition — performance-critical, verify on device. */
+/* stylelint-disable declaration-no-important */
 body.nav-animating .screen-nav {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background: var(--color-bg) !important;
 }
+/* stylelint-enable declaration-no-important */
 /* Tactile press feedback — every primary tappable surface dips slightly.
    (These classes already include `transform` in their own transitions.) */
 .btn-primary:active,
@@ -2689,6 +2441,10 @@ body.nav-animating .screen-nav {
   50% { opacity: 0.8; }
 }
 
+/* Accessibility safety net: must beat every animation/transition declared
+   anywhere in the app (present and future), regardless of selector
+   specificity — !important is the correct tool here, not a shortcut. */
+/* stylelint-disable declaration-no-important */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -2697,6 +2453,7 @@ body.nav-animating .screen-nav {
     transition-duration: 0.01ms !important;
   }
 }
+/* stylelint-enable declaration-no-important */
 
 /* Native tab bars do not float above the software keyboard. Keeping the page
    padding avoids a layout jump; the dock returns as soon as focus leaves. */
@@ -2708,6 +2465,12 @@ body.nav-animating .screen-nav {
 
 /* ── Job description (ATS HTML content) ─────────────────── */
 
+.job-description {
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
 .job-description h1,
 .job-description h2,
 .job-description h3,
@@ -2715,7 +2478,7 @@ body.nav-animating .screen-nav {
 .job-description h5,
 .job-description h6 {
   font-size: var(--fs-base);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-ink);
   margin: 18px 0 8px;
   line-height: 1.25;

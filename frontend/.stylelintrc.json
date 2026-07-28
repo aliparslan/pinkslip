@@ -1,0 +1,64 @@
+{
+  "overrides": [
+    {
+      "files": ["**/*.svelte"],
+      "customSyntax": "postcss-html"
+    },
+    {
+      "files": ["src/**/*.svelte"],
+      "customSyntax": "postcss-html",
+      "rules": {
+        "declaration-property-value-allowed-list": {
+          "color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "inherit", "currentColor", "transparent"],
+          "background-color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "none"],
+          "background": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "none"],
+          "border-color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "currentColor"],
+          "font-size": ["/^var\\(--/", "inherit"],
+          "border-radius": ["/^var\\(--/", "50%", "0"],
+          "font-weight": ["400", "500", "600", "inherit"]
+        }
+      }
+    },
+    {
+      "files": ["src/components/CompanyLogo.svelte"],
+      "customSyntax": "postcss-html",
+      "rules": {
+        "declaration-property-value-allowed-list": {
+          "color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "inherit", "currentColor", "transparent"],
+          "background-color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "none"],
+          "background": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "none"],
+          "border-color": ["/^var\\(--|^color-mix\\(.*var\\(--/", "transparent", "currentColor"],
+          "font-weight": ["400", "500", "600", "inherit"],
+          "font-size": ["/^var\\(--/", "inherit", "/^\\{fontSize\\}px$/"],
+          "border-radius": ["/^var\\(--/", "50%", "0", "/^\\{radius\\}px$/"]
+        }
+      }
+    }
+  ],
+  "rules": {
+    "declaration-no-important": true,
+    "max-nesting-depth": 2,
+    "selector-max-id": 0,
+    "selector-max-specificity": "0,4,0",
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "theme",
+          "apply",
+          "variants",
+          "screen",
+          "layer",
+          "utility",
+          "custom-variant",
+          "source",
+          "plugin"
+        ]
+      }
+    ],
+    "no-duplicate-selectors": true,
+    "declaration-block-no-redundant-longhand-properties": true,
+    "declaration-property-value-keyword-no-deprecated": true,
+    "length-zero-no-unit": true
+  }
+}

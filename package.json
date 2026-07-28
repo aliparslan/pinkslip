@@ -8,7 +8,7 @@
     "deploy": "bun run db:migrate:remote && bun run build:frontend && wrangler deploy",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "check": "bunx tsc --noEmit && cd frontend && bun run check",
+    "check": "bunx tsc --noEmit && cd frontend && bun run check && bun run lint:css",
     "build:frontend": "cd frontend && bun run build",
     "db:migrate": "wrangler d1 migrations apply pinkslip --local",
     "db:migrate:remote": "wrangler d1 migrations apply pinkslip --remote",

@@ -27,6 +27,10 @@
   let fontSize = $derived(Math.round(size * 0.32));
 </script>
 
+<!-- radius/font-size scale proportionally with the `size` prop across call
+     sites, so they can't sit on a fixed token — allowed explicitly in
+     .stylelintrc.json rather than a disable comment (none is possible inside
+     an inline style="" attribute). -->
 <div
   class="logo-mark"
   style="width: {size}px; height: {size}px; border-radius: {radius}px; font-size: {fontSize}px;"

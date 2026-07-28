@@ -1,4 +1,5 @@
 import App from "./App.svelte";
+import "@fontsource-variable/instrument-sans/wght.css";
 import "./app.css";
 import { mount } from "svelte";
 import { initNativePush } from "./lib/native-push";

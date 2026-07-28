@@ -6,8 +6,8 @@
   "description": "Personal job alert system for top tech companies",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#271a21",
-  "theme_color": "#271a21",
+  "background_color": "#18171a",
+  "theme_color": "#18171a",
   "orientation": "portrait",
   "icons": [
     {

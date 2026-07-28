@@ -1,0 +1,154 @@
+:root {
+  color-scheme: dark;
+
+  /* Environment and layout */
+  --safe-top: env(safe-area-inset-top, 0);
+  --safe-bottom: env(safe-area-inset-bottom, 0);
+  --app-mobile-width: 480px;
+  --app-reading-width: 720px;
+  --app-page-width: 880px;
+  --app-admin-width: 1240px;
+  --app-nav-wide: 232px;
+  --screen-gutter: 16px;
+  --screen-nav-height: 56px;
+  --mobile-tab-bar-height: 62px;
+  --tap-min: 44px;
+  --control-height: 48px;
+  --control-height-compact: 40px;
+
+  /* Type */
+  --fs-2xs: 12px;
+  --fs-xs: 13px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-base: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 24px;
+  --fs-4xl: 32px;
+
+  /* 4px rhythm. Compatibility aliases remain while legacy screens migrate. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Motion */
+  --duration-instant: 140ms;
+  --duration-fast: 180ms;
+  --duration-standard: 220ms;
+  --duration-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Layering */
+  --z-navigation: 20;
+  --z-overlay: 40;
+  --z-toast: 60;
+  --overlay-bottom-offset: calc(var(--mobile-tab-bar-height) + var(--safe-bottom) + var(--space-3));
+}
+
+@theme {
+  --font-display: "Instrument Sans Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Instrument Sans Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-xs: 6px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 14px;
+  --radius-full: 999px;
+
+  /* Near-neutral graphite. Chroma stays deliberately below 0.008. */
+  --color-bg: oklch(0.165 0.005 285);
+  --color-bg-elev: oklch(0.205 0.006 285);
+  --color-bg-sunken: oklch(0.135 0.004 285);
+  --color-ink: oklch(0.965 0.003 285);
+  --color-ink-2: oklch(0.82 0.005 285);
+  --color-ink-3: oklch(0.68 0.006 285);
+  --color-ink-4: oklch(0.62 0.006 285);
+  --color-line: oklch(0.29 0.006 285);
+  --color-line-2: oklch(0.36 0.007 285);
+
+  /* Pink is identity and state, never the ambient canvas. */
+  --color-accent: oklch(0.72 0.18 350);
+  --color-accent-hover: oklch(0.75 0.17 350);
+  --color-accent-ink: oklch(0.16 0.01 350);
+  --color-accent-soft: oklch(0.255 0.055 350);
+  --color-accent-soft-ink: oklch(0.86 0.115 350);
+  --color-selection-bg: oklch(0.91 0.004 285);
+  --color-selection-ink: oklch(0.18 0.006 285);
+
+  --color-good: oklch(0.73 0.14 150);
+  --color-good-soft: oklch(0.235 0.035 150);
+  --color-warn: oklch(0.79 0.14 75);
+  --color-warn-soft: oklch(0.245 0.035 75);
+  --color-bad: oklch(0.72 0.17 25);
+  --color-bad-soft: oklch(0.245 0.045 25);
+
+  --color-control-bg: oklch(0.255 0.006 285);
+  --color-control-border: oklch(0.37 0.007 285);
+  --color-control-active-bg: oklch(0.145 0.004 285);
+  --color-control-active-ink: oklch(0.98 0.002 285);
+  --color-control-highlight: oklch(1 0 0 / 0.07);
+  --color-scrim: oklch(0 0 0 / 0.52);
+
+  --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.3);
+  --shadow-overlay: 0 18px 54px oklch(0 0 0 / 0.32);
+  --shadow-toast: 0 12px 36px oklch(0 0 0 / 0.25);
+}
+
+[data-mode="light"] {
+  color-scheme: light;
+
+  /* Near-neutral stone rather than the previous pink wash. */
+  --color-bg: oklch(0.985 0.002 80);
+  --color-bg-elev: oklch(1 0 0);
+  --color-bg-sunken: oklch(0.962 0.003 80);
+  --color-ink: oklch(0.18 0.006 285);
+  --color-ink-2: oklch(0.34 0.006 285);
+  --color-ink-3: oklch(0.49 0.006 285);
+  --color-ink-4: oklch(0.52 0.006 285);
+  --color-line: oklch(0.905 0.003 80);
+  --color-line-2: oklch(0.825 0.004 80);
+
+  --color-accent: oklch(0.57 0.205 350);
+  --color-accent-hover: oklch(0.53 0.2 350);
+  --color-accent-ink: oklch(0.99 0.002 70);
+  --color-accent-soft: oklch(0.965 0.018 350);
+  --color-accent-soft-ink: oklch(0.4 0.15 350);
+  --color-selection-bg: oklch(0.22 0.006 285);
+  --color-selection-ink: oklch(0.99 0.002 80);
+
+  --color-good: oklch(0.48 0.14 150);
+  --color-good-soft: oklch(0.955 0.025 150);
+  --color-warn: oklch(0.53 0.14 75);
+  --color-warn-soft: oklch(0.955 0.03 75);
+  --color-bad: oklch(0.5 0.18 25);
+  --color-bad-soft: oklch(0.955 0.03 25);
+
+  --color-control-bg: oklch(0.94 0.002 80);
+  --color-control-border: oklch(0.835 0.004 80);
+  --color-control-active-bg: oklch(1 0 0);
+  --color-control-active-ink: oklch(0.18 0.006 285);
+  --color-control-highlight: oklch(1 0 0 / 0.5);
+  --color-scrim: oklch(0.12 0.006 285 / 0.38);
+
+  --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.1);
+  --shadow-overlay: 0 20px 60px oklch(0.16 0.01 285 / 0.16);
+  --shadow-toast: 0 12px 34px oklch(0.16 0.01 285 / 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 1ms;
+    --duration-fast: 1ms;
+    --duration-standard: 1ms;
+    --duration-slow: 1ms;
+  }
+}
