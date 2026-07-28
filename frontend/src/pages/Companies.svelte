@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { fly } from "svelte/transition";
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";
+  import { feedback } from "../lib/feedback.svelte";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Plus from "phosphor-svelte/lib/Plus";
+
+  let { mode = "user" }: { mode?: "user" | "admin" } = $props();
+  let isAdminMode = $derived(mode === "admin" && $sessionAccess.isAdmin);
 
   const ATS_TYPES = [
     "All",
@@ -26,6 +30,31 @@
     "custom",
   ];
   const USER_VIEWS = ["All", "Hidden"];
+  const ADMIN_STATUSES = [
+    { value: "active", label: "Active" },
+    { value: "attention", label: "Needs attention" },
+    { value: "disabled", label: "Disabled" },
+    { value: "all", label: "Any status" },
+  ] as const;
+  const COMPANY_PAGE_SIZE = 40;
+
+  type AdminStatus = typeof ADMIN_STATUSES[number]["value"];
+
+  function atsLabel(value: string) {
+    const labels: Record<string, string> = {
+      All: "All sources",
+      ashby: "Ashby",
+      custom: "Custom",
+      gem: "Gem",
+      greenhouse: "Greenhouse",
+      lever: "Lever",
+      rippling: "Rippling",
+      smartrecruiters: "SmartRecruiters",
+      workday: "Workday",
+      yc: "Y Combinator",
+    };
+    return labels[value] ?? value;
+  }
 
   const SOURCE_INPUTS: Record<string, { label: string; type: string; placeholder: string }> = {
     workday: {
@@ -68,9 +97,9 @@
   let error: string | null = $state(null);
   let selectedAts: string = $state("All");
   let selectedView: string = $state("All");
+  let adminStatus: AdminStatus = $state("active");
   let search: string = $state("");
-  let showDisabled: boolean = $state(false);
-  let showQuarantinedOnly: boolean = $state(false);
+  let visibleCount: number = $state(COMPANY_PAGE_SIZE);
 
   // Add company form
   let showAddForm: boolean = $state(false);
@@ -93,7 +122,6 @@
   // Delete confirmation
   let deleteTarget: { id: string; name: string } | null = $state(null);
   let deleting: boolean = $state(false);
-  let toast: string | null = $state(null);
   let reportTarget: { id: string; name: string } | null = $state(null);
   let reportNotes: string = $state("");
   let reporting: boolean = $state(false);
@@ -112,24 +140,34 @@
         query === "" ||
         c.name.toLowerCase().includes(query) ||
         c.ats_slug.toLowerCase().includes(query);
-      const matchesVisibility = $sessionAccess.isAdmin
-        ? showDisabled || Boolean(c.enabled)
-        : selectedView === "Hidden" ? Boolean(c.blocked) : !c.blocked;
-      const matchesQuarantine = !showQuarantinedOnly || Boolean(c.quarantined_at);
-      return matchesAts && matchesSearch && matchesVisibility && matchesQuarantine;
+      const enabled = Boolean(c.enabled);
+      const needsAttention = c.last_poll_status === "error" || Boolean(c.quarantined_at);
+      const matchesVisibility = isAdminMode
+        ? adminStatus === "all"
+          || (adminStatus === "active" && enabled)
+          || (adminStatus === "disabled" && !enabled)
+          || (adminStatus === "attention" && needsAttention)
+        : enabled && (selectedView === "Hidden" ? Boolean(c.blocked) : !c.blocked);
+      return matchesAts && matchesSearch && matchesVisibility;
     })
   );
-  // Quarantined sources are still enabled and still retried daily — they just
-  // stopped burning a request every 15 minutes. Surfacing the count keeps them
-  // from rotting unnoticed, which is how 34 dead slugs quietly became 46.
-  let quarantinedCount = $derived(companies.filter((c) => Boolean(c.quarantined_at)).length);
+  let visibleCompanies = $derived(filteredCompanies.slice(0, visibleCount));
+  let remainingCompanyCount = $derived(Math.max(0, filteredCompanies.length - visibleCompanies.length));
+
+  $effect(() => {
+    selectedAts;
+    selectedView;
+    adminStatus;
+    search;
+    visibleCount = COMPANY_PAGE_SIZE;
+  });
   let requestCandidate = $derived(search.trim());
   let hasExactCompanyMatch = $derived(
     requestCandidate.length > 0
       && companies.some((company) => company.name.trim().toLowerCase() === requestCandidate.toLowerCase())
   );
   let showRequestCandidate = $derived(
-    !$sessionAccess.isAdmin
+    !isAdminMode
       && selectedView === "All"
       && requestCandidate.length >= 2
       && !hasExactCompanyMatch
@@ -172,11 +210,12 @@
     companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
     try {
       await api.companies.block(id);
-      toast = "Company hidden from your feed";
-      setTimeout(() => { toast = null; }, 2200);
+      feedback.success("Company hidden from your feed", {
+        action: { label: "Undo", run: () => handleRestore(id) },
+      });
     } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not hide that company."));
     }
   }
 
@@ -184,11 +223,10 @@
     companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
     try {
       await api.companies.restore(id);
-      toast = "Company restored";
-      setTimeout(() => { toast = null; }, 2200);
+      feedback.success("Company restored");
     } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not restore that company."));
     }
   }
 
@@ -201,10 +239,9 @@
         report_type: "broken_source",
         notes: reportNotes,
       });
-      toast = `Report sent for ${reportTarget.name}`;
+      feedback.success(`Report sent for ${reportTarget.name}`);
       reportTarget = null;
       reportNotes = "";
-      setTimeout(() => { toast = null; }, 2400);
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -228,10 +265,9 @@
       requestCompanyName = "";
       requestCareersUrl = "";
       requestCompanyNotes = "";
-      toast = result.duplicate
+      feedback.success(result.duplicate
         ? "That company is already in your request queue"
-        : "Company request sent";
-      setTimeout(() => { toast = null; }, 2600);
+        : "Company request sent");
     } catch (e) {
       requestCompanyError = errorMessage(e);
     } finally {
@@ -259,6 +295,7 @@
       showAddForm = false;
       addVerifyError = null;
       addVerifyMsg = null;
+      feedback.success(`${trimmedName} added`);
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -288,17 +325,27 @@
       });
       companies = companies.map((c) => (c.id === targetId ? { ...c, ...updated } : c));
       editTarget = null;
-      toast = `${targetName} saved — polling...`;
+      feedback.show({
+        message: `${targetName} saved · checking source`,
+        tone: "info",
+        duration: null,
+        dedupeKey: `company-poll-${targetId}`,
+      });
 
       const pollResult = await api.companies.poll(targetId);
       companies = companies.map((c) => (c.id === targetId ? { ...c, ...pollResult } : c));
 
       if (pollResult.last_poll_status === "error") {
-        toast = `${targetName}: still failing`;
+        feedback.error(`${targetName} is still failing`, {
+          duration: null,
+          dedupeKey: `company-poll-${targetId}`,
+        });
       } else {
-        toast = `${targetName} fixed` + (pollResult.new_jobs ? ` — ${pollResult.new_jobs} new jobs` : "");
+        feedback.success(
+          `${targetName} fixed` + (pollResult.new_jobs ? ` · ${pollResult.new_jobs} new jobs` : ""),
+          { dedupeKey: `company-poll-${targetId}` },
+        );
       }
-      setTimeout(() => { toast = null; }, 3000);
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -363,8 +410,7 @@
     const name = deleteTarget.name;
     await handleToggle(deleteTarget.id, false);
     deleteTarget = null;
-    toast = `${name} hidden`;
-    setTimeout(() => { toast = null; }, 2500);
+    feedback.success(`${name} disabled`);
   }
 
   async function handleDelete() {
@@ -375,8 +421,7 @@
       await api.companies.delete(deleteTarget.id);
       companies = companies.filter((c) => c.id !== deleteTarget!.id);
       deleteTarget = null;
-      toast = `${name} deleted`;
-      setTimeout(() => { toast = null; }, 2500);
+      feedback.success(`${name} deleted`);
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -385,106 +430,104 @@
   }
 
   let enabledCount = $derived(companies.filter(c => c.enabled).length);
-  let errorCount = $derived(companies.filter(c => c.last_poll_status === "error").length);
-  let filteredAllEnabled = $derived(filteredCompanies.length > 0 && filteredCompanies.every(c => c.enabled));
-
-  async function toggleAll(enable: boolean) {
-    const ids = filteredCompanies.map(c => c.id);
-    companies = companies.map(c => ids.includes(c.id) ? { ...c, enabled: enable } : c);
-    try {
-      await Promise.all(ids.map(id => api.companies.toggle(id, enable)));
-    } catch (e) {
-      companies = companies.map(c => ids.includes(c.id) ? { ...c, enabled: !enable } : c);
-      error = errorMessage(e);
-    }
-  }
+  let attentionCount = $derived(companies.filter(
+    (company) => company.last_poll_status === "error" || Boolean(company.quarantined_at)
+  ).length);
 </script>
 
 <div class="page pushed-screen">
   <ScreenNav title="Companies" onBack={() => { if (!requestBack()) navigate("/you"); }} />
   <div class="page-frame companies-page">
-    {#if $sessionAccess.isAdmin}
-      <div class="stat-row companies-stats">
-        <span><strong class="stat-number">{enabledCount}</strong> active</span>
-        <span><strong class="stat-number">{companies.length}</strong> total</span>
-        {#if errorCount > 0}
-          <span><strong class="stat-number bad">{errorCount}</strong> error{errorCount !== 1 ? "s" : ""}</span>
+    {#if isAdminMode}
+      <div class="source-summary" aria-label="Source status">
+        <span><strong>{enabledCount}</strong> active</span>
+        {#if attentionCount > 0}
+          <span class="attention"><strong>{attentionCount}</strong> need attention</span>
         {/if}
-        {#if !showDisabled}<span>disabled hidden</span>{/if}
+        <span>{companies.length} total</span>
+      </div>
+
+      <div class="source-tools page-block">
+        <div class="source-search-row">
+          <input
+            class="input-field"
+            type="search"
+            enterkeyhint="search"
+            aria-label="Search sources"
+            placeholder="Search sources"
+            bind:value={search}
+            onkeydown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+            }}
+          />
+          <button
+            class="btn-primary btn-accent source-add"
+            type="button"
+            aria-label="Add source"
+            aria-expanded={showAddForm}
+            onclick={() => { showAddForm = !showAddForm; }}
+          >
+            <Plus size={15} weight="bold" />
+            <span>Add source</span>
+          </button>
+        </div>
+
+        <div class="source-filter-row">
+          <label for="source-type-filter">
+            <span>Source</span>
+            <div class="select-field-wrap">
+              <select id="source-type-filter" class="input-field" bind:value={selectedAts}>
+                {#each ATS_TYPES as atsType}
+                  <option value={atsType}>{atsLabel(atsType)}</option>
+                {/each}
+              </select>
+              <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
+            </div>
+          </label>
+          <label for="source-status-filter">
+            <span>Status</span>
+            <div class="select-field-wrap">
+              <select id="source-status-filter" class="input-field" bind:value={adminStatus}>
+                {#each ADMIN_STATUSES as status}
+                  <option value={status.value}>{status.label}</option>
+                {/each}
+              </select>
+              <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
+            </div>
+          </label>
+          <span class="source-result-count">{filteredCompanies.length} shown</span>
+        </div>
+      </div>
+    {:else}
+      <div class="stack-md page-block">
+        <input
+          class="input-field"
+          type="search"
+          enterkeyhint="search"
+          aria-label="Search companies"
+          placeholder="Search companies"
+          bind:value={search}
+          onkeydown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        <div class="flex-fill">
+          <FilterChips
+            filters={USER_VIEWS}
+            selected={selectedView}
+            onSelect={(filter) => (selectedView = filter)}
+          />
+        </div>
       </div>
     {/if}
 
-    <!-- Filter chips + toggle all -->
-    <div class="stack-md page-block">
-      <input
-        class="input-field"
-        type="search"
-        enterkeyhint="search"
-        aria-label="Search companies"
-        placeholder={$sessionAccess.isAdmin ? "Search companies or ATS slugs" : "Search companies"}
-        bind:value={search}
-        onkeydown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            event.currentTarget.blur();
-          }
-        }}
-      />
-      <div class="stack-md flex-fill">
-        <div class="flex-fill">
-          {#if $sessionAccess.isAdmin}
-            <FilterChips
-              filters={ATS_TYPES}
-              selected={selectedAts}
-              onSelect={(f) => (selectedAts = f)}
-            />
-          {:else}
-            <FilterChips
-              filters={USER_VIEWS}
-              selected={selectedView}
-              onSelect={(f) => (selectedView = f)}
-            />
-          {/if}
-        </div>
-        {#if $sessionAccess.isAdmin}
-          <div class="button-cluster">
-            <button
-              class="btn-secondary btn-compact"
-              onclick={() => showDisabled = !showDisabled}
-            >
-              {showDisabled ? "Hide disabled" : "Show disabled"}
-            </button>
-            {#if quarantinedCount > 0}
-              <button
-                class="btn-secondary btn-compact"
-                class:active={showQuarantinedOnly}
-                onclick={() => showQuarantinedOnly = !showQuarantinedOnly}
-              >
-                {showQuarantinedOnly ? "Show all" : `Needs fixing (${quarantinedCount})`}
-              </button>
-            {/if}
-            {#if filteredCompanies.length > 0}
-              <button
-                class="btn-secondary btn-compact"
-                onclick={() => toggleAll(!filteredAllEnabled)}
-              >
-                {filteredAllEnabled ? "Deselect all" : "Select all"}
-              </button>
-            {/if}
-            <button
-              class="btn-primary btn-accent btn-compact"
-              onclick={() => { showAddForm = !showAddForm; }}
-            >
-              <Plus size={12} weight="bold" />
-              Add
-            </button>
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Add company form -->
-    {#if $sessionAccess.isAdmin && showAddForm}
+    {#if isAdminMode && showAddForm}
       <div class="content-card stack-md page-block muted-card">
         <div class="row-title">Add a company</div>
         <div class="form-stack">
@@ -585,15 +628,15 @@
           No companies found
         </div>
         <div class="empty-state-copy">
-          {$sessionAccess.isAdmin ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You have not hidden any companies." : "Try a different company name."}
+          {isAdminMode ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You have not hidden any companies." : "Try a different company name."}
         </div>
       </div>
     {:else}
-      <div class="surface-list">
-        {#each filteredCompanies as company (company.id)}
+      <div class="surface-list company-list">
+        {#each visibleCompanies as company (company.id)}
           <CompanyRow
             {company}
-            admin={$sessionAccess.isAdmin}
+            admin={isAdminMode}
             onToggle={handleToggle}
             onDelete={promptDelete}
             onEdit={openEdit}
@@ -612,12 +655,24 @@
           </button>
         {/if}
       </div>
+      {#if remainingCompanyCount > 0}
+        <div class="company-list-footer">
+          <span>{visibleCompanies.length} of {filteredCompanies.length}</span>
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick={() => { visibleCount += COMPANY_PAGE_SIZE; }}
+          >
+            Show {Math.min(COMPANY_PAGE_SIZE, remainingCompanyCount)} more
+          </button>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
 
 <!-- Edit company modal -->
-{#if $sessionAccess.isAdmin && editTarget}
+{#if isAdminMode && editTarget}
   <Modal
     title="Edit company"
     busy={saving}
@@ -692,8 +747,109 @@
   </Modal>
 {/if}
 
+<style>
+  .source-summary {
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+  }
+
+  .source-summary strong {
+    color: var(--color-ink);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .source-summary .attention,
+  .source-summary .attention strong { color: var(--color-bad); }
+
+  .source-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .source-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .source-search-row .input-field,
+  .source-add { height: 44px; }
+
+  .source-add {
+    padding: 0 14px;
+    font-size: var(--fs-sm);
+  }
+
+  .source-filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 8px;
+  }
+
+  .source-filter-row label {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
+
+  .source-filter-row .input-field {
+    height: 40px;
+    font-size: var(--fs-sm);
+  }
+
+  .source-result-count {
+    grid-column: 1 / -1;
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+  }
+
+  .company-list-footer {
+    padding: var(--space-4) 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+  }
+
+  .company-list { overflow: visible; }
+
+  @media (max-width: 390px) {
+    .source-add { width: 44px; padding: 0; overflow: hidden; }
+    .source-add span { display: none; }
+    .source-add :global(svg) { width: 17px; height: 17px; }
+  }
+
+  @media (min-width: 640px) {
+    .source-tools {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) auto;
+      align-items: end;
+    }
+
+    .source-filter-row {
+      grid-template-columns: 170px 170px;
+    }
+
+    .source-result-count { display: none; }
+  }
+</style>
+
 <!-- Delete confirmation modal -->
-{#if $sessionAccess.isAdmin && deleteTarget}
+{#if isAdminMode && deleteTarget}
   <Modal
     title="Remove {deleteTarget.name}?"
     busy={deleting}
@@ -730,7 +886,7 @@
   </Modal>
 {/if}
 
-{#if !$sessionAccess.isAdmin && showCompanyRequest}
+{#if !isAdminMode && showCompanyRequest}
   <Modal
     title="Request a company"
     subtitle="Tell us which company should join the catalog. A careers link helps us find the right source faster."
@@ -790,7 +946,7 @@
   </Modal>
 {/if}
 
-{#if !$sessionAccess.isAdmin && reportTarget}
+{#if !isAdminMode && reportTarget}
   <Modal
     title="Report {reportTarget.name}"
     subtitle="Let us know if its careers source is stale, broken, or missing jobs."
@@ -811,13 +967,4 @@
       </button>
     </div>
   </Modal>
-{/if}
-
-<!-- Toast -->
-{#if toast}
-  <div class="toast-wrap" role="status" aria-live="polite">
-    <div class="toast-pill" in:fly={{ y: -14, duration: 160 }} out:fly={{ y: -10, duration: 120 }}>
-      {toast}
-    </div>
-  </div>
 {/if}
