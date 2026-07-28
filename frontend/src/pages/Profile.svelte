@@ -32,6 +32,7 @@
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import FileText from "phosphor-svelte/lib/FileText";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import Notebook from "phosphor-svelte/lib/Notebook";
   import PaintBrush from "phosphor-svelte/lib/PaintBrush";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
@@ -40,6 +41,8 @@
 
   type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "operations";
   type PhosphorIcon = Component<{ size?: number | string }>;
+
+  let { routeOverride }: { routeOverride?: string } = $props();
 
   const destinationTitles: Record<YouDestination, string> = {
     preferences: "Job preferences",
@@ -50,7 +53,7 @@
   };
   const destinationIds = new Set<YouDestination>(Object.keys(destinationTitles) as YouDestination[]);
 
-  let route = $derived($currentRoute);
+  let route = $derived(routeOverride ?? $currentRoute);
   let destination = $derived.by<YouDestination | null>(() => {
     if (!route.startsWith("/you/")) return null;
     const value = route.slice("/you/".length) as YouDestination;
@@ -445,6 +448,7 @@
           <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? "Ready" : "Finish setup", "/you/tailoring", MagicWand)}
+            {@render destinationRow("Master story", "Projects, outcomes, and talking points", "/corpus", Notebook)}
           </div>
         </section>
 

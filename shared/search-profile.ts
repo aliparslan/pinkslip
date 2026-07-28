@@ -136,15 +136,15 @@ export type WorkMode = "remote" | "hybrid" | "onsite";
 export type WorkAuthorization = "authorized" | "sponsorship" | "not_sure";
 
 export const LOCATION_OPTIONS = [
-  { id: "sf_bay", label: "San Francisco / Bay Area", aliases: ["san francisco", "bay area", "palo alto", "mountain view", "sunnyvale", "san jose", "menlo park", "redwood city"] },
-  { id: "new_york", label: "New York, NY", aliases: ["new york", "nyc", "brooklyn"] },
+  { id: "sf_bay", label: "San Francisco / Bay Area", aliases: ["san francisco", "bay area", "palo alto", "mountain view", "sunnyvale", "san jose", "menlo park", "redwood city", "los gatos", "cupertino", "san mateo", "foster city", "south san francisco"] },
+  { id: "new_york", label: "New York, NY", aliases: ["new york", "nyc", "brooklyn", "jersey city"] },
   { id: "chicago", label: "Chicago, IL", aliases: ["chicago"] },
-  { id: "boston", label: "Boston, MA", aliases: ["boston", "cambridge, ma"] },
-  { id: "washington_dc", label: "Washington, DC", aliases: ["washington, dc", "washington d.c.", "arlington, va", "mclean, va"] },
-  { id: "seattle", label: "Seattle, WA", aliases: ["seattle", "bellevue, wa", "redmond, wa"] },
+  { id: "boston", label: "Boston, MA", aliases: ["boston", "cambridge"] },
+  { id: "washington_dc", label: "Washington, DC", aliases: ["washington, dc", "washington dc", "washington d.c.", "arlington", "mclean"] },
+  { id: "seattle", label: "Seattle, WA", aliases: ["seattle", "bellevue", "redmond"] },
   { id: "austin", label: "Austin, TX", aliases: ["austin"] },
-  { id: "los_angeles", label: "Los Angeles, CA", aliases: ["los angeles", "santa monica", "culver city"] },
-  { id: "denver", label: "Denver, CO", aliases: ["denver", "boulder, co"] },
+  { id: "los_angeles", label: "Los Angeles, CA", aliases: ["los angeles", "santa monica", "culver city", "el segundo", "pasadena", "burbank"] },
+  { id: "denver", label: "Denver, CO", aliases: ["denver", "boulder"] },
   { id: "atlanta", label: "Atlanta, GA", aliases: ["atlanta"] },
 ] as const;
 

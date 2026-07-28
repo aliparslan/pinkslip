@@ -161,7 +161,14 @@ function usFacet(response: WorkdayJobsResponse) {
     const key = `${facet.facetParameter ?? ""} ${facet.descriptor ?? ""}`.toLowerCase();
     if (!key.includes("location") || key.includes("country")) continue;
     const ids = (facet.values ?? [])
-      .filter((value) => value.id && isUsJobLocation(value.descriptor ?? ""))
+      .filter((value) => {
+        const descriptor = value.descriptor?.trim() ?? "";
+        // Without a country facet, a bare "Remote" bucket may be worldwide.
+        // Only select location values that positively identify the US.
+        return value.id
+          && isUsJobLocation(descriptor)
+          && !/^(?:remote|distributed|work from home)$/i.test(descriptor);
+      })
       .map((value) => value.id!);
     if (facet.facetParameter && ids.length > 0) {
       return { parameter: facet.facetParameter, ids };
@@ -224,15 +231,17 @@ async function fetchRemainingPages(
 function mapPosting(source: WorkdaySource, posting: WorkdayPosting): JobListing {
   const externalId = posting.bulletFields?.find((field) => field.trim()) ?? posting.externalPath;
   const rawLocation = posting.locationsText?.trim() || "";
+  const aggregateLocation = rawLocation.match(/^(\d+)\s+locations?$/i);
   return {
     externalId,
     title: posting.title,
     url: `${source.origin}/${source.site}${posting.externalPath}`,
-    location: isUsJobLocation(rawLocation)
-      ? rawLocation
-      : rawLocation
-        ? `${rawLocation}, United States`
-        : "United States",
+    // The response is already scoped through Workday's US country facet. Its
+    // aggregate labels are therefore safe to identify as US; never append a US
+    // suffix to an explicit foreign location just to make it pass ingestion.
+    location: aggregateLocation
+      ? `${aggregateLocation[1]} US locations`
+      : rawLocation || "United States",
     department: null,
     postedAt: postedAtFromLabel(posting.postedOn),
     description: null,

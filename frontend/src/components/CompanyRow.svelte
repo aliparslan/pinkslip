@@ -125,7 +125,11 @@
 </div>
 
 <style>
-  .company-row { gap: 12px; }
+  .company-row {
+    gap: 12px;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 64px;
+  }
   .company-name-row {
     overflow: hidden;
     display: flex;

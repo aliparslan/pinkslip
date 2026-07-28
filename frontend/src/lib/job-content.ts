@@ -115,11 +115,29 @@ const SALARY_PATTERNS = [
    en dash so adjacent feed rows always match. */
 export function normalizeSalaryText(salary: string | null | undefined): string | null {
   if (!salary) return null;
-  const cleaned = salary.replace(/\s+/g, " ").trim();
+  const cleaned = salary
+    .replace(/\s+/g, " ")
+    .replace(/\s*(?:[·•|]\s*)?offers?\s+equity\b[.!]?/gi, "")
+    .replace(/^\s*[·•|]\s*|\s*[·•|]\s*$/g, "")
+    .trim();
   if (!cleaned) return null;
   return cleaned
     .replace(/(\d[\d,.]*(?:\s?[kK])?)(?:\s+to\s+|\s*[-–—]\s*)([$£€¥]?\s?\d)/g, "$1–$2")
     .replace(/([$£€¥])\s+(\d)/g, "$1$2");
+}
+
+/** Compact feed-row pay without throwing away the precise detail-page value. */
+export function formatCompactSalaryText(salary: string | null | undefined): string | null {
+  const normalized = normalizeSalaryText(salary);
+  if (!normalized) return null;
+
+  // When an ATS supplies multiple geographic bands, keep the primary band in
+  // the row; the full source value remains visible on the detail page.
+  const primaryBand = normalized.split(/\s+[·•|]\s+/)[0] ?? normalized;
+  return primaryBand.replace(/([$£€¥])?(\d{1,3}(?:,\d{3})+)(?:\.\d+)?/g, (_match: string, currency: string | undefined, amount: string) => {
+    const thousands = Math.round(Number(amount.replace(/,/g, "")) / 1000);
+    return `${currency ?? ""}${thousands}K`;
+  });
 }
 
 export function extractSalaryFromHtml(html: string | null | undefined): string | null {
@@ -222,6 +240,38 @@ function sanitizeUrl(value: string): string | null {
   return null;
 }
 
+const HEADING_ACRONYMS: Record<string, string> = {
+  ai: "AI",
+  api: "API",
+  apis: "APIs",
+  eeo: "EEO",
+  ios: "iOS",
+  ml: "ML",
+  qa: "QA",
+  sql: "SQL",
+  sre: "SRE",
+  ui: "UI",
+  us: "US",
+  usa: "USA",
+  ux: "UX",
+};
+
+function humanizeAllCapsHeading(value: string): string {
+  const text = normalizeText(value);
+  const letters = [...text].filter((character) => /\p{L}/u.test(character)).join("");
+  if (!letters || letters !== letters.toLocaleUpperCase() || letters === letters.toLocaleLowerCase()) {
+    return text;
+  }
+
+  let firstWord = true;
+  return text.toLocaleLowerCase().replace(/[\p{L}\p{N}]+/gu, (word) => {
+    const replacement = HEADING_ACRONYMS[word]
+      ?? (firstWord ? `${word.charAt(0).toLocaleUpperCase()}${word.slice(1)}` : word);
+    firstWord = false;
+    return replacement;
+  }).replace(/\bR&d\b/g, "R&D");
+}
+
 export function sanitizeJobDescriptionHtml(
   html: string | null | undefined,
   context: { title?: string | null; companyName?: string | null } = {}
@@ -276,7 +326,12 @@ export function sanitizeJobDescriptionHtml(
   // This section label is already supplied by the app. Some ATS descriptions
   // repeat it after a short company introduction instead of at the first node.
   template.content.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading) => {
-    if (isRepeatedDescriptionSectionLabel(heading.textContent ?? "")) heading.remove();
+    if (isRepeatedDescriptionSectionLabel(heading.textContent ?? "")) {
+      heading.remove();
+      return;
+    }
+    const humanized = humanizeAllCapsHeading(heading.textContent ?? "");
+    if (humanized !== normalizeText(heading.textContent ?? "")) heading.textContent = humanized;
   });
 
   // The page already establishes the role and its "About the role" section.

@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
-import { SCORE_RAW_PER_PERCENT } from "../../shared/scoring";
+import { MATCH_SCORER_VERSION } from "../user-job-scores";
+import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const metrics = new Hono<{ Bindings: Env; Variables: Variables }>();
 metrics.use("/*", requireAdmin);
@@ -64,15 +65,18 @@ metrics.get("/", async (c) => {
            FROM user_job_matches ujm
            JOIN jobs j ON j.id = ujm.job_id
            WHERE ujm.user_id = usp.user_id
-             AND ujm.score >= CAST(ROUND(usp.match_threshold * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
+             AND ujm.scorer_version = ?
              AND j.closed_at IS NULL
+             AND j.description IS NOT NULL
+             AND trim(j.description) != ''
+             AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
              AND NOT EXISTS (
                SELECT 1 FROM user_blocked_companies ubc
                WHERE ubc.user_id = usp.user_id AND ubc.company_id = j.company_id
              )
          ) >= 10 THEN 1 ELSE 0 END) AS enough_matches
        FROM user_search_profiles usp`
-    ).first<ViableUserRow>(),
+    ).bind(MATCH_SCORER_VERSION).first<ViableUserRow>(),
     db.prepare(
       "SELECT COUNT(*) AS count FROM content_reports WHERE status = 'open'"
     ).first<CountRow>(),

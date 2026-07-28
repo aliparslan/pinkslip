@@ -24,6 +24,8 @@ describe("job ingestion scope", () => {
     expect(isTargetJobTitle("Enterprise Account Executive")).toBe(false);
     expect(isTargetJobTitle("Customer Support Engineer")).toBe(false);
     expect(isTargetJobTitle("Legal Counsel")).toBe(false);
+    expect(isTargetJobTitle("Mechanical Product Engineer")).toBe(false);
+    expect(isTargetJobTitle("Local Product Engineer")).toBe(false);
   });
 
   it("uses a specific department to rescue compact technical titles", () => {
@@ -37,16 +39,19 @@ describe("job ingestion scope", () => {
       title: "Backend Engineer",
       department: "Engineering",
       location: "Remote",
+      postedAt: null,
     })).toBe(true);
     expect(isEligibleJobListing({
       title: "Backend Engineer",
       department: "Engineering",
       location: "London",
+      postedAt: null,
     })).toBe(false);
     expect(isEligibleJobListing({
       title: "Recruiter",
       department: "People",
       location: "Remote",
+      postedAt: null,
     })).toBe(false);
   });
 });

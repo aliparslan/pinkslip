@@ -26,14 +26,6 @@
 }
 
 @font-face {
-  font-family: "Founders Grotesk";
-  src: url("/fonts/founders/founders-grotesk-bold.woff2") format("woff2");
-  font-weight: 700 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Founders Grotesk Text";
   src: url("/fonts/founders/founders-grotesk-text-regular.woff2") format("woff2");
   font-weight: 400;
@@ -58,14 +50,6 @@
 }
 
 @font-face {
-  font-family: "Founders Grotesk Text";
-  src: url("/fonts/founders/founders-grotesk-text-bold.woff2") format("woff2");
-  font-weight: 700 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Founders Grotesk Mono";
   src: url("/fonts/founders/founders-grotesk-mono-regular.woff2") format("woff2");
   font-weight: 400;
@@ -84,7 +68,7 @@
 @font-face {
   font-family: "Founders Grotesk Mono";
   src: url("/fonts/founders/founders-grotesk-mono-semibold.woff2") format("woff2");
-  font-weight: 600 800;
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
@@ -237,8 +221,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 /* iOS WKWebView zooms when a focused field's font is < 16px. Enforce 16px on
    form controls in the native shell only, so the web/desktop sizing is untouched. */
 html.native-ios input,
-html.native-ios textarea,
-html.native-ios select {
+html.native-ios textarea {
   font-size: 16px;
 }
 
@@ -246,7 +229,7 @@ html.native-ios select {
 
 .h-display {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1.05;
   color: var(--color-ink);
@@ -1032,7 +1015,7 @@ html.native-ios select {
   border: 1px solid var(--color-line-2);
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   height: 40px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-md);
@@ -1288,7 +1271,7 @@ html.native-ios select {
   font: inherit;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  font-size: var(--fs-base);
+  font-size: var(--fs-md);
   outline: none;
   width: 100%;
   transition: border-color .15s, background-color .15s;
@@ -1696,6 +1679,7 @@ select.input-field {
   height: 40px;
   padding-left: 12px;
   padding-right: 32px;
+  font-weight: 500;
 }
 
 .you-inline-action {
@@ -1980,8 +1964,7 @@ select.input-field {
   flex-direction: column;
 }
 
-.stack-sm,
-.action-grid { gap: 8px; }
+.stack-sm { gap: 8px; }
 
 .stack-md,
 .form-stack.loose { gap: 12px; }
@@ -1990,8 +1973,7 @@ select.input-field {
 
 .split-row,
 .field-action,
-.button-cluster,
-.action-grid {
+.button-cluster {
   display: flex;
 }
 
@@ -2017,10 +1999,6 @@ select.input-field {
 }
 
 .button-cluster.center { justify-content: center; }
-
-.action-grid > * {
-  flex: 1;
-}
 
 .flex-fill {
   min-width: 0;
@@ -2144,15 +2122,6 @@ select.input-field {
 .grouped-row + .grouped-row,
 .list-entry + .list-entry {
   border-top: 0.5px solid var(--color-line);
-}
-
-.grouped-row-block {
-  display: block;
-}
-
-.grouped-row-heading,
-.grouped-row-alert {
-  margin-bottom: 10px;
 }
 
 .grouped-row-copy,
@@ -2384,6 +2353,15 @@ select.input-field {
   color: var(--color-ink-4);
   font-size: var(--fs-xs);
   text-align: center;
+}
+
+.page {
+  animation: fade-in 160ms ease-out both;
+}
+
+body.nav-animating .page,
+.nav-underlay .page {
+  animation: none;
 }
 
 .root-screen {
@@ -2758,7 +2736,9 @@ body.nav-animating .screen-nav {
 .job-description h1,
 .job-description h2,
 .job-description h3,
-.job-description h4 {
+.job-description h4,
+.job-description h5,
+.job-description h6 {
   font-size: var(--fs-base);
   font-weight: 700;
   color: var(--color-ink);
@@ -2784,6 +2764,14 @@ body.nav-animating .screen-nav {
   margin-bottom: 7px;
   font-size: var(--fs-md);
   line-height: 1.56;
+}
+
+.job-description li > :is(ul, ol) {
+  margin: 7px 0 0;
+}
+
+.job-description li:last-child {
+  margin-bottom: 0;
 }
 
 .job-description > :first-child {

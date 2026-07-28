@@ -22,6 +22,7 @@
     LOCATION_OPTIONS,
     type LocationId,
   } from "../../../shared/search-profile";
+  import { MAX_POSTED_AGE_DAYS } from "../../../shared/job-policy";
 
   // Compact labels for the shared metro catalog. The filter sends metro
   // IDs to the API, so every onboarding metro is filterable here too.
@@ -59,7 +60,6 @@
 
   // Mirrors MAX_POSTED_AGE_DAYS in worker/routes/jobs.ts — the server always
   // enforces it; this is only for the explanatory hint.
-  const MAX_POSTED_AGE_DAYS = 30;
   const POSTED_OPTIONS: Array<{ label: string; value: "any" | "dated" | "undated" }> = [
     { label: "All", value: "any" },
     { label: "Dated", value: "dated" },

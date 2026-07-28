@@ -159,6 +159,44 @@ describe("personalized scoring", () => {
     expect(result.score).toBeLessThan(30);
     expect(result.location_score).toBe(0);
   });
+
+  test("location preferences are a hard eligibility gate", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["backend"],
+      location_ids: ["new_york"],
+      work_modes: ["onsite"],
+      relocation_willing: false,
+    });
+    const ny = job({
+      title: "Backend Engineer",
+      location: "New York, NY",
+      description: "Build APIs.",
+    });
+    const sf = job({
+      title: "Backend Engineer",
+      location: "San Francisco, CA",
+      description: "Build APIs.",
+    });
+
+    expect(scoreJobForProfile("ny", ny, classifyJob(ny), profile).plausible).toBe(true);
+    expect(scoreJobForProfile("sf", sf, classifyJob(sf), profile).plausible).toBe(false);
+  });
+
+  test("open to anywhere bypasses the metro gate but not work mode", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["backend"],
+      location_ids: ["new_york"],
+      work_modes: ["onsite"],
+      relocation_willing: true,
+    });
+    const onsite = job({ title: "Backend Engineer", location: "Austin, TX" });
+    const remote = job({ title: "Backend Engineer", location: "Remote" });
+
+    expect(scoreJobForProfile("onsite", onsite, classifyJob(onsite), profile).plausible).toBe(true);
+    expect(scoreJobForProfile("remote", remote, classifyJob(remote), profile).plausible).toBe(false);
+  });
 });
 
 describe("job features and match explanations", () => {
@@ -335,6 +373,15 @@ describe("the new-grad band", () => {
     // postings state no years requirement at all.
     const match = scored("Backend Engineer", "Build and operate our APIs.");
     expect(match.plausible).toBe(true);
+  });
+
+  test("does not match until the listing description has been hydrated", () => {
+    expect(scored("Backend Engineer", null).plausible).toBe(false);
+  });
+
+  test("excludes numeric employer levels above the early-career band", () => {
+    expect(scored("Backend Engineer 5", "Build APIs.").plausible).toBe(false);
+    expect(scored("Backend Engineer L4/L5", "Build APIs.").plausible).toBe(false);
   });
 
   test("includes a requirement at the ceiling and excludes one above it", () => {

@@ -18,11 +18,14 @@ import {
 import { normalizeScore, scoreJob, type ScoreBreakdown } from "./scoring";
 import { loadUserPreferenceState, scoringPrefsFromState } from "./user-preferences";
 import { closestSelectedRole, roleAffinity } from "../shared/role-affinity";
+import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
+import { isUsJobLocation } from "./us-jobs";
 
 // Bump whenever scoring semantics change so cached user_job_matches are rebuilt.
-// v8 keeps unrelated classified specialties out of a user's feed while still
-// allowing explicit overlaps such as Research Software Engineer → SWE + Research.
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-8";
+// v9 makes content, freshness, country, work mode, and location deterministic
+// eligibility gates while preserving explicit overlaps such as Research
+// Software Engineer → SWE + Research.
+export const MATCH_SCORER_VERSION = "profile-v2-deterministic-9";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -132,6 +135,37 @@ function buildReasons(
   return [...new Set(reasons)].slice(0, 4);
 }
 
+export function isLocationEligibleForProfile(
+  listing: JobListing,
+  features: JobFeatures,
+  profile: SearchProfile
+): boolean {
+  if (
+    features.work_mode !== "unknown"
+    && !profile.work_modes.includes(features.work_mode)
+  ) return false;
+
+  // Remote is country-wide. Ingestion already established US eligibility, and
+  // the product intentionally treats an unqualified "Remote" label as US-safe.
+  if (features.work_mode === "remote") return true;
+  if (profile.relocation_willing) return true;
+
+  const hasLocationPreference = profile.location_ids.length > 0
+    || profile.custom_locations.length > 0;
+  if (!hasLocationPreference) return true;
+
+  if (features.metro_areas.some((metro) => profile.location_ids.includes(metro))) {
+    return true;
+  }
+
+  const location = listing.location.toLowerCase();
+  return profile.custom_locations.some((preferred) => {
+    const normalized = preferred.trim().toLowerCase();
+    return normalized.length >= 3
+      && (location.includes(normalized) || normalized.includes(location));
+  });
+}
+
 export function scoreJobForProfile(
   jobId: string,
   listing: JobListing,
@@ -172,6 +206,17 @@ export function scoreJobForProfile(
 
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
     && features.sponsorship_available === false;
+  const locationDisqualified = !isLocationEligibleForProfile(listing, features, profile);
+  const contentDisqualified = !listing.description?.trim();
+  const staleDisqualified = !isFreshPostedAt(listing.postedAt);
+  const countryDisqualified = !isUsJobLocation(listing.location);
+  const excludedTitleDisqualified = profile.excluded_titles.some((excluded) => {
+    const term = excluded.trim().toLowerCase();
+    if (!term) return false;
+    if (term.includes(" ")) return listing.title.toLowerCase().includes(term);
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escaped}\\b`, "i").test(listing.title);
+  });
 
   // An explicitly in-band requirement ranks above a posting that says nothing,
   // so genuine new-grad listings float above the generic majority rather than
@@ -182,6 +227,8 @@ export function scoreJobForProfile(
       ? 25 - features.min_years
       : 0;
   const rawScore = experienceDisqualified || seniorityDisqualified || sponsorshipDisqualified
+    || locationDisqualified || contentDisqualified || staleDisqualified || countryDisqualified
+    || excludedTitleDisqualified
     ? Math.min(15, base.location_score + base.department_score + base.recency_score)
     : titleScore === 0
       ? Math.min(29, yoeScore + base.location_score + base.department_score + base.recency_score)
@@ -196,6 +243,11 @@ export function scoreJobForProfile(
   const plausible = !experienceDisqualified
     && !seniorityDisqualified
     && !sponsorshipDisqualified
+    && !locationDisqualified
+    && !contentDisqualified
+    && !staleDisqualified
+    && !countryDisqualified
+    && !excludedTitleDisqualified
     && (selectedSpecialty || customTitle || breakdown.title_score > 0)
     && normalized >= 25;
   return {
@@ -260,7 +312,9 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
               jf.classifier_version, jf.confidence
        FROM jobs j
        JOIN job_features jf ON jf.job_id = j.id
-       WHERE j.id IN (${placeholders})`
+       WHERE j.id IN (${placeholders})
+         AND j.description IS NOT NULL
+         AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(...jobIds).all<MatchableJobRow>();
   }
 
@@ -290,6 +344,8 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
      JOIN job_features jf ON jf.job_id = j.id
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
+       AND j.description IS NOT NULL
+       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        ${cursorClause}
      ORDER BY j.first_seen_at DESC
      LIMIT ?`
@@ -348,7 +404,9 @@ export async function ensureUserJobMatchesReady(
        FROM user_job_matches ujm
        JOIN jobs j ON j.id = ujm.job_id
        JOIN companies c ON c.id = j.company_id
-       WHERE ujm.user_id = ? AND j.closed_at IS NULL AND c.enabled = 1`
+       WHERE ujm.user_id = ? AND j.closed_at IS NULL AND c.enabled = 1
+         AND j.description IS NOT NULL
+         AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(userId).first<{ count: number }>();
     if ((count?.count ?? 0) >= minimumMatches) return;
     const evaluated = await ensureUserJobScores(db, userId);
@@ -377,7 +435,9 @@ export async function advanceBacklogScoring(
     `SELECT MIN(j.first_seen_at) AS first_seen_at
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
-     WHERE c.enabled = 1 AND j.closed_at IS NULL`
+     WHERE c.enabled = 1 AND j.closed_at IS NULL
+       AND j.description IS NOT NULL
+       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
   ).first<{ first_seen_at: string | null }>();
   if (!oldest?.first_seen_at) return 0;
 

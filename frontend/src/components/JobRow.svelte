@@ -2,7 +2,7 @@
   import { navigate } from "../router";
   import { setJobDetailReturnRoute } from "../lib/job-navigation";
   import { api, type Job } from "../lib/api";
-  import { extractSalaryFromHtml, formatJobLocation, normalizeSalaryText } from "../lib/job-content";
+  import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
   import { timeAgo } from "../lib/utils";
   import { markViewed } from "../lib/viewed";
   import { sessionAccess } from "../lib/session-access";
@@ -47,7 +47,7 @@
       : ACTION_DISMISS_WIDTH
   );
   let commitThreshold = $derived(actionTotalWidth + 34);
-  let displaySalary = $derived(normalizeSalaryText(
+  let displaySalary = $derived(formatCompactSalaryText(
     job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
   ));
   let displayLocation = $derived(formatJobLocation(job.location));

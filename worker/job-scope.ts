@@ -1,6 +1,7 @@
 import { ROLE_OPTIONS } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 import { isUsJobLocation } from "./us-jobs";
+import { isFreshPostedAt } from "../shared/job-policy";
 
 const SUPPORTED_ROLE_KEYWORDS = ROLE_OPTIONS.flatMap((role) => role.keywords);
 
@@ -40,6 +41,8 @@ const UNSUPPORTED_TITLE_PATTERNS = [
   "general counsel",
   "human resources",
   "legal counsel",
+  "local product engineer",
+  "mechanical product engineer",
   "operations coordinator",
   "paralegal",
   "people operations",
@@ -96,31 +99,62 @@ export function isTargetJobListing(
 }
 
 export function isEligibleJobListing(
-  job: Pick<JobListing, "title" | "department" | "location">
+  job: Pick<JobListing, "title" | "department" | "location" | "postedAt">
 ): boolean {
-  return isUsJobLocation(job.location) && isTargetJobListing(job);
+  return isUsJobLocation(job.location)
+    && isTargetJobListing(job)
+    && isFreshPostedAt(job.postedAt);
 }
 
 export async function ensureEligibleJobs(db: D1Database): Promise<number> {
-  const cleanupVersion = "eligible-jobs-v3";
+  const cleanupVersion = "eligible-jobs-v4";
   const state = await db.prepare(
     "SELECT value FROM preferences WHERE key = 'eligible_jobs_cleanup_version'"
   ).first<{ value: string }>();
   if (state?.value === cleanupVersion) return 0;
 
   const openJobs = await db.prepare(
-    `SELECT id, title, department, location
-     FROM jobs
-     WHERE closed_at IS NULL`
+    `SELECT j.id, j.title, j.department, j.location, j.posted_at AS postedAt,
+            COALESCE(c.source_type, c.ats_type) AS source_type
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     WHERE j.closed_at IS NULL`
   ).all<{
     id: string;
     title: string;
     department: string | null;
     location: string;
+    postedAt: string | null;
+    source_type: string;
   }>();
 
+  const normalizedJobs = (openJobs.results ?? []).map((job) => {
+    if (job.source_type !== "workday") return job;
+
+    const aggregate = job.location.match(/^(\d+)\s+locations?(?:,\s*united states(?: of america)?)?$/i);
+    if (aggregate) return { ...job, location: `${aggregate[1]} US locations` };
+
+    // Older Workday ingestion appended ", United States" to every unknown
+    // label. Strip that synthetic suffix before eligibility is evaluated so a
+    // value such as "Berlin, United States" cannot survive this migration.
+    const suffixed = job.location.match(/^(.+),\s*united states(?: of america)?$/i);
+    if (suffixed && !isUsJobLocation(suffixed[1])) {
+      return { ...job, location: suffixed[1].trim() };
+    }
+    return job;
+  });
+
+  const changedLocations = normalizedJobs.filter((job, index) =>
+    job.location !== openJobs.results?.[index]?.location
+  );
+  for (let offset = 0; offset < changedLocations.length; offset += 75) {
+    await db.batch(changedLocations.slice(offset, offset + 75).map((job) =>
+      db.prepare("UPDATE jobs SET location = ? WHERE id = ?").bind(job.location, job.id)
+    ));
+  }
+
   const now = new Date().toISOString();
-  const rejected = (openJobs.results ?? []).filter((job) =>
+  const rejected = normalizedJobs.filter((job) =>
     !isEligibleJobListing(job)
   );
   for (let offset = 0; offset < rejected.length; offset += 75) {

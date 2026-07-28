@@ -24,17 +24,6 @@ const US_CITIES = [
   "washington, dc", "washington, d.c.",
 ];
 
-const NON_US_MARKERS = [
-  "alberta", "amsterdam", "apac", "asia", "australia", "bengaluru",
-  "berlin", "brazil", "british columbia", "canada", "china", "dublin",
-  "emea", "england", "europe", "france", "germany", "india", "ireland",
-  "israel", "italy", "japan", "latam", "latin america", "london",
-  "melbourne", "mexico", "montreal", "netherlands", "new zealand",
-  "ontario", "paris", "poland", "portugal", "quebec", "singapore",
-  "spain", "sweden", "switzerland", "sydney", "taiwan", "tokyo",
-  "toronto", "united kingdom", "vancouver",
-];
-
 const US_STATE_ABBREVIATION =
   /(?:^|,\s*|\(\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?:\b|,|\))/;
 
@@ -46,7 +35,12 @@ function includesPhrase(location: string, phrase: string) {
 export function isUsJobLocation(location: string): boolean {
   const raw = location.trim();
   const normalized = raw.toLowerCase().replace(/\s+/g, " ");
-  if (!normalized) return false;
+  // An omitted location is unknown, not evidence that the role is foreign.
+  // Profile-specific metro/work-mode rules still decide whether it belongs in
+  // a particular user's feed.
+  if (!normalized || /^(?:unknown|unspecified|not specified|n\/?a)$/.test(normalized)) {
+    return true;
+  }
 
   // 1. Strong, unambiguous US signals (country, state abbreviation, state name)
   //    win outright, even alongside another country.
@@ -57,17 +51,17 @@ export function isUsJobLocation(location: string): boolean {
     || US_STATE_NAMES.some((state) => includesPhrase(normalized, state));
   if (hasStrongUsMarker) return true;
 
-  // 2. Explicit non-US markers reject BEFORE weaker city matching, so e.g.
-  //    "Cambridge, United Kingdom" or "London, Ontario" aren't misread as US
-  //    just because they contain a name that's also a US city.
-  const explicitlyNonUs = NON_US_MARKERS.some((marker) =>
-    includesPhrase(normalized, marker)
-  );
-  if (explicitlyNonUs) return false;
+  // 2. A city is only safe as a complete, unqualified location. Positive
+  //    matching avoids maintaining an inevitably incomplete list of every
+  //    foreign country, region, and city (and rejects "Vietnam, Remote").
+  const hasBareUsCity = US_CITIES.some((city) => {
+    const escaped = city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^(?:greater\\s+)?${escaped}(?:\\s+(?:area|metro(?:politan)? area|bay area))?$`)
+      .test(normalized);
+  });
+  if (hasBareUsCity) return true;
 
-  // 3. A bare US city name (no country qualifier) is a weaker but accepted signal.
-  if (US_CITIES.some((city) => includesPhrase(normalized, city))) return true;
-
-  // 4. Unqualified remote roles are eligible; unknown onsite locations are rejected.
-  return /\b(remote|distributed|work from home)\b/.test(normalized);
+  // 3. Keep only genuinely unqualified remote labels. Any region or country
+  //    attached to "remote" must supply its own explicit US marker above.
+  return /^(?:remote|distributed|work from home)$/.test(normalized);
 }

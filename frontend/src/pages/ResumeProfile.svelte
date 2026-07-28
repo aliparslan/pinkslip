@@ -445,7 +445,7 @@
 </div>
 
 <style>
-  .notes-help { margin: 0 0 8px; color: var(--color-ink-4); font-size: var(--fs-2xs); line-height: 1.5; }
+  .notes-help { margin: 0 0 8px; color: var(--color-ink-4); font-size: var(--fs-xs); line-height: 1.5; }
   .notes-field { min-height: 160px; }
   .card { border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; background: var(--color-bg-elev); }
   .card-header { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
@@ -459,33 +459,33 @@
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field { display: flex; flex-direction: column; gap: 3px; }
-  .field > span { font-size: 11px; font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
+  .field > span { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
   .field.span-2, .span-2 { grid-column: 1 / -1; }
 
   .prefixed-input { display: flex; align-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-bg-elev); overflow: hidden; height: 40px; }
-  .input-prefix { padding: 0 0 0 12px; font-size: 12px; color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
+  .input-prefix { padding: 0 0 0 12px; font-size: var(--fs-xs); color: var(--color-ink-4); white-space: nowrap; flex-shrink: 0; user-select: none; }
   .input-field.prefixed { border: none; background: transparent; border-radius: 0; padding-left: 2px; height: 100%; }
 
   .entry { padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-sunken); }
   .entry-top { display: flex; align-items: center; justify-content: space-between; }
-  .entry-title { font-size: 12px; font-weight: 600; color: var(--color-ink-2); }
+  .entry-title { font-size: var(--fs-xs); font-weight: 600; color: var(--color-ink-2); }
 
   .bullets { display: flex; flex-direction: column; gap: 5px; }
-  .bullets-label { font-size: 11px; font-weight: 500; color: var(--color-ink-4); }
+  .bullets-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
   .bullet-row { display: flex; align-items: center; gap: 6px; }
   .bullet-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-ink-4); flex-shrink: 0; }
-  .bullet-input { flex: 1; font-size: 12px; height: 40px; }
-  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: 11px; cursor: pointer; padding: 0 8px 0 0; }
+  .bullet-input { flex: 1; }
+  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--color-ink-4); font-size: var(--fs-xs); cursor: pointer; padding: 0 8px 0 0; }
   .btn-add-bullet:hover { color: var(--color-ink-2); }
 
-  .add-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 12px; font-size: 12px; }
+  .add-btn { align-self: flex-start; padding: 0 12px; }
 
   .kv-row { display: flex; gap: 8px; align-items: center; }
-  .kv-key { width: 120px; flex-shrink: 0; font-size: 12px; height: 40px; }
-  .kv-val { flex: 1; font-size: 12px; height: 40px; }
+  .kv-key { width: 120px; flex-shrink: 0; }
+  .kv-val { flex: 1; }
 
   .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 0; }
-  .add-section-label { font-size: 11px; font-weight: 500; color: var(--color-ink-4); }
+  .add-section-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
 
   @media (max-width: 540px) {
     .grid-2 { grid-template-columns: 1fr; }

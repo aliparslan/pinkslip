@@ -11,11 +11,13 @@
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
 
+  let { routeOverride }: { routeOverride?: string } = $props();
+
   let savedJobs: Job[] = $state([]);
   let appliedJobs: Job[] = $state([]);
   let loading = $state(true);
   let error: string | null = $state(null);
-  let route = $derived($currentRoute);
+  let route = $derived(routeOverride ?? $currentRoute);
   let activeView: "saved" | "applied" = $derived(
     route.endsWith("/applied") ? "applied" : "saved"
   );

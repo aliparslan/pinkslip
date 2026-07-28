@@ -4,7 +4,8 @@ import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 import { resolveApnsConfig, sendApnsNotification } from "../apns";
 import { recordProductEvent } from "../product-events";
-import { SCORE_RAW_PER_PERCENT } from "../../shared/scoring";
+import { MATCH_SCORER_VERSION } from "../user-job-scores";
+import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -67,12 +68,11 @@ push.put("/settings", async (c) => {
      SET status = 'skipped', last_error = 'Notification settings changed'
      WHERE user_id = ?
        AND status IN ('pending', 'retry')
-       AND (? = 0 OR ? = 0 OR score < CAST(ROUND(? * ${SCORE_RAW_PER_PERCENT}) AS INTEGER))`
+       AND (? = 0 OR ? = 0)`
   ).bind(
     c.get("userId"),
     enabled ? 1 : 0,
-    pushEnabled ? 1 : 0,
-    threshold
+    pushEnabled ? 1 : 0
   ).run();
   if (enabled && pushEnabled) {
     await c.env.DB.prepare(
@@ -80,8 +80,19 @@ push.put("/settings", async (c) => {
        SET status = 'retry', attempt_count = 0, last_error = NULL
        WHERE user_id = ?
          AND status IN ('failed', 'skipped')
-         AND score >= CAST(ROUND(? * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)`
-    ).bind(c.get("userId"), threshold).run();
+         AND EXISTS (
+           SELECT 1
+           FROM user_job_matches ujm
+           JOIN jobs j ON j.id = ujm.job_id
+           WHERE ujm.user_id = notification_candidates.user_id
+             AND ujm.job_id = notification_candidates.job_id
+             AND ujm.scorer_version = ?
+             AND j.closed_at IS NULL
+             AND j.description IS NOT NULL
+             AND trim(j.description) != ''
+             AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
+         )`
+    ).bind(c.get("userId"), MATCH_SCORER_VERSION).run();
     await c.env.DB.prepare(
       `UPDATE notification_deliveries
        SET status = 'retry', attempt_count = 0, last_error = NULL

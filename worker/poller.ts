@@ -1,4 +1,4 @@
-import type { JobListing } from "./adapters/types";
+import type { ATSAdapter, JobContent, JobListing } from "./adapters/types";
 import { scoreJob } from "./scoring";
 import type { ScoringPrefs } from "./scoring";
 import type { Env, CompanyRow, PreferenceRow } from "./types";
@@ -19,6 +19,7 @@ import {
 } from "./admin-alerts";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
+const CONTENT_BACKFILL_BATCH_SIZE = 20;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
 // is closed, so a single partial/failed ATS response can't remove valid jobs.
@@ -148,6 +149,29 @@ export async function runWithConcurrency<T, R>(
   return results;
 }
 
+export function mergeListingContent(
+  listing: JobListing,
+  content: JobContent
+): JobListing {
+  return {
+    ...listing,
+    description: content.description?.trim() || listing.description,
+    salary: content.salary?.trim() || listing.salary,
+    location: content.location?.trim() || listing.location,
+    postedAt: content.postedAt || listing.postedAt,
+  };
+}
+
+async function hydrateListing(
+  adapter: ATSAdapter,
+  slug: string,
+  listing: JobListing
+): Promise<JobListing> {
+  if (listing.description?.trim()) return listing;
+  const content = await adapter.fetchJobContent(slug, listing.externalId, listing.url);
+  return mergeListingContent(listing, content);
+}
+
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
 /**
@@ -265,9 +289,25 @@ export async function pollCompany(
   }
 
   // 5. Diff: new = fetched but not in existing and not blocked
-  const newJobs = fetched.filter(
+  const discoveredJobs = fetched.filter(
     (job) => !existingIds.has(job.externalId) && !blockedIds.has(job.externalId)
   );
+  if (discoveredJobs.length === 0) return [];
+
+  // Detail-poor list APIs (notably Workday, Rippling, and SmartRecruiters) are
+  // enriched before insertion. That makes experience, exact date, and location
+  // available before a role can enter any feed or notification candidate, and
+  // it means the detail screen never needs a visible "still loading" interlude.
+  const hydration = await runWithConcurrency(
+    discoveredJobs,
+    6,
+    (job) => hydrateListing(adapter, company.ats_slug, job)
+  );
+  const newJobs = hydration.flatMap((result) => {
+    if (result.status !== "fulfilled") return [];
+    const job = result.value;
+    return job.description?.trim() && isEligibleJobListing(job) ? [job] : [];
+  });
   if (newJobs.length === 0) return [];
 
   // 6. Score and batch-insert new jobs
@@ -325,6 +365,120 @@ export async function pollCompany(
   return newMeta;
 }
 
+interface MissingContentRow {
+  id: string;
+  external_id: string;
+  title: string;
+  url: string;
+  location: string;
+  department: string | null;
+  posted_at: string | null;
+  description: string | null;
+  salary: string | null;
+  company_name: string;
+  ats_type: CompanyRow["ats_type"];
+  source_type: CompanyRow["source_type"];
+  ats_slug: string;
+}
+
+/**
+ * Gradually repairs listings inserted before eager content hydration existed.
+ * Only successfully hydrated, still-eligible jobs are returned for matching and
+ * alerts. Failed detail fetches remain null and are retried on a later cron tick.
+ */
+async function backfillMissingJobContent(
+  db: D1Database,
+  prefs: ScoringPrefs,
+  limit = CONTENT_BACKFILL_BATCH_SIZE
+): Promise<NewJobMeta[]> {
+  const result = await db.prepare(
+    `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+            j.posted_at, j.description, j.salary, c.name AS company_name,
+            c.ats_type, c.source_type, c.ats_slug
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     WHERE c.enabled = 1
+       AND j.closed_at IS NULL
+       AND j.description IS NULL
+       AND COALESCE(c.source_type, c.ats_type) != 'custom'
+       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-30 days'))
+     ORDER BY j.first_seen_at DESC
+     LIMIT ?`
+  ).bind(limit).all<MissingContentRow>();
+  const rows = result.results ?? [];
+  if (rows.length === 0) return [];
+
+  const hydrated = await runWithConcurrency(rows, 6, async (row) => {
+    const adapter = getAdapter(getCompanySourceType(row));
+    if (!adapter) return null;
+    const listing: JobListing = {
+      externalId: row.external_id,
+      title: row.title,
+      url: row.url,
+      location: row.location,
+      department: row.department,
+      postedAt: row.posted_at,
+      description: row.description,
+      salary: row.salary,
+    };
+    const next = await hydrateListing(adapter, row.ats_slug, listing);
+    return next.description?.trim() ? { row, listing: next } : null;
+  });
+  const repaired = hydrated.flatMap((entry) =>
+    entry.status === "fulfilled" && entry.value ? [entry.value] : []
+  );
+  if (repaired.length === 0) return [];
+
+  for (let offset = 0; offset < repaired.length; offset += 50) {
+    await db.batch(repaired.slice(offset, offset + 50).map(({ row, listing }) => {
+      const breakdown = scoreJob(listing, prefs);
+      return db.prepare(
+        `UPDATE jobs
+         SET description = ?, salary = ?, location = ?, posted_at = ?,
+             score = ?, title_score = ?, yoe_score = ?, location_score = ?,
+             department_score = ?, recency_score = ?
+         WHERE id = ?`
+      ).bind(
+        listing.description,
+        listing.salary,
+        listing.location,
+        listing.postedAt,
+        breakdown.score,
+        breakdown.title_score,
+        breakdown.yoe_score,
+        breakdown.location_score,
+        breakdown.department_score,
+        breakdown.recency_score,
+        row.id
+      );
+    }));
+  }
+
+  await upsertJobFeatures(
+    db,
+    repaired.map(({ row, listing }) => ({ jobId: row.id, listing }))
+  );
+  const repairedIds = repaired.map(({ row }) => row.id);
+  for (let offset = 0; offset < repairedIds.length; offset += 75) {
+    const ids = repairedIds.slice(offset, offset + 75);
+    const placeholders = ids.map(() => "?").join(", ");
+    await db.prepare(`DELETE FROM user_job_matches WHERE job_id IN (${placeholders})`)
+      .bind(...ids)
+      .run();
+  }
+
+  return repaired.flatMap(({ row, listing }) => {
+    if (!isEligibleJobListing(listing)) return [];
+    return [{
+      company: row.company_name,
+      title: listing.title,
+      jobId: row.id,
+      score: scoreJob(listing, prefs).score,
+      listing,
+    }];
+  });
+}
+
 export async function sendNotificationsForJobs(
   db: D1Database,
   env: Env,
@@ -344,8 +498,8 @@ export async function sendNotificationsForJobs(
  * 2. Load preferences
  * 3. Fan out pollCompany() via Promise.allSettled
  * 4. Collect new jobs
- * 5. Filter by score threshold
- * 6. Send push notifications
+ * 5. Build deterministic profile matches
+ * 6. Send push notifications for those matches
  * 7. Return stats
  */
 export async function runPollCycle(
@@ -494,15 +648,26 @@ export async function runPollCycle(
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`
   ).bind(new Date().toISOString()).run();
 
+  const repairedJobs = scope === "cron"
+    ? await backfillMissingJobContent(db, prefs).catch((error) => {
+        log.push(`content backfill error: ${error instanceof Error ? error.message : String(error)}`);
+        return [] as NewJobMeta[];
+      })
+    : [];
+  if (repairedJobs.length > 0) {
+    log.push(`content backfill: ${repairedJobs.length} repaired`);
+  }
+  const matchableJobs = [...allNewJobs, ...repairedJobs];
+
   await matchJobsForAllProfiles(
     db,
-    allNewJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+    matchableJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
   );
 
   // 5. Send push notifications
   let notificationsSent = 0;
   if (sendNotifications) {
-    notificationsSent = await sendNotificationsForJobs(db, env, allNewJobs);
+    notificationsSent = await sendNotificationsForJobs(db, env, matchableJobs);
 
     // 5a. Tell admins when a source breaks. Wrapped so an alerting failure can
     //     never take down the poll cycle it is reporting on.

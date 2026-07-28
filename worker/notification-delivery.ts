@@ -3,7 +3,8 @@ import { recordProductEvent } from "./product-events";
 import { buildNotificationPayload, sendPushNotification, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
-import { SCORE_RAW_PER_PERCENT } from "../shared/scoring";
+import { MATCH_SCORER_VERSION } from "./user-job-scores";
+import { MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 
 interface CandidateRow {
   id: string;
@@ -43,10 +44,13 @@ export async function createNotificationCandidates(
      JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
      LEFT JOIN user_notification_settings uns ON uns.user_id = ujm.user_id
      WHERE ujm.job_id IN (${placeholders})
+       AND ujm.scorer_version = ?
        AND j.closed_at IS NULL
+       AND j.description IS NOT NULL
+       AND trim(j.description) != ''
+       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       AND ujm.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
@@ -55,7 +59,7 @@ export async function createNotificationCandidates(
          SELECT 1 FROM push_subscriptions ps
          WHERE ps.user_id = ujm.user_id
        )`
-  ).bind(...jobIds).all<{ user_id: string; job_id: string; score: number }>();
+  ).bind(...jobIds, MATCH_SCORER_VERSION).all<{ user_id: string; job_id: string; score: number }>();
   const rows = matches.results ?? [];
   if (rows.length === 0) return 0;
 
@@ -111,26 +115,51 @@ export async function deliverPendingNotifications(
      WHERE status = 'sending'
        AND datetime(last_attempt_at) < datetime('now', '-10 minutes')`
   ).run();
+  // A profile edit deletes its cached matches before rebuilding them. Do not
+  // let a notification queued under the old profile leak through in between.
+  await db.prepare(
+    `UPDATE notification_candidates AS nc
+     SET status = 'skipped', last_error = 'No longer matches preferences'
+     WHERE nc.status IN ('pending', 'retry')
+       AND NOT EXISTS (
+         SELECT 1
+         FROM user_job_matches ujm
+         JOIN jobs j ON j.id = ujm.job_id
+         WHERE ujm.user_id = nc.user_id
+           AND ujm.job_id = nc.job_id
+           AND ujm.scorer_version = ?
+           AND j.closed_at IS NULL
+           AND j.description IS NOT NULL
+           AND trim(j.description) != ''
+           AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
+       )`
+  ).bind(MATCH_SCORER_VERSION).run();
 
   const candidates = await db.prepare(
     `SELECT nc.id, nc.user_id, nc.job_id, c.name AS company, j.title, nc.attempt_count
      FROM notification_candidates nc
      JOIN jobs j ON j.id = nc.job_id
      JOIN companies c ON c.id = j.company_id
+     JOIN user_job_matches ujm
+       ON ujm.user_id = nc.user_id
+      AND ujm.job_id = nc.job_id
+      AND ujm.scorer_version = ?
      LEFT JOIN user_notification_settings uns ON uns.user_id = nc.user_id
      JOIN user_search_profiles usp ON usp.user_id = nc.user_id
      WHERE nc.status IN ('pending', 'retry')
        AND j.closed_at IS NULL
+       AND j.description IS NOT NULL
+       AND trim(j.description) != ''
+       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       AND nc.score >= CAST(ROUND(COALESCE(uns.threshold, usp.match_threshold) * ${SCORE_RAW_PER_PERCENT}) AS INTEGER)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
      ORDER BY nc.created_at ASC
      LIMIT ?`
-  ).bind(limit).all<CandidateRow>();
+  ).bind(MATCH_SCORER_VERSION, limit).all<CandidateRow>();
   const available = candidates.results ?? [];
   if (available.length === 0) return 0;
 

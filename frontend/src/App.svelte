@@ -22,7 +22,10 @@
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
-  type PageComponent = Component<{ jobId?: string | null }>;
+  type PageComponent = Component<{
+    jobId?: string | null;
+    routeOverride?: string;
+  }>;
   // Tab pages declare no props; Svelte ignores the extra `jobId` the generic
   // render sites pass. One widening here keeps every page un-`any`-typed.
   const asPage = (component: Component<never> | PageComponent): PageComponent =>
@@ -367,7 +370,7 @@
 {#if underlayRoute && UnderlayComp}
   <div class="nav-underlay" bind:this={underlayEl} aria-hidden="true">
     <div class="app-content-shell nav-underlay-content" class:mobile-tabs-visible={underlayHasMobileTabs}>
-      <UnderlayComp jobId={underlayJobId} />
+      <UnderlayComp jobId={underlayJobId} routeOverride={underlayRoute} />
     </div>
     <div class="nav-underlay-dim" bind:this={dimEl}></div>
   </div>

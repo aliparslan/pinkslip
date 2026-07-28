@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import {
   diffJobs,
+  mergeListingContent,
   nextQuarantineState,
   QUARANTINE_AFTER_FAILURES,
   runWithConcurrency,
@@ -79,6 +80,27 @@ describe("diffJobs", () => {
   it("returns empty array when fetched list is empty", () => {
     const result = diffJobs([], new Set(["existing-1"]));
     expect(result).toHaveLength(0);
+  });
+});
+
+describe("mergeListingContent", () => {
+  it("uses detail fields without erasing list metadata when detail omits a value", () => {
+    const listing = makeJob("job-1", {
+      location: "2 US locations",
+      postedAt: null,
+      salary: "$100K-$120K",
+    });
+    expect(mergeListingContent(listing, {
+      description: "At least 2 years of experience.",
+      salary: null,
+      location: "San Francisco, CA",
+      postedAt: "2026-07-20T00:00:00.000Z",
+    })).toMatchObject({
+      description: "At least 2 years of experience.",
+      salary: "$100K-$120K",
+      location: "San Francisco, CA",
+      postedAt: "2026-07-20T00:00:00.000Z",
+    });
   });
 });
 

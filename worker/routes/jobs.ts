@@ -9,12 +9,14 @@ import {
   ensureUserJobMatchesReady,
   ensureUserJobScores,
   invalidateJobScores,
+  MATCH_SCORER_VERSION,
   rescoreJobForMatchedUsers,
 } from "../user-job-scores";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
 import { LOCATION_OPTIONS } from "../../shared/search-profile";
+import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -23,7 +25,7 @@ const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
  * always filled or abandoned. Applies only to jobs that carry a real date;
  * undated postings are governed by the `posted` filter instead.
  */
-export const MAX_POSTED_AGE_DAYS = 30;
+export { MAX_POSTED_AGE_DAYS };
 
 jobs.use("/*", async (c, next) => {
   await ensureEligibleJobs(c.env.DB);
@@ -295,6 +297,7 @@ jobs.get("/", async (c) => {
   const conditions: string[] = [
     "c.enabled = 1",
     "j.closed_at IS NULL",
+    "us.scorer_version = ?",
     `NOT EXISTS (
       SELECT 1 FROM user_blocked_companies ubc
       WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
@@ -310,10 +313,16 @@ jobs.get("/", async (c) => {
     // upstream ATS feeds in mixed formats — Greenhouse emits "-04:00" offsets,
     // Ashby "+00:00", Lever/Workday "Z" — so lexicographic comparison would sort
     // local times against UTC times incorrectly.
-    `(j.posted_at IS NULL OR datetime(j.posted_at) >= datetime('now', '-${MAX_POSTED_AGE_DAYS} days'))`,
+    `(j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`,
   ];
-  const bindings: (string | number)[] = [userId, userId, userId, userId];
-  bindings.push(userId);
+  const bindings: (string | number)[] = [
+    userId,
+    userId,
+    userId,
+    userId,
+    MATCH_SCORER_VERSION,
+    userId,
+  ];
 
   // Default excludes dismissed unless explicitly requested
   if (dismissed === "true") {

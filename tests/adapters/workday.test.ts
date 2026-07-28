@@ -4,6 +4,7 @@ import {
   parseWorkdaySource,
   WorkdayAdapter,
 } from "@worker/adapters/workday";
+import { isEligibleJobListing } from "@worker/job-scope";
 
 const SOURCE_URL =
   "https://example.wd5.myworkdayjobs.com/en-US/ExternalCareerSite";
@@ -93,10 +94,28 @@ describe("WorkdayAdapter", () => {
       url: "https://example.wd5.myworkdayjobs.com/ExternalCareerSite/job/Austin/Software-Engineer_R123",
       description: null,
     }));
-    expect(jobs[1].location).toBe("2 Locations, United States");
+    expect(jobs[1].location).toBe("2 US locations");
   });
 
-  it("dates the \"Posted 30+ Days Ago\" bucket instead of dropping it", async () => {
+  it("never relabels an explicit foreign location as United States", async () => {
+    globalThis.fetch = mock()
+      .mockResolvedValueOnce(response({ total: 1, jobPostings: [], facets: US_COUNTRY_FACET }))
+      .mockResolvedValueOnce(response({
+        total: 1,
+        jobPostings: [{
+          title: "Mechanical Product Engineer",
+          externalPath: "/job/Vietnam/Mechanical-Product-Engineer_R789",
+          locationsText: "Vietnam, Remote",
+          bulletFields: ["R789"],
+        }],
+        facets: [],
+      })) as unknown as typeof fetch;
+
+    const jobs = await adapter.fetchJobs(SOURCE_URL);
+    expect(jobs[0].location).toBe("Vietnam, Remote");
+  });
+
+  it("marks the \"Posted 30+ Days Ago\" bucket as stale", async () => {
     // Workday buckets anything older than a month as "Posted 30+ Days Ago".
     // The optional "+" used to fall through to null, leaving 53% of open
     // Workday jobs undated while every other source had none missing.
@@ -132,6 +151,7 @@ describe("WorkdayAdapter", () => {
       (Date.now() - new Date(jobs[0].postedAt as string).getTime()) / 86_400_000;
     expect(ageDays).toBeGreaterThanOrEqual(29.5);
     expect(ageDays).toBeLessThan(31.5);
+    expect(isEligibleJobListing(jobs[0])).toBe(false);
 
     // A genuinely unrecognised label must still yield null rather than a guess.
     expect(jobs[1].postedAt).toBeNull();
@@ -221,6 +241,7 @@ describe("WorkdayAdapter", () => {
           values: [
             { descriptor: "Los Gatos", id: "los-gatos" },
             { descriptor: "London", id: "london" },
+            { descriptor: "Remote", id: "global-remote" },
             { descriptor: "USA - Remote", id: "us-remote" },
           ],
         }],

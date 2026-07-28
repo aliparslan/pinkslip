@@ -25,6 +25,13 @@ describe("parseExperienceRequirement", () => {
     });
   });
 
+  it("reads requirements split by markup and keeps the strictest minimum", () => {
+    expect(parseExperienceRequirement(
+      "Engineer",
+      "<li>2 years of experience</li><li>5 years building distributed systems</li>"
+    )).toEqual({ min: 5, max: null });
+  });
+
   it("does NOT treat a stray 'N years' phrase as a requirement", () => {
     // Regression: the old regex grabbed the first bare "N years" anywhere, so
     // marketing copy produced bogus experience requirements.
@@ -69,5 +76,12 @@ describe("classifyJob", () => {
 
   it("still classifies engineering managers as managers", () => {
     expect(classifyJob(listing("Engineering Manager")).seniority).toBe("manager");
+  });
+
+  it("treats employer numeric levels four and above as senior", () => {
+    expect(classifyJob(listing("Software Engineer 5")).seniority).toBe("senior");
+    expect(classifyJob(listing("Data Engineer (L5) - Privacy")).seniority).toBe("senior");
+    expect(classifyJob(listing("ML Engineer L4/L5, Algorithms")).seniority).toBe("senior");
+    expect(classifyJob(listing("Software Engineer II")).seniority).toBe("unknown");
   });
 });

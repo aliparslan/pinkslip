@@ -9,7 +9,7 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-export const JOB_CLASSIFIER_VERSION = "deterministic-v6";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v7";
 
 export interface JobFeatures {
   role_family: RoleFamily;
@@ -52,20 +52,37 @@ export function parseExperienceRequirement(
   title: string,
   description: string | null
 ): { min: number | null; max: number | null } {
-  const text = `${title}\n${description ?? ""}`.toLowerCase();
+  const text = `${title}\n${description ?? ""}`
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  const candidates: Array<{ min: number; max: number | null }> = [];
+  const collect = (pattern: RegExp, maxGroup?: number) => {
+    for (const match of text.matchAll(pattern)) {
+      const min = Number(match[1]);
+      const max = maxGroup ? Number(match[maxGroup]) : null;
+      if (Number.isFinite(min)) {
+        candidates.push({ min, max: max !== null && Number.isFinite(max) ? max : null });
+      }
+    }
+  };
   // Explicit range, e.g. "3-5 years" — but not "3-5 years ago".
-  const range = text.match(/\b(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b(?!\s*ago)/);
-  if (range) return { min: Number(range[1]), max: Number(range[2]) };
+  collect(/\b(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*(?:\+?\s*)?(?:years?|yrs?)\b(?!\s*ago)/g, 2);
   // A bare "N years" elsewhere in the description ("founded 3 years ago",
   // "10 years of free snacks") is not an experience requirement. Require a
   // requirement cue: an explicit qualifier ("at least/minimum N years", "N+
   // years") or an experience-context phrase ("N years of experience").
-  const qualified = text.match(/\b(?:at least|minimum of|minimum|min\.?|requires?|require)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/);
-  if (qualified) return { min: Number(qualified[1]), max: null };
-  const plus = text.match(/\b(\d{1,2})\s*\+\s*(?:years?|yrs?)\b(?!\s*ago)/);
-  if (plus) return { min: Number(plus[1]), max: null };
-  const withExperience = text.match(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+|related\s+|work\s+|hands-on\s+)?experience\b/);
-  if (withExperience) return { min: Number(withExperience[1]), max: null };
+  collect(/\b(?:at least|minimum of|minimum|min\.?|requires?|require)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/g);
+  collect(/\b(\d{1,2})\s*\+\s*(?:years?|yrs?)\b(?!\s*ago)/g);
+  collect(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+|related\s+|work\s+|hands-on\s+)?experience\b/g);
+  collect(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:building|developing|designing|engineering|programming|working)\b/g);
+  if (candidates.length > 0) {
+    // If a posting lists multiple mandatory requirements, the strictest minimum
+    // is the one that determines whether an early-career applicant qualifies.
+    return candidates.sort((a, b) => b.min - a.min)[0];
+  }
   if (/\b(?:intern|internship|new grad|new graduate|entry level|early career)\b/.test(text)) {
     return { min: 0, max: 2 };
   }
@@ -81,6 +98,14 @@ function classifySeniority(
   if (/\b(?:manager|director)\b/.test(text)) return "manager";
   if (/\b(?:staff|principal|distinguished|fellow)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
+  // Several large employers encode seniority numerically rather than spelling
+  // out "senior". Levels 4+ are outside pinkslip's 0-3 year audience even when
+  // the public description omits a literal years-of-experience requirement.
+  if (
+    /\bl\s*[4-9](?:\s*\/\s*l?\s*[4-9])?\b/.test(text)
+    || /\b(?:engineer|developer|scientist|researcher)\s*(?:\(|,|-)?\s*(?:level\s*)?[4-9](?:\s*\/\s*[4-9])?\b/.test(text)
+    || /\b(?:engineer|developer|scientist|researcher)\s+(?:iv|v|vi|vii|viii|ix)\b/.test(text)
+  ) return "senior";
   if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";
   if (/\b(?:new grad|new graduate|entry level|early career|graduate)\b/.test(text)) return "new_grad";
   if ((years.min ?? 0) >= 5) return "senior";
