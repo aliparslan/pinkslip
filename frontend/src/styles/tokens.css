@@ -53,8 +53,8 @@
 }
 
 @theme {
-  --font-display: "Instrument Sans Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Instrument Sans Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 6px;
