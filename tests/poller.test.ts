@@ -169,7 +169,7 @@ describe("buildSourceAlertPayload", () => {
     );
     expect(payload.title).toBe("1 job source stopped working");
     expect(payload.body).toBe("Stripe — 12 total need fixing");
-    expect(payload.data.url).toBe("/companies");
+    expect(payload.data.url).toBe("/you/companies");
   });
 
   it("caps the list and reports the overflow", () => {

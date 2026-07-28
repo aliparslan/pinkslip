@@ -2,12 +2,11 @@
   import { onMount } from "svelte";
   import { api, type Job } from "../lib/api";
   import { currentRoute, navigate } from "../router";
-  import { requestBack } from "../lib/nav-back";
   import { errorMessage, timeAgo } from "../lib/utils";
   import { setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
+  import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
-  import ScreenNav from "../components/ScreenNav.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
 
@@ -24,7 +23,7 @@
   let visibleJobs = $derived(activeView === "applied" ? appliedJobs : savedJobs);
 
   function selectView(view: "saved" | "applied", moveFocus = false) {
-    navigate(`/my-jobs/${view}`);
+    navigate(`/library/${view}`);
     if (moveFocus) {
       window.requestAnimationFrame(() => {
         document.getElementById(`my-jobs-tab-${view}`)?.focus();
@@ -65,8 +64,8 @@
   });
 </script>
 
-<div class="page pushed-screen">
-  <ScreenNav title="My jobs" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+<div class="page root-screen library-page">
+  <RootHeader title="Library" subtitle="The roles you want to remember" />
   <div class="page-frame my-jobs-page">
     <div class="my-jobs-tabs" role="tablist" aria-label="My jobs">
       <button
@@ -128,7 +127,7 @@
             <JobRow
               {job}
               swipeActions={false}
-              returnTo={`/my-jobs/${activeView}`}
+              returnTo={`/library/${activeView}`}
               contextLabel={activeView === "applied" && job.applied_at
                 ? `Applied ${timeAgo(job.applied_at)}`
                 : undefined}

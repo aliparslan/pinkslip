@@ -1,6 +1,16 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { currentRoute, navigate, routeDepth, backTargetRoute } from "./router";
+  import {
+    currentRoute,
+    navigate,
+    routeDepth,
+    backTargetRoute,
+    routeParam,
+    routeShell,
+    restoreScrollFor,
+    savedScrollFor,
+    showsRootNavigation,
+  } from "./router";
   import { api, ApiError } from "./lib/api";
   import { attachMagicLinkHandler } from "./lib/native-auth";
   import { syncSessionAccess } from "./lib/session-access";
@@ -10,15 +20,15 @@
   import type { Component } from "svelte";
   import Feed from "./pages/Feed.svelte";
   import JobDetail from "./pages/JobDetail.svelte";
-  import Companies from "./pages/Companies.svelte";
   import Profile from "./pages/Profile.svelte";
   import JobLibrary from "./pages/JobLibrary.svelte";
-  import ResumeProfile from "./pages/ResumeProfile.svelte";
-  import Corpus from "./pages/Corpus.svelte";
-  import Tailor from "./pages/Tailor.svelte";
   import TabBar from "./components/TabBar.svelte";
   import Onboarding from "./components/Onboarding.svelte";
   import Spinner from "./components/Spinner.svelte";
+  import ToastViewport from "./components/ToastViewport.svelte";
+  import ApplicationReturnPrompt from "./components/ApplicationReturnPrompt.svelte";
+  import { applicationIntent } from "./lib/application-intent.svelte";
+  import { initNativePush } from "./lib/native-push";
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
@@ -31,42 +41,82 @@
   const asPage = (component: Component<never> | PageComponent): PageComponent =>
     component as PageComponent;
 
-  const routes: Record<string, PageComponent> = {
-    "/": asPage(Feed),
-    "/you": asPage(Profile),
-    "/you/preferences": asPage(Profile),
-    "/you/alerts": asPage(Profile),
-    "/you/tailoring": asPage(Profile),
-    "/you/account": asPage(Profile),
-    "/you/operations": asPage(Profile),
-    "/profile": asPage(Profile),
-    "/companies": asPage(Companies),
-    "/corpus": asPage(Corpus),
-    "/resume": asPage(ResumeProfile),
-    "/settings": asPage(Profile),
-    "/my-jobs/saved": asPage(JobLibrary),
-    "/my-jobs/applied": asPage(JobLibrary),
+  type PageModule = { default: Component<never> | PageComponent };
+  type PageEntry =
+    | { component: PageComponent; cacheKey?: never; load?: never }
+    | { component?: never; cacheKey: string; load: () => Promise<PageModule> };
+
+  const loadCompanies = () => import("./pages/Companies.svelte");
+  const loadResume = () => import("./pages/ResumeProfile.svelte");
+  const loadStory = () => import("./pages/Corpus.svelte");
+  const loadTailor = () => import("./pages/Tailor.svelte");
+  const loadAdmin = () => import("./pages/Admin.svelte");
+
+  const routes: Record<string, PageEntry> = {
+    "/": { component: asPage(Feed) },
+    "/you": { component: asPage(Profile) },
+    "/you/preferences": { component: asPage(Profile) },
+    "/you/alerts": { component: asPage(Profile) },
+    "/you/tailoring": { component: asPage(Profile) },
+    "/you/account": { component: asPage(Profile) },
+    "/you/feedback": { component: asPage(Profile) },
+    "/you/companies": { cacheKey: "companies", load: loadCompanies },
+    "/you/story": { cacheKey: "story", load: loadStory },
+    "/you/resume": { cacheKey: "resume", load: loadResume },
+    "/library/saved": { component: asPage(JobLibrary) },
+    "/library/applied": { component: asPage(JobLibrary) },
+    "/admin": { cacheKey: "admin", load: loadAdmin },
+    "/admin/inbox": { cacheKey: "admin", load: loadAdmin },
+    "/admin/sources": { cacheKey: "admin", load: loadAdmin },
+    "/admin/runs": { cacheKey: "admin", load: loadAdmin },
   };
+
+  const componentCache = new Map<string, PageComponent>();
+
+  function entryFor(nextRoute: string): PageEntry {
+    if (nextRoute.startsWith("/jobs/")) return { component: asPage(JobDetail) };
+    if (nextRoute.startsWith("/tailor/")) return { cacheKey: "tailor", load: loadTailor };
+    return routes[nextRoute] ?? routes["/"];
+  }
+
+  function resolvedPage(nextRoute: string): PageComponent | null {
+    const entry = entryFor(nextRoute);
+    if (entry.component) return entry.component;
+    return componentCache.get(entry.cacheKey) ?? null;
+  }
 
   let route = $derived($currentRoute);
   let isDetailPage = $derived(route.startsWith("/jobs/"));
   let isTailorPage = $derived(route.startsWith("/tailor/"));
-  let CurrentPage = $derived(
-    isDetailPage ? JobDetail : isTailorPage ? Tailor : (routes[route] ?? Feed)
-  );
-  let jobId = $derived(
-    isDetailPage
-      ? route.split("/jobs/")[1]
-      : isTailorPage
-        ? route.split("/tailor/")[1]
-        : null
-  );
-  let mobileTabBarVisible = $derived([
-    "/",
-    "/you",
-    "/profile",
-    "/settings",
-  ].includes(route));
+  let CurrentPage: PageComponent | null = $state(asPage(Feed));
+  let pageLoadGeneration = 0;
+  let jobId = $derived(routeParam(route, "jobId"));
+  let mobileTabBarVisible = $derived(showsRootNavigation(route));
+
+  $effect(() => {
+    const activeRoute = route;
+    const generation = ++pageLoadGeneration;
+    const entry = entryFor(activeRoute);
+    if (entry.component) {
+      CurrentPage = entry.component;
+      return;
+    }
+
+    const cached = componentCache.get(entry.cacheKey);
+    if (cached) {
+      CurrentPage = cached;
+      return;
+    }
+
+    CurrentPage = null;
+    void entry.load().then((module) => {
+      const component = asPage(module.default);
+      componentCache.set(entry.cacheKey, component);
+      if (generation === pageLoadGeneration) CurrentPage = component;
+    }).catch(() => {
+      if (generation === pageLoadGeneration) CurrentPage = asPage(Feed);
+    });
+  });
 
   // ── Interactive swipe-back ──────────────────────────────────────────────────
   // A left-edge drag translates the live page (foreground) to the right, revealing
@@ -81,16 +131,18 @@
   let swiping = $state(false); // finger down with the horizontal lock engaged
 
   function pageFor(r: string): { Comp: PageComponent; jid: string | null } {
-    if (r.startsWith("/jobs/")) return { Comp: JobDetail, jid: r.split("/jobs/")[1] };
-    if (r.startsWith("/tailor/")) return { Comp: Tailor, jid: r.split("/tailor/")[1] };
-    return { Comp: routes[r] ?? Feed, jid: null };
+    return {
+      Comp: resolvedPage(r) ?? asPage(Feed),
+      jid: routeParam(r, "jobId"),
+    };
   }
   let UnderlayComp = $derived(underlayRoute ? pageFor(underlayRoute).Comp : null);
   let underlayJobId = $derived(underlayRoute ? pageFor(underlayRoute).jid : null);
   let underlayHasMobileTabs = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
+  let underlayScroll = $derived(underlayRoute ? savedScrollFor(underlayRoute) : 0);
 
   const EDGE = 44; // generous iOS-sized edge target for swipe-back
-  const SETTLE = 280; // ms for the release animation
+  const SETTLE = 240; // ms for the release animation
   const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
 
   let width = 0;
@@ -109,6 +161,22 @@
     if (fgEl) fgEl.style.transform = `translateX(${dx}px)`;
     if (underlayEl) underlayEl.style.transform = `translateX(${-(1 - p) * width * 0.3}px)`;
     if (dimEl) dimEl.style.opacity = `${(1 - p) * 0.14}`;
+  }
+
+  function nextFrame() {
+    return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+
+  async function commitBackNavigation(dest: string) {
+    const targetScroll = savedScrollFor(dest);
+    navigate(dest);
+    const deadline = performance.now() + 1_200;
+    do {
+      await nextFrame();
+      await tick();
+      restoreScrollFor(dest);
+      if (targetScroll === 0 || Math.abs(window.scrollY - targetScroll) < 1) return;
+    } while (performance.now() < deadline);
   }
 
   function onTouchStart(e: TouchEvent) {
@@ -182,8 +250,7 @@
 
     window.setTimeout(async () => {
       if (commit && dest) {
-        navigate(dest); // foreground re-renders as the destination page…
-        await tick();
+        await commitBackNavigation(dest);
       }
       // …then drop the inline transforms so it sits naturally in place. When
       // committing, foreground and underlay now show the same page, so removing
@@ -235,8 +302,7 @@
       if (underlayEl) { underlayEl.style.transition = `transform ${SETTLE}ms ${EASE}`; underlayEl.style.transform = "translateX(0)"; }
       if (dimEl) { dimEl.style.transition = `opacity ${SETTLE}ms ${EASE}`; dimEl.style.opacity = "0"; }
       window.setTimeout(async () => {
-        navigate(dest);
-        await tick();
+        await commitBackNavigation(dest);
         if (fgEl) { fgEl.style.transition = ""; fgEl.style.transform = ""; }
         underlayRoute = null;
         settling = false;
@@ -336,6 +402,10 @@
   }
 
   onMount(() => {
+    void initNativePush().catch((error) => {
+      console.error("Push initialization failed:", error);
+    });
+    const detachApplicationIntent = applicationIntent.initialize();
     const detachMagicLink = attachMagicLinkHandler((token) => {
       void completeMagicLinkSignIn(token);
     });
@@ -347,6 +417,7 @@
     });
     bootstrapSession();
     return () => {
+      detachApplicationIntent();
       detachMagicLink();
       detachBack();
     };
@@ -369,7 +440,11 @@
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
 {#if underlayRoute && UnderlayComp}
   <div class="nav-underlay" bind:this={underlayEl} aria-hidden="true">
-    <div class="app-content-shell nav-underlay-content" class:mobile-tabs-visible={underlayHasMobileTabs}>
+    <div
+      class="app-content-shell nav-underlay-content"
+      class:mobile-tabs-visible={underlayHasMobileTabs}
+      style:transform={`translateY(-${underlayScroll}px)`}
+    >
       <UnderlayComp jobId={underlayJobId} routeOverride={underlayRoute} />
     </div>
     <div class="nav-underlay-dim" bind:this={dimEl}></div>
@@ -380,18 +455,23 @@
   class="app-content-shell nav-foreground"
   class:is-swiping={swiping}
   class:mobile-tabs-visible={mobileTabBarVisible}
+  class:admin-shell-active={routeShell(route) === "admin"}
   bind:this={fgEl}
 >
   {#if sessionReady}
     {#if !showOnboarding}
-      {#if isDetailPage}
+      {#if !CurrentPage}
+        <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+      {:else if isDetailPage}
         <CurrentPage {jobId} />
       {:else if isTailorPage}
         <CurrentPage {jobId} />
       {:else}
         <CurrentPage />
       {/if}
-      <TabBar mobileHidden={!mobileTabBarVisible} />
+      {#if routeShell(route) === "consumer"}
+        <TabBar mobileHidden={!mobileTabBarVisible} />
+      {/if}
     {/if}
   {:else if bootError}
     <div class="boot-error-wrap">
@@ -448,3 +528,6 @@
 {#if sessionReady && showOnboarding}
   <Onboarding onComplete={(name) => { userName = name; showOnboarding = false; }} />
 {/if}
+
+<ToastViewport />
+<ApplicationReturnPrompt />

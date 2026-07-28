@@ -37,7 +37,7 @@ export function buildSourceAlertPayload(
       ? "1 job source stopped working"
       : `${count} job sources stopped working`,
     body: `${listed} — ${totalQuarantined} total need fixing`,
-    data: { url: "/companies" },
+    data: { url: "/you/companies" },
   };
 }
 

@@ -1,14 +1,48 @@
 import { writable, derived } from "svelte/store";
 import { getJobDetailReturnRoute } from "./lib/job-navigation";
+import {
+  normalizeRoute,
+  rootDestinationFor,
+  routeDefinition,
+  routeDepth,
+  routeParam,
+  routeShell,
+  showsRootNavigation,
+} from "./route-config";
 
-const initialPath = window.location.hash.slice(1) || "/";
+export {
+  normalizeRoute,
+  rootDestinationFor,
+  routeDefinition,
+  routeDepth,
+  routeParam,
+  routeShell,
+  showsRootNavigation,
+};
+export type { AppShell, RootDestination, RouteDefinition } from "./route-config";
+
+const rawInitialPath = window.location.hash.slice(1) || "/";
+const initialPath = normalizeRoute(rawInitialPath);
+if (initialPath !== rawInitialPath) {
+  window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${initialPath}`);
+}
+
 const hash = writable(initialPath);
 const scrollPositions = new Map<string, number>();
 let activePath = initialPath;
+let pendingScrollSnapshot: { path: string; top: number } | null = null;
 
 function setDocumentScroll(top: number) {
   window.scrollTo(0, top);
   document.scrollingElement?.scrollTo({ top, left: 0, behavior: "auto" });
+}
+
+export function savedScrollFor(path: string): number {
+  return scrollPositions.get(normalizeRoute(path)) ?? 0;
+}
+
+export function restoreScrollFor(path: string) {
+  setDocumentScroll(savedScrollFor(path));
 }
 
 if ("scrollRestoration" in window.history) {
@@ -16,46 +50,54 @@ if ("scrollRestoration" in window.history) {
 }
 
 window.addEventListener("hashchange", () => {
-  const nextPath = window.location.hash.slice(1) || "/";
+  const requestedPath = window.location.hash.slice(1) || "/";
+  const nextPath = normalizeRoute(requestedPath);
+  if (nextPath !== requestedPath) {
+    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${nextPath}`);
+  }
+
   const previousPath = activePath;
-  scrollPositions.set(previousPath, window.scrollY);
+  if (pendingScrollSnapshot?.path === previousPath) {
+    scrollPositions.set(previousPath, pendingScrollSnapshot.top);
+  } else {
+    scrollPositions.set(previousPath, window.scrollY);
+  }
+  pendingScrollSnapshot = null;
   activePath = nextPath;
   hash.set(nextPath);
 
-  // Pushed screens always open at their navigation bar. Returning to a
-  // shallower route restores its prior position, matching a native stack.
   const returning = routeDepth(nextPath) < routeDepth(previousPath);
-  const nextScroll = returning ? (scrollPositions.get(nextPath) ?? 0) : 0;
+  const nextScroll = returning ? savedScrollFor(nextPath) : 0;
   window.requestAnimationFrame(() => setDocumentScroll(nextScroll));
 });
 
 window.requestAnimationFrame(() => setDocumentScroll(0));
 
 export const currentRoute = derived(hash, ($hash) => $hash || "/");
+export const currentRouteDefinition = derived(currentRoute, ($route) => routeDefinition($route));
 
-export function navigate(path: string) {
-  window.location.hash = path;
+export function navigate(path: string, options: { replace?: boolean } = {}) {
+  const normalized = normalizeRoute(path);
+  if (options.replace) {
+    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${normalized}`);
+    activePath = normalized;
+    hash.set(normalized);
+    window.requestAnimationFrame(() => setDocumentScroll(0));
+    return;
+  }
+  if (normalized === activePath) return;
+  pendingScrollSnapshot = { path: activePath, top: window.scrollY };
+  scrollPositions.set(activePath, window.scrollY);
+  window.location.hash = normalized;
 }
 
-/** Navigation "depth": deeper routes are pushed over shallower ones. */
-export function routeDepth(route: string): number {
-  if (route.startsWith("/tailor/")) return 2;
-  if (route.startsWith("/jobs/")) return 1;
-  if (route.startsWith("/you/")) return 1;
-  if (route.startsWith("/my-jobs/")) return 1;
-  if (["/companies", "/resume", "/corpus"].includes(route)) return 1;
-  return 0;
-}
-
-/** The route a back gesture / back button should return to from `route`. */
 export function backTargetRoute(route: string): string | null {
-  if (route.startsWith("/tailor/")) {
-    const id = route.split("/tailor/")[1];
+  const definition = routeDefinition(route);
+  if (definition.id === "tailor") {
+    const id = routeParam(route, "jobId");
     return id ? `/jobs/${id}` : "/";
   }
-  if (route.startsWith("/jobs/")) return getJobDetailReturnRoute();
-  if (route.startsWith("/you/")) return "/you";
-  if (route.startsWith("/my-jobs/")) return "/you";
-  if (["/companies", "/resume", "/corpus"].includes(route)) return "/you";
+  if (definition.id === "job") return getJobDetailReturnRoute();
+  if (definition.rootDestination === "you" && definition.depth > 0) return "/you";
   return null;
 }
