@@ -25,7 +25,8 @@ import { isUsJobLocation } from "./us-jobs";
 // v9 makes content, freshness, country, work mode, and location deterministic
 // eligibility gates while preserving explicit overlaps such as Research
 // Software Engineer → SWE + Research.
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-9";
+// v10 adds a required doctorate as a hard disqualifier.
+export const MATCH_SCORER_VERSION = "profile-v2-deterministic-10";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -49,11 +50,12 @@ interface FeatureColumns {
   salary_currency: string | null;
   salary_period: JobFeatures["salary_period"];
   sponsorship_available: number | null;
+  requires_advanced_degree: number | null;
   classifier_version: string;
   confidence: number;
 }
 
-type MatchableJobRow = FeatureJobRow & FeatureColumns;
+type MatchableJobRow = FeatureJobRow & FeatureColumns & { evergreen: number | null };
 function parseJsonList<T extends string>(value: string): T[] {
   try {
     const parsed = JSON.parse(value);
@@ -80,6 +82,7 @@ function rowToFeatures(row: FeatureColumns): JobFeatures {
     sponsorship_available: row.sponsorship_available === null
       ? null
       : row.sponsorship_available === 1,
+    requires_advanced_degree: row.requires_advanced_degree === 1,
     classifier_version: row.classifier_version,
     confidence: row.confidence,
   };
@@ -170,7 +173,13 @@ export function scoreJobForProfile(
   jobId: string,
   listing: JobListing,
   features: JobFeatures,
-  profile: SearchProfile
+  profile: SearchProfile,
+  /**
+   * Standing pipeline requisitions are deliberately exempt from the freshness
+   * gate. They never close, so judging them by posted date would disqualify
+   * every one of them and the feed's evergreen filter would always be empty.
+   */
+  evergreen = false
 ): UserJobMatch {
   const base = scoreJob(listing, scoringPrefsFromState({
     search_profile: profile,
@@ -204,11 +213,17 @@ export function scoreJobForProfile(
   const experienceDisqualified = features.min_years !== null
     && features.min_years > MAX_YEARS_EXPERIENCE;
 
+  // A required doctorate rules a posting out regardless of stated years. These
+  // roles read as early-career to every other signal — no years requirement, no
+  // seniority marker in the title — which is exactly why they dominated the
+  // unknown-experience bucket.
+  const advancedDegreeDisqualified = features.requires_advanced_degree;
+
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
     && features.sponsorship_available === false;
   const locationDisqualified = !isLocationEligibleForProfile(listing, features, profile);
   const contentDisqualified = !listing.description?.trim();
-  const staleDisqualified = !isFreshPostedAt(listing.postedAt);
+  const staleDisqualified = !evergreen && !isFreshPostedAt(listing.postedAt);
   const countryDisqualified = !isUsJobLocation(listing.location);
   const excludedTitleDisqualified = profile.excluded_titles.some((excluded) => {
     const term = excluded.trim().toLowerCase();
@@ -228,7 +243,7 @@ export function scoreJobForProfile(
       : 0;
   const rawScore = experienceDisqualified || seniorityDisqualified || sponsorshipDisqualified
     || locationDisqualified || contentDisqualified || staleDisqualified || countryDisqualified
-    || excludedTitleDisqualified
+    || excludedTitleDisqualified || advancedDegreeDisqualified
     ? Math.min(15, base.location_score + base.department_score + base.recency_score)
     : titleScore === 0
       ? Math.min(29, yoeScore + base.location_score + base.department_score + base.recency_score)
@@ -241,6 +256,7 @@ export function scoreJobForProfile(
   };
   const normalized = normalizeScore(breakdown.score);
   const plausible = !experienceDisqualified
+    && !advancedDegreeDisqualified
     && !seniorityDisqualified
     && !sponsorshipDisqualified
     && !locationDisqualified
@@ -304,17 +320,17 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
     const placeholders = jobIds.map(() => "?").join(", ");
     return db.prepare(
       `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
-              j.posted_at, j.first_seen_at, j.description, j.salary,
+              j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
               jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
               jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
               jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
-              jf.sponsorship_available,
+              jf.sponsorship_available, jf.requires_advanced_degree,
               jf.classifier_version, jf.confidence
        FROM jobs j
        JOIN job_features jf ON jf.job_id = j.id
        WHERE j.id IN (${placeholders})
          AND j.description IS NOT NULL
-         AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
+         AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(...jobIds).all<MatchableJobRow>();
   }
 
@@ -333,11 +349,11 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
     : [MATCH_WARM_BATCH_SIZE];
   return db.prepare(
     `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
-            j.posted_at, j.first_seen_at, j.description, j.salary,
+            j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
             jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
-            jf.sponsorship_available,
+            jf.sponsorship_available, jf.requires_advanced_degree,
             jf.classifier_version, jf.confidence
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
@@ -345,7 +361,7 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
        AND j.description IS NOT NULL
-       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
+       AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        ${cursorClause}
      ORDER BY j.first_seen_at DESC
      LIMIT ?`
@@ -376,7 +392,7 @@ export async function ensureUserJobScores(db: D1Database, userId: string, jobIds
   if (rows.length === 0) return [];
 
   const matches = rows.map((row) =>
-    scoreJobForProfile(row.id, rowToListing(row), rowToFeatures(row), state.search_profile)
+    scoreJobForProfile(row.id, rowToListing(row), rowToFeatures(row), state.search_profile, row.evergreen === 1)
   );
   await storeMatches(db, userId, matches);
 
@@ -406,7 +422,7 @@ export async function ensureUserJobMatchesReady(
        JOIN companies c ON c.id = j.company_id
        WHERE ujm.user_id = ? AND j.closed_at IS NULL AND c.enabled = 1
          AND j.description IS NOT NULL
-         AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
+         AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(userId).first<{ count: number }>();
     if ((count?.count ?? 0) >= minimumMatches) return;
     const evaluated = await ensureUserJobScores(db, userId);
@@ -437,7 +453,7 @@ export async function advanceBacklogScoring(
      JOIN companies c ON c.id = j.company_id
      WHERE c.enabled = 1 AND j.closed_at IS NULL
        AND j.description IS NOT NULL
-       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
+       AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
   ).first<{ first_seen_at: string | null }>();
   if (!oldest?.first_seen_at) return 0;
 

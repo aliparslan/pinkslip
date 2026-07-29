@@ -7,6 +7,7 @@
   import { sessionAccess, syncSessionAccess } from "../lib/session-access";
   import { themeMode, type ThemeMode } from "../lib/theme";
   import { loadLocalTailorKit } from "../lib/local-tailor";
+  import { syncFeedPreferences } from "../lib/feed-store.svelte";
   import {
     DEFAULT_SEARCH_PROFILE,
     LOCATION_OPTIONS,
@@ -172,6 +173,7 @@
         push_enabled: true,
       });
       const normalized = normalizeSearchProfile(savedPreferences.search_profile);
+      syncFeedPreferences(normalized, true);
       if (currentKey() === sentKey) {
         searchProfile = normalized;
         lastSavedKey = currentKey();

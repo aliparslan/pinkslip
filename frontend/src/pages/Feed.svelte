@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { api, type Job } from "../lib/api";
   import { timeAgo, errorMessage } from "../lib/utils";
-  import { feed, PAGE_SIZE } from "../lib/feed-store.svelte";
+  import { feed, markLocationsManuallySet, PAGE_SIZE, type PostedFilter } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
@@ -64,10 +64,11 @@
 
   // Mirrors MAX_POSTED_AGE_DAYS in worker/routes/jobs.ts — the server always
   // enforces it; this is only for the explanatory hint.
-  const POSTED_OPTIONS: Array<{ label: string; value: "any" | "dated" | "undated" }> = [
+  const POSTED_OPTIONS: Array<{ label: string; value: PostedFilter }> = [
     { label: "All", value: "any" },
     { label: "Dated", value: "dated" },
     { label: "Undated", value: "undated" },
+    { label: "Evergreen", value: "evergreen" },
   ];
 
   // Show the staleness warning once the poller is clearly behind its
@@ -98,7 +99,7 @@
   let draftMaxSalaryK = $state("");
   let draftMaxYoe = $state("");
   let draftSavedOnly = $state(false);
-  let draftPostedFilter: "any" | "dated" | "undated" = $state("any");
+  let draftPostedFilter: PostedFilter = $state("any");
   let blockCandidate: Job | null = $state(null);
   let blockingJob = $state(false);
   const hiddenJobPositions = new Map<string, number>();
@@ -190,6 +191,7 @@
     if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
     if (feed.savedOnly) parts.push("Saved");
     if (feed.postedFilter === "undated") parts.push("Undated");
+    if (feed.postedFilter === "evergreen") parts.push("Evergreen");
     if (feed.postedFilter === "dated") parts.push("Dated");
     return parts.join(" · ");
   });
@@ -313,10 +315,11 @@
     minSalaryK?: string;
     maxSalaryK?: string;
     maxYoe?: string;
-    postedFilter?: "any" | "dated" | "undated";
+    postedFilter?: PostedFilter;
   }) {
     if (updates?.selectedLocations !== undefined) {
       feed.selectedLocations = updates.selectedLocations;
+      markLocationsManuallySet();
     }
     if (updates?.searchQuery !== undefined) {
       feed.searchQuery = updates.searchQuery;
@@ -787,10 +790,6 @@
                   </button>
                 {/each}
               </div>
-              <p class="filter-group-hint">
-                Dated posts show the last {MAX_POSTED_AGE_DAYS} days. Undated posts
-                stay while their source lists them.
-              </p>
             </section>
 
             <section class="filter-group">

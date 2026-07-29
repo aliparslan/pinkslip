@@ -313,7 +313,7 @@ jobs.get("/", async (c) => {
     // upstream ATS feeds in mixed formats — Greenhouse emits "-04:00" offsets,
     // Ashby "+00:00", Lever/Workday "Z" — so lexicographic comparison would sort
     // local times against UTC times incorrectly.
-    `(j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`,
+    `(j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`,
   ];
   const bindings: (string | number)[] = [
     userId,
@@ -351,8 +351,12 @@ jobs.get("/", async (c) => {
   // open — so "no date" is a useful signal to filter *for*, not a gap to hide.
   if (posted === "undated") {
     conditions.push("j.posted_at IS NULL");
+  } else if (posted === "evergreen") {
+    // Standing pipeline requisitions. Shown only on request: they never close,
+    // so left in the default feed they would crowd out genuinely new postings.
+    conditions.push("j.evergreen = 1");
   } else if (posted === "dated") {
-    conditions.push("j.posted_at IS NOT NULL");
+    conditions.push("j.posted_at IS NOT NULL AND j.evergreen = 0");
   }
 
   if (company_id !== undefined) {
@@ -394,10 +398,14 @@ jobs.get("/", async (c) => {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  // The feed has one implicit order: the newest posting date first. Some ATS
-  // feeds omit or mangle posted_at, so fall back to the stable ingestion time.
-  // first_seen_at and id make pagination deterministic when dates match.
-  const orderBy = "COALESCE(datetime(j.posted_at), datetime(j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
+  // The feed leads with the newest posting date, then ranks by match strength
+  // *within* a day. Ordering by exact timestamp alone made the stored score
+  // decorative: an exact role match and a merely adjacent one interleaved by
+  // whichever happened to be ingested seconds earlier, which is why a focused
+  // profile still felt generic. Some ATS feeds omit or mangle posted_at, so
+  // fall back to the stable ingestion time; first_seen_at and id keep
+  // pagination deterministic when both date and score match.
+  const orderBy = "date(COALESCE(j.posted_at, j.first_seen_at)) DESC, us.score DESC, j.first_seen_at DESC, j.id DESC";
 
   const sql = `
     SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}

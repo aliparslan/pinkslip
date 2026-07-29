@@ -9,7 +9,10 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-export const JOB_CLASSIFIER_VERSION = "deterministic-v7";
+// v8: "Member of Technical Staff" is no longer read as staff-level, explicit
+// early-career markers outrank generic level words, internship detection is
+// title-scoped, and a required doctorate is now recorded.
+export const JOB_CLASSIFIER_VERSION = "deterministic-v8";
 
 export interface JobFeatures {
   role_family: RoleFamily;
@@ -25,6 +28,7 @@ export interface JobFeatures {
   salary_currency: string | null;
   salary_period: "year" | "hour" | null;
   sponsorship_available: boolean | null;
+  requires_advanced_degree: boolean;
   classifier_version: string;
   confidence: number;
 }
@@ -83,19 +87,69 @@ export function parseExperienceRequirement(
     // is the one that determines whether an early-career applicant qualifies.
     return candidates.sort((a, b) => b.min - a.min)[0];
   }
-  if (/\b(?:intern|internship|new grad|new graduate|entry level|early career)\b/.test(text)) {
+  // "intern" is matched against the title only. A description that mentions an
+  // internship programme says nothing about the level of the role being
+  // advertised, and matching it against the body scored senior postings as
+  // zero-years and admitted them to an early-career feed.
+  if (/\b(?:intern|internship|co-op)\b/.test(title.toLowerCase())) {
+    return { min: 0, max: 2 };
+  }
+  if (/\b(?:new grad|new graduate|entry level|early career)\b/.test(text)) {
     return { min: 0, max: 2 };
   }
   return { min: null, max: null };
+}
+
+/**
+ * True when a doctorate is stated as a requirement rather than offered as one
+ * acceptable background among several.
+ *
+ * In a production sample, 23 of 82 admitted "unknown experience" postings
+ * mentioned a PhD — the single largest contaminant in the early-career feed.
+ * But the mention alone is not disqualifying: labs routinely write "MS or PhD
+ * preferred" or "PhD ... or equivalent practical experience" on roles that hire
+ * strong bachelor's graduates, so only unhedged requirements count.
+ */
+export function requiresAdvancedDegree(description: string | null): boolean {
+  if (!description) return false;
+  const text = description
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+  const doctorate = /\b(?:ph\.?\s?d\.?|doctorate|doctoral)\b/g;
+  for (const match of text.matchAll(doctorate)) {
+    const start = match.index ?? 0;
+    // Look at the clause around the mention. A hedge anywhere nearby — before
+    // or after — means the doctorate is one accepted option, not a gate.
+    const clause = text.slice(Math.max(0, start - 90), start + 130);
+    const hedged = /\b(?:preferred|a plus|nice to have|or equivalent|equivalent practical|bonus|ideally|desirable|ms or|m\.?s\.?\s*\/|bachelor'?s? (?:degree )?(?:required|or))\b/.test(clause);
+    if (!hedged) return true;
+  }
+  return false;
 }
 
 function classifySeniority(
   title: string,
   years: { min: number | null; max: number | null }
 ): JobFeatures["seniority"] {
-  const text = title.toLowerCase();
+  const raw = title.toLowerCase();
+  // "Member of Technical Staff" is a level-less IC title, not a staff-level
+  // one. It is the standard engineering title at OpenAI, Anthropic, xAI,
+  // Mistral, Cursor and Cockroach Labs, and `\bstaff\b` silently discarded
+  // every one of them — 43 of 43 in the historical corpus. Remove the phrase
+  // before any level word is read, so the rest of the title still decides.
+  const text = raw.replace(/\b(?:member of )?technical staff\b/g, " ");
+
   if (/\b(?:chief|vice president|vp|head of)\b/.test(text)) return "executive";
   if (/\b(?:manager|director)\b/.test(text)) return "manager";
+  // Explicit level markers are read before the generic ladder below, so
+  // "Member of Technical Staff (Early Career)" and "New Grad Program" are not
+  // outranked by an incidental "staff" or "senior".
+  if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";
+  if (/\b(?:new grad|new graduate|entry level|early career)\b/.test(text)) return "new_grad";
   if (/\b(?:staff|principal|distinguished|fellow)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
   // Several large employers encode seniority numerically rather than spelling
@@ -106,8 +160,7 @@ function classifySeniority(
     || /\b(?:engineer|developer|scientist|researcher)\s*(?:\(|,|-)?\s*(?:level\s*)?[4-9](?:\s*\/\s*[4-9])?\b/.test(text)
     || /\b(?:engineer|developer|scientist|researcher)\s+(?:iv|v|vi|vii|viii|ix)\b/.test(text)
   ) return "senior";
-  if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";
-  if (/\b(?:new grad|new graduate|entry level|early career|graduate)\b/.test(text)) return "new_grad";
+  if (/\bgraduate\b/.test(text)) return "new_grad";
   if ((years.min ?? 0) >= 5) return "senior";
   if ((years.min ?? 0) >= 3) return "mid_level";
   if (years.min !== null) return "early_career";
@@ -187,6 +240,7 @@ export function classifyJob(listing: JobListing): JobFeatures {
     metro_areas: metros,
     ...salary,
     sponsorship_available: sponsorshipAvailable,
+    requires_advanced_degree: requiresAdvancedDegree(listing.description),
     classifier_version: JOB_CLASSIFIER_VERSION,
     confidence,
   };
@@ -218,8 +272,9 @@ export async function upsertJobFeatures(
            job_id, role_family, specialties_json, seniority, min_years, max_years,
            work_mode, countries_json, metro_areas_json, salary_min, salary_max,
            salary_currency, salary_period, sponsorship_available,
+           requires_advanced_degree,
            classifier_version, confidence, source_updated_at, classified_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(job_id) DO UPDATE SET
            role_family = excluded.role_family,
            specialties_json = excluded.specialties_json,
@@ -234,6 +289,7 @@ export async function upsertJobFeatures(
            salary_currency = excluded.salary_currency,
            salary_period = excluded.salary_period,
            sponsorship_available = excluded.sponsorship_available,
+           requires_advanced_degree = excluded.requires_advanced_degree,
            classifier_version = excluded.classifier_version,
            confidence = excluded.confidence,
            source_updated_at = excluded.source_updated_at,
@@ -253,6 +309,7 @@ export async function upsertJobFeatures(
         feature.salary_currency,
         feature.salary_period,
         feature.sponsorship_available === null ? null : feature.sponsorship_available ? 1 : 0,
+        feature.requires_advanced_degree ? 1 : 0,
         feature.classifier_version,
         feature.confidence,
         sourceUpdatedAt ?? listing.postedAt,

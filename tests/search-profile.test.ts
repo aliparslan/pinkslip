@@ -405,13 +405,21 @@ describe("the new-grad band", () => {
     // The original defect: seniority was compared against
     // Math.max(...target_levels) + allowance, so asking for senior roles
     // alongside early-career ones removed the floor and let staff+ in.
-    const withSeniorSelected = scored("Member of Technical Staff", "Build APIs.", {
+    const withSeniorSelected = scored("Staff Software Engineer", "Build APIs.", {
       target_levels: ["new_grad", "early_career", "senior", "staff_plus"],
       stretch_tolerance: "ambitious",
     });
-    expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
+    expect(classifyJob(job({ title: "Staff Software Engineer", location: "Remote - US", description: null })).seniority)
       .toBe("staff_plus");
     expect(withSeniorSelected.plausible).toBe(false);
+  });
+
+  test("a Member of Technical Staff role is not treated as staff-level", () => {
+    // The frontier labs use this as their level-less IC title, so `\bstaff\b`
+    // was discarding the single most relevant family of roles in the catalog.
+    expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
+      .toBe("unknown");
+    expect(scored("Member of Technical Staff", "Build APIs.").plausible).toBe(true);
   });
 
   test("a description mentioning senior colleagues does not exclude the job", () => {

@@ -13,7 +13,16 @@ export interface ApplicationIntent {
 
 const STORAGE_KEY = "pinkslip:application-intent";
 const RETURN_GUARD_MS = 750;
+/** Upper bound on waiting for the native browser to release a stale controller. */
+const NATIVE_RESET_TIMEOUT_MS = 600;
 const MAX_INTENT_AGE_MS = 12 * 60 * 60 * 1000;
+
+function normalizeUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
 
 class ApplicationIntentController {
   pending = $state<ApplicationIntent | null>(null);
@@ -30,37 +39,46 @@ class ApplicationIntentController {
   }
 
   async open(job: Job): Promise<void> {
-    if (!job.url) return;
+    const targetUrl = normalizeUrl(job.url ?? "");
+    if (!targetUrl) return;
 
     this.clearReturnListeners();
     const intent: ApplicationIntent = {
       jobId: job.id,
       title: job.title,
       company: job.company_name,
-      url: job.url,
+      url: targetUrl,
       openedAt: Date.now(),
     };
     this.storeIntent(intent);
 
     try {
       if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("Browser")) {
+        // Clear any previous listener cleanly
+        this.clearReturnListeners();
+
         this.browserListener = await Browser.addListener("browserFinished", () => {
           this.browserListener?.remove();
           this.browserListener = null;
           this.present(intent);
         });
-        await Browser.open({
-          url: intent.url,
-          presentationStyle: "fullscreen",
-        });
-        return;
+
+        try {
+          await Browser.open({ url: intent.url, presentationStyle: "fullscreen" });
+          return;
+        } catch (e) {
+          // If native plugin open failed (e.g. plugin not available in native binary), clear listener
+          this.clearReturnListeners();
+          console.warn("Capacitor Browser plugin failed to open URL, falling back to window.open", e);
+        }
       }
 
       this.watchForWebReturn(intent);
       const externalWindow = window.open(intent.url, "_blank");
       if (externalWindow) {
         externalWindow.opener = null;
-      } else {
+      } else if (!Capacitor.isNativePlatform()) {
+        // Only navigate in pure web mode if window.open was blocked; never overwrite native app WebView
         window.location.assign(intent.url);
       }
     } catch (error) {
@@ -73,6 +91,21 @@ class ApplicationIntentController {
   dismiss(): void {
     this.pending = null;
     this.clearStoredIntent();
+  }
+
+  /**
+   * Clear any SFSafariViewController the native plugin is still holding.
+   *
+   * Bounded on purpose: `Browser.close()` resolves from inside UIKit's
+   * dismissal completion, which is never called when the controller is not
+   * actually presented — the precise situation this repairs. An unbounded await
+   * would hang there and the apply button would do nothing at all.
+   */
+  private async resetNativeBrowser(): Promise<void> {
+    await Promise.race([
+      Browser.close().catch(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, NATIVE_RESET_TIMEOUT_MS)),
+    ]);
   }
 
   private present(intent: ApplicationIntent): void {

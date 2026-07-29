@@ -1,0 +1,156 @@
+/**
+ * Generates a migration seeding Y Combinator companies that are actually hiring
+ * engineers right now.
+ *
+ * Run offline, never in the Worker — it makes hundreds of requests and takes a
+ * few minutes:
+ *
+ *   bun scripts/seed-yc.ts > /dev/null && git status migrations/
+ *
+ * YC's company directory is public and unauthenticated. `isHiring=true` narrows
+ * ~6,100 companies to ~1,000 retrievable ones; filtering to active US companies
+ * above a team-size floor and then confirming at least one in-scope technical
+ * posting lands at a few hundred — small enough to poll as a rotating tier.
+ *
+ * Re-run periodically: YC membership churns, and a company that stops hiring
+ * simply stops producing postings rather than erroring, so stale rows are
+ * harmless but wasteful.
+ */
+import { YcAdapter } from "../worker/adapters/yc";
+import { isTargetJobTitle } from "../worker/job-scope";
+import { isUsJobLocation } from "../worker/us-jobs";
+
+interface YcCompany {
+  name: string;
+  slug: string;
+  batch: string;
+  status: string;
+  teamSize: number | null;
+  regions?: string[];
+  locations?: string[];
+  website?: string;
+}
+
+/**
+ * Team-size floor.
+ *
+ * Ten is the line where a YC company is past the founding team and actually
+ * running a hiring process a new grad can enter. Dropping it to 2 was tried and
+ * reverted: it took the tail from ~220 to ~770 sources, most of them
+ * pre-product companies whose "hiring" flag means the founders will talk to
+ * you, not that there is a req to apply to.
+ */
+const MIN_TEAM_SIZE = 10;
+/** Concurrent job-page fetches. Deliberately modest — this is someone's site. */
+const CONCURRENCY = 6;
+const OUTPUT = new URL("../migrations/0054_seed_yc_companies.sql", import.meta.url).pathname;
+
+async function fetchHiringCompanies(): Promise<YcCompany[]> {
+  const all: YcCompany[] = [];
+  let page = 1;
+  let totalPages = 1;
+  while (page <= totalPages) {
+    const response = await fetch(
+      `https://api.ycombinator.com/v0.1/companies?isHiring=true&page=${page}`,
+      { signal: AbortSignal.timeout(30_000) }
+    );
+    if (!response.ok) throw new Error(`YC directory ${response.status} on page ${page}`);
+    const body = await response.json() as { companies: YcCompany[]; totalPages: number };
+    totalPages = body.totalPages;
+    all.push(...body.companies);
+    page += 1;
+  }
+  return all;
+}
+
+function isCandidate(company: YcCompany): boolean {
+  return company.status === "Active"
+    && (company.regions ?? []).some((region) => /United States|America/i.test(region))
+    && (company.teamSize ?? 0) >= MIN_TEAM_SIZE;
+}
+
+interface PostingCounts {
+  /** Any live posting at all. */
+  total: number;
+  /** Postings that would enter the catalog today. */
+  inScope: number;
+}
+
+async function countPostings(slug: string): Promise<PostingCounts> {
+  const adapter = new YcAdapter();
+  const postings = await adapter.fetchJobs(slug);
+  return {
+    total: postings.length,
+    inScope: postings.filter((job) =>
+      isUsJobLocation(job.location) && isTargetJobTitle(job.title, job.department)
+    ).length,
+  };
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  await Promise.all(Array.from({ length: limit }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index]);
+    }
+  }));
+  return results;
+}
+
+const directory = await fetchHiringCompanies();
+const candidates = directory.filter(isCandidate);
+console.error(
+  `YC directory: ${directory.length} hiring, ${candidates.length} active US with team >= ${MIN_TEAM_SIZE}`
+);
+
+let checked = 0;
+const scored = await mapWithConcurrency(candidates, CONCURRENCY, async (company) => {
+  const counts = await countPostings(company.slug).catch(() => ({ total: 0, inScope: 0 }));
+  checked += 1;
+  if (checked % 50 === 0) console.error(`  probed ${checked}/${candidates.length}`);
+  return { company, ...counts };
+});
+
+// Seed on *any* live posting, not only one that is in scope today. A company
+// actively hiring for design or sales this week may post an engineering role
+// next week, and a source that has never published anything is the only kind
+// worth excluding — carrying a quiet one costs a single rotating request.
+const hiring = scored
+  .filter((entry) => entry.total > 0)
+  .sort((a, b) => a.company.name.localeCompare(b.company.name));
+
+const withInScope = hiring.filter((entry) => entry.inScope > 0).length;
+console.error(`\n${hiring.length} companies have at least one live posting`);
+console.error(`  of those, ${withInScope} have an in-scope technical posting today`);
+console.error(`  total in-scope postings: ${hiring.reduce((sum, e) => sum + e.inScope, 0)}`);
+
+const escape = (value: string) => value.replace(/'/g, "''");
+const lines = [
+  `-- Y Combinator companies with at least one in-scope technical posting,`,
+  `-- generated by scripts/seed-yc.ts on ${new Date().toISOString().slice(0, 10)}.`,
+  `--`,
+  `-- Sourced from the public YC directory API filtered by isHiring=true, then`,
+  `-- narrowed to active US companies with a team of ${MIN_TEAM_SIZE}+ that have at`,
+  `-- least one live posting on their YC board.`,
+  `--`,
+  `-- All land in poll tier 2. These rotate rather than polling every cycle:`,
+  `-- an early-stage startup does not post often enough to justify a 15-minute`,
+  `-- check, and tier 1 needs the request budget more.`,
+  ``,
+];
+for (const { company, total, inScope } of hiring) {
+  lines.push(
+    `INSERT OR IGNORE INTO companies (id, name, ats_type, source_type, ats_slug, website, enabled, poll_tier) `
+    + `VALUES (lower(hex(randomblob(16))), '${escape(company.name)}', 'custom', 'yc', '${escape(company.slug)}', `
+    + `'${escape(company.website ?? "")}', 1, 2);  -- ${inScope}/${total} in scope, ${company.batch}`
+  );
+}
+
+await Bun.write(OUTPUT, lines.join("\n") + "\n");
+console.error(`\nwrote ${OUTPUT}`);

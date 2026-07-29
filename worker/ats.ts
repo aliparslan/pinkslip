@@ -48,5 +48,5 @@ export async function verifyCompanySource(input: {
     throw new Error(`Unsupported ATS type: ${input.ats_type}`);
   }
 
-  return (await adapter.fetchJobs(input.ats_slug)).filter(isEligibleJobListing);
+  return (await adapter.fetchJobs(input.ats_slug)).filter((job) => isEligibleJobListing(job));
 }

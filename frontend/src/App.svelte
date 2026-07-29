@@ -29,6 +29,7 @@
   import ApplicationReturnPrompt from "./components/ApplicationReturnPrompt.svelte";
   import { applicationIntent } from "./lib/application-intent.svelte";
   import { initNativePush } from "./lib/native-push";
+  import { syncFeedPreferences } from "./lib/feed-store.svelte";
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
@@ -335,6 +336,7 @@
       const { me: res, preferences } = await api.bootstrap.get();
       if (gen !== bootGen) return;
       syncSessionAccess(res);
+      syncFeedPreferences(preferences.search_profile);
       userName = res.user?.name ?? "";
       showOnboarding = preferences.search_profile.onboarding_version < 2
         || !preferences.search_profile.onboarding_completed_at;

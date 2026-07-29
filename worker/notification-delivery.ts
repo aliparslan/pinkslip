@@ -51,6 +51,11 @@ export async function createNotificationCandidates(
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
+       -- The stored threshold was collected in settings and then never applied,
+       -- so every plausible match alerted no matter how weakly it scored. It is
+       -- enforced on creation and again on delivery, so a candidate queued
+       -- before the user raised their threshold cannot still slip through.
+       AND ujm.score >= COALESCE(uns.threshold, usp.match_threshold, 50)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
@@ -153,6 +158,11 @@ export async function deliverPendingNotifications(
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
+       -- The stored threshold was collected in settings and then never applied,
+       -- so every plausible match alerted no matter how weakly it scored. It is
+       -- enforced on creation and again on delivery, so a candidate queued
+       -- before the user raised their threshold cannot still slip through.
+       AND ujm.score >= COALESCE(uns.threshold, usp.match_threshold, 50)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id

@@ -12,13 +12,34 @@ import {
   createNotificationCandidates,
   deliverPendingNotifications,
 } from "./notification-delivery";
-import { ensureEligibleJobs, isEligibleJobListing } from "./job-scope";
+import { ensureEligibleJobs, isEligibleJobListing, loadCustomTitles } from "./job-scope";
+import { isEvergreenPosting } from "../shared/job-policy";
 import {
   notifyAdminsOfQuarantinedSources,
   type QuarantinedSource,
 } from "./admin-alerts";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
+
+/**
+ * Long-tail sources polled per cycle.
+ *
+ * With ~800 tier-2 sources this rotates the whole tail in a little over three
+ * hours. That is the right trade for early-stage startups — they post rarely,
+ * and their listings are not the ones being raced for — while the marquee
+ * boards keep the full 15-minute cadence in tier 1. Raising this shortens the
+ * rotation at the cost of per-cycle request budget and runtime, which already
+ * sits near 45 seconds.
+ */
+const TIER_TWO_POLLS_PER_CYCLE = 60;
+
+/**
+ * New jobs matched inline per cycle. Matching is jobs × profiles in one
+ * invocation, so this is the ceiling that keeps onboarding a large board from
+ * reproducing the June cron failure. At 110 profiles this is ~16.5k scoring
+ * operations, well inside budget.
+ */
+const MATCH_INLINE_LIMIT_PER_CYCLE = 150;
 const CONTENT_BACKFILL_BATCH_SIZE = 20;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
@@ -215,7 +236,8 @@ export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPref
 export async function pollCompany(
   company: CompanyRow,
   db: D1Database,
-  prefs: ScoringPrefs
+  prefs: ScoringPrefs,
+  customTitles: readonly string[] = []
 ): Promise<NewJobMeta[]> {
   // 1. Pick adapter by ats_type
   const adapter = getAdapter(getCompanySourceType(company));
@@ -224,7 +246,7 @@ export async function pollCompany(
 
   // 2. Fetch jobs from ATS
   const fetchedSnapshot = await adapter.fetchJobs(company.ats_slug);
-  const fetched = fetchedSnapshot.filter(isEligibleJobListing);
+  const fetched = fetchedSnapshot.filter((job) => isEligibleJobListing(job, customTitles));
   const fetchedExtIds = new Set(fetched.map((j) => j.externalId));
 
   // 3. Load existing (with open/closed state) + blocked external_ids for this company
@@ -257,17 +279,32 @@ export async function pollCompany(
     fetchedSnapshot.length > 0
     && (openExistingCount < 8 || fetchedSnapshot.length >= Math.floor(openExistingCount * 0.5));
 
+  // The eligibility filter above drops anything past the freshness window, so
+  // `fetched` cannot answer "is this still on the board?" for an aged posting.
+  // The raw snapshot can, and that is the whole distinction between a standing
+  // requisition and a role that was filled and removed.
+  const snapshotById = new Map(fetchedSnapshot.map((job) => [job.externalId, job]));
+
   const updateStmts = [];
   for (const extId of existingIds) {
-    if (fetchedExtIds.has(extId)) {
+    const listed = snapshotById.get(extId);
+    if (listed) {
+      const evergreen = isEvergreenPosting(listed.title, listed.postedAt, true);
       updateStmts.push(
         db
           .prepare(
-            `UPDATE jobs SET missed_polls = 0, closed_at = NULL
-             WHERE company_id = ? AND external_id = ? AND (missed_polls != 0 OR closed_at IS NOT NULL)`
+            `UPDATE jobs SET missed_polls = 0, closed_at = NULL, evergreen = ?
+             WHERE company_id = ? AND external_id = ?
+               AND (missed_polls != 0 OR closed_at IS NOT NULL OR evergreen != ?)`
           )
-          .bind(company.id, extId)
+          .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
       );
+    }
+    if (fetchedExtIds.has(extId)) {
+      // Already handled above; an eligible posting is by definition listed.
+    } else if (listed) {
+      // Still on the board but outside the freshness window — leave it open and
+      // flagged rather than counting a miss against it.
     } else if (responseLooksComplete) {
       updateStmts.push(
         db
@@ -306,7 +343,7 @@ export async function pollCompany(
   const newJobs = hydration.flatMap((result) => {
     if (result.status !== "fulfilled") return [];
     const job = result.value;
-    return job.description?.trim() && isEligibleJobListing(job) ? [job] : [];
+    return job.description?.trim() && isEligibleJobListing(job, customTitles) ? [job] : [];
   });
   if (newJobs.length === 0) return [];
 
@@ -389,6 +426,7 @@ interface MissingContentRow {
 async function backfillMissingJobContent(
   db: D1Database,
   prefs: ScoringPrefs,
+  customTitles: readonly string[] = [],
   limit = CONTENT_BACKFILL_BATCH_SIZE
 ): Promise<NewJobMeta[]> {
   const result = await db.prepare(
@@ -468,7 +506,7 @@ async function backfillMissingJobContent(
   }
 
   return repaired.flatMap(({ row, listing }) => {
-    if (!isEligibleJobListing(listing)) return [];
+    if (!isEligibleJobListing(listing, customTitles)) return [];
     return [{
       company: row.company_name,
       title: listing.title,
@@ -559,6 +597,7 @@ export async function runPollCycle(
     SELECT *
     FROM companies
     WHERE enabled = 1 AND COALESCE(source_type, ats_type) != 'custom'
+      AND COALESCE(poll_tier, 1) = ?
       AND (
         quarantined_at IS NULL
         OR last_polled_at IS NULL
@@ -567,20 +606,35 @@ export async function runPollCycle(
     ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
     ${companyLimit === null ? "" : "LIMIT ?"}
   `;
-  const companiesResult = companyLimit === null
-    ? await db.prepare(companySql).bind(quarantineRetryBefore).all<CompanyRow>()
-    : await db.prepare(companySql).bind(quarantineRetryBefore, companyLimit).all<CompanyRow>();
-  const companies = companiesResult.results ?? [];
+  const selectTier = async (tier: number, limit: number | null) => {
+    const result = limit === null
+      ? await db.prepare(companySql.replace("LIMIT ?", "")).bind(tier, quarantineRetryBefore).all<CompanyRow>()
+      : await db.prepare(
+          companySql.includes("LIMIT ?") ? companySql : `${companySql} LIMIT ?`
+        ).bind(tier, quarantineRetryBefore, limit).all<CompanyRow>();
+    return result.results ?? [];
+  };
 
-  // 2. Load preferences
+  // Tier 1 is polled in full every cycle. Tier 2 rotates: ordering by
+  // last_polled_at ascending means a fixed slice per tick walks the whole tail
+  // round-robin, so several hundred long-tail sources cost a bounded amount of
+  // work per cycle instead of multiplying every tick's request and match load.
+  const companies = companyLimit === null
+    ? [...await selectTier(1, null), ...await selectTier(2, TIER_TWO_POLLS_PER_CYCLE)]
+    : await selectTier(1, companyLimit);
+
+  // 2. Load preferences, plus every title a user has explicitly asked for. The
+  //    latter is loaded once and shared across all companies in the cycle so a
+  //    globally unrecognized title can still enter the catalog.
   const prefs = await loadPreferencesForPoll(db);
+  const customTitles = await loadCustomTitles(db);
   const now = new Date().toISOString();
 
   // 3. Fan out pollCompany() calls
   const results = await runWithConcurrency(
     companies,
     6,
-    (company) => pollCompany(company, db, prefs)
+    (company) => pollCompany(company, db, prefs, customTitles)
   );
 
   // 4. Collect all new jobs and batch-update poll status per company
@@ -649,7 +703,7 @@ export async function runPollCycle(
   ).bind(new Date().toISOString()).run();
 
   const repairedJobs = scope === "cron"
-    ? await backfillMissingJobContent(db, prefs).catch((error) => {
+    ? await backfillMissingJobContent(db, prefs, customTitles).catch((error) => {
         log.push(`content backfill error: ${error instanceof Error ? error.message : String(error)}`);
         return [] as NewJobMeta[];
       })
@@ -657,7 +711,22 @@ export async function runPollCycle(
   if (repairedJobs.length > 0) {
     log.push(`content backfill: ${repairedJobs.length} repaired`);
   }
-  const matchableJobs = [...allNewJobs, ...repairedJobs];
+  const discovered = [...allNewJobs, ...repairedJobs];
+
+  // Cap how many newly-discovered jobs are matched inline. Matching fans out
+  // across every profile, so the work is jobs × profiles in a single
+  // invocation — the exact shape that exhausted D1's CPU budget and killed the
+  // cron every 15 minutes through June. A steady-state cycle discovers a
+  // handful of jobs and never reaches this cap; it only binds when a large new
+  // board is onboarded, and on that cycle nobody wants hundreds of pushes
+  // anyway. The remainder is not lost: features are already stored, and the
+  // per-user warm-up plus advanceBacklogScoring pick them up on later ticks.
+  const matchableJobs = discovered.slice(0, MATCH_INLINE_LIMIT_PER_CYCLE);
+  if (discovered.length > matchableJobs.length) {
+    log.push(
+      `deferred matching for ${discovered.length - matchableJobs.length} of ${discovered.length} new jobs`
+    );
+  }
 
   await matchJobsForAllProfiles(
     db,
