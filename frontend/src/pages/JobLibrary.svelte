@@ -67,7 +67,7 @@
 <div class="page root-screen library-page">
   <RootHeader title="Library" subtitle="The roles you want to remember" />
   <div class="page-frame my-jobs-page">
-    <div class="my-jobs-tabs" role="tablist" aria-label="My jobs">
+    <div class="my-jobs-tabs" role="tablist" aria-label="Your jobs">
       <button
         id="my-jobs-tab-saved"
         type="button"

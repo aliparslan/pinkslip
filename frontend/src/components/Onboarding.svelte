@@ -179,7 +179,7 @@
             onclick={saveSearchProfile}
           >
             {#if saving}<Spinner />{/if}
-            Save preferences
+            Continue
           </button>
         </section>
 
@@ -232,7 +232,7 @@
             onclick={finish}
           >
             {#if saving}<Spinner />{/if}
-            Let me in!
+            Start using pinkslip
           </button>
           {#if pushStatus !== "enabled"}
             <p class="onboarding-footnote">You can turn alerts on later from You → Job alerts.</p>

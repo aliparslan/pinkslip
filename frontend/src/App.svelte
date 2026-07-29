@@ -521,7 +521,7 @@
         disabled={!accessCode.trim() || unlocking}
         onclick={handleAccessSubmit}
       >
-        {unlocking ? "Checking..." : "Unlock"}
+        {unlocking ? "Checking…" : "Unlock"}
       </button>
     </div>
   </div>

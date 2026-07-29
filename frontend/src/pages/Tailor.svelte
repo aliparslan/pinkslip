@@ -465,7 +465,7 @@
           <button class="btn-primary btn-accent" onclick={() => navigate("/you/account")}>
             Open account settings
           </button>
-          <button class="btn-secondary" onclick={openTailorSettings}>Use my own key</button>
+          <button class="btn-secondary" onclick={openTailorSettings}>Add your own key</button>
         </div>
       </div>
     {:else if setupNeeded}

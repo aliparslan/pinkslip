@@ -274,7 +274,7 @@
                   {#each exp.bullets as bullet, bIdx}
                     <div class="bullet-row">
                       <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" aria-label="Work experience bullet {bIdx + 1}" bind:value={exp.bullets[bIdx]} oninput={handleInput} placeholder="Accomplishment or responsibility..."
+                      <input class="input-field bullet-input" aria-label="Work experience bullet {bIdx + 1}" bind:value={exp.bullets[bIdx]} oninput={handleInput} placeholder="Accomplishment or responsibility…"
                         onkeydown={(e) => {
                           if (e.key === "Enter") { e.preventDefault(); profile.experience[expIdx].bullets = addBullet(exp.bullets, bIdx); }
                           if (e.key === "Backspace" && !bullet && exp.bullets.length > 1) { e.preventDefault(); profile.experience[expIdx].bullets = removeBullet(exp.bullets, bIdx); }
@@ -346,7 +346,7 @@
                   {#each proj.bullets as bullet, bIdx}
                     <div class="bullet-row">
                       <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" aria-label="Project bullet {bIdx + 1}" bind:value={proj.bullets[bIdx]} oninput={handleInput} placeholder="What you built or achieved..."
+                      <input class="input-field bullet-input" aria-label="Project bullet {bIdx + 1}" bind:value={proj.bullets[bIdx]} oninput={handleInput} placeholder="What you built or achieved…"
                         onkeydown={(e) => {
                           if (e.key === "Enter") { e.preventDefault(); profile.projects[projIdx].bullets = addBullet(proj.bullets, bIdx); }
                           if (e.key === "Backspace" && !bullet && proj.bullets.length > 1) { e.preventDefault(); profile.projects[projIdx].bullets = removeBullet(proj.bullets, bIdx); }
@@ -433,7 +433,7 @@
             <p class="notes-help">
               Free-form notes for the AI — extra context, narrative details, things that don't fit in the structured fields above.
             </p>
-            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context..."></textarea>
+            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context…"></textarea>
           </div>
         {/if}
       </div>

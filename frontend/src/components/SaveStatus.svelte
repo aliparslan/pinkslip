@@ -16,7 +16,7 @@
     phase === "dirty" ? "Unsaved"
       : phase === "saving" ? "Saving"
         : phase === "saved" ? savedLabel
-          : phase === "error" ? "Couldn’t save"
+          : phase === "error" ? "Not saved"
             : ""
   );
 </script>

@@ -438,23 +438,25 @@
               </button>
               {#if localResume}
                 <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
-                  {syncingResume ? "Syncing..." : "Sync local copy"}
+                  {syncingResume ? "Syncing…" : "Sync local copy"}
                 </button>
               {/if}
               <button class="btn-secondary btn-danger" type="button" onclick={removeSyncedResume} disabled={removingSyncedResume}>
-                {removingSyncedResume ? "Removing..." : "Remove synced copy"}
+                {removingSyncedResume ? "Removing…" : "Remove synced copy"}
               </button>
             </div>
           </div>
         {:else}
           <div class="inset-panel empty">
             <div class="surface-empty-copy">
-              Nothing is synced to your account yet.
+              {localResume
+                ? "Nothing is synced to your account yet."
+                : "Nothing is synced yet. Save a local resume above, then sync it here."}
             </div>
             {#if localResume}
               <div>
                 <button class="btn-secondary full-width" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
-                  {syncingResume ? "Syncing..." : "Sync this resume"}
+                  {syncingResume ? "Syncing…" : "Sync this resume"}
                 </button>
               </div>
             {/if}

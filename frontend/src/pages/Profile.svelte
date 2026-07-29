@@ -213,7 +213,7 @@
       if (bootstrapResult.status !== "fulfilled") throw bootstrapResult.reason;
       const { me, preferences } = bootstrapResult.value;
       if (knownSessionState === "authenticated" && me.session.state !== "authenticated") {
-        throw new Error("We couldn’t verify your session. Your signed-in state is unchanged; try loading again.");
+        throw new Error("Unable to verify your session. Your signed-in state is unchanged. Try loading again.");
       }
 
       displayName = me.user?.name ?? "";

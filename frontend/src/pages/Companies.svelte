@@ -628,7 +628,7 @@
           No companies found
         </div>
         <div class="empty-state-copy">
-          {isAdminMode ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You have not hidden any companies." : "Try a different company name."}
+          {isAdminMode ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You haven’t hidden any companies." : "Try a different company name."}
         </div>
       </div>
     {:else}

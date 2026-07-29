@@ -154,6 +154,10 @@
     if (feed.postedFilter !== "any") count += 1;
     return count;
   });
+  // Filters the empty state can actually offer to clear. `savedOnly` is excluded:
+  // it selects a view rather than narrowing one, so clearing it would bounce the
+  // user out of the saved list they deliberately opened.
+  let refinableFilterCount = $derived(activeFilterCount - (feed.savedOnly ? 1 : 0));
   let draftHasLocationFilter = $derived(
     !(draftSelectedLocations.length === 1 && draftSelectedLocations[0] === "All")
   );
@@ -374,6 +378,19 @@
     draftSavedOnly = feed.savedOnly;
     draftPostedFilter = feed.postedFilter;
     filtersOpen = true;
+  }
+
+  // Clears the narrowing filters from the empty state. Omitting `savedOnly` leaves
+  // the current view intact; `openFilterSheet` re-syncs the drafts from feed state,
+  // so the sheet reflects this the next time it opens.
+  async function clearRefinableFilters() {
+    await applyFeedFilters({
+      selectedLocations: ["All"],
+      minSalaryK: "",
+      maxSalaryK: "",
+      maxYoe: "",
+      postedFilter: "any",
+    });
   }
 
   function resetFilters() {
@@ -653,12 +670,29 @@
     {:else if feed.jobs.length === 0}
       <div class="empty-state">
         <h2 class="h-display h-display-sm empty-state-title">
-          {feed.savedOnly ? "No saved jobs yet" : "Nothing here"}
+          {#if refinableFilterCount > 0}
+            {feed.savedOnly ? "No saved jobs match your filters" : "No jobs match your filters"}
+          {:else if feed.savedOnly}
+            No saved jobs yet
+          {:else}
+            No jobs right now
+          {/if}
         </h2>
         <div class="empty-state-copy feed-empty-copy">
-          {feed.savedOnly ? "Save roles from the detail view to keep them handy." : "Adjust your filters or check back later."}
+          {#if refinableFilterCount > 0}
+            Try widening or clearing your filters.
+          {:else if feed.savedOnly}
+            Save roles from the detail view to keep them handy.
+          {:else}
+            New roles show up here as they’re posted.
+          {/if}
         </div>
         <div class="button-cluster center">
+          {#if refinableFilterCount > 0}
+            <button class="btn-secondary" onclick={clearRefinableFilters}>
+              Clear filters
+            </button>
+          {/if}
           <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
             {#if refreshing}<Spinner />{/if}
             Refresh now
