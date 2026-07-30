@@ -357,7 +357,7 @@
     border: 1px solid var(--color-line-2);
     border-radius: var(--radius-md);
     background: var(--color-bg-elev);
-    box-shadow: 0 14px 36px rgb(0 0 0 / 18%);
+    box-shadow: var(--shadow-toast);
   }
   .work-mode-option {
     width: 100%;

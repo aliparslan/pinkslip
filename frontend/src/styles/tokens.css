@@ -80,7 +80,9 @@
   --color-accent-hover: oklch(0.75 0.17 350);
   --color-accent-ink: oklch(0.16 0.01 350);
   --color-accent-soft: oklch(0.255 0.055 350);
-  --color-accent-soft-ink: oklch(0.86 0.115 350);
+  /* Chroma sits at the sRGB ceiling for this L/H. Raising it does nothing on
+     screen — the browser gamut-maps it straight back down. */
+  --color-accent-soft-ink: oklch(0.86 0.089 350);
   --color-selection-bg: oklch(0.91 0.004 285);
   --color-selection-ink: oklch(0.18 0.006 285);
 
@@ -97,10 +99,15 @@
   --color-control-active-ink: oklch(0.98 0.002 285);
   --color-control-highlight: oklch(1 0 0 / 0.07);
   --color-scrim: oklch(0 0 0 / 0.52);
+  /* Opaque base for the nav transition dim; App.svelte animates its opacity. */
+  --color-nav-dim: oklch(0 0 0);
 
   --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.3);
   --shadow-overlay: 0 18px 54px oklch(0 0 0 / 0.32);
+  --shadow-overlay-lg: 0 24px 80px oklch(0 0 0 / 0.36);
   --shadow-toast: 0 12px 36px oklch(0 0 0 / 0.25);
+  --shadow-sheet: 0 -8px 32px oklch(0 0 0 / 0.3);
+  --shadow-nav-swipe: -12px 0 28px oklch(0 0 0 / 0.34);
 }
 
 [data-mode="light"] {
@@ -125,12 +132,15 @@
   --color-selection-bg: oklch(0.22 0.006 285);
   --color-selection-ink: oklch(0.99 0.002 80);
 
-  --color-good: oklch(0.48 0.14 150);
+  /* good, warn and bad-soft are at their sRGB chroma ceilings for these L/H
+     pairs — the previous 0.14 / 0.14 / 0.03 read as more saturated than sRGB
+     can show, so they rendered identically to these values anyway. */
+  --color-good: oklch(0.48 0.132 150);
   --color-good-soft: oklch(0.955 0.025 150);
-  --color-warn: oklch(0.53 0.14 75);
+  --color-warn: oklch(0.53 0.111 75);
   --color-warn-soft: oklch(0.955 0.03 75);
   --color-bad: oklch(0.5 0.18 25);
-  --color-bad-soft: oklch(0.955 0.03 25);
+  --color-bad-soft: oklch(0.955 0.022 25);
 
   --color-control-bg: oklch(0.94 0.002 80);
   --color-control-border: oklch(0.835 0.004 80);
@@ -138,10 +148,14 @@
   --color-control-active-ink: oklch(0.18 0.006 285);
   --color-control-highlight: oklch(1 0 0 / 0.5);
   --color-scrim: oklch(0.12 0.006 285 / 0.38);
+  --color-nav-dim: oklch(0.12 0.006 285);
 
   --shadow-control-active: 0 1px 4px oklch(0 0 0 / 0.1);
   --shadow-overlay: 0 20px 60px oklch(0.16 0.01 285 / 0.16);
+  --shadow-overlay-lg: 0 24px 80px oklch(0.16 0.01 285 / 0.18);
   --shadow-toast: 0 12px 34px oklch(0.16 0.01 285 / 0.14);
+  --shadow-sheet: 0 -8px 32px oklch(0.16 0.01 285 / 0.14);
+  --shadow-nav-swipe: -12px 0 28px oklch(0.16 0.01 285 / 0.16);
 }
 
 @media (prefers-reduced-motion: reduce) {

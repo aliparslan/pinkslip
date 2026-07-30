@@ -1015,7 +1015,7 @@ html.native-ios textarea {
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-md);
   background: var(--color-bg-elev);
-  box-shadow: 0 14px 36px rgb(0 0 0 / 16%);
+  box-shadow: var(--shadow-toast);
 }
 
 .job-more-menu button {
@@ -2028,7 +2028,7 @@ select.input-field {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background: var(--color-bg-elev);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 16%);
+  box-shadow: var(--shadow-overlay);
 }
 
 .access-title { margin-bottom: var(--space-2); }
@@ -2301,7 +2301,7 @@ body.nav-animating .page,
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background: var(--color-bg-elev);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 22%);
+  box-shadow: var(--shadow-overlay-lg);
   animation: fade-in 150ms ease-out;
 }
 
@@ -2366,7 +2366,7 @@ body.nav-animating .status-bar-scrim {
 }
 .nav-foreground.is-swiping {
   will-change: transform;
-  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-nav-swipe);
 }
 .nav-underlay {
   position: fixed;
@@ -2385,7 +2385,7 @@ body.nav-animating .status-bar-scrim {
 .nav-underlay-dim {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--color-nav-dim);
   pointer-events: none;
 }
 
@@ -2437,7 +2437,7 @@ body.nav-animating .screen-nav {
   display: flex;
   flex-direction: column;
   animation: sheet-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
-  box-shadow: 0 -8px 32px rgba(0,0,0,.18);
+  box-shadow: var(--shadow-sheet);
 }
 .sheet.filter-sheet {
   left: 50%;
