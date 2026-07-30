@@ -4,9 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  define: {
-    __APP_VERSION__: JSON.stringify(new Date().toISOString()),
-  },
   plugins: [svelte(), tailwindcss()],
   build: { outDir: "dist" },
   // `host: true` exposes the dev server on the LAN so a physical iPhone can load

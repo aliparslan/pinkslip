@@ -6,7 +6,7 @@
   import CardsThree from "phosphor-svelte/lib/CardsThree";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
 
-  let { mobileHidden = false, inert = false }: { mobileHidden?: boolean; inert?: boolean } = $props();
+  let { mobileHidden = false }: { mobileHidden?: boolean } = $props();
 
   let route = $derived($currentRoute);
 
@@ -31,7 +31,7 @@
   }
 </script>
 
-<nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation" {inert}>
+<nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation">
   <div class="tab-bar__inner">
     <button type="button" class="tab-bar__brand" aria-label="Go to feed" onclick={() => selectTab("/", "feed")}>
       <span class="tab-bar__mark"><BrandMark size={23} /></span>
@@ -97,8 +97,10 @@
     font-weight: 500;
     transition:
       color var(--duration-instant) var(--ease-standard),
-      background var(--duration-instant) var(--ease-standard);
+      background var(--duration-instant) var(--ease-standard),
+      transform 100ms var(--ease-standard);
   }
+  .tab-bar__item:active { transform: scale(0.97); }
   .tab-bar__item.active {
     color: var(--color-accent);
   }

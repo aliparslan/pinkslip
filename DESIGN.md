@@ -32,7 +32,7 @@ The core loop is deliberately small:
 
 ## Visual system
 
-- Inter Variable is the primary typeface. Founders Grotesk Mono is reserved for
+- Geist is the primary typeface. Geist Mono is reserved for
   compact metadata where its texture helps scanning.
 - Pink is the sole brand accent. Green, amber, and red are reserved for semantic
   status, warning, and destructive states.

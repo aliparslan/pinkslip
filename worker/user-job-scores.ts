@@ -2,7 +2,6 @@ import {
   isEligibleSeniority,
   LOCATION_OPTIONS,
   MAX_YEARS_EXPERIENCE,
-  ROLE_OPTIONS,
   roleLabel,
   type SearchProfile,
 } from "../shared/search-profile";

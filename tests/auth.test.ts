@@ -109,7 +109,7 @@ function fakeDb(
   } as unknown as D1Database;
 }
 
-function appWith(db: D1Database) {
+function appWith() {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
   app.use("/api/*", authMiddleware);
   app.get("/api/me", (c) => c.json({
@@ -135,7 +135,7 @@ const ENV = (db: D1Database) => ({ DB: db }) as unknown as Env;
 describe("authMiddleware", () => {
   it("authenticates a valid bearer token and sets userId", async () => {
     const db = fakeDb({ "good-token": "user-42" });
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer good-token" },
@@ -151,7 +151,7 @@ describe("authMiddleware", () => {
     // treated as fully authenticated. A token only counts as authenticated when
     // its user has an actual sign-in identity.
     const db = fakeDb({ "guest-token": "guest-9" }, {}, { "guest-9": 0 });
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer guest-token" },
@@ -164,7 +164,7 @@ describe("authMiddleware", () => {
 
   it("rejects an invalid bearer token with 401", async () => {
     const db = fakeDb({ "good-token": "user-42" });
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/me", {
         headers: { authorization: "Bearer nope" },
@@ -177,7 +177,7 @@ describe("authMiddleware", () => {
 
   it("keeps passive reads anonymous without creating a session", async () => {
     const db = fakeDb({});
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/me"),
       ENV(db)
@@ -189,7 +189,7 @@ describe("authMiddleware", () => {
 
   it("allows the combined bootstrap read without creating a session", async () => {
     const db = fakeDb({});
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/bootstrap"),
       ENV(db)
@@ -201,7 +201,7 @@ describe("authMiddleware", () => {
 
   it("returns default preferences anonymously without creating a session", async () => {
     const db = fakeDb({});
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/preferences"),
       ENV(db)
@@ -216,7 +216,7 @@ describe("authMiddleware", () => {
 
   it("creates a guest session on the first state-changing action", async () => {
     const db = fakeDb({});
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/whoami", { method: "POST" }),
       ENV(db)
@@ -228,7 +228,7 @@ describe("authMiddleware", () => {
 
   it("rejects guests from authenticated-only routes", async () => {
     const db = fakeDb({});
-    const app = appWith(db);
+    const app = appWith();
     const guest = await (app.fetch as any)(
       new Request("http://localhost/api/whoami", { method: "POST" }),
       ENV(db)
@@ -244,7 +244,7 @@ describe("authMiddleware", () => {
 
   it("rejects an authenticated non-admin from admin routes", async () => {
     const db = fakeDb({ "good-token": "user-42" });
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/admin", {
         method: "POST",
@@ -261,7 +261,7 @@ describe("authMiddleware", () => {
       { "admin-token": "admin-1" },
       { "admin-1": "admin" }
     );
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("http://localhost/api/admin", {
         method: "POST",

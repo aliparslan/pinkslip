@@ -3,7 +3,6 @@
   import { api, type Job } from "../lib/api";
   import { currentRoute, navigate } from "../router";
   import { errorMessage, timeAgo } from "../lib/utils";
-  import { setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
@@ -53,10 +52,6 @@
       loading = false;
     }
   }
-
-  $effect(() => {
-    setFeedNavigationJobs(visibleJobs);
-  });
 
   onMount(() => {
     void loadJobs();

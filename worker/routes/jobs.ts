@@ -2,9 +2,6 @@ import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, Variables, JobRow, CompanySourceType } from "../types";
 import { getAdapter } from "../ats";
-import { loadPreferencesForPoll } from "../poller";
-import { scoreJob } from "../scoring";
-import type { JobListing } from "../adapters/types";
 import {
   ensureUserJobMatchesReady,
   ensureUserJobScores,
@@ -470,25 +467,6 @@ async function backfillJobContent(
     return;
   }
 
-  const nextDescription = content.description ?? job.description;
-  const nextSalary = content.salary ?? job.salary;
-  const nextLocation = content.location ?? job.location;
-  const nextPostedAt = content.postedAt ?? job.posted_at;
-  const prefs = await loadPreferencesForPoll(db);
-  const breakdown = scoreJob(
-    {
-      externalId: job.external_id,
-      title: job.title,
-      url: job.url,
-      location: nextLocation,
-      department: job.department,
-      postedAt: nextPostedAt,
-      description: nextDescription,
-      salary: nextSalary,
-    } satisfies JobListing,
-    prefs
-  );
-
   const sets: string[] = [];
   const vals: (string | number | null)[] = [];
   if (content.description) {
@@ -507,15 +485,6 @@ async function backfillJobContent(
     sets.push("posted_at = ?");
     vals.push(content.postedAt);
   }
-  sets.push("score = ?", "title_score = ?", "yoe_score = ?", "location_score = ?", "department_score = ?", "recency_score = ?");
-  vals.push(
-    breakdown.score,
-    breakdown.title_score,
-    breakdown.yoe_score,
-    breakdown.location_score,
-    breakdown.department_score,
-    breakdown.recency_score
-  );
   vals.push(job.id);
   await db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).bind(...vals).run();
   // Re-score (don't blanket-invalidate) so the job keeps its place in the feeds

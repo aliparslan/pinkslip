@@ -13,9 +13,6 @@ export const SCORE_RAW_MAX =
   + SCORE_COMPONENT_MAX.department
   + SCORE_COMPONENT_MAX.recency;
 
-/** Convert a 0–100 user threshold to the scorer's raw 0–95 scale. */
-export const SCORE_RAW_PER_PERCENT = SCORE_RAW_MAX / 100;
-
 export function normalizeScorePercent(rawScore: number | null | undefined): number {
   const score = rawScore ?? 0;
   if (!Number.isFinite(score) || score <= 0) return 0;

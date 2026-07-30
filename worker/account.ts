@@ -6,15 +6,7 @@ import type {
   ResumeProfile,
   TailoringRow,
 } from "./types";
-
-const EMPTY_PROFILE: ResumeProfile = {
-  contact: { name: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "" },
-  experience: [],
-  education: [],
-  projects: [],
-  skills: [],
-  optionalSections: [],
-};
+import { createEmptyResumeProfile } from "../shared/resume-profile";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -67,24 +59,6 @@ export async function readUserPreferences(
   return out;
 }
 
-export async function writeUserPreferences(
-  db: D1Database,
-  userId: string,
-  values: Array<{ key: string; value: string }>
-) {
-  if (values.length === 0) return;
-  const now = new Date().toISOString();
-  await db.batch(
-    values.map(({ key, value }) =>
-      db.prepare(
-        `INSERT INTO user_preferences (user_id, key, value, updated_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-      ).bind(userId, key, value, now)
-    )
-  );
-}
-
 export async function getUserProfile(
   db: D1Database,
   userId: string
@@ -98,18 +72,18 @@ export async function getUserProfile(
   if (existing) {
     try {
       return {
-        data: { ...EMPTY_PROFILE, ...(JSON.parse(existing.data) as ResumeProfile) },
+        data: { ...createEmptyResumeProfile(), ...(JSON.parse(existing.data) as ResumeProfile) },
         updated_at: existing.updated_at,
       };
     } catch {
-      return { data: EMPTY_PROFILE, updated_at: existing.updated_at };
+      return { data: createEmptyResumeProfile(), updated_at: existing.updated_at };
     }
   }
 
   // No per-user profile yet → return an empty profile. We deliberately do NOT
   // fall back to the legacy global `profile` table; that leaked the original
   // owner's resume/contact details into every fresh guest account.
-  return { data: EMPTY_PROFILE, updated_at: null };
+  return { data: createEmptyResumeProfile(), updated_at: null };
 }
 
 export async function saveUserProfile(

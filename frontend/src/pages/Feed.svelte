@@ -5,7 +5,6 @@
   import { timeAgo, errorMessage } from "../lib/utils";
   import { feed, markLocationsManuallySet, PAGE_SIZE, type PostedFilter } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
-  import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
@@ -14,6 +13,7 @@
   import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
+  import { fade, fly } from "svelte/transition";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Check from "phosphor-svelte/lib/Check";
   import ClockCountdown from "phosphor-svelte/lib/ClockCountdown";
@@ -108,7 +108,6 @@
     const index = feed.jobs.findIndex((job) => job.id === id);
     if (index >= 0) hiddenJobPositions.set(id, index);
     feed.jobs = feed.jobs.filter((j) => j.id !== id);
-    removeFeedNavigationJob(id);
   }
 
   function restoreJob(job: Job) {
@@ -118,7 +117,6 @@
     nextJobs.splice(index, 0, job);
     hiddenJobPositions.delete(job.id);
     feed.jobs = nextJobs;
-    setFeedNavigationJobs(nextJobs);
   }
 
   async function blockJobForEveryone() {
@@ -278,7 +276,6 @@
       feed.nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
       feed.hydrated = true;
       feed.lastLoadedAt = Date.now();
-      setFeedNavigationJobs(feed.jobs);
     } catch (e) {
       if (version !== requestVersion) return;
       if (!hadJobs || !append) {
@@ -643,8 +640,6 @@
     </div>
   {/if}
 
-  <div class="divider"></div>
-
   <div>
     {#if loading}
       {#each Array(6) as _}
@@ -724,14 +719,28 @@
 
 <Dialog.Root bind:open={filtersOpen}>
   <Dialog.Portal>
-    <Dialog.Overlay class="sheet-backdrop" />
-    <Dialog.Content>
-      {#snippet child({ props })}
-        <div
-          {...props}
-          class="sheet filter-sheet"
-          use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}
-        >
+    <Dialog.Overlay forceMount>
+      {#snippet child({ props, open })}
+        {#if open}
+          <div
+            {...props}
+            class="sheet-backdrop"
+            in:fade={{ duration: 160 }}
+            out:fade={{ duration: 120 }}
+          ></div>
+        {/if}
+      {/snippet}
+    </Dialog.Overlay>
+    <Dialog.Content forceMount restoreScrollDelay={260}>
+      {#snippet child({ props, open })}
+        {#if open}
+          <div
+            {...props}
+            class="sheet filter-sheet"
+            use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}
+            in:fly={{ y: 20, duration: 220, easing: cubicOut }}
+            out:fly={{ y: 14, duration: 140, easing: cubicOut }}
+          >
           <div class="sheet-handle"></div>
           <div class="filter-sheet-header">
             <Dialog.Title class="h-display h-display-md">Filters</Dialog.Title>
@@ -840,7 +849,8 @@
             {/if}
             <button class="btn-primary btn-accent" onclick={applyFilterSheet}>Apply</button>
           </div>
-        </div>
+          </div>
+        {/if}
       {/snippet}
     </Dialog.Content>
   </Dialog.Portal>

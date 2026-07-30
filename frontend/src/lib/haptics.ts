@@ -14,12 +14,6 @@ export function hapticLight(): void {
   Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
 }
 
-/** A medium thud — more consequential taps. */
-export function hapticMedium(): void {
-  if (!enabled) return;
-  Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-}
-
 /** Success buzz — a meaningful task finished (e.g. tailor complete). */
 export function hapticSuccess(): void {
   if (!enabled) return;

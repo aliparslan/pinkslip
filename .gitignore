@@ -48,4 +48,7 @@ sample-pics/
 
 # generated when Xcode Cloud is opened; shared schemes remain trackable
 frontend/ios/App/App.xcodeproj/xcshareddata/xcodecloud/
-*.md
+
+# local agent notes and generated planning artifacts
+/CLAUDE.md
+/docs/superpowers/

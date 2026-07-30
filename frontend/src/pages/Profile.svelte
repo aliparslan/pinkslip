@@ -35,6 +35,7 @@
   import SaveStatus from "../components/SaveStatus.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
+  import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
   import Wrench from "phosphor-svelte/lib/Wrench";
 
@@ -303,15 +304,9 @@
     consumeAuthFeedbackFromUrl();
     void loadSettings();
 
-    const onHidden = () => {
-      if (document.visibilityState === "hidden") flushAutosave();
-    };
-    document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", flushAutosave);
+    const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
     return () => {
-      document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", flushAutosave);
-      flushAutosave();
+      unregisterAutosaveFlush();
       savePresentation.destroy();
     };
   });

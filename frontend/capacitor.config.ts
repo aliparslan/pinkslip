@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
   webDir: "dist",
   server: {
     // Run the WebView against the live origin so the existing cookie session,
-    // SSE tailoring, and client-side PDF/Typst all work unchanged. Loading the
+    // SSE tailoring, and client-side PDF export all work unchanged. Loading the
     // production origin (not capacitor://localhost) keeps cookies first-party.
     url: serverUrl,
     // Allow http only when explicitly pointed at a local dev server.

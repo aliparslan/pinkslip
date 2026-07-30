@@ -83,7 +83,6 @@ window.addEventListener("hashchange", () => {
 window.requestAnimationFrame(() => setDocumentScroll(0));
 
 export const currentRoute = derived(hash, ($hash) => $hash || "/");
-export const currentRouteDefinition = derived(currentRoute, ($route) => routeDefinition($route));
 
 export function navigate(path: string, options: { replace?: boolean } = {}) {
   const normalized = normalizeRoute(path);

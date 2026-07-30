@@ -3,7 +3,7 @@
 A Capacitor WebView wrapper that loads `https://pinkslip.alip.dev`, with **native
 APNs push** and bearer-token auth for future WidgetKit / Share extensions.
 
-The web UI, SSE tailoring, and client-side PDF/Typst all run unchanged inside the
+The web UI, SSE tailoring, and client-side PDF export all run unchanged inside the
 WebView. Capacitor lives in `frontend/` (so Vite resolves the `@capacitor/*`
 plugin JS); the native project is generated at `frontend/ios/`.
 

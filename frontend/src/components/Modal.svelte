@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { fade, fly } from "svelte/transition";
   import { focusTrap } from "../lib/focus-trap";
   import { registerModalOpen } from "../lib/modal-stack.svelte";
 
@@ -76,34 +77,42 @@
   class="modal-backdrop"
   role="presentation"
   style:opacity={backdropOpacity}
-  onclick={requestClose}
+  in:fade={{ duration: 160 }}
+  out:fade={{ duration: 120 }}
+  onclick={(event) => { if (event.target === event.currentTarget) requestClose(); }}
   onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
 >
   <div
-    bind:this={cardEl}
-    class="modal-card"
-    class:dragging
-    role="dialog"
-    aria-modal="true"
-    use:focusTrap
-    aria-labelledby={titleId}
-    tabindex="-1"
-    style="--modal-max-width: {maxWidth}px; --modal-drag-y: {dragY}px;"
-    onclick={(event) => event.stopPropagation()}
-    onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
+    class="modal-motion-shell"
+    style="--modal-max-width: {maxWidth}px;"
+    in:fly={{ y: 12, duration: 220 }}
+    out:fly={{ y: 10, duration: 140 }}
   >
     <div
-      class="modal-drag-handle"
-      aria-hidden="true"
-      onpointerdown={onHandlePointerDown}
-      onpointermove={onHandlePointerMove}
-      onpointerup={onHandlePointerUp}
-      onpointercancel={onHandlePointerUp}
-    ></div>
-    <h2 id={titleId} class="h-display modal-title">{title}</h2>
-    {#if subtitle}
-      <p class="modal-subtitle">{subtitle}</p>
-    {/if}
-    {@render children()}
+      bind:this={cardEl}
+      class="modal-card"
+      class:dragging
+      role="dialog"
+      aria-modal="true"
+      use:focusTrap
+      aria-labelledby={titleId}
+      tabindex="-1"
+      style="--modal-drag-y: {dragY}px;"
+      onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
+    >
+      <div
+        class="modal-drag-handle"
+        aria-hidden="true"
+        onpointerdown={onHandlePointerDown}
+        onpointermove={onHandlePointerMove}
+        onpointerup={onHandlePointerUp}
+        onpointercancel={onHandlePointerUp}
+      ></div>
+      <h2 id={titleId} class="h-display modal-title">{title}</h2>
+      {#if subtitle}
+        <p class="modal-subtitle">{subtitle}</p>
+      {/if}
+      {@render children()}
+    </div>
   </div>
 </div>

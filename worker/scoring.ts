@@ -8,7 +8,6 @@ import { parseExperienceRequirement } from "./job-features";
 import {
   normalizeScorePercent,
   SCORE_COMPONENT_MAX,
-  SCORE_RAW_MAX,
 } from "../shared/scoring";
 
 export { SCORE_COMPONENT_MAX, SCORE_RAW_MAX } from "../shared/scoring";
@@ -252,16 +251,6 @@ function scorePersonalizedYoe(
 }
 
 // ─── Location Match (0–20) ───────────────────────────────────────────────────
-
-function mentionsPreferredUsLocation(loc: string, prefs: ScoringPrefs): boolean {
-  for (const preferred of prefs.locations) {
-    const prefLower = preferred.toLowerCase();
-    if (prefLower === "remote") continue;
-    if (loc.includes(prefLower)) return true;
-    if (prefLower.includes(loc) && loc.length >= 3) return true;
-  }
-  return false;
-}
 
 interface LocationResult {
   score: number;

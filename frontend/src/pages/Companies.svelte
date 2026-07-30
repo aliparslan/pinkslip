@@ -6,6 +6,7 @@
   import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";
   import { feedback } from "../lib/feedback.svelte";
+  import { companySourceLabel } from "../lib/company-sources";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Modal from "../components/Modal.svelte";
@@ -39,22 +40,6 @@
   const COMPANY_PAGE_SIZE = 40;
 
   type AdminStatus = typeof ADMIN_STATUSES[number]["value"];
-
-  function atsLabel(value: string) {
-    const labels: Record<string, string> = {
-      All: "All sources",
-      ashby: "Ashby",
-      custom: "Custom",
-      gem: "Gem",
-      greenhouse: "Greenhouse",
-      lever: "Lever",
-      rippling: "Rippling",
-      smartrecruiters: "SmartRecruiters",
-      workday: "Workday",
-      yc: "Y Combinator",
-    };
-    return labels[value] ?? value;
-  }
 
   const SOURCE_INPUTS: Record<string, { label: string; type: string; placeholder: string }> = {
     workday: {
@@ -478,7 +463,7 @@
             <div class="select-field-wrap">
               <select id="source-type-filter" class="input-field" bind:value={selectedAts}>
                 {#each ATS_TYPES as atsType}
-                  <option value={atsType}>{atsLabel(atsType)}</option>
+                  <option value={atsType}>{companySourceLabel(atsType)}</option>
                 {/each}
               </select>
               <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>

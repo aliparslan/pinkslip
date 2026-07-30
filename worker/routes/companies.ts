@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { isAdminUser, requireAdmin } from "../auth";
 import type { Env, CompanyRow, CompanySourceType, Variables } from "../types";
-import { loadPreferencesForPoll, pollCompany, sendNotificationsForJobs } from "../poller";
+import { pollCompany, sendNotificationsForJobs } from "../poller";
 import { matchJobsForAllProfiles } from "../user-job-scores";
 import { verifyCompanySource } from "../ats";
 import { normalizeGemSource } from "../adapters/gem";
@@ -318,11 +318,9 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
-  const prefs = await loadPreferencesForPoll(db);
-
   const now = new Date().toISOString();
   try {
-    const newJobs = await pollCompany(company, db, prefs);
+    const newJobs = await pollCompany(company, db);
     await matchJobsForAllProfiles(
       db,
       newJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))

@@ -1,10 +1,15 @@
-import { apnsReason, isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
+import { apnsReason } from "./apns";
 import { recordProductEvent } from "./product-events";
-import { buildNotificationPayload, sendPushNotification, type NotificationJob } from "./push";
+import { buildNotificationPayload, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
 import { MATCH_SCORER_VERSION } from "./user-job-scores";
 import { MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
+import {
+  isDeadPushSubscription,
+  resolveNotificationTransports,
+  sendNotificationToSubscription,
+} from "./notification-transport";
 
 interface CandidateRow {
   id: string;
@@ -195,12 +200,7 @@ export async function deliverPendingNotifications(
     }
   }
 
-  const vapid = {
-    subject: env.VAPID_SUBJECT,
-    publicKey: env.VAPID_PUBLIC_KEY,
-    privateKey: env.VAPID_PRIVATE_KEY,
-  };
-  const apnsConfig = resolveApnsConfig(env);
+  const transports = resolveNotificationTransports(env);
   let sent = 0;
 
   for (const [userId, userCandidates] of deliveries) {
@@ -259,25 +259,7 @@ export async function deliverPendingNotifications(
           jobId: candidate.job_id,
         }));
       const payload = buildNotificationPayload(jobs);
-      const result = await (async () => {
-        try {
-          if (sub.platform === "ios") {
-            if (!apnsConfig) return { ok: false as const, status: 0 };
-            return await sendApnsNotification(sub.endpoint, payload, apnsConfig);
-          }
-          return await sendPushNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            payload,
-            vapid
-          );
-        } catch (error) {
-          return {
-            ok: false as const,
-            status: 0,
-            error: error instanceof Error ? error.message : String(error),
-          };
-        }
-      })();
+      const result = await sendNotificationToSubscription(sub, payload, transports);
 
       if (result.ok) {
         await db.batch(claimed.map((delivery) =>
@@ -309,10 +291,7 @@ export async function deliverPendingNotifications(
             delivery.subscription_id
           )
         ));
-        const dead = sub.platform === "ios"
-          ? isDeadApnsToken(result.status, result.body)
-          : result.status === 404 || result.status === 410;
-        if (dead) {
+        if (isDeadPushSubscription(sub, result)) {
           // notification_deliveries.subscription_id cascades from
           // push_subscriptions, so deleting the subscription here also deletes
           // every delivery row that recorded WHY the send failed. That is how

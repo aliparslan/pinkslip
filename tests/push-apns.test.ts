@@ -54,7 +54,7 @@ function fakeDb() {
   } as unknown as D1Database;
 }
 
-function appWith(db: D1Database) {
+function appWith() {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
   app.use("/api/*", authMiddleware);
   app.route("/api/push", pushRoutes);
@@ -65,7 +65,7 @@ describe("POST /api/push/apns", () => {
   it("stores an iOS device token for the authenticated user", async () => {
     const deviceToken = "ab".repeat(32);
     const db = fakeDb();
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("https://pinkslip.alip.dev/api/push/apns", {
         method: "POST",
@@ -87,7 +87,7 @@ describe("POST /api/push/apns", () => {
 
   it("rejects a missing token", async () => {
     const db = fakeDb();
-    const app = appWith(db);
+    const app = appWith();
     const res = await (app.fetch as any)(
       new Request("https://pinkslip.alip.dev/api/push/apns", {
         method: "POST",

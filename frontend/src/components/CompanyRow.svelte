@@ -9,6 +9,7 @@
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import { DropdownMenu } from "bits-ui";
   import type { Company } from "../lib/api";
+  import { companySourceLabel } from "../lib/company-sources";
   import CompanyLogo from "./CompanyLogo.svelte";
   import Switch from "./Switch.svelte";
 
@@ -44,21 +45,6 @@
       : null
   );
 
-  function sourceLabel(value: string) {
-    const labels: Record<string, string> = {
-      ashby: "Ashby",
-      custom: "Custom",
-      gem: "Gem",
-      greenhouse: "Greenhouse",
-      lever: "Lever",
-      rippling: "Rippling",
-      smartrecruiters: "SmartRecruiters",
-      workday: "Workday",
-      yc: "Y Combinator",
-    };
-    return labels[value] ?? value;
-  }
-
   function friendlyError(value: string) {
     return value
       .replace(/Request timed out after (\d+)ms/gi, (_match, milliseconds: string) =>
@@ -89,7 +75,7 @@
     </div>
     {#if admin}
       <div class="company-meta">
-        <span class="tag">{sourceLabel(company.ats_type)}</span>
+        <span class="tag">{companySourceLabel(company.ats_type)}</span>
         <span class="company-slug" title={company.ats_slug}>{company.ats_slug}</span>
         {#if isQuarantined}
           <span class="status-badge bad">Paused</span>

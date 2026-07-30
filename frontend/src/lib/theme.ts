@@ -37,11 +37,3 @@ if (typeof window !== "undefined") {
     themeMode.update((m) => m); // re-run applyTheme with the current mode
   });
 }
-
-export function cycleTheme() {
-  themeMode.update((m) => {
-    if (m === "system") return "light";
-    if (m === "light") return "dark";
-    return "system";
-  });
-}

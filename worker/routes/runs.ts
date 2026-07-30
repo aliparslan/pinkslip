@@ -1,28 +1,14 @@
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, FetchRunRow, Variables } from "../types";
+import { hasTable } from "../db-schema";
 
 const runs = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
-  try {
-    const row = await db.prepare(
-      `SELECT name
-       FROM sqlite_master
-       WHERE type = 'table' AND name = 'fetch_runs'
-       LIMIT 1`
-    ).first<{ name: string }>();
-
-    return Boolean(row?.name);
-  } catch {
-    return false;
-  }
-}
 
 runs.get("/", requireAdmin, async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10) || 50, 100);
 
-  if (!(await hasFetchRunsTable(c.env.DB))) {
+  if (!(await hasTable(c.env.DB, "fetch_runs"))) {
     return c.json({ runs: [] });
   }
 

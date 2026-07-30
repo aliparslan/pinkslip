@@ -164,33 +164,6 @@ export interface PushSubscriptionRow {
   platform: string;
 }
 
-export interface ApplicationRow {
-  id: string;
-  user_id: string | null;
-  job_id: string | null;
-  company_name: string;
-  title: string;
-  stage: "Applied" | "Screen" | "Interview" | "Offer" | "Rejected" | "Ghosted";
-  next: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface EventRow {
-  id: string;
-  user_id: string | null;
-  company_id: string | null;
-  company_name: string;
-  title: string;
-  description: string;
-  event_type: string;
-  event_date: string;
-  location: string;
-  url: string;
-  created_at: string;
-}
-
 export interface ProfileRow {
   user_id?: string | null;
   id?: number;
@@ -232,52 +205,8 @@ export interface ResumeAssetRow {
   is_active: number;
 }
 
-export type OptionalSectionKind = "leadership" | "certifications" | "publications" | "awards" | "volunteer";
-
-export interface OptionalSection {
-  kind: OptionalSectionKind;
-  items: Array<{ category: string; items: string }>;
-}
-
-export interface ResumeProfile {
-  contact: {
-    name: string;
-    email: string;
-    phone: string;
-    location: string;
-    linkedin: string;
-    github: string;
-    website: string;
-  };
-  experience: Array<{
-    id: string;
-    company: string;
-    title: string;
-    location: string;
-    startDate: string;
-    endDate: string;
-    bullets: string[];
-  }>;
-  education: Array<{
-    id: string;
-    institution: string;
-    degree: string;
-    location: string;
-    startDate: string;
-    endDate: string;
-    gpa?: string;
-  }>;
-  projects: Array<{
-    id: string;
-    name: string;
-    role: string;
-    teamInfo: string;
-    url: string;
-    bullets: string[];
-  }>;
-  skills: Array<{
-    category: string;
-    items: string;
-  }>;
-  optionalSections: OptionalSection[];
-}
+export type {
+  OptionalSection,
+  OptionalSectionKind,
+  ResumeProfile,
+} from "../shared/resume-profile";

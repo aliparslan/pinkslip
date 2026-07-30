@@ -7,8 +7,12 @@
 // job-scoped (`job_id` is NOT NULL with an FK to jobs), and operational alerts
 // have no job. Sending directly keeps the two concerns separate.
 
-import { isDeadApnsToken, resolveApnsConfig, sendApnsNotification } from "./apns";
-import { sendPushNotification, type NotificationPayload } from "./push";
+import {
+  isDeadPushSubscription,
+  resolveNotificationTransports,
+  sendNotificationToSubscription,
+} from "./notification-transport";
+import type { NotificationPayload } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 
 export interface QuarantinedSource {
@@ -63,34 +67,11 @@ export async function notifyAdminsOfQuarantinedSources(
   if (subs.length === 0) return 0;
 
   const payload = buildSourceAlertPayload(newlyQuarantined, totalQuarantined);
-  const apnsConfig = resolveApnsConfig(env);
-  const vapid = {
-    subject: env.VAPID_SUBJECT,
-    publicKey: env.VAPID_PUBLIC_KEY,
-    privateKey: env.VAPID_PRIVATE_KEY,
-  };
+  const transports = resolveNotificationTransports(env);
 
   let sent = 0;
   for (const sub of subs) {
-    const result = await (async () => {
-      try {
-        if (sub.platform === "ios") {
-          if (!apnsConfig) return { ok: false as const, status: 0 };
-          return await sendApnsNotification(sub.endpoint, payload, apnsConfig);
-        }
-        return await sendPushNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload,
-          vapid
-        );
-      } catch (error) {
-        return {
-          ok: false as const,
-          status: 0,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    })();
+    const result = await sendNotificationToSubscription(sub, payload, transports);
 
     if (result.ok) {
       sent += 1;
@@ -99,10 +80,7 @@ export async function notifyAdminsOfQuarantinedSources(
 
     // Same dead-token cleanup as job delivery, so a stale admin device does not
     // accumulate failures forever.
-    const dead = sub.platform === "ios"
-      ? isDeadApnsToken(result.status, "body" in result ? result.body : undefined)
-      : result.status === 404 || result.status === 410;
-    if (dead) {
+    if (isDeadPushSubscription(sub, result)) {
       await db.prepare("DELETE FROM push_subscriptions WHERE id = ?")
         .bind(sub.id)
         .run()

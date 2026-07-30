@@ -279,7 +279,7 @@ app.onError((error, c) => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     // The rejection is deliberately NOT swallowed. Swallowing it is what let the
     // poll cycle die every 15 minutes for six weeks while Cloudflare reported
     // `outcome: "ok"` with zero exceptions — nothing anywhere went red. Log for

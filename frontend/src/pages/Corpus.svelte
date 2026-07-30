@@ -8,6 +8,7 @@
   import ScreenNav from "../components/ScreenNav.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
+  import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
 
   let loading = $state(true);
   let saving = $state(false);
@@ -73,15 +74,9 @@
 
   onMount(() => {
     void loadCorpus();
-    const onHidden = () => {
-      if (document.visibilityState === "hidden") flushAutosave();
-    };
-    document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", flushAutosave);
+    const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
     return () => {
-      document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", flushAutosave);
-      flushAutosave();
+      unregisterAutosaveFlush();
       savePresentation.destroy();
     };
   });

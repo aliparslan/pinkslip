@@ -1,9 +1,10 @@
 {
   "name": "pinkslip",
   "version": "1.0.0",
+  "private": true,
   "description": "Early-career job discovery, alerts, and application tooling",
   "scripts": {
-    "dev": "bun run db:repair:local && bun run db:migrate && wrangler dev",
+    "dev": "bun run db:migrate && wrangler dev",
     "dev:prod-data": "bun run build:frontend && wrangler dev --remote",
     "deploy": "bun run db:migrate:remote && bun run build:frontend && wrangler deploy",
     "test": "bun test",
@@ -12,16 +13,10 @@
     "build:frontend": "cd frontend && bun run build",
     "db:migrate": "wrangler d1 migrations apply pinkslip --local",
     "db:migrate:remote": "wrangler d1 migrations apply pinkslip --remote",
-    "db:repair:local": "bun scripts/repair-local-db.mjs",
     "db:reset:local": "rm -rf .wrangler/state/v3/d1 && wrangler d1 migrations apply pinkslip --local",
-    "db:adopt:local": "wrangler d1 execute pinkslip --local --file=scripts/adopt-pre-native-migrations.sql",
-    "db:adopt:remote": "wrangler d1 execute pinkslip --remote --file=scripts/adopt-pre-native-migrations.sql",
     "db:seed:demo": "wrangler d1 execute pinkslip --local --file=seeds/demo_jobs.sql",
     "db:seed:demo:remote": "wrangler d1 execute pinkslip --remote --file=seeds/demo_jobs.sql"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "hono": "^4.12.16"
   },

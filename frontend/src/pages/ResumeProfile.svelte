@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { cubicOut } from "svelte/easing";
+  import { slide } from "svelte/transition";
   import { api, type ResumeProfile, type OptionalSectionKind } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
@@ -14,15 +16,8 @@
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
-
-  const EMPTY_PROFILE: ResumeProfile = {
-    contact: { name: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "" },
-    experience: [],
-    education: [],
-    projects: [],
-    skills: [],
-    optionalSections: [],
-  };
+  import { createEmptyResumeProfile } from "../../../shared/resume-profile";
+  import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
     leadership: "Leadership & affiliations",
@@ -36,7 +31,7 @@
   let saving = $state(false);
   let error: string | null = $state(null);
   const savePresentation = new SavePresentation();
-  let profile: ResumeProfile = $state({ ...EMPTY_PROFILE });
+  let profile: ResumeProfile = $state(createEmptyResumeProfile());
   let notes = $state("");
   let autosaveTimer: number | null = null;
   let saveAgain = false;
@@ -114,7 +109,7 @@
       if (!optSections.length && (d as any).leadership?.length) {
         optSections = [{ kind: "leadership" as const, items: (d as any).leadership }];
       }
-      profile = { ...EMPTY_PROFILE, ...d, optionalSections: optSections };
+      profile = { ...createEmptyResumeProfile(), ...d, optionalSections: optSections };
       savePresentation.hydrate(profileRes.updated_at);
       notes = corpusRes.content_md ?? "";
     } catch (e) { error = errorMessage(e); } finally { loading = false; }
@@ -190,13 +185,9 @@
 
   onMount(() => {
     loadAll();
-    const onHidden = () => { if (document.visibilityState === "hidden") flushAutosave(); };
-    document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", flushAutosave);
+    const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
     return () => {
-      document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", flushAutosave);
-      flushAutosave();
+      unregisterAutosaveFlush();
       savePresentation.destroy();
     };
   });
@@ -229,7 +220,7 @@
           <span class="card-title">Contact info</span>
         </button>
         {#if expandedSections.has("contact")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             <div class="grid-2">
               <label class="field"><span>Full name</span><input class="input-field" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
               <label class="field"><span>Email</span><input class="input-field" type="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
@@ -254,7 +245,7 @@
           <span class="card-count">{profile.experience.length}</span>
         </button>
         {#if expandedSections.has("experience")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             {#each profile.experience as exp, expIdx (exp.id)}
               <div class="entry">
                 <div class="entry-top">
@@ -296,7 +287,7 @@
           <span class="card-count">{profile.education.length}</span>
         </button>
         {#if expandedSections.has("education")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             {#each profile.education as edu (edu.id)}
               <div class="entry">
                 <div class="entry-top">
@@ -325,7 +316,7 @@
           <span class="card-count">{profile.projects.length}</span>
         </button>
         {#if expandedSections.has("projects")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             {#each profile.projects as proj, projIdx (proj.id)}
               <div class="entry">
                 <div class="entry-top">
@@ -366,7 +357,7 @@
           <span class="card-count">{profile.skills.length}</span>
         </button>
         {#if expandedSections.has("skills")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             {#each profile.skills as skill, idx}
               <div class="kv-row">
                 <input class="input-field kv-key" aria-label="Skill category" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
@@ -392,7 +383,7 @@
             <button type="button" class="icon-btn icon-btn-surface card-header-remove" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
           </div>
           {#if expandedSections.has(section.kind)}
-            <div class="card-body">
+            <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
               {#each section.items as item, idx}
                 <div class="kv-row">
                   <input class="input-field kv-key" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} label" bind:value={item.category} oninput={handleInput} placeholder="Label" />
@@ -423,7 +414,7 @@
           <span class="card-title">Notes &amp; extra context</span>
         </button>
         {#if expandedSections.has("notes")}
-          <div class="card-body">
+          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             <p class="notes-help">
               Free-form notes for the AI — extra context, narrative details, things that don't fit in the structured fields above.
             </p>

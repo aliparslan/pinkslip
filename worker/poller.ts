@@ -1,7 +1,5 @@
 import type { ATSAdapter, JobContent, JobListing } from "./adapters/types";
-import { scoreJob } from "./scoring";
-import type { ScoringPrefs } from "./scoring";
-import type { Env, CompanyRow, PreferenceRow } from "./types";
+import type { Env, CompanyRow } from "./types";
 import { getAdapter, getCompanySourceType } from "./ats";
 import {
   advanceBacklogScoring,
@@ -18,6 +16,7 @@ import {
   notifyAdminsOfQuarantinedSources,
   type QuarantinedSource,
 } from "./admin-alerts";
+import { hasTable } from "./db-schema";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 
@@ -76,10 +75,6 @@ export function nextQuarantineState(
   };
 }
 
-interface PollerPrefs extends ScoringPrefs {
-  notify_threshold?: number;
-}
-
 interface PollStats {
   companiesPolled: number;
   newJobsFound: number;
@@ -91,7 +86,6 @@ export interface NewJobMeta {
   company: string;
   title: string;
   jobId: string;
-  score: number;
   listing: JobListing;
 }
 
@@ -105,21 +99,6 @@ interface RunPollCycleOptions {
   limit?: number | null;
   scope?: "cron" | "manual";
   sendNotifications?: boolean;
-}
-
-async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
-  try {
-    const row = await db.prepare(
-      `SELECT name
-       FROM sqlite_master
-       WHERE type = 'table' AND name = 'fetch_runs'
-       LIMIT 1`
-    ).first<{ name: string }>();
-
-    return Boolean(row?.name);
-  } catch {
-    return false;
-  }
 }
 
 export function diffJobs(
@@ -184,36 +163,9 @@ async function hydrateListing(
   return mergeListingContent(listing, content);
 }
 
-export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPrefs> {
-  const result = await db
-    .prepare("SELECT key, value FROM preferences")
-    .all<PreferenceRow>();
-
-  const rows = result.results ?? [];
-
-  const map: Record<string, unknown> = {};
-  for (const row of rows) {
-    try {
-      map[row.key] = JSON.parse(row.value);
-    } catch {
-      map[row.key] = row.value;
-    }
-  }
-
-  return {
-    locations: (map["locations"] as string[]) ?? [],
-    min_yoe: (map["min_yoe"] as number) ?? 0,
-    max_yoe: (map["max_yoe"] as number) ?? 3,
-    role_keywords: (map["role_keywords"] as string[]) ?? [],
-    negative_keywords: (map["negative_keywords"] as string[]) ?? [],
-    notify_threshold: (map["notify_threshold"] as number) ?? (map["notification_threshold"] as number) ?? 50,
-  };
-}
-
 export async function pollCompany(
   company: CompanyRow,
   db: D1Database,
-  prefs: ScoringPrefs,
   customTitles: readonly string[] = []
 ): Promise<NewJobMeta[]> {
   const adapter = getAdapter(getCompanySourceType(company));
@@ -323,14 +275,13 @@ export async function pollCompany(
   const insertStmts = [];
 
   for (const job of newJobs) {
-    const breakdown = scoreJob(job, prefs);
     const id = crypto.randomUUID();
 
     insertStmts.push(
       db
         .prepare(
-          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, score, title_score, yoe_score, location_score, department_score, recency_score, dismissed, description, salary)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
         )
         .bind(
           id,
@@ -342,12 +293,6 @@ export async function pollCompany(
           job.department ?? null,
           job.postedAt ?? null,
           now,
-          breakdown.score,
-          breakdown.title_score,
-          breakdown.yoe_score,
-          breakdown.location_score,
-          breakdown.department_score,
-          breakdown.recency_score,
           job.description ?? null,
           job.salary ?? null
         )
@@ -357,7 +302,6 @@ export async function pollCompany(
       company: company.name,
       title: job.title,
       jobId: id,
-      score: breakdown.score,
       listing: job,
     });
   }
@@ -395,7 +339,6 @@ interface MissingContentRow {
  */
 async function backfillMissingJobContent(
   db: D1Database,
-  prefs: ScoringPrefs,
   customTitles: readonly string[] = [],
   limit = CONTENT_BACKFILL_BATCH_SIZE
 ): Promise<NewJobMeta[]> {
@@ -438,28 +381,19 @@ async function backfillMissingJobContent(
   if (repaired.length === 0) return [];
 
   for (let offset = 0; offset < repaired.length; offset += 50) {
-    await db.batch(repaired.slice(offset, offset + 50).map(({ row, listing }) => {
-      const breakdown = scoreJob(listing, prefs);
-      return db.prepare(
+    await db.batch(repaired.slice(offset, offset + 50).map(({ row, listing }) =>
+      db.prepare(
         `UPDATE jobs
-         SET description = ?, salary = ?, location = ?, posted_at = ?,
-             score = ?, title_score = ?, yoe_score = ?, location_score = ?,
-             department_score = ?, recency_score = ?
+         SET description = ?, salary = ?, location = ?, posted_at = ?
          WHERE id = ?`
       ).bind(
         listing.description,
         listing.salary,
         listing.location,
         listing.postedAt,
-        breakdown.score,
-        breakdown.title_score,
-        breakdown.yoe_score,
-        breakdown.location_score,
-        breakdown.department_score,
-        breakdown.recency_score,
         row.id
-      );
-    }));
+      )
+    ));
   }
 
   await upsertJobFeatures(
@@ -481,7 +415,6 @@ async function backfillMissingJobContent(
       company: row.company_name,
       title: listing.title,
       jobId: row.id,
-      score: scoreJob(listing, prefs).score,
       listing,
     }];
   });
@@ -514,7 +447,7 @@ export async function runPollCycle(
   const startedAtMs = Date.now();
   const pollErrors: CompanyPollError[] = [];
   const log: string[] = [];
-  const trackRuns = await hasFetchRunsTable(db);
+  const trackRuns = await hasTable(db, "fetch_runs");
   await ensureEligibleJobs(db);
 
   if (trackRuns) {
@@ -582,14 +515,13 @@ export async function runPollCycle(
 
   // Custom titles are loaded once and shared across every company in the cycle
   // so a globally unrecognized title can still enter the catalog.
-  const prefs = await loadPreferencesForPoll(db);
   const customTitles = await loadCustomTitles(db);
   const now = new Date().toISOString();
 
   const results = await runWithConcurrency(
     companies,
     6,
-    (company) => pollCompany(company, db, prefs, customTitles)
+    (company) => pollCompany(company, db, customTitles)
   );
 
   const allNewJobs: NewJobMeta[] = [];
@@ -657,7 +589,7 @@ export async function runPollCycle(
   ).bind(new Date().toISOString()).run();
 
   const repairedJobs = scope === "cron"
-    ? await backfillMissingJobContent(db, prefs, customTitles).catch((error) => {
+    ? await backfillMissingJobContent(db, customTitles).catch((error) => {
         log.push(`content backfill error: ${error instanceof Error ? error.message : String(error)}`);
         return [] as NewJobMeta[];
       })

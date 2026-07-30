@@ -6,12 +6,11 @@
   --safe-bottom: env(safe-area-inset-bottom, 0);
   --app-mobile-width: 480px;
   --app-reading-width: 720px;
-  --app-page-width: 880px;
-  --app-admin-width: 1240px;
   --app-nav-wide: 232px;
   --screen-gutter: 16px;
   --screen-nav-height: 56px;
   --mobile-tab-bar-height: 62px;
+  --root-header-height: calc(var(--safe-top) + 98.5px);
   --tap-min: 44px;
   --control-height: 48px;
   --control-height-compact: 40px;
@@ -41,15 +40,19 @@
   --duration-instant: 140ms;
   --duration-fast: 180ms;
   --duration-standard: 220ms;
-  --duration-slow: 240ms;
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
   /* Layering */
   --z-navigation: 20;
   --z-overlay: 40;
   --z-toast: 60;
   --overlay-bottom-offset: calc(var(--mobile-tab-bar-height) + var(--safe-bottom) + var(--space-3));
+}
+
+@media (min-width: 900px) {
+  :root {
+    --root-header-height: calc(var(--safe-top) + 136.5px);
+  }
 }
 
 @theme {
@@ -80,7 +83,6 @@
   /* Lightened from 0.72 so the dark label on a filled pink button clears APCA 60
      (was Lc 51.8, now 61.8). Chroma follows the sRGB ceiling down as L rises. */
   --color-accent: oklch(0.78 0.153 350);
-  --color-accent-hover: oklch(0.81 0.128 350);
   --color-accent-ink: oklch(0.16 0.01 350);
   --color-accent-soft: oklch(0.255 0.055 350);
   /* Chroma sits at the sRGB ceiling for this L/H. Raising it does nothing on
@@ -92,7 +94,6 @@
   --color-good: oklch(0.73 0.14 150);
   --color-good-soft: oklch(0.235 0.035 150);
   --color-warn: oklch(0.79 0.14 75);
-  --color-warn-soft: oklch(0.245 0.035 75);
   --color-bad: oklch(0.72 0.17 25);
   --color-bad-soft: oklch(0.245 0.045 25);
 
@@ -100,7 +101,6 @@
   --color-control-border: oklch(0.37 0.007 285);
   --color-control-active-bg: oklch(0.145 0.004 285);
   --color-control-active-ink: oklch(0.98 0.002 285);
-  --color-control-highlight: oklch(1 0 0 / 0.07);
   --color-scrim: oklch(0 0 0 / 0.52);
   /* Image edges only. Must stay pure white/black with alpha — a tinted neutral
      picks up whatever surface sits behind it and reads as dirt on the edge. */
@@ -131,7 +131,6 @@
   --color-line-2: oklch(0.825 0.004 80);
 
   --color-accent: oklch(0.57 0.205 350);
-  --color-accent-hover: oklch(0.53 0.2 350);
   --color-accent-ink: oklch(0.99 0.002 70);
   --color-accent-soft: oklch(0.965 0.018 350);
   --color-accent-soft-ink: oklch(0.4 0.15 350);
@@ -144,7 +143,6 @@
   --color-good: oklch(0.48 0.132 150);
   --color-good-soft: oklch(0.955 0.025 150);
   --color-warn: oklch(0.53 0.111 75);
-  --color-warn-soft: oklch(0.955 0.03 75);
   --color-bad: oklch(0.5 0.18 25);
   --color-bad-soft: oklch(0.955 0.022 25);
 
@@ -152,7 +150,6 @@
   --color-control-border: oklch(0.835 0.004 80);
   --color-control-active-bg: oklch(1 0 0);
   --color-control-active-ink: oklch(0.18 0.006 285);
-  --color-control-highlight: oklch(1 0 0 / 0.5);
   --color-scrim: oklch(0.12 0.006 285 / 0.38);
   --color-nav-dim: oklch(0.12 0.006 285);
   --color-image-outline: oklch(0 0 0 / 0.1);
@@ -170,6 +167,5 @@
     --duration-instant: 1ms;
     --duration-fast: 1ms;
     --duration-standard: 1ms;
-    --duration-slow: 1ms;
   }
 }

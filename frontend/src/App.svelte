@@ -33,7 +33,6 @@
   import { applicationIntent } from "./lib/application-intent.svelte";
   import { initNativePush } from "./lib/native-push";
   import { syncFeedPreferences } from "./lib/feed-store.svelte";
-  import { modalStack } from "./lib/modal-stack.svelte";
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
@@ -148,6 +147,7 @@
   let underlayEl = $state<HTMLElement | undefined>();
   let dimEl = $state<HTMLElement | undefined>();
   let mainEl = $state<HTMLElement | undefined>();
+  let rootHeaderEl = $state<HTMLElement | undefined>();
 
   let underlayRoute = $state<string | null>(null); // previous page, mounted only while swiping
   let swiping = $state(false); // finger down with the horizontal lock engaged
@@ -166,7 +166,22 @@
   let underlayRootHeader = $derived(underlayRoute ? rootHeaderFor(underlayRoute) : null);
   let visualRoute = $derived((swiping || settling) && underlayRoute ? underlayRoute : route);
   let mobileTabBarVisible = $derived(showsRootNavigation(visualRoute));
-  let rootHeaderInfo = $derived(rootHeaderFor(visualRoute));
+  let rootHeaderInfo = $derived(rootHeaderFor(route));
+
+  $effect(() => {
+    const container = mainEl;
+    const header = rootHeaderEl;
+    if (!container || !header || !rootHeaderInfo) return;
+
+    const syncHeader = () => {
+      const offset = Math.min(Math.max(container.scrollTop, 0), header.offsetHeight);
+      header.style.transform = `translateY(-${offset}px)`;
+    };
+
+    syncHeader();
+    container.addEventListener("scroll", syncHeader, { passive: true });
+    return () => container.removeEventListener("scroll", syncHeader);
+  });
 
   $effect(() => {
     void CurrentPage;
@@ -470,13 +485,19 @@
   <div class="nav-underlay" bind:this={underlayEl} aria-hidden="true">
     <div class="app-content-shell nav-underlay-shell">
       {#if underlayRootHeader}
-        <RootHeader title={underlayRootHeader.title} subtitle={underlayRootHeader.subtitle} />
+        <div
+          class="root-header-layer nav-underlay-header"
+          style:--underlay-scroll={`${Math.max(0, underlayScroll)}px`}
+        >
+          <RootHeader title={underlayRootHeader.title} subtitle={underlayRootHeader.subtitle} />
+        </div>
       {/if}
       <div
         class="nav-underlay-content"
         class:mobile-tabs-visible={underlayHasMobileTabs}
         style:transform={`translateY(-${underlayScroll}px)`}
       >
+        {#if underlayRootHeader}<div class="root-header-spacer" aria-hidden="true"></div>{/if}
         <UnderlayComp jobId={underlayJobId} routeOverride={underlayRoute} />
       </div>
     </div>
@@ -494,29 +515,34 @@
   {#if sessionReady}
     {#if !showOnboarding}
       {#if rootHeaderInfo}
-        <RootHeader title={rootHeaderInfo.title} subtitle={rootHeaderInfo.subtitle} />
+        <div class="root-header-layer" bind:this={rootHeaderEl}>
+          <RootHeader title={rootHeaderInfo.title} subtitle={rootHeaderInfo.subtitle} />
+        </div>
       {/if}
-      <main id="main-content" class="app-main" tabindex="-1" inert={modalStack.open} bind:this={mainEl}>
-        {#if pageLoadFailed}
-          <div class="boot-error-wrap">
-            <div class="boot-error-card">
-              <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
-              <div class="boot-error-copy">Check your connection and try again.</div>
-              <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+      <main id="main-content" class="app-main" tabindex="-1" bind:this={mainEl}>
+        <div class="page-content-root">
+          {#if rootHeaderInfo}<div class="root-header-spacer" aria-hidden="true"></div>{/if}
+          {#if pageLoadFailed}
+            <div class="boot-error-wrap">
+              <div class="boot-error-card">
+                <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
+                <div class="boot-error-copy">Check your connection and try again.</div>
+                <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+              </div>
             </div>
-          </div>
-        {:else if !CurrentPage}
-          <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
-        {:else if isDetailPage}
-          <CurrentPage {jobId} />
-        {:else if isTailorPage}
-          <CurrentPage {jobId} />
-        {:else}
-          <CurrentPage />
-        {/if}
+          {:else if !CurrentPage}
+            <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+          {:else if isDetailPage}
+            <CurrentPage {jobId} />
+          {:else if isTailorPage}
+            <CurrentPage {jobId} />
+          {:else}
+            <CurrentPage />
+          {/if}
+        </div>
       </main>
       {#if routeShell(route) === "consumer"}
-        <TabBar mobileHidden={!mobileTabBarVisible} inert={modalStack.open} />
+        <TabBar mobileHidden={!mobileTabBarVisible} />
       {/if}
     {/if}
   {:else if bootError}

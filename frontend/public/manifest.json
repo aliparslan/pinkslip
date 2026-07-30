@@ -3,7 +3,7 @@
   "scope": "/",
   "name": "pinkslip",
   "short_name": "pinkslip",
-  "description": "Personal job alert system for top tech companies",
+  "description": "Early-career job discovery, alerts, and application tooling",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#18171a",
