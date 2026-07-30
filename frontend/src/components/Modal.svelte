@@ -22,7 +22,12 @@
 
   const titleId = `modal-title-${Math.random().toString(36).slice(2, 8)}`;
 
-  $effect(() => registerModalOpen());
+  let backdropEl: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    if (!backdropEl) return;
+    return registerModalOpen(backdropEl);
+  });
 
   function requestClose() {
     if (!busy) onclose();
@@ -74,6 +79,7 @@
 </script>
 
 <div
+  bind:this={backdropEl}
   class="modal-backdrop"
   role="presentation"
   style:opacity={backdropOpacity}

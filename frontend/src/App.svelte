@@ -147,7 +147,6 @@
   let underlayEl = $state<HTMLElement | undefined>();
   let dimEl = $state<HTMLElement | undefined>();
   let mainEl = $state<HTMLElement | undefined>();
-  let rootHeaderEl = $state<HTMLElement | undefined>();
 
   let underlayRoute = $state<string | null>(null); // previous page, mounted only while swiping
   let swiping = $state(false); // finger down with the horizontal lock engaged
@@ -167,21 +166,6 @@
   let visualRoute = $derived((swiping || settling) && underlayRoute ? underlayRoute : route);
   let mobileTabBarVisible = $derived(showsRootNavigation(visualRoute));
   let rootHeaderInfo = $derived(rootHeaderFor(route));
-
-  $effect(() => {
-    const container = mainEl;
-    const header = rootHeaderEl;
-    if (!container || !header || !rootHeaderInfo) return;
-
-    const syncHeader = () => {
-      const offset = Math.min(Math.max(container.scrollTop, 0), header.offsetHeight);
-      header.style.transform = `translateY(-${offset}px)`;
-    };
-
-    syncHeader();
-    container.addEventListener("scroll", syncHeader, { passive: true });
-    return () => container.removeEventListener("scroll", syncHeader);
-  });
 
   $effect(() => {
     void CurrentPage;
@@ -514,14 +498,13 @@
 >
   {#if sessionReady}
     {#if !showOnboarding}
-      {#if rootHeaderInfo}
-        <div class="root-header-layer" bind:this={rootHeaderEl}>
-          <RootHeader title={rootHeaderInfo.title} subtitle={rootHeaderInfo.subtitle} />
-        </div>
-      {/if}
       <main id="main-content" class="app-main" tabindex="-1" bind:this={mainEl}>
         <div class="page-content-root">
-          {#if rootHeaderInfo}<div class="root-header-spacer" aria-hidden="true"></div>{/if}
+          {#if rootHeaderInfo}
+            <div class="root-header-flow">
+              <RootHeader title={rootHeaderInfo.title} subtitle={rootHeaderInfo.subtitle} />
+            </div>
+          {/if}
           {#if pageLoadFailed}
             <div class="boot-error-wrap">
               <div class="boot-error-card">

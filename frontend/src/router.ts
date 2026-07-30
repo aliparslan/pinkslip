@@ -2,6 +2,7 @@ import { writable, derived } from "svelte/store";
 import { getJobDetailReturnRoute } from "./lib/job-navigation";
 import {
   normalizeRoute,
+  initialRouteForLocation,
   rootDestinationFor,
   rootHeaderFor,
   routeDefinition,
@@ -23,9 +24,12 @@ export {
 };
 export type { AppShell, RootDestination, RouteDefinition } from "./route-config";
 
-const rawInitialPath = window.location.hash.slice(1) || "/";
-const initialPath = normalizeRoute(rawInitialPath);
-if (initialPath !== rawInitialPath) {
+const initialHashPath = window.location.hash.slice(1);
+const rawInitialPath = initialHashPath || window.location.pathname || "/";
+const initialPath = initialRouteForLocation(window.location.hash, window.location.pathname);
+if (!initialHashPath && window.location.pathname !== "/") {
+  window.history.replaceState({}, "", `/${window.location.search}#${initialPath}`);
+} else if (initialPath !== rawInitialPath) {
   window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${initialPath}`);
 }
 

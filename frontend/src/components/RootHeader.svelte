@@ -27,10 +27,8 @@
 <style>
   .root-header {
     flex: none;
-    padding-top: calc(var(--safe-top) + var(--space-5));
-    background: color-mix(in oklch, var(--color-bg) 94%, transparent);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    padding-top: calc(var(--safe-top) + var(--space-3));
+    background: var(--color-bg);
     border-bottom: 0.5px solid var(--color-line);
   }
 
@@ -52,7 +50,7 @@
     margin: 0;
     color: var(--color-ink);
     font-family: var(--font-pixel);
-    font-size: var(--fs-4xl);
+    font-size: var(--fs-root-title);
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.15;

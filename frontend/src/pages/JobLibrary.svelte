@@ -60,7 +60,7 @@
 
 <div class="page root-screen library-page">
   <div class="page-frame my-jobs-page">
-    <div class="my-jobs-tabs" role="tablist" aria-label="Your jobs">
+    <div class="my-jobs-tabs" class:applied-active={activeView === "applied"} role="tablist" aria-label="Your jobs">
       <button
         id="my-jobs-tab-saved"
         type="button"
@@ -72,7 +72,10 @@
         onclick={() => selectView("saved")}
         onkeydown={handleTabKeydown}
       >
-        <BookmarkSimple size={17} weight={activeView === "saved" ? "fill" : "regular"} />
+        <span class="library-tab-icon" aria-hidden="true">
+          <span class:visible={activeView !== "saved"}><BookmarkSimple size={17} weight="regular" /></span>
+          <span class:visible={activeView === "saved"}><BookmarkSimple size={17} weight="fill" /></span>
+        </span>
         <span>Saved</span>
         <small>{savedJobs.length}</small>
       </button>
@@ -87,7 +90,10 @@
         onclick={() => selectView("applied")}
         onkeydown={handleTabKeydown}
       >
-        <CheckCircle size={17} weight={activeView === "applied" ? "fill" : "regular"} />
+        <span class="library-tab-icon" aria-hidden="true">
+          <span class:visible={activeView !== "applied"}><CheckCircle size={17} weight="regular" /></span>
+          <span class:visible={activeView === "applied"}><CheckCircle size={17} weight="fill" /></span>
+        </span>
         <span>Applied</span>
         <small>{appliedJobs.length}</small>
       </button>
@@ -119,6 +125,7 @@
           {#each visibleJobs as job (job.id)}
             <JobRow
               {job}
+              surface="card"
               swipeActions={false}
               returnTo={`/library/${activeView}`}
               contextLabel={activeView === "applied" && job.applied_at

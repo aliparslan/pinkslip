@@ -46,6 +46,7 @@
   let applied: boolean = $state(false);
   let applying: boolean = $state(false);
   let applyingPending: boolean = $state(false);
+  let openingApplication: boolean = $state(false);
   let showBlockConfirm: boolean = $state(false);
   let showMore: boolean = $state(false);
   let blocking: boolean = $state(false);
@@ -157,7 +158,8 @@
   }
 
   async function openApplication() {
-    if (!job?.url) return;
+    if (!job?.url || openingApplication) return;
+    openingApplication = true;
     void api.interactions.event({
       event_name: "apply_clicked",
       entity_type: "job",
@@ -168,6 +170,8 @@
       await applicationIntent.open(job);
     } catch (e) {
       feedback.error(errorMessage(e, "Could not open the application page."));
+    } finally {
+      openingApplication = false;
     }
   }
 
@@ -292,8 +296,16 @@
       <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
         <Export size={19} color="var(--color-ink-3)" />
       </button>
-      <button class="icon-btn" aria-label="Save" onclick={toggleSave}>
-        <BookmarkSimple size={20} weight={saved ? "fill" : "regular"} color={saved ? "var(--color-accent)" : "var(--color-ink-2)"} />
+      <button
+        class="icon-btn"
+        aria-label={saved ? "Remove from saved jobs" : "Save job"}
+        aria-pressed={saved}
+        onclick={toggleSave}
+      >
+        <span class="state-icon" aria-hidden="true">
+          <span class:visible={!saved}><BookmarkSimple size={20} weight="regular" color="var(--color-ink-2)" /></span>
+          <span class:visible={saved}><BookmarkSimple size={20} weight="fill" color="var(--color-accent)" /></span>
+        </span>
       </button>
       <DropdownMenu.Root bind:open={showMore}>
         <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
@@ -393,11 +405,22 @@
       <div class="job-state-actions">
           <button
             class="btn-secondary btn-action"
+            class:completed={applied}
             disabled={applied || applying}
             onclick={markApplied}
           >
-            {#if applyingPending}<Spinner />{:else}<CheckCircle size={16} />{/if}
-            {applied ? "Applied ✓" : "I applied"}
+            {#if applyingPending}
+              <Spinner />
+            {:else}
+              <span class="state-icon" aria-hidden="true">
+                <span class:visible={!applied}><CheckCircle size={16} /></span>
+                <span class:visible={applied}><CheckCircle size={16} weight="fill" /></span>
+              </span>
+            {/if}
+            <span class="applied-label">
+              <span class:visible={!applied} aria-hidden={applied}>I applied</span>
+              <span class:visible={applied} aria-hidden={!applied}>Applied</span>
+            </span>
           </button>
           <button
             class="btn-secondary btn-action"
@@ -499,8 +522,9 @@
           type="button"
           class="btn-primary btn-accent btn-action button-link"
           onclick={openApplication}
+          disabled={openingApplication}
         >
-          <ArrowSquareOut size={18} weight="regular" />
+          {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="regular" />{/if}
           Apply
         </button>
       {:else}
@@ -531,6 +555,49 @@
     color: var(--color-ink-3);
     font-size: var(--fs-sm);
     line-height: 1.5;
+  }
+
+  .job-detail-title {
+    font-family: var(--font-pixel);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+
+  .state-icon,
+  .applied-label {
+    display: grid;
+    place-items: center;
+  }
+
+  .state-icon > span,
+  .applied-label > span {
+    grid-area: 1 / 1;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transform: scale(0.72);
+    transition:
+      opacity var(--duration-instant) var(--ease-standard),
+      transform var(--duration-instant) var(--ease-standard);
+  }
+
+  .applied-label > span {
+    transform: translateY(3px);
+  }
+
+  .state-icon > span.visible,
+  .applied-label > span.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .btn-secondary.completed:disabled,
+  .btn-secondary.completed:disabled:hover {
+    opacity: 1;
+    border-color: color-mix(in oklch, var(--color-accent) 46%, var(--color-line));
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
   }
 
   .job-match-panel {

@@ -610,7 +610,9 @@
         <SlidersHorizontal size={15} weight="bold" />
         <span>Filters</span>
         {#if activeFilterCount > 0}
-          <span class="filter-count">{activeFilterCount}</span>
+          {#key activeFilterCount}
+            <span class="filter-count">{activeFilterCount}</span>
+          {/key}
         {/if}
       </button>
     </div>

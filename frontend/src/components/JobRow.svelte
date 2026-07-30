@@ -15,7 +15,7 @@
   import Prohibit from "phosphor-svelte/lib/Prohibit";
   import CompanyLogo from "./CompanyLogo.svelte";
 
-  let { job, viewed = false, onDismiss, onRestore, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel }: {
+  let { job, viewed = false, onDismiss, onRestore, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel, surface = "feed" }: {
     job: Job;
     viewed?: boolean;
     onDismiss?: (id: string) => void;
@@ -24,6 +24,7 @@
     returnTo?: string;
     swipeActions?: boolean;
     contextLabel?: string;
+    surface?: "feed" | "card";
   } = $props();
 
   let dismissing: boolean = $state(false);
@@ -184,7 +185,7 @@
   }
 </script>
 
-<div class="job-row-wrap">
+<div class="job-row-wrap" class:card-surface={surface === "card"}>
   {#if swipeActions && swipeX < -0.5}
     <div class="swipe-actions">
       <button
@@ -275,7 +276,7 @@
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          class="job-more-menu"
+          class={hasAdminAction ? "job-more-menu" : "job-more-menu job-row-more-menu"}
           side="bottom"
           align="end"
           sideOffset={6}
@@ -318,6 +319,11 @@
     overflow: hidden;
     cursor: pointer;
     touch-action: pan-y;
+  }
+
+  .job-row-wrap.card-surface,
+  .job-row-wrap.card-surface .job-row {
+    background: var(--color-bg-elev);
   }
 
   /* Scoped to the active drag. Promoting every row in a long feed to its own

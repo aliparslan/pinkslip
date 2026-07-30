@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  initialRouteForLocation,
   normalizeRoute,
   rootDestinationFor,
   routeDefinition,
@@ -14,6 +15,12 @@ describe("frontend route configuration", () => {
     expect(normalizeRoute("/my-jobs/applied?from=email")).toBe("/library/applied?from=email");
     expect(normalizeRoute("/profile")).toBe("/you");
     expect(normalizeRoute("/you/operations")).toBe("/admin");
+  });
+
+  test("opens direct notification and shared-link paths in the client router", () => {
+    expect(initialRouteForLocation("", "/jobs/job_123")).toBe("/jobs/job_123");
+    expect(initialRouteForLocation("#/library/applied", "/jobs/job_123")).toBe("/library/applied");
+    expect(initialRouteForLocation("", "/library")).toBe("/library/saved");
   });
 
   test("matches dynamic job routes and extracts parameters", () => {

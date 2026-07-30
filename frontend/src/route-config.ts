@@ -13,12 +13,12 @@ export interface RouteDefinition {
 }
 
 export const routeDefinitions: RouteDefinition[] = [
-  { id: "feed", pattern: "/", shell: "consumer", depth: 0, rootDestination: "feed", showRootNavigation: true, rootHeaderTitle: "Feed", rootHeaderSubtitle: "Roles matched to your search" },
+  { id: "feed", pattern: "/", shell: "consumer", depth: 0, rootDestination: "feed", showRootNavigation: true, rootHeaderTitle: "Feed" },
   { id: "job", pattern: "/jobs/:jobId", shell: "consumer", depth: 1, rootDestination: "feed" },
   { id: "tailor", pattern: "/tailor/:jobId", shell: "consumer", depth: 2, rootDestination: "feed" },
-  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", rootHeaderSubtitle: "The roles you want to remember" },
-  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", rootHeaderSubtitle: "The roles you want to remember" },
-  { id: "you", pattern: "/you", shell: "consumer", depth: 0, rootDestination: "you", showRootNavigation: true, rootHeaderTitle: "You", rootHeaderSubtitle: "Your search, materials, and account" },
+  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library" },
+  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library" },
+  { id: "you", pattern: "/you", shell: "consumer", depth: 0, rootDestination: "you", showRootNavigation: true, rootHeaderTitle: "You" },
   { id: "you-preferences", pattern: "/you/preferences", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-alerts", pattern: "/you/alerts", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-companies", pattern: "/you/companies", shell: "consumer", depth: 1, rootDestination: "you" },
@@ -63,6 +63,11 @@ export function normalizeRoute(route: string): string {
   if (!redirected) return raw;
   const query = raw.includes("?") ? `?${raw.split("?").slice(1).join("?")}` : "";
   return `${redirected}${query}`;
+}
+
+export function initialRouteForLocation(hash: string, pathname: string): string {
+  const hashRoute = hash.startsWith("#") ? hash.slice(1) : hash;
+  return normalizeRoute(hashRoute || pathname || "/");
 }
 
 export function routeDefinition(route: string): RouteDefinition {

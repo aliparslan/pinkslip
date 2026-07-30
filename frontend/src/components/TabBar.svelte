@@ -48,7 +48,10 @@
         onclick={() => selectTab(tab.path, tab.id)}
         aria-current={active ? "page" : undefined}
       >
-        <tab.icon size={22} weight={active ? "fill" : "regular"} />
+        <span class="tab-bar__icon" aria-hidden="true">
+          <span class:visible={!active}><tab.icon size={22} weight="regular" /></span>
+          <span class:visible={active}><tab.icon size={22} weight="fill" /></span>
+        </span>
         <span>{tab.label}</span>
       </button>
     {/each}
@@ -103,6 +106,29 @@
   .tab-bar__item:active { transform: scale(0.97); }
   .tab-bar__item.active {
     color: var(--color-accent);
+  }
+
+  .tab-bar__icon {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+  }
+
+  .tab-bar__icon > span {
+    grid-area: 1 / 1;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transform: scale(0.72);
+    transition:
+      opacity var(--duration-instant) var(--ease-standard),
+      transform var(--duration-instant) var(--ease-standard);
+  }
+
+  .tab-bar__icon > span.visible {
+    opacity: 1;
+    transform: scale(1);
   }
 
   @media (max-width: 899px) {
