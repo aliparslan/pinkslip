@@ -763,9 +763,11 @@
                       onclick={() => toggleLocationFilter(choice.id)}
                     >
                       <span>{choice.label}</span>
-                      {#if draftSelectedLocations.includes(choice.id)}
-                        <Check size={16} weight="bold" aria-hidden="true" />
-                      {/if}
+                      <span class="select-check" aria-hidden="true">
+                        {#if draftSelectedLocations.includes(choice.id)}
+                          <Check size={14} weight="bold" />
+                        {/if}
+                      </span>
                     </button>
                   {/each}
                 </div>

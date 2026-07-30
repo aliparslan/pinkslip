@@ -235,7 +235,7 @@
               onclick={() => toggleWorkMode(option.id)}
             >
               <span>{option.label}</span>
-              <span class="work-mode-check" aria-hidden="true">
+              <span class="select-check" aria-hidden="true">
                 {#if profile.work_modes.includes(option.id)}
                   <Check size={14} weight="bold" />
                 {/if}
@@ -314,9 +314,9 @@
   .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
   .choice-card:active, .location-chip:active { transform: scale(0.98); }
   .choice-card.active, .location-chip.active {
-    border-color: var(--color-selection-bg);
-    background: var(--color-selection-bg);
-    color: var(--color-selection-ink);
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
     font-weight: 600;
   }
   .subfield { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -377,21 +377,7 @@
   }
   .work-mode-option:hover { background: var(--color-bg-sunken); }
   .work-mode-option.active { color: var(--color-ink); }
-  .work-mode-check {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--color-line-2);
-    border-radius: var(--radius-xs);
-    color: var(--color-ink-3);
-  }
-  .work-mode-option.active .work-mode-check {
-    border-color: var(--color-selection-bg);
-    background: var(--color-selection-bg);
-    color: var(--color-selection-ink);
-  }
+  /* .select-check lives in app.css — shared with the location filter dropdown. */
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
   .anywhere-row { min-height: 52px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }

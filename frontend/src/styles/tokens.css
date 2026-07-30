@@ -53,9 +53,10 @@
 }
 
 @theme {
-  --font-display: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-pixel: "Geist Pixel", "Geist", sans-serif;
 
   --radius-xs: 6px;
   --radius-sm: 6px;
@@ -76,8 +77,10 @@
   --color-line-2: oklch(0.36 0.007 285);
 
   /* Pink is identity and state, never the ambient canvas. */
-  --color-accent: oklch(0.72 0.18 350);
-  --color-accent-hover: oklch(0.75 0.17 350);
+  /* Lightened from 0.72 so the dark label on a filled pink button clears APCA 60
+     (was Lc 51.8, now 61.8). Chroma follows the sRGB ceiling down as L rises. */
+  --color-accent: oklch(0.78 0.153 350);
+  --color-accent-hover: oklch(0.81 0.128 350);
   --color-accent-ink: oklch(0.16 0.01 350);
   --color-accent-soft: oklch(0.255 0.055 350);
   /* Chroma sits at the sRGB ceiling for this L/H. Raising it does nothing on

@@ -1,10 +1,30 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
 
+/* Geist (Vercel, SIL OFL — see public/fonts/geist/LICENSE.txt). Subset to Latin,
+   Latin-1, Latin Ext-A and typographic punctuation; the wght axis is intact. */
 @font-face {
-  font-family: "Untitled Sans";
-  src: url("/fonts/untitled/test-untitled-sans-vf-roman.woff2") format("woff2");
-  font-weight: 300 900;
+  font-family: "Geist";
+  src: url("/fonts/geist/geist-sans-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/geist/geist-mono-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Display-only. Bitmap letterforms need room to read — keep it to short labels
+   at --fs-xs or larger, never body copy. */
+@font-face {
+  font-family: "Geist Pixel";
+  src: url("/fonts/geist/geist-pixel-square.woff2") format("woff2");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -31,12 +51,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--fs-base);
-  font-weight: 450;
+  font-weight: 400;
   line-height: 1.5;
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   overscroll-behavior: none auto;
+}
+
+/* The selection tokens invert per mode, which is right for a text highlight and
+   wrong for a selected control — selected UI states use the accent family. */
+::selection {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-ink);
 }
 
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -52,10 +79,11 @@ html.native-ios textarea {
 
 .h-display {
   font-family: var(--font-display);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1.05;
   color: var(--color-ink);
+  text-wrap: balance;
   margin: 0;
 }
 
@@ -230,12 +258,12 @@ html.native-ios textarea {
 .chip:hover { background: var(--color-bg-sunken); }
 .chip-active,
 .filter-choice.active {
-  background: var(--color-selection-bg);
-  color: var(--color-selection-ink);
-  border-color: var(--color-selection-bg);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-soft-ink);
+  border-color: var(--color-accent);
   font-weight: 600;
 }
-.chip-active:hover { background: var(--color-selection-bg); }
+.chip-active:hover { background: var(--color-accent-soft); }
 
 .chip-wrap {
   display: flex;
@@ -567,6 +595,26 @@ html.native-ios textarea {
   transform: rotate(180deg);
 }
 
+/* Shared multi-select affordance: a box that is always present and fills with
+   the accent when chosen. The work-mode menu and the location filter are the
+   same interaction, so they use the same control rather than drifting apart. */
+.select-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-xs);
+  color: var(--color-ink-3);
+}
+
+.active > .select-check {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
 .filter-location-options {
   position: absolute;
   z-index: 3;
@@ -579,7 +627,7 @@ html.native-ios textarea {
   border-top: 0;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: var(--color-bg-elev);
-  box-shadow: 0 12px 28px oklch(0 0 0 / 0.16);
+  box-shadow: var(--shadow-toast);
 }
 
 .filter-location-options button {
@@ -605,9 +653,7 @@ html.native-ios textarea {
 }
 
 .filter-location-options button.active {
-  background: var(--color-selection-bg);
-  color: var(--color-selection-ink);
-  font-weight: 600;
+  color: var(--color-ink);
 }
 
 .filter-input-grid,
@@ -1157,6 +1203,7 @@ select.input-field {
   padding: 18px;
   min-height: 360px;
   overflow-wrap: break-word;
+  max-width: var(--app-reading-width);
   font-size: var(--fs-md);
   line-height: 1.7;
   color: var(--color-ink-2);
@@ -1173,11 +1220,12 @@ select.input-field {
 
 .prose-output h1 { font-size: var(--fs-2xl); }
 .prose-output h2 { font-size: var(--fs-xl); }
-.prose-output h3 { font-size: 16px; }
+.prose-output h3 { font-size: var(--fs-lg); }
 .prose-output h4 { font-size: var(--fs-md); }
 
 .prose-output p {
   margin: 0 0 12px;
+  text-wrap: pretty;
 }
 
 .prose-output ul,
@@ -1497,7 +1545,7 @@ select.input-field {
   border: 0;
   border-radius: calc(var(--radius-md) - 3px);
   background: transparent;
-  color: var(--color-ink-3);
+  color: var(--color-ink-2);
   font: inherit;
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -1519,7 +1567,7 @@ select.input-field {
   justify-content: center;
   border-radius: var(--radius-full);
   background: var(--color-bg-sunken);
-  color: var(--color-ink-3);
+  color: var(--color-ink-2);
   font-size: var(--fs-2xs);
 }
 
@@ -1827,6 +1875,16 @@ select.input-field {
   margin: 0;
   font-size: var(--fs-md);
   line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* Counts that change as the user filters or edits — proportional digits make
+   the surrounding layout twitch on every update. */
+.selection-count,
+.source-result-count,
+.card-count,
+.empty-state-copy {
+  font-variant-numeric: tabular-nums;
 }
 
 .button-link { text-decoration: none; }
@@ -1871,6 +1929,13 @@ select.input-field {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+}
+
+/* For rows whose actions can't share a line with the copy without crowding. */
+.grouped-row.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
 }
 
 .grouped-row + .grouped-row,
@@ -2128,7 +2193,7 @@ body.nav-animating .page,
   gap: 7px;
   color: var(--color-ink-3);
   font-size: var(--fs-xs);
-  font-weight: 550;
+  font-weight: 500;
   white-space: nowrap;
 }
 

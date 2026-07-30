@@ -91,7 +91,7 @@
     </div>
 
     {#if pushStatus === "enabled"}
-      <div class="grouped-row">
+      <div class="grouped-row stack">
         <div class="grouped-row-copy">
           <div class="row-title">Test notification</div>
           <div class="helper-text" role="status" aria-live="polite">
