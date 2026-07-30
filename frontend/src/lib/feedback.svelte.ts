@@ -21,8 +21,14 @@ export interface ToastItem extends Required<Pick<ToastInput, "message" | "tone">
 }
 
 const DEFAULT_DURATION = 3_500;
-const ACTION_DURATION = 5_000;
 const MAX_VISIBLE = 2;
+
+/** Toasts carrying an action or an error persist until dismissed; everything
+ *  else is routine confirmation and can time out. */
+function resolveDuration(input: { duration?: number | null; action?: ToastAction }): number | null {
+  if (input.duration !== undefined) return input.duration;
+  return input.action ? null : DEFAULT_DURATION;
+}
 
 class FeedbackController {
   visible = $state<ToastItem[]>([]);
@@ -39,8 +45,7 @@ class FeedbackController {
       existing.message = normalized.message;
       existing.tone = normalized.tone ?? existing.tone;
       existing.action = normalized.action;
-      existing.duration = normalized.duration
-        ?? (normalized.action ? ACTION_DURATION : DEFAULT_DURATION);
+      existing.duration = resolveDuration(normalized);
       if (this.visible.some((toast) => toast.id === existing.id)) this.startTimer(existing);
       return existing.id;
     }
@@ -49,9 +54,7 @@ class FeedbackController {
       id: crypto.randomUUID(),
       message: normalized.message,
       tone: normalized.tone ?? "info",
-      duration: normalized.duration === undefined
-        ? (normalized.action ? ACTION_DURATION : DEFAULT_DURATION)
-        : normalized.duration,
+      duration: resolveDuration(normalized),
       action: normalized.action,
       dedupeKey: normalized.dedupeKey,
     };
