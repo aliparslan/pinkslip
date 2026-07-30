@@ -6,7 +6,6 @@ import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const stats = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// GET / — Return aggregate stats (apps/saved scoped to user)
 stats.get("/", async (c) => {
   const userId = c.get("userId");
   const today = new Date().toISOString().slice(0, 10);

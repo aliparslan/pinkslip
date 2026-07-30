@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { currentRoute, navigate, rootDestinationFor, type RootDestination } from "../router";
+  import { currentRoute, navigate, rootDestinationFor, scrollContainer, type RootDestination } from "../router";
   import { hapticLight } from "../lib/haptics";
   import BrandMark from "./BrandMark.svelte";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
   import CardsThree from "phosphor-svelte/lib/CardsThree";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
 
-  let { mobileHidden = false }: { mobileHidden?: boolean } = $props();
+  let { mobileHidden = false, inert = false }: { mobileHidden?: boolean; inert?: boolean } = $props();
 
   let route = $derived($currentRoute);
 
@@ -22,8 +22,7 @@
 
   function selectTab(path: string, id: RootDestination): void {
     if (isActive(id)) {
-      // Re-tapping the current tab scrolls to top, like native iOS.
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollContainer()?.scrollTo({ top: 0, behavior: "smooth" });
       hapticLight();
       return;
     }
@@ -32,7 +31,7 @@
   }
 </script>
 
-<nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation">
+<nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation" {inert}>
   <div class="tab-bar__inner">
     <button type="button" class="tab-bar__brand" aria-label="Go to feed" onclick={() => selectTab("/", "feed")}>
       <span class="tab-bar__mark"><BrandMark size={23} /></span>

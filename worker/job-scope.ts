@@ -138,7 +138,6 @@ const NON_SOFTWARE_ENGINEERING_FUNCTION = [
   "system administrator",
 ] as const;
 
-/** Head nouns that make a title an engineering-family role. */
 const TECHNICAL_HEAD_NOUN =
   /\b(?:engineer|engineering|developer|scientist|researcher|architect|programmer|sde|swe|sdet)\b/i;
 
@@ -177,8 +176,6 @@ function containsPhrase(text: string, phrase: string) {
 }
 
 /**
- * Decide whether a title belongs in the catalog, and say why.
- *
  * The reason code is the whole point: a subtractive gate can only be trusted if
  * its rejections are auditable, so every caller can record *which* rule removed
  * a posting rather than discovering the loss much later.
@@ -292,8 +289,6 @@ export function isEligibleJobListing(
 }
 
 /**
- * Every title any user has asked for explicitly.
- *
  * The ingestion gate runs long before a user is in scope, so a globally
  * unrecognized title could never be rescued by a per-user preference — the
  * posting was discarded before scoring ever saw it, which made `custom_titles`

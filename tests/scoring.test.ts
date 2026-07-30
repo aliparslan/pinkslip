@@ -42,7 +42,6 @@ function makeJob(overrides: Partial<JobListing>): JobListing {
   };
 }
 
-// Test 1: High score for ideal job
 describe("scoreJob", () => {
   it("returns ≥80 for ideal job: Software Engineer Backend + Remote + Engineering + today", () => {
     const job = makeJob({
@@ -54,7 +53,6 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
-  // Test 2: Low score for senior staff role
   it("returns <30 for Senior Staff Engineer ML Infrastructure in London", () => {
     const job = makeJob({
       title: "Senior Staff Engineer, ML Infrastructure",
@@ -65,7 +63,6 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
-  // Test 3: High score for Forward Deployed Engineer
   it("returns ≥80 for Forward Deployed Engineer + NYC + Engineering", () => {
     const job = makeJob({
       title: "Forward Deployed Engineer",
@@ -76,7 +73,6 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
-  // Test 4: Low score for non-engineering role
   it("returns <30 for Sales Development Representative + Remote + Sales", () => {
     const job = makeJob({
       title: "Sales Development Representative",
@@ -87,7 +83,6 @@ describe("scoreJob", () => {
     expect(scoreJob(job, DEFAULT_PREFS).score).toBeLessThan(30);
   });
 
-  // Test 5: Unknown locations remain eligible but receive no location boost.
   it("does not award location points for an empty location string", () => {
     const jobWithLocation = makeJob({
       title: "Software Engineer",
@@ -108,7 +103,6 @@ describe("scoreJob", () => {
     expect(scoreWithoutLocation).toBeGreaterThanOrEqual(30);
   });
 
-  // Test 6: Zero location score for non-preferred city vs Remote scoring 20
   it("gives zero location score for non-preferred city, 20 for Remote", () => {
     const remoteJob = makeJob({
       title: "Software Engineer",
@@ -128,7 +122,6 @@ describe("scoreJob", () => {
     expect(remoteScore - nonPreferredScore).toBe(20);
   });
 
-  // Test 7: Low score for intern role
   it("returns <30 for Software Engineering Intern + Remote", () => {
     const job = makeJob({
       title: "Software Engineering Intern",
@@ -264,7 +257,6 @@ describe("scoreJob", () => {
     expect(scoreJob(earlyCareerJob, DEFAULT_PREFS).score).toBeGreaterThanOrEqual(80);
   });
 
-  // Test 8: Recency — today's posting scores higher than 14-day-old posting
   it("scores today's posting higher than a 14-day-old posting", () => {
     const today = new Date().toISOString();
     const oldDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();

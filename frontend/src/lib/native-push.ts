@@ -1,5 +1,3 @@
-// Native iOS push (APNs) registration via Capacitor.
-//
 // Native iOS uses APNs. Browsers use the bundled service worker + Web Push.
 
 import { Capacitor } from "@capacitor/core";
@@ -11,7 +9,6 @@ export function isNativeIos(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 }
 
-/** Routes a tapped notification's payload to the right screen. */
 function handleNotificationUrl(data: unknown): void {
   const payload = data as { url?: string; job_ids?: unknown } | undefined;
   const jobIds = Array.isArray(payload?.job_ids)
@@ -59,7 +56,6 @@ async function ensureListeners(): Promise<void> {
   if (listenersReady) return;
   listenersReady = true;
 
-  // Deliver the APNs device token to the API as soon as registration succeeds.
   await PushNotifications.addListener("registration", async (token) => {
     try {
       await api.push.registerApns(token.value);
@@ -143,10 +139,7 @@ export async function getNativePushStatus(): Promise<"enabled" | "disabled"> {
   return await registration.pushManager.getSubscription() ? "enabled" : "disabled";
 }
 
-/**
- * User-initiated: request notification permission, then register for APNs.
- * Returns the resulting status for the UI.
- */
+/** User-initiated counterpart to initNativePush: prompts, then registers. */
 export async function enableNativePush(): Promise<"enabled" | "denied"> {
   if (isNativeIos()) {
     await ensureListeners();

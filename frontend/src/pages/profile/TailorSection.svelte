@@ -1,6 +1,4 @@
 <script lang="ts">
-  // Tailoring setup: Gemini key + model, the device-local resume file, and the
-  // account-synced resume copy. Owns all of that state and its persistence.
   import { onMount } from "svelte";
   import { api, type AppFeatures, type ResumeAssetRecord, type TailorUsage } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";

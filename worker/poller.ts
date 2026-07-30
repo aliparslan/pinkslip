@@ -33,6 +33,8 @@ const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
  */
 const TIER_TWO_POLLS_PER_CYCLE = 60;
 
+const MANUAL_TIER_TWO_BATCH = 250;
+
 /**
  * New jobs matched inline per cycle. Matching is jobs × profiles in one
  * invocation, so this is the ceiling that keeps onboarding a large board from
@@ -53,12 +55,9 @@ const CLOSE_AFTER_MISSES = 2;
  */
 export const QUARANTINE_AFTER_FAILURES = 3;
 
-/** How long a quarantined source waits before it is retried. */
 export const QUARANTINE_RETRY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Failure bookkeeping for a source that just failed to poll.
- *
  * `quarantined_at` records when the source *first* entered quarantine and is
  * deliberately preserved across subsequent failures — it is the "broken since"
  * timestamp an admin needs, so it must not be overwritten on every retry.
@@ -76,8 +75,6 @@ export function nextQuarantineState(
       : existingQuarantinedAt,
   };
 }
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PollerPrefs extends ScoringPrefs {
   notify_threshold?: number;
@@ -125,12 +122,6 @@ async function hasFetchRunsTable(db: D1Database): Promise<boolean> {
   }
 }
 
-// ─── Pure helpers ────────────────────────────────────────────────────────────
-
-/**
- * Returns only jobs whose externalId is not already in existingExternalIds.
- * Pure function — no side effects, fully unit-testable.
- */
 export function diffJobs(
   fetched: JobListing[],
   existingExternalIds: Set<string>
@@ -193,13 +184,6 @@ async function hydrateListing(
   return mergeListingContent(listing, content);
 }
 
-// ─── DB helpers ──────────────────────────────────────────────────────────────
-
-/**
- * Reads all rows from the preferences table and parses JSON values.
- * Returns a merged ScoringPrefs + notify_threshold object.
- * Also exported as loadPreferencesForPoll for use in manual poll endpoint.
- */
 export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPrefs> {
   const result = await db
     .prepare("SELECT key, value FROM preferences")
@@ -207,7 +191,6 @@ export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPref
 
   const rows = result.results ?? [];
 
-  // Build a key→value map, parsing JSON for array/number values.
   const map: Record<string, unknown> = {};
   for (const row of rows) {
     try {
@@ -227,29 +210,20 @@ export async function loadPreferencesForPoll(db: D1Database): Promise<PollerPref
   };
 }
 
-// ─── pollCompany ─────────────────────────────────────────────────────────────
-
-/**
- * Polls a single company, diffs against existing jobs, scores, and inserts
- * new jobs into D1. Returns metadata for all newly inserted jobs.
- */
 export async function pollCompany(
   company: CompanyRow,
   db: D1Database,
   prefs: ScoringPrefs,
   customTitles: readonly string[] = []
 ): Promise<NewJobMeta[]> {
-  // 1. Pick adapter by ats_type
   const adapter = getAdapter(getCompanySourceType(company));
 
   if (!adapter) return [];
 
-  // 2. Fetch jobs from ATS
   const fetchedSnapshot = await adapter.fetchJobs(company.ats_slug);
   const fetched = fetchedSnapshot.filter((job) => isEligibleJobListing(job, customTitles));
   const fetchedExtIds = new Set(fetched.map((j) => j.externalId));
 
-  // 3. Load existing (with open/closed state) + blocked external_ids for this company
   const [existing, blocked] = await Promise.all([
     db
       .prepare("SELECT external_id, closed_at FROM jobs WHERE company_id = ?")
@@ -268,12 +242,11 @@ export async function pollCompany(
     (blocked.results ?? []).map((r) => r.external_id)
   );
 
-  // 4. Reconcile open/closed state. Guard against partial/failed ATS responses:
-  //    if the fetch returned far fewer jobs than we currently have open, treat it
-  //    as incomplete and do NOT close the missing ones (a partial page would
-  //    otherwise wipe valid jobs from every feed). Returned jobs are always
-  //    reopened + reset; absent jobs are only closed after CLOSE_AFTER_MISSES
-  //    consecutive misses so one bad page can't nuke the board.
+  // Guard against partial/failed ATS responses: if the fetch returned far fewer
+  // jobs than we currently have open, treat it as incomplete and do NOT close the
+  // missing ones (a partial page would otherwise wipe valid jobs from every
+  // feed). Absent jobs are only closed after CLOSE_AFTER_MISSES consecutive
+  // misses so one bad page can't nuke the board.
   const now = new Date().toISOString();
   const responseLooksComplete =
     fetchedSnapshot.length > 0
@@ -325,7 +298,6 @@ export async function pollCompany(
     await db.batch(updateStmts);
   }
 
-  // 5. Diff: new = fetched but not in existing and not blocked
   const discoveredJobs = fetched.filter(
     (job) => !existingIds.has(job.externalId) && !blockedIds.has(job.externalId)
   );
@@ -347,7 +319,6 @@ export async function pollCompany(
   });
   if (newJobs.length === 0) return [];
 
-  // 6. Score and batch-insert new jobs
   const newMeta: NewJobMeta[] = [];
   const insertStmts = [];
 
@@ -419,9 +390,8 @@ interface MissingContentRow {
 }
 
 /**
- * Gradually repairs listings inserted before eager content hydration existed.
- * Only successfully hydrated, still-eligible jobs are returned for matching and
- * alerts. Failed detail fetches remain null and are retried on a later cron tick.
+ * Repairs listings inserted before eager content hydration existed. Failed
+ * detail fetches remain null and are retried on a later cron tick.
  */
 async function backfillMissingJobContent(
   db: D1Database,
@@ -528,18 +498,6 @@ export async function sendNotificationsForJobs(
   return deliverPendingNotifications(db, env);
 }
 
-// ─── runPollCycle ─────────────────────────────────────────────────────────────
-
-/**
- * Main cron handler. Orchestrates the full polling cycle:
- * 1. Load enabled non-custom companies
- * 2. Load preferences
- * 3. Fan out pollCompany() via Promise.allSettled
- * 4. Collect new jobs
- * 5. Build deterministic profile matches
- * 6. Send push notifications for those matches
- * 7. Return stats
- */
 export async function runPollCycle(
   env: Env,
   options: RunPollCycleOptions = {}
@@ -585,8 +543,6 @@ export async function runPollCycle(
     ).bind(runId, scope, startedAt).run();
   }
 
-  // 1. Load enabled non-custom companies.
-  //
   // Quarantined sources (see nextQuarantineState) are skipped unless their last
   // attempt is older than the retry window, so a permanently broken slug costs
   // one request a day instead of 96 — but still heals itself if it starts
@@ -619,25 +575,23 @@ export async function runPollCycle(
   // last_polled_at ascending means a fixed slice per tick walks the whole tail
   // round-robin, so several hundred long-tail sources cost a bounded amount of
   // work per cycle instead of multiplying every tick's request and match load.
+  const tierTwoLimit = scope === "manual" && companyLimit === null ? MANUAL_TIER_TWO_BATCH : TIER_TWO_POLLS_PER_CYCLE;
   const companies = companyLimit === null
-    ? [...await selectTier(1, null), ...await selectTier(2, TIER_TWO_POLLS_PER_CYCLE)]
+    ? [...await selectTier(1, null), ...await selectTier(2, tierTwoLimit)]
     : await selectTier(1, companyLimit);
 
-  // 2. Load preferences, plus every title a user has explicitly asked for. The
-  //    latter is loaded once and shared across all companies in the cycle so a
-  //    globally unrecognized title can still enter the catalog.
+  // Custom titles are loaded once and shared across every company in the cycle
+  // so a globally unrecognized title can still enter the catalog.
   const prefs = await loadPreferencesForPoll(db);
   const customTitles = await loadCustomTitles(db);
   const now = new Date().toISOString();
 
-  // 3. Fan out pollCompany() calls
   const results = await runWithConcurrency(
     companies,
     6,
     (company) => pollCompany(company, db, prefs, customTitles)
   );
 
-  // 4. Collect all new jobs and batch-update poll status per company
   const allNewJobs: NewJobMeta[] = [];
   const statusStmts = [];
   // Sources that crossed into quarantine on *this* cycle. Alerting only on the
@@ -733,13 +687,12 @@ export async function runPollCycle(
     matchableJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
   );
 
-  // 5. Send push notifications
   let notificationsSent = 0;
   if (sendNotifications) {
     notificationsSent = await sendNotificationsForJobs(db, env, matchableJobs);
 
-    // 5a. Tell admins when a source breaks. Wrapped so an alerting failure can
-    //     never take down the poll cycle it is reporting on.
+    // Wrapped so an alerting failure can never take down the poll cycle it is
+    // reporting on.
     if (newlyQuarantined.length > 0) {
       await (async () => {
         const total = await db.prepare(
@@ -758,8 +711,6 @@ export async function runPollCycle(
     }
   }
 
-  // 5b. Incrementally score older jobs for a few active users so backlog matches
-  //     surface in the feed over time (notifications above only cover new jobs).
   if (scope === "cron") {
     await advanceBacklogScoring(db).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);

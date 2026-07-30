@@ -8,6 +8,9 @@
   import { feedback } from "../lib/feedback.svelte";
   import { hapticLight } from "../lib/haptics";
   import { sessionAccess } from "../lib/session-access";
+  import { markMenuDismissed, wasMenuJustDismissed } from "../lib/menu-dismiss-guard";
+  import { DropdownMenu } from "bits-ui";
+  import DotsThreeVertical from "phosphor-svelte/lib/DotsThreeVertical";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Prohibit from "phosphor-svelte/lib/Prohibit";
   import CompanyLogo from "./CompanyLogo.svelte";
@@ -45,6 +48,8 @@
   const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
   let hasAdminAction = $derived($sessionAccess.isAdmin && Boolean(onBlockRequest));
+  let showRowMenu = $derived(swipeActions && (Boolean(onDismiss) || hasAdminAction));
+  let rowMenuOpen = $state(false);
   let actionButtonWidth = $derived(hasAdminAction ? ADMIN_ACTION_WIDTH : SINGLE_ACTION_WIDTH);
   let actionTotalWidth = $derived(
     ACTION_PADDING + actionButtonWidth * (hasAdminAction ? 2 : 1) + (hasAdminAction ? ACTION_GAP : 0)
@@ -64,6 +69,7 @@
   );
 
   function handleClick() {
+    if (wasMenuJustDismissed()) return;
     if (Math.abs(swipeX) > 4) {
       snapTo(0); // a swipe was open — first tap just closes it
       return;
@@ -71,6 +77,17 @@
     markViewed(job.id);
     setJobDetailReturnRoute(returnTo);
     navigate(`/jobs/${job.id}`);
+  }
+
+  $effect(() => {
+    if (!rowMenuOpen) return;
+    const closeOnScroll = () => { rowMenuOpen = false; };
+    window.addEventListener("scroll", closeOnScroll, true);
+    return () => window.removeEventListener("scroll", closeOnScroll, true);
+  });
+
+  function handleRowMenuOpenChange(open: boolean) {
+    if (!open) markMenuDismissed();
   }
 
   function snapTo(target: number) {
@@ -204,6 +221,7 @@
     class:viewed={viewed && Math.abs(swipeX) < 0.5 && !dismissing}
     class:dismissing
     class:swiping
+    class:has-menu={showRowMenu}
     role="button"
     tabindex="0"
     style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
@@ -221,7 +239,7 @@
         <span class="job-row__dot">·</span>
         <span class="job-row__time">{contextLabel ?? timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
         {#if !contextLabel && !viewed && isFresh}
-          <span class="job-row__new" aria-label="New job" title="New job"></span>
+          <span class="job-row__new" role="img" aria-label="New job" title="New job"></span>
         {/if}
       </div>
       <div class="job-row__title">{job.title}</div>
@@ -246,6 +264,39 @@
       {/if}
     </div>
   </div>
+
+  {#if showRowMenu && Math.abs(swipeX) < 0.5}
+    <DropdownMenu.Root bind:open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
+      <DropdownMenu.Trigger
+        class="icon-btn icon-btn-sm job-row__menu-trigger"
+        aria-label="Actions for {job.title} at {job.company_name}"
+      >
+        <DotsThreeVertical size={18} weight="bold" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          class="job-more-menu"
+          side="bottom"
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          strategy="fixed"
+          preventScroll={false}
+        >
+          <DropdownMenu.Item class="job-more-menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
+            <EyeSlash size={17} />
+            <span>Hide</span>
+          </DropdownMenu.Item>
+          {#if hasAdminAction}
+            <DropdownMenu.Item class="job-more-menu-item danger" onSelect={() => onBlockRequest?.(job)}>
+              <Prohibit size={17} />
+              <span>Block for everyone</span>
+            </DropdownMenu.Item>
+          {/if}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  {/if}
 </div>
 
 <style>
@@ -277,6 +328,14 @@
   }
   .job-row.viewed { opacity: 0.5; }
   .job-row.dismissing { pointer-events: none; }
+  .job-row.has-menu { padding-right: 48px; }
+
+  :global(.job-row__menu-trigger) {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+  }
 
   .job-row__body { min-width: 0; overflow: hidden; }
 

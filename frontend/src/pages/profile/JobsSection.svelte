@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Search-profile summary + inline editor (Jobs tab).
   import SearchProfileFields from "../../components/SearchProfileFields.svelte";
   import {
     DEFAULT_SEARCH_PROFILE,

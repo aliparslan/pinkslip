@@ -5,10 +5,7 @@ import {
 } from "@worker/push";
 import type { NotificationJob, PushSubscription, VapidConfig } from "@worker/push";
 
-// ─── buildNotificationPayload tests ─────────────────────────────────────────
-
 describe("buildNotificationPayload", () => {
-  // Test 1: Single job
   it("single job: company as title, job title as body, /jobs/{id} as url", () => {
     const jobs: NotificationJob[] = [
       { company: "Anthropic", title: "Software Engineer", jobId: "abc123" },
@@ -20,7 +17,6 @@ describe("buildNotificationPayload", () => {
     expect(result.data.job_ids).toEqual(["abc123"]);
   });
 
-  // Test 2: 5+ jobs
   it("5+ jobs: 'N new jobs' title, company list (up to 4) + 'and more', '/' url", () => {
     const jobs: NotificationJob[] = [
       { company: "Anthropic", title: "SWE", jobId: "1" },
@@ -32,7 +28,6 @@ describe("buildNotificationPayload", () => {
     const result = buildNotificationPayload(jobs);
     expect(result.title).toBe("5 new jobs");
     expect(result.body).toContain("and more");
-    // Should only include first 4 companies
     expect(result.body).toContain("Anthropic");
     expect(result.body).toContain("Cohere");
     expect(result.body).not.toContain("DeepMind");
@@ -40,7 +35,6 @@ describe("buildNotificationPayload", () => {
     expect(result.data.job_ids).toEqual(["1", "2", "3", "4", "5"]);
   });
 
-  // Test 3: 2-4 jobs
   it("2–4 jobs: 'N new jobs' title, company names in body, '/' url", () => {
     const jobs: NotificationJob[] = [
       { company: "Anthropic", title: "SWE Backend", jobId: "10" },
@@ -57,8 +51,6 @@ describe("buildNotificationPayload", () => {
     expect(result.data.job_ids).toEqual(["10", "11", "12"]);
   });
 });
-
-// ─── sendPushNotification tests ──────────────────────────────────────────────
 
 const MOCK_SUBSCRIPTION: PushSubscription = {
   endpoint: "https://push.example.com/v1/send/sub123",
@@ -84,7 +76,6 @@ describe("sendPushNotification", () => {
     mock.restore();
   });
 
-  // Test 4: Sends POST to the subscription endpoint
   it("sends a POST request to the subscription endpoint", async () => {
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 201 })

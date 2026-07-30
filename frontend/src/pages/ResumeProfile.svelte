@@ -247,7 +247,6 @@
         {/if}
       </div>
 
-      <!-- Experience -->
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("experience")} onclick={() => toggleSection("experience")}>
           {#if expandedSections.has("experience")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
@@ -290,7 +289,6 @@
         {/if}
       </div>
 
-      <!-- Education -->
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("education")} onclick={() => toggleSection("education")}>
           {#if expandedSections.has("education")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
@@ -320,7 +318,6 @@
         {/if}
       </div>
 
-      <!-- Projects -->
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("projects")} onclick={() => toggleSection("projects")}>
           {#if expandedSections.has("projects")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
@@ -362,7 +359,6 @@
         {/if}
       </div>
 
-      <!-- Skills -->
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("skills")} onclick={() => toggleSection("skills")}>
           {#if expandedSections.has("skills")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
@@ -383,7 +379,6 @@
         {/if}
       </div>
 
-      <!-- Optional sections -->
       {#each profile.optionalSections as section}
         <div class="card">
           <!-- Toggle and remove are sibling buttons (interactive controls
@@ -422,7 +417,6 @@
         </div>
       {/if}
 
-      <!-- Notes -->
       <div class="card">
         <button type="button" class="card-header" aria-expanded={expandedSections.has("notes")} onclick={() => toggleSection("notes")}>
           {#if expandedSections.has("notes")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}

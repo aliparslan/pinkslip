@@ -134,8 +134,7 @@ push.post("/opened", async (c) => {
   return c.body(null, 204);
 });
 
-// POST /apns — Register a native iOS APNs device token for the current user.
-// The token is stored in the existing push_subscriptions table with
+// The APNs device token is stored in the existing push_subscriptions table with
 // platform='ios' (device token in `endpoint`, empty p256dh/auth).
 push.post("/apns", async (c) => {
   const userId = c.get("userId");
@@ -185,7 +184,6 @@ push.post("/apns", async (c) => {
   return c.json(created, 201);
 });
 
-// POST /subscribe — Register push subscription
 push.post("/subscribe", async (c) => {
   const userId = c.get("userId");
   const body = await c.req.json<{
@@ -238,7 +236,6 @@ push.post("/subscribe", async (c) => {
   return c.json(created, 201);
 });
 
-// DELETE /subscribe — Remove subscription by endpoint
 push.delete("/subscribe", async (c) => {
   const body = await c.req.json<{ endpoint?: string }>().catch(() => null);
   const endpoint = body?.endpoint?.trim();

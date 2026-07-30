@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Inline loading indicator. Inherits currentColor so it matches whatever
-  // text it sits beside; uses the global .spin keyframes from app.css.
+  // Inherits currentColor so it matches whatever text it sits beside; uses the
+  // global .spin keyframes from app.css.
   let { size = 16, label }: { size?: number; label?: string } = $props();
 </script>
 

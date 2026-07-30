@@ -13,19 +13,33 @@
 </script>
 
 <header class="root-header">
-  <div class="root-header-copy">
-    <h1>{title}</h1>
-    {#if subtitle}<p>{subtitle}</p>{/if}
+  <div class="root-header-inner">
+    <div class="root-header-copy">
+      <h1>{title}</h1>
+      {#if subtitle}<p>{subtitle}</p>{/if}
+    </div>
+    {#if trailing}
+      <div class="root-header-trailing">{@render trailing()}</div>
+    {/if}
   </div>
-  {#if trailing}
-    <div class="root-header-trailing">{@render trailing()}</div>
-  {/if}
 </header>
 
 <style>
   .root-header {
+    flex: none;
+    padding-top: calc(var(--safe-top) + var(--space-5));
+    background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid var(--color-line);
+  }
+
+  .root-header-inner {
     min-height: 78px;
-    padding: var(--space-5) var(--screen-gutter) var(--space-3);
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 var(--screen-gutter) var(--space-3);
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -34,9 +48,6 @@
 
   .root-header-copy { min-width: 0; }
 
-  /* Pixel display face: no weight axis, so 400 is the only real weight — 600
-     would be synthesized. Bitmap forms also need neutral tracking rather than
-     the tight optical setting a proportional display face wants. */
   .root-header h1 {
     margin: 0;
     color: var(--color-ink);
@@ -44,7 +55,7 @@
     font-size: var(--fs-4xl);
     font-weight: 400;
     letter-spacing: 0;
-    line-height: 1.1;
+    line-height: 1.15;
   }
 
   .root-header p {
@@ -61,8 +72,11 @@
 
   @media (min-width: 900px) {
     .root-header {
+      padding-top: calc(var(--safe-top) + var(--space-8));
+    }
+
+    .root-header-inner {
       min-height: 104px;
-      padding-top: var(--space-8);
       padding-bottom: var(--space-4);
     }
   }

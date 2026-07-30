@@ -3,6 +3,7 @@ import { getJobDetailReturnRoute } from "./lib/job-navigation";
 import {
   normalizeRoute,
   rootDestinationFor,
+  rootHeaderFor,
   routeDefinition,
   routeDepth,
   routeParam,
@@ -13,6 +14,7 @@ import {
 export {
   normalizeRoute,
   rootDestinationFor,
+  rootHeaderFor,
   routeDefinition,
   routeDepth,
   routeParam,
@@ -32,9 +34,16 @@ const scrollPositions = new Map<string, number>();
 let activePath = initialPath;
 let pendingScrollSnapshot: { path: string; top: number } | null = null;
 
+export function scrollContainer(): HTMLElement | null {
+  return document.getElementById("main-content");
+}
+
+function currentScrollTop(): number {
+  return scrollContainer()?.scrollTop ?? 0;
+}
+
 function setDocumentScroll(top: number) {
-  window.scrollTo(0, top);
-  document.scrollingElement?.scrollTo({ top, left: 0, behavior: "auto" });
+  scrollContainer()?.scrollTo({ top, left: 0, behavior: "auto" });
 }
 
 export function savedScrollFor(path: string): number {
@@ -60,7 +69,7 @@ window.addEventListener("hashchange", () => {
   if (pendingScrollSnapshot?.path === previousPath) {
     scrollPositions.set(previousPath, pendingScrollSnapshot.top);
   } else {
-    scrollPositions.set(previousPath, window.scrollY);
+    scrollPositions.set(previousPath, currentScrollTop());
   }
   pendingScrollSnapshot = null;
   activePath = nextPath;
@@ -86,8 +95,8 @@ export function navigate(path: string, options: { replace?: boolean } = {}) {
     return;
   }
   if (normalized === activePath) return;
-  pendingScrollSnapshot = { path: activePath, top: window.scrollY };
-  scrollPositions.set(activePath, window.scrollY);
+  pendingScrollSnapshot = { path: activePath, top: currentScrollTop() };
+  scrollPositions.set(activePath, currentScrollTop());
   window.location.hash = normalized;
 }
 

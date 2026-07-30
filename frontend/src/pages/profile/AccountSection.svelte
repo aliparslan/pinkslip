@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Account card: guest → sign-in paths, signed-in → session management.
   // Owns the auth flows; the parent only needs to reload after a change.
   import { api, type AccountInfo } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
@@ -136,7 +135,7 @@
           onclick={handleAppleLogin}
           disabled={signingInWithApple}
         >
-          {#if signingInWithApple}<Spinner />{/if}
+          {#if signingInWithApple}<span class="btn-apple-spinner"><Spinner /></span>{/if}
           <AppleMark />
           Continue with Apple
         </button>

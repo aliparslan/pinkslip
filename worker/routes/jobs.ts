@@ -20,11 +20,6 @@ import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-/**
- * Dated postings older than this never appear in the feed — they are almost
- * always filled or abandoned. Applies only to jobs that carry a real date;
- * undated postings are governed by the `posted` filter instead.
- */
 export { MAX_POSTED_AGE_DAYS };
 
 jobs.use("/*", async (c, next) => {
@@ -198,12 +193,13 @@ function buildLocationFilter(location: string | undefined, locations: string | u
 
 function parseMoneyToken(token: string): number | null {
   const hasThousandsSuffix = /k\b/i.test(token);
-  const numeric = Number.parseFloat(token.replace(/,/g, "").replace(/k\b/i, ""));
+  const normalized = token.replace(/[$,]/g, "").replace(/USD/gi, "").replace(/k\b/i, "").trim();
+  const numeric = Number.parseFloat(normalized);
   if (!Number.isFinite(numeric)) return null;
   return hasThousandsSuffix || numeric < 1000 ? Math.round(numeric * 1000) : Math.round(numeric);
 }
 
-function parseSalaryRange(salary: string | null): { min: number; max: number } | null {
+export function parseSalaryRange(salary: string | null): { min: number; max: number } | null {
   if (!salary) return null;
   if (/(?:\/|\b)(?:hr|hour|hourly)\b/i.test(salary)) return null;
 
@@ -260,7 +256,6 @@ function passesAdvancedFilters(
   return true;
 }
 
-// GET / — List jobs
 jobs.get("/", async (c) => {
   const userId = c.get("userId");
   await ensureUserJobMatchesReady(c.env.DB, userId);
@@ -324,7 +319,6 @@ jobs.get("/", async (c) => {
     userId,
   ];
 
-  // Default excludes dismissed unless explicitly requested
   if (dismissed === "true") {
     conditions.push(
       `EXISTS (
@@ -529,7 +523,6 @@ async function backfillJobContent(
   await rescoreJobForMatchedUsers(db, job.id, viewerUserId);
 }
 
-// GET /:id — Job detail (backfills description on demand)
 jobs.get("/:id", async (c) => {
   const { id } = c.req.param();
   const userId = c.get("userId");
@@ -567,7 +560,6 @@ jobs.get("/:id", async (c) => {
   });
 });
 
-// PATCH /:id — Update job
 jobs.patch("/:id", async (c) => {
   const userId = c.get("userId");
   const { id } = c.req.param();
@@ -598,7 +590,6 @@ jobs.patch("/:id", async (c) => {
     }).catch(() => undefined);
   }
 
-  // Sync saved_jobs table (scoped to user)
   if (body.saved !== undefined) {
     if (body.saved) {
       await c.env.DB.prepare(
@@ -671,7 +662,8 @@ jobs.patch("/:id", async (c) => {
   return c.json(serializeJob(updated));
 });
 
-// DELETE /:id/block — Permanently block a job globally (never returns from polls)
+// Blocking is global, not per-user: the poller skips blocked external_ids, so the
+// job never returns from a later poll of the same company.
 jobs.delete("/:id/block", requireAdmin, async (c) => {
   const { id } = c.req.param();
 
@@ -697,7 +689,6 @@ jobs.delete("/:id/block", requireAdmin, async (c) => {
   return c.body(null, 204);
 });
 
-// GET /saved — List saved jobs for current user
 jobs.get("/saved/list", async (c) => {
   const userId = c.get("userId");
   await ensureUserJobScores(c.env.DB, userId);
@@ -718,8 +709,8 @@ jobs.get("/saved/list", async (c) => {
   return c.json({ jobs: (result.results ?? []).map(serializeJob) });
 });
 
-// GET /applied/list — Lightweight application history. This intentionally
-// ignores the legacy pipeline stages; an application is simply present or not.
+// Intentionally ignores the legacy pipeline stages; an application is simply
+// present or not.
 jobs.get("/applied/list", async (c) => {
   const userId = c.get("userId");
   await ensureUserJobScores(c.env.DB, userId);

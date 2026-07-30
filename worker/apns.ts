@@ -1,6 +1,3 @@
-// ─── Apple Push Notification service (APNs) ──────────────────────────────────
-//
-// Sends native push notifications to the iOS app over APNs' HTTP/2 + JWT API.
 // Mirrors the VAPID JWT approach in push.ts: an ES256 token signed with WebCrypto,
 // no Node-only dependencies, so it runs on Cloudflare Workers.
 //
@@ -39,10 +36,6 @@ interface CachedToken {
 
 let tokenCache: CachedToken | null = null;
 
-/**
- * Decodes a PKCS#8 PEM private key (the contents of an AuthKey_XXXX.p8 file)
- * into the DER bytes WebCrypto's importKey expects.
- */
 function pemToPkcs8(pem: string): Uint8Array {
   const body = pem
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
@@ -55,11 +48,6 @@ function pemToPkcs8(pem: string): Uint8Array {
 }
 
 /**
- * Builds (or returns a cached) APNs provider JWT signed with ES256.
- *
- * Header:  { alg: "ES256", kid: <keyId> }
- * Payload: { iss: <teamId>, iat: <now> }
- *
  * crypto.subtle.sign(ECDSA) already returns the raw r||s JOSE signature that
  * JWT ES256 requires, so no DER unwrapping is needed.
  */
@@ -104,14 +92,13 @@ export async function buildApnsJwt(
   return jwt;
 }
 
-/** Test/maintenance hook: clears the cached provider token. */
 export function _resetApnsTokenCache(): void {
   tokenCache = null;
 }
 
 /**
- * Maps the shared NotificationPayload into an APNs payload. The `url` from the
- * web-push payload is carried at the top level so the app can deep-link on tap.
+ * The `url` from the web-push payload is carried at the top level so the app can
+ * deep-link on tap.
  */
 export function buildApnsBody(payload: NotificationPayload): string {
   return JSON.stringify({
@@ -125,7 +112,6 @@ export function buildApnsBody(payload: NotificationPayload): string {
 }
 
 /**
- * Sends a single notification to one device token via APNs.
  * Returns the same PushResult shape as sendPushNotification so callers can
  * treat web and native results uniformly (including 410-style cleanup).
  */
@@ -189,10 +175,6 @@ export async function sendApnsNotification(
   }
 }
 
-/**
- * Builds an ApnsConfig from the environment, or returns null when APNs isn't
- * fully configured (so callers can cleanly skip native push).
- */
 export function resolveApnsConfig(env: Env): ApnsConfig | null {
   const keyId = env.APNS_KEY_ID?.trim();
   const teamId = env.APNS_TEAM_ID?.trim();

@@ -5,7 +5,6 @@
   import { errorMessage, timeAgo } from "../lib/utils";
   import { setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
-  import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
@@ -65,7 +64,6 @@
 </script>
 
 <div class="page root-screen library-page">
-  <RootHeader title="Library" subtitle="The roles you want to remember" />
   <div class="page-frame my-jobs-page">
     <div class="my-jobs-tabs" role="tablist" aria-label="Your jobs">
       <button

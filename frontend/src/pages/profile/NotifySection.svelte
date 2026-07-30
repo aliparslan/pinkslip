@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Notification settings: master switch, push enrollment, and test sends.
   import { api } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import { enableNativePush, isNativeIos } from "../../lib/native-push";
@@ -67,7 +66,6 @@
       />
     </div>
 
-    <!-- Push toggle -->
     <div class="grouped-row">
       <div class="grouped-row-copy">
         <div class="row-title">Push notifications</div>

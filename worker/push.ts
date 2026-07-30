@@ -1,5 +1,3 @@
-// ─── Notification Payload ────────────────────────────────────────────────────
-
 export interface NotificationJob {
   company: string;
   title: string;
@@ -12,13 +10,6 @@ export interface NotificationPayload {
   data: { url: string; job_ids?: string[] };
 }
 
-/**
- * Builds a Web Push notification payload from an array of new job listings.
- *
- * - 1 job:   title = company name, body = job title, url = /jobs/{jobId}
- * - 2–4:     title = "N new jobs", body = company names, url = /
- * - 5+:      title = "N new jobs", body = company names (up to 4) + "and more", url = /
- */
 export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {
   const count = jobs.length;
 
@@ -43,8 +34,6 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
   };
 }
 
-// ─── VAPID / Push helpers ────────────────────────────────────────────────────
-
 export interface VapidConfig {
   subject: string;
   publicKey: string;
@@ -59,7 +48,6 @@ export interface PushSubscription {
   };
 }
 
-// Base64url helpers (no padding)
 function asUint8Array(buffer: ArrayBuffer | ArrayBufferView): Uint8Array {
   if (buffer instanceof ArrayBuffer) {
     return new Uint8Array(buffer);
@@ -85,10 +73,7 @@ export function base64urlDecode(str: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Builds a VAPID JWT (ES256) using WebCrypto.
- * Returns a string suitable for the Authorization header: "vapid t=...,k=..."
- */
+/** Returns an Authorization header value of the form "vapid t=...,k=...". */
 async function buildVapidHeader(
   endpoint: string,
   vapid: VapidConfig
@@ -103,7 +88,7 @@ async function buildVapidHeader(
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     aud: audience,
-    exp: now + 12 * 60 * 60, // 12 hours
+    exp: now + 12 * 60 * 60,
     sub: vapid.subject,
   };
   const payload = base64urlEncode(
@@ -150,8 +135,6 @@ async function buildVapidHeader(
 
   return `vapid t=${token},k=${vapid.publicKey}`;
 }
-
-// ─── RFC 8291 Payload Encryption ────────────────────────────────────────────
 
 function concat(...arrays: Uint8Array[]): Uint8Array {
   const len = arrays.reduce((sum, a) => sum + a.length, 0);
@@ -236,9 +219,6 @@ export interface PushResult {
   error?: string;
 }
 
-/**
- * Sends a Web Push notification with RFC 8291 encrypted payload.
- */
 export async function sendPushNotification(
   subscription: PushSubscription,
   payload: NotificationPayload,

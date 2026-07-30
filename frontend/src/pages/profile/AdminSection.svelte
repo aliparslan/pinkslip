@@ -33,6 +33,7 @@
   let feedbackInbox: FeedbackSubmission[] = $state([]);
   let refreshingAll = $state(false);
   let refreshLog: string[] = $state([]);
+  let refreshProgress = $state("");
 
   function formatLatency(seconds: number) {
     if (seconds < 60) return `${Math.round(seconds)} sec`;
@@ -130,17 +131,27 @@
     }
   }
 
+  const MANUAL_SWEEP_BATCHES = 5;
+
   async function refreshAllCompanies() {
     refreshingAll = true;
+    let totalPolled = 0;
+    let totalNewJobs = 0;
     try {
-      const result = await api.ops.refreshAll();
-      refreshLog = result.log ?? [];
-      onSuccess(`Polled ${result.companiesPolled} companies · ${result.newJobsFound} new jobs`);
+      for (let batch = 1; batch <= MANUAL_SWEEP_BATCHES; batch += 1) {
+        refreshProgress = `Polling — batch ${batch} of ${MANUAL_SWEEP_BATCHES}…`;
+        const result = await api.ops.refreshAll();
+        refreshLog = result.log ?? [];
+        totalPolled += result.companiesPolled;
+        totalNewJobs += result.newJobsFound;
+      }
+      onSuccess(`Polled ${totalPolled} companies · ${totalNewJobs} new jobs`);
       await loadAdminData();
     } catch (caught) {
       onError(errorMessage(caught));
     } finally {
       refreshingAll = false;
+      refreshProgress = "";
     }
   }
 
@@ -272,7 +283,7 @@
         <div class="grouped-row run-operation">
           <div class="grouped-row-copy">
             <div class="row-title">Refresh every source</div>
-            <div class="helper-text">Run the full company poll now.</div>
+            <div class="helper-text">{refreshProgress || "Run the full company poll now."}</div>
           </div>
           <button class="btn-secondary" disabled={refreshingAll} onclick={refreshAllCompanies}>
             {#if refreshingAll}<Spinner />{/if}

@@ -349,10 +349,11 @@
     max-width: 18ch;
     margin: 0 0 var(--space-3);
     color: var(--color-ink);
+    font-family: var(--font-pixel);
     font-size: var(--fs-4xl);
-    font-weight: 600;
-    letter-spacing: -0.035em;
-    line-height: 1.08;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.15;
   }
 
   .onboarding-copy {

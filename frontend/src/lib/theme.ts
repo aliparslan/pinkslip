@@ -32,7 +32,6 @@ function applyTheme(mode: ThemeMode) {
 
 themeMode.subscribe(applyTheme);
 
-// Follow live OS theme changes while in "system" mode.
 if (typeof window !== "undefined") {
   window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
     themeMode.update((m) => m); // re-run applyTheme with the current mode

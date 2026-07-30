@@ -33,7 +33,6 @@
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
-  import RootHeader from "../components/RootHeader.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
@@ -443,8 +442,6 @@
   </div>
 {:else}
   <div class="page root-screen">
-    <RootHeader title="You" subtitle="Your search, materials, and account" />
-
     <div class="page-frame you-page">
 
       {#if loading}

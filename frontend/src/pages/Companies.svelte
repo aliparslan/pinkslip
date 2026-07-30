@@ -101,7 +101,6 @@
   let search: string = $state("");
   let visibleCount: number = $state(COMPANY_PAGE_SIZE);
 
-  // Add company form
   let showAddForm: boolean = $state(false);
   let addName: string = $state("");
   let addAtsType: string = $state("greenhouse");
@@ -112,14 +111,12 @@
   let addVerifyError: string | null = $state(null);
   let addVerifyMsg: string | null = $state(null);
 
-  // Edit company
   let editTarget: { id: string; name: string; ats_type: string; ats_slug: string } | null = $state(null);
   let saving: boolean = $state(false);
   let editVerifyBusy: boolean = $state(false);
   let editVerifyError: string | null = $state(null);
   let editVerifyMsg: string | null = $state(null);
 
-  // Delete confirmation
   let deleteTarget: { id: string; name: string } | null = $state(null);
   let deleting: boolean = $state(false);
   let reportTarget: { id: string; name: string } | null = $state(null);
@@ -671,7 +668,6 @@
   </div>
 </div>
 
-<!-- Edit company modal -->
 {#if isAdminMode && editTarget}
   <Modal
     title="Edit company"
@@ -848,7 +844,6 @@
   }
 </style>
 
-<!-- Delete confirmation modal -->
 {#if isAdminMode && deleteTarget}
   <Modal
     title="Remove {deleteTarget.name}?"

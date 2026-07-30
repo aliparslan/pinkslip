@@ -446,7 +446,6 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ endpoint }),
       }),
-    // Native iOS: register an APNs device token for the current user.
     registerApns: (token: string) =>
       request<{ id: string }>("/push/apns", {
         method: "POST",
@@ -589,10 +588,6 @@ export const api = {
     list: (limit = 50) => request<{ runs: FetchRun[] }>(`/runs?limit=${limit}`),
   },
   ops: {
-    // A full poll cycle takes 57-76s against ~220 companies, so the default 20s
-    // request timeout aborted this every single time — "Run now" could not
-    // succeed, and reported "taking longer than expected" while the cycle
-    // actually completed server-side. Matches the per-company poll's allowance.
     refreshAll: (limit?: number) =>
       request<{ companiesPolled: number; newJobsFound: number; log: string[] }>(
         `/poll${limit ? `?limit=${limit}` : ""}`,

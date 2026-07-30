@@ -54,7 +54,6 @@ class ApplicationIntentController {
 
     try {
       if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("Browser")) {
-        // Clear any previous listener cleanly
         this.clearReturnListeners();
 
         this.browserListener = await Browser.addListener("browserFinished", () => {

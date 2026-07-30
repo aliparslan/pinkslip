@@ -99,8 +99,6 @@ export const EXPERIENCE_OPTIONS = [
 export type ExperienceLevel = (typeof EXPERIENCE_OPTIONS)[number]["id"];
 export type StretchTolerance = "strict" | "balanced" | "ambitious";
 
-// ─── The band pinkslip serves ────────────────────────────────────────────────
-//
 // pinkslip targets exactly one audience: new grads through roughly three years.
 // This is deliberately a constant and not a user preference. When level was
 // user-selectable the filter compared against Math.max(target_levels), which put

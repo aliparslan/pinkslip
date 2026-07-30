@@ -101,10 +101,6 @@ const SOFTWARE_DOMAIN_MARKERS = [
   "infrastructure",
 ];
 
-/**
- * Negative keywords that immediately zero out the title score.
- * We match them against the lowercased title with word-boundary awareness.
- */
 const BUILTIN_NEGATIVE_KEYWORDS = [
   "senior",
   "sr",
@@ -130,7 +126,6 @@ const BUILTIN_NEGATIVE_KEYWORDS = [
 
 interface TitleResult {
   score: number;
-  /** True when a negative keyword matched — the entire job should be capped low. */
   disqualified: boolean;
 }
 
@@ -146,7 +141,6 @@ function scoreTitleMatch(title: string, prefs: ScoringPrefs): TitleResult {
     ])
   );
 
-  // Check negative keywords first — any match disqualifies the job
   for (const kw of negatives) {
     if (containsKeyword(lower, kw)) return { score: 0, disqualified: true };
   }
@@ -337,7 +331,7 @@ function scoreRecency(postedAt: string | null): number {
   if (postedAt === null) return 3;
 
   const posted = new Date(postedAt);
-  if (isNaN(posted.getTime())) return 0; // unparseable date
+  if (isNaN(posted.getTime())) return 0;
 
   const ageDays = (Date.now() - posted.getTime()) / ONE_DAY_MS;
 
@@ -347,22 +341,13 @@ function scoreRecency(postedAt: string | null): number {
   return Math.max(0, Math.min(10, Math.round((10 - ageDays / 3) * 10) / 10));
 }
 
-// ─── Utility ─────────────────────────────────────────────────────────────────
-
-/**
- * Check whether `text` contains `keyword` as a distinct phrase.
- * Uses word boundaries for single words; for multi-word keywords uses plain substring.
- */
 function containsKeyword(text: string, keyword: string): boolean {
   if (keyword.includes(" ")) {
     return text.includes(keyword);
   }
-  // Word-boundary check for single tokens
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b`).test(text);
 }
-
-// ─── Main export ─────────────────────────────────────────────────────────────
 
 export interface ScoreBreakdown {
   score: number;

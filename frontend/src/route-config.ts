@@ -8,15 +8,17 @@ export interface RouteDefinition {
   depth: number;
   rootDestination?: RootDestination;
   showRootNavigation?: boolean;
+  rootHeaderTitle?: string;
+  rootHeaderSubtitle?: string;
 }
 
 export const routeDefinitions: RouteDefinition[] = [
-  { id: "feed", pattern: "/", shell: "consumer", depth: 0, rootDestination: "feed", showRootNavigation: true },
+  { id: "feed", pattern: "/", shell: "consumer", depth: 0, rootDestination: "feed", showRootNavigation: true, rootHeaderTitle: "Feed", rootHeaderSubtitle: "Roles matched to your search" },
   { id: "job", pattern: "/jobs/:jobId", shell: "consumer", depth: 1, rootDestination: "feed" },
   { id: "tailor", pattern: "/tailor/:jobId", shell: "consumer", depth: 2, rootDestination: "feed" },
-  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true },
-  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true },
-  { id: "you", pattern: "/you", shell: "consumer", depth: 0, rootDestination: "you", showRootNavigation: true },
+  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", rootHeaderSubtitle: "The roles you want to remember" },
+  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", rootHeaderSubtitle: "The roles you want to remember" },
+  { id: "you", pattern: "/you", shell: "consumer", depth: 0, rootDestination: "you", showRootNavigation: true, rootHeaderTitle: "You", rootHeaderSubtitle: "Your search, materials, and account" },
   { id: "you-preferences", pattern: "/you/preferences", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-alerts", pattern: "/you/alerts", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-companies", pattern: "/you/companies", shell: "consumer", depth: 1, rootDestination: "you" },
@@ -83,6 +85,13 @@ export function rootDestinationFor(route: string): RootDestination | null {
 
 export function showsRootNavigation(route: string): boolean {
   return routeDefinition(route).showRootNavigation === true;
+}
+
+export function rootHeaderFor(route: string): { title: string; subtitle: string } | null {
+  const definition = routeDefinition(route);
+  return definition.rootHeaderTitle
+    ? { title: definition.rootHeaderTitle, subtitle: definition.rootHeaderSubtitle ?? "" }
+    : null;
 }
 
 export function routeParam(route: string, name: string): string | null {

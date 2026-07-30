@@ -1,7 +1,3 @@
-/**
- * Shared salary formatting utilities for ATS adapters.
- */
-
 interface GreenhousePayRange {
   min_cents: number;
   max_cents: number;
@@ -41,10 +37,6 @@ function normalizeHtmlText(html: string): string {
     .trim();
 }
 
-/**
- * Formats a Greenhouse pay_input_range into a human-readable salary string.
- * Returns null if the range is not provided.
- */
 export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): string | null {
   if (!range) return null;
   const min = Math.round(range.min_cents / 100).toLocaleString();
@@ -55,10 +47,6 @@ export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): s
   return salary;
 }
 
-/**
- * Formats a Lever salaryRange into a human-readable salary string.
- * Returns null if the range is not provided.
- */
 export function formatLeverSalary(range: LeverSalaryRange | undefined): string | null {
   if (!range) return null;
   const { min, max, currency, interval } = range;
@@ -66,9 +54,6 @@ export function formatLeverSalary(range: LeverSalaryRange | undefined): string |
   return `${prefix}${min.toLocaleString()} – ${prefix}${max.toLocaleString()}/${interval}`;
 }
 
-/**
- * Extracts compensation text from raw ATS HTML when the structured salary field is absent.
- */
 export function extractSalaryFromHtml(html: string | null | undefined): string | null {
   if (!html) return null;
 

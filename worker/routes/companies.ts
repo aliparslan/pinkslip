@@ -66,7 +66,6 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && /unique|constraint/i.test(error.message);
 }
 
-// GET / — List companies
 companies.get("/", async (c) => {
   const { ats_type } = c.req.query();
   const admin = await isAdminUser(
@@ -100,7 +99,6 @@ companies.get("/", async (c) => {
   return c.json({ companies: (result.results ?? []).map(serializeCompany) });
 });
 
-// POST /verify — Test an ATS slug without persisting it
 companies.post("/verify", requireAdmin, async (c) => {
   const body = await c.req.json<{
     ats_type: CompanySourceType;
@@ -126,7 +124,6 @@ companies.post("/verify", requireAdmin, async (c) => {
   }
 });
 
-// POST / — Add company
 companies.post("/", requireAdmin, async (c) => {
   const body = await c.req.json<{
     name: string;
@@ -197,7 +194,6 @@ companies.post("/", requireAdmin, async (c) => {
   return c.json(created ? serializeCompany(created) : null, 201);
 });
 
-// PATCH /:id — Update company
 companies.patch("/:id", requireAdmin, async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{
@@ -309,7 +305,6 @@ companies.patch("/:id", requireAdmin, async (c) => {
   return c.json(serializeCompany(updated));
 });
 
-// POST /:id/poll — Trigger a poll for a single company
 companies.post("/:id/poll", requireAdmin, async (c) => {
   const { id } = c.req.param();
   const db = c.env.DB;
@@ -363,7 +358,6 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
   }
 });
 
-// DELETE /:id — Delete company
 companies.delete("/:id", requireAdmin, async (c) => {
   const { id } = c.req.param();
 

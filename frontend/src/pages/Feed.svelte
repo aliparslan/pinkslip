@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { scrollContainer } from "../router";
   import { api, type Job } from "../lib/api";
   import { timeAgo, errorMessage } from "../lib/utils";
   import { feed, markLocationsManuallySet, PAGE_SIZE, type PostedFilter } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import { removeFeedNavigationJob, setFeedNavigationJobs } from "../lib/feed-navigation";
   import JobRow from "../components/JobRow.svelte";
-  import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
   import Modal from "../components/Modal.svelte";
@@ -452,17 +452,14 @@
     await loadFeed(true);
   }
 
-  // The feed scrolls at the document level. Lock both roots while the sheet is
-  // open so touch gestures belong to the filter surface, not the list behind it.
   $effect(() => {
     if (!filtersOpen) return;
-    const rootOverflow = document.documentElement.style.overflow;
-    const bodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
+    const container = scrollContainer();
+    if (!container) return;
+    const previousOverflow = container.style.overflow;
+    container.style.overflow = "hidden";
     return () => {
-      document.documentElement.style.overflow = rootOverflow;
-      document.body.style.overflow = bodyOverflow;
+      container.style.overflow = previousOverflow;
     };
   });
 
@@ -488,7 +485,7 @@
 
     const handleTouchStart = (event: TouchEvent) => {
       pullCandidate = false;
-      if (pullSettling || filtersOpen || window.scrollY > 0 || event.touches.length !== 1) return;
+      if (pullSettling || filtersOpen || (scrollContainer()?.scrollTop ?? 0) > 0 || event.touches.length !== 1) return;
       const touch = event.touches[0];
       pullStartX = touch.clientX;
       pullStartY = touch.clientY;
@@ -592,8 +589,6 @@
 </script>
 
 <div bind:this={feedPage} class="page root-screen feed-page" class:pull-settling={pullSettling}>
-  <RootHeader title="Feed" subtitle="Roles matched to your search" />
-
   <!-- Search and filtering share one compact control surface. -->
   <div class="feed-controls">
     <div class="feed-toolbar">
@@ -650,7 +645,6 @@
 
   <div class="divider"></div>
 
-  <!-- Job rows -->
   <div>
     {#if loading}
       {#each Array(6) as _}

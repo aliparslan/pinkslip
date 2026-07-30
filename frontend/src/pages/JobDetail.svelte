@@ -18,6 +18,7 @@
     normalizeSalaryText,
     sanitizeJobDescriptionHtml,
   } from "../lib/job-content";
+  import { DropdownMenu } from "bits-ui";
   import CompanyLogo from "../components/CompanyLogo.svelte";
   import Modal from "../components/Modal.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
@@ -280,10 +281,6 @@
 
 </script>
 
-<svelte:window onkeydown={(event) => {
-  if (event.key === "Escape") showMore = false;
-}} />
-
 <div class="page pushed-screen">
   <ScreenNav
     title=""
@@ -298,45 +295,41 @@
       <button class="icon-btn" aria-label="Save" onclick={toggleSave}>
         <BookmarkSimple size={20} weight={saved ? "fill" : "regular"} color={saved ? "var(--color-accent)" : "var(--color-ink-2)"} />
       </button>
-      <button
-        class="icon-btn"
-        aria-label="More job actions"
-        aria-haspopup="menu"
-        aria-expanded={showMore}
-        onclick={() => { showMore = !showMore; }}
-      >
-        <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
-      </button>
-      {#if showMore}
-        <button class="job-more-scrim" aria-label="Close job actions" onclick={() => { showMore = false; }}></button>
-        <div class="job-more-menu" role="menu" aria-label="More job actions">
-          <button
-            role="menuitem"
-            disabled={hidingCompany}
-            onclick={() => { showMore = false; void hideCompany(); }}
+      <DropdownMenu.Root bind:open={showMore}>
+        <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
+          <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            class="job-more-menu"
+            side="bottom"
+            align="end"
+            sideOffset={6}
+            collisionPadding={12}
+            strategy="fixed"
+            preventScroll={false}
           >
-            {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
-            <span>Hide {job?.company_name ?? "company"}</span>
-          </button>
-          <button
-            role="menuitem"
-            onclick={() => { showMore = false; showReport = true; }}
-          >
-            <Flag size={17} />
-            <span>Report listing</span>
-          </button>
-          {#if $sessionAccess.isAdmin}
-            <button
-              class="danger"
-              role="menuitem"
-              onclick={() => { showMore = false; showBlockConfirm = true; }}
+            <DropdownMenu.Item
+              class="job-more-menu-item"
+              disabled={hidingCompany}
+              onSelect={() => void hideCompany()}
             >
-              <Trash size={17} />
-              <span>Block for everyone</span>
-            </button>
-          {/if}
-        </div>
-      {/if}
+              {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
+              <span>Hide {job?.company_name ?? "company"}</span>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item class="job-more-menu-item" onSelect={() => { showReport = true; }}>
+              <Flag size={17} />
+              <span>Report listing</span>
+            </DropdownMenu.Item>
+            {#if $sessionAccess.isAdmin}
+              <DropdownMenu.Item class="job-more-menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
+                <Trash size={17} />
+                <span>Block for everyone</span>
+              </DropdownMenu.Item>
+            {/if}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
       </div>
     {/snippet}
   </ScreenNav>
@@ -354,7 +347,6 @@
         </div>
       </div>
     {:else if job}
-      <!-- Company + Title header -->
       <div class="job-detail-identity">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
         <div class="job-detail-heading">
@@ -372,7 +364,6 @@
         </div>
       </div>
 
-      <!-- Metadata row -->
       <div class="job-meta-strip job-detail-meta">
         {#if job.location}
           <div class="job-meta-item">
@@ -418,7 +409,6 @@
           </button>
       </div>
 
-      <!-- About the role -->
       {#if descriptionPending}
         <div class="job-description-section">
           <h2 class="section-title job-description-heading">
@@ -618,7 +608,6 @@
   </Modal>
 {/if}
 
-<!-- Block confirmation (admin) -->
 {#if $sessionAccess.isAdmin && showBlockConfirm}
   <Modal
     title="Block this job?"

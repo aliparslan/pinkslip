@@ -126,7 +126,6 @@ export function normalizeSalaryText(salary: string | null | undefined): string |
     .replace(/([$£€¥])\s+(\d)/g, "$1$2");
 }
 
-/** Compact feed-row pay without throwing away the precise detail-page value. */
 export function formatCompactSalaryText(salary: string | null | undefined): string | null {
   const normalized = normalizeSalaryText(salary);
   if (!normalized) return null;

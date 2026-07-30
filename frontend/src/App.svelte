@@ -8,7 +8,9 @@
     routeParam,
     routeShell,
     restoreScrollFor,
+    rootHeaderFor,
     savedScrollFor,
+    scrollContainer,
     showsRootNavigation,
   } from "./router";
   import { api, ApiError } from "./lib/api";
@@ -23,6 +25,7 @@
   import Profile from "./pages/Profile.svelte";
   import JobLibrary from "./pages/JobLibrary.svelte";
   import TabBar from "./components/TabBar.svelte";
+  import RootHeader from "./components/RootHeader.svelte";
   import Onboarding from "./components/Onboarding.svelte";
   import Spinner from "./components/Spinner.svelte";
   import ToastViewport from "./components/ToastViewport.svelte";
@@ -30,6 +33,7 @@
   import { applicationIntent } from "./lib/application-intent.svelte";
   import { initNativePush } from "./lib/native-push";
   import { syncFeedPreferences } from "./lib/feed-store.svelte";
+  import { modalStack } from "./lib/modal-stack.svelte";
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
@@ -90,13 +94,34 @@
   let isDetailPage = $derived(route.startsWith("/jobs/"));
   let isTailorPage = $derived(route.startsWith("/tailor/"));
   let CurrentPage: PageComponent | null = $state(asPage(Feed));
+  let pageLoadFailed = $state(false);
   let pageLoadGeneration = 0;
   let jobId = $derived(routeParam(route, "jobId"));
-  let mobileTabBarVisible = $derived(showsRootNavigation(route));
 
-  $effect(() => {
+  async function loadPageEntry(cacheKey: string, load: () => Promise<PageModule>, generation: number) {
+    try {
+      const module = await load();
+      if (generation !== pageLoadGeneration) return;
+      const component = asPage(module.default);
+      componentCache.set(cacheKey, component);
+      CurrentPage = component;
+    } catch {
+      try {
+        const module = await load();
+        if (generation !== pageLoadGeneration) return;
+        const component = asPage(module.default);
+        componentCache.set(cacheKey, component);
+        CurrentPage = component;
+      } catch {
+        if (generation === pageLoadGeneration) pageLoadFailed = true;
+      }
+    }
+  }
+
+  function loadCurrentRoute() {
     const activeRoute = route;
     const generation = ++pageLoadGeneration;
+    pageLoadFailed = false;
     const entry = entryFor(activeRoute);
     if (entry.component) {
       CurrentPage = entry.component;
@@ -110,16 +135,11 @@
     }
 
     CurrentPage = null;
-    void entry.load().then((module) => {
-      const component = asPage(module.default);
-      componentCache.set(entry.cacheKey, component);
-      if (generation === pageLoadGeneration) CurrentPage = component;
-    }).catch(() => {
-      if (generation === pageLoadGeneration) CurrentPage = asPage(Feed);
-    });
-  });
+    void loadPageEntry(entry.cacheKey, entry.load, generation);
+  }
 
-  // ── Interactive swipe-back ──────────────────────────────────────────────────
+  $effect(loadCurrentRoute);
+
   // A left-edge drag translates the live page (foreground) to the right, revealing
   // the previous screen (underlay) with a parallax + dim, UIKit-style. Release past
   // the threshold (or with enough velocity) commits the navigation; otherwise it
@@ -127,9 +147,11 @@
   let fgEl = $state<HTMLElement | undefined>();
   let underlayEl = $state<HTMLElement | undefined>();
   let dimEl = $state<HTMLElement | undefined>();
+  let mainEl = $state<HTMLElement | undefined>();
 
   let underlayRoute = $state<string | null>(null); // previous page, mounted only while swiping
   let swiping = $state(false); // finger down with the horizontal lock engaged
+  let settling = $state(false); // release animation in flight
 
   function pageFor(r: string): { Comp: PageComponent; jid: string | null } {
     return {
@@ -141,6 +163,17 @@
   let underlayJobId = $derived(underlayRoute ? pageFor(underlayRoute).jid : null);
   let underlayHasMobileTabs = $derived(underlayRoute ? routeDepth(underlayRoute) === 0 : false);
   let underlayScroll = $derived(underlayRoute ? savedScrollFor(underlayRoute) : 0);
+  let underlayRootHeader = $derived(underlayRoute ? rootHeaderFor(underlayRoute) : null);
+  let visualRoute = $derived((swiping || settling) && underlayRoute ? underlayRoute : route);
+  let mobileTabBarVisible = $derived(showsRootNavigation(visualRoute));
+  let rootHeaderInfo = $derived(rootHeaderFor(visualRoute));
+
+  $effect(() => {
+    void CurrentPage;
+    if (!document.body.classList.contains("nav-animating")) return;
+    const pageEl = mainEl?.querySelector<HTMLElement>(".page");
+    if (pageEl) pageEl.style.animation = "none";
+  });
 
   const EDGE = 44; // generous iOS-sized edge target for swipe-back
   const SETTLE = 240; // ms for the release animation
@@ -154,7 +187,6 @@
   let velocity = 0; // px/ms
   let candidate = false; // touch began at the edge on a backable page
   let locked = false; // confirmed a horizontal drag
-  let settling = false; // release animation in flight
   let target: string | null = null;
 
   function paint(dx: number) {
@@ -176,7 +208,8 @@
       await nextFrame();
       await tick();
       restoreScrollFor(dest);
-      if (targetScroll === 0 || Math.abs(window.scrollY - targetScroll) < 1) return;
+      const scrollTop = scrollContainer()?.scrollTop ?? 0;
+      if (targetScroll === 0 || Math.abs(scrollTop - targetScroll) < 1) return;
     } while (performance.now() < deadline);
   }
 
@@ -211,7 +244,7 @@
       }
       locked = true;
       swiping = true;
-      underlayRoute = target; // mount the previous page underneath
+      underlayRoute = target;
       document.body.classList.add("nav-animating");
     }
 
@@ -424,15 +457,6 @@
       detachBack();
     };
   });
-
-  // Lock the page behind full-screen overlays so nothing scrolls underneath
-  // (iOS WebView scrolls documentElement, so lock both html and body).
-  $effect(() => {
-    const lock = (sessionReady && showOnboarding) || showAccessGate;
-    const value = lock ? "hidden" : "";
-    document.documentElement.style.overflow = value;
-    document.body.style.overflow = value;
-  });
 </script>
 
 <!-- Solid status-bar backing keeps content clear of the system clock without
@@ -444,12 +468,17 @@
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
 {#if underlayRoute && UnderlayComp}
   <div class="nav-underlay" bind:this={underlayEl} aria-hidden="true">
-    <div
-      class="app-content-shell nav-underlay-content"
-      class:mobile-tabs-visible={underlayHasMobileTabs}
-      style:transform={`translateY(-${underlayScroll}px)`}
-    >
-      <UnderlayComp jobId={underlayJobId} routeOverride={underlayRoute} />
+    <div class="app-content-shell nav-underlay-shell">
+      {#if underlayRootHeader}
+        <RootHeader title={underlayRootHeader.title} subtitle={underlayRootHeader.subtitle} />
+      {/if}
+      <div
+        class="nav-underlay-content"
+        class:mobile-tabs-visible={underlayHasMobileTabs}
+        style:transform={`translateY(-${underlayScroll}px)`}
+      >
+        <UnderlayComp jobId={underlayJobId} routeOverride={underlayRoute} />
+      </div>
     </div>
     <div class="nav-underlay-dim" bind:this={dimEl}></div>
   </div>
@@ -464,8 +493,19 @@
 >
   {#if sessionReady}
     {#if !showOnboarding}
-      <main id="main-content" class="app-main" tabindex="-1">
-        {#if !CurrentPage}
+      {#if rootHeaderInfo}
+        <RootHeader title={rootHeaderInfo.title} subtitle={rootHeaderInfo.subtitle} />
+      {/if}
+      <main id="main-content" class="app-main" tabindex="-1" inert={modalStack.open} bind:this={mainEl}>
+        {#if pageLoadFailed}
+          <div class="boot-error-wrap">
+            <div class="boot-error-card">
+              <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
+              <div class="boot-error-copy">Check your connection and try again.</div>
+              <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+            </div>
+          </div>
+        {:else if !CurrentPage}
           <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
         {:else if isDetailPage}
           <CurrentPage {jobId} />
@@ -476,7 +516,7 @@
         {/if}
       </main>
       {#if routeShell(route) === "consumer"}
-        <TabBar mobileHidden={!mobileTabBarVisible} />
+        <TabBar mobileHidden={!mobileTabBarVisible} inert={modalStack.open} />
       {/if}
     {/if}
   {:else if bootError}

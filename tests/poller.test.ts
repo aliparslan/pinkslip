@@ -9,8 +9,6 @@ import {
 import { buildSourceAlertPayload } from "@worker/admin-alerts";
 import type { JobListing } from "@worker/adapters/types";
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
 function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobListing {
   return {
     externalId,
@@ -25,10 +23,7 @@ function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobLi
   };
 }
 
-// ─── diffJobs tests ──────────────────────────────────────────────────────────
-
 describe("diffJobs", () => {
-  // Test 1: Identifies new jobs not in existing set
   it("returns only jobs whose externalId is not in existingExternalIds", () => {
     const fetched: JobListing[] = [
       makeJob("job-1"),
@@ -46,7 +41,6 @@ describe("diffJobs", () => {
     expect(result.map((j) => j.externalId)).not.toContain("job-1");
   });
 
-  // Test 2: Returns all jobs when none exist
   it("returns all fetched jobs when existing set is empty", () => {
     const fetched: JobListing[] = [
       makeJob("new-1"),
@@ -62,7 +56,6 @@ describe("diffJobs", () => {
     );
   });
 
-  // Test 3: Returns empty when all jobs exist
   it("returns empty array when all fetched jobs are already in existingExternalIds", () => {
     const fetched: JobListing[] = [
       makeJob("known-1"),
@@ -76,7 +69,6 @@ describe("diffJobs", () => {
     expect(result).toEqual([]);
   });
 
-  // Extra: Empty fetch list returns empty
   it("returns empty array when fetched list is empty", () => {
     const result = diffJobs([], new Set(["existing-1"]));
     expect(result).toHaveLength(0);

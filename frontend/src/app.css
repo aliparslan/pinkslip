@@ -46,12 +46,14 @@
 html, body, #app {
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  height: 100%;
+  overflow: clip hidden;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -67,7 +69,7 @@ body {
   letter-spacing: 0;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  overscroll-behavior: none auto;
+  overscroll-behavior: none;
 }
 
 /* First focusable element on the page. Offscreen until focused, so keyboard
@@ -90,6 +92,14 @@ body {
 
 .skip-link:focus-visible {
   transform: translateY(calc(var(--safe-top) + var(--space-2)));
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: clip auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* Focused programmatically by the skip link; the landing position is the cue,
@@ -355,6 +365,15 @@ html.native-ios textarea {
 
 .feed-toolbar:focus-within {
   border-color: var(--color-control-border);
+}
+
+.feed-toolbar:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.feed-search input:focus-visible {
+  outline: none;
 }
 
 .feed-search {
@@ -727,6 +746,11 @@ html.native-ios textarea {
   color: var(--color-ink-3);
 }
 
+.filter-money-input:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .filter-money-input input {
   min-width: 0;
   width: 100%;
@@ -736,6 +760,10 @@ html.native-ios textarea {
   font: inherit;
   font-size: var(--fs-md);
   font-weight: 500;
+}
+
+.filter-money-input input:focus-visible {
+  outline: none;
 }
 
 .filter-money-input input::placeholder {
@@ -937,6 +965,7 @@ html.native-ios textarea {
 /* Sign in with Apple follows Apple's familiar black treatment everywhere it
    appears, while the pink fill remains reserved for pinkslip's own CTAs. */
 .btn-apple {
+  position: relative;
   background: #000;
   border-color: #1c1c1e;
   color: #fff;
@@ -948,6 +977,14 @@ html.native-ios textarea {
   background: #000;
   border-color: #1c1c1e;
   color: #fff;
+}
+
+.btn-apple-spinner {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
 }
 
 .btn-danger {
@@ -1082,29 +1119,18 @@ html.native-ios textarea {
   gap: 5px;
 }
 
-.job-more-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  appearance: none;
-  border: 0;
-  background: transparent;
-}
-
 .job-more-menu {
-  position: absolute;
-  z-index: 2;
-  top: calc(100% + 4px);
-  right: 0;
+  z-index: var(--z-overlay);
   width: min(260px, calc(100vw - 32px));
   padding: 6px;
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-md);
   background: var(--color-bg-elev);
   box-shadow: var(--shadow-toast);
+  outline: none;
 }
 
-.job-more-menu button {
+.job-more-menu-item {
   width: 100%;
   min-height: 42px;
   padding: 9px 10px;
@@ -1121,17 +1147,18 @@ html.native-ios textarea {
   cursor: pointer;
 }
 
-.job-more-menu button:hover {
+.job-more-menu-item:hover,
+.job-more-menu-item[data-highlighted] {
   background: var(--color-bg-sunken);
   color: var(--color-ink);
 }
 
-.job-more-menu button:disabled {
+.job-more-menu-item:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.job-more-menu button.danger {
+.job-more-menu-item.danger {
   color: var(--color-bad);
 }
 
@@ -2203,7 +2230,6 @@ body.nav-animating .page,
 
 .root-screen {
   min-height: 100dvh;
-  padding-top: var(--safe-top);
 }
 
 .root-screen-header {
@@ -2250,11 +2276,17 @@ body.nav-animating .page,
 }
 
 .app-content-shell {
-  min-height: 100dvh;
   width: 100%;
   max-width: var(--app-mobile-width);
   margin: 0 auto;
   background: var(--color-bg);
+}
+
+.app-content-shell.nav-foreground {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .app-content-shell.mobile-tabs-visible {
@@ -2360,10 +2392,6 @@ body.nav-animating .page,
     padding-bottom: 0;
   }
 
-  .root-screen {
-    padding-top: 0;
-  }
-
   .root-screen-header {
     min-height: 92px;
     padding-top: 36px;
@@ -2390,7 +2418,7 @@ body.nav-animating .page,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-toast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2408,6 +2436,10 @@ body.nav-animating .page,
   background: var(--color-bg-elev);
   box-shadow: var(--shadow-overlay-lg);
   animation: fade-in 150ms ease-out;
+}
+
+.modal-drag-handle {
+  display: none;
 }
 
 .modal-title {
@@ -2441,6 +2473,22 @@ body.nav-animating .page,
     border-left: 0;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     animation: sheet-in var(--duration-standard) var(--ease-standard);
+    transform: translateY(var(--modal-drag-y, 0));
+    transition: transform var(--duration-standard) var(--ease-standard);
+  }
+
+  .modal-card.dragging {
+    transition: none;
+  }
+
+  .modal-drag-handle {
+    width: 36px;
+    height: 4px;
+    margin: -8px auto 14px;
+    border-radius: var(--radius-full);
+    background: var(--color-line-2);
+    display: block;
+    touch-action: none;
   }
 }
 
@@ -2482,8 +2530,17 @@ body.nav-animating .status-bar-scrim {
   will-change: transform;
 }
 
+.app-content-shell.nav-underlay-shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .nav-underlay-content {
-  min-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   will-change: transform;
 }
 
@@ -2606,7 +2663,7 @@ body.nav-animating .screen-nav {
 /* Native tab bars do not float above the software keyboard. Keeping the page
    padding avoids a layout jump; the dock returns as soon as focus leaves. */
 @media (max-width: 899px) {
-  body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus) .tab-bar {
+  body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .tab-bar {
     display: none;
   }
 }

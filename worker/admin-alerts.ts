@@ -1,5 +1,3 @@
-// ─── Operational alerts for admins ───────────────────────────────────────────
-//
 // The system has always known when a source breaks — `companies.last_poll_error`
 // has recorded it faithfully — but nothing ever told anyone. That is how 34 dead
 // slugs quietly became 46 over six weeks. Quarantine stops the wasted requests;
@@ -19,8 +17,6 @@ export interface QuarantinedSource {
 }
 
 /**
- * Builds the alert body.
- *
  * Names the actual companies rather than only a count, because the first thing
  * you want to know is whether it is one obscure board or something central.
  */
@@ -42,8 +38,6 @@ export function buildSourceAlertPayload(
 }
 
 /**
- * Pushes an operational alert to every admin with a registered device.
- *
  * Respects `push_enabled` (an explicit "do not push me") but intentionally not
  * the job-alert `enabled` switch — turning off job alerts should not silently
  * also turn off "your ingestion is broken".
