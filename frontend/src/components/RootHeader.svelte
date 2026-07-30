@@ -34,12 +34,16 @@
 
   .root-header-copy { min-width: 0; }
 
+  /* Pixel display face: no weight axis, so 400 is the only real weight — 600
+     would be synthesized. Bitmap forms also need neutral tracking rather than
+     the tight optical setting a proportional display face wants. */
   .root-header h1 {
     margin: 0;
     color: var(--color-ink);
-    font-size: var(--fs-2xl);
-    font-weight: 600;
-    letter-spacing: -0.025em;
+    font-family: var(--font-pixel);
+    font-size: var(--fs-4xl);
+    font-weight: 400;
+    letter-spacing: 0;
     line-height: 1.1;
   }
 
@@ -61,7 +65,5 @@
       padding-top: var(--space-8);
       padding-bottom: var(--space-4);
     }
-
-    .root-header h1 { font-size: var(--fs-4xl); }
   }
 </style>

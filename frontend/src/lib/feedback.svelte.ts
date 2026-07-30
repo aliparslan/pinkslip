@@ -73,9 +73,12 @@ class FeedbackController {
     return this.show({ ...input, message, tone: "warning" });
   }
 
+  /** Errors persist until dismissed — an error that vanishes on a timer is one
+   *  the user may never have read. Pass an explicit `duration` to override. */
   error(message: string, input: Omit<ToastInput, "message" | "tone"> = {}): string {
-    return this.show({ ...input, message, tone: "error", duration: input.duration ?? null });
+    return this.show({ duration: null, ...input, message, tone: "error" });
   }
+
 
   dismiss(id: string): void {
     this.clearTimer(id);

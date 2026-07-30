@@ -49,7 +49,7 @@
         {/each}
       </nav>
 
-      <main class="admin-view" aria-label={active.label}>
+      <section class="admin-view" aria-label={active.label}>
         {#if route === "/admin/sources"}
           <div class="admin-source-embed"><Companies mode="admin" /></div>
         {:else}
@@ -59,7 +59,7 @@
             onSuccess={(message) => feedback.success(message)}
           />
         {/if}
-      </main>
+      </section>
     </div>
   {/if}
 </div>

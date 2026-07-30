@@ -93,12 +93,9 @@
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-ink-3);
-    /* Pixel letterforms carry no weight axis and need a touch of tracking plus
-       one step up the scale to stay legible at nav size. */
-    font-family: var(--font-pixel);
-    font-size: var(--fs-xs);
-    font-weight: 400;
-    letter-spacing: 0.02em;
+    font-family: var(--font-sans);
+    font-size: var(--fs-2xs);
+    font-weight: 500;
     transition:
       color var(--duration-instant) var(--ease-standard),
       background var(--duration-instant) var(--ease-standard);

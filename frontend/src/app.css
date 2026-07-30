@@ -59,6 +59,34 @@ body {
   overscroll-behavior: none auto;
 }
 
+/* First focusable element on the page. Offscreen until focused, so keyboard
+   users can jump the header and tab bar that precede content on every screen. */
+.skip-link {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+
+.skip-link:focus-visible {
+  transform: translateY(calc(var(--safe-top) + var(--space-2)));
+}
+
+/* Focused programmatically by the skip link; the landing position is the cue,
+   a ring around the whole page is not. */
+.app-main:focus {
+  outline: none;
+}
+
 /* The selection tokens invert per mode, which is right for a text highlight and
    wrong for a selected control — selected UI states use the accent family. */
 ::selection {
@@ -2549,6 +2577,16 @@ body.nav-animating .screen-nav {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Loading indicators are essential motion: the blanket reset above stops them
+     after one iteration, so a spinner freezes mid-load and reads as a hung app.
+     Slowed rather than restored at full speed. */
+  .spin,
+  .skeleton,
+  :global(.save-status-spinner) {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 /* stylelint-enable declaration-no-important */

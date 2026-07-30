@@ -437,6 +437,8 @@
 
 <!-- Solid status-bar backing keeps content clear of the system clock without
      WebKit's dark backdrop-filter gradient. Zero-height off-notch devices. -->
+<a class="skip-link" href="#main-content">Skip to content</a>
+
 <div class="status-bar-scrim" aria-hidden="true"></div>
 
 <!-- Underlay: the previous screen, mounted only during a back-swipe -->
@@ -462,15 +464,17 @@
 >
   {#if sessionReady}
     {#if !showOnboarding}
-      {#if !CurrentPage}
-        <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
-      {:else if isDetailPage}
-        <CurrentPage {jobId} />
-      {:else if isTailorPage}
-        <CurrentPage {jobId} />
-      {:else}
-        <CurrentPage />
-      {/if}
+      <main id="main-content" class="app-main" tabindex="-1">
+        {#if !CurrentPage}
+          <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+        {:else if isDetailPage}
+          <CurrentPage {jobId} />
+        {:else if isTailorPage}
+          <CurrentPage {jobId} />
+        {:else}
+          <CurrentPage />
+        {/if}
+      </main>
       {#if routeShell(route) === "consumer"}
         <TabBar mobileHidden={!mobileTabBarVisible} />
       {/if}
