@@ -312,7 +312,7 @@
   }
   .choice-card { min-height: 48px; padding: 10px var(--space-3); border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 500; }
   .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
-  .choice-card:active, .location-chip:active { transform: scale(0.98); }
+  .choice-card:active, .location-chip:active { transform: scale(0.96); }
   .choice-card.active, .location-chip.active {
     border-color: var(--color-accent);
     background: var(--color-accent-soft);

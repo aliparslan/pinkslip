@@ -203,6 +203,7 @@
     class="job-row"
     class:viewed={viewed && Math.abs(swipeX) < 0.5 && !dismissing}
     class:dismissing
+    class:swiping
     role="button"
     tabindex="0"
     style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
@@ -265,8 +266,14 @@
     background: var(--color-bg);
     overflow: hidden;
     cursor: pointer;
-    will-change: transform;
     touch-action: pan-y;
+  }
+
+  /* Scoped to the active drag. Promoting every row in a long feed to its own
+     compositor layer costs real memory on device, and buys nothing until the
+     row actually moves — same pattern as .nav-foreground.is-swiping. */
+  .job-row.swiping {
+    will-change: transform;
   }
   .job-row.viewed { opacity: 0.5; }
   .job-row.dismissing { pointer-events: none; }

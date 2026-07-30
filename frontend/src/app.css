@@ -281,7 +281,10 @@ html.native-ios textarea {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: all .15s;
+  transition:
+    background var(--duration-instant) var(--ease-standard),
+    color var(--duration-instant) var(--ease-standard),
+    border-color var(--duration-instant) var(--ease-standard);
 }
 .chip:hover { background: var(--color-bg-sunken); }
 .chip-active,
@@ -409,7 +412,7 @@ html.native-ios textarea {
 }
 
 .filter-button:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .filter-count {
@@ -810,7 +813,7 @@ html.native-ios textarea {
   color: var(--color-ink-2);
   letter-spacing: -0.02em;
   flex-shrink: 0;
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-image-outline);
   overflow: hidden;
 }
 .logo-mark img {
@@ -891,7 +894,7 @@ html.native-ios textarea {
   color: var(--color-bg);
 }
 .btn-primary:hover { opacity: 0.9; }
-.btn-primary:active { transform: scale(0.98); }
+.btn-primary:active { transform: scale(0.96); }
 .btn-accent {
   background: var(--color-accent);
   color: var(--color-accent-ink);
