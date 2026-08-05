@@ -84,6 +84,7 @@
   let pullStartX = 0;
   let pullStartY = 0;
   let requestVersion = 0;
+  let handledPreferenceRevision = feed.preferenceRevision;
   let draftSelectedLocations: string[] = $state(["All"]);
   let draftMinSalaryK = $state("");
   let draftMaxSalaryK = $state("");
@@ -435,6 +436,13 @@
     if (!force && feed.hydrated && now - feed.lastLoadedAt < FEED_REFRESH_AFTER_MS) return;
     await loadFeed(true);
   }
+
+  $effect(() => {
+    const revision = feed.preferenceRevision;
+    if (revision === handledPreferenceRevision) return;
+    handledPreferenceRevision = revision;
+    void loadFeed(true);
+  });
 
   $effect(() => {
     if (!filtersOpen) return;

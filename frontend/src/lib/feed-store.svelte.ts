@@ -27,6 +27,7 @@ export const feed = $state({
   nextOffset: 0,
   hasMore: true,
   hydrated: false,
+  preferenceRevision: 0,
 });
 
 let userManuallySetLocations = false;
@@ -57,4 +58,15 @@ export function syncFeedPreferences(profile?: { location_ids?: string[]; work_mo
   } else {
     feed.selectedLocations = ["All"];
   }
+}
+
+export function invalidateFeedForPreferences(
+  profile?: { location_ids?: string[]; work_modes?: string[] } | null
+) {
+  syncFeedPreferences(profile, true);
+  feed.preferenceRevision += 1;
+  feed.hydrated = false;
+  feed.lastLoadedAt = 0;
+  feed.hasMore = true;
+  feed.nextOffset = 0;
 }

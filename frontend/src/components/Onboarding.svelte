@@ -15,7 +15,7 @@
   import Check from "phosphor-svelte/lib/Check";
   import Bell from "phosphor-svelte/lib/Bell";
   import Spinner from "./Spinner.svelte";
-  import { syncFeedPreferences } from "../lib/feed-store.svelte";
+  import { invalidateFeedForPreferences } from "../lib/feed-store.svelte";
 
   let {
     initialProfile,
@@ -125,7 +125,7 @@
         },
       });
       profile = normalizeSearchProfile(saved.search_profile);
-      syncFeedPreferences(profile, true);
+      invalidateFeedForPreferences(profile);
       void api.interactions.event({
         event_name: "onboarding_completed",
         entity_type: "onboarding",
