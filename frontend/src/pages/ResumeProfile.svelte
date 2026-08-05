@@ -1,19 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { cubicOut } from "svelte/easing";
-  import { slide } from "svelte/transition";
   import { api, type ResumeProfile, type OptionalSectionKind } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
-  import CaretDown from "phosphor-svelte/lib/CaretDown";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
-  import UploadSimple from "phosphor-svelte/lib/UploadSimple";
+  import Modal from "../components/Modal.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { createEmptyResumeProfile } from "../../../shared/resume-profile";
@@ -27,6 +25,13 @@
     volunteer: "Volunteer experience",
   };
 
+  type CollectionSection = "experience" | "education" | "projects";
+  type ResumeSection = "contact" | CollectionSection | "skills" | "notes" | OptionalSectionKind;
+  type ResumeView =
+    | { kind: "overview" }
+    | { kind: "section"; section: ResumeSection }
+    | { kind: "record"; section: CollectionSection; id: string };
+
   let loading = $state(true);
   let saving = $state(false);
   let error: string | null = $state(null);
@@ -37,82 +42,216 @@
   let saveAgain = false;
   let importing = $state(false);
   let importInput: HTMLInputElement | null = $state(null);
+  let view: ResumeView = $state({ kind: "overview" });
+  let addSectionOpen = $state(false);
 
-  type SectionId = "contact" | "experience" | "education" | "projects" | "skills" | "notes" | OptionalSectionKind;
-  let expandedSections = $state<Set<string>>(new Set(["contact"]));
+  function recordId(activeView: ResumeView): string {
+    return activeView.kind === "record" ? activeView.id : "";
+  }
+
+  let currentRecordId = $derived(recordId(view));
 
   let availableOptionalSections = $derived.by(() => {
-    const active = new Set(profile.optionalSections.map(s => s.kind));
-    return (Object.keys(OPTIONAL_SECTION_LABELS) as OptionalSectionKind[]).filter(k => !active.has(k));
+    const active = new Set(profile.optionalSections.map((section) => section.kind));
+    return (Object.keys(OPTIONAL_SECTION_LABELS) as OptionalSectionKind[])
+      .filter((kind) => !active.has(kind));
   });
 
-  function toggleSection(id: string) {
-    const next = new Set(expandedSections);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    expandedSections = next;
+  let screenTitle = $derived.by(() => {
+    if (view.kind === "overview") return "Resume";
+    if (view.kind === "section") return sectionLabel(view.section);
+    if (view.section === "experience") {
+      const item = profile.experience.find((entry) => entry.id === currentRecordId);
+      return item?.company || item?.title || "Position";
+    }
+    if (view.section === "education") {
+      const item = profile.education.find((entry) => entry.id === currentRecordId);
+      return item?.institution || "Education";
+    }
+    const item = profile.projects.find((entry) => entry.id === currentRecordId);
+    return item?.name || "Project";
+  });
+
+  function sectionLabel(section: ResumeSection): string {
+    if (section === "contact") return "Contact info";
+    if (section === "experience") return "Work experience";
+    if (section === "education") return "Education";
+    if (section === "projects") return "Projects";
+    if (section === "skills") return "Skills";
+    if (section === "notes") return "Tailoring notes";
+    return OPTIONAL_SECTION_LABELS[section];
   }
 
-  function genId(): string { return crypto.randomUUID().slice(0, 8); }
+  function genId(): string {
+    return crypto.randomUUID().slice(0, 8);
+  }
+
+  function itemCount(count: number, singular: string, plural = `${singular}s`): string {
+    if (count === 0) return "Not added";
+    return `${count} ${count === 1 ? singular : plural}`;
+  }
+
+  function contactSummary(): string {
+    return profile.contact.name.trim() || profile.contact.email.trim() || "Not added";
+  }
+
+  function experienceDetail(entry: ResumeProfile["experience"][number]): string {
+    const dates = [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
+    return [entry.title, dates].filter(Boolean).join(" · ");
+  }
+
+  function educationDetail(entry: ResumeProfile["education"][number]): string {
+    return [entry.degree, entry.endDate].filter(Boolean).join(" · ");
+  }
+
+  function projectDetail(entry: ResumeProfile["projects"][number]): string {
+    return [entry.role, entry.teamInfo].filter(Boolean).join(" · ");
+  }
+
+  function optionalSectionFor(section: ResumeSection) {
+    return profile.optionalSections.find((candidate) => candidate.kind === section);
+  }
+
+  function openSection(section: ResumeSection) {
+    view = { kind: "section", section };
+  }
+
+  function openRecord(section: CollectionSection, id: string) {
+    view = { kind: "record", section, id };
+  }
+
+  function handleBack() {
+    if (view.kind === "record") {
+      view = { kind: "section", section: view.section };
+      return;
+    }
+    if (view.kind === "section") {
+      view = { kind: "overview" };
+      return;
+    }
+    if (!requestBack()) navigate("/you");
+  }
 
   function addExperience() {
-    profile.experience = [...profile.experience, { id: genId(), company: "", title: "", location: "", startDate: "", endDate: "", bullets: [""] }];
+    const id = genId();
+    profile.experience = [
+      ...profile.experience,
+      { id, company: "", title: "", location: "", startDate: "", endDate: "", bullets: [""] },
+    ];
     queueAutosave();
+    openRecord("experience", id);
   }
-  function removeExperience(id: string) { profile.experience = profile.experience.filter(e => e.id !== id); queueAutosave(); }
 
-  function addBullet(arr: string[], idx: number) { const next = [...arr]; next.splice(idx + 1, 0, ""); return next; }
-  function removeBullet(arr: string[], idx: number) { return arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx); }
+  function removeExperience(id: string) {
+    profile.experience = profile.experience.filter((entry) => entry.id !== id);
+    queueAutosave();
+    view = { kind: "section", section: "experience" };
+  }
 
   function addEducation() {
-    profile.education = [...profile.education, { id: genId(), institution: "", degree: "", location: "", startDate: "", endDate: "", gpa: "" }];
+    const id = genId();
+    profile.education = [
+      ...profile.education,
+      { id, institution: "", degree: "", location: "", startDate: "", endDate: "", gpa: "" },
+    ];
     queueAutosave();
+    openRecord("education", id);
   }
-  function removeEducation(id: string) { profile.education = profile.education.filter(e => e.id !== id); queueAutosave(); }
+
+  function removeEducation(id: string) {
+    profile.education = profile.education.filter((entry) => entry.id !== id);
+    queueAutosave();
+    view = { kind: "section", section: "education" };
+  }
 
   function addProject() {
-    profile.projects = [...profile.projects, { id: genId(), name: "", role: "", teamInfo: "", url: "", bullets: [""] }];
+    const id = genId();
+    profile.projects = [
+      ...profile.projects,
+      { id, name: "", role: "", teamInfo: "", url: "", bullets: [""] },
+    ];
+    queueAutosave();
+    openRecord("projects", id);
+  }
+
+  function removeProject(id: string) {
+    profile.projects = profile.projects.filter((entry) => entry.id !== id);
+    queueAutosave();
+    view = { kind: "section", section: "projects" };
+  }
+
+  function addSkill() {
+    profile.skills = [...profile.skills, { category: "", items: "" }];
     queueAutosave();
   }
-  function removeProject(id: string) { profile.projects = profile.projects.filter(p => p.id !== id); queueAutosave(); }
 
-  function addSkill() { profile.skills = [...profile.skills, { category: "", items: "" }]; queueAutosave(); }
-  function removeSkill(idx: number) { profile.skills = profile.skills.filter((_, i) => i !== idx); queueAutosave(); }
+  function removeSkill(index: number) {
+    profile.skills = profile.skills.filter((_, itemIndex) => itemIndex !== index);
+    queueAutosave();
+  }
 
   function addOptionalSection(kind: OptionalSectionKind) {
-    profile.optionalSections = [...profile.optionalSections, { kind, items: [{ category: "", items: "" }] }];
-    expandedSections = new Set([...expandedSections, kind]);
+    profile.optionalSections = [
+      ...profile.optionalSections,
+      { kind, items: [{ category: "", items: "" }] },
+    ];
+    addSectionOpen = false;
     queueAutosave();
+    openSection(kind);
   }
+
   function removeOptionalSection(kind: OptionalSectionKind) {
-    profile.optionalSections = profile.optionalSections.filter(s => s.kind !== kind);
+    profile.optionalSections = profile.optionalSections.filter((section) => section.kind !== kind);
     queueAutosave();
+    view = { kind: "overview" };
   }
+
   function addOptionalItem(kind: OptionalSectionKind) {
-    profile.optionalSections = profile.optionalSections.map(s =>
-      s.kind === kind ? { ...s, items: [...s.items, { category: "", items: "" }] } : s
+    profile.optionalSections = profile.optionalSections.map((section) =>
+      section.kind === kind
+        ? { ...section, items: [...section.items, { category: "", items: "" }] }
+        : section
     );
     queueAutosave();
   }
-  function removeOptionalItem(kind: OptionalSectionKind, idx: number) {
-    profile.optionalSections = profile.optionalSections.map(s =>
-      s.kind === kind ? { ...s, items: s.items.filter((_, i) => i !== idx) } : s
+
+  function removeOptionalItem(kind: OptionalSectionKind, index: number) {
+    profile.optionalSections = profile.optionalSections.map((section) =>
+      section.kind === kind
+        ? { ...section, items: section.items.filter((_, itemIndex) => itemIndex !== index) }
+        : section
     );
     queueAutosave();
+  }
+
+  function addBullet(items: string[]) {
+    queueAutosave();
+    return [...items, ""];
+  }
+
+  function removeBullet(items: string[], index: number) {
+    queueAutosave();
+    return items.length <= 1 ? items : items.filter((_, itemIndex) => itemIndex !== index);
   }
 
   async function loadAll() {
-    loading = true; error = null;
+    loading = true;
+    error = null;
     try {
       const [profileRes, corpusRes] = await Promise.all([api.profile.get(), api.corpus.get()]);
-      const d = profileRes.data;
-      let optSections = d.optionalSections ?? [];
-      if (!optSections.length && (d as any).leadership?.length) {
-        optSections = [{ kind: "leadership" as const, items: (d as any).leadership }];
+      const data = profileRes.data;
+      let optionalSections = data.optionalSections ?? [];
+      if (!optionalSections.length && (data as any).leadership?.length) {
+        optionalSections = [{ kind: "leadership" as const, items: (data as any).leadership }];
       }
-      profile = { ...createEmptyResumeProfile(), ...d, optionalSections: optSections };
+      profile = { ...createEmptyResumeProfile(), ...data, optionalSections };
       savePresentation.hydrate(profileRes.updated_at);
       notes = corpusRes.content_md ?? "";
-    } catch (e) { error = errorMessage(e); } finally { loading = false; }
+    } catch (loadError) {
+      error = errorMessage(loadError);
+    } finally {
+      loading = false;
+    }
   }
 
   async function saveAll(keepalive = false) {
@@ -120,7 +259,8 @@
       saveAgain = true;
       return;
     }
-    saving = true; error = null;
+    saving = true;
+    error = null;
     const presentationGeneration = savePresentation.begin();
     try {
       const [profileRes] = await Promise.all([
@@ -128,8 +268,8 @@
         api.corpus.update(notes, { keepalive }),
       ]);
       savePresentation.succeed(presentationGeneration, profileRes.updated_at ?? new Date().toISOString());
-    } catch (e) {
-      const message = errorMessage(e);
+    } catch (saveError) {
+      const message = errorMessage(saveError);
       error = message;
       savePresentation.fail(presentationGeneration, message);
     } finally {
@@ -144,47 +284,58 @@
   function queueAutosave() {
     savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(() => { autosaveTimer = null; saveAll(); }, 800);
+    autosaveTimer = window.setTimeout(() => {
+      autosaveTimer = null;
+      void saveAll();
+    }, 800);
   }
-  // Flush any pending autosave immediately. Called on unmount / backgrounding so
-  // edits made within the debounce window aren't silently dropped on navigation.
+
   function flushAutosave() {
     if (autosaveTimer === null) return;
     window.clearTimeout(autosaveTimer);
     autosaveTimer = null;
     void saveAll(true);
   }
-  function handleInput() { queueAutosave(); }
+
+  function handleInput() {
+    queueAutosave();
+  }
 
   async function handlePdfImport(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    importing = true; error = null;
+    importing = true;
+    error = null;
     try {
       const { parsePdfToProfile } = await import("../lib/pdf-to-profile");
       const parsed = await parsePdfToProfile(file);
       if (parsed.contact) {
-        const c = parsed.contact;
-        if (c.name && !profile.contact.name) profile.contact.name = c.name;
-        if (c.email && !profile.contact.email) profile.contact.email = c.email;
-        if (c.phone && !profile.contact.phone) profile.contact.phone = c.phone;
-        if (c.location && !profile.contact.location) profile.contact.location = c.location;
-        if (c.linkedin && !profile.contact.linkedin) profile.contact.linkedin = c.linkedin;
-        if (c.github && !profile.contact.github) profile.contact.github = c.github;
-        if (c.website && !profile.contact.website) profile.contact.website = c.website;
+        const contact = parsed.contact;
+        if (contact.name && !profile.contact.name) profile.contact.name = contact.name;
+        if (contact.email && !profile.contact.email) profile.contact.email = contact.email;
+        if (contact.phone && !profile.contact.phone) profile.contact.phone = contact.phone;
+        if (contact.location && !profile.contact.location) profile.contact.location = contact.location;
+        if (contact.linkedin && !profile.contact.linkedin) profile.contact.linkedin = contact.linkedin;
+        if (contact.github && !profile.contact.github) profile.contact.github = contact.github;
+        if (contact.website && !profile.contact.website) profile.contact.website = contact.website;
       }
       if (parsed.experience?.length && !profile.experience.length) profile.experience = parsed.experience;
       if (parsed.education?.length && !profile.education.length) profile.education = parsed.education;
       if (parsed.projects?.length && !profile.projects.length) profile.projects = parsed.projects;
       if (parsed.skills?.length && !profile.skills.length) profile.skills = parsed.skills;
-      feedback.success("PDF imported. Review any fields that need correcting.");
+      feedback.success("PDF imported. Review the details.");
       queueAutosave();
-    } catch (e) { error = `Could not parse PDF: ${errorMessage(e)}`; } finally { importing = false; input.value = ""; }
+    } catch (importError) {
+      error = `Could not parse PDF: ${errorMessage(importError)}`;
+    } finally {
+      importing = false;
+      input.value = "";
+    }
   }
 
   onMount(() => {
-    loadAll();
+    void loadAll();
     const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
     return () => {
       unregisterAutosaveFlush();
@@ -193,293 +344,482 @@
   });
 </script>
 
+{#snippet sectionRow(label: string, detail: string, section: ResumeSection)}
+  <button type="button" class="resume-row" onclick={() => openSection(section)}>
+    <span class="resume-row-copy">
+      <strong>{label}</strong>
+      <small>{detail}</small>
+    </span>
+    <CaretRight size={16} aria-hidden="true" />
+  </button>
+{/snippet}
+
+{#snippet recordRow(title: string, detail: string, section: CollectionSection, id: string)}
+  <button type="button" class="resume-row record-row" onclick={() => openRecord(section, id)}>
+    <span class="resume-row-copy">
+      <strong>{title}</strong>
+      {#if detail}<small>{detail}</small>{/if}
+    </span>
+    <CaretRight size={16} aria-hidden="true" />
+  </button>
+{/snippet}
+
 <div class="page pushed-screen">
-  <ScreenNav title="Resume" onBack={() => { if (!requestBack()) navigate("/you"); }}>
+  <ScreenNav
+    title={screenTitle}
+    backLabel={view.kind === "overview" ? "Back to You" : "Back"}
+    onBack={handleBack}
+  >
     {#snippet trailing()}<SaveStatus phase={savePresentation.phase} />{/snippet}
   </ScreenNav>
-  <div class="page-frame">
+
+  <div class="page-frame resume-frame">
     {#if error}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
-    {:else}
-      <input class="visually-hidden-input" type="file" accept=".pdf" bind:this={importInput} onchange={handlePdfImport} />
+    {:else if view.kind === "overview"}
+      <input
+        class="visually-hidden-input"
+        type="file"
+        accept=".pdf"
+        bind:this={importInput}
+        onchange={handlePdfImport}
+      />
+
       <button type="button" class="resume-import" onclick={() => importInput?.click()} disabled={importing}>
         <span class="resume-import-icon">
-          {#if importing}<Spinner />{:else}<UploadSimple size={19} />{/if}
+          {#if importing}<Spinner />{:else}<UploadSimple size={18} />{/if}
         </span>
-        <span class="resume-import-copy">
-          <strong>{importing ? "Importing PDF…" : "Import from PDF"}</strong>
-          <small>Fill empty fields from an existing resume</small>
+        <span class="resume-row-copy">
+          <strong>{importing ? "Importing…" : "Import PDF"}</strong>
+          <small>Fill empty fields</small>
         </span>
-        <CaretRight size={17} aria-hidden="true" />
+        <CaretRight size={16} aria-hidden="true" />
       </button>
 
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("contact")} onclick={() => toggleSection("contact")}>
-          {#if expandedSections.has("contact")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Contact info</span>
-        </button>
-        {#if expandedSections.has("contact")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            <div class="grid-2">
-              <label class="field"><span>Full name</span><input class="input-field" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
-              <label class="field"><span>Email</span><input class="input-field" type="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
-              <label class="field"><span>Phone</span><input class="input-field" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
-              <label class="field"><span>Location</span><input class="input-field" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
-              <label class="field"><span>LinkedIn <span class="label-opt">optional</span></span>
-                <input class="input-field" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" />
-              </label>
-              <label class="field"><span>GitHub <span class="label-opt">optional</span></span>
-                <input class="input-field" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" />
-              </label>
-              <label class="field span-2"><span>Website <span class="label-opt">optional</span></span><input class="input-field" bind:value={profile.contact.website} oninput={handleInput} placeholder="https://yoursite.com" /></label>
-            </div>
-          </div>
-        {/if}
+      <div class="resume-list" aria-label="Resume sections">
+        {@render sectionRow("Contact info", contactSummary(), "contact")}
+        {@render sectionRow("Work experience", itemCount(profile.experience.length, "position"), "experience")}
+        {@render sectionRow("Education", itemCount(profile.education.length, "entry", "entries"), "education")}
+        {@render sectionRow("Projects", itemCount(profile.projects.length, "project"), "projects")}
+        {@render sectionRow("Skills", itemCount(profile.skills.length, "category", "categories"), "skills")}
+        {#each profile.optionalSections as section (section.kind)}
+          {@render sectionRow(OPTIONAL_SECTION_LABELS[section.kind], itemCount(section.items.length, "item"), section.kind)}
+        {/each}
+        {@render sectionRow("Tailoring notes", notes.trim() ? "Added" : "Not added", "notes")}
       </div>
-
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("experience")} onclick={() => toggleSection("experience")}>
-          {#if expandedSections.has("experience")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Work experience</span>
-          <span class="card-count">{profile.experience.length}</span>
-        </button>
-        {#if expandedSections.has("experience")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            {#each profile.experience as exp, expIdx (exp.id)}
-              <div class="entry">
-                <div class="entry-top">
-                  <span class="entry-title">{exp.company || exp.title || "New position"}</span>
-                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {exp.company || exp.title || 'position'}" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
-                </div>
-                <div class="grid-2">
-                  <label class="field"><span>Company</span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
-                  <label class="field"><span>Title</span><input class="input-field" bind:value={exp.title} oninput={handleInput} placeholder="Job title" /></label>
-                  <label class="field"><span>Location</span><input class="input-field" bind:value={exp.location} oninput={handleInput} placeholder="City, ST" /></label>
-                  <label class="field"><span>Start</span><input class="input-field" bind:value={exp.startDate} oninput={handleInput} placeholder="Month Year" /></label>
-                  <label class="field"><span>End</span><input class="input-field" bind:value={exp.endDate} oninput={handleInput} placeholder="Present" /></label>
-                </div>
-                <div class="bullets">
-                  <span class="bullets-label">Bullets</span>
-                  {#each exp.bullets as bullet, bIdx}
-                    <div class="bullet-row">
-                      <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" aria-label="Work experience bullet {bIdx + 1}" bind:value={exp.bullets[bIdx]} oninput={handleInput} placeholder="Accomplishment or responsibility…"
-                        onkeydown={(e) => {
-                          if (e.key === "Enter") { e.preventDefault(); profile.experience[expIdx].bullets = addBullet(exp.bullets, bIdx); }
-                          if (e.key === "Backspace" && !bullet && exp.bullets.length > 1) { e.preventDefault(); profile.experience[expIdx].bullets = removeBullet(exp.bullets, bIdx); }
-                        }} />
-                    </div>
-                  {/each}
-                  <button type="button" class="btn-add-bullet" onclick={() => { profile.experience[expIdx].bullets = [...exp.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
-                </div>
-              </div>
-            {/each}
-            <button type="button" class="add-btn" onclick={addExperience}><Plus size={14} /> Add position</button>
-          </div>
-        {/if}
-      </div>
-
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("education")} onclick={() => toggleSection("education")}>
-          {#if expandedSections.has("education")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Education</span>
-          <span class="card-count">{profile.education.length}</span>
-        </button>
-        {#if expandedSections.has("education")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            {#each profile.education as edu (edu.id)}
-              <div class="entry">
-                <div class="entry-top">
-                  <span class="entry-title">{edu.institution || "New entry"}</span>
-                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {edu.institution || 'education entry'}" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
-                </div>
-                <div class="grid-2">
-                  <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
-                  <label class="field span-2"><span>Degree</span><input class="input-field" bind:value={edu.degree} oninput={handleInput} placeholder="B.S. Computer Science" /></label>
-                  <label class="field"><span>Location</span><input class="input-field" bind:value={edu.location} oninput={handleInput} placeholder="City, ST" /></label>
-                  <label class="field"><span>GPA</span><input class="input-field" bind:value={edu.gpa} oninput={handleInput} placeholder="3.9" /></label>
-                  <label class="field"><span>Start</span><input class="input-field" bind:value={edu.startDate} oninput={handleInput} placeholder="Month Year" /></label>
-                  <label class="field"><span>End</span><input class="input-field" bind:value={edu.endDate} oninput={handleInput} placeholder="Month Year" /></label>
-                </div>
-              </div>
-            {/each}
-            <button type="button" class="add-btn" onclick={addEducation}><Plus size={14} /> Add education</button>
-          </div>
-        {/if}
-      </div>
-
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("projects")} onclick={() => toggleSection("projects")}>
-          {#if expandedSections.has("projects")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Projects</span>
-          <span class="card-count">{profile.projects.length}</span>
-        </button>
-        {#if expandedSections.has("projects")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            {#each profile.projects as proj, projIdx (proj.id)}
-              <div class="entry">
-                <div class="entry-top">
-                  <span class="entry-title">{proj.name || "New project"}</span>
-                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {proj.name || 'project'}" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
-                </div>
-                <div class="grid-2">
-                  <label class="field"><span>Name</span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
-                  <label class="field"><span>Role</span><input class="input-field" bind:value={proj.role} oninput={handleInput} placeholder="Full Stack" /></label>
-                  <label class="field"><span>Team</span><input class="input-field" bind:value={proj.teamInfo} oninput={handleInput} placeholder="Solo / Team of 5" /></label>
-                  <label class="field"><span>URL</span><input class="input-field" bind:value={proj.url} oninput={handleInput} placeholder="https://project-url.com" /></label>
-                </div>
-                <div class="bullets">
-                  <span class="bullets-label">Bullets</span>
-                  {#each proj.bullets as bullet, bIdx}
-                    <div class="bullet-row">
-                      <span class="bullet-dot"></span>
-                      <input class="input-field bullet-input" aria-label="Project bullet {bIdx + 1}" bind:value={proj.bullets[bIdx]} oninput={handleInput} placeholder="What you built or achieved…"
-                        onkeydown={(e) => {
-                          if (e.key === "Enter") { e.preventDefault(); profile.projects[projIdx].bullets = addBullet(proj.bullets, bIdx); }
-                          if (e.key === "Backspace" && !bullet && proj.bullets.length > 1) { e.preventDefault(); profile.projects[projIdx].bullets = removeBullet(proj.bullets, bIdx); }
-                        }} />
-                    </div>
-                  {/each}
-                  <button type="button" class="btn-add-bullet" onclick={() => { profile.projects[projIdx].bullets = [...proj.bullets, ""]; queueAutosave(); }}><Plus size={11} /> Add bullet</button>
-                </div>
-              </div>
-            {/each}
-            <button type="button" class="add-btn" onclick={addProject}><Plus size={14} /> Add project</button>
-          </div>
-        {/if}
-      </div>
-
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("skills")} onclick={() => toggleSection("skills")}>
-          {#if expandedSections.has("skills")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Skills</span>
-          <span class="card-count">{profile.skills.length}</span>
-        </button>
-        {#if expandedSections.has("skills")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            {#each profile.skills as skill, idx}
-              <div class="kv-row">
-                <input class="input-field kv-key" aria-label="Skill category" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
-                <input class="input-field kv-val" aria-label="Skills" bind:value={skill.items} oninput={handleInput} placeholder="Comma-separated items" />
-                <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove skill category" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
-              </div>
-            {/each}
-            <button type="button" class="add-btn" onclick={addSkill}><Plus size={14} /> Add category</button>
-          </div>
-        {/if}
-      </div>
-
-      {#each profile.optionalSections as section}
-        <div class="card">
-          <!-- Toggle and remove are sibling buttons (interactive controls
-               can't nest inside each other), sharing one header row. -->
-          <div class="card-header-row">
-            <button type="button" class="card-header card-header-toggle" aria-expanded={expandedSections.has(section.kind)} onclick={() => toggleSection(section.kind)}>
-              {#if expandedSections.has(section.kind)}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-              <span class="card-title">{OPTIONAL_SECTION_LABELS[section.kind]}</span>
-              <span class="card-count">{section.items.length}</span>
-            </button>
-            <button type="button" class="icon-btn card-header-remove" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
-          </div>
-          {#if expandedSections.has(section.kind)}
-            <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-              {#each section.items as item, idx}
-                <div class="kv-row">
-                  <input class="input-field kv-key" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} label" bind:value={item.category} oninput={handleInput} placeholder="Label" />
-                  <input class="input-field kv-val" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} details" bind:value={item.items} oninput={handleInput} placeholder="Details" />
-                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} item" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
-                </div>
-              {/each}
-              <button type="button" class="add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={14} /> Add item</button>
-            </div>
-          {/if}
-        </div>
-      {/each}
 
       {#if availableOptionalSections.length > 0}
-        <div class="add-section-area">
-          <span class="add-section-label">Add section:</span>
-          {#each availableOptionalSections as kind}
-            <button type="button" class="chip section-chip" onclick={() => addOptionalSection(kind)}>
-              <Plus size={12} /> {OPTIONAL_SECTION_LABELS[kind]}
-            </button>
-          {/each}
-        </div>
-      {/if}
-
-      <div class="card">
-        <button type="button" class="card-header" aria-expanded={expandedSections.has("notes")} onclick={() => toggleSection("notes")}>
-          {#if expandedSections.has("notes")}<CaretDown size={14} />{:else}<CaretRight size={14} />{/if}
-          <span class="card-title">Notes &amp; extra context</span>
+        <button type="button" class="add-row" onclick={() => (addSectionOpen = true)}>
+          <Plus size={16} aria-hidden="true" />
+          <span>Add section</span>
         </button>
-        {#if expandedSections.has("notes")}
-          <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
-            <p class="notes-help">
-              Extra context for tailoring that doesn't fit above.
-            </p>
-            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context…"></textarea>
+      {/if}
+    {:else if view.kind === "section"}
+      {#if view.section === "contact"}
+        <div class="editor-form">
+          <div class="form-grid">
+            <label class="field"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
+            <label class="field"><span>Email</span><input class="input-field" name="email" type="email" autocomplete="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
+            <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
+            <label class="field"><span>Location</span><input class="input-field" name="location" autocomplete="address-level2" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
+            <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="linkedin.com/in/jane" /></label>
+            <label class="field"><span>GitHub</span><input class="input-field" name="github" type="url" inputmode="url" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="github.com/jane" /></label>
+            <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} placeholder="yoursite.com" /></label>
+          </div>
+        </div>
+      {:else if view.section === "experience"}
+        <div class="record-list">
+          {#each profile.experience as entry (entry.id)}
+            {@render recordRow(entry.company || entry.title || "New position", experienceDetail(entry), "experience", entry.id)}
+          {/each}
+          <button type="button" class="add-row" onclick={addExperience}><Plus size={16} /> <span>Add position</span></button>
+        </div>
+      {:else if view.section === "education"}
+        <div class="record-list">
+          {#each profile.education as entry (entry.id)}
+            {@render recordRow(entry.institution || "New education", educationDetail(entry), "education", entry.id)}
+          {/each}
+          <button type="button" class="add-row" onclick={addEducation}><Plus size={16} /> <span>Add education</span></button>
+        </div>
+      {:else if view.section === "projects"}
+        <div class="record-list">
+          {#each profile.projects as entry (entry.id)}
+            {@render recordRow(entry.name || "New project", projectDetail(entry), "projects", entry.id)}
+          {/each}
+          <button type="button" class="add-row" onclick={addProject}><Plus size={16} /> <span>Add project</span></button>
+        </div>
+      {:else if view.section === "skills"}
+        <div class="editor-form">
+          {#each profile.skills as skill, index}
+            <div class="editor-item">
+              <div class="form-grid skill-grid">
+                <label class="field"><span>Category</span><input class="input-field" bind:value={skill.category} oninput={handleInput} placeholder="Languages" /></label>
+                <label class="field"><span>Skills</span><input class="input-field" bind:value={skill.items} oninput={handleInput} placeholder="TypeScript, Python" /></label>
+              </div>
+              <button type="button" class="remove-item" onclick={() => removeSkill(index)}><Trash size={14} /> Remove category</button>
+            </div>
+          {/each}
+          <button type="button" class="add-row inline-add" onclick={addSkill}><Plus size={16} /> <span>Add category</span></button>
+        </div>
+      {:else if view.section === "notes"}
+        <div class="editor-form">
+          <label class="field">
+            <span>Notes</span>
+            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Context to consider when tailoring…"></textarea>
+          </label>
+        </div>
+      {:else}
+        {@const optionalSection = optionalSectionFor(view.section)}
+        {#if optionalSection}
+          <div class="editor-form">
+            {#each optionalSection.items as item, index}
+              <div class="editor-item">
+                <div class="form-grid skill-grid">
+                  <label class="field"><span>Label</span><input class="input-field" bind:value={item.category} oninput={handleInput} placeholder="Organization or title" /></label>
+                  <label class="field"><span>Details</span><input class="input-field" bind:value={item.items} oninput={handleInput} placeholder="Role, date, or result" /></label>
+                </div>
+                <button type="button" class="remove-item" onclick={() => removeOptionalItem(optionalSection.kind, index)}><Trash size={14} /> Remove item</button>
+              </div>
+            {/each}
+            <button type="button" class="add-row inline-add" onclick={() => addOptionalItem(optionalSection.kind)}><Plus size={16} /> <span>Add item</span></button>
+            <button type="button" class="remove-section" onclick={() => removeOptionalSection(optionalSection.kind)}><Trash size={15} /> Remove section</button>
           </div>
         {/if}
-      </div>
-
+      {/if}
+    {:else if view.section === "experience"}
+      {@const entry = profile.experience.find((candidate) => candidate.id === currentRecordId)}
+      {#if entry}
+        <div class="editor-form">
+          <div class="form-grid">
+            <label class="field"><span>Company</span><input class="input-field" bind:value={entry.company} oninput={handleInput} placeholder="Company name" /></label>
+            <label class="field"><span>Title</span><input class="input-field" bind:value={entry.title} oninput={handleInput} placeholder="Job title" /></label>
+            <label class="field span-2"><span>Location</span><input class="input-field" bind:value={entry.location} oninput={handleInput} placeholder="City, ST" /></label>
+            <label class="field"><span>Start</span><input class="input-field" bind:value={entry.startDate} oninput={handleInput} placeholder="Month Year" /></label>
+            <label class="field"><span>End</span><input class="input-field" bind:value={entry.endDate} oninput={handleInput} placeholder="Present" /></label>
+          </div>
+          <section class="evidence-section">
+            <h2>Accomplishments</h2>
+            {#each entry.bullets as bullet, index}
+              <div class="bullet-row">
+                <span class="bullet-dot" aria-hidden="true"></span>
+                <textarea class="input-field bullet-input" aria-label="Accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput} placeholder="What changed because of your work?"></textarea>
+                <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
+              </div>
+            {/each}
+            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
+          </section>
+          <button type="button" class="remove-section" onclick={() => removeExperience(entry.id)}><Trash size={15} /> Remove position</button>
+        </div>
+      {/if}
+    {:else if view.section === "education"}
+      {@const entry = profile.education.find((candidate) => candidate.id === currentRecordId)}
+      {#if entry}
+        <div class="editor-form">
+          <div class="form-grid">
+            <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} placeholder="University name" /></label>
+            <label class="field span-2"><span>Degree</span><input class="input-field" bind:value={entry.degree} oninput={handleInput} placeholder="B.S. Computer Science" /></label>
+            <label class="field"><span>Location</span><input class="input-field" bind:value={entry.location} oninput={handleInput} placeholder="City, ST" /></label>
+            <label class="field"><span>GPA</span><input class="input-field" bind:value={entry.gpa} oninput={handleInput} placeholder="3.9" /></label>
+            <label class="field"><span>Start</span><input class="input-field" bind:value={entry.startDate} oninput={handleInput} placeholder="Month Year" /></label>
+            <label class="field"><span>End</span><input class="input-field" bind:value={entry.endDate} oninput={handleInput} placeholder="Month Year" /></label>
+          </div>
+          <button type="button" class="remove-section" onclick={() => removeEducation(entry.id)}><Trash size={15} /> Remove education</button>
+        </div>
+      {/if}
+    {:else}
+      {@const entry = profile.projects.find((candidate) => candidate.id === currentRecordId)}
+      {#if entry}
+        <div class="editor-form">
+          <div class="form-grid">
+            <label class="field"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} placeholder="Project name" /></label>
+            <label class="field"><span>Role</span><input class="input-field" bind:value={entry.role} oninput={handleInput} placeholder="Full Stack" /></label>
+            <label class="field"><span>Team</span><input class="input-field" bind:value={entry.teamInfo} oninput={handleInput} placeholder="Solo or team size" /></label>
+            <label class="field"><span>URL</span><input class="input-field" bind:value={entry.url} oninput={handleInput} placeholder="project-url.com" /></label>
+          </div>
+          <section class="evidence-section">
+            <h2>Accomplishments</h2>
+            {#each entry.bullets as bullet, index}
+              <div class="bullet-row">
+                <span class="bullet-dot" aria-hidden="true"></span>
+                <textarea class="input-field bullet-input" aria-label="Project accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput} placeholder="What did you build or improve?"></textarea>
+                <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove project accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
+              </div>
+            {/each}
+            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
+          </section>
+          <button type="button" class="remove-section" onclick={() => removeProject(entry.id)}><Trash size={15} /> Remove project</button>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
 
+{#if addSectionOpen}
+  <Modal title="Add section" onclose={() => (addSectionOpen = false)}>
+    <div class="add-section-options">
+      {#each availableOptionalSections as kind}
+        <button type="button" onclick={() => addOptionalSection(kind)}>
+          <span>{OPTIONAL_SECTION_LABELS[kind]}</span>
+          <CaretRight size={16} aria-hidden="true" />
+        </button>
+      {/each}
+    </div>
+  </Modal>
+{/if}
+
 <style>
-  .resume-import { width: 100%; min-height: 64px; margin: 0; padding: 10px 0 14px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; background: transparent; color: var(--color-ink); text-align: left; cursor: pointer; }
-  .resume-import:hover { color: var(--color-accent); }
-  .resume-import:disabled { opacity: 0.65; cursor: default; }
-  .resume-import-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--color-bg-sunken); color: var(--color-ink-2); }
-  .resume-import-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .resume-import-copy strong { font-size: var(--fs-sm); font-weight: 600; }
-  .resume-import-copy small { overflow: hidden; color: var(--color-ink-3); font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
-  .resume-import > :global(svg) { color: var(--color-ink-4); }
-  .notes-help { margin: 0 0 var(--space-2); color: var(--color-ink-4); font-size: var(--fs-xs); line-height: 1.5; }
-  .notes-field { min-height: 160px; }
-  .card { border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; overflow: visible; margin: 0; background: transparent; }
-  .card-header { width: 100%; min-height: 52px; display: flex; align-items: center; gap: var(--space-2); padding: 12px 0; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
-  .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }
-  .card-header-row { display: flex; align-items: center; }
-  .card-header-toggle { flex: 1; min-width: 0; }
-  .card-header-remove { width: 40px; height: 40px; flex-shrink: 0; }
-  .card-title { font-weight: 500; font-size: var(--fs-sm); }
-  .card-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-4); }
-  .card-body { padding: 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); border: 0; }
+  .resume-frame {
+    padding-top: var(--space-2);
+  }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .field { display: flex; flex-direction: column; gap: 3px; }
-  .field > span { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
-  .field.span-2, .span-2 { grid-column: 1 / -1; }
+  .resume-import,
+  .resume-row,
+  .add-row {
+    appearance: none;
+    width: 100%;
+    min-height: 58px;
+    padding: 10px 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    background: transparent;
+    color: var(--color-ink);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
 
-  .entry { padding: var(--space-3) 0 var(--space-1); border: 0; border-radius: 0; display: flex; flex-direction: column; gap: 10px; background: transparent; }
-  .entry + .entry { padding-top: var(--space-5); border-top: 1px solid var(--color-line); }
-  .entry-top { display: flex; align-items: center; justify-content: space-between; }
-  .entry-title { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-2); }
+  .resume-import {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
 
-  .bullets { display: flex; flex-direction: column; gap: 5px; }
-  .bullets-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
-  .bullet-row { display: flex; align-items: center; gap: 6px; }
-  .bullet-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-ink-4); flex-shrink: 0; }
-  .bullet-input { flex: 1; }
-  .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1); background: none; border: none; color: var(--color-ink-4); font-size: var(--fs-xs); cursor: pointer; padding: 0 var(--space-2) 0 0; }
-  .btn-add-bullet:hover { color: var(--color-ink-2); }
+  .resume-import:disabled {
+    cursor: default;
+    opacity: 0.64;
+  }
 
-  .add-btn { min-height: 40px; align-self: flex-start; padding: 0; display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--color-accent); font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
-  .add-btn:hover { color: var(--color-accent-soft-ink); }
-  .section-chip { min-height: 40px; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-full); }
+  .resume-import-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
+    color: var(--color-ink-2);
+  }
 
-  .kv-row { display: flex; gap: var(--space-2); align-items: center; }
-  .kv-key { width: 120px; flex-shrink: 0; }
-  .kv-val { flex: 1; }
+  .resume-row-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
 
-  .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-line); }
-  .add-section-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
+  .resume-row-copy strong {
+    overflow: hidden;
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .resume-row-copy small {
+    overflow: hidden;
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .resume-import > :global(svg),
+  .resume-row > :global(svg) {
+    color: var(--color-ink-4);
+  }
+
+  .resume-import:hover,
+  .resume-row:hover {
+    color: var(--color-accent);
+  }
+
+  .add-row {
+    min-height: 52px;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-content: start;
+    gap: var(--space-2);
+    color: var(--color-accent);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+  }
+
+  .add-row:hover {
+    color: var(--color-accent-soft-ink);
+  }
+
+  .inline-add {
+    align-self: flex-start;
+    width: auto;
+    min-width: 0;
+    border-bottom: 0;
+  }
+
+  .record-list,
+  .editor-form {
+    width: 100%;
+  }
+
+  .editor-form {
+    padding-top: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+  }
+
+  .field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .field > span {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+  }
+
+  .field.span-2,
+  .span-2 {
+    grid-column: 1 / -1;
+  }
+
+  .editor-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .editor-item + .editor-item {
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .remove-item,
+  .remove-section {
+    appearance: none;
+    min-height: 40px;
+    align-self: flex-start;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--color-bad);
+    font: 500 var(--fs-xs) / 1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .remove-section {
+    width: 100%;
+    margin-top: var(--space-2);
+    padding-top: var(--space-4);
+    justify-content: flex-start;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .evidence-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .evidence-section h2 {
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+
+  .bullet-row {
+    display: grid;
+    grid-template-columns: 5px minmax(0, 1fr) 36px;
+    align-items: start;
+    gap: var(--space-2);
+  }
+
+  .bullet-dot {
+    width: 5px;
+    height: 5px;
+    margin-top: 20px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .bullet-input {
+    min-height: 72px;
+    resize: vertical;
+  }
+
+  .bullet-remove {
+    margin-top: 5px;
+  }
+
+  .notes-field {
+    min-height: 220px;
+  }
+
+  .add-section-options {
+    margin-top: var(--space-2);
+  }
+
+  .add-section-options button {
+    appearance: none;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    background: transparent;
+    color: var(--color-ink);
+    font: 500 var(--fs-sm) / 1.3 var(--font-sans);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .add-section-options button:last-child {
+    border-bottom: 0;
+  }
+
+  .add-section-options button > :global(svg) {
+    color: var(--color-ink-4);
+  }
 
   @media (max-width: 540px) {
-    .grid-2 { grid-template-columns: 1fr; }
-    .kv-row { flex-wrap: wrap; }
-    .kv-key { width: 100%; }
+    .form-grid,
+    .skill-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .field.span-2,
+    .span-2 {
+      grid-column: auto;
+    }
   }
 </style>
