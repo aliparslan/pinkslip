@@ -72,8 +72,7 @@ export function serializeProfileForPrompt(profile: ResumeProfile, notes?: string
     for (const proj of profile.projects) {
       let heading = `**${proj.name}**`;
       const meta: string[] = [];
-      if (proj.role) meta.push(proj.role);
-      if (proj.teamInfo) meta.push(proj.teamInfo);
+      if (proj.date) meta.push(proj.date);
       if (proj.url) meta.push(`[Live Demo](${proj.url})`);
       if (meta.length > 0) heading += ` -- ${meta.join(" | ")}`;
       lines.push(heading);

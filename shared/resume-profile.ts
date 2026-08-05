@@ -53,9 +53,10 @@ export interface ResumeProfile {
   projects: Array<{
     id: string;
     name: string;
-    role: string;
-    teamInfo: string;
+    role?: string;
+    teamInfo?: string;
     url: string;
+    date?: string;
     bullets: string[];
   }>;
   skills: Array<{
