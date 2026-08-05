@@ -65,8 +65,8 @@ export function inferFieldOfStudy(value: string, degreeType: DegreeType | ""): s
   const prefixes: Partial<Record<DegreeType, RegExp>> = {
     doctorate: /^(?:ph\.?\s*d\.?|dphil|doctor(?:ate|al)?(?:\s+degree)?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
     professional: /^(?:j\.?\s*d\.?|m\.?\s*d\.?|professional\s+degree)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
-    master: /^(?:master'?s?(?:\s+degree)?(?:\s+of\s+(?:science|arts|engineering|business administration))?|m\.?\s*(?:s|a|b\.?\s*a|eng)\.?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
-    bachelor: /^(?:bachelor'?s?(?:\s+degree)?(?:\s+of\s+(?:science|arts|engineering|business administration))?|b\.?\s*(?:s|a|b\.?\s*a|eng)\.?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
+    master: /^(?:master'?s?(?:\s+degree)?(?:\s+of\s+(?:science|arts|engineering|business administration))?(?:\s+degree)?|m\.?\s*(?:s|a|b\.?\s*a|eng)\.?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
+    bachelor: /^(?:bachelor'?s?(?:\s+degree)?(?:\s+of\s+(?:science|arts|engineering|business administration))?(?:\s+degree)?|b\.?\s*(?:s|a|b\.?\s*a|eng)\.?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
     associate: /^(?:associate'?s?(?:\s+degree)?(?:\s+of\s+(?:science|arts))?|a\.?\s*(?:s|a)\.?)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
     high_school: /^(?:high\s+school(?:\s+diploma)?|ged|diploma)(?:[\s,:-]+)*/i,
     certificate: /^(?:certificate|certification|bootcamp)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,

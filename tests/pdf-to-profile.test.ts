@@ -130,4 +130,78 @@ Software Engineer | January 2024 – Present
     expect(parsed.education?.[1].degreeType).toBe("bachelor");
     expect(parsed.education?.[1].endDate).toBe("May 2024");
   });
+
+  test("parses combined technical-resume rows without reversing title and company", () => {
+    const technical = parseResumeText(`Undergraduate Student
+518-421-7587 • student@mit.edu • linkedin.com/in/mit-student
+EDUCATION
+Massachusetts Institute of Technology | Cambridge, MA | May 2026
+Bachelor of Science degree in Electrical Engineering and Computer Science
+Coursework: Algorithms, Machine Learning, Linear Algebra
+SKILLS & TECHNICAL TOOLS
+Languages: Python, Java, C++
+Technologies: PyTorch, Docker,
+Git, Django
+EXPERIENCE
+Software Engineering Analyst Intern | Magna, Office of the CEO | City, ST | Jun 2024 - Present
+● Built internal engineering prototypes
+PROJECTS
+Autonomous UAV | PyTorch, OpenCV | Spring 2024
+● Built a real-time navigation system`);
+
+    expect(technical.experience).toHaveLength(1);
+    expect(technical.experience?.[0]).toMatchObject({
+      title: "Software Engineering Analyst Intern",
+      company: "Magna, Office of the CEO",
+      location: "City, ST",
+      startDate: "Jun 2024",
+      endDate: "Present",
+    });
+    expect(technical.education).toHaveLength(1);
+    expect(technical.education?.[0].fieldOfStudy).toBe("Electrical Engineering and Computer Science");
+    expect(technical.skills).toEqual([
+      { category: "Languages", items: "Python, Java, C++" },
+      { category: "Technologies", items: "PyTorch, Docker, Git, Django" },
+    ]);
+    expect(technical.projects?.[0].date).toBe("Spring 2024");
+  });
+
+  test("ignores sample cover labels and keeps compact template sections intact", () => {
+    const template = parseResumeText(`Sample Resumes
+Masters II Resume
+C HARLES M ENG
+Cambridge, MA | 617.123.4567 | csmeng@mit.edu
+EDUCATION
+Massachusetts Institute of Technology (MIT) | Cambridge, MA
+Candidate for Master of Engineering in Computer Science; GPA: 5.0/5.0 | Expected June 20XX
+Bachelor of Science in Computer Science; GPA: 4.6/5.0 | June 20XX
+• Concentration: Human-Computer Interaction
+• Master’s Thesis: Search Tools for Code Review
+EXPERIENCE
+User Interface Design Group; CSAIL, MIT | Cambridge, MA
+Researcher | Oct. 20XX–Present
+Designed search tools for large classrooms.
+LEADERSHIP
+MIT Student Cultural Association | Cambridge, MA
+Treasurer | May 20XX – Present
+• Managed the annual budget
+SKILLS AND INTERESTS
+• Python, C++, Java, MATLAB`);
+
+    expect(template.contact?.name).toBe("CHARLES MENG");
+    expect(template.education).toHaveLength(2);
+    expect(template.education?.map((entry) => entry.gpa)).toEqual(["5.0", "4.6"]);
+    expect(template.experience?.[0]).toMatchObject({
+      company: "User Interface Design Group; CSAIL, MIT",
+      title: "Researcher",
+      startDate: "Oct 20XX",
+      endDate: "Present",
+      bullets: ["Designed search tools for large classrooms."],
+    });
+    expect(template.optionalSections?.[0]).toMatchObject({
+      kind: "leadership",
+      items: [{ category: "Treasurer · MIT Student Cultural Association" }],
+    });
+    expect(template.skills).toEqual([{ category: "Skills", items: "Python, C++, Java, MATLAB" }]);
+  });
 });

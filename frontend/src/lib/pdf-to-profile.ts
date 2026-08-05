@@ -25,7 +25,10 @@ type DatedLine = {
 };
 
 const MONTH = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
-const DATE = `(?:${MONTH}\\.?\\s+)?\\d{4}`;
+const SEASON = "(?:Spring|Summer|Fall|Autumn|Winter)";
+const YEAR = "(?:\\d{4}|(?:19|20)XX)";
+const DATE = `(?:Expected\\s+)?(?:(?:${MONTH}\\.?|${SEASON})\\s+)?${YEAR}`;
+const COMPACT_MONTH_RANGE_AT_END = new RegExp(`(${MONTH})\\.?\\s*(?:-|–|—|to)\\s*(${MONTH})\\.?\\s+(${YEAR})\\s*$`, "i");
 const DATE_RANGE_AT_END = new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(Present|Current|${DATE})\\s*$`, "i");
 const SINGLE_DATE_AT_END = new RegExp(`(${DATE})\\s*$`, "i");
 
@@ -33,7 +36,7 @@ const SECTION_PATTERNS: Array<[SectionType, RegExp]> = [
   ["experience", /^(?:(?:work|professional)\s+)?experience$|^employment(?:\s+history)?$/i],
   ["education", /^education(?:\s+and\s+training)?$/i],
   ["projects", /^(?:selected\s+)?projects?$/i],
-  ["skills", /^(?:technical\s+|programming\s+)?skills$/i],
+  ["skills", /^(?:technical\s+|programming\s+)?skills(?:\s*(?:&|and)\s*(?:technical\s+tools?|interests?))?$/i],
   ["leadership", /^(?:leadership|affiliations|activities)(?:\s+and\s+affiliations)?$/i],
   ["certifications", /^certifications?(?:\s+and\s+licenses)?$/i],
   ["publications", /^publications?$/i],
@@ -123,12 +126,22 @@ function classifyLine(line: string): SectionType | null {
 }
 
 function splitTrailingDate(text: string): DatedLine {
+  const compactMonthRange = COMPACT_MONTH_RANGE_AT_END.exec(text);
+  if (compactMonthRange) {
+    const year = compactMonthRange[3].trim();
+    return {
+      prefix: text.slice(0, compactMonthRange.index).replace(/[|,;\s]+$/, "").trim(),
+      start: `${compactMonthRange[1]} ${year}`,
+      end: `${compactMonthRange[2]} ${year}`,
+      matched: true,
+    };
+  }
   const range = DATE_RANGE_AT_END.exec(text);
   if (range) {
     return {
       prefix: text.slice(0, range.index).replace(/[|,;\s]+$/, "").trim(),
-      start: range[1].trim(),
-      end: /current/i.test(range[2]) ? "Present" : range[2].trim(),
+      start: cleanDate(range[1]),
+      end: /current/i.test(range[2]) ? "Present" : cleanDate(range[2]),
       matched: true,
     };
   }
@@ -137,18 +150,27 @@ function splitTrailingDate(text: string): DatedLine {
     return {
       prefix: text.slice(0, single.index).replace(/[|,;\s]+$/, "").trim(),
       start: "",
-      end: single[1].trim(),
+      end: cleanDate(single[1]),
       matched: true,
     };
   }
   return { prefix: text.trim(), start: "", end: "", matched: false };
 }
 
+function cleanDate(value: string): string {
+  return value.replace(/^Expected\s+/i, "").replace(/\.(?=\s|$)/g, "").trim();
+}
+
+function looksLikeLocationColumn(value: string): boolean {
+  if (/^Remote(?:\s*[-–—/]\s*[A-Za-z ]+)?$/i.test(value)) return true;
+  return /^[^|,]{1,50},\s*[^|,]{2,50}(?:\s+and\s+[^|,]{1,50},\s*[^|,]{2,50})?$/i.test(value);
+}
+
 function splitTrailingLocation(text: string): { prefix: string; location: string } {
   const columns = text.split(/\s+\|\s+/);
   if (columns.length > 1) {
     const lastColumn = columns.at(-1)?.trim() ?? "";
-    if (/^(?:[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*)*,\s*[A-Z]{2}|Remote(?:\s*[-–—/]\s*[A-Za-z ]+)?)$/i.test(lastColumn)) {
+    if (looksLikeLocationColumn(lastColumn)) {
       return { prefix: columns.slice(0, -1).join(" | ").trim(), location: lastColumn };
     }
   }
@@ -219,8 +241,42 @@ function contactUrl(text: string, links: PdfLink[], kind: "linkedin" | "github" 
   ) ?? "";
 }
 
+function normalizeSpacedCapitalName(value: string): string {
+  const words = value.trim().split(/\s+/);
+  const normalized: string[] = [];
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    const next = words[index + 1];
+    if (/^[A-Z]$/.test(word) && next && /^[A-Z]{2,}$/.test(next)) {
+      normalized.push(`${word}${next}`);
+      index += 1;
+    } else {
+      normalized.push(word);
+    }
+  }
+  return normalized.join(" ");
+}
+
+function findName(lines: string[]): string {
+  for (const line of lines) {
+    if (findEmail(line) || findPhone(line) || displayedUrls(line).length > 0) continue;
+    if (/\bresumes?\b/i.test(line)) continue;
+    if (/[|•☞,:]/.test(line) || /\d/.test(line) || line.length > 60) continue;
+    const normalized = normalizeSpacedCapitalName(line);
+    const words = normalized.split(/\s+/);
+    if (words.length < 2 || words.length > 5) continue;
+    if (!words.every((word) => /^[A-Za-z][A-Za-z.'-]*$/.test(word))) continue;
+    return normalized;
+  }
+  return "";
+}
+
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function looksLikeRoleTitle(text: string): boolean {
+  return /\b(?:engineer|developer|researcher|scientist|analyst|designer|architect|manager|lead|director|consultant|specialist|assistant|associate|intern|founder|teacher|instructor|advisor|treasurer|member|editor|caller)\b/i.test(text);
 }
 
 function parseExperience(lines: string[]): ResumeProfile["experience"] {
@@ -242,13 +298,14 @@ function parseExperience(lines: string[]): ResumeProfile["experience"] {
       let title = located.prefix;
       let roleCompany = company;
       const roleLocation = located.location || location;
+      const parts = title.split(/\s+\|\s+|\s+[–—-]\s+/).filter(Boolean);
 
-      if (!roleCompany) {
-        const parts = title.split(/\s+\|\s+|\s+[–—-]\s+/).filter(Boolean);
-        if (parts.length > 1) {
-          roleCompany = parts.shift() ?? "";
-          title = parts.join(" – ");
-        }
+      if (parts.length > 1 && looksLikeRoleTitle(parts[0])) {
+        title = parts.shift() ?? "";
+        roleCompany = parts.join(" – ");
+      } else if (!roleCompany && parts.length > 1) {
+        roleCompany = parts.shift() ?? "";
+        title = parts.join(" – ");
       }
 
       current = {
@@ -274,6 +331,10 @@ function parseExperience(lines: string[]): ResumeProfile["experience"] {
     }
 
     if (current && appendBulletContinuation(current.bullets, line)) continue;
+    if (current) {
+      current.bullets.push(line.trim());
+      continue;
+    }
     if (!company) company = line;
   }
 
@@ -322,6 +383,8 @@ function parseSkills(lines: string[]): ResumeProfile["skills"] {
       skills.push({ category: colon[1].trim(), items: colon[2].trim() });
     } else if (skills.length) {
       skills[skills.length - 1].items = joinWrappedText(skills[skills.length - 1].items, clean);
+    } else if (clean) {
+      skills.push({ category: "Skills", items: clean });
     }
   }
   return skills;
@@ -335,9 +398,19 @@ function looksLikeDegree(text: string): boolean {
   return /\b(?:bachelor|master|doctor|ph\.?d|associate|certificate|diploma|b\.?a\.?|b\.?s\.?|m\.?a\.?|m\.?s\.?|mcs|mba|jd|md)\b/i.test(text);
 }
 
+function looksLikeEducationDetail(text: string): boolean {
+  return /^(?:relevant\s+)?(?:coursework|concentration|minor|master[’']?s?\s+thesis|thesis|honors?|activities)\s*:/i.test(text)
+    || /^candidate\s+for\s+(?:a\s+)?minor\b/i.test(text);
+}
+
 function degreeDetails(text: string): { degree: string; degreeType: ResumeProfile["education"][number]["degreeType"]; fieldOfStudy: string; gpa: string } {
-  const gpa = text.match(/(?:,\s*)?GPA\s*:?\s*([0-4](?:\.\d{1,2})?)/i)?.[1] ?? "";
-  const degreeText = text.replace(/(?:,\s*)?GPA\s*:?\s*[0-4](?:\.\d{1,2})?/i, "").replace(/[|,;\s]+$/, "").trim();
+  const gpaPattern = /(?:[,;]\s*)?GPA\s*:?\s*([0-9](?:\.\d{1,2})?)(?:\s*\/\s*[0-9](?:\.\d{1,2})?)?/i;
+  const gpa = text.match(gpaPattern)?.[1] ?? "";
+  const degreeText = text
+    .replace(gpaPattern, "")
+    .replace(/^Candidate\s+for\s+(?:an?\s+)?/i, "")
+    .replace(/[|,;\s]+$/, "")
+    .trim();
   const degreeType = inferDegreeType(degreeText);
   const fieldOfStudy = inferFieldOfStudy(degreeText, degreeType);
   return {
@@ -381,6 +454,9 @@ function parseEducation(lines: string[]): ResumeProfile["education"] {
       continue;
     }
 
+    if (looksLikeEducationDetail(content)) continue;
+    if (!looksLikeDegree(content) && !dated.matched) continue;
+
     const degree = degreeDetails(content);
     education.push({
       id: genId(),
@@ -398,6 +474,32 @@ function parseEducation(lines: string[]): ResumeProfile["education"] {
   return education.filter((entry) => entry.institution || entry.degree);
 }
 
+function parseOptionalSection(
+  kind: Exclude<SectionType, "experience" | "education" | "projects" | "skills">,
+  lines: string[]
+): ResumeProfile["optionalSections"][number] | null {
+  if (kind === "leadership" || kind === "volunteer") {
+    const roles = parseExperience(lines);
+    if (roles.length > 0) {
+      return {
+        kind,
+        items: roles.map((role) => ({
+          category: [role.title, role.company].filter(Boolean).join(" · "),
+          items: [
+            role.location,
+            [role.startDate, role.endDate].filter(Boolean).join(" – "),
+            ...role.bullets,
+          ].filter(Boolean).join(" · "),
+        })),
+      };
+    }
+  }
+
+  const items = parseSkills(lines);
+  if (items.length === 0) return null;
+  return { kind, items };
+}
+
 export function parseResumeText(text: string, links: PdfLink[] = []): Partial<ResumeProfile> {
   const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
   const sectionHeaders = lines
@@ -408,7 +510,7 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
   const headerText = headerLines.join(" ");
 
   const contact = {
-    name: headerLines.find((line) => !findEmail(line) && !findPhone(line) && line.length < 60) ?? "",
+    name: findName(headerLines),
     email: findEmail(headerText),
     phone: findPhone(headerText),
     location: findLocation(headerText),
@@ -421,6 +523,7 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
   const education: ResumeProfile["education"] = [];
   const projects: ResumeProfile["projects"] = [];
   const skills: ResumeProfile["skills"] = [];
+  const optionalSections: ResumeProfile["optionalSections"] = [];
 
   for (let sectionIndex = 0; sectionIndex < sectionHeaders.length; sectionIndex += 1) {
     const section = sectionHeaders[sectionIndex];
@@ -430,9 +533,16 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
     if (section.type === "education") education.push(...parseEducation(sectionLines));
     if (section.type === "projects") projects.push(...parseProjects(sectionLines));
     if (section.type === "skills") skills.push(...parseSkills(sectionLines));
+    if (!["experience", "education", "projects", "skills"].includes(section.type)) {
+      const optional = parseOptionalSection(
+        section.type as Exclude<SectionType, "experience" | "education" | "projects" | "skills">,
+        sectionLines
+      );
+      if (optional) optionalSections.push(optional);
+    }
   }
 
-  return { contact, experience, education, projects, skills, optionalSections: [] };
+  return { contact, experience, education, projects, skills, optionalSections };
 }
 
 export async function parsePdfToProfile(file: File): Promise<Partial<ResumeProfile>> {
