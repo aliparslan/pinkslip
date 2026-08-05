@@ -10,8 +10,10 @@
   } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import { feedback } from "../../lib/feedback.svelte";
+  import { openInAppBrowser } from "../../lib/application-browser";
   import Spinner from "../../components/Spinner.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
 
   let {
     view = "overview",
@@ -410,9 +412,10 @@
               </div>
 
               <div class="review-links">
-                <a href={review.url} target="_blank" rel="noopener noreferrer" class="text-link">
-                  Source listing
-                </a>
+                <button type="button" class="text-button source-button" onclick={() => void openInAppBrowser(review.url)}>
+                  <ArrowSquareOut size={15} aria-hidden="true" />
+                  Source
+                </button>
                 <button
                   type="button"
                   class="text-button review-note-toggle"
@@ -747,6 +750,16 @@
     display: flex;
     align-items: center;
     gap: 18px;
+    font-size: var(--fs-xs);
+  }
+
+  .source-button {
+    min-height: 36px;
+    padding-block: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-accent);
     font-size: var(--fs-xs);
   }
 

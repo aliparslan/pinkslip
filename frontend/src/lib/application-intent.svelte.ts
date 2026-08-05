@@ -1,19 +1,10 @@
-import {
-  Capacitor,
-  registerPlugin,
-  type PluginListenerHandle,
-} from "@capacitor/core";
 import type { Job } from "./api";
-
-interface ApplicationBrowserPlugin {
-  open(options: { url: string }): Promise<void>;
-  addListener(
-    eventName: "finished",
-    listener: () => void
-  ): Promise<PluginListenerHandle>;
-}
-
-const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
+import { Capacitor } from "@capacitor/core";
+import {
+  normalizeExternalUrl,
+  openExternalWindow,
+  openNativeApplicationBrowser,
+} from "./application-browser";
 
 export interface ApplicationIntent {
   jobId: string;
@@ -26,13 +17,6 @@ export interface ApplicationIntent {
 const STORAGE_KEY = "pinkslip:application-intent";
 const RETURN_GUARD_MS = 750;
 const MAX_INTENT_AGE_MS = 12 * 60 * 60 * 1000;
-
-function normalizeUrl(rawUrl: string): string {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
 
 class ApplicationIntentController {
   pending = $state<ApplicationIntent | null>(null);
@@ -49,7 +33,7 @@ class ApplicationIntentController {
   }
 
   async open(job: Job): Promise<void> {
-    const targetUrl = normalizeUrl(job.url ?? "");
+    const targetUrl = normalizeExternalUrl(job.url ?? "");
     if (!targetUrl) return;
 
     this.clearReturnListeners();
@@ -65,12 +49,10 @@ class ApplicationIntentController {
     try {
       if (Capacitor.isNativePlatform()) {
         try {
-          const handle = await ApplicationBrowser.addListener("finished", () => {
+          this.nativeCleanup = await openNativeApplicationBrowser(intent.url, () => {
             this.clearReturnListeners();
             this.present(intent);
           });
-          this.nativeCleanup = () => void handle.remove();
-          await ApplicationBrowser.open({ url: intent.url });
           return;
         } catch {
           // Older installed builds do not have the app-local plugin yet. Keep
@@ -78,18 +60,13 @@ class ApplicationIntentController {
           this.nativeCleanup?.();
           this.nativeCleanup = null;
           this.watchForWebReturn(intent);
-          window.open(intent.url, "_blank", "noopener,noreferrer");
+          openExternalWindow(intent.url);
           return;
         }
       }
 
       this.watchForWebReturn(intent);
-      const externalWindow = window.open(intent.url, "_blank");
-      if (externalWindow) {
-        externalWindow.opener = null;
-      } else {
-        window.location.assign(intent.url);
-      }
+      openExternalWindow(intent.url);
     } catch (error) {
       this.clearReturnListeners();
       this.clearStoredIntent();
