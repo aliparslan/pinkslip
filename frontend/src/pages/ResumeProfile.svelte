@@ -56,6 +56,7 @@
   let saveAgain = false;
   let importing = $state(false);
   let importInput: HTMLInputElement | null = $state(null);
+  let pendingImport: Partial<ResumeProfile> | null = $state(null);
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
 
@@ -102,10 +103,6 @@
 
   function educationDetail(entry: ResumeProfile["education"][number]): string {
     return [entry.degree, entry.location].filter(Boolean).join(" · ");
-  }
-
-  function projectDetail(entry: ResumeProfile["projects"][number]): string {
-    return [entry.role, entry.teamInfo].filter(Boolean).join(" · ");
   }
 
   function firstBullet(items: string[]): string {
@@ -211,7 +208,7 @@
     const id = genId();
     profile.projects = [
       ...profile.projects,
-      { id, name: "", role: "", teamInfo: "", url: "", bullets: [""] },
+      { id, name: "", url: "", date: "", bullets: [""] },
     ];
     queueAutosave();
     openRecord("projects", id);
@@ -363,30 +360,51 @@
     try {
       const { parsePdfToProfile } = await import("../lib/pdf-to-profile");
       const parsed = await parsePdfToProfile(file);
-      if (parsed.contact) {
-        const contact = parsed.contact;
-        if (contact.name && !profile.contact.name) profile.contact.name = contact.name;
-        if (contact.email && !profile.contact.email) profile.contact.email = contact.email;
-        if (contact.phone && !profile.contact.phone) profile.contact.phone = contact.phone;
-        if (contact.location && !profile.contact.location) profile.contact.location = contact.location;
-        if (contact.linkedin && !profile.contact.linkedin) profile.contact.linkedin = contact.linkedin;
-        if (contact.github && !profile.contact.github) profile.contact.github = contact.github;
-        if (contact.website && !profile.contact.website) profile.contact.website = contact.website;
+      const importedItemCount = (parsed.experience?.length ?? 0)
+        + (parsed.education?.length ?? 0)
+        + (parsed.projects?.length ?? 0)
+        + (parsed.skills?.length ?? 0);
+      if (!parsed.contact?.name && !parsed.contact?.email && importedItemCount === 0) {
+        throw new Error("No resume details were found");
       }
-      if (parsed.experience?.length && !profile.experience.length) profile.experience = parsed.experience;
-      if (parsed.education?.length && !profile.education.length) {
-        profile.education = parsed.education.map(hydrateEducationEntry);
-      }
-      if (parsed.projects?.length && !profile.projects.length) profile.projects = parsed.projects;
-      if (parsed.skills?.length && !profile.skills.length) profile.skills = parsed.skills;
-      feedback.success("PDF imported. Review the details.");
-      queueAutosave();
+      pendingImport = parsed;
     } catch (importError) {
       error = `Could not parse PDF: ${errorMessage(importError)}`;
     } finally {
       importing = false;
       input.value = "";
     }
+  }
+
+  function importSummary(parsed: Partial<ResumeProfile>): string {
+    const parts = [
+      [parsed.experience?.length ?? 0, "role", "roles"],
+      [parsed.projects?.length ?? 0, "project", "projects"],
+      [parsed.education?.length ?? 0, "education entry", "education entries"],
+      [parsed.skills?.length ?? 0, "skill group", "skill groups"],
+    ] as const;
+    return parts
+      .filter(([count]) => count > 0)
+      .map(([count, singular, plural]) => `${count} ${count === 1 ? singular : plural}`)
+      .join(" · ");
+  }
+
+  function applyPdfImport() {
+    if (!pendingImport) return;
+    if (pendingImport.contact) {
+      const keys = ["name", "email", "phone", "location", "linkedin", "github", "website"] as const;
+      for (const key of keys) {
+        const value = pendingImport.contact[key]?.trim();
+        if (value) profile.contact[key] = value;
+      }
+    }
+    if (pendingImport.experience?.length) profile.experience = pendingImport.experience;
+    if (pendingImport.education?.length) profile.education = pendingImport.education.map(hydrateEducationEntry);
+    if (pendingImport.projects?.length) profile.projects = pendingImport.projects;
+    if (pendingImport.skills?.length) profile.skills = pendingImport.skills;
+    pendingImport = null;
+    feedback.success("Resume imported");
+    queueAutosave();
   }
 
   onMount(() => {
@@ -405,7 +423,24 @@
     backLabel={view.kind === "overview" ? "Back to You" : "Back"}
     onBack={handleBack}
   >
-    {#snippet trailing()}<SaveStatus phase={savePresentation.phase} />{/snippet}
+    {#snippet trailing()}
+      <div class="resume-nav-actions">
+        {#if view.kind === "overview" && !loading}
+          <button
+            type="button"
+            class="import-action"
+            aria-label="Import PDF"
+            title="Import PDF"
+            onclick={() => importInput?.click()}
+            disabled={importing}
+          >
+            {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
+            <span>Import</span>
+          </button>
+        {/if}
+        <SaveStatus phase={savePresentation.phase} />
+      </div>
+    {/snippet}
   </ScreenNav>
 
   <div class="page-frame resume-frame">
@@ -422,13 +457,6 @@
       />
 
       <div class="resume-overview">
-        <div class="resume-toolbar">
-          <button type="button" class="resume-tool" onclick={() => importInput?.click()} disabled={importing}>
-            {#if importing}<Spinner />{:else}<UploadSimple size={16} aria-hidden="true" />{/if}
-            <span>{importing ? "Importing…" : "Import PDF"}</span>
-          </button>
-        </div>
-
         <section class="resume-identity" aria-labelledby="resume-name">
           <button type="button" class="identity-button" onclick={() => openSection("contact")}>
             <span class="identity-copy">
@@ -495,8 +523,11 @@
             <div class="resume-entries">
               {#each profile.projects as entry (entry.id)}
                 <button type="button" class="resume-entry" onclick={() => openRecord("projects", entry.id)}>
-                  <span class="entry-heading"><strong>{entry.name.trim() || "Untitled project"}</strong></span>
-                  {#if projectDetail(entry)}<span class="entry-meta">{projectDetail(entry)}</span>{/if}
+                  <span class="entry-heading">
+                    <strong>{entry.name.trim() || "Untitled project"}</strong>
+                    {#if entry.date}<small>{formatResumeDate(entry.date)}</small>{/if}
+                  </span>
+                  {#if entry.url}<span class="entry-meta">{entry.url}</span>{/if}
                   {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
                   <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
                 </button>
@@ -560,24 +591,24 @@
           <section class="editor-section">
             <h2>Profile</h2>
             <div class="form-grid">
-              <label class="field span-2"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
-              <label class="field"><span>Email</span><input class="input-field" name="email" type="email" autocomplete="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
-              <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
+              <label class="field span-2"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} /></label>
+              <label class="field"><span>Email</span><input class="input-field" name="email" type="email" autocomplete="email" bind:value={profile.contact.email} oninput={handleInput} /></label>
+              <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} /></label>
             </div>
           </section>
           <section class="editor-section">
             <h2>Location</h2>
             <div class="form-grid location-grid">
-              <label class="field"><span>City</span><input class="input-field" name="city" autocomplete="address-level2" value={splitUsLocation(profile.contact.location).city} oninput={(event) => updateLocation(profile.contact, "city", event.currentTarget.value)} placeholder="Chicago" /></label>
+              <label class="field"><span>City</span><input class="input-field" name="city" autocomplete="address-level2" value={splitUsLocation(profile.contact.location).city} oninput={(event) => updateLocation(profile.contact, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" name="state" autocomplete="address-level1" value={splitUsLocation(profile.contact.location).state} onchange={(event) => updateLocation(profile.contact, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
           <section class="editor-section">
             <h2>Links</h2>
             <div class="form-grid">
-              <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="linkedin.com/in/jane" /></label>
-              <label class="field"><span>GitHub</span><input class="input-field" name="github" type="url" inputmode="url" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="github.com/jane" /></label>
-              <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} placeholder="yoursite.com" /></label>
+              <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" /></label>
+              <label class="field"><span>GitHub</span><input class="input-field" name="github" type="url" inputmode="url" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" /></label>
+              <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} /></label>
             </div>
           </section>
         </div>
@@ -586,8 +617,8 @@
           {#each profile.skills as skill, index}
             <div class="editor-item">
               <div class="form-grid skill-grid">
-                <label class="field"><span>Category</span><input class="input-field" bind:value={skill.category} oninput={handleInput} placeholder="Languages" /></label>
-                <label class="field"><span>Skills</span><input class="input-field" bind:value={skill.items} oninput={handleInput} placeholder="TypeScript, Python" /></label>
+                <label class="field"><span>Category</span><input class="input-field" bind:value={skill.category} oninput={handleInput} /></label>
+                <label class="field"><span>Skills</span><input class="input-field" bind:value={skill.items} oninput={handleInput} /></label>
               </div>
               <button type="button" class="remove-item" onclick={() => removeSkill(index)}><Trash size={14} /> Remove category</button>
             </div>
@@ -598,7 +629,7 @@
         <div class="editor-form">
           <label class="field">
             <span>Notes</span>
-            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Context to consider when tailoring…"></textarea>
+            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput}></textarea>
           </label>
         </div>
       {:else}
@@ -608,8 +639,8 @@
             {#each optionalSection.items as item, index}
               <div class="editor-item">
                 <div class="form-grid skill-grid">
-                  <label class="field"><span>Label</span><input class="input-field" bind:value={item.category} oninput={handleInput} placeholder="Organization or title" /></label>
-                  <label class="field"><span>Details</span><input class="input-field" bind:value={item.items} oninput={handleInput} placeholder="Role, date, or result" /></label>
+                  <label class="field"><span>Label</span><input class="input-field" bind:value={item.category} oninput={handleInput} /></label>
+                  <label class="field"><span>Details</span><input class="input-field" bind:value={item.items} oninput={handleInput} /></label>
                 </div>
                 <button type="button" class="remove-item" onclick={() => removeOptionalItem(optionalSection.kind, index)}><Trash size={14} /> Remove item</button>
               </div>
@@ -626,14 +657,14 @@
           <section class="editor-section">
             <h2>Role</h2>
             <div class="form-grid">
-              <label class="field"><span>Company</span><input class="input-field" autocomplete="organization" bind:value={entry.company} oninput={handleInput} placeholder="Company name" /></label>
-              <label class="field"><span>Title</span><input class="input-field" autocomplete="organization-title" bind:value={entry.title} oninput={handleInput} placeholder="Job title" /></label>
+              <label class="field"><span>Company</span><input class="input-field" autocomplete="organization" bind:value={entry.company} oninput={handleInput} /></label>
+              <label class="field"><span>Title</span><input class="input-field" autocomplete="organization-title" bind:value={entry.title} oninput={handleInput} /></label>
             </div>
           </section>
           <section class="editor-section">
             <h2>Location</h2>
             <div class="form-grid location-grid">
-              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} placeholder="Chicago" /></label>
+              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
@@ -650,7 +681,7 @@
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
                 <span class="bullet-dot" aria-hidden="true"></span>
-                <textarea class="input-field bullet-input" aria-label="Accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput} placeholder="What changed because of your work?"></textarea>
+                <textarea class="input-field bullet-input" aria-label="Accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
                 <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
               </div>
             {/each}
@@ -666,13 +697,13 @@
           <section class="editor-section">
             <h2>School</h2>
             <div class="form-grid">
-              <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} placeholder="University name" /></label>
+              <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} /></label>
             </div>
           </section>
           <section class="editor-section">
             <h2>Location</h2>
             <div class="form-grid location-grid">
-              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} placeholder="Boston" /></label>
+              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
@@ -680,8 +711,8 @@
             <h2>Degree</h2>
             <div class="form-grid">
               <label class="field"><span>Degree type</span><span class="select-field-wrap"><select class="input-field" value={entry.degreeType ?? ""} onchange={(event) => updateEducationDegree(entry, { degreeType: event.currentTarget.value as DegreeType | "" })}><option value="">Select degree</option>{#each DEGREE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
-              <label class="field"><span>Field of study</span><input class="input-field" value={entry.fieldOfStudy ?? ""} oninput={(event) => updateEducationDegree(entry, { fieldOfStudy: event.currentTarget.value })} placeholder="Computer Science" /></label>
-              <label class="field"><span>GPA</span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} placeholder="3.9" /></label>
+              <label class="field"><span>Field of study</span><input class="input-field" value={entry.fieldOfStudy ?? ""} oninput={(event) => updateEducationDegree(entry, { fieldOfStudy: event.currentTarget.value })} /></label>
+              <label class="field"><span>GPA</span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} /></label>
             </div>
           </section>
           <section class="editor-section">
@@ -699,12 +730,10 @@
       {#if entry}
         <div class="editor-form">
           <section class="editor-section">
-            <h2>Project</h2>
             <div class="form-grid">
-              <label class="field"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} placeholder="Project name" /></label>
-              <label class="field"><span>Role</span><input class="input-field" bind:value={entry.role} oninput={handleInput} placeholder="Full Stack" /></label>
-              <label class="field"><span>Team</span><input class="input-field" bind:value={entry.teamInfo} oninput={handleInput} placeholder="Solo or team size" /></label>
-              <label class="field"><span>URL</span><input class="input-field" type="url" inputmode="url" bind:value={entry.url} oninput={handleInput} placeholder="project-url.com" /></label>
+              <label class="field span-2"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} /></label>
+              <label class="field"><span>Date</span><input class="input-field" type="month" value={monthInputValue(entry.date ?? "")} oninput={(event) => { entry.date = event.currentTarget.value; handleInput(); }} /></label>
+              <label class="field"><span>URL</span><input class="input-field" type="url" inputmode="url" bind:value={entry.url} oninput={handleInput} /></label>
             </div>
           </section>
           <section class="editor-section evidence-section">
@@ -712,7 +741,7 @@
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
                 <span class="bullet-dot" aria-hidden="true"></span>
-                <textarea class="input-field bullet-input" aria-label="Project accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput} placeholder="What did you build or improve?"></textarea>
+                <textarea class="input-field bullet-input" aria-label="Project accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
                 <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove project accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
               </div>
             {/each}
@@ -738,6 +767,21 @@
   </Modal>
 {/if}
 
+{#if pendingImport}
+  <Modal
+    title="Import resume?"
+    subtitle={importSummary(pendingImport)}
+    busy={importing}
+    onclose={() => (pendingImport = null)}
+  >
+    <p class="import-note">Existing details in these sections will be replaced.</p>
+    <div class="action-row import-actions">
+      <button type="button" class="btn-secondary flex-fill" onclick={() => (pendingImport = null)}>Cancel</button>
+      <button type="button" class="btn-primary btn-accent flex-fill" onclick={applyPdfImport}>Import</button>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   .resume-frame {
     padding-top: var(--space-2);
@@ -750,13 +794,38 @@
     padding-bottom: var(--space-6);
   }
 
-  .resume-toolbar {
-    min-height: 44px;
+  .resume-nav-actions {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-1);
   }
 
-  .resume-tool,
+  .import-action {
+    appearance: none;
+    min-width: 44px;
+    height: 44px;
+    padding-inline: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+    font: 600 var(--fs-xs) / 1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .import-action:active {
+    transform: scale(0.96);
+  }
+
+  .import-action:disabled {
+    cursor: default;
+    opacity: 0.64;
+  }
+
   .identity-button,
   .section-action,
   .resume-entry,
@@ -773,25 +842,20 @@
     cursor: pointer;
   }
 
-  .resume-tool {
-    min-height: 44px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--color-ink-3);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-  }
-
-  .resume-tool:disabled {
-    cursor: default;
-    opacity: 0.64;
-  }
-
   .resume-identity {
-    padding-bottom: var(--space-5);
-    border-bottom: 1px solid var(--color-line);
+    position: relative;
+    padding-block: var(--space-3) var(--space-5);
+  }
+
+  .resume-identity::after {
+    content: "";
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 0;
+    width: 48px;
+    height: 3px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
   }
 
   .identity-button {
@@ -829,7 +893,7 @@
 
   .identity-button > :global(svg) {
     flex: 0 0 auto;
-    color: var(--color-ink-4);
+    color: var(--color-accent);
   }
 
   .resume-section {
@@ -842,12 +906,21 @@
     min-height: 44px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-3);
+  }
+
+  .resume-section-heading::before {
+    content: "";
+    width: 3px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
   }
 
   .resume-section-heading h2 {
     margin: 0;
+    margin-inline-end: auto;
     color: var(--color-ink);
     font-size: var(--fs-lg);
     font-weight: 600;
@@ -922,6 +995,7 @@
 
   .entry-meta,
   .entry-preview {
+    overflow-wrap: anywhere;
     color: var(--color-ink-4);
     font-size: var(--fs-xs);
     line-height: 1.35;
@@ -989,7 +1063,6 @@
   }
 
   .section-action:active,
-  .resume-tool:active,
   .add-section-button:active {
     transform: scale(0.96);
   }
@@ -1203,6 +1276,27 @@
 
   .add-section-options button > :global(svg) {
     color: var(--color-ink-4);
+  }
+
+  .import-note {
+    margin: var(--space-3) 0 0;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+  }
+
+  .import-actions {
+    margin-top: var(--space-5);
+  }
+
+  @media (max-width: 420px) {
+    .import-action {
+      padding-inline: 0;
+    }
+
+    .import-action span {
+      display: none;
+    }
   }
 
   @media (max-width: 540px) {
