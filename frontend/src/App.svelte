@@ -24,6 +24,7 @@
   import JobDetail from "./pages/JobDetail.svelte";
   import Profile from "./pages/Profile.svelte";
   import JobLibrary from "./pages/JobLibrary.svelte";
+  import ResumeProfile from "./pages/ResumeProfile.svelte";
   import TabBar from "./components/TabBar.svelte";
   import RootHeader from "./components/RootHeader.svelte";
   import Onboarding from "./components/Onboarding.svelte";
@@ -33,6 +34,7 @@
   import { applicationIntent } from "./lib/application-intent.svelte";
   import { initNativePush } from "./lib/native-push";
   import { syncFeedPreferences } from "./lib/feed-store.svelte";
+  import type { SearchProfile } from "../../shared/search-profile";
 
   // /you is the compact account/settings home. Its focused destinations reuse
   // the same stateful page component so autosaved edits survive navigation.
@@ -51,7 +53,6 @@
     | { component?: never; cacheKey: string; load: () => Promise<PageModule> };
 
   const loadCompanies = () => import("./pages/Companies.svelte");
-  const loadResume = () => import("./pages/ResumeProfile.svelte");
   const loadStory = () => import("./pages/Corpus.svelte");
   const loadTailor = () => import("./pages/Tailor.svelte");
   const loadAdmin = () => import("./pages/Admin.svelte");
@@ -66,7 +67,10 @@
     "/you/feedback": { component: asPage(Profile) },
     "/you/companies": { cacheKey: "companies", load: loadCompanies },
     "/you/story": { cacheKey: "story", load: loadStory },
-    "/you/resume": { cacheKey: "resume", load: loadResume },
+    // Resume is intentionally part of the stable app shell. A WebView left open
+    // across a deployment must never depend on an older lazy chunk just to open
+    // (or escape from) this core account screen.
+    "/you/resume": { component: asPage(ResumeProfile) },
     "/library/saved": { component: asPage(JobLibrary) },
     "/library/applied": { component: asPage(JobLibrary) },
     "/admin": { cacheKey: "admin", load: loadAdmin },
@@ -97,6 +101,35 @@
   let pageLoadGeneration = 0;
   let jobId = $derived(routeParam(route, "jobId"));
 
+  const LAZY_RECOVERY_KEY = "pinkslip:lazy-route-recovery";
+  const REFRESH_QUERY_KEY = "_app_refresh";
+
+  function clearLazyLoadRecovery() {
+    try {
+      window.sessionStorage.removeItem(LAZY_RECOVERY_KEY);
+    } catch {
+      // Private browsing and hardened WebViews may deny storage; recovery still
+      // works through the visible retry/back controls below.
+    }
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(REFRESH_QUERY_KEY)) return;
+    url.searchParams.delete(REFRESH_QUERY_KEY);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function refreshForUpdatedAssets(activeRoute: string): boolean {
+    try {
+      if (window.sessionStorage.getItem(LAZY_RECOVERY_KEY) === activeRoute) return false;
+      window.sessionStorage.setItem(LAZY_RECOVERY_KEY, activeRoute);
+    } catch {
+      return false;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set(REFRESH_QUERY_KEY, Date.now().toString());
+    window.location.replace(url.toString());
+    return true;
+  }
+
   async function loadPageEntry(cacheKey: string, load: () => Promise<PageModule>, generation: number) {
     try {
       const module = await load();
@@ -104,6 +137,7 @@
       const component = asPage(module.default);
       componentCache.set(cacheKey, component);
       CurrentPage = component;
+      clearLazyLoadRecovery();
     } catch {
       try {
         const module = await load();
@@ -111,8 +145,11 @@
         const component = asPage(module.default);
         componentCache.set(cacheKey, component);
         CurrentPage = component;
+        clearLazyLoadRecovery();
       } catch {
-        if (generation === pageLoadGeneration) pageLoadFailed = true;
+        if (generation === pageLoadGeneration && !refreshForUpdatedAssets(route)) {
+          pageLoadFailed = true;
+        }
       }
     }
   }
@@ -124,6 +161,7 @@
     const entry = entryFor(activeRoute);
     if (entry.component) {
       CurrentPage = entry.component;
+      clearLazyLoadRecovery();
       return;
     }
 
@@ -345,6 +383,7 @@
   }
 
   let showOnboarding: boolean = $state(false);
+  let onboardingProfile: SearchProfile | null = $state(null);
   let userName: string = $state("");
   let booting: boolean = $state(true);
   let sessionReady: boolean = $state(false);
@@ -369,6 +408,7 @@
       if (gen !== bootGen) return;
       syncSessionAccess(res);
       syncFeedPreferences(preferences.search_profile);
+      onboardingProfile = preferences.search_profile;
       userName = res.user?.name ?? "";
       showOnboarding = preferences.search_profile.onboarding_version < 2
         || !preferences.search_profile.onboarding_completed_at;
@@ -509,8 +549,11 @@
             <div class="boot-error-wrap">
               <div class="boot-error-card">
                 <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
-                <div class="boot-error-copy">Check your connection and try again.</div>
-                <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+                <div class="boot-error-copy">The app may have updated while it was open. Try once more or return to the previous page.</div>
+                <div class="button-cluster">
+                  <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+                  <button class="btn-secondary" onclick={() => navigate(backTargetRoute(route) ?? "/you", { replace: true })}>Go back</button>
+                </div>
               </div>
             </div>
           {:else if !CurrentPage}
@@ -580,8 +623,11 @@
   </div>
 {/if}
 
-{#if sessionReady && showOnboarding}
-  <Onboarding onComplete={(name) => { userName = name; showOnboarding = false; }} />
+{#if sessionReady && showOnboarding && onboardingProfile}
+  <Onboarding
+    initialProfile={onboardingProfile}
+    onComplete={(name) => { userName = name; showOnboarding = false; }}
+  />
 {/if}
 
 <ToastViewport />

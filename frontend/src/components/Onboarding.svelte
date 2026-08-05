@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { api } from "../lib/api";
   import { errorMessage } from "../lib/utils";
-  import { enableNativePush, isNativeIos } from "../lib/native-push";
+  import { enableNativePush, getNativePushStatus, isNativeIos } from "../lib/native-push";
   import {
     DEFAULT_SEARCH_PROFILE,
     ONBOARDING_VERSION,
@@ -16,7 +17,13 @@
   import Spinner from "./Spinner.svelte";
   import { syncFeedPreferences } from "../lib/feed-store.svelte";
 
-  let { onComplete }: { onComplete: (name: string) => void } = $props();
+  let {
+    initialProfile,
+    onComplete,
+  }: {
+    initialProfile: SearchProfile;
+    onComplete: (name: string) => void;
+  } = $props();
 
   const TOTAL_STEPS = 3;
 
@@ -27,7 +34,27 @@
   let profile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let error: string | null = $state(null);
   let onboardingStartRecorded = false;
+  let profileInitialized = false;
   let scrollEl: HTMLDivElement | null = $state(null);
+
+  $effect(() => {
+    if (profileInitialized) return;
+    profile = normalizeSearchProfile(initialProfile);
+    profileInitialized = true;
+  });
+
+  onMount(() => {
+    let active = true;
+    void getNativePushStatus()
+      .then((status) => {
+        if (active && status === "enabled") {
+          pushStatus = "enabled";
+          profile = normalizeSearchProfile({ ...profile, notifications_enabled: true });
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  });
 
   $effect(() => {
     step;
@@ -75,10 +102,8 @@
       const enabled = (await enableNativePush()) === "enabled";
       pushStatus = enabled ? "enabled" : "denied";
       if (enabled) {
-        const saved = await api.preferences.update({
-          search_profile: { ...profile, notifications_enabled: true },
-        });
-        profile = normalizeSearchProfile(saved.search_profile);
+        await api.push.updateSettings({ enabled: true, push_enabled: true });
+        profile = normalizeSearchProfile({ ...profile, notifications_enabled: true });
       }
     } catch {
       pushStatus = "error";
@@ -119,33 +144,35 @@
 </script>
 
 <div class="onboarding">
-  <header class="onboarding-progress">
-    <button
-      type="button"
-      class="onboarding-back"
-      class:hidden={step === 1}
-      aria-label="Back"
-      tabindex={step === 1 ? -1 : 0}
-      onclick={goBack}
-    >
-      <CaretLeft size={21} weight="bold" />
-    </button>
+  <header class="onboarding-header">
+    <div class="onboarding-header-row">
+      <button
+        type="button"
+        class="onboarding-back"
+        class:hidden={step === 1}
+        aria-label="Back"
+        tabindex={step === 1 ? -1 : 0}
+        onclick={goBack}
+      >
+        <CaretLeft size={21} weight="bold" />
+      </button>
+      <div class="onboarding-brand" aria-label="pinkslip">
+        <BrandMark size={28} />
+        <span><strong>pink</strong>slip</span>
+      </div>
+      <span aria-hidden="true"></span>
+    </div>
     <div class="onboarding-progress-track" aria-label={`Step ${step} of ${TOTAL_STEPS}`}>
       {#each Array.from({ length: TOTAL_STEPS }, (_, index) => index + 1) as item}
         <span class:active={item <= step}></span>
       {/each}
     </div>
-    <span class="onboarding-step-count">{step} / {TOTAL_STEPS}</span>
   </header>
 
   <div bind:this={scrollEl} class="onboarding-scroll">
     <main class="onboarding-content">
       {#if step === 1}
         <section class="onboarding-step">
-          <div class="onboarding-brand">
-            <BrandMark size={34} />
-            <span><strong>pink</strong>slip</span>
-          </div>
           <h1>Beat the crowd</h1>
           <p class="onboarding-copy">
             Choose the roles you want. We&rsquo;ll alert you the moment we see a new posting.
@@ -153,45 +180,21 @@
           <div class="onboarding-fields">
             <SearchProfileFields bind:profile section="roles" showAdvanced={false} showHeadings={false} />
           </div>
-          <button
-            type="button"
-            class="btn-primary btn-accent full-width onboarding-cta"
-            disabled={profile.roles.length === 0}
-            onclick={beginOnboarding}
-          >
-            Continue
-          </button>
         </section>
 
       {:else if step === 2}
         <section class="onboarding-step">
-          <h1>Where can you work?</h1>
+          <h1>Set your work preferences</h1>
           <div class="onboarding-fields onboarding-fields-after-title">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
           {#if error}
             <div class="alert alert-error onboarding-alert" role="alert">{error}</div>
           {/if}
-          <button
-            type="button"
-            class="btn-primary btn-accent full-width onboarding-cta"
-            disabled={saving || profile.work_modes.length === 0}
-            onclick={saveSearchProfile}
-          >
-            {#if saving}<Spinner />{/if}
-            Continue
-          </button>
         </section>
 
       {:else}
         <section class="onboarding-step">
-          <div class="onboarding-notification-mark" class:enabled={pushStatus === "enabled"}>
-            {#if pushStatus === "enabled"}
-              <Check size={25} weight="bold" />
-            {:else}
-              <Bell size={25} weight="fill" />
-            {/if}
-          </div>
           <h1>Stay in the loop</h1>
           <p class="onboarding-copy">
             Get an alert when a new role fits your search.
@@ -211,6 +214,7 @@
               {#if enablingPush}<Spinner />{:else}<Bell size={17} />{/if}
               Enable notifications
             </button>
+            <p class="onboarding-footnote">Alerts can be turned on later.</p>
           {/if}
 
           {#if pushStatus === "denied"}
@@ -219,28 +223,49 @@
             </div>
           {:else if pushStatus === "error"}
             <div class="alert alert-error onboarding-alert" role="alert">
-              Alerts could not be enabled right now. Your search is already saved.
+              Unable to turn on alerts. Check your connection and try again.
             </div>
           {:else if error}
             <div class="alert alert-error onboarding-alert" role="alert">{error}</div>
           {/if}
 
-          <button
-            type="button"
-            class="btn-primary btn-accent full-width onboarding-cta"
-            disabled={saving || enablingPush}
-            onclick={finish}
-          >
-            {#if saving}<Spinner />{/if}
-            Start using pinkslip
-          </button>
-          {#if pushStatus !== "enabled"}
-            <p class="onboarding-footnote">You can turn alerts on later from You → Job alerts.</p>
-          {/if}
         </section>
       {/if}
     </main>
   </div>
+
+  <footer class="onboarding-footer">
+    <div class="onboarding-footer-inner">
+      {#if step === 1}
+        <button
+          type="button"
+          class="btn-primary btn-accent full-width onboarding-cta"
+          disabled={profile.roles.length === 0}
+          onclick={beginOnboarding}
+        >Continue</button>
+      {:else if step === 2}
+        <button
+          type="button"
+          class="btn-primary btn-accent full-width onboarding-cta"
+          disabled={saving || profile.work_modes.length === 0}
+          onclick={saveSearchProfile}
+        >
+          {#if saving}<Spinner />{/if}
+          Continue
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="btn-primary btn-accent full-width onboarding-cta"
+          disabled={saving || enablingPush}
+          onclick={finish}
+        >
+          {#if saving}<Spinner />{/if}
+          Start using pinkslip
+        </button>
+      {/if}
+    </div>
+  </footer>
 </div>
 
 <style>
@@ -250,19 +275,23 @@
     z-index: var(--z-overlay);
     display: flex;
     flex-direction: column;
-    padding: var(--safe-top) 0 var(--safe-bottom);
+    padding: var(--safe-top) 0 0;
     background: var(--color-bg);
     overscroll-behavior: contain;
   }
 
-  .onboarding-progress {
+  .onboarding-header {
+    flex: none;
+    padding: 6px var(--space-4) 12px;
+    background: var(--color-bg);
+  }
+
+  .onboarding-header-row {
     min-height: var(--screen-nav-height);
-    padding: 0 var(--space-4);
     display: grid;
     grid-template-columns: var(--tap-min) minmax(0, 1fr) var(--tap-min);
     align-items: center;
     gap: var(--space-3);
-    background: var(--color-bg);
   }
 
   .onboarding-back {
@@ -286,6 +315,8 @@
   .onboarding-back:hover { background: var(--color-bg-sunken); }
 
   .onboarding-progress-track {
+    width: min(100%, 400px);
+    margin: 0 auto;
     display: flex;
     gap: var(--space-2);
   }
@@ -300,26 +331,19 @@
 
   .onboarding-progress-track span.active { background: var(--color-accent); }
 
-  .onboarding-step-count {
-    color: var(--color-ink-4);
-    font-size: var(--fs-xs);
-    line-height: 1;
-    text-align: right;
-  }
-
   .onboarding-scroll {
     min-height: 0;
     flex: 1;
     overflow-y: auto;
     display: flex;
     justify-content: center;
-    padding: var(--space-5) var(--space-5) var(--space-10);
+    padding: var(--space-6) var(--space-5);
   }
 
   .onboarding-content {
     width: 100%;
     max-width: 400px;
-    margin-block: auto;
+    margin-block: 0;
   }
 
   .onboarding-step {
@@ -327,15 +351,15 @@
   }
 
   .onboarding-brand {
-    margin-bottom: var(--space-8);
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-self: center;
+    gap: 8px;
     color: var(--color-ink);
   }
 
   .onboarding-brand span {
-    font-size: var(--fs-xl);
+    font-size: var(--fs-lg);
     font-weight: 600;
     letter-spacing: -0.025em;
   }
@@ -364,26 +388,25 @@
     line-height: 1.5;
   }
 
-  .onboarding-fields { margin-bottom: var(--space-6); }
+  .onboarding-fields { margin-bottom: 0; }
   .onboarding-fields-after-title { margin-top: var(--space-6); }
   .onboarding-alert { margin: var(--space-3) 0 0; }
-  .onboarding-cta { margin-top: var(--space-5); }
-
-  .onboarding-notification-mark {
-    width: 54px;
-    height: 54px;
-    margin-bottom: var(--space-6);
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-lg);
-    background: var(--color-accent-soft);
-    color: var(--color-accent-soft-ink);
+  .onboarding-footer {
+    flex: none;
+    padding: 12px var(--space-5) calc(12px + var(--safe-bottom));
+    background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+    box-shadow: 0 -1px 0 var(--color-line);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
-  .onboarding-notification-mark.enabled {
-    background: var(--color-good-soft);
-    color: var(--color-good);
+  .onboarding-footer-inner {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
   }
+
+  .onboarding-cta { margin: 0; }
 
   .onboarding-alert-action { margin-top: var(--space-2); }
 
@@ -393,20 +416,19 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-message-border);
     border-radius: var(--radius-md);
     font-size: var(--fs-sm);
     font-weight: 500;
   }
 
   .onboarding-status.success {
-    border-color: color-mix(in oklch, var(--color-good) 28%, var(--color-line));
     background: var(--color-good-soft);
     color: var(--color-good);
   }
 
   .onboarding-footnote {
-    margin: var(--space-3) 0 0;
+    margin: 8px 0 0;
     color: var(--color-ink-4);
     font-size: var(--fs-xs);
     line-height: 1.4;
@@ -419,6 +441,6 @@
   }
 
   @media (min-width: 720px) {
-    .onboarding-scroll { padding-top: var(--space-8); }
+    .onboarding-scroll { padding-block: var(--space-8); }
   }
 </style>

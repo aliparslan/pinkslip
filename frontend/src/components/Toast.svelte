@@ -101,7 +101,7 @@
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
-    border: 1px solid var(--color-line-2);
+    border: 1px solid var(--color-message-border);
     border-radius: var(--radius-md);
     background: color-mix(in oklch, var(--color-bg-elev) 94%, transparent);
     color: var(--color-ink);
@@ -117,9 +117,11 @@
     transition: none;
   }
 
-  .toast-message.success { border-color: color-mix(in oklch, var(--color-good) 34%, var(--color-line)); }
-  .toast-message.warning { border-color: color-mix(in oklch, var(--color-warn) 38%, var(--color-line)); }
-  .toast-message.error { border-color: color-mix(in oklch, var(--color-bad) 38%, var(--color-line)); }
+  /* The icon and live-region semantics carry status. Keeping the structural
+     border neutral avoids muddy green/red outlines in dark mode. */
+  .toast-message.success,
+  .toast-message.warning,
+  .toast-message.error { border-color: var(--color-message-border); }
 
   :global(.toast-icon) { color: var(--color-ink-3); }
   .success :global(.toast-icon) { color: var(--color-good); }

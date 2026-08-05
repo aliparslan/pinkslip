@@ -9,13 +9,14 @@
   --app-nav-wide: 232px;
   --screen-gutter: 16px;
   --screen-nav-height: 56px;
-  --mobile-tab-bar-height: 62px;
+  --mobile-tab-bar-height: 58px;
   --root-header-height: calc(var(--safe-top) + 90.5px);
   --tap-min: 44px;
   --control-height: 48px;
   --control-height-compact: 40px;
 
   /* Type */
+  --fs-3xs: 11px;
   --fs-2xs: 12px;
   --fs-xs: 13px;
   --fs-sm: 14px;
@@ -79,6 +80,7 @@
   --color-ink-4: oklch(0.62 0.006 285);
   --color-line: oklch(0.29 0.006 285);
   --color-line-2: oklch(0.36 0.007 285);
+  --color-message-border: oklch(1 0 0 / 0.13);
 
   /* Pink is identity and state, never the ambient canvas. */
   /* Lightened from 0.72 so the dark label on a filled pink button clears APCA 60
@@ -130,6 +132,7 @@
   --color-ink-4: oklch(0.52 0.006 285);
   --color-line: oklch(0.905 0.003 80);
   --color-line-2: oklch(0.825 0.004 80);
+  --color-message-border: oklch(0 0 0 / 0.14);
 
   --color-accent: oklch(0.57 0.205 350);
   --color-accent-ink: oklch(0.99 0.002 70);

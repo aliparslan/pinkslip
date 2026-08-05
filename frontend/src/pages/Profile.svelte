@@ -446,6 +446,15 @@
           <div class="alert alert-error" role="alert">{error}</div>
         {/if}
 
+        {#if isAdmin}
+          <section>
+            <h2 class="section-eyebrow">Admin</h2>
+            <div class="surface-list">
+              {@render destinationRow("Admin workspace", "Product health and moderation", "/admin", Wrench)}
+            </div>
+          </section>
+        {/if}
+
         <section>
           <h2 class="section-eyebrow">Search</h2>
           <div class="surface-list">
@@ -497,15 +506,6 @@
             {@render destinationRow("Account", accountSummary, "/you/account", UserCircle)}
           </div>
         </section>
-
-        {#if isAdmin}
-          <section>
-            <h2 class="section-eyebrow">Admin</h2>
-            <div class="surface-list">
-              {@render destinationRow("Admin workspace", "Product health and moderation", "/admin", Wrench)}
-            </div>
-          </section>
-        {/if}
       {/if}
     </div>
   </div>

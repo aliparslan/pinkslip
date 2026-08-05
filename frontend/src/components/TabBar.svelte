@@ -2,8 +2,8 @@
   import { currentRoute, navigate, rootDestinationFor, scrollContainer, type RootDestination } from "../router";
   import { hapticLight } from "../lib/haptics";
   import BrandMark from "./BrandMark.svelte";
+  import BookmarksSimple from "phosphor-svelte/lib/BookmarksSimple";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
-  import CardsThree from "phosphor-svelte/lib/CardsThree";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
 
   let { mobileHidden = false }: { mobileHidden?: boolean } = $props();
@@ -11,8 +11,8 @@
   let route = $derived($currentRoute);
 
   const tabs = [
-    { id: "feed", label: "Feed", path: "/", icon: CardsThree },
-    { id: "library", label: "Library", path: "/library/saved", icon: Briefcase },
+    { id: "feed", label: "Jobs", path: "/", icon: Briefcase },
+    { id: "library", label: "Library", path: "/library/saved", icon: BookmarksSimple },
     { id: "you", label: "You", path: "/you", icon: UserCircle },
   ] as const;
 
@@ -33,7 +33,7 @@
 
 <nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation">
   <div class="tab-bar__inner">
-    <button type="button" class="tab-bar__brand" aria-label="Go to feed" onclick={() => selectTab("/", "feed")}>
+    <button type="button" class="tab-bar__brand" aria-label="Go to jobs" onclick={() => selectTab("/", "feed")}>
       <span class="tab-bar__mark"><BrandMark size={23} /></span>
       <span><span>pink</span>slip</span>
     </button>
@@ -52,7 +52,7 @@
           <span class:visible={!active}><tab.icon size={22} weight="regular" /></span>
           <span class:visible={active}><tab.icon size={22} weight="fill" /></span>
         </span>
-        <span>{tab.label}</span>
+        <span class="tab-bar__label">{tab.label}</span>
       </button>
     {/each}
     </div>
@@ -80,7 +80,7 @@
   .tab-bar__links {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    padding: var(--space-1) var(--space-3) max(0px, calc(env(safe-area-inset-bottom, 0px) - 4px));
+    padding: 0 var(--space-3) var(--safe-bottom);
   }
   .tab-bar__brand {
     display: none;
@@ -89,14 +89,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-1);
-    padding: 6px 0;
+    gap: 2px;
+    padding: 9px 0 7px;
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-ink-3);
     font-family: var(--font-sans);
-    font-size: var(--fs-2xs);
+    font-size: var(--fs-3xs);
     font-weight: 500;
     transition:
       color var(--duration-instant) var(--ease-standard),
@@ -107,6 +107,8 @@
   .tab-bar__item.active {
     color: var(--color-accent);
   }
+
+  .tab-bar__label { transform: translateY(-1px); }
 
   .tab-bar__icon {
     width: 22px;
@@ -195,6 +197,7 @@
       border-radius: var(--radius-md);
       font-size: var(--fs-base);
     }
+    .tab-bar__label { transform: none; }
     .tab-bar__item.active {
       background: var(--color-accent-soft);
       color: var(--color-accent-soft-ink);
