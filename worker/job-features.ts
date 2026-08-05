@@ -1,6 +1,7 @@
 import {
   LOCATION_OPTIONS,
   ROLE_OPTIONS,
+  specificRoleSpecialties,
   type ExperienceLevel,
   type LocationId,
   type RoleFamily,
@@ -9,10 +10,9 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-// v9 distinguishes preferred from required experience, understands bounded
-// spelled-out YOE, requires positive evidence before treating a doctorate as a
-// gate, and sends ambiguous numeric title levels to the admin review queue.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v9";
+// v10 makes explicit specialties take precedence over generic SWE while
+// preserving the v9 experience, degree, and ambiguous-level behavior.
+export const JOB_CLASSIFIER_VERSION = "deterministic-v10";
 
 export type JobReviewReason =
   | "ambiguous_title_level"
@@ -235,7 +235,7 @@ export function classifyJob(listing: JobListing): JobFeatures {
   // assign a specialty by themselves (for example, data scientists often sit
   // inside "Product"). Specialty classification remains title-first.
   const departmentMatches: RoleId[] = [];
-  const specialties = [...new Set([...specialtyMatches, ...departmentMatches])];
+  const specialties = specificRoleSpecialties([...specialtyMatches, ...departmentMatches]);
   const primary = ROLE_OPTIONS.find((role) => specialties.includes(role.id));
   const years = parseExperienceRequirement(listing.title, listing.description);
   const location = listing.location.toLowerCase();

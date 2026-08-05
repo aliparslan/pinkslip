@@ -13,7 +13,13 @@ import {
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
-import { LOCATION_OPTIONS, MAX_YEARS_EXPERIENCE } from "../../shared/search-profile";
+import {
+  LOCATION_OPTIONS,
+  MAX_YEARS_EXPERIENCE,
+  ROLE_OPTIONS,
+  specificRoleSpecialties,
+  type RoleId,
+} from "../../shared/search-profile";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -133,12 +139,16 @@ type JobListRow = JobRow & {
   sponsorship_available: number | null;
 };
 
+const ROLE_IDS = new Set<string>(ROLE_OPTIONS.map((option) => option.id));
+
 function serializeJob(row: JobListRow) {
   let specialties: string[] = [];
   try {
     const parsed = JSON.parse(row.specialties_json);
     specialties = Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === "string")
+      ? specificRoleSpecialties(parsed.filter(
+          (value): value is RoleId => typeof value === "string" && ROLE_IDS.has(value)
+        ))
       : [];
   } catch {
     specialties = [];

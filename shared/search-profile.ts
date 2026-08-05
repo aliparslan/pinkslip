@@ -87,6 +87,17 @@ export const ROLE_OPTIONS = [
 export type RoleId = (typeof ROLE_OPTIONS)[number]["id"];
 export type RoleFamily = (typeof ROLE_OPTIONS)[number]["family"] | "other";
 
+/**
+ * A specific title signal wins over the generic SWE label. For example,
+ * "Frontend Software Engineer" is a frontend role, not an escape hatch that
+ * lets a deselected frontend specialty back into a general SWE feed.
+ */
+export function specificRoleSpecialties(specialties: readonly RoleId[]): RoleId[] {
+  const unique = [...new Set(specialties)];
+  const specific = unique.filter((specialty) => specialty !== "software_engineering");
+  return specific.length > 0 ? specific : unique;
+}
+
 export const EXPERIENCE_OPTIONS = [
   { id: "internship", label: "Internship", detail: "Student and internship roles", minYears: 0, maxYears: 0 },
   { id: "new_grad", label: "New grad", detail: "Graduate and entry-level roles", minYears: 0, maxYears: 1 },

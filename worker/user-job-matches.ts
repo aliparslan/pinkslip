@@ -2,6 +2,7 @@ import {
   isEligibleSeniority,
   MAX_YEARS_EXPERIENCE,
   profileRoleKeywords,
+  specificRoleSpecialties,
   type SearchProfile,
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
@@ -14,12 +15,11 @@ import {
   type JobFeatures,
 } from "./job-features";
 import { loadUserPreferenceState } from "./user-preferences";
-import { roleAffinity } from "../shared/role-affinity";
 import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v3-binary-1";
+export const MATCHER_VERSION = "profile-v4-exact-roles-1";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -122,11 +122,8 @@ export function evaluateJobForProfile(
    */
   evergreen = false
 ): UserJobMatch {
-  const strongestRoleAffinity = Math.max(
-    0,
-    ...features.specialties.map((specialty) => roleAffinity(specialty, profile.primary_role, profile.roles))
-  );
-  const selectedSpecialty = strongestRoleAffinity > 0;
+  const selectedSpecialty = specificRoleSpecialties(features.specialties)
+    .some((specialty) => profile.roles.includes(specialty));
   const customTitle = profile.custom_titles.some((title) => listing.title.toLowerCase().includes(title.toLowerCase()));
   const normalizedTitle = listing.title.toLowerCase();
   const legacyTitleMatch = features.specialties.length === 0

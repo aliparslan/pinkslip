@@ -110,6 +110,33 @@ describe("personalized eligibility", () => {
     expect(evaluateJobForProfile("unrelated", unrelated, classifyJob(unrelated), profile).plausible).toBe(false);
   });
 
+  test("a deselected frontend specialty cannot return through generic SWE", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["software_engineering"],
+      location_ids: [],
+    });
+    const generic = job({ title: "Software Engineer" });
+    const frontend = job({ title: "Frontend Software Engineer" });
+    const frontendFeatures = classifyJob(frontend);
+
+    expect(frontendFeatures.specialties).toEqual(["frontend"]);
+    expect(evaluateJobForProfile("generic", generic, classifyJob(generic), profile).plausible).toBe(true);
+    expect(evaluateJobForProfile("frontend", frontend, frontendFeatures, profile).plausible).toBe(false);
+  });
+
+  test("neighboring specialties are not eligible unless selected", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["backend"],
+      location_ids: [],
+    });
+    const infrastructure = job({ title: "Infrastructure Engineer" });
+
+    expect(classifyJob(infrastructure).specialties).toEqual(["infrastructure"]);
+    expect(evaluateJobForProfile("infra", infrastructure, classifyJob(infrastructure), profile).plausible).toBe(false);
+  });
+
   test("senior ML roles stay outside the product ceiling regardless of profile data", () => {
     const seniorProfile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
@@ -215,7 +242,7 @@ describe("job features and binary matches", () => {
     expect(match).toEqual({ jobId: "job-1", plausible: true });
   });
 
-  test("separates research roles while preserving real SWE overlap", () => {
+  test("specific research titles override generic SWE", () => {
     const hybridListing = job({
       title: "Research Software Engineer",
       department: "Research",
@@ -240,8 +267,8 @@ describe("job features and binary matches", () => {
       location_ids: [],
     });
 
-    expect(hybridFeatures.specialties).toEqual(["software_engineering", "research"]);
-    expect(evaluateJobForProfile("hybrid-job", hybridListing, hybridFeatures, softwareProfile).plausible).toBe(true);
+    expect(hybridFeatures.specialties).toEqual(["research"]);
+    expect(evaluateJobForProfile("hybrid-job", hybridListing, hybridFeatures, softwareProfile).plausible).toBe(false);
     expect(evaluateJobForProfile("hybrid-job", hybridListing, hybridFeatures, researchProfile).plausible).toBe(true);
     expect(researchFeatures.specialties).toEqual(["research"]);
     expect(evaluateJobForProfile("research-job", researchListing, researchFeatures, softwareProfile).plausible).toBe(false);
@@ -390,7 +417,10 @@ describe("the new-grad band", () => {
     // was discarding the single most relevant family of roles in the catalog.
     expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
       .toBe("unknown");
-    expect(matched("Member of Technical Staff", "Build APIs.").plausible).toBe(true);
+    expect(matched("Member of Technical Staff", "Build APIs.", {
+      primary_role: "software_engineering",
+      roles: ["software_engineering"],
+    }).plausible).toBe(true);
   });
 
   test("a description mentioning senior colleagues does not exclude the job", () => {
