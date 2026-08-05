@@ -12,6 +12,35 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+type AccountRole = "user" | "admin";
+
+export function mergedAccountRole(sourceRole: AccountRole, targetRole: AccountRole): AccountRole {
+  return sourceRole === "admin" || targetRole === "admin" ? "admin" : "user";
+}
+
+export async function preserveMergedAccountRole(
+  db: D1Database,
+  sourceUserId: string,
+  targetUserId: string
+): Promise<void> {
+  const [source, target] = await Promise.all([
+    db.prepare("SELECT role FROM users WHERE id = ? LIMIT 1")
+      .bind(sourceUserId)
+      .first<{ role: AccountRole }>(),
+    db.prepare("SELECT role FROM users WHERE id = ? LIMIT 1")
+      .bind(targetUserId)
+      .first<{ role: AccountRole }>(),
+  ]);
+
+  if (!source || !target) return;
+  const role = mergedAccountRole(source.role, target.role);
+  if (role === target.role) return;
+
+  await db.prepare("UPDATE users SET role = ? WHERE id = ?")
+    .bind(role, targetUserId)
+    .run();
+}
+
 export async function saveMergeBackup(
   db: D1Database,
   args: {
@@ -278,20 +307,24 @@ export async function mergeGuestDataIntoAccount(
   const { sourceUserId, targetUserId, sourceLabel } = args;
   if (sourceUserId === targetUserId) return;
 
+  // This merge is reached only after the user has proved control of a sign-in
+  // identity. Preserve the strongest role before deleting the guest record so
+  // an admin who first used the app anonymously cannot lose access at sign-in.
+  await preserveMergedAccountRole(db, sourceUserId, targetUserId);
+
   await copyMissingPreferences(db, sourceUserId, targetUserId);
   await db.prepare(
     `INSERT INTO user_search_profiles (
-       user_id, profile_json, match_threshold, notifications_enabled,
+       user_id, profile_json, notifications_enabled,
        onboarding_version, onboarding_completed_at, match_cursor_seen_at,
        created_at, updated_at
      )
-     SELECT ?, profile_json, match_threshold, notifications_enabled,
+     SELECT ?, profile_json, notifications_enabled,
             onboarding_version, onboarding_completed_at, NULL, created_at, updated_at
      FROM user_search_profiles
      WHERE user_id = ?
      ON CONFLICT(user_id) DO UPDATE SET
        profile_json = excluded.profile_json,
-       match_threshold = excluded.match_threshold,
        notifications_enabled = excluded.notifications_enabled,
        onboarding_version = excluded.onboarding_version,
        onboarding_completed_at = excluded.onboarding_completed_at,
@@ -342,15 +375,14 @@ export async function mergeGuestDataIntoAccount(
 
   await db.prepare(
     `INSERT INTO user_notification_settings (
-       user_id, enabled, push_enabled, threshold, updated_at
+       user_id, enabled, push_enabled, updated_at
      )
-     SELECT ?, enabled, push_enabled, threshold, updated_at
+     SELECT ?, enabled, push_enabled, updated_at
      FROM user_notification_settings
      WHERE user_id = ?
      ON CONFLICT(user_id) DO UPDATE SET
        enabled = excluded.enabled,
        push_enabled = excluded.push_enabled,
-       threshold = excluded.threshold,
        updated_at = excluded.updated_at
      WHERE datetime(excluded.updated_at) > datetime(user_notification_settings.updated_at)`
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);

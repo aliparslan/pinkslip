@@ -1,8 +1,7 @@
 import {
   isEligibleSeniority,
-  LOCATION_OPTIONS,
   MAX_YEARS_EXPERIENCE,
-  roleLabel,
+  profileRoleKeywords,
   type SearchProfile,
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
@@ -14,24 +13,17 @@ import {
   type FeatureJobRow,
   type JobFeatures,
 } from "./job-features";
-import { normalizeScore, scoreJob, type ScoreBreakdown } from "./scoring";
-import { loadUserPreferenceState, scoringPrefsFromState } from "./user-preferences";
-import { closestSelectedRole, roleAffinity } from "../shared/role-affinity";
+import { loadUserPreferenceState } from "./user-preferences";
+import { roleAffinity } from "../shared/role-affinity";
 import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
 
-// Bump whenever scoring semantics change so cached user_job_matches are rebuilt.
-// v9 makes content, freshness, country, work mode, and location deterministic
-// eligibility gates while preserving explicit overlaps such as Research
-// Software Engineer → SWE + Research.
-// v10 adds a required doctorate as a hard disqualifier.
-export const MATCH_SCORER_VERSION = "profile-v2-deterministic-10";
+// Bump whenever binary eligibility semantics change so cached matches rebuild.
+export const MATCHER_VERSION = "profile-v3-binary-1";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
   jobId: string;
-  breakdown: ScoreBreakdown;
-  reasons: string[];
   plausible: boolean;
 }
 
@@ -87,56 +79,6 @@ function rowToFeatures(row: FeatureColumns): JobFeatures {
   };
 }
 
-function buildReasons(
-  listing: JobListing,
-  features: JobFeatures,
-  profile: SearchProfile,
-  breakdown: ScoreBreakdown
-): string[] {
-  const reasons: string[] = [];
-  const matchedRole = features.specialties
-    .map((specialty) => ({ specialty, affinity: roleAffinity(specialty, profile.primary_role, profile.roles) }))
-    .sort((a, b) => b.affinity - a.affinity)[0];
-  const date = listing.postedAt ? new Date(listing.postedAt) : null;
-  if (date && Number.isFinite(date.getTime()) && Date.now() - date.getTime() < 24 * 60 * 60 * 1000) {
-    reasons.push("New today");
-  }
-
-  if (features.min_years !== null) {
-    reasons.push(features.min_years === 0 ? "Entry-level requirement" : `Asks for ${features.min_years}+ years`);
-  } else if (features.seniority === "new_grad" || features.seniority === "early_career") {
-    reasons.push("Early-career level");
-  }
-
-  if (matchedRole?.affinity) {
-    const selectedRole = closestSelectedRole(matchedRole.specialty, profile.primary_role, profile.roles);
-    reasons.push(matchedRole.affinity >= 0.9
-      ? `Matches your ${roleLabel(matchedRole.specialty)} focus`
-      : `Related to your ${roleLabel(selectedRole ?? profile.primary_role)} focus`);
-  } else if (breakdown.title_score > 0) {
-    reasons.push(`${roleLabel(profile.primary_role)} title match`);
-  }
-
-  if (features.work_mode !== "unknown" && profile.work_modes.includes(features.work_mode)) {
-    const country = features.countries.includes("US") ? " US" : "";
-    reasons.push(`${features.work_mode[0].toUpperCase()}${features.work_mode.slice(1)}${country}`);
-  } else {
-    const metro = LOCATION_OPTIONS.find((location) => features.metro_areas.includes(location.id));
-    if (metro && profile.location_ids.includes(metro.id)) reasons.push(metro.label);
-  }
-
-  if (features.min_years === null && !["unknown", "new_grad", "early_career"].includes(features.seniority)) {
-    const level = features.seniority.replaceAll("_", " ");
-    reasons.push(`${level[0].toUpperCase()}${level.slice(1)} level`);
-  }
-
-  if (profile.work_authorization === "sponsorship" && features.sponsorship_available === true) {
-    reasons.push("Sponsorship available");
-  }
-
-  return [...new Set(reasons)].slice(0, 4);
-}
-
 export function isLocationEligibleForProfile(
   listing: JobListing,
   features: JobFeatures,
@@ -168,7 +110,7 @@ export function isLocationEligibleForProfile(
   });
 }
 
-export function scoreJobForProfile(
+export function evaluateJobForProfile(
   jobId: string,
   listing: JobListing,
   features: JobFeatures,
@@ -180,27 +122,15 @@ export function scoreJobForProfile(
    */
   evergreen = false
 ): UserJobMatch {
-  const base = scoreJob(listing, scoringPrefsFromState({
-    search_profile: profile,
-    notify_threshold: profile.match_threshold,
-  }));
   const strongestRoleAffinity = Math.max(
     0,
     ...features.specialties.map((specialty) => roleAffinity(specialty, profile.primary_role, profile.roles))
   );
   const selectedSpecialty = strongestRoleAffinity > 0;
   const customTitle = profile.custom_titles.some((title) => listing.title.toLowerCase().includes(title.toLowerCase()));
-  const titleScore = customTitle
-    ? 29
-    : strongestRoleAffinity >= 1
-      ? 30
-      : strongestRoleAffinity >= 0.9
-        ? 27
-        : strongestRoleAffinity > 0
-          ? 22
-          : features.specialties.length > 0
-            ? 0
-            : base.title_score;
+  const normalizedTitle = listing.title.toLowerCase();
+  const legacyTitleMatch = features.specialties.length === 0
+    && profileRoleKeywords(profile).some((keyword) => normalizedTitle.includes(keyword.toLowerCase()));
   // Seniority is a fixed band, not a comparison against the user's selection.
   // The old form was `featureRank > Math.max(...target_levels) + allowance`,
   // which enforced a ceiling and no floor: selecting "Senior" alongside "Early
@@ -232,28 +162,6 @@ export function scoreJobForProfile(
     return new RegExp(`\\b${escaped}\\b`, "i").test(listing.title);
   });
 
-  // An explicitly in-band requirement ranks above a posting that says nothing,
-  // so genuine new-grad listings float above the generic majority rather than
-  // being lost among them.
-  const yoeScore = features.min_years === null
-    ? 19
-    : features.min_years <= MAX_YEARS_EXPERIENCE
-      ? 25 - features.min_years
-      : 0;
-  const rawScore = experienceDisqualified || seniorityDisqualified || sponsorshipDisqualified
-    || locationDisqualified || contentDisqualified || staleDisqualified || countryDisqualified
-    || excludedTitleDisqualified || advancedDegreeDisqualified
-    ? Math.min(15, base.location_score + base.department_score + base.recency_score)
-    : titleScore === 0
-      ? Math.min(29, yoeScore + base.location_score + base.department_score + base.recency_score)
-      : titleScore + yoeScore + base.location_score + base.department_score + base.recency_score;
-  const breakdown: ScoreBreakdown = {
-    ...base,
-    score: rawScore,
-    title_score: titleScore,
-    yoe_score: yoeScore,
-  };
-  const normalized = normalizeScore(breakdown.score);
   const plausible = !experienceDisqualified
     && !advancedDegreeDisqualified
     && !seniorityDisqualified
@@ -263,12 +171,9 @@ export function scoreJobForProfile(
     && !staleDisqualified
     && !countryDisqualified
     && !excludedTitleDisqualified
-    && (selectedSpecialty || customTitle || breakdown.title_score > 0)
-    && normalized >= 25;
+    && (selectedSpecialty || customTitle || legacyTitleMatch);
   return {
     jobId,
-    breakdown,
-    reasons: buildReasons(listing, features, profile, breakdown),
     plausible,
   };
 }
@@ -281,32 +186,16 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
     await db.batch(plausible.slice(offset, offset + 75).map((match) => {
       return db.prepare(
         `INSERT INTO user_job_matches (
-           user_id, job_id, score, title_score, yoe_score, location_score,
-           department_score, recency_score, reasons_json, scorer_version,
-           matched_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           user_id, job_id, matcher_version, matched_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(user_id, job_id) DO UPDATE SET
-           score = excluded.score,
-           title_score = excluded.title_score,
-           yoe_score = excluded.yoe_score,
-           location_score = excluded.location_score,
-           department_score = excluded.department_score,
-           recency_score = excluded.recency_score,
-           reasons_json = excluded.reasons_json,
-           scorer_version = excluded.scorer_version,
+           matcher_version = excluded.matcher_version,
            matched_at = excluded.matched_at,
            updated_at = excluded.updated_at`
       ).bind(
         userId,
         match.jobId,
-        match.breakdown.score,
-        match.breakdown.title_score,
-        match.breakdown.yoe_score,
-        match.breakdown.location_score,
-        match.breakdown.department_score,
-        match.breakdown.recency_score,
-        JSON.stringify(match.reasons),
-        MATCH_SCORER_VERSION,
+        MATCHER_VERSION,
         now,
         now
       );
@@ -327,8 +216,10 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
               jf.classifier_version, jf.confidence
        FROM jobs j
        JOIN job_features jf ON jf.job_id = j.id
+       LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
        WHERE j.id IN (${placeholders})
          AND j.description IS NOT NULL
+         AND (jrq.job_id IS NULL OR jrq.state = 'approved')
          AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(...jobIds).all<MatchableJobRow>();
   }
@@ -357,9 +248,11 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
      JOIN job_features jf ON jf.job_id = j.id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
        AND j.description IS NOT NULL
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')
        AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        ${cursorClause}
      ORDER BY j.first_seen_at DESC
@@ -369,8 +262,8 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
 
 async function removeStaleMatches(db: D1Database, userId: string) {
   const cleanup = await db.prepare(
-    "DELETE FROM user_job_matches WHERE user_id = ? AND scorer_version != ?"
-  ).bind(userId, MATCH_SCORER_VERSION).run();
+    "DELETE FROM user_job_matches WHERE user_id = ? AND matcher_version != ?"
+  ).bind(userId, MATCHER_VERSION).run();
   if ((cleanup.meta.changes ?? 0) > 0) {
     await db.prepare(
       "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"
@@ -378,7 +271,7 @@ async function removeStaleMatches(db: D1Database, userId: string) {
   }
 }
 
-export async function ensureUserJobScores(db: D1Database, userId: string, jobIds?: string[]) {
+export async function ensureUserJobMatches(db: D1Database, userId: string, jobIds?: string[]) {
   await removeStaleMatches(db, userId);
   if (jobIds?.length) {
     await ensureJobFeaturesForIds(db, jobIds);
@@ -391,7 +284,7 @@ export async function ensureUserJobScores(db: D1Database, userId: string, jobIds
   if (rows.length === 0) return [];
 
   const matches = rows.map((row) =>
-    scoreJobForProfile(row.id, rowToListing(row), rowToFeatures(row), state.search_profile, row.evergreen === 1)
+    evaluateJobForProfile(row.id, rowToListing(row), rowToFeatures(row), state.search_profile, row.evergreen === 1)
   );
   await storeMatches(db, userId, matches);
 
@@ -419,22 +312,81 @@ export async function ensureUserJobMatchesReady(
        FROM user_job_matches ujm
        JOIN jobs j ON j.id = ujm.job_id
        JOIN companies c ON c.id = j.company_id
+       LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
        WHERE ujm.user_id = ? AND j.closed_at IS NULL AND c.enabled = 1
          AND j.description IS NOT NULL
+         AND (jrq.job_id IS NULL OR jrq.state = 'approved')
          AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
     ).bind(userId).first<{ count: number }>();
     if ((count?.count ?? 0) >= minimumMatches) return;
-    const evaluated = await ensureUserJobScores(db, userId);
+    const evaluated = await ensureUserJobMatches(db, userId);
     if (evaluated.length === 0) return;
   }
 }
 
+/**
+ * Evergreen listings are usually older than the recent jobs scanned by the
+ * normal on-demand warm-up. Warm that explicit view from the evergreen pool so
+ * a new or recently edited profile does not show an empty filter while its
+ * general-purpose cursor slowly works backward.
+ */
+export async function ensureUserEvergreenMatchesReady(
+  db: D1Database,
+  userId: string
+) {
+  await removeStaleMatches(db, userId);
+  const existing = await db.prepare(
+    `SELECT COUNT(*) AS count
+     FROM user_job_matches ujm
+     JOIN jobs j ON j.id = ujm.job_id
+     JOIN companies c ON c.id = j.company_id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+     WHERE ujm.user_id = ? AND ujm.matcher_version = ?
+       AND c.enabled = 1 AND j.closed_at IS NULL AND j.evergreen = 1
+       AND j.description IS NOT NULL
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')`
+  ).bind(userId, MATCHER_VERSION).first<{ count: number }>();
+  if ((existing?.count ?? 0) > 0) return;
+
+  const state = await loadUserPreferenceState(db, userId);
+  const result = await db.prepare(
+    `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+            j.posted_at, j.first_seen_at, 'available' AS description, j.salary,
+            j.evergreen,
+            jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
+            jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
+            jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
+            jf.sponsorship_available, jf.requires_advanced_degree,
+            jf.classifier_version, jf.confidence
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     JOIN job_features jf ON jf.job_id = j.id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+     WHERE c.enabled = 1 AND j.closed_at IS NULL AND j.evergreen = 1
+       AND j.description IS NOT NULL
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')
+     ORDER BY j.first_seen_at DESC
+     LIMIT 2500`
+  ).all<MatchableJobRow>();
+  const rows = result.results ?? [];
+  const matches = rows.map((row) =>
+    evaluateJobForProfile(
+      row.id,
+      rowToListing(row),
+      rowToFeatures(row),
+      state.search_profile,
+      true
+    )
+  );
+  await storeMatches(db, userId, matches);
+}
+
 // The on-demand warm-up (ensureUserJobMatchesReady) stops at 25 matches and never
 // scans past the most recent jobs, so older relevant jobs never surface. Each
-// cron tick, advance the scoring cursor by one batch for a few users who still
+// cron tick, advance the matching cursor by one batch for a few users who still
 // have eligible jobs older than their cursor. Fully caught-up users are skipped,
 // so the backlog drains over a few ticks and then this becomes a no-op.
-export async function advanceBacklogScoring(
+export async function advanceBacklogMatching(
   db: D1Database,
   maxUsers = 1
 ): Promise<number> {
@@ -472,20 +424,20 @@ export async function advanceBacklogScoring(
 
   let advanced = 0;
   for (const { user_id: userId } of users.results ?? []) {
-    const matches = await ensureUserJobScores(db, userId).catch(() => [] as UserJobMatch[]);
+    const matches = await ensureUserJobMatches(db, userId).catch(() => [] as UserJobMatch[]);
     if (matches.length > 0) advanced += 1;
   }
   return advanced;
 }
 
-export async function scoreListingsForUser(
+export async function matchListingsForUser(
   db: D1Database,
   userId: string,
-  jobs: Array<{ jobId: string; listing: JobListing }>
+  jobs: Array<{ jobId: string; listing: JobListing; evergreen?: boolean }>
 ) {
   const state = await loadUserPreferenceState(db, userId);
-  const matches = jobs.map(({ jobId, listing }) =>
-    scoreJobForProfile(jobId, listing, classifyJob(listing), state.search_profile)
+  const matches = jobs.map(({ jobId, listing, evergreen }) =>
+    evaluateJobForProfile(jobId, listing, classifyJob(listing), state.search_profile, evergreen === true)
   );
   await storeMatches(db, userId, matches);
   return matches;
@@ -493,17 +445,17 @@ export async function scoreListingsForUser(
 
 export async function matchJobsForAllProfiles(
   db: D1Database,
-  jobs: Array<{ jobId: string; listing: JobListing }>
+  jobs: Array<{ jobId: string; listing: JobListing; evergreen?: boolean }>
 ) {
   if (jobs.length === 0) return;
   const users = await db.prepare("SELECT user_id FROM user_search_profiles")
     .all<{ user_id: string }>();
   for (const { user_id: userId } of users.results ?? []) {
-    await scoreListingsForUser(db, userId, jobs);
+    await matchListingsForUser(db, userId, jobs);
   }
 }
 
-export async function invalidateJobScores(db: D1Database, jobId: string) {
+export async function invalidateJobMatches(db: D1Database, jobId: string) {
   await Promise.all([
     db.prepare("DELETE FROM user_job_matches WHERE job_id = ?").bind(jobId).run(),
     db.prepare("DELETE FROM job_features WHERE job_id = ?").bind(jobId).run(),
@@ -511,12 +463,9 @@ export async function invalidateJobScores(db: D1Database, jobId: string) {
 }
 
 // Used after a job's content changes (e.g. description backfilled on open).
-// Recompute its features and re-score it for everyone who currently has it in
-// their feed — plus the viewer who triggered the change — so it stays visible
-// with an updated score instead of being dropped from every feed until some
-// future warm-up happens to reach it. A job that genuinely stops matching is
-// removed only for the users it no longer fits.
-export async function rescoreJobForMatchedUsers(
+// Recompute its features and binary eligibility for everyone who currently has
+// it in their feed, plus the viewer who triggered the content refresh.
+export async function rematchJobForMatchedUsers(
   db: D1Database,
   jobId: string,
   viewerUserId?: string
@@ -531,7 +480,7 @@ export async function rescoreJobForMatchedUsers(
   if (viewerUserId) userIds.add(viewerUserId);
 
   for (const userId of userIds) {
-    const matches = await ensureUserJobScores(db, userId, [jobId]);
+    const matches = await ensureUserJobMatches(db, userId, [jobId]);
     const match = matches.find((entry) => entry.jobId === jobId);
     if (!match?.plausible) {
       await db.prepare(

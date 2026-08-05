@@ -114,7 +114,7 @@ function postedAtFromLabel(label: string | undefined, now = new Date()) {
   //
   // The bucketed form is a LOWER BOUND — the job is at least this old, possibly
   // far older. That is still strictly better than null: it sorts and displays
-  // sensibly, and scoreRecency already scores anything past 7 days at 0, so
+  // sensibly, and the feed applies its own explicit freshness policy, so
   // treating "30+" as exactly 30 cannot distort matching.
   const match = normalized.match(/^posted (\d+)\+? days? ago$/);
   if (!match) return null;

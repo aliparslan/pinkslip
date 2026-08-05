@@ -1,4 +1,5 @@
 import type { ResumeProfile } from "../../../shared/resume-profile";
+import type { RoleId } from "../../../shared/search-profile";
 export type {
   OptionalSection,
   OptionalSectionKind,
@@ -89,12 +90,11 @@ export interface Job {
   department: string | null;
   posted_at: string | null;
   first_seen_at: string;
-  score: number;
-  title_score: number;
-  yoe_score: number;
-  location_score: number;
-  department_score: number;
-  recency_score: number;
+  evergreen: boolean | number;
+  match_fact?: string | null;
+  specialties?: RoleId[];
+  sponsorship_available?: boolean | null;
+  source_type?: string | null;
   dismissed: number;
   description: string | null;
   salary: string | null;
@@ -108,8 +108,6 @@ export interface Job {
   applied_at?: string;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
-  match_reasons?: string[];
-  scorer_version?: string | null;
 }
 
 export interface Company {
@@ -161,13 +159,35 @@ export interface FeedbackSubmission {
   user_name?: string | null;
 }
 
+export interface JobReview {
+  job_id: string;
+  state: "needs_review" | "approved" | "rejected";
+  reason_codes: string[];
+  evidence: {
+    title?: string;
+    description_excerpt?: string;
+    min_years?: number | null;
+    seniority?: string;
+    requires_advanced_degree?: boolean;
+  };
+  classifier_version: string;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+  title: string;
+  url: string;
+  location: string;
+  company_name: string;
+}
+
 export interface ProductMetrics {
   period_days: number;
   notification_latency_seconds: number;
   notification_open_rate: number;
   notifications_sent: number;
   apply_clicks_within_one_hour: number;
-  high_score_dismissal_rate: number;
+  eligible_job_dismissal_rate: number;
   users_with_enough_matches: number;
   total_profiles: number;
   onboarding_completion_rate: number;
@@ -294,7 +314,6 @@ export interface MeResponse {
 
 export interface PreferenceState {
   search_profile: SearchProfileV1;
-  notify_threshold: number;
 }
 
 export const api = {
@@ -377,12 +396,11 @@ export const api = {
       request<{
         enabled: boolean;
         push_enabled: boolean;
-        threshold: number;
         updated_at: string | null;
         vapid_public_key: string | null;
       }>("/push/settings"),
-    updateSettings: (data: { enabled?: boolean; push_enabled?: boolean; threshold?: number }) =>
-      request<{ enabled: boolean; push_enabled: boolean; threshold: number }>("/push/settings", {
+    updateSettings: (data: { enabled?: boolean; push_enabled?: boolean }) =>
+      request<{ enabled: boolean; push_enabled: boolean }>("/push/settings", {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -574,6 +592,25 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+    jobReviews: (
+      state: JobReview["state"] | "all" = "needs_review",
+      limit = 100,
+      offset = 0
+    ) =>
+      request<{
+        reviews: JobReview[];
+        meta: { total: number; count: number; has_more: boolean; next_offset: number };
+      }>(
+        `/interactions/job-reviews?state=${encodeURIComponent(state)}&limit=${limit}&offset=${offset}`
+      ),
+    updateJobReview: (
+      jobId: string,
+      data: { state: JobReview["state"]; admin_note?: string }
+    ) =>
+      request<{ ok: boolean; state: JobReview["state"] }>(
+        `/interactions/job-reviews/${jobId}`,
+        { method: "PATCH", body: JSON.stringify(data) }
+      ),
     submitFeedback: (data: {
       submission_type: FeedbackSubmission["submission_type"];
       title: string;

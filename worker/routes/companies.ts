@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { isAdminUser, requireAdmin } from "../auth";
 import type { Env, CompanyRow, CompanySourceType, Variables } from "../types";
 import { pollCompany, sendNotificationsForJobs } from "../poller";
-import { matchJobsForAllProfiles } from "../user-job-scores";
+import { matchJobsForAllProfiles } from "../user-job-matches";
 import { verifyCompanySource } from "../ats";
 import { normalizeGemSource } from "../adapters/gem";
 import { normalizeRipplingSource } from "../adapters/rippling";

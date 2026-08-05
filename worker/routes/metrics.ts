@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
-import { MATCH_SCORER_VERSION } from "../user-job-scores";
+import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const metrics = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -23,7 +23,7 @@ interface ViableUserRow {
   enough_matches: number;
 }
 
-interface HighScoreOutcomeRow {
+interface EligibleOutcomeRow {
   total: number;
   dismissed: number;
 }
@@ -38,7 +38,7 @@ metrics.get("/", async (c) => {
     openReports,
     openFeedback,
     promptApplyClicks,
-    highScoreOutcomes,
+    eligibleOutcomes,
     tailoringConversions,
   ] = await Promise.all([
     db.prepare(
@@ -65,7 +65,7 @@ metrics.get("/", async (c) => {
            FROM user_job_matches ujm
            JOIN jobs j ON j.id = ujm.job_id
            WHERE ujm.user_id = usp.user_id
-             AND ujm.scorer_version = ?
+             AND ujm.matcher_version = ?
              AND j.closed_at IS NULL
              AND j.description IS NOT NULL
              AND trim(j.description) != ''
@@ -76,7 +76,7 @@ metrics.get("/", async (c) => {
              )
          ) >= 10 THEN 1 ELSE 0 END) AS enough_matches
        FROM user_search_profiles usp`
-    ).bind(MATCH_SCORER_VERSION).first<ViableUserRow>(),
+    ).bind(MATCHER_VERSION).first<ViableUserRow>(),
     db.prepare(
       "SELECT COUNT(*) AS count FROM content_reports WHERE status = 'open'"
     ).first<CountRow>(),
@@ -103,9 +103,8 @@ metrics.get("/", async (c) => {
            WHERE d.user_id = ujm.user_id AND d.job_id = ujm.job_id
          ) THEN 1 ELSE 0 END) AS dismissed
        FROM user_job_matches ujm
-       WHERE ujm.score >= 76
-         AND datetime(ujm.matched_at) >= datetime('now', '-30 days')`
-    ).first<HighScoreOutcomeRow>(),
+       WHERE datetime(ujm.matched_at) >= datetime('now', '-30 days')`
+    ).first<EligibleOutcomeRow>(),
     db.prepare(
       `SELECT
          COUNT(*) AS completed,
@@ -128,8 +127,8 @@ metrics.get("/", async (c) => {
   );
   const onboardingStarted = Number(events.onboarding_started ?? 0);
   const onboardingCompleted = Number(events.onboarding_completed ?? 0);
-  const highScoreTotal = Number(highScoreOutcomes?.total ?? 0);
-  const highDismissals = Number(highScoreOutcomes?.dismissed ?? 0);
+  const eligibleTotal = Number(eligibleOutcomes?.total ?? 0);
+  const eligibleDismissals = Number(eligibleOutcomes?.dismissed ?? 0);
   const completedTailorings = Number(tailoringConversions?.completed ?? 0);
   const convertedTailorings = Number(tailoringConversions?.converted ?? 0);
 
@@ -139,8 +138,8 @@ metrics.get("/", async (c) => {
     notification_open_rate: Number(notificationLatency?.open_rate ?? 0),
     notifications_sent: Number(notificationLatency?.sent_count ?? 0),
     apply_clicks_within_one_hour: Number(promptApplyClicks?.count ?? 0),
-    high_score_dismissal_rate: highScoreTotal > 0
-      ? Math.round((highDismissals / highScoreTotal) * 1000) / 10
+    eligible_job_dismissal_rate: eligibleTotal > 0
+      ? Math.round((eligibleDismissals / eligibleTotal) * 1000) / 10
       : 0,
     users_with_enough_matches: Number(viableUsers?.enough_matches ?? 0),
     total_profiles: Number(viableUsers?.total_profiles ?? 0),

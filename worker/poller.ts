@@ -2,9 +2,9 @@ import type { ATSAdapter, JobContent, JobListing } from "./adapters/types";
 import type { Env, CompanyRow } from "./types";
 import { getAdapter, getCompanySourceType } from "./ats";
 import {
-  advanceBacklogScoring,
+  advanceBacklogMatching,
   matchJobsForAllProfiles,
-} from "./user-job-scores";
+} from "./user-job-matches";
 import { upsertJobFeatures } from "./job-features";
 import {
   createNotificationCandidates,
@@ -606,7 +606,7 @@ export async function runPollCycle(
   // handful of jobs and never reaches this cap; it only binds when a large new
   // board is onboarded, and on that cycle nobody wants hundreds of pushes
   // anyway. The remainder is not lost: features are already stored, and the
-  // per-user warm-up plus advanceBacklogScoring pick them up on later ticks.
+  // per-user warm-up plus advanceBacklogMatching pick them up on later ticks.
   const matchableJobs = discovered.slice(0, MATCH_INLINE_LIMIT_PER_CYCLE);
   if (discovered.length > matchableJobs.length) {
     log.push(
@@ -644,7 +644,7 @@ export async function runPollCycle(
   }
 
   if (scope === "cron") {
-    await advanceBacklogScoring(db).catch((error) => {
+    await advanceBacklogMatching(db).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error("Backlog scoring failed:", message);
       log.push(`backlog scoring error: ${message}`);

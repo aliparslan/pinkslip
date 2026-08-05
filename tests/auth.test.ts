@@ -209,7 +209,6 @@ describe("authMiddleware", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       search_profile: normalizeSearchProfile(DEFAULT_SEARCH_PROFILE),
-      notify_threshold: DEFAULT_SEARCH_PROFILE.match_threshold,
     });
     expect(res.headers.get("set-cookie")).toBeNull();
   });

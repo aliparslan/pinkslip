@@ -9,10 +9,15 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-// v8: "Member of Technical Staff" is no longer read as staff-level, explicit
-// early-career markers outrank generic level words, internship detection is
-// title-scoped, and a required doctorate is now recorded.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v8";
+// v9 distinguishes preferred from required experience, understands bounded
+// spelled-out YOE, requires positive evidence before treating a doctorate as a
+// gate, and sends ambiguous numeric title levels to the admin review queue.
+export const JOB_CLASSIFIER_VERSION = "deterministic-v9";
+
+export type JobReviewReason =
+  | "ambiguous_title_level"
+  | "experience_requirement_unparsed"
+  | "advanced_degree_uncertain";
 
 export interface JobFeatures {
   role_family: RoleFamily;
@@ -52,19 +57,47 @@ function containsPhrase(text: string, phrase: string): boolean {
   return new RegExp(`\\b${escaped}\\b`, "i").test(text);
 }
 
+const NUMBER_WORDS: Record<string, string> = {
+  zero: "0",
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+};
+
+function normalizeClassifierText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/gi, (word) => NUMBER_WORDS[word.toLowerCase()] ?? word)
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function parseExperienceRequirement(
   title: string,
   description: string | null
 ): { min: number | null; max: number | null } {
-  const text = `${title}\n${description ?? ""}`
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+  const text = normalizeClassifierText(`${title}\n${description ?? ""}`);
+  // Preference-only figures must never raise the eligibility ceiling. Remove
+  // both "preferred: 7+ years" and "7+ years preferred" before collecting
+  // mandatory requirements.
+  const requiredText = text
+    .replace(/\b(?:preferred|ideally|nice to have|bonus|a plus|desirable)\b[^.;|]*/g, " ")
+    .replace(/\b\d{1,2}\s*(?:\+|\s*-\s*\d{1,2})?\s*(?:years?|yrs?)[^.;|]{0,45}\b(?:preferred|ideal|a plus|nice to have|bonus|desirable)\b/g, " ");
   const candidates: Array<{ min: number; max: number | null }> = [];
   const collect = (pattern: RegExp, maxGroup?: number) => {
-    for (const match of text.matchAll(pattern)) {
+    for (const match of requiredText.matchAll(pattern)) {
       const min = Number(match[1]);
       const max = maxGroup ? Number(match[maxGroup]) : null;
       if (Number.isFinite(min)) {
@@ -94,7 +127,7 @@ export function parseExperienceRequirement(
   if (/\b(?:intern|internship|co-op)\b/.test(title.toLowerCase())) {
     return { min: 0, max: 2 };
   }
-  if (/\b(?:new grad|new graduate|entry level|early career)\b/.test(text)) {
+  if (/\b(?:new[ -]grad|new graduate|entry[ -]level|early[ -]career)\b/.test(text)) {
     return { min: 0, max: 2 };
   }
   return { min: null, max: null };
@@ -126,7 +159,8 @@ export function requiresAdvancedDegree(description: string | null): boolean {
     // or after — means the doctorate is one accepted option, not a gate.
     const clause = text.slice(Math.max(0, start - 90), start + 130);
     const hedged = /\b(?:preferred|a plus|nice to have|or equivalent|equivalent practical|bonus|ideally|desirable|ms or|m\.?s\.?\s*\/|bachelor'?s? (?:degree )?(?:required|or))\b/.test(clause);
-    if (!hedged) return true;
+    const positiveRequirement = /\b(?:required|requires?|requirements?|must have|minimum qualification|qualifications?)\b/.test(clause);
+    if (!hedged && positiveRequirement) return true;
   }
   return false;
 }
@@ -135,7 +169,7 @@ function classifySeniority(
   title: string,
   years: { min: number | null; max: number | null }
 ): JobFeatures["seniority"] {
-  const raw = title.toLowerCase();
+  const raw = normalizeClassifierText(title);
   // "Member of Technical Staff" is a level-less IC title, not a staff-level
   // one. It is the standard engineering title at OpenAI, Anthropic, xAI,
   // Mistral, Cursor and Cockroach Labs, and `\bstaff\b` silently discarded
@@ -149,7 +183,7 @@ function classifySeniority(
   // "Member of Technical Staff (Early Career)" and "New Grad Program" are not
   // outranked by an incidental "staff" or "senior".
   if (/\b(?:intern|internship|co-op)\b/.test(text)) return "internship";
-  if (/\b(?:new grad|new graduate|entry level|early career)\b/.test(text)) return "new_grad";
+  if (/\b(?:new[ -]grad|new graduate|entry[ -]level|early[ -]career|junior|associate)\b/.test(text)) return "new_grad";
   if (/\b(?:staff|principal|distinguished|fellow)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
   // Several large employers encode seniority numerically rather than spelling
@@ -246,6 +280,38 @@ export function classifyJob(listing: JobListing): JobFeatures {
   };
 }
 
+export function classifyReviewReasons(
+  listing: JobListing,
+  features: JobFeatures
+): JobReviewReason[] {
+  const reasons: JobReviewReason[] = [];
+  const title = normalizeClassifierText(listing.title);
+  const text = normalizeClassifierText(`${listing.title}\n${listing.description ?? ""}`);
+
+  if (
+    features.min_years === null
+    && /\b(?:at least|minimum|requires?|must have)\s+\d{1,2}\s*(?:\+\s*)?(?:years?|yrs?)\b/.test(text)
+  ) {
+    reasons.push("experience_requirement_unparsed");
+  }
+
+  if (
+    features.min_years === null
+    && /\b(?:engineer|developer|scientist|researcher)\s*(?:\(|,|-)?\s*(?:level\s*)?(?:2|3|ii|iii)\b/.test(title)
+  ) {
+    reasons.push("ambiguous_title_level");
+  }
+
+  const hasAdvancedDegreeMention = /\b(?:ph\.?\s?d\.?|doctorate|doctoral)\b/.test(text);
+  const clearlyContextual = /\b(?:collaborat(?:e|es|ing)|work(?:s|ing)? with|team of)\b[^.;]{0,70}\b(?:ph\.?\s?d\.?|doctorate|doctoral)\b/.test(text);
+  const clearlyHedged = /\b(?:ph\.?\s?d\.?|doctorate|doctoral)\b[^.;]{0,80}\b(?:preferred|a plus|nice to have|or equivalent|bonus|desirable)\b/.test(text);
+  if (hasAdvancedDegreeMention && !features.requires_advanced_degree && !clearlyContextual && !clearlyHedged) {
+    reasons.push("advanced_degree_uncertain");
+  }
+
+  return reasons;
+}
+
 export function rowToListing(row: FeatureJobRow): JobListing {
   return {
     externalId: row.external_id,
@@ -265,8 +331,13 @@ export async function upsertJobFeatures(
 ) {
   if (jobs.length === 0) return;
   for (let offset = 0; offset < jobs.length; offset += 75) {
-    await db.batch(jobs.slice(offset, offset + 75).map(({ jobId, listing, sourceUpdatedAt }) => {
-      const feature = classifyJob(listing);
+    const classified = jobs.slice(offset, offset + 75).map(({ jobId, listing, sourceUpdatedAt }) => ({
+      jobId,
+      listing,
+      sourceUpdatedAt,
+      feature: classifyJob(listing),
+    }));
+    await db.batch(classified.map(({ jobId, listing, sourceUpdatedAt, feature }) => {
       return db.prepare(
         `INSERT INTO job_features (
            job_id, role_family, specialties_json, seniority, min_years, max_years,
@@ -314,6 +385,58 @@ export async function upsertJobFeatures(
         feature.confidence,
         sourceUpdatedAt ?? listing.postedAt,
         new Date().toISOString()
+      );
+    }));
+
+    await db.batch(classified.map(({ jobId, listing, feature }) => {
+      const reasons = classifyReviewReasons(listing, feature);
+      if (reasons.length === 0) {
+        return db.prepare(
+          "DELETE FROM job_review_queue WHERE job_id = ? AND state = 'needs_review'"
+        ).bind(jobId);
+      }
+
+      const now = new Date().toISOString();
+      return db.prepare(
+        `INSERT INTO job_review_queue (
+           job_id, state, reason_codes_json, evidence_json, classifier_version,
+           created_at, updated_at
+         ) VALUES (?, 'needs_review', ?, ?, ?, ?, ?)
+         ON CONFLICT(job_id) DO UPDATE SET
+           state = CASE
+             WHEN job_review_queue.classifier_version != excluded.classifier_version
+               THEN 'needs_review'
+             ELSE job_review_queue.state
+           END,
+           reason_codes_json = excluded.reason_codes_json,
+           evidence_json = excluded.evidence_json,
+           classifier_version = excluded.classifier_version,
+           admin_note = CASE
+             WHEN job_review_queue.classifier_version != excluded.classifier_version THEN NULL
+             ELSE job_review_queue.admin_note
+           END,
+           reviewed_by = CASE
+             WHEN job_review_queue.classifier_version != excluded.classifier_version THEN NULL
+             ELSE job_review_queue.reviewed_by
+           END,
+           reviewed_at = CASE
+             WHEN job_review_queue.classifier_version != excluded.classifier_version THEN NULL
+             ELSE job_review_queue.reviewed_at
+           END,
+           updated_at = excluded.updated_at`
+      ).bind(
+        jobId,
+        JSON.stringify(reasons),
+        JSON.stringify({
+          title: listing.title,
+          description_excerpt: normalizeClassifierText(listing.description ?? "").slice(0, 600),
+          min_years: feature.min_years,
+          seniority: feature.seniority,
+          requires_advanced_degree: feature.requires_advanced_degree,
+        }),
+        feature.classifier_version,
+        now,
+        now
       );
     }));
   }

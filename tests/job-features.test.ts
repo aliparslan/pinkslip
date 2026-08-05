@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { classifyJob, parseExperienceRequirement } from "@worker/job-features";
+import {
+  classifyJob,
+  classifyReviewReasons,
+  parseExperienceRequirement,
+} from "@worker/job-features";
 import type { JobListing } from "@worker/adapters/types";
 
 describe("parseExperienceRequirement", () => {
@@ -23,6 +27,17 @@ describe("parseExperienceRequirement", () => {
       min: 6,
       max: null,
     });
+    expect(parseExperienceRequirement("Engineer", "Requires four years of experience")).toEqual({
+      min: 4,
+      max: null,
+    });
+  });
+
+  it("does not promote a preferred figure into the required minimum", () => {
+    expect(parseExperienceRequirement(
+      "Engineer",
+      "Minimum: 2+ years of experience. Preferred: 7+ years of experience."
+    )).toEqual({ min: 2, max: null });
   });
 
   it("reads requirements split by markup and keeps the strictest minimum", () => {
@@ -84,11 +99,13 @@ describe("advanced degree requirement", () => {
     salary: null,
   });
 
-  it("flags a stated doctorate requirement", () => {
-    expect(classifyJob(listing(
+  it("requires positive evidence before flagging a doctorate requirement", () => {
+    const uncertain = listing(
       "Research Scientist, Gemini",
       "PhD in Computer Science, Statistics, or a related field. Strong publication record."
-    )).requires_advanced_degree).toBe(true);
+    );
+    expect(classifyJob(uncertain).requires_advanced_degree).toBe(false);
+    expect(classifyReviewReasons(uncertain, classifyJob(uncertain))).toContain("advanced_degree_uncertain");
     expect(classifyJob(listing(
       "Research Scientist",
       "Requirements: PhD degree in Computer Science, Machine Learning, or a related technical field."
@@ -115,6 +132,28 @@ describe("advanced degree requirement", () => {
       "Backend Engineer",
       "You will build APIs. Bachelor's degree or equivalent experience."
     )).requires_advanced_degree).toBe(false);
+    const contextual = listing(
+      "Software Engineer, Research Platform",
+      "Collaborate with PhD scientists to build reliable research tooling."
+    );
+    expect(classifyJob(contextual).requires_advanced_degree).toBe(false);
+    expect(classifyReviewReasons(contextual, classifyJob(contextual))).not.toContain("advanced_degree_uncertain");
+  });
+});
+
+describe("classifier review reasons", () => {
+  it("queues ambiguous employer title levels", () => {
+    const listing: JobListing = {
+      externalId: "level-3",
+      title: "Software Engineer III",
+      url: "https://example.com/level-3",
+      location: "Remote - US",
+      department: "Engineering",
+      postedAt: null,
+      description: "Build reliable products.",
+      salary: null,
+    };
+    expect(classifyReviewReasons(listing, classifyJob(listing))).toContain("ambiguous_title_level");
   });
 });
 

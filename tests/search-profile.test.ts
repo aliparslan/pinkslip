@@ -4,11 +4,9 @@ import {
   normalizeSearchProfile,
 } from "../shared/search-profile";
 import { classifyJob } from "@worker/job-features";
-import { scoreJobForProfile } from "@worker/user-job-scores";
-import { scoreJob } from "@worker/scoring";
+import { evaluateJobForProfile } from "@worker/user-job-matches";
 import {
   preferenceStateFromRecord,
-  scoringPrefsFromState,
   searchProfileFromLegacy,
 } from "@worker/user-preferences";
 import type { JobListing } from "@worker/adapters/types";
@@ -89,34 +87,30 @@ describe("search profile", () => {
   });
 });
 
-describe("personalized scoring", () => {
-  test("a backend profile favors backend engineering over an unrelated role", () => {
-    const prefs = scoringPrefsFromState({
-      search_profile: normalizeSearchProfile({
-        ...DEFAULT_SEARCH_PROFILE,
-        roles: ["backend"],
-        target_levels: ["early_career"],
-        work_modes: ["remote"],
-        location_ids: [],
-      }),
-      notify_threshold: 50,
+describe("personalized eligibility", () => {
+  test("a backend profile includes backend engineering and excludes an unrelated role", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["backend"],
+      target_levels: ["early_career"],
+      work_modes: ["remote"],
+      location_ids: [],
     });
-
-    const backendScore = scoreJob(job({
+    const backend = job({
       title: "Backend Software Engineer",
       description: "You have 2+ years of experience building APIs.",
-    }), prefs).score;
-    const unrelatedScore = scoreJob(job({
+    });
+    const unrelated = job({
       title: "Safety Operations Program Manager",
       department: "Safety",
       description: "You have 2+ years of experience operating safety programs.",
-    }), prefs).score;
+    });
 
-    expect(backendScore).toBeGreaterThanOrEqual(80);
-    expect(unrelatedScore).toBeLessThan(30);
+    expect(evaluateJobForProfile("backend", backend, classifyJob(backend), profile).plausible).toBe(true);
+    expect(evaluateJobForProfile("unrelated", unrelated, classifyJob(unrelated), profile).plausible).toBe(false);
   });
 
-  test("senior ML roles fit a senior ML profile but not an early-career profile", () => {
+  test("senior ML roles stay outside the product ceiling regardless of profile data", () => {
     const seniorProfile = normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
       roles: ["machine_learning"],
@@ -129,20 +123,7 @@ describe("personalized scoring", () => {
       department: "Machine Learning",
       description: "You have 6+ years of experience deploying ML systems.",
     });
-    const seniorScore = scoreJob(
-      seniorJob,
-      scoringPrefsFromState({ search_profile: seniorProfile, notify_threshold: 50 })
-    ).score;
-    const earlyScore = scoreJob(
-      seniorJob,
-      scoringPrefsFromState({
-        search_profile: { ...seniorProfile, target_levels: ["early_career"] },
-        notify_threshold: 50,
-      })
-    ).score;
-
-    expect(seniorScore).toBeGreaterThanOrEqual(80);
-    expect(earlyScore).toBeLessThan(30);
+    expect(evaluateJobForProfile("senior", seniorJob, classifyJob(seniorJob), seniorProfile).plausible).toBe(false);
   });
 
   test("remote jobs are filtered when remote work is not selected", () => {
@@ -151,13 +132,8 @@ describe("personalized scoring", () => {
       work_modes: ["hybrid", "onsite"],
       location_ids: ["new_york"],
     });
-    const result = scoreJob(
-      job({ location: "Remote - US" }),
-      scoringPrefsFromState({ search_profile: profile, notify_threshold: 50 })
-    );
-
-    expect(result.score).toBeLessThan(30);
-    expect(result.location_score).toBe(0);
+    const listing = job({ location: "Remote - US" });
+    expect(evaluateJobForProfile("remote", listing, classifyJob(listing), profile).plausible).toBe(false);
   });
 
   test("location preferences are a hard eligibility gate", () => {
@@ -179,8 +155,8 @@ describe("personalized scoring", () => {
       description: "Build APIs.",
     });
 
-    expect(scoreJobForProfile("ny", ny, classifyJob(ny), profile).plausible).toBe(true);
-    expect(scoreJobForProfile("sf", sf, classifyJob(sf), profile).plausible).toBe(false);
+    expect(evaluateJobForProfile("ny", ny, classifyJob(ny), profile).plausible).toBe(true);
+    expect(evaluateJobForProfile("sf", sf, classifyJob(sf), profile).plausible).toBe(false);
   });
 
   test("open to anywhere bypasses the metro gate but not work mode", () => {
@@ -194,12 +170,12 @@ describe("personalized scoring", () => {
     const onsite = job({ title: "Backend Engineer", location: "Austin, TX" });
     const remote = job({ title: "Backend Engineer", location: "Remote" });
 
-    expect(scoreJobForProfile("onsite", onsite, classifyJob(onsite), profile).plausible).toBe(true);
-    expect(scoreJobForProfile("remote", remote, classifyJob(remote), profile).plausible).toBe(false);
+    expect(evaluateJobForProfile("onsite", onsite, classifyJob(onsite), profile).plausible).toBe(true);
+    expect(evaluateJobForProfile("remote", remote, classifyJob(remote), profile).plausible).toBe(false);
   });
 });
 
-describe("job features and match explanations", () => {
+describe("job features and binary matches", () => {
   test("does not classify a removed product role as a supported specialty", () => {
     const features = classifyJob(job({
       title: "Senior Product Manager, Growth",
@@ -219,7 +195,7 @@ describe("job features and match explanations", () => {
     expect(features.confidence).toBeLessThan(0.5);
   });
 
-  test("produces readable reasons for a plausible match", () => {
+  test("accepts a plausible match without producing a score", () => {
     const listing = job({
       title: "Backend Engineer",
       location: "Remote - US",
@@ -233,12 +209,10 @@ describe("job features and match explanations", () => {
       target_levels: ["early_career", "mid_level"],
       work_modes: ["remote"],
     });
-    const match = scoreJobForProfile("job-1", listing, classifyJob(listing), profile);
+    const match = evaluateJobForProfile("job-1", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(true);
-    expect(match.reasons).toContain("Matches your Backend focus");
-    expect(match.reasons).toContain("Remote US");
-    expect(match.reasons).toContain("Asks for 2+ years");
+    expect(match).toEqual({ jobId: "job-1", plausible: true });
   });
 
   test("separates research roles while preserving real SWE overlap", () => {
@@ -267,11 +241,11 @@ describe("job features and match explanations", () => {
     });
 
     expect(hybridFeatures.specialties).toEqual(["software_engineering", "research"]);
-    expect(scoreJobForProfile("hybrid-job", hybridListing, hybridFeatures, softwareProfile).plausible).toBe(true);
-    expect(scoreJobForProfile("hybrid-job", hybridListing, hybridFeatures, researchProfile).plausible).toBe(true);
+    expect(evaluateJobForProfile("hybrid-job", hybridListing, hybridFeatures, softwareProfile).plausible).toBe(true);
+    expect(evaluateJobForProfile("hybrid-job", hybridListing, hybridFeatures, researchProfile).plausible).toBe(true);
     expect(researchFeatures.specialties).toEqual(["research"]);
-    expect(scoreJobForProfile("research-job", researchListing, researchFeatures, softwareProfile).plausible).toBe(false);
-    expect(scoreJobForProfile("research-job", researchListing, researchFeatures, researchProfile).plausible).toBe(true);
+    expect(evaluateJobForProfile("research-job", researchListing, researchFeatures, softwareProfile).plausible).toBe(false);
+    expect(evaluateJobForProfile("research-job", researchListing, researchFeatures, researchProfile).plausible).toBe(true);
   });
 
   test("does not retain a role beyond the selected stretch tolerance", () => {
@@ -288,11 +262,9 @@ describe("job features and match explanations", () => {
       target_levels: ["mid_level"],
       stretch_tolerance: "balanced",
     });
-    const match = scoreJobForProfile("job-2", listing, classifyJob(listing), profile);
+    const match = evaluateJobForProfile("job-2", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(false);
-    expect(match.breakdown.yoe_score).toBe(0);
-    expect(match.breakdown.score).toBeLessThan(30);
   });
 
   test("respects an explicit no-sponsorship requirement", () => {
@@ -307,7 +279,7 @@ describe("job features and match explanations", () => {
       work_authorization: "sponsorship",
     });
     const features = classifyJob(listing);
-    const match = scoreJobForProfile("job-3", listing, features, profile);
+    const match = evaluateJobForProfile("job-3", listing, features, profile);
 
     expect(features.sponsorship_available).toBe(false);
     expect(match.plausible).toBe(false);
@@ -326,7 +298,7 @@ describe("job features and match explanations", () => {
       target_levels: ["mid_level"],
     });
     const features = classifyJob(listing);
-    const match = scoreJobForProfile("job-4", listing, features, profile);
+    const match = evaluateJobForProfile("job-4", listing, features, profile);
 
     expect(features.specialties).not.toContain("backend");
     expect(match.plausible).toBe(false);
@@ -345,7 +317,7 @@ describe("job features and match explanations", () => {
       target_levels: ["mid_level"],
       stretch_tolerance: "balanced",
     });
-    const match = scoreJobForProfile("job-5", listing, classifyJob(listing), profile);
+    const match = evaluateJobForProfile("job-5", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(false);
   });
@@ -363,49 +335,48 @@ describe("the new-grad band", () => {
       ...overrides,
     });
 
-  const scored = (title: string, description: string | null, overrides = {}) => {
+  const matched = (title: string, description: string | null, overrides = {}) => {
     const listing = job({ title, location: "Remote - US", description });
-    return scoreJobForProfile("j", listing, classifyJob(listing), newGradProfile(overrides));
+    return evaluateJobForProfile("j", listing, classifyJob(listing), newGradProfile(overrides));
   };
 
   test("includes a posting that states no experience requirement", () => {
     // The largest single source of supply — 401 of 685 eligible production
     // postings state no years requirement at all.
-    const match = scored("Backend Engineer", "Build and operate our APIs.");
+    const match = matched("Backend Engineer", "Build and operate our APIs.");
     expect(match.plausible).toBe(true);
   });
 
   test("does not match until the listing description has been hydrated", () => {
-    expect(scored("Backend Engineer", null).plausible).toBe(false);
+    expect(matched("Backend Engineer", null).plausible).toBe(false);
   });
 
   test("excludes numeric employer levels above the early-career band", () => {
-    expect(scored("Backend Engineer 5", "Build APIs.").plausible).toBe(false);
-    expect(scored("Backend Engineer L4/L5", "Build APIs.").plausible).toBe(false);
+    expect(matched("Backend Engineer 5", "Build APIs.").plausible).toBe(false);
+    expect(matched("Backend Engineer L4/L5", "Build APIs.").plausible).toBe(false);
   });
 
   test("includes a requirement at the ceiling and excludes one above it", () => {
-    expect(scored("Backend Engineer", "At least 3 years of experience.").plausible).toBe(true);
-    expect(scored("Backend Engineer", "At least 4 years of experience.").plausible).toBe(false);
+    expect(matched("Backend Engineer", "At least 3 years of experience.").plausible).toBe(true);
+    expect(matched("Backend Engineer", "At least 4 years of experience.").plausible).toBe(false);
   });
 
-  test("ranks an explicit in-band requirement above an unstated one", () => {
-    const stated = scored("Backend Engineer", "At least 2 years of experience.");
-    const unstated = scored("Backend Engineer", "Build and operate our APIs.");
-    expect(stated.breakdown.yoe_score).toBeGreaterThan(unstated.breakdown.yoe_score);
+  test("treats stated in-band and unstated requirements as binary eligibility", () => {
+    expect(matched("Backend Engineer", "At least 2 years of experience.").plausible).toBe(true);
+    expect(matched("Backend Engineer", "Build and operate our APIs.").plausible).toBe(true);
   });
 
   test("excludes senior, staff and internship titles", () => {
-    expect(scored("Senior Backend Engineer", "Build APIs.").plausible).toBe(false);
-    expect(scored("Staff Backend Engineer", "Build APIs.").plausible).toBe(false);
-    expect(scored("Backend Engineer Intern", "Build APIs.").plausible).toBe(false);
+    expect(matched("Senior Backend Engineer", "Build APIs.").plausible).toBe(false);
+    expect(matched("Staff Backend Engineer", "Build APIs.").plausible).toBe(false);
+    expect(matched("Backend Engineer Intern", "Build APIs.").plausible).toBe(false);
   });
 
   test("widening target_levels cannot raise the ceiling", () => {
     // The original defect: seniority was compared against
     // Math.max(...target_levels) + allowance, so asking for senior roles
     // alongside early-career ones removed the floor and let staff+ in.
-    const withSeniorSelected = scored("Staff Software Engineer", "Build APIs.", {
+    const withSeniorSelected = matched("Staff Software Engineer", "Build APIs.", {
       target_levels: ["new_grad", "early_career", "senior", "staff_plus"],
       stretch_tolerance: "ambitious",
     });
@@ -419,16 +390,29 @@ describe("the new-grad band", () => {
     // was discarding the single most relevant family of roles in the catalog.
     expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
       .toBe("unknown");
-    expect(scored("Member of Technical Staff", "Build APIs.").plausible).toBe(true);
+    expect(matched("Member of Technical Staff", "Build APIs.").plausible).toBe(true);
   });
 
   test("a description mentioning senior colleagues does not exclude the job", () => {
     // Seniority must come from the title only. Reading it out of the
     // description flipped ordinary phrasing into a senior classification.
-    const match = scored(
+    const match = matched(
       "Backend Engineer",
       "You will work with senior engineers and lead projects end to end."
     );
     expect(match.plausible).toBe(true);
+  });
+
+  test("keeps a still-listed evergreen role eligible beyond the freshness window", () => {
+    const listing = job({
+      title: "Backend Engineer",
+      postedAt: "2024-01-01T00:00:00.000Z",
+      description: "Build and operate our APIs.",
+    });
+    const features = classifyJob(listing);
+    const profile = newGradProfile();
+
+    expect(evaluateJobForProfile("old", listing, features, profile).plausible).toBe(false);
+    expect(evaluateJobForProfile("evergreen", listing, features, profile, true).plausible).toBe(true);
   });
 });

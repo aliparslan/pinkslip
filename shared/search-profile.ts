@@ -163,7 +163,6 @@ export interface SearchProfile {
   work_authorization: WorkAuthorization;
   custom_titles: string[];
   excluded_titles: string[];
-  match_threshold: number;
   notifications_enabled: boolean;
   onboarding_version: number;
   onboarding_completed_at: string | null;
@@ -186,7 +185,6 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   work_authorization: "authorized",
   custom_titles: [],
   excluded_titles: [],
-  match_threshold: 50,
   notifications_enabled: false,
   onboarding_version: 0,
   onboarding_completed_at: null,
@@ -256,7 +254,6 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
       : DEFAULT_SEARCH_PROFILE.work_authorization,
     custom_titles: stringList(input.custom_titles, 12),
     excluded_titles: stringList(input.excluded_titles, 20),
-    match_threshold: numberInRange(input.match_threshold, DEFAULT_SEARCH_PROFILE.match_threshold, 0, 100),
     notifications_enabled: typeof input.notifications_enabled === "boolean" ? input.notifications_enabled : false,
     onboarding_version: numberInRange(input.onboarding_version, 0, 0, ONBOARDING_VERSION),
     onboarding_completed_at: typeof input.onboarding_completed_at === "string" ? input.onboarding_completed_at : null,

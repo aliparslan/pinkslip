@@ -3,16 +3,17 @@ import { requireAdmin } from "../auth";
 import type { Env, Variables, JobRow, CompanySourceType } from "../types";
 import { getAdapter } from "../ats";
 import {
+  ensureUserEvergreenMatchesReady,
   ensureUserJobMatchesReady,
-  ensureUserJobScores,
-  invalidateJobScores,
-  MATCH_SCORER_VERSION,
-  rescoreJobForMatchedUsers,
-} from "../user-job-scores";
+  ensureUserJobMatches,
+  invalidateJobMatches,
+  MATCHER_VERSION,
+  rematchJobForMatchedUsers,
+} from "../user-job-matches";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
-import { LOCATION_OPTIONS } from "../../shared/search-profile";
+import { LOCATION_OPTIONS, MAX_YEARS_EXPERIENCE } from "../../shared/search-profile";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -33,14 +34,16 @@ const JOB_LIST_FIELDS = `
   j.department,
   j.posted_at,
   j.first_seen_at,
-  COALESCE(us.score, j.score) AS score,
-  COALESCE(us.title_score, j.title_score) AS title_score,
-  COALESCE(us.yoe_score, j.yoe_score) AS yoe_score,
-  COALESCE(us.location_score, j.location_score) AS location_score,
-  COALESCE(us.department_score, j.department_score) AS department_score,
-  COALESCE(us.recency_score, j.recency_score) AS recency_score,
-  COALESCE(us.reasons_json, '[]') AS match_reasons_json,
-  us.scorer_version,
+  j.evergreen,
+  CASE
+    WHEN jf.min_years = 0 THEN 'No experience required'
+    WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
+    WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
+    WHEN jf.seniority = 'early_career' THEN 'Early-career role'
+    ELSE 'Experience not specified'
+  END AS match_fact,
+  jf.specialties_json,
+  jf.sponsorship_available,
   CAST(
     EXISTS(
       SELECT 1
@@ -66,7 +69,8 @@ const JOB_LIST_FIELDS = `
     ) AS INTEGER
   ) AS applied,
   c.name AS company_name,
-  c.website AS company_domain
+  c.website AS company_domain,
+  COALESCE(c.source_type, c.ats_type) AS source_type
 `;
 
 const JOB_DETAIL_FIELDS = `
@@ -79,14 +83,16 @@ const JOB_DETAIL_FIELDS = `
   j.department,
   j.posted_at,
   j.first_seen_at,
-  COALESCE(us.score, j.score) AS score,
-  COALESCE(us.title_score, j.title_score) AS title_score,
-  COALESCE(us.yoe_score, j.yoe_score) AS yoe_score,
-  COALESCE(us.location_score, j.location_score) AS location_score,
-  COALESCE(us.department_score, j.department_score) AS department_score,
-  COALESCE(us.recency_score, j.recency_score) AS recency_score,
-  COALESCE(us.reasons_json, '[]') AS match_reasons_json,
-  us.scorer_version,
+  j.evergreen,
+  CASE
+    WHEN jf.min_years = 0 THEN 'No experience required'
+    WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
+    WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
+    WHEN jf.seniority = 'early_career' THEN 'Early-career role'
+    ELSE 'Experience not specified'
+  END AS match_fact,
+  jf.specialties_json,
+  jf.sponsorship_available,
   CAST(
     EXISTS(
       SELECT 1
@@ -112,7 +118,8 @@ const JOB_DETAIL_FIELDS = `
     ) AS INTEGER
   ) AS applied,
   c.name AS company_name,
-  c.website AS company_domain
+  c.website AS company_domain,
+  COALESCE(c.source_type, c.ats_type) AS source_type
 `;
 
 type JobListRow = JobRow & {
@@ -121,23 +128,29 @@ type JobListRow = JobRow & {
   saved: number;
   applied: number;
   applied_at?: string;
-  match_reasons_json: string;
-  match_reasons?: string[];
-  scorer_version?: string | null;
+  match_fact: string;
+  specialties_json: string;
+  sponsorship_available: number | null;
 };
 
 function serializeJob(row: JobListRow) {
-  let matchReasons: string[] = [];
+  let specialties: string[] = [];
   try {
-    const parsed = JSON.parse(row.match_reasons_json);
-    matchReasons = Array.isArray(parsed)
-      ? parsed.filter((reason): reason is string => typeof reason === "string")
+    const parsed = JSON.parse(row.specialties_json);
+    specialties = Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
       : [];
   } catch {
-    matchReasons = [];
+    specialties = [];
   }
-  const { match_reasons_json: _, ...job } = row;
-  return { ...job, match_reasons: matchReasons };
+  const { specialties_json: _, ...job } = row;
+  return {
+    ...job,
+    specialties,
+    sponsorship_available: row.sponsorship_available === null
+      ? null
+      : row.sponsorship_available === 1,
+  };
 }
 
 const LOCATION_ALIASES: Record<string, string[]> = {
@@ -212,30 +225,11 @@ export function parseSalaryRange(salary: string | null): { min: number; max: num
   };
 }
 
-function extractRequiredYoe(row: Pick<JobListRow, "title" | "description">): number | null {
-  const text = `${row.title ?? ""}\n${row.description ?? ""}`.toLowerCase();
-  if (/\b(?:junior|new grad|new graduate|entry level|early career)\b/.test(text)) return 0;
-  if (/\b(?:senior|sr\.?|staff|principal|lead)\b/.test(text)) return 5;
-
-  const rangeMatch = text.match(/\b(\d{1,2})\s*(?:\+|–|-|to)\s*(\d{1,2})?\s*(?:years?|yrs?)\b(?!\s*ago)/);
-  if (rangeMatch) return Number.parseInt(rangeMatch[1], 10);
-
-  // Require a requirement cue so a stray "5 years ago" doesn't read as a YOE bar.
-  const qualified =
-    text.match(/\b(?:at least|minimum of|minimum|min\.?|requires?|require)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b/)
-    ?? text.match(/\b(\d{1,2})\s*\+\s*(?:years?|yrs?)\b(?!\s*ago)/)
-    ?? text.match(/\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+|related\s+|work\s+|hands-on\s+)?experience\b/);
-  if (qualified) return Number.parseInt(qualified[1], 10);
-
-  return null;
-}
-
 function passesAdvancedFilters(
   row: JobListRow,
   filters: {
     minSalary: number | null;
     maxSalary: number | null;
-    maxYoe: number | null;
   }
 ): boolean {
   if (filters.minSalary !== null || filters.maxSalary !== null) {
@@ -245,19 +239,12 @@ function passesAdvancedFilters(
     if (filters.maxSalary !== null && range.min > filters.maxSalary) return false;
   }
 
-  if (filters.maxYoe !== null) {
-    const requiredYoe = extractRequiredYoe(row);
-    if (requiredYoe !== null && requiredYoe > filters.maxYoe) return false;
-  }
-
   return true;
 }
 
 jobs.get("/", async (c) => {
   const userId = c.get("userId");
-  await ensureUserJobMatchesReady(c.env.DB, userId);
   const {
-    min_score,
     company_id,
     dismissed,
     limit,
@@ -268,9 +255,15 @@ jobs.get("/", async (c) => {
     q,
     min_salary,
     max_salary,
+    min_yoe,
     max_yoe,
     posted,
   } = c.req.query();
+  if (posted === "evergreen") {
+    await ensureUserEvergreenMatchesReady(c.env.DB, userId);
+  } else {
+    await ensureUserJobMatchesReady(c.env.DB, userId);
+  }
 
   const parsedLimit = parseInt(limit ?? "300", 10);
   const parsedOffset = parseInt(offset ?? "0", 10);
@@ -278,24 +271,33 @@ jobs.get("/", async (c) => {
   const offsetVal = Math.max(0, Number.isFinite(parsedOffset) ? parsedOffset : 0);
   const minSalary = min_salary !== undefined ? parseInt(min_salary, 10) : Number.NaN;
   const maxSalary = max_salary !== undefined ? parseInt(max_salary, 10) : Number.NaN;
-  const maxYoe = max_yoe !== undefined ? parseInt(max_yoe, 10) : Number.NaN;
+  const parsedMinYoe = min_yoe !== undefined ? parseInt(min_yoe, 10) : Number.NaN;
+  const parsedMaxYoe = max_yoe !== undefined ? parseInt(max_yoe, 10) : Number.NaN;
+  const minYoe = Number.isFinite(parsedMinYoe)
+    ? Math.max(0, Math.min(MAX_YEARS_EXPERIENCE, parsedMinYoe))
+    : null;
+  const maxYoe = Number.isFinite(parsedMaxYoe)
+    ? Math.max(0, Math.min(MAX_YEARS_EXPERIENCE, parsedMaxYoe))
+    : null;
   const advancedFilters = {
     minSalary: Number.isFinite(minSalary) ? minSalary : null,
     maxSalary: Number.isFinite(maxSalary) ? maxSalary : null,
-    maxYoe: Number.isFinite(maxYoe) ? maxYoe : null,
   };
   const hasAdvancedFilters = Object.values(advancedFilters).some((value) => value !== null);
 
   const conditions: string[] = [
     "c.enabled = 1",
     "j.closed_at IS NULL",
-    "us.scorer_version = ?",
+    "us.matcher_version = ?",
+    `(jf.min_years IS NULL OR jf.min_years <= ${MAX_YEARS_EXPERIENCE})`,
+    "(jrq.job_id IS NULL OR jrq.state = 'approved')",
     `NOT EXISTS (
       SELECT 1 FROM user_blocked_companies ubc
       WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
     )`,
-    // A posting with a real date older than 30 days is almost always filled or
-    // abandoned, so it never belongs in the feed.
+    // A posting with a real date older than 30 days is normally stale. The
+    // evergreen flag is the explicit exception for roles the current board
+    // still lists, and those remain visible in the normal feed.
     //
     // Undated jobs are deliberately kept. They are not "unknown age" — they come
     // from boards that only list a role while it is genuinely open (startups),
@@ -312,7 +314,7 @@ jobs.get("/", async (c) => {
     userId,
     userId,
     userId,
-    MATCH_SCORER_VERSION,
+    MATCHER_VERSION,
     userId,
   ];
 
@@ -343,8 +345,7 @@ jobs.get("/", async (c) => {
   if (posted === "undated") {
     conditions.push("j.posted_at IS NULL");
   } else if (posted === "evergreen") {
-    // Standing pipeline requisitions. Shown only on request: they never close,
-    // so left in the default feed they would crowd out genuinely new postings.
+    // The default feed includes these; this mode deliberately narrows to them.
     conditions.push("j.evergreen = 1");
   } else if (posted === "dated") {
     conditions.push("j.posted_at IS NOT NULL AND j.evergreen = 0");
@@ -374,35 +375,33 @@ jobs.get("/", async (c) => {
     bindings.push(userId);
   }
 
+  if (maxYoe !== null) {
+    conditions.push("(jf.min_years IS NULL OR jf.min_years <= ?)");
+    bindings.push(maxYoe);
+  }
+  if (minYoe !== null && minYoe > 0) {
+    conditions.push("jf.min_years IS NOT NULL AND jf.min_years >= ?");
+    bindings.push(minYoe);
+  }
+
   const locationFilter = buildLocationFilter(location, locations);
   if (locationFilter) {
     conditions.push(locationFilter.clause);
     bindings.push(...locationFilter.bindings);
   }
 
-  if (min_score !== undefined) {
-    const minScoreVal = parseFloat(min_score);
-    if (Number.isFinite(minScoreVal)) {
-      conditions.push("us.score >= ?");
-      bindings.push(minScoreVal);
-    }
-  }
-
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  // The feed leads with the newest posting date, then ranks by match strength
-  // *within* a day. Ordering by exact timestamp alone made the stored score
-  // decorative: an exact role match and a merely adjacent one interleaved by
-  // whichever happened to be ingested seconds earlier, which is why a focused
-  // profile still felt generic. Some ATS feeds omit or mangle posted_at, so
-  // fall back to the stable ingestion time; first_seen_at and id keep
-  // pagination deterministic when both date and score match.
-  const orderBy = "date(COALESCE(j.posted_at, j.first_seen_at)) DESC, us.score DESC, j.first_seen_at DESC, j.id DESC";
+  // Feed order is intentionally factual: newest source/detection date first.
+  // User eligibility is binary, so there is no hidden score affecting rank.
+  const orderBy = "date(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
 
   const sql = `
     SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
+    JOIN job_features jf ON jf.job_id = j.id
     JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+    LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
     ${where}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
@@ -463,7 +462,7 @@ async function backfillJobContent(
     await db.prepare(
       "UPDATE jobs SET closed_at = ? WHERE id = ? AND closed_at IS NULL"
     ).bind(new Date().toISOString(), job.id).run();
-    await invalidateJobScores(db, job.id);
+    await invalidateJobMatches(db, job.id);
     return;
   }
 
@@ -487,21 +486,21 @@ async function backfillJobContent(
   }
   vals.push(job.id);
   await db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).bind(...vals).run();
-  // Re-score (don't blanket-invalidate) so the job keeps its place in the feeds
-  // of users it still matches, with an updated score from the new content.
-  await rescoreJobForMatchedUsers(db, job.id, viewerUserId);
+  // Re-evaluate binary eligibility after content changes.
+  await rematchJobForMatchedUsers(db, job.id, viewerUserId);
 }
 
 jobs.get("/:id", async (c) => {
   const { id } = c.req.param();
   const userId = c.get("userId");
   const db = c.env.DB;
-  await ensureUserJobScores(db, userId, [id]);
+  await ensureUserJobMatches(db, userId, [id]);
 
   const result = await db.prepare(
-    `SELECT ${JOB_DETAIL_FIELDS}, c.ats_type, c.source_type, c.ats_slug
+    `SELECT ${JOB_DETAIL_FIELDS}, c.ats_type, c.ats_slug
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
+     JOIN job_features jf ON jf.job_id = j.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE j.id = ?`
   )
@@ -533,7 +532,7 @@ jobs.patch("/:id", async (c) => {
   const userId = c.get("userId");
   const { id } = c.req.param();
   const body = await c.req.json<{ dismissed?: boolean; saved?: boolean; applied?: boolean }>();
-  await ensureUserJobScores(c.env.DB, userId, [id]);
+  await ensureUserJobMatches(c.env.DB, userId, [id]);
 
   if (body.dismissed === undefined && body.saved === undefined && body.applied === undefined) {
     return c.json({ error: "No fields to update" }, 400);
@@ -618,6 +617,7 @@ jobs.patch("/:id", async (c) => {
     `SELECT ${JOB_DETAIL_FIELDS}
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
+     JOIN job_features jf ON jf.job_id = j.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE j.id = ? AND j.closed_at IS NULL`
   )
@@ -660,11 +660,12 @@ jobs.delete("/:id/block", requireAdmin, async (c) => {
 
 jobs.get("/saved/list", async (c) => {
   const userId = c.get("userId");
-  await ensureUserJobScores(c.env.DB, userId);
+  await ensureUserJobMatches(c.env.DB, userId);
   const result = await c.env.DB.prepare(
     `SELECT ${JOB_LIST_FIELDS}
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
+     JOIN job_features jf ON jf.job_id = j.id
      JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ?
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE j.closed_at IS NULL
@@ -682,12 +683,13 @@ jobs.get("/saved/list", async (c) => {
 // present or not.
 jobs.get("/applied/list", async (c) => {
   const userId = c.get("userId");
-  await ensureUserJobScores(c.env.DB, userId);
+  await ensureUserJobMatches(c.env.DB, userId);
   const result = await c.env.DB.prepare(
     `SELECT ${JOB_LIST_FIELDS}, a.created_at AS applied_at
      FROM applications a
      JOIN jobs j ON j.id = a.job_id
      JOIN companies c ON j.company_id = c.id
+     JOIN job_features jf ON jf.job_id = j.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE a.user_id = ?
      ORDER BY datetime(a.created_at) DESC, a.id DESC`

@@ -4,26 +4,19 @@ import {
   ONBOARDING_VERSION,
   ROLE_OPTIONS,
   normalizeSearchProfile,
-  profileDepartmentKeywords,
-  profileExperienceRange,
-  profileLocationAliases,
-  profileRoleKeywords,
   type ExperienceLevel,
   type LocationId,
   type RoleId,
   type SearchProfile,
 } from "../shared/search-profile";
 import { readUserPreferences } from "./account";
-import type { ScoringPrefs } from "./scoring";
 
 export interface UserPreferenceState {
   search_profile: SearchProfile;
-  notify_threshold: number;
 }
 
 interface SearchProfileRow {
   profile_json: string;
-  match_threshold: number;
   notifications_enabled: number;
   onboarding_version: number;
   onboarding_completed_at: string | null;
@@ -98,7 +91,6 @@ export function searchProfileFromLegacy(preferences: Record<string, unknown>): S
     custom_titles: [],
     excluded_titles: list(preferences.negative_keywords)
       .filter((keyword) => !LEGACY_SENIORITY_EXCLUSIONS.has(keyword.trim().toLowerCase())),
-    match_threshold: preferences.notify_threshold ?? preferences.notification_threshold,
   });
 }
 
@@ -117,25 +109,19 @@ export function preferenceStateFromRecord(preferences: Record<string, unknown>):
         onboarding_completed_at: new Date().toISOString(),
       })
     : baseProfile;
-  const rawThreshold = Number(preferences.notify_threshold ?? preferences.notification_threshold ?? profile.match_threshold);
-  const threshold = Number.isFinite(rawThreshold) ? Math.max(0, Math.min(100, Math.round(rawThreshold))) : 50;
-  return {
-    search_profile: normalizeSearchProfile({ ...profile, match_threshold: threshold }),
-    notify_threshold: threshold,
-  };
+  return { search_profile: profile };
 }
 
 async function persistTypedProfile(db: D1Database, userId: string, profile: SearchProfile) {
   const now = new Date().toISOString();
   await db.prepare(
     `INSERT INTO user_search_profiles (
-       user_id, profile_json, match_threshold, notifications_enabled,
+       user_id, profile_json, notifications_enabled,
        onboarding_version, onboarding_completed_at, match_cursor_seen_at,
        created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+     ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        profile_json = excluded.profile_json,
-       match_threshold = excluded.match_threshold,
        notifications_enabled = excluded.notifications_enabled,
        onboarding_version = excluded.onboarding_version,
        onboarding_completed_at = excluded.onboarding_completed_at,
@@ -144,7 +130,6 @@ async function persistTypedProfile(db: D1Database, userId: string, profile: Sear
   ).bind(
     userId,
     JSON.stringify(profile),
-    profile.match_threshold,
     profile.notifications_enabled ? 1 : 0,
     profile.onboarding_version,
     profile.onboarding_completed_at,
@@ -155,7 +140,7 @@ async function persistTypedProfile(db: D1Database, userId: string, profile: Sear
 
 export async function loadUserPreferenceState(db: D1Database, userId: string): Promise<UserPreferenceState> {
   const row = await db.prepare(
-    `SELECT profile_json, match_threshold, notifications_enabled,
+    `SELECT profile_json, notifications_enabled,
             onboarding_version, onboarding_completed_at
      FROM user_search_profiles
      WHERE user_id = ?`
@@ -164,12 +149,11 @@ export async function loadUserPreferenceState(db: D1Database, userId: string): P
   if (row) {
     const profile = normalizeSearchProfile({
       ...JSON.parse(row.profile_json),
-      match_threshold: row.match_threshold,
       notifications_enabled: row.notifications_enabled === 1,
       onboarding_version: row.onboarding_version,
       onboarding_completed_at: row.onboarding_completed_at,
     });
-    return { search_profile: profile, notify_threshold: profile.match_threshold };
+    return { search_profile: profile };
   }
 
   const legacy = preferenceStateFromRecord(await readUserPreferences(db, userId));
@@ -179,37 +163,17 @@ export async function loadUserPreferenceState(db: D1Database, userId: string): P
 
 export function defaultUserPreferenceState(): UserPreferenceState {
   const searchProfile = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
-  return { search_profile: searchProfile, notify_threshold: searchProfile.match_threshold };
-}
-
-export function scoringPrefsFromState(state: UserPreferenceState): ScoringPrefs {
-  const experience = profileExperienceRange(state.search_profile);
-  return {
-    locations: profileLocationAliases(state.search_profile),
-    min_yoe: experience.minYears,
-    max_yoe: experience.maxYears,
-    role_keywords: profileRoleKeywords(state.search_profile),
-    negative_keywords: state.search_profile.excluded_titles,
-    department_keywords: profileDepartmentKeywords(state.search_profile),
-    search_profile: state.search_profile,
-  };
+  return { search_profile: searchProfile };
 }
 
 export async function saveUserPreferenceState(
   db: D1Database,
   userId: string,
-  input: { search_profile?: unknown; notify_threshold?: unknown }
+  input: { search_profile?: unknown }
 ): Promise<UserPreferenceState> {
   const current = await loadUserPreferenceState(db, userId);
-  const thresholdNumber = input.notify_threshold === undefined
-    ? current.notify_threshold
-    : Number(input.notify_threshold);
-  const threshold = Number.isFinite(thresholdNumber)
-    ? Math.max(0, Math.min(100, Math.round(thresholdNumber)))
-    : current.notify_threshold;
   const nextProfile = normalizeSearchProfile({
     ...(input.search_profile === undefined ? current.search_profile : input.search_profile as object),
-    match_threshold: threshold,
   });
   const changed = JSON.stringify(current.search_profile) !== JSON.stringify(nextProfile);
 
@@ -228,5 +192,5 @@ export async function saveUserPreferenceState(
     await db.prepare("DELETE FROM user_job_matches WHERE user_id = ?").bind(userId).run();
   }
 
-  return { search_profile: nextProfile, notify_threshold: threshold };
+  return { search_profile: nextProfile };
 }

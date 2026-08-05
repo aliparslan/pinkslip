@@ -22,7 +22,6 @@ preferences.put("/", async (c) => {
     c.get("userId"),
     {
       search_profile: body.search_profile,
-      notify_threshold: body.notify_threshold ?? body.notification_threshold,
     }
   );
   return c.json(state);

@@ -4,7 +4,7 @@ import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 import { resolveApnsConfig, sendApnsNotification } from "../apns";
 import { recordProductEvent } from "../product-events";
-import { MATCH_SCORER_VERSION } from "../user-job-scores";
+import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -14,7 +14,6 @@ push.get("/settings", async (c) => {
     `SELECT
        COALESCE(uns.enabled, usp.notifications_enabled, 0) AS enabled,
        COALESCE(uns.push_enabled, 1) AS push_enabled,
-       COALESCE(uns.threshold, usp.match_threshold, 50) AS threshold,
        COALESCE(uns.updated_at, usp.updated_at) AS updated_at
      FROM users u
      LEFT JOIN user_notification_settings uns ON uns.user_id = u.id
@@ -23,41 +22,34 @@ push.get("/settings", async (c) => {
   ).bind(c.get("userId")).first<{
     enabled: number;
     push_enabled: number;
-    threshold: number;
     updated_at: string;
   }>();
   return c.json({
     enabled: row?.enabled === 1,
     push_enabled: row?.push_enabled !== 0,
-    threshold: row?.threshold ?? 50,
     updated_at: row?.updated_at ?? null,
     vapid_public_key: c.env.VAPID_PUBLIC_KEY?.trim() || null,
   });
 });
 
 push.put("/settings", async (c) => {
-  const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean; threshold?: number }>();
+  const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean }>();
   const existing = await c.env.DB.prepare(
-    "SELECT enabled, push_enabled, threshold FROM user_notification_settings WHERE user_id = ?"
-  ).bind(c.get("userId")).first<{ enabled: number; push_enabled: number; threshold: number }>();
+    "SELECT enabled, push_enabled FROM user_notification_settings WHERE user_id = ?"
+  ).bind(c.get("userId")).first<{ enabled: number; push_enabled: number }>();
   const enabled = body.enabled ?? (existing?.enabled === 1);
   const pushEnabled = body.push_enabled ?? (existing?.push_enabled !== 0);
-  const threshold = Number.isFinite(Number(body.threshold))
-    ? Math.max(0, Math.min(100, Math.round(Number(body.threshold))))
-    : existing?.threshold ?? 50;
   await c.env.DB.prepare(
-    `INSERT INTO user_notification_settings (user_id, enabled, push_enabled, threshold, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO user_notification_settings (user_id, enabled, push_enabled, updated_at)
+     VALUES (?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        enabled = excluded.enabled,
        push_enabled = excluded.push_enabled,
-       threshold = excluded.threshold,
        updated_at = excluded.updated_at`
   ).bind(
     c.get("userId"),
     enabled ? 1 : 0,
     pushEnabled ? 1 : 0,
-    threshold,
     new Date().toISOString()
   ).run();
   await c.env.DB.prepare(
@@ -86,13 +78,13 @@ push.put("/settings", async (c) => {
            JOIN jobs j ON j.id = ujm.job_id
            WHERE ujm.user_id = notification_candidates.user_id
              AND ujm.job_id = notification_candidates.job_id
-             AND ujm.scorer_version = ?
+             AND ujm.matcher_version = ?
              AND j.closed_at IS NULL
              AND j.description IS NOT NULL
              AND trim(j.description) != ''
              AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
          )`
-    ).bind(c.get("userId"), MATCH_SCORER_VERSION).run();
+    ).bind(c.get("userId"), MATCHER_VERSION).run();
     await c.env.DB.prepare(
       `UPDATE notification_deliveries
        SET status = 'retry', attempt_count = 0, last_error = NULL
@@ -103,7 +95,7 @@ push.put("/settings", async (c) => {
          AND status = 'failed'`
     ).bind(c.get("userId")).run();
   }
-  return c.json({ enabled, push_enabled: pushEnabled, threshold });
+  return c.json({ enabled, push_enabled: pushEnabled });
 });
 
 push.post("/opened", async (c) => {

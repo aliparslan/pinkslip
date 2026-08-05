@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import { validateFeedbackInput } from "../feedback";
 import { recordProductEvent } from "../product-events";
+import { rowToListing, type FeatureJobRow } from "../job-features";
+import { matchJobsForAllProfiles } from "../user-job-matches";
 import type { Env, Variables } from "../types";
 
 const interactions = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -180,6 +182,141 @@ interactions.patch("/reports/:id", requireAdmin, async (c) => {
     c.req.param("id")
   ).run();
   return c.json({ ok: true });
+});
+
+interactions.get("/job-reviews", requireAdmin, async (c) => {
+  const state = c.req.query("state") ?? "needs_review";
+  if (!["needs_review", "approved", "rejected", "all"].includes(state)) {
+    return c.json({ error: "Invalid review state" }, 400);
+  }
+
+  const parsedLimit = Number.parseInt(c.req.query("limit") ?? "100", 10);
+  const parsedOffset = Number.parseInt(c.req.query("offset") ?? "0", 10);
+  const limit = Math.max(1, Math.min(Number.isFinite(parsedLimit) ? parsedLimit : 100, 250));
+  const offset = Math.max(0, Number.isFinite(parsedOffset) ? parsedOffset : 0);
+
+  const [result, totalRow] = await Promise.all([
+    c.env.DB.prepare(
+    `SELECT q.job_id, q.state, q.reason_codes_json, q.evidence_json,
+            q.classifier_version, q.admin_note, q.created_at, q.updated_at,
+            q.reviewed_at, j.title, j.url, j.location, c.name AS company_name
+     FROM job_review_queue q
+     JOIN jobs j ON j.id = q.job_id
+     JOIN companies c ON c.id = j.company_id
+     WHERE (? = 'all' OR q.state = ?)
+     ORDER BY datetime(q.updated_at) DESC
+     LIMIT ? OFFSET ?`
+    ).bind(state, state, limit + 1, offset).all<{
+    job_id: string;
+    state: "needs_review" | "approved" | "rejected";
+    reason_codes_json: string;
+    evidence_json: string;
+    classifier_version: string;
+    admin_note: string | null;
+    created_at: string;
+    updated_at: string;
+    reviewed_at: string | null;
+    title: string;
+    url: string;
+    location: string;
+    company_name: string;
+    }>(),
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS count
+       FROM job_review_queue
+       WHERE (? = 'all' OR state = ?)`
+    ).bind(state, state).first<{ count: number }>(),
+  ]);
+
+  const rawRows = result.results ?? [];
+  const reviews = rawRows.slice(0, limit).map((row) => {
+    let reasonCodes: string[] = [];
+    let evidence: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(row.reason_codes_json);
+      if (Array.isArray(parsed)) reasonCodes = parsed.filter((item): item is string => typeof item === "string");
+    } catch {
+      reasonCodes = [];
+    }
+    try {
+      const parsed = JSON.parse(row.evidence_json);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) evidence = parsed;
+    } catch {
+      evidence = {};
+    }
+    const { reason_codes_json: _reasons, evidence_json: _evidence, ...review } = row;
+    return { ...review, reason_codes: reasonCodes, evidence };
+  });
+
+  return c.json({
+    reviews,
+    meta: {
+      total: Number(totalRow?.count ?? reviews.length),
+      count: reviews.length,
+      has_more: rawRows.length > limit,
+      next_offset: offset + reviews.length,
+    },
+  });
+});
+
+interactions.patch("/job-reviews/:id", requireAdmin, async (c) => {
+  const jobId = c.req.param("id");
+  const body: {
+    state?: "needs_review" | "approved" | "rejected";
+    admin_note?: string;
+  } = await c.req.json<{
+    state?: "needs_review" | "approved" | "rejected";
+    admin_note?: string;
+  }>().catch(() => ({}));
+  if (!body.state || !["needs_review", "approved", "rejected"].includes(body.state)) {
+    return c.json({ error: "Choose approve, reject, or needs review" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const updated = await c.env.DB.prepare(
+    `UPDATE job_review_queue
+     SET state = ?, admin_note = ?, reviewed_by = ?, updated_at = ?,
+         reviewed_at = CASE WHEN ? = 'needs_review' THEN NULL ELSE ? END
+     WHERE job_id = ?`
+  ).bind(
+    body.state,
+    body.admin_note?.trim().slice(0, 2000) || null,
+    c.get("userId"),
+    now,
+    body.state,
+    now,
+    jobId
+  ).run();
+  if (!updated.meta.changes) return c.json({ error: "Review item not found" }, 404);
+
+  if (body.state !== "approved") {
+    await c.env.DB.batch([
+      c.env.DB.prepare("DELETE FROM user_job_matches WHERE job_id = ?").bind(jobId),
+      c.env.DB.prepare(
+        `UPDATE notification_candidates
+         SET status = 'skipped', last_error = 'Job awaiting or rejected in admin review'
+         WHERE job_id = ? AND status IN ('pending', 'retry')`
+      ).bind(jobId),
+    ]);
+  } else {
+    const job = await c.env.DB.prepare(
+      `SELECT id, external_id, title, url, location, department,
+              posted_at, first_seen_at, description, salary, evergreen
+       FROM jobs WHERE id = ? AND closed_at IS NULL`
+    ).bind(jobId).first<FeatureJobRow & { evergreen: number | null }>();
+    if (job) {
+      c.executionCtx.waitUntil(
+        matchJobsForAllProfiles(c.env.DB, [{
+          jobId,
+          listing: rowToListing(job),
+          evergreen: job.evergreen === 1,
+        }])
+          .catch((error) => console.error("Approved job rematch failed", error))
+      );
+    }
+  }
+
+  return c.json({ ok: true, state: body.state });
 });
 
 interactions.post("/feedback", async (c) => {

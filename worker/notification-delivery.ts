@@ -3,7 +3,7 @@ import { recordProductEvent } from "./product-events";
 import { buildNotificationPayload, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
-import { MATCH_SCORER_VERSION } from "./user-job-scores";
+import { MATCHER_VERSION } from "./user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import {
   isDeadPushSubscription,
@@ -42,25 +42,19 @@ export async function createNotificationCandidates(
   const matches = await db.prepare(
     `SELECT
        ujm.user_id,
-       ujm.job_id,
-       ujm.score
+       ujm.job_id
      FROM user_job_matches ujm
      JOIN jobs j ON j.id = ujm.job_id
      JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
      LEFT JOIN user_notification_settings uns ON uns.user_id = ujm.user_id
      WHERE ujm.job_id IN (${placeholders})
-       AND ujm.scorer_version = ?
+       AND ujm.matcher_version = ?
        AND j.closed_at IS NULL
        AND j.description IS NOT NULL
        AND trim(j.description) != ''
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       -- The stored threshold was collected in settings and then never applied,
-       -- so every plausible match alerted no matter how weakly it scored. It is
-       -- enforced on creation and again on delivery, so a candidate queued
-       -- before the user raised their threshold cannot still slip through.
-       AND ujm.score >= COALESCE(uns.threshold, usp.match_threshold, 50)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
@@ -69,7 +63,7 @@ export async function createNotificationCandidates(
          SELECT 1 FROM push_subscriptions ps
          WHERE ps.user_id = ujm.user_id
        )`
-  ).bind(...jobIds, MATCH_SCORER_VERSION).all<{ user_id: string; job_id: string; score: number }>();
+  ).bind(...jobIds, MATCHER_VERSION).all<{ user_id: string; job_id: string }>();
   const rows = matches.results ?? [];
   if (rows.length === 0) return 0;
 
@@ -79,17 +73,16 @@ export async function createNotificationCandidates(
     const results = await db.batch(rows.slice(offset, offset + 75).map((row) =>
       db.prepare(
         `INSERT INTO notification_candidates (
-           id, user_id, job_id, channel, score, status, created_at
-         ) VALUES (?, ?, ?, 'push', ?, 'pending', ?)
+           id, user_id, job_id, channel, status, created_at
+         ) VALUES (?, ?, ?, 'push', 'pending', ?)
          ON CONFLICT(user_id, job_id, channel) DO UPDATE SET
-           score = excluded.score,
            status = 'pending',
            attempt_count = 0,
            last_error = NULL,
            last_attempt_at = NULL,
            sent_at = NULL
          WHERE notification_candidates.status IN ('failed', 'skipped')`
-      ).bind(crypto.randomUUID(), row.user_id, row.job_id, row.score, now)
+      ).bind(crypto.randomUUID(), row.user_id, row.job_id, now)
     ));
     created += results.reduce((sum, result) => sum + (result.meta.changes ?? 0), 0);
   }
@@ -137,13 +130,13 @@ export async function deliverPendingNotifications(
          JOIN jobs j ON j.id = ujm.job_id
          WHERE ujm.user_id = nc.user_id
            AND ujm.job_id = nc.job_id
-           AND ujm.scorer_version = ?
+           AND ujm.matcher_version = ?
            AND j.closed_at IS NULL
            AND j.description IS NOT NULL
            AND trim(j.description) != ''
            AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        )`
-  ).bind(MATCH_SCORER_VERSION).run();
+  ).bind(MATCHER_VERSION).run();
 
   const candidates = await db.prepare(
     `SELECT nc.id, nc.user_id, nc.job_id, c.name AS company, j.title, nc.attempt_count
@@ -153,7 +146,7 @@ export async function deliverPendingNotifications(
      JOIN user_job_matches ujm
        ON ujm.user_id = nc.user_id
       AND ujm.job_id = nc.job_id
-      AND ujm.scorer_version = ?
+      AND ujm.matcher_version = ?
      LEFT JOIN user_notification_settings uns ON uns.user_id = nc.user_id
      JOIN user_search_profiles usp ON usp.user_id = nc.user_id
      WHERE nc.status IN ('pending', 'retry')
@@ -163,18 +156,13 @@ export async function deliverPendingNotifications(
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
-       -- The stored threshold was collected in settings and then never applied,
-       -- so every plausible match alerted no matter how weakly it scored. It is
-       -- enforced on creation and again on delivery, so a candidate queued
-       -- before the user raised their threshold cannot still slip through.
-       AND ujm.score >= COALESCE(uns.threshold, usp.match_threshold, 50)
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
      ORDER BY nc.created_at ASC
      LIMIT ?`
-  ).bind(MATCH_SCORER_VERSION, limit).all<CandidateRow>();
+  ).bind(MATCHER_VERSION, limit).all<CandidateRow>();
   const available = candidates.results ?? [];
   if (available.length === 0) return 0;
 

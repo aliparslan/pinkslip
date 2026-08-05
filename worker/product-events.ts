@@ -1,7 +1,5 @@
 const ALLOWED_PROPERTIES = new Set([
   "source",
-  "score",
-  "threshold",
   "report_type",
   "feedback_type",
   "status",

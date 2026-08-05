@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
-import { MATCH_SCORER_VERSION } from "../user-job-scores";
+import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 
 const stats = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -20,7 +20,7 @@ stats.get("/", async (c) => {
        WHERE ujm.user_id = ?
          AND c.enabled = 1
          AND j.closed_at IS NULL
-         AND ujm.scorer_version = ?
+         AND ujm.matcher_version = ?
          AND j.description IS NOT NULL
          AND trim(j.description) != ''
          AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
@@ -34,7 +34,7 @@ stats.get("/", async (c) => {
            WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
          )`
     )
-      .bind(userId, MATCH_SCORER_VERSION, userId, userId)
+      .bind(userId, MATCHER_VERSION, userId, userId)
       .first<{ count: number }>(),
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count FROM user_job_matches ujm
@@ -43,7 +43,7 @@ stats.get("/", async (c) => {
        WHERE ujm.user_id = ?
          AND c.enabled = 1
          AND j.closed_at IS NULL
-         AND ujm.scorer_version = ?
+         AND ujm.matcher_version = ?
          AND j.description IS NOT NULL
          AND trim(j.description) != ''
          AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
@@ -58,7 +58,7 @@ stats.get("/", async (c) => {
            WHERE ubc.user_id = ? AND ubc.company_id = j.company_id
          )`
     )
-      .bind(userId, MATCH_SCORER_VERSION, today, userId, userId)
+      .bind(userId, MATCHER_VERSION, today, userId, userId)
       .first<{ count: number }>(),
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count FROM companies c

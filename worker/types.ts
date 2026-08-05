@@ -90,14 +90,9 @@ export interface JobRow {
   department: string | null;
   posted_at: string | null;
   first_seen_at: string;
-  score: number;
-  title_score: number;
-  yoe_score: number;
-  location_score: number;
-  department_score: number;
-  recency_score: number;
-  match_reasons_json?: string;
-  scorer_version?: string | null;
+  evergreen: number;
+  match_fact?: string;
+  source_type?: CompanySourceType | null;
   dismissed: number;
   description: string | null;
   salary: string | null;
