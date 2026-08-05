@@ -34,13 +34,15 @@
   import SaveStatus from "../components/SaveStatus.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { feedback } from "../lib/feedback.svelte";
+  import { DropdownMenu } from "bits-ui";
+  import DotsThree from "phosphor-svelte/lib/DotsThree";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
   type TabId = "resume" | "cover" | "qa";
   const outputTabs: { id: TabId; label: string }[] = [
     { id: "resume", label: "Resume" },
-    { id: "cover", label: "Cover" },
+    { id: "cover", label: "Cover letter" },
     { id: "qa", label: "Interview" },
   ];
 
@@ -74,9 +76,6 @@
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
   let usingLocalRequest = $derived.by(() => {
     return Boolean(localKit?.apiKey.trim() || localResumeText);
-  });
-  let activeModel = $derived.by(() => {
-    return localKit?.model?.trim() || tailoring?.model || DEFAULT_TAILOR_MODEL;
   });
   let hasAnyOutput = $derived(
     Boolean(resumeText || coverText || qaText || tailoring || localDraft)
@@ -358,11 +357,11 @@
   });
   let regenerateMessage = $derived.by(() => {
     if (hasPendingEdits) {
-      return "Regenerating creates a new version. Your current edits are saved first so you can come back to them.";
+      return "Your edits will be saved before the new version is created.";
     }
     return localResumeText
-      ? "Generate a fresh version from your uploaded resume and this job?"
-      : "Generate a fresh version from your profile and this job?";
+      ? "Create a new version from your uploaded resume?"
+      : "Create a new version from your resume profile?";
   });
 
   function handleRegenerate() {
@@ -441,7 +440,7 @@
 
 <div class="page pushed-screen">
   <ScreenNav
-    title={job?.title ? `${job?.company_name ?? "Preparing"} · ${job.title}` : job?.company_name ?? "Preparing"}
+    title="Tailor"
     onBack={() => { if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/"); }}
   />
 
@@ -452,38 +451,33 @@
       </div>
     {/if}
 
+    {#if job && !loading}
+      <div class="tailor-job-context">
+        <strong>{job.title}</strong>
+        <span>{job.company_name}</span>
+      </div>
+    {/if}
+
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if signInNeeded}
-      <div class="content-card stack-md">
-        <h2 class="h-display h-display-sm">Sign in for included tailoring</h2>
-        <p class="body-copy">
-          Included tailoring is available after sign-in. Or add your own Gemini key
-          to keep tailoring as a guest.
-        </p>
+      <div class="content-card stack-md tailor-setup-card">
+        <h2>Sign in to tailor</h2>
+        <p>Use included tailoring, or add a Gemini key.</p>
         <div class="action-grid card-actions">
           <button class="btn-primary btn-accent" onclick={() => navigate("/you/account")}>
-            Open account settings
+            Sign in
           </button>
-          <button class="btn-secondary" onclick={openTailorSettings}>Add your own key</button>
+          <button class="btn-secondary" onclick={openTailorSettings}>Add Gemini key</button>
         </div>
       </div>
     {:else if setupNeeded}
-      <!-- Tailoring isn't configured: a setup path, not a dead end. -->
-      <div class="content-card stack-md">
-        <h2 class="h-display h-display-sm">Set up tailoring</h2>
-        <p class="body-copy">
-          Tailoring creates a resume, cover letter, and interview prep for this job.
-          Add a free Gemini API key to get started:
-        </p>
-        <ol class="ordered-steps">
-          <li>Grab a free key from Google AI Studio.</li>
-          <li>Paste it in You → Tailoring and save.</li>
-          <li>Come back here and generate.</li>
-        </ol>
+      <div class="content-card stack-md tailor-setup-card">
+        <h2>Add a Gemini key</h2>
+        <p>Use a free Gemini API key for guest tailoring.</p>
         <div class="action-grid card-actions">
           <button class="btn-primary btn-accent" onclick={openTailorSettings}>
-            Open Tailor settings
+            Open Tailoring settings
           </button>
           <a
             class="btn-secondary button-link"
@@ -492,29 +486,23 @@
             rel="noopener noreferrer"
           >
             <ArrowSquareOut size={16} />
-            Get a free key
+            Get a key
           </a>
         </div>
       </div>
     {:else if !hasAnyOutput && !streaming}
-      <!-- First visit for this job: explicit generate (it spends quota). -->
-      <div class="content-card stack-md">
-        <h2 class="h-display h-display-sm">Tailor for this job</h2>
-        <p class="body-copy">
-          One tap writes a tailored resume, cover letter, and interview prep from
-          {localResumeText ? "your uploaded resume" : "your resume profile"} and this job's description.
-          You can edit everything afterwards.
-        </p>
+      <div class="content-card stack-md tailor-setup-card">
+        <h2>Create application drafts</h2>
+        <p>Resume, cover letter, and interview prep.</p>
+        <div class="tailor-source">Using {localResumeText ? "uploaded resume" : "resume profile"}</div>
         <div>
           <button class="btn-primary btn-accent full-width" onclick={() => void startGeneration()}>
             <MagicWand size={17} />
-            Generate
+            Generate drafts
           </button>
         </div>
       </div>
     {:else}
-      <!-- Document tabs are view switching, so they use the shared compact
-           segmented-control language. -->
       <div class="feed-control-row tailor-tabs">
         <div class="segmented-control" role="tablist" aria-label="Tailor output tabs">
           {#each outputTabs as tab}
@@ -535,46 +523,55 @@
         </div>
       </div>
 
-      <div class="stat-row tailor-meta">
-        <span>{localResumeText ? "Using uploaded resume" : "Using resume profile"}</span>
-        {#if streaming}
-          <span>Writing…</span>
-        {/if}
-        <SaveStatus phase={savePresentation.phase} />
-        {#if tokenSummary}
-          <span>{tokenSummary.input} input · {tokenSummary.output} output tokens</span>
-        {/if}
-        {#if activeModel}
-          <span>{activeModel}</span>
-        {/if}
-      </div>
-
-      <div class="action-grid compact tailor-toolbar">
-        <button class="btn-secondary" onclick={copyCurrent}>
+      <div class="tailor-workspace-bar">
+        <div class="tailor-status">
+          <span>{localResumeText ? "Uploaded resume" : "Resume profile"}</span>
+          {#if streaming}<span>Writing…</span>{/if}
+          <SaveStatus phase={savePresentation.phase} />
+        </div>
+        <div class="tailor-actions">
+          <button class="btn-secondary" onclick={copyCurrent}>
           <Copy size={15} />
           Copy
-        </button>
-        {#if activeTab === "resume"}
+          </button>
           <button
             class="btn-secondary"
-            onclick={viewResumePdf}
-            disabled={!resumeDownloadReady || downloadingPdf}
+            onclick={() => editing = { ...editing, [activeTab]: !editing[activeTab] }}
           >
-            {#if downloadingPdf}<Spinner />{:else}<DownloadSimple size={15} />{/if}
-            View PDF
+            <PencilSimple size={15} />
+            {editing[activeTab] ? "Done" : "Edit"}
           </button>
-        {/if}
-        <button
-          class="btn-secondary"
-          onclick={() => editing = { ...editing, [activeTab]: !editing[activeTab] }}
-        >
-          <PencilSimple size={15} />
-          {editing[activeTab] ? "Stop editing" : "Edit"}
-        </button>
-        <button class="btn-secondary" onclick={handleRegenerate} disabled={streaming}>
-          {#if streaming}<Spinner />{:else}<ArrowsClockwise size={15} />{/if}
-          Regenerate
-        </button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger class="btn-secondary tailor-more-trigger" aria-label="More tailoring actions">
+              <DotsThree size={18} weight="bold" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                class="job-more-menu tailor-more-menu"
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                collisionPadding={12}
+                strategy="fixed"
+              >
+                {#if activeTab === "resume"}
+                  <DropdownMenu.Item
+                    class="job-more-menu-item"
+                    disabled={!resumeDownloadReady || downloadingPdf}
+                    onSelect={() => void viewResumePdf()}
+                  >
+                    {#if downloadingPdf}<Spinner />{:else}<DownloadSimple size={16} />{/if}
+                    <span>View PDF</span>
+                  </DropdownMenu.Item>
+                {/if}
+                <DropdownMenu.Item class="job-more-menu-item" disabled={streaming} onSelect={handleRegenerate}>
+                  {#if streaming}<Spinner />{:else}<ArrowsClockwise size={16} />{/if}
+                  <span>Regenerate</span>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
       </div>
 
       <div
@@ -626,3 +623,96 @@
     </div>
   </Modal>
 {/if}
+
+<style>
+  .tailor-job-context {
+    margin-bottom: 18px;
+    display: grid;
+    gap: 3px;
+  }
+
+  .tailor-job-context strong {
+    color: var(--color-ink);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  .tailor-job-context span {
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+  }
+
+  .tailor-setup-card h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .tailor-setup-card p {
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+
+  .tailor-source {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+  }
+
+  .tailor-workspace-bar {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tailor-status {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+  }
+
+  .tailor-actions {
+    flex: none;
+    display: flex;
+    gap: 8px;
+  }
+
+  .tailor-actions > :global(button) {
+    min-height: 40px;
+    padding-inline: 12px;
+    font-size: var(--fs-sm);
+  }
+
+  .tailor-actions :global(.tailor-more-trigger) {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  @media (max-width: 520px) {
+    .tailor-workspace-bar {
+      align-items: flex-end;
+    }
+
+    .tailor-status {
+      display: grid;
+      gap: 2px;
+    }
+
+    .tailor-actions > :global(button) {
+      min-width: 40px;
+      padding-inline: 10px;
+    }
+  }
+</style>

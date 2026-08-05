@@ -250,7 +250,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{exp.company || exp.title || "New position"}</span>
-                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {exp.company || exp.title || 'position'}" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {exp.company || exp.title || 'position'}" onclick={() => removeExperience(exp.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Company</span><input class="input-field" bind:value={exp.company} oninput={handleInput} placeholder="Company name" /></label>
@@ -275,7 +275,7 @@
                 </div>
               </div>
             {/each}
-            <button type="button" class="btn-secondary add-btn" onclick={addExperience}><Plus size={13} /> Add position</button>
+            <button type="button" class="add-btn" onclick={addExperience}><Plus size={14} /> Add position</button>
           </div>
         {/if}
       </div>
@@ -292,7 +292,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{edu.institution || "New entry"}</span>
-                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {edu.institution || 'education entry'}" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {edu.institution || 'education entry'}" onclick={() => removeEducation(edu.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={edu.institution} oninput={handleInput} placeholder="University name" /></label>
@@ -304,7 +304,7 @@
                 </div>
               </div>
             {/each}
-            <button type="button" class="btn-secondary add-btn" onclick={addEducation}><Plus size={13} /> Add education</button>
+            <button type="button" class="add-btn" onclick={addEducation}><Plus size={14} /> Add education</button>
           </div>
         {/if}
       </div>
@@ -321,7 +321,7 @@
               <div class="entry">
                 <div class="entry-top">
                   <span class="entry-title">{proj.name || "New project"}</span>
-                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {proj.name || 'project'}" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {proj.name || 'project'}" onclick={() => removeProject(proj.id)}><Trash size={13} /></button>
                 </div>
                 <div class="grid-2">
                   <label class="field"><span>Name</span><input class="input-field" bind:value={proj.name} oninput={handleInput} placeholder="Project name" /></label>
@@ -345,7 +345,7 @@
                 </div>
               </div>
             {/each}
-            <button type="button" class="btn-secondary add-btn" onclick={addProject}><Plus size={13} /> Add project</button>
+            <button type="button" class="add-btn" onclick={addProject}><Plus size={14} /> Add project</button>
           </div>
         {/if}
       </div>
@@ -362,10 +362,10 @@
               <div class="kv-row">
                 <input class="input-field kv-key" aria-label="Skill category" bind:value={skill.category} oninput={handleInput} placeholder="Category" />
                 <input class="input-field kv-val" aria-label="Skills" bind:value={skill.items} oninput={handleInput} placeholder="Comma-separated items" />
-                <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove skill category" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
+                <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove skill category" onclick={() => removeSkill(idx)}><Trash size={13} /></button>
               </div>
             {/each}
-            <button type="button" class="btn-secondary add-btn" onclick={addSkill}><Plus size={13} /> Add category</button>
+            <button type="button" class="add-btn" onclick={addSkill}><Plus size={14} /> Add category</button>
           </div>
         {/if}
       </div>
@@ -380,7 +380,7 @@
               <span class="card-title">{OPTIONAL_SECTION_LABELS[section.kind]}</span>
               <span class="card-count">{section.items.length}</span>
             </button>
-            <button type="button" class="icon-btn icon-btn-surface card-header-remove" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
+            <button type="button" class="icon-btn card-header-remove" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} section" onclick={() => removeOptionalSection(section.kind)}><Trash size={12} /></button>
           </div>
           {#if expandedSections.has(section.kind)}
             <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
@@ -388,10 +388,10 @@
                 <div class="kv-row">
                   <input class="input-field kv-key" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} label" bind:value={item.category} oninput={handleInput} placeholder="Label" />
                   <input class="input-field kv-val" aria-label="{OPTIONAL_SECTION_LABELS[section.kind]} details" bind:value={item.items} oninput={handleInput} placeholder="Details" />
-                  <button type="button" class="icon-btn icon-btn-surface icon-btn-xs" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} item" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
+                  <button type="button" class="icon-btn icon-btn-xs" aria-label="Remove {OPTIONAL_SECTION_LABELS[section.kind]} item" onclick={() => removeOptionalItem(section.kind, idx)}><Trash size={13} /></button>
                 </div>
               {/each}
-              <button type="button" class="btn-secondary add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={13} /> Add item</button>
+              <button type="button" class="add-btn" onclick={() => addOptionalItem(section.kind)}><Plus size={14} /> Add item</button>
             </div>
           {/if}
         </div>
@@ -401,7 +401,7 @@
         <div class="add-section-area">
           <span class="add-section-label">Add section:</span>
           {#each availableOptionalSections as kind}
-            <button type="button" class="btn-secondary section-chip" onclick={() => addOptionalSection(kind)}>
+            <button type="button" class="chip section-chip" onclick={() => addOptionalSection(kind)}>
               <Plus size={12} /> {OPTIONAL_SECTION_LABELS[kind]}
             </button>
           {/each}
@@ -416,7 +416,7 @@
         {#if expandedSections.has("notes")}
           <div class="card-body" transition:slide={{ duration: 180, easing: cubicOut }}>
             <p class="notes-help">
-              Free-form notes for the AI — extra context, narrative details, things that don't fit in the structured fields above.
+              Extra context for tailoring that doesn't fit above.
             </p>
             <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput} placeholder="Add supplementary context…"></textarea>
           </div>
@@ -428,8 +428,8 @@
 </div>
 
 <style>
-  .resume-import { width: 100%; min-height: 64px; margin-bottom: var(--space-3); padding: 10px 12px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); background: var(--color-bg-elev); color: var(--color-ink); text-align: left; cursor: pointer; }
-  .resume-import:hover { background: var(--color-bg-sunken); }
+  .resume-import { width: 100%; min-height: 64px; margin: 0; padding: 10px 0 14px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; background: transparent; color: var(--color-ink); text-align: left; cursor: pointer; }
+  .resume-import:hover { color: var(--color-accent); }
   .resume-import:disabled { opacity: 0.65; cursor: default; }
   .resume-import-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--color-bg-sunken); color: var(--color-ink-2); }
   .resume-import-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -438,22 +438,23 @@
   .resume-import > :global(svg) { color: var(--color-ink-4); }
   .notes-help { margin: 0 0 var(--space-2); color: var(--color-ink-4); font-size: var(--fs-xs); line-height: 1.5; }
   .notes-field { min-height: 160px; }
-  .card { border: 1px solid var(--color-line-2); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px; background: var(--color-bg-elev); }
-  .card-header { width: 100%; min-height: 48px; display: flex; align-items: center; gap: var(--space-2); padding: 10px var(--space-4); background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
+  .card { border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; overflow: visible; margin: 0; background: transparent; }
+  .card-header { width: 100%; min-height: 52px; display: flex; align-items: center; gap: var(--space-2); padding: 12px 0; background: transparent; border: none; cursor: pointer; font-size: var(--fs-sm); color: var(--color-ink); text-align: left; }
   .card-header:hover { background: color-mix(in oklch, var(--color-bg-sunken) 50%, transparent); }
   .card-header-row { display: flex; align-items: center; }
   .card-header-toggle { flex: 1; min-width: 0; }
-  .card-header-remove { width: 40px; height: 40px; margin-right: var(--space-2); flex-shrink: 0; }
+  .card-header-remove { width: 40px; height: 40px; flex-shrink: 0; }
   .card-title { font-weight: 500; font-size: var(--fs-sm); }
   .card-count { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--color-ink-4); }
-  .card-body { padding: 14px var(--space-4) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); border-top: 0.5px solid var(--color-line); }
+  .card-body { padding: 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); border: 0; }
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field { display: flex; flex-direction: column; gap: 3px; }
   .field > span { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); letter-spacing: 0.01em; }
   .field.span-2, .span-2 { grid-column: 1 / -1; }
 
-  .entry { padding: var(--space-3); border: 1px solid var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-sunken); }
+  .entry { padding: var(--space-3) 0 var(--space-1); border: 0; border-radius: 0; display: flex; flex-direction: column; gap: 10px; background: transparent; }
+  .entry + .entry { padding-top: var(--space-5); border-top: 1px solid var(--color-line); }
   .entry-top { display: flex; align-items: center; justify-content: space-between; }
   .entry-title { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-2); }
 
@@ -465,14 +466,15 @@
   .btn-add-bullet { min-height: 40px; align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1); background: none; border: none; color: var(--color-ink-4); font-size: var(--fs-xs); cursor: pointer; padding: 0 var(--space-2) 0 0; }
   .btn-add-bullet:hover { color: var(--color-ink-2); }
 
-  .add-btn { align-self: flex-start; padding: 0 var(--space-3); }
-  .section-chip { height: 34px; padding: 0 10px; border-radius: var(--radius-sm); font-size: var(--fs-xs); }
+  .add-btn { min-height: 40px; align-self: flex-start; padding: 0; display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--color-accent); font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+  .add-btn:hover { color: var(--color-accent-soft-ink); }
+  .section-chip { min-height: 40px; height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-full); }
 
   .kv-row { display: flex; gap: var(--space-2); align-items: center; }
   .kv-key { width: 120px; flex-shrink: 0; }
   .kv-val { flex: 1; }
 
-  .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: 10px; padding: 10px 0; }
+  .add-section-area { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-line); }
   .add-section-label { font-size: var(--fs-xs); font-weight: 500; color: var(--color-ink-4); }
 
   @media (max-width: 540px) {

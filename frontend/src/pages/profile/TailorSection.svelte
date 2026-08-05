@@ -46,7 +46,7 @@
   let showGeminiKey: boolean = $state(false);
   let savingLocalSetup: boolean = $state(false);
   let syncingResume: boolean = $state(false);
-  let removingSyncedResume: boolean = $state(false);
+  let removingResume: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
 
   let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
@@ -165,12 +165,6 @@
     }
   }
 
-  function removeLocalResume() {
-    localResume = null;
-    updateLocalTailorKit({ resume: null });
-    onSuccess("Local resume removed.");
-  }
-
   async function syncResumeToAccount(asset = localResume) {
     if (sessionState !== "authenticated" || !asset) return;
     syncingResume = true;
@@ -191,24 +185,20 @@
     }
   }
 
-  async function useSyncedResumeOnThisDevice() {
-    const next = remoteResume ? localResumeFromRemote(remoteResume) : null;
-    if (!next) return;
-    localResume = next;
-    updateLocalTailorKit({ resume: next });
-    onSuccess("Using your synced resume on this device.");
-  }
-
-  async function removeSyncedResume() {
-    removingSyncedResume = true;
+  async function removeResume() {
+    removingResume = true;
     try {
-      await api.resumeAssets.deleteActive();
+      if (sessionState === "authenticated" && remoteResume) {
+        await api.resumeAssets.deleteActive();
+      }
       remoteResume = null;
-      onSuccess("Removed the synced resume from your account.");
+      localResume = null;
+      updateLocalTailorKit({ resume: null });
+      onSuccess("Resume removed.");
     } catch (e) {
       onError(errorMessage(e));
     } finally {
-      removingSyncedResume = false;
+      removingResume = false;
     }
   }
 
@@ -227,8 +217,13 @@
       <div class="flex-fill">
         <div class="row-title">AI tailoring</div>
         <div class="helper-text">
-          Use the included AI, or add your own Gemini key. Your resume stays on this
-          device until you tailor an application.
+          {#if hasLocalGeminiKey}
+            Using your Gemini key on this device.
+          {:else if features?.tailoring_enabled}
+            Included tailoring is ready.
+          {:else}
+            Add a Gemini key to enable tailoring.
+          {/if}
         </div>
       </div>
       <span class="tag">{localSetupLabel}</span>
@@ -261,13 +256,9 @@
             {/if}
           </button>
         </div>
-        <div class="helper-text field-help">
-          {#if hasLocalGeminiKey}
-            Saved only on this device.
-          {:else}
-            Leave blank to use included tailoring when available.
-          {/if}
-        </div>
+        {#if hasLocalGeminiKey}
+          <div class="helper-text field-help">Stored on this device.</div>
+        {/if}
       </div>
 
       <div>
@@ -289,9 +280,6 @@
             <CaretDown size={16} />
           </span>
         </div>
-        <div class="helper-text field-help">
-          Only the supported free-tier models appear here.
-        </div>
         {#if tailorUsage}
           <div class="usage-meter" aria-label="Tailoring API usage">
             <div class="split-row baseline">
@@ -308,10 +296,10 @@
                 ></div>
               </div>
               <div class="usage-meter-note">
-                {activeUsageRemaining ?? 0} left today. Google may also enforce project-wide limits.
+                {activeUsageRemaining ?? 0} left today
               </div>
             {:else}
-              <div class="usage-meter-note">No daily limit is reported for this model.</div>
+              <div class="usage-meter-note">No app limit</div>
             {/if}
           </div>
         {/if}
@@ -344,12 +332,9 @@
       <div class="split-row">
         <div class="flex-fill">
           <div class="row-title">Resume</div>
-          <div class="helper-text">
-            Upload a PDF, markdown, or plain-text resume. PDFs work when their text is selectable.
-          </div>
         </div>
         {#if localResume}
-          <span class="tag">{localResume.canTailor ? "ready" : "stored"}</span>
+          <span class="tag">{remoteResume ? "synced" : localResume.canTailor ? "ready" : "stored"}</span>
         {/if}
       </div>
 
@@ -367,15 +352,13 @@
           <div class="inset-panel-meta">
             {formatFileSize(localResume.size)} · added {new Date(localResume.uploadedAt).toLocaleDateString()}
           </div>
-          <div class="inset-panel-meta">
-            {#if localResume.canTailor}
-              This file is ready for tailoring.
-            {:else if localResume.textFormat === "pdf"}
-              This PDF is saved, but we couldn’t extract selectable text from it. Try an exported text PDF, markdown, or plain text.
-            {:else}
-              This file is saved for viewing and download. Upload a PDF, markdown, or plain text to use it directly for tailoring.
-            {/if}
-          </div>
+          {#if !localResume.canTailor}
+            <div class="inset-panel-meta">
+              {localResume.textFormat === "pdf"
+                ? "No selectable text found. Try an exported PDF, markdown, or text file."
+                : "Upload a PDF, markdown, or text file to tailor from it."}
+            </div>
+          {/if}
           <div class="action-grid compact inset-panel-actions">
             <button class="btn-secondary" type="button" onclick={() => resumeUploadInput?.click()}>
               <UploadSimple size={16} />
@@ -389,16 +372,21 @@
               <DownloadSimple size={16} />
               Download
             </button>
-            <button class="btn-secondary btn-danger" type="button" onclick={removeLocalResume}>
+            {#if sessionState === "authenticated" && !remoteResume}
+              <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
+                {syncingResume ? "Syncing…" : "Sync"}
+              </button>
+            {/if}
+            <button class="btn-secondary btn-danger" type="button" onclick={() => void removeResume()} disabled={removingResume}>
               <Trash size={16} />
-              Remove
+              {removingResume ? "Removing…" : "Remove"}
             </button>
           </div>
         </div>
       {:else}
         <div class="inset-panel empty">
           <div class="surface-empty-copy">
-            No local resume saved yet.
+            No resume uploaded.
           </div>
           <div>
             <button class="btn-secondary full-width" type="button" onclick={() => resumeUploadInput?.click()}>
@@ -410,74 +398,5 @@
       {/if}
     </div>
 
-    {#if sessionState === "authenticated"}
-      <div class="divider"></div>
-
-      <div>
-        <div class="split-row">
-          <div class="flex-fill">
-            <div class="row-title">Synced resume</div>
-            <div class="helper-text">
-              Keep one active resume on your account so it’s ready on your other devices.
-            </div>
-          </div>
-          <span class="tag">{remoteResume ? "account ready" : "not synced"}</span>
-        </div>
-
-        {#if remoteResume}
-          <div class="inset-panel">
-            <div class="inset-panel-title">{remoteResume.fileName}</div>
-            <div class="inset-panel-meta">
-              {formatFileSize(remoteResume.size)} · synced {new Date(remoteResume.uploadedAt).toLocaleDateString()}
-            </div>
-            <div class="action-grid compact">
-              <button class="btn-secondary" type="button" onclick={useSyncedResumeOnThisDevice}>
-                Use locally
-              </button>
-              {#if localResume}
-                <button class="btn-secondary" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
-                  {syncingResume ? "Syncing…" : "Sync local copy"}
-                </button>
-              {/if}
-              <button class="btn-secondary btn-danger" type="button" onclick={removeSyncedResume} disabled={removingSyncedResume}>
-                {removingSyncedResume ? "Removing…" : "Remove synced copy"}
-              </button>
-            </div>
-          </div>
-        {:else}
-          <div class="inset-panel empty">
-            <div class="surface-empty-copy">
-              {localResume
-                ? "Nothing is synced to your account yet."
-                : "Nothing is synced yet. Save a local resume above, then sync it here."}
-            </div>
-            {#if localResume}
-              <div>
-                <button class="btn-secondary full-width" type="button" onclick={() => void syncResumeToAccount(localResume)} disabled={syncingResume}>
-                  {syncingResume ? "Syncing…" : "Sync this resume"}
-                </button>
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <div class="divider"></div>
-
-    <div class="split-row start">
-      <div class="flex-fill">
-        <div class="row-title">Tailoring access</div>
-        <div class="helper-text">
-          {#if hasLocalGeminiKey}
-            Tailoring will use your Gemini key on this device.
-          {:else if features?.tailoring_enabled}
-            Included tailoring is ready.
-          {:else}
-            Add a Gemini key above to enable tailoring on this device.
-          {/if}
-        </div>
-      </div>
-    </div>
   </div>
 </section>
