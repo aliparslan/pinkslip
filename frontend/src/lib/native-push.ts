@@ -47,7 +47,7 @@ function decodeVapidKey(value: string) {
 
 function ensureWebServiceWorker() {
   if (!serviceWorkerPromise) {
-    serviceWorkerPromise = navigator.serviceWorker.register("/sw.js?v=2");
+    serviceWorkerPromise = navigator.serviceWorker.register("/sw.js?v=3");
   }
   return serviceWorkerPromise;
 }

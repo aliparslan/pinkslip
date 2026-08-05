@@ -1,7 +1,19 @@
-import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
-import type { PluginListenerHandle } from "@capacitor/core";
+import {
+  Capacitor,
+  registerPlugin,
+  type PluginListenerHandle,
+} from "@capacitor/core";
 import type { Job } from "./api";
+
+interface ApplicationBrowserPlugin {
+  open(options: { url: string }): Promise<void>;
+  addListener(
+    eventName: "finished",
+    listener: () => void
+  ): Promise<PluginListenerHandle>;
+}
+
+const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
 
 export interface ApplicationIntent {
   jobId: string;
@@ -13,8 +25,6 @@ export interface ApplicationIntent {
 
 const STORAGE_KEY = "pinkslip:application-intent";
 const RETURN_GUARD_MS = 750;
-/** Upper bound on waiting for the native browser to release a stale controller. */
-const NATIVE_RESET_TIMEOUT_MS = 600;
 const MAX_INTENT_AGE_MS = 12 * 60 * 60 * 1000;
 
 function normalizeUrl(rawUrl: string): string {
@@ -27,8 +37,8 @@ function normalizeUrl(rawUrl: string): string {
 class ApplicationIntentController {
   pending = $state<ApplicationIntent | null>(null);
 
-  private browserListener: PluginListenerHandle | null = null;
   private webCleanup: (() => void) | null = null;
+  private nativeCleanup: (() => void) | null = null;
 
   initialize(): () => void {
     const stored = this.readStoredIntent();
@@ -53,23 +63,23 @@ class ApplicationIntentController {
     this.storeIntent(intent);
 
     try {
-      if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("Browser")) {
-        this.clearReturnListeners();
-        await this.resetNativeBrowser();
-
-        this.browserListener = await Browser.addListener("browserFinished", () => {
-          this.browserListener?.remove();
-          this.browserListener = null;
-          this.present(intent);
-        });
-
+      if (Capacitor.isNativePlatform()) {
         try {
-          await Browser.open({ url: intent.url, presentationStyle: "fullscreen" });
+          const handle = await ApplicationBrowser.addListener("finished", () => {
+            this.clearReturnListeners();
+            this.present(intent);
+          });
+          this.nativeCleanup = () => void handle.remove();
+          await ApplicationBrowser.open({ url: intent.url });
           return;
-        } catch (e) {
-          // If native plugin open failed (e.g. plugin not available in native binary), clear listener
-          this.clearReturnListeners();
-          console.warn("Capacitor Browser plugin failed to open URL, falling back to window.open", e);
+        } catch {
+          // Older installed builds do not have the app-local plugin yet. Keep
+          // those builds functional until the next App Store update lands.
+          this.nativeCleanup?.();
+          this.nativeCleanup = null;
+          this.watchForWebReturn(intent);
+          window.open(intent.url, "_blank", "noopener,noreferrer");
+          return;
         }
       }
 
@@ -77,8 +87,7 @@ class ApplicationIntentController {
       const externalWindow = window.open(intent.url, "_blank");
       if (externalWindow) {
         externalWindow.opener = null;
-      } else if (!Capacitor.isNativePlatform()) {
-        // Only navigate in pure web mode if window.open was blocked; never overwrite native app WebView
+      } else {
         window.location.assign(intent.url);
       }
     } catch (error) {
@@ -91,21 +100,6 @@ class ApplicationIntentController {
   dismiss(): void {
     this.pending = null;
     this.clearStoredIntent();
-  }
-
-  /**
-   * Clear any SFSafariViewController the native plugin is still holding.
-   *
-   * Bounded on purpose: `Browser.close()` resolves from inside UIKit's
-   * dismissal completion, which is never called when the controller is not
-   * actually presented — the precise situation this repairs. An unbounded await
-   * would hang there and the apply button would do nothing at all.
-   */
-  private async resetNativeBrowser(): Promise<void> {
-    await Promise.race([
-      Browser.close().catch(() => undefined),
-      new Promise<void>((resolve) => setTimeout(resolve, NATIVE_RESET_TIMEOUT_MS)),
-    ]);
   }
 
   private present(intent: ApplicationIntent): void {
@@ -153,10 +147,8 @@ class ApplicationIntentController {
   private clearReturnListeners(): void {
     this.webCleanup?.();
     this.webCleanup = null;
-    if (this.browserListener) {
-      void this.browserListener.remove();
-      this.browserListener = null;
-    }
+    this.nativeCleanup?.();
+    this.nativeCleanup = null;
   }
 
   private readStoredIntent(): ApplicationIntent | null {

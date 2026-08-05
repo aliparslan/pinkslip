@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import AuthenticationServices
+import SafariServices
 
 class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
@@ -21,6 +22,75 @@ class BridgeViewController: CAPBridgeViewController {
         // registerPluginType() is a no-op while autoRegisterPlugins is true (the
         // default). registerPluginInstance() has no such guard — use it here.
         bridge?.registerPluginInstance(AppleSignInPlugin())
+        bridge?.registerPluginInstance(ApplicationBrowserPlugin())
+    }
+}
+
+@objc(ApplicationBrowserPlugin)
+public class ApplicationBrowserPlugin: CAPPlugin, CAPBridgedPlugin, SFSafariViewControllerDelegate {
+    public let identifier = "ApplicationBrowserPlugin"
+    public let jsName = "ApplicationBrowser"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var browser: SFSafariViewController?
+
+    @objc func open(_ call: CAPPluginCall) {
+        guard let rawURL = call.getString("url"),
+              let url = URL(string: rawURL),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            call.reject("A valid HTTP or HTTPS application URL is required.")
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  let presenter = self.bridge?.viewController else {
+                call.reject("The application browser is unavailable.")
+                return
+            }
+
+            let presentFreshBrowser = { [weak self, weak presenter] in
+                guard let self, let presenter else {
+                    call.reject("The application browser is unavailable.")
+                    return
+                }
+
+                let configuration = SFSafariViewController.Configuration()
+                configuration.entersReaderIfAvailable = false
+                configuration.barCollapsingEnabled = true
+                let browser = SFSafariViewController(url: url, configuration: configuration)
+                browser.delegate = self
+                browser.dismissButtonStyle = .done
+                self.browser = browser
+                presenter.present(browser, animated: true) {
+                    call.resolve()
+                }
+            }
+
+            // A new controller per application avoids the stale singleton state
+            // that can leave Capacitor's stock Browser plugin unable to present
+            // after a previous application sheet has been dismissed.
+            if let existing = self.browser {
+                self.browser = nil
+                if existing.presentingViewController != nil {
+                    existing.dismiss(animated: false, completion: presentFreshBrowser)
+                } else {
+                    presentFreshBrowser()
+                }
+            } else {
+                presentFreshBrowser()
+            }
+        }
+    }
+
+    public func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        if browser === controller {
+            browser = nil
+        }
+        notifyListeners("finished", data: [:])
     }
 }
 
@@ -111,6 +181,12 @@ public class AppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCont
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // The shell loads the live production origin. WKWebView can otherwise
+        // retain an older index/style/font response across native rebuilds,
+        // which made new sticky CSS and Geist Pixel appear only after a full
+        // reinstall. This clears HTTP response cache only — cookies, Apple
+        // login state, local storage, and the user's account remain intact.
+        URLCache.shared.removeAllCachedResponses()
         return true
     }
 

@@ -4,6 +4,12 @@ import { mount } from "svelte";
 import { initNativePush } from "./lib/native-push";
 import { initNativeShell } from "./lib/native-shell";
 
+// WebKit can defer a display-only face indefinitely after a transient cache or
+// network miss. Explicitly warming it at launch makes the swap deterministic;
+// the versioned URL in app.css also lets a damaged cached response recover
+// without requiring an app reinstall.
+void document.fonts?.load('400 1em "Geist Pixel"').catch(() => undefined);
+
 // Guarded so a misbehaving native call can never block the app from rendering.
 try {
   initNativeShell();
