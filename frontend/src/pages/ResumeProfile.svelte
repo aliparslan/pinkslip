@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type ResumeProfile, type OptionalSectionKind } from "../lib/api";
+  import { api, type ResumeProfile, type OptionalSectionKind, type DegreeType } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
+  import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
@@ -16,6 +18,17 @@
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { createEmptyResumeProfile } from "../../../shared/resume-profile";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
+  import {
+    DEGREE_OPTIONS,
+    US_STATES,
+    formatDegree,
+    formatResumeDate,
+    inferDegreeType,
+    inferFieldOfStudy,
+    joinUsLocation,
+    monthInputValue,
+    splitUsLocation,
+  } from "../lib/resume-fields";
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
     leadership: "Leadership & affiliations",
@@ -26,7 +39,8 @@
   };
 
   type CollectionSection = "experience" | "education" | "projects";
-  type ResumeSection = "contact" | CollectionSection | "skills" | "notes" | OptionalSectionKind;
+  type DirectSection = "contact" | "skills" | "notes" | OptionalSectionKind;
+  type ResumeSection = DirectSection | CollectionSection;
   type ResumeView =
     | { kind: "overview" }
     | { kind: "section"; section: ResumeSection }
@@ -60,16 +74,9 @@
   let screenTitle = $derived.by(() => {
     if (view.kind === "overview") return "Resume";
     if (view.kind === "section") return sectionLabel(view.section);
-    if (view.section === "experience") {
-      const item = profile.experience.find((entry) => entry.id === currentRecordId);
-      return item?.company || item?.title || "Position";
-    }
-    if (view.section === "education") {
-      const item = profile.education.find((entry) => entry.id === currentRecordId);
-      return item?.institution || "Education";
-    }
-    const item = profile.projects.find((entry) => entry.id === currentRecordId);
-    return item?.name || "Project";
+    if (view.section === "experience") return "Edit experience";
+    if (view.section === "education") return "Edit education";
+    return "Edit project";
   });
 
   function sectionLabel(section: ResumeSection): string {
@@ -86,33 +93,73 @@
     return crypto.randomUUID().slice(0, 8);
   }
 
-  function itemCount(count: number, singular: string, plural = `${singular}s`): string {
-    if (count === 0) return "Not added";
-    return `${count} ${count === 1 ? singular : plural}`;
-  }
-
-  function contactSummary(): string {
-    return profile.contact.name.trim() || profile.contact.email.trim() || "Not added";
-  }
-
-  function experienceDetail(entry: ResumeProfile["experience"][number]): string {
-    const dates = [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
-    return [entry.title, dates].filter(Boolean).join(" · ");
+  function contactLine(): string {
+    return [profile.contact.email, profile.contact.phone, profile.contact.location]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(" · ");
   }
 
   function educationDetail(entry: ResumeProfile["education"][number]): string {
-    return [entry.degree, entry.endDate].filter(Boolean).join(" · ");
+    return [entry.degree, entry.location].filter(Boolean).join(" · ");
   }
 
   function projectDetail(entry: ResumeProfile["projects"][number]): string {
     return [entry.role, entry.teamInfo].filter(Boolean).join(" · ");
   }
 
+  function firstBullet(items: string[]): string {
+    return items.find((item) => item.trim())?.trim() ?? "";
+  }
+
   function optionalSectionFor(section: ResumeSection) {
     return profile.optionalSections.find((candidate) => candidate.kind === section);
   }
 
-  function openSection(section: ResumeSection) {
+  function hydrateEducationEntry(entry: ResumeProfile["education"][number]): ResumeProfile["education"][number] {
+    const degreeType = entry.degreeType ?? inferDegreeType(entry.degree);
+    const fieldOfStudy = entry.fieldOfStudy ?? inferFieldOfStudy(entry.degree, degreeType);
+    return {
+      ...entry,
+      degreeType: degreeType || undefined,
+      fieldOfStudy,
+      degree: formatDegree(degreeType, fieldOfStudy) || entry.degree,
+    };
+  }
+
+  function updateEducationDegree(
+    entry: ResumeProfile["education"][number],
+    updates: { degreeType?: DegreeType | ""; fieldOfStudy?: string }
+  ) {
+    const degreeType = updates.degreeType ?? entry.degreeType ?? "";
+    const fieldOfStudy = updates.fieldOfStudy ?? entry.fieldOfStudy ?? "";
+    entry.degreeType = degreeType || undefined;
+    entry.fieldOfStudy = fieldOfStudy;
+    entry.degree = formatDegree(degreeType, fieldOfStudy);
+    queueAutosave();
+  }
+
+  function updateLocation(target: { location: string }, part: "city" | "state", value: string) {
+    const location = splitUsLocation(target.location);
+    location[part] = value;
+    target.location = joinUsLocation(location.city, location.state);
+    queueAutosave();
+  }
+
+  function isCurrentRole(endDate: string): boolean {
+    return /^(present|current)$/i.test(endDate.trim());
+  }
+
+  function setCurrentRole(entry: ResumeProfile["experience"][number], current: boolean) {
+    entry.endDate = current ? "Present" : "";
+    queueAutosave();
+  }
+
+  function dateRange(startDate: string, endDate: string): string {
+    return [formatResumeDate(startDate), formatResumeDate(endDate)].filter(Boolean).join(" – ");
+  }
+
+  function openSection(section: DirectSection) {
     view = { kind: "section", section };
   }
 
@@ -121,11 +168,7 @@
   }
 
   function handleBack() {
-    if (view.kind === "record") {
-      view = { kind: "section", section: view.section };
-      return;
-    }
-    if (view.kind === "section") {
+    if (view.kind !== "overview") {
       view = { kind: "overview" };
       return;
     }
@@ -145,14 +188,14 @@
   function removeExperience(id: string) {
     profile.experience = profile.experience.filter((entry) => entry.id !== id);
     queueAutosave();
-    view = { kind: "section", section: "experience" };
+    view = { kind: "overview" };
   }
 
   function addEducation() {
     const id = genId();
     profile.education = [
       ...profile.education,
-      { id, institution: "", degree: "", location: "", startDate: "", endDate: "", gpa: "" },
+      { id, institution: "", degree: "", degreeType: undefined, fieldOfStudy: "", location: "", startDate: "", endDate: "", gpa: "" },
     ];
     queueAutosave();
     openRecord("education", id);
@@ -161,7 +204,7 @@
   function removeEducation(id: string) {
     profile.education = profile.education.filter((entry) => entry.id !== id);
     queueAutosave();
-    view = { kind: "section", section: "education" };
+    view = { kind: "overview" };
   }
 
   function addProject() {
@@ -177,12 +220,17 @@
   function removeProject(id: string) {
     profile.projects = profile.projects.filter((entry) => entry.id !== id);
     queueAutosave();
-    view = { kind: "section", section: "projects" };
+    view = { kind: "overview" };
   }
 
   function addSkill() {
     profile.skills = [...profile.skills, { category: "", items: "" }];
     queueAutosave();
+  }
+
+  function addSkillAndOpen() {
+    addSkill();
+    openSection("skills");
   }
 
   function removeSkill(index: number) {
@@ -244,7 +292,12 @@
       if (!optionalSections.length && (data as any).leadership?.length) {
         optionalSections = [{ kind: "leadership" as const, items: (data as any).leadership }];
       }
-      profile = { ...createEmptyResumeProfile(), ...data, optionalSections };
+      profile = {
+        ...createEmptyResumeProfile(),
+        ...data,
+        education: (data.education ?? []).map(hydrateEducationEntry),
+        optionalSections,
+      };
       savePresentation.hydrate(profileRes.updated_at);
       notes = corpusRes.content_md ?? "";
     } catch (loadError) {
@@ -321,7 +374,9 @@
         if (contact.website && !profile.contact.website) profile.contact.website = contact.website;
       }
       if (parsed.experience?.length && !profile.experience.length) profile.experience = parsed.experience;
-      if (parsed.education?.length && !profile.education.length) profile.education = parsed.education;
+      if (parsed.education?.length && !profile.education.length) {
+        profile.education = parsed.education.map(hydrateEducationEntry);
+      }
       if (parsed.projects?.length && !profile.projects.length) profile.projects = parsed.projects;
       if (parsed.skills?.length && !profile.skills.length) profile.skills = parsed.skills;
       feedback.success("PDF imported. Review the details.");
@@ -343,26 +398,6 @@
     };
   });
 </script>
-
-{#snippet sectionRow(label: string, detail: string, section: ResumeSection)}
-  <button type="button" class="resume-row" onclick={() => openSection(section)}>
-    <span class="resume-row-copy">
-      <strong>{label}</strong>
-      <small>{detail}</small>
-    </span>
-    <CaretRight size={16} aria-hidden="true" />
-  </button>
-{/snippet}
-
-{#snippet recordRow(title: string, detail: string, section: CollectionSection, id: string)}
-  <button type="button" class="resume-row record-row" onclick={() => openRecord(section, id)}>
-    <span class="resume-row-copy">
-      <strong>{title}</strong>
-      {#if detail}<small>{detail}</small>{/if}
-    </span>
-    <CaretRight size={16} aria-hidden="true" />
-  </button>
-{/snippet}
 
 <div class="page pushed-screen">
   <ScreenNav
@@ -386,68 +421,165 @@
         onchange={handlePdfImport}
       />
 
-      <button type="button" class="resume-import" onclick={() => importInput?.click()} disabled={importing}>
-        <span class="resume-import-icon">
-          {#if importing}<Spinner />{:else}<UploadSimple size={18} />{/if}
-        </span>
-        <span class="resume-row-copy">
-          <strong>{importing ? "Importing…" : "Import PDF"}</strong>
-          <small>Fill empty fields</small>
-        </span>
-        <CaretRight size={16} aria-hidden="true" />
-      </button>
+      <div class="resume-overview">
+        <div class="resume-toolbar">
+          <button type="button" class="resume-tool" onclick={() => importInput?.click()} disabled={importing}>
+            {#if importing}<Spinner />{:else}<UploadSimple size={16} aria-hidden="true" />{/if}
+            <span>{importing ? "Importing…" : "Import PDF"}</span>
+          </button>
+        </div>
 
-      <div class="resume-list" aria-label="Resume sections">
-        {@render sectionRow("Contact info", contactSummary(), "contact")}
-        {@render sectionRow("Work experience", itemCount(profile.experience.length, "position"), "experience")}
-        {@render sectionRow("Education", itemCount(profile.education.length, "entry", "entries"), "education")}
-        {@render sectionRow("Projects", itemCount(profile.projects.length, "project"), "projects")}
-        {@render sectionRow("Skills", itemCount(profile.skills.length, "category", "categories"), "skills")}
+        <section class="resume-identity" aria-labelledby="resume-name">
+          <button type="button" class="identity-button" onclick={() => openSection("contact")}>
+            <span class="identity-copy">
+              <strong id="resume-name">{profile.contact.name.trim() || "Add your name"}</strong>
+              <small>{contactLine() || "Add contact details"}</small>
+            </span>
+            <PencilSimple size={17} aria-hidden="true" />
+          </button>
+        </section>
+
+        <section class="resume-section" aria-labelledby="experience-heading">
+          <header class="resume-section-heading">
+            <h2 id="experience-heading">Experience</h2>
+            <button type="button" class="section-action" onclick={addExperience} aria-label="Add experience"><Plus size={18} /></button>
+          </header>
+          {#if profile.experience.length}
+            <div class="resume-entries">
+              {#each profile.experience as entry (entry.id)}
+                <button type="button" class="resume-entry" onclick={() => openRecord("experience", entry.id)}>
+                  <span class="entry-heading">
+                    <strong>{entry.title.trim() || "Untitled position"}</strong>
+                    {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                  </span>
+                  {#if entry.company || entry.location}<span class="entry-meta">{[entry.company, entry.location].filter(Boolean).join(" · ")}</span>{/if}
+                  {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
+                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <button type="button" class="section-empty" onclick={addExperience}>Add experience</button>
+          {/if}
+        </section>
+
+        <section class="resume-section" aria-labelledby="education-heading">
+          <header class="resume-section-heading">
+            <h2 id="education-heading">Education</h2>
+            <button type="button" class="section-action" onclick={addEducation} aria-label="Add education"><Plus size={18} /></button>
+          </header>
+          {#if profile.education.length}
+            <div class="resume-entries">
+              {#each profile.education as entry (entry.id)}
+                <button type="button" class="resume-entry" onclick={() => openRecord("education", entry.id)}>
+                  <span class="entry-heading">
+                    <strong>{entry.institution.trim() || "Untitled education"}</strong>
+                    {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                  </span>
+                  {#if educationDetail(entry)}<span class="entry-meta">{educationDetail(entry)}</span>{/if}
+                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <button type="button" class="section-empty" onclick={addEducation}>Add education</button>
+          {/if}
+        </section>
+
+        <section class="resume-section" aria-labelledby="projects-heading">
+          <header class="resume-section-heading">
+            <h2 id="projects-heading">Projects</h2>
+            <button type="button" class="section-action" onclick={addProject} aria-label="Add project"><Plus size={18} /></button>
+          </header>
+          {#if profile.projects.length}
+            <div class="resume-entries">
+              {#each profile.projects as entry (entry.id)}
+                <button type="button" class="resume-entry" onclick={() => openRecord("projects", entry.id)}>
+                  <span class="entry-heading"><strong>{entry.name.trim() || "Untitled project"}</strong></span>
+                  {#if projectDetail(entry)}<span class="entry-meta">{projectDetail(entry)}</span>{/if}
+                  {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
+                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <button type="button" class="section-empty" onclick={addProject}>Add project</button>
+          {/if}
+        </section>
+
+        <section class="resume-section" aria-labelledby="skills-heading">
+          <header class="resume-section-heading">
+            <h2 id="skills-heading">Skills</h2>
+            <button type="button" class="section-action" onclick={addSkillAndOpen} aria-label="Add skill category"><Plus size={18} /></button>
+          </header>
+          {#if profile.skills.length}
+            <button type="button" class="section-content" onclick={() => openSection("skills")}>
+              {#each profile.skills as skill}
+                <span class="compact-line"><strong>{skill.category.trim() || "Skills"}</strong><span>{skill.items.trim() || "Add skills"}</span></span>
+              {/each}
+            </button>
+          {:else}
+            <button type="button" class="section-empty" onclick={addSkillAndOpen}>Add skills</button>
+          {/if}
+        </section>
+
         {#each profile.optionalSections as section (section.kind)}
-          {@render sectionRow(OPTIONAL_SECTION_LABELS[section.kind], itemCount(section.items.length, "item"), section.kind)}
+          <section class="resume-section" aria-labelledby="{section.kind}-heading">
+            <header class="resume-section-heading">
+              <h2 id="{section.kind}-heading">{OPTIONAL_SECTION_LABELS[section.kind]}</h2>
+              <button type="button" class="section-action" onclick={() => openSection(section.kind)} aria-label="Edit {OPTIONAL_SECTION_LABELS[section.kind]}"><PencilSimple size={17} /></button>
+            </header>
+            <button type="button" class="section-content" onclick={() => openSection(section.kind)}>
+              {#each section.items as item}
+                <span class="compact-line"><strong>{item.category.trim() || "Untitled"}</strong><span>{item.items.trim() || "Add details"}</span></span>
+              {/each}
+            </button>
+          </section>
         {/each}
-        {@render sectionRow("Tailoring notes", notes.trim() ? "Added" : "Not added", "notes")}
-      </div>
 
-      {#if availableOptionalSections.length > 0}
-        <button type="button" class="add-row" onclick={() => (addSectionOpen = true)}>
-          <Plus size={16} aria-hidden="true" />
-          <span>Add section</span>
-        </button>
-      {/if}
+        <section class="resume-section" aria-labelledby="notes-heading">
+          <header class="resume-section-heading">
+            <h2 id="notes-heading">Tailoring notes</h2>
+            <button type="button" class="section-action" onclick={() => openSection("notes")} aria-label="Edit tailoring notes"><PencilSimple size={17} /></button>
+          </header>
+          <button type="button" class:section-empty={!notes.trim()} class:notes-preview={notes.trim()} onclick={() => openSection("notes")}>
+            {notes.trim() || "Add notes"}
+          </button>
+        </section>
+
+        {#if availableOptionalSections.length > 0}
+          <button type="button" class="add-section-button" onclick={() => (addSectionOpen = true)}>
+            <Plus size={16} aria-hidden="true" />
+            <span>Add section</span>
+          </button>
+        {/if}
+      </div>
     {:else if view.kind === "section"}
       {#if view.section === "contact"}
         <div class="editor-form">
-          <div class="form-grid">
-            <label class="field"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
-            <label class="field"><span>Email</span><input class="input-field" name="email" type="email" autocomplete="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
-            <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
-            <label class="field"><span>Location</span><input class="input-field" name="location" autocomplete="address-level2" bind:value={profile.contact.location} oninput={handleInput} placeholder="City, ST" /></label>
-            <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="linkedin.com/in/jane" /></label>
-            <label class="field"><span>GitHub</span><input class="input-field" name="github" type="url" inputmode="url" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="github.com/jane" /></label>
-            <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} placeholder="yoursite.com" /></label>
-          </div>
-        </div>
-      {:else if view.section === "experience"}
-        <div class="record-list">
-          {#each profile.experience as entry (entry.id)}
-            {@render recordRow(entry.company || entry.title || "New position", experienceDetail(entry), "experience", entry.id)}
-          {/each}
-          <button type="button" class="add-row" onclick={addExperience}><Plus size={16} /> <span>Add position</span></button>
-        </div>
-      {:else if view.section === "education"}
-        <div class="record-list">
-          {#each profile.education as entry (entry.id)}
-            {@render recordRow(entry.institution || "New education", educationDetail(entry), "education", entry.id)}
-          {/each}
-          <button type="button" class="add-row" onclick={addEducation}><Plus size={16} /> <span>Add education</span></button>
-        </div>
-      {:else if view.section === "projects"}
-        <div class="record-list">
-          {#each profile.projects as entry (entry.id)}
-            {@render recordRow(entry.name || "New project", projectDetail(entry), "projects", entry.id)}
-          {/each}
-          <button type="button" class="add-row" onclick={addProject}><Plus size={16} /> <span>Add project</span></button>
+          <section class="editor-section">
+            <h2>Profile</h2>
+            <div class="form-grid">
+              <label class="field span-2"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} placeholder="Jane Doe" /></label>
+              <label class="field"><span>Email</span><input class="input-field" name="email" type="email" autocomplete="email" bind:value={profile.contact.email} oninput={handleInput} placeholder="jane@example.com" /></label>
+              <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} placeholder="555-123-4567" /></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Location</h2>
+            <div class="form-grid location-grid">
+              <label class="field"><span>City</span><input class="input-field" name="city" autocomplete="address-level2" value={splitUsLocation(profile.contact.location).city} oninput={(event) => updateLocation(profile.contact, "city", event.currentTarget.value)} placeholder="Chicago" /></label>
+              <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" name="state" autocomplete="address-level1" value={splitUsLocation(profile.contact.location).state} onchange={(event) => updateLocation(profile.contact, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Links</h2>
+            <div class="form-grid">
+              <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="linkedin.com/in/jane" /></label>
+              <label class="field"><span>GitHub</span><input class="input-field" name="github" type="url" inputmode="url" bind:value={profile.contact.github} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" placeholder="github.com/jane" /></label>
+              <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} placeholder="yoursite.com" /></label>
+            </div>
+          </section>
         </div>
       {:else if view.section === "skills"}
         <div class="editor-form">
@@ -491,14 +623,29 @@
       {@const entry = profile.experience.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <div class="form-grid">
-            <label class="field"><span>Company</span><input class="input-field" bind:value={entry.company} oninput={handleInput} placeholder="Company name" /></label>
-            <label class="field"><span>Title</span><input class="input-field" bind:value={entry.title} oninput={handleInput} placeholder="Job title" /></label>
-            <label class="field span-2"><span>Location</span><input class="input-field" bind:value={entry.location} oninput={handleInput} placeholder="City, ST" /></label>
-            <label class="field"><span>Start</span><input class="input-field" bind:value={entry.startDate} oninput={handleInput} placeholder="Month Year" /></label>
-            <label class="field"><span>End</span><input class="input-field" bind:value={entry.endDate} oninput={handleInput} placeholder="Present" /></label>
-          </div>
-          <section class="evidence-section">
+          <section class="editor-section">
+            <h2>Role</h2>
+            <div class="form-grid">
+              <label class="field"><span>Company</span><input class="input-field" autocomplete="organization" bind:value={entry.company} oninput={handleInput} placeholder="Company name" /></label>
+              <label class="field"><span>Title</span><input class="input-field" autocomplete="organization-title" bind:value={entry.title} oninput={handleInput} placeholder="Job title" /></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Location</h2>
+            <div class="form-grid location-grid">
+              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} placeholder="Chicago" /></label>
+              <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Dates</h2>
+            <div class="form-grid">
+              <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
+              <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} disabled={isCurrentRole(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
+            </div>
+            <label class="current-role"><input type="checkbox" checked={isCurrentRole(entry.endDate)} onchange={(event) => setCurrentRole(entry, event.currentTarget.checked)} /><span>Current role</span></label>
+          </section>
+          <section class="editor-section evidence-section">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
@@ -516,14 +663,34 @@
       {@const entry = profile.education.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <div class="form-grid">
-            <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} placeholder="University name" /></label>
-            <label class="field span-2"><span>Degree</span><input class="input-field" bind:value={entry.degree} oninput={handleInput} placeholder="B.S. Computer Science" /></label>
-            <label class="field"><span>Location</span><input class="input-field" bind:value={entry.location} oninput={handleInput} placeholder="City, ST" /></label>
-            <label class="field"><span>GPA</span><input class="input-field" bind:value={entry.gpa} oninput={handleInput} placeholder="3.9" /></label>
-            <label class="field"><span>Start</span><input class="input-field" bind:value={entry.startDate} oninput={handleInput} placeholder="Month Year" /></label>
-            <label class="field"><span>End</span><input class="input-field" bind:value={entry.endDate} oninput={handleInput} placeholder="Month Year" /></label>
-          </div>
+          <section class="editor-section">
+            <h2>School</h2>
+            <div class="form-grid">
+              <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} placeholder="University name" /></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Location</h2>
+            <div class="form-grid location-grid">
+              <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} placeholder="Boston" /></label>
+              <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Degree</h2>
+            <div class="form-grid">
+              <label class="field"><span>Degree type</span><span class="select-field-wrap"><select class="input-field" value={entry.degreeType ?? ""} onchange={(event) => updateEducationDegree(entry, { degreeType: event.currentTarget.value as DegreeType | "" })}><option value="">Select degree</option>{#each DEGREE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
+              <label class="field"><span>Field of study</span><input class="input-field" value={entry.fieldOfStudy ?? ""} oninput={(event) => updateEducationDegree(entry, { fieldOfStudy: event.currentTarget.value })} placeholder="Computer Science" /></label>
+              <label class="field"><span>GPA</span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} placeholder="3.9" /></label>
+            </div>
+          </section>
+          <section class="editor-section">
+            <h2>Dates</h2>
+            <div class="form-grid">
+              <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
+              <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
+            </div>
+          </section>
           <button type="button" class="remove-section" onclick={() => removeEducation(entry.id)}><Trash size={15} /> Remove education</button>
         </div>
       {/if}
@@ -531,13 +698,16 @@
       {@const entry = profile.projects.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <div class="form-grid">
-            <label class="field"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} placeholder="Project name" /></label>
-            <label class="field"><span>Role</span><input class="input-field" bind:value={entry.role} oninput={handleInput} placeholder="Full Stack" /></label>
-            <label class="field"><span>Team</span><input class="input-field" bind:value={entry.teamInfo} oninput={handleInput} placeholder="Solo or team size" /></label>
-            <label class="field"><span>URL</span><input class="input-field" bind:value={entry.url} oninput={handleInput} placeholder="project-url.com" /></label>
-          </div>
-          <section class="evidence-section">
+          <section class="editor-section">
+            <h2>Project</h2>
+            <div class="form-grid">
+              <label class="field"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} placeholder="Project name" /></label>
+              <label class="field"><span>Role</span><input class="input-field" bind:value={entry.role} oninput={handleInput} placeholder="Full Stack" /></label>
+              <label class="field"><span>Team</span><input class="input-field" bind:value={entry.teamInfo} oninput={handleInput} placeholder="Solo or team size" /></label>
+              <label class="field"><span>URL</span><input class="input-field" type="url" inputmode="url" bind:value={entry.url} oninput={handleInput} placeholder="project-url.com" /></label>
+            </div>
+          </section>
+          <section class="editor-section evidence-section">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
@@ -573,63 +743,82 @@
     padding-top: var(--space-2);
   }
 
-  .resume-import,
-  .resume-row,
+  .resume-overview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding-bottom: var(--space-6);
+  }
+
+  .resume-toolbar {
+    min-height: 44px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .resume-tool,
+  .identity-button,
+  .section-action,
+  .resume-entry,
+  .section-content,
+  .section-empty,
+  .notes-preview,
+  .add-section-button,
   .add-row {
     appearance: none;
-    width: 100%;
-    min-height: 58px;
-    padding: 10px 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-3);
     border: 0;
-    border-bottom: 1px solid var(--color-line);
     background: transparent;
     color: var(--color-ink);
     font: inherit;
-    text-align: start;
     cursor: pointer;
   }
 
-  .resume-import {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+  .resume-tool {
+    min-height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    font-weight: 600;
   }
 
-  .resume-import:disabled {
+  .resume-tool:disabled {
     cursor: default;
     opacity: 0.64;
   }
 
-  .resume-import-icon {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-md);
-    background: var(--color-bg-sunken);
-    color: var(--color-ink-2);
+  .resume-identity {
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--color-line);
   }
 
-  .resume-row-copy {
+  .identity-button {
+    width: 100%;
+    min-height: 56px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    text-align: start;
+  }
+
+  .identity-copy {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 5px;
   }
 
-  .resume-row-copy strong {
-    overflow: hidden;
-    color: var(--color-ink);
-    font-size: var(--fs-sm);
+  .identity-copy strong {
+    font-size: var(--fs-xl);
     font-weight: 600;
-    line-height: 1.3;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.15;
   }
 
-  .resume-row-copy small {
+  .identity-copy small {
     overflow: hidden;
     color: var(--color-ink-4);
     font-size: var(--fs-xs);
@@ -638,28 +827,199 @@
     white-space: nowrap;
   }
 
-  .resume-import > :global(svg),
-  .resume-row > :global(svg) {
+  .identity-button > :global(svg) {
+    flex: 0 0 auto;
     color: var(--color-ink-4);
   }
 
-  .resume-import:hover,
-  .resume-row:hover {
+  .resume-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .resume-section-heading {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .resume-section-heading h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .section-action {
+    width: 44px;
+    height: 44px;
+    margin-inline-end: -11px;
+    padding: 0;
+    display: grid;
+    place-items: center;
     color: var(--color-accent);
+  }
+
+  .resume-entries {
+    display: flex;
+    flex-direction: column;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-line);
+  }
+
+  .resume-entry {
+    position: relative;
+    width: 100%;
+    min-height: 56px;
+    padding-block: 10px;
+    padding-inline: 0 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: start;
+  }
+
+  .resume-entry + .resume-entry {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .entry-heading {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .entry-heading strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entry-edit {
+    position: absolute;
+    top: 13px;
+    inset-inline-end: 5px;
+    color: var(--color-ink-4);
+  }
+
+  .entry-heading small {
+    flex: 0 0 auto;
+    color: var(--color-ink-4);
+    font-size: var(--fs-2xs);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .entry-meta,
+  .entry-preview {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+  }
+
+  .entry-preview {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-ink-3);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .section-content,
+  .notes-preview {
+    width: 100%;
+    min-height: 44px;
+    padding-block: 6px;
+    padding-inline: var(--space-3) 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    text-align: start;
+    border-inline-start: 2px solid var(--color-line);
+  }
+
+  .compact-line {
+    display: grid;
+    grid-template-columns: minmax(80px, 0.35fr) minmax(0, 1fr);
+    gap: var(--space-3);
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+  }
+
+  .compact-line strong {
+    overflow: hidden;
+    color: var(--color-ink-2);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .section-empty {
+    width: max-content;
+    min-height: 44px;
+    margin-inline-start: var(--space-3);
+    padding: 0;
+    color: var(--color-accent);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-align: start;
+  }
+
+  .notes-preview {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .section-action:active,
+  .resume-tool:active,
+  .add-section-button:active {
+    transform: scale(0.96);
+  }
+
+  .add-section-button {
+    min-height: 44px;
+    align-self: flex-start;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-accent);
+    font-size: var(--fs-xs);
+    font-weight: 600;
   }
 
   .add-row {
+    width: 100%;
     min-height: 52px;
+    padding: 10px 0;
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
     justify-content: start;
     gap: var(--space-2);
+    border-bottom: 1px solid var(--color-line);
     color: var(--color-accent);
     font-size: var(--fs-sm);
     font-weight: 500;
-  }
-
-  .add-row:hover {
-    color: var(--color-accent-soft-ink);
+    text-align: start;
   }
 
   .inline-add {
@@ -669,16 +1029,26 @@
     border-bottom: 0;
   }
 
-  .record-list,
   .editor-form {
     width: 100%;
-  }
-
-  .editor-form {
     padding-top: var(--space-2);
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-8);
+  }
+
+  .editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .editor-section > h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.2;
   }
 
   .form-grid {
@@ -695,9 +1065,9 @@
   }
 
   .field > span {
-    color: var(--color-ink-4);
+    color: var(--color-ink-3);
     font-size: var(--fs-xs);
-    font-weight: 500;
+    font-weight: 600;
   }
 
   .field.span-2,
@@ -748,9 +1118,33 @@
 
   .evidence-section h2 {
     margin: 0;
+    color: var(--color-ink);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+  }
+
+  .current-role {
+    min-height: 44px;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
-    font-weight: 600;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .current-role input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--color-accent);
+  }
+
+  .editor-form :global(.input-field:disabled) {
+    opacity: 0.48;
+    cursor: default;
   }
 
   .bullet-row {

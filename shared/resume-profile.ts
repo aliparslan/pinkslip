@@ -10,6 +10,16 @@ export interface OptionalSection {
   items: Array<{ category: string; items: string }>;
 }
 
+export type DegreeType =
+  | "high_school"
+  | "associate"
+  | "bachelor"
+  | "master"
+  | "doctorate"
+  | "professional"
+  | "certificate"
+  | "other";
+
 export interface ResumeProfile {
   contact: {
     name: string;
@@ -33,6 +43,8 @@ export interface ResumeProfile {
     id: string;
     institution: string;
     degree: string;
+    degreeType?: DegreeType;
+    fieldOfStudy?: string;
     location: string;
     startDate: string;
     endDate: string;

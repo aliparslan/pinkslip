@@ -1,6 +1,7 @@
 import type { ResumeProfile } from "../../../shared/resume-profile";
 import type { RoleId } from "../../../shared/search-profile";
 export type {
+  DegreeType,
   OptionalSection,
   OptionalSectionKind,
   ResumeProfile,
