@@ -1,4 +1,4 @@
-export type PostedFilter = "any" | "dated" | "undated" | "evergreen";
+export type PostedFilter = "any" | "evergreen";
 
 import type { Job } from "./api";
 
@@ -15,13 +15,15 @@ export const feed = $state({
   selectedLocations: ["All"] as string[],
   searchQuery: "",
   savedOnly: false,
-  // "any" | "dated" | "undated". Undated postings come from boards that list a
-  // role only while it is genuinely open (startups), so it is a signal to
-  // filter *for*, not a gap.
+  // Evergreen roles remain part of the normal feed, but this can narrow the
+  // results to those longer-running listings for deliberate discovery.
   postedFilter: "any" as PostedFilter,
   minSalaryK: "",
   maxSalaryK: "",
-  maxYoe: "",
+  // Zero through three years is the product-wide eligible band. The two-ended
+  // slider can narrow either edge without ever exposing out-of-scope roles.
+  minYoe: 0,
+  maxYoe: 3,
   nextOffset: 0,
   hasMore: true,
   hydrated: false,
@@ -40,13 +42,19 @@ export function syncFeedPreferences(profile?: { location_ids?: string[]; work_mo
   const locationIds = profile.location_ids ?? [];
   const workModes = profile.work_modes ?? [];
   const onlyRemote = workModes.length === 1 && workModes[0] === "remote";
+  const includesRemote = workModes.includes("remote");
 
   if (onlyRemote) {
     feed.selectedLocations = ["Remote"];
   } else if (locationIds.length > 0 && locationIds.length < 10) {
-    feed.selectedLocations = [...locationIds];
+    // Work mode and metro preferences are independent. Omitting Remote here
+    // caused the feed's explicit location query to hide remote roles that had
+    // already passed the user's profile matcher — disproportionately YC and
+    // older evergreen listings.
+    feed.selectedLocations = includesRemote
+      ? ["Remote", ...locationIds]
+      : [...locationIds];
   } else {
     feed.selectedLocations = ["All"];
   }
 }
-

@@ -34,7 +34,7 @@
    at --fs-xs or larger, never body copy. */
 @font-face {
   font-family: "Geist Pixel";
-  src: url("/fonts/geist/geist-pixel-square.woff2") format("woff2");
+  src: url("/fonts/geist/geist-pixel-square.woff2?v=2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -97,7 +97,10 @@ body {
 .app-main {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: clip auto;
+  /* WKWebView has inconsistent sticky positioning when the scroll container
+     uses the newer `clip auto` shorthand. The equivalent established values
+     keep this as the sole vertical scroller and preserve sticky children. */
+  overflow: hidden auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
@@ -352,10 +355,18 @@ html.native-ios textarea {
 /* ── Feed controls ──────────────────────────────────────── */
 
 .feed-controls {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 8;
   display: flex;
   flex-direction: column;
   gap: 5px;
   padding: 10px var(--space-4) 8px;
+  background: color-mix(in oklch, var(--color-bg) 92%, transparent);
+  border-bottom: 0.5px solid color-mix(in oklch, var(--color-line) 72%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 /* One control surface keeps search and filtering together. */
@@ -474,16 +485,6 @@ html.native-ios textarea {
     opacity: 0;
     transform: scale(0.65);
   }
-}
-
-.filter-summary {
-  max-width: 100%;
-  color: var(--color-ink-3);
-  font-size: var(--fs-2xs);
-  line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .feed-stale-notice {
@@ -607,14 +608,100 @@ html.native-ios textarea {
   font-weight: 500;
 }
 
+.filter-range-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.filter-range-heading output {
+  color: var(--color-accent-soft-ink);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-range {
+  padding: 2px 2px 0;
+}
+
+.filter-dual-range {
+  position: relative;
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.filter-dual-range::before {
+  content: "";
+  position: absolute;
+  inset-inline: 9px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-line-2);
+}
+
+.filter-dual-range-fill {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+.filter-dual-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  background: var(--color-bg-elev);
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.24);
+  cursor: grab;
+}
+
+.filter-dual-range-thumb:active { cursor: grabbing; }
+
+.filter-dual-range-thumb:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* Keep native range defaults available to older filter controls. */
+.filter-range input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.filter-range input[type="range"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.filter-range-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 7px;
+  color: var(--color-ink-4);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
 .filter-option-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
-.filter-option-grid.compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.filter-option-grid.binary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .filter-choice {
@@ -1024,14 +1111,14 @@ html.native-ios textarea {
 }
 
 .btn-danger {
-  background: color-mix(in oklch, var(--color-bad) 12%, var(--color-bg-elev));
-  border-color: color-mix(in oklch, var(--color-bad) 34%, var(--color-line-2));
+  background: var(--color-bg-elev);
+  border-color: var(--color-line-2);
   color: var(--color-bad);
 }
 
 .btn-danger:hover {
-  background: color-mix(in oklch, var(--color-bad) 16%, var(--color-bg-elev));
-  border-color: color-mix(in oklch, var(--color-bad) 44%, var(--color-line-2));
+  background: var(--color-bg-sunken);
+  border-color: var(--color-line-2);
 }
 
 .btn-action {

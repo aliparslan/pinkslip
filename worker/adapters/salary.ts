@@ -42,9 +42,7 @@ export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): s
   const min = Math.round(range.min_cents / 100).toLocaleString();
   const max = Math.round(range.max_cents / 100).toLocaleString();
   const prefix = range.currency_type === "USD" ? "$" : `${range.currency_type} `;
-  let salary = `${prefix}${min} – ${prefix}${max}`;
-  if (range.title) salary += ` (${range.title})`;
-  return salary;
+  return `${prefix}${min} – ${prefix}${max}`;
 }
 
 export function formatLeverSalary(range: LeverSalaryRange | undefined): string | null {

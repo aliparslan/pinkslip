@@ -117,13 +117,32 @@ export function normalizeSalaryText(salary: string | null | undefined): string |
   if (!salary) return null;
   const cleaned = salary
     .replace(/\s+/g, " ")
-    .replace(/\s*(?:[·•|]\s*)?offers?\s+equity\b[.!]?/gi, "")
-    .replace(/^\s*[·•|]\s*|\s*[·•|]\s*$/g, "")
     .trim();
   if (!cleaned) return null;
-  return cleaned
+
+  // Compensation feeds also emit non-salary benefits such as "Offers Equity"
+  // and "Offers Commission" in the salary slot. Display only an actual
+  // numeric amount/range; descriptive compensation belongs in the listing.
+  const currency = "(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\\s*)?(?:[$£€¥]\\s*)?";
+  const amount = "\\d[\\d,]*(?:\\.\\d+)?\\s*[kK]?";
+  const period = "(?:\\s*(?:/|per\\s+)(?:yr|year|annually|annual|hr|hour|hourly))?";
+  const range = new RegExp(`${currency}${amount}\\s*(?:-|–|—|to)\\s*${currency}${amount}${period}`, "i");
+  const single = new RegExp(`(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\\s*)?(?:[$£€¥]\\s*)${amount}${period}`, "i");
+  const numeric = cleaned.match(range)?.[0] ?? cleaned.match(single)?.[0] ?? null;
+  if (!numeric) return null;
+
+  const values = numeric.match(/\d[\d,]*(?:\.\d+)?\s*[kK]?/g) ?? [];
+  const plausible = values.some((token) => {
+    const inThousands = /[kK]\b/.test(token);
+    const value = Number.parseFloat(token.replace(/,/g, "").replace(/[kK]\b/, ""));
+    return Number.isFinite(value) && (inThousands || value >= 1_000);
+  });
+  if (!plausible && !/[$£€¥]|\b(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\b/i.test(numeric)) return null;
+
+  return numeric
     .replace(/(\d[\d,.]*(?:\s?[kK])?)(?:\s+to\s+|\s*[-–—]\s*)([$£€¥]?\s?\d)/g, "$1–$2")
-    .replace(/([$£€¥])\s+(\d)/g, "$1$2");
+    .replace(/([$£€¥])\s+(\d)/g, "$1$2")
+    .trim();
 }
 
 export function formatCompactSalaryText(salary: string | null | undefined): string | null {

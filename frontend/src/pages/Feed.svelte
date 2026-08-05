@@ -10,7 +10,7 @@
   import Switch from "../components/Switch.svelte";
   import Modal from "../components/Modal.svelte";
   import { feedback } from "../lib/feedback.svelte";
-  import { Dialog } from "bits-ui";
+  import { Dialog, Slider } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
@@ -56,19 +56,9 @@
     return LOCATION_CHOICES.find((choice) => choice.id === id)?.label ?? id;
   }
 
-  const YOE_OPTIONS = [
-    { label: "Any", value: "" },
-    { label: "0–1 yr", value: "1" },
-    { label: "0–3 yrs", value: "3" },
-  ];
-
-  // Mirrors MAX_POSTED_AGE_DAYS in worker/routes/jobs.ts — the server always
-  // enforces it; this is only for the explanatory hint.
   const POSTED_OPTIONS: Array<{ label: string; value: PostedFilter }> = [
     { label: "All", value: "any" },
-    { label: "Dated", value: "dated" },
-    { label: "Undated", value: "undated" },
-    { label: "Evergreen", value: "evergreen" },
+    { label: "Evergreen only", value: "evergreen" },
   ];
 
   // Show the staleness warning once the poller is clearly behind its
@@ -97,7 +87,7 @@
   let draftSelectedLocations: string[] = $state(["All"]);
   let draftMinSalaryK = $state("");
   let draftMaxSalaryK = $state("");
-  let draftMaxYoe = $state("");
+  let draftYoeRange: number[] = $state([0, 3]);
   let draftSavedOnly = $state(false);
   let draftPostedFilter: PostedFilter = $state("any");
   let blockCandidate: Job | null = $state(null);
@@ -117,6 +107,12 @@
     nextJobs.splice(index, 0, job);
     hiddenJobPositions.delete(job.id);
     feed.jobs = nextJobs;
+  }
+
+  function markJobSaved(id: string) {
+    feed.jobs = feed.jobs.map((job) =>
+      job.id === id ? { ...job, saved: 1 } : job
+    );
   }
 
   async function blockJobForEveryone() {
@@ -147,7 +143,7 @@
     let count = 0;
     if (hasLocationFilter) count += 1;
     if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
-    if (feed.maxYoe) count += 1;
+    if (feed.minYoe !== 0 || feed.maxYoe !== 3) count += 1;
     if (feed.savedOnly) count += 1;
     if (feed.postedFilter !== "any") count += 1;
     return count;
@@ -163,16 +159,10 @@
     let count = 0;
     if (draftHasLocationFilter) count += 1;
     if (draftMinSalaryK.trim() || draftMaxSalaryK.trim()) count += 1;
-    if (draftMaxYoe) count += 1;
+    if ((draftYoeRange[0] ?? 0) !== 0 || (draftYoeRange[1] ?? 3) !== 3) count += 1;
     if (draftSavedOnly) count += 1;
     if (draftPostedFilter !== "any") count += 1;
     return count;
-  });
-  let locationSummary = $derived.by(() => {
-    if (!hasLocationFilter) return "Anywhere";
-    const labels = feed.selectedLocations.map(locationLabel);
-    if (labels.length <= 2) return labels.join(", ");
-    return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   });
   let draftLocationSummary = $derived.by(() => {
     if (!draftHasLocationFilter) return "Anywhere";
@@ -180,24 +170,14 @@
     if (labels.length <= 2) return labels.join(", ");
     return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   });
-  let filterSummary = $derived.by(() => {
-    const parts: string[] = [];
-    if (hasLocationFilter) {
-      parts.push(locationSummary);
-    }
-    if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) {
-      const min = feed.minSalaryK.trim() ? `$${feed.minSalaryK.trim()}K` : "Any";
-      const max = feed.maxSalaryK.trim() ? `$${feed.maxSalaryK.trim()}K` : "Any";
-      parts.push(`${min}-${max}`);
-    }
-    if (feed.maxYoe) parts.push(`<= ${feed.maxYoe} YOE`);
-    if (feed.savedOnly) parts.push("Saved");
-    if (feed.postedFilter === "undated") parts.push("Undated");
-    if (feed.postedFilter === "evergreen") parts.push("Evergreen");
-    if (feed.postedFilter === "dated") parts.push("Dated");
-    return parts.join(" · ");
-  });
+  let draftMinYoe = $derived(draftYoeRange[0] ?? 0);
+  let draftMaxYoe = $derived(draftYoeRange[1] ?? 3);
 
+  function experienceRangeLabel(min: number, max: number): string {
+    if (min === 0 && max === 0) return "No experience";
+    if (min === max) return `${min} ${min === 1 ? "year" : "years"}`;
+    return `${min}–${max} years`;
+  }
   function buildFeedParams(limit = PAGE_SIZE, offset = 0) {
     const params: Record<string, string> = {
       limit: String(limit),
@@ -217,7 +197,8 @@
     const maxSalary = parseInt(feed.maxSalaryK, 10);
     if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
     if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
-    if (feed.maxYoe) params.max_yoe = feed.maxYoe;
+    if (feed.minYoe > 0) params.min_yoe = String(feed.minYoe);
+    if (feed.maxYoe < 3) params.max_yoe = String(feed.maxYoe);
     if (feed.postedFilter !== "any") params.posted = feed.postedFilter;
 
     return params;
@@ -315,7 +296,8 @@
     savedOnly?: boolean;
     minSalaryK?: string;
     maxSalaryK?: string;
-    maxYoe?: string;
+    minYoe?: number;
+    maxYoe?: number;
     postedFilter?: PostedFilter;
   }) {
     if (updates?.selectedLocations !== undefined) {
@@ -333,6 +315,9 @@
     }
     if (updates?.maxSalaryK !== undefined) {
       feed.maxSalaryK = updates.maxSalaryK;
+    }
+    if (updates?.minYoe !== undefined) {
+      feed.minYoe = updates.minYoe;
     }
     if (updates?.maxYoe !== undefined) {
       feed.maxYoe = updates.maxYoe;
@@ -371,7 +356,7 @@
     draftSelectedLocations = [...feed.selectedLocations];
     draftMinSalaryK = feed.minSalaryK;
     draftMaxSalaryK = feed.maxSalaryK;
-    draftMaxYoe = feed.maxYoe;
+    draftYoeRange = [feed.minYoe ?? 0, feed.maxYoe ?? 3];
     draftSavedOnly = feed.savedOnly;
     draftPostedFilter = feed.postedFilter;
     filtersOpen = true;
@@ -385,7 +370,8 @@
       selectedLocations: ["All"],
       minSalaryK: "",
       maxSalaryK: "",
-      maxYoe: "",
+      minYoe: 0,
+      maxYoe: 3,
       postedFilter: "any",
     });
   }
@@ -394,7 +380,7 @@
     draftSelectedLocations = ["All"];
     draftMinSalaryK = "";
     draftMaxSalaryK = "";
-    draftMaxYoe = "";
+    draftYoeRange = [0, 3];
     draftSavedOnly = false;
     draftPostedFilter = "any";
   }
@@ -405,6 +391,7 @@
       selectedLocations: [...draftSelectedLocations],
       minSalaryK: draftMinSalaryK,
       maxSalaryK: draftMaxSalaryK,
+      minYoe: draftMinYoe,
       maxYoe: draftMaxYoe,
       savedOnly: draftSavedOnly,
       postedFilter: draftPostedFilter,
@@ -464,16 +451,15 @@
     pullCandidate = false;
     pullArmed = showStatus;
     pullSettling = true;
-    pullOffset = showStatus ? 58 : 0;
+    // The status is visible only while the user is actively overscrolling.
+    // Release immediately retracts it instead of pinning the list for 1.25s.
+    pullOffset = 0;
     if (pullTimer !== null) window.clearTimeout(pullTimer);
     pullTimer = window.setTimeout(() => {
-      pullOffset = 0;
-      pullTimer = window.setTimeout(() => {
-        pullArmed = false;
-        pullSettling = false;
-        pullTimer = null;
-      }, 240);
-    }, showStatus ? 1_250 : 240);
+      pullArmed = false;
+      pullSettling = false;
+      pullTimer = null;
+    }, 240);
   }
 
   $effect(() => {
@@ -627,9 +613,6 @@
       <ClockCountdown size={17} weight="bold" aria-hidden="true" />
       <span>Updates every 15 minutes. You&rsquo;re caught up.</span>
     </div>
-    {#if filterSummary}
-      <div class="filter-summary">{filterSummary}</div>
-    {/if}
   </div>
 
   {#if pollStale && feed.lastPolled}
@@ -670,7 +653,9 @@
           {/if}
         </h2>
         <div class="empty-state-copy feed-empty-copy">
-          {#if refinableFilterCount > 0}
+          {#if feed.postedFilter === "evergreen"}
+            No standing or aged-but-open roles match your other filters.
+          {:else if refinableFilterCount > 0}
             Try widening or clearing your filters.
           {:else if feed.savedOnly}
             Save roles from the detail view to keep them handy.
@@ -698,6 +683,7 @@
             viewed={viewed.has(job.id)}
             onDismiss={removeJob}
             onRestore={restoreJob}
+            onSaved={markJobSaved}
             onBlockRequest={(candidate) => (blockCandidate = candidate)}
           />
         </div>
@@ -802,24 +788,45 @@
             </section>
 
             <section class="filter-group">
-              <div class="filter-group-title">Experience</div>
-              <div class="filter-option-grid compact">
-                {#each YOE_OPTIONS as option}
-                  <button
-                    class="filter-choice"
-                    class:active={draftMaxYoe === option.value}
-                    aria-pressed={draftMaxYoe === option.value}
-                    onclick={() => (draftMaxYoe = option.value)}
-                  >
-                    {option.label}
-                  </button>
-                {/each}
+              <div class="filter-range-heading">
+                <span id="experience-filter-label">Experience required</span>
+                <output>
+                  {experienceRangeLabel(draftMinYoe, draftMaxYoe)}
+                </output>
+              </div>
+              <div class="filter-range">
+                <Slider.Root
+                  class="filter-dual-range"
+                  type="multiple"
+                  bind:value={draftYoeRange}
+                  min={0}
+                  max={3}
+                  step={1}
+                  aria-labelledby="experience-filter-label"
+                >
+                  <Slider.Range class="filter-dual-range-fill" />
+                  <Slider.Thumb
+                    class="filter-dual-range-thumb"
+                    index={0}
+                    aria-label="Minimum experience required"
+                    aria-valuetext={draftMinYoe === 0 ? "No minimum experience" : `${draftMinYoe} years minimum`}
+                  />
+                  <Slider.Thumb
+                    class="filter-dual-range-thumb"
+                    index={1}
+                    aria-label="Maximum experience required"
+                    aria-valuetext={`${draftMaxYoe} years maximum`}
+                  />
+                </Slider.Root>
+                <div class="filter-range-ticks" aria-hidden="true">
+                  <span>0</span><span>1</span><span>2</span><span>3</span>
+                </div>
               </div>
             </section>
 
             <section class="filter-group">
-              <div class="filter-group-title">Posting date</div>
-              <div class="filter-option-grid compact">
+              <div class="filter-group-title">Listing type</div>
+              <div class="filter-option-grid binary">
                 {#each POSTED_OPTIONS as option}
                   <button
                     class="filter-choice"
@@ -870,7 +877,7 @@
       <button class="btn-secondary flex-fill" onclick={() => (blockCandidate = null)} disabled={blockingJob}>Cancel</button>
       <button class="btn-secondary btn-danger flex-fill" onclick={blockJobForEveryone} disabled={blockingJob}>
         {#if blockingJob}<Spinner />{/if}
-        Yes, block
+        Block job
       </button>
     </div>
   </Modal>

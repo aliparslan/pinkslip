@@ -11,7 +11,9 @@
   import { markViewed } from "../lib/viewed";
   import { feedback } from "../lib/feedback.svelte";
   import { applicationIntent } from "../lib/application-intent.svelte";
+  import { jobOriginalTimingLabel, jobTimingLabel } from "../lib/job-timing";
   import { presentPending } from "../lib/task-presentation.svelte";
+  import { roleLabel } from "../../../shared/search-profile";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
@@ -25,6 +27,7 @@
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import MapPin from "phosphor-svelte/lib/MapPin";
   import Money from "phosphor-svelte/lib/Money";
+  import ClockCounterClockwise from "phosphor-svelte/lib/ClockCounterClockwise";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
   import Export from "phosphor-svelte/lib/Export";
   import DotsThree from "phosphor-svelte/lib/DotsThree";
@@ -260,21 +263,23 @@
     }
   }
 
-  function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    });
-  }
-
   let extractedSalary = $derived(job?.description ? extractSalaryFromHtml(job.description) : null);
   let displaySalary = $derived(normalizeSalaryText(
     job?.salary?.trim() ? job.salary : extractedSalary
   ));
-  let matchReasons = $derived(
-    job?.match_reasons
-      ?.filter((reason) => reason.toLowerCase() !== "new today")
-      .slice(0, 4) ?? []
-  );
+  let originalTiming = $derived(job ? jobOriginalTimingLabel(job) : null);
+  let matchDetails = $derived.by(() => {
+    if (!job) return [];
+    const details: string[] = [];
+    if (job.match_fact) details.push(job.match_fact);
+    const specialty = job.specialties?.[0];
+    if (specialty) details.push(`${roleLabel(specialty)} role`);
+    if (job.sponsorship_available === true) details.push("Sponsorship available");
+    if (!displaySalary) details.push("Salary not listed");
+    if (job.evergreen) details.push("Evergreen listing");
+    if (!job.posted_at) details.push("Post date unavailable");
+    return [...new Set(details)].slice(0, 4);
+  });
   let sanitizedDescription = $derived(job?.description ? sanitizeJobDescriptionHtml(job.description, {
     title: job.title,
     companyName: job.company_name,
@@ -288,7 +293,7 @@
 <div class="page pushed-screen">
   <ScreenNav
     title=""
-    backLabel="Back to feed"
+    backLabel="Back to jobs"
     onBack={() => { if (!requestBack()) navigate("/"); }}
   >
     {#snippet trailing()}
@@ -364,7 +369,7 @@
         <div class="job-detail-heading">
           <div class="job-detail-company-line">
             <div class="section-label job-detail-company">
-              {job.company_name}{#if job.posted_at} {" · Posted "}{formatDate(job.posted_at)}{/if}
+              {job.company_name} · {jobTimingLabel(job)}
             </div>
             {#if job.closed_at}
               <div class="tag">closed</div>
@@ -389,14 +394,20 @@
             <span>{displaySalary}</span>
           </div>
         {/if}
+        {#if originalTiming}
+          <div class="job-meta-item">
+            <ClockCounterClockwise size={15} />
+            <span>{originalTiming}</span>
+          </div>
+        {/if}
       </div>
 
-      {#if matchReasons.length}
+      {#if matchDetails.length}
         <section class="job-match-panel" aria-labelledby="job-match-heading">
           <h2 id="job-match-heading">Why it matches</h2>
           <ul>
-            {#each matchReasons as reason}
-              <li><span aria-hidden="true"></span>{reason}</li>
+            {#each matchDetails as detail}
+              <li><span aria-hidden="true"></span>{detail}</li>
             {/each}
           </ul>
         </section>
@@ -613,7 +624,6 @@
     color: var(--color-ink-3);
     font-size: var(--fs-sm);
     font-weight: 600;
-    letter-spacing: 0;
   }
 
   .job-match-panel ul {
@@ -641,6 +651,7 @@
     background: var(--color-accent);
     transform: translateY(-2px);
   }
+
 </style>
 
 {#if showReport}

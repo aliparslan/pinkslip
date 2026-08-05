@@ -192,7 +192,7 @@
     companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
     try {
       await api.companies.block(id);
-      feedback.success("Company hidden from your feed", {
+      feedback.success("Company hidden from jobs", {
         action: { label: "Undo", run: () => handleRestore(id) },
       });
     } catch (e) {

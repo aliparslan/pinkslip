@@ -3,7 +3,7 @@
   import { setJobDetailReturnRoute } from "../lib/job-navigation";
   import { api, type Job } from "../lib/api";
   import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
-  import { timeAgo } from "../lib/utils";
+  import { jobTimingLabel } from "../lib/job-timing";
   import { markViewed } from "../lib/viewed";
   import { feedback } from "../lib/feedback.svelte";
   import { hapticLight } from "../lib/haptics";
@@ -11,15 +11,17 @@
   import { markMenuDismissed, wasMenuJustDismissed } from "../lib/menu-dismiss-guard";
   import { DropdownMenu } from "bits-ui";
   import DotsThreeVertical from "phosphor-svelte/lib/DotsThreeVertical";
+  import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Prohibit from "phosphor-svelte/lib/Prohibit";
   import CompanyLogo from "./CompanyLogo.svelte";
 
-  let { job, viewed = false, onDismiss, onRestore, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel, surface = "feed" }: {
+  let { job, viewed = false, onDismiss, onRestore, onSaved, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel, surface = "feed" }: {
     job: Job;
     viewed?: boolean;
     onDismiss?: (id: string) => void;
     onRestore?: (job: Job) => void;
+    onSaved?: (id: string) => void;
     onBlockRequest?: (job: Job) => void;
     returnTo?: string;
     swipeActions?: boolean;
@@ -28,6 +30,7 @@
   } = $props();
 
   let dismissing: boolean = $state(false);
+  let saving: boolean = $state(false);
   let swipeX: number = $state(0);
   let swiping: boolean = $state(false);
   let startX = 0;
@@ -49,22 +52,21 @@
   const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
   let hasAdminAction = $derived($sessionAccess.isAdmin && Boolean(onBlockRequest));
-  let showRowMenu = $derived(swipeActions && (Boolean(onDismiss) || hasAdminAction));
+  let hasSaveAction = $derived(Boolean(onSaved));
+  let showRowMenu = $derived(swipeActions && (hasSaveAction || Boolean(onDismiss) || hasAdminAction));
   let rowMenuOpen = $state(false);
-  let actionButtonWidth = $derived(hasAdminAction ? ADMIN_ACTION_WIDTH : SINGLE_ACTION_WIDTH);
+  let swipeActionCount = $derived((hasSaveAction ? 1 : 0) + (hasAdminAction ? 1 : 0));
+  let actionButtonWidth = $derived(swipeActionCount > 1 ? ADMIN_ACTION_WIDTH : SINGLE_ACTION_WIDTH);
   let actionTotalWidth = $derived(
-    ACTION_PADDING + actionButtonWidth * (hasAdminAction ? 2 : 1) + (hasAdminAction ? ACTION_GAP : 0)
+    ACTION_PADDING
+      + actionButtonWidth * Math.max(1, swipeActionCount)
+      + Math.max(0, swipeActionCount - 1) * ACTION_GAP
   );
   let openThreshold = $derived(Math.min(64, actionTotalWidth * 0.42));
   let displaySalary = $derived(formatCompactSalaryText(
     job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
   ));
   let displayLocation = $derived(formatJobLocation(job.location));
-  let matchReason = $derived(
-    job.match_reasons?.find((reason) => reason.toLowerCase() !== "new today")
-      ?? job.match_reasons?.[0]
-      ?? null
-  );
   let isFresh = $derived(
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
   );
@@ -132,6 +134,28 @@
     });
   }
 
+  async function save() {
+    if (saving) return;
+    if (job.saved) {
+      snapTo(0);
+      feedback.show("Job is already saved");
+      return;
+    }
+
+    saving = true;
+    try {
+      await api.savedJobs.save(job.id);
+      onSaved?.(job.id);
+      snapTo(0);
+      feedback.success("Job saved");
+    } catch {
+      snapTo(0);
+      feedback.error("Could not save that job. Try again.");
+    } finally {
+      saving = false;
+    }
+  }
+
   function settleSwipe() {
     if (!swiping) return;
     swiping = false;
@@ -145,7 +169,7 @@
   }
 
   function onPointerDown(e: PointerEvent) {
-    if (!swipeActions) return;
+    if (!swipeActions || swipeActionCount === 0) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointerId = e.pointerId;
     startX = e.clientX;
@@ -188,16 +212,18 @@
 <div class="job-row-wrap" class:card-surface={surface === "card"}>
   {#if swipeActions && swipeX < -0.5}
     <div class="swipe-actions">
-      <button
-        class="swipe-action"
-        style="width: {actionButtonWidth}px;"
-        aria-label="Hide this job"
-        onclick={(event) => { event.stopPropagation(); void dismiss(); }}
-        disabled={dismissing}
-      >
-        <EyeSlash size={18} weight="regular" />
-        <span>Hide</span>
-      </button>
+      {#if hasSaveAction}
+        <button
+          class="swipe-action save"
+          style="width: {actionButtonWidth}px;"
+          aria-label={job.saved ? "Job already saved" : "Save this job"}
+          onclick={(event) => { event.stopPropagation(); void save(); }}
+          disabled={saving}
+        >
+          <BookmarkSimple size={18} weight={job.saved ? "fill" : "regular"} />
+          <span>{job.saved ? "Saved" : "Save"}</span>
+        </button>
+      {/if}
       {#if hasAdminAction}
         <button
           class="swipe-action danger"
@@ -238,7 +264,7 @@
       <div class="job-row__meta">
         <span class="job-row__company">{job.company_name}</span>
         <span class="job-row__dot">·</span>
-        <span class="job-row__time">{contextLabel ?? timeAgo(job.posted_at ?? job.first_seen_at ?? "")}</span>
+        <span class="job-row__time">{contextLabel ?? jobTimingLabel(job)}</span>
         {#if !contextLabel && !viewed && isFresh}
           <span class="job-row__new" role="img" aria-label="New job" title="New job"></span>
         {/if}
@@ -257,10 +283,10 @@
           {/if}
         </div>
       {/if}
-      {#if matchReason}
+      {#if job.match_fact}
         <div class="job-row__reason">
           <span aria-hidden="true"></span>
-          {matchReason}
+          {job.match_fact}
         </div>
       {/if}
     </div>
@@ -284,6 +310,12 @@
           strategy="fixed"
           preventScroll={false}
         >
+          {#if hasSaveAction && !job.saved}
+            <DropdownMenu.Item class="job-more-menu-item" disabled={saving} onSelect={() => void save()}>
+              <BookmarkSimple size={17} />
+              <span>Save</span>
+            </DropdownMenu.Item>
+          {/if}
           <DropdownMenu.Item class="job-more-menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
             <EyeSlash size={17} />
             <span>Hide</span>
@@ -399,8 +431,8 @@
     align-items: center;
     gap: 6px;
     overflow: hidden;
-    color: var(--color-ink-2);
-    font-size: var(--fs-xs);
+    color: var(--color-ink-4);
+    font-size: var(--fs-2xs);
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -443,6 +475,10 @@
 
   .swipe-action:active {
     background: var(--color-control-bg);
+  }
+
+  .swipe-action.save {
+    color: var(--color-accent);
   }
 
   .swipe-action.danger {

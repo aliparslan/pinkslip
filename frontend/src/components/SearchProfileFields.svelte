@@ -174,7 +174,7 @@
       <div>
         <div class="profile-field-title">Experience level</div>
         <div class="profile-field-help">
-          Your feed is limited to new-grad and early-career roles. Jobs asking for
+          Your job list is limited to new-grad and early-career roles. Jobs asking for
           more than 3 years&mdash;or using senior, staff, or management titles&mdash;are
           filtered out. Jobs without a stated requirement stay in.
         </div>

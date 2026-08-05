@@ -26,7 +26,7 @@ describe("salary helpers", () => {
         currency_type: "USD",
         title: "Base salary",
       })
-    ).toBe("$150,000 – $210,000 (Base salary)");
+    ).toBe("$150,000 – $210,000");
   });
 
   it("formats lever structured ranges", () => {

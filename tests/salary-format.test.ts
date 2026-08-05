@@ -19,15 +19,20 @@ describe("normalizeSalaryText", () => {
     expect(normalizeSalaryText("$ 114,000  -  $ 184,000")).toBe("$114,000–$184,000");
   });
 
-  it("leaves non-range text alone", () => {
+  it("keeps only numeric salary content", () => {
     expect(normalizeSalaryText("$95,000/yr")).toBe("$95,000/yr");
-    expect(normalizeSalaryText("Up to $184,000")).toBe("Up to $184,000");
+    expect(normalizeSalaryText("Up to $184,000 plus bonus")).toBe("$184,000");
+    expect(normalizeSalaryText("Offers Commission")).toBeNull();
   });
 
   it("removes equity callouts", () => {
     expect(normalizeSalaryText("$148,159–$200,451 • Offers Equity"))
       .toBe("$148,159–$200,451");
     expect(normalizeSalaryText("Offers Equity")).toBeNull();
+    expect(normalizeSalaryText("$148,159–$200,451 • Offers Commission"))
+      .toBe("$148,159–$200,451");
+    expect(normalizeSalaryText("$148,159–$200,451 (Base salary)"))
+      .toBe("$148,159–$200,451");
   });
 
   it("uses compact primary salary bands in feed rows", () => {
