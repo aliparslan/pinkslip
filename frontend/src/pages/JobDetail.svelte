@@ -268,7 +268,7 @@
     job?.salary?.trim() ? job.salary : extractedSalary
   ));
   let originalTiming = $derived(job ? jobOriginalTimingLabel(job) : null);
-  let matchDetails = $derived.by(() => {
+  let quickFacts = $derived.by(() => {
     if (!job) return [];
     const details: string[] = [];
     if (job.match_fact) details.push(job.match_fact);
@@ -402,12 +402,15 @@
         {/if}
       </div>
 
-      {#if matchDetails.length}
-        <section class="job-match-panel" aria-labelledby="job-match-heading">
-          <h2 id="job-match-heading">Why it matches</h2>
+      {#if quickFacts.length}
+        <section class="job-facts" aria-labelledby="job-facts-heading">
+          <div class="job-facts-heading">
+            <span aria-hidden="true"></span>
+            <h2 id="job-facts-heading">Quick facts</h2>
+          </div>
           <ul>
-            {#each matchDetails as detail}
-              <li><span aria-hidden="true"></span>{detail}</li>
+            {#each quickFacts as fact}
+              <li>{fact}</li>
             {/each}
           </ul>
         </section>
@@ -611,45 +614,64 @@
     color: var(--color-accent-soft-ink);
   }
 
-  .job-match-panel {
-    padding: var(--space-4);
-    margin-bottom: var(--space-4);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-sunken);
+  .job-facts {
+    padding-block: var(--space-2);
+    margin-bottom: var(--space-5);
   }
 
-  .job-match-panel h2 {
-    margin: 0 0 var(--space-2);
-    color: var(--color-ink-3);
-    font-size: var(--fs-sm);
-    font-weight: 600;
-  }
-
-  .job-match-panel ul {
-    padding: 0;
-    margin: 0;
-    display: grid;
+  .job-facts-heading {
+    display: flex;
+    align-items: center;
     gap: var(--space-2);
+  }
+
+  .job-facts-heading > span {
+    width: 28px;
+    height: 3px;
+    flex: none;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+  }
+
+  .job-facts h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .job-facts ul {
+    padding: 0;
+    margin: var(--space-3) 0 0;
+    display: grid;
+    gap: 7px;
     list-style: none;
   }
 
-  .job-match-panel li {
+  .job-facts li {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-2);
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
     line-height: 1.35;
   }
 
-  .job-match-panel li span {
-    width: 5px;
-    height: 5px;
+  .job-facts li::before {
+    content: "";
+    width: 8px;
+    height: 2px;
     flex: none;
     border-radius: var(--radius-full);
     background: var(--color-accent);
-    transform: translateY(-2px);
+  }
+
+  @media (min-width: 540px) {
+    .job-facts ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: var(--space-6);
+    }
   }
 
 </style>

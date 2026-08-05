@@ -119,7 +119,7 @@
       <div class="profile-field-heading">
         <div>
           <div class="profile-field-title">Target roles</div>
-          <div class="profile-field-help">Choose the work you would genuinely apply for.</div>
+          <div class="profile-field-help">Only selected role types appear in Jobs.</div>
         </div>
         <span class="selection-count">{profile.roles.length} selected</span>
       </div>
