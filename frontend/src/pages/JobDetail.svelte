@@ -403,14 +403,11 @@
       </div>
 
       {#if quickFacts.length}
-        <section class="job-facts" aria-labelledby="job-facts-heading">
-          <div class="job-facts-heading">
-            <span aria-hidden="true"></span>
-            <h2 id="job-facts-heading">Quick facts</h2>
-          </div>
+        <section class="job-match-panel" aria-labelledby="quick-facts-heading">
+          <h2 id="quick-facts-heading">Quick facts</h2>
           <ul>
             {#each quickFacts as fact}
-              <li>{fact}</li>
+              <li><span aria-hidden="true"></span>{fact}</li>
             {/each}
           </ul>
         </section>
@@ -614,64 +611,45 @@
     color: var(--color-accent-soft-ink);
   }
 
-  .job-facts {
-    padding-block: var(--space-2);
-    margin-bottom: var(--space-5);
+  .job-match-panel {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
   }
 
-  .job-facts-heading {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .job-facts-heading > span {
-    width: 28px;
-    height: 3px;
-    flex: none;
-    border-radius: var(--radius-full);
-    background: var(--color-accent);
-  }
-
-  .job-facts h2 {
-    margin: 0;
-    color: var(--color-ink);
-    font-size: var(--fs-base);
+  .job-match-panel h2 {
+    margin: 0 0 var(--space-2);
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
     font-weight: 600;
-    letter-spacing: -0.01em;
   }
 
-  .job-facts ul {
+  .job-match-panel ul {
     padding: 0;
-    margin: var(--space-3) 0 0;
+    margin: 0;
     display: grid;
-    gap: 7px;
+    gap: var(--space-2);
     list-style: none;
   }
 
-  .job-facts li {
+  .job-match-panel li {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: var(--space-2);
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
     line-height: 1.35;
   }
 
-  .job-facts li::before {
-    content: "";
-    width: 8px;
-    height: 2px;
+  .job-match-panel li span {
+    width: 5px;
+    height: 5px;
     flex: none;
     border-radius: var(--radius-full);
     background: var(--color-accent);
-  }
-
-  @media (min-width: 540px) {
-    .job-facts ul {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: var(--space-6);
-    }
+    transform: translateY(-2px);
   }
 
 </style>

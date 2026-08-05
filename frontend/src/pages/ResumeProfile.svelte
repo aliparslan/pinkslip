@@ -382,6 +382,7 @@
       [parsed.projects?.length ?? 0, "project", "projects"],
       [parsed.education?.length ?? 0, "education entry", "education entries"],
       [parsed.skills?.length ?? 0, "skill group", "skill groups"],
+      [parsed.optionalSections?.length ?? 0, "additional section", "additional sections"],
     ] as const;
     return parts
       .filter(([count]) => count > 0)
@@ -402,6 +403,7 @@
     if (pendingImport.education?.length) profile.education = pendingImport.education.map(hydrateEducationEntry);
     if (pendingImport.projects?.length) profile.projects = pendingImport.projects;
     if (pendingImport.skills?.length) profile.skills = pendingImport.skills;
+    if (pendingImport.optionalSections?.length) profile.optionalSections = pendingImport.optionalSections;
     pendingImport = null;
     feedback.success("Resume imported");
     queueAutosave();
@@ -424,22 +426,7 @@
     onBack={handleBack}
   >
     {#snippet trailing()}
-      <div class="resume-nav-actions">
-        {#if view.kind === "overview" && !loading}
-          <button
-            type="button"
-            class="import-action"
-            aria-label="Import PDF"
-            title="Import PDF"
-            onclick={() => importInput?.click()}
-            disabled={importing}
-          >
-            {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
-            <span>Import</span>
-          </button>
-        {/if}
-        <SaveStatus phase={savePresentation.phase} />
-      </div>
+      <SaveStatus phase={savePresentation.phase} />
     {/snippet}
   </ScreenNav>
 
@@ -464,6 +451,15 @@
               <small>{contactLine() || "Add contact details"}</small>
             </span>
             <PencilSimple size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="import-action"
+            onclick={() => importInput?.click()}
+            disabled={importing}
+          >
+            {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
+            <span>Import PDF</span>
           </button>
         </section>
 
@@ -794,31 +790,30 @@
     padding-bottom: var(--space-6);
   }
 
-  .resume-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
-
   .import-action {
     appearance: none;
-    min-width: 44px;
-    height: 44px;
-    padding-inline: 11px;
+    min-height: 40px;
+    margin-block-start: var(--space-1);
+    margin-inline-start: -9px;
+    padding-inline: 9px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     border: 0;
     border-radius: var(--radius-full);
-    background: var(--color-accent-soft);
-    color: var(--color-accent-soft-ink);
+    background: transparent;
+    color: var(--color-ink-3);
     font: 600 var(--fs-xs) / 1 var(--font-sans);
     cursor: pointer;
   }
 
   .import-action:active {
     transform: scale(0.96);
+  }
+
+  .import-action:hover {
+    color: var(--color-accent-soft-ink);
   }
 
   .import-action:disabled {
@@ -843,19 +838,10 @@
   }
 
   .resume-identity {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     padding-block: var(--space-3) var(--space-5);
-  }
-
-  .resume-identity::after {
-    content: "";
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline-start: 0;
-    width: 48px;
-    height: 3px;
-    border-radius: var(--radius-full);
-    background: var(--color-accent);
   }
 
   .identity-button {
@@ -1287,16 +1273,6 @@
 
   .import-actions {
     margin-top: var(--space-5);
-  }
-
-  @media (max-width: 420px) {
-    .import-action {
-      padding-inline: 0;
-    }
-
-    .import-action span {
-      display: none;
-    }
   }
 
   @media (max-width: 540px) {
