@@ -187,7 +187,13 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
       return db.prepare(
         `INSERT INTO user_job_matches (
            user_id, job_id, matcher_version, matched_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?)
+         )
+         SELECT ?, ?, ?, ?, ?
+         WHERE NOT EXISTS (
+           SELECT 1
+           FROM job_review_queue
+           WHERE job_id = ? AND state != 'approved'
+         )
          ON CONFLICT(user_id, job_id) DO UPDATE SET
            matcher_version = excluded.matcher_version,
            matched_at = excluded.matched_at,
@@ -197,7 +203,8 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
         match.jobId,
         MATCHER_VERSION,
         now,
-        now
+        now,
+        match.jobId
       );
     }));
   }

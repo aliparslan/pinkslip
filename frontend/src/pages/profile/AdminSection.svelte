@@ -9,6 +9,7 @@
     type ProductMetrics,
   } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
+  import { feedback } from "../../lib/feedback.svelte";
   import Spinner from "../../components/Spinner.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
 
@@ -155,11 +156,14 @@
 
   async function moderateJobReview(jobId: string, state: "approved" | "rejected") {
     if (moderatingReviewId) return;
+    const review = jobReviews.find((item) => item.job_id === jobId);
+    if (!review) return;
+    const note = reviewNotes[jobId]?.trim() || undefined;
     moderatingReviewId = jobId;
     try {
       await api.interactions.updateJobReview(jobId, {
         state,
-        admin_note: reviewNotes[jobId]?.trim() || undefined,
+        admin_note: note,
       });
       jobReviews = jobReviews.filter((review) => review.job_id !== jobId);
       jobReviewTotal = Math.max(0, jobReviewTotal - 1);
@@ -170,7 +174,31 @@
       const nextOpenNotes = { ...reviewNoteOpen };
       delete nextOpenNotes[jobId];
       reviewNoteOpen = nextOpenNotes;
-      onSuccess(state === "approved" ? "Job approved for eligible feeds" : "Job rejected from feeds");
+      feedback.success(state === "approved" ? "Job approved" : "Job rejected", {
+        action: {
+          label: "Undo",
+          run: async () => {
+            try {
+              await api.interactions.updateJobReview(jobId, {
+                state: "needs_review",
+                admin_note: note,
+              });
+              if (!jobReviews.some((item) => item.job_id === jobId)) {
+                jobReviews = [
+                  { ...review, state: "needs_review", admin_note: note ?? null, reviewed_at: null },
+                  ...jobReviews,
+                ];
+                jobReviewTotal += 1;
+                jobReviewNextOffset += 1;
+              }
+              if (note) reviewNotes = { ...reviewNotes, [jobId]: note };
+              onSuccess("Review restored");
+            } catch (caught) {
+              onError(errorMessage(caught));
+            }
+          },
+        },
+      });
     } catch (caught) {
       onError(errorMessage(caught));
     } finally {
