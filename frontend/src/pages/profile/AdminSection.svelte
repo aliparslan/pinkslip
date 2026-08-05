@@ -5,6 +5,7 @@
     type ContentReport,
     type FeedbackSubmission,
     type FetchRun,
+    type JobReview,
     type ProductMetrics,
   } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
@@ -31,6 +32,15 @@
   let productMetrics: ProductMetrics | null = $state(null);
   let reports: ContentReport[] = $state([]);
   let feedbackInbox: FeedbackSubmission[] = $state([]);
+  let jobReviews: JobReview[] = $state([]);
+  let jobReviewTotal = $state(0);
+  let jobReviewsHaveMore = $state(false);
+  let jobReviewNextOffset = $state(0);
+  let loadingMoreReviews = $state(false);
+  let reviewsExpanded = $state(false);
+  let reviewNotes: Record<string, string> = $state({});
+  let reviewNoteOpen: Record<string, boolean> = $state({});
+  let moderatingReviewId: string | null = $state(null);
   let refreshingAll = $state(false);
   let refreshLog: string[] = $state([]);
   let refreshProgress = $state("");
@@ -81,17 +91,90 @@
     }
   }
 
+  function reviewReasonLabel(reason: string): string {
+    const labels: Record<string, string> = {
+      ambiguous_title_level: "Title level is ambiguous",
+      experience_requirement_unparsed: "Experience requirement is unclear",
+      advanced_degree_uncertain: "Advanced degree may be required",
+    };
+    return labels[reason] ?? reason.replaceAll("_", " ");
+  }
+
   async function loadAdminData() {
     loading = true;
     try {
-      [runs, productMetrics, reports, feedbackInbox] = await Promise.all([
+      const [nextRuns, nextMetrics, nextReports, nextFeedback, reviewResult] = await Promise.all([
         api.runs.list(50).then((result) => result.runs ?? []).catch(() => []),
         api.metrics.get().catch(() => null),
         api.interactions.reports("open").then((result) => result.reports).catch(() => []),
         api.interactions.feedback("active").then((result) => result.feedback).catch(() => []),
+        api.interactions.jobReviews("needs_review", 3, 0).catch(() => ({
+          reviews: [],
+          meta: { total: 0, count: 0, has_more: false, next_offset: 0 },
+        })),
       ]);
+      runs = nextRuns;
+      productMetrics = nextMetrics;
+      reports = nextReports;
+      feedbackInbox = nextFeedback;
+      jobReviews = reviewResult.reviews;
+      jobReviewTotal = reviewResult.meta.total;
+      jobReviewsHaveMore = reviewResult.meta.has_more;
+      jobReviewNextOffset = reviewResult.meta.next_offset;
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadMoreJobReviews() {
+    if (loadingMoreReviews || !jobReviewsHaveMore) return;
+    loadingMoreReviews = true;
+    try {
+      const result = await api.interactions.jobReviews("needs_review", 100, jobReviewNextOffset);
+      const loadedIds = new Set(jobReviews.map((review) => review.job_id));
+      jobReviews = [
+        ...jobReviews,
+        ...result.reviews.filter((review) => !loadedIds.has(review.job_id)),
+      ];
+      jobReviewTotal = result.meta.total;
+      jobReviewsHaveMore = result.meta.has_more;
+      jobReviewNextOffset = result.meta.next_offset;
+    } catch (caught) {
+      onError(errorMessage(caught));
+    } finally {
+      loadingMoreReviews = false;
+    }
+  }
+
+  async function expandJobReviews() {
+    reviewsExpanded = true;
+    if (jobReviewsHaveMore && jobReviews.length <= 3) {
+      await loadMoreJobReviews();
+    }
+  }
+
+  async function moderateJobReview(jobId: string, state: "approved" | "rejected") {
+    if (moderatingReviewId) return;
+    moderatingReviewId = jobId;
+    try {
+      await api.interactions.updateJobReview(jobId, {
+        state,
+        admin_note: reviewNotes[jobId]?.trim() || undefined,
+      });
+      jobReviews = jobReviews.filter((review) => review.job_id !== jobId);
+      jobReviewTotal = Math.max(0, jobReviewTotal - 1);
+      jobReviewNextOffset = Math.max(0, jobReviewNextOffset - 1);
+      const nextNotes = { ...reviewNotes };
+      delete nextNotes[jobId];
+      reviewNotes = nextNotes;
+      const nextOpenNotes = { ...reviewNoteOpen };
+      delete nextOpenNotes[jobId];
+      reviewNoteOpen = nextOpenNotes;
+      onSuccess(state === "approved" ? "Job approved for eligible feeds" : "Job rejected from feeds");
+    } catch (caught) {
+      onError(errorMessage(caught));
+    } finally {
+      moderatingReviewId = null;
     }
   }
 
@@ -186,7 +269,7 @@
           <dl>
             <div><dt>Viable profiles</dt><dd>{productMetrics.users_with_enough_matches}/{productMetrics.total_profiles}</dd></div>
             <div><dt>Onboarding completion</dt><dd>{productMetrics.onboarding_completion_rate}%</dd></div>
-            <div><dt>High-match dismissals</dt><dd>{productMetrics.high_score_dismissal_rate}%</dd></div>
+            <div><dt>Eligible-job dismissals</dt><dd>{productMetrics.eligible_job_dismissal_rate}%</dd></div>
             <div><dt>Profile changes</dt><dd>{productMetrics.profile_adjustments}</dd></div>
           </dl>
         </section>
@@ -255,7 +338,7 @@
       <div class="admin-section-heading"><h2>Listing reports</h2><span>{reports.length} open</span></div>
       <div class="surface-list">
         {#if reports.length === 0}
-          <div class="surface-empty">Nothing needs review.</div>
+          <div class="surface-empty">No open reports.</div>
         {:else}
           {#each reports as report}
             <div class="list-entry">
@@ -271,6 +354,102 @@
               </div>
             </div>
           {/each}
+        {/if}
+      </div>
+    </section>
+
+    <section class="admin-section review-section">
+      <div class="admin-section-heading">
+        <h2>Needs review</h2>
+        <span>{jobReviewTotal} open</span>
+      </div>
+      <div class="surface-list">
+        {#if jobReviews.length === 0}
+          <div class="surface-empty">Nothing needs review.</div>
+        {:else}
+          {#each (reviewsExpanded ? jobReviews : jobReviews.slice(0, 3)) as review}
+            <article class="list-entry review-entry">
+              <div class="list-entry-title">{review.title}</div>
+              <div class="list-entry-meta">{review.company_name} · {review.location}</div>
+
+              <div class="review-reasons">
+                <span>Flagged because</span>
+                <ul>
+                  {#each review.reason_codes as reason}
+                    <li>{reviewReasonLabel(reason)}</li>
+                  {/each}
+                </ul>
+              </div>
+
+              <div class="review-links">
+                <a href={review.url} target="_blank" rel="noopener noreferrer" class="text-link">
+                  Source listing
+                </a>
+                <button
+                  type="button"
+                  class="text-button review-note-toggle"
+                  aria-expanded={reviewNoteOpen[review.job_id] === true}
+                  aria-controls={`review-note-${review.job_id}`}
+                  onclick={() => {
+                    reviewNoteOpen = {
+                      ...reviewNoteOpen,
+                      [review.job_id]: !reviewNoteOpen[review.job_id],
+                    };
+                  }}
+                >{reviewNoteOpen[review.job_id] ? "Hide note" : "Add note"}</button>
+              </div>
+
+              {#if reviewNoteOpen[review.job_id]}
+                <div class="review-note">
+                  <textarea
+                    id={`review-note-${review.job_id}`}
+                    class="input-field textarea-field"
+                    aria-label="Review note"
+                    rows="2"
+                    placeholder="Optional note"
+                    value={reviewNotes[review.job_id] ?? ""}
+                    oninput={(event) => {
+                      reviewNotes = { ...reviewNotes, [review.job_id]: event.currentTarget.value };
+                    }}
+                  ></textarea>
+                </div>
+              {/if}
+
+              <div class="action-row compact list-entry-actions">
+                <button
+                  class="btn-secondary"
+                  disabled={moderatingReviewId !== null}
+                  onclick={() => moderateJobReview(review.job_id, "rejected")}
+                >Reject</button>
+                <button
+                  class="btn-primary btn-accent"
+                  disabled={moderatingReviewId !== null}
+                  onclick={() => moderateJobReview(review.job_id, "approved")}
+                >
+                  {#if moderatingReviewId === review.job_id}<Spinner />{/if}
+                  Approve
+                </button>
+              </div>
+            </article>
+          {/each}
+
+          {#if !reviewsExpanded && (jobReviewsHaveMore || jobReviewTotal > jobReviews.length)}
+            <button class="review-disclosure" type="button" disabled={loadingMoreReviews} onclick={expandJobReviews}>
+              {#if loadingMoreReviews}<Spinner />{/if}
+              <span>View all {jobReviewTotal}</span>
+              <CaretDown size={16} weight="bold" aria-hidden="true" />
+            </button>
+          {:else if reviewsExpanded}
+            <div class="review-pagination">
+              {#if jobReviewsHaveMore}
+                <button class="btn-secondary full-width" disabled={loadingMoreReviews} onclick={loadMoreJobReviews}>
+                  {#if loadingMoreReviews}<Spinner />{/if}
+                  Load more
+                </button>
+              {/if}
+              <button class="text-button" type="button" onclick={() => (reviewsExpanded = false)}>Show less</button>
+            </div>
+          {/if}
         {/if}
       </div>
     </section>
@@ -371,9 +550,10 @@
   .metric-group h3 {
     margin: 0;
     color: var(--color-ink);
-    font-size: var(--fs-base);
+    font-size: var(--fs-lg);
     font-weight: 600;
     letter-spacing: -0.01em;
+    line-height: 1.3;
   }
 
   .admin-section-heading span {
@@ -395,6 +575,7 @@
     margin-bottom: 7px;
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
+    letter-spacing: 0;
   }
 
   .metric-group dl { margin: 0; }
@@ -498,6 +679,91 @@
   .run-issue-more summary :global(svg) { flex: none; transition: transform var(--duration-fast) var(--ease-standard); }
   .run-issue-more[open] summary :global(svg) { transform: rotate(180deg); }
   .run-issue-more-list { padding: 2px 0 3px; display: grid; gap: 8px; }
+
+  .admin-section :global(.list-entry-title) {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .admin-section :global(.list-entry-detail) {
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+
+  .review-entry {
+    padding-block: 16px;
+  }
+
+  .review-reasons {
+    margin-top: 12px;
+    display: grid;
+    gap: 3px;
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+  }
+
+  .review-reasons > span {
+    color: var(--color-ink-4);
+  }
+
+  .review-reasons ul {
+    margin: 0;
+    padding-inline-start: 18px;
+    color: var(--color-ink-2);
+  }
+
+  .review-links {
+    min-height: 36px;
+    margin-top: 7px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: var(--fs-xs);
+  }
+
+  .review-note-toggle {
+    min-height: 36px;
+    padding-block: 0;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+  }
+
+  .review-note {
+    margin-top: 6px;
+    display: block;
+  }
+
+  .review-note :global(.textarea-field) {
+    min-height: 76px;
+  }
+
+  .review-disclosure {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-top: 0.5px solid var(--color-line);
+    background: transparent;
+    color: var(--color-accent);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .review-disclosure:hover { background: var(--color-bg-sunken); }
+
+  .review-pagination {
+    padding: 12px 16px;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    border-top: 0.5px solid var(--color-line);
+  }
 
   @media (min-width: 760px) {
     .metric-summary {
