@@ -1,0 +1,268 @@
+/* Native-shell policy. Imported only by apps/ios after the shared stylesheet;
+   keeping these rules out of app.css prevents iOS behavior from leaking into
+   the web bundle and makes platform exceptions visible in one place. */
+
+html.native-ios body { -webkit-touch-callout: default; }
+
+html.native-ios {
+  --control-height-compact: var(--tap-min);
+  --control-height-small: var(--tap-min);
+  --duration-exit: 160ms;
+  --duration-route: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --color-native-modal-scrim: oklch(0 0 0 / 0.64);
+}
+
+html.native-ios[data-mode="light"] {
+  --color-native-modal-scrim: oklch(0 0 0 / 0.46);
+}
+
+html.native-ios :where(button, a, input, textarea, select, summary, [role="button"]) {
+  touch-action: manipulation;
+}
+
+/* WKWebView zooms focused fields below 16px. */
+html.native-ios input,
+html.native-ios textarea {
+  font-size: 16px;
+}
+
+html.native-ios .job-description-link { min-height: var(--tap-min); }
+html.native-ios .my-jobs-tabs { height: 50px; }
+
+html.native-ios .native-boot-error {
+  min-height: 100dvh;
+  padding: calc(var(--safe-top) + var(--space-10)) var(--space-6) calc(var(--safe-bottom) + var(--space-10));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+  text-align: center;
+  background: var(--color-bg);
+}
+
+.native-boot-error-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--space-4);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  color: var(--color-ink-2);
+  background: var(--color-bg-elev);
+}
+
+.native-boot-error h1 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.native-boot-error p {
+  max-width: 30ch;
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.native-boot-error .btn-secondary { min-width: 132px; }
+
+html.native-ios details.filter-advanced {
+  display: block;
+  margin: 0;
+}
+
+html.native-ios details.filter-advanced > summary { min-height: var(--tap-min); }
+
+html.native-ios .feed-loading-more {
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+}
+
+.app-content-shell {
+  width: 100%;
+  max-width: var(--app-mobile-width);
+  margin: 0 auto;
+  background: var(--color-bg);
+}
+
+.app-content-shell > .page-loading { min-height: 100dvh; }
+
+.app-content-shell.nav-foreground {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-content-shell.mobile-tabs-visible {
+  padding-bottom: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
+}
+
+.app-content-shell.admin-shell-active {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.screen-nav.collapsible .screen-nav__title {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.screen-nav.collapsible.compact-title-visible .screen-nav__title {
+  opacity: 1;
+  transform: none;
+}
+
+.screen-large-title {
+  margin: var(--space-2) 0 var(--space-6);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-4xl);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+html.native-ios .modal-backdrop {
+  background: var(--color-native-modal-scrim);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Interactive swipe-back: the live page reveals a static snapshot of the
+   previous screen. Keeping the transition CSS native-only avoids web work. */
+.status-bar-scrim {
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0);
+  z-index: 30;
+  background: var(--color-bg);
+  pointer-events: none;
+}
+
+.nav-foreground {
+  position: relative;
+  z-index: 1;
+  background: var(--color-bg);
+}
+
+.nav-foreground.is-swiping {
+  will-change: transform;
+  box-shadow: var(--shadow-nav-swipe);
+}
+
+.nav-underlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--color-bg);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.app-content-shell.nav-underlay-shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.nav-underlay-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.14;
+  background: var(--color-nav-dim);
+  pointer-events: none;
+}
+
+/* Backdrop blur is expensive while a full viewport is translating. */
+/* stylelint-disable declaration-no-important */
+body.nav-animating .screen-nav,
+body.nav-animating .tab-bar,
+body.nav-animating .feed-controls,
+body.nav-animating .onboarding-footer,
+body.nav-animating .toast-message {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--color-bg) !important;
+}
+
+body.nav-animating .tab-bar { z-index: 0; }
+/* stylelint-enable declaration-no-important */
+
+html.native-ios :where(
+  .btn-primary,
+  .btn-secondary,
+  .btn-action,
+  .btn-mini,
+  .icon-btn,
+  .filter-button,
+  .screen-nav__back,
+  .chip,
+  .filter-choice,
+  .segmented-control button
+):active {
+  transform: scale(0.96);
+}
+
+body.nav-animating .pushed-screen,
+.nav-underlay .pushed-screen {
+  animation: none;
+}
+
+@media (min-width: 900px) {
+  .app-content-shell {
+    width: calc(100vw - var(--app-nav-wide));
+    max-width: none;
+    margin-left: var(--app-nav-wide);
+    margin-right: 0;
+  }
+
+  .app-content-shell.mobile-tabs-visible { padding-bottom: 0; }
+}
+
+/* Native tab bars leave with the software keyboard, including the short gap
+   before :focus catches up with Capacitor's keyboard events. */
+@media (max-width: 899px) {
+  html.native-ios :where(body:has(input:focus, textarea:focus, [contenteditable="true"]:focus)) .tab-bar,
+  html.native-ios :where(body.native-keyboard-visible) .tab-bar {
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, calc(100% + 2px), 0);
+    visibility: hidden;
+  }
+
+  :where(body):has(input:focus, textarea:focus, [contenteditable="true"]:focus) .app-content-shell.mobile-tabs-visible,
+  body.native-keyboard-visible .app-content-shell.mobile-tabs-visible {
+    padding-bottom: 0;
+  }
+
+  body.native-keyboard-visible .root-screen {
+    min-height: calc(100dvh - var(--root-header-height));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.native-ios {
+    --duration-exit: 1ms;
+    --duration-route: 1ms;
+  }
+}

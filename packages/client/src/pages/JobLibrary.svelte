@@ -7,6 +7,7 @@
   import Spinner from "../components/Spinner.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
+  import { isIosApp } from "../lib/platform";
 
   let { routeOverride }: { routeOverride?: string } = $props();
 
@@ -19,6 +20,7 @@
     route.endsWith("/applied") ? "applied" : "saved"
   );
   let visibleJobs = $derived(activeView === "applied" ? appliedJobs : savedJobs);
+  const nativeIos = isIosApp();
 
   function selectView(view: "saved" | "applied", moveFocus = false) {
     navigate(`/library/${view}`);
@@ -107,7 +109,10 @@
       {#if loading}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading jobs" /></div>
       {:else if error}
-        <div class="alert alert-error" role="alert">{error}</div>
+        <div class="alert alert-error" role="alert">
+          {error}
+          {#if nativeIos}<button class="btn-secondary" onclick={() => void loadJobs()}>Try again</button>{/if}
+        </div>
       {:else if visibleJobs.length === 0}
         <div class="my-jobs-empty">
           {#if activeView === "saved"}
@@ -119,6 +124,7 @@
             <h2>No applications yet</h2>
             <p>Jobs you mark as applied will become your application history.</p>
           {/if}
+          {#if nativeIos}<button class="btn-primary btn-accent" onclick={() => navigate("/")}>Browse jobs</button>{/if}
         </div>
       {:else}
         <div class="my-jobs-list">

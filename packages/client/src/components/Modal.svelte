@@ -3,6 +3,8 @@
   import { fade, fly } from "svelte/transition";
   import { focusTrap } from "../lib/focus-trap";
   import { registerModalOpen } from "../lib/modal-stack.svelte";
+  import { createFrameBatch, nextFrame, waitForAnimations } from "../lib/motion";
+  import { isIosApp } from "../lib/platform";
 
   let {
     title,
@@ -41,6 +43,9 @@
   let lastY = 0;
   let lastT = 0;
   let velocity = 0;
+  let closing = $state(false);
+  const nativeIos = isIosApp();
+  const dragBatch = createFrameBatch<number>((value) => { dragY = value; }, nativeIos);
 
   function onHandlePointerDown(event: PointerEvent) {
     if (busy) return;
@@ -59,22 +64,35 @@
     if (dt > 0) velocity = (event.clientY - lastY) / dt;
     lastY = event.clientY;
     lastT = now;
-    dragY = Math.max(0, event.clientY - startY);
+    const next = Math.max(0, event.clientY - startY);
+    dragBatch.schedule(next);
   }
 
-  function onHandlePointerUp(event: PointerEvent) {
+  async function onHandlePointerUp(event: PointerEvent) {
     if (!dragging || pointerId !== event.pointerId) return;
+    dragBatch.flush();
     dragging = false;
     pointerId = null;
     const cardHeight = cardEl?.offsetHeight ?? 400;
     if (dragY > cardHeight * 0.3 || velocity > 0.5) {
-      requestClose();
+      if (!nativeIos) {
+        requestClose();
+      } else {
+        closing = true;
+        dragY = cardHeight + 80;
+        await nextFrame();
+        await waitForAnimations([cardEl], 300);
+        requestClose();
+      }
+      return;
     }
     dragY = 0;
   }
 
   let backdropOpacity = $derived(
-    dragging && cardEl ? Math.max(0.4, 1 - dragY / cardEl.offsetHeight) : 1
+    nativeIos
+      ? (dragging || closing) && cardEl ? Math.max(0, 1 - dragY / cardEl.offsetHeight) : 1
+      : dragging && cardEl ? Math.max(0.4, 1 - dragY / cardEl.offsetHeight) : 1
   );
 </script>
 
@@ -98,6 +116,7 @@
       bind:this={cardEl}
       class="modal-card"
       class:dragging
+      class:closing
       role="dialog"
       aria-modal="true"
       use:focusTrap

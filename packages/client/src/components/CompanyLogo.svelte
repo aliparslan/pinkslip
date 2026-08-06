@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { resolveApiUrl } from "../lib/api";
+  import { isIosApp } from "../lib/platform";
   import { companyMark } from "../lib/utils";
 
   let { name, domain, size = 44 }: {
@@ -8,6 +10,7 @@
   } = $props();
 
   let imgFailed: boolean = $state(false);
+  const nativeIos = isIosApp();
 
   let cleanDomain = $derived.by(() => {
     if (!domain) return null;
@@ -19,7 +22,7 @@
   // Google's favicon service directly about which companies the user views.
   let logoUrl = $derived(
     cleanDomain && !imgFailed
-      ? `/api/logo?domain=${encodeURIComponent(cleanDomain)}`
+      ? resolveApiUrl(`/logo?domain=${encodeURIComponent(cleanDomain)}`)
       : null
   );
 
@@ -39,6 +42,8 @@
     <img
       src={logoUrl}
       alt={name}
+      loading={nativeIos ? "lazy" : "eager"}
+      decoding={nativeIos ? "async" : "auto"}
       onerror={() => { imgFailed = true; }}
     />
   {:else}

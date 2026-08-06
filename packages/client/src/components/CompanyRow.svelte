@@ -111,7 +111,7 @@
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            class="company-actions"
+            class="menu-surface company-actions"
             side="bottom"
             align="end"
             sideOffset={6}
@@ -119,10 +119,10 @@
             strategy="fixed"
             preventScroll={false}
           >
-            <DropdownMenu.Item class="company-action-item" onSelect={() => onEdit?.(company.id)}>
+            <DropdownMenu.Item class="menu-item" onSelect={() => onEdit?.(company.id)}>
             <PencilSimple size={16} /> Edit source
             </DropdownMenu.Item>
-            <DropdownMenu.Item class="company-action-item danger" onSelect={() => onDelete?.(company.id, company.name)}>
+            <DropdownMenu.Item class="menu-item danger" onSelect={() => onDelete?.(company.id, company.name)}>
               <Trash size={16} /> Remove source
             </DropdownMenu.Item>
           </DropdownMenu.Content>
@@ -227,35 +227,9 @@
   }
 
   :global(.company-actions) {
-    z-index: var(--z-overlay);
     width: min(188px, calc(100vw - 24px));
-    padding: 5px;
-    border: 1px solid var(--color-line-2);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-elev);
     box-shadow: var(--shadow-overlay);
-    outline: none;
   }
-
-  :global(.company-action-item) {
-    width: 100%;
-    min-height: 40px;
-    padding: 0 9px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--color-ink-2);
-    font-size: var(--fs-sm);
-    text-align: left;
-    cursor: pointer;
-  }
-
-  :global(.company-action-item:hover),
-  :global(.company-action-item[data-highlighted]) { background: var(--color-bg-sunken); }
-  :global(.company-action-item.danger) { color: var(--color-bad); }
 
   @media (max-width: 390px) {
     .company-row { padding-right: 8px; }

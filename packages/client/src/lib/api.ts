@@ -28,6 +28,40 @@ export function configureApiClient(config: ApiClientConfig): void {
   };
 }
 
+/** Resolve an API-relative path against the active client origin. The web app
+ * keeps its same-origin `/api` base, while the packaged iOS WebView uses the
+ * configured HTTPS origin instead of resolving assets under capacitor://. */
+export function resolveApiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${clientConfig.baseUrl}${normalizedPath}`;
+}
+
+/** Fetch a response body without consuming it while preserving the configured
+ * native API origin and bearer session. Used by streaming endpoints. */
+export async function apiFetch(path: string, options?: RequestInit, allowTokenRecovery = true): Promise<Response> {
+  const headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
+  const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
+  if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
+
+  const response = await fetch(resolveApiUrl(path), {
+    credentials: "include",
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401 && allowTokenRecovery && clientConfig.onInvalidAccessToken) {
+    const payload = await response.clone().json().catch(() => null) as { code?: string } | null;
+    if (payload?.code === "invalid_token") {
+      await response.body?.cancel().catch(() => undefined);
+      await clientConfig.onInvalidAccessToken(requestAccessToken);
+      return apiFetch(path, options, false);
+    }
+  }
+  return response;
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -45,29 +79,19 @@ export class ApiError extends Error {
 async function request<T>(
   path: string,
   options?: RequestInit,
-  timeoutMs = 20_000,
-  allowTokenRecovery = true
+  timeoutMs = 20_000
 ): Promise<T> {
   const method = (options?.method ?? "GET").toUpperCase();
   const attempts = method === "GET" ? 2 : 1;
   const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
   let res: Response | null = null;
-  let requestAccessToken: string | null = null;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const headers = new Headers(options?.headers);
-      if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-      if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
-      requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
-      if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
-
-      res = await fetch(`${clientConfig.baseUrl}${path}`, {
-        credentials: "include",
+      res = await apiFetch(path, {
         ...options,
-        headers,
         signal: controller.signal,
       });
     } catch (error) {
@@ -113,13 +137,6 @@ async function request<T>(
     const data = typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : undefined;
     const message = typeof data?.error === "string" ? data.error : `API error: ${res.status}`;
     const code = typeof data?.code === "string" ? data.code : undefined;
-    if (code === "invalid_token" && allowTokenRecovery && clientConfig.onInvalidAccessToken) {
-      // A sign-in response can rotate the native token while an older request
-      // is still in flight. Tell the adapter which token was rejected so it
-      // does not replace a newer authenticated session with a fresh guest.
-      await clientConfig.onInvalidAccessToken(requestAccessToken);
-      return request<T>(path, options, timeoutMs, false);
-    }
     throw new ApiError(message, res.status, code, payload);
   }
 
@@ -397,6 +414,11 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ applied: true, dismissed: true }),
       }),
+    unmarkApplied: (id: string) =>
+      request<Job>(`/jobs/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ applied: false, dismissed: false }),
+      }),
   },
   companies: {
     list: (atsType?: string) => {
@@ -629,6 +651,8 @@ export const api = {
       request<{ job_ids: string[] }>("/interactions/viewed-jobs"),
     markViewed: (jobId: string) =>
       request<void>(`/interactions/viewed-jobs/${jobId}`, { method: "POST" }),
+    markUnviewed: (jobId: string) =>
+      request<void>(`/interactions/viewed-jobs/${jobId}`, { method: "DELETE" }),
     report: (data: {
       company_id?: string;
       job_id?: string;

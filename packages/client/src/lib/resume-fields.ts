@@ -1,5 +1,17 @@
 import type { DegreeType } from "../../../../shared/resume-profile";
 
+const STRUCTURAL_RESUME_KEYS = new Set(["id", "kind", "degreeType"]);
+
+export function hasResumeContent(value: unknown, key = ""): boolean {
+  if (STRUCTURAL_RESUME_KEYS.has(key)) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((item) => hasResumeContent(item));
+  if (value && typeof value === "object") {
+    return Object.entries(value).some(([nextKey, item]) => hasResumeContent(item, nextKey));
+  }
+  return false;
+}
+
 export const DEGREE_OPTIONS: ReadonlyArray<{ value: DegreeType; label: string }> = [
   { value: "high_school", label: "High school diploma" },
   { value: "associate", label: "Associate degree" },

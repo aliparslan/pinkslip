@@ -4,7 +4,6 @@
   import { requestBack } from "../lib/nav-back";
   import { api, type Job } from "../lib/api";
   import { errorMessage } from "../lib/utils";
-  import { hapticLight } from "../lib/haptics";
   import { shareLink } from "../lib/share";
   import { feed } from "../lib/feed-store.svelte";
   import { sessionAccess } from "../lib/session-access";
@@ -13,6 +12,7 @@
   import { applicationIntent } from "../lib/application-intent.svelte";
   import { jobOriginalTimingLabel, jobTimingLabel } from "../lib/job-timing";
   import { presentPending } from "../lib/task-presentation.svelte";
+  import { isIosApp } from "../lib/platform";
   import { roleLabel } from "../../../../shared/search-profile";
   import {
     extractPlainTextFromHtml,
@@ -64,6 +64,7 @@
   let descriptionRefreshAttempts = 0;
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
+  const nativeIos = isIosApp();
 
   function clearDescriptionRefreshTimer() {
     if (descriptionRefreshTimer !== null) {
@@ -74,6 +75,12 @@
 
   function removeFromFeedStore(id: string) {
     feed.jobs = feed.jobs.filter((item) => item.id !== id);
+  }
+
+  function restoreToFeedStore(nextJob: Job) {
+    if (!feed.jobs.some((item) => item.id === nextJob.id)) {
+      feed.jobs = [nextJob, ...feed.jobs];
+    }
   }
 
   function syncJobState(nextJob: Job) {
@@ -142,9 +149,20 @@
   });
 
   async function markApplied() {
-    if (!jobId || !job || applying || applied) return;
+    if (!jobId || !job || applying || (!nativeIos && applied)) return;
     applying = true;
     try {
+      if (nativeIos && applied) {
+        const restored = await presentPending(
+          () => api.jobs.unmarkApplied(jobId),
+          (pending) => { applyingPending = pending; },
+        );
+        applied = false;
+        job = restored;
+        restoreToFeedStore(restored);
+        feedback.success("Removed from applied jobs");
+        return;
+      }
       await presentPending(
         () => api.jobs.markApplied(jobId),
         (pending) => { applyingPending = pending; },
@@ -179,12 +197,25 @@
   }
 
   async function handleDismiss() {
-    if (!jobId) return;
+    if (!jobId || !job) return;
+    const dismissedJob = job;
     dismissing = true;
     try {
       await api.jobs.dismiss(jobId);
       removeFromFeedStore(jobId);
       navigate("/");
+      if (nativeIos) {
+        feedback.show({
+          message: "Job hidden from your feed",
+          action: {
+            label: "Undo",
+            run: async () => {
+              const restored = await api.jobs.undismiss(dismissedJob.id);
+              restoreToFeedStore(restored);
+            },
+          },
+        });
+      }
     } catch (e) {
       feedback.error(errorMessage(e, "Could not dismiss this job."));
       dismissing = false;
@@ -193,7 +224,6 @@
 
   function shareJob() {
     if (!job) return;
-    hapticLight();
     void shareLink({
       title: `${job.title} · ${job.company_name}`,
       text: `${job.title} at ${job.company_name}`,
@@ -205,7 +235,6 @@
     if (!jobId) return;
     const newVal = !saved;
     saved = newVal;
-    hapticLight();
     try {
       if (newVal) {
         await api.savedJobs.save(jobId);
@@ -233,11 +262,25 @@
 
   async function hideCompany() {
     if (!job?.company_id || hidingCompany) return;
+    const companyId = job.company_id;
+    const previousJobs = [...feed.jobs];
     hidingCompany = true;
     try {
-      await api.companies.block(job.company_id);
+      await api.companies.block(companyId);
       feed.jobs = feed.jobs.filter((item) => item.company_id !== job?.company_id);
       navigate("/");
+      if (nativeIos) {
+        feedback.show({
+          message: `${job.company_name} hidden`,
+          action: {
+            label: "Undo",
+            run: async () => {
+              await api.companies.restore(companyId);
+              feed.jobs = previousJobs;
+            },
+          },
+        });
+      }
     } catch (e) {
       feedback.error(errorMessage(e, "Could not hide this company."));
       hidingCompany = false;
@@ -271,6 +314,11 @@
   let quickFacts = $derived.by(() => {
     if (!job) return [];
     const details: string[] = [];
+    if (nativeIos) {
+      if (job.sponsorship_available === true) details.push("Sponsorship available");
+      if (!displaySalary) details.push("Salary not listed");
+      return details;
+    }
     if (job.match_fact) details.push(job.match_fact);
     const specialty = job.specialties?.[0];
     if (specialty) details.push(`${roleLabel(specialty)} role`);
@@ -292,14 +340,15 @@
 
 <div class="page pushed-screen">
   <ScreenNav
-    title=""
+    title={nativeIos ? job?.title ?? "" : ""}
+    collapsible={Boolean(job)}
     backLabel="Back to jobs"
     onBack={() => { if (!requestBack()) navigate("/"); }}
   >
     {#snippet trailing()}
       <div class="job-header-actions">
       <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
-        <Export size={19} color="var(--color-ink-3)" />
+        <Export size={19} color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
       </button>
       <button
         class="icon-btn"
@@ -314,11 +363,11 @@
       </button>
       <DropdownMenu.Root bind:open={showMore}>
         <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
-          <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
+          <DotsThree size={22} weight="bold" color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            class="job-more-menu"
+            class="menu-surface job-more-menu"
             side="bottom"
             align="end"
             sideOffset={6}
@@ -327,19 +376,19 @@
             preventScroll={false}
           >
             <DropdownMenu.Item
-              class="job-more-menu-item"
+              class="menu-item"
               disabled={hidingCompany}
               onSelect={() => void hideCompany()}
             >
               {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
               <span>Hide {job?.company_name ?? "company"}</span>
             </DropdownMenu.Item>
-            <DropdownMenu.Item class="job-more-menu-item" onSelect={() => { showReport = true; }}>
+            <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
               <Flag size={17} />
               <span>Report listing</span>
             </DropdownMenu.Item>
             {#if $sessionAccess.isAdmin}
-              <DropdownMenu.Item class="job-more-menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
+              <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
                 <Trash size={17} />
                 <span>Block for everyone</span>
               </DropdownMenu.Item>
@@ -368,14 +417,14 @@
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
         <div class="job-detail-heading">
           <div class="job-detail-company-line">
-            <div class="section-label job-detail-company">
+            <div class="section-label truncate">
               {job.company_name} · {jobTimingLabel(job)}
             </div>
             {#if job.closed_at}
               <div class="tag">closed</div>
             {/if}
           </div>
-          <h1 class="h-display h-display-md job-detail-title">
+          <h1 class="h-display h-display-md job-detail-title" data-screen-title-anchor>
             {job.title}
           </h1>
         </div>
@@ -417,7 +466,8 @@
           <button
             class="btn-secondary btn-action"
             class:completed={applied}
-            disabled={applied || applying}
+            disabled={applying || (!nativeIos && applied)}
+            aria-pressed={nativeIos ? applied : undefined}
             onclick={markApplied}
           >
             {#if applyingPending}
@@ -526,7 +576,7 @@
 </div>
 
 {#if !loading && !error && job}
-  <div class="job-action-bar-wrap">
+  <div class="job-action-bar-wrap" data-nav-snapshot="exclude">
     <div class="job-action-bar">
       {#if job.url}
         <button
@@ -573,6 +623,14 @@
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.2;
+  }
+
+  :global(html.native-ios) .job-detail-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
   }
 
   .state-icon,
@@ -662,14 +720,17 @@
     onclose={() => (showReport = false)}
   >
     <div class="form-stack">
-      <select class="input-field" bind:value={reportType}>
+      {#if nativeIos}<label for="job-report-type">Reason</label>{/if}
+      <select id="job-report-type" class="input-field" aria-label={nativeIos ? undefined : "Reason"} bind:value={reportType}>
         <option value="expired_listing">Listing is closed</option>
         <option value="incorrect_details">Details are incorrect</option>
         <option value="duplicate_listing">Duplicate listing</option>
         <option value="broken_source">Company source is broken</option>
         <option value="other">Something else</option>
       </select>
+      {#if nativeIos}<label for="job-report-notes">Details <span class="field-optional">optional</span></label>{/if}
       <textarea
+        id="job-report-notes"
         class="input-field textarea-field"
         rows="4"
         placeholder="Optional context"

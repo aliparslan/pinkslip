@@ -6,6 +6,7 @@
   import { feed, markLocationsManuallySet, PAGE_SIZE, type PostedFilter } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import JobRow from "../components/JobRow.svelte";
+  import VirtualJobList from "../components/VirtualJobList.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
   import Modal from "../components/Modal.svelte";
@@ -22,11 +23,13 @@
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import X from "phosphor-svelte/lib/X";
   import { dragDismiss } from "../lib/drag-dismiss";
+  import { createFrameBatch, delay } from "../lib/motion";
   import {
     LOCATION_OPTIONS,
     type LocationId,
   } from "../../../../shared/search-profile";
   import { MAX_POSTED_AGE_DAYS } from "../../../../shared/job-policy";
+  import { isIosApp } from "../lib/platform";
 
   // Compact labels for the shared metro catalog. The filter sends metro
   // IDs to the API, so every onboarding metro is filterable here too.
@@ -94,6 +97,11 @@
   let blockCandidate: Job | null = $state(null);
   let blockingJob = $state(false);
   const hiddenJobPositions = new Map<string, number>();
+  const nativeIos = isIosApp();
+  const pullBatch = createFrameBatch<number>((value) => {
+    pullOffset = value;
+    pullArmed = value >= 44;
+  }, nativeIos);
 
   function removeJob(id: string) {
     const index = feed.jobs.findIndex((job) => job.id === id);
@@ -208,14 +216,20 @@
   async function loadFeedPage(options?: {
     silent?: boolean;
     append?: boolean;
+    mergeFresh?: boolean;
+    minimumBusyMs?: number;
     limit?: number;
     offset?: number;
   }) {
     const silent = options?.silent ?? false;
     const append = options?.append ?? false;
+    const mergeFresh = options?.mergeFresh ?? false;
+    const minimumBusyMs = options?.minimumBusyMs ?? 0;
     const limit = options?.limit ?? PAGE_SIZE;
     const offset = options?.offset ?? 0;
     const hadJobs = feed.jobs.length > 0;
+    const previousJobs = feed.jobs;
+    const busyStartedAt = performance.now();
     const version = ++requestVersion;
 
     if (append) {
@@ -229,15 +243,23 @@
     }
 
     try {
-      if (!append) {
-        const statsRes = await api.stats.get();
-
+      let jobsRes: Awaited<ReturnType<typeof api.jobs.list>>;
+      if (!append && nativeIos) {
+        const [statsRes, nextJobs] = await Promise.all([
+          api.stats.get(),
+          api.jobs.list(buildFeedParams(limit, offset)),
+        ]);
         if (version !== requestVersion) return;
-
         feed.lastPolled = statsRes.lastPolled ?? null;
+        jobsRes = nextJobs;
+      } else {
+        if (!append) {
+          const statsRes = await api.stats.get();
+          if (version !== requestVersion) return;
+          feed.lastPolled = statsRes.lastPolled ?? null;
+        }
+        jobsRes = await api.jobs.list(buildFeedParams(limit, offset));
       }
-
-      const jobsRes = await api.jobs.list(buildFeedParams(limit, offset));
       if (version !== requestVersion) return;
 
       const incoming = jobsRes.jobs ?? [];
@@ -249,13 +271,22 @@
         }).catch(() => undefined);
       }
       if (append) {
-        feed.jobs = [...feed.jobs, ...incoming];
+        if (nativeIos) {
+          const existing = new Set(feed.jobs.map((job) => job.id));
+          feed.jobs = [...feed.jobs, ...incoming.filter((job) => !existing.has(job.id))];
+        } else {
+          feed.jobs = [...feed.jobs, ...incoming];
+        }
+      } else if (mergeFresh) {
+        const freshIds = new Set(incoming.map((job) => job.id));
+        feed.jobs = [...incoming, ...previousJobs.filter((job) => !freshIds.has(job.id))];
       } else {
         feed.jobs = incoming;
       }
 
       feed.hasMore = Boolean(jobsRes.meta?.has_more);
-      feed.nextOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
+      const serverOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
+      feed.nextOffset = mergeFresh ? Math.max(previousJobs.length, serverOffset) : serverOffset;
       feed.hydrated = true;
       feed.lastLoadedAt = Date.now();
     } catch (e) {
@@ -265,18 +296,23 @@
       }
     } finally {
       if (version === requestVersion) {
+        if (append && minimumBusyMs > 0) {
+          const remaining = minimumBusyMs - (performance.now() - busyStartedAt);
+          if (remaining > 0) await delay(remaining);
+        }
         loading = false;
         loadingMore = false;
       }
     }
   }
 
-  async function loadFeed(silent = false) {
+  async function loadFeed(silent = false, preserveExisting = nativeIos && silent) {
     const preservedCount = Math.max(feed.jobs.length, PAGE_SIZE);
     await loadFeedPage({
       silent,
       append: false,
-      limit: preservedCount,
+      mergeFresh: nativeIos && preserveExisting && feed.jobs.length > 0,
+      limit: nativeIos ? PAGE_SIZE : preservedCount,
       offset: 0,
     });
   }
@@ -286,6 +322,7 @@
     await loadFeedPage({
       silent: true,
       append: true,
+      minimumBusyMs: nativeIos ? 320 : 0,
       limit: PAGE_SIZE,
       offset: feed.nextOffset,
     });
@@ -441,7 +478,7 @@
     const revision = feed.preferenceRevision;
     if (revision === handledPreferenceRevision) return;
     handledPreferenceRevision = revision;
-    void loadFeed(true);
+    void loadFeed(true, false);
   });
 
   $effect(() => {
@@ -456,6 +493,17 @@
   });
 
   function finishPull(showStatus: boolean) {
+    if (nativeIos && showStatus) {
+      pullCandidate = false;
+      pullArmed = false;
+      pullSettling = true;
+      pullOffset = 48;
+      void triggerRefresh().finally(() => {
+        pullOffset = 0;
+        window.setTimeout(() => { pullSettling = false; }, 240);
+      });
+      return;
+    }
     pullCandidate = false;
     pullArmed = showStatus;
     pullSettling = true;
@@ -494,11 +542,12 @@
       }
       if (dy < 6) return;
       event.preventDefault();
-      pullOffset = Math.min(68, Math.round((1 - Math.exp(-dy / 105)) * 82));
-      pullArmed = pullOffset >= 44;
+      const nextOffset = Math.min(68, Math.round((1 - Math.exp(-dy / 105)) * 82));
+      pullBatch.schedule(nextOffset);
     };
     const handleTouchEnd = () => {
       if (!pullCandidate) return;
+      pullBatch.flush();
       finishPull(pullArmed);
     };
 
@@ -511,6 +560,7 @@
       element.removeEventListener("touchmove", handleTouchMove);
       element.removeEventListener("touchend", handleTouchEnd);
       element.removeEventListener("touchcancel", handleTouchEnd);
+      pullBatch.cancel();
     };
   });
 
@@ -555,6 +605,7 @@
         window.clearTimeout(searchTimer);
       }
       if (pullTimer !== null) window.clearTimeout(pullTimer);
+      pullBatch.cancel();
     };
   });
 
@@ -567,7 +618,7 @@
           void loadMore();
         }
       },
-      { rootMargin: "280px 0px" }
+      { root: nativeIos ? scrollContainer() : null, rootMargin: "280px 0px" }
     );
 
     observer.observe(loadMoreSentinel);
@@ -616,10 +667,10 @@
       style:height={`${pullOffset}px`}
       style:opacity={Math.min(1, pullOffset / 34)}
       role="status"
-      aria-hidden={!pullArmed}
+      aria-hidden={!pullArmed && !refreshing}
     >
       <ClockCountdown size={17} weight="bold" aria-hidden="true" />
-      <span>Updates every 15 minutes. You&rsquo;re caught up.</span>
+      <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : pullArmed ? "Release to refresh" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
     </div>
   </div>
 
@@ -633,7 +684,7 @@
     </div>
   {/if}
 
-  <div>
+  <div aria-busy={nativeIos ? (loading || refreshing || loadingMore) : undefined}>
     {#if loading}
       {#each Array(6) as _}
         <div class="feed-skeleton-row">
@@ -648,6 +699,7 @@
     {:else if error}
       <div class="alert alert-error feed-error" role="alert">
         {error}
+        {#if nativeIos}<button class="btn-secondary" onclick={() => void loadFeed()}>Try again</button>{/if}
       </div>
     {:else if feed.jobs.length === 0}
       <div class="empty-state">
@@ -662,7 +714,7 @@
         </h2>
         <div class="empty-state-copy feed-empty-copy">
           {#if feed.postedFilter === "evergreen"}
-            No standing or aged-but-open roles match your other filters.
+            {nativeIos ? "No open longer-term roles match your other filters." : "No standing or aged-but-open roles match your other filters."}
           {:else if refinableFilterCount > 0}
             Try widening or clearing your filters.
           {:else if feed.savedOnly}
@@ -684,29 +736,40 @@
         </div>
       </div>
     {:else}
-      {#each feed.jobs as job (job.id)}
-        <div animate:flip={{ duration: 240, easing: cubicOut }}>
-          <JobRow
-            {job}
-            viewed={viewed.has(job.id)}
-            onDismiss={removeJob}
-            onRestore={restoreJob}
-            onSaved={markJobSaved}
-            onBlockRequest={(candidate) => (blockCandidate = candidate)}
-          />
-        </div>
-      {/each}
+      {#if nativeIos}
+        <VirtualJobList
+          jobs={feed.jobs}
+          {viewed}
+          onDismiss={removeJob}
+          onRestore={restoreJob}
+          onSaved={markJobSaved}
+          onBlockRequest={(candidate) => (blockCandidate = candidate)}
+        />
+      {:else}
+        {#each feed.jobs as job (job.id)}
+          <div animate:flip={{ duration: 240, easing: cubicOut }}>
+            <JobRow
+              {job}
+              viewed={viewed.has(job.id)}
+              onDismiss={removeJob}
+              onRestore={restoreJob}
+              onSaved={markJobSaved}
+              onBlockRequest={(candidate) => (blockCandidate = candidate)}
+            />
+          </div>
+        {/each}
+      {/if}
       {#if loadingMore}
         <div class="loading-label feed-loading-more" aria-busy="true">
           <Spinner label="Loading more jobs" />
-          <span>Loading more jobs</span>
+          {#if !nativeIos}<span>Loading more jobs</span>{/if}
         </div>
       {/if}
       {#if feed.hasMore}
         <div bind:this={loadMoreSentinel} class="feed-sentinel"></div>
       {:else}
         <div class="feed-end">
-          You&rsquo;re all caught up. Go touch grass.
+          {nativeIos ? "You’re caught up for today." : "You’re all caught up. Go touch grass."}
         </div>
       {/if}
     {/if}
@@ -741,7 +804,7 @@
           <div class="filter-sheet-header">
             <Dialog.Title class="h-display h-display-md">Filters</Dialog.Title>
             <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
-              <X size={18} />
+              <X size={nativeIos ? 20 : 18} weight={nativeIos ? "bold" : "regular"} />
             </button>
           </div>
 
@@ -750,7 +813,7 @@
               <div class="filter-group-title">Location</div>
               <details class="filter-location-select">
                 <summary>
-                  <span>{draftLocationSummary}</span>
+                  <span class="truncate">{draftLocationSummary}</span>
                   <CaretDown size={14} weight="bold" aria-hidden="true" />
                 </summary>
                 <div class="filter-location-options">
@@ -832,6 +895,8 @@
               </div>
             </section>
 
+            <details class="advanced-fields filter-advanced" open={!nativeIos}>
+              {#if nativeIos}<summary>Advanced filters</summary>{/if}
             <section class="filter-group">
               <div class="filter-group-title">Listing type</div>
               <div class="filter-option-grid binary">
@@ -842,7 +907,7 @@
                     aria-pressed={draftPostedFilter === option.value}
                     onclick={() => (draftPostedFilter = option.value)}
                   >
-                    {option.label}
+                    {nativeIos && option.value === "evergreen" ? "Open longer-term" : option.label}
                   </button>
                 {/each}
               </div>
@@ -858,6 +923,7 @@
                 />
               </div>
             </section>
+            </details>
           </div>
 
           <div class="filter-sheet-actions action-row" class:single={draftFilterCount === 0}>

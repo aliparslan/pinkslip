@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
-  import { api, type Job, type Tailoring } from "../lib/api";
+  import { api, apiFetch, type Job, type Tailoring } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { hapticSuccess } from "../lib/haptics";
   import { parseQaSections, renderMarkdownHtml } from "../lib/formatting";
@@ -36,6 +36,9 @@
   import { feedback } from "../lib/feedback.svelte";
   import { DropdownMenu } from "bits-ui";
   import DotsThree from "phosphor-svelte/lib/DotsThree";
+  import { isIosApp } from "../lib/platform";
+  import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
+  import { hasResumeContent } from "../lib/resume-fields";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -71,6 +74,10 @@
     qa: false,
   });
   let saveTimer: number | null = null;
+  let streamRenderTimer: number | null = null;
+  let pendingStream = "";
+  let profileReady = $state(true);
+  const nativeIos = isIosApp();
   const savePresentation = new SavePresentation();
   let tokenSummary = $state<{ input: number; output: number } | null>(null);
   let localResumeText = $derived.by(() => getLocalResumeTailorText(localKit));
@@ -128,6 +135,29 @@
     };
   }
 
+  function flushStreamRender() {
+    if (streamRenderTimer !== null) {
+      window.clearTimeout(streamRenderTimer);
+      streamRenderTimer = null;
+    }
+    rawStream = pendingStream;
+    const parsed = parseSections(rawStream);
+    resumeText = parsed.resume;
+    coverText = parsed.cover;
+    qaText = parsed.qa;
+  }
+
+  function appendStreamChunk(text: string) {
+    pendingStream += text;
+    if (!nativeIos) {
+      flushStreamRender();
+      return;
+    }
+    if (streamRenderTimer === null) {
+      streamRenderTimer = window.setTimeout(flushStreamRender, 48);
+    }
+  }
+
   function hydrateFromTailoring(next: Tailoring | null) {
     tailoring = next;
     localDraft = null;
@@ -180,6 +210,7 @@
     setupNeeded = false;
     signInNeeded = false;
     rawStream = "";
+    pendingStream = "";
     tokenSummary = null;
     editing = { resume: false, cover: false, qa: false };
 
@@ -196,9 +227,9 @@
         }),
       };
 
-      const res = await fetch(`/api/tailor/${jobId}`, {
-        ...requestInit,
-      });
+      const res = nativeIos
+        ? await apiFetch(`/tailor/${jobId}`, requestInit)
+        : await fetch(`/api/tailor/${jobId}`, requestInit);
 
       if (!res.ok) {
         const data = await res.json().catch(() => null) as { error?: string; code?: string } | null;
@@ -236,12 +267,9 @@
           const payload = JSON.parse(line.slice(5).trim());
 
           if (payload.type === "chunk") {
-            rawStream += payload.text ?? "";
-            const parsed = parseSections(rawStream);
-            resumeText = parsed.resume;
-            coverText = parsed.cover;
-            qaText = parsed.qa;
+            appendStreamChunk(payload.text ?? "");
           } else if (payload.type === "done") {
+            flushStreamRender();
             hapticSuccess();
             tokenSummary = {
               input: payload.tokens?.in ?? 0,
@@ -271,6 +299,7 @@
     } catch (e) {
       error = errorMessage(e);
     } finally {
+      if (nativeIos) flushStreamRender();
       streaming = false;
     }
   }
@@ -332,6 +361,20 @@
       window.clearTimeout(saveTimer);
       saveTimer = null;
     }
+  }
+
+  function flushQueuedSave() {
+    if (saveTimer === null) return;
+    clearQueuedSave();
+    void saveEdits();
+  }
+
+  async function handleBack() {
+    if (nativeIos && saveTimer !== null) {
+      clearQueuedSave();
+      await saveEdits();
+    }
+    if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/");
   }
 
   let hasPendingEdits = $derived.by(() => {
@@ -425,14 +468,21 @@
       const kit = await refreshLocalTailorKitResume().catch(() => loadLocalTailorKit());
       localKit = kit;
       if (cancelled) return;
+      if (nativeIos) {
+        const profileRes = await api.profile.get().catch(() => null);
+        profileReady = Boolean(profileRes && hasResumeContent(profileRes.data));
+      }
       await loadExisting();
       // No auto-generation: the first run costs quota, so it waits for an
       // explicit "Generate" tap (see the empty-state card below).
     })();
 
+    const unregisterAutosaveFlush = nativeIos ? registerAutosaveFlush(flushQueuedSave) : () => {};
     return () => {
       cancelled = true;
-      clearQueuedSave();
+      if (nativeIos) unregisterAutosaveFlush();
+      else clearQueuedSave();
+      if (streamRenderTimer !== null) window.clearTimeout(streamRenderTimer);
       savePresentation.destroy();
     };
   });
@@ -441,7 +491,7 @@
 <div class="page pushed-screen">
   <ScreenNav
     title="Tailor"
-    onBack={() => { if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/"); }}
+    onBack={() => void handleBack()}
   />
 
   <div class="tailor-page-body">
@@ -489,6 +539,12 @@
             Get a key
           </a>
         </div>
+      </div>
+    {:else if nativeIos && !localResumeText && !profileReady && !hasAnyOutput && !streaming}
+      <div class="content-card stack-md tailor-setup-card">
+        <h2>Add your resume first</h2>
+        <p>Tailoring needs your experience and skills before it can create an accurate draft.</p>
+        <button class="btn-primary btn-accent full-width" onclick={() => navigate("/you/resume")}>Add resume</button>
       </div>
     {:else if !hasAnyOutput && !streaming}
       <div class="content-card stack-md tailor-setup-card">
@@ -547,7 +603,7 @@
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content
-                class="job-more-menu tailor-more-menu"
+                class="menu-surface job-more-menu tailor-more-menu"
                 side="bottom"
                 align="end"
                 sideOffset={6}
@@ -556,7 +612,7 @@
               >
                 {#if activeTab === "resume"}
                   <DropdownMenu.Item
-                    class="job-more-menu-item"
+                    class="menu-item"
                     disabled={!resumeDownloadReady || downloadingPdf}
                     onSelect={() => void viewResumePdf()}
                   >
@@ -564,7 +620,7 @@
                     <span>View PDF</span>
                   </DropdownMenu.Item>
                 {/if}
-                <DropdownMenu.Item class="job-more-menu-item" disabled={streaming} onSelect={handleRegenerate}>
+                <DropdownMenu.Item class="menu-item" disabled={streaming} onSelect={handleRegenerate}>
                   {#if streaming}<Spinner />{:else}<ArrowsClockwise size={16} />{/if}
                   <span>Regenerate</span>
                 </DropdownMenu.Item>
@@ -694,10 +750,18 @@
     font-size: var(--fs-sm);
   }
 
+  :global(html.native-ios) .tailor-actions > :global(button) {
+    min-height: var(--tap-min);
+  }
+
   .tailor-actions :global(.tailor-more-trigger) {
     width: 40px;
     padding: 0;
     justify-content: center;
+  }
+
+  :global(html.native-ios) .tailor-actions :global(.tailor-more-trigger) {
+    width: var(--tap-min);
   }
 
   @media (max-width: 520px) {

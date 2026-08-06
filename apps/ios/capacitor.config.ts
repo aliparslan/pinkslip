@@ -29,6 +29,9 @@ const config: CapacitorConfig = {
     // Run edge-to-edge; the web app handles status bar / home-indicator spacing
     // itself via CSS env(safe-area-inset-*).
     contentInset: "never",
+    // Keep platform zoom available. Inputs are already 16px+, so iOS will not
+    // perform the unwanted focus zoom this setting used to work around.
+    zoomEnabled: true,
   },
   plugins: {
     PushNotifications: {

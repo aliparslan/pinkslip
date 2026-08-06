@@ -26,3 +26,21 @@ export function markViewed(id: string) {
   viewedJobs.set(new Set(current));
   void api.interactions.markViewed(id).catch(() => undefined);
 }
+
+/** Update read state optimistically and restore it if persistence fails. */
+export async function setViewed(id: string, value: boolean): Promise<void> {
+  const previous = current.has(id);
+  if (value) current.add(id);
+  else current.delete(id);
+  viewedJobs.set(new Set(current));
+
+  try {
+    if (value) await api.interactions.markViewed(id);
+    else await api.interactions.markUnviewed(id);
+  } catch (error) {
+    if (previous) current.add(id);
+    else current.delete(id);
+    viewedJobs.set(new Set(current));
+    throw error;
+  }
+}

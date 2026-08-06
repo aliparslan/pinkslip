@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { fly } from "svelte/transition";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import Info from "phosphor-svelte/lib/Info";
@@ -6,6 +7,8 @@
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import X from "phosphor-svelte/lib/X";
   import { feedback, type ToastItem } from "../lib/feedback.svelte";
+  import { createFrameBatch } from "../lib/motion";
+  import { isIosApp } from "../lib/platform";
 
   let { toast }: { toast: ToastItem } = $props();
 
@@ -23,6 +26,8 @@
   let elWidth = $state(0);
   let pointerId: number | null = null;
   let startX = 0;
+  const nativeIos = isIosApp();
+  const dragBatch = createFrameBatch<number>((value) => { dragX = value; }, nativeIos);
 
   function onPointerDown(event: PointerEvent) {
     pointerId = event.pointerId;
@@ -35,11 +40,13 @@
 
   function onPointerMove(event: PointerEvent) {
     if (!dragging || pointerId !== event.pointerId) return;
-    dragX = event.clientX - startX;
+    const next = event.clientX - startX;
+    dragBatch.schedule(next);
   }
 
   function onPointerUp(event: PointerEvent) {
     if (!dragging || pointerId !== event.pointerId) return;
+    dragBatch.flush();
     dragging = false;
     pointerId = null;
     if (Math.abs(dragX) > elWidth * 0.35) {
@@ -49,6 +56,8 @@
     dragX = 0;
     feedback.resume(toast.id);
   }
+
+  onDestroy(dragBatch.cancel);
 </script>
 
 <div
@@ -85,9 +94,9 @@
       {toast.action.label}
     </button>
   {/if}
-  {#if toast.duration === null}
+  {#if nativeIos || toast.duration === null}
     <button type="button" class="toast-close" aria-label="Dismiss message" onclick={() => feedback.dismiss(toast.id)}>
-      <X size={16} />
+      <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} />
     </button>
   {/if}
 </div>
@@ -144,6 +153,13 @@
     color: var(--color-accent);
     cursor: pointer;
   }
+
+  :global(html.native-ios) .toast-action,
+  :global(html.native-ios) .toast-close {
+    min-height: var(--tap-min);
+  }
+
+  :global(html.native-ios) .toast-close { width: var(--tap-min); }
 
   .toast-action {
     padding: 0 var(--space-2);

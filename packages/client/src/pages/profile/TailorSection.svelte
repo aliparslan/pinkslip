@@ -23,6 +23,9 @@
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Spinner from "../../components/Spinner.svelte";
+  import { feedback } from "../../lib/feedback.svelte";
+  import { isIosApp } from "../../lib/platform";
+  import { navigate } from "../../router";
 
   let {
     sessionState,
@@ -48,6 +51,7 @@
   let syncingResume: boolean = $state(false);
   let removingResume: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
+  const nativeIos = isIosApp();
 
   let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
   let tailoringSetupReady = $derived.by(() =>
@@ -186,6 +190,8 @@
   }
 
   async function removeResume() {
+    const removedLocal = localResume;
+    const removedRemote = remoteResume;
     removingResume = true;
     try {
       if (sessionState === "authenticated" && remoteResume) {
@@ -194,7 +200,30 @@
       remoteResume = null;
       localResume = null;
       updateLocalTailorKit({ resume: null });
-      onSuccess("Resume removed.");
+      if (nativeIos && removedLocal) {
+        feedback.show({
+          message: "Tailoring resume removed",
+          action: {
+            label: "Undo",
+            run: async () => {
+              localResume = removedLocal;
+              updateLocalTailorKit({ resume: removedLocal });
+              if (sessionState === "authenticated" && removedRemote) {
+                const restored = await api.resumeAssets.upload({
+                  fileName: removedLocal.fileName,
+                  mimeType: removedLocal.mimeType,
+                  size: removedLocal.size,
+                  dataUrl: removedLocal.dataUrl,
+                  extractedText: removedLocal.textContent,
+                });
+                remoteResume = restored.asset;
+              }
+            },
+          },
+        });
+      } else {
+        onSuccess("Resume removed.");
+      }
     } catch (e) {
       onError(errorMessage(e));
     } finally {
@@ -229,6 +258,8 @@
       <span class="tag">{localSetupLabel}</span>
     </div>
 
+    <details class="tailor-advanced" open={!nativeIos}>
+      {#if nativeIos}<summary>Advanced provider settings</summary>{/if}
     <div class="stack-md">
       <div>
         <label for="gemini-key" class="field-label">Gemini API key</label>
@@ -325,18 +356,24 @@
         </button>
       </div>
     </div>
+    </details>
 
     <div class="divider"></div>
 
     <div>
       <div class="split-row">
         <div class="flex-fill">
-          <div class="row-title">Resume</div>
+          <div class="row-title">{nativeIos ? "Tailoring resume" : "Resume"}</div>
         </div>
         {#if localResume}
           <span class="tag">{remoteResume ? "synced" : localResume.canTailor ? "ready" : "stored"}</span>
         {/if}
       </div>
+
+      {#if nativeIos}
+        <p class="helper-text">An uploaded file is used instead of your structured resume when tailoring.</p>
+        <button class="text-button" type="button" onclick={() => navigate("/you/resume")}>Edit structured resume</button>
+      {/if}
 
       <input
         bind:this={resumeUploadInput}
@@ -400,3 +437,22 @@
 
   </div>
 </section>
+
+<style>
+  details.tailor-advanced { display: contents; }
+  :global(html.native-ios) details.tailor-advanced {
+    display: block;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+  }
+  :global(html.native-ios) details.tailor-advanced > summary {
+    min-height: var(--tap-min);
+    padding: 0 var(--space-3);
+    display: flex;
+    align-items: center;
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+  :global(html.native-ios) :where(details.tailor-advanced[open]) > :where(.stack-md) { padding: 0 var(--space-3) var(--space-3); }
+</style>

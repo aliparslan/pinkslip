@@ -1,19 +1,24 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { navigate } from "../router";
   import { setJobDetailReturnRoute } from "../lib/job-navigation";
   import { api, type Job } from "../lib/api";
   import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
   import { jobTimingLabel } from "../lib/job-timing";
-  import { markViewed } from "../lib/viewed";
+  import { markViewed, setViewed } from "../lib/viewed";
   import { feedback } from "../lib/feedback.svelte";
   import { hapticLight } from "../lib/haptics";
+  import { createFrameBatch, delay } from "../lib/motion";
   import { sessionAccess } from "../lib/session-access";
   import { markMenuDismissed, wasMenuJustDismissed } from "../lib/menu-dismiss-guard";
+  import { isIosApp } from "../lib/platform";
   import { DropdownMenu } from "bits-ui";
   import DotsThreeVertical from "phosphor-svelte/lib/DotsThreeVertical";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Prohibit from "phosphor-svelte/lib/Prohibit";
+  import EnvelopeOpen from "phosphor-svelte/lib/EnvelopeOpen";
+  import EnvelopeSimple from "phosphor-svelte/lib/EnvelopeSimple";
   import CompanyLogo from "./CompanyLogo.svelte";
 
   let { job, viewed = false, onDismiss, onRestore, onSaved, onBlockRequest, returnTo = "/", swipeActions = true, contextLabel, surface = "feed" }: {
@@ -38,14 +43,19 @@
   let startOffsetX = 0;
   let locked = false;
   let pointerId: number | null = null;
-  let rowEl: HTMLDivElement | undefined = $state(undefined);
+  let rowEl: HTMLElement | undefined = $state(undefined);
+  const nativeIos = isIosApp();
+  const swipeBatch = createFrameBatch<number>((value) => { swipeX = value; }, nativeIos);
 
   const ACTION_PADDING = 12;
   const ACTION_GAP = 6;
   const SINGLE_ACTION_WIDTH = 80;
   const ADMIN_ACTION_WIDTH = 74;
+  const READ_ACTION_WIDTH = 92;
   const MAX_OVERDRAG = 18;
-  const RUBBER = 0.16;
+  const DESKTOP_RUBBER = 0.16;
+  const NATIVE_RUBBER = 0.62;
+  const FULL_SWIPE_RATIO = 0.62;
 
   // "NEW" only while the badge is honest: unviewed AND actually fresh.
   // (A 36-day-old listing labelled NEW undermines the whole speed pitch.)
@@ -53,9 +63,13 @@
 
   let hasAdminAction = $derived($sessionAccess.isAdmin && Boolean(onBlockRequest));
   let hasSaveAction = $derived(Boolean(onSaved));
+  let hasHideAction = $derived(Boolean(onDismiss));
+  let hasNativePrimaryAction = $derived(hasAdminAction || hasHideAction);
   let showRowMenu = $derived(swipeActions && (hasSaveAction || Boolean(onDismiss) || hasAdminAction));
   let rowMenuOpen = $state(false);
-  let swipeActionCount = $derived((hasSaveAction ? 1 : 0) + (hasAdminAction ? 1 : 0));
+  let swipeActionCount = $derived(
+    (hasSaveAction ? 1 : 0) + (nativeIos ? (hasNativePrimaryAction ? 1 : 0) : (hasAdminAction ? 1 : 0))
+  );
   let actionButtonWidth = $derived(swipeActionCount > 1 ? ADMIN_ACTION_WIDTH : SINGLE_ACTION_WIDTH);
   let actionTotalWidth = $derived(
     ACTION_PADDING
@@ -71,14 +85,19 @@
     Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
   );
 
-  function handleClick() {
+  function handleClick(event?: MouseEvent) {
     if (wasMenuJustDismissed()) return;
     if (Math.abs(swipeX) > 4) {
+      event?.preventDefault();
       snapTo(0); // a swipe was open — first tap just closes it
       return;
     }
     markViewed(job.id);
     setJobDetailReturnRoute(returnTo);
+    if (nativeIos && event && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) {
+      return;
+    }
+    event?.preventDefault();
     navigate(`/jobs/${job.id}`);
   }
 
@@ -97,11 +116,13 @@
     swipeX = target;
   }
 
+  onDestroy(swipeBatch.cancel);
+
   async function slideOffAndRemove(action: () => Promise<unknown>): Promise<boolean> {
     if (dismissing) return false;
     dismissing = true;
     swipeX = -(rowEl?.offsetWidth ?? 420);
-    await new Promise((resolve) => setTimeout(resolve, 240));
+    await delay(240);
     try {
       await action();
       onDismiss?.(job.id);
@@ -156,16 +177,64 @@
     }
   }
 
+  async function toggleReadState() {
+    const nextViewed = !viewed;
+    snapTo(0);
+    try {
+      await setViewed(job.id, nextViewed);
+      feedback.show(nextViewed ? "Marked as read" : "Marked as unread");
+    } catch {
+      feedback.error("Could not update the read state. Try again.");
+    }
+  }
+
+  function runNativePrimaryAction() {
+    if (hasAdminAction) {
+      snapTo(0);
+      onBlockRequest?.(job);
+      return;
+    }
+    void dismiss();
+  }
+
+  function rubberedOffset(raw: number, revealWidth: number): number {
+    const distance = Math.abs(raw);
+    if (distance <= revealWidth) return raw;
+    const rowWidth = rowEl?.offsetWidth ?? 420;
+    const stretched = Math.min(rowWidth, revealWidth + (distance - revealWidth) * NATIVE_RUBBER);
+    return Math.sign(raw) * stretched;
+  }
+
   function settleSwipe() {
     if (!swiping) return;
     swiping = false;
     pointerId = null;
-    if (Math.abs(swipeX) >= openThreshold) {
-      if (swipeX !== -actionTotalWidth) hapticLight();
-      snapTo(-actionTotalWidth);
-    } else {
+    if (nativeIos) {
+      const fullThreshold = (rowEl?.offsetWidth ?? 420) * FULL_SWIPE_RATIO;
+      if (swipeX <= -fullThreshold) {
+        hapticLight();
+        if (hasSaveAction) void save();
+        else runNativePrimaryAction();
+        return;
+      }
+      if (swipeX >= fullThreshold) {
+        hapticLight();
+        void toggleReadState();
+        return;
+      }
+      if (swipeX <= -openThreshold) {
+        snapTo(-actionTotalWidth);
+        return;
+      }
+      if (swipeX >= openThreshold) {
+        snapTo(READ_ACTION_WIDTH);
+        return;
+      }
       snapTo(0);
+      return;
     }
+
+    snapTo(Math.abs(swipeX) >= openThreshold ? -actionTotalWidth : 0);
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -195,23 +264,58 @@
     if (locked || !swiping) return;
     e.preventDefault();
 
-    const desired = Math.min(0, startOffsetX + dx);
-    const abs = -desired;
-    swipeX = abs > actionTotalWidth
-      ? -(actionTotalWidth + Math.min(MAX_OVERDRAG, (abs - actionTotalWidth) * RUBBER))
-      : desired;
+    const desired = startOffsetX + dx;
+    if (nativeIos) {
+      swipeBatch.schedule(desired < 0
+        ? rubberedOffset(desired, actionTotalWidth)
+        : rubberedOffset(desired, READ_ACTION_WIDTH));
+      return;
+    }
+    const desktopDesired = Math.min(0, desired);
+    const desktopDistance = -desktopDesired;
+    swipeBatch.schedule(desktopDistance > actionTotalWidth
+      ? -(actionTotalWidth + Math.min(MAX_OVERDRAG, (desktopDistance - actionTotalWidth) * DESKTOP_RUBBER))
+      : desktopDesired);
   }
 
   function onPointerUp(e: PointerEvent) {
     if (pointerId !== e.pointerId) return;
+    swipeBatch.flush();
     rowEl?.releasePointerCapture(e.pointerId);
     settleSwipe();
   }
 </script>
 
-<div class="job-row-wrap" class:card-surface={surface === "card"}>
+<div class="job-row-wrap" class:card-surface={surface === "card"} class:native-swipe={nativeIos}>
+  {#if nativeIos && swipeActions && swipeX > 0.5}
+    <div class="swipe-actions swipe-actions-right">
+      <button
+        class="swipe-action read"
+        style="width: {READ_ACTION_WIDTH}px;"
+        aria-label={viewed ? "Mark this job as unread" : "Mark this job as read"}
+        onclick={(event) => { event.stopPropagation(); void toggleReadState(); }}
+      >
+        {#if viewed}<EnvelopeSimple size={20} weight="bold" />{:else}<EnvelopeOpen size={20} weight="bold" />{/if}
+        <span>{viewed ? "Unread" : "Read"}</span>
+      </button>
+    </div>
+  {/if}
   {#if swipeActions && swipeX < -0.5}
-    <div class="swipe-actions">
+    <div class="swipe-actions swipe-actions-left">
+      {#if nativeIos && hasNativePrimaryAction}
+        <button
+          class="swipe-action"
+          class:danger={hasAdminAction}
+          class:hide={!hasAdminAction}
+          style="width: {actionButtonWidth}px;"
+          aria-label={hasAdminAction ? "Remove this job for everyone" : "Hide this job"}
+          onclick={(event) => { event.stopPropagation(); runNativePrimaryAction(); }}
+          disabled={dismissing}
+        >
+          {#if hasAdminAction}<Prohibit size={20} weight="bold" />{:else}<EyeSlash size={20} weight="bold" />{/if}
+          <span>{hasAdminAction ? "Remove" : "Hide"}</span>
+        </button>
+      {/if}
       {#if hasSaveAction}
         <button
           class="swipe-action save"
@@ -220,11 +324,14 @@
           onclick={(event) => { event.stopPropagation(); void save(); }}
           disabled={saving}
         >
-          <BookmarkSimple size={18} weight={job.saved ? "fill" : "regular"} />
+          <BookmarkSimple
+            size={nativeIos ? 20 : 18}
+            weight={job.saved ? "fill" : nativeIos ? "bold" : "regular"}
+          />
           <span>{job.saved ? "Saved" : "Save"}</span>
         </button>
       {/if}
-      {#if hasAdminAction}
+      {#if hasAdminAction && !nativeIos}
         <button
           class="swipe-action danger"
           style="width: {actionButtonWidth}px;"
@@ -236,24 +343,26 @@
           }}
         >
           <Prohibit size={18} weight="regular" />
-          <span>Block</span>
+            <span>Block</span>
         </button>
       {/if}
     </div>
   {/if}
 
-  <div
+  <svelte:element
+    this={nativeIos ? "a" : "div"}
     bind:this={rowEl}
     class="job-row"
     class:viewed={viewed && Math.abs(swipeX) < 0.5 && !dismissing}
     class:dismissing
     class:swiping
     class:has-menu={showRowMenu}
-    role="button"
-    tabindex="0"
+    href={nativeIos ? `#/jobs/${job.id}` : undefined}
+    role={nativeIos ? undefined : "button"}
+    tabindex={nativeIos ? undefined : 0}
     style="transform: translate3d({swipeX}px, 0, 0); transition: {swiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease'};"
     onclick={handleClick}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
+    onkeydown={(e: KeyboardEvent) => { if (!nativeIos && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handleClick(); } }}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
@@ -283,14 +392,14 @@
           {/if}
         </div>
       {/if}
-      {#if job.match_fact}
+      {#if job.match_fact && !nativeIos}
         <div class="job-row__reason">
           <span aria-hidden="true"></span>
           {job.match_fact}
         </div>
       {/if}
     </div>
-  </div>
+  </svelte:element>
 
   {#if showRowMenu && Math.abs(swipeX) < 0.5}
     <DropdownMenu.Root bind:open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
@@ -302,7 +411,7 @@
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          class={hasAdminAction ? "job-more-menu" : "job-more-menu job-row-more-menu"}
+          class={hasAdminAction ? "menu-surface job-more-menu" : "menu-surface job-more-menu job-row-more-menu"}
           side="bottom"
           align="end"
           sideOffset={6}
@@ -311,19 +420,21 @@
           preventScroll={false}
         >
           {#if hasSaveAction && !job.saved}
-            <DropdownMenu.Item class="job-more-menu-item" disabled={saving} onSelect={() => void save()}>
+            <DropdownMenu.Item class="menu-item" disabled={saving} onSelect={() => void save()}>
               <BookmarkSimple size={17} />
               <span>Save</span>
             </DropdownMenu.Item>
           {/if}
-          <DropdownMenu.Item class="job-more-menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
-            <EyeSlash size={17} />
-            <span>Hide</span>
-          </DropdownMenu.Item>
+          {#if !nativeIos || !hasAdminAction}
+            <DropdownMenu.Item class="menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
+              <EyeSlash size={17} />
+              <span>Hide</span>
+            </DropdownMenu.Item>
+          {/if}
           {#if hasAdminAction}
-            <DropdownMenu.Item class="job-more-menu-item danger" onSelect={() => onBlockRequest?.(job)}>
+            <DropdownMenu.Item class="menu-item danger" onSelect={() => onBlockRequest?.(job)}>
               <Prohibit size={17} />
-              <span>Block for everyone</span>
+              <span>{nativeIos ? "Remove for everyone" : "Block for everyone"}</span>
             </DropdownMenu.Item>
           {/if}
         </DropdownMenu.Content>
@@ -351,6 +462,8 @@
     overflow: hidden;
     cursor: pointer;
     touch-action: pan-y;
+    color: inherit;
+    text-decoration: none;
   }
 
   .job-row-wrap.card-surface,
@@ -457,6 +570,10 @@
     box-shadow: inset 0 1px 2px oklch(0 0 0 / 10%);
   }
 
+  .swipe-actions-right {
+    justify-content: flex-start;
+  }
+
   .swipe-action {
     align-self: stretch;
     border: 1px solid var(--color-line-2);
@@ -483,5 +600,42 @@
 
   .swipe-action.danger {
     color: var(--color-bad);
+  }
+
+  .native-swipe .swipe-actions {
+    gap: 0;
+    padding: 0;
+    background: var(--color-bg-sunken);
+    box-shadow: none;
+  }
+
+  .native-swipe .swipe-action {
+    flex-direction: column;
+    gap: 3px;
+    border: 0;
+    border-radius: 0;
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+    box-shadow: none;
+  }
+
+  .native-swipe .swipe-action.save {
+    color: var(--color-accent-ink);
+    background: var(--color-accent);
+  }
+
+  .native-swipe .swipe-action.hide {
+    color: var(--color-bg);
+    background: var(--color-ink-3);
+  }
+
+  .native-swipe .swipe-action.danger {
+    color: var(--color-bg);
+    background: var(--color-bad);
+  }
+
+  .native-swipe .swipe-action.read {
+    color: var(--color-bg);
+    background: var(--color-good);
   }
 </style>

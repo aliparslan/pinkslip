@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   formatDegree,
   formatResumeDate,
+  hasResumeContent,
   inferDegreeType,
   inferFieldOfStudy,
   joinUsLocation,
@@ -33,5 +34,11 @@ describe("resume fields", () => {
     expect(monthInputValue("2024-06")).toBe("2024-06");
     expect(formatResumeDate("2024-06")).toBe("Jun 2024");
     expect(formatResumeDate("Present")).toBe("Present");
+  });
+
+  test("distinguishes resume content from structural metadata", () => {
+    expect(hasResumeContent({ id: "draft", degreeType: "bachelor", title: "" })).toBe(false);
+    expect(hasResumeContent({ kind: "awards", items: [{ category: "", items: "" }] })).toBe(false);
+    expect(hasResumeContent({ id: "draft", bullets: ["Improved load time by 20%"] })).toBe(true);
   });
 });

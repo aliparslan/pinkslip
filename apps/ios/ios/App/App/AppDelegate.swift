@@ -24,7 +24,43 @@ class BridgeViewController: CAPBridgeViewController {
         // default). registerPluginInstance() has no such guard — use it here.
         bridge?.registerPluginInstance(AppleSignInPlugin())
         bridge?.registerPluginInstance(ApplicationBrowserPlugin())
+        bridge?.registerPluginInstance(NativeAppearancePlugin())
         bridge?.registerPluginInstance(SecureSessionPlugin())
+    }
+}
+
+@objc(NativeAppearancePlugin)
+public class NativeAppearancePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeAppearancePlugin"
+    public let jsName = "NativeAppearance"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setTheme", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func setTheme(_ call: CAPPluginCall) {
+        guard let theme = call.getString("theme"), theme == "dark" || theme == "light" else {
+            call.reject("A light or dark theme is required.")
+            return
+        }
+
+        let color = theme == "dark"
+            ? UIColor(red: 14 / 255, green: 14 / 255, blue: 16 / 255, alpha: 1)
+            : UIColor(red: 251 / 255, green: 250 / 255, blue: 249 / 255, alpha: 1)
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                call.reject("The native appearance bridge is unavailable.")
+                return
+            }
+
+            let webView = self.bridge?.webView
+            webView?.backgroundColor = color
+            webView?.scrollView.backgroundColor = color
+            webView?.underPageBackgroundColor = color
+            self.bridge?.viewController?.view.backgroundColor = color
+            self.bridge?.viewController?.view.window?.backgroundColor = color
+            call.resolve()
+        }
     }
 }
 

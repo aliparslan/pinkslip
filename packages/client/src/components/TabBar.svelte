@@ -1,10 +1,10 @@
 <script lang="ts">
   import { currentRoute, navigate, rootDestinationFor, scrollContainer, type RootDestination } from "../router";
-  import { hapticLight } from "../lib/haptics";
   import BrandMark from "./BrandMark.svelte";
   import BookmarksSimple from "phosphor-svelte/lib/BookmarksSimple";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
+  import { isIosApp } from "../lib/platform";
 
   let { mobileHidden = false }: { mobileHidden?: boolean } = $props();
 
@@ -22,16 +22,20 @@
 
   function selectTab(path: string, id: RootDestination): void {
     if (isActive(id)) {
-      scrollContainer()?.scrollTo({ top: 0, behavior: "smooth" });
-      hapticLight();
+      const reduce = isIosApp() && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      scrollContainer()?.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
       return;
     }
-    hapticLight();
     navigate(path);
   }
 </script>
 
-<nav class="tab-bar" class:mobile-hidden={mobileHidden} aria-label="Main navigation">
+<nav
+  class="tab-bar"
+  class:mobile-hidden={mobileHidden}
+  aria-hidden={mobileHidden ? "true" : undefined}
+  aria-label="Main navigation"
+>
   <div class="tab-bar__inner">
     <button type="button" class="tab-bar__brand" aria-label="Go to jobs" onclick={() => selectTab("/", "feed")}>
       <span class="tab-bar__mark"><BrandMark size={23} /></span>
@@ -71,6 +75,17 @@
     -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--color-line);
     box-shadow: none;
+  }
+
+  :global(html.native-ios) .tab-bar {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    visibility: visible;
+    will-change: transform;
+    transition:
+      transform var(--duration-route, 280ms) var(--ease-standard),
+      opacity var(--duration-exit, 160ms) ease,
+      visibility 0s linear;
   }
   .tab-bar__inner {
     width: 100%;
@@ -136,6 +151,18 @@
   @media (max-width: 899px) {
     .tab-bar.mobile-hidden {
       display: none;
+    }
+
+    :global(html.native-ios) .tab-bar.mobile-hidden {
+      display: block;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate3d(0, calc(100% + 2px), 0);
+      visibility: hidden;
+      transition:
+        transform var(--duration-route, 280ms) var(--ease-standard),
+        opacity var(--duration-exit, 160ms) ease,
+        visibility 0s linear var(--duration-route, 280ms);
     }
   }
 

@@ -4,6 +4,8 @@
 // `base` preserves any static transform the sheet already has (e.g. centering).
 
 import { hapticLight } from "./haptics";
+import { createFrameBatch, nextFrame, waitForAnimations } from "./motion";
+import { isIosApp } from "./platform";
 
 export function dragDismiss(
   node: HTMLElement,
@@ -17,10 +19,12 @@ export function dragDismiss(
   let tracking = false;
   let dragging = false;
   let scrollable: HTMLElement | null = null;
+  const nativeIos = isIosApp();
 
   const apply = (ty: number) => {
     node.style.transform = `${base} translateY(${ty}px)`.trim();
   };
+  const paintBatch = createFrameBatch(apply, nativeIos);
 
   function nearestScrollable(target: EventTarget | null): HTMLElement | null {
     let element = target instanceof HTMLElement ? target : null;
@@ -70,21 +74,28 @@ export function dragDismiss(
       return;
     }
     e.preventDefault();
-    apply(dy);
+    paintBatch.schedule(dy);
   }
 
-  function onEnd(e: TouchEvent) {
+  async function onEnd(e: TouchEvent) {
     if (!tracking) return;
     tracking = false;
     if (!dragging) return;
     dragging = false;
+    paintBatch.flush();
     const t = e.changedTouches[0];
     const dy = t ? t.clientY - startY : 0;
     node.style.transition = "transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1)";
     if (dy > DISMISS_AT) {
       hapticLight();
       apply(window.innerHeight);
-      window.setTimeout(opts.onDismiss, 200);
+      if (!nativeIos) {
+        window.setTimeout(opts.onDismiss, 200);
+      } else {
+        await nextFrame();
+        await waitForAnimations([node], 320);
+        opts.onDismiss();
+      }
     } else {
       node.style.transform = base;
     }
@@ -97,6 +108,7 @@ export function dragDismiss(
 
   return {
     destroy() {
+      paintBatch.cancel();
       node.removeEventListener("touchstart", onStart);
       node.removeEventListener("touchmove", onMove);
       node.removeEventListener("touchend", onEnd);

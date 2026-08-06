@@ -38,6 +38,7 @@
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
   import Wrench from "phosphor-svelte/lib/Wrench";
+  import { isIosApp } from "../lib/platform";
 
   type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "feedback";
   type PhosphorIcon = Component<{ size?: number | string }>;
@@ -81,6 +82,8 @@
   let feedbackDetails: string = $state("");
   let submittingFeedback: boolean = $state(false);
   let feedbackError: string | null = $state(null);
+  let feedbackTitleInput: HTMLInputElement | null = $state(null);
+  const nativeIos = isIosApp();
 
   let mode = $derived($themeMode);
   let preferenceSummary = $derived.by(() => {
@@ -119,6 +122,8 @@
   let savingPrefs = $state(false);
   let saveAgain = false;
   let autosaveTimer: number | null = null;
+  let savedProfileKey = "";
+  let savedNotificationEnabled = false;
 
   function currentKey(): string {
     return JSON.stringify({
@@ -157,35 +162,42 @@
     const sentKey = currentKey();
     try {
       const trimmedName = displayName.trim();
-      if (trimmedName && trimmedName !== savedDisplayName) {
-        await api.me.update({ name: trimmedName });
-        savedDisplayName = trimmedName;
-      }
+      const profileKey = JSON.stringify(searchProfile);
+      const sentNotificationEnabled = notificationEnabled;
+      const nameChanged = Boolean(trimmedName && trimmedName !== savedDisplayName);
+      const profileChanged = profileKey !== savedProfileKey;
+      const notificationChanged = sentNotificationEnabled !== savedNotificationEnabled;
+      const [, savedPreferences] = await Promise.all([
+        nameChanged ? api.me.update({ name: trimmedName }) : Promise.resolve(null),
+        profileChanged || notificationChanged
+          ? api.preferences.update({
+              search_profile: { ...searchProfile, notifications_enabled: sentNotificationEnabled },
+            })
+          : Promise.resolve(null),
+        notificationChanged
+          ? api.push.updateSettings({ enabled: sentNotificationEnabled, push_enabled: true })
+          : Promise.resolve(null),
+      ]);
 
-      const savedPreferences = await api.preferences.update({
-        search_profile: {
-          ...searchProfile,
-          notifications_enabled: notificationEnabled,
-        },
-      });
-      await api.push.updateSettings({
-        enabled: notificationEnabled,
-        push_enabled: true,
-      });
-      const normalized = normalizeSearchProfile(savedPreferences.search_profile);
-      invalidateFeedForPreferences(normalized);
-      if (currentKey() === sentKey) {
-        searchProfile = normalized;
-        lastSavedKey = currentKey();
-      } else {
-        lastSavedKey = sentKey;
+      if (nameChanged) savedDisplayName = trimmedName;
+      const currentStillSent = currentKey() === sentKey;
+      if (savedPreferences) {
+        const normalized = normalizeSearchProfile(savedPreferences.search_profile);
+        if (profileChanged) invalidateFeedForPreferences(normalized);
+        savedProfileKey = JSON.stringify(normalized);
+        if (currentStillSent) searchProfile = normalized;
       }
-      void api.interactions.event({
-        event_name: "search_profile_adjusted",
-        entity_type: "search_profile",
-        properties: { source: "settings" },
-      }).catch(() => undefined);
+      if (notificationChanged) savedNotificationEnabled = sentNotificationEnabled;
+      lastSavedKey = currentStillSent ? currentKey() : sentKey;
+      if (profileChanged || notificationChanged) {
+        void api.interactions.event({
+          event_name: "search_profile_adjusted",
+          entity_type: "search_profile",
+          properties: { source: "settings" },
+        }).catch(() => undefined);
+      }
       savePresentation.succeed(presentationGeneration);
+      error = null;
     } catch (e) {
       const message = errorMessage(e);
       error = message;
@@ -245,6 +257,8 @@
       }
 
       lastSavedKey = currentKey();
+      savedProfileKey = JSON.stringify(searchProfile);
+      savedNotificationEnabled = notificationEnabled;
       savePresentation.hydrate(null);
       loaded = true;
     } catch (e) {
@@ -273,7 +287,14 @@
 
   async function submitProductFeedback() {
     const title = feedbackTitle.trim();
-    if (title.length < 2 || submittingFeedback) return;
+    if (submittingFeedback) return;
+    if (title.length < 2) {
+      if (nativeIos) {
+        feedbackError = "Add a short title before sending.";
+        window.requestAnimationFrame(() => feedbackTitleInput?.focus());
+      }
+      return;
+    }
     submittingFeedback = true;
     feedbackError = null;
     try {
@@ -328,11 +349,15 @@
   <div class="page pushed-screen">
     <ScreenNav
       title={destinationTitles[destination]}
+      collapsible={nativeIos}
       backLabel="Back to You"
       onBack={backToYou}
     />
 
     <div class="page-frame you-destination-page">
+      {#if nativeIos}
+        <h1 class="screen-large-title" data-screen-title-anchor>{destinationTitles[destination]}</h1>
+      {/if}
       {#if loading}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
       {:else}
@@ -378,12 +403,16 @@
               <div>
                 <label for="feedback-title" class="field-label">Title</label>
                 <input
+                  bind:this={feedbackTitleInput}
                   id="feedback-title"
                   class="input-field tall-control"
                   type="text"
                   maxlength="160"
                   placeholder={feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
                   bind:value={feedbackTitle}
+                  aria-invalid={nativeIos && feedbackError ? "true" : undefined}
+                  aria-describedby={nativeIos && feedbackError ? "feedback-form-error" : undefined}
+                  oninput={() => { if (nativeIos) feedbackError = null; }}
                 />
               </div>
               <div>
@@ -397,12 +426,12 @@
                   bind:value={feedbackDetails}
                 ></textarea>
               </div>
-              {#if feedbackError}<div class="alert alert-error" role="alert">{feedbackError}</div>{/if}
+              {#if feedbackError}<div id="feedback-form-error" class="alert alert-error" role="alert">{feedbackError}</div>{/if}
             </div>
             <button
               class="btn-primary btn-accent full-width feedback-submit"
               type="submit"
-              disabled={submittingFeedback || feedbackTitle.trim().length < 2}
+              disabled={submittingFeedback || (!nativeIos && feedbackTitle.trim().length < 2)}
             >
               {#if submittingFeedback}<Spinner />{/if}
               Send feedback
@@ -467,8 +496,8 @@
         <section>
           <h2 class="section-eyebrow">Materials</h2>
           <div class="surface-list">
-            {@render destinationRow("Resume", resumeReady ? "Ready" : "Add your resume", "/you/resume", FileText)}
-            {@render destinationRow("Tailoring", tailoringReady ? "Ready" : "Finish setup", "/you/tailoring", MagicWand)}
+            {@render destinationRow("Resume", resumeReady ? (nativeIos ? "Structured resume ready" : "Ready") : "Add your resume", "/you/resume", FileText)}
+            {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", MagicWand)}
             {@render destinationRow("Master story", "Projects, outcomes, and talking points", "/you/story", Notebook)}
           </div>
         </section>
@@ -506,6 +535,7 @@
             {@render destinationRow("Account", accountSummary, "/you/account", UserCircle)}
           </div>
         </section>
+
       {/if}
     </div>
   </div>

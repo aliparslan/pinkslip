@@ -1,3 +1,5 @@
+import { isIosApp } from "./platform";
+
 export type ToastTone = "success" | "info" | "warning" | "error";
 
 export interface ToastAction {
@@ -27,7 +29,7 @@ const MAX_VISIBLE = 2;
  *  else is routine confirmation and can time out. */
 function resolveDuration(input: { duration?: number | null; action?: ToastAction }): number | null {
   if (input.duration !== undefined) return input.duration;
-  return input.action ? null : DEFAULT_DURATION;
+  return input.action ? null : (isIosApp() ? 5_000 : DEFAULT_DURATION);
 }
 
 class FeedbackController {

@@ -1,6 +1,5 @@
 import type { Component } from "svelte";
 import { mount } from "svelte";
-import "./app.css";
 
 export async function mountApp(App: Component): Promise<ReturnType<typeof mount>> {
   // The pixel face is tiny and packaged locally on iOS. Waiting for it avoids a

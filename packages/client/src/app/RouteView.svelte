@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { currentRoute, navigate, backTargetRoute, routeParam, rootHeaderFor } from "../router";
-  import { loadPage, type PageComponent } from "./page-registry";
+  import { loadPage, resolvedPage, type PageComponent } from "./page-registry";
   import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
+  import { isIosApp } from "../lib/platform";
 
   let {
     routeOverride,
@@ -14,10 +16,14 @@
 
   let route = $derived(routeOverride ?? $currentRoute);
   let CurrentPage: PageComponent | null = $state(null);
+  let renderedRoute: string | null = $state(null);
   let pageLoadFailed = $state(false);
   let generation = 0;
   let jobId = $derived(routeParam(route, "jobId"));
   let rootHeader = $derived(showRootHeader ? rootHeaderFor(route) : null);
+  let pageRoot: HTMLDivElement | undefined = $state();
+  let announcedRoute: string | null = null;
+  const nativeIos = isIosApp();
 
   const RECOVERY_KEY = "pinkslip:lazy-route-recovery";
   const REFRESH_QUERY_KEY = "_app_refresh";
@@ -50,21 +56,46 @@
   async function loadCurrentRoute(): Promise<void> {
     const activeRoute = route;
     const activeGeneration = ++generation;
-    CurrentPage = null;
     pageLoadFailed = false;
+    const resolved = nativeIos ? resolvedPage(activeRoute) : null;
+    if (resolved) {
+      // Core routes and already-loaded lazy routes can render in the same
+      // Svelte flush. Retaining an identical component also avoids a needless
+      // unmount/remount when two routes share one page component.
+      CurrentPage = resolved;
+      renderedRoute = activeRoute;
+    } else {
+      CurrentPage = null;
+      renderedRoute = null;
+    }
     try {
-      let component: PageComponent;
-      try {
-        component = await loadPage(activeRoute);
-      } catch {
-        component = await loadPage(activeRoute);
+      if (!resolved) {
+        let component: PageComponent;
+        try {
+          component = await loadPage(activeRoute);
+        } catch {
+          component = await loadPage(activeRoute);
+        }
+        if (activeGeneration !== generation) return;
+        CurrentPage = component;
+        renderedRoute = activeRoute;
       }
       if (activeGeneration !== generation) return;
-      CurrentPage = component;
       clearRecovery();
+      await tick();
+      if (nativeIos) {
+        const heading = pageRoot?.querySelector<HTMLElement>("h1");
+        const headingText = heading?.textContent?.trim() || rootHeader?.title || "pinkslip";
+        document.title = headingText === "pinkslip" ? headingText : `${headingText} · pinkslip`;
+        if (announcedRoute !== null && announcedRoute !== activeRoute) {
+          (heading ?? pageRoot?.closest<HTMLElement>("main"))?.focus({ preventScroll: true });
+        }
+      }
+      announcedRoute = activeRoute;
     } catch {
       if (activeGeneration === generation && !refreshUpdatedBundle(activeRoute)) {
         pageLoadFailed = true;
+        renderedRoute = activeRoute;
       }
     }
   }
@@ -75,7 +106,11 @@
   });
 </script>
 
-<div class="page-content-root">
+<div
+  class="page-content-root"
+  data-rendered-route={renderedRoute ?? undefined}
+  bind:this={pageRoot}
+>
   {#if rootHeader}
     <div class="root-header-flow">
       <RootHeader title={rootHeader.title} subtitle={rootHeader.subtitle} />

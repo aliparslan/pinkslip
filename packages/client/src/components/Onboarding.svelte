@@ -59,9 +59,26 @@
   $effect(() => {
     step;
     if (scrollEl) scrollEl.scrollTop = 0;
+    if (isNativeIos()) {
+      window.requestAnimationFrame(() => {
+        scrollEl?.querySelector<HTMLElement>("h1")?.focus();
+      });
+    }
   });
 
+  function focusFirst(selector: string) {
+    window.requestAnimationFrame(() => {
+      scrollEl?.querySelector<HTMLElement>(selector)?.focus();
+    });
+  }
+
   async function beginOnboarding() {
+    if (isNativeIos() && profile.roles.length === 0) {
+      error = "Choose at least one role to continue.";
+      focusFirst(".role-card");
+      return;
+    }
+    error = null;
     if (!onboardingStartRecorded) {
       onboardingStartRecorded = true;
       void api.interactions.event({
@@ -80,7 +97,17 @@
   }
 
   async function saveSearchProfile() {
-    if (profile.roles.length === 0 || profile.work_modes.length === 0 || saving) return;
+    if (saving || (!isNativeIos() && (profile.roles.length === 0 || profile.work_modes.length === 0))) return;
+    if (isNativeIos() && profile.roles.length === 0) {
+      error = "Choose at least one role to continue.";
+      focusFirst(".role-card");
+      return;
+    }
+    if (isNativeIos() && profile.work_modes.length === 0) {
+      error = "Choose at least one work mode to continue.";
+      focusFirst(".work-mode-trigger");
+      return;
+    }
     saving = true;
     error = null;
     try {
@@ -162,7 +189,15 @@
       </div>
       <span aria-hidden="true"></span>
     </div>
-    <div class="onboarding-progress-track" aria-label={`Step ${step} of ${TOTAL_STEPS}`}>
+    <div
+      class="onboarding-progress-track"
+      role="progressbar"
+      aria-label="Setup progress"
+      aria-valuemin="1"
+      aria-valuemax={TOTAL_STEPS}
+      aria-valuenow={step}
+      aria-valuetext={`Step ${step} of ${TOTAL_STEPS}`}
+    >
       {#each Array.from({ length: TOTAL_STEPS }, (_, index) => index + 1) as item}
         <span class:active={item <= step}></span>
       {/each}
@@ -173,18 +208,21 @@
     <main class="onboarding-content">
       {#if step === 1}
         <section class="onboarding-step">
-          <h1>Beat the crowd</h1>
+          <h1 tabindex="-1">Beat the crowd</h1>
           <p class="onboarding-copy">
             Choose the roles you want. We&rsquo;ll alert you the moment we see a new posting.
           </p>
           <div class="onboarding-fields">
             <SearchProfileFields bind:profile section="roles" showAdvanced={false} showHeadings={false} />
           </div>
+          {#if error && isNativeIos()}
+            <div class="alert alert-error onboarding-alert" role="alert">{error}</div>
+          {/if}
         </section>
 
       {:else if step === 2}
         <section class="onboarding-step">
-          <h1>Set your work preferences</h1>
+          <h1 tabindex="-1">Set your work preferences</h1>
           <div class="onboarding-fields onboarding-fields-after-title">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
@@ -195,7 +233,7 @@
 
       {:else}
         <section class="onboarding-step">
-          <h1>Stay in the loop</h1>
+          <h1 tabindex="-1">Stay in the loop</h1>
           <p class="onboarding-copy">
             Get an alert when a new role fits your search.
           </p>
@@ -240,14 +278,14 @@
         <button
           type="button"
           class="btn-primary btn-accent full-width onboarding-cta"
-          disabled={profile.roles.length === 0}
+          disabled={!isNativeIos() && profile.roles.length === 0}
           onclick={beginOnboarding}
         >Continue</button>
       {:else if step === 2}
         <button
           type="button"
           class="btn-primary btn-accent full-width onboarding-cta"
-          disabled={saving || profile.work_modes.length === 0}
+          disabled={saving || (!isNativeIos() && profile.work_modes.length === 0)}
           onclick={saveSearchProfile}
         >
           {#if saving}<Spinner />{/if}

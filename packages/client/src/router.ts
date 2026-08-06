@@ -88,9 +88,17 @@ window.requestAnimationFrame(() => setDocumentScroll(0));
 
 export const currentRoute = derived(hash, ($hash) => $hash || "/");
 
+function announceNavigation(nextPath: string): void {
+  if (!document.documentElement.classList.contains("native-ios")) return;
+  window.dispatchEvent(new CustomEvent("pinkslip:navigation-will-change", {
+    detail: { from: activePath, to: nextPath },
+  }));
+}
+
 export function navigate(path: string, options: { replace?: boolean } = {}) {
   const normalized = normalizeRoute(path);
   if (options.replace) {
+    if (normalized !== activePath) announceNavigation(normalized);
     window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${normalized}`);
     activePath = normalized;
     hash.set(normalized);
@@ -98,6 +106,7 @@ export function navigate(path: string, options: { replace?: boolean } = {}) {
     return;
   }
   if (normalized === activePath) return;
+  announceNavigation(normalized);
   pendingScrollSnapshot = { path: activePath, top: currentScrollTop() };
   scrollPositions.set(activePath, currentScrollTop());
   window.location.hash = normalized;

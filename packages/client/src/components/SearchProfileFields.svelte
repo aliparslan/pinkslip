@@ -11,6 +11,7 @@
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Check from "phosphor-svelte/lib/Check";
   import Switch from "./Switch.svelte";
+  import { isIosApp } from "../lib/platform";
 
   let {
     profile = $bindable(),
@@ -39,6 +40,7 @@
     { id: "not_sure", label: "I’m not sure" },
   ];
   let workModePicker: HTMLDetailsElement | null = $state(null);
+  let selectionNotice = $state("");
   let workModeSummary = $derived(
     profile.work_modes.length === workModeOptions.length
       ? "Any work mode"
@@ -79,7 +81,11 @@
 
   function toggleRole(role: RoleId) {
     const selected = profile.roles.includes(role);
-    if (selected && profile.roles.length === 1) return;
+    if (selected && profile.roles.length === 1) {
+      if (isIosApp()) selectionNotice = "Keep at least one target role selected.";
+      return;
+    }
+    selectionNotice = "";
     const roles = selected
       ? profile.roles.filter((item) => item !== role)
       : [...profile.roles, role];
@@ -92,7 +98,11 @@
 
   function toggleWorkMode(mode: WorkMode) {
     const selected = profile.work_modes.includes(mode);
-    if (selected && profile.work_modes.length === 1) return;
+    if (selected && profile.work_modes.length === 1) {
+      if (isIosApp()) selectionNotice = "Keep at least one work mode selected.";
+      return;
+    }
+    selectionNotice = "";
     profile = {
       ...profile,
       work_modes: selected
@@ -124,7 +134,7 @@
         <span class="selection-count">{profile.roles.length} selected</span>
       </div>
     {/if}
-    <div class="choice-grid role-grid">
+    <div class="choice-grid role-grid" role="group" aria-label="Target roles" aria-describedby={isIosApp() ? "role-selection-requirement" : undefined}>
       {#each ROLE_OPTIONS as role}
         <button
           type="button"
@@ -137,6 +147,7 @@
         </button>
       {/each}
     </div>
+    {#if isIosApp()}<p id="role-selection-requirement" class="selection-requirement">Select at least one role.</p>{/if}
 
     {#if showAdvanced}
       <details class="advanced-fields">
@@ -194,10 +205,11 @@
       </div>
     {/if}
 
-    <div class="subfield">
-      <div class="subfield-label">US work authorization</div>
+    <div class="subfield stack-sm">
+      <label id="work-authorization-label" for="work-authorization" class="subfield-label">US work authorization</label>
       <div class="select-field-wrap">
         <select
+          id="work-authorization"
           class="input-field tall-control"
           value={profile.work_authorization}
           onchange={(event) => profile = {
@@ -209,27 +221,27 @@
             <option value={option.id}>{option.label}</option>
           {/each}
         </select>
-        <span class="select-chevron"><CaretDown size={15} weight="bold" /></span>
+        <span class="select-chevron" aria-hidden="true"><CaretDown size={15} weight="bold" /></span>
       </div>
     </div>
 
-    <div class="subfield">
-      <div class="subfield-label">Work mode</div>
+    <div class="subfield stack-sm">
+      <div id="work-mode-label" class="subfield-label">Work mode</div>
       <details
         bind:this={workModePicker}
         class="work-mode-picker"
       >
-        <summary class="work-mode-trigger">
+        <summary class="work-mode-trigger" aria-describedby={isIosApp() ? "work-mode-label work-mode-requirement" : undefined}>
           <span>{workModeSummary || "Choose work modes"}</span>
           <span class="work-mode-chevron" aria-hidden="true">
             <CaretDown size={15} weight="bold" />
           </span>
         </summary>
-        <div class="work-mode-menu" aria-label="Work modes">
+        <div class="menu-surface work-mode-menu" aria-label="Work modes">
           {#each workModeOptions as option}
             <button
               type="button"
-              class="work-mode-option"
+              class="menu-item work-mode-option"
               class:active={profile.work_modes.includes(option.id)}
               aria-pressed={profile.work_modes.includes(option.id)}
               onclick={() => toggleWorkMode(option.id)}
@@ -244,6 +256,7 @@
           {/each}
         </div>
       </details>
+      {#if isIosApp()}<p id="work-mode-requirement" class="selection-requirement">Select at least one work mode.</p>{/if}
     </div>
 
     <div class="anywhere-row">
@@ -258,8 +271,8 @@
       />
     </div>
 
-    <div class="subfield">
-      <div class="subfield-label">Preferred metros</div>
+    <fieldset class="subfield preference-fieldset stack-sm">
+      <legend class="subfield-label">Preferred metros</legend>
       <div class="location-grid">
         {#each LOCATION_OPTIONS as location}
           <button
@@ -273,7 +286,7 @@
           </button>
         {/each}
       </div>
-    </div>
+    </fieldset>
 
     {#if showAdvanced}
       <details class="advanced-fields">
@@ -294,6 +307,8 @@
   </section>
 {/if}
 
+{#if isIosApp()}<p class="selection-notice" role="status" aria-live="polite">{selectionNotice}</p>{/if}
+
 <style>
   .profile-field-section { display: flex; flex-direction: column; gap: 14px; }
   .profile-field-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
@@ -313,14 +328,20 @@
   .choice-card { min-height: 48px; padding: 10px var(--space-3); border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 500; }
   .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
   .choice-card:active, .location-chip:active { transform: scale(0.97); }
+  :global(html.native-ios) .role-card { min-height: var(--tap-min); }
+  :global(html.native-ios) .choice-card:active,
+  :global(html.native-ios) .location-chip:active { transform: scale(0.96); }
   .choice-card.active, .location-chip.active {
     border-color: var(--color-accent);
     background: var(--color-accent-soft);
     color: var(--color-accent-soft-ink);
     font-weight: 600;
   }
-  .subfield { display: flex; flex-direction: column; gap: var(--space-2); }
   .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 500; }
+  .preference-fieldset { min-width: 0; padding: 0; border: 0; margin: 0; }
+  .preference-fieldset > legend { padding: 0; }
+  .selection-requirement { margin: -2px 0 0; color: var(--color-ink-4); font-size: var(--fs-2xs); line-height: 1.4; }
+  .selection-notice { min-height: 1px; margin: 0; color: var(--color-warn); font-size: var(--fs-xs); line-height: 1.4; }
   .work-mode-picker { position: relative; }
   .work-mode-trigger {
     width: 100%;
@@ -353,33 +374,15 @@
     left: 0;
     right: 0;
     z-index: 8;
-    padding: 5px;
-    border: 1px solid var(--color-line-2);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-elev);
-    box-shadow: var(--shadow-toast);
   }
   .work-mode-option {
-    width: 100%;
-    min-height: 42px;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--color-ink-2);
     font-size: var(--fs-md);
-    text-align: left;
-    cursor: pointer;
   }
-  .work-mode-option:hover { background: var(--color-bg-sunken); }
-  .work-mode-option.active { color: var(--color-ink); }
   /* .select-check lives in app.css — shared with the location filter dropdown. */
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
+  :global(html.native-ios) .location-chip { min-height: var(--tap-min); }
   .anywhere-row { min-height: 52px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
   .anywhere-title { color: var(--color-ink); font-size: var(--fs-sm); font-weight: 500; }
   .anywhere-help { margin-top: 2px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.35; }

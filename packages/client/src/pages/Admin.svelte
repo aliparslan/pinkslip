@@ -83,6 +83,8 @@
     background: var(--color-bg-sunken);
   }
 
+  :global(html.native-ios) .admin-tabs { height: 50px; }
+
   .admin-tabs button {
     min-width: 0;
     padding: 0 8px;

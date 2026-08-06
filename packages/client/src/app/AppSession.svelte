@@ -7,11 +7,13 @@
   import { applicationIntent } from "../lib/application-intent.svelte";
   import { syncFeedPreferences } from "../lib/feed-store.svelte";
   import { feedback } from "../lib/feedback.svelte";
-  import { platform } from "../lib/platform";
+  import { isIosApp, platform } from "../lib/platform";
   import Onboarding from "../components/Onboarding.svelte";
   import Spinner from "../components/Spinner.svelte";
   import ToastViewport from "../components/ToastViewport.svelte";
   import ApplicationReturnPrompt from "../components/ApplicationReturnPrompt.svelte";
+  import WifiSlash from "phosphor-svelte/lib/WifiSlash";
+  import ArrowClockwise from "phosphor-svelte/lib/ArrowClockwise";
   import type { SearchProfile } from "../../../../shared/search-profile";
 
   let { children }: { children: Snippet } = $props();
@@ -24,6 +26,7 @@
   let accessCode = $state("");
   let accessError: string | null = $state(null);
   let unlocking = $state(false);
+  let accessCodeInput: HTMLInputElement | null = $state(null);
   let bootGeneration = 0;
 
   async function bootstrapSession(): Promise<void> {
@@ -54,7 +57,14 @@
   }
 
   async function unlock(): Promise<void> {
-    if (!accessCode.trim() || unlocking) return;
+    if (unlocking) return;
+    if (!accessCode.trim()) {
+      if (isIosApp()) {
+        accessError = "Enter the shared access code.";
+        window.requestAnimationFrame(() => accessCodeInput?.focus());
+      }
+      return;
+    }
     unlocking = true;
     accessError = null;
     try {
@@ -107,13 +117,21 @@
   }
 
   onMount(() => {
+    const nativeIos = isIosApp();
     const detachApplicationIntent = applicationIntent.initialize();
     const detachMagicLink = platform().auth.attachMagicLink((token) => void completeMagicLink(token));
     void platform().notifications.initialize().catch((error) => {
       console.error("Notification initialization failed:", error);
     });
     void bootstrapSession();
+    const retryWhenOnline = () => {
+      if (!bootError || booting) return;
+      booting = true;
+      void bootstrapSession();
+    };
+    if (nativeIos) window.addEventListener("online", retryWhenOnline);
     return () => {
+      if (nativeIos) window.removeEventListener("online", retryWhenOnline);
       detachApplicationIntent();
       detachMagicLink();
     };
@@ -123,13 +141,25 @@
 {#if sessionReady && !showOnboarding}
   {@render children()}
 {:else if bootError}
-  <div class="boot-error-wrap">
-    <div class="boot-error-card">
-      <div class="h-display h-display-sm boot-error-title">Couldn’t load the app</div>
-      <div class="boot-error-copy">{bootError}</div>
-      <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>Try again</button>
+  {#if isIosApp()}
+    <main class="boot-error-wrap native-boot-error" role="alert">
+      <div class="native-boot-error-icon" aria-hidden="true"><WifiSlash size={24} weight="bold" /></div>
+      <h1>Can’t connect right now</h1>
+      <p>Check your internet connection, then try again.</p>
+      <button class="btn-secondary" onclick={() => { booting = true; bootstrapSession(); }}>
+        <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
+        Try again
+      </button>
+    </main>
+  {:else}
+    <div class="boot-error-wrap">
+      <div class="boot-error-card">
+        <div class="h-display h-display-sm boot-error-title">Couldn’t load the app</div>
+        <div class="boot-error-copy">{bootError}</div>
+        <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>Try again</button>
+      </div>
     </div>
-  </div>
+  {/if}
 {:else}
   <div class="page-loading" aria-busy="true">
     <Spinner size={22} label={booting ? "Starting up" : "Waiting for access"} />
@@ -146,15 +176,19 @@
       </p>
       <label for="access-code" class="field-label access-label">Access code</label>
       <input
+        bind:this={accessCodeInput}
         id="access-code"
         class="input-field"
         type="password"
         placeholder="Enter code"
         bind:value={accessCode}
+        aria-invalid={isIosApp() && accessError ? "true" : undefined}
+        aria-describedby={isIosApp() && accessError ? "access-error" : undefined}
+        oninput={() => { if (isIosApp()) accessError = null; }}
         onkeydown={(event) => event.key === "Enter" && unlock()}
       />
-      {#if accessError}<div class="alert alert-error access-alert" role="alert">{accessError}</div>{/if}
-      <button class="btn-primary btn-accent full-width access-submit" disabled={!accessCode.trim() || unlocking} onclick={unlock}>
+      {#if accessError}<div id="access-error" class="alert alert-error access-alert" role="alert">{accessError}</div>{/if}
+      <button class="btn-primary btn-accent full-width access-submit" disabled={unlocking || (!isIosApp() && !accessCode.trim())} onclick={unlock}>
         {unlocking ? "Checking…" : "Unlock"}
       </button>
     </div>

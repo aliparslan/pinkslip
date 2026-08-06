@@ -44,6 +44,13 @@ interactions.post("/viewed-jobs/:id", async (c) => {
   return c.body(null, 204);
 });
 
+interactions.delete("/viewed-jobs/:id", async (c) => {
+  await c.env.DB.prepare(
+    "DELETE FROM viewed_jobs WHERE user_id = ? AND job_id = ?"
+  ).bind(c.get("userId"), c.req.param("id")).run();
+  return c.body(null, 204);
+});
+
 interactions.post("/companies/:id/block", async (c) => {
   const userId = c.get("userId");
   const companyId = c.req.param("id");

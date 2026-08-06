@@ -14,6 +14,7 @@
   import ScreenNav from "../components/ScreenNav.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Plus from "phosphor-svelte/lib/Plus";
+  import { isIosApp } from "../lib/platform";
 
   let { mode = "user" }: { mode?: "user" | "admin" } = $props();
   let isAdminMode = $derived(mode === "admin" && $sessionAccess.isAdmin);
@@ -113,6 +114,7 @@
   let requestCompanyNotes: string = $state("");
   let requestingCompany: boolean = $state(false);
   let requestCompanyError: string | null = $state(null);
+  const nativeIos = isIosApp();
 
   let filteredCompanies = $derived(
     companies.filter((c) => {
@@ -790,6 +792,8 @@
     font-size: var(--fs-sm);
   }
 
+  :global(html.native-ios) .source-filter-row .input-field { height: var(--tap-min); }
+
   .source-result-count {
     grid-column: 1 / -1;
     color: var(--color-ink-4);
@@ -933,7 +937,10 @@
     busy={reporting}
     onclose={() => (reportTarget = null)}
   >
+    {#if nativeIos}<label for="company-report-notes" class="field-label">What did you notice?</label>{/if}
     <textarea
+      id="company-report-notes"
+      aria-label={nativeIos ? undefined : "What did you notice?"}
       class="input-field textarea-field textarea-spaced"
       rows="4"
       placeholder="What did you notice?"

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "./styles/reset.css";
 @import "./styles/tokens.css";
 
 /* Geist (Vercel, SIL OFL — see public/fonts/geist/LICENSE.txt). Subset to Latin,
@@ -39,8 +39,6 @@
   font-style: normal;
   font-display: swap;
 }
-
-* { box-sizing: border-box; }
 
 /* stylelint-disable-next-line selector-max-id, selector-max-specificity */
 html, body, #app {
@@ -155,14 +153,7 @@ body {
   color: var(--color-selection-ink);
 }
 
-button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
-
-/* iOS WKWebView zooms when a focused field's font is < 16px. Enforce 16px on
-   form controls in the native shell only, so the web/desktop sizing is untouched. */
-html.native-ios input,
-html.native-ios textarea {
-  font-size: 16px;
-}
+button { -webkit-tap-highlight-color: transparent; }
 
 /* ── Typography ──────────────────────────────────────────── */
 
@@ -270,31 +261,6 @@ html.native-ios textarea {
   color: var(--color-warn);
 }
 
-/* ── Stat row ────────────────────────────────────────────── */
-
-.stat-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 0;
-  font-family: var(--font-sans);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--color-ink-3);
-  letter-spacing: 0.01em;
-}
-.stat-row > * {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-.stat-row > * + *::before {
-  content: "·";
-  margin: 0 var(--space-3);
-  color: var(--color-ink-4);
-}
-
 .job-meta-strip {
   display: flex;
   flex-wrap: wrap;
@@ -331,7 +297,7 @@ html.native-ios textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
+  height: var(--control-height-small);
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-line-2);
@@ -347,6 +313,7 @@ html.native-ios textarea {
     color var(--duration-instant) var(--ease-standard),
     border-color var(--duration-instant) var(--ease-standard);
 }
+
 .chip:hover { background: var(--color-bg-sunken); }
 .chip-active,
 .filter-choice.active {
@@ -539,7 +506,7 @@ html.native-ios textarea {
 }
 
 .feed-stale-notice button {
-  min-height: 32px;
+  min-height: var(--control-height-small);
   padding: 0 5px;
   border: 0;
   background: transparent;
@@ -581,7 +548,7 @@ html.native-ios textarea {
 
 .segmented-control button {
   min-width: max-content;
-  height: 40px;
+  height: var(--control-height-compact);
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
@@ -660,12 +627,13 @@ html.native-ios textarea {
 .filter-dual-range {
   position: relative;
   width: 100%;
-  min-height: 32px;
+  min-height: var(--control-height-small);
   display: flex;
   align-items: center;
   cursor: pointer;
   touch-action: none;
 }
+
 
 .filter-dual-range::before {
   content: "";
@@ -702,7 +670,7 @@ html.native-ios textarea {
 /* Keep native range defaults available to older filter controls. */
 .filter-range input[type="range"] {
   width: 100%;
-  min-height: 32px;
+  min-height: var(--control-height-small);
   margin: 0;
   accent-color: var(--color-accent);
   cursor: pointer;
@@ -774,13 +742,6 @@ html.native-ios textarea {
 
 .filter-location-select summary svg {
   transition: transform var(--duration-instant) var(--ease-standard);
-}
-
-.filter-location-select summary span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .filter-location-select[open] summary {
@@ -971,8 +932,8 @@ html.native-ios textarea {
 
 .action-row.compact > .btn-primary,
 .action-row.compact > .btn-secondary {
-  min-height: 40px;
-  height: 40px;
+  min-height: var(--control-height-compact);
+  height: var(--control-height-compact);
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
@@ -1029,14 +990,14 @@ html.native-ios textarea {
 
 /* Compact icon button for inside list rows. */
 .icon-btn-sm {
-  width: 40px;
-  height: 40px;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   border-radius: var(--radius-sm);
 }
 
 .icon-btn-xs {
-  width: 40px;
-  height: 40px;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   flex-shrink: 0;
   border-radius: var(--radius-xs);
 }
@@ -1215,13 +1176,6 @@ html.native-ios textarea {
   gap: 8px;
 }
 
-.job-detail-company {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .job-detail-title {
   margin: 0;
   line-height: 1.15;
@@ -1272,14 +1226,7 @@ html.native-ios textarea {
 }
 
 .job-more-menu {
-  z-index: var(--z-overlay);
   width: min(260px, calc(100vw - 32px));
-  padding: 6px;
-  border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elev);
-  box-shadow: var(--shadow-toast);
-  outline: none;
   transform-origin: var(--bits-menu-content-transform-origin);
   transition:
     opacity var(--duration-instant) var(--ease-standard),
@@ -1291,23 +1238,33 @@ html.native-ios textarea {
   width: min(148px, calc(100vw - 32px));
 }
 
-.job-more-menu[data-starting-style],
-.job-more-menu[data-ending-style] {
-  opacity: 0;
-  transform: scale(0.97);
-}
-
 .job-more-menu[data-ending-style] {
   transition-duration: 110ms;
 }
 
-.job-more-menu-item {
+.menu-surface {
+  z-index: var(--z-overlay);
+  padding: 5px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  box-shadow: var(--shadow-toast);
+  outline: none;
+}
+
+.menu-surface[data-starting-style],
+.menu-surface[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.menu-item {
   width: 100%;
-  min-height: 42px;
-  padding: 9px 10px;
+  min-height: var(--control-height-compact);
+  padding: 0 10px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1318,20 +1275,19 @@ html.native-ios textarea {
   cursor: pointer;
 }
 
-.job-more-menu-item:hover,
-.job-more-menu-item[data-highlighted] {
+.menu-item:hover,
+.menu-item[data-highlighted] {
   background: var(--color-bg-sunken);
   color: var(--color-ink);
 }
 
-.job-more-menu-item:disabled {
+.menu-item:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.job-more-menu-item.danger {
-  color: var(--color-bad);
-}
+.menu-item.active { color: var(--color-ink); }
+.menu-item.danger { color: var(--color-bad); }
 
 .btn-mini {
   min-height: var(--control-height-compact);
@@ -1526,10 +1482,6 @@ select.input-field {
 .page-loading > .spin {
   width: 28px;
   height: 28px;
-}
-
-.app-content-shell > .page-loading {
-  min-height: 100dvh;
 }
 
 .loading-label {
@@ -1957,7 +1909,6 @@ select.input-field {
 
 .textarea-spaced,
 .alert-spaced,
-.tailor-meta,
 .feed-empty-copy { margin-bottom: 14px; }
 
 .corpus-editor {
@@ -2155,7 +2106,6 @@ select.input-field {
    the surrounding layout twitch on every update. */
 .selection-count,
 .source-result-count,
-.card-count,
 .empty-state-copy {
   font-variant-numeric: tabular-nums;
 }
@@ -2165,16 +2115,7 @@ select.input-field {
 .card-actions,
 .inset-panel-actions { margin-top: 4px; }
 
-.ordered-steps {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--color-ink-2);
-  font-size: var(--fs-sm);
-  line-height: 1.7;
-}
-
-.tailor-tabs,
-.tailor-toolbar { margin-bottom: 12px; }
+.tailor-tabs { margin-bottom: 12px; }
 
 .tailor-document {
   overflow: hidden;
@@ -2402,6 +2343,9 @@ select.input-field {
 .feed-skeleton-title { width: 72%; height: 12px; }
 .feed-skeleton-meta { width: 50%; }
 .feed-error { margin: var(--space-4); }
+.feed-error > button { margin-top: var(--space-3); }
+
+details.filter-advanced { display: contents; }
 .feed-loading-more {
   padding: 18px var(--space-4);
   color: var(--color-ink-3);
@@ -2426,11 +2370,6 @@ select.input-field {
     opacity: 0;
     transform: translateX(14px);
   }
-}
-
-body.nav-animating .pushed-screen,
-.nav-underlay .pushed-screen {
-  animation: none;
 }
 
 .root-screen {
@@ -2467,44 +2406,6 @@ body.nav-animating .pushed-screen,
 
 .feed-page.pull-settling .feed-pull-reveal {
   transition: height var(--duration-standard) var(--ease-standard), opacity var(--duration-fast) ease;
-}
-
-.app-content-shell {
-  width: 100%;
-  max-width: var(--app-mobile-width);
-  margin: 0 auto;
-  background: var(--color-bg);
-}
-
-.app-content-shell.nav-foreground {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-}
-
-.root-header-layer {
-  position: absolute;
-  z-index: 10;
-  top: 0;
-  left: 0;
-  right: 0;
-}
-
-.root-header-spacer {
-  height: var(--root-header-height);
-  flex: none;
-}
-
-.app-content-shell.mobile-tabs-visible {
-  padding-bottom: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
-}
-
-.app-content-shell.admin-shell-active {
-  width: 100%;
-  max-width: none;
-  margin: 0;
 }
 
 .screen-nav {
@@ -2552,6 +2453,7 @@ body.nav-animating .pushed-screen,
 }
 
 .screen-nav__title {
+  margin: 0;
   max-width: min(46vw, 300px);
   overflow: hidden;
   color: var(--color-ink);
@@ -2581,17 +2483,6 @@ body.nav-animating .pushed-screen,
 @media (min-width: 900px) {
   body {
     background: var(--color-bg-sunken);
-  }
-
-  .app-content-shell {
-    width: calc(100vw - var(--app-nav-wide));
-    max-width: none;
-    margin-left: var(--app-nav-wide);
-    margin-right: 0;
-  }
-
-  .app-content-shell.mobile-tabs-visible {
-    padding-bottom: 0;
   }
 
   .root-screen {
@@ -2701,81 +2592,6 @@ body.nav-animating .pushed-screen,
   }
 }
 
-/* ── Interactive swipe-back (iOS-style push/pop) ─────────────────────────────
-   The foreground is the live page; during a back-swipe it translates right to
-   reveal the previous screen (the underlay), which parallax-shifts in and is
-   dimmed while covered. App.svelte drives the transforms imperatively. */
-/* Solid strip over the status bar / Dynamic Island. Height collapses to 0 on
-   devices without a top safe-area inset, so it's inert on the web. */
-.status-bar-scrim {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-top, 0);
-  z-index: 30;
-  background: var(--color-bg);
-  pointer-events: none;
-}
-body.nav-animating .status-bar-scrim {
-  background: var(--color-bg);
-}
-
-.nav-foreground {
-  position: relative;
-  z-index: 1;
-  background: var(--color-bg);
-}
-.nav-foreground.is-swiping {
-  will-change: transform;
-  box-shadow: var(--shadow-nav-swipe);
-}
-.nav-underlay {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none; /* visual only; the foreground owns all touches */
-  will-change: transform;
-}
-
-.app-content-shell.nav-underlay-shell {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-underlay-header {
-  transform: translateY(calc(-1 * min(var(--underlay-scroll), var(--root-header-height))));
-}
-
-.nav-underlay-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  will-change: transform;
-}
-
-.nav-underlay-dim {
-  position: absolute;
-  inset: 0;
-  background: var(--color-nav-dim);
-  pointer-events: none;
-}
-
-/* While a nav animation is running, drop the expensive header/tab-bar blur
-   (compositing a full-screen backdrop-filter mid-transform is what jitters).
-   !important guarantees this wins over any state-specific .screen-nav variant
-   that might apply mid-transition — performance-critical, verify on device. */
-/* stylelint-disable declaration-no-important */
-body.nav-animating .screen-nav {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background: var(--color-bg) !important;
-}
-/* stylelint-enable declaration-no-important */
 /* Tactile press feedback — every primary tappable surface dips slightly.
    (These classes already include `transform` in their own transitions.) */
 .btn-primary:active,
@@ -2790,7 +2606,6 @@ body.nav-animating .screen-nav {
 .segmented-control button:active {
   transform: scale(0.97);
 }
-
 
 .sheet-backdrop {
   position: fixed;
@@ -2869,15 +2684,9 @@ body.nav-animating .screen-nav {
 }
 /* stylelint-enable declaration-no-important */
 
-/* Native tab bars do not float above the software keyboard. Release their
-   reserved space too; otherwise it becomes a blank strip above the keyboard. */
 @media (max-width: 899px) {
   body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .tab-bar {
     display: none;
-  }
-
-  :where(body):has(input:focus, textarea:focus, [contenteditable="true"]:focus) .app-content-shell.mobile-tabs-visible {
-    padding-bottom: 0;
   }
 
   :where(body):has(input:focus, textarea:focus, [contenteditable="true"]:focus) .root-screen {

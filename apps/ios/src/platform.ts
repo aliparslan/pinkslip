@@ -31,8 +31,13 @@ interface SecureSessionPlugin {
   clear(): Promise<void>;
 }
 
+interface NativeAppearancePlugin {
+  setTheme(options: { theme: "dark" | "light" }): Promise<void>;
+}
+
 const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
+const NativeAppearance = registerPlugin<NativeAppearancePlugin>("NativeAppearance");
 const SecureSession = registerPlugin<SecureSessionPlugin>("SecureSession");
 const API_ORIGIN = import.meta.env.VITE_IOS_API_ORIGIN || "https://pinkslip.alip.dev";
 // These are the sRGB equivalents of --color-bg in the shared OKLCH palette.
@@ -131,26 +136,27 @@ function configureNativeDocument(): void {
   document.documentElement.classList.add("native-app", "native-ios");
   document.querySelector('meta[name="viewport"]')?.setAttribute(
     "content",
-    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    "width=device-width, initial-scale=1, viewport-fit=cover"
   );
   void StatusBar.setOverlaysWebView({ overlay: true });
+  // Capacitor hides WKWebView's form accessory bar by default. Restore the
+  // standard iPhone previous/next controls for Pinkslip's multi-field forms.
+  void Keyboard.setAccessoryBarVisible({ isVisible: true }).catch(() => undefined);
   resolvedTheme.subscribe((theme) => {
     const surfaceColor = NATIVE_SURFACE_COLOR[theme];
     document.documentElement.style.backgroundColor = surfaceColor;
     document.body.style.backgroundColor = surfaceColor;
+    void NativeAppearance.setTheme({ theme }).catch(() => undefined);
     void StatusBar.setStyle({ style: theme === "dark" ? Style.Dark : Style.Light });
     void Keyboard.setStyle({
       style: theme === "dark" ? KeyboardStyle.Dark : KeyboardStyle.Light,
     }).catch(() => undefined);
   });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || !(event.target instanceof HTMLInputElement)) return;
-    if (["button", "checkbox", "file", "radio", "range", "reset", "submit"].includes(event.target.type)) return;
-    const input = event.target;
-    window.requestAnimationFrame(() => {
-      input.blur();
-      void Keyboard.hide().catch(() => undefined);
-    });
+  void Keyboard.addListener("keyboardWillShow", () => {
+    document.body.classList.add("native-keyboard-visible");
+  });
+  void Keyboard.addListener("keyboardDidHide", () => {
+    document.body.classList.remove("native-keyboard-visible");
   });
 }
 

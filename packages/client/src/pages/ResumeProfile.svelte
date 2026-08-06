@@ -3,7 +3,11 @@
   import { api, type ResumeProfile, type OptionalSectionKind, type DegreeType } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
-  import { requestBack } from "../lib/nav-back";
+  import {
+    announceLocalNavigation,
+    registerLocalBackHandler,
+    requestBack,
+  } from "../lib/nav-back";
   import Plus from "phosphor-svelte/lib/Plus";
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
@@ -18,11 +22,13 @@
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { createEmptyResumeProfile } from "../../../../shared/resume-profile";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
+  import { isIosApp } from "../lib/platform";
   import {
     DEGREE_OPTIONS,
     US_STATES,
     formatDegree,
     formatResumeDate,
+    hasResumeContent,
     inferDegreeType,
     inferFieldOfStudy,
     joinUsLocation,
@@ -46,6 +52,8 @@
     | { kind: "section"; section: ResumeSection }
     | { kind: "record"; section: CollectionSection; id: string };
 
+  const RESUME_OVERVIEW_SNAPSHOT = "resume:overview";
+
   let loading = $state(true);
   let saving = $state(false);
   let error: string | null = $state(null);
@@ -59,6 +67,36 @@
   let pendingImport: Partial<ResumeProfile> | null = $state(null);
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
+  let draftRecord: { section: CollectionSection; id: string } | null = null;
+  const nativeIos = isIosApp();
+
+  function currentDraftValue(): unknown {
+    if (!draftRecord) return null;
+    return profile[draftRecord.section].find((entry) => entry.id === draftRecord?.id);
+  }
+
+  function undoable(message: string, restore: () => void) {
+    if (!nativeIos) return;
+    feedback.show({ message, action: { label: "Undo", run: restore } });
+  }
+
+  function removeWithUndo<T>(
+    index: number,
+    message: string,
+    getItems: () => T[],
+    setItems: (items: T[]) => void,
+  ) {
+    const removed = getItems()[index];
+    if (removed === undefined) return;
+    setItems(getItems().filter((_, itemIndex) => itemIndex !== index));
+    queueAutosave();
+    undoable(message, () => {
+      const next = [...getItems()];
+      next.splice(Math.max(0, index), 0, removed);
+      setItems(next);
+      queueAutosave();
+    });
+  }
 
   function recordId(activeView: ResumeView): string {
     return activeView.kind === "record" ? activeView.id : "";
@@ -156,67 +194,98 @@
     return [formatResumeDate(startDate), formatResumeDate(endDate)].filter(Boolean).join(" – ");
   }
 
-  function openSection(section: DirectSection) {
+  function prepareResumeEditor() {
+    if (nativeIos && view.kind === "overview") {
+      announceLocalNavigation(RESUME_OVERVIEW_SNAPSHOT);
+    }
+  }
+
+  function openSection(section: DirectSection, captureOverview = true) {
+    if (captureOverview) prepareResumeEditor();
     view = { kind: "section", section };
   }
 
-  function openRecord(section: CollectionSection, id: string) {
+  function openRecord(section: CollectionSection, id: string, captureOverview = true) {
+    if (captureOverview) prepareResumeEditor();
     view = { kind: "record", section, id };
+  }
+
+  function returnToOverview() {
+    if (
+      nativeIos
+      && view.kind === "record"
+      && draftRecord?.section === view.section
+      && draftRecord.id === view.id
+      && !hasResumeContent(currentDraftValue())
+    ) {
+      const draftId = view.id;
+      if (view.section === "experience") profile.experience = profile.experience.filter((entry) => entry.id !== draftId);
+      if (view.section === "education") profile.education = profile.education.filter((entry) => entry.id !== draftId);
+      if (view.section === "projects") profile.projects = profile.projects.filter((entry) => entry.id !== draftId);
+      draftRecord = null;
+    }
+    view = { kind: "overview" };
   }
 
   function handleBack() {
     if (view.kind !== "overview") {
-      view = { kind: "overview" };
+      if (!nativeIos || !requestBack()) returnToOverview();
       return;
     }
     if (!requestBack()) navigate("/you");
   }
 
   function addExperience() {
+    prepareResumeEditor();
     const id = genId();
     profile.experience = [
       ...profile.experience,
       { id, company: "", title: "", location: "", startDate: "", endDate: "", bullets: [""] },
     ];
-    queueAutosave();
-    openRecord("experience", id);
+    if (nativeIos) draftRecord = { section: "experience", id };
+    else queueAutosave();
+    openRecord("experience", id, false);
   }
 
   function removeExperience(id: string) {
-    profile.experience = profile.experience.filter((entry) => entry.id !== id);
-    queueAutosave();
+    const index = profile.experience.findIndex((entry) => entry.id === id);
+    removeWithUndo(index, "Position removed", () => profile.experience, (items) => (profile.experience = items));
     view = { kind: "overview" };
   }
 
   function addEducation() {
+    prepareResumeEditor();
     const id = genId();
     profile.education = [
       ...profile.education,
       { id, institution: "", degree: "", degreeType: undefined, fieldOfStudy: "", location: "", startDate: "", endDate: "", gpa: "" },
     ];
-    queueAutosave();
-    openRecord("education", id);
+    if (nativeIos) draftRecord = { section: "education", id };
+    else queueAutosave();
+    openRecord("education", id, false);
   }
 
   function removeEducation(id: string) {
-    profile.education = profile.education.filter((entry) => entry.id !== id);
-    queueAutosave();
+    const index = profile.education.findIndex((entry) => entry.id === id);
+    removeWithUndo(index, "Education removed", () => profile.education, (items) => (profile.education = items));
     view = { kind: "overview" };
   }
 
   function addProject() {
+    prepareResumeEditor();
     const id = genId();
     profile.projects = [
       ...profile.projects,
       { id, name: "", url: "", date: "", bullets: [""] },
     ];
-    queueAutosave();
-    openRecord("projects", id);
+    if (nativeIos) draftRecord = { section: "projects", id };
+    else queueAutosave();
+    openRecord("projects", id, false);
   }
 
   function removeProject(id: string) {
-    profile.projects = profile.projects.filter((entry) => entry.id !== id);
-    queueAutosave();
+    const index = profile.projects.findIndex((entry) => entry.id === id);
+    removeWithUndo(index, "Project removed", () => profile.projects, (items) => (profile.projects = items));
     view = { kind: "overview" };
   }
 
@@ -226,28 +295,34 @@
   }
 
   function addSkillAndOpen() {
+    prepareResumeEditor();
     addSkill();
-    openSection("skills");
+    openSection("skills", false);
   }
 
   function removeSkill(index: number) {
-    profile.skills = profile.skills.filter((_, itemIndex) => itemIndex !== index);
-    queueAutosave();
+    removeWithUndo(index, "Skill category removed", () => profile.skills, (items) => (profile.skills = items));
   }
 
   function addOptionalSection(kind: OptionalSectionKind) {
+    prepareResumeEditor();
     profile.optionalSections = [
       ...profile.optionalSections,
       { kind, items: [{ category: "", items: "" }] },
     ];
     addSectionOpen = false;
     queueAutosave();
-    openSection(kind);
+    openSection(kind, false);
   }
 
   function removeOptionalSection(kind: OptionalSectionKind) {
-    profile.optionalSections = profile.optionalSections.filter((section) => section.kind !== kind);
-    queueAutosave();
+    const index = profile.optionalSections.findIndex((section) => section.kind === kind);
+    removeWithUndo(
+      index,
+      `${OPTIONAL_SECTION_LABELS[kind]} removed`,
+      () => profile.optionalSections,
+      (items) => (profile.optionalSections = items),
+    );
     view = { kind: "overview" };
   }
 
@@ -261,12 +336,23 @@
   }
 
   function removeOptionalItem(kind: OptionalSectionKind, index: number) {
+    const section = profile.optionalSections.find((candidate) => candidate.kind === kind);
+    const removed = section?.items[index];
     profile.optionalSections = profile.optionalSections.map((section) =>
       section.kind === kind
         ? { ...section, items: section.items.filter((_, itemIndex) => itemIndex !== index) }
         : section
     );
     queueAutosave();
+    if (removed) undoable("Item removed", () => {
+      profile.optionalSections = profile.optionalSections.map((candidate) => {
+        if (candidate.kind !== kind) return candidate;
+        const items = [...candidate.items];
+        items.splice(index, 0, removed);
+        return { ...candidate, items };
+      });
+      queueAutosave();
+    });
   }
 
   function addBullet(items: string[]) {
@@ -332,6 +418,10 @@
   }
 
   function queueAutosave() {
+    if (nativeIos && draftRecord) {
+      if (!hasResumeContent(currentDraftValue())) return;
+      draftRecord = null;
+    }
     savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
     autosaveTimer = window.setTimeout(() => {
@@ -412,8 +502,16 @@
   onMount(() => {
     void loadAll();
     const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
+    const unregisterLocalBack = nativeIos
+      ? registerLocalBackHandler({
+          snapshotKey: RESUME_OVERVIEW_SNAPSHOT,
+          isActive: () => view.kind !== "overview",
+          commit: returnToOverview,
+        })
+      : () => undefined;
     return () => {
       unregisterAutosaveFlush();
+      unregisterLocalBack();
       savePresentation.destroy();
     };
   });
@@ -422,6 +520,7 @@
 <div class="page pushed-screen">
   <ScreenNav
     title={screenTitle}
+    collapsible={nativeIos && view.kind === "overview"}
     backLabel={view.kind === "overview" ? "Back to You" : "Back"}
     onBack={handleBack}
   >
@@ -435,6 +534,7 @@
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if view.kind === "overview"}
+      {#if nativeIos}<h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>{/if}
       <input
         class="visually-hidden-input"
         type="file"
@@ -463,7 +563,7 @@
           </button>
         </section>
 
-        <section class="resume-section" aria-labelledby="experience-heading">
+        <section class="resume-section stack-sm" aria-labelledby="experience-heading">
           <header class="resume-section-heading">
             <h2 id="experience-heading">Experience</h2>
             <button type="button" class="section-action" onclick={addExperience} aria-label="Add experience"><Plus size={18} /></button>
@@ -487,7 +587,7 @@
           {/if}
         </section>
 
-        <section class="resume-section" aria-labelledby="education-heading">
+        <section class="resume-section stack-sm" aria-labelledby="education-heading">
           <header class="resume-section-heading">
             <h2 id="education-heading">Education</h2>
             <button type="button" class="section-action" onclick={addEducation} aria-label="Add education"><Plus size={18} /></button>
@@ -510,7 +610,7 @@
           {/if}
         </section>
 
-        <section class="resume-section" aria-labelledby="projects-heading">
+        <section class="resume-section stack-sm" aria-labelledby="projects-heading">
           <header class="resume-section-heading">
             <h2 id="projects-heading">Projects</h2>
             <button type="button" class="section-action" onclick={addProject} aria-label="Add project"><Plus size={18} /></button>
@@ -534,7 +634,7 @@
           {/if}
         </section>
 
-        <section class="resume-section" aria-labelledby="skills-heading">
+        <section class="resume-section stack-sm" aria-labelledby="skills-heading">
           <header class="resume-section-heading">
             <h2 id="skills-heading">Skills</h2>
             <button type="button" class="section-action" onclick={addSkillAndOpen} aria-label="Add skill category"><Plus size={18} /></button>
@@ -551,7 +651,7 @@
         </section>
 
         {#each profile.optionalSections as section (section.kind)}
-          <section class="resume-section" aria-labelledby="{section.kind}-heading">
+          <section class="resume-section stack-sm" aria-labelledby="{section.kind}-heading">
             <header class="resume-section-heading">
               <h2 id="{section.kind}-heading">{OPTIONAL_SECTION_LABELS[section.kind]}</h2>
               <button type="button" class="section-action" onclick={() => openSection(section.kind)} aria-label="Edit {OPTIONAL_SECTION_LABELS[section.kind]}"><PencilSimple size={17} /></button>
@@ -564,7 +664,7 @@
           </section>
         {/each}
 
-        <section class="resume-section" aria-labelledby="notes-heading">
+        <section class="resume-section stack-sm" aria-labelledby="notes-heading">
           <header class="resume-section-heading">
             <h2 id="notes-heading">Tailoring notes</h2>
             <button type="button" class="section-action" onclick={() => openSection("notes")} aria-label="Edit tailoring notes"><PencilSimple size={17} /></button>
@@ -584,7 +684,7 @@
     {:else if view.kind === "section"}
       {#if view.section === "contact"}
         <div class="editor-form">
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Profile</h2>
             <div class="form-grid">
               <label class="field span-2"><span>Full name</span><input class="input-field" name="name" autocomplete="name" bind:value={profile.contact.name} oninput={handleInput} /></label>
@@ -592,14 +692,14 @@
               <label class="field"><span>Phone</span><input class="input-field" name="phone" type="tel" inputmode="tel" autocomplete="tel" bind:value={profile.contact.phone} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Location</h2>
             <div class="form-grid location-grid">
               <label class="field"><span>City</span><input class="input-field" name="city" autocomplete="address-level2" value={splitUsLocation(profile.contact.location).city} oninput={(event) => updateLocation(profile.contact, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" name="state" autocomplete="address-level1" value={splitUsLocation(profile.contact.location).state} onchange={(event) => updateLocation(profile.contact, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Links</h2>
             <div class="form-grid">
               <label class="field"><span>LinkedIn</span><input class="input-field" name="linkedin" type="url" inputmode="url" bind:value={profile.contact.linkedin} oninput={handleInput} autocapitalize="off" autocomplete="url" spellcheck="false" /></label>
@@ -611,7 +711,7 @@
       {:else if view.section === "skills"}
         <div class="editor-form">
           {#each profile.skills as skill, index}
-            <div class="editor-item">
+            <div class="editor-item stack-sm">
               <div class="form-grid skill-grid">
                 <label class="field"><span>Category</span><input class="input-field" bind:value={skill.category} oninput={handleInput} /></label>
                 <label class="field"><span>Skills</span><input class="input-field" bind:value={skill.items} oninput={handleInput} /></label>
@@ -633,7 +733,7 @@
         {#if optionalSection}
           <div class="editor-form">
             {#each optionalSection.items as item, index}
-              <div class="editor-item">
+              <div class="editor-item stack-sm">
                 <div class="form-grid skill-grid">
                   <label class="field"><span>Label</span><input class="input-field" bind:value={item.category} oninput={handleInput} /></label>
                   <label class="field"><span>Details</span><input class="input-field" bind:value={item.items} oninput={handleInput} /></label>
@@ -650,21 +750,21 @@
       {@const entry = profile.experience.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Role</h2>
             <div class="form-grid">
               <label class="field"><span>Company</span><input class="input-field" autocomplete="organization" bind:value={entry.company} oninput={handleInput} /></label>
               <label class="field"><span>Title</span><input class="input-field" autocomplete="organization-title" bind:value={entry.title} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Location</h2>
             <div class="form-grid location-grid">
               <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Dates</h2>
             <div class="form-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
@@ -672,7 +772,7 @@
             </div>
             <label class="current-role"><input type="checkbox" checked={isCurrentRole(entry.endDate)} onchange={(event) => setCurrentRole(entry, event.currentTarget.checked)} /><span>Current role</span></label>
           </section>
-          <section class="editor-section evidence-section">
+          <section class="editor-section evidence-section stack-sm">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
@@ -690,20 +790,20 @@
       {@const entry = profile.education.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>School</h2>
             <div class="form-grid">
               <label class="field span-2"><span>Institution</span><input class="input-field" bind:value={entry.institution} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Location</h2>
             <div class="form-grid location-grid">
               <label class="field"><span>City</span><input class="input-field" value={splitUsLocation(entry.location).city} oninput={(event) => updateLocation(entry, "city", event.currentTarget.value)} /></label>
               <label class="field"><span>State</span><span class="select-field-wrap"><select class="input-field" value={splitUsLocation(entry.location).state} onchange={(event) => updateLocation(entry, "state", event.currentTarget.value)}><option value="">Select state</option>{#each US_STATES as state}<option value={state.value}>{state.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Degree</h2>
             <div class="form-grid">
               <label class="field"><span>Degree type</span><span class="select-field-wrap"><select class="input-field" value={entry.degreeType ?? ""} onchange={(event) => updateEducationDegree(entry, { degreeType: event.currentTarget.value as DegreeType | "" })}><option value="">Select degree</option>{#each DEGREE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
@@ -711,7 +811,7 @@
               <label class="field"><span>GPA</span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <h2>Dates</h2>
             <div class="form-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
@@ -725,14 +825,14 @@
       {@const entry = profile.projects.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
         <div class="editor-form">
-          <section class="editor-section">
+          <section class="editor-section stack-md">
             <div class="form-grid">
               <label class="field span-2"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} /></label>
               <label class="field"><span>Date</span><input class="input-field" type="month" value={monthInputValue(entry.date ?? "")} oninput={(event) => { entry.date = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>URL</span><input class="input-field" type="url" inputmode="url" bind:value={entry.url} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section evidence-section">
+          <section class="editor-section evidence-section stack-sm">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
               <div class="bullet-row">
@@ -808,6 +908,8 @@
     cursor: pointer;
   }
 
+  :global(html.native-ios) .import-action { min-height: var(--tap-min); }
+
   .import-action:active {
     transform: scale(0.96);
   }
@@ -880,12 +982,6 @@
   .identity-button > :global(svg) {
     flex: 0 0 auto;
     color: var(--color-accent);
-  }
-
-  .resume-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
   }
 
   .resume-section-heading {
@@ -1096,12 +1192,6 @@
     gap: var(--space-8);
   }
 
-  .editor-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
   .editor-section > h2 {
     margin: 0;
     color: var(--color-ink);
@@ -1134,12 +1224,6 @@
     grid-column: 1 / -1;
   }
 
-  .editor-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
   .editor-item + .editor-item {
     padding-top: var(--space-5);
     border-top: 1px solid var(--color-line);
@@ -1161,18 +1245,15 @@
     cursor: pointer;
   }
 
+  :global(html.native-ios) .remove-item,
+  :global(html.native-ios) .remove-section { min-height: var(--tap-min); }
+
   .remove-section {
     width: 100%;
     margin-top: var(--space-2);
     padding-top: var(--space-4);
     justify-content: flex-start;
     border-top: 1px solid var(--color-line);
-  }
-
-  .evidence-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
   }
 
   .evidence-section h2 {
