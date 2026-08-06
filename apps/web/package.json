@@ -1,0 +1,23 @@
+{
+  "name": "@pinkslip/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@pinkslip/client": "workspace:*",
+    "svelte": "^5.55.5"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tsconfig/svelte": "^5.0.8",
+    "svelte-check": "^4.4.7",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

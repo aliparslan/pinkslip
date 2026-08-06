@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   formatJobLocation,
   isDuplicateLeadingJobHeading,
-} from "../frontend/src/lib/job-content";
+} from "../packages/client/src/lib/job-content";
 
 describe("formatJobLocation", () => {
   it("removes repeated country detail", () => {

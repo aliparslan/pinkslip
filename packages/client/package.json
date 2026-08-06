@@ -1,0 +1,25 @@
+{
+  "name": "@pinkslip/client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint:css": "stylelint 'src/**/*.{css,svelte}'"
+  },
+  "dependencies": {
+    "bits-ui": "^2.18.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.7.284",
+    "phosphor-svelte": "^3.1.0",
+    "svelte": "^5.55.5"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "postcss-html": "^1.8.1",
+    "stylelint": "^17.14.1",
+    "svelte-check": "^4.4.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

@@ -1,10 +1,11 @@
 # dependencies
 node_modules/
-frontend/node_modules/
+apps/*/node_modules/
+packages/*/node_modules/
 
 # build output
 dist/
-frontend/dist/
+apps/*/dist/
 out/
 coverage/
 *.lcov
@@ -20,8 +21,8 @@ coverage/
 .env.*
 !.env.example
 .dev.vars
-frontend/.env
-frontend/.env.*
+apps/*/.env
+apps/*/.env.*
 
 # logs
 logs/
@@ -47,7 +48,7 @@ bun.lockb
 sample-pics/
 
 # generated when Xcode Cloud is opened; shared schemes remain trackable
-frontend/ios/App/App.xcodeproj/xcshareddata/xcodecloud/
+apps/ios/ios/App/App.xcodeproj/xcshareddata/xcodecloud/
 
 # local agent notes and generated planning artifacts
 /CLAUDE.md

@@ -8,7 +8,7 @@ import {
   routeParam,
   routeShell,
   showsRootNavigation,
-} from "../frontend/src/route-config";
+} from "../packages/client/src/route-config";
 
 describe("frontend route configuration", () => {
   test("normalizes legacy links without dropping query parameters", () => {

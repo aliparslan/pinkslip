@@ -1,151 +1,117 @@
-# pinkslip iOS app — setup & testing
+# pinkslip for iOS
 
-A Capacitor WebView wrapper that loads `https://pinkslip.alip.dev`, with **native
-APNs push** and bearer-token auth for future WidgetKit / Share extensions.
+The iOS app is a Capacitor 8.5 application with its own entrypoint and UI shell.
+Its production web assets are packaged into the App Store binary; it does not
+load the deployed website at runtime. Shared screens and product logic live in
+`packages/client`, while native integrations live in `apps/ios`.
 
-The web UI, SSE tailoring, and client-side PDF export all run unchanged inside the
-WebView. Capacitor lives in `frontend/` (so Vite resolves the `@capacitor/*`
-plugin JS); the native project is generated at `frontend/ios/`.
+## Requirements
 
----
+- Node.js 22 or newer (Bun is the project package manager)
+- Xcode 26 or newer
+- CocoaPods 1.16 or newer
+- iOS 15 deployment target
 
-## Phase 0 — Apple setup (one-time, in the developer portal)
-
-1. **App ID / bundle identifier**: `dev.alip.pinkslip` (change in
-   `frontend/capacitor.config.ts` and `APNS_BUNDLE_ID` if you pick another).
-   Enable the **Push Notifications** capability on the App ID.
-2. **APNs Auth Key**: Keys → create a key with *Apple Push Notifications service
-   (APNs)* enabled. Download the `AuthKey_XXXXXXXXXX.p8` (one-time download).
-   Note the **Key ID** (10 chars) and your **Team ID** (10 chars).
-
-An App Group is not required for the current app. Register
-`group.dev.alip.pinkslip` only when the Phase 5 Widget or Share Extension is
-implemented, then add it to the app and extension provisioning profiles.
-
-### Wire the APNs key into the Worker
+Install once from the repository root:
 
 ```sh
-# Non-secret identifiers — uncomment + fill these in wrangler.toml [vars]:
-#   APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID
-# For Xcode debug / direct-device installs also set: APNS_SANDBOX = "true"
-# (omit / "false" for TestFlight + App Store builds).
+bun install
+```
 
-# The .p8 contents go in a secret (paste the whole PEM, incl. BEGIN/END lines):
+## Build and synchronize
+
+```sh
+# Build only the packaged iOS web assets.
+bun run build:ios
+
+# Build, copy assets, update plugins, and run pod install.
+bun run ios:sync
+
+# Open the native workspace.
+bun --filter @pinkslip/ios open
+```
+
+Always open `apps/ios/ios/App/App.xcworkspace`, not the `.xcodeproj`, because the
+existing project uses CocoaPods.
+
+For local live reload, start the Worker and iOS Vite app separately, then copy a
+development-only server URL:
+
+```sh
+bun run dev
+bun --filter @pinkslip/ios dev
+CAP_SERVER_URL=http://localhost:5173 bun --filter @pinkslip/ios sync
+```
+
+`CAP_SERVER_URL` is intentionally absent from committed production config. A
+normal `bun run ios:sync` returns to bundled assets.
+
+## Native behavior
+
+- `SceneDelegate` owns the window and custom `BridgeViewController` and forwards
+  scene connection, URL, and universal-link events through Capacitor 8.5's
+  `SceneDelegateProxy`.
+- `SecureSessionPlugin` stores the native session in the iOS Keychain with
+  `AfterFirstUnlockThisDeviceOnly` accessibility.
+- `AppleSignInPlugin` presents Authentication Services directly.
+- `ApplicationBrowserPlugin` presents job applications in
+  `SFSafariViewController` and notifies the shared application-intent flow when
+  the user returns.
+- Official Capacitor plugins provide APNs registration, haptics, keyboard
+  dismissal, native sharing, status bar styling, and deep-link events.
+
+The Worker creates a revocable guest/account session through
+`POST /api/v1/native/session`. Native requests send that token as a bearer token;
+web requests continue using first-party cookies. Login, logout, and account
+deletion rotate the native token automatically. If a stored token expires or is
+revoked, the client clears it from Keychain and establishes a fresh guest session.
+
+## Simulator compile
+
+```sh
+xcodebuild \
+  -workspace apps/ios/ios/App/App.xcworkspace \
+  -scheme App \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/pinkslip-derived \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+## APNs setup and device testing
+
+The bundle identifier is `dev.alip.pinkslip`. Enable Push Notifications for that
+App ID and configure these Worker values:
+
+```toml
+APNS_KEY_ID = "..."
+APNS_TEAM_ID = "..."
+APNS_BUNDLE_ID = "dev.alip.pinkslip"
+# APNS_SANDBOX = "true" # direct debug/device builds only
+```
+
+Store the `.p8` contents as a secret:
+
+```sh
 wrangler secret put APNS_PRIVATE_KEY
 ```
 
-Until these are set, `resolveApnsConfig()` returns null and the Worker simply
-skips native push (Web Push still works).
+APNs does not deliver normal remote notifications to the simulator. Build to a
+physical device, enable notifications from onboarding or You → Alerts, then use
+the in-app test notification action. Tapping a notification should route to the
+job in both warm- and cold-launch cases.
 
----
+## Release
 
-## Phase 1 — Generate & run the iOS app
+`apps/ios/ios/release.sh` builds and copies the iOS bundle before archiving and
+uploading. Xcode Cloud runs `bun run ios:sync` from the repository root in its
+post-clone script. A web deployment and an App Store release are independent:
 
-CocoaPods is required by Capacitor's iOS platform and isn't installed yet:
-
-```sh
-brew install cocoapods            # one-time
-```
-
-```sh
-# From the repo root:
-bun install
-cd frontend && bun install        # installs @capacitor/* + web deps
-bun run build                     # produces frontend/dist (the offline fallback)
-bunx cap add ios                  # generates frontend/ios + runs pod install
-```
-
-Build & launch in the simulator (no Xcode GUI needed):
-
-```sh
-xcrun simctl list devices available        # pick a device name that EXISTS on your machine
-# (Xcode 26 ships the iPhone 17 family — there is no "iPhone 16". Substitute below.)
-xcodebuild -workspace frontend/ios/App/App.xcworkspace \
-  -scheme App -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 17' build
-
-# Then boot + install + launch (path is printed by xcodebuild as TARGET_BUILD_DIR):
-xcrun simctl boot 'iPhone 17'
-open -a Simulator
-xcrun simctl install booted "$(xcodebuild -workspace frontend/ios/App/App.xcworkspace -scheme App -showBuildSettings 2>/dev/null | awk '/ TARGET_BUILD_DIR /{print $3}')/App.app"
-xcrun simctl launch booted dev.alip.pinkslip
-```
-
-**Verify:** the live app loads; you can browse Feed → Job detail → Tailor →
-Me; relaunching keeps you logged in (cookie session persists in the WebView).
-
-The committed iOS shell loads `https://pinkslip.alip.dev`, so an ordinary web
-deployment updates the TestFlight app without a new native build. Run
-`cd frontend && bun run ios:sync` and create a new iOS build only when changing
-native code, Capacitor plugins/configuration, entitlements, icons, launch assets,
-or the bundled offline fallback.
-
----
-
-## Phase 2 — APNs sender (Worker) — already implemented
-
-Unit tests cover JWT signing, payload shape, host selection, and config:
-
-```sh
-bun test tests/apns.test.ts
-```
-
----
-
-## Phase 3 — Push registration + end-to-end test
-
-Push registration happens automatically on launch (`frontend/src/lib/native-push.ts`).
-APNs does **not** deliver to the simulator — test on a **physical device**:
-
-```sh
-# Build to a connected device (find its id via: xcrun xctrace list devices)
-xcodebuild -workspace frontend/ios/App/App.xcworkspace -scheme App \
-  -configuration Debug -destination 'platform=iOS,id=<DEVICE_UDID>' \
-  -allowProvisioningUpdates build
-```
-
-Then on the device: accept the notification permission prompt.
-
-**Verify the token landed** (remote D1):
-
-```sh
-wrangler d1 execute pinkslip --remote \
-  --command "SELECT id, user_id, platform, substr(endpoint,1,12) AS token_prefix FROM push_subscriptions WHERE platform='ios';"
-```
-
-**Fire a test push** — easiest from the in-app Settings "test notification"
-button, or hit the API with your session cookie:
-
-```sh
-curl -X POST 'https://pinkslip.alip.dev/api/push/test' -b 'psid=<your-uuid>'
-# Expect: {"sent":1,"total":1,"results":[{"platform":"ios","ok":true,...}]}
-```
-
-Confirm a banner arrives and tapping it deep-links to the right screen
-(single new job → `/jobs/<id>`).
-
----
-
-## Phase 4 — Bearer-token auth — already implemented
-
-```sh
-bun test tests/auth.test.ts
-
-# Mint a token from a cookie session, then use it with no cookie:
-TOKEN=$(curl -s -X POST 'https://pinkslip.alip.dev/api/auth/token' -b 'psid=<your-uuid>' | jq -r .token)
-curl -s 'https://pinkslip.alip.dev/api/me' -H "Authorization: Bearer $TOKEN" | jq .user
-# Expect the SAME user as the cookie session. An invalid token → 401 invalid_token.
-```
-
----
-
-## Phase 5 — Apple feature integrations (not yet built)
-
-Native Xcode targets added under `frontend/ios/App/`, each reading the bearer
-token from the App Group Keychain:
-
-- **Widget (WidgetKit)** — show the newest matching jobs and deep-link on tap.
-- **Share Extension** — share a careers URL → `POST /api/companies/verify` then `/api/companies`.
-- **Shortcuts / App Intents** — "Show new jobs", "Tailor resume for…".
-
-These depend on Phases 1–4 running on-device first.
+- shared/API-compatible changes can ship to both artifacts;
+- web shell/PWA changes require only a web deployment;
+- iOS shell, native plugin, or packaged shared-client changes require a new iOS
+  build;
+- breaking API changes require a new versioned endpoint and a compatibility
+  window for installed iOS releases.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseResumeText } from "../frontend/src/lib/pdf-to-profile";
+import { parseResumeText } from "../packages/client/src/lib/pdf-to-profile";
 
 const ALIP_RESUME_TEXT = `Alip Arslan
 571-526-8996 | Dallas, TX | aliparslan@outlook.com | github.com/aliparslan | linkedin.com/in/aliparslan | alip.dev

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildTailoredResumePdf, tailoredResumePdfFileName } from "../frontend/src/lib/pdf-resume";
+import { buildTailoredResumePdf, tailoredResumePdfFileName } from "../packages/client/src/lib/pdf-resume";
 
 const SAMPLE_MARKDOWN = `# Alip Arslan
 Dallas, TX | 571-526-8996 | [aliparslan@outlook.com](mailto:aliparslan@outlook.com) | [LinkedIn](https://linkedin.com/in/aliparslan) | [GitHub](https://github.com/aliparslan)

@@ -7,7 +7,7 @@ import {
   joinUsLocation,
   monthInputValue,
   splitUsLocation,
-} from "../frontend/src/lib/resume-fields";
+} from "../packages/client/src/lib/resume-fields";
 
 describe("resume fields", () => {
   test("splits and rejoins US city and state values", () => {
