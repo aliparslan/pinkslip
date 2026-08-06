@@ -14,9 +14,9 @@ const config: CapacitorConfig = {
   appId: "dev.alip.pinkslip",
   appName: "pinkslip",
   webDir: "dist",
-  // Initial native surface. Capacitor 8.0.4+ replaces the keyboard backdrop
-  // from the live DOM color so light/dark app themes remain in sync.
-  backgroundColor: "#faf9f7",
+  // Initial native surface. Once mounted, the runtime exposes the active theme
+  // as an RGB body color for Capacitor 8.0.4+'s keyboard backdrop sampler.
+  backgroundColor: "#fbfaf9",
   ...(serverUrl
     ? {
         server: {

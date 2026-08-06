@@ -38,7 +38,7 @@ function applyTheme(resolved: ResolvedTheme) {
   if (typeof document === "undefined") return;
   document.documentElement.setAttribute("data-mode", resolved);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", resolved === "dark" ? "#18171a" : "#faf9f7");
+  if (meta) meta.setAttribute("content", resolved === "dark" ? "#0e0e10" : "#fbfaf9");
 }
 
 themeMode.subscribe((mode) => {

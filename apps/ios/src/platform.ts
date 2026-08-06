@@ -35,6 +35,15 @@ const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
 const SecureSession = registerPlugin<SecureSessionPlugin>("SecureSession");
 const API_ORIGIN = import.meta.env.VITE_IOS_API_ORIGIN || "https://pinkslip.alip.dev";
+// These are the sRGB equivalents of --color-bg in the shared OKLCH palette.
+// Capacitor Keyboard 8.0.5 samples the body's computed background before the
+// keyboard appears, but its native parser only accepts rgb()/hex values. An
+// OKLCH computed value falls back to white and shows through around the rounded
+// dark keyboard as a seam and corner wedges.
+const NATIVE_SURFACE_COLOR = {
+  dark: "rgb(14, 14, 16)",
+  light: "rgb(251, 250, 249)",
+} as const;
 
 let accessToken: string | null = null;
 let listenersReady = false;
@@ -126,6 +135,9 @@ function configureNativeDocument(): void {
   );
   void StatusBar.setOverlaysWebView({ overlay: true });
   resolvedTheme.subscribe((theme) => {
+    const surfaceColor = NATIVE_SURFACE_COLOR[theme];
+    document.documentElement.style.backgroundColor = surfaceColor;
+    document.body.style.backgroundColor = surfaceColor;
     void StatusBar.setStyle({ style: theme === "dark" ? Style.Dark : Style.Light });
     void Keyboard.setStyle({
       style: theme === "dark" ? KeyboardStyle.Dark : KeyboardStyle.Light,
