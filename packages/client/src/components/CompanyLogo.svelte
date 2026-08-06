@@ -1,8 +1,17 @@
 <script lang="ts">
   import { resolveApiUrl } from "../lib/api";
+  import {
+    acquireNativeCompanyLogo,
+    invalidateNativeCompanyLogo,
+  } from "../lib/native-logo-cache";
   import { isIosApp } from "../lib/platform";
   import { companyMark } from "../lib/utils";
 
+  // Native image elements cannot attach the bearer session required by the
+  // remote API. Fetch each favicon once through the authenticated client and
+  // reuse its blob URL across virtualized rows and cached navigation
+  // snapshots retained by the native shell. Active rows are leased and cannot
+  // be evicted; the generous bound keeps snapshot URLs stable in normal use.
   let { name, domain, size = 44 }: {
     name: string;
     domain?: string | null;
@@ -10,6 +19,7 @@
   } = $props();
 
   let imgFailed: boolean = $state(false);
+  let nativeLogoUrl: string | null = $state(null);
   const nativeIos = isIosApp();
 
   let cleanDomain = $derived.by(() => {
@@ -22,9 +32,34 @@
   // Google's favicon service directly about which companies the user views.
   let logoUrl = $derived(
     cleanDomain && !imgFailed
-      ? resolveApiUrl(`/logo?domain=${encodeURIComponent(cleanDomain)}`)
+      ? nativeIos ? nativeLogoUrl : resolveApiUrl(`/logo?domain=${encodeURIComponent(cleanDomain)}`)
       : null
   );
+
+  $effect(() => {
+    const domainToLoad = cleanDomain;
+    imgFailed = false;
+    nativeLogoUrl = null;
+    if (!nativeIos || !domainToLoad) return;
+    let cancelled = false;
+    const lease = acquireNativeCompanyLogo(domainToLoad);
+    void lease.url.then((url) => {
+      if (!cancelled && cleanDomain === domainToLoad) nativeLogoUrl = url;
+    });
+    return () => {
+      cancelled = true;
+      lease.release();
+    };
+  });
+
+  function handleImageError(event: Event) {
+    if (
+      !(event.currentTarget instanceof HTMLImageElement)
+      || event.currentTarget.getAttribute("src") !== logoUrl
+    ) return;
+    if (nativeIos && cleanDomain) invalidateNativeCompanyLogo(cleanDomain);
+    imgFailed = true;
+  }
 
   let radius = $derived(Math.round(size * 0.25));
   let fontSize = $derived(Math.round(size * 0.32));
@@ -36,15 +71,16 @@
      an inline style="" attribute). -->
 <div
   class="logo-mark"
+  aria-hidden="true"
   style="width: {size}px; height: {size}px; border-radius: {radius}px; font-size: {fontSize}px;"
 >
   {#if logoUrl}
     <img
       src={logoUrl}
-      alt={name}
+      alt=""
       loading={nativeIos ? "lazy" : "eager"}
       decoding={nativeIos ? "async" : "auto"}
-      onerror={() => { imgFailed = true; }}
+      onerror={handleImageError}
     />
   {:else}
     {companyMark(name)}

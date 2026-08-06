@@ -28,6 +28,11 @@
   let customTitlesText = $derived(profile.custom_titles.join(", "));
   let excludedTitlesText = $derived(profile.excluded_titles.join(", "));
   let customLocationsText = $derived(profile.custom_locations.join(", "));
+  const nativeIos = isIosApp();
+  const allRoleIds = ROLE_OPTIONS.map((option) => option.id) as RoleId[];
+  const visibleRoleOptions = nativeIos
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter((option) => option.id !== "forward_deployed");
 
   const workModeOptions: Array<{ id: WorkMode; label: string }> = [
     { id: "remote", label: "Remote" },
@@ -40,7 +45,21 @@
     { id: "not_sure", label: "I’m not sure" },
   ];
   let workModePicker: HTMLDetailsElement | null = $state(null);
-  let selectionNotice = $state("");
+  let noRolePreference = $derived(
+    nativeIos
+      && profile.roles.length === allRoleIds.length
+      && allRoleIds.every((role) => profile.roles.includes(role)),
+  );
+  function roleSelected(role: RoleId): boolean {
+    if (!nativeIos && role === "software_engineering") {
+      return profile.roles.includes("software_engineering")
+        || profile.roles.includes("forward_deployed");
+    }
+    return profile.roles.includes(role);
+  }
+  let visibleSelectedRoleCount = $derived(
+    visibleRoleOptions.filter((option) => roleSelected(option.id)).length,
+  );
   let workModeSummary = $derived(
     profile.work_modes.length === workModeOptions.length
       ? "Any work mode"
@@ -80,15 +99,33 @@
   }
 
   function toggleRole(role: RoleId) {
-    const selected = profile.roles.includes(role);
-    if (selected && profile.roles.length === 1) {
-      if (isIosApp()) selectionNotice = "Keep at least one target role selected.";
+    const selected = roleSelected(role);
+
+    if (nativeIos) {
+      const roles = noRolePreference
+        ? [role]
+        : selected
+          ? profile.roles.filter((item) => item !== role)
+          : [...profile.roles, role];
+      const normalizedRoles = roles.length > 0 ? roles : [...allRoleIds];
+      profile = {
+        ...profile,
+        roles: normalizedRoles,
+        primary_role: normalizedRoles[0],
+      };
       return;
     }
-    selectionNotice = "";
-    const roles = selected
-      ? profile.roles.filter((item) => item !== role)
-      : [...profile.roles, role];
+
+    if (selected && visibleSelectedRoleCount === 1) {
+      return;
+    }
+    const roles: RoleId[] = role === "software_engineering"
+      ? selected
+        ? profile.roles.filter((item) => item !== "software_engineering" && item !== "forward_deployed")
+        : [...profile.roles, "software_engineering" as const, "forward_deployed" as const]
+      : selected
+        ? profile.roles.filter((item) => item !== role)
+        : [...profile.roles, role];
     profile = {
       ...profile,
       roles,
@@ -96,20 +133,27 @@
     };
   }
 
-  function toggleWorkMode(mode: WorkMode) {
-    const selected = profile.work_modes.includes(mode);
-    if (selected && profile.work_modes.length === 1) {
-      if (isIosApp()) selectionNotice = "Keep at least one work mode selected.";
-      return;
-    }
-    selectionNotice = "";
+  function chooseNoRolePreference() {
     profile = {
       ...profile,
-      work_modes: selected
-        ? profile.work_modes.filter((item) => item !== mode)
-        : workModeOptions
-            .map((option) => option.id)
-            .filter((item) => item === mode || profile.work_modes.includes(item)),
+      roles: [...allRoleIds],
+      primary_role: allRoleIds[0],
+    };
+  }
+
+  function toggleWorkMode(mode: WorkMode) {
+    const selected = profile.work_modes.includes(mode);
+    const workModes = selected
+      ? profile.work_modes.filter((item) => item !== mode)
+      : workModeOptions
+          .map((option) => option.id)
+          .filter((item) => item === mode || profile.work_modes.includes(item));
+    if (!nativeIos && workModes.length === 0) return;
+    profile = {
+      ...profile,
+      work_modes: workModes.length > 0
+        ? workModes
+        : workModeOptions.map((option) => option.id),
     };
   }
 
@@ -123,33 +167,62 @@
   }
 </script>
 
+{#snippet allLocationsToggle(compact: boolean)}
+  <div class="anywhere-row">
+    <div>
+      <div class="anywhere-title">{compact ? "Include all US locations" : "Open to anywhere"}</div>
+      {#if !compact}<div class="anywhere-help">Include roles outside your preferred metros.</div>{/if}
+    </div>
+    <Switch
+      checked={profile.relocation_willing}
+      onCheckedChange={(value) => profile = { ...profile, relocation_willing: value }}
+      aria-label={compact ? "Include all US locations" : "Open to anywhere"}
+    />
+  </div>
+{/snippet}
+
 {#if section === "all" || section === "roles"}
-  <section class="profile-field-section">
+  <section class="profile-field-section" class:native-layout={nativeIos}>
     {#if showHeadings}
       <div class="profile-field-heading">
         <div>
-          <div class="profile-field-title">Target roles</div>
-          <div class="profile-field-help">Only selected role types appear in Jobs.</div>
+          <h2 id="target-roles-title" class="profile-field-title">Target roles</h2>
+          {#if !nativeIos}<div class="profile-field-help">Only selected role types appear in Jobs.</div>{/if}
         </div>
-        <span class="selection-count">{profile.roles.length} selected</span>
+        {#if !nativeIos}<span class="selection-count">{visibleSelectedRoleCount} selected</span>{/if}
       </div>
     {/if}
-    <div class="choice-grid role-grid" role="group" aria-label="Target roles" aria-describedby={isIosApp() ? "role-selection-requirement" : undefined}>
-      {#each ROLE_OPTIONS as role}
+    <div
+      class="choice-grid role-grid"
+      role="group"
+      aria-label={showHeadings ? undefined : "Target roles"}
+      aria-labelledby={showHeadings ? "target-roles-title" : undefined}
+    >
+      {#if nativeIos}
         <button
           type="button"
           class="choice-card role-card"
-          class:active={profile.roles.includes(role.id)}
-          aria-pressed={profile.roles.includes(role.id)}
+          class:active={noRolePreference}
+          aria-pressed={noRolePreference}
+          onclick={chooseNoRolePreference}
+        >
+          <span>No preference</span>
+        </button>
+      {/if}
+      {#each visibleRoleOptions as role}
+        <button
+          type="button"
+          class="choice-card role-card"
+          class:active={roleSelected(role.id) && !noRolePreference}
+          aria-pressed={roleSelected(role.id) && !noRolePreference}
           onclick={() => toggleRole(role.id)}
         >
           <span>{role.label}</span>
         </button>
       {/each}
     </div>
-    {#if isIosApp()}<p id="role-selection-requirement" class="selection-requirement">Select at least one role.</p>{/if}
 
-    {#if showAdvanced}
+    {#if showAdvanced && !nativeIos}
       <details class="advanced-fields">
         <summary>Advanced title matching</summary>
         <div class="advanced-body">
@@ -180,14 +253,18 @@
 {/if}
 
 {#if section === "all" || section === "experience"}
-  <section class="profile-field-section">
+  <section class="profile-field-section" class:native-layout={nativeIos}>
     <div class="profile-field-heading">
       <div>
-        <div class="profile-field-title">Experience level</div>
+        <h2 class="profile-field-title">Experience level</h2>
         <div class="profile-field-help">
-          Your job list is limited to new-grad and early-career roles. Jobs asking for
-          more than 3 years&mdash;or using senior, staff, or management titles&mdash;are
-          filtered out. Jobs without a stated requirement stay in.
+          {#if nativeIos}
+            Up to 3 years.
+          {:else}
+            Your job list is limited to new-grad and early-career roles. Jobs asking for
+            more than 3 years&mdash;or using senior, staff, or management titles&mdash;are
+            filtered out. Jobs without a stated requirement stay in.
+          {/if}
         </div>
       </div>
     </div>
@@ -195,12 +272,12 @@
 {/if}
 
 {#if section === "all" || section === "locations"}
-  <section class="profile-field-section">
+  <section class="profile-field-section" class:native-layout={nativeIos}>
     {#if showHeadings}
       <div class="profile-field-heading">
         <div>
-          <div class="profile-field-title">Location and work eligibility</div>
-          <div class="profile-field-help">Only show roles you can actually take.</div>
+          <h2 id="location-preferences-title" class="profile-field-title">Location and work eligibility</h2>
+          {#if !nativeIos}<div class="profile-field-help">Only show roles you can actually take.</div>{/if}
         </div>
       </div>
     {/if}
@@ -231,8 +308,8 @@
         bind:this={workModePicker}
         class="work-mode-picker"
       >
-        <summary class="work-mode-trigger" aria-describedby={isIosApp() ? "work-mode-label work-mode-requirement" : undefined}>
-          <span>{workModeSummary || "Choose work modes"}</span>
+        <summary class="work-mode-trigger" aria-labelledby="work-mode-label work-mode-value">
+          <span id="work-mode-value">{workModeSummary || "Choose work modes"}</span>
           <span class="work-mode-chevron" aria-hidden="true">
             <CaretDown size={15} weight="bold" />
           </span>
@@ -256,20 +333,9 @@
           {/each}
         </div>
       </details>
-      {#if isIosApp()}<p id="work-mode-requirement" class="selection-requirement">Select at least one work mode.</p>{/if}
     </div>
 
-    <div class="anywhere-row">
-      <div>
-        <div class="anywhere-title">Open to anywhere</div>
-        <div class="anywhere-help">Include roles outside your preferred metros.</div>
-      </div>
-      <Switch
-        checked={profile.relocation_willing}
-        onCheckedChange={(value) => profile = { ...profile, relocation_willing: value }}
-        aria-label="Open to anywhere"
-      />
-    </div>
+    {#if !nativeIos}{@render allLocationsToggle(false)}{/if}
 
     <fieldset class="subfield preference-fieldset stack-sm">
       <legend class="subfield-label">Preferred metros</legend>
@@ -288,7 +354,9 @@
       </div>
     </fieldset>
 
-    {#if showAdvanced}
+    {#if nativeIos}{@render allLocationsToggle(true)}{/if}
+
+    {#if showAdvanced && !nativeIos}
       <details class="advanced-fields">
         <summary>Add another location</summary>
         <div class="advanced-body">
@@ -307,12 +375,11 @@
   </section>
 {/if}
 
-{#if isIosApp()}<p class="selection-notice" role="status" aria-live="polite">{selectionNotice}</p>{/if}
-
 <style>
   .profile-field-section { display: flex; flex-direction: column; gap: 14px; }
   .profile-field-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
-  .profile-field-title { font-size: var(--fs-base); font-weight: 500; color: var(--color-ink); }
+  .profile-field-title { margin: 0; font-size: var(--fs-base); font-weight: 500; line-height: 1.3; color: var(--color-ink); }
+  .native-layout .profile-field-title { font-size: var(--fs-lg); font-weight: 600; }
   .profile-field-help { margin-top: 3px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.4; }
   .selection-count { flex-shrink: 0; color: var(--color-ink-3); font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 500; }
   .choice-grid { display: grid; gap: var(--space-2); }
@@ -328,9 +395,21 @@
   .choice-card { min-height: 48px; padding: 10px var(--space-3); border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 500; }
   .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
   .choice-card:active, .location-chip:active { transform: scale(0.97); }
-  :global(html.native-ios) .role-card { min-height: var(--tap-min); }
-  :global(html.native-ios) .choice-card:active,
-  :global(html.native-ios) .location-chip:active { transform: scale(0.96); }
+  .native-layout .role-card { min-height: var(--tap-min); }
+  .native-layout .choice-card,
+  .native-layout .location-chip,
+  .native-layout .work-mode-trigger {
+    border-color: var(--color-control-border);
+    background: var(--color-control-bg);
+  }
+
+  .native-layout .choice-card.active,
+  .native-layout .location-chip.active {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+  .native-layout .choice-card:active,
+  .native-layout .location-chip:active { transform: scale(0.96); }
   .choice-card.active, .location-chip.active {
     border-color: var(--color-accent);
     background: var(--color-accent-soft);
@@ -340,8 +419,6 @@
   .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 500; }
   .preference-fieldset { min-width: 0; padding: 0; border: 0; margin: 0; }
   .preference-fieldset > legend { padding: 0; }
-  .selection-requirement { margin: -2px 0 0; color: var(--color-ink-4); font-size: var(--fs-2xs); line-height: 1.4; }
-  .selection-notice { min-height: 1px; margin: 0; color: var(--color-warn); font-size: var(--fs-xs); line-height: 1.4; }
   .work-mode-picker { position: relative; }
   .work-mode-trigger {
     width: 100%;
@@ -382,7 +459,7 @@
   /* .select-check lives in app.css — shared with the location filter dropdown. */
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
-  :global(html.native-ios) .location-chip { min-height: var(--tap-min); }
+  .native-layout .location-chip { min-height: var(--tap-min); }
   .anywhere-row { min-height: 52px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
   .anywhere-title { color: var(--color-ink); font-size: var(--fs-sm); font-weight: 500; }
   .anywhere-help { margin-top: 2px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.35; }
@@ -391,4 +468,5 @@
   .advanced-body { display: flex; flex-direction: column; gap: 13px; padding-top: 13px; }
   .advanced-body label { display: flex; flex-direction: column; gap: 6px; color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 500; }
   .advanced-body small { color: var(--color-ink-4); font-size: var(--fs-2xs); font-weight: 400; line-height: 1.4; }
+  .profile-field-section.native-layout + .profile-field-section.native-layout { margin-top: var(--space-4); }
 </style>

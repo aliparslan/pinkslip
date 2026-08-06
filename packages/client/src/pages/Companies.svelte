@@ -12,11 +12,19 @@
   import Modal from "../components/Modal.svelte";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Plus from "phosphor-svelte/lib/Plus";
   import { isIosApp } from "../lib/platform";
+  import { headerChrome } from "../lib/header-chrome.svelte";
 
-  let { mode = "user" }: { mode?: "user" | "admin" } = $props();
+  let {
+    mode = "user",
+    embedded = false,
+  }: {
+    mode?: "user" | "admin";
+    embedded?: boolean;
+  } = $props();
   let isAdminMode = $derived(mode === "admin" && $sessionAccess.isAdmin);
 
   const MANAGED_ATS_TYPES = [
@@ -96,12 +104,13 @@
 
   let companies: Company[] = $state([]);
   let loading: boolean = $state(true);
-  let error: string | null = $state(null);
+  let loadError: string | null = $state(null);
   let selectedAts: string = $state("All");
   let selectedView: string = $state("All");
   let adminStatus: AdminStatus = $state("active");
   let search: string = $state("");
   let visibleCount: number = $state(COMPANY_PAGE_SIZE);
+  let pendingVisibilityIds: Set<string> = $state(new Set());
 
   let showAddForm: boolean = $state(false);
   let addName: string = $state("");
@@ -143,7 +152,11 @@
           || (adminStatus === "active" && enabled)
           || (adminStatus === "disabled" && !enabled)
           || (adminStatus === "attention" && needsAttention)
-        : enabled && (selectedView === "Hidden" ? Boolean(c.blocked) : !c.blocked);
+        : enabled && (
+          selectedView === "Hidden"
+            ? Boolean(c.blocked)
+            : nativeIos || !c.blocked
+        );
       return matchesAts && matchesSearch && matchesVisibility;
     })
   );
@@ -177,52 +190,77 @@
 
   async function loadCompanies() {
     loading = true;
-    error = null;
+    loadError = null;
     try {
       const result = await api.companies.list();
       companies = result.companies ?? [];
     } catch (e) {
-      error = errorMessage(e);
+      loadError = errorMessage(e);
     } finally {
       loading = false;
     }
   }
 
   onMount(() => {
+    const unregisterHeaderSearch = nativeIos
+      ? headerChrome.registerSearch({
+          id: isAdminMode ? "sources" : "companies",
+          placeholder: isAdminMode ? "Search sources" : "Search companies",
+          value: () => search,
+          onInput: (value) => { search = value; },
+        })
+      : () => undefined;
     void loadCompanies();
+    return unregisterHeaderSearch;
   });
 
-  async function handleToggle(id: string, enabled: boolean) {
+  async function handleToggle(id: string, enabled: boolean): Promise<boolean> {
+    if (pendingVisibilityIds.has(id)) return false;
+    pendingVisibilityIds = new Set([...pendingVisibilityIds, id]);
     companies = companies.map((c) => (c.id === id ? { ...c, enabled } : c));
     try {
       await api.companies.toggle(id, enabled);
+      return true;
     } catch (e) {
       companies = companies.map((c) => (c.id === id ? { ...c, enabled: !enabled } : c));
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not update that source."));
+      return false;
+    } finally {
+      pendingVisibilityIds = new Set([...pendingVisibilityIds].filter((pendingId) => pendingId !== id));
     }
   }
 
   async function handleBlock(id: string) {
+    if (pendingVisibilityIds.has(id)) return;
+    pendingVisibilityIds = new Set([...pendingVisibilityIds, id]);
     companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
     try {
       await api.companies.block(id);
-      feedback.success("Company hidden from jobs", {
-        action: { label: "Undo", run: () => handleRestore(id) },
-      });
+      if (!nativeIos) {
+        feedback.success("Company hidden from jobs", {
+          action: { label: "Undo", run: () => handleRestore(id) },
+        });
+      }
     } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
       feedback.error(errorMessage(e, "Could not hide that company."));
+    } finally {
+      pendingVisibilityIds = new Set([...pendingVisibilityIds].filter((pendingId) => pendingId !== id));
     }
   }
 
   async function handleRestore(id: string) {
+    if (pendingVisibilityIds.has(id)) return;
+    pendingVisibilityIds = new Set([...pendingVisibilityIds, id]);
     companies = companies.map((company) => company.id === id ? { ...company, blocked: false } : company);
     try {
       await api.companies.restore(id);
-      feedback.success("Company restored");
+      if (!nativeIos) feedback.success("Company restored");
     } catch (e) {
       companies = companies.map((company) => company.id === id ? { ...company, blocked: true } : company);
       feedback.error(errorMessage(e, "Could not restore that company."));
+    } finally {
+      pendingVisibilityIds = new Set([...pendingVisibilityIds].filter((pendingId) => pendingId !== id));
     }
   }
 
@@ -239,7 +277,7 @@
       reportTarget = null;
       reportNotes = "";
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not send that report."));
     } finally {
       reporting = false;
     }
@@ -293,7 +331,7 @@
       addVerification.message = null;
       feedback.success(`${trimmedName} added`);
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not add that company."));
     } finally {
       adding = false;
     }
@@ -341,7 +379,7 @@
         );
       }
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not save that company."));
     } finally {
       saving = false;
     }
@@ -384,7 +422,8 @@
   async function handleHide() {
     if (!deleteTarget) return;
     const name = deleteTarget.name;
-    await handleToggle(deleteTarget.id, false);
+    const disabled = await handleToggle(deleteTarget.id, false);
+    if (!disabled) return;
     deleteTarget = null;
     feedback.success(`${name} disabled`);
   }
@@ -399,7 +438,7 @@
       deleteTarget = null;
       feedback.success(`${name} deleted`);
     } catch (e) {
-      error = errorMessage(e);
+      feedback.error(errorMessage(e, "Could not delete that company."));
     } finally {
       deleting = false;
     }
@@ -411,9 +450,17 @@
   ).length);
 </script>
 
-<div class="page pushed-screen">
-  <ScreenNav title="Companies" onBack={() => { if (!requestBack()) navigate("/you"); }} />
+<div class="page pushed-screen" class:native-layout={nativeIos}>
+  {#if !embedded}
+    <ScreenNav
+      title={isAdminMode ? "Sources" : "Companies"}
+      collapsible
+      searchable
+      onBack={() => { if (!requestBack()) navigate("/you"); }}
+    />
+  {/if}
   <div class="page-frame companies-page">
+    {#if nativeIos && !embedded}<h1 class="screen-large-title" data-screen-title-anchor>{isAdminMode ? "Sources" : "Companies"}</h1>{/if}
     {#if isAdminMode}
       <div class="source-summary" aria-label="Source status">
         <span><strong>{enabledCount}</strong> active</span>
@@ -504,11 +551,22 @@
           <div class="form-grid-2">
             <div class="flex-fill">
               <label for="add-ats" class="field-label">ATS type</label>
-              <select id="add-ats" class="input-field" bind:value={addAtsType}>
-                {#each MANAGED_ATS_TYPES as atsType}
-                  <option value={atsType}>{companySourceLabel(atsType)}</option>
-                {/each}
-              </select>
+              {#if nativeIos}
+                <div class="select-field-wrap">
+                  <select id="add-ats" class="input-field" bind:value={addAtsType}>
+                    {#each MANAGED_ATS_TYPES as atsType}
+                      <option value={atsType}>{companySourceLabel(atsType)}</option>
+                    {/each}
+                  </select>
+                  <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
+                </div>
+              {:else}
+                <select id="add-ats" class="input-field" bind:value={addAtsType}>
+                  {#each MANAGED_ATS_TYPES as atsType}
+                    <option value={atsType}>{companySourceLabel(atsType)}</option>
+                  {/each}
+                </select>
+              {/if}
             </div>
             <div class="flex-fill">
               <label for="add-slug" class="field-label">{sourceInput(addAtsType).label}</label>
@@ -576,13 +634,19 @@
           </div>
         {/each}
       </div>
-    {:else if error}
-      <div class="stack-sm align-start">
-        <div class="alert alert-error full-width" role="alert">
-          {error}
+    {:else if loadError}
+      {#if nativeIos}
+        <PageFailure
+          title={isAdminMode ? "Sources didn’t load" : "Companies didn’t load"}
+          message="Check your connection and try again."
+          onRetry={loadCompanies}
+        />
+      {:else}
+        <div class="stack-sm align-start">
+          <div class="alert alert-error full-width" role="alert">{loadError}</div>
+          <button class="btn-secondary" onclick={loadCompanies}>Try again</button>
         </div>
-        <button class="btn-secondary" onclick={loadCompanies}>Try again</button>
-      </div>
+      {/if}
     {:else if filteredCompanies.length === 0 && !showRequestCandidate}
       <div class="empty-state">
         <div class="h-display h-display-sm empty-state-title">
@@ -598,6 +662,8 @@
           <CompanyRow
             {company}
             admin={isAdminMode}
+            {nativeIos}
+            busy={pendingVisibilityIds.has(company.id)}
             onToggle={handleToggle}
             onDelete={promptDelete}
             onEdit={openEdit}
@@ -618,7 +684,7 @@
       </div>
       {#if remainingCompanyCount > 0}
         <div class="company-list-footer">
-          <span>{visibleCompanies.length} of {filteredCompanies.length}</span>
+          {#if !nativeIos}<span>{visibleCompanies.length} of {filteredCompanies.length}</span>{/if}
           <button
             type="button"
             class="btn-secondary"
@@ -637,6 +703,7 @@
     title="Edit company"
     busy={saving}
     maxWidth={340}
+    initialFocus={nativeIos ? "dialog" : "first"}
     onclose={() => (editTarget = null)}
   >
     <div class="form-stack">
@@ -647,11 +714,22 @@
       <div class="form-grid-2">
         <div class="flex-fill">
           <label for="edit-ats" class="field-label">ATS type</label>
-          <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
-            {#each MANAGED_ATS_TYPES as atsType}
-              <option value={atsType}>{companySourceLabel(atsType)}</option>
-            {/each}
-          </select>
+          {#if nativeIos}
+            <div class="select-field-wrap">
+              <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
+                {#each MANAGED_ATS_TYPES as atsType}
+                  <option value={atsType}>{companySourceLabel(atsType)}</option>
+                {/each}
+              </select>
+              <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
+            </div>
+          {:else}
+            <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
+              {#each MANAGED_ATS_TYPES as atsType}
+                <option value={atsType}>{companySourceLabel(atsType)}</option>
+              {/each}
+            </select>
+          {/if}
         </div>
         <div class="flex-fill">
           <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
@@ -764,7 +842,7 @@
     font-size: var(--fs-sm);
   }
 
-  :global(html.native-ios) .source-filter-row .input-field { height: var(--tap-min); }
+  .native-layout .source-filter-row .input-field { height: var(--tap-min); }
 
   .source-result-count {
     grid-column: 1 / -1;
@@ -782,7 +860,26 @@
     font-size: var(--fs-xs);
   }
 
+  .native-layout .company-list-footer {
+    justify-content: center;
+  }
+
+  .native-layout .company-list-footer :global(.btn-secondary) {
+    min-width: min(220px, 100%);
+  }
+
   .company-list { overflow: visible; }
+
+  .native-layout .company-list {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .native-layout .company-list :global(.company-row),
+  .native-layout .company-request-row {
+    padding-inline: 0;
+  }
 
   @media (max-width: 390px) {
     .source-add { width: 44px; padding: 0; overflow: hidden; }

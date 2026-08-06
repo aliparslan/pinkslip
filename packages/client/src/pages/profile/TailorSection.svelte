@@ -19,9 +19,11 @@
   import Eye from "phosphor-svelte/lib/Eye";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
+  import Key from "phosphor-svelte/lib/Key";
   import Trash from "phosphor-svelte/lib/Trash";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
+  import Modal from "../../components/Modal.svelte";
   import Spinner from "../../components/Spinner.svelte";
   import { feedback } from "../../lib/feedback.svelte";
   import { isIosApp } from "../../lib/platform";
@@ -51,6 +53,9 @@
   let syncingResume: boolean = $state(false);
   let removingResume: boolean = $state(false);
   let resumeUploadInput: HTMLInputElement | null = $state(null);
+  let localSetupSaveTimer: number | null = null;
+  let localSetupSaveFailed = false;
+  let previewResume: LocalResumeAsset | null = $state(null);
   const nativeIos = isIosApp();
 
   let hasLocalGeminiKey = $derived(Boolean(localGeminiKey.trim()));
@@ -69,6 +74,17 @@
     if (!tailorUsage) return null;
     return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.app_remaining;
   });
+  let includedUsageCount = $derived.by(() => {
+    if (!tailorUsage) return 0;
+    return tailorUsage.included_user_today;
+  });
+  let includedUsageRemaining = $derived.by(() => {
+    if (!tailorUsage) return null;
+    return tailorUsage.included_user_remaining ?? null;
+  });
+  let includedUsageLimit = $derived(
+    includedUsageRemaining === null ? null : includedUsageCount + includedUsageRemaining,
+  );
 
   function inferTextFormat(fileName: string, mimeType: string): LocalResumeAsset["textFormat"] {
     const lower = fileName.toLowerCase();
@@ -130,8 +146,7 @@
     tailorUsage = await api.tailor.usage(localGeminiModel).then((res) => res.usage).catch(() => null);
   }
 
-  async function saveLocalSetup() {
-    savingLocalSetup = true;
+  function persistLocalSetup(): boolean {
     try {
       saveLocalTailorKit({
         provider: "gemini",
@@ -139,6 +154,48 @@
         model: localGeminiModel.trim() || DEFAULT_TAILOR_MODEL,
         resume: localResume,
       });
+      localSetupSaveFailed = false;
+      return true;
+    } catch (caught) {
+      if (!localSetupSaveFailed) {
+        onError(errorMessage(caught, "Could not save tailoring settings on this device."));
+      }
+      localSetupSaveFailed = true;
+      return false;
+    }
+  }
+
+  function queueLocalSetupSave() {
+    if (!nativeIos) return;
+    if (localSetupSaveTimer !== null) window.clearTimeout(localSetupSaveTimer);
+    localSetupSaveTimer = window.setTimeout(() => {
+      localSetupSaveTimer = null;
+      persistLocalSetup();
+    }, 350);
+  }
+
+  function flushLocalSetupSave() {
+    if (localSetupSaveTimer === null) return;
+    window.clearTimeout(localSetupSaveTimer);
+    localSetupSaveTimer = null;
+    persistLocalSetup();
+  }
+
+  function updateGeminiKey(value: string) {
+    localGeminiKey = value;
+    queueLocalSetupSave();
+  }
+
+  function updateGeminiModel(value: string) {
+    localGeminiModel = value;
+    if (nativeIos) persistLocalSetup();
+    void loadTailorUsage();
+  }
+
+  async function saveLocalSetup() {
+    savingLocalSetup = true;
+    try {
+      if (!persistLocalSetup()) return;
       hydrateLocalSetup();
       await loadTailorUsage();
       onSuccess("Tailoring settings saved on this device.");
@@ -199,6 +256,7 @@
       }
       remoteResume = null;
       localResume = null;
+      previewResume = null;
       updateLocalTailorKit({ resume: null });
       if (nativeIos && removedLocal) {
         feedback.show({
@@ -231,141 +289,231 @@
     }
   }
 
+  function viewResume(asset: LocalResumeAsset | null) {
+    if (!asset) return;
+    if (nativeIos) {
+      previewResume = asset;
+      return;
+    }
+    openLocalResume(asset);
+  }
+
   onMount(() => {
     hydrateLocalSetup();
     void refreshSavedResumeText().catch(() => undefined);
     void loadTailorUsage();
     void loadRemoteResume();
+    return () => flushLocalSetupSave();
   });
 </script>
 
+{#snippet apiKeyField()}
+  <div>
+    <label for="gemini-key" class="field-label">Gemini API key</label>
+    <div class="field-action">
+      <input
+        id="gemini-key"
+        type={showGeminiKey ? "text" : "password"}
+        class="input-field flex-fill"
+        placeholder="AIza..."
+        value={localGeminiKey}
+        oninput={(event) => updateGeminiKey(event.currentTarget.value)}
+        autocapitalize="off"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button
+        class="icon-btn icon-btn-surface field-action-control"
+        type="button"
+        aria-label={showGeminiKey ? "Hide API key" : "Show API key"}
+        onclick={() => (showGeminiKey = !showGeminiKey)}
+      >
+        {#if showGeminiKey}
+          <EyeSlash size={18} />
+        {:else}
+          <Eye size={18} />
+        {/if}
+      </button>
+    </div>
+    {#if hasLocalGeminiKey && !nativeIos}
+      <div class="helper-text field-help">Stored on this device.</div>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet modelField(showUsage: boolean)}
+  <div>
+    <label for="gemini-model" class="field-label">Model</label>
+    <div class="select-field-wrap">
+      <select
+        id="gemini-model"
+        class="input-field"
+        value={localGeminiModel}
+        onchange={(event) => updateGeminiModel(event.currentTarget.value)}
+      >
+        {#each TAILOR_MODEL_OPTIONS as option}
+          <option value={option.value}>
+            {option.label} · {option.note}
+          </option>
+        {/each}
+      </select>
+      <span class="select-chevron" aria-hidden="true">
+        <CaretDown size={16} />
+      </span>
+    </div>
+    {#if showUsage && tailorUsage}
+      {@render usageProgress(
+        hasLocalGeminiKey ? "Your usage today" : "Included uses today",
+        activeUsageCount ?? 0,
+        tailorUsage.daily_limit,
+        activeUsageRemaining,
+        false,
+      )}
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet usageProgress(label: string, count: number, limit: number | null, remaining: number | null, prominent: boolean)}
+  <div class="usage-meter" class:usage-meter-prominent={prominent}>
+    <div class="split-row baseline">
+      <span>{label}</span>
+      <strong>
+        {count}{#if limit !== null}/{limit}{/if}
+      </strong>
+    </div>
+    {#if limit !== null}
+      <div
+        class="usage-meter-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin="0"
+        aria-valuemax={limit}
+        aria-valuenow={Math.min(count, limit)}
+      >
+        <div
+          class="usage-meter-fill"
+          style="width: {Math.min(100, (count / Math.max(1, limit)) * 100)}%;"
+        ></div>
+      </div>
+      <div class="usage-meter-note">{remaining ?? 0} left today</div>
+    {:else}
+      <div class="usage-meter-note">No app limit</div>
+    {/if}
+  </div>
+{/snippet}
+
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Tailoring</h2>{/if}
-  <div class="content-card stack-lg">
-    <div class="split-row start">
-      <div class="flex-fill">
-        <div class="row-title">AI tailoring</div>
-        <div class="helper-text">
-          {#if hasLocalGeminiKey}
-            Using your Gemini key on this device.
-          {:else if features?.tailoring_enabled}
-            Included tailoring is ready.
-          {:else}
-            Add a Gemini key to enable tailoring.
-          {/if}
-        </div>
-      </div>
-      <span class="tag">{localSetupLabel}</span>
-    </div>
-
-    <details class="tailor-advanced" open={!nativeIos}>
-      {#if nativeIos}<summary>Advanced provider settings</summary>{/if}
-    <div class="stack-md">
-      <div>
-        <label for="gemini-key" class="field-label">Gemini API key</label>
-        <div class="field-action">
-          <input
-            id="gemini-key"
-            type={showGeminiKey ? "text" : "password"}
-            class="input-field flex-fill"
-            placeholder="AIza..."
-            bind:value={localGeminiKey}
-            autocapitalize="off"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button
-            class="icon-btn icon-btn-surface field-action-control"
-            type="button"
-            aria-label={showGeminiKey ? "Hide API key" : "Show API key"}
-            onclick={() => (showGeminiKey = !showGeminiKey)}
-          >
-            {#if showGeminiKey}
-              <EyeSlash size={18} />
-            {:else}
-              <Eye size={18} />
-            {/if}
-          </button>
-        </div>
-        {#if hasLocalGeminiKey}
-          <div class="helper-text field-help">Stored on this device.</div>
+  <div class="content-card stack-lg tailor-settings-content">
+    {#if nativeIos}
+      <section class="tailor-settings-group" aria-labelledby="ai-tailoring-title">
+        <h2 id="ai-tailoring-title" class="tailor-settings-title">AI tailoring</h2>
+        <p class="helper-text">
+          {features?.tailoring_enabled
+            ? "Create tailored application drafts without adding a provider key."
+            : "Included tailoring is unavailable right now. You can still use your own key."}
+        </p>
+        {#if tailorUsage && includedUsageLimit !== null && features?.tailoring_enabled}
+          {@render usageProgress(
+            "Free uses today",
+            includedUsageCount,
+            includedUsageLimit,
+            includedUsageRemaining,
+            true,
+          )}
         {/if}
-      </div>
+      </section>
 
-      <div>
-        <label for="gemini-model" class="field-label">Model</label>
-        <div class="select-field-wrap">
-          <select
-            id="gemini-model"
-            class="input-field"
-            bind:value={localGeminiModel}
-            onchange={() => void loadTailorUsage()}
+      <details class="tailor-byok">
+        <summary>
+          <h2 class="tailor-settings-title tailor-disclosure-heading">
+            <span class="tailor-disclosure-copy">
+              <span>Need more?</span>
+              <small class="helper-text">
+                {hasLocalGeminiKey ? "Using your Gemini key for tailoring." : "Add your own Gemini key when included uses run out."}
+              </small>
+            </span>
+            <CaretDown size={17} aria-hidden="true" />
+          </h2>
+        </summary>
+        <div class="stack-md tailor-byok-body">
+          {@render apiKeyField()}
+          <button
+            class="btn-secondary full-width"
+            type="button"
+            aria-label="Get a Gemini API key"
+            onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
           >
-            {#each TAILOR_MODEL_OPTIONS as option}
-              <option value={option.value}>
-                {option.label} · {option.note}
-              </option>
-            {/each}
-          </select>
-          <span class="select-chevron" aria-hidden="true">
-            <CaretDown size={16} />
-          </span>
+            <Key size={16} weight="bold" />
+            Get
+          </button>
+          <details class="tailor-model-advanced">
+            <summary>
+              <h3>
+                <span>Advanced</span>
+                <CaretDown size={16} aria-hidden="true" />
+              </h3>
+            </summary>
+            <div class="tailor-model-body">{@render modelField(false)}</div>
+          </details>
         </div>
-        {#if tailorUsage}
-          <div class="usage-meter" aria-label="Tailoring API usage">
-            <div class="split-row baseline">
-              <span>{hasLocalGeminiKey ? "Your usage today" : "Included uses today"}</span>
-              <strong>
-                {activeUsageCount ?? 0}{#if tailorUsage.daily_limit !== null}/{tailorUsage.daily_limit}{/if}
-              </strong>
-            </div>
-            {#if tailorUsage.daily_limit !== null}
-              <div class="usage-meter-track">
-                <div
-                  class="usage-meter-fill"
-                  style="width: {Math.min(100, ((activeUsageCount ?? 0) / tailorUsage.daily_limit) * 100)}%;"
-                ></div>
-              </div>
-              <div class="usage-meter-note">
-                {activeUsageRemaining ?? 0} left today
-              </div>
+      </details>
+    {:else}
+      <div class="split-row start">
+        <div class="flex-fill">
+          <div class="row-title">AI tailoring</div>
+          <div class="helper-text">
+            {#if hasLocalGeminiKey}
+              Using your Gemini key on this device.
+            {:else if features?.tailoring_enabled}
+              Included tailoring is ready.
             {:else}
-              <div class="usage-meter-note">No app limit</div>
+              Add a Gemini key to enable tailoring.
             {/if}
           </div>
-        {/if}
+        </div>
+        <span class="tag">{localSetupLabel}</span>
       </div>
 
-      <div class="action-grid">
-        <button
-          class="btn-primary"
-          type="button"
-          onclick={saveLocalSetup}
-          disabled={savingLocalSetup}
-        >
-          {#if savingLocalSetup}<Spinner />{/if}
-          Save settings
-        </button>
-        <button
-          class="btn-secondary"
-          type="button"
-          onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
-        >
-          <ArrowSquareOut size={16} />
-          Get API key
-        </button>
-      </div>
-    </div>
-    </details>
+      <details class="tailor-advanced" open>
+        <div class="stack-md">
+          {@render apiKeyField()}
+          {@render modelField(true)}
+          <div class="action-grid">
+            <button
+              class="btn-primary"
+              type="button"
+              onclick={saveLocalSetup}
+              disabled={savingLocalSetup}
+            >
+              {#if savingLocalSetup}<Spinner />{/if}
+              Save settings
+            </button>
+            <button
+              class="btn-secondary"
+              type="button"
+              onclick={() => window.open("https://aistudio.google.com/app/apikey", "_blank", "noopener,noreferrer")}
+            >
+              <ArrowSquareOut size={16} />
+              Get API key
+            </button>
+          </div>
+        </div>
+      </details>
+    {/if}
 
     <div class="divider"></div>
 
-    <div>
+    <section class="tailor-settings-group tailoring-resume" aria-labelledby="tailoring-resume-title">
       <div class="split-row">
         <div class="flex-fill">
-          <div class="row-title">{nativeIos ? "Tailoring resume" : "Resume"}</div>
+          <h2
+            id="tailoring-resume-title"
+            class="row-title resume-settings-heading"
+            class:tailor-settings-title={nativeIos}
+          >{nativeIos ? "Tailoring resume" : "Resume"}</h2>
         </div>
-        {#if localResume}
+        {#if localResume && !nativeIos}
           <span class="tag">{remoteResume ? "synced" : localResume.canTailor ? "ready" : "stored"}</span>
         {/if}
       </div>
@@ -401,7 +549,7 @@
               <UploadSimple size={16} />
               Replace
             </button>
-            <button class="btn-secondary" type="button" onclick={() => openLocalResume(localResume)}>
+            <button class="btn-secondary" type="button" onclick={() => viewResume(localResume)}>
               <Eye size={16} />
               View
             </button>
@@ -433,26 +581,204 @@
           </div>
         </div>
       {/if}
-    </div>
+    </section>
 
   </div>
 </section>
 
+{#if previewResume}
+  <Modal
+    title={previewResume.fileName}
+    maxWidth={720}
+    initialFocus="dialog"
+    onclose={() => (previewResume = null)}
+  >
+    <div class="resume-preview">
+      {#if previewResume.textFormat === "pdf"}
+        <iframe
+          class="resume-preview-frame"
+          src={previewResume.dataUrl}
+          title="Preview of {previewResume.fileName}"
+        ></iframe>
+      {:else if previewResume.textContent}
+        <pre class="resume-preview-text">{previewResume.textContent}</pre>
+      {:else}
+        <p class="body-copy">This file cannot be previewed here. Download it to open it on your device.</p>
+      {/if}
+      <div class="action-row resume-preview-actions">
+        <button class="btn-secondary flex-fill" type="button" onclick={() => downloadLocalResume(previewResume)}>
+          <DownloadSimple size={16} />
+          Download
+        </button>
+        <button class="btn-primary flex-fill" type="button" onclick={() => (previewResume = null)}>Done</button>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   details.tailor-advanced { display: contents; }
-  :global(html.native-ios) details.tailor-advanced {
-    display: block;
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-md);
+
+  :global(html.native-ios) .tailor-settings-content {
+    padding: 0;
+    gap: var(--space-8);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
-  :global(html.native-ios) details.tailor-advanced > summary {
+
+  :global(html.native-ios) .tailor-settings-content > :global(.divider) {
+    display: none;
+  }
+
+  :global(html.native-ios) .tailor-settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .tailor-settings-title {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .resume-settings-heading {
+    margin: 0;
+  }
+
+  .usage-meter-prominent {
+    margin-top: var(--space-3);
+    padding: var(--space-4);
+    border-color: var(--color-line);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+  }
+
+  .usage-meter-prominent :global(.usage-meter-note) {
+    color: var(--color-accent-soft-ink);
+  }
+
+  .tailor-byok > summary,
+  .tailor-model-advanced > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .tailor-byok > summary::-webkit-details-marker,
+  .tailor-model-advanced > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .tailor-byok > summary {
     min-height: var(--tap-min);
-    padding: 0 var(--space-3);
+  }
+
+  .tailor-disclosure-heading {
+    width: 100%;
+    min-height: var(--tap-min);
     display: flex;
     align-items: center;
-    color: var(--color-ink-2);
-    font-size: var(--fs-sm);
-    font-weight: 600;
+    justify-content: space-between;
+    gap: var(--space-4);
   }
-  :global(html.native-ios) :where(details.tailor-advanced[open]) > :where(.stack-md) { padding: 0 var(--space-3) var(--space-3); }
+
+  .tailor-disclosure-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tailor-disclosure-copy :global(.helper-text) {
+    display: block;
+    margin-top: var(--space-1);
+  }
+
+  .tailor-disclosure-heading > :global(svg),
+  .tailor-model-advanced h3 > :global(svg) {
+    flex: none;
+    color: var(--color-ink-4);
+  }
+
+  .tailor-byok[open] > summary .tailor-disclosure-heading > :global(svg),
+  .tailor-model-advanced[open] > summary h3 > :global(svg) {
+    transform: rotate(180deg);
+  }
+
+  .tailor-byok-body {
+    padding-top: var(--space-4);
+  }
+
+  .tailor-model-advanced {
+    margin-top: var(--space-2);
+  }
+
+  .tailor-model-advanced > summary {
+    min-height: var(--tap-min);
+  }
+
+  .tailor-model-advanced h3 {
+    width: 100%;
+    min-height: var(--tap-min);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: var(--color-ink-2);
+    font-family: var(--font-display);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .tailor-model-body {
+    padding-top: var(--space-2);
+  }
+
+  :global(html.native-ios) .tailoring-resume :global(.inset-panel) {
+    margin-top: var(--space-4);
+    padding: 0;
+    gap: var(--space-3);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .resume-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .resume-preview-frame {
+    width: 100%;
+    min-height: 58dvh;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
+  }
+
+  .resume-preview-text {
+    max-height: 58dvh;
+    overflow: auto;
+    margin: 0;
+    padding: var(--space-4);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
+    color: var(--color-ink-2);
+    font: 400 var(--fs-sm) / 1.55 var(--font-sans);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .resume-preview-actions {
+    margin-top: 0;
+  }
 </style>

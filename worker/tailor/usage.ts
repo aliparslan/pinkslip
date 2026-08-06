@@ -49,7 +49,7 @@ export async function loadTailorUsage(args: {
   model: string;
 }) {
   const today = startOfUtcDay();
-  const [app, user] = await Promise.all([
+  const [app, user, includedUser] = await Promise.all([
     args.db.prepare(
       `SELECT COUNT(*) AS count
        FROM tailor_usage
@@ -66,19 +66,31 @@ export async function loadTailorUsage(args: {
          AND model = ?
          AND created_at >= ?`
     ).bind(args.userId, args.provider, args.model, today).first<{ count: number }>(),
+    args.db.prepare(
+      `SELECT COUNT(*) AS count
+       FROM tailor_usage
+       WHERE key_source = 'app'
+         AND user_id = ?
+         AND created_at >= ?`
+    ).bind(args.userId, today).first<{ count: number }>(),
   ]);
 
   const dailyLimit = args.provider === "gemini" ? GEMINI_DAILY_LIMITS[args.model] ?? null : null;
   const appToday = app?.count ?? 0;
   const userToday = user?.count ?? 0;
+  const includedUserToday = includedUser?.count ?? 0;
   return {
     provider: args.provider,
     model: args.model,
     app_today: appToday,
     user_today: userToday,
+    included_user_today: includedUserToday,
     daily_limit: dailyLimit,
     app_remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - appToday),
+    // Keep the legacy aggregate field stable for existing web clients. Native
+    // uses the explicit included-only fields for its free-use meter.
     user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - userToday),
+    included_user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - includedUserToday),
     resets_at: nextUtcDay(),
   };
 }

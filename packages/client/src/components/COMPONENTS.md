@@ -9,10 +9,12 @@ application code should not invent visually equivalent one-offs.
 | Need | Use | Supported contract |
 | --- | --- | --- |
 | Progress indicator | `Spinner.svelte` | `size`, accessible `label` |
+| Page-level recovery | `PageFailure.svelte` | concise title, recovery message, optional retry and secondary actions |
 | Boolean setting | `Switch.svelte` | controlled checked state and accessible label |
 | Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase` |
-| Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, dismiss callback, content/actions snippets |
+| Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, dismiss callback, content/actions snippets |
 | Pushed-screen header | `ScreenNav.svelte` | title, back action, optional trailing content, native collapsing title |
+| Collapsed-header search | `HeaderSearch.svelte` | page-registered query binding, compact expand/collapse control |
 | Transient feedback | `Toast.svelte` + `ToastViewport.svelte` through `feedback.svelte.ts` | message, tone, optional Undo/action |
 | App navigation | `RootHeader.svelte`, `TabBar.svelte` | shell-owned; do not recreate inside pages |
 | Product/Apple marks | `BrandMark.svelte`, `AppleMark.svelte` | fixed brand assets |

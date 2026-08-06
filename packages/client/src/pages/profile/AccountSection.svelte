@@ -15,6 +15,7 @@
     onSuccess,
     onReload,
     showHeading = true,
+    nativeIos = false,
   }: {
     sessionState: "anonymous" | "guest" | "authenticated";
     account: AccountInfo | null;
@@ -22,6 +23,7 @@
     onSuccess: (message: string) => void;
     onReload: () => Promise<void>;
     showHeading?: boolean;
+    nativeIos?: boolean;
   } = $props();
 
   let emailLogin: string = $state("");
@@ -93,9 +95,13 @@
   }
 </script>
 
-<section>
-  {#if showHeading}<h2 class="section-eyebrow">Account</h2>{/if}
-  <div class="content-card stack-lg">
+<section class="account-section">
+  {#if showHeading}
+    <h2 class="section-eyebrow">Account</h2>
+  {:else if nativeIos}
+    <h2 class="account-section-title">Sign-in and data</h2>
+  {/if}
+  <div class="content-card stack-lg account-content">
     {#if sessionState === "authenticated"}
       <div class="split-row start">
         <div class="flex-fill">
@@ -103,11 +109,13 @@
           <div class="helper-text account-identity">
             {account?.email ?? "Your account is active"}{#if account?.provider} · via {account.provider === "apple" ? "Apple" : "email"}{/if}
           </div>
-          <div class="helper-text account-explainer">
-            Jobs, profile, preferences, and your synced resume can follow you across devices.
-          </div>
+          {#if !nativeIos}
+            <div class="helper-text account-explainer">
+              Jobs, profile, preferences, and your synced resume can follow you across devices.
+            </div>
+          {/if}
         </div>
-        <span class="tag">sync on</span>
+        {#if !nativeIos}<span class="tag">sync on</span>{/if}
       </div>
 
       <div class="action-grid">
@@ -168,6 +176,18 @@
     {/if}
   </div>
 </section>
+
+<style>
+  .account-section-title {
+    margin: 0 0 var(--space-3);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+</style>
 
 {#if showRestartConfirm}
   <Modal

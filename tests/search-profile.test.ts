@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_SEARCH_PROFILE,
+  ROLE_OPTIONS,
+  SEARCH_PROFILE_VERSION,
   normalizeSearchProfile,
 } from "../shared/search-profile";
 import { classifyJob } from "@worker/job-features";
@@ -64,6 +66,13 @@ describe("search profile", () => {
 
   test("uses the default profile when no prior preferences exist", () => {
     expect(preferenceStateFromRecord({}).search_profile).toEqual(DEFAULT_SEARCH_PROFILE);
+    expect(DEFAULT_SEARCH_PROFILE.roles).toEqual([
+      "software_engineering",
+      "forward_deployed",
+      "frontend",
+      "backend",
+      "full_stack",
+    ]);
   });
 
   test("drops product, program, and design roles from older profiles", () => {
@@ -135,6 +144,42 @@ describe("personalized eligibility", () => {
 
     expect(classifyJob(infrastructure).specialties).toEqual(["infrastructure"]);
     expect(evaluateJobForProfile("infra", infrastructure, classifyJob(infrastructure), profile).plausible).toBe(false);
+  });
+
+  test("keeps forward-deployed engineering independently targetable", () => {
+    const listing = job({ title: "Forward Deployed Engineer" });
+    const features = classifyJob(listing);
+    const fdeProfile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["forward_deployed"],
+      location_ids: [],
+    });
+    const sweProfile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      roles: ["software_engineering"],
+      location_ids: [],
+    });
+
+    expect(features.specialties).toEqual(["forward_deployed"]);
+    expect(evaluateJobForProfile("fde", listing, features, fdeProfile).plausible).toBe(true);
+    expect(evaluateJobForProfile("swe", listing, features, sweProfile).plausible).toBe(false);
+  });
+
+  test("migrates legacy SWE profiles to preserve their former FDE eligibility", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      version: 2,
+      roles: ["software_engineering", "frontend"],
+    });
+
+    expect(profile.version).toBe(SEARCH_PROFILE_VERSION);
+    expect(profile.roles).toEqual(["software_engineering", "forward_deployed", "frontend"]);
+  });
+
+  test("classifies forward-deployed software engineer titles as FDE", () => {
+    const listing = job({ title: "Forward Deployed Software Engineer" });
+
+    expect(classifyJob(listing).specialties).toEqual(["forward_deployed"]);
   });
 
   test("senior ML roles stay outside the product ceiling regardless of profile data", () => {

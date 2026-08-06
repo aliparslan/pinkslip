@@ -16,6 +16,16 @@ export interface LocalBackHandler {
 let handler: BackHandler | null = null;
 const localHandlers: LocalBackHandler[] = [];
 
+export function backSwipeIntent(
+  dx: number,
+  dy: number,
+  lockDistance = 6,
+): "pending" | "back" | "other" {
+  if (Math.abs(dx) < lockDistance && Math.abs(dy) < lockDistance) return "pending";
+  if (dx <= 0 || Math.abs(dy) > Math.abs(dx)) return "other";
+  return "back";
+}
+
 export function registerBackHandler(fn: BackHandler): () => void {
   handler = fn;
   return () => {

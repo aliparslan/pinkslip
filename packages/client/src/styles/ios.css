@@ -30,45 +30,26 @@ html.native-ios textarea {
 html.native-ios .job-description-link { min-height: var(--tap-min); }
 html.native-ios .my-jobs-tabs { height: 50px; }
 
-html.native-ios .native-boot-error {
+html.native-ios .chip.all-filter { padding-inline: 18px; }
+
+html.native-ios .native-session-failure {
   min-height: 100dvh;
-  padding: calc(var(--safe-top) + var(--space-10)) var(--space-6) calc(var(--safe-bottom) + var(--space-10));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-ink);
-  text-align: center;
+  padding: calc(var(--safe-top) + var(--space-8)) var(--screen-gutter)
+    calc(var(--safe-bottom) + var(--space-8));
+  display: grid;
+  place-items: center;
   background: var(--color-bg);
 }
 
-.native-boot-error-icon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: var(--space-4);
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-full);
-  color: var(--color-ink-2);
-  background: var(--color-bg-elev);
+html.native-ios .company-row {
+  contain: none;
+  content-visibility: visible;
+  background: var(--color-bg);
 }
 
-.native-boot-error h1 {
-  margin: 0;
-  font-size: var(--fs-2xl);
-  font-weight: 600;
-  letter-spacing: -0.025em;
+html.native-ios .company-row.hidden {
+  --company-row-copy-opacity: 0.56;
 }
-
-.native-boot-error p {
-  max-width: 30ch;
-  margin: var(--space-2) 0 var(--space-5);
-  color: var(--color-ink-3);
-  font-size: var(--fs-sm);
-  line-height: 1.45;
-}
-
-.native-boot-error .btn-secondary { min-width: 132px; }
 
 html.native-ios details.filter-advanced {
   display: block;
@@ -82,6 +63,60 @@ html.native-ios .feed-loading-more {
   min-height: 56px;
   padding: var(--space-3) var(--space-4);
   display: flex;
+}
+
+/* Root chrome stays opaque in WKWebView. Translucent backdrops caused content
+   colors to bleed through and are expensive during interactive navigation. */
+html.native-ios .screen-nav,
+html.native-ios .tab-bar,
+html.native-ios .feed-controls {
+  background: var(--color-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.native-ios .feed-controls {
+  position: relative;
+  top: auto;
+  padding-top: var(--space-3);
+}
+
+html.native-ios .feed-toolbar {
+  height: var(--tap-min);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+html.native-ios .feed-toolbar:focus-within {
+  border-color: transparent;
+  background: transparent;
+}
+
+html.native-ios .feed-search,
+html.native-ios .filter-button {
+  min-height: var(--tap-min);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  background: var(--color-control-bg);
+}
+
+html.native-ios .feed-search {
+  padding-inline: var(--space-3);
+}
+
+html.native-ios .filter-button {
+  padding-inline: var(--space-3);
+  color: var(--color-ink-2);
+}
+
+html.native-ios .filter-button.active {
+  border-color: var(--color-accent);
+  background: var(--color-control-bg);
+  color: var(--color-accent-soft-ink);
 }
 
 .app-content-shell {
@@ -136,6 +171,13 @@ html.native-ios .feed-loading-more {
 }
 
 html.native-ios .modal-backdrop {
+  --modal-scrim-color: var(--color-native-modal-scrim);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.native-ios .sheet-backdrop {
   background: var(--color-native-modal-scrim);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -183,6 +225,82 @@ html.native-ios .modal-backdrop {
   overflow: hidden;
 }
 
+.nav-underlay-fallback {
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+  background: var(--color-bg);
+}
+
+.nav-underlay-fallback__header {
+  min-height: 60px;
+  padding: 8px 16px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-bg);
+}
+
+.nav-underlay-fallback__header.root {
+  min-height: 92px;
+  padding: 24px 18px 12px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 0;
+}
+
+.nav-underlay-fallback__header strong {
+  grid-column: 2;
+  overflow: hidden;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-underlay-fallback__header.root strong {
+  font-family: var(--font-display);
+  font-size: var(--fs-4xl);
+  text-align: left;
+}
+
+.nav-underlay-fallback__back {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-bg-sunken);
+  color: var(--color-ink);
+  font-size: 22px;
+}
+
+.nav-underlay-fallback__body {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.nav-underlay-fallback__body span {
+  height: 72px;
+  border-bottom: 1px solid var(--color-line);
+  background: linear-gradient(90deg, var(--color-bg-sunken), transparent 72%);
+}
+
+html.native-ios .pushed-screen {
+  animation: native-pushed-screen-in var(--duration-route) var(--ease-standard) backwards;
+}
+
+@keyframes native-pushed-screen-in {
+  from {
+    opacity: 0.94;
+    transform: translate3d(34px, 0, 0);
+  }
+}
+
 .nav-underlay-dim {
   position: absolute;
   inset: 0;
@@ -197,6 +315,7 @@ html.native-ios .modal-backdrop {
 body.nav-animating .screen-nav,
 body.nav-animating .tab-bar,
 body.nav-animating .feed-controls,
+body.nav-animating .job-action-bar-wrap,
 body.nav-animating .onboarding-footer,
 body.nav-animating .toast-message {
   backdrop-filter: none !important;
@@ -204,7 +323,6 @@ body.nav-animating .toast-message {
   background: var(--color-bg) !important;
 }
 
-body.nav-animating .tab-bar { z-index: 0; }
 /* stylelint-enable declaration-no-important */
 
 html.native-ios :where(

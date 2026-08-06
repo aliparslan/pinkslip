@@ -12,10 +12,13 @@
   import { companySourceLabel } from "../lib/company-sources";
   import CompanyLogo from "./CompanyLogo.svelte";
   import Switch from "./Switch.svelte";
+  import Spinner from "./Spinner.svelte";
 
-  let { company, admin = false, onToggle, onDelete, onEdit, onBlock, onRestore, onReport }: {
+  let { company, admin = false, nativeIos = false, busy = false, onToggle, onDelete, onEdit, onBlock, onRestore, onReport }: {
     company: Company;
     admin?: boolean;
+    nativeIos?: boolean;
+    busy?: boolean;
     onToggle?: (id: string, enabled: boolean) => void;
     onDelete?: (id: string, name: string) => void;
     onEdit?: (id: string) => void;
@@ -61,7 +64,7 @@
   });
 </script>
 
-<div class="grouped-row company-row">
+<div class="grouped-row company-row" class:hidden={nativeIos && Boolean(company.blocked)}>
   <CompanyLogo name={company.name} domain={company.website} size={36} />
   <div class="flex-fill">
     <div class="company-name-row">
@@ -72,6 +75,7 @@
       {:else}
         <div class="company-name truncate">{company.name}</div>
       {/if}
+      {#if nativeIos && !admin && company.blocked}<span class="company-hidden-label">Hidden</span>{/if}
     </div>
     {#if admin}
       <div class="company-meta">
@@ -100,6 +104,8 @@
       <Switch
         checked={Boolean(company.enabled)}
         onCheckedChange={(value) => onToggle?.(company.id, value)}
+        disabled={busy}
+        aria-busy={busy}
         aria-label="Enable {company.name}"
       />
       <DropdownMenu.Root bind:open={actionsOpen}>
@@ -130,16 +136,17 @@
       </DropdownMenu.Root>
     </div>
   {:else if company.blocked}
-    <button class="btn-secondary btn-mini row-action" onclick={() => onRestore?.(company.id)}>
-      <ArrowCounterClockwise size={14} /> Restore
+    <button class="btn-secondary btn-mini row-action" aria-label="{nativeIos ? "Unhide" : "Restore"} {company.name}" aria-busy={busy} disabled={busy} onclick={() => onRestore?.(company.id)}>
+      {#if busy}<Spinner size={15} />{:else}<ArrowCounterClockwise size={nativeIos ? 15 : 14} weight={nativeIos ? "bold" : "regular"} />{/if}
+      {nativeIos ? "Unhide" : "Restore"}
     </button>
   {:else}
     <div class="icon-cluster">
       <button class="icon-btn icon-btn-sm" aria-label="Report a problem with {company.name}" onclick={() => onReport?.(company.id, company.name)}>
         <Flag size={15} color="var(--color-ink-3)" />
       </button>
-      <button class="icon-btn icon-btn-sm" aria-label="Hide {company.name}" onclick={() => onBlock?.(company.id)}>
-        <EyeSlash size={16} color="var(--color-ink-3)" />
+      <button class="icon-btn icon-btn-sm" aria-label="Hide {company.name}" aria-busy={busy} disabled={busy} onclick={() => onBlock?.(company.id)}>
+        {#if busy}<Spinner size={15} />{:else}<EyeSlash size={16} color="var(--color-ink-3)" />{/if}
       </button>
     </div>
   {/if}
@@ -155,12 +162,26 @@
     padding: 12px;
     content-visibility: auto;
     contain-intrinsic-size: auto 68px;
+    --company-row-copy-opacity: 1;
+  }
+
+  .company-row > :global(.logo-mark),
+  .company-row > .flex-fill {
+    opacity: var(--company-row-copy-opacity);
   }
 
   .company-name-row {
     overflow: hidden;
     display: flex;
     align-items: center;
+  }
+
+  .company-hidden-label {
+    margin-inline-start: 7px;
+    flex: none;
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-weight: 500;
   }
 
   .company-name {
@@ -234,4 +255,5 @@
   @media (max-width: 390px) {
     .company-row { padding-right: 8px; }
   }
+
 </style>

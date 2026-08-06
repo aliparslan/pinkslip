@@ -3,13 +3,20 @@
   import { scrollContainer } from "../router";
   import { api, type Job } from "../lib/api";
   import { timeAgo, errorMessage } from "../lib/utils";
-  import { feed, markLocationsManuallySet, PAGE_SIZE, type PostedFilter } from "../lib/feed-store.svelte";
+  import {
+    ALL_FEED_ROLE_IDS,
+    feed,
+    markLocationsManuallySet,
+    PAGE_SIZE,
+    type PostedFilter,
+  } from "../lib/feed-store.svelte";
   import { syncViewedJobs, viewedJobs } from "../lib/viewed";
   import JobRow from "../components/JobRow.svelte";
   import VirtualJobList from "../components/VirtualJobList.svelte";
   import Spinner from "../components/Spinner.svelte";
   import Switch from "../components/Switch.svelte";
   import Modal from "../components/Modal.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { Dialog, Slider } from "bits-ui";
   import { flip } from "svelte/animate";
@@ -26,10 +33,14 @@
   import { createFrameBatch, delay } from "../lib/motion";
   import {
     LOCATION_OPTIONS,
+    ROLE_OPTIONS,
     type LocationId,
+    type RoleId,
   } from "../../../../shared/search-profile";
   import { MAX_POSTED_AGE_DAYS } from "../../../../shared/job-policy";
   import { isIosApp } from "../lib/platform";
+  import { sessionAccess } from "../lib/session-access";
+  import { headerChrome } from "../lib/header-chrome.svelte";
 
   // Compact labels for the shared metro catalog. The filter sends metro
   // IDs to the API, so every onboarding metro is filterable here too.
@@ -89,6 +100,7 @@
   let requestVersion = 0;
   let handledPreferenceRevision = feed.preferenceRevision;
   let draftSelectedLocations: string[] = $state(["All"]);
+  let draftSelectedRoles: RoleId[] = $state([...ALL_FEED_ROLE_IDS]);
   let draftMinSalaryK = $state("");
   let draftMaxSalaryK = $state("");
   let draftYoeRange: number[] = $state([0, 3]);
@@ -98,6 +110,48 @@
   let blockingJob = $state(false);
   const hiddenJobPositions = new Map<string, number>();
   const nativeIos = isIosApp();
+  type FeedCriteria = Pick<typeof feed,
+    | "selectedLocations"
+    | "selectedRoles"
+    | "searchQuery"
+    | "savedOnly"
+    | "minSalaryK"
+    | "maxSalaryK"
+    | "minYoe"
+    | "maxYoe"
+    | "postedFilter"
+  >;
+  type FeedLoadOutcome = "success" | "failure" | "stale";
+
+  function captureFeedCriteria(): FeedCriteria {
+    return {
+      selectedLocations: [...feed.selectedLocations],
+      selectedRoles: [...feed.selectedRoles],
+      searchQuery: feed.searchQuery,
+      savedOnly: feed.savedOnly,
+      minSalaryK: feed.minSalaryK,
+      maxSalaryK: feed.maxSalaryK,
+      minYoe: feed.minYoe,
+      maxYoe: feed.maxYoe,
+      postedFilter: feed.postedFilter,
+    };
+  }
+
+  function restoreFeedCriteria(criteria: FeedCriteria) {
+    feed.selectedLocations = [...criteria.selectedLocations];
+    feed.selectedRoles = [...criteria.selectedRoles];
+    feed.searchQuery = criteria.searchQuery;
+    feed.savedOnly = criteria.savedOnly;
+    feed.minSalaryK = criteria.minSalaryK;
+    feed.maxSalaryK = criteria.maxSalaryK;
+    feed.minYoe = criteria.minYoe;
+    feed.maxYoe = criteria.maxYoe;
+    feed.postedFilter = criteria.postedFilter;
+  }
+
+  let appliedCriteria: FeedCriteria = captureFeedCriteria();
+  let showOlderJobsFilter = $derived(!nativeIos || $sessionAccess.isAdmin);
+  let effectiveSavedOnly = $derived(!nativeIos && feed.savedOnly);
   const pullBatch = createFrameBatch<number>((value) => {
     pullOffset = value;
     pullArmed = value >= 44;
@@ -118,9 +172,9 @@
     feed.jobs = nextJobs;
   }
 
-  function markJobSaved(id: string) {
+  function markJobSaved(id: string, saved = true) {
     feed.jobs = feed.jobs.map((job) =>
-      job.id === id ? { ...job, saved: 1 } : job
+      job.id === id ? { ...job, saved: saved ? 1 : 0 } : job
     );
   }
 
@@ -133,7 +187,7 @@
       removeJob(job.id);
       hiddenJobPositions.delete(job.id);
       blockCandidate = null;
-      feedback.success("Job blocked for everyone");
+      if (!nativeIos) feedback.success("Job blocked for everyone");
     } catch (e) {
       feedback.error(errorMessage(e, "Could not block that job."));
     } finally {
@@ -148,29 +202,43 @@
   let hasLocationFilter = $derived(
     !(feed.selectedLocations.length === 1 && feed.selectedLocations[0] === "All")
   );
+  let hasRoleFilter = $derived(
+    nativeIos && !(
+      feed.selectedRoles.length === ALL_FEED_ROLE_IDS.length
+      && ALL_FEED_ROLE_IDS.every((role) => feed.selectedRoles.includes(role))
+    )
+  );
   let activeFilterCount = $derived.by(() => {
     let count = 0;
+    if (hasRoleFilter) count += 1;
     if (hasLocationFilter) count += 1;
     if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
     if (feed.minYoe !== 0 || feed.maxYoe !== 3) count += 1;
-    if (feed.savedOnly) count += 1;
-    if (feed.postedFilter !== "any") count += 1;
+    if (effectiveSavedOnly) count += 1;
+    if (showOlderJobsFilter && feed.postedFilter !== "any") count += 1;
     return count;
   });
   // Filters the empty state can actually offer to clear. `savedOnly` is excluded:
   // it selects a view rather than narrowing one, so clearing it would bounce the
   // user out of the saved list they deliberately opened.
-  let refinableFilterCount = $derived(activeFilterCount - (feed.savedOnly ? 1 : 0));
+  let refinableFilterCount = $derived(activeFilterCount - (effectiveSavedOnly ? 1 : 0));
   let draftHasLocationFilter = $derived(
     !(draftSelectedLocations.length === 1 && draftSelectedLocations[0] === "All")
   );
+  let draftHasRoleFilter = $derived(
+    nativeIos && !(
+      draftSelectedRoles.length === ALL_FEED_ROLE_IDS.length
+      && ALL_FEED_ROLE_IDS.every((role) => draftSelectedRoles.includes(role))
+    )
+  );
   let draftFilterCount = $derived.by(() => {
     let count = 0;
+    if (draftHasRoleFilter) count += 1;
     if (draftHasLocationFilter) count += 1;
     if (draftMinSalaryK.trim() || draftMaxSalaryK.trim()) count += 1;
     if ((draftYoeRange[0] ?? 0) !== 0 || (draftYoeRange[1] ?? 3) !== 3) count += 1;
-    if (draftSavedOnly) count += 1;
-    if (draftPostedFilter !== "any") count += 1;
+    if (!nativeIos && draftSavedOnly) count += 1;
+    if (showOlderJobsFilter && draftPostedFilter !== "any") count += 1;
     return count;
   });
   let draftLocationSummary = $derived.by(() => {
@@ -187,28 +255,41 @@
     if (min === max) return `${min} ${min === 1 ? "year" : "years"}`;
     return `${min}–${max} years`;
   }
-  function buildFeedParams(limit = PAGE_SIZE, offset = 0) {
+  function buildFeedParams(
+    limit = PAGE_SIZE,
+    offset = 0,
+    criteria = captureFeedCriteria(),
+  ) {
     const params: Record<string, string> = {
       limit: String(limit),
       offset: String(offset),
     };
 
-    if (feed.searchQuery.trim()) {
-      params.q = feed.searchQuery.trim();
+    if (criteria.searchQuery.trim()) {
+      params.q = criteria.searchQuery.trim();
     }
-    if (hasLocationFilter) {
-      params.locations = feed.selectedLocations.join(",");
+    const criteriaHasLocationFilter = !(
+      criteria.selectedLocations.length === 1
+      && criteria.selectedLocations[0] === "All"
+    );
+    if (criteriaHasLocationFilter) {
+      params.locations = criteria.selectedLocations.join(",");
     }
-    if (feed.savedOnly) {
+    const criteriaHasRoleFilter = nativeIos && !(
+      criteria.selectedRoles.length === ALL_FEED_ROLE_IDS.length
+      && ALL_FEED_ROLE_IDS.every((role) => criteria.selectedRoles.includes(role))
+    );
+    if (criteriaHasRoleFilter) params.roles = criteria.selectedRoles.join(",");
+    if (!nativeIos && criteria.savedOnly) {
       params.saved = "true";
     }
-    const minSalary = parseInt(feed.minSalaryK, 10);
-    const maxSalary = parseInt(feed.maxSalaryK, 10);
+    const minSalary = parseInt(criteria.minSalaryK, 10);
+    const maxSalary = parseInt(criteria.maxSalaryK, 10);
     if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
     if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
-    if (feed.minYoe > 0) params.min_yoe = String(feed.minYoe);
-    if (feed.maxYoe < 3) params.max_yoe = String(feed.maxYoe);
-    if (feed.postedFilter !== "any") params.posted = feed.postedFilter;
+    if (criteria.minYoe > 0) params.min_yoe = String(criteria.minYoe);
+    if (criteria.maxYoe < 3) params.max_yoe = String(criteria.maxYoe);
+    if (showOlderJobsFilter && criteria.postedFilter !== "any") params.posted = criteria.postedFilter;
 
     return params;
   }
@@ -220,7 +301,8 @@
     minimumBusyMs?: number;
     limit?: number;
     offset?: number;
-  }) {
+    criteriaChange?: boolean;
+  }): Promise<FeedLoadOutcome> {
     const silent = options?.silent ?? false;
     const append = options?.append ?? false;
     const mergeFresh = options?.mergeFresh ?? false;
@@ -229,6 +311,8 @@
     const offset = options?.offset ?? 0;
     const hadJobs = feed.jobs.length > 0;
     const previousJobs = feed.jobs;
+    const requestedCriteria = captureFeedCriteria();
+    const requestParams = buildFeedParams(limit, offset, requestedCriteria);
     const busyStartedAt = performance.now();
     const version = ++requestVersion;
 
@@ -246,21 +330,23 @@
       let jobsRes: Awaited<ReturnType<typeof api.jobs.list>>;
       if (!append && nativeIos) {
         const [statsRes, nextJobs] = await Promise.all([
-          api.stats.get(),
-          api.jobs.list(buildFeedParams(limit, offset)),
+          // Polling health is useful context, but it must never turn a healthy
+          // jobs response into a full-feed failure.
+          api.stats.get().catch(() => null),
+          api.jobs.list(requestParams),
         ]);
-        if (version !== requestVersion) return;
-        feed.lastPolled = statsRes.lastPolled ?? null;
+        if (version !== requestVersion) return "stale";
+        if (statsRes) feed.lastPolled = statsRes.lastPolled ?? null;
         jobsRes = nextJobs;
       } else {
         if (!append) {
           const statsRes = await api.stats.get();
-          if (version !== requestVersion) return;
+          if (version !== requestVersion) return "stale";
           feed.lastPolled = statsRes.lastPolled ?? null;
         }
-        jobsRes = await api.jobs.list(buildFeedParams(limit, offset));
+        jobsRes = await api.jobs.list(requestParams);
       }
-      if (version !== requestVersion) return;
+      if (version !== requestVersion) return "stale";
 
       const incoming = jobsRes.jobs ?? [];
       if (!append && incoming.length > 0) {
@@ -289,11 +375,28 @@
       feed.nextOffset = mergeFresh ? Math.max(previousJobs.length, serverOffset) : serverOffset;
       feed.hydrated = true;
       feed.lastLoadedAt = Date.now();
+      if (!append) appliedCriteria = requestedCriteria;
+      return "success";
     } catch (e) {
-      if (version !== requestVersion) return;
-      if (!hadJobs || !append) {
+      if (version !== requestVersion) return "stale";
+      if (!hadJobs) {
         error = errorMessage(e);
+      } else if (!nativeIos && !append) {
+        error = errorMessage(e);
+      } else if (append) {
+        feedback.error(errorMessage(e, "Couldn’t load more jobs."));
+      } else {
+        // A background refresh or filter retry should never replace a usable
+        // feed with a full-page failure state. Keep the rendered rows stable
+        // and surface the recoverable network problem as transient feedback.
+        feedback.error(errorMessage(
+          e,
+          options?.criteriaChange
+            ? "Couldn’t update jobs. Your previous results are still here."
+            : "Couldn’t refresh jobs.",
+        ));
       }
+      return "failure";
     } finally {
       if (version === requestVersion) {
         if (append && minimumBusyMs > 0) {
@@ -330,6 +433,7 @@
 
   async function applyFeedFilters(updates?: {
     selectedLocations?: string[];
+    selectedRoles?: RoleId[];
     searchQuery?: string;
     savedOnly?: boolean;
     minSalaryK?: string;
@@ -338,9 +442,14 @@
     maxYoe?: number;
     postedFilter?: PostedFilter;
   }) {
+    const hadExistingJobs = feed.jobs.length > 0;
+    const previousPagination = { hasMore: feed.hasMore, nextOffset: feed.nextOffset };
     if (updates?.selectedLocations !== undefined) {
       feed.selectedLocations = updates.selectedLocations;
       markLocationsManuallySet();
+    }
+    if (updates?.selectedRoles !== undefined) {
+      feed.selectedRoles = updates.selectedRoles;
     }
     if (updates?.searchQuery !== undefined) {
       feed.searchQuery = updates.searchQuery;
@@ -366,12 +475,18 @@
     error = null;
     feed.hasMore = true;
     feed.nextOffset = 0;
-    await loadFeedPage({
+    const outcome = await loadFeedPage({
       silent: true,
       append: false,
       limit: PAGE_SIZE,
       offset: 0,
+      criteriaChange: true,
     });
+    if (outcome === "failure" && nativeIos && hadExistingJobs) {
+      restoreFeedCriteria(appliedCriteria);
+      feed.hasMore = previousPagination.hasMore;
+      feed.nextOffset = previousPagination.nextOffset;
+    }
   }
 
   function toggleLocationFilter(id: string) {
@@ -390,13 +505,31 @@
     }
   }
 
+  function chooseNoRolePreference() {
+    draftSelectedRoles = [...ALL_FEED_ROLE_IDS];
+  }
+
+  function toggleRoleFilter(role: RoleId) {
+    if (!draftHasRoleFilter) {
+      draftSelectedRoles = [role];
+      return;
+    }
+    const next = draftSelectedRoles.includes(role)
+      ? draftSelectedRoles.filter((item) => item !== role)
+      : [...draftSelectedRoles, role];
+    draftSelectedRoles = next.length === 0 || next.length === ALL_FEED_ROLE_IDS.length
+      ? [...ALL_FEED_ROLE_IDS]
+      : next;
+  }
+
   function openFilterSheet() {
     draftSelectedLocations = [...feed.selectedLocations];
+    draftSelectedRoles = [...feed.selectedRoles];
     draftMinSalaryK = feed.minSalaryK;
     draftMaxSalaryK = feed.maxSalaryK;
     draftYoeRange = [feed.minYoe ?? 0, feed.maxYoe ?? 3];
-    draftSavedOnly = feed.savedOnly;
-    draftPostedFilter = feed.postedFilter;
+    draftSavedOnly = effectiveSavedOnly;
+    draftPostedFilter = showOlderJobsFilter ? feed.postedFilter : "any";
     filtersOpen = true;
   }
 
@@ -406,6 +539,7 @@
   async function clearRefinableFilters() {
     await applyFeedFilters({
       selectedLocations: ["All"],
+      selectedRoles: [...ALL_FEED_ROLE_IDS],
       minSalaryK: "",
       maxSalaryK: "",
       minYoe: 0,
@@ -416,6 +550,7 @@
 
   function resetFilters() {
     draftSelectedLocations = ["All"];
+    draftSelectedRoles = [...ALL_FEED_ROLE_IDS];
     draftMinSalaryK = "";
     draftMaxSalaryK = "";
     draftYoeRange = [0, 3];
@@ -427,12 +562,13 @@
     filtersOpen = false;
     await applyFeedFilters({
       selectedLocations: [...draftSelectedLocations],
+      selectedRoles: [...draftSelectedRoles],
       minSalaryK: draftMinSalaryK,
       maxSalaryK: draftMaxSalaryK,
       minYoe: draftMinYoe,
       maxYoe: draftMaxYoe,
-      savedOnly: draftSavedOnly,
-      postedFilter: draftPostedFilter,
+      savedOnly: nativeIos ? false : draftSavedOnly,
+      postedFilter: showOlderJobsFilter ? draftPostedFilter : "any",
     });
   }
 
@@ -450,13 +586,16 @@
   function commitSearch(event: KeyboardEvent) {
     if (event.key !== "Enter") return;
     event.preventDefault();
+    submitSearch((event.currentTarget as HTMLInputElement).value);
+    (event.currentTarget as HTMLInputElement).blur();
+  }
+
+  function submitSearch(value: string) {
     if (searchTimer !== null) {
       window.clearTimeout(searchTimer);
       searchTimer = null;
     }
-    const input = event.currentTarget as HTMLInputElement;
-    input.blur();
-    void applyFeedFilters({ searchQuery: input.value });
+    void applyFeedFilters({ searchQuery: value });
   }
 
   async function triggerRefresh() {
@@ -565,6 +704,15 @@
   });
 
   onMount(() => {
+    const unregisterHeaderSearch = nativeIos
+      ? headerChrome.registerSearch({
+          id: "jobs",
+          placeholder: "Search jobs or companies",
+          value: () => feed.searchQuery,
+          onInput: scheduleSearch,
+          onSubmit: submitSearch,
+        })
+      : () => undefined;
     void syncViewedJobs().catch(() => undefined);
     if (feed.hydrated && feed.jobs.length > 0) {
       loading = false;
@@ -597,6 +745,7 @@
     navigator.serviceWorker?.addEventListener("message", handleServiceWorkerMessage);
 
     return () => {
+      unregisterHeaderSearch();
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handlePageShow);
@@ -629,6 +778,37 @@
   });
 
 </script>
+
+{#snippet listingTypeFilter()}
+  <section class="filter-group">
+    <div class="filter-group-title">Listing type</div>
+    <div class="filter-option-grid binary">
+      {#each POSTED_OPTIONS as option}
+        <button
+          class="filter-choice"
+          class:active={draftPostedFilter === option.value}
+          aria-pressed={draftPostedFilter === option.value}
+          onclick={() => (draftPostedFilter = option.value)}
+        >
+          {nativeIos && option.value === "evergreen" ? "Older jobs" : option.label}
+        </button>
+      {/each}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet savedJobsFilter()}
+  <section class="filter-group">
+    <div class="filter-toggle" class:active={draftSavedOnly}>
+      <span>Saved jobs only</span>
+      <Switch
+        checked={draftSavedOnly}
+        onCheckedChange={(value) => (draftSavedOnly = value)}
+        aria-label="Saved jobs only"
+      />
+    </div>
+  </section>
+{/snippet}
 
 <div bind:this={feedPage} class="page root-screen feed-page" class:pull-settling={pullSettling}>
   <!-- Search and filtering share one compact control surface. -->
@@ -697,16 +877,21 @@
         </div>
       {/each}
     {:else if error}
-      <div class="alert alert-error feed-error" role="alert">
-        {error}
-        {#if nativeIos}<button class="btn-secondary" onclick={() => void loadFeed()}>Try again</button>{/if}
-      </div>
+      {#if nativeIos}
+        <PageFailure
+          title="Jobs didn’t load"
+          message="Check your connection and try again."
+          onRetry={() => void loadFeed()}
+        />
+      {:else}
+        <div class="alert alert-error feed-error" role="alert">{error}</div>
+      {/if}
     {:else if feed.jobs.length === 0}
       <div class="empty-state">
         <h2 class="h-display h-display-sm empty-state-title">
           {#if refinableFilterCount > 0}
-            {feed.savedOnly ? "No saved jobs match your filters" : "No jobs match your filters"}
-          {:else if feed.savedOnly}
+            {effectiveSavedOnly ? "No saved jobs match your filters" : "No jobs match your filters"}
+          {:else if effectiveSavedOnly}
             No saved jobs yet
           {:else}
             No jobs right now
@@ -717,7 +902,7 @@
             {nativeIos ? "No open longer-term roles match your other filters." : "No standing or aged-but-open roles match your other filters."}
           {:else if refinableFilterCount > 0}
             Try widening or clearing your filters.
-          {:else if feed.savedOnly}
+          {:else if effectiveSavedOnly}
             Save roles from the detail view to keep them handy.
           {:else}
             New roles show up here as they’re posted.
@@ -809,6 +994,34 @@
           </div>
 
           <div class="filter-sheet-body">
+            {#if nativeIos}
+              <section class="filter-group">
+                <div class="filter-group-title">Role</div>
+                <div class="filter-option-grid role-filter-grid" role="group" aria-label="Role">
+                  <button
+                    type="button"
+                    class="filter-choice"
+                    class:active={!draftHasRoleFilter}
+                    aria-pressed={!draftHasRoleFilter}
+                    onclick={chooseNoRolePreference}
+                  >
+                    No preference
+                  </button>
+                  {#each ROLE_OPTIONS as role}
+                    <button
+                      type="button"
+                      class="filter-choice"
+                      class:active={draftHasRoleFilter && draftSelectedRoles.includes(role.id)}
+                      aria-pressed={draftHasRoleFilter && draftSelectedRoles.includes(role.id)}
+                      onclick={() => toggleRoleFilter(role.id)}
+                    >
+                      {role.shortLabel}
+                    </button>
+                  {/each}
+                </div>
+              </section>
+            {/if}
+
             <section class="filter-group">
               <div class="filter-group-title">Location</div>
               <details class="filter-location-select">
@@ -895,35 +1108,14 @@
               </div>
             </section>
 
-            <details class="advanced-fields filter-advanced" open={!nativeIos}>
-              {#if nativeIos}<summary>Advanced filters</summary>{/if}
-            <section class="filter-group">
-              <div class="filter-group-title">Listing type</div>
-              <div class="filter-option-grid binary">
-                {#each POSTED_OPTIONS as option}
-                  <button
-                    class="filter-choice"
-                    class:active={draftPostedFilter === option.value}
-                    aria-pressed={draftPostedFilter === option.value}
-                    onclick={() => (draftPostedFilter = option.value)}
-                  >
-                    {nativeIos && option.value === "evergreen" ? "Open longer-term" : option.label}
-                  </button>
-                {/each}
-              </div>
-            </section>
-
-            <section class="filter-group">
-              <div class="filter-toggle" class:active={draftSavedOnly}>
-                <span>Saved jobs only</span>
-                <Switch
-                  checked={draftSavedOnly}
-                  onCheckedChange={(value) => (draftSavedOnly = value)}
-                  aria-label="Saved jobs only"
-                />
-              </div>
-            </section>
-            </details>
+            {#if nativeIos}
+              {#if showOlderJobsFilter}{@render listingTypeFilter()}{/if}
+            {:else}
+              <details class="advanced-fields filter-advanced" open>
+                {@render listingTypeFilter()}
+                {@render savedJobsFilter()}
+              </details>
+            {/if}
           </div>
 
           <div class="filter-sheet-actions action-row" class:single={draftFilterCount === 0}>

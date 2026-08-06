@@ -32,6 +32,7 @@
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Spinner from "../components/Spinner.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { DropdownMenu } from "bits-ui";
@@ -50,6 +51,7 @@
   ];
 
   let loading = $state(true);
+  let loaded = $state(false);
   let streaming = $state(false);
   let saving = $state(false);
   let error: string | null = $state(null);
@@ -67,6 +69,7 @@
   let qaText = $state("");
   let activeTab: TabId = $state("resume");
   let downloadingPdf = $state(false);
+  let pdfPreviewUrl: string | null = $state(null);
   let showRegenerateConfirm = $state(false);
   let editing = $state<Record<TabId, boolean>>({
     resume: false,
@@ -74,6 +77,8 @@
     qa: false,
   });
   let saveTimer: number | null = null;
+  let editRevision = 0;
+  let saveInFlight: Promise<boolean> | null = null;
   let streamRenderTimer: number | null = null;
   let pendingStream = "";
   let profileReady = $state(true);
@@ -196,6 +201,7 @@
         hydrateFromTailoring(tailorRes.tailoring);
         savePresentation.hydrate(tailorRes.tailoring?.created_at ?? null);
       }
+      loaded = true;
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -304,36 +310,53 @@
     }
   }
 
-  async function saveEdits(): Promise<boolean> {
-    if (saving) return false;
+  async function performSave(): Promise<boolean> {
     saving = true;
     const presentationGeneration = savePresentation.begin();
+    const revisionAtStart = editRevision;
+    const snapshot = {
+      resume: resumeText,
+      cover: coverText,
+      qa: qaText,
+    };
     try {
       if (usingLocalRequest && jobId) {
         const draft: LocalTailorDraft = {
           jobId,
-          resumeText,
-          coverText,
-          qaText,
+          resumeText: snapshot.resume,
+          coverText: snapshot.cover,
+          qaText: snapshot.qa,
           model: localKit?.model?.trim() || DEFAULT_TAILOR_MODEL,
           updatedAt: new Date().toISOString(),
           tokenSummary,
         };
         saveLocalTailorDraft(draft);
-        hydrateFromLocalDraft(draft);
+        if (revisionAtStart === editRevision) {
+          hydrateFromLocalDraft(draft);
+        } else {
+          tailoring = null;
+          localDraft = draft;
+        }
         savePresentation.succeed(presentationGeneration, draft.updatedAt);
+        if (revisionAtStart !== editRevision) savePresentation.markDirty();
         return true;
       }
 
       if (!tailoring) return false;
 
       const saved = await api.tailor.save(tailoring.id, {
-        user_edited_resume_md: resumeText,
-        user_edited_cover_md: coverText,
-        user_edited_qa_json: qaText,
+        user_edited_resume_md: snapshot.resume,
+        user_edited_cover_md: snapshot.cover,
+        user_edited_qa_json: snapshot.qa,
       });
-      hydrateFromTailoring(saved.tailoring);
+      if (revisionAtStart === editRevision) {
+        hydrateFromTailoring(saved.tailoring);
+      } else {
+        tailoring = saved.tailoring;
+        localDraft = null;
+      }
       savePresentation.succeed(presentationGeneration);
+      if (revisionAtStart !== editRevision) savePresentation.markDirty();
       return true;
     } catch (e) {
       const message = errorMessage(e);
@@ -345,7 +368,27 @@
     }
   }
 
+  async function saveEdits(): Promise<boolean> {
+    // Serialize overlapping autosave/back requests. If the user types while a
+    // request is in flight, the first response updates only the saved baseline;
+    // the newer editor value is then persisted by the next pass.
+    while (true) {
+      while (saveInFlight) {
+        if (!(await saveInFlight)) return false;
+      }
+      if (!hasPendingEdits) return true;
+      const currentSave = performSave();
+      saveInFlight = currentSave;
+      try {
+        if (!(await currentSave)) return false;
+      } finally {
+        if (saveInFlight === currentSave) saveInFlight = null;
+      }
+    }
+  }
+
   function queueSave() {
+    editRevision += 1;
     savePresentation.markDirty();
     if (saveTimer !== null) {
       window.clearTimeout(saveTimer);
@@ -370,9 +413,10 @@
   }
 
   async function handleBack() {
-    if (nativeIos && saveTimer !== null) {
+    if (nativeIos && (saveTimer !== null || saving || hasPendingEdits)) {
       clearQueuedSave();
-      await saveEdits();
+      const savedOkay = await saveEdits();
+      if (!savedOkay) return;
     }
     if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/");
   }
@@ -442,12 +486,17 @@
     }
 
     downloadingPdf = true;
-    const preview = window.open("", "_blank");
+    const preview = nativeIos ? null : window.open("", "_blank");
     try {
       // Use the bundled renderer so resume content never executes remote compiler
       // code or depends on a CDN being available at download time.
       const bytes = await buildTailoredResumePdf(resumeText, { density: "compact" });
-      if (!openPdfInNewTab(bytes, preview)) {
+      if (nativeIos) {
+        closePdfPreview();
+        const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+        new Uint8Array(arrayBuffer).set(bytes);
+        pdfPreviewUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: "application/pdf" }));
+      } else if (!openPdfInNewTab(bytes, preview)) {
         downloadPdfBytes(
           tailoredResumePdfFileName(job?.company_name, job?.title),
           bytes
@@ -459,6 +508,11 @@
     } finally {
       downloadingPdf = false;
     }
+  }
+
+  function closePdfPreview() {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+    pdfPreviewUrl = null;
   }
 
   onMount(() => {
@@ -483,6 +537,7 @@
       if (nativeIos) unregisterAutosaveFlush();
       else clearQueuedSave();
       if (streamRenderTimer !== null) window.clearTimeout(streamRenderTimer);
+      closePdfPreview();
       savePresentation.destroy();
     };
   });
@@ -495,7 +550,7 @@
   />
 
   <div class="tailor-page-body">
-    {#if error}
+    {#if error && (!nativeIos || loaded)}
       <div class="alert alert-error alert-spaced" role="alert">
         {error}
       </div>
@@ -510,6 +565,12 @@
 
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+    {:else if nativeIos && error && !loaded}
+      <PageFailure
+        title="Tailoring didn’t load"
+        message="Check your connection and try again."
+        onRetry={() => void loadExisting()}
+      />
     {:else if signInNeeded}
       <div class="content-card stack-md tailor-setup-card">
         <h2>Sign in to tailor</h2>
@@ -680,6 +741,20 @@
   </Modal>
 {/if}
 
+{#if pdfPreviewUrl}
+  <Modal
+    title="Resume preview"
+    maxWidth={720}
+    initialFocus="dialog"
+    onclose={closePdfPreview}
+  >
+    <div class="pdf-preview">
+      <iframe class="pdf-preview-frame" src={pdfPreviewUrl} title="Tailored resume PDF preview"></iframe>
+      <button class="btn-primary full-width" type="button" onclick={closePdfPreview}>Done</button>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   .tailor-job-context {
     margin-bottom: 18px;
@@ -713,6 +788,25 @@
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
     line-height: 1.5;
+  }
+
+  :global(html.native-ios) .tailor-setup-card {
+    padding: 0;
+    gap: var(--space-4);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  :global(html.native-ios) .tailor-document {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  :global(html.native-ios) .tailor-output {
+    padding: var(--space-2) 0 var(--space-6);
   }
 
   .tailor-source {
@@ -758,6 +852,20 @@
     width: 40px;
     padding: 0;
     justify-content: center;
+  }
+
+  .pdf-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .pdf-preview-frame {
+    width: 100%;
+    min-height: 58dvh;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-sunken);
   }
 
   :global(html.native-ios) .tailor-actions :global(.tailor-more-trigger) {

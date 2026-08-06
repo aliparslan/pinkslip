@@ -10,9 +10,10 @@ import {
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 
-// v10 makes explicit specialties take precedence over generic SWE while
-// preserving the v9 experience, degree, and ambiguous-level behavior.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v10";
+// v11 adds forward-deployed engineering as an explicit specialty. The version
+// bump makes existing feature rows rebuild instead of mixing old generic-SWE
+// classifications with newly ingested FDE classifications.
+export const JOB_CLASSIFIER_VERSION = "deterministic-v11-fde";
 
 export type JobReviewReason =
   | "ambiguous_title_level"

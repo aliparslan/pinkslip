@@ -18,6 +18,7 @@
   import ScreenNav from "../components/ScreenNav.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
   import Modal from "../components/Modal.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { createEmptyResumeProfile } from "../../../../shared/resume-profile";
@@ -54,11 +55,14 @@
   const RESUME_OVERVIEW_SNAPSHOT = "resume:overview";
 
   let loading = $state(true);
+  let loaded = $state(false);
   let saving = $state(false);
   let error: string | null = $state(null);
   const savePresentation = new SavePresentation();
   let profile: ResumeProfile = $state(createEmptyResumeProfile());
   let notes = $state("");
+  let notesUnavailable = $state(false);
+  let notesRetrying = $state(false);
   let autosaveTimer: number | null = null;
   let saveAgain = false;
   let importing = $state(false);
@@ -357,8 +361,22 @@
   async function loadAll() {
     loading = true;
     error = null;
+    notesUnavailable = false;
     try {
-      const [profileRes, corpusRes] = await Promise.all([api.profile.get(), api.corpus.get()]);
+      let profileRes: Awaited<ReturnType<typeof api.profile.get>>;
+      let corpusRes: Awaited<ReturnType<typeof api.corpus.get>> | null;
+      if (nativeIos) {
+        const [profileResult, corpusResult] = await Promise.allSettled([
+          api.profile.get(),
+          api.corpus.get(),
+        ]);
+        if (profileResult.status === "rejected") throw profileResult.reason;
+        profileRes = profileResult.value;
+        corpusRes = corpusResult.status === "fulfilled" ? corpusResult.value : null;
+        notesUnavailable = corpusResult.status === "rejected";
+      } else {
+        [profileRes, corpusRes] = await Promise.all([api.profile.get(), api.corpus.get()]);
+      }
       const data = profileRes.data;
       let optionalSections = data.optionalSections ?? [];
       if (!optionalSections.length && (data as any).leadership?.length) {
@@ -371,11 +389,26 @@
         optionalSections,
       };
       savePresentation.hydrate(profileRes.updated_at);
-      notes = corpusRes.content_md ?? "";
+      if (corpusRes) notes = corpusRes.content_md ?? "";
+      loaded = true;
     } catch (loadError) {
       error = errorMessage(loadError);
     } finally {
       loading = false;
+    }
+  }
+
+  async function retryNotes() {
+    if (notesRetrying) return;
+    notesRetrying = true;
+    try {
+      const corpusRes = await api.corpus.get();
+      notes = corpusRes.content_md ?? "";
+      notesUnavailable = false;
+    } catch (loadError) {
+      feedback.error(errorMessage(loadError, "Couldn’t load tailoring notes."));
+    } finally {
+      notesRetrying = false;
     }
   }
 
@@ -390,7 +423,7 @@
     try {
       const [profileRes] = await Promise.all([
         api.profile.update(profile, { keepalive }),
-        api.corpus.update(notes, { keepalive }),
+        notesUnavailable ? Promise.resolve(null) : api.corpus.update(notes, { keepalive }),
       ]);
       savePresentation.succeed(presentationGeneration, profileRes.updated_at ?? new Date().toISOString());
     } catch (saveError) {
@@ -515,9 +548,15 @@
   </ScreenNav>
 
   <div class="page-frame resume-frame">
-    {#if error}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
+    {#if error && (!nativeIos || loaded)}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+    {:else if nativeIos && error && !loaded}
+      <PageFailure
+        title="Your resume didn’t load"
+        message="Check your connection and try again."
+        onRetry={() => void loadAll()}
+      />
     {:else if view.kind === "overview"}
       {#if nativeIos}<h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>{/if}
       <input
@@ -551,7 +590,9 @@
         <section class="resume-section stack-sm" aria-labelledby="experience-heading">
           <header class="resume-section-heading">
             <h2 id="experience-heading">Experience</h2>
-            <button type="button" class="section-action" onclick={addExperience} aria-label="Add experience"><Plus size={18} /></button>
+            {#if !nativeIos || profile.experience.length}
+              <button type="button" class="section-action" onclick={addExperience} aria-label="Add experience"><Plus size={18} /></button>
+            {/if}
           </header>
           {#if profile.experience.length}
             <div class="resume-entries">
@@ -575,7 +616,9 @@
         <section class="resume-section stack-sm" aria-labelledby="education-heading">
           <header class="resume-section-heading">
             <h2 id="education-heading">Education</h2>
-            <button type="button" class="section-action" onclick={addEducation} aria-label="Add education"><Plus size={18} /></button>
+            {#if !nativeIos || profile.education.length}
+              <button type="button" class="section-action" onclick={addEducation} aria-label="Add education"><Plus size={18} /></button>
+            {/if}
           </header>
           {#if profile.education.length}
             <div class="resume-entries">
@@ -598,7 +641,9 @@
         <section class="resume-section stack-sm" aria-labelledby="projects-heading">
           <header class="resume-section-heading">
             <h2 id="projects-heading">Projects</h2>
-            <button type="button" class="section-action" onclick={addProject} aria-label="Add project"><Plus size={18} /></button>
+            {#if !nativeIos || profile.projects.length}
+              <button type="button" class="section-action" onclick={addProject} aria-label="Add project"><Plus size={18} /></button>
+            {/if}
           </header>
           {#if profile.projects.length}
             <div class="resume-entries">
@@ -622,7 +667,9 @@
         <section class="resume-section stack-sm" aria-labelledby="skills-heading">
           <header class="resume-section-heading">
             <h2 id="skills-heading">Skills</h2>
-            <button type="button" class="section-action" onclick={addSkillAndOpen} aria-label="Add skill category"><Plus size={18} /></button>
+            {#if !nativeIos || profile.skills.length}
+              <button type="button" class="section-action" onclick={addSkillAndOpen} aria-label="Add skill category"><Plus size={18} /></button>
+            {/if}
           </header>
           {#if profile.skills.length}
             <button type="button" class="section-content" onclick={() => openSection("skills")}>
@@ -652,11 +699,19 @@
         <section class="resume-section stack-sm" aria-labelledby="notes-heading">
           <header class="resume-section-heading">
             <h2 id="notes-heading">Tailoring notes</h2>
-            <button type="button" class="section-action" onclick={() => openSection("notes")} aria-label="Edit tailoring notes"><PencilSimple size={17} /></button>
+            {#if !notesUnavailable}
+              <button type="button" class="section-action" onclick={() => openSection("notes")} aria-label="Edit tailoring notes"><PencilSimple size={17} /></button>
+            {/if}
           </header>
-          <button type="button" class:section-empty={!notes.trim()} class:notes-preview={notes.trim()} onclick={() => openSection("notes")}>
-            {notes.trim() || "Add notes"}
-          </button>
+          {#if notesUnavailable}
+            <button type="button" class="section-empty" onclick={retryNotes} disabled={notesRetrying}>
+              {notesRetrying ? "Loading notes…" : "Notes didn’t load · Try again"}
+            </button>
+          {:else}
+            <button type="button" class:section-empty={!notes.trim()} class:notes-preview={notes.trim()} onclick={() => openSection("notes")}>
+              {notes.trim() || "Add notes"}
+            </button>
+          {/if}
         </section>
 
         {#if availableOptionalSections.length > 0}
@@ -768,7 +823,7 @@
             {/each}
             <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
           </section>
-          <button type="button" class="remove-section" onclick={() => removeExperience(entry.id)}><Trash size={15} /> Remove position</button>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeExperience(entry.id)}><Trash size={15} /> Remove position</button>
         </div>
       {/if}
     {:else if view.section === "education"}
@@ -828,7 +883,7 @@
             {/each}
             <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
           </section>
-          <button type="button" class="remove-section" onclick={() => removeProject(entry.id)}><Trash size={15} /> Remove project</button>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeProject(entry.id)}><Trash size={15} /> Remove project</button>
         </div>
       {/if}
     {/if}
@@ -1233,6 +1288,17 @@
   :global(html.native-ios) .remove-item,
   :global(html.native-ios) .remove-section { min-height: var(--tap-min); }
 
+  :global(html.native-ios) .prominent-record-remove {
+    margin-block-start: var(--space-2);
+    padding: 0 var(--space-5);
+    justify-content: center;
+    border: 1px solid var(--color-bad);
+    border-radius: var(--radius-md);
+    background: var(--color-bad-soft);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+
   .remove-section {
     width: 100%;
     margin-top: var(--space-2);
@@ -1290,6 +1356,16 @@
   .bullet-input {
     min-height: 72px;
     resize: vertical;
+  }
+
+  :global(html.native-ios) .bullet-row {
+    grid-template-columns: 5px minmax(0, 1fr) var(--tap-min);
+  }
+
+  :global(html.native-ios) .bullet-input {
+    min-height: 88px;
+    padding: var(--space-3);
+    line-height: 1.45;
   }
 
   .bullet-remove {

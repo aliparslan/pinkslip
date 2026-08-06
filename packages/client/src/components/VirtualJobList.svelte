@@ -16,7 +16,7 @@
     viewed: Set<string>;
     onDismiss?: (id: string) => void;
     onRestore?: (job: Job) => void;
-    onSaved?: (id: string) => void;
+    onSaved?: (id: string, saved?: boolean) => void;
     onBlockRequest?: (job: Job) => void;
   } = $props();
 
@@ -31,11 +31,43 @@
   let bottomSpacer = $state(0);
   let frame: number | null = null;
   const measuredHeights = new Map<string, number>();
+  let cumulativeHeights: number[] = [0];
 
   let visibleJobs = $derived(jobs.slice(startIndex, endIndex));
 
   function heightFor(job: Job): number {
     return measuredHeights.get(job.id) ?? ESTIMATED_ROW_HEIGHT;
+  }
+
+  function rebuildCumulativeHeights() {
+    const next = new Array<number>(jobs.length + 1);
+    next[0] = 0;
+    for (let index = 0; index < jobs.length; index += 1) {
+      next[index + 1] = next[index] + heightFor(jobs[index]);
+    }
+    cumulativeHeights = next;
+  }
+
+  function rowAtOffset(offset: number): number {
+    let low = 0;
+    let high = jobs.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if ((cumulativeHeights[middle + 1] ?? 0) < offset) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  }
+
+  function rowsThroughOffset(offset: number): number {
+    let low = 0;
+    let high = jobs.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if ((cumulativeHeights[middle] ?? 0) <= offset) low = middle + 1;
+      else high = middle;
+    }
+    return Math.min(jobs.length, low);
   }
 
   function recalculate() {
@@ -55,31 +87,16 @@
     const viewportStart = Math.max(0, scroller.scrollTop - listTop - OVERSCAN_BEFORE);
     const viewportEnd = Math.max(0, scroller.scrollTop - listTop + scroller.clientHeight + OVERSCAN_AFTER);
 
-    let cursor = 0;
-    let nextStart = 0;
-    while (nextStart < jobs.length) {
-      const nextHeight = heightFor(jobs[nextStart]);
-      if (cursor + nextHeight >= viewportStart) break;
-      cursor += nextHeight;
-      nextStart += 1;
-    }
-
-    const nextTopSpacer = cursor;
-    let nextEnd = nextStart;
-    while (nextEnd < jobs.length && cursor < viewportEnd) {
-      cursor += heightFor(jobs[nextEnd]);
-      nextEnd += 1;
-    }
-
-    let totalHeight = cursor;
-    for (let index = nextEnd; index < jobs.length; index += 1) {
-      totalHeight += heightFor(jobs[index]);
-    }
+    const nextStart = rowAtOffset(viewportStart);
+    const nextEnd = Math.max(nextStart + 1, rowsThroughOffset(viewportEnd));
+    const nextTopSpacer = cumulativeHeights[nextStart] ?? 0;
+    const renderedBottom = cumulativeHeights[Math.min(jobs.length, nextEnd)] ?? nextTopSpacer;
+    const totalHeight = cumulativeHeights[jobs.length] ?? renderedBottom;
 
     startIndex = nextStart;
-    endIndex = Math.max(nextStart + 1, nextEnd);
+    endIndex = Math.min(jobs.length, nextEnd);
     topSpacer = nextTopSpacer;
-    bottomSpacer = Math.max(0, totalHeight - cursor);
+    bottomSpacer = Math.max(0, totalHeight - renderedBottom);
   }
 
   function scheduleRecalculate() {
@@ -92,6 +109,7 @@
       const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? entries[0]?.contentRect.height ?? 0;
       if (height <= 0 || Math.abs((measuredHeights.get(id) ?? 0) - height) < 0.5) return;
       measuredHeights.set(id, height);
+      rebuildCumulativeHeights();
       scheduleRecalculate();
     });
     observer.observe(node);
@@ -112,6 +130,7 @@
     for (const id of measuredHeights.keys()) {
       if (!activeIds.has(id)) measuredHeights.delete(id);
     }
+    rebuildCumulativeHeights();
     scheduleRecalculate();
   });
 

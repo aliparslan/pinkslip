@@ -5,17 +5,23 @@ import {
   reserveAppTailorQuota,
 } from "@worker/tailor/usage";
 
-function usageDb(args: { appCount?: number; userCount?: number; reservationChanges?: number }) {
+function usageDb(
+  args: { appCount?: number; userCount?: number; includedUserCount?: number; reservationChanges?: number },
+  preparedSql: string[] = [],
+) {
   return {
     prepare(sql: string) {
+      preparedSql.push(sql);
       const statement = {
         bind() {
           return statement;
         },
         async first<T>() {
-          const count = sql.includes("key_source = 'app'")
-            ? args.appCount ?? 0
-            : args.userCount ?? 0;
+          const count = sql.includes("user_id = ?")
+            ? sql.includes("key_source = 'app'")
+              ? args.includedUserCount ?? 0
+              : args.userCount ?? 0
+            : args.appCount ?? 0;
           return { count } as T;
         },
         async run() {
@@ -29,16 +35,24 @@ function usageDb(args: { appCount?: number; userCount?: number; reservationChang
 
 describe("tailoring usage", () => {
   test("reports app and per-user daily limits independently", async () => {
+    const preparedSql: string[] = [];
     const usage = await loadTailorUsage({
-      db: usageDb({ appCount: 10, userCount: 4 }),
+      db: usageDb({ appCount: 10, userCount: 9, includedUserCount: 4 }, preparedSql),
       userId: "user-1",
       provider: "gemini",
       model: "gemini-3.1-flash-lite",
     });
 
     expect(usage.app_remaining).toBe(490);
-    expect(usage.user_remaining).toBe(11);
+    expect(usage.user_today).toBe(9);
+    expect(usage.included_user_today).toBe(4);
+    expect(usage.user_remaining).toBe(6);
+    expect(usage.included_user_remaining).toBe(11);
     expect(usage.daily_limit).toBe(500);
+    const includedSql = preparedSql.find((sql) => sql.includes("user_id = ?") && sql.includes("key_source = 'app'"));
+    expect(includedSql).toBeDefined();
+    expect(includedSql).not.toContain("provider = ?");
+    expect(includedSql).not.toContain("model = ?");
   });
 
   test("returns the next UTC boundary, including month rollover", () => {

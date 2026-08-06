@@ -2,9 +2,11 @@
   import { tick } from "svelte";
   import { currentRoute, navigate, backTargetRoute, routeParam, rootHeaderFor } from "../router";
   import { loadPage, resolvedPage, type PageComponent } from "./page-registry";
+  import PageFailure from "../components/PageFailure.svelte";
   import RootHeader from "../components/RootHeader.svelte";
   import Spinner from "../components/Spinner.svelte";
   import { isIosApp } from "../lib/platform";
+  import { requestBack } from "../lib/nav-back";
 
   let {
     routeOverride,
@@ -113,23 +115,35 @@
 >
   {#if rootHeader}
     <div class="root-header-flow">
-      <RootHeader title={rootHeader.title} subtitle={rootHeader.subtitle} />
+      <RootHeader title={rootHeader.title} subtitle={rootHeader.subtitle} collapsible={nativeIos} />
     </div>
   {/if}
   {#if pageLoadFailed}
-    <div class="boot-error-wrap">
-      <div class="boot-error-card">
-        <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
-        <div class="boot-error-copy">The app may have updated while it was open. Try once more or return to the previous page.</div>
-        <div class="button-cluster">
-          <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
-          <button class="btn-secondary" onclick={() => navigate(backTargetRoute(route) ?? "/you", { replace: true })}>Go back</button>
+    {#if nativeIos}
+      <PageFailure
+        title="This page didn’t load"
+        message="Try again. If the app just updated, it may only need a moment."
+        onRetry={() => void loadCurrentRoute()}
+        secondaryLabel="Go back"
+        onSecondary={() => {
+          if (!requestBack()) navigate(backTargetRoute(route) ?? "/you", { replace: true });
+        }}
+      />
+    {:else}
+      <div class="boot-error-wrap">
+        <div class="boot-error-card">
+          <div class="h-display h-display-sm boot-error-title">This page didn&rsquo;t load</div>
+          <div class="boot-error-copy">The app may have updated while it was open. Try once more or return to the previous page.</div>
+          <div class="button-cluster">
+            <button class="btn-primary btn-accent" onclick={loadCurrentRoute}>Try again</button>
+            <button class="btn-secondary" onclick={() => navigate(backTargetRoute(route) ?? "/you", { replace: true })}>Go back</button>
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
   {:else if !CurrentPage}
     <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
   {:else}
-    <CurrentPage {jobId} routeOverride={routeOverride} />
+    <CurrentPage {jobId} routeOverride={routeOverride} {nativeIos} />
   {/if}
 </div>

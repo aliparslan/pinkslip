@@ -1,8 +1,10 @@
 export type PostedFilter = "any" | "evergreen";
 
 import type { Job } from "./api";
+import { ROLE_OPTIONS, type RoleId } from "../../../../shared/search-profile";
 
 export const PAGE_SIZE = 25;
+export const ALL_FEED_ROLE_IDS = ROLE_OPTIONS.map((option) => option.id) as RoleId[];
 
 // Live feed state, shared across navigations so the feed survives leaving and
 // returning within a session. The Feed page binds straight to this object —
@@ -13,6 +15,7 @@ export const feed = $state({
   lastPolled: null as string | null,
   lastLoadedAt: 0,
   selectedLocations: ["All"] as string[],
+  selectedRoles: [...ALL_FEED_ROLE_IDS] as RoleId[],
   searchQuery: "",
   savedOnly: false,
   // Evergreen roles remain part of the normal feed, but this can narrow the
@@ -64,6 +67,10 @@ export function invalidateFeedForPreferences(
   profile?: { location_ids?: string[]; work_modes?: string[] } | null
 ) {
   syncFeedPreferences(profile, true);
+  // The sheet is a temporary narrowing layer over the saved search profile.
+  // Preference changes reset it to No preference so a stale local role filter
+  // cannot silently hide newly selected roles.
+  feed.selectedRoles = [...ALL_FEED_ROLE_IDS];
   feed.preferenceRevision += 1;
   feed.hydrated = false;
   feed.lastLoadedAt = 0;

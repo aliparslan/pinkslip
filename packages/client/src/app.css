@@ -701,6 +701,16 @@ button { -webkit-tap-highlight-color: transparent; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.role-filter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-filter-grid .filter-choice {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+}
+
 .filter-choice {
   height: 44px;
   padding: 0 10px;
@@ -2515,12 +2525,23 @@ details.filter-advanced { display: contents; }
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: var(--color-scrim);
+  background: transparent;
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
 }
 
+.modal-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--modal-scrim-color, var(--color-scrim));
+  opacity: var(--modal-scrim-opacity, 1);
+  pointer-events: none;
+}
+
 .modal-motion-shell {
+  position: relative;
+  z-index: 1;
   width: min(100%, 380px);
   max-width: var(--modal-max-width, 380px);
 }
@@ -2568,17 +2589,12 @@ details.filter-advanced { display: contents; }
     border-bottom: 0;
     border-left: 0;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    transform: translateY(var(--modal-drag-y, 0));
     transition: transform var(--duration-standard) var(--ease-standard);
   }
 
   .modal-motion-shell {
     width: 100%;
     max-width: none;
-  }
-
-  .modal-card.dragging {
-    transition: none;
   }
 
   .modal-drag-handle {

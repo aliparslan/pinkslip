@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { navigate } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { api, type Job } from "../lib/api";
@@ -38,6 +38,7 @@
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Flag from "phosphor-svelte/lib/Flag";
   import Spinner from "../components/Spinner.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -46,6 +47,7 @@
   let error: string | null = $state(null);
   let dismissing: boolean = $state(false);
   let saved: boolean = $state(false);
+  let saving: boolean = $state(false);
   let applied: boolean = $state(false);
   let applying: boolean = $state(false);
   let applyingPending: boolean = $state(false);
@@ -62,6 +64,8 @@
   let openedJobId: string | null = null;
   let descriptionRefreshTimer: number | null = null;
   let descriptionRefreshAttempts = 0;
+  let interactionRevision = 0;
+  let detailRequestGeneration = 0;
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
   const nativeIos = isIosApp();
@@ -83,30 +87,38 @@
     }
   }
 
-  function syncJobState(nextJob: Job) {
-    job = nextJob;
-    saved = Boolean(nextJob?.saved);
-    applied = Boolean(nextJob?.applied);
+  function syncJobState(nextJob: Job, preserveInteractions = false) {
+    job = preserveInteractions
+      ? { ...nextJob, saved: saved ? 1 : 0, applied: applied ? 1 : 0 }
+      : nextJob;
+    if (!preserveInteractions) {
+      saved = Boolean(nextJob.saved);
+      applied = Boolean(nextJob.applied);
+    }
     descriptionPending = Boolean(nextJob?.content_pending && !nextJob?.description);
   }
 
   async function loadJobDetail(silent = false) {
     if (!jobId) return;
+    const requestedJobId = jobId;
+    const requestGeneration = ++detailRequestGeneration;
+    const interactionRevisionAtRequest = interactionRevision;
     if (!silent) {
       loading = true;
       error = null;
     }
 
     try {
-      const nextJob = await api.jobs.get(jobId);
-      syncJobState(nextJob);
-      if (openedJobId !== jobId) {
-        openedJobId = jobId;
-        markViewed(jobId);
+      const nextJob = await api.jobs.get(requestedJobId);
+      if (requestGeneration !== detailRequestGeneration || jobId !== requestedJobId) return;
+      syncJobState(nextJob, interactionRevisionAtRequest !== interactionRevision);
+      if (openedJobId !== requestedJobId) {
+        openedJobId = requestedJobId;
+        markViewed(requestedJobId);
         void api.interactions.event({
           event_name: "job_opened",
           entity_type: "job",
-          entity_id: jobId,
+          entity_id: requestedJobId,
           properties: {},
         }).catch(() => undefined);
       }
@@ -124,20 +136,28 @@
         clearDescriptionRefreshTimer();
       }
     } catch (e) {
+      if (requestGeneration !== detailRequestGeneration || jobId !== requestedJobId) return;
       if (!silent || !job) {
         error = errorMessage(e);
       }
     } finally {
-      loading = false;
+      if (requestGeneration === detailRequestGeneration && jobId === requestedJobId) {
+        loading = false;
+      }
     }
   }
 
   $effect(() => {
     if (!jobId) return;
+    detailRequestGeneration += 1;
+    job = null;
+    saved = false;
     applied = false;
+    error = null;
+    loading = true;
     descriptionRefreshAttempts = 0;
     clearDescriptionRefreshTimer();
-    void loadJobDetail();
+    untrack(() => { void loadJobDetail(); });
 
     return () => {
       clearDescriptionRefreshTimer();
@@ -150,6 +170,7 @@
 
   async function markApplied() {
     if (!jobId || !job || applying || (!nativeIos && applied)) return;
+    interactionRevision += 1;
     applying = true;
     try {
       if (nativeIos && applied) {
@@ -168,6 +189,7 @@
         (pending) => { applyingPending = pending; },
       );
       applied = true;
+      job = { ...job, applied: 1 };
       removeFromFeedStore(jobId);
       feedback.success("Added to applied jobs");
     } catch (e) {
@@ -175,6 +197,7 @@
     } finally {
       applying = false;
       applyingPending = false;
+      interactionRevision += 1;
     }
   }
 
@@ -232,9 +255,15 @@
   }
 
   async function toggleSave() {
-    if (!jobId) return;
+    if (!jobId || saving) return;
+    interactionRevision += 1;
     const newVal = !saved;
+    saving = true;
     saved = newVal;
+    if (job) job = { ...job, saved: newVal ? 1 : 0 };
+    feed.jobs = feed.jobs.map((item) =>
+      item.id === jobId ? { ...item, saved: newVal ? 1 : 0 } : item
+    );
     try {
       if (newVal) {
         await api.savedJobs.save(jobId);
@@ -243,7 +272,14 @@
       }
     } catch (e) {
       saved = !newVal;
+      if (job) job = { ...job, saved: newVal ? 0 : 1 };
+      feed.jobs = feed.jobs.map((item) =>
+        item.id === jobId ? { ...item, saved: newVal ? 0 : 1 } : item
+      );
       feedback.error(errorMessage(e, "Could not update your saved jobs."));
+    } finally {
+      saving = false;
+      interactionRevision += 1;
     }
   }
 
@@ -338,7 +374,26 @@
 
 </script>
 
-<div class="page pushed-screen">
+{#snippet originalPostingLink(url: string, buttonStyle: boolean)}
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    class={buttonStyle
+      ? nativeIos ? "btn-secondary btn-mini button-link job-description-link" : "btn-secondary btn-mini button-link"
+      : "text-link job-description-link"}
+  >
+    {#if nativeIos}
+      <ArrowSquareOut size={16} weight="bold" aria-hidden="true" />
+      Open original posting
+    {:else}
+      {buttonStyle ? "Open original" : "Read full description"}
+      {#if !buttonStyle}<ArrowSquareOut size={13} aria-hidden="true" />{/if}
+    {/if}
+  </a>
+{/snippet}
+
+<div class="page pushed-screen job-detail-page" class:native-layout={nativeIos}>
   <ScreenNav
     title={nativeIos ? job?.title ?? "" : ""}
     collapsible={Boolean(job)}
@@ -347,55 +402,72 @@
   >
     {#snippet trailing()}
       <div class="job-header-actions">
-      <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
-        <Export size={19} color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
-      </button>
-      <button
-        class="icon-btn"
-        aria-label={saved ? "Remove from saved jobs" : "Save job"}
-        aria-pressed={saved}
-        onclick={toggleSave}
-      >
-        <span class="state-icon" aria-hidden="true">
-          <span class:visible={!saved}><BookmarkSimple size={20} weight="regular" color="var(--color-ink-2)" /></span>
-          <span class:visible={saved}><BookmarkSimple size={20} weight="fill" color="var(--color-accent)" /></span>
-        </span>
-      </button>
-      <DropdownMenu.Root bind:open={showMore}>
-        <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
-          <DotsThree size={22} weight="bold" color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            class="menu-surface job-more-menu"
-            side="bottom"
-            align="end"
-            sideOffset={6}
-            collisionPadding={12}
-            strategy="fixed"
-            preventScroll={false}
+        {#if !nativeIos}
+          <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
+            <Export size={19} color="var(--color-ink-3)" />
+          </button>
+          <button
+            class="icon-btn"
+            aria-label={saved ? "Remove from saved jobs" : "Save job"}
+            aria-pressed={saved}
+            disabled={saving}
+            onclick={toggleSave}
           >
-            <DropdownMenu.Item
-              class="menu-item"
-              disabled={hidingCompany}
-              onSelect={() => void hideCompany()}
+            <span class="state-icon" aria-hidden="true">
+              <span class:visible={!saved}><BookmarkSimple size={20} weight="regular" color="var(--color-ink-2)" /></span>
+              <span class:visible={saved}><BookmarkSimple size={20} weight="fill" color="var(--color-accent)" /></span>
+            </span>
+          </button>
+        {/if}
+        <DropdownMenu.Root bind:open={showMore}>
+          <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
+            <DotsThree size={22} weight="bold" color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              class="menu-surface job-more-menu"
+              side="bottom"
+              align="end"
+              sideOffset={6}
+              collisionPadding={12}
+              strategy="fixed"
+              preventScroll={false}
             >
-              {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
-              <span>Hide {job?.company_name ?? "company"}</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
-              <Flag size={17} />
-              <span>Report listing</span>
-            </DropdownMenu.Item>
-            {#if $sessionAccess.isAdmin}
-              <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
-                <Trash size={17} />
-                <span>Block for everyone</span>
+              {#if nativeIos}
+                <DropdownMenu.Item
+                  class={saved ? "menu-item job-detail-save-menu-item saved" : "menu-item job-detail-save-menu-item"}
+                  disabled={saving}
+                  onSelect={() => void toggleSave()}
+                >
+                  {#if saving}<Spinner size={16} />{:else}<BookmarkSimple size={17} weight={saved ? "fill" : "bold"} />{/if}
+                  <span>{saved ? "Remove from saved jobs" : "Save job"}</span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item class="menu-item" onSelect={shareJob}>
+                  <Export size={17} weight="bold" />
+                  <span>Share job</span>
+                </DropdownMenu.Item>
+              {/if}
+              <DropdownMenu.Item
+                class="menu-item"
+                disabled={hidingCompany}
+                onSelect={() => void hideCompany()}
+              >
+                {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
+                <span>Hide {job?.company_name ?? "company"}</span>
               </DropdownMenu.Item>
-            {/if}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+              <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
+                <Flag size={17} />
+                <span>Report listing</span>
+              </DropdownMenu.Item>
+              {#if $sessionAccess.isAdmin}
+                <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
+                  <Trash size={17} />
+                  <span>Block for everyone</span>
+                </DropdownMenu.Item>
+              {/if}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
     {/snippet}
   </ScreenNav>
@@ -404,14 +476,24 @@
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
-      <div class="job-detail-error" role="alert">
-        <h1 class="h-display h-display-sm">This job didn&rsquo;t load</h1>
-        <p>{error.toLowerCase().includes("not found") ? "The listing may have been removed since the alert was sent." : "Check your connection and try once more."}</p>
-        <div class="button-cluster">
-          <button class="btn-primary btn-accent" onclick={() => void loadJobDetail()}>Try again</button>
-          <button class="btn-secondary" onclick={() => { if (!requestBack()) navigate("/"); }}>Back to jobs</button>
+      {#if nativeIos}
+        <PageFailure
+          title="This job didn’t load"
+          message={error.toLowerCase().includes("not found")
+            ? "The listing may have been removed."
+            : "Check your connection and try again."}
+          onRetry={() => void loadJobDetail()}
+        />
+      {:else}
+        <div class="job-detail-error" role="alert">
+          <h1 class="h-display h-display-sm">This job didn&rsquo;t load</h1>
+          <p>{error.toLowerCase().includes("not found") ? "The listing may have been removed since the alert was sent." : "Check your connection and try once more."}</p>
+          <div class="button-cluster">
+            <button class="btn-primary btn-accent" onclick={() => void loadJobDetail()}>Try again</button>
+            <button class="btn-secondary" onclick={() => { if (!requestBack()) navigate("/"); }}>Back to jobs</button>
+          </div>
         </div>
-      </div>
+      {/if}
     {:else if job}
       <div class="job-detail-identity">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
@@ -514,15 +596,7 @@
             {@html sanitizedDescription}
           </div>
           {#if job.url}
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-link job-description-link"
-            >
-              Read full description
-              <ArrowSquareOut size={13} />
-            </a>
+            {@render originalPostingLink(job.url, false)}
           {/if}
         </div>
       {:else if plainDescription}
@@ -534,15 +608,7 @@
             {plainDescription}
           </p>
           {#if job.url}
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-link job-description-link"
-            >
-              Read full description
-              <ArrowSquareOut size={13} />
-            </a>
+            {@render originalPostingLink(job.url, false)}
           {/if}
         </div>
       {:else}
@@ -558,14 +624,7 @@
               Try again
             </button>
             {#if job.url}
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn-secondary btn-mini button-link"
-              >
-                Open original
-              </a>
+              {@render originalPostingLink(job.url, true)}
             {/if}
           </div>
         </div>
@@ -625,12 +684,40 @@
     line-height: 1.2;
   }
 
-  :global(html.native-ios) .job-detail-title {
+  .native-layout .job-detail-title {
     font-family: var(--font-display);
     font-size: var(--fs-2xl);
     font-weight: 600;
     letter-spacing: -0.025em;
     line-height: 1.12;
+  }
+
+  .native-layout .job-description-heading {
+    margin-bottom: var(--space-4);
+    color: var(--color-ink);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .native-layout .job-description-section {
+    padding-bottom: var(--space-2);
+  }
+
+  .native-layout .job-detail-content {
+    padding-bottom: calc(88px + var(--safe-bottom));
+  }
+
+  .native-layout .job-description-link {
+    margin-top: var(--space-4);
+    gap: var(--space-2);
+    font-weight: 600;
+  }
+
+  :global(.job-detail-save-menu-item.saved) {
+    color: var(--color-accent-soft-ink);
   }
 
   .state-icon,

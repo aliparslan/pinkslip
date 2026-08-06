@@ -19,7 +19,7 @@ import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v4-exact-roles-1";
+export const MATCHER_VERSION = "profile-v5-fde";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {

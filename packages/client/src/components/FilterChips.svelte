@@ -11,6 +11,7 @@
     <button
       type="button"
       class="chip {selected === filter ? 'chip-active' : ''}"
+      class:all-filter={filter === "All"}
       onclick={() => onSelect(filter)}
       aria-pressed={selected === filter}
     >

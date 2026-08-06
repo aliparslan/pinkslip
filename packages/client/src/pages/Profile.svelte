@@ -11,6 +11,7 @@
   import {
     DEFAULT_SEARCH_PROFILE,
     LOCATION_OPTIONS,
+    ROLE_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
   } from "../../../../shared/search-profile";
@@ -32,10 +33,12 @@
   import PaintBrush from "phosphor-svelte/lib/PaintBrush";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
+  import { headerChrome } from "../lib/header-chrome.svelte";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
   import Wrench from "phosphor-svelte/lib/Wrench";
   import { isIosApp } from "../lib/platform";
@@ -44,6 +47,7 @@
   type PhosphorIcon = Component<{ size?: number | string }>;
 
   let { routeOverride }: { routeOverride?: string } = $props();
+  const nativeIos = isIosApp();
 
   const destinationTitles: Record<YouDestination, string> = {
     preferences: "Job preferences",
@@ -60,6 +64,11 @@
     const value = route.slice("/you/".length) as YouDestination;
     return destinationIds.has(value) ? value : null;
   });
+  let destinationTitle = $derived(
+    destination
+      ? nativeIos && destination === "alerts" ? "Notifications" : destinationTitles[destination]
+      : "",
+  );
 
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -83,18 +92,26 @@
   let submittingFeedback: boolean = $state(false);
   let feedbackError: string | null = $state(null);
   let feedbackTitleInput: HTMLInputElement | null = $state(null);
-  const nativeIos = isIosApp();
 
   let mode = $derived($themeMode);
   let preferenceSummary = $derived.by(() => {
-    const roleCount = searchProfile.roles.length;
+    const roleCount = nativeIos
+      ? searchProfile.roles.length
+      : new Set(searchProfile.roles.map((role) => role === "forward_deployed" ? "software_engineering" : role)).size;
+    const hasNoRolePreference = searchProfile.roles.length === ROLE_OPTIONS.length
+      && ROLE_OPTIONS.every((option) => searchProfile.roles.includes(option.id));
     const locations = LOCATION_OPTIONS.filter((option) => searchProfile.location_ids.includes(option.id));
-    const location = locations.length === 0
+    const location = nativeIos && searchProfile.relocation_willing
+      ? "All US locations"
+      : locations.length === 0
       ? "Anywhere in the US"
       : locations.length === 1
         ? locations[0]?.label ?? "1 location"
         : `${locations[0]?.label ?? "Locations"} +${locations.length - 1}`;
-    return `${roleCount} ${roleCount === 1 ? "role" : "roles"} · ${location}`;
+    const roles = nativeIos && hasNoRolePreference
+      ? "No role preference"
+      : `${roleCount} ${roleCount === 1 ? "role" : "roles"}`;
+    return `${roles} · ${location}`;
   });
   let alertsSummary = $derived(
     notificationEnabled
@@ -117,7 +134,7 @@
 
   // Name, job preferences, and alerts autosave. Focused settings pages do not
   // need a permanent Save button competing with their actual controls.
-  let loaded = false;
+  let loaded = $state(false);
   let lastSavedKey = $state("");
   let savingPrefs = $state(false);
   let saveAgain = false;
@@ -290,7 +307,7 @@
     if (submittingFeedback) return;
     if (title.length < 2) {
       if (nativeIos) {
-        feedbackError = "Add a short title before sending.";
+        feedbackError = "Add a short subject before sending.";
         window.requestAnimationFrame(() => feedbackTitleInput?.focus());
       }
       return;
@@ -326,8 +343,15 @@
     void loadSettings();
 
     const unregisterAutosaveFlush = registerAutosaveFlush(flushAutosave);
+    const unregisterRootTitle = nativeIos
+      ? headerChrome.registerRootTitle({
+          id: "you",
+          value: () => displayName.trim() || "You",
+        })
+      : () => undefined;
     return () => {
       unregisterAutosaveFlush();
+      unregisterRootTitle();
       savePresentation.destroy();
     };
   });
@@ -346,9 +370,9 @@
 {/snippet}
 
 {#if destination}
-  <div class="page pushed-screen">
+  <div class="page pushed-screen" class:native-layout={nativeIos}>
     <ScreenNav
-      title={destinationTitles[destination]}
+      title={destinationTitle}
       collapsible={nativeIos}
       backLabel="Back to You"
       onBack={backToYou}
@@ -356,10 +380,16 @@
 
     <div class="page-frame you-destination-page">
       {#if nativeIos}
-        <h1 class="screen-large-title" data-screen-title-anchor>{destinationTitles[destination]}</h1>
+        <h1 class="screen-large-title" data-screen-title-anchor>{destinationTitle}</h1>
       {/if}
       {#if loading}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+      {:else if nativeIos && error && !loaded}
+        <PageFailure
+          title="Settings didn’t load"
+          message="Check your connection and try again."
+          onRetry={loadSettings}
+        />
       {:else}
         {#if error}
           <div class="alert alert-error alert-spaced" role="alert">{error}</div>
@@ -367,11 +397,12 @@
         <div class="you-saving-state"><SaveStatus phase={savePresentation.phase} /></div>
 
         {#if destination === "preferences"}
-          <JobsSection bind:searchProfile showHeading={false} />
+          <JobsSection bind:searchProfile showHeading={false} {nativeIos} />
         {:else if destination === "alerts"}
           <NotifySection
             bind:notificationEnabled
             bind:pushStatus
+            {nativeIos}
             showHeading={false}
             onError={showError}
             onSuccess={showSuccess}
@@ -401,14 +432,14 @@
                 </div>
               </div>
               <div>
-                <label for="feedback-title" class="field-label">Title</label>
+                <label for="feedback-title" class="field-label">{nativeIos ? "Subject" : "Title"}</label>
                 <input
                   bind:this={feedbackTitleInput}
                   id="feedback-title"
                   class="input-field tall-control"
                   type="text"
                   maxlength="160"
-                  placeholder={feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
+                  placeholder={nativeIos ? undefined : feedbackType === "feature_request" ? "What should pinkslip do?" : "What should we know?"}
                   bind:value={feedbackTitle}
                   aria-invalid={nativeIos && feedbackError ? "true" : undefined}
                   aria-describedby={nativeIos && feedbackError ? "feedback-form-error" : undefined}
@@ -422,7 +453,7 @@
                   class="input-field textarea-field feedback-textarea"
                   rows="7"
                   maxlength="2000"
-                  placeholder="What problem would this solve, or what happened?"
+                  placeholder={nativeIos ? undefined : "What problem would this solve, or what happened?"}
                   bind:value={feedbackDetails}
                 ></textarea>
               </div>
@@ -439,12 +470,15 @@
           </form>
         {:else if destination === "account"}
           <div class="you-account-stack">
-            <section class="you-focus-card">
+            <section class="you-focus-card you-account-profile">
+              {#if nativeIos}<h2 class="you-inview-title">Profile</h2>{/if}
               <label for="display-name">
                 <span class="field-label">Display name</span>
                 <input
                   id="display-name"
                   type="text"
+                  name="name"
+                  autocomplete="name"
                   class="input-field"
                   placeholder="Your name"
                   bind:value={displayName}
@@ -454,6 +488,7 @@
             <AccountSection
               {sessionState}
               {account}
+              {nativeIos}
               showHeading={false}
               onError={showError}
               onSuccess={showSuccess}
@@ -465,11 +500,16 @@
     </div>
   </div>
 {:else}
-  <div class="page root-screen">
+  <div class="page root-screen" class:native-layout={nativeIos}>
     <div class="page-frame you-page">
-
       {#if loading}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+      {:else if nativeIos && error && !loaded}
+        <PageFailure
+          title="Your settings didn’t load"
+          message="Check your connection and try again."
+          onRetry={loadSettings}
+        />
       {:else}
         {#if error}
           <div class="alert alert-error" role="alert">{error}</div>
@@ -479,22 +519,22 @@
           <section>
             <h2 class="section-eyebrow">Admin</h2>
             <div class="surface-list">
-              {@render destinationRow("Admin workspace", "Product health and moderation", "/admin", Wrench)}
+              {@render destinationRow(nativeIos ? "Admin" : "Admin workspace", "Product health and moderation", "/admin", Wrench)}
             </div>
           </section>
         {/if}
 
         <section>
-          <h2 class="section-eyebrow">Search</h2>
+          <h2 class="section-eyebrow you-section-heading">Search</h2>
           <div class="surface-list">
             {@render destinationRow("Job preferences", preferenceSummary, "/you/preferences", SlidersHorizontal)}
-            {@render destinationRow("Job alerts", alertsSummary, "/you/alerts", Bell)}
-            {@render destinationRow("Company preferences", "Hidden companies and requests", "/you/companies", Buildings)}
+            {@render destinationRow(nativeIos ? "Notifications" : "Job alerts", alertsSummary, "/you/alerts", Bell)}
+            {@render destinationRow(nativeIos ? "Companies" : "Company preferences", "Hidden companies and requests", "/you/companies", Buildings)}
           </div>
         </section>
 
         <section>
-          <h2 class="section-eyebrow">Materials</h2>
+          <h2 class="section-eyebrow you-section-heading">Materials</h2>
           <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? (nativeIos ? "Structured resume ready" : "Ready") : "Add your resume", "/you/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", MagicWand)}
@@ -503,7 +543,7 @@
         </section>
 
         <section>
-          <h2 class="section-eyebrow">App</h2>
+          <h2 class="section-eyebrow you-section-heading">App</h2>
           <div class="surface-list">
             <div class="you-settings-row you-settings-row-static">
               <span class="you-settings-row-icon"><PaintBrush size={18} /></span>
@@ -530,7 +570,7 @@
         </section>
 
         <section>
-          <h2 class="section-eyebrow">Account</h2>
+          <h2 class="section-eyebrow you-section-heading">Account</h2>
           <div class="surface-list">
             {@render destinationRow("Account", accountSummary, "/you/account", UserCircle)}
           </div>
@@ -540,3 +580,68 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .native-layout .you-page {
+    gap: var(--space-8);
+  }
+
+  .native-layout .you-page .surface-list {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .native-layout .you-page .you-settings-row {
+    padding-inline: 0;
+  }
+
+  .native-layout .you-section-heading,
+  .you-inview-title {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .native-layout .you-account-stack {
+    gap: var(--space-8);
+  }
+
+  .native-layout .you-account-profile {
+    padding: 0;
+    gap: var(--space-3);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .native-layout :global(.jobs-settings-content),
+  .native-layout :global(.account-content) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .native-layout :global(.jobs-settings-content) {
+    gap: var(--space-6);
+  }
+
+  .native-layout :global(.notification-settings) {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .native-layout :global(.notification-settings > .grouped-row) {
+    padding-inline: 0;
+  }
+
+  .native-layout .feedback-page-intro {
+    margin-bottom: var(--space-4);
+  }
+</style>

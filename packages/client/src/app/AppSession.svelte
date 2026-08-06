@@ -9,12 +9,16 @@
   import { feedback } from "../lib/feedback.svelte";
   import { isIosApp, platform } from "../lib/platform";
   import Onboarding from "../components/Onboarding.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import Spinner from "../components/Spinner.svelte";
   import ToastViewport from "../components/ToastViewport.svelte";
   import ApplicationReturnPrompt from "../components/ApplicationReturnPrompt.svelte";
-  import WifiSlash from "phosphor-svelte/lib/WifiSlash";
-  import ArrowClockwise from "phosphor-svelte/lib/ArrowClockwise";
-  import type { SearchProfile } from "../../../../shared/search-profile";
+  import {
+    DEFAULT_SEARCH_PROFILE,
+    ONBOARDING_VERSION,
+    ROLE_OPTIONS,
+    type SearchProfile,
+  } from "../../../../shared/search-profile";
 
   let { children }: { children: Snippet } = $props();
   let showOnboarding = $state(false);
@@ -28,6 +32,19 @@
   let unlocking = $state(false);
   let accessCodeInput: HTMLInputElement | null = $state(null);
   let bootGeneration = 0;
+  const nativeIos = isIosApp();
+
+  function initialNativeOnboardingProfile(profile: SearchProfile): SearchProfile {
+    if (!nativeIos || profile.onboarding_version >= ONBOARDING_VERSION) return profile;
+    const untouchedRoles = profile.roles.length === DEFAULT_SEARCH_PROFILE.roles.length
+      && DEFAULT_SEARCH_PROFILE.roles.every((role) => profile.roles.includes(role));
+    if (!untouchedRoles) return profile;
+    return {
+      ...profile,
+      roles: ROLE_OPTIONS.map((role) => role.id),
+      primary_role: ROLE_OPTIONS[0].id,
+    };
+  }
 
   async function bootstrapSession(): Promise<void> {
     const generation = ++bootGeneration;
@@ -38,8 +55,9 @@
       const { me, preferences } = await api.bootstrap.get();
       if (generation !== bootGeneration) return;
       syncSessionAccess(me);
-      syncFeedPreferences(preferences.search_profile);
-      onboardingProfile = preferences.search_profile;
+      const nextOnboardingProfile = initialNativeOnboardingProfile(preferences.search_profile);
+      syncFeedPreferences(nextOnboardingProfile);
+      onboardingProfile = nextOnboardingProfile;
       showOnboarding = preferences.search_profile.onboarding_version < 2
         || !preferences.search_profile.onboarding_completed_at;
       sessionReady = true;
@@ -59,7 +77,7 @@
   async function unlock(): Promise<void> {
     if (unlocking) return;
     if (!accessCode.trim()) {
-      if (isIosApp()) {
+      if (nativeIos) {
         accessError = "Enter the shared access code.";
         window.requestAnimationFrame(() => accessCodeInput?.focus());
       }
@@ -116,8 +134,13 @@
     }
   }
 
+  function retryBootstrap() {
+    if (booting) return;
+    booting = true;
+    void bootstrapSession();
+  }
+
   onMount(() => {
-    const nativeIos = isIosApp();
     const detachApplicationIntent = applicationIntent.initialize();
     const detachMagicLink = platform().auth.attachMagicLink((token) => void completeMagicLink(token));
     void platform().notifications.initialize().catch((error) => {
@@ -125,9 +148,7 @@
     });
     void bootstrapSession();
     const retryWhenOnline = () => {
-      if (!bootError || booting) return;
-      booting = true;
-      void bootstrapSession();
+      if (bootError) retryBootstrap();
     };
     if (nativeIos) window.addEventListener("online", retryWhenOnline);
     return () => {
@@ -141,22 +162,20 @@
 {#if sessionReady && !showOnboarding}
   {@render children()}
 {:else if bootError}
-  {#if isIosApp()}
-    <main class="boot-error-wrap native-boot-error" role="alert">
-      <div class="native-boot-error-icon" aria-hidden="true"><WifiSlash size={24} weight="bold" /></div>
-      <h1>Can’t connect right now</h1>
-      <p>Check your internet connection, then try again.</p>
-      <button class="btn-secondary" onclick={() => { booting = true; bootstrapSession(); }}>
-        <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
-        Try again
-      </button>
+  {#if nativeIos}
+    <main class="boot-error-wrap native-session-failure">
+      <PageFailure
+        title="Can’t connect right now"
+        message="Check your internet connection, then try again."
+        onRetry={retryBootstrap}
+      />
     </main>
   {:else}
     <div class="boot-error-wrap">
       <div class="boot-error-card">
         <div class="h-display h-display-sm boot-error-title">Couldn’t load the app</div>
         <div class="boot-error-copy">{bootError}</div>
-        <button class="btn-primary btn-accent" onclick={() => { booting = true; bootstrapSession(); }}>Try again</button>
+        <button class="btn-primary btn-accent" onclick={retryBootstrap}>Try again</button>
       </div>
     </div>
   {/if}
@@ -182,13 +201,13 @@
         type="password"
         placeholder="Enter code"
         bind:value={accessCode}
-        aria-invalid={isIosApp() && accessError ? "true" : undefined}
-        aria-describedby={isIosApp() && accessError ? "access-error" : undefined}
-        oninput={() => { if (isIosApp()) accessError = null; }}
+        aria-invalid={nativeIos && accessError ? "true" : undefined}
+        aria-describedby={nativeIos && accessError ? "access-error" : undefined}
+        oninput={() => { if (nativeIos) accessError = null; }}
         onkeydown={(event) => event.key === "Enter" && unlock()}
       />
       {#if accessError}<div id="access-error" class="alert alert-error access-alert" role="alert">{accessError}</div>{/if}
-      <button class="btn-primary btn-accent full-width access-submit" disabled={unlocking || (!isIosApp() && !accessCode.trim())} onclick={unlock}>
+      <button class="btn-primary btn-accent full-width access-submit" disabled={unlocking || (!nativeIos && !accessCode.trim())} onclick={unlock}>
         {unlocking ? "Checking…" : "Unlock"}
       </button>
     </div>

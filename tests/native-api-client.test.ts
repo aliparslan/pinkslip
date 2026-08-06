@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { api, configureApiClient } from "../packages/client/src/lib/api";
+import { api, apiFetch, configureApiClient } from "../packages/client/src/lib/api";
 
 const originalFetch = globalThis.fetch;
 const testGlobal = globalThis as typeof globalThis & { window?: Window & typeof globalThis };
@@ -17,6 +17,33 @@ afterEach(() => {
 });
 
 describe("native API token rotation", () => {
+  it("routes protected image requests through the native API origin and bearer session", async () => {
+    configureApiClient({
+      baseUrl: "https://pinkslip.test/api",
+      client: "ios",
+      getAccessToken: () => "native-session-token",
+    });
+
+    let requestedUrl = "";
+    let requestedHeaders = new Headers();
+    globalThis.fetch = async (input, init) => {
+      requestedUrl = String(input);
+      requestedHeaders = new Headers(init?.headers);
+      return new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-type": "image/png" },
+      });
+    };
+
+    const response = await apiFetch("/logo?domain=example.com", {
+      headers: { Accept: "image/*" },
+    });
+
+    expect(response.ok).toBe(true);
+    expect(requestedUrl).toBe("https://pinkslip.test/api/logo?domain=example.com");
+    expect(requestedHeaders.get("authorization")).toBe("Bearer native-session-token");
+    expect(requestedHeaders.get("x-pinkslip-client")).toBe("ios");
+  });
+
   it("does not replace a magic-link token when a stale guest request is rejected", async () => {
     testGlobal.window = globalThis as unknown as Window & typeof globalThis;
 

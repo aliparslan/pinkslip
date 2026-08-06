@@ -4,6 +4,7 @@
   import { createFrameBatch } from "../lib/motion";
   import { isIosApp } from "../lib/platform";
   import { scrollContainer } from "../router";
+  import HeaderSearch from "./HeaderSearch.svelte";
 
   let {
     title,
@@ -11,16 +12,19 @@
     onBack,
     trailing,
     collapsible = false,
+    searchable = false,
   }: {
     title: string;
     backLabel?: string;
     onBack: () => void;
     trailing?: Snippet;
     collapsible?: boolean;
+    searchable?: boolean;
   } = $props();
 
   let navElement: HTMLElement | undefined = $state(undefined);
   let compactTitleVisible = $state(true);
+  let searchExpanded = $state(false);
   const nativeIos = isIosApp();
   let nativeCollapsible = $derived(nativeIos && collapsible);
 
@@ -61,7 +65,13 @@
   });
 </script>
 
-<header bind:this={navElement} class="screen-nav" class:collapsible={nativeCollapsible} class:compact-title-visible={compactTitleVisible}>
+<header
+  bind:this={navElement}
+  class="screen-nav"
+  class:collapsible={nativeCollapsible}
+  class:compact-title-visible={compactTitleVisible}
+  class:search-expanded={searchExpanded}
+>
   <div class="screen-nav__leading">
     <button type="button" class="screen-nav__back" aria-label={backLabel} onclick={onBack}>
       <CaretLeft size={22} weight="bold" />
@@ -73,8 +83,35 @@
     <div class="screen-nav__title" title={title || undefined} aria-hidden={nativeCollapsible || !title}>{title}</div>
   {/if}
   <div class="screen-nav__trailing">
+    {#if searchable}
+      <div class="screen-nav__search" class:expanded={searchExpanded}>
+        <HeaderSearch visible={compactTitleVisible} bind:expanded={searchExpanded} />
+      </div>
+    {/if}
     {#if trailing}
-      {@render trailing()}
+      {#if searchable}
+        <div class="screen-nav__custom-trailing">{@render trailing()}</div>
+      {:else}
+        {@render trailing()}
+      {/if}
     {/if}
   </div>
 </header>
+
+<style>
+  .screen-nav__search {
+    flex: none;
+  }
+
+  .screen-nav__search.expanded {
+    position: absolute;
+    inset-inline: calc(var(--tap-min) + 14px) 10px;
+    bottom: 6px;
+  }
+
+  .screen-nav.search-expanded .screen-nav__title,
+  .screen-nav.search-expanded .screen-nav__custom-trailing {
+    opacity: 0;
+    pointer-events: none;
+  }
+</style>

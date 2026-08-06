@@ -7,10 +7,14 @@
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
   import SaveStatus from "../components/SaveStatus.svelte";
+  import PageFailure from "../components/PageFailure.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
 
+  let { nativeIos = false }: { nativeIos?: boolean } = $props();
+
   let loading = $state(true);
+  let loaded = $state(false);
   let saving = $state(false);
   let error: string | null = $state(null);
   let content = $state("");
@@ -25,6 +29,7 @@
       const latest = await api.corpus.get();
       content = latest.content_md ?? "";
       savePresentation.hydrate(latest.updated_at ?? null);
+      loaded = true;
     } catch (e) {
       error = errorMessage(e);
     } finally {
@@ -83,14 +88,24 @@
 </script>
 
 <div class="page pushed-screen">
-  <ScreenNav title="Master story" onBack={() => { if (!requestBack()) navigate("/you"); }} />
-  <div class="page-frame">
-    {#if error}
+  <ScreenNav title="Master story" onBack={() => { if (!requestBack()) navigate("/you"); }}>
+    {#snippet trailing()}
+      {#if nativeIos}<SaveStatus phase={savePresentation.phase} />{/if}
+    {/snippet}
+  </ScreenNav>
+  <div class="page-frame corpus-frame" class:native-layout={nativeIos}>
+    {#if error && (!nativeIos || loaded)}
       <div class="alert alert-error alert-spaced" role="alert">{error}</div>
     {/if}
 
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
+    {:else if nativeIos && error && !loaded}
+      <PageFailure
+        title="Your master story didn’t load"
+        message="Check your connection and try again."
+        onRetry={() => void loadCorpus()}
+      />
     {:else}
       <p id="master-story-help" class="body-copy corpus-intro">
         Keep the projects, outcomes, strengths, and stories you want tailoring to draw from.
@@ -104,7 +119,25 @@
         aria-label="Master story"
         placeholder="Add projects, metrics, stories, strengths, and concrete examples…"
       ></textarea>
-      <div class="save-state"><SaveStatus phase={savePresentation.phase} /></div>
+      {#if !nativeIos}<div class="save-state"><SaveStatus phase={savePresentation.phase} /></div>{/if}
     {/if}
   </div>
 </div>
+
+<style>
+  .corpus-frame.native-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .corpus-frame.native-layout .corpus-intro {
+    margin-bottom: 0;
+  }
+
+  .corpus-frame.native-layout .corpus-editor {
+    padding: var(--space-4);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+</style>

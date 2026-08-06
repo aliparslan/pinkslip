@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
-  import { enableNativePush, isNativeIos } from "../../lib/native-push";
+  import { enableNativePush } from "../../lib/native-push";
   import Switch from "../../components/Switch.svelte";
   import Spinner from "../../components/Spinner.svelte";
 
@@ -11,12 +11,14 @@
     onError,
     onSuccess,
     showHeading = true,
+    nativeIos = false,
   }: {
     notificationEnabled: boolean;
     pushStatus: string;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
     showHeading?: boolean;
+    nativeIos?: boolean;
   } = $props();
 
   let enablingPush: boolean = $state(false);
@@ -29,7 +31,7 @@
       pushStatus = ok ? "enabled" : "disabled";
       if (ok) notificationEnabled = true;
       if (!ok) {
-        onError(`Turn on notifications for pinkslip in ${isNativeIos() ? "iOS Settings" : "your browser settings"}.`);
+        onError(`Turn on notifications for pinkslip in ${nativeIos ? "iOS Settings" : "your browser settings"}.`);
       }
     } catch (e) {
       onError(errorMessage(e));
@@ -53,27 +55,27 @@
 
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Notifications</h2>{/if}
-  <div class="surface-list">
+  <div class="surface-list notification-settings">
     <div class="grouped-row">
       <div class="grouped-row-copy">
-        <div class="row-title">Job alerts</div>
-        <div class="helper-text">Pause or resume all job alerts</div>
+        <div class="row-title">{nativeIos ? "Send new job alerts" : "Job alerts"}</div>
+        {#if !nativeIos}<div class="helper-text">Pause or resume all job alerts</div>{/if}
       </div>
       <Switch
         checked={notificationEnabled}
         onCheckedChange={(value) => (notificationEnabled = value)}
-        aria-label="Job alerts"
+        aria-label={nativeIos ? "Send new job alerts" : "Job alerts"}
       />
     </div>
 
     <div class="grouped-row">
       <div class="grouped-row-copy">
         <div class="row-title">Push notifications</div>
-        <div class="helper-text">Get notified about relevant new jobs</div>
+        {#if !nativeIos}<div class="helper-text">Get notified about relevant new jobs</div>{/if}
       </div>
       <div class="field-action">
         <span class="setting-status" class:good={pushStatus === "enabled"}>
-          {pushStatus === "enabled" ? "On" : "Off"}
+          {pushStatus === "enabled" ? nativeIos ? "Allowed" : "On" : "Off"}
         </span>
         {#if pushStatus !== "enabled"}
           <button
@@ -91,10 +93,12 @@
     {#if pushStatus === "enabled"}
       <div class="grouped-row stack">
         <div class="grouped-row-copy">
-          <div class="row-title">Test notification</div>
-          <div class="helper-text" role="status" aria-live="polite">
-            {testingNotif ?? "Make sure alerts reach this device"}
-          </div>
+          <div class="row-title">{nativeIos ? "Send a test" : "Test notification"}</div>
+          {#if testingNotif || !nativeIos}
+            <div class="helper-text" role="status" aria-live="polite">
+              {testingNotif ?? "Make sure alerts reach this device"}
+            </div>
+          {/if}
         </div>
         <div class="button-cluster">
           <button type="button" class="btn-secondary btn-mini" disabled={!!testingNotif} onclick={() => sendTest(0)}>

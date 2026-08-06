@@ -202,9 +202,11 @@ tailor.get("/tailor/usage", async (c) => {
     model,
     app_today: 0,
     user_today: 0,
+    included_user_today: 0,
     daily_limit: provider === "gemini" ? GEMINI_DAILY_LIMITS[model] ?? null : null,
     app_remaining: null,
     user_remaining: null,
+    included_user_remaining: null,
     resets_at: nextUtcDay(),
   }));
 

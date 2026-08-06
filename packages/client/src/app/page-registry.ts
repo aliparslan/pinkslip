@@ -8,6 +8,7 @@ import ResumeProfile from "../pages/ResumeProfile.svelte";
 export type PageComponent = Component<{
   jobId?: string | null;
   routeOverride?: string;
+  nativeIos?: boolean;
 }>;
 
 type PageModule = { default: Component<never> | PageComponent };

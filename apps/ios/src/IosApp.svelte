@@ -4,7 +4,9 @@
     currentRoute,
     navigate,
     routeDepth,
+    routeDefinition,
     backTargetRoute,
+    rootHeaderFor,
     routeShell,
     restoreScrollFor,
     scrollContainer,
@@ -15,9 +17,11 @@
   import TabBar from "../../../packages/client/src/components/TabBar.svelte";
   import {
     activeLocalBackHandler,
+    backSwipeIntent,
     registerBackHandler,
     type LocalBackHandler,
   } from "../../../packages/client/src/lib/nav-back";
+  import { hasOpenModal } from "../../../packages/client/src/lib/modal-stack.svelte";
   import {
     createFrameBatch,
     nextFrame,
@@ -35,6 +39,14 @@
   let underlaySnapshotScroll = 0;
   let swiping = $state(false);
   let settling = $state(false);
+  let tabRevealProgress: number | null = $state(null);
+  let tabRevealDuration = $state(280);
+  let tabRevealSettling = $state(false);
+  let tabContextRoute = $state(
+    showsRootNavigation($currentRoute)
+      ? $currentRoute
+      : backTargetRoute($currentRoute) ?? "/",
+  );
 
   interface RouteSnapshot {
     html: string;
@@ -44,8 +56,10 @@
   const routeSnapshots = new Map<string, RouteSnapshot>();
 
   let underlayHasTabs = $derived(Boolean(underlayRoute && showsRootNavigation(underlayRoute)));
-  let visualRoute = $derived((swiping || settling) && underlayRoute ? underlayRoute : route);
-  let mobileTabBarVisible = $derived(showsRootNavigation(visualRoute));
+
+  $effect(() => {
+    if (showsRootNavigation(route)) tabContextRoute = route;
+  });
 
   const EDGE = 44;
   const PROGRAMMATIC_SETTLE = 280;
@@ -61,10 +75,34 @@
   let target: string | null = null;
   let targetSnapshotKey: string | null = null;
   let targetLocalBack: LocalBackHandler | null = null;
-  const SNAPSHOT_LIMIT = 3;
+  const SNAPSHOT_LIMIT = 8;
+
+  let underlayFallbackTitle = $derived.by(() => {
+    if (!underlayRoute) return "";
+    const rootHeader = rootHeaderFor(underlayRoute);
+    if (rootHeader) return rootHeader.title;
+    const fallbackTitles: Record<string, string> = {
+      job: "Job details",
+      tailor: "Tailor",
+      "you-preferences": "Job preferences",
+      "you-alerts": "Notifications",
+      "you-companies": "Companies",
+      "you-resume": "Resume",
+      "you-story": "Master story",
+      "you-tailoring": "Tailoring",
+      "you-account": "Account",
+      "you-feedback": "Help & feedback",
+      "admin-overview": "Admin",
+      "admin-inbox": "Inbox",
+      "admin-sources": "Sources",
+      "admin-runs": "Runs",
+    };
+    return fallbackTitles[routeDefinition(underlayRoute).id] ?? "pinkslip";
+  });
 
   function paint(dx: number): void {
     const progress = width ? Math.min(1, Math.max(0, dx / width)) : 0;
+    if (underlayHasTabs && !showsRootNavigation(route)) tabRevealProgress = progress;
     if (reducedMotion()) {
       if (foreground) foreground.style.opacity = `${1 - progress * 0.16}`;
       if (underlay) underlay.style.transform = "translateX(0)";
@@ -164,9 +202,12 @@
     localBack: LocalBackHandler | null,
   ): Promise<void> {
     if (localBack) {
+      const destinationScroll = underlaySnapshotScroll;
       await localBack.commit();
       await tick();
+      scrollContainer()?.scrollTo({ top: destinationScroll, left: 0, behavior: "auto" });
       await nextFrame();
+      scrollContainer()?.scrollTo({ top: destinationScroll, left: 0, behavior: "auto" });
       return;
     }
     navigate(destination);
@@ -192,7 +233,7 @@
 
   function onTouchStart(event: TouchEvent): void {
     candidate = false;
-    if (settling || swiping) return;
+    if (settling || swiping || hasOpenModal()) return;
     targetLocalBack = activeLocalBackHandler();
     target = targetLocalBack ? route : backTargetRoute(route);
     targetSnapshotKey = targetLocalBack?.snapshotKey ?? target;
@@ -220,8 +261,9 @@
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (!locked) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-      if (Math.abs(dy) > Math.abs(dx)) {
+      const intent = backSwipeIntent(dx, dy);
+      if (intent === "pending") return;
+      if (intent === "other") {
         candidate = false;
         discardPreparedUnderlay();
         return;
@@ -260,6 +302,8 @@
     targetSnapshotKey = null;
     targetLocalBack = null;
     settling = false;
+    tabRevealProgress = null;
+    tabRevealSettling = false;
     document.body.classList.remove("nav-animating");
   }
 
@@ -278,6 +322,7 @@
     const snapshotKey = targetSnapshotKey;
     const localBack = targetLocalBack;
     const duration = settleDuration(distance, commit);
+    const revealTabs = tabRevealProgress !== null;
     settling = true;
     swiping = false;
     if (foreground) foreground.style.transition = reducedMotion()
@@ -285,6 +330,11 @@
       : `transform ${duration}ms ${EASE}`;
     if (underlay) underlay.style.transition = `transform ${duration}ms ${EASE}`;
     if (dim) dim.style.transition = `opacity ${duration}ms ${EASE}`;
+    if (revealTabs) {
+      tabRevealDuration = duration;
+      tabRevealSettling = true;
+      await tick();
+    }
     if (commit) {
       if (foreground) {
         if (reducedMotion()) foreground.style.opacity = "0";
@@ -292,6 +342,7 @@
       }
       if (underlay) underlay.style.transform = "translateX(0)";
       if (dim) dim.style.opacity = "0";
+      if (revealTabs) tabRevealProgress = 1;
     } else {
       paint(0);
     }
@@ -319,6 +370,8 @@
     width = foreground?.getBoundingClientRect().width ?? innerWidth;
     const snapshotKey = localBack?.snapshotKey ?? destination;
     prepareUnderlay(destination, snapshotKey);
+    const revealTabs = showsRootNavigation(destination) && !showsRootNavigation(route);
+    if (revealTabs) tabRevealProgress = 0;
     document.body.classList.add("nav-animating");
     await tick();
     if (reducedMotion()) {
@@ -332,9 +385,15 @@
     if (dim) { dim.style.transition = "none"; dim.style.opacity = "0.14"; }
     void foreground?.offsetWidth;
     await nextFrame();
+    if (revealTabs) {
+      tabRevealDuration = PROGRAMMATIC_SETTLE;
+      tabRevealSettling = true;
+      await tick();
+    }
     if (foreground) { foreground.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; foreground.style.transform = `translateX(${width}px)`; }
     if (underlay) { underlay.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; underlay.style.transform = "translateX(0)"; }
     if (dim) { dim.style.transition = `opacity ${PROGRAMMATIC_SETTLE}ms ${EASE}`; dim.style.opacity = "0"; }
+    if (revealTabs) tabRevealProgress = 1;
     await waitForAnimations([foreground, underlay, dim], PROGRAMMATIC_SETTLE + 60);
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
@@ -372,12 +431,18 @@
         && detail.to
         && routeDepth(detail.to) > routeDepth(detail.from)
       ) {
+        if (showsRootNavigation(detail.from)) tabContextRoute = detail.from;
         captureRouteSnapshot(detail.from);
       }
     };
     const captureBeforeLocalNavigation = (event: Event) => {
       const detail = (event as CustomEvent<{ snapshotKey?: string }>).detail;
-      if (detail?.snapshotKey) captureRouteSnapshot(detail.snapshotKey);
+      if (!detail?.snapshotKey) return;
+      captureRouteSnapshot(detail.snapshotKey);
+      window.requestAnimationFrame(() => {
+        if (activeLocalBackHandler()?.snapshotKey !== detail.snapshotKey) return;
+        scrollContainer()?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
     };
     window.addEventListener("pinkslip:navigation-will-change", captureBeforeNavigation);
     window.addEventListener("pinkslip:local-navigation-will-change", captureBeforeLocalNavigation);
@@ -406,13 +471,23 @@
   <div class="status-bar-scrim" aria-hidden="true"></div>
 
   {#if underlayRoute}
-    <div class="nav-underlay" bind:this={underlay} aria-hidden="true">
+    <div class="nav-underlay" bind:this={underlay} aria-hidden="true" inert>
       <div
         class="app-content-shell nav-underlay-shell nav-underlay-snapshot"
         class:mobile-tabs-visible={underlayHasTabs}
       >
         {#if underlaySnapshotHtml}
           {@html underlaySnapshotHtml}
+        {:else}
+          <div class="nav-underlay-fallback">
+            <div class="nav-underlay-fallback__header" class:root={underlayHasTabs}>
+              {#if !underlayHasTabs}<span class="nav-underlay-fallback__back" aria-hidden="true">←</span>{/if}
+              <strong>{underlayFallbackTitle}</strong>
+            </div>
+            <div class="nav-underlay-fallback__body" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
         {/if}
       </div>
       <div class="nav-underlay-dim" bind:this={dim}></div>
@@ -430,5 +505,11 @@
       <RouteView />
     </main>
   </div>
-  <TabBar mobileHidden={!mobileTabBarVisible} />
+  <TabBar
+    mobileHidden={!showsRootNavigation(route)}
+    activeRouteOverride={showsRootNavigation(route) ? route : tabContextRoute}
+    revealProgress={tabRevealProgress}
+    revealDuration={tabRevealDuration}
+    revealSettling={tabRevealSettling}
+  />
 </AppSession>

@@ -1,6 +1,10 @@
 const openModalRoots = new Set<HTMLElement>();
 let backgroundState = new Map<HTMLElement, boolean>();
 
+export function hasOpenModal(): boolean {
+  return openModalRoots.size > 0;
+}
+
 function restoreBackgroundState() {
   for (const [element, wasInert] of backgroundState) {
     if (!wasInert) element.removeAttribute("inert");

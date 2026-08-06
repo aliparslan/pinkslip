@@ -196,6 +196,24 @@ function parseListParam(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Parses the optional feed role filter.
+ *
+ * `undefined` means the caller did not ask to filter by role. `null` means the
+ * parameter was present but invalid, which lets the route reject malformed or
+ * stale client values instead of silently widening the feed.
+ */
+export function parseRoleFilter(value: string | undefined): RoleId[] | undefined | null {
+  if (value === undefined) return undefined;
+
+  const requested = [...new Set(parseListParam(value))];
+  if (requested.length === 0 || requested.some((role) => !ROLE_IDS.has(role))) {
+    return null;
+  }
+
+  return requested as RoleId[];
+}
+
 function buildLocationFilter(location: string | undefined, locations: string | undefined) {
   const selected = parseListParam(locations ?? location).filter((item) => item !== "All");
   if (selected.length === 0) {
@@ -268,7 +286,13 @@ jobs.get("/", async (c) => {
     min_yoe,
     max_yoe,
     posted,
+    roles,
   } = c.req.query();
+  const roleFilter = parseRoleFilter(roles);
+  if (roleFilter === null) {
+    return c.json({ error: "Invalid roles filter" }, 400);
+  }
+
   if (posted === "evergreen") {
     await ensureUserEvergreenMatchesReady(c.env.DB, userId);
   } else {
@@ -364,6 +388,20 @@ jobs.get("/", async (c) => {
   if (company_id !== undefined) {
     conditions.push("j.company_id = ?");
     bindings.push(company_id);
+  }
+
+  if (roleFilter !== undefined) {
+    const placeholders = roleFilter.map(() => "?").join(", ");
+    conditions.push(
+      `EXISTS (
+        SELECT 1
+        FROM json_each(
+          CASE WHEN json_valid(jf.specialties_json) THEN jf.specialties_json ELSE '[]' END
+        ) specialty
+        WHERE specialty.value IN (${placeholders})
+      )`
+    );
+    bindings.push(...roleFilter);
   }
 
   if (q !== undefined && q.trim() !== "") {

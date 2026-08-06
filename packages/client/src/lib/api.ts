@@ -313,9 +313,11 @@ export interface TailorUsage {
   model: string;
   app_today: number;
   user_today: number;
+  included_user_today: number;
   daily_limit: number | null;
   app_remaining: number | null;
   user_remaining: number | null;
+  included_user_remaining: number | null;
   resets_at: string;
 }
 

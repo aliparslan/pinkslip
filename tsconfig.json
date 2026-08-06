@@ -26,7 +26,10 @@
     "node_modules",
     "dist",
     "frontend",
+    "tests/drag-dismiss.test.ts",
     "tests/native-api-client.test.ts",
+    "tests/native-logo-cache.test.ts",
+    "tests/nav-back.test.ts",
     "tests/resume-export.test.ts",
     "tests/salary-format.test.ts",
     "tests/location-format.test.ts"

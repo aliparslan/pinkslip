@@ -1,7 +1,10 @@
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function focusTrap(node: HTMLElement) {
+export function focusTrap(
+  node: HTMLElement,
+  options: { initialFocus?: "first" | "dialog" } = {},
+) {
   const previouslyFocused = document.activeElement instanceof HTMLElement
     ? document.activeElement
     : null;
@@ -32,7 +35,12 @@ export function focusTrap(node: HTMLElement) {
   }
 
   node.addEventListener("keydown", handleKeydown);
-  queueMicrotask(() => (focusableElements()[0] ?? node).focus());
+  queueMicrotask(() => {
+    const target = options.initialFocus === "dialog"
+      ? node
+      : focusableElements()[0] ?? node;
+    target.focus();
+  });
 
   return {
     destroy() {

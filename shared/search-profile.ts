@@ -1,4 +1,4 @@
-export const SEARCH_PROFILE_VERSION = 2 as const;
+export const SEARCH_PROFILE_VERSION = 3 as const;
 export const ONBOARDING_VERSION = 2 as const;
 
 export const ROLE_OPTIONS = [
@@ -9,6 +9,21 @@ export const ROLE_OPTIONS = [
     shortLabel: "SWE",
     keywords: ["software engineer", "software developer", "product engineer", "forward deployed engineer", "member of technical staff", "founding engineer", "swe"],
     departments: ["engineering", "technology", "development"],
+  },
+  {
+    id: "forward_deployed",
+    family: "engineering",
+    label: "FDE",
+    shortLabel: "FDE",
+    keywords: [
+      "forward deployed engineer",
+      "forward-deployed engineer",
+      "forward deployment engineer",
+      "forward deployed software engineer",
+      "forward-deployed software engineer",
+      "forward deployment software engineer",
+    ],
+    departments: ["engineering", "forward deployed"],
   },
   {
     id: "frontend",
@@ -184,7 +199,10 @@ export type SearchProfileV1 = SearchProfile;
 export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   version: SEARCH_PROFILE_VERSION,
   primary_role: "software_engineering",
-  roles: ["software_engineering", "frontend", "backend", "full_stack"],
+  // FDE used to be classified as generic SWE. Keeping it in the default
+  // stored selection preserves that eligibility while iOS exposes it as an
+  // independently removable chip.
+  roles: ["software_engineering", "forward_deployed", "frontend", "backend", "full_stack"],
   years_experience: 1,
   target_levels: ["new_grad", "early_career"],
   stretch_tolerance: "balanced",
@@ -229,7 +247,17 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
     ? value as Record<string, unknown>
     : {};
   const roles = stringList(input.roles, ROLE_OPTIONS.length).filter((role): role is RoleId => ROLE_IDS.has(role));
-  const selectedRoles = roles.length > 0 ? roles : [...DEFAULT_SEARCH_PROFILE.roles];
+  const sourceVersion = typeof input.version === "number" ? input.version : 0;
+  const migratedRoles = sourceVersion < SEARCH_PROFILE_VERSION
+    && roles.includes("software_engineering")
+    && !roles.includes("forward_deployed")
+      ? [
+          ...roles.slice(0, roles.indexOf("software_engineering") + 1),
+          "forward_deployed" as const,
+          ...roles.slice(roles.indexOf("software_engineering") + 1),
+        ]
+      : roles;
+  const selectedRoles = migratedRoles.length > 0 ? migratedRoles : [...DEFAULT_SEARCH_PROFILE.roles];
   const legacyLevel = levelFromLegacy(input.experience_level);
   const targetLevels = stringList(input.target_levels, EXPERIENCE_OPTIONS.length)
     .filter((level): level is ExperienceLevel => EXPERIENCE_IDS.has(level));
