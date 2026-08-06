@@ -37,9 +37,13 @@ describe("generateApiToken", () => {
 function fakeDb(
   tokens: Record<string, string>,
   roles: Record<string, "user" | "admin"> = {},
-  identityCounts?: Record<string, number>
+  identityCounts?: Record<string, number>,
+  nativeSessions: Record<string, { user_id: string; state: "guest" | "authenticated" }> = {}
 ): D1Database {
   const sessions = new Map<string, { user_id: string; state: "guest" | "authenticated"; expires_at: string }>();
+  for (const [id, session] of Object.entries(nativeSessions)) {
+    sessions.set(id, { ...session, expires_at: new Date(Date.now() + 60_000).toISOString() });
+  }
   const users = new Set<string>(Object.values(tokens));
   const userRoles = new Map<string, "user" | "admin">(
     Object.values(tokens).map((userId) => [userId, roles[userId] ?? "user"])
@@ -120,6 +124,11 @@ function appWith() {
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
+  app.get("/api/transport", (c) => c.json({
+    userId: c.get("userId"),
+    sessionState: c.get("sessionState"),
+    authTransport: c.get("authTransport"),
+  }));
   app.post("/api/whoami", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
@@ -144,6 +153,25 @@ describe("authMiddleware", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: "user-42", sessionState: "authenticated" });
+  });
+
+  it("accepts an opaque native session without elevating a guest", async () => {
+    const db = fakeDb({}, {}, {}, {
+      "native-session": { user_id: "guest-native", state: "guest" },
+    });
+    const app = appWith();
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/transport", {
+        headers: { authorization: "Bearer native-session" },
+      }),
+      ENV(db)
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      userId: "guest-native",
+      sessionState: "guest",
+      authTransport: "native",
+    });
   });
 
   it("rejects a bearer token whose user has no sign-in identity (guest-minted)", async () => {

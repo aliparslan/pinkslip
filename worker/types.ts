@@ -38,6 +38,7 @@ export interface Variables {
   userId: string;
   sessionId: string | null;
   sessionState: "anonymous" | "guest" | "authenticated";
+  authTransport: "anonymous" | "cookie" | "native" | "api_token";
 }
 
 export interface UserRow {

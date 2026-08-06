@@ -7,6 +7,7 @@ import {
   authMiddleware,
   buildCookie,
   COOKIE_NAMES,
+  createGuestSession,
   requireAdmin,
 } from "./auth";
 import jobRoutes from "./routes/jobs";
@@ -52,11 +53,12 @@ app.use(
   cors({
     origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
     credentials: true,
+    allowHeaders: ["Content-Type", "Authorization", "X-Pinkslip-Client"],
   })
 );
 
 // Baseline security headers on Worker responses. The static app shell sets its
-// own (richer) headers via frontend/public/_headers, since Cloudflare Assets
+// own (richer) headers via packages/client/public/_headers, since Cloudflare Assets
 // serves it without invoking the Worker.
 app.use("/*", async (c, next) => {
   await next();
@@ -136,7 +138,35 @@ app.post("/api/access", async (c) => {
     { append: true }
   );
 
+  if (c.req.header("x-pinkslip-client") === "ios") {
+    const session = await createGuestSession(c.env.DB);
+    return c.json({
+      ok: true,
+      required: true,
+      native_token: session.id,
+      expires_at: session.expires_at,
+    });
+  }
+
   return c.json({ ok: true, required: true });
+});
+
+// Versioned native bootstrap is intentionally tiny and backwards-compatible.
+// The App Store binary owns its UI bundle; this endpoint only establishes the
+// opaque bearer session that replaces browser-cookie state inside WKWebView.
+app.post("/api/v1/native/session", async (c) => {
+  if (c.req.header("x-pinkslip-client") !== "ios") {
+    return c.json({ error: "Native client required", code: "native_client_required" }, 400);
+  }
+  if (c.env.ACCESS_CODE?.trim()) {
+    return c.json({ error: "Access required", code: "access_required" }, 401);
+  }
+  const session = await createGuestSession(c.env.DB);
+  return c.json({
+    token: session.id,
+    expires_at: session.expires_at,
+    session: { state: session.state },
+  }, 201);
 });
 
 // Apple fetches this directly from /.well-known/ and does NOT follow redirects,

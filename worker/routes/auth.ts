@@ -109,7 +109,7 @@ async function signInWithIdentity(
   c: {
     env: Env;
     req: { url: string };
-    get(key: "userId" | "sessionId" | "sessionState"): string | null;
+    get(key: "userId" | "sessionId" | "sessionState" | "authTransport"): string | null;
     set(key: "userId" | "sessionId" | "sessionState", value: string): void;
     header(name: string, value: string, options?: { append?: boolean }): void;
   },
@@ -275,7 +275,7 @@ auth.post("/apple/exchange", async (c) => {
     return c.json({ error: "Apple user identifier mismatch", code: "invalid_apple_token" }, 401);
   }
 
-  await signInWithIdentity(c, {
+  const nextSession = await signInWithIdentity(c, {
     provider: "apple",
     providerSubject: verified.sub,
     // Trust ONLY the email inside Apple's signed identity token. The request body
@@ -286,7 +286,10 @@ auth.post("/apple/exchange", async (c) => {
     fullName: body?.fullName?.trim() || null,
   });
 
-  return c.json(await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")));
+  return c.json({
+    ...await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),
+    ...(c.get("authTransport") === "native" ? { native_token: nextSession.id } : {}),
+  });
 });
 
 // Basic shape check — not full RFC 5322, just enough to reject junk before we
@@ -372,14 +375,17 @@ auth.post("/email/verify", async (c) => {
     return c.json({ error: "That sign-in link is invalid or expired", code: "invalid_email_token" }, 401);
   }
 
-  await signInWithIdentity(c, {
+  const nextSession = await signInWithIdentity(c, {
     provider: "email",
     providerSubject: normalizeEmail(consumed.email),
     email: consumed.email,
     emailVerified: true,
   });
 
-  return c.json(await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")));
+  return c.json({
+    ...await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),
+    ...(c.get("authTransport") === "native" ? { native_token: nextSession.id } : {}),
+  });
 });
 
 auth.post("/logout", async (c) => {
@@ -400,7 +406,10 @@ auth.post("/logout", async (c) => {
   c.set("sessionId", guestSession.id);
   c.set("sessionState", "guest");
 
-  return c.json(await buildAccountState(c.env.DB, guestSession.user_id, "guest"));
+  return c.json({
+    ...await buildAccountState(c.env.DB, guestSession.user_id, "guest"),
+    ...(c.get("authTransport") === "native" ? { native_token: guestSession.id } : {}),
+  });
 });
 
 auth.delete("/account", async (c) => {
@@ -421,7 +430,10 @@ auth.delete("/account", async (c) => {
   c.set("sessionId", guestSession.id);
   c.set("sessionState", "guest");
 
-  return c.json(await buildAccountState(c.env.DB, guestSession.user_id, "guest"));
+  return c.json({
+    ...await buildAccountState(c.env.DB, guestSession.user_id, "guest"),
+    ...(c.get("authTransport") === "native" ? { native_token: guestSession.id } : {}),
+  });
 });
 
 export async function completeEmailMagicLink(

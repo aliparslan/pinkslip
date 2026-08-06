@@ -248,6 +248,16 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
 
     const bearer = parseBearerToken(c.req.header("authorization"));
     if (bearer) {
+      const nativeSession = await loadActiveSession(c.env.DB, bearer);
+      if (nativeSession) {
+        c.set("userId", nativeSession.user_id);
+        c.set("sessionId", nativeSession.id);
+        c.set("sessionState", nativeSession.state);
+        c.set("authTransport", "native");
+        await next();
+        return;
+      }
+
       const bearerUserId = await resolveBearerUser(c.env.DB, bearer);
       if (!bearerUserId) {
         return c.json({ error: "Invalid token", code: "invalid_token" }, 401);
@@ -262,6 +272,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       c.set("userId", bearerUserId);
       c.set("sessionId", null);
       c.set("sessionState", "authenticated");
+      c.set("authTransport", "api_token");
       await next();
       return;
     }
@@ -320,6 +331,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       c.set("userId", "");
       c.set("sessionId", null);
       c.set("sessionState", "anonymous");
+      c.set("authTransport", "anonymous");
       await next();
       return;
     }
@@ -327,6 +339,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
     c.set("userId", session.user_id);
     c.set("sessionId", session.id);
     c.set("sessionState", session.state);
+    c.set("authTransport", "cookie");
 
     await next();
   }
