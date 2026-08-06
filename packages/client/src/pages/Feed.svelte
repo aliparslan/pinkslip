@@ -493,7 +493,7 @@
   });
 
   function finishPull(showStatus: boolean) {
-    if (nativeIos && showStatus) {
+    if (showStatus) {
       pullCandidate = false;
       pullArmed = false;
       pullSettling = true;
@@ -520,7 +520,7 @@
 
   $effect(() => {
     const element = feedPage;
-    if (!element) return;
+    if (!nativeIos || !element) return;
 
     const handleTouchStart = (event: TouchEvent) => {
       pullCandidate = false;

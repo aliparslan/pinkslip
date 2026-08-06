@@ -19,8 +19,7 @@
   let { mode = "user" }: { mode?: "user" | "admin" } = $props();
   let isAdminMode = $derived(mode === "admin" && $sessionAccess.isAdmin);
 
-  const ATS_TYPES = [
-    "All",
+  const MANAGED_ATS_TYPES = [
     "greenhouse",
     "lever",
     "ashby",
@@ -29,8 +28,8 @@
     "gem",
     "smartrecruiters",
     "yc",
-    "custom",
-  ];
+  ] as const;
+  const ATS_TYPES = ["All", ...MANAGED_ATS_TYPES, "custom"];
   const USER_VIEWS = ["All", "Hidden"];
   const ADMIN_STATUSES = [
     { value: "active", label: "Active" },
@@ -41,6 +40,11 @@
   const COMPANY_PAGE_SIZE = 40;
 
   type AdminStatus = typeof ADMIN_STATUSES[number]["value"];
+  interface SourceVerification {
+    busy: boolean;
+    error: string | null;
+    message: string | null;
+  }
 
   const SOURCE_INPUTS: Record<string, { label: string; type: string; placeholder: string }> = {
     workday: {
@@ -78,6 +82,18 @@
     };
   }
 
+  function commitSearch(event: KeyboardEvent) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    (event.currentTarget as HTMLInputElement).blur();
+  }
+
+  function resetVerification(state: SourceVerification) {
+    state.busy = false;
+    state.error = null;
+    state.message = null;
+  }
+
   let companies: Company[] = $state([]);
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
@@ -93,15 +109,11 @@
   let addSlug: string = $state("");
   let addWebsite: string = $state("");
   let adding: boolean = $state(false);
-  let addVerifyBusy: boolean = $state(false);
-  let addVerifyError: string | null = $state(null);
-  let addVerifyMsg: string | null = $state(null);
+  let addVerification = $state<SourceVerification>({ busy: false, error: null, message: null });
 
   let editTarget: { id: string; name: string; ats_type: string; ats_slug: string } | null = $state(null);
   let saving: boolean = $state(false);
-  let editVerifyBusy: boolean = $state(false);
-  let editVerifyError: string | null = $state(null);
-  let editVerifyMsg: string | null = $state(null);
+  let editVerification = $state<SourceVerification>({ busy: false, error: null, message: null });
 
   let deleteTarget: { id: string; name: string } | null = $state(null);
   let deleting: boolean = $state(false);
@@ -277,8 +289,8 @@
       addWebsite = "";
       addAtsType = "greenhouse";
       showAddForm = false;
-      addVerifyError = null;
-      addVerifyMsg = null;
+      addVerification.error = null;
+      addVerification.message = null;
       feedback.success(`${trimmedName} added`);
     } catch (e) {
       error = errorMessage(e);
@@ -291,9 +303,7 @@
     const c = companies.find((co) => co.id === id);
     if (!c) return;
     editTarget = { id: c.id, name: c.name, ats_type: c.ats_type, ats_slug: c.ats_slug };
-    editVerifyBusy = false;
-    editVerifyError = null;
-    editVerifyMsg = null;
+    resetVerification(editVerification);
   }
 
   async function handleSaveEdit() {
@@ -337,52 +347,34 @@
     }
   }
 
-  async function verifyAddSource() {
-    if (!addSlug.trim() || addVerifyBusy) return;
-    addVerifyBusy = true;
-    addVerifyError = null;
-    addVerifyMsg = null;
+  async function verifySource(atsType: string, rawSlug: string, state: SourceVerification) {
+    const atsSlug = rawSlug.trim();
+    if (!atsSlug || state.busy) return;
+    state.busy = true;
+    state.error = null;
+    state.message = null;
     try {
       const result = await api.companies.verify({
-        ats_type: addAtsType,
-        ats_slug: addSlug.trim(),
+        ats_type: atsType,
+        ats_slug: atsSlug,
       });
       if (!result.ok) {
-        addVerifyError = result.error ?? "Verification failed";
+        state.error = result.error ?? "Verification failed";
       } else {
-        addVerifyMsg = `${result.total_jobs ?? 0} jobs found` + (
+        state.message = `${result.total_jobs ?? 0} jobs found` + (
           result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
         );
       }
     } catch (e) {
-      addVerifyError = errorMessage(e);
+      state.error = errorMessage(e);
     } finally {
-      addVerifyBusy = false;
+      state.busy = false;
     }
   }
 
-  async function verifyEditSource() {
-    if (!editTarget?.ats_slug.trim() || editVerifyBusy) return;
-    editVerifyBusy = true;
-    editVerifyError = null;
-    editVerifyMsg = null;
-    try {
-      const result = await api.companies.verify({
-        ats_type: editTarget.ats_type,
-        ats_slug: editTarget.ats_slug.trim(),
-      });
-      if (!result.ok) {
-        editVerifyError = result.error ?? "Verification failed";
-      } else {
-        editVerifyMsg = `${result.total_jobs ?? 0} jobs found` + (
-          result.sample_jobs?.[0]?.title ? ` · ${result.sample_jobs[0].title}` : ""
-        );
-      }
-    } catch (e) {
-      editVerifyError = errorMessage(e);
-    } finally {
-      editVerifyBusy = false;
-    }
+  function verifyEditedSource() {
+    if (!editTarget) return;
+    return verifySource(editTarget.ats_type, editTarget.ats_slug, editVerification);
   }
 
   function promptDelete(id: string, name: string) {
@@ -440,12 +432,7 @@
             aria-label="Search sources"
             placeholder="Search sources"
             bind:value={search}
-            onkeydown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
+            onkeydown={commitSearch}
           />
           <button
             class="btn-primary btn-accent source-add"
@@ -494,12 +481,7 @@
           aria-label="Search companies"
           placeholder="Search companies"
           bind:value={search}
-          onkeydown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              event.currentTarget.blur();
-            }
-          }}
+          onkeydown={commitSearch}
         />
         <div class="flex-fill">
           <FilterChips
@@ -523,14 +505,9 @@
             <div class="flex-fill">
               <label for="add-ats" class="field-label">ATS type</label>
               <select id="add-ats" class="input-field" bind:value={addAtsType}>
-                <option value="greenhouse">Greenhouse</option>
-                <option value="lever">Lever</option>
-                <option value="ashby">Ashby</option>
-                <option value="workday">Workday</option>
-                <option value="rippling">Rippling</option>
-                <option value="gem">Gem</option>
-                <option value="smartrecruiters">SmartRecruiters</option>
-                <option value="yc">Y Combinator</option>
+                {#each MANAGED_ATS_TYPES as atsType}
+                  <option value={atsType}>{companySourceLabel(atsType)}</option>
+                {/each}
               </select>
             </div>
             <div class="flex-fill">
@@ -548,23 +525,23 @@
             <label for="add-website" class="field-label">Website</label>
             <input id="add-website" class="input-field" type="url" placeholder="https://stripe.com" bind:value={addWebsite} />
           </div>
-          {#if addVerifyError}
+          {#if addVerification.error}
             <div class="alert alert-error alert-compact" role="alert">
-              {addVerifyError}
+              {addVerification.error}
             </div>
           {/if}
-          {#if addVerifyMsg}
+          {#if addVerification.message}
             <div class="alert alert-success alert-compact" role="status">
-              {addVerifyMsg}
+              {addVerification.message}
             </div>
           {/if}
           <div class="action-row compact card-actions">
             <button
               class="btn-secondary"
-              disabled={!addSlug.trim() || addVerifyBusy}
-              onclick={verifyAddSource}
+              disabled={!addSlug.trim() || addVerification.busy}
+              onclick={() => verifySource(addAtsType, addSlug, addVerification)}
             >
-              {#if addVerifyBusy}<Spinner />{/if}
+              {#if addVerification.busy}<Spinner />{/if}
               Verify
             </button>
             <button
@@ -671,14 +648,9 @@
         <div class="flex-fill">
           <label for="edit-ats" class="field-label">ATS type</label>
           <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
-            <option value="greenhouse">Greenhouse</option>
-            <option value="lever">Lever</option>
-            <option value="ashby">Ashby</option>
-            <option value="workday">Workday</option>
-            <option value="rippling">Rippling</option>
-            <option value="gem">Gem</option>
-            <option value="smartrecruiters">SmartRecruiters</option>
-            <option value="yc">Y Combinator</option>
+            {#each MANAGED_ATS_TYPES as atsType}
+              <option value={atsType}>{companySourceLabel(atsType)}</option>
+            {/each}
           </select>
         </div>
         <div class="flex-fill">
@@ -692,14 +664,14 @@
           />
         </div>
       </div>
-      {#if editVerifyError}
+      {#if editVerification.error}
         <div class="alert alert-error alert-compact" role="alert">
-          {editVerifyError}
+          {editVerification.error}
         </div>
       {/if}
-      {#if editVerifyMsg}
+      {#if editVerification.message}
         <div class="alert alert-success alert-compact" role="status">
-          {editVerifyMsg}
+          {editVerification.message}
         </div>
       {/if}
       <div class="action-row compact card-actions">
@@ -711,10 +683,10 @@
         </button>
         <button
           class="btn-secondary"
-          disabled={!editTarget.ats_slug.trim() || editVerifyBusy}
-          onclick={verifyEditSource}
+          disabled={!editTarget.ats_slug.trim() || editVerification.busy}
+          onclick={verifyEditedSource}
         >
-          {#if editVerifyBusy}<Spinner />{/if}
+          {#if editVerification.busy}<Spinner />{/if}
           Verify
         </button>
         <button

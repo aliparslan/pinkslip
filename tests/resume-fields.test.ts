@@ -39,6 +39,8 @@ describe("resume fields", () => {
   test("distinguishes resume content from structural metadata", () => {
     expect(hasResumeContent({ id: "draft", degreeType: "bachelor", title: "" })).toBe(false);
     expect(hasResumeContent({ kind: "awards", items: [{ category: "", items: "" }] })).toBe(false);
+    expect(hasResumeContent({ contact: { phone: "312-555-0142" } })).toBe(true);
+    expect(hasResumeContent({ kind: "awards", items: [{ category: "Honors", items: "Dean's list" }] })).toBe(true);
     expect(hasResumeContent({ id: "draft", bullets: ["Improved load time by 20%"] })).toBe(true);
   });
 });

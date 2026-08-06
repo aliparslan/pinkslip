@@ -46,10 +46,9 @@
 
   type CollectionSection = "experience" | "education" | "projects";
   type DirectSection = "contact" | "skills" | "notes" | OptionalSectionKind;
-  type ResumeSection = DirectSection | CollectionSection;
   type ResumeView =
     | { kind: "overview" }
-    | { kind: "section"; section: ResumeSection }
+    | { kind: "section"; section: DirectSection }
     | { kind: "record"; section: CollectionSection; id: string };
 
   const RESUME_OVERVIEW_SNAPSHOT = "resume:overview";
@@ -118,11 +117,8 @@
     return "Edit project";
   });
 
-  function sectionLabel(section: ResumeSection): string {
+  function sectionLabel(section: DirectSection): string {
     if (section === "contact") return "Contact info";
-    if (section === "experience") return "Work experience";
-    if (section === "education") return "Education";
-    if (section === "projects") return "Projects";
     if (section === "skills") return "Skills";
     if (section === "notes") return "Tailoring notes";
     return OPTIONAL_SECTION_LABELS[section];
@@ -147,7 +143,7 @@
     return items.find((item) => item.trim())?.trim() ?? "";
   }
 
-  function optionalSectionFor(section: ResumeSection) {
+  function optionalSectionFor(section: DirectSection) {
     return profile.optionalSections.find((candidate) => candidate.kind === section);
   }
 
@@ -336,23 +332,16 @@
   }
 
   function removeOptionalItem(kind: OptionalSectionKind, index: number) {
-    const section = profile.optionalSections.find((candidate) => candidate.kind === kind);
-    const removed = section?.items[index];
-    profile.optionalSections = profile.optionalSections.map((section) =>
-      section.kind === kind
-        ? { ...section, items: section.items.filter((_, itemIndex) => itemIndex !== index) }
-        : section
+    removeWithUndo(
+      index,
+      "Item removed",
+      () => optionalSectionFor(kind)?.items ?? [],
+      (items) => {
+        profile.optionalSections = profile.optionalSections.map((section) =>
+          section.kind === kind ? { ...section, items } : section
+        );
+      },
     );
-    queueAutosave();
-    if (removed) undoable("Item removed", () => {
-      profile.optionalSections = profile.optionalSections.map((candidate) => {
-        if (candidate.kind !== kind) return candidate;
-        const items = [...candidate.items];
-        items.splice(index, 0, removed);
-        return { ...candidate, items };
-      });
-      queueAutosave();
-    });
   }
 
   function addBullet(items: string[]) {
@@ -450,11 +439,7 @@
     try {
       const { parsePdfToProfile } = await import("../lib/pdf-to-profile");
       const parsed = await parsePdfToProfile(file);
-      const importedItemCount = (parsed.experience?.length ?? 0)
-        + (parsed.education?.length ?? 0)
-        + (parsed.projects?.length ?? 0)
-        + (parsed.skills?.length ?? 0);
-      if (!parsed.contact?.name && !parsed.contact?.email && importedItemCount === 0) {
+      if (!hasResumeContent(parsed)) {
         throw new Error("No resume details were found");
       }
       pendingImport = parsed;
