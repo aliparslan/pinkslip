@@ -174,7 +174,7 @@ html.native-ios .filter-button.active {
 }
 
 .screen-large-title {
-  margin: var(--space-2) 0 var(--space-6);
+  margin: var(--space-2) 0 var(--space-10);
   color: var(--color-ink);
   font-family: var(--font-display);
   font-size: var(--fs-4xl);
@@ -182,6 +182,13 @@ html.native-ios .filter-button.active {
   letter-spacing: -0.035em;
   line-height: 1.08;
   text-wrap: balance;
+}
+
+html.native-ios .root-header-native {
+  border-bottom: 0.5px solid var(--color-line);
+  background: var(--color-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 html.native-ios .modal-backdrop {

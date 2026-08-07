@@ -24,8 +24,190 @@ class BridgeViewController: CAPBridgeViewController {
         // default). registerPluginInstance() has no such guard — use it here.
         bridge?.registerPluginInstance(AppleSignInPlugin())
         bridge?.registerPluginInstance(ApplicationBrowserPlugin())
+        bridge?.registerPluginInstance(NativeActionMenuPlugin())
         bridge?.registerPluginInstance(NativeAppearancePlugin())
         bridge?.registerPluginInstance(SecureSessionPlugin())
+    }
+}
+
+private struct NativeActionMenuItem {
+    let id: String
+    let title: String
+    let symbol: String?
+    let destructive: Bool
+    let disabled: Bool
+}
+
+private final class NativeActionMenuButton: UIButton {
+    var onMenuEnd: (() -> Void)?
+
+    override func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        willEndFor configuration: UIContextMenuConfiguration,
+        animator: (any UIContextMenuInteractionAnimating)?
+    ) {
+        super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+        guard let animator else {
+            onMenuEnd?()
+            return
+        }
+        animator.addCompletion { [weak self] in self?.onMenuEnd?() }
+    }
+}
+
+@available(iOS 17.4, *)
+private final class NativeActionMenuPresenter: NSObject {
+    private weak var sourceView: UIView?
+    private let sourceRect: CGRect
+    private let items: [NativeActionMenuItem]
+    private let finish: (String?) -> Void
+    private var button: NativeActionMenuButton?
+    private var selectedID: String?
+    private var finished = false
+
+    init(sourceView: UIView, sourceRect: CGRect, items: [NativeActionMenuItem], finish: @escaping (String?) -> Void) {
+        self.sourceView = sourceView
+        self.sourceRect = sourceRect
+        self.items = items
+        self.finish = finish
+        super.init()
+    }
+
+    func present() {
+        guard let sourceView else {
+            complete(nil)
+            return
+        }
+        let actions = items.map { item in
+            var attributes: UIMenuElement.Attributes = []
+            if item.destructive { attributes.insert(.destructive) }
+            if item.disabled { attributes.insert(.disabled) }
+            return UIAction(
+                title: item.title,
+                image: item.symbol.flatMap(UIImage.init(systemName:)),
+                identifier: UIAction.Identifier(item.id),
+                attributes: attributes
+            ) { [weak self] _ in
+                self?.selectedID = item.id
+            }
+        }
+        let button = NativeActionMenuButton(frame: sourceRect)
+        button.backgroundColor = .clear
+        button.isAccessibilityElement = false
+        button.menu = UIMenu(children: actions)
+        button.showsMenuAsPrimaryAction = true
+        button.onMenuEnd = { [weak self] in
+            self?.complete(self?.selectedID)
+        }
+        sourceView.addSubview(button)
+        self.button = button
+        button.performPrimaryAction()
+    }
+
+    func dismiss() {
+        guard let button else {
+            complete(nil)
+            return
+        }
+        button.contextMenuInteraction?.dismissMenu()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.complete(nil)
+        }
+    }
+
+    private func complete(_ id: String?) {
+        guard !finished else { return }
+        finished = true
+        button?.removeFromSuperview()
+        button = nil
+        finish(id)
+    }
+}
+
+@objc(NativeActionMenuPlugin)
+public class NativeActionMenuPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeActionMenuPlugin"
+    public let jsName = "NativeActionMenu"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "present", returnType: CAPPluginReturnPromise)
+    ]
+
+    private var activePresenter: NSObject?
+    private weak var activeAlert: UIAlertController?
+
+    @objc func present(_ call: CAPPluginCall) {
+        guard let source = call.getObject("source"),
+              let rawActions = call.getArray("actions", JSObject.self),
+              !rawActions.isEmpty else {
+            call.reject("A source rectangle and at least one action are required.")
+            return
+        }
+
+        let items = rawActions.compactMap { action -> NativeActionMenuItem? in
+            guard let id = action["id"] as? String,
+                  let title = action["title"] as? String,
+                  !id.isEmpty,
+                  !title.isEmpty else { return nil }
+            return NativeActionMenuItem(
+                id: id,
+                title: title,
+                symbol: action["symbol"] as? String,
+                destructive: action["destructive"] as? Bool ?? false,
+                disabled: action["disabled"] as? Bool ?? false
+            )
+        }
+        guard !items.isEmpty else {
+            call.reject("At least one valid action is required.")
+            return
+        }
+
+        let sourceRect = CGRect(
+            x: (source["x"] as? NSNumber)?.doubleValue ?? 0,
+            y: (source["y"] as? NSNumber)?.doubleValue ?? 0,
+            width: max(1, (source["width"] as? NSNumber)?.doubleValue ?? 1),
+            height: max(1, (source["height"] as? NSNumber)?.doubleValue ?? 1)
+        )
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  let presenter = self.bridge?.viewController,
+                  let webView = self.bridge?.webView else {
+                call.reject("The native action menu is unavailable.")
+                return
+            }
+
+            if #available(iOS 17.4, *) {
+                (self.activePresenter as? NativeActionMenuPresenter)?.dismiss()
+                let menuPresenter = NativeActionMenuPresenter(
+                    sourceView: webView,
+                    sourceRect: sourceRect,
+                    items: items
+                ) { [weak self] id in
+                    self?.activePresenter = nil
+                    if let id { call.resolve(["id": id]) }
+                    else { call.resolve([:]) }
+                }
+                self.activePresenter = menuPresenter
+                menuPresenter.present()
+                return
+            }
+
+            self.activeAlert?.dismiss(animated: false)
+            let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+            for item in items {
+                let action = UIAlertAction(
+                    title: item.title,
+                    style: item.destructive ? .destructive : .default
+                ) { _ in call.resolve(["id": item.id]) }
+                action.isEnabled = !item.disabled
+                alert.addAction(action)
+            }
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in call.resolve([:]) })
+            alert.popoverPresentationController?.sourceView = webView
+            alert.popoverPresentationController?.sourceRect = sourceRect
+            self.activeAlert = alert
+            presenter.present(alert, animated: true)
+        }
     }
 }
 

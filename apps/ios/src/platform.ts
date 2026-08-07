@@ -35,9 +35,23 @@ interface NativeAppearancePlugin {
   setTheme(options: { theme: "dark" | "light" }): Promise<void>;
 }
 
+interface NativeActionMenuPlugin {
+  present(options: {
+    source: { x: number; y: number; width: number; height: number };
+    actions: Array<{
+      id: string;
+      title: string;
+      symbol?: string;
+      destructive?: boolean;
+      disabled?: boolean;
+    }>;
+  }): Promise<{ id?: string }>;
+}
+
 const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
 const NativeAppearance = registerPlugin<NativeAppearancePlugin>("NativeAppearance");
+const NativeActionMenu = registerPlugin<NativeActionMenuPlugin>("NativeActionMenu");
 const SecureSession = registerPlugin<SecureSessionPlugin>("SecureSession");
 const API_ORIGIN = import.meta.env.VITE_IOS_API_ORIGIN || "https://pinkslip.alip.dev";
 // These are the sRGB equivalents of --color-bg in the shared OKLCH palette.
@@ -347,6 +361,12 @@ const iosRuntime: PlatformRuntime = {
   haptics: {
     light: () => void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined),
     success: () => void Haptics.notification({ type: NotificationType.Success }).catch(() => undefined),
+  },
+  actionMenu: {
+    async present(options) {
+      const result = await NativeActionMenu.present(options);
+      return result.id ?? null;
+    },
   },
   async shareLink(options) {
     try {

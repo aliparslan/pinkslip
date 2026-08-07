@@ -189,7 +189,7 @@
       blockCandidate = null;
       if (!nativeIos) feedback.success("Job blocked for everyone");
     } catch (e) {
-      feedback.error(errorMessage(e, "Could not block that job."));
+      feedback.error(errorMessage(e, nativeIos ? "Could not remove that job." : "Could not block that job."));
     } finally {
       blockingJob = false;
     }
@@ -1133,8 +1133,8 @@
 
 {#if blockCandidate}
   <Modal
-    title="Block this job?"
-    subtitle={`This permanently hides ${blockCandidate.title} at ${blockCandidate.company_name} from everyone.`}
+    title={nativeIos ? "Remove this job?" : "Block this job?"}
+    subtitle={`This permanently removes ${blockCandidate.title} at ${blockCandidate.company_name} for everyone.`}
     busy={blockingJob}
     maxWidth={350}
     onclose={() => (blockCandidate = null)}
@@ -1143,7 +1143,7 @@
       <button class="btn-secondary flex-fill" onclick={() => (blockCandidate = null)} disabled={blockingJob}>Cancel</button>
       <button class="btn-secondary btn-danger flex-fill" onclick={blockJobForEveryone} disabled={blockingJob}>
         {#if blockingJob}<Spinner />{/if}
-        Block job
+        {nativeIos ? "Remove job" : "Block job"}
       </button>
     </div>
   </Modal>

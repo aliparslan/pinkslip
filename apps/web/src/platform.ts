@@ -70,6 +70,11 @@ const webRuntime: PlatformRuntime = {
     light: () => undefined,
     success: () => undefined,
   },
+  actionMenu: {
+    async present() {
+      return null;
+    },
+  },
   async shareLink(options) {
     try {
       if (navigator.share) {

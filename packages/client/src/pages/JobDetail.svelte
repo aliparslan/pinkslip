@@ -12,7 +12,7 @@
   import { applicationIntent } from "../lib/application-intent.svelte";
   import { jobOriginalTimingLabel, jobTimingLabel } from "../lib/job-timing";
   import { presentPending } from "../lib/task-presentation.svelte";
-  import { isIosApp } from "../lib/platform";
+  import { isIosApp, platform } from "../lib/platform";
   import { roleLabel } from "../../../../shared/search-profile";
   import {
     extractPlainTextFromHtml,
@@ -283,6 +283,41 @@
     }
   }
 
+  async function openNativeJobMenu(event: MouseEvent) {
+    const source = event.currentTarget as HTMLButtonElement;
+    const rect = source.getBoundingClientRect();
+    const action = await platform().actionMenu.present({
+      source: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      actions: [
+        {
+          id: "save",
+          title: saved ? "Remove from saved jobs" : "Save job",
+          symbol: saved ? "bookmark.fill" : "bookmark",
+          disabled: saving,
+        },
+        { id: "share", title: "Share job", symbol: "square.and.arrow.up" },
+        {
+          id: "hide-company",
+          title: `Hide ${job?.company_name ?? "company"}`,
+          symbol: "eye.slash",
+          disabled: hidingCompany,
+        },
+        { id: "report", title: "Report listing", symbol: "exclamationmark.bubble" },
+        ...($sessionAccess.isAdmin ? [{
+          id: "remove",
+          title: "Remove for everyone",
+          symbol: "trash",
+          destructive: true,
+        }] : []),
+      ],
+    }).catch(() => null);
+    if (action === "save") void toggleSave();
+    else if (action === "share") shareJob();
+    else if (action === "hide-company") void hideCompany();
+    else if (action === "report") showReport = true;
+    else if (action === "remove") showBlockConfirm = true;
+  }
+
   async function handleBlock() {
     if (!jobId || blocking) return;
     blocking = true;
@@ -291,7 +326,7 @@
       removeFromFeedStore(jobId);
       navigate("/");
     } catch (e) {
-      feedback.error(errorMessage(e, "Could not block this job."));
+      feedback.error(errorMessage(e, nativeIos ? "Could not remove this job." : "Could not block this job."));
       blocking = false;
     }
   }
@@ -419,55 +454,47 @@
             </span>
           </button>
         {/if}
-        <DropdownMenu.Root bind:open={showMore}>
-          <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
-            <DotsThree size={22} weight="bold" color={nativeIos ? "var(--color-ink-2)" : "var(--color-ink-3)"} />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              class="menu-surface job-more-menu"
-              side="bottom"
-              align="end"
-              sideOffset={6}
-              collisionPadding={12}
-              strategy="fixed"
-              preventScroll={false}
-            >
-              {#if nativeIos}
-                <DropdownMenu.Item
-                  class={saved ? "menu-item job-detail-save-menu-item saved" : "menu-item job-detail-save-menu-item"}
-                  disabled={saving}
-                  onSelect={() => void toggleSave()}
-                >
-                  {#if saving}<Spinner size={16} />{:else}<BookmarkSimple size={17} weight={saved ? "fill" : "bold"} />{/if}
-                  <span>{saved ? "Remove from saved jobs" : "Save job"}</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item class="menu-item" onSelect={shareJob}>
-                  <Export size={17} weight="bold" />
-                  <span>Share job</span>
-                </DropdownMenu.Item>
-              {/if}
-              <DropdownMenu.Item
-                class="menu-item"
-                disabled={hidingCompany}
-                onSelect={() => void hideCompany()}
+        {#if nativeIos}
+          <button class="icon-btn" aria-label="More job actions" onclick={openNativeJobMenu}>
+            <DotsThree size={22} weight="bold" color="var(--color-ink-2)" />
+          </button>
+        {:else}
+          <DropdownMenu.Root bind:open={showMore}>
+            <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
+              <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                class="menu-surface job-more-menu"
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                collisionPadding={12}
+                strategy="fixed"
+                preventScroll={false}
               >
-                {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
-                <span>Hide {job?.company_name ?? "company"}</span>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
-                <Flag size={17} />
-                <span>Report listing</span>
-              </DropdownMenu.Item>
-              {#if $sessionAccess.isAdmin}
-                <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
-                  <Trash size={17} />
-                  <span>Block for everyone</span>
+                <DropdownMenu.Item
+                  class="menu-item"
+                  disabled={hidingCompany}
+                  onSelect={() => void hideCompany()}
+                >
+                  {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
+                  <span>Hide {job?.company_name ?? "company"}</span>
                 </DropdownMenu.Item>
-              {/if}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+                <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
+                  <Flag size={17} />
+                  <span>Report listing</span>
+                </DropdownMenu.Item>
+                {#if $sessionAccess.isAdmin}
+                  <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
+                    <Trash size={17} />
+                    <span>Block for everyone</span>
+                  </DropdownMenu.Item>
+                {/if}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        {/if}
       </div>
     {/snippet}
   </ScreenNav>
@@ -678,10 +705,10 @@
   }
 
   .job-detail-title {
-    font-family: var(--font-pixel);
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.2;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
   }
 
   .native-layout .job-detail-title {
@@ -836,7 +863,7 @@
 
 {#if $sessionAccess.isAdmin && showBlockConfirm}
   <Modal
-    title="Block this job?"
+    title={nativeIos ? "Remove this job?" : "Block this job?"}
     busy={blocking}
     maxWidth={340}
     onclose={() => (showBlockConfirm = false)}
@@ -860,7 +887,7 @@
         onclick={handleBlock}
       >
         {#if blocking}<Spinner />{:else}<Trash size={15} />{/if}
-        Block permanently
+        {nativeIos ? "Remove permanently" : "Block permanently"}
       </button>
       <button
         class="text-button"

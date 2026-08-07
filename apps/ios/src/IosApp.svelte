@@ -231,9 +231,12 @@
 
   async function revealLiveDestination(): Promise<void> {
     if (!foreground) return;
+    foreground.style.visibility = "hidden";
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
     foreground.style.opacity = "1";
+    await nextFrame();
+    foreground.style.visibility = "visible";
     await nextFrame();
   }
 
@@ -292,6 +295,7 @@
       foreground.style.transition = "";
       foreground.style.transform = "";
       foreground.style.opacity = "";
+      foreground.style.visibility = "";
     }
     if (underlay) {
       underlay.style.transition = "";

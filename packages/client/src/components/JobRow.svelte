@@ -11,7 +11,7 @@
   import { createFrameBatch, delay, prefersReducedMotion } from "../lib/motion";
   import { sessionAccess } from "../lib/session-access";
   import { markMenuDismissed, wasMenuJustDismissed } from "../lib/menu-dismiss-guard";
-  import { isIosApp } from "../lib/platform";
+  import { isIosApp, platform } from "../lib/platform";
   import { DropdownMenu } from "bits-ui";
   import DotsThreeVertical from "phosphor-svelte/lib/DotsThreeVertical";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
@@ -105,9 +105,25 @@
         + Math.max(0, swipeActionCount - 1) * ACTION_GAP
   );
   let openThreshold = $derived(Math.min(64, actionTotalWidth * 0.42));
+  let leftRevealDistance = $derived(nativeIos ? Math.min(gestureRowWidth, Math.max(0, -swipeX)) : 0);
+  let rightRevealDistance = $derived(nativeIos ? Math.min(gestureRowWidth, Math.max(0, swipeX)) : 0);
   let leftRevealProgress = $derived(Math.min(1, Math.max(0, -swipeX / Math.max(1, actionTotalWidth))));
   let leftCascadeOffset = $derived(
     nativeIos && swipeActionCount > 1 ? (1 - leftRevealProgress) * actionButtonWidth : 0
+  );
+  let leftActionGrowth = $derived(
+    nativeIos
+      ? Math.max(0, leftRevealDistance - actionTotalWidth) / Math.max(1, swipeActionCount)
+      : 0
+  );
+  let leftActionWidth = $derived(actionButtonWidth + leftActionGrowth);
+  let leftOuterWidth = $derived(armedSide === "left" ? leftRevealDistance : leftActionWidth);
+  let leftArmedContentShift = $derived(
+    armedSide === "left" ? -Math.max(0, leftRevealDistance - actionButtonWidth) / 2 : 0
+  );
+  let rightActionWidth = $derived(Math.max(READ_ACTION_WIDTH, rightRevealDistance));
+  let rightArmedContentShift = $derived(
+    armedSide === "right" ? Math.max(0, rightRevealDistance - READ_ACTION_WIDTH) / 2 : 0
   );
   let leftActionsInteractive = $derived(!swiping && Math.abs(swipeX + actionTotalWidth) < 0.5);
   let rightActionInteractive = $derived(!swiping && Math.abs(swipeX - READ_ACTION_WIDTH) < 0.5);
@@ -147,6 +163,41 @@
     if (!open) markMenuDismissed();
   }
 
+  async function openNativeRowMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const source = event.currentTarget as HTMLButtonElement;
+    const rect = source.getBoundingClientRect();
+    snapTo(0);
+    const action = await platform().actionMenu.present({
+      source: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      actions: [
+        ...(hasSaveAction ? [{
+          id: "save",
+          title: savedState ? "Unsave" : "Save",
+          symbol: savedState ? "bookmark.fill" : "bookmark",
+          disabled: saving,
+        }] : []),
+        ...(!hasAdminAction && hasHideAction ? [{
+          id: "hide",
+          title: "Hide",
+          symbol: "eye.slash",
+          disabled: dismissing,
+        }] : []),
+        ...(hasAdminAction ? [{
+          id: "remove",
+          title: "Remove for everyone",
+          symbol: "nosign",
+          destructive: true,
+        }] : []),
+      ],
+    }).catch(() => null);
+    markMenuDismissed();
+    if (action === "save") void save();
+    else if (action === "hide") void dismiss();
+    else if (action === "remove") onBlockRequest?.(job);
+  }
+
   function snapTo(target: number, notifyOwner = true) {
     swipeBatch.cancel();
     swiping = false;
@@ -181,6 +232,7 @@
     if (value < -0.5) swipeSide = "left";
     else if (value > 0.5) swipeSide = "right";
     else swipeSide = null;
+    updateArmedState(value);
   }
 
   function renderedSwipeOffset(): number {
@@ -401,7 +453,6 @@
     const desired = startOffsetX + e.clientX - startX;
     if (nativeIos) {
       const nextOffset = Math.max(-gestureRowWidth, Math.min(gestureRowWidth, desired));
-      updateArmedState(nextOffset);
       swipeBatch.schedule(nextOffset);
       return;
     }
@@ -439,11 +490,13 @@
       class="swipe-actions swipe-actions-right"
       class:active-side={swipeSide === "right"}
       class:interactive={rightActionInteractive}
+      class:armed={armedSide === "right"}
+      style={`width: ${rightRevealDistance}px; --armed-content-shift: ${rightArmedContentShift}px;`}
       aria-hidden={!rightActionInteractive}
     >
       <button
         class="swipe-action read"
-        style:width={`${READ_ACTION_WIDTH}px`}
+        style:width={`${rightActionWidth}px`}
         aria-label={`Mark this job as ${viewed ? "unread" : "read"}`}
         tabindex={rightActionInteractive ? 0 : -1}
         onclick={(event) => { event.stopPropagation(); void toggleReadState(); }}
@@ -466,13 +519,15 @@
         class:save-backdrop={!hasAdminAction && hasSaveAction && !dismissing}
         class:danger-backdrop={hasAdminAction && !dismissing}
         class:hide-backdrop={!hasAdminAction && !hasSaveAction && !dismissing}
+        class:armed={armedSide === "left"}
+        style={`width: ${leftRevealDistance}px; --armed-content-shift: ${leftArmedContentShift}px;`}
         aria-hidden={!leftActionsInteractive}
       >
         {#if hasAdminAction}
           {#if hasSaveAction}
             <button
               class="swipe-action save cascade-action"
-              style:width={`${actionButtonWidth}px`}
+              style:width={`${leftActionWidth}px`}
               style:transform={`translate3d(${leftCascadeOffset}px, 0, 0)`}
               aria-label={`${savedState ? "Unsave" : "Save"} this job`}
               tabindex={leftActionsInteractive ? 0 : -1}
@@ -489,7 +544,7 @@
           {/if}
           <button
             class="swipe-action danger outer-action"
-            style:width={`${actionButtonWidth}px`}
+            style:width={`${leftOuterWidth}px`}
             aria-label="Remove this job for everyone"
             tabindex={leftActionsInteractive ? 0 : -1}
             onclick={(event) => { event.stopPropagation(); runNativePrimaryAction(); }}
@@ -508,7 +563,7 @@
               class="swipe-action hide"
               class:cascade-action={hasSaveAction}
               class:outer-action={!hasSaveAction}
-              style:width={`${actionButtonWidth}px`}
+              style:width={`${hasSaveAction ? leftActionWidth : leftOuterWidth}px`}
               style:transform={hasSaveAction ? `translate3d(${leftCascadeOffset}px, 0, 0)` : undefined}
               aria-label="Hide this job"
               tabindex={leftActionsInteractive ? 0 : -1}
@@ -526,7 +581,7 @@
           {#if hasSaveAction}
             <button
               class="swipe-action save outer-action"
-              style:width={`${actionButtonWidth}px`}
+              style:width={`${leftOuterWidth}px`}
               aria-label={`${savedState ? "Unsave" : "Save"} this job`}
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); void save(); }}
@@ -646,30 +701,39 @@
         role="presentation"
         onpointerdown={(event) => event.stopPropagation()}
       >
-        <DropdownMenu.Root bind:open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
-          <DropdownMenu.Trigger
+        {#if nativeIos}
+          <button
             class="icon-btn icon-btn-sm job-row__menu-trigger"
             aria-label="Actions for {job.title} at {job.company_name}"
+            onclick={openNativeRowMenu}
           >
             <DotsThreeVertical size={18} weight="bold" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              class={hasAdminAction ? "menu-surface job-more-menu" : "menu-surface job-more-menu job-row-more-menu"}
-              side="bottom"
-              align="end"
-              sideOffset={6}
-              collisionPadding={12}
-              strategy="fixed"
-              preventScroll={false}
+          </button>
+        {:else}
+          <DropdownMenu.Root bind:open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
+            <DropdownMenu.Trigger
+              class="icon-btn icon-btn-sm job-row__menu-trigger"
+              aria-label="Actions for {job.title} at {job.company_name}"
             >
-              {#if hasSaveAction && (!savedState || nativeIos)}
+              <DotsThreeVertical size={18} weight="bold" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                class={hasAdminAction ? "menu-surface job-more-menu" : "menu-surface job-more-menu job-row-more-menu"}
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                collisionPadding={12}
+                strategy="fixed"
+                preventScroll={false}
+              >
+              {#if hasSaveAction && !savedState}
                 <DropdownMenu.Item class="menu-item" disabled={saving} onSelect={() => void save()}>
-                  <BookmarkSimple size={17} weight={savedState ? "fill" : "regular"} />
-                  <span>{savedState ? "Unsave" : "Save"}</span>
+                  <BookmarkSimple size={17} weight="regular" />
+                  <span>Save</span>
                 </DropdownMenu.Item>
               {/if}
-              {#if !nativeIos || !hasAdminAction}
+              {#if !hasAdminAction}
                 <DropdownMenu.Item class="menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
                   <EyeSlash size={17} />
                   <span>Hide</span>
@@ -678,12 +742,13 @@
               {#if hasAdminAction}
                 <DropdownMenu.Item class="menu-item danger" onSelect={() => onBlockRequest?.(job)}>
                   <Prohibit size={17} />
-                  <span>{nativeIos ? "Remove for everyone" : "Block for everyone"}</span>
+                  <span>Block for everyone</span>
                 </DropdownMenu.Item>
               {/if}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        {/if}
         {#if nativeIos && savedState}
           <span class="job-row__saved-indicator" role="img" aria-label="Saved job" title="Saved">
             <BookmarkSimple size={14} weight="fill" aria-hidden="true" />
@@ -914,15 +979,22 @@
     visibility: hidden;
   }
 
+  .native-swipe .swipe-actions-left {
+    inset-block: 0;
+    inset-inline: auto 0;
+  }
+
+  .native-swipe .swipe-actions-right {
+    inset-block: 0;
+    inset-inline: 0 auto;
+    background: var(--color-ink-2);
+  }
+
   .native-swipe .swipe-actions.active-side { visibility: visible; }
   .native-swipe .swipe-actions.interactive { pointer-events: auto; }
 
   .native-swipe .swipe-actions-left.save-backdrop {
     background: var(--color-accent);
-  }
-
-  .native-swipe .swipe-actions-right {
-    background: var(--color-ink-2);
   }
 
   .native-swipe .swipe-actions-left.hide-backdrop,
@@ -952,12 +1024,16 @@
   }
 
   .native-swipe .cascade-action {
-    z-index: 2;
+    z-index: 1;
     transition: transform var(--duration-standard) var(--ease-standard);
   }
 
-  .native-swipe .outer-action { z-index: 1; }
+  .native-swipe .outer-action { z-index: 2; }
   .native-swipe.swiping .cascade-action { transition: none; }
+
+  .native-swipe .swipe-actions-left.armed .outer-action {
+    z-index: 3;
+  }
 
   .native-swipe .swipe-action.save {
     color: var(--color-accent-ink);
@@ -980,10 +1056,10 @@
   }
 
   .native-swipe .swipe-actions-left .swipe-action-content.armed {
-    transform: translateX(calc(-1 * var(--space-2)));
+    transform: translateX(var(--armed-content-shift));
   }
 
   .native-swipe .swipe-actions-right .swipe-action-content.armed {
-    transform: translateX(var(--space-2));
+    transform: translateX(var(--armed-content-shift));
   }
 </style>

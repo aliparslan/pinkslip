@@ -14,6 +14,19 @@ export interface AppleCredential {
   nonce?: string;
 }
 
+export interface PlatformActionMenuItem {
+  id: string;
+  title: string;
+  symbol?: string;
+  destructive?: boolean;
+  disabled?: boolean;
+}
+
+export interface PlatformActionMenuOptions {
+  source: { x: number; y: number; width: number; height: number };
+  actions: PlatformActionMenuItem[];
+}
+
 export interface PlatformRuntime {
   readonly kind: PlatformKind;
   initialize(): Promise<void>;
@@ -30,6 +43,9 @@ export interface PlatformRuntime {
   haptics: {
     light(): void;
     success(): void;
+  };
+  actionMenu: {
+    present(options: PlatformActionMenuOptions): Promise<string | null>;
   };
   shareLink(options: { title?: string; text?: string; url: string }): Promise<void>;
   openApplication(url: string, onFinished?: () => void): Promise<() => void>;

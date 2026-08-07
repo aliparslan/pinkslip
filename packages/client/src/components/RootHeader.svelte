@@ -20,29 +20,33 @@
   } = $props();
 
   let headerElement: HTMLElement | undefined = $state();
-  let collapseProgress = $state(0);
+  let compact = $state(false);
   let searchExpanded = $state(false);
   let displayedTitle = $derived(
     headerChrome.rootTitle?.id === ownerId
       ? headerChrome.rootTitle?.value().trim() || title
       : title,
   );
-  let compact = $derived(collapseProgress >= 0.86);
-  let innerHeight = $derived(`${90 - collapseProgress * 34}px`);
-  let titleSize = $derived(`${40 - collapseProgress * 20}px`);
-  let bottomPadding = $derived(`${12 - collapseProgress * 4}px`);
-
-  function updateCollapse() {
-    const scrollTop = scrollContainer()?.scrollTop ?? 0;
-    collapseProgress = Math.min(1, Math.max(0, scrollTop / 52));
+  function updateCompactTitle() {
+    if (!collapsible || !headerElement) {
+      compact = false;
+      return;
+    }
+    const anchor = headerElement.parentElement?.querySelector<HTMLElement>("[data-root-title-anchor]");
+    if (!anchor) {
+      compact = false;
+      return;
+    }
+    const scrollerTop = scrollContainer()?.getBoundingClientRect().top ?? 0;
+    compact = anchor.getBoundingClientRect().bottom <= scrollerTop + headerElement.offsetHeight;
   }
 
-  const collapseBatch = createFrameBatch<undefined>(updateCollapse);
+  const collapseBatch = createFrameBatch<undefined>(updateCompactTitle);
   const scheduleCollapse = () => collapseBatch.schedule(undefined);
 
   $effect(() => {
     void title;
-    collapseProgress = 0;
+    compact = false;
     const scroller = scrollContainer();
     if (!collapsible || !scroller || !headerElement) return;
     scroller.addEventListener("scroll", scheduleCollapse, { passive: true });
@@ -54,29 +58,43 @@
       collapseBatch.cancel();
     };
   });
+
+  $effect(() => {
+    if (!compact) searchExpanded = false;
+  });
 </script>
 
-<header
-  bind:this={headerElement}
-  class="root-header"
-  class:collapsible
-  class:compact
-  class:search-expanded={searchExpanded}
-  style="--root-inner-height: {innerHeight}; --root-title-size: {titleSize}; --root-bottom-padding: {bottomPadding};"
->
-  <div class="root-header-inner">
-    <div class="root-header-copy">
-      <h1>{displayedTitle}</h1>
-      {#if subtitle}<p>{subtitle}</p>{/if}
+{#if collapsible}
+  <header
+    bind:this={headerElement}
+    class="root-header root-header-native"
+    class:compact
+    class:search-expanded={searchExpanded}
+  >
+    <div class="root-header-leading" aria-hidden="true"></div>
+    <div class="root-header-compact-title" aria-hidden={!compact}>{displayedTitle}</div>
+    <div class="root-header-native-trailing">
+      {#if trailing}<div class="root-header-trailing">{@render trailing()}</div>{/if}
+      <div class="root-header-search" class:expanded={searchExpanded}>
+        <HeaderSearch visible={compact} {ownerId} bind:expanded={searchExpanded} />
+      </div>
     </div>
-    {#if trailing}
-      <div class="root-header-trailing">{@render trailing()}</div>
-    {/if}
-    <div class="root-header-search" class:expanded={searchExpanded}>
-      <HeaderSearch visible={compact} {ownerId} bind:expanded={searchExpanded} />
-    </div>
+  </header>
+  <div class="root-header-large" data-root-title-anchor>
+    <h1>{displayedTitle}</h1>
+    {#if subtitle}<p>{subtitle}</p>{/if}
   </div>
-</header>
+{:else}
+  <header bind:this={headerElement} class="root-header">
+    <div class="root-header-inner">
+      <div class="root-header-copy">
+        <h1>{displayedTitle}</h1>
+        {#if subtitle}<p>{subtitle}</p>{/if}
+      </div>
+      {#if trailing}<div class="root-header-trailing">{@render trailing()}</div>{/if}
+    </div>
+  </header>
+{/if}
 
 <style>
   .root-header {
@@ -109,11 +127,11 @@
   .root-header h1 {
     margin: 0;
     color: var(--color-ink);
-    font-family: var(--font-pixel);
+    font-family: var(--font-display);
     font-size: var(--fs-root-title);
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
   }
 
   .root-header p {
@@ -132,45 +150,92 @@
     display: none;
   }
 
-  .root-header.collapsible {
+  .root-header-native {
     position: sticky;
     top: 0;
     z-index: 10;
+    min-height: calc(var(--safe-top) + var(--screen-nav-height));
     padding-top: var(--safe-top);
-    background: var(--color-bg);
+    display: grid;
+    grid-template-columns: minmax(var(--tap-min), 1fr) minmax(0, auto) minmax(var(--tap-min), 1fr);
+    align-items: center;
+    padding-inline: 10px;
   }
 
-  .root-header.collapsible .root-header-inner {
-    position: relative;
-    min-height: var(--root-inner-height);
-    padding-bottom: var(--root-bottom-padding);
+  .root-header-leading,
+  .root-header-native-trailing {
+    min-width: var(--tap-min);
   }
 
-  .root-header.collapsible .root-header-copy {
-    flex: 1;
-  }
-
-  .root-header.collapsible h1 {
+  .root-header-compact-title {
+    max-width: min(46vw, 300px);
     overflow: hidden;
-    font-size: var(--root-title-size);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: 0;
+    text-align: center;
     text-overflow: ellipsis;
+    transform: translateY(4px);
+    transition:
+      opacity var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
     white-space: nowrap;
   }
 
-  .root-header.collapsible .root-header-search {
+  .root-header-native.compact .root-header-compact-title {
+    opacity: 1;
+    transform: none;
+  }
+
+  .root-header-native-trailing {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .root-header-native .root-header-search {
     flex: none;
     display: block;
   }
 
-  .root-header.collapsible .root-header-search.expanded {
+  .root-header-native .root-header-search.expanded {
     position: absolute;
-    inset-inline: var(--screen-gutter);
+    inset-inline: 10px;
     bottom: 6px;
   }
 
-  .root-header.collapsible.search-expanded {
-    --root-header-copy-opacity: 0;
-    --root-header-copy-pointer-events: none;
+  .root-header-native.search-expanded .root-header-compact-title,
+  .root-header-native.search-expanded .root-header-trailing {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .root-header-large {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--space-5) var(--screen-gutter) var(--space-10);
+  }
+
+  .root-header-large h1 {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-root-title);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .root-header-large p {
+    margin: var(--space-2) 0 0;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.35;
   }
 
   @media (min-width: 900px) {

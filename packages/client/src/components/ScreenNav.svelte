@@ -65,6 +65,10 @@
       titleBatch.cancel();
     };
   });
+
+  $effect(() => {
+    if (!compactTitleVisible) searchExpanded = false;
+  });
 </script>
 
 <header
