@@ -26,6 +26,7 @@
   } = $props();
 
   const TOTAL_STEPS = 3;
+  const nativeIos = isNativeIos();
 
   let step = $state(1);
   let saving = $state(false);
@@ -170,7 +171,7 @@
   }
 </script>
 
-<div class="onboarding">
+<div class="onboarding" class:native-layout={nativeIos}>
   <header class="onboarding-header">
     <div class="onboarding-header-row">
       <button
@@ -222,7 +223,7 @@
 
       {:else if step === 2}
         <section class="onboarding-step">
-          <h1 tabindex="-1">Set your preferences</h1>
+          <h1 tabindex="-1">{nativeIos ? "Set your preferences" : "Set your work preferences"}</h1>
           <div class="onboarding-fields onboarding-fields-after-title">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
@@ -418,7 +419,7 @@
     line-height: 1.15;
   }
 
-  .onboarding h1:focus { outline: none; }
+  .onboarding.native-layout h1:focus { outline: none; }
 
   .onboarding-copy {
     max-width: 42ch;

@@ -365,7 +365,7 @@
       <strong>{label}</strong>
       <small>{detail}</small>
     </span>
-    <CaretRight size={16} weight="bold" />
+    <CaretRight size={16} weight={nativeIos ? "bold" : "regular"} />
   </button>
 {/snippet}
 
