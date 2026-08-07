@@ -208,8 +208,10 @@
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
     foreground.style.opacity = "1";
-    await nextFrame();
     foreground.style.visibility = "visible";
+    // Swap the live destination over its matching snapshot in the same frame.
+    // Waiting before restoring visibility left one blank WKWebView frame after
+    // back navigation, which read as the page disappearing and returning.
     await nextFrame();
   }
 

@@ -400,7 +400,7 @@
   .native-layout .location-chip,
   .native-layout .work-mode-trigger {
     border-color: var(--color-control-border);
-    background: var(--color-control-bg);
+    background: var(--color-input-bg);
   }
 
   .native-layout .choice-card.active,

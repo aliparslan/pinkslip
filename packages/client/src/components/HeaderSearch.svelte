@@ -35,6 +35,17 @@
     toggle?.focus({ preventScroll: true });
   }
 
+  function clearOrClose() {
+    if (!registration) return;
+    if (value) {
+      registration.onInput("");
+      registration.onSubmit?.("");
+      input?.focus({ preventScroll: true });
+      return;
+    }
+    void close();
+  }
+
   function commit(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -69,7 +80,11 @@
         oninput={(event) => registration?.onInput(event.currentTarget.value)}
         onkeydown={commit}
       />
-      <button type="button" aria-label="Close search" onclick={() => void close()}>
+      <button
+        type="button"
+        aria-label={value ? "Clear search" : "Close search"}
+        onclick={clearOrClose}
+      >
         <X size={18} weight="bold" aria-hidden="true" />
       </button>
     {:else if visible}

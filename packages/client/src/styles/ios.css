@@ -123,6 +123,25 @@ html.native-ios .feed-search {
   background: var(--color-input-bg);
 }
 
+html.native-ios .feed-search__clear {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  flex: none;
+  margin-inline-end: calc(var(--space-3) * -1);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink-3);
+}
+
+html.native-ios .filter-location-select > summary,
+html.native-ios .filter-location-select[open] > summary {
+  background: var(--color-input-bg);
+}
+
 html.native-ios .filter-button {
   padding-inline: var(--space-3);
   background: var(--color-control-bg);

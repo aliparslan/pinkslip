@@ -25,7 +25,7 @@
   import { fade, fly } from "svelte/transition";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Check from "phosphor-svelte/lib/Check";
-  import ClockCountdown from "phosphor-svelte/lib/ClockCountdown";
+  import ArrowClockwise from "phosphor-svelte/lib/ArrowClockwise";
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
@@ -615,6 +615,15 @@
     void applyFeedFilters({ searchQuery: value });
   }
 
+  function clearSearch() {
+    if (searchTimer !== null) {
+      window.clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    feed.searchQuery = "";
+    void applyFeedFilters({ searchQuery: "" });
+  }
+
   async function triggerRefresh() {
     if (refreshing) return;
     refreshing = true;
@@ -831,8 +840,8 @@
   <!-- Search and filtering share one compact control surface. -->
   <div class="feed-controls">
     <div class="feed-toolbar">
-      <label class="feed-search">
-        <MagnifyingGlass size={16} aria-hidden="true" />
+      <div class="feed-search" role="search">
+        <MagnifyingGlass size={17} weight="bold" aria-hidden="true" />
         <input
           type="search"
           enterkeyhint="search"
@@ -842,7 +851,12 @@
           oninput={(event) => scheduleSearch(event.currentTarget.value)}
           onkeydown={commitSearch}
         />
-      </label>
+        {#if nativeIos && feed.searchQuery}
+          <button type="button" class="feed-search__clear" aria-label="Clear search" onclick={clearSearch}>
+            <X size={18} weight="bold" aria-hidden="true" />
+          </button>
+        {/if}
+      </div>
       <button
         class="filter-button"
         class:active={activeFilterCount > 0}
@@ -866,7 +880,7 @@
       role="status"
       aria-hidden={!pullArmed && !refreshing}
     >
-      <ClockCountdown size={17} weight="bold" aria-hidden="true" />
+      <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
       <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
     </div>
   </div>
