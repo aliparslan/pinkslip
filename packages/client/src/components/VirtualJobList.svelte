@@ -29,6 +29,7 @@
   let endIndex = $state(20);
   let topSpacer = $state(0);
   let bottomSpacer = $state(0);
+  let activeSwipeId: string | null = $state(null);
   let frame: number | null = null;
   const measuredHeights = new Map<string, number>();
   let cumulativeHeights: number[] = [0];
@@ -104,6 +105,11 @@
     frame = window.requestAnimationFrame(recalculate);
   }
 
+  function handleScroll() {
+    activeSwipeId = null;
+    scheduleRecalculate();
+  }
+
   function measureRow(node: HTMLElement, id: string) {
     const observer = new ResizeObserver((entries) => {
       const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? entries[0]?.contentRect.height ?? 0;
@@ -130,6 +136,7 @@
     for (const id of measuredHeights.keys()) {
       if (!activeIds.has(id)) measuredHeights.delete(id);
     }
+    if (activeSwipeId && !activeIds.has(activeSwipeId)) activeSwipeId = null;
     rebuildCumulativeHeights();
     scheduleRecalculate();
   });
@@ -140,11 +147,11 @@
 
     const resizeObserver = new ResizeObserver(scheduleRecalculate);
     resizeObserver.observe(scroller);
-    scroller.addEventListener("scroll", scheduleRecalculate, { passive: true });
+    scroller.addEventListener("scroll", handleScroll, { passive: true });
     scheduleRecalculate();
 
     return () => {
-      scroller.removeEventListener("scroll", scheduleRecalculate);
+      scroller.removeEventListener("scroll", handleScroll);
       resizeObserver.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
@@ -162,6 +169,8 @@
         {onRestore}
         {onSaved}
         {onBlockRequest}
+        {activeSwipeId}
+        onSwipeOpen={(id) => (activeSwipeId = id)}
       />
     </div>
   {/each}
