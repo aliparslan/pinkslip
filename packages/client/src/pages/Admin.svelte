@@ -10,8 +10,9 @@
   import Companies from "./Companies.svelte";
   import { isIosApp } from "../lib/platform";
 
+  const nativeIos = isIosApp();
   const destinations = [
-    { path: "/admin", label: "Manage app" },
+    { path: "/admin", label: nativeIos ? "Manage" : "Manage app" },
     { path: "/admin/inbox", label: "Inbox" },
     { path: "/admin/sources", label: "Sources" },
     { path: "/admin/runs", label: "Runs" },
@@ -19,7 +20,6 @@
 
   let route = $derived($currentRoute);
   let active = $derived(destinations.find((destination) => destination.path === route) ?? destinations[0]);
-  const nativeIos = isIosApp();
 
   function backToYou() {
     if (!requestBack()) navigate("/you");
@@ -188,11 +188,11 @@
     margin: 0 0 var(--space-6);
     display: block;
     color: var(--color-ink);
-    font-family: var(--font-display);
+    font-family: var(--font-heading);
     font-size: var(--fs-4xl);
     font-weight: 600;
-    letter-spacing: -0.022em;
-    line-height: 1.08;
+    letter-spacing: var(--tracking-screen-title);
+    line-height: var(--leading-screen-title);
     text-wrap: balance;
   }
 

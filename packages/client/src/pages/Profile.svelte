@@ -517,9 +517,9 @@
 
         {#if isAdmin}
           <section>
-            <h2 class="section-eyebrow you-section-heading">Admin</h2>
+            <h2 class="section-eyebrow you-section-heading">{nativeIos ? "Manage app" : "Admin"}</h2>
             <div class="surface-list">
-              {@render destinationRow(nativeIos ? "Manage app" : "Admin workspace", "Product health and moderation", "/admin", Wrench)}
+              {@render destinationRow(nativeIos ? "Admin console" : "Admin workspace", "Product health and moderation", "/admin", Wrench)}
             </div>
           </section>
         {/if}

@@ -3,6 +3,7 @@ import { initializeIosPlatform } from "./platform";
 import { mountApp } from "../../../packages/client/src/mount-app";
 import "../../../packages/client/src/app.css";
 import "../../../packages/client/src/styles/ios.css";
+import "./typography.css";
 
 try {
   await initializeIosPlatform();

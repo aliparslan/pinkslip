@@ -716,11 +716,11 @@
   }
 
   .native-layout .job-detail-title {
-    font-family: var(--font-display);
+    font-family: var(--font-heading);
     font-size: var(--fs-2xl);
     font-weight: 600;
-    letter-spacing: -0.025em;
-    line-height: 1.12;
+    letter-spacing: var(--tracking-screen-title);
+    line-height: var(--leading-screen-title);
   }
 
   .native-layout .job-description-heading {

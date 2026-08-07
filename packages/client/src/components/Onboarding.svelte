@@ -412,11 +412,11 @@
     max-width: 18ch;
     margin: 0 0 var(--space-3);
     color: var(--color-ink);
-    font-family: var(--font-display);
+    font-family: var(--font-heading);
     font-size: var(--fs-4xl);
     font-weight: 600;
-    letter-spacing: -0.035em;
-    line-height: 1.08;
+    letter-spacing: var(--tracking-root-title);
+    line-height: var(--leading-root-title);
   }
 
   .onboarding.native-layout h1:focus { outline: none; }

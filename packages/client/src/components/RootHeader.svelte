@@ -127,11 +127,11 @@
   .root-header h1 {
     margin: 0;
     color: var(--color-ink);
-    font-family: var(--font-display);
+    font-family: var(--font-heading);
     font-size: var(--fs-root-title);
     font-weight: 600;
-    letter-spacing: -0.035em;
-    line-height: 1.08;
+    letter-spacing: var(--tracking-root-title);
+    line-height: var(--leading-root-title);
   }
 
   .root-header p {
@@ -232,11 +232,11 @@
   .root-header-large h1 {
     margin: 0;
     color: var(--color-ink);
-    font-family: var(--font-display);
+    font-family: var(--font-heading);
     font-size: var(--fs-root-title);
     font-weight: 600;
-    letter-spacing: -0.035em;
-    line-height: 1.08;
+    letter-spacing: var(--tracking-root-title);
+    line-height: var(--leading-root-title);
     text-wrap: balance;
   }
 

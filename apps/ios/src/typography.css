@@ -1,0 +1,38 @@
+/* iOS-only product typography. The body face is optically normalized against
+   the previous Geist metrics so controls retain their established CSS sizes. */
+@font-face {
+  font-family: "Pinkslip Untitled Sans";
+  src: url("./fonts/untitled-sans-vf-roman.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  size-adjust: 97%;
+}
+
+@font-face {
+  font-family: "Pinkslip Untitled Sans";
+  src: url("./fonts/untitled-sans-vf-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  size-adjust: 97%;
+}
+
+@font-face {
+  font-family: "Pinkslip Founders Grotesk";
+  src: url("./fonts/founders-grotesk-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --font-heading: "Pinkslip Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --leading-body: 1.46;
+  --leading-root-title: 1.12;
+  --leading-screen-title: 1.14;
+  --tracking-root-title: -0.012em;
+  --tracking-screen-title: -0.01em;
+}

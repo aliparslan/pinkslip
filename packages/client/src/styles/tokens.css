@@ -64,6 +64,13 @@
   --font-display: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: var(--font-display);
+
+  --leading-body: 1.5;
+  --leading-root-title: 1.08;
+  --leading-screen-title: 1.12;
+  --tracking-root-title: -0.035em;
+  --tracking-screen-title: -0.022em;
 
   --radius-xs: 6px;
   --radius-sm: 6px;

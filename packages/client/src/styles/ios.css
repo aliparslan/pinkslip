@@ -212,11 +212,11 @@ html.native-ios .native-layout .location-chip.active {
 .screen-large-title {
   margin: var(--space-2) 0 var(--space-6);
   color: var(--color-ink);
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--fs-4xl);
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.08;
+  letter-spacing: var(--tracking-screen-title);
+  line-height: var(--leading-screen-title);
   text-wrap: balance;
 }
 
@@ -326,8 +326,10 @@ html.native-ios .sheet-backdrop {
 }
 
 .nav-underlay-fallback__header.root strong {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--fs-4xl);
+  letter-spacing: var(--tracking-screen-title);
+  line-height: var(--leading-screen-title);
   text-align: left;
 }
 
