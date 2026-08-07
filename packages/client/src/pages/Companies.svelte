@@ -13,6 +13,7 @@
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
   import PageFailure from "../components/PageFailure.svelte";
+  import EmptyState from "../components/EmptyState.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
   import Plus from "phosphor-svelte/lib/Plus";
   import { isIosApp } from "../lib/platform";
@@ -649,14 +650,23 @@
         </div>
       {/if}
     {:else if filteredCompanies.length === 0 && !showRequestCandidate}
-      <div class="empty-state">
-        <div class="h-display h-display-sm empty-state-title">
-          No companies found
+      {#if nativeIos}
+        <EmptyState
+          title="No companies found"
+          message={isAdminMode
+            ? "Adjust your filters or add a company."
+            : selectedView === "Hidden"
+              ? "You haven’t hidden any companies."
+              : "Try a different company name."}
+        />
+      {:else}
+        <div class="empty-state">
+          <div class="h-display h-display-sm empty-state-title">No companies found</div>
+          <div class="empty-state-copy">
+            {isAdminMode ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You haven’t hidden any companies." : "Try a different company name."}
+          </div>
         </div>
-        <div class="empty-state-copy">
-          {isAdminMode ? "Adjust your filters or add a company." : selectedView === "Hidden" ? "You haven’t hidden any companies." : "Try a different company name."}
-        </div>
-      </div>
+      {/if}
     {:else}
       <div class="surface-list company-list">
         {#each visibleCompanies as company (company.id)}

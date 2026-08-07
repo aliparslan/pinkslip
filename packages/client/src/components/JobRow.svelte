@@ -59,6 +59,7 @@
   let swiping: boolean = $state(false);
   let swipeSide: SwipeSide | null = $state(null);
   let armedSide: SwipeSide | null = $state(null);
+  let armTransitioning = $state(false);
   let startX = 0;
   let startY = 0;
   let startOffsetX = 0;
@@ -206,6 +207,7 @@
     swipeBatch.cancel();
     swiping = false;
     armedSide = null;
+    armTransitioning = false;
     if (target < -0.5) swipeSide = "left";
     else if (target > 0.5) swipeSide = "right";
     else if (Math.abs(renderedSwipeOffset()) < 0.5) swipeSide = null;
@@ -227,8 +229,19 @@
       : value >= threshold
         ? "right"
         : null;
-    if (nextArmedSide !== armedSide && (nextArmedSide || armedSide)) hapticLight();
+    if (nextArmedSide !== armedSide && (nextArmedSide || armedSide)) {
+      armTransitioning = true;
+      hapticLight();
+    }
     armedSide = nextArmedSide;
+  }
+
+  function handleArmTransitionEnd(event: TransitionEvent) {
+    if (!armTransitioning || event.propertyName !== "transform") return;
+    const target = event.target;
+    if (target instanceof HTMLElement && target.classList.contains("swipe-action-content")) {
+      armTransitioning = false;
+    }
   }
 
   function applySwipeOffset(value: number) {
@@ -280,6 +293,7 @@
     dismissing = true;
     swipeSide = "left";
     armedSide = null;
+    armTransitioning = false;
     swipeX = -(rowEl?.offsetWidth ?? 420);
     const request = nativeIos ? action() : null;
     await delay(nativeIos && prefersReducedMotion() ? 0 : nativeIos ? 220 : 240);
@@ -385,6 +399,7 @@
     pointerId = null;
     axisLock = "pending";
     armedSide = null;
+    armTransitioning = false;
     if (!wasHorizontalSwipe) return;
     suppressClickUntil = performance.now() + 360;
     if (nativeIos) {
@@ -423,6 +438,7 @@
     axisLock = "pending";
     swiping = false;
     armedSide = null;
+    armTransitioning = false;
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -488,6 +504,8 @@
   class:card-surface={surface === "card"}
   class:native-swipe={nativeIos}
   class:swiping
+  class:arm-transitioning={armTransitioning}
+  ontransitionend={handleArmTransitionEnd}
 >
   {#if nativeIos && swipeActions}
     <div
@@ -532,7 +550,7 @@
             <button
               class="swipe-action save cascade-action"
               style:width={`${leftActionWidth}px`}
-              style:transform={`translate3d(${leftCascadeOffset}px, 0, 0)`}
+              style:transform={`translate3d(${leftCascadeOffset + (armedSide === "left" ? leftActionWidth : 0)}px, 0, 0)`}
               aria-label={`${savedState ? "Unsave" : "Save"} this job`}
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); void save(); }}
@@ -568,7 +586,7 @@
               class:cascade-action={hasSaveAction}
               class:outer-action={!hasSaveAction}
               style:width={`${hasSaveAction ? leftActionWidth : leftOuterWidth}px`}
-              style:transform={hasSaveAction ? `translate3d(${leftCascadeOffset}px, 0, 0)` : undefined}
+              style:transform={hasSaveAction ? `translate3d(${leftCascadeOffset + (armedSide === "left" ? leftActionWidth : 0)}px, 0, 0)` : undefined}
               aria-label="Hide this job"
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); runNativePrimaryAction(); }}
@@ -1032,6 +1050,10 @@
     transition: none;
   }
 
+  .native-swipe.swiping.arm-transitioning .swipe-action-content {
+    transition: transform var(--duration-instant) var(--ease-standard);
+  }
+
   .native-swipe .cascade-action {
     z-index: 1;
     transition: transform var(--duration-standard) var(--ease-standard);
@@ -1043,12 +1065,12 @@
   }
   .native-swipe.swiping .cascade-action { transition: none; }
 
-  .native-swipe .swipe-actions-left.armed .outer-action {
-    z-index: 3;
+  .native-swipe.swiping.arm-transitioning .cascade-action {
+    transition: transform var(--duration-instant) var(--ease-standard);
   }
 
-  .native-swipe .swipe-actions-left.armed .cascade-action {
-    visibility: hidden;
+  .native-swipe .swipe-actions-left.armed .outer-action {
+    z-index: 3;
   }
 
   .native-swipe .swipe-action.save {

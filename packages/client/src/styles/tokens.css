@@ -107,6 +107,9 @@
   --color-control-border: oklch(0.37 0.007 285);
   --color-control-active-bg: oklch(0.145 0.004 285);
   --color-control-active-ink: oklch(0.98 0.002 285);
+  --color-control-selected-bg: oklch(0.37 0.007 285);
+  --color-control-selected-ink: oklch(0.98 0.002 285);
+  --color-control-selected-border: oklch(0.5 0.007 285);
   --color-scrim: oklch(0 0 0 / 0.52);
   /* Image edges only. Must stay pure white/black with alpha — a tinted neutral
      picks up whatever surface sits behind it and reads as dirt on the edge. */
@@ -119,7 +122,6 @@
   --shadow-overlay-lg: 0 24px 80px oklch(0 0 0 / 0.36);
   --shadow-toast: 0 12px 36px oklch(0 0 0 / 0.25);
   --shadow-sheet: 0 -8px 32px oklch(0 0 0 / 0.3);
-  --shadow-nav-swipe: -12px 0 28px oklch(0 0 0 / 0.34);
 }
 
 [data-mode="light"] {
@@ -158,6 +160,9 @@
   --color-control-border: oklch(0.835 0.004 80);
   --color-control-active-bg: oklch(1 0 0);
   --color-control-active-ink: oklch(0.18 0.006 285);
+  --color-control-selected-bg: oklch(0.255 0.006 285);
+  --color-control-selected-ink: oklch(0.99 0.002 80);
+  --color-control-selected-border: oklch(0.255 0.006 285);
   --color-scrim: oklch(0.12 0.006 285 / 0.38);
   --color-nav-dim: oklch(0.12 0.006 285);
   --color-image-outline: oklch(0 0 0 / 0.1);
@@ -167,7 +172,6 @@
   --shadow-overlay-lg: 0 24px 80px oklch(0.16 0.01 285 / 0.18);
   --shadow-toast: 0 12px 34px oklch(0.16 0.01 285 / 0.14);
   --shadow-sheet: 0 -8px 32px oklch(0.16 0.01 285 / 0.14);
-  --shadow-nav-swipe: -12px 0 28px oklch(0.16 0.01 285 / 0.16);
 }
 
 @media (prefers-reduced-motion: reduce) {

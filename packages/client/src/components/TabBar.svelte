@@ -9,11 +9,9 @@
   let {
     mobileHidden = false,
     activeRouteOverride,
-    element = $bindable(),
   }: {
     mobileHidden?: boolean;
     activeRouteOverride?: string;
-    element?: HTMLElement;
   } = $props();
 
   let navigationInert = $derived(mobileHidden);
@@ -41,7 +39,6 @@
 </script>
 
 <nav
-  bind:this={element}
   class="tab-bar"
   class:mobile-hidden={mobileHidden}
   inert={navigationInert}
@@ -91,12 +88,7 @@
 
   :global(html.native-ios) .tab-bar {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
     visibility: visible;
-    will-change: transform;
-    transition:
-      transform var(--duration-route, 280ms) var(--ease-standard),
-      visibility 0s linear;
   }
   .tab-bar__inner {
     width: 100%;
@@ -165,14 +157,7 @@
     }
 
     :global(html.native-ios) .tab-bar.mobile-hidden {
-      display: block;
-      opacity: 1;
-      pointer-events: none;
-      transform: translate3d(0, 100%, 0);
-      visibility: hidden;
-      transition:
-        transform var(--duration-route, 280ms) var(--ease-standard),
-        visibility 0s linear var(--duration-route, 280ms);
+      display: none;
     }
   }
 

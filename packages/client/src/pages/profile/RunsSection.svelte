@@ -3,7 +3,8 @@
   import { api, type FetchRun } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import Spinner from "../../components/Spinner.svelte";
-  import PageFailure from "../../components/PageFailure.svelte";
+  import EmptyState from "../../components/EmptyState.svelte";
+  import InlineFailure from "../../components/InlineFailure.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
 
   let {
@@ -114,7 +115,7 @@
 {#if loading}
   <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading runs" /></div>
 {:else if nativeIos && loadError}
-  <PageFailure title="Runs didn’t load" message="Check your connection and try again." onRetry={() => void loadRuns()} />
+  <InlineFailure title="Runs didn’t load" onRetry={() => void loadRuns()} />
 {:else}
   <section class="admin-section">
     <div class="admin-section-heading"><h2>Operations</h2></div>
@@ -144,7 +145,11 @@
     <div class="admin-section-heading"><h2>Recent runs</h2><span>{runs.length} loaded</span></div>
     <div class="surface-list">
       {#if runs.length === 0}
-        <div class="surface-empty">No fetch runs yet.</div>
+        {#if nativeIos}
+          <EmptyState compact title="No fetch runs yet" message="New fetch runs will appear here." />
+        {:else}
+          <div class="surface-empty">No fetch runs yet.</div>
+        {/if}
       {:else}
         {#each runs.slice(0, 12) as run}
           {@const issues = parseRunIssues(run.errors_json)}

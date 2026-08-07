@@ -10,6 +10,8 @@ application code should not invent visually equivalent one-offs.
 | --- | --- | --- |
 | Progress indicator | `Spinner.svelte` | `size`, accessible `label` |
 | Page-level recovery | `PageFailure.svelte` | concise title, recovery message, optional retry and secondary actions |
+| Empty collection / first use | `EmptyState.svelte` | concise title, optional orientation copy, icon, and one next action; `compact` for embedded sections |
+| Partial-load recovery | `InlineFailure.svelte` | local title, recovery message, optional retry without replacing the whole page |
 | Boolean setting | `Switch.svelte` | controlled checked state and accessible label |
 | Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase` |
 | Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, dismiss callback, content/actions snippets |
@@ -41,6 +43,11 @@ These live in `app.css` while the component API is migrated incrementally.
 | Menu surface/item | `.menu-surface` + `.menu-item`, optional `.danger` | feature-local menu resets |
 | Layout | `.stack-*`, `.split-row`, `.action-grid`, `.button-cluster`, `.flex-fill` | bespoke spacing wrappers |
 | Truncation | `.truncate` | repeated overflow/ellipsis bundles |
+
+State hierarchy is fixed: `.page-loading` + `Spinner` while an initial page is
+loading; `PageFailure` when the whole page cannot render; `InlineFailure` when
+only one section failed; `EmptyState` for empty/first-use collections;
+`SaveStatus` for persistence; and `Modal` for destructive confirmation.
 
 Valid class combinations should express one clear hierarchy. For example,
 `btn-primary btn-accent full-width` is a single emphasized block action;

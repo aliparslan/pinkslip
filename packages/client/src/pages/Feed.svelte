@@ -17,6 +17,7 @@
   import Switch from "../components/Switch.svelte";
   import Modal from "../components/Modal.svelte";
   import PageFailure from "../components/PageFailure.svelte";
+  import EmptyState from "../components/EmptyState.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { Dialog, Slider } from "bits-ui";
   import { flip } from "svelte/animate";
@@ -222,6 +223,22 @@
   // it selects a view rather than narrowing one, so clearing it would bounce the
   // user out of the saved list they deliberately opened.
   let refinableFilterCount = $derived(activeFilterCount - (effectiveSavedOnly ? 1 : 0));
+  let feedEmptyTitle = $derived(
+    refinableFilterCount > 0
+      ? effectiveSavedOnly ? "No saved jobs match your filters" : "No jobs match your filters"
+      : effectiveSavedOnly ? "No saved jobs yet" : "No jobs right now"
+  );
+  let feedEmptyMessage = $derived(
+    feed.postedFilter === "evergreen"
+      ? nativeIos
+        ? "No older jobs match your other filters."
+        : "No standing or aged-but-open roles match your other filters."
+      : refinableFilterCount > 0
+        ? "Try widening or clearing your filters."
+        : effectiveSavedOnly
+          ? "Save roles from the detail view to keep them handy."
+          : "New roles show up here as they’re posted."
+  );
   let draftHasLocationFilter = $derived(
     !(draftSelectedLocations.length === 1 && draftSelectedLocations[0] === "All")
   );
@@ -887,39 +904,35 @@
         <div class="alert alert-error feed-error" role="alert">{error}</div>
       {/if}
     {:else if feed.jobs.length === 0}
-      <div class="empty-state">
-        <h2 class="h-display h-display-sm empty-state-title">
-          {#if refinableFilterCount > 0}
-            {effectiveSavedOnly ? "No saved jobs match your filters" : "No jobs match your filters"}
-          {:else if effectiveSavedOnly}
-            No saved jobs yet
-          {:else}
-            No jobs right now
-          {/if}
-        </h2>
-        <div class="empty-state-copy feed-empty-copy">
-          {#if feed.postedFilter === "evergreen"}
-            {nativeIos ? "No open longer-term roles match your other filters." : "No standing or aged-but-open roles match your other filters."}
-          {:else if refinableFilterCount > 0}
-            Try widening or clearing your filters.
-          {:else if effectiveSavedOnly}
-            Save roles from the detail view to keep them handy.
-          {:else}
-            New roles show up here as they’re posted.
-          {/if}
-        </div>
-        <div class="button-cluster center">
-          {#if refinableFilterCount > 0}
-            <button class="btn-secondary" onclick={clearRefinableFilters}>
-              Clear filters
+      {#if nativeIos}
+        <EmptyState title={feedEmptyTitle} message={feedEmptyMessage}>
+          {#snippet actions()}
+            {#if refinableFilterCount > 0}
+              <button class="btn-secondary" onclick={clearRefinableFilters}>
+                Clear filters
+              </button>
+            {/if}
+            <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
+              {#if refreshing}<Spinner />{/if}
+              Refresh now
             </button>
-          {/if}
-          <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
-            {#if refreshing}<Spinner />{/if}
-            Refresh now
-          </button>
+          {/snippet}
+        </EmptyState>
+      {:else}
+        <div class="empty-state">
+          <h2 class="h-display h-display-sm empty-state-title">{feedEmptyTitle}</h2>
+          <div class="empty-state-copy feed-empty-copy">{feedEmptyMessage}</div>
+          <div class="button-cluster center">
+            {#if refinableFilterCount > 0}
+              <button class="btn-secondary" onclick={clearRefinableFilters}>Clear filters</button>
+            {/if}
+            <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
+              {#if refreshing}<Spinner />{/if}
+              Refresh now
+            </button>
+          </div>
         </div>
-      </div>
+      {/if}
     {:else}
       {#if nativeIos}
         <VirtualJobList

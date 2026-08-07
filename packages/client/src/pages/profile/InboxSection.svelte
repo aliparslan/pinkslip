@@ -11,7 +11,8 @@
   import { openInAppBrowser } from "../../lib/application-browser";
   import Spinner from "../../components/Spinner.svelte";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
-  import PageFailure from "../../components/PageFailure.svelte";
+  import EmptyState from "../../components/EmptyState.svelte";
+  import InlineFailure from "../../components/InlineFailure.svelte";
   import ArrowSquareOut from "phosphor-svelte/lib/ArrowSquareOut";
 
   let {
@@ -41,7 +42,7 @@
   let reviewsExpanded = $state(false);
   let reviewNotes: Record<string, string> = $state({});
   let reviewNoteOpen: Record<string, boolean> = $state({});
-  let moderatingReviewId: string | null = $state(null);
+  let moderatingReview: { jobId: string; state: "approved" | "rejected" } | null = $state(null);
 
   function reviewReasonLabel(reason: string): string {
     const labels: Record<string, string> = {
@@ -113,11 +114,11 @@
   }
 
   async function moderateJobReview(jobId: string, state: "approved" | "rejected") {
-    if (moderatingReviewId) return;
+    if (moderatingReview) return;
     const review = jobReviews.find((item) => item.job_id === jobId);
     if (!review) return;
     const note = reviewNotes[jobId]?.trim() || undefined;
-    moderatingReviewId = jobId;
+    moderatingReview = { jobId, state };
     try {
       await api.interactions.updateJobReview(jobId, {
         state,
@@ -162,7 +163,7 @@
     } catch (caught) {
       onError(errorMessage(caught));
     } finally {
-      moderatingReviewId = null;
+      moderatingReview = null;
     }
   }
 
@@ -207,9 +208,13 @@
     <div class="admin-section-heading"><h2>Feedback</h2><span>{feedbackInbox.length} active</span></div>
     <div class="surface-list">
       {#if nativeIos && feedbackLoadError}
-        <PageFailure title="Feedback didn’t load" message="Check your connection and try again." onRetry={() => void loadInbox()} />
+        <InlineFailure title="Feedback didn’t load" onRetry={() => void loadInbox()} />
       {:else if feedbackInbox.length === 0}
-        <div class="surface-empty">No active suggestions.</div>
+        {#if nativeIos}
+          <EmptyState compact title="No active feedback" message="New feedback will appear here." />
+        {:else}
+          <div class="surface-empty">No active suggestions.</div>
+        {/if}
       {:else}
         {#each feedbackInbox as item}
           <div class="list-entry">
@@ -248,9 +253,13 @@
     <div class="admin-section-heading"><h2>Listing reports</h2><span>{reports.length} open</span></div>
     <div class="surface-list">
       {#if nativeIos && reportsLoadError}
-        <PageFailure title="Reports didn’t load" message="Check your connection and try again." onRetry={() => void loadInbox()} />
+        <InlineFailure title="Reports didn’t load" onRetry={() => void loadInbox()} />
       {:else if reports.length === 0}
-        <div class="surface-empty">No open reports.</div>
+        {#if nativeIos}
+          <EmptyState compact title="No open reports" message="New listing reports will appear here." />
+        {:else}
+          <div class="surface-empty">No open reports.</div>
+        {/if}
       {:else}
         {#each reports as report}
           <div class="list-entry">
@@ -277,9 +286,13 @@
     </div>
     <div class="surface-list">
       {#if nativeIos && reviewsLoadError}
-        <PageFailure title="Reviews didn’t load" message="Check your connection and try again." onRetry={() => void loadInbox()} />
+        <InlineFailure title="Reviews didn’t load" onRetry={() => void loadInbox()} />
       {:else if jobReviews.length === 0}
-        <div class="surface-empty">Nothing needs review.</div>
+        {#if nativeIos}
+          <EmptyState compact title="Review queue is clear" message="Flagged jobs will appear here." />
+        {:else}
+          <div class="surface-empty">Nothing needs review.</div>
+        {/if}
       {:else}
         {#each nativeIos || reviewsExpanded ? jobReviews : jobReviews.slice(0, 3) as review}
           <article class="list-entry review-entry">
@@ -333,15 +346,18 @@
             <div class="action-row compact list-entry-actions">
               <button
                 class="btn-secondary"
-                disabled={moderatingReviewId !== null}
+                disabled={moderatingReview !== null}
                 onclick={() => moderateJobReview(review.job_id, "rejected")}
-              >Reject</button>
+              >
+                {#if moderatingReview?.jobId === review.job_id && moderatingReview.state === "rejected"}<Spinner />{/if}
+                Reject
+              </button>
               <button
                 class="btn-primary btn-accent"
-                disabled={moderatingReviewId !== null}
+                disabled={moderatingReview !== null}
                 onclick={() => moderateJobReview(review.job_id, "approved")}
               >
-                {#if moderatingReviewId === review.job_id}<Spinner />{/if}
+                {#if moderatingReview?.jobId === review.job_id && moderatingReview.state === "approved"}<Spinner />{/if}
                 Approve
               </button>
             </div>

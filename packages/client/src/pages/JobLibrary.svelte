@@ -6,6 +6,7 @@
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
   import PageFailure from "../components/PageFailure.svelte";
+  import EmptyState from "../components/EmptyState.svelte";
   import BookmarkSimple from "phosphor-svelte/lib/BookmarkSimple";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import { isIosApp } from "../lib/platform";
@@ -142,18 +143,37 @@
           <div class="alert alert-error alert-spaced" role="alert">{activeError}</div>
         {/if}
         {#if visibleJobs.length === 0}
-        <div class="my-jobs-empty">
-          {#if activeView === "saved"}
-            <BookmarkSimple size={28} weight={nativeIos ? "fill" : "regular"} color={nativeIos ? "var(--color-accent)" : undefined} />
-            <h2>No saved jobs</h2>
-            <p>Save promising roles from their job page and they’ll stay here.</p>
+          {#if nativeIos}
+            <EmptyState
+              title={activeView === "saved" ? "No saved jobs" : "No applications yet"}
+              message={activeView === "saved"
+                ? "Save promising roles from their job page and they’ll stay here."
+                : "Jobs you mark as applied will become your application history."}
+            >
+              {#snippet icon()}
+                {#if activeView === "saved"}
+                  <BookmarkSimple size={24} weight="fill" color="var(--color-accent)" />
+                {:else}
+                  <CheckCircle size={24} weight="fill" color="var(--color-good)" />
+                {/if}
+              {/snippet}
+              {#snippet actions()}
+                <button class="btn-primary btn-accent" onclick={() => navigate("/")}>Browse jobs</button>
+              {/snippet}
+            </EmptyState>
           {:else}
-            <CheckCircle size={28} weight={nativeIos ? "fill" : "regular"} color={nativeIos ? "var(--color-good)" : undefined} />
-            <h2>No applications yet</h2>
-            <p>Jobs you mark as applied will become your application history.</p>
+            <div class="my-jobs-empty">
+              {#if activeView === "saved"}
+                <BookmarkSimple size={28} weight="regular" />
+                <h2>No saved jobs</h2>
+                <p>Save promising roles from their job page and they’ll stay here.</p>
+              {:else}
+                <CheckCircle size={28} weight="regular" />
+                <h2>No applications yet</h2>
+                <p>Jobs you mark as applied will become your application history.</p>
+              {/if}
+            </div>
           {/if}
-          {#if nativeIos}<button class="btn-primary btn-accent library-browse-action" onclick={() => navigate("/")}>Browse jobs</button>{/if}
-        </div>
         {:else}
         <div class="my-jobs-list">
           {#each visibleJobs as job (job.id)}
@@ -189,7 +209,4 @@
     border-radius: 0;
   }
 
-  .native-layout .library-browse-action {
-    margin-top: var(--space-6);
-  }
 </style>

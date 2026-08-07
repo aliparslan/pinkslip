@@ -39,7 +39,6 @@
   let underlaySnapshotScroll = 0;
   let swiping = $state(false);
   let settling = $state(false);
-  let tabBarElement: HTMLElement | undefined = $state();
   let tabContextRoute = $state(
     showsRootNavigation($currentRoute)
       ? $currentRoute
@@ -98,32 +97,7 @@
     return fallbackTitles[routeDefinition(underlayRoute).id] ?? "pinkslip";
   });
 
-  function revealsTabBar(): boolean {
-    return Boolean(target && showsRootNavigation(target) && !showsRootNavigation(route));
-  }
-
-  function paintTabBar(progress: number, duration = 0): void {
-    if (!tabBarElement) return;
-    const clampedProgress = Math.min(1, Math.max(0, progress));
-    tabBarElement.style.transition = duration > 0
-      ? `transform ${duration}ms ${EASE}`
-      : "none";
-    tabBarElement.style.opacity = "1";
-    tabBarElement.style.visibility = "visible";
-    tabBarElement.style.transform = `translate3d(0, ${(1 - clampedProgress) * 100}%, 0)`;
-  }
-
-  function clearTabBarPaint(): void {
-    if (!tabBarElement) return;
-    tabBarElement.style.transition = "";
-    tabBarElement.style.opacity = "";
-    tabBarElement.style.visibility = "";
-    tabBarElement.style.transform = "";
-  }
-
   function paint(dx: number): void {
-    const progress = width ? Math.min(1, Math.max(0, dx / width)) : 0;
-    if (revealsTabBar()) paintTabBar(progress);
     if (foreground) foreground.style.transform = `translateX(${dx}px)`;
     if (underlay) underlay.style.transform = "translateX(0)";
     if (dim) dim.style.opacity = "1";
@@ -243,6 +217,8 @@
     if (!foreground) return;
     foreground.style.visibility = "hidden";
     foreground.style.transition = "none";
+    foreground.style.transform = "translateX(0)";
+    foreground.style.opacity = "1";
   }
 
   function onTouchStart(event: TouchEvent): void {
@@ -317,7 +293,6 @@
     targetSnapshotKey = null;
     targetLocalBack = null;
     settling = false;
-    clearTabBarPaint();
     document.body.classList.remove("nav-animating");
   }
 
@@ -336,30 +311,22 @@
     const snapshotKey = targetSnapshotKey;
     const localBack = targetLocalBack;
     const duration = settleDuration(distance, commit);
-    const revealTabs = revealsTabBar();
     settling = true;
     swiping = false;
     if (foreground) foreground.style.transition = reducedMotion()
       ? `opacity ${duration}ms linear`
       : `transform ${duration}ms ${EASE}`;
-    if (dim) dim.style.transition = `opacity ${duration}ms ${EASE}`;
     if (commit) {
       if (foreground) {
         if (reducedMotion()) foreground.style.opacity = "0";
         else foreground.style.transform = `translateX(${width}px)`;
       }
-      if (dim) dim.style.opacity = "0";
-      if (revealTabs) paintTabBar(1, duration);
     } else {
       if (foreground) foreground.style.transform = "translateX(0)";
       if (underlay) underlay.style.transform = "translateX(0)";
       if (dim) dim.style.opacity = "1";
-      if (revealTabs) paintTabBar(0, duration);
     }
-    await waitForAnimations(
-      [foreground, dim, revealTabs ? tabBarElement : undefined],
-      duration + 60,
-    );
+    await waitForAnimations([foreground], duration + 60);
     if (commit && destination) {
       hideForegroundForDestinationSwap();
       await commitBack(destination, localBack);
@@ -384,8 +351,6 @@
     width = foreground?.getBoundingClientRect().width ?? innerWidth;
     const snapshotKey = localBack?.snapshotKey ?? destination;
     prepareUnderlay(destination, snapshotKey);
-    const revealTabs = showsRootNavigation(destination) && !showsRootNavigation(route);
-    if (revealTabs) paintTabBar(0);
     document.body.classList.add("nav-animating");
     await tick();
     if (reducedMotion()) {
@@ -402,12 +367,7 @@
     void foreground?.offsetWidth;
     await nextFrame();
     if (foreground) { foreground.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; foreground.style.transform = `translateX(${width}px)`; }
-    if (dim) { dim.style.transition = `opacity ${PROGRAMMATIC_SETTLE}ms ${EASE}`; dim.style.opacity = "0"; }
-    if (revealTabs) paintTabBar(1, PROGRAMMATIC_SETTLE);
-    await waitForAnimations(
-      [foreground, dim, revealTabs ? tabBarElement : undefined],
-      PROGRAMMATIC_SETTLE + 60,
-    );
+    await waitForAnimations([foreground], PROGRAMMATIC_SETTLE + 60);
     hideForegroundForDestinationSwap();
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
@@ -504,6 +464,9 @@
           </div>
         {/if}
       </div>
+      {#if underlayHasTabs}
+        <TabBar mobileHidden={false} activeRouteOverride={underlayRoute ?? "/"} />
+      {/if}
       <div class="nav-underlay-dim" bind:this={dim}></div>
     </div>
   {/if}
@@ -518,10 +481,9 @@
     <main id="main-content" class="app-main" tabindex="-1" bind:this={main}>
       <RouteView />
     </main>
+    <TabBar
+      mobileHidden={!showsRootNavigation(route)}
+      activeRouteOverride={showsRootNavigation(route) ? route : tabContextRoute}
+    />
   </div>
-  <TabBar
-    bind:element={tabBarElement}
-    mobileHidden={!showsRootNavigation(route)}
-    activeRouteOverride={showsRootNavigation(route) ? route : tabContextRoute}
-  />
 </AppSession>

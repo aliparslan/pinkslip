@@ -127,6 +127,7 @@ private final class NativeActionMenuPresenter: NSObject {
         guard !selectionSent else { return }
         selectionSent = true
         onSelect(id)
+        button?.contextMenuInteraction?.dismissMenu()
     }
 
     private func complete() {

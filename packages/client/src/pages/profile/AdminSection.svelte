@@ -3,7 +3,7 @@
   import { api, type ProductMetrics } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import Spinner from "../../components/Spinner.svelte";
-  import PageFailure from "../../components/PageFailure.svelte";
+  import InlineFailure from "../../components/InlineFailure.svelte";
 
   let { onError, nativeIos = false }: { onError: (message: string) => void; nativeIos?: boolean } = $props();
 
@@ -38,7 +38,7 @@
 {#if loading}
   <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading product health" /></div>
 {:else if nativeIos && loadError}
-  <PageFailure title="Product health didn’t load" message="Check your connection and try again." onRetry={() => void loadProductHealth()} />
+  <InlineFailure title="Product health didn’t load" onRetry={() => void loadProductHealth()} />
 {:else if productMetrics}
   <section class="admin-section">
     <div class="admin-section-heading">

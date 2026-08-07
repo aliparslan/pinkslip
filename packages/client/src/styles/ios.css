@@ -130,9 +130,43 @@ html.native-ios .filter-button {
 }
 
 html.native-ios .filter-button.active {
-  border-color: var(--color-accent);
-  background: var(--color-control-bg);
-  color: var(--color-accent-soft-ink);
+  border-color: var(--color-control-selected-border);
+  background: var(--color-control-selected-bg);
+  color: var(--color-control-selected-ink);
+}
+
+html.native-ios .filter-button.active .filter-count {
+  border: 1px solid currentColor;
+  background: transparent;
+  color: currentColor;
+}
+
+html.native-ios .chip-active,
+html.native-ios .filter-choice.active {
+  border-color: var(--color-control-selected-border);
+  background: var(--color-control-selected-bg);
+  color: var(--color-control-selected-ink);
+}
+
+html.native-ios .chip-active:hover {
+  background: var(--color-control-selected-bg);
+}
+
+html.native-ios .active > .select-check {
+  border-color: var(--color-control-selected-border);
+  background: var(--color-control-selected-bg);
+  color: var(--color-control-selected-ink);
+}
+
+html.native-ios .switch[data-state="checked"] {
+  background: var(--color-control-selected-bg);
+}
+
+html.native-ios .native-layout .choice-card.active,
+html.native-ios .native-layout .location-chip.active {
+  border-color: var(--color-control-selected-border);
+  background: var(--color-control-selected-bg);
+  color: var(--color-control-selected-ink);
 }
 
 .app-content-shell {
@@ -233,7 +267,6 @@ html.native-ios .sheet-backdrop {
 
 .nav-foreground.is-swiping {
   will-change: transform;
-  box-shadow: var(--shadow-nav-swipe);
 }
 
 .nav-underlay {
@@ -335,10 +368,14 @@ html.native-ios .pushed-screen {
 .nav-underlay-dim {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: calc(var(--z-navigation) + 1);
   opacity: 1;
   background: var(--color-native-modal-scrim);
   pointer-events: none;
+}
+
+body.nav-animating .status-bar-scrim {
+  background: transparent;
 }
 
 /* Backdrop blur is expensive while a full viewport is translating. */

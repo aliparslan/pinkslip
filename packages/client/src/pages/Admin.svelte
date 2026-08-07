@@ -11,7 +11,7 @@
   import { isIosApp } from "../lib/platform";
 
   const destinations = [
-    { path: "/admin", label: "Overview" },
+    { path: "/admin", label: "Manage app" },
     { path: "/admin/inbox", label: "Inbox" },
     { path: "/admin/sources", label: "Sources" },
     { path: "/admin/runs", label: "Runs" },
@@ -19,7 +19,6 @@
 
   let route = $derived($currentRoute);
   let active = $derived(destinations.find((destination) => destination.path === route) ?? destinations[0]);
-  let viewTitle = $derived(active.path === "/admin" ? "Admin" : active.label);
   const nativeIos = isIosApp();
 
   function backToYou() {
@@ -29,7 +28,7 @@
 
 <div class="page pushed-screen" class:native-layout={nativeIos}>
   <ScreenNav
-    title={nativeIos ? viewTitle : "Admin workspace"}
+    title={nativeIos ? "Admin" : "Admin workspace"}
     collapsible={nativeIos}
     searchable={nativeIos && route === "/admin/sources"}
     chromeOwnerId="sources"
@@ -45,6 +44,8 @@
     </div>
   {:else}
     <div class="admin-page">
+      <h1 class="admin-view-title" data-screen-title-anchor>Admin</h1>
+
       <nav
         class="admin-tabs"
         class:inbox-active={active.path === "/admin/inbox"}
@@ -63,8 +64,6 @@
           </button>
         {/each}
       </nav>
-
-      <h1 class="admin-view-title" data-screen-title-anchor>{viewTitle}</h1>
 
       <section class="admin-view" aria-label={active.label}>
         {#if route === "/admin/sources"}
@@ -186,7 +185,7 @@
   }
 
   .native-layout .admin-view-title {
-    margin: 0 0 var(--space-5);
+    margin: 0 0 var(--space-6);
     display: block;
     color: var(--color-ink);
     font-family: var(--font-display);
