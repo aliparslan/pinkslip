@@ -396,7 +396,7 @@
 <div class="page pushed-screen job-detail-page" class:native-layout={nativeIos}>
   <ScreenNav
     title={nativeIos ? job?.title ?? "" : ""}
-    collapsible={Boolean(job)}
+    collapsible={nativeIos}
     backLabel="Back to jobs"
     onBack={() => { if (!requestBack()) navigate("/"); }}
   >

@@ -8,23 +8,15 @@
 
   let {
     mobileHidden = false,
-    revealProgress = null,
-    revealDuration = 280,
-    revealSettling = false,
     activeRouteOverride,
+    element = $bindable(),
   }: {
     mobileHidden?: boolean;
-    revealProgress?: number | null;
-    revealDuration?: number;
-    revealSettling?: boolean;
     activeRouteOverride?: string;
+    element?: HTMLElement;
   } = $props();
 
-  let revealStyle = $derived(revealProgress === null
-    ? undefined
-    : `--tab-reveal-opacity: ${Math.min(1, Math.max(0, revealProgress))}; --tab-reveal-offset: ${(1 - Math.min(1, Math.max(0, revealProgress))) * 102}%; --tab-reveal-duration: ${revealDuration}ms;`
-  );
-  let navigationInert = $derived(mobileHidden || revealProgress !== null);
+  let navigationInert = $derived(mobileHidden);
 
   let route = $derived(activeRouteOverride ?? $currentRoute);
 
@@ -49,11 +41,9 @@
 </script>
 
 <nav
+  bind:this={element}
   class="tab-bar"
   class:mobile-hidden={mobileHidden}
-  class:interactive-reveal={revealProgress !== null}
-  class:reveal-settling={revealSettling}
-  style={revealStyle}
   inert={navigationInert}
   aria-hidden={navigationInert ? "true" : undefined}
   aria-label="Main navigation"
@@ -106,18 +96,7 @@
     will-change: transform;
     transition:
       transform var(--duration-route, 280ms) var(--ease-standard),
-      opacity var(--duration-exit, 160ms) ease,
       visibility 0s linear;
-  }
-
-  .tab-bar.interactive-reveal {
-    transition: none;
-  }
-
-  .tab-bar.interactive-reveal.reveal-settling {
-    transition:
-      transform var(--tab-reveal-duration) var(--ease-standard),
-      opacity var(--tab-reveal-duration) linear;
   }
   .tab-bar__inner {
     width: 100%;
@@ -187,28 +166,13 @@
 
     :global(html.native-ios) .tab-bar.mobile-hidden {
       display: block;
-      opacity: 0;
+      opacity: 1;
       pointer-events: none;
-      transform: translate3d(0, calc(100% + 2px), 0);
+      transform: translate3d(0, 100%, 0);
       visibility: hidden;
       transition:
         transform var(--duration-route, 280ms) var(--ease-standard),
-        opacity var(--duration-exit, 160ms) ease,
         visibility 0s linear var(--duration-route, 280ms);
-    }
-
-    :global(html.native-ios) .tab-bar.interactive-reveal {
-      display: block;
-      opacity: var(--tab-reveal-opacity);
-      pointer-events: none;
-      transform: translate3d(0, var(--tab-reveal-offset), 0);
-      visibility: visible;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) and (max-width: 899px) {
-    :global(html.native-ios) .tab-bar.interactive-reveal {
-      transform: translate3d(0, 0, 0);
     }
   }
 

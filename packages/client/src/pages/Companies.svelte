@@ -456,6 +456,7 @@
       title={isAdminMode ? "Sources" : "Companies"}
       collapsible
       searchable
+      chromeOwnerId={isAdminMode ? "sources" : "companies"}
       onBack={() => { if (!requestBack()) navigate("/you"); }}
     />
   {/if}

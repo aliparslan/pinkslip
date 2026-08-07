@@ -1,6 +1,13 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { currentRoute, navigate, backTargetRoute, routeParam, rootHeaderFor } from "../router";
+  import {
+    currentRoute,
+    navigate,
+    backTargetRoute,
+    routeParam,
+    rootDestinationFor,
+    rootHeaderFor,
+  } from "../router";
   import { loadPage, resolvedPage, type PageComponent } from "./page-registry";
   import PageFailure from "../components/PageFailure.svelte";
   import RootHeader from "../components/RootHeader.svelte";
@@ -23,6 +30,7 @@
   let generation = 0;
   let jobId = $derived(routeParam(route, "jobId"));
   let rootHeader = $derived(showRootHeader ? rootHeaderFor(route) : null);
+  let rootHeaderOwner = $derived(rootDestinationFor(route) ?? undefined);
   let pageRoot: HTMLDivElement | undefined = $state();
   let announcedRoute: string | null = null;
   const nativeIos = isIosApp();
@@ -114,9 +122,12 @@
   bind:this={pageRoot}
 >
   {#if rootHeader}
-    <div class="root-header-flow">
-      <RootHeader title={rootHeader.title} subtitle={rootHeader.subtitle} collapsible={nativeIos} />
-    </div>
+    <RootHeader
+      title={rootHeader.title}
+      subtitle={rootHeader.subtitle}
+      ownerId={rootHeaderOwner}
+      collapsible={nativeIos}
+    />
   {/if}
   {#if pageLoadFailed}
     {#if nativeIos}

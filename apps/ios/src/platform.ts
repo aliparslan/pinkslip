@@ -133,6 +133,46 @@ async function registerNativeDevice(): Promise<void> {
 }
 
 function configureNativeDocument(): void {
+  let fullViewportHeight = window.innerHeight;
+  let expectedViewportHeight: number | null = null;
+  let keyboardHeight = 0;
+  let keyboardPhase: "showing" | "hiding" | null = null;
+  let hideStartViewportHeight = window.innerHeight;
+  let hideAnimationFrame = 0;
+  let hideCleanupTimer = 0;
+
+  const setKeyboardOffset = (offset: number) => {
+    document.documentElement.style.setProperty(
+      "--native-keyboard-offset",
+      `${Math.max(0, offset)}px`,
+    );
+  };
+
+  const clearKeyboardCompensation = () => {
+    if (hideAnimationFrame) cancelAnimationFrame(hideAnimationFrame);
+    if (hideCleanupTimer) window.clearTimeout(hideCleanupTimer);
+    hideAnimationFrame = 0;
+    hideCleanupTimer = 0;
+    document.body.classList.remove(
+      "native-keyboard-awaiting-resize",
+      "native-keyboard-hiding",
+      "native-keyboard-handoff",
+    );
+    document.documentElement.style.removeProperty("--native-keyboard-offset");
+  };
+
+  const animateKeyboardHide = (initialOffset: number) => {
+    document.body.classList.remove("native-keyboard-awaiting-resize");
+    document.body.classList.add("native-keyboard-hiding", "native-keyboard-handoff");
+    setKeyboardOffset(initialOffset);
+    void document.body.offsetHeight;
+    hideAnimationFrame = requestAnimationFrame(() => {
+      document.body.classList.remove("native-keyboard-handoff");
+      setKeyboardOffset(0);
+      hideAnimationFrame = 0;
+    });
+  };
+
   document.documentElement.classList.add("native-app", "native-ios");
   document.querySelector('meta[name="viewport"]')?.setAttribute(
     "content",
@@ -152,12 +192,72 @@ function configureNativeDocument(): void {
       style: theme === "dark" ? KeyboardStyle.Dark : KeyboardStyle.Light,
     }).catch(() => undefined);
   });
-  void Keyboard.addListener("keyboardWillShow", () => {
+  void Keyboard.addListener("keyboardWillShow", ({ keyboardHeight: nextKeyboardHeight }) => {
+    if (!document.body.classList.contains("native-keyboard-visible")) {
+      fullViewportHeight = window.innerHeight;
+    }
+    if (hideAnimationFrame) cancelAnimationFrame(hideAnimationFrame);
+    if (hideCleanupTimer) window.clearTimeout(hideCleanupTimer);
+    hideAnimationFrame = 0;
+    hideCleanupTimer = 0;
+    document.body.classList.remove("native-keyboard-hiding", "native-keyboard-handoff");
+    keyboardHeight = Math.max(0, nextKeyboardHeight);
+    expectedViewportHeight = Math.max(0, fullViewportHeight - keyboardHeight);
+    const overlap = Math.max(0, window.innerHeight - expectedViewportHeight);
+    keyboardPhase = Math.abs(window.innerHeight - expectedViewportHeight) <= 2
+      ? null
+      : "showing";
+    setKeyboardOffset(overlap);
     document.body.classList.add("native-keyboard-visible");
+    document.body.classList.toggle("native-keyboard-awaiting-resize", overlap > 1);
+  });
+  void Keyboard.addListener("keyboardWillHide", () => {
+    keyboardPhase = "hiding";
+    expectedViewportHeight = fullViewportHeight;
+    hideStartViewportHeight = window.innerHeight;
+    if (document.body.classList.contains("native-keyboard-awaiting-resize")) {
+      animateKeyboardHide(Math.max(0, window.innerHeight - (fullViewportHeight - keyboardHeight)));
+    }
+    hideCleanupTimer = window.setTimeout(() => {
+      clearKeyboardCompensation();
+      document.body.classList.remove("native-keyboard-visible");
+      keyboardPhase = null;
+      expectedViewportHeight = null;
+      keyboardHeight = 0;
+      fullViewportHeight = window.innerHeight;
+    }, 600);
   });
   void Keyboard.addListener("keyboardDidHide", () => {
     document.body.classList.remove("native-keyboard-visible");
+    keyboardPhase = null;
+    expectedViewportHeight = null;
+    keyboardHeight = 0;
+    // Let the final few pixels of an interactive hide finish instead of
+    // snapping the modal at keyboardDidHide. The will-hide fallback owns
+    // cleanup when the handoff animation is active.
+    if (document.body.classList.contains("native-keyboard-hiding")) return;
+    clearKeyboardCompensation();
+    fullViewportHeight = window.innerHeight;
   });
+  window.addEventListener("resize", () => {
+    if (keyboardPhase === "showing" && expectedViewportHeight !== null) {
+      const reachedExpectedHeight = Math.abs(window.innerHeight - expectedViewportHeight) <= 2;
+      const passedExpectedHeight = window.innerHeight < expectedViewportHeight;
+      if (reachedExpectedHeight || passedExpectedHeight) {
+        document.body.classList.remove("native-keyboard-awaiting-resize");
+        setKeyboardOffset(0);
+        keyboardPhase = null;
+      }
+      return;
+    }
+    if (
+      keyboardPhase === "hiding"
+      && window.innerHeight > hideStartViewportHeight + 1
+      && !document.body.classList.contains("native-keyboard-hiding")
+    ) {
+      animateKeyboardHide(Math.min(keyboardHeight, window.innerHeight - hideStartViewportHeight));
+    }
+  }, { passive: true });
 }
 
 const iosRuntime: PlatformRuntime = {

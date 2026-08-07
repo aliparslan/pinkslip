@@ -39,9 +39,7 @@
   let underlaySnapshotScroll = 0;
   let swiping = $state(false);
   let settling = $state(false);
-  let tabRevealProgress: number | null = $state(null);
-  let tabRevealDuration = $state(280);
-  let tabRevealSettling = $state(false);
+  let tabBarElement: HTMLElement | undefined = $state();
   let tabContextRoute = $state(
     showsRootNavigation($currentRoute)
       ? $currentRoute
@@ -100,18 +98,35 @@
     return fallbackTitles[routeDefinition(underlayRoute).id] ?? "pinkslip";
   });
 
+  function revealsTabBar(): boolean {
+    return Boolean(target && showsRootNavigation(target) && !showsRootNavigation(route));
+  }
+
+  function paintTabBar(progress: number, duration = 0): void {
+    if (!tabBarElement) return;
+    const clampedProgress = Math.min(1, Math.max(0, progress));
+    tabBarElement.style.transition = duration > 0
+      ? `transform ${duration}ms ${EASE}`
+      : "none";
+    tabBarElement.style.opacity = "1";
+    tabBarElement.style.visibility = "visible";
+    tabBarElement.style.transform = `translate3d(0, ${(1 - clampedProgress) * 100}%, 0)`;
+  }
+
+  function clearTabBarPaint(): void {
+    if (!tabBarElement) return;
+    tabBarElement.style.transition = "";
+    tabBarElement.style.opacity = "";
+    tabBarElement.style.visibility = "";
+    tabBarElement.style.transform = "";
+  }
+
   function paint(dx: number): void {
     const progress = width ? Math.min(1, Math.max(0, dx / width)) : 0;
-    if (underlayHasTabs && !showsRootNavigation(route)) tabRevealProgress = progress;
-    if (reducedMotion()) {
-      if (foreground) foreground.style.opacity = `${1 - progress * 0.16}`;
-      if (underlay) underlay.style.transform = "translateX(0)";
-      if (dim) dim.style.opacity = "0";
-      return;
-    }
+    if (revealsTabBar()) paintTabBar(progress);
     if (foreground) foreground.style.transform = `translateX(${dx}px)`;
-    if (underlay) underlay.style.transform = `translateX(${-(1 - progress) * width * 0.3}px)`;
-    if (dim) dim.style.opacity = `${(1 - progress) * 0.14}`;
+    if (underlay) underlay.style.transform = "translateX(0)";
+    if (dim) dim.style.opacity = "1";
   }
 
   const paintBatch = createFrameBatch(paint);
@@ -218,17 +233,8 @@
     if (!foreground) return;
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
-    if (reducedMotion()) {
-      foreground.style.opacity = "1";
-      await nextFrame();
-      return;
-    }
-    foreground.style.opacity = "0";
-    void foreground.offsetWidth;
-    foreground.style.transition = "opacity 80ms linear";
-    await nextFrame();
     foreground.style.opacity = "1";
-    await waitForAnimations([foreground], 120);
+    await nextFrame();
   }
 
   function onTouchStart(event: TouchEvent): void {
@@ -302,8 +308,7 @@
     targetSnapshotKey = null;
     targetLocalBack = null;
     settling = false;
-    tabRevealProgress = null;
-    tabRevealSettling = false;
+    clearTabBarPaint();
     document.body.classList.remove("nav-animating");
   }
 
@@ -322,31 +327,30 @@
     const snapshotKey = targetSnapshotKey;
     const localBack = targetLocalBack;
     const duration = settleDuration(distance, commit);
-    const revealTabs = tabRevealProgress !== null;
+    const revealTabs = revealsTabBar();
     settling = true;
     swiping = false;
     if (foreground) foreground.style.transition = reducedMotion()
       ? `opacity ${duration}ms linear`
       : `transform ${duration}ms ${EASE}`;
-    if (underlay) underlay.style.transition = `transform ${duration}ms ${EASE}`;
     if (dim) dim.style.transition = `opacity ${duration}ms ${EASE}`;
-    if (revealTabs) {
-      tabRevealDuration = duration;
-      tabRevealSettling = true;
-      await tick();
-    }
     if (commit) {
       if (foreground) {
         if (reducedMotion()) foreground.style.opacity = "0";
         else foreground.style.transform = `translateX(${width}px)`;
       }
-      if (underlay) underlay.style.transform = "translateX(0)";
       if (dim) dim.style.opacity = "0";
-      if (revealTabs) tabRevealProgress = 1;
+      if (revealTabs) paintTabBar(1, duration);
     } else {
-      paint(0);
+      if (foreground) foreground.style.transform = "translateX(0)";
+      if (underlay) underlay.style.transform = "translateX(0)";
+      if (dim) dim.style.opacity = "1";
+      if (revealTabs) paintTabBar(0, duration);
     }
-    await waitForAnimations([foreground, underlay, dim], duration + 60);
+    await waitForAnimations(
+      [foreground, dim, revealTabs ? tabBarElement : undefined],
+      duration + 60,
+    );
     if (commit && destination) {
       await commitBack(destination, localBack);
       if (snapshotKey) routeSnapshots.delete(snapshotKey);
@@ -371,7 +375,7 @@
     const snapshotKey = localBack?.snapshotKey ?? destination;
     prepareUnderlay(destination, snapshotKey);
     const revealTabs = showsRootNavigation(destination) && !showsRootNavigation(route);
-    if (revealTabs) tabRevealProgress = 0;
+    if (revealTabs) paintTabBar(0);
     document.body.classList.add("nav-animating");
     await tick();
     if (reducedMotion()) {
@@ -381,20 +385,17 @@
       return;
     }
     if (foreground) { foreground.style.transition = "none"; foreground.style.transform = "translateX(0)"; }
-    if (underlay) { underlay.style.transition = "none"; underlay.style.transform = `translateX(${-width * 0.3}px)`; }
-    if (dim) { dim.style.transition = "none"; dim.style.opacity = "0.14"; }
+    if (underlay) { underlay.style.transition = "none"; underlay.style.transform = "translateX(0)"; }
+    if (dim) { dim.style.transition = "none"; dim.style.opacity = "1"; }
     void foreground?.offsetWidth;
     await nextFrame();
-    if (revealTabs) {
-      tabRevealDuration = PROGRAMMATIC_SETTLE;
-      tabRevealSettling = true;
-      await tick();
-    }
     if (foreground) { foreground.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; foreground.style.transform = `translateX(${width}px)`; }
-    if (underlay) { underlay.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; underlay.style.transform = "translateX(0)"; }
     if (dim) { dim.style.transition = `opacity ${PROGRAMMATIC_SETTLE}ms ${EASE}`; dim.style.opacity = "0"; }
-    if (revealTabs) tabRevealProgress = 1;
-    await waitForAnimations([foreground, underlay, dim], PROGRAMMATIC_SETTLE + 60);
+    if (revealTabs) paintTabBar(1, PROGRAMMATIC_SETTLE);
+    await waitForAnimations(
+      [foreground, dim, revealTabs ? tabBarElement : undefined],
+      PROGRAMMATIC_SETTLE + 60,
+    );
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
     await revealLiveDestination();
@@ -506,10 +507,8 @@
     </main>
   </div>
   <TabBar
+    bind:element={tabBarElement}
     mobileHidden={!showsRootNavigation(route)}
     activeRouteOverride={showsRootNavigation(route) ? route : tabContextRoute}
-    revealProgress={tabRevealProgress}
-    revealDuration={tabRevealDuration}
-    revealSettling={tabRevealSettling}
   />
 </AppSession>

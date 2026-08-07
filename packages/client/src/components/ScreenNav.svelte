@@ -13,6 +13,7 @@
     trailing,
     collapsible = false,
     searchable = false,
+    chromeOwnerId,
   }: {
     title: string;
     backLabel?: string;
@@ -20,12 +21,13 @@
     trailing?: Snippet;
     collapsible?: boolean;
     searchable?: boolean;
+    chromeOwnerId?: string;
   } = $props();
 
-  let navElement: HTMLElement | undefined = $state(undefined);
-  let compactTitleVisible = $state(true);
-  let searchExpanded = $state(false);
   const nativeIos = isIosApp();
+  let navElement: HTMLElement | undefined = $state(undefined);
+  let compactTitleVisible = $state(false);
+  let searchExpanded = $state(false);
   let nativeCollapsible = $derived(nativeIos && collapsible);
 
   function updateCompactTitle() {
@@ -35,7 +37,7 @@
     }
     const anchor = navElement.parentElement?.querySelector<HTMLElement>("[data-screen-title-anchor]");
     if (!anchor) {
-      compactTitleVisible = true;
+      compactTitleVisible = false;
       return;
     }
     const scrollerTop = scrollContainer()?.getBoundingClientRect().top ?? 0;
@@ -85,7 +87,7 @@
   <div class="screen-nav__trailing">
     {#if searchable}
       <div class="screen-nav__search" class:expanded={searchExpanded}>
-        <HeaderSearch visible={compactTitleVisible} bind:expanded={searchExpanded} />
+        <HeaderSearch visible={compactTitleVisible} ownerId={chromeOwnerId} bind:expanded={searchExpanded} />
       </div>
     {/if}
     {#if trailing}

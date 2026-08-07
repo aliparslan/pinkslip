@@ -706,7 +706,7 @@
   onMount(() => {
     const unregisterHeaderSearch = nativeIos
       ? headerChrome.registerSearch({
-          id: "jobs",
+          id: "feed",
           placeholder: "Search jobs or companies",
           value: () => feed.searchQuery,
           onInput: scheduleSearch,
@@ -850,7 +850,7 @@
       aria-hidden={!pullArmed && !refreshing}
     >
       <ClockCountdown size={17} weight="bold" aria-hidden="true" />
-      <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : pullArmed ? "Release to refresh" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
+      <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
     </div>
   </div>
 

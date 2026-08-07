@@ -10,17 +10,23 @@
     subtitle = "",
     trailing,
     collapsible = false,
+    ownerId,
   }: {
     title: string;
     subtitle?: string;
     trailing?: Snippet;
     collapsible?: boolean;
+    ownerId?: string;
   } = $props();
 
   let headerElement: HTMLElement | undefined = $state();
   let collapseProgress = $state(0);
   let searchExpanded = $state(false);
-  let displayedTitle = $derived(headerChrome.rootTitle?.value().trim() || title);
+  let displayedTitle = $derived(
+    headerChrome.rootTitle?.id === ownerId
+      ? headerChrome.rootTitle?.value().trim() || title
+      : title,
+  );
   let compact = $derived(collapseProgress >= 0.86);
   let innerHeight = $derived(`${90 - collapseProgress * 34}px`);
   let titleSize = $derived(`${40 - collapseProgress * 20}px`);
@@ -67,7 +73,7 @@
       <div class="root-header-trailing">{@render trailing()}</div>
     {/if}
     <div class="root-header-search" class:expanded={searchExpanded}>
-      <HeaderSearch visible={compact} bind:expanded={searchExpanded} />
+      <HeaderSearch visible={compact} {ownerId} bind:expanded={searchExpanded} />
     </div>
   </div>
 </header>

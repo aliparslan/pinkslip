@@ -38,8 +38,9 @@ const config: CapacitorConfig = {
       presentationOptions: ["badge", "sound", "alert"],
     },
     Keyboard: {
-      // Resize the WebView when the keyboard appears so focused inputs aren't
-      // covered. CSS hides the mobile tab bar while a field has focus.
+      // Keep native resizing as the coverage fallback for every input surface.
+      // The shell prepositions bottom-anchored overlays on keyboardWillShow so
+      // they do not wait for Capacitor's deferred WebView resize.
       resize: "native",
       autoBackdropColor: "dom",
     },

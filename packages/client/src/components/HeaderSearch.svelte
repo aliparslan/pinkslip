@@ -7,15 +7,19 @@
   let {
     visible = true,
     expanded = $bindable(false),
+    ownerId,
   }: {
     visible?: boolean;
     expanded?: boolean;
+    ownerId?: string;
   } = $props();
 
   let input: HTMLInputElement | undefined = $state();
   let toggle: HTMLButtonElement | undefined = $state();
   let previousRegistrationId: string | null = null;
-  let registration = $derived(headerChrome.search);
+  let registration = $derived(
+    headerChrome.search?.id === ownerId ? headerChrome.search : null,
+  );
   let value = $derived(registration?.value() ?? "");
 
   async function open() {
@@ -132,7 +136,6 @@
   input:focus-visible { outline: none; }
 
   .header-search.expanded:has(input:focus-visible) {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    border-color: var(--color-accent);
   }
 </style>
