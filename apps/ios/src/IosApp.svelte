@@ -231,13 +231,18 @@
 
   async function revealLiveDestination(): Promise<void> {
     if (!foreground) return;
-    foreground.style.visibility = "hidden";
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
     foreground.style.opacity = "1";
     await nextFrame();
     foreground.style.visibility = "visible";
     await nextFrame();
+  }
+
+  function hideForegroundForDestinationSwap(): void {
+    if (!foreground) return;
+    foreground.style.visibility = "hidden";
+    foreground.style.transition = "none";
   }
 
   function onTouchStart(event: TouchEvent): void {
@@ -356,6 +361,7 @@
       duration + 60,
     );
     if (commit && destination) {
+      hideForegroundForDestinationSwap();
       await commitBack(destination, localBack);
       if (snapshotKey) routeSnapshots.delete(snapshotKey);
       await revealLiveDestination();
@@ -383,8 +389,10 @@
     document.body.classList.add("nav-animating");
     await tick();
     if (reducedMotion()) {
+      hideForegroundForDestinationSwap();
       await commitBack(destination, localBack);
       routeSnapshots.delete(snapshotKey);
+      await revealLiveDestination();
       clearTransition();
       return;
     }
@@ -400,6 +408,7 @@
       [foreground, dim, revealTabs ? tabBarElement : undefined],
       PROGRAMMATIC_SETTLE + 60,
     );
+    hideForegroundForDestinationSwap();
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
     await revealLiveDestination();

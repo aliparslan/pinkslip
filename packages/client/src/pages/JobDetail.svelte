@@ -32,7 +32,7 @@
   import Export from "phosphor-svelte/lib/Export";
   import DotsThree from "phosphor-svelte/lib/DotsThree";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
-  import X from "phosphor-svelte/lib/X";
+  import ThumbsDown from "phosphor-svelte/lib/ThumbsDown";
   import Trash from "phosphor-svelte/lib/Trash";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
@@ -305,7 +305,7 @@
         { id: "report", title: "Report listing", symbol: "exclamationmark.bubble" },
         ...($sessionAccess.isAdmin ? [{
           id: "remove",
-          title: "Remove for everyone",
+          title: "Remove",
           symbol: "trash",
           destructive: true,
         }] : []),
@@ -594,10 +594,14 @@
           </button>
           <button
             class="btn-secondary btn-action"
+            class:neutral-completed={dismissing}
             onclick={handleDismiss}
             disabled={dismissing}
           >
-            {#if dismissing}<Spinner />{:else}<X size={15} />{/if}
+            <span class="state-icon" aria-hidden="true">
+              <span class:visible={!dismissing}><ThumbsDown size={16} /></span>
+              <span class:visible={dismissing}><ThumbsDown size={16} weight="fill" /></span>
+            </span>
             Not interested
           </button>
       </div>
@@ -775,12 +779,21 @@
     transform: none;
   }
 
+  .btn-secondary.completed,
+  .btn-secondary.completed:hover,
   .btn-secondary.completed:disabled,
   .btn-secondary.completed:disabled:hover {
     opacity: 1;
-    border-color: color-mix(in oklch, var(--color-accent) 46%, var(--color-line));
-    background: var(--color-accent-soft);
-    color: var(--color-accent-soft-ink);
+    border-color: color-mix(in oklch, var(--color-good) 42%, var(--color-line));
+    background: var(--color-good-soft);
+    color: var(--color-good);
+  }
+
+  .btn-secondary.neutral-completed,
+  .btn-secondary.neutral-completed:disabled {
+    opacity: 1;
+    background: var(--color-control-bg);
+    color: var(--color-ink-2);
   }
 
   .job-match-panel {
@@ -878,7 +891,7 @@
         class="btn-secondary full-width tall-control"
         onclick={() => { showBlockConfirm = false; handleDismiss(); }}
       >
-        <X size={15} />
+        <ThumbsDown size={15} />
         Not interested
       </button>
       <button

@@ -117,11 +117,15 @@
       : 0
   );
   let leftActionWidth = $derived(actionButtonWidth + leftActionGrowth);
-  let leftOuterWidth = $derived(armedSide === "left" ? leftRevealDistance : leftActionWidth);
+  let leftOuterWidth = $derived(leftActionWidth);
   let leftArmedContentShift = $derived(
-    armedSide === "left" ? -Math.max(0, leftRevealDistance - actionButtonWidth) / 2 : 0
+    armedSide === "left"
+      ? -Math.max(0, leftRevealDistance - leftActionWidth / 2 - actionButtonWidth / 2)
+      : 0
   );
-  let rightActionWidth = $derived(Math.max(READ_ACTION_WIDTH, rightRevealDistance));
+  let rightActionWidth = $derived(
+    armedSide === "right" ? rightRevealDistance : READ_ACTION_WIDTH
+  );
   let rightArmedContentShift = $derived(
     armedSide === "right" ? Math.max(0, rightRevealDistance - READ_ACTION_WIDTH) / 2 : 0
   );
@@ -186,7 +190,7 @@
         }] : []),
         ...(hasAdminAction ? [{
           id: "remove",
-          title: "Remove for everyone",
+          title: "Remove",
           symbol: "nosign",
           destructive: true,
         }] : []),
@@ -223,7 +227,7 @@
       : value >= threshold
         ? "right"
         : null;
-    if (nextArmedSide && nextArmedSide !== armedSide) hapticLight();
+    if (nextArmedSide !== armedSide && (nextArmedSide || armedSide)) hapticLight();
     armedSide = nextArmedSide;
   }
 
@@ -977,6 +981,7 @@
     pointer-events: none;
     box-shadow: none;
     visibility: hidden;
+    isolation: isolate;
   }
 
   .native-swipe .swipe-actions-left {
@@ -1023,16 +1028,27 @@
     transition: transform var(--duration-instant) var(--ease-standard);
   }
 
+  .native-swipe.swiping .swipe-action-content {
+    transition: none;
+  }
+
   .native-swipe .cascade-action {
     z-index: 1;
     transition: transform var(--duration-standard) var(--ease-standard);
   }
 
-  .native-swipe .outer-action { z-index: 2; }
+  .native-swipe .outer-action {
+    z-index: 2;
+    overflow: visible;
+  }
   .native-swipe.swiping .cascade-action { transition: none; }
 
   .native-swipe .swipe-actions-left.armed .outer-action {
     z-index: 3;
+  }
+
+  .native-swipe .swipe-actions-left.armed .cascade-action {
+    visibility: hidden;
   }
 
   .native-swipe .swipe-action.save {

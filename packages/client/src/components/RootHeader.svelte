@@ -151,8 +151,11 @@
   }
 
   .root-header-native {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 50%;
+    width: min(100%, var(--app-mobile-width));
+    transform: translateX(-50%);
     z-index: 10;
     min-height: calc(var(--safe-top) + var(--screen-nav-height));
     padding-top: var(--safe-top);
@@ -160,6 +163,12 @@
     grid-template-columns: minmax(var(--tap-min), 1fr) minmax(0, auto) minmax(var(--tap-min), 1fr);
     align-items: center;
     padding-inline: 10px;
+    pointer-events: none;
+  }
+
+  .root-header-native.compact,
+  .root-header-native.search-expanded {
+    pointer-events: auto;
   }
 
   .root-header-leading,
@@ -217,7 +226,7 @@
     width: 100%;
     max-width: 720px;
     margin: 0 auto;
-    padding: var(--space-5) var(--screen-gutter) var(--space-10);
+    padding: calc(var(--safe-top) + var(--space-6)) var(--screen-gutter) var(--space-5);
   }
 
   .root-header-large h1 {

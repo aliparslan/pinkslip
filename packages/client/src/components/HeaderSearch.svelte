@@ -101,7 +101,7 @@
     padding-inline-start: var(--space-3);
     border: 1px solid var(--color-control-border);
     border-radius: var(--radius-md);
-    background: var(--color-control-bg);
+    background: var(--color-input-bg);
     color: var(--color-ink-3);
   }
 

@@ -103,6 +103,7 @@
   --color-bad-soft: oklch(0.245 0.045 25);
 
   --color-control-bg: oklch(0.255 0.006 285);
+  --color-input-bg: var(--color-control-bg);
   --color-control-border: oklch(0.37 0.007 285);
   --color-control-active-bg: oklch(0.145 0.004 285);
   --color-control-active-ink: oklch(0.98 0.002 285);
@@ -153,6 +154,7 @@
   --color-bad-soft: oklch(0.955 0.022 25);
 
   --color-control-bg: oklch(0.94 0.002 80);
+  --color-input-bg: var(--color-control-bg);
   --color-control-border: oklch(0.835 0.004 80);
   --color-control-active-bg: oklch(1 0 0);
   --color-control-active-ink: oklch(0.18 0.006 285);

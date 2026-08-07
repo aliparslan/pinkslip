@@ -60,22 +60,30 @@ private final class NativeActionMenuPresenter: NSObject {
     private weak var sourceView: UIView?
     private let sourceRect: CGRect
     private let items: [NativeActionMenuItem]
-    private let finish: (String?) -> Void
+    private let onSelect: (String) -> Void
+    private let onFinish: (NativeActionMenuPresenter) -> Void
     private var button: NativeActionMenuButton?
-    private var selectedID: String?
+    private var selectionSent = false
     private var finished = false
 
-    init(sourceView: UIView, sourceRect: CGRect, items: [NativeActionMenuItem], finish: @escaping (String?) -> Void) {
+    init(
+        sourceView: UIView,
+        sourceRect: CGRect,
+        items: [NativeActionMenuItem],
+        onSelect: @escaping (String) -> Void,
+        onFinish: @escaping (NativeActionMenuPresenter) -> Void
+    ) {
         self.sourceView = sourceView
         self.sourceRect = sourceRect
         self.items = items
-        self.finish = finish
+        self.onSelect = onSelect
+        self.onFinish = onFinish
         super.init()
     }
 
     func present() {
         guard let sourceView else {
-            complete(nil)
+            complete()
             return
         }
         let actions = items.map { item in
@@ -88,7 +96,7 @@ private final class NativeActionMenuPresenter: NSObject {
                 identifier: UIAction.Identifier(item.id),
                 attributes: attributes
             ) { [weak self] _ in
-                self?.selectedID = item.id
+                self?.select(item.id)
             }
         }
         let button = NativeActionMenuButton(frame: sourceRect)
@@ -97,7 +105,7 @@ private final class NativeActionMenuPresenter: NSObject {
         button.menu = UIMenu(children: actions)
         button.showsMenuAsPrimaryAction = true
         button.onMenuEnd = { [weak self] in
-            self?.complete(self?.selectedID)
+            self?.complete()
         }
         sourceView.addSubview(button)
         self.button = button
@@ -106,21 +114,43 @@ private final class NativeActionMenuPresenter: NSObject {
 
     func dismiss() {
         guard let button else {
-            complete(nil)
+            complete()
             return
         }
         button.contextMenuInteraction?.dismissMenu()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.complete(nil)
+            self?.complete()
         }
     }
 
-    private func complete(_ id: String?) {
+    private func select(_ id: String) {
+        guard !selectionSent else { return }
+        selectionSent = true
+        onSelect(id)
+    }
+
+    private func complete() {
         guard !finished else { return }
         finished = true
         button?.removeFromSuperview()
         button = nil
-        finish(id)
+        onFinish(self)
+    }
+}
+
+private final class NativeActionMenuCallState {
+    private let call: CAPPluginCall
+    private var resolved = false
+
+    init(call: CAPPluginCall) {
+        self.call = call
+    }
+
+    func resolve(_ id: String? = nil) {
+        guard !resolved else { return }
+        resolved = true
+        if let id { call.resolve(["id": id]) }
+        else { call.resolve([:]) }
     }
 }
 
@@ -178,15 +208,19 @@ public class NativeActionMenuPlugin: CAPPlugin, CAPBridgedPlugin {
 
             if #available(iOS 17.4, *) {
                 (self.activePresenter as? NativeActionMenuPresenter)?.dismiss()
+                let callState = NativeActionMenuCallState(call: call)
                 let menuPresenter = NativeActionMenuPresenter(
                     sourceView: webView,
                     sourceRect: sourceRect,
-                    items: items
-                ) { [weak self] id in
-                    self?.activePresenter = nil
-                    if let id { call.resolve(["id": id]) }
-                    else { call.resolve([:]) }
-                }
+                    items: items,
+                    onSelect: { id in callState.resolve(id) },
+                    onFinish: { [weak self] finishedPresenter in
+                        if (self?.activePresenter as? NativeActionMenuPresenter) === finishedPresenter {
+                            self?.activePresenter = nil
+                        }
+                        callState.resolve()
+                    }
+                )
                 self.activePresenter = menuPresenter
                 menuPresenter.present()
                 return
