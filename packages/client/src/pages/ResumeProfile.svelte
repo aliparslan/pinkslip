@@ -12,7 +12,6 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
-  import PencilSimple from "phosphor-svelte/lib/PencilSimple";
   import UploadSimple from "phosphor-svelte/lib/UploadSimple";
   import Spinner from "../components/Spinner.svelte";
   import ScreenNav from "../components/ScreenNav.svelte";
@@ -71,11 +70,18 @@
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
   let draftRecord: { section: CollectionSection; id: string } | null = null;
+  let draftDirectSection: "skills" | OptionalSectionKind | null = null;
   const nativeIos = isIosApp();
 
   function currentDraftValue(): unknown {
     if (!draftRecord) return null;
     return profile[draftRecord.section].find((entry) => entry.id === draftRecord?.id);
+  }
+
+  function currentDirectDraftValue(): unknown {
+    if (draftDirectSection === "skills") return profile.skills;
+    if (draftDirectSection) return optionalSectionFor(draftDirectSection);
+    return null;
   }
 
   function undoable(message: string, restore: () => void) {
@@ -143,8 +149,16 @@
     return [entry.degree, entry.location].filter(Boolean).join(" · ");
   }
 
+  function projectDetail(entry: ResumeProfile["projects"][number]): string {
+    return [entry.role, entry.teamInfo].map((value) => value?.trim()).filter(Boolean).join(" · ");
+  }
+
   function firstBullet(items: string[]): string {
     return items.find((item) => item.trim())?.trim() ?? "";
+  }
+
+  function preventFormSubmit(event: SubmitEvent) {
+    event.preventDefault();
   }
 
   function optionalSectionFor(section: DirectSection) {
@@ -224,6 +238,15 @@
       if (view.section === "projects") profile.projects = profile.projects.filter((entry) => entry.id !== draftId);
       draftRecord = null;
     }
+    if (nativeIos && draftDirectSection && !hasResumeContent(currentDirectDraftValue())) {
+      if (draftDirectSection === "skills") {
+        profile.skills = profile.skills.filter((skill) => hasResumeContent(skill));
+      } else {
+        const draftKind = draftDirectSection;
+        profile.optionalSections = profile.optionalSections.filter((section) => section.kind !== draftKind);
+      }
+      draftDirectSection = null;
+    }
     view = { kind: "overview" };
   }
 
@@ -296,7 +319,11 @@
 
   function addSkillAndOpen() {
     prepareResumeEditor();
-    addSkill();
+    if (profile.skills.length === 0) {
+      profile.skills = [{ category: "", items: "" }];
+    }
+    if (nativeIos && !hasResumeContent(profile.skills)) draftDirectSection = "skills";
+    else queueAutosave();
     openSection("skills", false);
   }
 
@@ -311,7 +338,8 @@
       { kind, items: [{ category: "", items: "" }] },
     ];
     addSectionOpen = false;
-    queueAutosave();
+    if (nativeIos) draftDirectSection = kind;
+    else queueAutosave();
     openSection(kind, false);
   }
 
@@ -323,6 +351,7 @@
       () => profile.optionalSections,
       (items) => (profile.optionalSections = items),
     );
+    if (draftDirectSection === kind) draftDirectSection = null;
     view = { kind: "overview" };
   }
 
@@ -385,8 +414,11 @@
       profile = {
         ...createEmptyResumeProfile(),
         ...data,
-        education: (data.education ?? []).map(hydrateEducationEntry),
-        optionalSections,
+        experience: (data.experience ?? []).filter((entry) => hasResumeContent(entry)),
+        education: (data.education ?? []).filter((entry) => hasResumeContent(entry)).map(hydrateEducationEntry),
+        projects: (data.projects ?? []).filter((entry) => hasResumeContent(entry)),
+        skills: (data.skills ?? []).filter((entry) => hasResumeContent(entry)),
+        optionalSections: optionalSections.filter((section) => hasResumeContent(section)),
       };
       savePresentation.hydrate(profileRes.updated_at);
       if (corpusRes) notes = corpusRes.content_md ?? "";
@@ -443,6 +475,10 @@
     if (nativeIos && draftRecord) {
       if (!hasResumeContent(currentDraftValue())) return;
       draftRecord = null;
+    }
+    if (nativeIos && draftDirectSection) {
+      if (!hasResumeContent(currentDirectDraftValue())) return;
+      draftDirectSection = null;
     }
     savePresentation.markDirty();
     if (autosaveTimer !== null) window.clearTimeout(autosaveTimer);
@@ -535,7 +571,7 @@
   });
 </script>
 
-<div class="page pushed-screen">
+<div class="page pushed-screen" class:native-layout={nativeIos}>
   <ScreenNav
     title={screenTitle}
     collapsible={nativeIos && view.kind === "overview"}
@@ -568,13 +604,16 @@
       />
 
       <div class="resume-overview">
-        <section class="resume-identity" aria-labelledby="resume-name">
+        <section class="resume-section" aria-labelledby="contact-heading">
+          <header class="resume-section-heading">
+            <h2 id="contact-heading">Contact info</h2>
+          </header>
           <button type="button" class="identity-button" onclick={() => openSection("contact")}>
             <span class="identity-copy">
               <strong id="resume-name">{profile.contact.name.trim() || "Add your name"}</strong>
-              <small>{contactLine() || "Add contact details"}</small>
+              <small>{contactLine() || "Add email, phone, and location"}</small>
             </span>
-            <PencilSimple size={17} aria-hidden="true" />
+            <CaretRight size={18} weight="bold" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -583,134 +622,157 @@
             disabled={importing}
           >
             {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
-            <span>Import PDF</span>
+            <span>Import from PDF</span>
           </button>
         </section>
 
-        <section class="resume-section stack-sm" aria-labelledby="experience-heading">
+        <section class="resume-section" aria-labelledby="experience-heading">
           <header class="resume-section-heading">
-            <h2 id="experience-heading">Experience</h2>
-            {#if !nativeIos || profile.experience.length}
-              <button type="button" class="section-action" onclick={addExperience} aria-label="Add experience"><Plus size={18} /></button>
+            <div class="section-heading-copy">
+              <h2 id="experience-heading">Experience</h2>
+              {#if profile.experience.length}<span>{profile.experience.length}</span>{/if}
+            </div>
+            {#if profile.experience.length}
+              <button type="button" class="section-text-action" onclick={addExperience}>Add</button>
             {/if}
           </header>
           {#if profile.experience.length}
             <div class="resume-entries">
               {#each profile.experience as entry (entry.id)}
                 <button type="button" class="resume-entry" onclick={() => openRecord("experience", entry.id)}>
-                  <span class="entry-heading">
-                    <strong>{entry.title.trim() || "Untitled position"}</strong>
-                    {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                  <span class="entry-copy">
+                    <span class="entry-heading">
+                      <strong>{entry.title.trim() || "Untitled position"}</strong>
+                      {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                    </span>
+                    {#if entry.company || entry.location}<span class="entry-meta">{[entry.company, entry.location].filter(Boolean).join(" · ")}</span>{/if}
+                    {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
                   </span>
-                  {#if entry.company || entry.location}<span class="entry-meta">{[entry.company, entry.location].filter(Boolean).join(" · ")}</span>{/if}
-                  {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
-                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                  <CaretRight size={18} weight="bold" aria-hidden="true" />
                 </button>
               {/each}
             </div>
           {:else}
-            <button type="button" class="section-empty" onclick={addExperience}>Add experience</button>
+            <button type="button" class="section-empty" onclick={addExperience}><Plus size={17} aria-hidden="true" /><span>Add experience</span></button>
           {/if}
         </section>
 
-        <section class="resume-section stack-sm" aria-labelledby="education-heading">
+        <section class="resume-section" aria-labelledby="education-heading">
           <header class="resume-section-heading">
-            <h2 id="education-heading">Education</h2>
-            {#if !nativeIos || profile.education.length}
-              <button type="button" class="section-action" onclick={addEducation} aria-label="Add education"><Plus size={18} /></button>
+            <div class="section-heading-copy">
+              <h2 id="education-heading">Education</h2>
+              {#if profile.education.length}<span>{profile.education.length}</span>{/if}
+            </div>
+            {#if profile.education.length}
+              <button type="button" class="section-text-action" onclick={addEducation}>Add</button>
             {/if}
           </header>
           {#if profile.education.length}
             <div class="resume-entries">
               {#each profile.education as entry (entry.id)}
                 <button type="button" class="resume-entry" onclick={() => openRecord("education", entry.id)}>
-                  <span class="entry-heading">
-                    <strong>{entry.institution.trim() || "Untitled education"}</strong>
-                    {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                  <span class="entry-copy">
+                    <span class="entry-heading">
+                      <strong>{entry.institution.trim() || "Untitled education"}</strong>
+                      {#if entry.startDate || entry.endDate}<small>{dateRange(entry.startDate, entry.endDate)}</small>{/if}
+                    </span>
+                    {#if educationDetail(entry)}<span class="entry-meta">{educationDetail(entry)}</span>{/if}
                   </span>
-                  {#if educationDetail(entry)}<span class="entry-meta">{educationDetail(entry)}</span>{/if}
-                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                  <CaretRight size={18} weight="bold" aria-hidden="true" />
                 </button>
               {/each}
             </div>
           {:else}
-            <button type="button" class="section-empty" onclick={addEducation}>Add education</button>
+            <button type="button" class="section-empty" onclick={addEducation}><Plus size={17} aria-hidden="true" /><span>Add education</span></button>
           {/if}
         </section>
 
-        <section class="resume-section stack-sm" aria-labelledby="projects-heading">
+        <section class="resume-section" aria-labelledby="projects-heading">
           <header class="resume-section-heading">
-            <h2 id="projects-heading">Projects</h2>
-            {#if !nativeIos || profile.projects.length}
-              <button type="button" class="section-action" onclick={addProject} aria-label="Add project"><Plus size={18} /></button>
+            <div class="section-heading-copy">
+              <h2 id="projects-heading">Projects</h2>
+              {#if profile.projects.length}<span>{profile.projects.length}</span>{/if}
+            </div>
+            {#if profile.projects.length}
+              <button type="button" class="section-text-action" onclick={addProject}>Add</button>
             {/if}
           </header>
           {#if profile.projects.length}
             <div class="resume-entries">
               {#each profile.projects as entry (entry.id)}
                 <button type="button" class="resume-entry" onclick={() => openRecord("projects", entry.id)}>
-                  <span class="entry-heading">
-                    <strong>{entry.name.trim() || "Untitled project"}</strong>
-                    {#if entry.date}<small>{formatResumeDate(entry.date)}</small>{/if}
+                  <span class="entry-copy">
+                    <span class="entry-heading">
+                      <strong>{entry.name.trim() || "Untitled project"}</strong>
+                      {#if entry.date}<small>{formatResumeDate(entry.date)}</small>{/if}
+                    </span>
+                    {#if projectDetail(entry)}<span class="entry-meta">{projectDetail(entry)}</span>{/if}
+                    {#if entry.url}<span class="entry-meta">{entry.url}</span>{/if}
+                    {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
                   </span>
-                  {#if entry.url}<span class="entry-meta">{entry.url}</span>{/if}
-                  {#if firstBullet(entry.bullets)}<span class="entry-preview">{firstBullet(entry.bullets)}</span>{/if}
-                  <span class="entry-edit" aria-hidden="true"><PencilSimple size={15} /></span>
+                  <CaretRight size={18} weight="bold" aria-hidden="true" />
                 </button>
               {/each}
             </div>
           {:else}
-            <button type="button" class="section-empty" onclick={addProject}>Add project</button>
+            <button type="button" class="section-empty" onclick={addProject}><Plus size={17} aria-hidden="true" /><span>Add project</span></button>
           {/if}
         </section>
 
-        <section class="resume-section stack-sm" aria-labelledby="skills-heading">
+        <section class="resume-section" aria-labelledby="skills-heading">
           <header class="resume-section-heading">
-            <h2 id="skills-heading">Skills</h2>
-            {#if !nativeIos || profile.skills.length}
-              <button type="button" class="section-action" onclick={addSkillAndOpen} aria-label="Add skill category"><Plus size={18} /></button>
-            {/if}
+            <div class="section-heading-copy">
+              <h2 id="skills-heading">Skills</h2>
+              {#if profile.skills.length}<span>{profile.skills.length}</span>{/if}
+            </div>
           </header>
           {#if profile.skills.length}
             <button type="button" class="section-content" onclick={() => openSection("skills")}>
-              {#each profile.skills as skill}
-                <span class="compact-line"><strong>{skill.category.trim() || "Skills"}</strong><span>{skill.items.trim() || "Add skills"}</span></span>
-              {/each}
+              <span class="section-content-copy">
+                {#each profile.skills as skill}
+                  <span class="compact-line"><strong>{skill.category.trim() || "Skills"}</strong><span>{skill.items.trim() || "Add skills"}</span></span>
+                {/each}
+              </span>
+              <CaretRight size={18} weight="bold" aria-hidden="true" />
             </button>
           {:else}
-            <button type="button" class="section-empty" onclick={addSkillAndOpen}>Add skills</button>
+            <button type="button" class="section-empty" onclick={addSkillAndOpen}><Plus size={17} aria-hidden="true" /><span>Add skills</span></button>
           {/if}
         </section>
 
         {#each profile.optionalSections as section (section.kind)}
-          <section class="resume-section stack-sm" aria-labelledby="{section.kind}-heading">
+          <section class="resume-section" aria-labelledby="{section.kind}-heading">
             <header class="resume-section-heading">
               <h2 id="{section.kind}-heading">{OPTIONAL_SECTION_LABELS[section.kind]}</h2>
-              <button type="button" class="section-action" onclick={() => openSection(section.kind)} aria-label="Edit {OPTIONAL_SECTION_LABELS[section.kind]}"><PencilSimple size={17} /></button>
             </header>
             <button type="button" class="section-content" onclick={() => openSection(section.kind)}>
-              {#each section.items as item}
-                <span class="compact-line"><strong>{item.category.trim() || "Untitled"}</strong><span>{item.items.trim() || "Add details"}</span></span>
-              {/each}
+              <span class="section-content-copy">
+                {#each section.items as item}
+                  <span class="compact-line"><strong>{item.category.trim() || "Untitled"}</strong><span>{item.items.trim() || "Add details"}</span></span>
+                {/each}
+              </span>
+              <CaretRight size={18} weight="bold" aria-hidden="true" />
             </button>
           </section>
         {/each}
 
-        <section class="resume-section stack-sm" aria-labelledby="notes-heading">
+        <section class="resume-section" aria-labelledby="notes-heading">
           <header class="resume-section-heading">
             <h2 id="notes-heading">Tailoring notes</h2>
-            {#if !notesUnavailable}
-              <button type="button" class="section-action" onclick={() => openSection("notes")} aria-label="Edit tailoring notes"><PencilSimple size={17} /></button>
-            {/if}
           </header>
           {#if notesUnavailable}
             <button type="button" class="section-empty" onclick={retryNotes} disabled={notesRetrying}>
               {notesRetrying ? "Loading notes…" : "Notes didn’t load · Try again"}
             </button>
           {:else}
-            <button type="button" class:section-empty={!notes.trim()} class:notes-preview={notes.trim()} onclick={() => openSection("notes")}>
-              {notes.trim() || "Add notes"}
-            </button>
+            {#if notes.trim()}
+              <button type="button" class="notes-preview" onclick={() => openSection("notes")}>
+                <span>{notes.trim()}</span>
+                <CaretRight size={18} weight="bold" aria-hidden="true" />
+              </button>
+            {:else}
+              <button type="button" class="section-empty" onclick={() => openSection("notes")}><Plus size={17} aria-hidden="true" /><span>Add tailoring notes</span></button>
+            {/if}
           {/if}
         </section>
 
@@ -723,7 +785,7 @@
       </div>
     {:else if view.kind === "section"}
       {#if view.section === "contact"}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           <section class="editor-section stack-md">
             <h2>Profile</h2>
             <div class="form-grid">
@@ -747,49 +809,49 @@
               <label class="field span-2"><span>Website</span><input class="input-field" name="website" type="url" inputmode="url" autocomplete="url" bind:value={profile.contact.website} oninput={handleInput} /></label>
             </div>
           </section>
-        </div>
+        </form>
       {:else if view.section === "skills"}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           {#each profile.skills as skill, index}
             <div class="editor-item stack-sm">
               <div class="form-grid skill-grid">
                 <label class="field"><span>Category</span><input class="input-field" bind:value={skill.category} oninput={handleInput} /></label>
                 <label class="field"><span>Skills</span><input class="input-field" bind:value={skill.items} oninput={handleInput} /></label>
               </div>
-              <button type="button" class="remove-item" onclick={() => removeSkill(index)}><Trash size={14} /> Remove category</button>
+              <button type="button" class="remove-item" onclick={() => removeSkill(index)}><Trash size={14} aria-hidden="true" /> Remove category</button>
             </div>
           {/each}
-          <button type="button" class="add-row inline-add" onclick={addSkill}><Plus size={16} /> <span>Add category</span></button>
-        </div>
+          <button type="button" class="add-row inline-add" onclick={addSkill}><Plus size={16} aria-hidden="true" /> <span>Add category</span></button>
+        </form>
       {:else if view.section === "notes"}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           <label class="field">
             <span>Notes</span>
             <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput}></textarea>
           </label>
-        </div>
+        </form>
       {:else}
         {@const optionalSection = optionalSectionFor(view.section)}
         {#if optionalSection}
-          <div class="editor-form">
+          <form class="editor-form" onsubmit={preventFormSubmit}>
             {#each optionalSection.items as item, index}
               <div class="editor-item stack-sm">
                 <div class="form-grid skill-grid">
                   <label class="field"><span>Label</span><input class="input-field" bind:value={item.category} oninput={handleInput} /></label>
                   <label class="field"><span>Details</span><input class="input-field" bind:value={item.items} oninput={handleInput} /></label>
                 </div>
-                <button type="button" class="remove-item" onclick={() => removeOptionalItem(optionalSection.kind, index)}><Trash size={14} /> Remove item</button>
+                <button type="button" class="remove-item" onclick={() => removeOptionalItem(optionalSection.kind, index)}><Trash size={14} aria-hidden="true" /> Remove item</button>
               </div>
             {/each}
-            <button type="button" class="add-row inline-add" onclick={() => addOptionalItem(optionalSection.kind)}><Plus size={16} /> <span>Add item</span></button>
-            <button type="button" class="remove-section" onclick={() => removeOptionalSection(optionalSection.kind)}><Trash size={15} /> Remove section</button>
-          </div>
+            <button type="button" class="add-row inline-add" onclick={() => addOptionalItem(optionalSection.kind)}><Plus size={16} aria-hidden="true" /> <span>Add item</span></button>
+            <button type="button" class="remove-section prominent-record-remove" onclick={() => removeOptionalSection(optionalSection.kind)}><Trash size={15} aria-hidden="true" /> Remove section</button>
+          </form>
         {/if}
       {/if}
     {:else if view.section === "experience"}
       {@const entry = profile.experience.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           <section class="editor-section stack-md">
             <h2>Role</h2>
             <div class="form-grid">
@@ -812,24 +874,28 @@
             </div>
             <label class="current-role"><input type="checkbox" checked={isCurrentRole(entry.endDate)} onchange={(event) => setCurrentRole(entry, event.currentTarget.checked)} /><span>Current role</span></label>
           </section>
-          <section class="editor-section evidence-section stack-sm">
+          <section class="editor-section evidence-section stack-md">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
-              <div class="bullet-row">
-                <span class="bullet-dot" aria-hidden="true"></span>
-                <textarea class="input-field bullet-input" aria-label="Accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
-                <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
+              <div class="bullet-field">
+                <div class="bullet-field-heading">
+                  <label for="experience-{entry.id}-bullet-{index}">Accomplishment {index + 1}</label>
+                  {#if entry.bullets.length > 1}
+                    <button type="button" class="bullet-remove" aria-label="Remove accomplishment {index + 1}" onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={16} aria-hidden="true" /></button>
+                  {/if}
+                </div>
+                <textarea id="experience-{entry.id}-bullet-{index}" class="input-field bullet-input" placeholder="Describe what you changed and the result" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
               </div>
             {/each}
-            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
+            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} aria-hidden="true" /> <span>Add accomplishment</span></button>
           </section>
-          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeExperience(entry.id)}><Trash size={15} /> Remove position</button>
-        </div>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeExperience(entry.id)}><Trash size={15} aria-hidden="true" /> Remove position</button>
+        </form>
       {/if}
     {:else if view.section === "education"}
       {@const entry = profile.education.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           <section class="editor-section stack-md">
             <h2>School</h2>
             <div class="form-grid">
@@ -858,33 +924,39 @@
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
           </section>
-          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeEducation(entry.id)}><Trash size={15} /> Remove education</button>
-        </div>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeEducation(entry.id)}><Trash size={15} aria-hidden="true" /> Remove education</button>
+        </form>
       {/if}
     {:else}
       {@const entry = profile.projects.find((candidate) => candidate.id === currentRecordId)}
       {#if entry}
-        <div class="editor-form">
+        <form class="editor-form" onsubmit={preventFormSubmit}>
           <section class="editor-section stack-md">
             <div class="form-grid">
               <label class="field span-2"><span>Name</span><input class="input-field" bind:value={entry.name} oninput={handleInput} /></label>
+              <label class="field"><span>Role <span class="label-opt">optional</span></span><input class="input-field" value={entry.role ?? ""} oninput={(event) => { entry.role = event.currentTarget.value; handleInput(); }} /></label>
+              <label class="field"><span>Team or organization <span class="label-opt">optional</span></span><input class="input-field" value={entry.teamInfo ?? ""} oninput={(event) => { entry.teamInfo = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>Date</span><input class="input-field" type="month" value={monthInputValue(entry.date ?? "")} oninput={(event) => { entry.date = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>URL</span><input class="input-field" type="url" inputmode="url" bind:value={entry.url} oninput={handleInput} /></label>
             </div>
           </section>
-          <section class="editor-section evidence-section stack-sm">
+          <section class="editor-section evidence-section stack-md">
             <h2>Accomplishments</h2>
             {#each entry.bullets as bullet, index}
-              <div class="bullet-row">
-                <span class="bullet-dot" aria-hidden="true"></span>
-                <textarea class="input-field bullet-input" aria-label="Project accomplishment {index + 1}" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
-                <button type="button" class="icon-btn icon-btn-xs bullet-remove" aria-label="Remove project accomplishment {index + 1}" disabled={entry.bullets.length <= 1} onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={13} /></button>
+              <div class="bullet-field">
+                <div class="bullet-field-heading">
+                  <label for="project-{entry.id}-bullet-{index}">Accomplishment {index + 1}</label>
+                  {#if entry.bullets.length > 1}
+                    <button type="button" class="bullet-remove" aria-label="Remove accomplishment {index + 1}" onclick={() => (entry.bullets = removeBullet(entry.bullets, index))}><Trash size={16} aria-hidden="true" /></button>
+                  {/if}
+                </div>
+                <textarea id="project-{entry.id}-bullet-{index}" class="input-field bullet-input" placeholder="Describe what you built and why it mattered" bind:value={entry.bullets[index]} oninput={handleInput}></textarea>
               </div>
             {/each}
-            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} /> <span>Add accomplishment</span></button>
+            <button type="button" class="add-row inline-add" onclick={() => (entry.bullets = addBullet(entry.bullets))}><Plus size={16} aria-hidden="true" /> <span>Add accomplishment</span></button>
           </section>
-          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeProject(entry.id)}><Trash size={15} /> Remove project</button>
-        </div>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeProject(entry.id)}><Trash size={15} aria-hidden="true" /> Remove project</button>
+        </form>
       {/if}
     {/if}
   </div>
@@ -926,20 +998,27 @@
   .resume-overview {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
-    padding-bottom: var(--space-6);
+    gap: var(--space-8);
+    padding-bottom: var(--space-8);
+  }
+
+  .resume-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
   .import-action {
     appearance: none;
-    min-height: 40px;
+    min-height: var(--control-height-compact);
+    align-self: flex-start;
     margin-block-start: var(--space-1);
-    margin-inline-start: -9px;
-    padding-inline: 9px;
+    margin-inline-start: calc(var(--space-3) * -1);
+    padding-inline: var(--space-3);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: var(--space-2);
     border: 0;
     border-radius: var(--radius-full);
     background: transparent;
@@ -948,7 +1027,7 @@
     cursor: pointer;
   }
 
-  :global(html.native-ios) .import-action { min-height: var(--tap-min); }
+  .native-layout .import-action { min-height: var(--tap-min); }
 
   .import-action:active {
     transform: scale(0.96);
@@ -964,7 +1043,7 @@
   }
 
   .identity-button,
-  .section-action,
+  .section-text-action,
   .resume-entry,
   .section-content,
   .section-empty,
@@ -979,20 +1058,13 @@
     cursor: pointer;
   }
 
-  .resume-identity {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding-block: var(--space-3) 0;
-  }
-
   .identity-button {
     width: 100%;
-    min-height: 56px;
-    padding: 0;
-    display: flex;
+    min-height: 64px;
+    padding: var(--space-2) 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-4);
     text-align: start;
   }
@@ -1001,7 +1073,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--space-1);
   }
 
   .identity-copy strong {
@@ -1013,73 +1085,81 @@
   .identity-copy small {
     overflow: hidden;
     color: var(--color-ink-4);
-    font-size: var(--fs-xs);
-    line-height: 1.3;
+    font-size: var(--fs-sm);
+    line-height: 1.4;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .identity-button > :global(svg) {
     flex: 0 0 auto;
-    color: var(--color-accent);
+    color: var(--color-ink-4);
   }
 
   .resume-section-heading {
     min-height: 44px;
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-  }
-
-  .resume-section-heading::before {
-    content: "";
-    width: 3px;
-    height: 18px;
-    flex: 0 0 auto;
-    border-radius: var(--radius-full);
-    background: var(--color-accent);
+    justify-content: space-between;
+    gap: var(--space-4);
   }
 
   .resume-section-heading h2 {
     margin: 0;
-    margin-inline-end: auto;
     color: var(--color-ink);
     font-size: var(--fs-lg);
     font-weight: 600;
     line-height: 1.25;
   }
 
-  .section-action {
-    width: 44px;
-    height: 44px;
-    margin-inline-end: -11px;
-    padding: 0;
-    display: grid;
-    place-items: center;
+  .section-heading-copy {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .section-heading-copy > span {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-text-action {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    margin-inline-end: calc(var(--space-3) * -1);
+    padding-inline: var(--space-3);
     color: var(--color-accent);
+    font-size: var(--fs-sm);
+    font-weight: 600;
   }
 
   .resume-entries {
     display: flex;
     flex-direction: column;
-    padding-inline-start: var(--space-3);
-    border-inline-start: 2px solid var(--color-line);
   }
 
   .resume-entry {
-    position: relative;
     width: 100%;
-    min-height: 56px;
-    padding-block: 10px;
-    padding-inline: 0 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    min-height: 64px;
+    padding-block: var(--space-3);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
     text-align: start;
   }
 
   .resume-entry + .resume-entry {
     border-top: 1px solid var(--color-line);
+  }
+
+  .entry-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
   }
 
   .entry-heading {
@@ -1100,10 +1180,10 @@
     white-space: nowrap;
   }
 
-  .entry-edit {
-    position: absolute;
-    top: 13px;
-    inset-inline-end: 5px;
+  .resume-entry > :global(svg),
+  .section-content > :global(svg),
+  .notes-preview > :global(svg) {
+    flex: 0 0 auto;
     color: var(--color-ink-4);
   }
 
@@ -1135,19 +1215,25 @@
   .section-content,
   .notes-preview {
     width: 100%;
-    min-height: 44px;
-    padding-block: 6px;
-    padding-inline: var(--space-3) 0;
+    min-height: 56px;
+    padding-block: var(--space-2);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    text-align: start;
+  }
+
+  .section-content-copy {
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    text-align: start;
-    border-inline-start: 2px solid var(--color-line);
+    gap: var(--space-2);
   }
 
   .compact-line {
     display: grid;
-    grid-template-columns: minmax(80px, 0.35fr) minmax(0, 1fr);
+    grid-template-columns: minmax(88px, 0.35fr) minmax(0, 1fr);
     gap: var(--space-3);
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
@@ -1163,41 +1249,48 @@
   }
 
   .section-empty {
-    width: max-content;
+    width: 100%;
     min-height: 44px;
-    margin-inline-start: var(--space-3);
     padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     color: var(--color-accent);
-    font-size: var(--fs-xs);
+    font-size: var(--fs-sm);
     font-weight: 600;
     text-align: start;
   }
 
   .notes-preview {
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+  }
+
+  .notes-preview > span {
     display: -webkit-box;
     overflow: hidden;
-    color: var(--color-ink-3);
-    font-size: var(--fs-xs);
-    line-height: 1.45;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
     line-clamp: 3;
   }
 
-  .section-action:active,
+  .section-text-action:active,
   .add-section-button:active {
     transform: scale(0.96);
   }
 
   .add-section-button {
-    min-height: 44px;
-    align-self: flex-start;
-    padding: 0;
-    display: inline-flex;
+    width: 100%;
+    min-height: 52px;
+    padding: var(--space-2) 0;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: var(--space-2);
+    border-top: 1px solid var(--color-line);
     color: var(--color-accent);
-    font-size: var(--fs-xs);
+    font-size: var(--fs-sm);
     font-weight: 600;
   }
 
@@ -1243,14 +1336,14 @@
   .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 10px;
+    gap: var(--space-3) var(--space-2);
   }
 
   .field {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .field > span {
@@ -1272,12 +1365,12 @@
   .remove-item,
   .remove-section {
     appearance: none;
-    min-height: 40px;
+    min-height: var(--control-height-compact);
     align-self: flex-start;
     padding: 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     border: 0;
     background: transparent;
     color: var(--color-bad);
@@ -1285,10 +1378,10 @@
     cursor: pointer;
   }
 
-  :global(html.native-ios) .remove-item,
-  :global(html.native-ios) .remove-section { min-height: var(--tap-min); }
+  .native-layout .remove-item,
+  .native-layout .remove-section { min-height: var(--tap-min); }
 
-  :global(html.native-ios) .prominent-record-remove {
+  .native-layout .prominent-record-remove {
     margin-block-start: var(--space-2);
     padding: 0 var(--space-5);
     justify-content: center;
@@ -1315,11 +1408,11 @@
   }
 
   .current-role {
-    min-height: 44px;
+    min-height: var(--tap-min);
     align-self: flex-start;
     display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--space-2);
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
     font-weight: 500;
@@ -1338,42 +1431,57 @@
     cursor: default;
   }
 
-  .bullet-row {
-    display: grid;
-    grid-template-columns: 5px minmax(0, 1fr) 36px;
-    align-items: start;
+  .native-layout .editor-form .input-field {
+    background: var(--color-bg-elev);
+  }
+
+  .native-layout .editor-form .input-field:focus {
+    background: var(--color-bg-elev);
+  }
+
+  .bullet-field {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-2);
   }
 
-  .bullet-dot {
-    width: 5px;
-    height: 5px;
-    margin-top: 20px;
-    border-radius: 50%;
-    background: var(--color-accent);
-  }
-
-  .bullet-input {
-    min-height: 72px;
-    resize: vertical;
-  }
-
-  :global(html.native-ios) .bullet-row {
-    grid-template-columns: 5px minmax(0, 1fr) var(--tap-min);
-  }
-
-  :global(html.native-ios) .bullet-input {
-    min-height: 88px;
-    padding: var(--space-3);
-    line-height: 1.45;
+  .bullet-field-heading {
+    min-height: var(--tap-min);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    font-weight: 600;
   }
 
   .bullet-remove {
-    margin-top: 5px;
+    appearance: none;
+    width: var(--tap-min);
+    height: var(--tap-min);
+    margin-inline-end: calc(var(--space-3) * -1);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-bad);
+    cursor: pointer;
+  }
+
+  .bullet-input {
+    min-height: calc(var(--control-height) * 2);
+    padding: var(--space-4);
+    line-height: 1.5;
+    resize: vertical;
   }
 
   .notes-field {
-    min-height: 220px;
+    min-height: calc(var(--control-height) * 4);
+    padding: var(--space-4);
+    line-height: 1.5;
   }
 
   .add-section-options {
@@ -1383,8 +1491,8 @@
   .add-section-options button {
     appearance: none;
     width: 100%;
-    min-height: 52px;
-    padding: 8px 0;
+    min-height: calc(var(--tap-min) + var(--space-2));
+    padding: var(--space-2) 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
