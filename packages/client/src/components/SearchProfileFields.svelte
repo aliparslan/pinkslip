@@ -419,6 +419,8 @@
   .subfield-label { color: var(--color-ink-2); font-size: var(--fs-xs); font-weight: 500; }
   .preference-fieldset { min-width: 0; padding: 0; border: 0; margin: 0; }
   .preference-fieldset > legend { padding: 0; }
+  .native-layout .preference-fieldset { gap: 0; }
+  .native-layout .preference-fieldset > legend { margin-block-end: var(--space-2); }
   .work-mode-picker { position: relative; }
   .work-mode-trigger {
     width: 100%;

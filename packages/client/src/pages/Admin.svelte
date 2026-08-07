@@ -32,6 +32,7 @@
     title={nativeIos ? viewTitle : "Admin workspace"}
     collapsible={nativeIos}
     searchable={nativeIos && route === "/admin/sources"}
+    chromeOwnerId="sources"
     backLabel="Back to You"
     onBack={backToYou}
   />
@@ -117,7 +118,6 @@
     isolation: isolate;
     height: 50px;
     margin-bottom: var(--space-4);
-    background: color-mix(in oklch, var(--color-accent) 8%, var(--color-bg));
   }
 
   .native-layout .admin-tabs::before {
@@ -129,8 +129,8 @@
     left: 3px;
     width: calc((100% - 15px) / 4);
     border-radius: var(--radius-sm);
-    background: var(--color-accent-soft);
-    box-shadow: none;
+    background: var(--color-bg-elev);
+    box-shadow: var(--shadow-control-active);
     transition: transform var(--duration-standard) var(--ease-standard);
   }
 
@@ -177,7 +177,7 @@
 
   .native-layout .admin-tabs button.active {
     background: transparent;
-    color: var(--color-accent-soft-ink);
+    color: var(--color-ink);
     box-shadow: none;
   }
 

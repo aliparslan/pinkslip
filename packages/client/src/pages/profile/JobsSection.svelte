@@ -30,7 +30,7 @@
   <div class="content-card stack-lg jobs-settings-content">
     <SearchProfileFields bind:profile={searchProfile} />
     <div>
-      <button class="btn-secondary" onclick={resetToDefaults}>
+      <button class="btn-secondary" class:full-width={nativeIos} onclick={resetToDefaults}>
         Reset defaults
       </button>
     </div>

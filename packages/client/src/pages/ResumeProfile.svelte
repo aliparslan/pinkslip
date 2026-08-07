@@ -858,7 +858,7 @@
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
           </section>
-          <button type="button" class="remove-section" onclick={() => removeEducation(entry.id)}><Trash size={15} /> Remove education</button>
+          <button type="button" class="remove-section prominent-record-remove" onclick={() => removeEducation(entry.id)}><Trash size={15} /> Remove education</button>
         </div>
       {/if}
     {:else}

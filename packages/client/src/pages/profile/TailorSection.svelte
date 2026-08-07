@@ -520,7 +520,7 @@
 
       {#if nativeIos}
         <p class="helper-text">An uploaded file is used instead of your structured resume when tailoring.</p>
-        <button class="text-button" type="button" onclick={() => navigate("/you/resume")}>Edit structured resume</button>
+        <button class="btn-secondary full-width" type="button" onclick={() => navigate("/you/resume")}>Edit structured resume</button>
       {/if}
 
       <input

@@ -222,7 +222,7 @@
 
       {:else if step === 2}
         <section class="onboarding-step">
-          <h1 tabindex="-1">Set your work preferences</h1>
+          <h1 tabindex="-1">Set your preferences</h1>
           <div class="onboarding-fields onboarding-fields-after-title">
             <SearchProfileFields bind:profile section="locations" showAdvanced={false} showHeadings={false} />
           </div>
@@ -417,6 +417,8 @@
     letter-spacing: 0;
     line-height: 1.15;
   }
+
+  .onboarding h1:focus { outline: none; }
 
   .onboarding-copy {
     max-width: 42ch;

@@ -94,7 +94,7 @@
       {toast.action.label}
     </button>
   {/if}
-  {#if nativeIos || toast.duration === null}
+  {#if toast.duration === null}
     <button type="button" class="toast-close" aria-label="Dismiss message" onclick={() => feedback.dismiss(toast.id)}>
       <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} />
     </button>
@@ -157,6 +157,16 @@
   :global(html.native-ios) .toast-action,
   :global(html.native-ios) .toast-close {
     min-height: var(--tap-min);
+  }
+
+  :global(html.native-ios) .toast-message {
+    width: auto;
+    max-width: 100%;
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+    background: var(--color-bg-elev);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   :global(html.native-ios) .toast-close { width: var(--tap-min); }

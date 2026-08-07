@@ -93,7 +93,7 @@
         onclick={() => selectView("saved")}
         onkeydown={handleTabKeydown}
       >
-        <span class="library-tab-icon" class:active={activeView === "saved"} aria-hidden="true">
+        <span class="library-tab-icon saved" aria-hidden="true">
           <span class:visible={activeView !== "saved"}><BookmarkSimple size={17} weight="regular" /></span>
           <span class:visible={activeView === "saved"}><BookmarkSimple size={17} weight="fill" /></span>
         </span>
@@ -111,7 +111,7 @@
         onclick={() => selectView("applied")}
         onkeydown={handleTabKeydown}
       >
-        <span class="library-tab-icon" class:active={activeView === "applied"} aria-hidden="true">
+        <span class="library-tab-icon applied" aria-hidden="true">
           <span class:visible={activeView !== "applied"}><CheckCircle size={17} weight="regular" /></span>
           <span class:visible={activeView === "applied"}><CheckCircle size={17} weight="fill" /></span>
         </span>
@@ -148,7 +148,7 @@
             <h2>No saved jobs</h2>
             <p>Save promising roles from their job page and they’ll stay here.</p>
           {:else}
-            <CheckCircle size={28} weight={nativeIos ? "fill" : "regular"} color={nativeIos ? "var(--color-accent)" : undefined} />
+            <CheckCircle size={28} weight={nativeIos ? "fill" : "regular"} color={nativeIos ? "var(--color-good)" : undefined} />
             <h2>No applications yet</h2>
             <p>Jobs you mark as applied will become your application history.</p>
           {/if}
@@ -175,26 +175,12 @@
 </div>
 
 <style>
-  .native-layout .my-jobs-tabs {
-    background: color-mix(in oklch, var(--color-accent) 8%, var(--color-bg));
-  }
-
-  .native-layout .my-jobs-tabs::before {
-    background: var(--color-accent-soft);
-    box-shadow: none;
-  }
-
-  .native-layout .my-jobs-tabs button.active {
-    color: var(--color-accent-soft-ink);
-  }
-
-  .native-layout .library-tab-icon.active {
+  .native-layout .library-tab-icon.saved {
     color: var(--color-accent);
   }
 
-  .native-layout .my-jobs-tabs button.active small {
-    background: color-mix(in oklch, var(--color-accent) 16%, transparent);
-    color: var(--color-accent-soft-ink);
+  .native-layout .library-tab-icon.applied {
+    color: var(--color-good);
   }
 
   .native-layout .my-jobs-list {

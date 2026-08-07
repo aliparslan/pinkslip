@@ -365,7 +365,7 @@
       <strong>{label}</strong>
       <small>{detail}</small>
     </span>
-    <CaretRight size={16} />
+    <CaretRight size={16} weight="bold" />
   </button>
 {/snippet}
 
@@ -517,9 +517,9 @@
 
         {#if isAdmin}
           <section>
-            <h2 class="section-eyebrow">Admin</h2>
+            <h2 class="section-eyebrow you-section-heading">Admin</h2>
             <div class="surface-list">
-              {@render destinationRow(nativeIos ? "Admin" : "Admin workspace", "Product health and moderation", "/admin", Wrench)}
+              {@render destinationRow(nativeIos ? "Manage app" : "Admin workspace", "Product health and moderation", "/admin", Wrench)}
             </div>
           </section>
         {/if}
