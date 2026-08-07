@@ -58,8 +58,7 @@
   let swipeX: number = $state(0);
   let swiping: boolean = $state(false);
   let swipeSide: SwipeSide | null = $state(null);
-  let armedSide: SwipeSide | null = $state(null);
-  let armTransitioning = $state(false);
+  let armedSide: SwipeSide | null = null;
   let startX = 0;
   let startY = 0;
   let startOffsetX = 0;
@@ -68,6 +67,21 @@
   let pointerId: number | null = null;
   let suppressClickUntil = 0;
   let rowEl: HTMLElement | undefined = $state(undefined);
+  let leftCascadeEl: HTMLButtonElement | undefined = $state(undefined);
+  let leftCascadeContentEl: HTMLElement | undefined = $state(undefined);
+  let leftOuterEl: HTMLButtonElement | undefined = $state(undefined);
+  let leftOuterContentEl: HTMLElement | undefined = $state(undefined);
+  let rightContentEl: HTMLElement | undefined = $state(undefined);
+  let nativeSwipeX = 0;
+  let pendingNativeSwipeX = 0;
+  let nativeSwipeQueued = false;
+  let nativeFrame: number | null = null;
+  let armVisualProgress = 0;
+  let armVisualFrom = 0;
+  let armVisualTarget = 0;
+  let armVisualStartedAt = 0;
+  let armVisualDuration = 0;
+  let previousGestureX = 0;
   const nativeIos = isIosApp();
   const swipeBatch = createFrameBatch<number>(applySwipeOffset, nativeIos);
 
@@ -106,30 +120,6 @@
         + Math.max(0, swipeActionCount - 1) * ACTION_GAP
   );
   let openThreshold = $derived(Math.min(64, actionTotalWidth * 0.42));
-  let leftRevealDistance = $derived(nativeIos ? Math.min(gestureRowWidth, Math.max(0, -swipeX)) : 0);
-  let rightRevealDistance = $derived(nativeIos ? Math.min(gestureRowWidth, Math.max(0, swipeX)) : 0);
-  let leftRevealProgress = $derived(Math.min(1, Math.max(0, -swipeX / Math.max(1, actionTotalWidth))));
-  let leftCascadeOffset = $derived(
-    nativeIos && swipeActionCount > 1 ? (1 - leftRevealProgress) * actionButtonWidth : 0
-  );
-  let leftActionGrowth = $derived(
-    nativeIos
-      ? Math.max(0, leftRevealDistance - actionTotalWidth) / Math.max(1, swipeActionCount)
-      : 0
-  );
-  let leftActionWidth = $derived(actionButtonWidth + leftActionGrowth);
-  let leftOuterWidth = $derived(leftActionWidth);
-  let leftArmedContentShift = $derived(
-    armedSide === "left"
-      ? -Math.max(0, leftRevealDistance - leftActionWidth / 2 - actionButtonWidth / 2)
-      : 0
-  );
-  let rightActionWidth = $derived(
-    armedSide === "right" ? rightRevealDistance : READ_ACTION_WIDTH
-  );
-  let rightArmedContentShift = $derived(
-    armedSide === "right" ? Math.max(0, rightRevealDistance - READ_ACTION_WIDTH) / 2 : 0
-  );
   let leftActionsInteractive = $derived(!swiping && Math.abs(swipeX + actionTotalWidth) < 0.5);
   let rightActionInteractive = $derived(!swiping && Math.abs(swipeX - READ_ACTION_WIDTH) < 0.5);
   let savedState = $derived(Boolean(job.saved));
@@ -143,7 +133,7 @@
 
   function handleClick(event?: MouseEvent) {
     if (wasMenuJustDismissed()) return;
-    if (performance.now() < suppressClickUntil || Math.abs(swipeX) > 4) {
+    if (performance.now() < suppressClickUntil || Math.abs(currentSwipeOffset()) > 4) {
       event?.preventDefault();
       snapTo(0); // a swipe was open — first tap just closes it
       return;
@@ -203,15 +193,147 @@
     else if (action === "remove") onBlockRequest?.(job);
   }
 
+  function currentSwipeOffset(): number {
+    return nativeIos ? nativeSwipeX : swipeX;
+  }
+
+  function nativeMotionDuration(): number {
+    if (!rowEl || prefersReducedMotion()) return 0;
+    const raw = getComputedStyle(rowEl).getPropertyValue("--duration-instant").trim();
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value)) return 0;
+    return raw.endsWith("s") && !raw.endsWith("ms") ? value * 1000 : value;
+  }
+
+  function sampleArmProgress(timestamp: number): boolean {
+    if (armVisualProgress === armVisualTarget) return false;
+    if (armVisualDuration <= 0) {
+      armVisualProgress = armVisualTarget;
+      return false;
+    }
+    const elapsed = Math.max(0, timestamp - armVisualStartedAt);
+    const linearProgress = Math.min(1, elapsed / armVisualDuration);
+    const easedProgress = 1 - (1 - linearProgress) ** 3;
+    armVisualProgress = armVisualFrom + (armVisualTarget - armVisualFrom) * easedProgress;
+    if (linearProgress >= 1) {
+      armVisualProgress = armVisualTarget;
+      return false;
+    }
+    return true;
+  }
+
+  function ensureNativeFrame() {
+    if (nativeFrame === null) nativeFrame = window.requestAnimationFrame(runNativeFrame);
+  }
+
+  function beginArmMotion(target: number) {
+    const now = performance.now();
+    sampleArmProgress(now);
+    armVisualFrom = armVisualProgress;
+    armVisualTarget = target;
+    armVisualStartedAt = now;
+    ensureNativeFrame();
+  }
+
+  function paintNativeSwipe(value: number) {
+    nativeSwipeX = value;
+    rowEl?.style.setProperty("transform", `translate3d(${value}px, 0, 0)`);
+
+    const nextSide: SwipeSide | null = value < -0.5 ? "left" : value > 0.5 ? "right" : null;
+    if (nextSide !== swipeSide && (nextSide !== null || swiping)) {
+      flushSync(() => { swipeSide = nextSide; });
+    }
+
+    const leftReveal = Math.min(gestureRowWidth, Math.max(0, -value));
+    const rightReveal = Math.min(gestureRowWidth, Math.max(0, value));
+
+    const actionCount = Math.max(1, swipeActionCount);
+    const actionGrowth = Math.max(0, leftReveal - actionTotalWidth) / actionCount;
+    const actionWidth = actionButtonWidth + actionGrowth;
+    const visualOuterEl = leftOuterEl ?? leftCascadeEl;
+    const visualOuterContentEl = leftOuterContentEl ?? leftCascadeContentEl;
+    leftCascadeEl?.style.setProperty("width", `${actionWidth}px`);
+    visualOuterEl?.style.setProperty("width", `${actionWidth}px`);
+
+    if (leftCascadeEl && swipeActionCount > 1) {
+      const revealProgress = Math.min(1, Math.max(0, leftReveal / Math.max(1, actionTotalWidth)));
+      const cascadeOffset = (1 - revealProgress) * actionButtonWidth;
+      const takeoverOffset = armVisualProgress * actionWidth;
+      leftCascadeEl.style.setProperty(
+        "transform",
+        `translate3d(${cascadeOffset + takeoverOffset}px, 0, 0)`,
+      );
+    } else {
+      leftCascadeEl?.style.removeProperty("transform");
+    }
+
+    const leftContentShift = -Math.max(
+      0,
+      leftReveal - actionWidth / 2 - actionButtonWidth / 2,
+    ) * armVisualProgress;
+    visualOuterContentEl?.style.setProperty(
+      "transform",
+      `translate3d(${leftContentShift}px, 0, 0)`,
+    );
+
+    // The read action stays planted while partially revealed. Once armed, its
+    // content catches the row edge while the neutral backdrop fills the reveal.
+    const rightContentShift = Math.max(0, rightReveal - READ_ACTION_WIDTH) * armVisualProgress;
+    rightContentEl?.style.setProperty(
+      "transform",
+      `translate3d(${rightContentShift}px, 0, 0)`,
+    );
+  }
+
+  function runNativeFrame(timestamp: number) {
+    nativeFrame = null;
+    if (nativeSwipeQueued) {
+      nativeSwipeQueued = false;
+      nativeSwipeX = pendingNativeSwipeX;
+    }
+    const armStillMoving = sampleArmProgress(timestamp);
+    paintNativeSwipe(nativeSwipeX);
+    if (nativeSwipeQueued || armStillMoving) ensureNativeFrame();
+  }
+
+  function scheduleNativeSwipe(value: number) {
+    pendingNativeSwipeX = value;
+    nativeSwipeQueued = true;
+    ensureNativeFrame();
+  }
+
+  function flushNativeSwipe() {
+    if (nativeFrame !== null) window.cancelAnimationFrame(nativeFrame);
+    nativeFrame = null;
+    if (nativeSwipeQueued) {
+      nativeSwipeQueued = false;
+      nativeSwipeX = pendingNativeSwipeX;
+    }
+    sampleArmProgress(performance.now());
+    paintNativeSwipe(nativeSwipeX);
+  }
+
+  function cancelNativePaint() {
+    if (nativeFrame !== null) window.cancelAnimationFrame(nativeFrame);
+    nativeFrame = null;
+    nativeSwipeQueued = false;
+  }
+
   function snapTo(target: number, notifyOwner = true) {
     swipeBatch.cancel();
-    swiping = false;
-    armedSide = null;
-    armTransitioning = false;
-    if (target < -0.5) swipeSide = "left";
-    else if (target > 0.5) swipeSide = "right";
-    else if (Math.abs(renderedSwipeOffset()) < 0.5) swipeSide = null;
-    swipeX = target;
+    cancelNativePaint();
+    flushSync(() => {
+      swiping = false;
+      armedSide = null;
+      if (target < -0.5) swipeSide = "left";
+      else if (target > 0.5) swipeSide = "right";
+      else if (Math.abs(renderedSwipeOffset()) < 0.5) swipeSide = null;
+      swipeX = target;
+    });
+    armVisualProgress = 0;
+    armVisualFrom = 0;
+    armVisualTarget = 0;
+    if (nativeIos) paintNativeSwipe(target);
     if (nativeIos && onSwipeOpen) {
       if (Math.abs(target) > 0.5) onSwipeOpen(job.id);
       else if (notifyOwner) onSwipeOpen(null);
@@ -229,19 +351,15 @@
       : value >= threshold
         ? "right"
         : null;
+    const leftBoundaryCrossed = (previousGestureX <= -threshold) !== (value <= -threshold);
+    const rightBoundaryCrossed = (previousGestureX >= threshold) !== (value >= threshold);
+    if (leftBoundaryCrossed) hapticLight();
+    if (rightBoundaryCrossed) hapticLight();
+    previousGestureX = value;
     if (nextArmedSide !== armedSide && (nextArmedSide || armedSide)) {
-      armTransitioning = true;
-      hapticLight();
+      beginArmMotion(nextArmedSide ? 1 : 0);
     }
     armedSide = nextArmedSide;
-  }
-
-  function handleArmTransitionEnd(event: TransitionEvent) {
-    if (!armTransitioning || event.propertyName !== "transform") return;
-    const target = event.target;
-    if (target instanceof HTMLElement && target.classList.contains("swipe-action-content")) {
-      armTransitioning = false;
-    }
   }
 
   function applySwipeOffset(value: number) {
@@ -253,7 +371,7 @@
   }
 
   function renderedSwipeOffset(): number {
-    if (!rowEl) return swipeX;
+    if (!rowEl) return currentSwipeOffset();
     const transform = window.getComputedStyle(rowEl).transform;
     if (!transform || transform === "none") return 0;
     return new DOMMatrixReadOnly(transform).m41;
@@ -279,13 +397,14 @@
   $effect(() => {
     const owner = activeSwipeId;
     if (!nativeIos || owner === undefined || owner === job.id) return;
-    if (!swiping && Math.abs(swipeX) < 0.5) return;
+    if (!swiping && Math.abs(nativeSwipeX) < 0.5) return;
     cancelPointerCapture();
     snapTo(0, false);
   });
 
   onDestroy(() => {
     swipeBatch.cancel();
+    cancelNativePaint();
   });
 
   async function slideOffAndRemove(action: () => Promise<unknown>): Promise<boolean> {
@@ -293,8 +412,7 @@
     dismissing = true;
     swipeSide = "left";
     armedSide = null;
-    armTransitioning = false;
-    swipeX = -(rowEl?.offsetWidth ?? 420);
+    snapTo(-(rowEl?.offsetWidth ?? 420));
     const request = nativeIos ? action() : null;
     await delay(nativeIos && prefersReducedMotion() ? 0 : nativeIos ? 220 : 240);
     try {
@@ -395,14 +513,18 @@
   function settleSwipe(allowCommit = true) {
     const wasHorizontalSwipe = axisLock === "horizontal" || swiping;
     const releaseArmedSide = armedSide;
-    swiping = false;
     pointerId = null;
     axisLock = "pending";
-    armedSide = null;
-    armTransitioning = false;
-    if (!wasHorizontalSwipe) return;
+    if (!wasHorizontalSwipe) {
+      swiping = false;
+      return;
+    }
     suppressClickUntil = performance.now() + 360;
     if (nativeIos) {
+      if (!allowCommit) {
+        snapTo(0);
+        return;
+      }
       if (allowCommit && releaseArmedSide === "left") {
         runFullLeftAction();
         return;
@@ -411,11 +533,11 @@
         void toggleReadState();
         return;
       }
-      if (swipeX <= -openThreshold) {
+      if (nativeSwipeX <= -openThreshold) {
         snapTo(-actionTotalWidth);
         return;
       }
-      if (swipeX >= openThreshold) {
+      if (nativeSwipeX >= openThreshold) {
         snapTo(READ_ACTION_WIDTH);
         return;
       }
@@ -433,12 +555,16 @@
     pointerId = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
-    startOffsetX = swipeX;
+    startOffsetX = currentSwipeOffset();
     gestureRowWidth = rowEl?.offsetWidth ?? 420;
     axisLock = "pending";
     swiping = false;
     armedSide = null;
-    armTransitioning = false;
+    armVisualDuration = nativeMotionDuration();
+    armVisualProgress = 0;
+    armVisualFrom = 0;
+    armVisualTarget = 0;
+    previousGestureX = currentSwipeOffset();
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -451,19 +577,27 @@
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_INTENT_BIAS) {
         axisLock = "vertical";
         pointerId = null;
-        if (Math.abs(swipeX) > 0.5) snapTo(0);
+        if (Math.abs(currentSwipeOffset()) > 0.5) snapTo(0);
         return;
       }
       axisLock = "horizontal";
       swipeBatch.cancel();
+      cancelNativePaint();
       const renderedOffset = renderedSwipeOffset();
       startOffsetX = renderedOffset;
+      previousGestureX = renderedOffset;
       startX = e.clientX;
       onSwipeOpen?.(job.id);
       flushSync(() => {
-        applySwipeOffset(renderedOffset);
+        if (nativeIos) {
+          nativeSwipeX = renderedOffset;
+          swipeX = renderedOffset;
+        } else {
+          applySwipeOffset(renderedOffset);
+        }
         swiping = true;
       });
+      if (nativeIos) paintNativeSwipe(renderedOffset);
       rowMenuOpen = false;
       rowEl?.setPointerCapture(e.pointerId);
     }
@@ -473,7 +607,8 @@
     const desired = startOffsetX + e.clientX - startX;
     if (nativeIos) {
       const nextOffset = Math.max(-gestureRowWidth, Math.min(gestureRowWidth, desired));
-      swipeBatch.schedule(nextOffset);
+      updateArmedState(nextOffset);
+      scheduleNativeSwipe(nextOffset);
       return;
     }
     const desktopDesired = Math.min(0, desired);
@@ -485,14 +620,16 @@
 
   function onPointerUp(e: PointerEvent) {
     if (pointerId !== e.pointerId) return;
-    swipeBatch.flush();
+    if (nativeIos) flushNativeSwipe();
+    else swipeBatch.flush();
     if (rowEl?.hasPointerCapture(e.pointerId)) rowEl.releasePointerCapture(e.pointerId);
     settleSwipe();
   }
 
   function onPointerCancel(e: PointerEvent) {
     if (pointerId !== e.pointerId) return;
-    swipeBatch.flush();
+    if (nativeIos) flushNativeSwipe();
+    else swipeBatch.flush();
     if (rowEl?.hasPointerCapture(e.pointerId)) rowEl.releasePointerCapture(e.pointerId);
     settleSwipe(false);
   }
@@ -504,27 +641,23 @@
   class:card-surface={surface === "card"}
   class:native-swipe={nativeIos}
   class:swiping
-  class:arm-transitioning={armTransitioning}
-  ontransitionend={handleArmTransitionEnd}
 >
   {#if nativeIos && swipeActions}
     <div
       class="swipe-actions swipe-actions-right"
       class:active-side={swipeSide === "right"}
       class:interactive={rightActionInteractive}
-      class:armed={armedSide === "right"}
-      style={`width: ${rightRevealDistance}px; --armed-content-shift: ${rightArmedContentShift}px;`}
       aria-hidden={!rightActionInteractive}
     >
       <button
         class="swipe-action read"
-        style:width={`${rightActionWidth}px`}
+        style:width={`${READ_ACTION_WIDTH}px`}
         aria-label={`Mark this job as ${viewed ? "unread" : "read"}`}
         tabindex={rightActionInteractive ? 0 : -1}
         onclick={(event) => { event.stopPropagation(); void toggleReadState(); }}
         disabled={updatingRead}
       >
-        <span class="swipe-action-content" class:armed={armedSide === "right"}>
+        <span bind:this={rightContentEl} class="swipe-action-content">
           <span class="swipe-action-icon" aria-hidden="true">
             {#if viewed}<EnvelopeSimple size={20} weight="bold" />{:else}<EnvelopeOpen size={20} weight="bold" />{/if}
           </span>
@@ -541,22 +674,20 @@
         class:save-backdrop={!hasAdminAction && hasSaveAction && !dismissing}
         class:danger-backdrop={hasAdminAction && !dismissing}
         class:hide-backdrop={!hasAdminAction && !hasSaveAction && !dismissing}
-        class:armed={armedSide === "left"}
-        style={`width: ${leftRevealDistance}px; --armed-content-shift: ${leftArmedContentShift}px;`}
         aria-hidden={!leftActionsInteractive}
       >
         {#if hasAdminAction}
           {#if hasSaveAction}
             <button
+              bind:this={leftCascadeEl}
               class="swipe-action save cascade-action"
-              style:width={`${leftActionWidth}px`}
-              style:transform={`translate3d(${leftCascadeOffset + (armedSide === "left" ? leftActionWidth : 0)}px, 0, 0)`}
+              style:width={`${actionButtonWidth}px`}
               aria-label={`${savedState ? "Unsave" : "Save"} this job`}
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); void save(); }}
               disabled={saving}
             >
-              <span class="swipe-action-content">
+              <span bind:this={leftCascadeContentEl} class="swipe-action-content">
                 <span class="swipe-action-icon" aria-hidden="true">
                   <BookmarkSimple size={20} weight={savedState ? "fill" : "bold"} />
                 </span>
@@ -565,14 +696,15 @@
             </button>
           {/if}
           <button
+            bind:this={leftOuterEl}
             class="swipe-action danger outer-action"
-            style:width={`${leftOuterWidth}px`}
+            style:width={`${actionButtonWidth}px`}
             aria-label="Remove this job for everyone"
             tabindex={leftActionsInteractive ? 0 : -1}
             onclick={(event) => { event.stopPropagation(); runNativePrimaryAction(); }}
             disabled={dismissing}
           >
-            <span class="swipe-action-content" class:armed={armedSide === "left"}>
+            <span bind:this={leftOuterContentEl} class="swipe-action-content">
               <span class="swipe-action-icon" aria-hidden="true">
                 <Prohibit size={20} weight="bold" />
               </span>
@@ -582,17 +714,17 @@
         {:else}
           {#if hasNativePrimaryAction}
             <button
+              bind:this={leftCascadeEl}
               class="swipe-action hide"
               class:cascade-action={hasSaveAction}
               class:outer-action={!hasSaveAction}
-              style:width={`${hasSaveAction ? leftActionWidth : leftOuterWidth}px`}
-              style:transform={hasSaveAction ? `translate3d(${leftCascadeOffset + (armedSide === "left" ? leftActionWidth : 0)}px, 0, 0)` : undefined}
+              style:width={`${actionButtonWidth}px`}
               aria-label="Hide this job"
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); runNativePrimaryAction(); }}
               disabled={dismissing}
             >
-              <span class="swipe-action-content" class:armed={!hasSaveAction && armedSide === "left"}>
+              <span bind:this={leftCascadeContentEl} class="swipe-action-content">
                 <span class="swipe-action-icon" aria-hidden="true">
                   <EyeSlash size={20} weight="bold" />
                 </span>
@@ -602,14 +734,15 @@
           {/if}
           {#if hasSaveAction}
             <button
+              bind:this={leftOuterEl}
               class="swipe-action save outer-action"
-              style:width={`${leftOuterWidth}px`}
+              style:width={`${actionButtonWidth}px`}
               aria-label={`${savedState ? "Unsave" : "Save"} this job`}
               tabindex={leftActionsInteractive ? 0 : -1}
               onclick={(event) => { event.stopPropagation(); void save(); }}
               disabled={saving}
             >
-              <span class="swipe-action-content" class:armed={armedSide === "left"}>
+              <span bind:this={leftOuterContentEl} class="swipe-action-content">
                 <span class="swipe-action-icon" aria-hidden="true">
                   <BookmarkSimple size={20} weight={savedState ? "fill" : "bold"} />
                 </span>
@@ -663,7 +796,7 @@
     role="presentation"
     class:dismissing
     class:swiping
-    style:transform={`translate3d(${swipeX}px, 0, 0)`}
+    style:transform={nativeIos ? undefined : `translate3d(${swipeX}px, 0, 0)`}
     style:transition={nativeIos ? undefined : swiping ? "none" : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease"}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
@@ -993,6 +1126,7 @@
   }
 
   .native-swipe .swipe-actions {
+    width: 100%;
     gap: 0;
     padding: 0;
     overflow: hidden;
@@ -1038,6 +1172,7 @@
     font-size: var(--fs-2xs);
     font-weight: 600;
     box-shadow: none;
+    transition: width var(--duration-standard) var(--ease-standard);
   }
 
   .native-swipe .swipe-action-content {
@@ -1046,17 +1181,20 @@
     transition: transform var(--duration-instant) var(--ease-standard);
   }
 
-  .native-swipe.swiping .swipe-action-content {
-    transition: none;
-  }
+  .native-swipe.swiping .swipe-actions,
+  .native-swipe.swiping .swipe-action,
+  .native-swipe.swiping .swipe-action-content { transition: none; }
 
-  .native-swipe.swiping.arm-transitioning .swipe-action-content {
-    transition: transform var(--duration-instant) var(--ease-standard);
+  .native-swipe.swiping .swipe-action-content,
+  .native-swipe.swiping .cascade-action {
+    will-change: transform;
   }
 
   .native-swipe .cascade-action {
     z-index: 1;
-    transition: transform var(--duration-standard) var(--ease-standard);
+    transition:
+      transform var(--duration-standard) var(--ease-standard),
+      width var(--duration-standard) var(--ease-standard);
   }
 
   .native-swipe .outer-action {
@@ -1064,14 +1202,6 @@
     overflow: visible;
   }
   .native-swipe.swiping .cascade-action { transition: none; }
-
-  .native-swipe.swiping.arm-transitioning .cascade-action {
-    transition: transform var(--duration-instant) var(--ease-standard);
-  }
-
-  .native-swipe .swipe-actions-left.armed .outer-action {
-    z-index: 3;
-  }
 
   .native-swipe .swipe-action.save {
     color: var(--color-accent-ink);
@@ -1093,11 +1223,4 @@
     background: var(--color-ink-2);
   }
 
-  .native-swipe .swipe-actions-left .swipe-action-content.armed {
-    transform: translateX(var(--armed-content-shift));
-  }
-
-  .native-swipe .swipe-actions-right .swipe-action-content.armed {
-    transform: translateX(var(--armed-content-shift));
-  }
 </style>
