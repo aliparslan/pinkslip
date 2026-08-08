@@ -166,6 +166,65 @@ Autonomous UAV | PyTorch, OpenCV | Spring 2024
     expect(technical.projects?.[0].date).toBe("Spring 2024");
   });
 
+  test("handles private-use bullets and combined project, activity, and hobby headings", () => {
+    const annotatedExport = parseResumeText(`Jordan Lee
+Los Angeles, CA | 555-010-2020 | jordan@example.com | linkedin.com/in/jordanlee
+EDUCATION
+WEST COAST UNIVERSITY | SCHOOL OF SOCIAL SCIENCES | LOS ANGELES, CA
+Bachelor of Arts in International Studies | Minor in Accounting | | B.A. Expected June 2026
+COAST COMMUNITY COLLEGE | SANTA MONICA, CA
+Associates of Arts in Social Science | Associates of Arts in Humanities | | June 2024
+\uF0B7 Cumulative GPA: 3.69/4.00
+EXPERIENCE
+ACME LABS | SANTA MONICA, CA
+Storytelling Fellow | June 2023-August 2023
+\uF0B7 Led a cross-functional team
+\uF0B7 Presented the work to company leaders
+SUNRISE CAFE | LOS ANGELES, CA
+Barista | March 2021-Present
+\uF0B7 Managed a high-volume service counter
+TOMORROW LLC | LOS ANGELES, CA
+Barista | August 2021 – March 2022
+\uF0B7 Improved the company social strategy
+INDEPENDENT VIDEOGRAPHER | NEW KENT, VA
+Videographer | October 2020 – December 2020
+\uF0B7 Filmed and edited a large event
+PROJECT EXPERIENCE & ACTIVITIES
+ACCESSIBILITY PROJECT | SANTA MONICA, CA
+Project Manager & Storyteller | August 2023
+\uF0B7 Coordinated engineering, design, and marketing
+FILM CLUB | SANTA MONICA, CA
+Finance Team & Producer | September 2021-June 2023
+\uF0B7 Managed budgets for student productions
+SKILLS & HOBBIES
+Languages: Vietnamese, Chinese
+Technology: Excel, QuickBooks, Adobe Creative Suite
+Skills: Parallel parking`);
+
+    expect(annotatedExport.contact?.location).toBe("Los Angeles, CA");
+    expect(annotatedExport.experience).toHaveLength(4);
+    expect(annotatedExport.experience?.map((entry) => entry.bullets.length)).toEqual([2, 1, 1, 1]);
+    expect(annotatedExport.experience?.[0].bullets[0]).toBe("Led a cross-functional team");
+    expect(annotatedExport.projects?.map((project) => project.name)).toEqual([
+      "ACCESSIBILITY PROJECT",
+      "FILM CLUB",
+    ]);
+    expect(annotatedExport.projects?.map((project) => project.date)).toEqual([
+      "August 2023",
+      "September 2021 – June 2023",
+    ]);
+    expect(annotatedExport.skills?.map((skill) => skill.category)).toEqual([
+      "Languages",
+      "Technology",
+      "Skills",
+    ]);
+    expect(annotatedExport.education).toHaveLength(3);
+    expect(annotatedExport.education?.filter((entry) => entry.institution === "COAST COMMUNITY COLLEGE"))
+      .toHaveLength(2);
+    expect(annotatedExport.education?.filter((entry) => entry.institution === "COAST COMMUNITY COLLEGE")
+      .every((entry) => entry.gpa === "3.69")).toBe(true);
+  });
+
   test("ignores sample cover labels and keeps compact template sections intact", () => {
     const template = parseResumeText(`Sample Resumes
 Masters II Resume

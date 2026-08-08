@@ -3,8 +3,11 @@ import {
   diffJobs,
   mergeListingContent,
   nextQuarantineState,
+  processNotificationMatchBacklog,
   QUARANTINE_AFTER_FAILURES,
   runWithConcurrency,
+  type NewJobMeta,
+  type NotificationBacklogDependencies,
 } from "@worker/poller";
 import { buildSourceAlertPayload } from "@worker/admin-alerts";
 import type { JobListing } from "@worker/adapters/types";
@@ -148,6 +151,70 @@ describe("nextQuarantineState", () => {
     const state = nextQuarantineState(12, first, NOW);
     expect(state.failureCount).toBe(13);
     expect(state.quarantinedAt).toBe(first);
+  });
+});
+
+describe("processNotificationMatchBacklog", () => {
+  it("processes every queued job across bounded batches", async () => {
+    const queue: NewJobMeta[] = Array.from({ length: 151 }, (_, index) => ({
+      company: "Example",
+      title: `Software Engineer ${index}`,
+      jobId: `job-${index}`,
+      listing: makeJob(`external-${index}`, { description: "Build useful software." }),
+    }));
+    const matched: string[] = [];
+    const candidates: string[] = [];
+    const dependencies: NotificationBacklogDependencies = {
+      load: async (_db, limit) => queue.slice(0, limit),
+      match: async (_db, jobs) => {
+        matched.push(...jobs.map((job) => job.jobId));
+      },
+      createCandidates: async (_db, jobIds) => {
+        candidates.push(...jobIds);
+        return jobIds.length;
+      },
+      clear: async (_db, jobIds) => {
+        const cleared = new Set(jobIds);
+        queue.splice(0, queue.length, ...queue.filter((job) => !cleared.has(job.jobId)));
+      },
+    };
+    const db = null as unknown as D1Database;
+
+    expect(await processNotificationMatchBacklog(db, 150, dependencies)).toBe(150);
+    expect(queue).toHaveLength(1);
+    expect(await processNotificationMatchBacklog(db, 150, dependencies)).toBe(1);
+
+    expect(queue).toHaveLength(0);
+    expect(matched).toHaveLength(151);
+    expect(candidates).toEqual(matched);
+    expect(new Set(candidates).size).toBe(151);
+  });
+
+  it("keeps the batch queued when candidate creation fails", async () => {
+    const queue = [
+      {
+        company: "Example",
+        title: "Software Engineer",
+        jobId: "job-1",
+        listing: makeJob("external-1", { description: "Build useful software." }),
+      },
+    ];
+    let cleared = false;
+    const dependencies: NotificationBacklogDependencies = {
+      load: async () => queue,
+      match: async () => undefined,
+      createCandidates: async () => {
+        throw new Error("temporary database failure");
+      },
+      clear: async () => {
+        cleared = true;
+      },
+    };
+
+    await expect(
+      processNotificationMatchBacklog(null as unknown as D1Database, 150, dependencies)
+    ).rejects.toThrow("temporary database failure");
+    expect(cleared).toBe(false);
   });
 });
 

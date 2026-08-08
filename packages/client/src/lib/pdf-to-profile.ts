@@ -32,11 +32,13 @@ const COMPACT_MONTH_RANGE_AT_END = new RegExp(`(${MONTH})\\.?\\s*(?:-|–|—|to
 const DATE_RANGE_AT_END = new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(Present|Current|${DATE})\\s*$`, "i");
 const SINGLE_DATE_AT_END = new RegExp(`(${DATE})\\s*$`, "i");
 
+const BULLET_PREFIX = /^[\-•●◦▪‣\uF0B7]\s*/;
+
 const SECTION_PATTERNS: Array<[SectionType, RegExp]> = [
   ["experience", /^(?:(?:work|professional)\s+)?experience$|^employment(?:\s+history)?$/i],
   ["education", /^education(?:\s+and\s+training)?$/i],
-  ["projects", /^(?:selected\s+)?projects?$/i],
-  ["skills", /^(?:technical\s+|programming\s+)?skills(?:\s*(?:&|and)\s*(?:technical\s+tools?|interests?))?$/i],
+  ["projects", /^(?:(?:selected\s+)?projects?|project\s+experience(?:\s*(?:&|and)\s*activities)?|projects?\s*(?:&|and)\s*activities)$/i],
+  ["skills", /^(?:technical\s+|programming\s+)?skills(?:\s*(?:&|and)\s*(?:technical\s+tools?|interests?|hobbies))?$/i],
   ["leadership", /^(?:leadership|affiliations|activities)(?:\s+and\s+affiliations)?$/i],
   ["certifications", /^certifications?(?:\s+and\s+licenses)?$/i],
   ["publications", /^publications?$/i],
@@ -196,11 +198,11 @@ function findLocation(text: string): string {
 }
 
 function isBulletLine(line: string): boolean {
-  return /^[\-•●◦▪‣]\s*/.test(line.trim()) || /^\d+[.)]\s+/.test(line.trim());
+  return BULLET_PREFIX.test(line.trim()) || /^\d+[.)]\s+/.test(line.trim());
 }
 
 function cleanBullet(line: string): string {
-  return line.trim().replace(/^[\-•●◦▪‣]\s*/, "").replace(/^\d+[.)]\s+/, "").trim();
+  return line.trim().replace(BULLET_PREFIX, "").replace(/^\d+[.)]\s+/, "").trim();
 }
 
 function joinWrappedText(previous: string, continuation: string): string {
@@ -345,30 +347,44 @@ function parseProjects(lines: string[]): ResumeProfile["projects"] {
   const projects: ResumeProfile["projects"] = [];
   let current: ResumeProfile["projects"][number] | null = null;
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     if (isBulletLine(line)) {
       if (current) current.bullets.push(cleanBullet(line));
       continue;
     }
 
     const dated = splitTrailingDate(line);
-    if (!dated.matched && current && appendBulletContinuation(current.bullets, line)) continue;
+    const located = splitTrailingLocation(dated.prefix);
+    const nextDated = index + 1 < lines.length
+      ? splitTrailingDate(lines[index + 1])
+      : null;
+    const usesFollowingDetailLine = !dated.matched
+      && Boolean(nextDated?.matched)
+      && Boolean(located.location);
+    if (!dated.matched && !usesFollowingDetailLine && current && appendBulletContinuation(current.bullets, line)) continue;
 
-    const heading = dated.prefix;
+    const heading = located.prefix;
     const url = displayedUrls(heading)[0] ?? "";
     const withoutUrl = url
       ? heading.replace(new RegExp(url.replace(/^https?:\/\//i, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "")
       : heading;
     const name = withoutUrl.split(/\s+[–—-]\s+|\s+\|\s+/)[0].replace(/[|,;\s]+$/, "").trim();
+    const projectDate = usesFollowingDetailLine && nextDated
+      ? nextDated
+      : dated;
 
     current = {
       id: genId(),
       name: name || heading,
       url,
-      date: dated.start && dated.end ? `${dated.start} – ${dated.end}` : dated.end,
+      date: projectDate.start && projectDate.end
+        ? `${projectDate.start} – ${projectDate.end}`
+        : projectDate.end,
       bullets: [],
     };
     projects.push(current);
+    if (usesFollowingDetailLine) index += 1;
   }
 
   return projects.filter((entry) => entry.name || entry.bullets.length);
@@ -395,7 +411,7 @@ function looksLikeInstitution(text: string): boolean {
 }
 
 function looksLikeDegree(text: string): boolean {
-  return /\b(?:bachelor|master|doctor|ph\.?d|associate|certificate|diploma|b\.?a\.?|b\.?s\.?|m\.?a\.?|m\.?s\.?|mcs|mba|jd|md)\b/i.test(text);
+  return /\b(?:bachelor'?s?|master'?s?|doctor|ph\.?d|associate'?s?|certificate|diploma|b\.?a\.?|b\.?s\.?|m\.?a\.?|m\.?s\.?|mcs|mba|jd|md)\b/i.test(text);
 }
 
 function looksLikeEducationDetail(text: string): boolean {
@@ -419,6 +435,20 @@ function degreeDetails(text: string): { degree: string; degreeType: ResumeProfil
     fieldOfStudy,
     gpa,
   };
+}
+
+function splitDegreeContent(text: string): string[] {
+  const segments = text
+    .split(/\s+\|\s+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const degreeSegments = segments.filter(looksLikeDegree);
+  const descriptiveDegrees = degreeSegments.filter((segment) => segment.length > 6);
+  if (descriptiveDegrees.length > 1) return descriptiveDegrees;
+
+  const primary = descriptiveDegrees[0] ?? degreeSegments[0] ?? text.trim();
+  const minor = segments.find((segment) => /^minor\b/i.test(segment));
+  return [[primary, minor].filter(Boolean).join("; ")];
 }
 
 function parseEducation(lines: string[]): ResumeProfile["education"] {
@@ -454,21 +484,35 @@ function parseEducation(lines: string[]): ResumeProfile["education"] {
       continue;
     }
 
+    const standaloneGpa = !looksLikeDegree(content)
+      ? content.match(/\bGPA\s*:?\s*([0-9](?:\.\d{1,2})?)(?:\s*\/\s*[0-9](?:\.\d{1,2})?)?/i)?.[1]
+      : null;
+    if (standaloneGpa) {
+      for (let entryIndex = education.length - 1; entryIndex >= 0; entryIndex -= 1) {
+        const entry = education[entryIndex];
+        if (entry.institution !== institution) break;
+        if (!entry.gpa) entry.gpa = standaloneGpa;
+      }
+      continue;
+    }
+
     if (looksLikeEducationDetail(content)) continue;
     if (!looksLikeDegree(content) && !dated.matched) continue;
 
-    const degree = degreeDetails(content);
-    education.push({
-      id: genId(),
-      institution,
-      degree: degree.degree,
-      degreeType: degree.degreeType,
-      fieldOfStudy: degree.fieldOfStudy,
-      location: located.location || location,
-      startDate: dated.start || institutionDates.start,
-      endDate: dated.end || institutionDates.end,
-      gpa: degree.gpa,
-    });
+    for (const degreeContent of splitDegreeContent(content)) {
+      const degree = degreeDetails(degreeContent);
+      education.push({
+        id: genId(),
+        institution,
+        degree: degree.degree,
+        degreeType: degree.degreeType,
+        fieldOfStudy: degree.fieldOfStudy,
+        location: located.location || location,
+        startDate: dated.start || institutionDates.start,
+        endDate: dated.end || institutionDates.end,
+        gpa: degree.gpa,
+      });
+    }
   }
 
   return education.filter((entry) => entry.institution || entry.degree);
@@ -508,12 +552,15 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
   const firstSectionIndex = sectionHeaders[0]?.index ?? lines.length;
   const headerLines = lines.slice(0, firstSectionIndex);
   const headerText = headerLines.join(" ");
+  const contactName = findName(headerLines);
 
   const contact = {
-    name: findName(headerLines),
+    name: contactName,
     email: findEmail(headerText),
     phone: findPhone(headerText),
-    location: findLocation(headerText),
+    location: headerLines
+      .map((line) => findLocation(line.replace(contactName, "")))
+      .find(Boolean) ?? "",
     linkedin: contactUrl(headerText, links, "linkedin"),
     github: contactUrl(headerText, links, "github"),
     website: contactUrl(headerText, links, "website"),

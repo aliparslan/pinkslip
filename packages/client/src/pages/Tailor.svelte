@@ -295,7 +295,14 @@
               hydrateFromLocalDraft(draft);
             } else {
               const latest = await api.tailor.get(jobId);
-              hydrateFromTailoring(latest.tailoring);
+              if (latest.tailoring) {
+                hydrateFromTailoring(latest.tailoring);
+              } else {
+                // The streamed result is already complete and visible. A
+                // missing persistence row must not erase it after success.
+                tailoring = null;
+                localDraft = null;
+              }
             }
           } else if (payload.type === "error") {
             throw new Error(payload.message ?? "Tailoring failed");

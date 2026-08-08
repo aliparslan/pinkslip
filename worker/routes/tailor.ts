@@ -8,7 +8,7 @@ import {
   streamGeminiTailoring,
   writeSse,
 } from "../tailor/providers";
-import { getLatestUserTailoring, getUserProfile } from "../account";
+import { copyCorpusVersion, getLatestUserTailoring, getUserProfile } from "../account";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import {
@@ -135,6 +135,22 @@ ${corpusMd}`);
   }
 
   return sections.join("\n\n---\n\n").trim();
+}
+
+export async function resolveTailoringPersistence(args: {
+  db: D1Database;
+  userId: string;
+  corpusVersionId: number | null;
+  hasProfile: boolean;
+  localMode: boolean;
+}): Promise<{ corpusVersionId: number } | undefined> {
+  if (args.localMode) return undefined;
+  if (args.corpusVersionId) return { corpusVersionId: args.corpusVersionId };
+  if (!args.hasProfile) return undefined;
+
+  const corpusVersionId = await copyCorpusVersion(args.db, args.userId, "", "corpus");
+  if (!corpusVersionId) throw new Error("Could not create a tailoring persistence target");
+  return { corpusVersionId };
 }
 
 async function persistTailoring(args: {
@@ -347,6 +363,13 @@ tailor.post("/tailor/:job_id", async (c) => {
   const { data: profileData } = await getUserProfile(c.env.DB, c.get("userId"));
 
   const hasProfile = profileData.contact.name || profileData.experience.length > 0;
+  persist = await resolveTailoringPersistence({
+    db: c.env.DB,
+    userId: c.get("userId"),
+    corpusVersionId: corpus?.id ?? null,
+    hasProfile: Boolean(hasProfile),
+    localMode,
+  });
 
   if (requestResumeMd) {
     sourceMd = buildCandidateEvidenceSource({
@@ -356,13 +379,11 @@ tailor.post("/tailor/:job_id", async (c) => {
   } else if (hasProfile) {
     const profileMd = serializeProfileForPrompt(profileData, corpus?.content_md);
     sourceMd = `PRIMARY RESUME SOURCE:\n${profileMd}`;
-    if (corpus) persist = { corpusVersionId: corpus.id };
   } else {
     if (!corpus) {
       return c.json({ error: "No profile or corpus found. Please fill out your resume profile first." }, 400);
     }
     sourceMd = buildCandidateEvidenceSource({ corpusMd: corpus.content_md });
-    persist = { corpusVersionId: corpus.id };
   }
 
   const model =

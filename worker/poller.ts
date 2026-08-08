@@ -35,12 +35,11 @@ const TIER_TWO_POLLS_PER_CYCLE = 60;
 const MANUAL_TIER_TWO_BATCH = 250;
 
 /**
- * New jobs matched inline per cycle. Matching is jobs × profiles in one
- * invocation, so this is the ceiling that keeps onboarding a large board from
- * reproducing the June cron failure. At 110 profiles this is ~16.5k scoring
- * operations, well inside budget.
+ * Notification matching is jobs × profiles, so process it in bounded batches.
+ * Jobs beyond this batch remain in notification_match_backlog for the next
+ * cycle instead of being silently excluded from notifications.
  */
-const MATCH_INLINE_LIMIT_PER_CYCLE = 150;
+export const NOTIFICATION_MATCH_BATCH_SIZE = 150;
 const CONTENT_BACKFILL_BATCH_SIZE = 20;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
@@ -297,6 +296,13 @@ export async function pollCompany(
           job.salary ?? null
         )
     );
+    insertStmts.push(
+      db.prepare(
+        `INSERT INTO notification_match_backlog (job_id, queued_at)
+         VALUES (?, ?)
+         ON CONFLICT(job_id) DO NOTHING`
+      ).bind(id, now)
+    );
 
     newMeta.push({
       company: company.name,
@@ -307,7 +313,11 @@ export async function pollCompany(
   }
 
   if (insertStmts.length > 0) {
-    await db.batch(insertStmts);
+    // Keep each job insert beside its queue insert in the same transactional
+    // batch, while avoiding an oversized D1 batch when a large board is added.
+    for (let offset = 0; offset < insertStmts.length; offset += 70) {
+      await db.batch(insertStmts.slice(offset, offset + 70));
+    }
     await upsertJobFeatures(
       db,
       newMeta.map((job) => ({ jobId: job.jobId, listing: job.listing }))
@@ -331,6 +341,112 @@ interface MissingContentRow {
   ats_type: CompanyRow["ats_type"];
   source_type: CompanyRow["source_type"];
   ats_slug: string;
+}
+
+interface NotificationBacklogRow {
+  job_id: string;
+  external_id: string;
+  title: string;
+  url: string;
+  location: string;
+  department: string | null;
+  posted_at: string | null;
+  description: string | null;
+  salary: string | null;
+  company_name: string;
+}
+
+export interface NotificationBacklogDependencies {
+  load: (db: D1Database, limit: number) => Promise<NewJobMeta[]>;
+  match: typeof matchJobsForAllProfiles;
+  createCandidates: typeof createNotificationCandidates;
+  clear: (db: D1Database, jobIds: string[]) => Promise<void>;
+}
+
+async function loadNotificationMatchBacklog(
+  db: D1Database,
+  limit: number
+): Promise<NewJobMeta[]> {
+  // Rows can become ineligible while waiting in the queue. Removing those
+  // here prevents a permanently closed or content-less job from blocking the
+  // oldest-first batch forever.
+  await db.prepare(
+    `DELETE FROM notification_match_backlog
+     WHERE NOT EXISTS (
+       SELECT 1
+       FROM jobs j
+       WHERE j.id = notification_match_backlog.job_id
+         AND j.closed_at IS NULL
+         AND j.description IS NOT NULL
+         AND trim(j.description) != ''
+     )`
+  ).run();
+
+  const result = await db.prepare(
+    `SELECT nmb.job_id, j.external_id, j.title, j.url, j.location,
+            j.department, j.posted_at, j.description, j.salary,
+            c.name AS company_name
+     FROM notification_match_backlog nmb
+     JOIN jobs j ON j.id = nmb.job_id
+     JOIN companies c ON c.id = j.company_id
+     ORDER BY nmb.queued_at ASC, nmb.job_id ASC
+     LIMIT ?`
+  ).bind(limit).all<NotificationBacklogRow>();
+
+  return (result.results ?? []).map((row) => ({
+    company: row.company_name,
+    title: row.title,
+    jobId: row.job_id,
+    listing: {
+      externalId: row.external_id,
+      title: row.title,
+      url: row.url,
+      location: row.location,
+      department: row.department,
+      postedAt: row.posted_at,
+      description: row.description,
+      salary: row.salary,
+    },
+  }));
+}
+
+async function clearNotificationMatchBacklog(
+  db: D1Database,
+  jobIds: string[]
+): Promise<void> {
+  for (let offset = 0; offset < jobIds.length; offset += 75) {
+    const ids = jobIds.slice(offset, offset + 75);
+    const placeholders = ids.map(() => "?").join(", ");
+    await db.prepare(
+      `DELETE FROM notification_match_backlog WHERE job_id IN (${placeholders})`
+    ).bind(...ids).run();
+  }
+}
+
+const notificationBacklogDependencies: NotificationBacklogDependencies = {
+  load: loadNotificationMatchBacklog,
+  match: matchJobsForAllProfiles,
+  createCandidates: createNotificationCandidates,
+  clear: clearNotificationMatchBacklog,
+};
+
+export async function processNotificationMatchBacklog(
+  db: D1Database,
+  limit = NOTIFICATION_MATCH_BATCH_SIZE,
+  dependencies: NotificationBacklogDependencies = notificationBacklogDependencies
+): Promise<number> {
+  const jobs = await dependencies.load(db, limit);
+  if (jobs.length === 0) return 0;
+
+  await dependencies.match(
+    db,
+    jobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+  );
+  await dependencies.createCandidates(db, jobs.map((job) => job.jobId));
+  // Candidate creation is idempotent. Clear only after it succeeds so a crash
+  // retries the whole batch instead of losing notifications.
+  await dependencies.clear(db, jobs.map((job) => job.jobId));
+  return jobs.length;
 }
 
 /**
@@ -380,8 +496,9 @@ async function backfillMissingJobContent(
   );
   if (repaired.length === 0) return [];
 
-  for (let offset = 0; offset < repaired.length; offset += 50) {
-    await db.batch(repaired.slice(offset, offset + 50).map(({ row, listing }) =>
+  const queuedAt = new Date().toISOString();
+  for (let offset = 0; offset < repaired.length; offset += 35) {
+    await db.batch(repaired.slice(offset, offset + 35).flatMap(({ row, listing }) => [
       db.prepare(
         `UPDATE jobs
          SET description = ?, salary = ?, location = ?, posted_at = ?
@@ -392,8 +509,13 @@ async function backfillMissingJobContent(
         listing.location,
         listing.postedAt,
         row.id
-      )
-    ));
+      ),
+      db.prepare(
+        `INSERT INTO notification_match_backlog (job_id, queued_at)
+         VALUES (?, ?)
+         ON CONFLICT(job_id) DO NOTHING`
+      ).bind(row.id, queuedAt),
+    ]));
   }
 
   await upsertJobFeatures(
@@ -426,7 +548,9 @@ export async function sendNotificationsForJobs(
   jobs: NewJobMeta[]
 ): Promise<number> {
   if (jobs.length > 0) {
-    await createNotificationCandidates(db, jobs.map((job) => job.jobId));
+    const jobIds = jobs.map((job) => job.jobId);
+    await createNotificationCandidates(db, jobIds);
+    await clearNotificationMatchBacklog(db, jobIds);
   }
   return deliverPendingNotifications(db, env);
 }
@@ -597,31 +721,14 @@ export async function runPollCycle(
   if (repairedJobs.length > 0) {
     log.push(`content backfill: ${repairedJobs.length} repaired`);
   }
-  const discovered = [...allNewJobs, ...repairedJobs];
-
-  // Cap how many newly-discovered jobs are matched inline. Matching fans out
-  // across every profile, so the work is jobs × profiles in a single
-  // invocation — the exact shape that exhausted D1's CPU budget and killed the
-  // cron every 15 minutes through June. A steady-state cycle discovers a
-  // handful of jobs and never reaches this cap; it only binds when a large new
-  // board is onboarded, and on that cycle nobody wants hundreds of pushes
-  // anyway. The remainder is not lost: features are already stored, and the
-  // per-user warm-up plus advanceBacklogMatching pick them up on later ticks.
-  const matchableJobs = discovered.slice(0, MATCH_INLINE_LIMIT_PER_CYCLE);
-  if (discovered.length > matchableJobs.length) {
-    log.push(
-      `deferred matching for ${discovered.length - matchableJobs.length} of ${discovered.length} new jobs`
-    );
-  }
-
-  await matchJobsForAllProfiles(
-    db,
-    matchableJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
-  );
 
   let notificationsSent = 0;
   if (sendNotifications) {
-    notificationsSent = await sendNotificationsForJobs(db, env, matchableJobs);
+    const notificationMatchesProcessed = await processNotificationMatchBacklog(db);
+    if (notificationMatchesProcessed > 0) {
+      log.push(`notification matching: ${notificationMatchesProcessed} processed`);
+    }
+    notificationsSent = await deliverPendingNotifications(db, env);
 
     // Wrapped so an alerting failure can never take down the poll cycle it is
     // reporting on.
