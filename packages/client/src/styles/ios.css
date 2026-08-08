@@ -379,6 +379,13 @@ html.native-ios .pushed-screen {
   animation: native-pushed-screen-in var(--duration-route) var(--ease-standard) backwards;
 }
 
+/* A page restored by back navigation is already represented by the interactive
+   underlay. Replaying its forward entrance after the swap causes a one-frame
+   flash and rightward jump in WKWebView. */
+html.native-ios .pushed-screen.nav-enter-suppressed {
+  animation: none;
+}
+
 @keyframes native-pushed-screen-in {
   from {
     opacity: 0.94;
@@ -427,10 +434,6 @@ html.native-ios :where(
   .segmented-control button
 ):active {
   transform: scale(0.96);
-}
-
-body.nav-animating .pushed-screen {
-  animation-play-state: paused;
 }
 
 .nav-underlay .pushed-screen {

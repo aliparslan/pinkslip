@@ -71,6 +71,7 @@
   let leftCascadeContentEl: HTMLElement | undefined = $state(undefined);
   let leftOuterEl: HTMLButtonElement | undefined = $state(undefined);
   let leftOuterContentEl: HTMLElement | undefined = $state(undefined);
+  let rightActionEl: HTMLButtonElement | undefined = $state(undefined);
   let rightContentEl: HTMLElement | undefined = $state(undefined);
   let nativeSwipeX = 0;
   let pendingNativeSwipeX = 0;
@@ -252,33 +253,30 @@
     const actionWidth = actionButtonWidth + actionGrowth;
     const visualOuterEl = leftOuterEl ?? leftCascadeEl;
     const visualOuterContentEl = leftOuterContentEl ?? leftCascadeContentEl;
-    leftCascadeEl?.style.setProperty("width", `${actionWidth}px`);
-    visualOuterEl?.style.setProperty("width", `${actionWidth}px`);
-
-    if (leftCascadeEl && swipeActionCount > 1) {
-      const revealProgress = Math.min(1, Math.max(0, leftReveal / Math.max(1, actionTotalWidth)));
-      const cascadeOffset = (1 - revealProgress) * actionButtonWidth;
-      const takeoverOffset = armVisualProgress * actionWidth;
-      leftCascadeEl.style.setProperty(
-        "transform",
-        `translate3d(${cascadeOffset + takeoverOffset}px, 0, 0)`,
-      );
-    } else {
-      leftCascadeEl?.style.removeProperty("transform");
+    if (leftCascadeEl && leftOuterEl) {
+      leftCascadeEl.style.setProperty("width", `${actionWidth}px`);
+      leftCascadeEl.style.setProperty("inset-inline-end", `${actionWidth}px`);
     }
 
-    const leftContentShift = -Math.max(
-      0,
-      leftReveal - actionWidth / 2 - actionButtonWidth / 2,
-    ) * armVisualProgress;
+    // Both left actions grow as adjacent peers once fully revealed. When the
+    // full-swipe threshold arms, the outer action grows over the inner action
+    // instead of moving two labels through one another. Its content stays one
+    // action-width from the moving row edge, matching the native convention.
+    const leftTakeoverWidth = actionWidth
+      + Math.max(0, leftReveal - actionWidth) * armVisualProgress;
+    visualOuterEl?.style.setProperty("width", `${leftTakeoverWidth}px`);
+    const leftContentShift = -(leftTakeoverWidth - actionWidth) / 2;
     visualOuterContentEl?.style.setProperty(
       "transform",
       `translate3d(${leftContentShift}px, 0, 0)`,
     );
 
-    // The read action stays planted while partially revealed. Once armed, its
-    // content catches the row edge while the neutral backdrop fills the reveal.
-    const rightContentShift = Math.max(0, rightReveal - READ_ACTION_WIDTH) * armVisualProgress;
+    // Expanding the actual button keeps its content inside the clipping box.
+    // The previous fixed-width button translated its label out of bounds at 50%.
+    const rightTakeoverWidth = READ_ACTION_WIDTH
+      + Math.max(0, rightReveal - READ_ACTION_WIDTH) * armVisualProgress;
+    rightActionEl?.style.setProperty("width", `${rightTakeoverWidth}px`);
+    const rightContentShift = (rightTakeoverWidth - READ_ACTION_WIDTH) / 2;
     rightContentEl?.style.setProperty(
       "transform",
       `translate3d(${rightContentShift}px, 0, 0)`,
@@ -650,6 +648,7 @@
       aria-hidden={!rightActionInteractive}
     >
       <button
+        bind:this={rightActionEl}
         class="swipe-action read"
         style:width={`${READ_ACTION_WIDTH}px`}
         aria-label={`Mark this job as ${viewed ? "unread" : "read"}`}
@@ -1164,6 +1163,8 @@
   }
 
   .native-swipe .swipe-action {
+    position: absolute;
+    inset-block: 0;
     min-width: 0;
     flex: none;
     padding: 0;
@@ -1198,8 +1199,9 @@
   }
 
   .native-swipe .outer-action {
+    inset-inline-end: 0;
     z-index: 2;
-    overflow: visible;
+    overflow: hidden;
   }
   .native-swipe.swiping .cascade-action { transition: none; }
 
@@ -1219,6 +1221,7 @@
   }
 
   .native-swipe .swipe-action.read {
+    inset-inline-start: 0;
     color: var(--color-bg);
     background: var(--color-ink-2);
   }

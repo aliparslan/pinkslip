@@ -205,6 +205,7 @@
 
   async function revealLiveDestination(): Promise<void> {
     if (!foreground) return;
+    main?.querySelector<HTMLElement>(".pushed-screen")?.classList.add("nav-enter-suppressed");
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
     foreground.style.opacity = "1";
@@ -215,12 +216,9 @@
     await nextFrame();
   }
 
-  function hideForegroundForDestinationSwap(): void {
+  function holdForegroundForDestinationSwap(): void {
     if (!foreground) return;
-    foreground.style.visibility = "hidden";
     foreground.style.transition = "none";
-    foreground.style.transform = "translateX(0)";
-    foreground.style.opacity = "1";
   }
 
   function onTouchStart(event: TouchEvent): void {
@@ -330,7 +328,7 @@
     }
     await waitForAnimations([foreground], duration + 60);
     if (commit && destination) {
-      hideForegroundForDestinationSwap();
+      holdForegroundForDestinationSwap();
       await commitBack(destination, localBack);
       if (snapshotKey) routeSnapshots.delete(snapshotKey);
       await revealLiveDestination();
@@ -356,7 +354,7 @@
     document.body.classList.add("nav-animating");
     await tick();
     if (reducedMotion()) {
-      hideForegroundForDestinationSwap();
+      holdForegroundForDestinationSwap();
       await commitBack(destination, localBack);
       routeSnapshots.delete(snapshotKey);
       await revealLiveDestination();
@@ -370,7 +368,7 @@
     await nextFrame();
     if (foreground) { foreground.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; foreground.style.transform = `translateX(${width}px)`; }
     await waitForAnimations([foreground], PROGRAMMATIC_SETTLE + 60);
-    hideForegroundForDestinationSwap();
+    holdForegroundForDestinationSwap();
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
     await revealLiveDestination();
