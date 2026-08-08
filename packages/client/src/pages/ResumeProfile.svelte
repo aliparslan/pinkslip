@@ -514,7 +514,9 @@
       pendingImport = parsed;
     } catch (importError) {
       console.error("Resume PDF import failed", importError);
-      error = "This PDF couldn’t be read. Try exporting it again or choose another PDF.";
+      error = nativeIos
+        ? "This PDF couldn’t be read. Try exporting it again or choose another PDF."
+        : `Could not parse PDF: ${errorMessage(importError)}`;
     } finally {
       importing = false;
       input.value = "";
@@ -1078,6 +1080,12 @@
   }
 
   .identity-copy strong {
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: 1.15;
+  }
+
+  .native-layout .identity-copy strong {
     font-size: var(--fs-sm);
     font-weight: 600;
     line-height: 1.3;
