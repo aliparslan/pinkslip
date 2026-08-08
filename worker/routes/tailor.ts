@@ -6,6 +6,7 @@ import { parseTailoringText } from "../tailor/parse";
 import {
   streamAnthropicTailoring,
   streamGeminiTailoring,
+  streamWorkersAiTailoring,
   writeSse,
 } from "../tailor/providers";
 import { copyCorpusVersion, getLatestUserTailoring, getUserProfile } from "../account";
@@ -13,6 +14,8 @@ import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import {
   GEMINI_DAILY_LIMITS,
+  WORKERS_AI_DAILY_NEURON_LIMIT,
+  completeAppTailorUsage,
   loadTailorUsage,
   nextUtcDay,
   recordTailorUsage,
@@ -20,6 +23,12 @@ import {
   type TailorKeySource,
   type TailorProvider,
 } from "../tailor/usage";
+import {
+  DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  normalizeWorkersAiModel,
+  resolveAppTailorConfig,
+} from "../tailor/config";
 import type {
   Env,
   TailoringRow,
@@ -31,8 +40,6 @@ tailor.use("/*", async (c, next) => {
   await ensureEligibleJobs(c.env.DB);
   await next();
 });
-const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const ALLOWED_GEMINI_MODELS = new Set([
   "gemini-3.1-flash-lite",
   "gemini-3-flash",
@@ -112,7 +119,7 @@ function normalizeGeminiModel(model: string): string {
 }
 
 function normalizeTailorProvider(value: string | undefined): TailorProvider | null {
-  if (value === "gemini" || value === "anthropic") return value;
+  if (value === "gemini" || value === "anthropic" || value === "workers_ai") return value;
   return null;
 }
 
@@ -202,11 +209,16 @@ async function persistTailoring(args: {
 
 tailor.get("/tailor/usage", async (c) => {
   const userId = c.get("userId");
-  const provider = normalizeTailorProvider(c.req.query("provider")) ?? "gemini";
+  const appConfig = resolveAppTailorConfig(c.env);
+  const provider = normalizeTailorProvider(c.req.query("provider"))
+    ?? appConfig?.provider
+    ?? "gemini";
   const requestedModel = c.req.query("model")?.trim();
   const model = provider === "gemini"
     ? normalizeGeminiModel(requestedModel || c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL)
-    : requestedModel || c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
+    : provider === "workers_ai"
+      ? normalizeWorkersAiModel(requestedModel || appConfig?.model)
+      : requestedModel || c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
 
   const usage = await loadTailorUsage({
     db: c.env.DB,
@@ -223,6 +235,9 @@ tailor.get("/tailor/usage", async (c) => {
     app_remaining: null,
     user_remaining: null,
     included_user_remaining: null,
+    provider_units_today: 0,
+    provider_units_limit: provider === "workers_ai" ? WORKERS_AI_DAILY_NEURON_LIMIT : null,
+    provider_units_remaining: provider === "workers_ai" ? WORKERS_AI_DAILY_NEURON_LIMIT : null,
     resets_at: nextUtcDay(),
   }));
 
@@ -310,20 +325,19 @@ tailor.post("/tailor/:job_id", async (c) => {
   }
   const localMode = Boolean(requestApiKey || requestResumeMd);
   const keySource: TailorKeySource = requestApiKey ? "user" : "app";
-  const provider: TailorProvider =
-    requestedProvider
-    ?? (c.env.GEMINI_API_KEY?.trim()
-      ? "gemini"
-      : c.env.ANTHROPIC_API_KEY?.trim()
-        ? "anthropic"
-        : "gemini");
+  const appConfig = resolveAppTailorConfig(c.env);
+  const provider: TailorProvider = requestApiKey
+    ? requestedProvider === "anthropic" ? "anthropic" : "gemini"
+    : appConfig?.provider ?? "gemini";
 
   const apiKey =
     requestApiKey
-    || (provider === "gemini"
+    || (provider === "workers_ai"
+      ? undefined
+      : provider === "gemini"
       ? c.env.GEMINI_API_KEY?.trim()
       : c.env.ANTHROPIC_API_KEY?.trim());
-  if (!apiKey) {
+  if ((provider === "workers_ai" && !c.env.AI) || (provider !== "workers_ai" && !apiKey)) {
     // `code` lets the app render a guided setup card instead of a raw error.
     // The message stays free of env-var jargon — it's shown to job seekers.
     return c.json(
@@ -387,14 +401,21 @@ tailor.post("/tailor/:job_id", async (c) => {
   }
 
   const model =
-    requestModel
-    || (provider === "gemini"
-      ? c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
-      : c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL);
-  const safeModel = provider === "gemini" ? normalizeGeminiModel(model) : model;
+    keySource === "app"
+      ? appConfig?.model ?? DEFAULT_GEMINI_MODEL
+      : requestModel
+        || (provider === "gemini"
+          ? DEFAULT_GEMINI_MODEL
+          : DEFAULT_ANTHROPIC_MODEL);
+  const safeModel = provider === "gemini"
+    ? normalizeGeminiModel(model)
+    : provider === "workers_ai"
+      ? normalizeWorkersAiModel(model)
+      : model;
 
   // Enforce the daily quota when we're paying (app key). User-supplied keys are
   // the user's own cost and are not capped here.
+  let usageReservationId: string | null = null;
   if (keySource === "app") {
     const quota = await reserveAppTailorQuota(c.env.DB, c.get("userId"), provider, safeModel);
     if (!quota.ok) {
@@ -407,6 +428,7 @@ tailor.post("/tailor/:job_id", async (c) => {
         429
       );
     }
+    usageReservationId = quota.usageId;
   }
 
   await recordProductEvent(c.env.DB, {
@@ -424,17 +446,42 @@ tailor.post("/tailor/:job_id", async (c) => {
   c.executionCtx.waitUntil(
     (async () => {
       try {
-        const streamTailoring =
-          provider === "gemini" ? streamGeminiTailoring : streamAnthropicTailoring;
-
-        const result = await streamTailoring({
-          apiKey,
-          model: safeModel,
-          sourceMd,
-          job: { ...job, description },
-          writer,
-          encoder,
-        });
+        const providerJob = { ...job, description };
+        const result = provider === "workers_ai"
+          ? await streamWorkersAiTailoring({
+              ai: c.env.AI!,
+              model: normalizeWorkersAiModel(safeModel),
+              sourceMd,
+              job: providerJob,
+              writer,
+              encoder,
+            })
+          : provider === "gemini"
+            ? await streamGeminiTailoring({
+                apiKey: apiKey!,
+                model: safeModel,
+                sourceMd,
+                job: providerJob,
+                writer,
+                encoder,
+              })
+            : await streamAnthropicTailoring({
+                apiKey: apiKey!,
+                model: safeModel,
+                sourceMd,
+                job: providerJob,
+                writer,
+                encoder,
+              });
+        if (usageReservationId) {
+          await completeAppTailorUsage({
+            db: c.env.DB,
+            usageId: usageReservationId,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            providerUnits: result.providerUnits,
+          });
+        }
         const tailoringId = await persistTailoring({
           db: c.env.DB,
           persist: localMode ? undefined : persist,
@@ -458,6 +505,9 @@ tailor.post("/tailor/:job_id", async (c) => {
             keySource,
             provider,
             model: safeModel,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            providerUnits: result.providerUnits,
           }).catch(() => undefined);
         }
         await recordProductEvent(c.env.DB, {

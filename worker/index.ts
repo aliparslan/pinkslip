@@ -28,6 +28,7 @@ import {
   defaultUserPreferenceState,
   loadUserPreferenceState,
 } from "./user-preferences";
+import { resolveAppTailorConfig } from "./tailor/config";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -72,20 +73,13 @@ app.use("/*", async (c, next) => {
   );
 });
 
-const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-
 function appFeatures(env: Env) {
-  const geminiEnabled = Boolean(env.GEMINI_API_KEY?.trim());
-  const anthropicEnabled = Boolean(env.ANTHROPIC_API_KEY?.trim());
-  const tailoringProvider = geminiEnabled ? "gemini" : anthropicEnabled ? "anthropic" : null;
+  const tailoring = resolveAppTailorConfig(env);
   return {
     access_required: Boolean(env.ACCESS_CODE?.trim()),
-    tailoring_enabled: geminiEnabled || anthropicEnabled,
-    tailoring_provider: tailoringProvider,
-    tailoring_model: tailoringProvider === "anthropic"
-      ? env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL
-      : env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
+    tailoring_enabled: Boolean(tailoring),
+    tailoring_provider: tailoring?.provider ?? null,
+    tailoring_model: tailoring?.model ?? "",
   };
 }
 

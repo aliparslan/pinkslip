@@ -221,14 +221,17 @@
     editing = { resume: false, cover: false, qa: false };
 
     try {
+      const personalApiKey = localKit?.apiKey.trim() || "";
       const requestInit: RequestInit = {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: localKit?.provider ?? "gemini",
-          api_key: localKit?.apiKey.trim() || undefined,
-          model: localKit?.model?.trim() || DEFAULT_TAILOR_MODEL,
+          provider: personalApiKey ? localKit?.provider ?? "gemini" : undefined,
+          api_key: personalApiKey || undefined,
+          model: personalApiKey
+            ? localKit?.model?.trim() || DEFAULT_TAILOR_MODEL
+            : undefined,
           resume_md: localResumeText || undefined,
         }),
       };

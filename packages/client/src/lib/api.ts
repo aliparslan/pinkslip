@@ -285,7 +285,7 @@ export interface AccountInfo {
 export interface AppFeatures {
   access_required: boolean;
   tailoring_enabled: boolean;
-  tailoring_provider: "gemini" | "anthropic" | null;
+  tailoring_provider: "gemini" | "anthropic" | "workers_ai" | null;
   tailoring_model: string;
 }
 
@@ -309,7 +309,7 @@ export interface Tailoring {
 }
 
 export interface TailorUsage {
-  provider: "gemini" | "anthropic";
+  provider: "gemini" | "anthropic" | "workers_ai";
   model: string;
   app_today: number;
   user_today: number;
@@ -318,6 +318,9 @@ export interface TailorUsage {
   app_remaining: number | null;
   user_remaining: number | null;
   included_user_remaining: number | null;
+  provider_units_today: number;
+  provider_units_limit: number | null;
+  provider_units_remaining: number | null;
   resets_at: string;
 }
 
@@ -620,8 +623,11 @@ export const api = {
   },
   tailor: {
     get: (jobId: string) => request<{ tailoring: Tailoring | null }>(`/tailor/${jobId}`),
-    usage: (model?: string) => {
-      const qs = model ? `?model=${encodeURIComponent(model)}` : "";
+    usage: (model?: string, provider?: TailorUsage["provider"] | null) => {
+      const params = new URLSearchParams();
+      if (model) params.set("model", model);
+      if (provider) params.set("provider", provider);
+      const qs = params.size ? `?${params.toString()}` : "";
       return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
     },
     save: (

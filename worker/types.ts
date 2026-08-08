@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  AI?: Ai;
   RESUME_BUCKET?: R2Bucket;
   EMAIL?: {
     send(message: {
@@ -24,6 +25,8 @@ export interface Env {
   GEMINI_MODEL?: string;
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_MODEL?: string;
+  TAILOR_PROVIDER?: string;
+  WORKERS_AI_MODEL?: string;
   // APNs (native iOS push). Set APNS_KEY_ID/TEAM_ID/BUNDLE_ID as vars and
   // APNS_PRIVATE_KEY (the .p8 PEM contents) as a secret. APNS_SANDBOX="true"
   // targets the APNs sandbox host for Xcode debug / direct-install builds.

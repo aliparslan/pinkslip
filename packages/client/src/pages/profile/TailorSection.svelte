@@ -68,11 +68,11 @@
   });
   let activeUsageCount = $derived.by(() => {
     if (!tailorUsage) return null;
-    return hasLocalGeminiKey ? tailorUsage.user_today : tailorUsage.app_today;
+    return hasLocalGeminiKey ? tailorUsage.user_today : tailorUsage.included_user_today;
   });
   let activeUsageRemaining = $derived.by(() => {
     if (!tailorUsage) return null;
-    return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.app_remaining;
+    return hasLocalGeminiKey ? tailorUsage.user_remaining : tailorUsage.included_user_remaining;
   });
   let includedUsageCount = $derived.by(() => {
     if (!tailorUsage) return 0;
@@ -143,7 +143,13 @@
   }
 
   async function loadTailorUsage() {
-    tailorUsage = await api.tailor.usage(localGeminiModel).then((res) => res.usage).catch(() => null);
+    const model = hasLocalGeminiKey
+      ? localGeminiModel
+      : features?.tailoring_model;
+    const provider = hasLocalGeminiKey
+      ? "gemini" as const
+      : features?.tailoring_provider;
+    tailorUsage = await api.tailor.usage(model, provider).then((res) => res.usage).catch(() => null);
   }
 
   function persistLocalSetup(): boolean {
@@ -365,7 +371,7 @@
       {@render usageProgress(
         hasLocalGeminiKey ? "Your usage today" : "Included uses today",
         activeUsageCount ?? 0,
-        tailorUsage.daily_limit,
+        hasLocalGeminiKey ? tailorUsage.daily_limit : includedUsageLimit,
         activeUsageRemaining,
         false,
       )}

@@ -6,7 +6,13 @@ import {
 } from "@worker/tailor/usage";
 
 function usageDb(
-  args: { appCount?: number; userCount?: number; includedUserCount?: number; reservationChanges?: number },
+  args: {
+    appCount?: number;
+    userCount?: number;
+    includedUserCount?: number;
+    providerUnits?: number;
+    reservationChanges?: number;
+  },
   preparedSql: string[] = [],
 ) {
   return {
@@ -22,7 +28,7 @@ function usageDb(
               ? args.includedUserCount ?? 0
               : args.userCount ?? 0
             : args.appCount ?? 0;
-          return { count } as T;
+          return { count, provider_units: args.providerUnits ?? 0 } as T;
         },
         async run() {
           return { meta: { changes: args.reservationChanges ?? 1 } };
@@ -60,12 +66,14 @@ describe("tailoring usage", () => {
   });
 
   test("reports whether the atomic reservation was accepted", async () => {
-    expect(await reserveAppTailorQuota(
+    const accepted = await reserveAppTailorQuota(
       usageDb({ reservationChanges: 1 }),
       "user-1",
       "gemini",
       "gemini-3.1-flash-lite"
-    )).toEqual({ ok: true });
+    );
+    expect(accepted.ok).toBe(true);
+    if (accepted.ok) expect(accepted.usageId).toBeString();
 
     const rejected = await reserveAppTailorQuota(
       usageDb({ reservationChanges: 0 }),
@@ -75,5 +83,19 @@ describe("tailoring usage", () => {
     );
     expect(rejected.ok).toBe(false);
     if (!rejected.ok) expect(rejected.resets_at).toEndWith("T00:00:00.000Z");
+  });
+
+  test("reports Workers AI neurons separately from the per-user use count", async () => {
+    const usage = await loadTailorUsage({
+      db: usageDb({ appCount: 3, userCount: 2, includedUserCount: 2, providerUnits: 274.5 }),
+      userId: "user-1",
+      provider: "workers_ai",
+      model: "@cf/zai-org/glm-4.7-flash",
+    });
+
+    expect(usage.included_user_remaining).toBe(13);
+    expect(usage.provider_units_today).toBe(274.5);
+    expect(usage.provider_units_limit).toBe(10_000);
+    expect(usage.provider_units_remaining).toBe(9_725.5);
   });
 });

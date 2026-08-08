@@ -12,6 +12,9 @@ Rules:
 - Never invent technologies, employers, dates, metrics, or experiences not present in the corpus.
 - Never copy requirements, responsibilities, tools, or phrases from the job description into the resume unless the candidate source independently supports them.
 - Never overstate seniority, scope, or ownership.
+- Every factual clause in the resume and cover letter must be directly traceable to the candidate source. Plausible implications are still inventions.
+- Do not infer downstream impact, business outcomes, production use, deployment behavior, ownership, scale, performance, adoption, or collaboration that the source does not explicitly state.
+- Preserve supplied before-and-after figures as written. Do not replace them with newly calculated percentages or other derived metrics.
 - Preserve the candidate's name, contact details, education, employers, titles, locations, and dates when they are present in the corpus.
 - Do not output placeholders like [Name], [Company Name], [Dates], or [Phone]. If a detail is not present, omit it.
 - If a PRIMARY RESUME SOURCE is present, use it as the baseline structure. Preserve its core sections and real entries; tailor by selecting, reordering, and truthfully rewriting supported bullets.
@@ -25,8 +28,11 @@ Rules:
 - Cut low-relevance content before suggesting smaller typography; never rely on font sizes below 11pt.
 - Mirror the job's terminology when it is truthful to the candidate's background.
 - If none of the candidate's evidence matches a job requirement, leave that requirement out instead of manufacturing a match.
+- A cover letter may honestly identify an unsupported requirement as something the candidate wants to learn, but it must not imply prior experience with it.
+- Keep each output bullet attached to one source bullet. You may tighten or reorder it, but may not graft details or outcomes from another bullet or from the job description.
 - Keep each work experience/project attached to the real employer/project where it appears in the candidate source. Do not move job-description duties into unrelated experiences.
 - Keep the cover letter specific to the company and role, not generic.
+- Start the cover letter with "Dear Hiring Team," and end with the candidate's name. Do not add address blocks, dates, or placeholders.
 - The QA output must be valid JSON when possible.
 
 RESUME MARKDOWN FORMAT (follow exactly):

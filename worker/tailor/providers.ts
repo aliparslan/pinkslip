@@ -1,5 +1,6 @@
 import { parseTailoringText } from "./parse";
 import { buildTailorPrompt, TAILOR_SYSTEM } from "./prompt";
+import type { WorkersAiTailorModel } from "./config";
 
 export interface TailorProviderJob {
   id: string;
@@ -12,6 +13,7 @@ export interface ProviderStreamResult {
   parsed: ReturnType<typeof parseTailoringText>;
   inputTokens: number;
   outputTokens: number;
+  providerUnits: number | null;
 }
 
 interface ProviderStreamArgs {
@@ -144,7 +146,7 @@ export async function streamAnthropicTailoring(args: ProviderStreamArgs): Promis
     }
   }
   if (buffer.trim()) await handleEvent(buffer);
-  return { parsed: parseTailoringText(fullText), inputTokens, outputTokens };
+  return { parsed: parseTailoringText(fullText), inputTokens, outputTokens, providerUnits: null };
 }
 
 export async function streamGeminiTailoring(args: ProviderStreamArgs): Promise<ProviderStreamResult> {
@@ -208,5 +210,120 @@ export async function streamGeminiTailoring(args: ProviderStreamArgs): Promise<P
     }
   }
   if (buffer.trim()) await handleEvent(buffer);
-  return { parsed: parseTailoringText(fullText), inputTokens, outputTokens };
+  return { parsed: parseTailoringText(fullText), inputTokens, outputTokens, providerUnits: null };
+}
+
+interface WorkersAiStreamArgs extends Omit<ProviderStreamArgs, "apiKey" | "model"> {
+  ai: Ai;
+  model: WorkersAiTailorModel;
+}
+
+interface WorkersAiStreamPayload {
+  response?: string;
+  choices?: Array<{
+    delta?: {
+      content?: string;
+      reasoning?: string;
+      reasoning_content?: string;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    neurons?: number;
+  };
+}
+
+export async function streamWorkersAiTailoring(
+  args: WorkersAiStreamArgs
+): Promise<ProviderStreamResult> {
+  const { ai, model, sourceMd, job, writer, encoder } = args;
+  const messages = [
+    { role: "system" as const, content: TAILOR_SYSTEM },
+    {
+      role: "user" as const,
+      content: buildTailorPrompt({
+        title: job.title,
+        company: job.company_name,
+        description: job.description,
+      }, sourceMd),
+    },
+  ];
+
+  let response: ReadableStream<Uint8Array>;
+  try {
+    const output = model === "@cf/openai/gpt-oss-120b"
+      ? await ai.run("@cf/openai/gpt-oss-120b", {
+          messages,
+          stream: true,
+          max_tokens: 2400,
+          temperature: 0.15,
+        })
+      : await ai.run("@cf/zai-org/glm-4.7-flash", {
+          messages,
+          stream: true,
+          max_tokens: 2400,
+          temperature: 0.15,
+        });
+    if (!(output instanceof ReadableStream)) {
+      throw new Error("Workers AI returned a non-streaming response");
+    }
+    response = output;
+  } catch {
+    throw new Error("Workers AI request failed");
+  }
+
+  const reader = response.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let providerUnits: number | null = null;
+
+  async function handleEvent(rawEvent: string) {
+    const data = sseData(rawEvent);
+    if (!data || data === "[DONE]") return;
+    const payload = JSON.parse(data) as WorkersAiStreamPayload;
+    const chunk = (payload.choices ?? [])
+      .map((choice) => choice.delta?.content ?? "")
+      .join("");
+
+    // Workers AI can stream private chain-of-thought fields alongside visible
+    // content. Only delta.content is user-facing; reasoning is never forwarded.
+    if (chunk) {
+      fullText += chunk;
+      await writeSse(writer, encoder, { type: "chunk", text: chunk });
+    } else if (!fullText && payload.response) {
+      fullText = payload.response;
+      await writeSse(writer, encoder, { type: "chunk", text: payload.response });
+    }
+
+    inputTokens = Math.max(inputTokens, payload.usage?.prompt_tokens ?? 0);
+    outputTokens = Math.max(outputTokens, payload.usage?.completion_tokens ?? 0);
+    if (typeof payload.usage?.neurons === "number") {
+      providerUnits = Math.max(providerUnits ?? 0, payload.usage.neurons);
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r/g, "");
+    while (buffer.includes("\n\n")) {
+      const boundary = buffer.indexOf("\n\n");
+      const rawEvent = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      await handleEvent(rawEvent);
+    }
+  }
+  if (buffer.trim()) await handleEvent(buffer);
+  if (!fullText.trim()) throw new Error("Workers AI returned no tailoring text");
+
+  return {
+    parsed: parseTailoringText(fullText),
+    inputTokens,
+    outputTokens,
+    providerUnits,
+  };
 }
