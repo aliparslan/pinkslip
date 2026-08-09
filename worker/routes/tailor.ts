@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { getAdapter } from "../ats";
 import {
   buildCandidateEvidence,
+  RESUME_COMPILER_VERSION,
+  RESUME_TEMPLATE_VERSION,
   validateTailoredResume,
   type CandidateEvidence,
   type JobSnapshot,
@@ -27,6 +29,11 @@ import {
 import {
   normalizeWorkersAiModel,
 } from "../tailor/config";
+import {
+  createResumeProfileSnapshot,
+  loadResumeProfileSnapshot,
+  resumeProfileHasChanged,
+} from "../tailor/profile-snapshot";
 import type {
   Env,
   TailoringRow,
@@ -62,6 +69,13 @@ function parseStoredJson<T>(value: string | null, fallback: T): T {
 export function normalizeTailoring(
   row: TailoringRow,
   latestArtifact: TailoringArtifact | null = null,
+  sourceState: {
+    sourceProfileChanged: boolean;
+    requiresFreshPlan: boolean;
+  } = {
+    sourceProfileChanged: false,
+    requiresFreshPlan: false,
+  },
 ) {
   const status = row.status === "generated" || row.status === "failed"
     ? row.status
@@ -99,6 +113,8 @@ export function normalizeTailoring(
     created_at: row.created_at,
     updated_at: row.updated_at,
     latestArtifact,
+    sourceProfileChanged: sourceState.sourceProfileChanged,
+    requiresFreshPlan: sourceState.requiresFreshPlan,
   };
 }
 
@@ -138,6 +154,34 @@ async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
+
+async function normalizeTailoringForUser(
+  db: D1Database,
+  userId: string,
+  row: TailoringRow,
+  latestArtifact: TailoringArtifact | null = null,
+) {
+  const frozenProfile = await loadResumeProfileSnapshot(
+    row.profile_snapshot_json,
+    row.profile_hash,
+  );
+  if (!frozenProfile || !row.profile_hash) {
+    return normalizeTailoring(row, latestArtifact, {
+      sourceProfileChanged: false,
+      requiresFreshPlan: true,
+    });
+  }
+  const { data: currentProfile } = await getUserProfile(db, userId);
+  return normalizeTailoring(row, latestArtifact, {
+    sourceProfileChanged: await resumeProfileHasChanged(currentProfile, row.profile_hash),
+    requiresFreshPlan: false,
+  });
+}
+
+const FRESH_PLAN_REQUIRED = {
+  error: "This tailoring needs a fresh plan. Start over to use your current resume.",
+  code: "tailoring_refresh_required",
+} as const;
 
 async function loadJobForTailor(
   db: D1Database,
@@ -218,7 +262,11 @@ tailor.get("/tailor/:job_id", async (c) => {
     ? await loadLatestArtifact(c.env.DB, userId, row.id)
     : null;
 
-  return c.json({ tailoring: row ? normalizeTailoring(row, latestArtifact) : null });
+  return c.json({
+    tailoring: row
+      ? await normalizeTailoringForUser(c.env.DB, userId, row, latestArtifact)
+      : null,
+  });
 });
 
 tailor.post("/tailor/:job_id/plan", async (c) => {
@@ -260,6 +308,7 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
     }, 429);
   }
   const capturedAt = new Date().toISOString();
+  const profileSnapshot = await createResumeProfileSnapshot(profile);
   const snapshot: JobSnapshot = {
     jobId: job.id,
     title: job.title,
@@ -286,23 +335,26 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
     const id = crypto.randomUUID();
     await c.env.DB.prepare(
       `INSERT INTO tailorings (
-         id, user_id, job_id, status, job_snapshot_json, evidence_json,
+         id, user_id, job_id, status, job_snapshot_json, profile_snapshot_json,
+         profile_hash, evidence_json,
          requirements_json, plan_json, input_tokens, output_tokens, model,
          template_version, compiler_version, usage_id, created_at, updated_at
-       ) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       userId,
       job.id,
       JSON.stringify(snapshot),
+      profileSnapshot.json,
+      profileSnapshot.hash,
       JSON.stringify(evidence),
       JSON.stringify(result.plan.requirements),
       JSON.stringify(result.plan),
       result.usage.inputTokens || null,
       result.usage.outputTokens || null,
       model,
-      "resume-v2",
-      "typst-web-v2",
+      RESUME_TEMPLATE_VERSION,
+      RESUME_COMPILER_VERSION,
       quota.usageId,
       capturedAt,
       capturedAt,
@@ -319,7 +371,9 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
       entityId: job.id,
       properties: { provider: "workers_ai", model, count: result.plan.requirements.length },
     }).catch(() => undefined);
-    return c.json({ tailoring: normalizeTailoring(row) });
+    return c.json({
+      tailoring: await normalizeTailoringForUser(c.env.DB, userId, row),
+    });
   } catch (error) {
     return c.json({
       error: error instanceof Error
@@ -343,6 +397,11 @@ tailor.post("/tailorings/:id/generate", async (c) => {
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
   ).bind(id, userId).first<TailoringRow>();
   if (!row) return c.json({ error: "Tailoring not found" }, 404);
+  const profile = await loadResumeProfileSnapshot(
+    row.profile_snapshot_json,
+    row.profile_hash,
+  );
+  if (!profile) return c.json(FRESH_PLAN_REQUIRED, 409);
   const body = (await c.req.json<{
     selectedEvidenceIds?: string[];
     excludedEvidenceIds?: string[];
@@ -370,7 +429,6 @@ tailor.post("/tailorings/:id/generate", async (c) => {
   };
   const snapshot = parseStoredJson<JobSnapshot | null>(row.job_snapshot_json, null);
   if (!snapshot) return c.json({ error: "The saved job snapshot is missing." }, 409);
-  const { data: profile } = await getUserProfile(c.env.DB, userId);
   const model = normalizeWorkersAiModel(c.env.WORKERS_AI_MODEL);
   try {
     const result = await generateStructuredResume({
@@ -419,7 +477,7 @@ tailor.post("/tailorings/:id/generate", async (c) => {
       return c.json({
         error: "We couldn't verify every generated claim. Review the flagged evidence and try again.",
         code: "tailoring_validation_failed",
-        tailoring: normalizeTailoring(updated),
+        tailoring: await normalizeTailoringForUser(c.env.DB, userId, updated),
       }, 422);
     }
     await recordProductEvent(c.env.DB, {
@@ -430,7 +488,9 @@ tailor.post("/tailorings/:id/generate", async (c) => {
       entityId: row.job_id,
       properties: { provider: "workers_ai", model },
     }).catch(() => undefined);
-    return c.json({ tailoring: normalizeTailoring(updated) });
+    return c.json({
+      tailoring: await normalizeTailoringForUser(c.env.DB, userId, updated),
+    });
   } catch (error) {
     return c.json({
       error: error instanceof Error
@@ -448,6 +508,11 @@ tailor.patch("/tailorings/:id", async (c) => {
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
   ).bind(id, userId).first<TailoringRow>();
   if (!existing) return c.json({ error: "Tailoring not found" }, 404);
+  const profile = await loadResumeProfileSnapshot(
+    existing.profile_snapshot_json,
+    existing.profile_hash,
+  );
+  if (!profile) return c.json(FRESH_PLAN_REQUIRED, 409);
   const body =
     (await c.req
       .json<{
@@ -458,7 +523,6 @@ tailor.patch("/tailorings/:id", async (c) => {
   if (!body.resume_draft) return c.json({ error: "No structured draft to update" }, 400);
   const serialized = JSON.stringify(body.resume_draft);
   if (serialized.length > 300_000) return c.json({ error: "Resume draft is too large" }, 413);
-  const { data: profile } = await getUserProfile(c.env.DB, userId);
   const evidence = parseStoredJson<CandidateEvidence[]>(existing.evidence_json, []);
   const storedPlan = parseStoredJson<TailoringPlan>(existing.plan_json, {
     schemaVersion: 2,
@@ -498,7 +562,9 @@ tailor.patch("/tailorings/:id", async (c) => {
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
   ).bind(id, userId).first<TailoringRow>();
   if (!updated) return c.json({ error: "Tailoring not found" }, 404);
-  return c.json({ tailoring: normalizeTailoring(updated) });
+  return c.json({
+    tailoring: await normalizeTailoringForUser(c.env.DB, userId, updated),
+  });
 });
 
 tailor.post("/tailorings/:id/artifacts", async (c) => {
@@ -514,6 +580,11 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
   ).bind(id, userId).first<TailoringRow>();
   if (!row) return c.json({ error: "Tailoring not found" }, 404);
+  const profile = await loadResumeProfileSnapshot(
+    row.profile_snapshot_json,
+    row.profile_hash,
+  );
+  if (!profile) return c.json(FRESH_PLAN_REQUIRED, 409);
   let form: FormData;
   try {
     form = await c.req.formData();
@@ -565,7 +636,6 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
   } catch {
     return c.json({ error: "The structured resume data is invalid." }, 400);
   }
-  const { data: profile } = await getUserProfile(c.env.DB, userId);
   const evidence = parseStoredJson<CandidateEvidence[]>(row.evidence_json, []);
   const validation = validateTailoredResume(profile, evidence, resume);
   if (!validation.valid || !clientValidation.valid) {

@@ -1,4 +1,10 @@
-import type { ResumeProfile } from "./resume-profile";
+import {
+  normalizeResumeProfile,
+  type ResumeProfile,
+} from "./resume-profile";
+
+export const RESUME_TEMPLATE_VERSION = "resume-v3";
+export const RESUME_COMPILER_VERSION = "typst-web-v2";
 
 export type EvidenceSourceType = "experience" | "project" | "education" | "skills" | "additional";
 export type RequirementPriority = "required" | "preferred";
@@ -128,6 +134,46 @@ export interface StructuredTailoring {
   created_at: string;
   updated_at: string;
   latestArtifact: TailoringArtifact | null;
+  /** True when the saved resume has changed since this plan was created. */
+  sourceProfileChanged: boolean;
+  /** True when this pre-snapshot plan must be replaced before it can be used. */
+  requiresFreshPlan: boolean;
+}
+
+function canonicalJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => item === undefined ? null : canonicalJsonValue(item));
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, item]) => [key, canonicalJsonValue(item)] as const);
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
+/**
+ * Produces the canonical payload used both for the immutable profile snapshot
+ * and its hash. Sorting object keys makes the fingerprint independent of JSON
+ * property insertion order while preserving user-controlled array order.
+ */
+export function serializeResumeProfileSnapshot(profile: ResumeProfile): string {
+  return JSON.stringify(canonicalJsonValue(normalizeResumeProfile(profile)));
+}
+
+export function parseResumeProfileSnapshot(value: string | null): ResumeProfile | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || (parsed as { schemaVersion?: unknown }).schemaVersion !== 2) {
+      return null;
+    }
+    return normalizeResumeProfile(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function stableHash(value: string): string {

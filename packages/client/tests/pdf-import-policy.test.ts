@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { shouldUseLocalPdfFallback } from "../src/lib/pdf-import";
+import {
+  shouldUseLocalPdfFallback,
+  validateResumePdf,
+} from "../src/lib/pdf-import";
 
 describe("resume import fallback policy", () => {
   test("uses PDF.js for offline, timeout, and converter outages", () => {
@@ -13,5 +16,19 @@ describe("resume import fallback policy", () => {
     expect(shouldUseLocalPdfFallback({ code: "authentication_required", status: 401 })).toBe(false);
     expect(shouldUseLocalPdfFallback({ code: "protected_pdf", status: 422 })).toBe(false);
     expect(shouldUseLocalPdfFallback({ code: "invalid_pdf", status: 422 })).toBe(false);
+  });
+
+  test("applies the server PDF contract before taking the local fast path", async () => {
+    await expect(validateResumePdf(new File(
+      ["not a pdf"],
+      "resume.pdf",
+      { type: "application/pdf" },
+    ))).rejects.toMatchObject({ code: "invalid_pdf" });
+
+    await expect(validateResumePdf(new File(
+      ["%PDF-1.7"],
+      "resume.txt",
+      { type: "text/plain" },
+    ))).rejects.toMatchObject({ code: "unsupported_type" });
   });
 });

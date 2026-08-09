@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { createEmptyResumeProfile, type ResumeProfile } from "../shared/resume-profile";
 import {
   buildCandidateEvidence,
+  RESUME_COMPILER_VERSION,
+  RESUME_TEMPLATE_VERSION,
+  serializeResumeProfileSnapshot,
   validateTailoredResume,
 } from "../shared/tailoring";
 import {
@@ -9,7 +12,17 @@ import {
   createTailoringPlan,
   generateStructuredResume,
 } from "../worker/tailor/structured";
-import { buildResumeTypstSource, removeLowestPriorityContent } from "../packages/client/src/lib/resume-document";
+import {
+  buildResumeTypstSource,
+  removeLowestPriorityContent,
+  RESUME_COMPILER_VERSION as CLIENT_COMPILER_VERSION,
+  RESUME_TEMPLATE_VERSION as CLIENT_TEMPLATE_VERSION,
+} from "../packages/client/src/lib/resume-document";
+import {
+  createResumeProfileSnapshot,
+  loadResumeProfileSnapshot,
+  resumeProfileHasChanged,
+} from "../worker/tailor/profile-snapshot";
 
 function profile(): ResumeProfile {
   return {
@@ -49,6 +62,44 @@ function profile(): ResumeProfile {
 }
 
 describe("structured resume grounding", () => {
+  test("uses one renderer version contract across the client and Worker", () => {
+    expect(CLIENT_TEMPLATE_VERSION).toBe(RESUME_TEMPLATE_VERSION);
+    expect(CLIENT_COMPILER_VERSION).toBe(RESUME_COMPILER_VERSION);
+  });
+
+  test("freezes a canonical profile snapshot and detects later profile changes", async () => {
+    const source = profile();
+    const reordered: ResumeProfile = {
+      optionalSections: source.optionalSections,
+      skills: source.skills,
+      projects: source.projects,
+      education: source.education,
+      experience: source.experience,
+      contact: {
+        website: source.contact.website,
+        github: source.contact.github,
+        linkedin: source.contact.linkedin,
+        location: source.contact.location,
+        phone: source.contact.phone,
+        email: source.contact.email,
+        name: source.contact.name,
+      },
+      schemaVersion: 2,
+    };
+    expect(serializeResumeProfileSnapshot(reordered)).toBe(serializeResumeProfileSnapshot(source));
+
+    const snapshot = await createResumeProfileSnapshot(source);
+    const frozen = await loadResumeProfileSnapshot(snapshot.json, snapshot.hash);
+    expect(frozen).toEqual(source);
+    expect(await resumeProfileHasChanged(source, snapshot.hash)).toBe(false);
+
+    source.contact.email = "new-address@example.com";
+    expect(await resumeProfileHasChanged(source, snapshot.hash)).toBe(true);
+    expect((await loadResumeProfileSnapshot(snapshot.json, snapshot.hash))?.contact.email)
+      .toBe("jane@example.com");
+    expect(await loadResumeProfileSnapshot(snapshot.json, "invalid-hash")).toBeNull();
+  });
+
   test("builds stable evidence ids and copies metadata instead of generating it", () => {
     const source = profile();
     const first = buildCandidateEvidence(source);

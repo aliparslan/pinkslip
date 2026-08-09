@@ -45,10 +45,6 @@
     monthInputValue,
     splitUsLocation,
   } from "../lib/resume-fields";
-  import {
-    chooseBestResumeImport,
-    resumeImportWarnings,
-  } from "../lib/resume-import-quality";
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
     leadership: "Leadership & affiliations",
@@ -583,39 +579,34 @@
     importError = null;
     lastImportFile = file;
     try {
-      let parsed: Partial<ResumeProfile>;
-      const pdfImport = await import("../lib/pdf-import");
-      const localAttempt = pdfImport.parsePdfToProfile(file).then(
-        (profile) => ({ ok: true as const, profile }),
-        (failure: unknown) => ({ ok: false as const, failure }),
-      );
-      try {
-        const response = await api.resumeImport.parse(file);
-        const local = await localAttempt;
-        if (local.ok && chooseBestResumeImport(response.profile, local.profile) === "local") {
-          parsed = local.profile;
-          pendingImportWarnings = resumeImportWarnings(local.profile);
-        } else {
-          parsed = response.profile;
-          pendingImportWarnings = response.warnings;
-        }
-      } catch (serverError) {
-        const canTryLocally = pdfImport.shouldUseLocalPdfFallback(serverError);
-        if (!canTryLocally) throw serverError;
-        const local = await localAttempt;
-        if (!local.ok) throw local.failure;
-        parsed = local.profile;
-        pendingImportWarnings = resumeImportWarnings(local.profile);
-      }
+      const [pdfImport, resumeImport] = await Promise.all([
+        import("../lib/pdf-import"),
+        import("../lib/resume-import-orchestrator"),
+      ]);
+      await pdfImport.validateResumePdf(file);
+      const result = await resumeImport.importResumeAdaptively({
+        parseLocal: () => pdfImport.parsePdfToProfile(file),
+        serverAvailable: navigator.onLine,
+        parseServer: async () => {
+          const response = await api.resumeImport.parse(file);
+          return { profile: response.profile, warnings: response.warnings };
+        },
+      });
+      const parsed = result.profile;
+      pendingImportWarnings = result.warnings;
       if (!hasResumeContent(parsed)) {
         throw new Error("No resume details were found");
       }
       pendingImport = parsed;
     } catch (failure) {
       pendingImportWarnings = [];
+      const typedCode = failure && typeof failure === "object" && "code" in failure
+        && typeof failure.code === "string"
+        ? failure.code as ResumeImportErrorCode
+        : null;
       const code = failure instanceof ApiError && failure.code
         ? failure.code as ResumeImportErrorCode
-        : localImportError(failure);
+        : typedCode ?? localImportError(failure);
       importError = { code, message: importErrorMessage(code) };
     } finally {
       importing = false;

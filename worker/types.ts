@@ -111,6 +111,8 @@ export interface TailoringRow {
   job_id: string;
   status: "planned" | "generated" | "failed";
   job_snapshot_json: string;
+  profile_snapshot_json: string | null;
+  profile_hash: string | null;
   evidence_json: string;
   requirements_json: string;
   plan_json: string;

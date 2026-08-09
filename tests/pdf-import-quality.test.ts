@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createEmptyResumeProfile } from "../shared/resume-profile";
 import {
+  assessResumeImportQuality,
   chooseBestResumeImport,
   resumeImportQualityScore,
+  shouldRequestServerResumeImport,
 } from "../packages/client/src/lib/resume-import-quality";
 
 describe("resume import quality selection", () => {
@@ -62,5 +64,58 @@ describe("resume import quality selection", () => {
 
     expect(resumeImportQualityScore(local)).toBeGreaterThan(resumeImportQualityScore(server));
     expect(chooseBestResumeImport(server, local)).toBe("local");
+  });
+
+  test("accepts a complete local parse without requiring every optional section", () => {
+    const local = {
+      ...createEmptyResumeProfile(),
+      contact: {
+        ...createEmptyResumeProfile().contact,
+        name: "Jane Doe",
+        email: "jane@example.com",
+      },
+      education: [{
+        id: "school-1",
+        institution: "Example University",
+        location: "Austin, TX",
+        startDate: "August 2022",
+        endDate: "May 2026",
+        minors: [],
+        credentials: [{
+          id: "degree-1",
+          degreeType: "bachelor" as const,
+          fieldsOfStudy: ["Computer Science"],
+        }],
+      }],
+    };
+
+    expect(assessResumeImportQuality(local)).toMatchObject({ materiallyWeak: false });
+    expect(shouldRequestServerResumeImport(local)).toBe(false);
+  });
+
+  test("requests a second extractor for fused or incomplete rows", () => {
+    const fused = {
+      ...createEmptyResumeProfile(),
+      contact: {
+        ...createEmptyResumeProfile().contact,
+        name: "Jane Doe",
+        email: "jane@example.com",
+      },
+      experience: [{
+        id: "role-1",
+        company: "",
+        title: "Example University Austin, TXBachelor of Science",
+        location: "",
+        startDate: "",
+        endDate: "May 2026",
+        bullets: [],
+      }],
+    };
+
+    expect(assessResumeImportQuality(fused).reasons).toEqual(expect.arrayContaining([
+      "incomplete_experience",
+      "suspicious_fused_fields",
+    ]));
+    expect(shouldRequestServerResumeImport(fused)).toBe(true);
   });
 });
