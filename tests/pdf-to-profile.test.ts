@@ -113,8 +113,21 @@ Software Engineer | January 2024 – Present
     expect(parsed.projects?.map((project) => project.name)).toEqual(["Pinkslip Jobs", "Breadwinner", "OneLearn"]);
     expect(parsed.projects?.map((project) => project.date)).toEqual(["April 2026", "November 2025", "September 2025"]);
     expect(parsed.projects?.[0].url).toBe("https://pinkslip.alip.dev");
+    expect(parsed.projects?.[0]).toMatchObject({ role: "Full Stack", teamInfo: "Solo project" });
+    expect(parsed.projects?.[2]).toMatchObject({ role: "Full Stack", teamInfo: "Team of 5" });
     expect(parsed.projects?.[1].bullets[0]).toContain("spending visualizations");
     expect(parsed.projects?.[2].bullets).toHaveLength(2);
+  });
+
+  test("repairs a visual line-break hyphen emitted as a separate text item", () => {
+    const parsedSpacedHyphen = parseResumeText(`Jane Doe
+jane@example.com
+Projects
+Portfolio January 2026
+• Built interactive spending visual -
+izations for monthly reporting`);
+
+    expect(parsedSpacedHyphen.projects?.[0].bullets[0]).toContain("visualizations");
   });
 
   test("creates one attendance record with repeatable credentials", () => {
@@ -122,7 +135,7 @@ Software Engineer | January 2024 – Present
     expect(parsed.education?.[0].institution).toBe("University of Virginia");
     expect(parsed.education?.[0].credentials).toHaveLength(2);
     expect(parsed.education?.[0].credentials[0].degreeType).toBe("master");
-    expect(parsed.education?.[0].credentials[0].fieldsOfStudy).toEqual(["Computer Science (MCS)"]);
+    expect(parsed.education?.[0].credentials[0].fieldsOfStudy).toEqual(["Computer Science"]);
     expect(parsed.education?.[0].gpa).toBe("3.93");
     expect(parsed.education?.[0].endDate).toBe("May 2025");
     expect(parsed.education?.[0].credentials[1].degreeType).toBe("bachelor");

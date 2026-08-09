@@ -83,7 +83,17 @@ export function inferFieldOfStudy(value: string, degreeType: DegreeType | ""): s
     high_school: /^(?:high\s+school(?:\s+diploma)?|ged|diploma)(?:[\s,:-]+)*/i,
     certificate: /^(?:certificate|certification|bootcamp)(?:\s+(?:of|in)\s+|[\s,:-]+)*/i,
   };
-  return trimmed.replace(prefixes[degreeType] ?? /^$/, "").trim();
+  const degreeSuffixes: Partial<Record<DegreeType, RegExp>> = {
+    doctorate: /\s*\((?:ph\.?\s*d\.?|dphil)\)\s*$/i,
+    professional: /\s*\((?:j\.?\s*d\.?|m\.?\s*d\.?)\)\s*$/i,
+    master: /\s*\((?:m\.?\s*s\.?|m\.?\s*a\.?|mcs|m\.?\s*eng\.?)\)\s*$/i,
+    bachelor: /\s*\((?:b\.?\s*s\.?|b\.?\s*a\.?|b\.?\s*eng\.?)\)\s*$/i,
+    associate: /\s*\((?:a\.?\s*s\.?|a\.?\s*a\.?)\)\s*$/i,
+  };
+  return trimmed
+    .replace(prefixes[degreeType] ?? /^$/, "")
+    .replace(degreeSuffixes[degreeType] ?? /$^/, "")
+    .trim();
 }
 
 export function formatDegree(degreeType: DegreeType | "", fieldOfStudy: string): string {

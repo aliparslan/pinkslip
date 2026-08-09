@@ -2,6 +2,7 @@ import type { DegreeType, ResumeProfile } from "../../../../shared/resume-profil
 import {
   inferDegreeType,
   inferFieldOfStudy,
+  US_STATES,
 } from "./resume-fields";
 
 type PdfLink = { url: string };
@@ -31,8 +32,9 @@ const DATE = `(?:Expected\\s+)?(?:(?:${MONTH}\\.?|${SEASON})\\s+)?${YEAR}`;
 const COMPACT_MONTH_RANGE_AT_END = new RegExp(`(${MONTH})\\.?\\s*(?:-|–|—|to)\\s*(${MONTH})\\.?\\s+(${YEAR})\\s*$`, "i");
 const DATE_RANGE_AT_END = new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(Present|Current|${DATE})\\s*$`, "i");
 const SINGLE_DATE_AT_END = new RegExp(`(${DATE})\\s*$`, "i");
+const FUSED_STATE_COLUMN = new RegExp(`,\\s*(?:${US_STATES.map((state) => state.value).join("|")})(?=[A-Z])`);
 
-const BULLET_PREFIX = /^[\-•●◦▪‣\uF0B7]\s*/;
+const BULLET_PREFIX = /^(?:[\-•●◦▪‣\uF0B7]\s*)+/;
 
 const SECTION_PATTERNS: Array<[SectionType, RegExp]> = [
   ["experience", /^(?:(?:work|professional)\s+)?experience$|^employment(?:\s+history)?$/i],
@@ -131,16 +133,24 @@ function isBulletLine(line: string): boolean {
 }
 
 function cleanBullet(line: string): string {
-  return line.trim().replace(BULLET_PREFIX, "").replace(/^\d+[.)]\s+/, "").trim();
+  return cleanInlineText(line.trim().replace(BULLET_PREFIX, "").replace(/^\d+[.)]\s+/, ""));
 }
 
 function joinWrappedText(previous: string, continuation: string): string {
-  const next = continuation.trim();
+  const next = cleanInlineText(continuation);
   if (!previous) return next;
-  if (previous.endsWith("-") && /^[a-z]/.test(next)) {
-    return `${previous.slice(0, -1)}${next}`;
+  if (/\s*-\s*$/.test(previous) && /^[a-z]/.test(next)) {
+    return cleanInlineText(`${previous.replace(/\s*-\s*$/, "")}${next}`);
   }
-  return `${previous} ${next}`.replace(/\s+/g, " ").trim();
+  return cleanInlineText(`${previous} ${next}`);
+}
+
+function cleanInlineText(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:)])/g, "$1")
+    .replace(/([,;:])(?=[A-Za-z])/g, "$1 ")
+    .trim();
 }
 
 function appendBulletContinuation(bullets: string[], line: string): boolean {
@@ -210,6 +220,29 @@ function looksLikeRoleTitle(text: string): boolean {
   return /\b(?:engineer|developer|researcher|scientist|analyst|designer|architect|manager|lead|director|consultant|specialist|assistant|associate|intern|founder|teacher|instructor|advisor|treasurer|member|editor|caller)\b/i.test(text);
 }
 
+function splitFusedCompanyLocationTitle(text: string): {
+  company: string;
+  location: string;
+  title: string;
+} | null {
+  const marker = text.match(FUSED_STATE_COLUMN);
+  if (!marker || marker.index === undefined) return null;
+  const locationEnd = marker.index + marker[0].length;
+  const beforeState = text.slice(0, marker.index);
+  const city = beforeState.match(
+    /(?:^|\s)((?:(?:New|Los|Las|San|Santa|Fort|St\.?|Saint)\s+[A-Z][A-Za-z.'-]*|Salt Lake City|[A-Z][A-Za-z.'-]*))$/,
+  )?.[1];
+  if (!city) return null;
+  const company = beforeState.slice(0, beforeState.length - city.length).trim();
+  const title = text.slice(locationEnd).trim();
+  if (!company || !title || !looksLikeRoleTitle(title)) return null;
+  return {
+    company,
+    location: `${city}${marker[0]}`,
+    title,
+  };
+}
+
 function parseExperience(lines: string[]): ResumeProfile["experience"] {
   const experience: ResumeProfile["experience"] = [];
   let company = "";
@@ -225,10 +258,15 @@ function parseExperience(lines: string[]): ResumeProfile["experience"] {
 
     const dated = splitTrailingDate(line);
     if (dated.matched) {
+      const fused = splitFusedCompanyLocationTitle(dated.prefix);
       const located = splitTrailingLocation(dated.prefix);
-      let title = located.prefix;
-      let roleCompany = company;
-      const roleLocation = located.location || location;
+      let title = fused?.title ?? located.prefix;
+      let roleCompany = fused?.company ?? company;
+      const roleLocation = fused?.location ?? (located.location || location);
+      if (fused) {
+        company = fused.company;
+        location = fused.location;
+      }
       const parts = title.split(/\s+\|\s+|\s+[–—-]\s+/).filter(Boolean);
 
       if (parts.length > 1 && looksLikeRoleTitle(parts[0])) {
@@ -298,7 +336,11 @@ function parseProjects(lines: string[]): ResumeProfile["projects"] {
     const withoutUrl = url
       ? heading.replace(new RegExp(url.replace(/^https?:\/\//i, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "")
       : heading;
-    const name = withoutUrl.split(/\s+[–—-]\s+|\s+\|\s+/)[0].replace(/[|,;\s]+$/, "").trim();
+    const headingParts = withoutUrl
+      .split(/\s+[–—-]\s+|\s+\|\s+/)
+      .map((part) => part.replace(/[|,;\s]+$/, "").trim())
+      .filter(Boolean);
+    const name = headingParts[0] ?? "";
     const projectDate = usesFollowingDetailLine && nextDated
       ? nextDated
       : dated;
@@ -306,6 +348,8 @@ function parseProjects(lines: string[]): ResumeProfile["projects"] {
     current = {
       id: genId(),
       name: name || heading,
+      role: headingParts[1] || undefined,
+      teamInfo: headingParts[2] || undefined,
       url,
       date: projectDate.start && projectDate.end
         ? `${projectDate.start} – ${projectDate.end}`

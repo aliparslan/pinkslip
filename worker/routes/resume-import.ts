@@ -1,6 +1,7 @@
 import { Hono, type Context } from "hono";
 import { normalizeResumeProfile } from "../../shared/resume-profile";
 import { parseResumeText } from "../../packages/client/src/lib/pdf-to-profile";
+import { US_STATES } from "../../packages/client/src/lib/resume-fields";
 import { recordProductEvent } from "../product-events";
 import type { Env, Variables } from "../types";
 
@@ -8,6 +9,10 @@ const resumeImport = new Hono<{ Bindings: Env; Variables: Variables }>();
 type ResumeImportContext = Context<{ Bindings: Env; Variables: Variables }>;
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
 const HOURLY_IMPORT_LIMIT = 10;
+const FUSED_STATE_COLUMN = new RegExp(
+  `,\\s*(${US_STATES.map((state) => state.value).join("|")})(?=[A-Z])`,
+  "g",
+);
 
 export type ResumeImportErrorCode =
   | "authentication_required"
@@ -59,6 +64,7 @@ function conversionFailureCode(message: string): ResumeImportErrorCode {
 export function normalizeConvertedResumeText(value: string): string {
   return value
     .replace(/^---[\s\S]*?---\s*/u, "")
+    .replace(/^\s*#{0,6}\s*(?:[^\n]*\.pdf|contents|page\s+\d+)\s*$/gim, "")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 $2")
     .replace(/^#{1,6}\s*/gm, "")
@@ -67,6 +73,12 @@ export function normalizeConvertedResumeText(value: string): string {
     .replace(/_([^_]+)_|\*([^*]+)\*/g, "$1$2")
     .replace(/^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$/gm, "")
     .replace(/^\s*\|\s?|\s*\|\s*$/gm, "")
+    .replace(/^\s*\|\s*$/gm, "")
+    .replace(FUSED_STATE_COLUMN, ", $1\n")
+    .replace(
+      /((?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?|Spring|Summer|Fall|Autumn|Winter)\.?\s+)?(?:19|20)\d{2})(?=(?:B\.?\s*[AS]\.?|Bachelor|Master|Associate|Doctor|Ph\.?D|M\.?\s*[AS]\.?|MCS|MBA|JD|MD)\b)/gi,
+      "$1\n",
+    )
     .replace(/\r/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

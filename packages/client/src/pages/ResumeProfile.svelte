@@ -45,6 +45,10 @@
     monthInputValue,
     splitUsLocation,
   } from "../lib/resume-fields";
+  import {
+    chooseBestResumeImport,
+    resumeImportWarnings,
+  } from "../lib/resume-import-quality";
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
     leadership: "Leadership & affiliations",
@@ -79,6 +83,9 @@
   let pendingImportWarnings: string[] = $state([]);
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
+  let clearResumeOpen = $state(false);
+  let clearingResume = $state(false);
+  let clearResumeError: string | null = $state(null);
   let draftRecord: { section: CollectionSection; id: string } | null = null;
   let draftDirectSection: "skills" | OptionalSectionKind | null = null;
   const nativeIos = isIosApp();
@@ -577,16 +584,28 @@
     lastImportFile = file;
     try {
       let parsed: Partial<ResumeProfile>;
+      const pdfImport = await import("../lib/pdf-import");
+      const localAttempt = pdfImport.parsePdfToProfile(file).then(
+        (profile) => ({ ok: true as const, profile }),
+        (failure: unknown) => ({ ok: false as const, failure }),
+      );
       try {
         const response = await api.resumeImport.parse(file);
-        parsed = response.profile;
-        pendingImportWarnings = response.warnings;
+        const local = await localAttempt;
+        if (local.ok && chooseBestResumeImport(response.profile, local.profile) === "local") {
+          parsed = local.profile;
+          pendingImportWarnings = resumeImportWarnings(local.profile);
+        } else {
+          parsed = response.profile;
+          pendingImportWarnings = response.warnings;
+        }
       } catch (serverError) {
-        const { parsePdfToProfile, shouldUseLocalPdfFallback } = await import("../lib/pdf-import");
-        const canTryLocally = shouldUseLocalPdfFallback(serverError);
+        const canTryLocally = pdfImport.shouldUseLocalPdfFallback(serverError);
         if (!canTryLocally) throw serverError;
-        parsed = await parsePdfToProfile(file);
-        pendingImportWarnings = [];
+        const local = await localAttempt;
+        if (!local.ok) throw local.failure;
+        parsed = local.profile;
+        pendingImportWarnings = resumeImportWarnings(local.profile);
       }
       if (!hasResumeContent(parsed)) {
         throw new Error("No resume details were found");
@@ -655,6 +674,38 @@
   function cancelPdfImport() {
     pendingImport = null;
     pendingImportWarnings = [];
+  }
+
+  function requestClearResume() {
+    clearResumeError = null;
+    clearResumeOpen = true;
+  }
+
+  async function clearResume() {
+    if (clearingResume || saving) return;
+    clearingResume = true;
+    clearResumeError = null;
+    if (autosaveTimer !== null) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    try {
+      const response = await api.profile.update(createEmptyResumeProfile());
+      profile = normalizeResumeProfile(response.data);
+      pendingImport = null;
+      pendingImportWarnings = [];
+      importError = null;
+      lastImportFile = null;
+      draftRecord = null;
+      draftDirectSection = null;
+      view = { kind: "overview" };
+      savePresentation.hydrate(response.updated_at);
+      clearResumeOpen = false;
+    } catch (failure) {
+      clearResumeError = errorMessage(failure);
+    } finally {
+      clearingResume = false;
+    }
   }
 
   onMount(() => {
@@ -872,6 +923,13 @@
           <button type="button" class="add-section-button" onclick={() => (addSectionOpen = true)}>
             <Plus size={16} aria-hidden="true" />
             <span>Add section</span>
+          </button>
+        {/if}
+
+        {#if hasResumeContent(profile)}
+          <button type="button" class="btn-secondary btn-danger clear-resume-action" onclick={requestClearResume}>
+            <Trash size={16} aria-hidden="true" />
+            <span>Clear resume</span>
           </button>
         {/if}
       </div>
@@ -1133,6 +1191,24 @@
     <div class="action-row import-actions">
       <button type="button" class="btn-secondary flex-fill" onclick={cancelPdfImport}>Cancel</button>
       <button type="button" class="btn-primary btn-accent flex-fill" onclick={applyPdfImport}>Import</button>
+    </div>
+  </Modal>
+{/if}
+
+{#if clearResumeOpen}
+  <Modal
+    title="Clear resume?"
+    subtitle="This removes your contact details and every resume section. Tailored resumes you already created stay in your history."
+    busy={clearingResume}
+    onclose={() => { if (!clearingResume) clearResumeOpen = false; }}
+  >
+    {#if clearResumeError}<div class="alert alert-error clear-resume-error" role="alert">{clearResumeError}</div>{/if}
+    <div class="action-row clear-resume-actions">
+      <button type="button" class="btn-secondary flex-fill" onclick={() => (clearResumeOpen = false)} disabled={clearingResume}>Cancel</button>
+      <button type="button" class="btn-secondary btn-danger flex-fill" onclick={clearResume} disabled={clearingResume || saving}>
+        {#if clearingResume}<Spinner size={16} />{/if}
+        <span>Clear resume</span>
+      </button>
     </div>
   </Modal>
 {/if}
@@ -1679,6 +1755,23 @@
 
   .import-actions {
     margin-top: var(--space-5);
+  }
+
+  .clear-resume-action {
+    width: 100%;
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  .clear-resume-error {
+    margin-block-start: var(--space-4);
+  }
+
+  .clear-resume-actions {
+    margin-block-start: var(--space-5);
   }
 
   @media (max-width: 540px) {
