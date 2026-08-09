@@ -1,13 +1,17 @@
 import { Hono } from "hono";
 import { getUserProfile, saveUserProfile } from "../account";
 import type { Env, ResumeProfile, Variables } from "../types";
+import { withLegacyResumeAliases } from "../../shared/resume-profile";
+import { supportsStructuredApi } from "../client-version";
 
 const profile = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 profile.get("/", async (c) => {
   const result = await getUserProfile(c.env.DB, c.get("userId"));
   return c.json({
-    data: result.data,
+    data: supportsStructuredApi(c.req.raw)
+      ? result.data
+      : withLegacyResumeAliases(result.data),
     id: null,
     updated_at: result.updated_at,
   });
@@ -24,7 +28,9 @@ profile.put("/", async (c) => {
 
   const saved = await saveUserProfile(c.env.DB, c.get("userId"), body.data);
   return c.json({
-    data: saved.data,
+    data: supportsStructuredApi(c.req.raw)
+      ? saved.data
+      : withLegacyResumeAliases(saved.data),
     id: null,
     updated_at: saved.updated_at,
   });

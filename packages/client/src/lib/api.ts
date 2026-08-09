@@ -50,6 +50,7 @@ export async function apiFetch(path: string, options?: RequestInit, allowTokenRe
   const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   if (!headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
   if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
+  headers.set("X-Pinkslip-Api-Version", "2");
   const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
   if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
 

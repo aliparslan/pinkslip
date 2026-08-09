@@ -37,6 +37,7 @@ import type {
   TailoringRow,
   Variables,
 } from "../types";
+import { supportsStructuredApi } from "../client-version";
 
 const tailor = new Hono<{ Bindings: Env; Variables: Variables }>();
 tailor.use("/*", async (c, next) => {
@@ -266,6 +267,13 @@ tailor.get("/tailor/:job_id", async (c) => {
   const latestArtifact = row && row.schema_version >= 2
     ? await loadLatestArtifact(c.env.DB, userId, row.id)
     : null;
+
+  if (row && (row.schema_version ?? 1) >= 2 && !supportsStructuredApi(c.req.raw)) {
+    return c.json({
+      tailoring: null,
+      update_required: true,
+    });
+  }
 
   return c.json({ tailoring: row ? normalizeTailoring(row, latestArtifact) : null });
 });
@@ -722,8 +730,8 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
 });
 
 tailor.post("/tailor/:job_id", (c) => c.json({
-  error: "Create a new structured tailoring plan before generating a resume.",
-  code: "structured_tailoring_required",
-}, 409));
+  error: "Update Pinkslip to create a structured tailored resume.",
+  code: "client_update_required",
+}, 426));
 
 export default tailor;

@@ -55,7 +55,12 @@ app.use(
   cors({
     origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Pinkslip-Client"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Pinkslip-Client",
+      "X-Pinkslip-Api-Version",
+    ],
   })
 );
 

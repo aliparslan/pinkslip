@@ -88,6 +88,16 @@ export interface ResumeProfile {
   optionalSections: OptionalSection[];
 }
 
+export type LegacyCompatibleEducationEntry = EducationEntry & {
+  degree: string;
+  degreeType?: DegreeType;
+  fieldOfStudy: string;
+};
+
+export type LegacyCompatibleResumeProfile = Omit<ResumeProfile, "education"> & {
+  education: LegacyCompatibleEducationEntry[];
+};
+
 export function createEmptyResumeProfile(): ResumeProfile {
   return {
     schemaVersion: 2,
@@ -149,27 +159,73 @@ function legacyCredential(entry: LegacyEducationEntry): EducationCredential {
   };
 }
 
+function legacyDegreeLabel(credential: EducationCredential | undefined): string {
+  if (!credential) return "";
+  const labels: Record<DegreeType, string> = {
+    high_school: "High school diploma",
+    associate: "Associate degree",
+    bachelor: "Bachelor's degree",
+    master: "Master's degree",
+    doctorate: "Doctorate",
+    professional: "Professional degree",
+    certificate: "Certificate",
+    other: "Degree",
+  };
+  const label = credential.degreeType ? labels[credential.degreeType] : "";
+  const field = credential.fieldsOfStudy.join(" and ");
+  if (label && field) return `${label} in ${field}`;
+  return label || field;
+}
+
+/**
+ * Keeps installed schema-v1 clients readable while the App Store update rolls
+ * out. Unknown v2 fields survive the old editor's object spreads, and legacy
+ * degree edits are folded back into the first credential during normalization.
+ */
+export function withLegacyResumeAliases(profile: ResumeProfile): LegacyCompatibleResumeProfile {
+  return {
+    ...profile,
+    education: profile.education.map((entry) => {
+      const credential = entry.credentials[0];
+      return {
+        ...entry,
+        degree: legacyDegreeLabel(credential),
+        degreeType: credential?.degreeType,
+        fieldOfStudy: credential?.fieldsOfStudy.join(" and ") ?? "",
+      };
+    }),
+  };
+}
+
 export function normalizeEducationEntry(
-  value: Partial<EducationEntry> & LegacyEducationEntry,
+  value: (Partial<EducationEntry> & LegacyEducationEntry) | null | undefined,
   index = 0,
 ): EducationEntry {
-  const id = value.id?.trim() || stableId("education", `${index}|${value.institution ?? ""}`);
-  const incomingCredentials = Array.isArray(value.credentials) ? value.credentials : [];
-  const credentials = incomingCredentials.length
+  const source = value && typeof value === "object" ? value : {};
+  const id = source.id?.trim() || stableId("education", `${index}|${source.institution ?? ""}`);
+  const incomingCredentials = Array.isArray(source.credentials) ? source.credentials : [];
+  let credentials = incomingCredentials.length
     ? incomingCredentials.map((credential, credentialIndex) => normalizeCredential(
         credential,
         `${id}|${credentialIndex}|${credential.degreeType ?? ""}`,
       ))
-    : [legacyCredential(value)];
+    : [legacyCredential(source)];
+  const includesLegacyEditorFields = typeof source.degree === "string"
+    || typeof source.fieldOfStudy === "string"
+    || source.degreeType !== undefined;
+  if (incomingCredentials.length && includesLegacyEditorFields) {
+    const editedCredential = legacyCredential(source);
+    credentials = [{ ...credentials[0], ...editedCredential }, ...credentials.slice(1)];
+  }
   return {
     id,
-    institution: value.institution?.trim() ?? "",
+    institution: source.institution?.trim() ?? "",
     credentials,
-    minors: cleanStrings(value.minors),
-    location: value.location?.trim() ?? "",
-    startDate: value.startDate?.trim() ?? "",
-    endDate: value.endDate?.trim() ?? "",
-    gpa: value.gpa?.trim() || undefined,
+    minors: cleanStrings(source.minors),
+    location: source.location?.trim() ?? "",
+    startDate: source.startDate?.trim() ?? "",
+    endDate: source.endDate?.trim() ?? "",
+    gpa: source.gpa?.trim() || undefined,
   };
 }
 
@@ -193,7 +249,9 @@ export function normalizeResumeProfile(value: unknown): ResumeProfile {
     contact,
     experience: Array.isArray(input.experience) ? input.experience : [],
     education: Array.isArray(input.education)
-      ? input.education.map((entry, index) => normalizeEducationEntry(entry, index))
+      ? input.education
+        .filter((entry) => Boolean(entry) && typeof entry === "object")
+        .map((entry, index) => normalizeEducationEntry(entry, index))
       : [],
     projects: Array.isArray(input.projects) ? input.projects : [],
     skills: Array.isArray(input.skills) ? input.skills : [],
