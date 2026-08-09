@@ -6,7 +6,6 @@ describe("tailoring provider configuration", () => {
   test("uses the configured Workers AI model without an API secret", () => {
     const config = resolveAppTailorConfig({
       AI: {} as Ai,
-      TAILOR_PROVIDER: "workers_ai",
       WORKERS_AI_MODEL: "@cf/zai-org/glm-4.7-flash",
     } as Env);
 
@@ -17,8 +16,6 @@ describe("tailoring provider configuration", () => {
   });
 
   test("does not advertise a configured provider when its binding is absent", () => {
-    expect(resolveAppTailorConfig({
-      TAILOR_PROVIDER: "workers_ai",
-    } as Env)).toBeNull();
+    expect(resolveAppTailorConfig({} as Env)).toBeNull();
   });
 });

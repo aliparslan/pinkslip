@@ -227,21 +227,10 @@ async function resolveBearerUser(db: D1Database, bearer: string): Promise<string
   return row.user_id;
 }
 
-async function loadLegacyUserIfPresent(
-  db: D1Database,
-  cookieValue: string | undefined
-): Promise<string | null> {
-  if (!cookieValue) return null;
-  const row = await db.prepare(
-    "SELECT id FROM users WHERE id = ? LIMIT 1"
-  ).bind(cookieValue).first<{ id: string }>();
-  return row?.id ?? null;
-}
-
 export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Variables }>(
   async (c, next) => {
     const pathname = new URL(c.req.url).pathname;
-    if (pathname === "/api/access" || pathname === "/api/health") {
+    if (pathname === "/api/v2/access" || pathname === "/api/v2/health") {
       await next();
       return;
     }
@@ -293,10 +282,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
       : null;
 
     if (!session) {
-      const legacyUserId = await loadLegacyUserIfPresent(c.env.DB, rawSessionCookie);
-      if (legacyUserId) {
-        session = await createGuestSession(c.env.DB, legacyUserId);
-      } else if (
+      if (
         !["GET", "HEAD", "OPTIONS"].includes(c.req.method)
         || pathname === "/auth/email/verify"
       ) {
@@ -317,10 +303,10 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
 
     if (!session) {
       const anonymousReads = new Set([
-        "/api/bootstrap",
-        "/api/me",
-        "/api/preferences",
-        "/api/logo",
+        "/api/v2/bootstrap",
+        "/api/v2/me",
+        "/api/v2/preferences",
+        "/api/v2/logo",
       ]);
       if (!anonymousReads.has(pathname)) {
         return c.json(

@@ -21,11 +21,6 @@ export interface Env {
   APPLE_TEAM_ID?: string;
   EMAIL_FROM_ADDRESS?: string;
   EMAIL_FROM_NAME?: string;
-  GEMINI_API_KEY?: string;
-  GEMINI_MODEL?: string;
-  ANTHROPIC_API_KEY?: string;
-  ANTHROPIC_MODEL?: string;
-  TAILOR_PROVIDER?: string;
   WORKERS_AI_MODEL?: string;
   // APNs (native iOS push). Set APNS_KEY_ID/TEAM_ID/BUNDLE_ID as vars and
   // APNS_PRIVATE_KEY (the .p8 PEM contents) as a secret. APNS_SANDBOX="true"
@@ -110,42 +105,25 @@ export interface PreferenceRow {
   updated_at?: string | null;
 }
 
-export interface CorpusVersionRow {
-  id: number;
-  user_id?: string | null;
-  content_md: string;
-  label: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface TailoringRow {
   id: string;
-  user_id?: string | null;
+  user_id: string;
   job_id: string;
-  corpus_version_id: number;
-  resume_md: string | null;
-  cover_letter_md: string | null;
-  qa_json: string | null;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  model: string | null;
-  created_at: string;
-  user_edited_resume_md: string | null;
-  user_edited_cover_md: string | null;
-  user_edited_qa_json: string | null;
-  schema_version: number;
-  status: string | null;
-  job_snapshot_json: string | null;
-  evidence_json: string | null;
-  requirements_json: string | null;
-  plan_json: string | null;
+  status: "planned" | "generated" | "failed";
+  job_snapshot_json: string;
+  evidence_json: string;
+  requirements_json: string;
+  plan_json: string;
   resume_draft_json: string | null;
   validation_json: string | null;
-  template_version: string | null;
-  compiler_version: string | null;
-  updated_at: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  model: string;
+  template_version: string;
+  compiler_version: string;
   usage_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FetchRunRow {
@@ -202,18 +180,6 @@ export interface AuthIdentityRow {
   email_verified: number;
   created_at: string;
   last_used_at: string | null;
-}
-
-export interface ResumeAssetRow {
-  id: string;
-  user_id: string;
-  file_name: string;
-  mime_type: string;
-  size: number;
-  uploaded_at: string;
-  storage_key: string;
-  extracted_text: string | null;
-  is_active: number;
 }
 
 export type {

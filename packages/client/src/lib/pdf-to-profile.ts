@@ -586,5 +586,5 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
     }
   }
 
-  return { contact, experience, education, projects, skills, optionalSections };
+  return { schemaVersion: 2, contact, experience, education, projects, skills, optionalSections };
 }

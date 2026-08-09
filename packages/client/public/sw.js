@@ -95,7 +95,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     Promise.all([
       jobIds.length > 0
-        ? fetch("/api/push/opened", {
+        ? fetch("/api/v2/push/opened", {
             method: "POST",
             credentials: "include",
             headers: { "content-type": "application/json" },

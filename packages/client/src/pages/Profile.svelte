@@ -6,7 +6,6 @@
   import { getNativePushStatus, initNativePush } from "../lib/native-push";
   import { sessionAccess, syncSessionAccess } from "../lib/session-access";
   import { themeMode, type ThemeMode } from "../lib/theme";
-  import { loadLocalTailorKit } from "../lib/local-tailor";
   import { invalidateFeedForPreferences } from "../lib/feed-store.svelte";
   import {
     DEFAULT_SEARCH_PROFILE,
@@ -29,7 +28,6 @@
   import ChatCircleDots from "phosphor-svelte/lib/ChatCircleDots";
   import FileText from "phosphor-svelte/lib/FileText";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
-  import Notebook from "phosphor-svelte/lib/Notebook";
   import PaintBrush from "phosphor-svelte/lib/PaintBrush";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
@@ -257,11 +255,9 @@
       if (notificationResult.status === "fulfilled") {
         notificationEnabled = notificationResult.value.enabled;
       }
-      const localKit = loadLocalTailorKit();
       const structuredResume = resumeResult.status === "fulfilled" ? resumeResult.value.data : null;
       resumeReady = Boolean(
-        localKit.resume?.canTailor
-        || structuredResume?.contact.name
+        structuredResume?.contact.name
         || structuredResume?.experience.length
         || structuredResume?.education.length
         || structuredResume?.projects.length
@@ -538,7 +534,6 @@
           <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? (nativeIos ? "Structured resume ready" : "Ready") : "Add your resume", "/you/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", MagicWand)}
-            {@render destinationRow("Master story", "Projects, outcomes, and talking points", "/you/story", Notebook)}
           </div>
         </section>
 

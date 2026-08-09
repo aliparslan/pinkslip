@@ -85,7 +85,6 @@
       "you-alerts": "Notifications",
       "you-companies": "Companies",
       "you-resume": "Resume",
-      "you-story": "Master story",
       "you-tailoring": "Tailoring",
       "you-account": "Account",
       "you-feedback": "Help & feedback",

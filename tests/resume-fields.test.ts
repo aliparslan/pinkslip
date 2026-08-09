@@ -17,7 +17,7 @@ describe("resume fields", () => {
     expect(joinUsLocation("Austin", "TX")).toBe("Austin, TX");
   });
 
-  test("turns legacy degree text into structured fields", () => {
+  test("turns imported degree text into structured fields", () => {
     const bachelors = inferDegreeType("B.S. Computer Science");
     expect(bachelors).toBe("bachelor");
     expect(inferFieldOfStudy("B.S. Computer Science", bachelors)).toBe("Computer Science");

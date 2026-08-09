@@ -8,7 +8,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   delete testGlobal.window;
   configureApiClient({
-    baseUrl: "/api",
+    baseUrl: "/api/v2",
     client: "web",
     getAccessToken: undefined,
     onAccessToken: undefined,
@@ -19,7 +19,7 @@ afterEach(() => {
 describe("native API token rotation", () => {
   it("routes protected image requests through the native API origin and bearer session", async () => {
     configureApiClient({
-      baseUrl: "https://pinkslip.test/api",
+      baseUrl: "https://pinkslip.test/api/v2",
       client: "ios",
       getAccessToken: () => "native-session-token",
     });
@@ -39,7 +39,7 @@ describe("native API token rotation", () => {
     });
 
     expect(response.ok).toBe(true);
-    expect(requestedUrl).toBe("https://pinkslip.test/api/logo?domain=example.com");
+    expect(requestedUrl).toBe("https://pinkslip.test/api/v2/logo?domain=example.com");
     expect(requestedHeaders.get("authorization")).toBe("Bearer native-session-token");
     expect(requestedHeaders.get("x-pinkslip-client")).toBe("ios");
   });
@@ -60,7 +60,7 @@ describe("native API token rotation", () => {
     const rejectedTokens: Array<string | null> = [];
 
     configureApiClient({
-      baseUrl: "https://pinkslip.test/api",
+      baseUrl: "https://pinkslip.test/api/v2",
       client: "ios",
       getAccessToken: () => accessToken,
       onAccessToken: (token) => {

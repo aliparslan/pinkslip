@@ -56,18 +56,18 @@ function fakeDb() {
 
 function appWith() {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-  app.use("/api/*", authMiddleware);
-  app.route("/api/push", pushRoutes);
+  app.use("/api/v2/*", authMiddleware);
+  app.route("/api/v2/push", pushRoutes);
   return app;
 }
 
-describe("POST /api/push/apns", () => {
+describe("POST /api/v2/push/apns", () => {
   it("stores an iOS device token for the authenticated user", async () => {
     const deviceToken = "ab".repeat(32);
     const db = fakeDb();
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("https://pinkslip.alip.dev/api/push/apns", {
+      new Request("https://pinkslip.alip.dev/api/v2/push/apns", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -89,7 +89,7 @@ describe("POST /api/push/apns", () => {
     const db = fakeDb();
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("https://pinkslip.alip.dev/api/push/apns", {
+      new Request("https://pinkslip.alip.dev/api/v2/push/apns", {
         method: "POST",
         headers: {
           "content-type": "application/json",

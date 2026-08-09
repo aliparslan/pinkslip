@@ -1,15 +1,4 @@
-export type TailorProvider = "gemini" | "anthropic" | "workers_ai";
-export type TailorKeySource = "app" | "user";
-
-export const GEMINI_DAILY_LIMITS: Record<string, number> = {
-  "gemini-3.1-flash-lite": 500,
-  "gemini-3-flash": 20,
-  "gemini-2.5-flash": 20,
-  "gemini-2.5-flash-lite": 20,
-};
-
 const APP_USER_DAILY_LIMIT = 15;
-const APP_GLOBAL_DAILY_FALLBACK = 1000;
 const WORKERS_AI_GLOBAL_DAILY_REQUEST_LIMIT = 100;
 const WORKERS_AI_RESERVATION_NEURONS = 500;
 export const WORKERS_AI_DAILY_NEURON_LIMIT = 10_000;
@@ -24,93 +13,46 @@ export function nextUtcDay(date = new Date()) {
   return next.toISOString();
 }
 
-export async function recordTailorUsage(args: {
-  db?: D1Database;
-  userId: string;
-  keySource: TailorKeySource;
-  provider: TailorProvider;
-  model: string;
-  inputTokens?: number | null;
-  outputTokens?: number | null;
-  providerUnits?: number | null;
-}) {
-  if (!args.db) return;
-  await args.db.prepare(
-    `INSERT INTO tailor_usage (
-       id, user_id, key_source, provider, model, created_at,
-       input_tokens, output_tokens, provider_units
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    crypto.randomUUID(),
-    args.userId,
-    args.keySource,
-    args.provider,
-    args.model,
-    new Date().toISOString(),
-    args.inputTokens ?? null,
-    args.outputTokens ?? null,
-    args.providerUnits ?? null
-  ).run();
-}
-
 export async function loadTailorUsage(args: {
   db: D1Database;
   userId: string;
-  provider: TailorProvider;
   model: string;
 }) {
   const today = startOfUtcDay();
-  const [app, user, includedUser] = await Promise.all([
+  const [app, user] = await Promise.all([
     args.db.prepare(
       `SELECT COUNT(*) AS count, COALESCE(SUM(provider_units), 0) AS provider_units
        FROM tailor_usage
-       WHERE key_source = 'app'
-         AND provider = ?
-         AND model = ?
+       WHERE model = ?
          AND created_at >= ?`
-    ).bind(args.provider, args.model, today).first<{ count: number; provider_units: number }>(),
+    ).bind(args.model, today).first<{ count: number; provider_units: number }>(),
     args.db.prepare(
       `SELECT COUNT(*) AS count
        FROM tailor_usage
        WHERE user_id = ?
-         AND provider = ?
          AND model = ?
          AND created_at >= ?`
-    ).bind(args.userId, args.provider, args.model, today).first<{ count: number }>(),
-    args.db.prepare(
-      `SELECT COUNT(*) AS count
-       FROM tailor_usage
-       WHERE key_source = 'app'
-         AND user_id = ?
-         AND created_at >= ?`
-    ).bind(args.userId, today).first<{ count: number }>(),
+    ).bind(args.userId, args.model, today).first<{ count: number }>(),
   ]);
 
-  const dailyLimit = args.provider === "gemini" ? GEMINI_DAILY_LIMITS[args.model] ?? null : null;
   const appToday = app?.count ?? 0;
   const userToday = user?.count ?? 0;
-  const includedUserToday = includedUser?.count ?? 0;
+  const includedUserToday = userToday;
   const providerUnitsToday = app?.provider_units ?? 0;
-  const providerUnitsLimit = args.provider === "workers_ai"
-    ? WORKERS_AI_DAILY_NEURON_LIMIT
-    : null;
+  const providerUnitsLimit = WORKERS_AI_DAILY_NEURON_LIMIT;
   return {
-    provider: args.provider,
+    provider: "workers_ai" as const,
     model: args.model,
     app_today: appToday,
     user_today: userToday,
     included_user_today: includedUserToday,
-    daily_limit: dailyLimit,
-    app_remaining: dailyLimit === null ? null : Math.max(0, dailyLimit - appToday),
-    // Keep the legacy aggregate field stable for existing web clients. Native
-    // uses the explicit included-only fields for its free-use meter.
+    daily_limit: null,
+    app_remaining: null,
     user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - userToday),
     included_user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - includedUserToday),
     provider_units_today: providerUnitsToday,
     provider_units_limit: providerUnitsLimit,
-    provider_units_remaining: providerUnitsLimit === null
-      ? null
-      : Math.max(0, providerUnitsLimit - providerUnitsToday),
+    provider_units_remaining: Math.max(0, providerUnitsLimit - providerUnitsToday),
     resets_at: nextUtcDay(),
   };
 }
@@ -118,57 +60,45 @@ export async function loadTailorUsage(args: {
 export async function reserveAppTailorQuota(
   db: D1Database,
   userId: string,
-  provider: TailorProvider,
   model: string
 ): Promise<{ ok: true; usageId: string } | { ok: false; resets_at: string }> {
   const today = startOfUtcDay();
-  const globalLimit = provider === "gemini"
-    ? GEMINI_DAILY_LIMITS[model] ?? APP_GLOBAL_DAILY_FALLBACK
-    : provider === "workers_ai"
-      ? WORKERS_AI_GLOBAL_DAILY_REQUEST_LIMIT
-      : APP_GLOBAL_DAILY_FALLBACK;
   const usageId = crypto.randomUUID();
-  const reservedUnits = provider === "workers_ai" ? WORKERS_AI_RESERVATION_NEURONS : null;
+  const reservedUnits = WORKERS_AI_RESERVATION_NEURONS;
 
   // One statement both checks and reserves quota, so concurrent requests cannot
   // all pass a count check before any one of them records usage.
   const result = await db.prepare(
     `INSERT INTO tailor_usage (
-       id, user_id, key_source, provider, model, created_at, provider_units
+       id, user_id, model, created_at, provider_units
      )
-     SELECT ?, ?, 'app', ?, ?, ?, ?
+     SELECT ?, ?, ?, ?, ?
      WHERE (
        SELECT COUNT(*) FROM tailor_usage
-       WHERE key_source = 'app' AND user_id = ? AND created_at >= ?
+       WHERE user_id = ? AND created_at >= ?
      ) < ?
        AND (
          SELECT COUNT(*) FROM tailor_usage
-         WHERE key_source = 'app' AND provider = ? AND model = ? AND created_at >= ?
+         WHERE model = ? AND created_at >= ?
        ) < ?
        AND (
-         ? != 'workers_ai'
-         OR (
-           SELECT COALESCE(SUM(provider_units), 0) FROM tailor_usage
-           WHERE key_source = 'app' AND provider = 'workers_ai' AND created_at >= ?
-         ) + ? <= ?
-       )`
+         SELECT COALESCE(SUM(provider_units), 0) FROM tailor_usage
+         WHERE created_at >= ?
+       ) + ? <= ?`
   ).bind(
     usageId,
     userId,
-    provider,
     model,
     new Date().toISOString(),
     reservedUnits,
     userId,
     today,
     APP_USER_DAILY_LIMIT,
-    provider,
     model,
     today,
-    globalLimit,
-    provider,
+    WORKERS_AI_GLOBAL_DAILY_REQUEST_LIMIT,
     today,
-    reservedUnits ?? 0,
+    reservedUnits,
     WORKERS_AI_DAILY_NEURON_LIMIT
   ).run();
   return (result.meta.changes ?? 0) === 0
@@ -187,7 +117,7 @@ export async function completeAppTailorUsage(args: {
     `UPDATE tailor_usage
      SET input_tokens = ?, output_tokens = ?,
          provider_units = COALESCE(?, provider_units)
-     WHERE id = ? AND key_source = 'app'`
+     WHERE id = ?`
   ).bind(
     args.inputTokens || null,
     args.outputTokens || null,

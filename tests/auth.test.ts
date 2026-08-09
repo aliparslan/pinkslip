@@ -115,27 +115,27 @@ function fakeDb(
 
 function appWith() {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-  app.use("/api/*", authMiddleware);
-  app.get("/api/me", (c) => c.json({
+  app.use("/api/v2/*", authMiddleware);
+  app.get("/api/v2/me", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
-  app.get("/api/bootstrap", (c) => c.json({
+  app.get("/api/v2/bootstrap", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
-  app.get("/api/transport", (c) => c.json({
+  app.get("/api/v2/transport", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
     authTransport: c.get("authTransport"),
   }));
-  app.post("/api/whoami", (c) => c.json({
+  app.post("/api/v2/whoami", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
-  app.route("/api/preferences", preferenceRoutes);
-  app.get("/api/signed-in", requireAuthenticated, (c) => c.json({ ok: true }));
-  app.post("/api/admin", requireAdmin, (c) => c.json({ ok: true }));
+  app.route("/api/v2/preferences", preferenceRoutes);
+  app.get("/api/v2/signed-in", requireAuthenticated, (c) => c.json({ ok: true }));
+  app.post("/api/v2/admin", requireAdmin, (c) => c.json({ ok: true }));
   return app;
 }
 
@@ -146,7 +146,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/me", {
+      new Request("http://localhost/api/v2/me", {
         headers: { authorization: "Bearer good-token" },
       }),
       ENV(db)
@@ -161,7 +161,7 @@ describe("authMiddleware", () => {
     });
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/transport", {
+      new Request("http://localhost/api/v2/transport", {
         headers: { authorization: "Bearer native-session" },
       }),
       ENV(db)
@@ -175,13 +175,13 @@ describe("authMiddleware", () => {
   });
 
   it("rejects a bearer token whose user has no sign-in identity (guest-minted)", async () => {
-    // Regression: a guest could mint a token via /api/auth/token and then be
+    // Regression: a guest could mint a token via /api/v2/auth/token and then be
     // treated as fully authenticated. A token only counts as authenticated when
     // its user has an actual sign-in identity.
     const db = fakeDb({ "guest-token": "guest-9" }, {}, { "guest-9": 0 });
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/me", {
+      new Request("http://localhost/api/v2/me", {
         headers: { authorization: "Bearer guest-token" },
       }),
       ENV(db)
@@ -194,7 +194,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/me", {
+      new Request("http://localhost/api/v2/me", {
         headers: { authorization: "Bearer nope" },
       }),
       ENV(db)
@@ -207,7 +207,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({});
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/me"),
+      new Request("http://localhost/api/v2/me"),
       ENV(db)
     );
     expect(res.status).toBe(200);
@@ -219,7 +219,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({});
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/bootstrap"),
+      new Request("http://localhost/api/v2/bootstrap"),
       ENV(db)
     );
     expect(res.status).toBe(200);
@@ -231,7 +231,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({});
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/preferences"),
+      new Request("http://localhost/api/v2/preferences"),
       ENV(db)
     );
     expect(res.status).toBe(200);
@@ -245,7 +245,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({});
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami", { method: "POST" }),
+      new Request("http://localhost/api/v2/whoami", { method: "POST" }),
       ENV(db)
     );
     expect(res.status).toBe(200);
@@ -257,12 +257,12 @@ describe("authMiddleware", () => {
     const db = fakeDb({});
     const app = appWith();
     const guest = await (app.fetch as any)(
-      new Request("http://localhost/api/whoami", { method: "POST" }),
+      new Request("http://localhost/api/v2/whoami", { method: "POST" }),
       ENV(db)
     );
     const cookie = guest.headers.get("set-cookie")?.split(";")[0] ?? "";
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/signed-in", { headers: { cookie } }),
+      new Request("http://localhost/api/v2/signed-in", { headers: { cookie } }),
       ENV(db)
     );
     expect(res.status).toBe(401);
@@ -273,7 +273,7 @@ describe("authMiddleware", () => {
     const db = fakeDb({ "good-token": "user-42" });
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/admin", {
+      new Request("http://localhost/api/v2/admin", {
         method: "POST",
         headers: { authorization: "Bearer good-token" },
       }),
@@ -290,7 +290,7 @@ describe("authMiddleware", () => {
     );
     const app = appWith();
     const res = await (app.fetch as any)(
-      new Request("http://localhost/api/admin", {
+      new Request("http://localhost/api/v2/admin", {
         method: "POST",
         headers: { authorization: "Bearer admin-token" },
       }),

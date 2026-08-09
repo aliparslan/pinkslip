@@ -20,7 +20,6 @@ export const asPage = (component: Component<never> | PageComponent): PageCompone
   component as PageComponent;
 
 const loadCompanies = () => import("../pages/Companies.svelte");
-const loadStory = () => import("../pages/Corpus.svelte");
 const loadTailor = () => import("../pages/Tailor.svelte");
 const loadAdmin = () => import("../pages/Admin.svelte");
 
@@ -33,7 +32,6 @@ const routes: Record<string, PageEntry> = {
   "/you/account": { component: asPage(Profile) },
   "/you/feedback": { component: asPage(Profile) },
   "/you/companies": { cacheKey: "companies", load: loadCompanies },
-  "/you/story": { cacheKey: "story", load: loadStory },
   "/you/resume": { component: asPage(ResumeProfile) },
   "/library/saved": { component: asPage(JobLibrary) },
   "/library/applied": { component: asPage(JobLibrary) },

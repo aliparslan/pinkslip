@@ -40,7 +40,7 @@ export interface TailoringGap {
 }
 
 export interface TailoringPlan {
-  schemaVersion: 1;
+  schemaVersion: 2;
   requirements: TailoringRequirement[];
   matches: RequirementMatch[];
   gaps: TailoringGap[];
@@ -75,7 +75,7 @@ export interface TailoredProject {
 }
 
 export interface TailoredResume {
-  schemaVersion: 1;
+  schemaVersion: 2;
   contact: ResumeProfile["contact"];
   experience: TailoredExperience[];
   education: ResumeProfile["education"];
@@ -128,19 +128,6 @@ export interface StructuredTailoring {
   created_at: string;
   updated_at: string;
   latestArtifact: TailoringArtifact | null;
-}
-
-export interface LegacyTailoring {
-  kind: "legacy";
-  id: string;
-  job_id: string;
-  resume_md_final: string;
-  cover_letter_md_final: string;
-  qa_json_final: string;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  model: string | null;
-  created_at: string;
 }
 
 function stableHash(value: string): string {
@@ -270,7 +257,7 @@ export function validateTailoredResume(
   if (
     !resume
     || typeof resume !== "object"
-    || resume.schemaVersion !== 1
+    || resume.schemaVersion !== 2
     || !resume.contact
     || !Array.isArray(resume.experience)
     || !Array.isArray(resume.education)

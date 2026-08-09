@@ -287,7 +287,7 @@ export async function createTailoringPlan(args: {
   const selectedEvidenceIds = [...new Set(matches.flatMap((match) => match.evidenceIds))];
   return {
     plan: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       requirements,
       matches,
       gaps,
@@ -326,7 +326,7 @@ export function buildResumeFromRewrites(args: {
     );
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     contact: structuredClone(args.profile.contact),
     experience: args.profile.experience.flatMap((entry) => {
       const bullets = evidenceForEntry(entry.id, "experience").map((item) => bulletFor(item.id));

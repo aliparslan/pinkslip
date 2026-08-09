@@ -15,12 +15,10 @@ import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
 import pushRoutes from "./routes/push";
 import statRoutes from "./routes/stats";
-import corpusRoutes from "./routes/corpus";
 import profileRoutes from "./routes/profile";
 import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
 import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/auth";
-import resumeAssetRoutes from "./routes/resume-assets";
 import resumeImportRoutes from "./routes/resume-import";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
@@ -59,7 +57,6 @@ app.use(
       "Content-Type",
       "Authorization",
       "X-Pinkslip-Client",
-      "X-Pinkslip-Api-Version",
     ],
   })
 );
@@ -89,7 +86,19 @@ function appFeatures(env: Env) {
   };
 }
 
-app.post("/api/access", async (c) => {
+app.use("/api/*", async (c, next) => {
+  if (c.req.path.startsWith("/api/v2/")) {
+    await next();
+    return;
+  }
+  return c.json({
+    error: "Update Pinkslip to continue.",
+    code: "client_update_required",
+    required_api_version: 2,
+  }, 426);
+});
+
+app.post("/api/v2/access", async (c) => {
   const accessCode = c.env.ACCESS_CODE?.trim();
   if (!accessCode) {
     return c.json({ ok: true, required: false });
@@ -151,10 +160,7 @@ app.post("/api/access", async (c) => {
   return c.json({ ok: true, required: true });
 });
 
-// Versioned native bootstrap is intentionally tiny and backwards-compatible.
-// The App Store binary owns its UI bundle; this endpoint only establishes the
-// opaque bearer session that replaces browser-cookie state inside WKWebView.
-app.post("/api/v1/native/session", async (c) => {
+app.post("/api/v2/native/session", async (c) => {
   if (c.req.header("x-pinkslip-client") !== "ios") {
     return c.json({ error: "Native client required", code: "native_client_required" }, 400);
   }
@@ -192,27 +198,25 @@ const serveAasa = (c: { env: Env }) =>
 app.get("/apple-app-site-association", (c) => serveAasa(c));
 app.get("/.well-known/apple-app-site-association", (c) => serveAasa(c));
 
-app.use("/api/*", authMiddleware);
+app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
 
-app.route("/api/jobs", jobRoutes);
-app.route("/api/companies", companyRoutes);
-app.route("/api/preferences", preferenceRoutes);
-app.route("/api/push", pushRoutes);
-app.route("/api/stats", statRoutes);
-app.route("/api/corpus", corpusRoutes);
-app.route("/api/profile", profileRoutes);
-app.route("/api/resume-assets", resumeAssetRoutes);
-app.route("/api/resume-import", resumeImportRoutes);
-app.route("/api", tailorRoutes);
-app.route("/api/runs", runRoutes);
-app.route("/api/interactions", interactionRoutes);
-app.route("/api/metrics", metricRoutes);
-app.route("/api/auth", authRoutes);
+app.route("/api/v2/jobs", jobRoutes);
+app.route("/api/v2/companies", companyRoutes);
+app.route("/api/v2/preferences", preferenceRoutes);
+app.route("/api/v2/push", pushRoutes);
+app.route("/api/v2/stats", statRoutes);
+app.route("/api/v2/profile", profileRoutes);
+app.route("/api/v2/resume-import", resumeImportRoutes);
+app.route("/api/v2", tailorRoutes);
+app.route("/api/v2/runs", runRoutes);
+app.route("/api/v2/interactions", interactionRoutes);
+app.route("/api/v2/metrics", metricRoutes);
+app.route("/api/v2/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
   completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))
 );
-app.get("/api/health", (c) =>
+app.get("/api/v2/health", (c) =>
   c.json({
     ok: true,
     version: ["localhost", "127.0.0.1", "::1"].includes(new URL(c.req.url).hostname)
@@ -224,7 +228,7 @@ app.get("/api/health", (c) =>
 // Company favicon proxy. The app never hits Google's favicon service from the
 // user's device (no third party learns which companies they browse); responses
 // cache at the edge and in the browser for a day.
-app.get("/api/logo", async (c) => {
+app.get("/api/v2/logo", async (c) => {
   const domain = (c.req.query("domain") ?? "").trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
     return c.json({ error: "Invalid domain" }, 400);
@@ -244,14 +248,14 @@ app.get("/api/logo", async (c) => {
     },
   });
 });
-app.get("/api/me", async (c) => {
+app.get("/api/v2/me", async (c) => {
   const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
   return c.json({
     ...accountState,
     features: appFeatures(c.env),
   });
 });
-app.get("/api/bootstrap", async (c) => {
+app.get("/api/v2/bootstrap", async (c) => {
   const sessionState = c.get("sessionState");
   const [accountState, preferences] = await Promise.all([
     buildAccountState(c.env.DB, c.get("userId"), sessionState),
@@ -264,7 +268,7 @@ app.get("/api/bootstrap", async (c) => {
     preferences,
   });
 });
-app.patch("/api/me", async (c) => {
+app.patch("/api/v2/me", async (c) => {
   const userId = c.get("userId");
   const body = await c.req.json<{ name?: string }>();
   if (body.name !== undefined) {
@@ -274,7 +278,7 @@ app.patch("/api/me", async (c) => {
   const accountState = await buildAccountState(c.env.DB, userId, c.get("sessionState"));
   return c.json(accountState);
 });
-app.post("/api/poll", requireAdmin, async (c) => {
+app.post("/api/v2/poll", requireAdmin, async (c) => {
   const limit = Number(c.req.query("limit") ?? "0");
   const result = await runPollCycle(c.env, {
     scope: "manual",

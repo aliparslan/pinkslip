@@ -1,7 +1,6 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
 import type { RoleId } from "../../../../shared/search-profile";
 import type {
-  LegacyTailoring,
   StructuredTailoring,
   TailoredResume,
   TailoringArtifact,
@@ -23,7 +22,7 @@ export interface ApiClientConfig {
 }
 
 let clientConfig: Required<Pick<ApiClientConfig, "baseUrl" | "client">> & ApiClientConfig = {
-  baseUrl: "/api",
+  baseUrl: "/api/v2",
   client: "web",
 };
 
@@ -36,7 +35,7 @@ export function configureApiClient(config: ApiClientConfig): void {
 }
 
 /** Resolve an API-relative path against the active client origin. The web app
- * keeps its same-origin `/api` base, while the packaged iOS WebView uses the
+ * keeps its same-origin `/api/v2` base, while the packaged iOS WebView uses the
  * configured HTTPS origin instead of resolving assets under capacitor://. */
 export function resolveApiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -50,7 +49,6 @@ export async function apiFetch(path: string, options?: RequestInit, allowTokenRe
   const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   if (!headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
   if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
-  headers.set("X-Pinkslip-Api-Version", "2");
   const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
   if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
 
@@ -318,15 +316,15 @@ export interface AccountInfo {
 export interface AppFeatures {
   access_required: boolean;
   tailoring_enabled: boolean;
-  tailoring_provider: "gemini" | "anthropic" | "workers_ai" | null;
+  tailoring_provider: "workers_ai" | null;
   tailoring_model: string;
 }
 
-export type Tailoring = LegacyTailoring | StructuredTailoring;
+export type Tailoring = StructuredTailoring;
 export type { StructuredTailoring, TailoredResume, TailoringArtifact, TailoringValidation };
 
 export interface TailorUsage {
-  provider: "gemini" | "anthropic" | "workers_ai";
+  provider: "workers_ai";
   model: string;
   app_today: number;
   user_today: number;
@@ -379,16 +377,6 @@ export interface JobsListMeta {
   next_offset?: number;
 }
 
-export interface ResumeAssetRecord {
-  id: string;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  uploadedAt: string;
-  extractedText: string | null;
-  dataUrl: string | null;
-}
-
 export interface MeResponse {
   user: User | null;
   session: SessionInfo;
@@ -406,7 +394,7 @@ export const api = {
   native: {
     startSession: () =>
       request<{ token: string; expires_at: string; session: SessionInfo }>(
-        "/v1/native/session",
+        "/native/session",
         { method: "POST" }
       ),
   },
@@ -612,22 +600,6 @@ export const api = {
         keepalive: options?.keepalive,
       }),
   },
-  resumeAssets: {
-    get: () => request<{ asset: ResumeAssetRecord | null }>("/resume-assets"),
-    upload: (data: {
-      fileName: string;
-      mimeType: string;
-      size: number;
-      dataUrl: string;
-      extractedText?: string | null;
-    }) =>
-      request<{ asset: ResumeAssetRecord }>("/resume-assets", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    deleteActive: () =>
-      request<void>("/resume-assets/active", { method: "DELETE" }),
-  },
   resumeImport: {
     parse: (file: File) => {
       const body = new FormData();
@@ -637,16 +609,6 @@ export const api = {
         body,
       }, 45_000);
     },
-  },
-  corpus: {
-    get: () =>
-      request<{ content_md: string; updated_at: string | null }>("/corpus"),
-    update: (content_md: string, options?: { keepalive?: boolean }) =>
-      request<{ content_md: string; updated_at: string | null }>("/corpus", {
-        method: "PUT",
-        body: JSON.stringify({ content_md }),
-        keepalive: options?.keepalive,
-      }),
   },
   tailor: {
     get: (jobId: string) => request<{ tailoring: Tailoring | null }>(`/tailor/${jobId}`),
@@ -661,25 +623,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }, 90_000),
-    usage: (model?: string, provider?: TailorUsage["provider"] | null) => {
+    usage: (model?: string) => {
       const params = new URLSearchParams();
       if (model) params.set("model", model);
-      if (provider) params.set("provider", provider);
       const qs = params.size ? `?${params.toString()}` : "";
       return request<{ usage: TailorUsage }>(`/tailor/usage${qs}`);
     },
-    save: (
-      id: string,
-      data: {
-        user_edited_resume_md?: string;
-        user_edited_cover_md?: string;
-        user_edited_qa_json?: string;
-      }
-    ) =>
-      request<{ tailoring: Tailoring }>(`/tailorings/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
     saveStructured: (id: string, resume_draft: TailoredResume, selectedEvidenceIds: string[]) =>
       request<{ tailoring: StructuredTailoring }>(`/tailorings/${id}`, {
         method: "PATCH",

@@ -418,7 +418,7 @@ auth.delete("/account", async (c) => {
   }
 
   const deletedUserId = c.get("userId");
-  await deleteUserAccountData(c.env.DB, deletedUserId, c.env.RESUME_BUCKET);
+  await deleteUserAccountData(c.env.DB, deletedUserId);
 
   const guestSession = await createGuestSession(c.env.DB);
   c.header(

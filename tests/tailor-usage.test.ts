@@ -9,7 +9,6 @@ function usageDb(
   args: {
     appCount?: number;
     userCount?: number;
-    includedUserCount?: number;
     providerUnits?: number;
     reservationChanges?: number;
   },
@@ -24,9 +23,7 @@ function usageDb(
         },
         async first<T>() {
           const count = sql.includes("user_id = ?")
-            ? sql.includes("key_source = 'app'")
-              ? args.includedUserCount ?? 0
-              : args.userCount ?? 0
+            ? args.userCount ?? 0
             : args.appCount ?? 0;
           return { count, provider_units: args.providerUnits ?? 0 } as T;
         },
@@ -40,25 +37,23 @@ function usageDb(
 }
 
 describe("tailoring usage", () => {
-  test("reports app and per-user daily limits independently", async () => {
+  test("reports Workers AI app and per-user usage from one canonical ledger", async () => {
     const preparedSql: string[] = [];
     const usage = await loadTailorUsage({
-      db: usageDb({ appCount: 10, userCount: 9, includedUserCount: 4 }, preparedSql),
+      db: usageDb({ appCount: 10, userCount: 4, providerUnits: 274.5 }, preparedSql),
       userId: "user-1",
-      provider: "gemini",
-      model: "gemini-3.1-flash-lite",
+      model: "@cf/zai-org/glm-4.7-flash",
     });
 
-    expect(usage.app_remaining).toBe(490);
-    expect(usage.user_today).toBe(9);
+    expect(usage.provider).toBe("workers_ai");
+    expect(usage.app_today).toBe(10);
     expect(usage.included_user_today).toBe(4);
-    expect(usage.user_remaining).toBe(6);
     expect(usage.included_user_remaining).toBe(11);
-    expect(usage.daily_limit).toBe(500);
-    const includedSql = preparedSql.find((sql) => sql.includes("user_id = ?") && sql.includes("key_source = 'app'"));
-    expect(includedSql).toBeDefined();
-    expect(includedSql).not.toContain("provider = ?");
-    expect(includedSql).not.toContain("model = ?");
+    expect(usage.provider_units_today).toBe(274.5);
+    expect(usage.provider_units_limit).toBe(10_000);
+    expect(usage.provider_units_remaining).toBe(9_725.5);
+    expect(preparedSql.join("\n")).not.toContain("provider =");
+    expect(preparedSql.join("\n")).not.toContain("key_source");
   });
 
   test("returns the next UTC boundary, including month rollover", () => {
@@ -69,8 +64,7 @@ describe("tailoring usage", () => {
     const accepted = await reserveAppTailorQuota(
       usageDb({ reservationChanges: 1 }),
       "user-1",
-      "gemini",
-      "gemini-3.1-flash-lite"
+      "@cf/zai-org/glm-4.7-flash",
     );
     expect(accepted.ok).toBe(true);
     if (accepted.ok) expect(accepted.usageId).toBeString();
@@ -78,24 +72,9 @@ describe("tailoring usage", () => {
     const rejected = await reserveAppTailorQuota(
       usageDb({ reservationChanges: 0 }),
       "user-1",
-      "gemini",
-      "gemini-3.1-flash-lite"
+      "@cf/zai-org/glm-4.7-flash",
     );
     expect(rejected.ok).toBe(false);
     if (!rejected.ok) expect(rejected.resets_at).toEndWith("T00:00:00.000Z");
-  });
-
-  test("reports Workers AI neurons separately from the per-user use count", async () => {
-    const usage = await loadTailorUsage({
-      db: usageDb({ appCount: 3, userCount: 2, includedUserCount: 2, providerUnits: 274.5 }),
-      userId: "user-1",
-      provider: "workers_ai",
-      model: "@cf/zai-org/glm-4.7-flash",
-    });
-
-    expect(usage.included_user_remaining).toBe(13);
-    expect(usage.provider_units_today).toBe(274.5);
-    expect(usage.provider_units_limit).toBe(10_000);
-    expect(usage.provider_units_remaining).toBe(9_725.5);
   });
 });

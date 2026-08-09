@@ -283,7 +283,7 @@ const iosRuntime: PlatformRuntime = {
     configureNativeDocument();
     accessToken = (await SecureSession.get().catch((): { token?: string } => ({}))).token ?? null;
     configureApiClient({
-      baseUrl: `${API_ORIGIN.replace(/\/$/, "")}/api`,
+      baseUrl: `${API_ORIGIN.replace(/\/$/, "")}/api/v2`,
       client: "ios",
       getAccessToken: () => accessToken,
       onAccessToken: async (token) => {

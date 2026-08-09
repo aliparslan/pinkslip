@@ -14,42 +14,30 @@ import {
   createTailoringPlan,
   generateStructuredResume,
 } from "../tailor/structured";
-import { copyCorpusVersion, getLatestUserTailoring, getUserProfile } from "../account";
+import { getLatestUserTailoring, getUserProfile } from "../account";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import {
-  GEMINI_DAILY_LIMITS,
   WORKERS_AI_DAILY_NEURON_LIMIT,
   completeAppTailorUsage,
   loadTailorUsage,
   nextUtcDay,
   reserveAppTailorQuota,
-  type TailorProvider,
 } from "../tailor/usage";
 import {
-  DEFAULT_ANTHROPIC_MODEL,
-  DEFAULT_GEMINI_MODEL,
   normalizeWorkersAiModel,
-  resolveAppTailorConfig,
 } from "../tailor/config";
 import type {
   Env,
   TailoringRow,
   Variables,
 } from "../types";
-import { supportsStructuredApi } from "../client-version";
 
 const tailor = new Hono<{ Bindings: Env; Variables: Variables }>();
 tailor.use("/*", async (c, next) => {
   await ensureEligibleJobs(c.env.DB);
   await next();
 });
-const ALLOWED_GEMINI_MODELS = new Set([
-  "gemini-3.1-flash-lite",
-  "gemini-3-flash",
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-]);
 interface JobForTailor {
   id: string;
   external_id: string;
@@ -75,56 +63,42 @@ export function normalizeTailoring(
   row: TailoringRow,
   latestArtifact: TailoringArtifact | null = null,
 ) {
-  if (row.schema_version >= 2) {
-    const status = row.status === "generated" || row.status === "failed"
-      ? row.status
-      : "planned";
-    return {
-      kind: "structured" as const,
-      id: row.id,
-      job_id: row.job_id,
-      status,
-      jobSnapshot: parseStoredJson<JobSnapshot>(row.job_snapshot_json, {
-        jobId: row.job_id,
-        title: "",
-        company: "",
-        url: "",
-        description: "",
-        descriptionHash: "",
-        capturedAt: row.created_at,
-      }),
-      evidence: parseStoredJson<CandidateEvidence[]>(row.evidence_json, []),
-      plan: parseStoredJson<TailoringPlan>(row.plan_json, {
-        schemaVersion: 1,
-        requirements: [],
-        matches: [],
-        gaps: [],
-        selectedEvidenceIds: [],
-        excludedEvidenceIds: [],
-      }),
-      resumeDraft: parseStoredJson<TailoredResume | null>(row.resume_draft_json, null),
-      validation: parseStoredJson<TailoringValidation | null>(row.validation_json, null),
-      templateVersion: row.template_version ?? "resume-v1",
-      compilerVersion: row.compiler_version ?? "typst-web-v1",
-      input_tokens: row.input_tokens,
-      output_tokens: row.output_tokens,
-      model: row.model,
-      created_at: row.created_at,
-      updated_at: row.updated_at ?? row.created_at,
-      latestArtifact,
-    };
-  }
+  const status = row.status === "generated" || row.status === "failed"
+    ? row.status
+    : "planned";
   return {
-    kind: "legacy" as const,
+    kind: "structured" as const,
     id: row.id,
     job_id: row.job_id,
-    resume_md_final: row.user_edited_resume_md ?? row.resume_md ?? "",
-    cover_letter_md_final: row.user_edited_cover_md ?? row.cover_letter_md ?? "",
-    qa_json_final: row.user_edited_qa_json ?? row.qa_json ?? "[]",
+    status,
+    jobSnapshot: parseStoredJson<JobSnapshot>(row.job_snapshot_json, {
+      jobId: row.job_id,
+      title: "",
+      company: "",
+      url: "",
+      description: "",
+      descriptionHash: "",
+      capturedAt: row.created_at,
+    }),
+    evidence: parseStoredJson<CandidateEvidence[]>(row.evidence_json, []),
+    plan: parseStoredJson<TailoringPlan>(row.plan_json, {
+      schemaVersion: 2,
+      requirements: [],
+      matches: [],
+      gaps: [],
+      selectedEvidenceIds: [],
+      excludedEvidenceIds: [],
+    }),
+    resumeDraft: parseStoredJson<TailoredResume | null>(row.resume_draft_json, null),
+    validation: parseStoredJson<TailoringValidation | null>(row.validation_json, null),
+    templateVersion: row.template_version,
+    compilerVersion: row.compiler_version,
     input_tokens: row.input_tokens,
     output_tokens: row.output_tokens,
     model: row.model,
     created_at: row.created_at,
+    updated_at: row.updated_at,
+    latestArtifact,
   };
 }
 
@@ -163,10 +137,6 @@ async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function requireStructuredTailoring(row: TailoringRow | null): TailoringRow | null {
-  return row && row.schema_version >= 2 ? row : null;
 }
 
 async function loadJobForTailor(
@@ -213,47 +183,27 @@ async function ensureJobDescription(
   return content.description;
 }
 
-function normalizeGeminiModel(model: string): string {
-  const normalized = (model.trim() || DEFAULT_GEMINI_MODEL).replace(/^models\//, "");
-  return ALLOWED_GEMINI_MODELS.has(normalized) ? normalized : DEFAULT_GEMINI_MODEL;
-}
-
-function normalizeTailorProvider(value: string | undefined): TailorProvider | null {
-  if (value === "gemini" || value === "anthropic" || value === "workers_ai") return value;
-  return null;
-}
-
 tailor.get("/tailor/usage", async (c) => {
   const userId = c.get("userId");
-  const appConfig = resolveAppTailorConfig(c.env);
-  const provider = normalizeTailorProvider(c.req.query("provider"))
-    ?? appConfig?.provider
-    ?? "gemini";
-  const requestedModel = c.req.query("model")?.trim();
-  const model = provider === "gemini"
-    ? normalizeGeminiModel(requestedModel || c.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL)
-    : provider === "workers_ai"
-      ? normalizeWorkersAiModel(requestedModel || appConfig?.model)
-      : requestedModel || c.env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
+  const model = normalizeWorkersAiModel(c.req.query("model") || c.env.WORKERS_AI_MODEL);
 
   const usage = await loadTailorUsage({
     db: c.env.DB,
     userId,
-    provider,
     model,
   }).catch(() => ({
-    provider,
+    provider: "workers_ai" as const,
     model,
     app_today: 0,
     user_today: 0,
     included_user_today: 0,
-    daily_limit: provider === "gemini" ? GEMINI_DAILY_LIMITS[model] ?? null : null,
+    daily_limit: null,
     app_remaining: null,
     user_remaining: null,
     included_user_remaining: null,
     provider_units_today: 0,
-    provider_units_limit: provider === "workers_ai" ? WORKERS_AI_DAILY_NEURON_LIMIT : null,
-    provider_units_remaining: provider === "workers_ai" ? WORKERS_AI_DAILY_NEURON_LIMIT : null,
+    provider_units_limit: WORKERS_AI_DAILY_NEURON_LIMIT,
+    provider_units_remaining: WORKERS_AI_DAILY_NEURON_LIMIT,
     resets_at: nextUtcDay(),
   }));
 
@@ -264,16 +214,9 @@ tailor.get("/tailor/:job_id", async (c) => {
   const { job_id } = c.req.param();
   const userId = c.get("userId");
   const row = await getLatestUserTailoring(c.env.DB, userId, job_id);
-  const latestArtifact = row && row.schema_version >= 2
+  const latestArtifact = row
     ? await loadLatestArtifact(c.env.DB, userId, row.id)
     : null;
-
-  if (row && (row.schema_version ?? 1) >= 2 && !supportsStructuredApi(c.req.raw)) {
-    return c.json({
-      tailoring: null,
-      update_required: true,
-    });
-  }
 
   return c.json({ tailoring: row ? normalizeTailoring(row, latestArtifact) : null });
 });
@@ -308,7 +251,7 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
     }, 400);
   }
   const model = normalizeWorkersAiModel(c.env.WORKERS_AI_MODEL);
-  const quota = await reserveAppTailorQuota(c.env.DB, userId, "workers_ai", model);
+  const quota = await reserveAppTailorQuota(c.env.DB, userId, model);
   if (!quota.ok) {
     return c.json({
       error: "You've used today's included tailorings. Try again tomorrow.",
@@ -340,33 +283,29 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
       outputTokens: result.usage.outputTokens,
       providerUnits: null,
     });
-    const corpusVersionId = await copyCorpusVersion(c.env.DB, userId, "", "structured resume");
-    if (!corpusVersionId) throw new Error("Could not create the structured tailoring draft.");
     const id = crypto.randomUUID();
     await c.env.DB.prepare(
       `INSERT INTO tailorings (
-         id, user_id, job_id, corpus_version_id, input_tokens, output_tokens,
-         model, created_at, schema_version, status, job_snapshot_json,
-         evidence_json, requirements_json, plan_json, template_version,
-         compiler_version, updated_at, usage_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 2, 'planned', ?, ?, ?, ?, ?, ?, ?, ?)`
+         id, user_id, job_id, status, job_snapshot_json, evidence_json,
+         requirements_json, plan_json, input_tokens, output_tokens, model,
+         template_version, compiler_version, usage_id, created_at, updated_at
+       ) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       userId,
       job.id,
-      corpusVersionId,
-      result.usage.inputTokens || null,
-      result.usage.outputTokens || null,
-      model,
-      capturedAt,
       JSON.stringify(snapshot),
       JSON.stringify(evidence),
       JSON.stringify(result.plan.requirements),
       JSON.stringify(result.plan),
-      "resume-v1",
-      "typst-web-v1",
-      capturedAt,
+      result.usage.inputTokens || null,
+      result.usage.outputTokens || null,
+      model,
+      "resume-v2",
+      "typst-web-v2",
       quota.usageId,
+      capturedAt,
+      capturedAt,
     ).run();
     const row = await c.env.DB.prepare(
       "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
@@ -400,17 +339,17 @@ tailor.post("/tailorings/:id/generate", async (c) => {
   }
   const { id } = c.req.param();
   const userId = c.get("userId");
-  const row = requireStructuredTailoring(await c.env.DB.prepare(
+  const row = await c.env.DB.prepare(
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
-  ).bind(id, userId).first<TailoringRow>());
-  if (!row) return c.json({ error: "Structured tailoring not found" }, 404);
+  ).bind(id, userId).first<TailoringRow>();
+  if (!row) return c.json({ error: "Tailoring not found" }, 404);
   const body = (await c.req.json<{
     selectedEvidenceIds?: string[];
     excludedEvidenceIds?: string[];
   }>().catch(() => null)) ?? {};
   const evidence = parseStoredJson<CandidateEvidence[]>(row.evidence_json, []);
   const storedPlan = parseStoredJson<TailoringPlan>(row.plan_json, {
-    schemaVersion: 1,
+    schemaVersion: 2,
     requirements: [],
     matches: [],
     gaps: [],
@@ -512,99 +451,53 @@ tailor.patch("/tailorings/:id", async (c) => {
   const body =
     (await c.req
       .json<{
-        user_edited_resume_md?: string;
-        user_edited_cover_md?: string;
-        user_edited_qa_json?: string;
         resume_draft?: TailoredResume;
         selectedEvidenceIds?: string[];
       }>()
       .catch(() => null)) ?? {};
-  if (existing.schema_version >= 2) {
-    if (!body.resume_draft) return c.json({ error: "No structured draft to update" }, 400);
-    const serialized = JSON.stringify(body.resume_draft);
-    if (serialized.length > 300_000) return c.json({ error: "Resume draft is too large" }, 413);
-    const { data: profile } = await getUserProfile(c.env.DB, userId);
-    const evidence = parseStoredJson<CandidateEvidence[]>(existing.evidence_json, []);
-    const storedPlan = parseStoredJson<TailoringPlan>(existing.plan_json, {
-      schemaVersion: 1,
-      requirements: [],
-      matches: [],
-      gaps: [],
-      selectedEvidenceIds: [],
-      excludedEvidenceIds: [],
-    });
-    const availableIds = new Set(evidence.map((item) => item.id));
-    const selectedEvidenceIds = Array.isArray(body.selectedEvidenceIds)
-      ? [...new Set(body.selectedEvidenceIds.filter((id) => availableIds.has(id)))]
-      : storedPlan.selectedEvidenceIds.filter((id) => availableIds.has(id));
-    const plan: TailoringPlan = {
-      ...storedPlan,
-      selectedEvidenceIds,
-      excludedEvidenceIds: evidence
-        .map((item) => item.id)
-        .filter((id) => !selectedEvidenceIds.includes(id)),
-    };
-    const validation = validateTailoredResume(profile, evidence, body.resume_draft);
-    const now = new Date().toISOString();
-    await c.env.DB.prepare(
-      `UPDATE tailorings
-       SET resume_draft_json = ?, validation_json = ?, plan_json = ?, status = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`
-    ).bind(
-      serialized,
-      JSON.stringify(validation),
-      JSON.stringify(plan),
-      validation.valid ? "generated" : "failed",
-      now,
-      id,
-      userId,
-    ).run();
-    const updated = await c.env.DB.prepare(
-      "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
-    ).bind(id, userId).first<TailoringRow>();
-    if (!updated) return c.json({ error: "Tailoring not found" }, 404);
-    return c.json({ tailoring: normalizeTailoring(updated) });
-  }
-  if (
-    (body.user_edited_resume_md?.length ?? 0) > 200_000
-    || (body.user_edited_cover_md?.length ?? 0) > 100_000
-    || (body.user_edited_qa_json?.length ?? 0) > 100_000
-  ) {
-    return c.json({ error: "Tailoring edits are too large" }, 413);
-  }
-
-  const clauses: string[] = [];
-  const bindings: string[] = [];
-
-  if (body.user_edited_resume_md !== undefined) {
-    clauses.push("user_edited_resume_md = ?");
-    bindings.push(body.user_edited_resume_md);
-  }
-  if (body.user_edited_cover_md !== undefined) {
-    clauses.push("user_edited_cover_md = ?");
-    bindings.push(body.user_edited_cover_md);
-  }
-  if (body.user_edited_qa_json !== undefined) {
-    clauses.push("user_edited_qa_json = ?");
-    bindings.push(body.user_edited_qa_json);
-  }
-
-  if (clauses.length === 0) {
-    return c.json({ error: "No fields to update" }, 400);
-  }
-
+  if (!body.resume_draft) return c.json({ error: "No structured draft to update" }, 400);
+  const serialized = JSON.stringify(body.resume_draft);
+  if (serialized.length > 300_000) return c.json({ error: "Resume draft is too large" }, 413);
+  const { data: profile } = await getUserProfile(c.env.DB, userId);
+  const evidence = parseStoredJson<CandidateEvidence[]>(existing.evidence_json, []);
+  const storedPlan = parseStoredJson<TailoringPlan>(existing.plan_json, {
+    schemaVersion: 2,
+    requirements: [],
+    matches: [],
+    gaps: [],
+    selectedEvidenceIds: [],
+    excludedEvidenceIds: [],
+  });
+  const availableIds = new Set(evidence.map((item) => item.id));
+  const selectedEvidenceIds = Array.isArray(body.selectedEvidenceIds)
+    ? [...new Set(body.selectedEvidenceIds.filter((evidenceId) => availableIds.has(evidenceId)))]
+    : storedPlan.selectedEvidenceIds.filter((evidenceId) => availableIds.has(evidenceId));
+  const plan: TailoringPlan = {
+    ...storedPlan,
+    selectedEvidenceIds,
+    excludedEvidenceIds: evidence
+      .map((item) => item.id)
+      .filter((evidenceId) => !selectedEvidenceIds.includes(evidenceId)),
+  };
+  const validation = validateTailoredResume(profile, evidence, body.resume_draft);
+  const now = new Date().toISOString();
   await c.env.DB.prepare(
-    `UPDATE tailorings SET ${clauses.join(", ")} WHERE id = ? AND user_id = ?`
-  ).bind(...bindings, id, userId).run();
-
+    `UPDATE tailorings
+     SET resume_draft_json = ?, validation_json = ?, plan_json = ?, status = ?, updated_at = ?
+     WHERE id = ? AND user_id = ?`
+  ).bind(
+    serialized,
+    JSON.stringify(validation),
+    JSON.stringify(plan),
+    validation.valid ? "generated" : "failed",
+    now,
+    id,
+    userId,
+  ).run();
   const updated = await c.env.DB.prepare(
-    `SELECT * FROM tailorings WHERE id = ? AND user_id = ?`
+    "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
   ).bind(id, userId).first<TailoringRow>();
-
-  if (!updated) {
-    return c.json({ error: "Tailoring not found" }, 404);
-  }
-
+  if (!updated) return c.json({ error: "Tailoring not found" }, 404);
   return c.json({ tailoring: normalizeTailoring(updated) });
 });
 
@@ -617,10 +510,10 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
   }
   const { id } = c.req.param();
   const userId = c.get("userId");
-  const row = requireStructuredTailoring(await c.env.DB.prepare(
+  const row = await c.env.DB.prepare(
     "SELECT * FROM tailorings WHERE id = ? AND user_id = ?"
-  ).bind(id, userId).first<TailoringRow>());
-  if (!row) return c.json({ error: "Structured tailoring not found" }, 404);
+  ).bind(id, userId).first<TailoringRow>();
+  if (!row) return c.json({ error: "Tailoring not found" }, 404);
   let form: FormData;
   try {
     form = await c.req.formData();
@@ -652,8 +545,8 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
     return c.json({ error: "The generated resume is too large to save." }, 413);
   }
   if (
-    templateVersion !== (row.template_version ?? "resume-v1")
-    || compilerVersion !== (row.compiler_version ?? "typst-web-v1")
+    templateVersion !== row.template_version
+    || compilerVersion !== row.compiler_version
   ) {
     return c.json({
       error: "This resume was built with an outdated template. Build the preview again.",
@@ -728,10 +621,5 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
     },
   });
 });
-
-tailor.post("/tailor/:job_id", (c) => c.json({
-  error: "Update Pinkslip to create a structured tailored resume.",
-  code: "client_update_required",
-}, 426));
 
 export default tailor;

@@ -23,7 +23,6 @@ export const routeDefinitions: RouteDefinition[] = [
   { id: "you-alerts", pattern: "/you/alerts", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-companies", pattern: "/you/companies", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-resume", pattern: "/you/resume", shell: "consumer", depth: 1, rootDestination: "you" },
-  { id: "you-story", pattern: "/you/story", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-tailoring", pattern: "/you/tailoring", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-account", pattern: "/you/account", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-feedback", pattern: "/you/feedback", shell: "consumer", depth: 1, rootDestination: "you" },
@@ -41,7 +40,6 @@ const compatibilityRedirects: Record<string, string> = {
   "/settings": "/you",
   "/companies": "/you/companies",
   "/resume": "/you/resume",
-  "/corpus": "/you/story",
   "/you/operations": "/admin",
 };
 

@@ -1,8 +1,6 @@
 import type {
-  CorpusVersionRow,
   PreferenceRow,
   ProfileRow,
-  ResumeAssetRow,
   ResumeProfile,
   TailoringRow,
 } from "./types";
@@ -131,40 +129,6 @@ export async function saveUserProfile(
   return { data: normalized, updated_at: now };
 }
 
-export async function getLatestUserCorpusVersion(
-  db: D1Database,
-  userId: string
-): Promise<CorpusVersionRow | null> {
-  const userVersion = await db.prepare(
-    `SELECT id, user_id, content_md, label, created_at, updated_at
-     FROM corpus_versions
-     WHERE user_id = ?
-     ORDER BY datetime(updated_at) DESC, id DESC
-     LIMIT 1`
-  ).bind(userId).first<CorpusVersionRow>();
-
-  // No legacy `user_id IS NULL` fallback: a shared global corpus would leak the
-  // owner's resume corpus into every fresh guest account.
-  return userVersion ?? null;
-}
-
-export async function copyCorpusVersion(
-  db: D1Database,
-  userId: string,
-  contentMd: string,
-  label: string | null
-): Promise<number> {
-  const now = new Date().toISOString();
-  await db.prepare(
-    `INSERT INTO corpus_versions (user_id, content_md, label, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`
-  ).bind(userId, contentMd, label, now, now).run();
-  const created = await db.prepare(
-    "SELECT id FROM corpus_versions WHERE user_id = ? ORDER BY id DESC LIMIT 1"
-  ).bind(userId).first<{ id: number }>();
-  return created?.id ?? 0;
-}
-
 export async function getLatestUserTailoring(
   db: D1Database,
   userId: string,
@@ -179,19 +143,6 @@ export async function getLatestUserTailoring(
   ).bind(userId, jobId).first<TailoringRow>();
   // No legacy `user_id IS NULL` fallback: tailorings are private per user.
   return row ?? null;
-}
-
-export async function getActiveResumeAsset(
-  db: D1Database,
-  userId: string
-): Promise<ResumeAssetRow | null> {
-  return db.prepare(
-    `SELECT id, user_id, file_name, mime_type, size, uploaded_at, storage_key, extracted_text, is_active
-     FROM resume_assets
-     WHERE user_id = ? AND is_active = 1
-     ORDER BY datetime(uploaded_at) DESC, id DESC
-     LIMIT 1`
-  ).bind(userId).first<ResumeAssetRow>();
 }
 
 async function copyMissingPreferences(db: D1Database, sourceUserId: string, targetUserId: string) {
@@ -250,51 +201,6 @@ async function mergeSingletonProfile(db: D1Database, sourceUserId: string, targe
       label,
     });
   }
-}
-
-async function mergeSingletonCorpus(db: D1Database, sourceUserId: string, targetUserId: string, label: string) {
-  const source = await getLatestUserCorpusVersion(db, sourceUserId);
-  if (!source) return;
-  const target = await getLatestUserCorpusVersion(db, targetUserId);
-  if (!target) {
-    await copyCorpusVersion(db, targetUserId, source.content_md, source.label);
-    return;
-  }
-
-  if (target.content_md !== source.content_md) {
-    await saveMergeBackup(db, {
-      userId: targetUserId,
-      sourceUserId,
-      kind: "corpus",
-      payload: source,
-      label,
-    });
-  }
-}
-
-async function mergeResumeAssets(
-  db: D1Database,
-  sourceUserId: string,
-  targetUserId: string,
-  label: string
-) {
-  const source = await getActiveResumeAsset(db, sourceUserId);
-  if (!source) return;
-  const target = await getActiveResumeAsset(db, targetUserId);
-  if (!target) {
-    await db.prepare(
-      "UPDATE resume_assets SET user_id = ? WHERE id = ?"
-    ).bind(targetUserId, source.id).run();
-    return;
-  }
-
-  await saveMergeBackup(db, {
-    userId: targetUserId,
-    sourceUserId,
-    kind: "resume_asset",
-    payload: source,
-    label,
-  });
 }
 
 export async function mergeGuestDataIntoAccount(
@@ -457,8 +363,6 @@ export async function mergeGuestDataIntoAccount(
   ]);
 
   await mergeSingletonProfile(db, sourceUserId, targetUserId, sourceLabel);
-  await mergeSingletonCorpus(db, sourceUserId, targetUserId, sourceLabel);
-  await mergeResumeAssets(db, sourceUserId, targetUserId, sourceLabel);
 
   await db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(sourceUserId).run();
   await db.prepare("DELETE FROM auth_identities WHERE user_id = ?").bind(sourceUserId).run();
@@ -468,27 +372,8 @@ export async function mergeGuestDataIntoAccount(
 
 export async function deleteUserAccountData(
   db: D1Database,
-  userId: string,
-  bucket?: R2Bucket
+  userId: string
 ) {
-  const assets = await db.prepare(
-    "SELECT storage_key FROM resume_assets WHERE user_id = ?"
-  ).bind(userId).all<{ storage_key: string }>();
-  if (bucket) {
-    await Promise.all(
-      (assets.results ?? []).map((asset) =>
-        bucket.delete(asset.storage_key).catch((error) => {
-          // Don't block account deletion on R2, but log so orphaned objects are
-          // discoverable rather than silently leaked.
-          console.error("Failed to delete resume object during account deletion", {
-            storage_key: asset.storage_key,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        })
-      )
-    );
-  }
-
   await db.batch([
     db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM email_login_tokens WHERE lower(email) IN (SELECT lower(email) FROM auth_identities WHERE user_id = ?)").bind(userId),
@@ -496,8 +381,6 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM api_tokens WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM push_subscriptions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM tailorings WHERE user_id = ?").bind(userId),
-    db.prepare("DELETE FROM corpus_versions WHERE user_id = ?").bind(userId),
-    db.prepare("DELETE FROM resume_assets WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_preferences WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_profiles WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM saved_jobs WHERE user_id = ?").bind(userId),

@@ -31,7 +31,7 @@
 
   async function loadUsage() {
     const usage = await api.tailor
-      .usage(features?.tailoring_model, "workers_ai")
+      .usage(features?.tailoring_model)
       .then((response) => response.usage)
       .catch(() => null);
     includedCount = usage?.included_user_today ?? 0;

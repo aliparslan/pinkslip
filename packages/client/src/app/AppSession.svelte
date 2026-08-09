@@ -3,7 +3,6 @@
   import { api, ApiError } from "../lib/api";
   import { navigate } from "../router";
   import { syncSessionAccess } from "../lib/session-access";
-  import { loadLocalTailorKit } from "../lib/local-tailor";
   import { applicationIntent } from "../lib/application-intent.svelte";
   import { syncFeedPreferences } from "../lib/feed-store.svelte";
   import { feedback } from "../lib/feedback.svelte";
@@ -110,16 +109,6 @@
     try {
       const accountState = await api.auth.verifyEmailToken(token);
       syncSessionAccess(accountState);
-      const resume = loadLocalTailorKit().resume;
-      if (resume) {
-        await api.resumeAssets.upload({
-          fileName: resume.fileName,
-          mimeType: resume.mimeType,
-          size: resume.size,
-          dataUrl: resume.dataUrl,
-          extractedText: resume.textContent,
-        }).catch(() => undefined);
-      }
       await bootstrapSession();
       navigate("/you/account");
       feedback.success("You’re signed in.");

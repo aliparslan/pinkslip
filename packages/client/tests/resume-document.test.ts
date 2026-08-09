@@ -54,7 +54,7 @@ describe("Typst resume compiler", () => {
       }],
     };
     const resume: TailoredResume = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       contact: profile.contact,
       experience: profile.experience.map((entry) => ({
         sourceEntryId: entry.id,

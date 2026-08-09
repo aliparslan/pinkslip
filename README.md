@@ -32,8 +32,6 @@ you are testing. Common entries are:
 
 ```dotenv
 VAPID_PRIVATE_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
 APNS_PRIVATE_KEY=
 ACCESS_CODE=
 ```

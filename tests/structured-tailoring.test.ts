@@ -5,8 +5,6 @@ import {
   validateTailoredResume,
 } from "../shared/tailoring";
 import { buildResumeFromRewrites, generateStructuredResume } from "../worker/tailor/structured";
-import { normalizeTailoring } from "../worker/routes/tailor";
-import type { TailoringRow } from "../worker/types";
 import { buildResumeTypstSource, removeLowestPriorityContent } from "../packages/client/src/lib/resume-document";
 
 function profile(): ResumeProfile {
@@ -107,30 +105,6 @@ describe("structured resume grounding", () => {
     expect(validation.valid).toBe(false);
     expect(validation.issues.some((issue) => issue.message.includes("different resume entry"))).toBe(true);
     expect(validation.issues.some((issue) => issue.path === "skills")).toBe(true);
-  });
-
-  test("keeps legacy tailorings readable through a discriminated response", () => {
-    const row = {
-      id: "legacy-1",
-      job_id: "job-1",
-      schema_version: 1,
-      resume_md: "# Resume",
-      cover_letter_md: "Legacy cover",
-      qa_json: "[]",
-      user_edited_resume_md: null,
-      user_edited_cover_md: null,
-      user_edited_qa_json: null,
-      input_tokens: 10,
-      output_tokens: 20,
-      model: "legacy-model",
-      created_at: "2026-01-01T00:00:00.000Z",
-    } as TailoringRow;
-
-    expect(normalizeTailoring(row)).toMatchObject({
-      kind: "legacy",
-      resume_md_final: "# Resume",
-      cover_letter_md_final: "Legacy cover",
-    });
   });
 
   test("does not publish when the constrained repair still fails review", async () => {

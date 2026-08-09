@@ -1,7 +1,7 @@
 import type { TailoredResume } from "../../../../shared/tailoring";
 
-export const RESUME_TEMPLATE_VERSION = "resume-v1";
-export const RESUME_COMPILER_VERSION = "typst-web-v1";
+export const RESUME_TEMPLATE_VERSION = "resume-v2";
+export const RESUME_COMPILER_VERSION = "typst-web-v2";
 
 function value(input: string | undefined): string {
   return JSON.stringify(input?.trim() ?? "");

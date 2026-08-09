@@ -19,7 +19,6 @@
     type Tailoring,
   } from "../lib/api";
   import { errorMessage } from "../lib/utils";
-  import { renderMarkdownHtml } from "../lib/formatting";
   import {
     compileResumeDocument,
     type CompiledResumeDocument,
@@ -457,21 +456,6 @@
           <p>Your saved resume stays unchanged while we build this version.</p>
         </div>
       </section>
-    {:else if tailoring?.kind === "legacy"}
-      <section class="legacy-state">
-        <div class="legacy-heading">
-          <div>
-            <p class="eyebrow">Previous version</p>
-            <h2>Legacy resume</h2>
-          </div>
-          <button class="btn-primary btn-accent" type="button" onclick={() => void createPlan()}>
-            <MagicWand size={17} weight="bold" />
-            Create structured version
-          </button>
-        </div>
-        <p class="supporting-copy">This older version is readable, but editing it as Markdown is no longer supported.</p>
-        <article class="legacy-resume prose-output">{@html renderMarkdownHtml(tailoring.resume_md_final)}</article>
-      </section>
     {:else if !structured}
       <section class="empty-tailoring">
         <MagicWand size={26} weight="duotone" aria-hidden="true" />
@@ -780,7 +764,6 @@
 
   .job-context,
   .section-heading,
-  .legacy-heading h2,
   .empty-tailoring h2,
   .progress-state h2,
   .resume-section h2,
@@ -801,7 +784,6 @@
   }
 
   .job-context p,
-  .supporting-copy,
   .empty-tailoring p,
   .progress-state p,
   .section-heading p,
@@ -826,14 +808,12 @@
 
   .progress-state h2,
   .empty-tailoring h2,
-  .legacy-heading h2,
   .section-heading h2 {
     color: var(--color-ink);
     font-size: var(--fs-xl);
     line-height: 1.25;
   }
 
-  .legacy-state,
   .plan-review,
   .structured-workspace,
   .structured-editor {
@@ -841,7 +821,6 @@
     gap: var(--space-6);
   }
 
-  .legacy-heading,
   .workspace-toolbar,
   .bullet-actions,
   .sticky-action,
@@ -853,10 +832,6 @@
     gap: var(--space-3);
   }
 
-  .legacy-heading {
-    align-items: end;
-  }
-
   .eyebrow,
   .priority {
     margin: 0 0 var(--space-1);
@@ -865,13 +840,6 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-  }
-
-  .legacy-resume {
-    padding: var(--space-5);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-lg);
-    background: var(--color-bg-elev);
   }
 
   .section-heading {
@@ -1194,11 +1162,6 @@
   }
 
   @media (max-width: 520px) {
-    .legacy-heading {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
     .bullet-actions {
       align-items: end;
     }
