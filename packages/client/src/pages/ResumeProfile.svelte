@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type ResumeProfile, type OptionalSectionKind, type DegreeType } from "../lib/api";
+  import {
+    api,
+    ApiError,
+    type DegreeType,
+    type OptionalSectionKind,
+    type ResumeImportErrorCode,
+    type ResumeProfile,
+  } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { navigate } from "../router";
   import {
@@ -20,7 +27,10 @@
   import PageFailure from "../components/PageFailure.svelte";
   import { feedback } from "../lib/feedback.svelte";
   import { SavePresentation } from "../lib/task-presentation.svelte";
-  import { createEmptyResumeProfile } from "../../../../shared/resume-profile";
+  import {
+    createEmptyResumeProfile,
+    normalizeResumeProfile,
+  } from "../../../../shared/resume-profile";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
   import { isIosApp } from "../lib/platform";
   import {
@@ -45,7 +55,7 @@
   };
 
   type CollectionSection = "experience" | "education" | "projects";
-  type DirectSection = "contact" | "skills" | "notes" | OptionalSectionKind;
+  type DirectSection = "contact" | "skills" | OptionalSectionKind;
   type ResumeView =
     | { kind: "overview" }
     | { kind: "section"; section: DirectSection }
@@ -59,14 +69,14 @@
   let error: string | null = $state(null);
   const savePresentation = new SavePresentation();
   let profile: ResumeProfile = $state(createEmptyResumeProfile());
-  let notes = $state("");
-  let notesUnavailable = $state(false);
-  let notesRetrying = $state(false);
   let autosaveTimer: number | null = null;
   let saveAgain = false;
   let importing = $state(false);
+  let importError: { code: ResumeImportErrorCode; message: string } | null = $state(null);
+  let lastImportFile: File | null = null;
   let importInput: HTMLInputElement | null = $state(null);
   let pendingImport: Partial<ResumeProfile> | null = $state(null);
+  let pendingImportWarnings: string[] = $state([]);
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
   let draftRecord: { section: CollectionSection; id: string } | null = null;
@@ -130,7 +140,6 @@
   function sectionLabel(section: DirectSection): string {
     if (section === "contact") return "Contact info";
     if (section === "skills") return "Skills";
-    if (section === "notes") return "Tailoring notes";
     return OPTIONAL_SECTION_LABELS[section];
   }
 
@@ -146,7 +155,15 @@
   }
 
   function educationDetail(entry: ResumeProfile["education"][number]): string {
-    return [entry.degree, entry.location].filter(Boolean).join(" · ");
+    const credentials = entry.credentials
+      .map((credential) => formatDegree(
+        credential.degreeType ?? "",
+        credential.fieldsOfStudy.join(" and "),
+      ))
+      .filter(Boolean)
+      .join(" · ");
+    const minors = entry.minors.length ? `Minor in ${entry.minors.join(" and ")}` : "";
+    return [credentials, minors, entry.location].filter(Boolean).join(" · ");
   }
 
   function projectDetail(entry: ResumeProfile["projects"][number]): string {
@@ -165,26 +182,59 @@
     return profile.optionalSections.find((candidate) => candidate.kind === section);
   }
 
-  function hydrateEducationEntry(entry: ResumeProfile["education"][number]): ResumeProfile["education"][number] {
-    const degreeType = entry.degreeType ?? inferDegreeType(entry.degree);
-    const fieldOfStudy = entry.fieldOfStudy ?? inferFieldOfStudy(entry.degree, degreeType);
-    return {
-      ...entry,
-      degreeType: degreeType || undefined,
-      fieldOfStudy,
-      degree: formatDegree(degreeType, fieldOfStudy) || entry.degree,
-    };
+  function updateEducationCredential(
+    entry: ResumeProfile["education"][number],
+    credentialIndex: number,
+    updates: { degreeType?: DegreeType | ""; fieldsOfStudy?: string[] }
+  ) {
+    const credential = entry.credentials[credentialIndex];
+    if (!credential) return;
+    credential.degreeType = updates.degreeType === ""
+      ? undefined
+      : updates.degreeType ?? credential.degreeType;
+    if (updates.fieldsOfStudy) credential.fieldsOfStudy = updates.fieldsOfStudy;
+    queueAutosave();
   }
 
-  function updateEducationDegree(
+  function addEducationCredential(entry: ResumeProfile["education"][number]) {
+    entry.credentials = [
+      ...entry.credentials,
+      { id: genId(), degreeType: undefined, fieldsOfStudy: [""] },
+    ];
+    queueAutosave();
+  }
+
+  function removeEducationCredential(entry: ResumeProfile["education"][number], index: number) {
+    if (entry.credentials.length <= 1) return;
+    entry.credentials = entry.credentials.filter((_, candidateIndex) => candidateIndex !== index);
+    queueAutosave();
+  }
+
+  function addMajor(entry: ResumeProfile["education"][number], credentialIndex: number) {
+    const credential = entry.credentials[credentialIndex];
+    if (!credential) return;
+    credential.fieldsOfStudy = [...credential.fieldsOfStudy, ""];
+    queueAutosave();
+  }
+
+  function removeMajor(
     entry: ResumeProfile["education"][number],
-    updates: { degreeType?: DegreeType | ""; fieldOfStudy?: string }
+    credentialIndex: number,
+    majorIndex: number,
   ) {
-    const degreeType = updates.degreeType ?? entry.degreeType ?? "";
-    const fieldOfStudy = updates.fieldOfStudy ?? entry.fieldOfStudy ?? "";
-    entry.degreeType = degreeType || undefined;
-    entry.fieldOfStudy = fieldOfStudy;
-    entry.degree = formatDegree(degreeType, fieldOfStudy);
+    const credential = entry.credentials[credentialIndex];
+    if (!credential || credential.fieldsOfStudy.length <= 1) return;
+    credential.fieldsOfStudy = credential.fieldsOfStudy.filter((_, index) => index !== majorIndex);
+    queueAutosave();
+  }
+
+  function addMinor(entry: ResumeProfile["education"][number]) {
+    entry.minors = [...entry.minors, ""];
+    queueAutosave();
+  }
+
+  function removeMinor(entry: ResumeProfile["education"][number], index: number) {
+    entry.minors = entry.minors.filter((_, candidateIndex) => candidateIndex !== index);
     queueAutosave();
   }
 
@@ -281,7 +331,16 @@
     const id = genId();
     profile.education = [
       ...profile.education,
-      { id, institution: "", degree: "", degreeType: undefined, fieldOfStudy: "", location: "", startDate: "", endDate: "", gpa: "" },
+      {
+        id,
+        institution: "",
+        credentials: [{ id: genId(), degreeType: undefined, fieldsOfStudy: [""] }],
+        minors: [],
+        location: "",
+        startDate: "",
+        endDate: "",
+        gpa: "",
+      },
     ];
     if (nativeIos) draftRecord = { section: "education", id };
     else queueAutosave();
@@ -390,57 +449,27 @@
   async function loadAll() {
     loading = true;
     error = null;
-    notesUnavailable = false;
     try {
-      let profileRes: Awaited<ReturnType<typeof api.profile.get>>;
-      let corpusRes: Awaited<ReturnType<typeof api.corpus.get>> | null;
-      if (nativeIos) {
-        const [profileResult, corpusResult] = await Promise.allSettled([
-          api.profile.get(),
-          api.corpus.get(),
-        ]);
-        if (profileResult.status === "rejected") throw profileResult.reason;
-        profileRes = profileResult.value;
-        corpusRes = corpusResult.status === "fulfilled" ? corpusResult.value : null;
-        notesUnavailable = corpusResult.status === "rejected";
-      } else {
-        [profileRes, corpusRes] = await Promise.all([api.profile.get(), api.corpus.get()]);
-      }
-      const data = profileRes.data;
+      const profileRes = await api.profile.get();
+      const data = normalizeResumeProfile(profileRes.data);
       let optionalSections = data.optionalSections ?? [];
       if (!optionalSections.length && (data as any).leadership?.length) {
         optionalSections = [{ kind: "leadership" as const, items: (data as any).leadership }];
       }
       profile = {
-        ...createEmptyResumeProfile(),
         ...data,
         experience: (data.experience ?? []).filter((entry) => hasResumeContent(entry)),
-        education: (data.education ?? []).filter((entry) => hasResumeContent(entry)).map(hydrateEducationEntry),
+        education: (data.education ?? []).filter((entry) => hasResumeContent(entry)),
         projects: (data.projects ?? []).filter((entry) => hasResumeContent(entry)),
         skills: (data.skills ?? []).filter((entry) => hasResumeContent(entry)),
         optionalSections: optionalSections.filter((section) => hasResumeContent(section)),
       };
       savePresentation.hydrate(profileRes.updated_at);
-      if (corpusRes) notes = corpusRes.content_md ?? "";
       loaded = true;
     } catch (loadError) {
       error = errorMessage(loadError);
     } finally {
       loading = false;
-    }
-  }
-
-  async function retryNotes() {
-    if (notesRetrying) return;
-    notesRetrying = true;
-    try {
-      const corpusRes = await api.corpus.get();
-      notes = corpusRes.content_md ?? "";
-      notesUnavailable = false;
-    } catch (loadError) {
-      feedback.error(errorMessage(loadError, "Couldn’t load tailoring notes."));
-    } finally {
-      notesRetrying = false;
     }
   }
 
@@ -453,10 +482,7 @@
     error = null;
     const presentationGeneration = savePresentation.begin();
     try {
-      const [profileRes] = await Promise.all([
-        api.profile.update(profile, { keepalive }),
-        notesUnavailable ? Promise.resolve(null) : api.corpus.update(notes, { keepalive }),
-      ]);
+      const profileRes = await api.profile.update(profile, { keepalive });
       savePresentation.succeed(presentationGeneration, profileRes.updated_at ?? new Date().toISOString());
     } catch (saveError) {
       const message = errorMessage(saveError);
@@ -499,28 +525,90 @@
     queueAutosave();
   }
 
-  async function handlePdfImport(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  function importErrorMessage(code: ResumeImportErrorCode): string {
+    const messages: Record<ResumeImportErrorCode, string> = {
+      authentication_required: "Sign in to import a resume.",
+      file_too_large: "Choose a PDF smaller than 5 MB.",
+      unsupported_type: "Choose a PDF resume.",
+      invalid_pdf: "This file is not a valid PDF. Choose another file.",
+      protected_pdf: "Remove the PDF password, then try again.",
+      no_extractable_text: "No readable resume text was found. Try a text-based PDF.",
+      offline: "You’re offline. Reconnect and try again.",
+      conversion_unavailable: "Resume import is temporarily unavailable. Try again.",
+      import_rate_limited: "You’ve imported several resumes recently. Try again in an hour.",
+      unknown: "The resume couldn’t be imported. Try again.",
+    };
+    return messages[code];
+  }
+
+  function localImportError(error: unknown): ResumeImportErrorCode {
+    const message = errorMessage(error).toLowerCase();
+    if (/password|encrypted|protected/.test(message)) return "protected_pdf";
+    if (/invalid pdf|formaterror|missing pdf|corrupt/.test(message)) return "invalid_pdf";
+    if (/no resume details|no readable|no text/.test(message)) return "no_extractable_text";
+    return navigator.onLine ? "conversion_unavailable" : "offline";
+  }
+
+  function importRecovery(code: ResumeImportErrorCode): { label: string; run: () => void } | null {
+    if (code === "import_rate_limited") return null;
+    if (code === "authentication_required") {
+      return { label: "Sign in", run: () => navigate("/you/account") };
+    }
+    if (
+      code === "file_too_large"
+      || code === "unsupported_type"
+      || code === "invalid_pdf"
+      || code === "protected_pdf"
+      || code === "no_extractable_text"
+    ) {
+      return { label: "Choose another PDF", run: () => importInput?.click() };
+    }
+    return {
+      label: "Try again",
+      run: () => {
+        if (lastImportFile) void importResumeFile(lastImportFile);
+      },
+    };
+  }
+
+  async function importResumeFile(file: File) {
     importing = true;
-    error = null;
+    importError = null;
+    lastImportFile = file;
     try {
-      const { parsePdfToProfile } = await import("../lib/pdf-to-profile");
-      const parsed = await parsePdfToProfile(file);
+      let parsed: Partial<ResumeProfile>;
+      try {
+        const response = await api.resumeImport.parse(file);
+        parsed = response.profile;
+        pendingImportWarnings = response.warnings;
+      } catch (serverError) {
+        const { parsePdfToProfile, shouldUseLocalPdfFallback } = await import("../lib/pdf-import");
+        const canTryLocally = shouldUseLocalPdfFallback(serverError);
+        if (!canTryLocally) throw serverError;
+        parsed = await parsePdfToProfile(file);
+        pendingImportWarnings = [];
+      }
       if (!hasResumeContent(parsed)) {
         throw new Error("No resume details were found");
       }
       pendingImport = parsed;
-    } catch (importError) {
-      console.error("Resume PDF import failed", importError);
-      error = nativeIos
-        ? "This PDF couldn’t be read. Try exporting it again or choose another PDF."
-        : `Could not parse PDF: ${errorMessage(importError)}`;
+    } catch (failure) {
+      pendingImportWarnings = [];
+      const code = failure instanceof ApiError && failure.code
+        ? failure.code as ResumeImportErrorCode
+        : localImportError(failure);
+      importError = { code, message: importErrorMessage(code) };
     } finally {
       importing = false;
-      input.value = "";
     }
+  }
+
+  async function handlePdfImport(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    await importResumeFile(file);
   }
 
   function importSummary(parsed: Partial<ResumeProfile>): string {
@@ -547,13 +635,26 @@
       }
     }
     if (pendingImport.experience?.length) profile.experience = pendingImport.experience;
-    if (pendingImport.education?.length) profile.education = pendingImport.education.map(hydrateEducationEntry);
+    if (pendingImport.education?.length) {
+      profile.education = normalizeResumeProfile({
+        ...createEmptyResumeProfile(),
+        education: pendingImport.education,
+      }).education;
+    }
     if (pendingImport.projects?.length) profile.projects = pendingImport.projects;
     if (pendingImport.skills?.length) profile.skills = pendingImport.skills;
     if (pendingImport.optionalSections?.length) profile.optionalSections = pendingImport.optionalSections;
     pendingImport = null;
+    pendingImportWarnings = [];
+    importError = null;
+    lastImportFile = null;
     feedback.success("Resume imported");
     queueAutosave();
+  }
+
+  function cancelPdfImport() {
+    pendingImport = null;
+    pendingImportWarnings = [];
   }
 
   onMount(() => {
@@ -620,13 +721,21 @@
           </button>
           <button
             type="button"
-            class="import-action"
+            class="btn-primary btn-accent import-action"
             onclick={() => importInput?.click()}
             disabled={importing}
+            aria-describedby={importError ? "resume-import-error" : undefined}
           >
             {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
             <span>Import from PDF</span>
           </button>
+          {#if importError}
+            {@const recovery = importRecovery(importError.code)}
+            <div id="resume-import-error" class="alert alert-error import-failure" role="alert">
+              <span>{importError.message}</span>
+              {#if recovery}<button type="button" class="import-retry" onclick={recovery.run}>{recovery.label}</button>{/if}
+            </div>
+          {/if}
         </section>
 
         <section class="resume-section" aria-labelledby="experience-heading">
@@ -759,26 +868,6 @@
           </section>
         {/each}
 
-        <section class="resume-section" aria-labelledby="notes-heading">
-          <header class="resume-section-heading">
-            <h2 id="notes-heading">Tailoring notes</h2>
-          </header>
-          {#if notesUnavailable}
-            <button type="button" class="section-empty" onclick={retryNotes} disabled={notesRetrying}>
-              {notesRetrying ? "Loading notes…" : "Notes didn’t load · Try again"}
-            </button>
-          {:else}
-            {#if notes.trim()}
-              <button type="button" class="notes-preview" onclick={() => openSection("notes")}>
-                <span>{notes.trim()}</span>
-                <CaretRight size={18} weight="bold" aria-hidden="true" />
-              </button>
-            {:else}
-              <button type="button" class="section-empty" onclick={() => openSection("notes")}><Plus size={17} aria-hidden="true" /><span>Add tailoring notes</span></button>
-            {/if}
-          {/if}
-        </section>
-
         {#if availableOptionalSections.length > 0}
           <button type="button" class="add-section-button" onclick={() => (addSectionOpen = true)}>
             <Plus size={16} aria-hidden="true" />
@@ -825,13 +914,6 @@
             </div>
           {/each}
           <button type="button" class="add-row inline-add" onclick={addSkill}><Plus size={16} aria-hidden="true" /> <span>Add category</span></button>
-        </form>
-      {:else if view.section === "notes"}
-        <form class="editor-form" onsubmit={preventFormSubmit}>
-          <label class="field">
-            <span>Notes</span>
-            <textarea class="input-field textarea-field notes-field" bind:value={notes} oninput={handleInput}></textarea>
-          </label>
         </form>
       {:else}
         {@const optionalSection = optionalSectionFor(view.section)}
@@ -913,12 +995,69 @@
             </div>
           </section>
           <section class="editor-section stack-md">
-            <h2>Degree</h2>
+            <h2>Degrees</h2>
+            {#each entry.credentials as credential, credentialIndex (credential.id)}
+              <div class="education-credential stack-md">
+                <label class="field">
+                  <span>Degree type</span>
+                  <span class="select-field-wrap">
+                    <select
+                      class="input-field"
+                      value={credential.degreeType ?? ""}
+                      onchange={(event) => updateEducationCredential(entry, credentialIndex, { degreeType: event.currentTarget.value as DegreeType | "" })}
+                    >
+                      <option value="">Select degree</option>
+                      {#each DEGREE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
+                    </select>
+                    <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
+                  </span>
+                </label>
+                {#each credential.fieldsOfStudy as field, majorIndex}
+                  <div class="field-with-action">
+                    <label class="field flex-fill">
+                      <span>{majorIndex === 0 ? "Major or field of study" : `Additional major ${majorIndex + 1}`}</span>
+                      <input
+                        class="input-field"
+                        value={field}
+                        oninput={(event) => {
+                          const fieldsOfStudy = [...credential.fieldsOfStudy];
+                          fieldsOfStudy[majorIndex] = event.currentTarget.value;
+                          updateEducationCredential(entry, credentialIndex, { fieldsOfStudy });
+                        }}
+                      />
+                    </label>
+                    {#if credential.fieldsOfStudy.length > 1}
+                      <button
+                        type="button"
+                        class="icon-btn icon-btn-sm field-remove"
+                        aria-label={`Remove major ${majorIndex + 1}`}
+                        onclick={() => removeMajor(entry, credentialIndex, majorIndex)}
+                      ><Trash size={16} aria-hidden="true" /></button>
+                    {/if}
+                  </div>
+                {/each}
+                <div class="button-cluster">
+                  <button type="button" class="add-row inline-add" onclick={() => addMajor(entry, credentialIndex)}><Plus size={16} aria-hidden="true" /> <span>Add another major</span></button>
+                  {#if entry.credentials.length > 1}
+                    <button type="button" class="remove-item credential-remove" onclick={() => removeEducationCredential(entry, credentialIndex)}><Trash size={14} aria-hidden="true" /> Remove degree</button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+            <button type="button" class="add-row inline-add" onclick={() => addEducationCredential(entry)}><Plus size={16} aria-hidden="true" /> <span>Add another degree</span></button>
+          </section>
+          <section class="editor-section stack-md">
+            <h2>Additional details</h2>
+            {#each entry.minors as minor, minorIndex}
+              <div class="field-with-action">
+                <label class="field flex-fill"><span>Minor {minorIndex + 1}</span><input class="input-field" bind:value={entry.minors[minorIndex]} oninput={handleInput} /></label>
+                <button type="button" class="icon-btn icon-btn-sm field-remove" aria-label={`Remove minor ${minorIndex + 1}`} onclick={() => removeMinor(entry, minorIndex)}><Trash size={16} aria-hidden="true" /></button>
+              </div>
+            {/each}
             <div class="form-grid">
-              <label class="field"><span>Degree type</span><span class="select-field-wrap"><select class="input-field" value={entry.degreeType ?? ""} onchange={(event) => updateEducationDegree(entry, { degreeType: event.currentTarget.value as DegreeType | "" })}><option value="">Select degree</option>{#each DEGREE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select><span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span></span></label>
-              <label class="field"><span>Field of study</span><input class="input-field" value={entry.fieldOfStudy ?? ""} oninput={(event) => updateEducationDegree(entry, { fieldOfStudy: event.currentTarget.value })} /></label>
-              <label class="field"><span>GPA</span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} /></label>
+              <label class="field"><span>GPA <span class="label-opt">optional</span></span><input class="input-field" inputmode="decimal" bind:value={entry.gpa} oninput={handleInput} /></label>
             </div>
+            <button type="button" class="add-row inline-add" onclick={() => addMinor(entry)}><Plus size={16} aria-hidden="true" /> <span>Add a minor</span></button>
           </section>
           <section class="editor-section stack-md">
             <h2>Dates</h2>
@@ -983,11 +1122,16 @@
     title="Import resume?"
     subtitle={importSummary(pendingImport)}
     busy={importing}
-    onclose={() => (pendingImport = null)}
+    onclose={cancelPdfImport}
   >
     <p class="import-note">Existing details in these sections will be replaced.</p>
+    {#if pendingImportWarnings.length}
+      <ul class="import-warnings">
+        {#each pendingImportWarnings as warning}<li>{warning}</li>{/each}
+      </ul>
+    {/if}
     <div class="action-row import-actions">
-      <button type="button" class="btn-secondary flex-fill" onclick={() => (pendingImport = null)}>Cancel</button>
+      <button type="button" class="btn-secondary flex-fill" onclick={cancelPdfImport}>Cancel</button>
       <button type="button" class="btn-primary btn-accent flex-fill" onclick={applyPdfImport}>Import</button>
     </div>
   </Modal>
@@ -1012,37 +1156,34 @@
   }
 
   .import-action {
-    appearance: none;
     min-height: var(--control-height-compact);
     align-self: flex-start;
     margin-block-start: var(--space-1);
-    margin-inline-start: calc(var(--space-3) * -1);
-    padding-inline: var(--space-3);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    border: 0;
-    border-radius: var(--radius-full);
-    background: transparent;
-    color: var(--color-ink-3);
-    font: 600 var(--fs-xs) / 1 var(--font-sans);
-    cursor: pointer;
+    padding-inline: var(--space-4);
   }
 
   .native-layout .import-action { min-height: var(--tap-min); }
 
-  .import-action:active {
-    transform: scale(0.96);
+  .import-failure {
+    max-width: 36rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
   }
 
-  .import-action:hover {
-    color: var(--color-accent-soft-ink);
-  }
-
-  .import-action:disabled {
-    cursor: default;
-    opacity: 0.64;
+  .import-retry {
+    appearance: none;
+    flex: 0 0 auto;
+    min-height: var(--tap-min);
+    padding-inline: var(--space-2);
+    border: 0;
+    background: transparent;
+    color: currentColor;
+    font: 600 var(--fs-sm) / 1 var(--font-sans);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    cursor: pointer;
   }
 
   .identity-button,
@@ -1050,7 +1191,6 @@
   .resume-entry,
   .section-content,
   .section-empty,
-  .notes-preview,
   .add-section-button,
   .add-row {
     appearance: none;
@@ -1190,8 +1330,7 @@
   }
 
   .resume-entry > :global(svg),
-  .section-content > :global(svg),
-  .notes-preview > :global(svg) {
+  .section-content > :global(svg) {
     flex: 0 0 auto;
     color: var(--color-ink-4);
   }
@@ -1221,8 +1360,7 @@
     line-clamp: 2;
   }
 
-  .section-content,
-  .notes-preview {
+  .section-content {
     width: 100%;
     min-height: 56px;
     padding-block: var(--space-2);
@@ -1268,20 +1406,6 @@
     font-size: var(--fs-sm);
     font-weight: 600;
     text-align: start;
-  }
-
-  .notes-preview {
-    color: var(--color-ink-3);
-    font-size: var(--fs-sm);
-    line-height: 1.45;
-  }
-
-  .notes-preview > span {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
   }
 
   .section-text-action:active,
@@ -1369,6 +1493,27 @@
   .editor-item + .editor-item {
     padding-top: var(--space-5);
     border-top: 1px solid var(--color-line);
+  }
+
+  .education-credential + .education-credential {
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .field-with-action {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .field-remove {
+    flex: 0 0 auto;
+    margin-block-end: calc((var(--control-height) - var(--tap-min)) / 2);
+    color: var(--color-ink-3);
+  }
+
+  .credential-remove {
+    margin-inline-start: auto;
   }
 
   .remove-item,
@@ -1487,12 +1632,6 @@
     resize: vertical;
   }
 
-  .notes-field {
-    min-height: calc(var(--control-height) * 4);
-    padding: var(--space-4);
-    line-height: 1.5;
-  }
-
   .add-section-options {
     margin-top: var(--space-2);
   }
@@ -1528,6 +1667,14 @@
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
     line-height: 1.45;
+  }
+
+  .import-warnings {
+    margin: var(--space-3) 0 0;
+    padding-inline-start: var(--space-5);
+    color: var(--color-warn);
+    font-size: var(--fs-xs);
+    line-height: var(--leading-body);
   }
 
   .import-actions {

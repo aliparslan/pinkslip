@@ -134,6 +134,18 @@ export interface TailoringRow {
   user_edited_resume_md: string | null;
   user_edited_cover_md: string | null;
   user_edited_qa_json: string | null;
+  schema_version: number;
+  status: string | null;
+  job_snapshot_json: string | null;
+  evidence_json: string | null;
+  requirements_json: string | null;
+  plan_json: string | null;
+  resume_draft_json: string | null;
+  validation_json: string | null;
+  template_version: string | null;
+  compiler_version: string | null;
+  updated_at: string | null;
+  usage_id: string | null;
 }
 
 export interface FetchRunRow {
@@ -205,6 +217,7 @@ export interface ResumeAssetRow {
 }
 
 export type {
+  DegreeType,
   OptionalSection,
   OptionalSectionKind,
   ResumeProfile,

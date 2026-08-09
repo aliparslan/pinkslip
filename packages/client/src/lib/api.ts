@@ -1,5 +1,12 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
 import type { RoleId } from "../../../../shared/search-profile";
+import type {
+  LegacyTailoring,
+  StructuredTailoring,
+  TailoredResume,
+  TailoringArtifact,
+  TailoringValidation,
+} from "../../../../shared/tailoring";
 export type {
   DegreeType,
   OptionalSection,
@@ -40,7 +47,8 @@ export function resolveApiUrl(path: string): string {
  * native API origin and bearer session. Used by streaming endpoints. */
 export async function apiFetch(path: string, options?: RequestInit, allowTokenRecovery = true): Promise<Response> {
   const headers = new Headers(options?.headers);
-  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
+  if (!headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
   if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
   const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
   if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
@@ -194,6 +202,30 @@ export interface Company {
   blocked?: boolean | number;
 }
 
+export type ResumeImportErrorCode =
+  | "authentication_required"
+  | "file_too_large"
+  | "unsupported_type"
+  | "invalid_pdf"
+  | "protected_pdf"
+  | "no_extractable_text"
+  | "offline"
+  | "conversion_unavailable"
+  | "import_rate_limited"
+  | "unknown";
+
+export interface ResumeImportResult {
+  profile: ResumeProfile;
+  counts: {
+    experience: number;
+    education: number;
+    projects: number;
+    skills: number;
+    additional: number;
+  };
+  warnings: string[];
+}
+
 export interface ContentReport {
   id: string;
   company_id: string | null;
@@ -289,24 +321,8 @@ export interface AppFeatures {
   tailoring_model: string;
 }
 
-export interface Tailoring {
-  id: string;
-  job_id: string;
-  corpus_version_id: number;
-  resume_md: string | null;
-  cover_letter_md: string | null;
-  qa_json: string | null;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  model: string | null;
-  created_at: string;
-  user_edited_resume_md: string | null;
-  user_edited_cover_md: string | null;
-  user_edited_qa_json: string | null;
-  resume_md_final: string | null;
-  cover_letter_md_final: string | null;
-  qa_json_final: string | null;
-}
+export type Tailoring = LegacyTailoring | StructuredTailoring;
+export type { StructuredTailoring, TailoredResume, TailoringArtifact, TailoringValidation };
 
 export interface TailorUsage {
   provider: "gemini" | "anthropic" | "workers_ai";
@@ -611,6 +627,16 @@ export const api = {
     deleteActive: () =>
       request<void>("/resume-assets/active", { method: "DELETE" }),
   },
+  resumeImport: {
+    parse: (file: File) => {
+      const body = new FormData();
+      body.set("file", file, file.name);
+      return request<ResumeImportResult>("/resume-import/parse", {
+        method: "POST",
+        body,
+      }, 45_000);
+    },
+  },
   corpus: {
     get: () =>
       request<{ content_md: string; updated_at: string | null }>("/corpus"),
@@ -623,6 +649,17 @@ export const api = {
   },
   tailor: {
     get: (jobId: string) => request<{ tailoring: Tailoring | null }>(`/tailor/${jobId}`),
+    plan: (jobId: string) =>
+      request<{ tailoring: StructuredTailoring }>(`/tailor/${jobId}/plan`, {
+        method: "POST",
+      }, 60_000),
+    generate: (
+      id: string,
+      data: { selectedEvidenceIds: string[]; excludedEvidenceIds?: string[] }
+    ) => request<{ tailoring: StructuredTailoring }>(`/tailorings/${id}/generate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }, 90_000),
     usage: (model?: string, provider?: TailorUsage["provider"] | null) => {
       const params = new URLSearchParams();
       if (model) params.set("model", model);
@@ -642,6 +679,31 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+    saveStructured: (id: string, resume_draft: TailoredResume, selectedEvidenceIds: string[]) =>
+      request<{ tailoring: StructuredTailoring }>(`/tailorings/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ resume_draft, selectedEvidenceIds }),
+      }),
+    createArtifact: (id: string, data: {
+      pdf: Blob;
+      resume: TailoredResume;
+      validation: TailoringValidation;
+      typstSource: string;
+      templateVersion: string;
+      compilerVersion: string;
+    }) => {
+      const body = new FormData();
+      body.set("pdf", data.pdf, "tailored-resume.pdf");
+      body.set("resume_json", JSON.stringify(data.resume));
+      body.set("validation_json", JSON.stringify(data.validation));
+      body.set("typst_source", data.typstSource);
+      body.set("template_version", data.templateVersion);
+      body.set("compiler_version", data.compilerVersion);
+      return request<{ artifact: TailoringArtifact }>(`/tailorings/${id}/artifacts`, {
+        method: "POST",
+        body,
+      }, 60_000);
+    },
   },
   runs: {
     list: (limit = 50) => request<{ runs: FetchRun[] }>(`/runs?limit=${limit}`),

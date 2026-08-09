@@ -1,3 +1,5 @@
+import { extractPdfText as extractStructuredPdfText } from "./pdf-extract";
+
 export const DEFAULT_TAILOR_PROVIDER = "gemini";
 export const DEFAULT_TAILOR_MODEL = "gemini-3.1-flash-lite";
 export const TAILOR_MODEL_OPTIONS = [
@@ -126,30 +128,8 @@ function isPdfResumeFile(fileName: string, mimeType = "") {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
-    import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.mjs?url"),
-  ]);
-
-  GlobalWorkerOptions.workerSrc = worker.default;
-
-  const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
-  const pages: string[] = [];
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-    const text = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ")
-      .replace(/[ \t]{2,}/g, " ")
-      .trim();
-    if (text) pages.push(text);
-  }
-
-  await pdf.destroy();
-  return pages.join("\n\n").trim();
+  const result = await extractStructuredPdfText(file);
+  return result.text.trim();
 }
 
 function sanitizeLocalResumeAsset(asset: LocalResumeAsset | null | undefined): LocalResumeAsset | null {

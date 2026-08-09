@@ -1,11 +1,11 @@
-import type { ResumeProfile } from "../../../../shared/resume-profile";
+import type { DegreeType, ResumeProfile } from "../../../../shared/resume-profile";
 import {
-  formatDegree,
   inferDegreeType,
   inferFieldOfStudy,
 } from "./resume-fields";
 
 type PdfLink = { url: string };
+
 type SectionType =
   | "experience"
   | "education"
@@ -45,77 +45,6 @@ const SECTION_PATTERNS: Array<[SectionType, RegExp]> = [
   ["awards", /^(?:awards?|honors?)(?:\s+and\s+(?:awards?|honors?))?$/i],
   ["volunteer", /^volunteer(?:\s+experience)?$/i],
 ];
-
-function textItemValue(item: unknown): { str: string; x: number; y: number; width: number } | null {
-  if (!item || typeof item !== "object" || !("str" in item)) return null;
-  const candidate = item as { str?: unknown; transform?: unknown; width?: unknown };
-  if (typeof candidate.str !== "string" || !candidate.str.trim()) return null;
-  const transform = Array.isArray(candidate.transform) ? candidate.transform : [];
-  return {
-    str: candidate.str,
-    x: typeof transform[4] === "number" ? transform[4] : 0,
-    y: typeof transform[5] === "number" ? transform[5] : 0,
-    width: typeof candidate.width === "number" ? candidate.width : 0,
-  };
-}
-
-async function extractPdfText(file: File): Promise<{ text: string; links: PdfLink[] }> {
-  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
-    import("pdfjs-dist"),
-    // @ts-ignore Vite resolves the worker URL import in the browser build.
-    import("pdfjs-dist/build/pdf.worker.mjs?url"),
-  ]);
-  GlobalWorkerOptions.workerSrc = worker.default;
-
-  const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
-  const allText: string[] = [];
-  const allLinks: PdfLink[] = [];
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
-    const annotations = await page.getAnnotations();
-    const rows: Array<{ y: number; items: Array<{ str: string; x: number; width: number }> }> = [];
-
-    for (const rawItem of content.items) {
-      const item = textItemValue(rawItem);
-      if (!item) continue;
-      let row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2.5);
-      if (!row) {
-        row = { y: item.y, items: [] };
-        rows.push(row);
-      }
-      row.items.push({ str: item.str, x: item.x, width: item.width });
-    }
-
-    rows.sort((a, b) => b.y - a.y);
-    const lines = rows.map((row) => {
-      const items = row.items.sort((a, b) => a.x - b.x);
-      let line = "";
-      let previousEnd: number | null = null;
-      for (const item of items) {
-        const value = item.str.trim();
-        if (!value) continue;
-        const gap = previousEnd === null ? 0 : item.x - previousEnd;
-        if (line) line += gap > 18 ? " | " : " ";
-        line += value;
-        previousEnd = item.x + item.width;
-      }
-      return line.replace(/\s+/g, " ").trim();
-    }).filter(Boolean);
-    allText.push(lines.join("\n"));
-
-    for (const annotation of annotations) {
-      if (annotation.subtype === "Link" && annotation.url) {
-        allLinks.push({ url: annotation.url });
-      }
-    }
-  }
-
-  await pdf.destroy();
-  return { text: allText.join("\n\n"), links: allLinks };
-}
 
 function classifyLine(line: string): SectionType | null {
   if (isBulletLine(line)) return null;
@@ -419,7 +348,11 @@ function looksLikeEducationDetail(text: string): boolean {
     || /^candidate\s+for\s+(?:a\s+)?minor\b/i.test(text);
 }
 
-function degreeDetails(text: string): { degree: string; degreeType: ResumeProfile["education"][number]["degreeType"]; fieldOfStudy: string; gpa: string } {
+function degreeDetails(text: string): {
+  degreeType: DegreeType | undefined;
+  fieldOfStudy: string;
+  gpa: string;
+} {
   const gpaPattern = /(?:[,;]\s*)?GPA\s*:?\s*([0-9](?:\.\d{1,2})?)(?:\s*\/\s*[0-9](?:\.\d{1,2})?)?/i;
   const gpa = text.match(gpaPattern)?.[1] ?? "";
   const degreeText = text
@@ -430,25 +363,57 @@ function degreeDetails(text: string): { degree: string; degreeType: ResumeProfil
   const degreeType = inferDegreeType(degreeText);
   const fieldOfStudy = inferFieldOfStudy(degreeText, degreeType);
   return {
-    degree: formatDegree(degreeType, fieldOfStudy) || degreeText,
     degreeType: degreeType || undefined,
     fieldOfStudy,
     gpa,
   };
 }
 
-function splitDegreeContent(text: string): string[] {
+function splitDegreeContent(text: string): { degrees: string[]; minors: string[] } {
   const segments = text
     .split(/\s+\|\s+/)
     .map((segment) => segment.trim())
     .filter(Boolean);
-  const degreeSegments = segments.filter(looksLikeDegree);
+  const minors = segments
+    .filter((segment) => /^minor\b/i.test(segment))
+    .map((segment) => segment.replace(/^minor(?:\s+(?:in|of))?\s*/i, "").trim())
+    .filter(Boolean);
+  const degreeSegments = segments.filter((segment) => looksLikeDegree(segment) && !/^minor\b/i.test(segment));
   const descriptiveDegrees = degreeSegments.filter((segment) => segment.length > 6);
-  if (descriptiveDegrees.length > 1) return descriptiveDegrees;
+  if (descriptiveDegrees.length > 1) {
+    return {
+      degrees: descriptiveDegrees.filter((segment) => !/\bexpected\b/i.test(segment)),
+      minors,
+    };
+  }
 
   const primary = descriptiveDegrees[0] ?? degreeSegments[0] ?? text.trim();
-  const minor = segments.find((segment) => /^minor\b/i.test(segment));
-  return [[primary, minor].filter(Boolean).join("; ")];
+  const repeated = primary
+    .split(/[,;]\s*(?=(?:b\.?\s*(?:a|s|eng)\.?|bachelor'?s?)\b)/i)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  return { degrees: repeated.length > 1 ? repeated : [primary], minors };
+}
+
+function dateSortKey(value: string): number {
+  const year = Number(value.match(/(?:19|20)\d{2}/)?.[0] ?? 0);
+  const monthName = value.match(new RegExp(MONTH, "i"))?.[0]?.slice(0, 3).toLowerCase() ?? "";
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  return year * 12 + Math.max(0, months.indexOf(monthName));
+}
+
+function earlierDate(current: string, candidate: string): string {
+  if (!current) return candidate;
+  if (!candidate) return current;
+  return dateSortKey(candidate) && dateSortKey(candidate) < dateSortKey(current) ? candidate : current;
+}
+
+function laterDate(current: string, candidate: string): string {
+  if (!current) return candidate;
+  if (!candidate) return current;
+  if (/present|current/i.test(candidate)) return "Present";
+  if (/present|current/i.test(current)) return "Present";
+  return dateSortKey(candidate) > dateSortKey(current) ? candidate : current;
 }
 
 function parseEducation(lines: string[]): ResumeProfile["education"] {
@@ -499,23 +464,55 @@ function parseEducation(lines: string[]): ResumeProfile["education"] {
     if (looksLikeEducationDetail(content)) continue;
     if (!looksLikeDegree(content) && !dated.matched) continue;
 
-    for (const degreeContent of splitDegreeContent(content)) {
-      const degree = degreeDetails(degreeContent);
-      education.push({
-        id: genId(),
-        institution,
-        degree: degree.degree,
-        degreeType: degree.degreeType,
-        fieldOfStudy: degree.fieldOfStudy,
-        location: located.location || location,
-        startDate: dated.start || institutionDates.start,
-        endDate: dated.end || institutionDates.end,
-        gpa: degree.gpa,
-      });
+    const degreeContent = splitDegreeContent(content);
+    const parsedDegrees = degreeContent.degrees.map(degreeDetails);
+    const credentials: ResumeProfile["education"][number]["credentials"] = [];
+    for (const degree of parsedDegrees) {
+      const existing = credentials.find((credential) =>
+        credential.degreeType === degree.degreeType
+        && degreeContent.degrees.length > 1
+        && !content.includes("|")
+      );
+      if (existing) {
+        if (degree.fieldOfStudy) existing.fieldsOfStudy.push(degree.fieldOfStudy);
+      } else {
+        credentials.push({
+          id: genId(),
+          degreeType: degree.degreeType,
+          fieldsOfStudy: degree.fieldOfStudy ? [degree.fieldOfStudy] : [],
+        });
+      }
+    }
+    if (credentials.length > 0) {
+      const degreeGpa = parsedDegrees.find((degree) => degree.gpa)?.gpa;
+      const startDate = dated.start || institutionDates.start;
+      const endDate = dated.end || institutionDates.end;
+      const existingEntry = education.find((entry) =>
+        entry.institution.trim().toLowerCase() === institution.trim().toLowerCase()
+      );
+      if (existingEntry) {
+        existingEntry.credentials.push(...credentials);
+        existingEntry.minors = [...new Set([...existingEntry.minors, ...degreeContent.minors])];
+        existingEntry.location ||= located.location || location;
+        existingEntry.startDate = earlierDate(existingEntry.startDate, startDate);
+        existingEntry.endDate = laterDate(existingEntry.endDate, endDate);
+        existingEntry.gpa ||= degreeGpa;
+      } else {
+        education.push({
+          id: genId(),
+          institution,
+          credentials,
+          minors: degreeContent.minors,
+          location: located.location || location,
+          startDate,
+          endDate,
+          gpa: degreeGpa,
+        });
+      }
     }
   }
 
-  return education.filter((entry) => entry.institution || entry.degree);
+  return education.filter((entry) => entry.institution || entry.credentials.length > 0);
 }
 
 function parseOptionalSection(
@@ -590,9 +587,4 @@ export function parseResumeText(text: string, links: PdfLink[] = []): Partial<Re
   }
 
   return { contact, experience, education, projects, skills, optionalSections };
-}
-
-export async function parsePdfToProfile(file: File): Promise<Partial<ResumeProfile>> {
-  const { text, links } = await extractPdfText(file);
-  return parseResumeText(text, links);
 }

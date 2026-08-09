@@ -1,4 +1,4 @@
-import type { ResumeProfile, OptionalSectionKind } from "../types";
+import type { DegreeType, ResumeProfile, OptionalSectionKind } from "../types";
 
 const SECTION_TITLES: Record<OptionalSectionKind, string> = {
   leadership: "Leadership & Affiliations",
@@ -7,6 +7,25 @@ const SECTION_TITLES: Record<OptionalSectionKind, string> = {
   awards: "Awards & Honors",
   volunteer: "Volunteer Experience",
 };
+
+const DEGREE_LABELS: Partial<Record<DegreeType, string>> = {
+  high_school: "High school diploma",
+  associate: "Associate degree",
+  bachelor: "Bachelor's degree",
+  master: "Master's degree",
+  doctorate: "Doctorate / PhD",
+  professional: "Professional degree",
+  certificate: "Certificate",
+};
+
+function educationLabels(entry: ResumeProfile["education"][number]): string[] {
+  const credentials = entry.credentials.map((credential) => [
+    credential.degreeType ? DEGREE_LABELS[credential.degreeType] ?? "Other degree" : "",
+    credential.fieldsOfStudy.join(" and "),
+  ].filter(Boolean).join(", "));
+  if (entry.minors.length) credentials.push(`Minor in ${entry.minors.join(" and ")}`);
+  return credentials.filter(Boolean);
+}
 
 function linkedinUrl(handle: string): string {
   if (!handle) return "";
@@ -60,7 +79,7 @@ export function serializeProfileForPrompt(profile: ResumeProfile, notes?: string
       const datePart = [edu.startDate, edu.endDate].filter(Boolean).join(" -- ");
       const entryParts = [edu.institution, edu.location, datePart].filter(Boolean);
       lines.push(`**${entryParts.shift()}** | ${entryParts.join(" | ")}`);
-      const degreeParts = [edu.degree, edu.gpa ? `GPA: ${edu.gpa}` : ""].filter(Boolean);
+      const degreeParts = [...educationLabels(edu), edu.gpa ? `GPA: ${edu.gpa}` : ""].filter(Boolean);
       if (degreeParts.length > 0) lines.push(`*${degreeParts.join(", ")}*`);
       lines.push("");
     }

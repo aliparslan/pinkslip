@@ -117,18 +117,19 @@ Software Engineer | January 2024 – Present
     expect(parsed.projects?.[2].bullets).toHaveLength(2);
   });
 
-  test("creates one education record per degree while preserving the school", () => {
-    expect(parsed.education).toHaveLength(2);
-    expect(parsed.education?.map((entry) => entry.institution)).toEqual([
-      "University of Virginia",
-      "University of Virginia",
-    ]);
-    expect(parsed.education?.[0].degreeType).toBe("master");
-    expect(parsed.education?.[0].fieldOfStudy).toBe("Computer Science (MCS)");
+  test("creates one attendance record with repeatable credentials", () => {
+    expect(parsed.education).toHaveLength(1);
+    expect(parsed.education?.[0].institution).toBe("University of Virginia");
+    expect(parsed.education?.[0].credentials).toHaveLength(2);
+    expect(parsed.education?.[0].credentials[0].degreeType).toBe("master");
+    expect(parsed.education?.[0].credentials[0].fieldsOfStudy).toEqual(["Computer Science (MCS)"]);
     expect(parsed.education?.[0].gpa).toBe("3.93");
     expect(parsed.education?.[0].endDate).toBe("May 2025");
-    expect(parsed.education?.[1].degreeType).toBe("bachelor");
-    expect(parsed.education?.[1].endDate).toBe("May 2024");
+    expect(parsed.education?.[0].credentials[1].degreeType).toBe("bachelor");
+    expect(parsed.education?.[0].credentials[1].fieldsOfStudy).toEqual([
+      "Computer Science",
+      "Cognitive Science",
+    ]);
   });
 
   test("parses combined technical-resume rows without reversing title and company", () => {
@@ -158,7 +159,9 @@ Autonomous UAV | PyTorch, OpenCV | Spring 2024
       endDate: "Present",
     });
     expect(technical.education).toHaveLength(1);
-    expect(technical.education?.[0].fieldOfStudy).toBe("Electrical Engineering and Computer Science");
+    expect(technical.education?.[0].credentials[0].fieldsOfStudy).toEqual([
+      "Electrical Engineering and Computer Science",
+    ]);
     expect(technical.skills).toEqual([
       { category: "Languages", items: "Python, Java, C++" },
       { category: "Technologies", items: "PyTorch, Docker, Git, Django" },
@@ -193,6 +196,8 @@ PROJECT EXPERIENCE & ACTIVITIES
 ACCESSIBILITY PROJECT | SANTA MONICA, CA
 Project Manager & Storyteller | August 2023
 \uF0B7 Coordinated engineering, design, and marketing
+\uF0B7 Interviewed users and synthesized findings
+\uF0B7 Presented the final recommendation
 FILM CLUB | SANTA MONICA, CA
 Finance Team & Producer | September 2021-June 2023
 \uF0B7 Managed budgets for student productions
@@ -213,16 +218,22 @@ Skills: Parallel parking`);
       "August 2023",
       "September 2021 – June 2023",
     ]);
+    expect(annotatedExport.projects?.map((project) => project.bullets.length)).toEqual([3, 1]);
     expect(annotatedExport.skills?.map((skill) => skill.category)).toEqual([
       "Languages",
       "Technology",
       "Skills",
     ]);
-    expect(annotatedExport.education).toHaveLength(3);
-    expect(annotatedExport.education?.filter((entry) => entry.institution === "COAST COMMUNITY COLLEGE"))
-      .toHaveLength(2);
-    expect(annotatedExport.education?.filter((entry) => entry.institution === "COAST COMMUNITY COLLEGE")
-      .every((entry) => entry.gpa === "3.69")).toBe(true);
+    expect(annotatedExport.education).toHaveLength(2);
+    expect(annotatedExport.education?.[0].credentials).toHaveLength(1);
+    expect(annotatedExport.education?.[0].credentials[0].fieldsOfStudy).toEqual(["International Studies"]);
+    expect(annotatedExport.education?.[0].minors).toEqual(["Accounting"]);
+    expect(annotatedExport.education?.[1].credentials).toHaveLength(2);
+    expect(annotatedExport.education?.[1].credentials.map((credential) => credential.fieldsOfStudy[0])).toEqual([
+      "Social Science",
+      "Humanities",
+    ]);
+    expect(annotatedExport.education?.[1].gpa).toBe("3.69");
   });
 
   test("ignores sample cover labels and keeps compact template sections intact", () => {
@@ -248,8 +259,9 @@ SKILLS AND INTERESTS
 • Python, C++, Java, MATLAB`);
 
     expect(template.contact?.name).toBe("CHARLES MENG");
-    expect(template.education).toHaveLength(2);
-    expect(template.education?.map((entry) => entry.gpa)).toEqual(["5.0", "4.6"]);
+    expect(template.education).toHaveLength(1);
+    expect(template.education?.[0].credentials).toHaveLength(2);
+    expect(template.education?.[0].gpa).toBe("5.0");
     expect(template.experience?.[0]).toMatchObject({
       company: "User Interface Design Group; CSAIL, MIT",
       title: "Researcher",

@@ -6,7 +6,7 @@ import type {
   ResumeProfile,
   TailoringRow,
 } from "./types";
-import { createEmptyResumeProfile } from "../shared/resume-profile";
+import { createEmptyResumeProfile, normalizeResumeProfile } from "../shared/resume-profile";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -101,7 +101,7 @@ export async function getUserProfile(
   if (existing) {
     try {
       return {
-        data: { ...createEmptyResumeProfile(), ...(JSON.parse(existing.data) as ResumeProfile) },
+        data: normalizeResumeProfile(JSON.parse(existing.data)),
         updated_at: existing.updated_at,
       };
     } catch {
@@ -121,13 +121,14 @@ export async function saveUserProfile(
   profile: ResumeProfile
 ): Promise<{ data: ResumeProfile; updated_at: string }> {
   const now = new Date().toISOString();
-  const dataJson = JSON.stringify(profile);
+  const normalized = normalizeResumeProfile(profile);
+  const dataJson = JSON.stringify(normalized);
   await db.prepare(
     `INSERT INTO user_profiles (user_id, data, created_at, updated_at)
      VALUES (?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
   ).bind(userId, dataJson, now, now).run();
-  return { data: profile, updated_at: now };
+  return { data: normalized, updated_at: now };
 }
 
 export async function getLatestUserCorpusVersion(

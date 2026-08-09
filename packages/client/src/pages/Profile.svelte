@@ -266,7 +266,7 @@
         || structuredResume?.education.length
         || structuredResume?.projects.length
       );
-      tailoringReady = Boolean(localKit.apiKey.trim() || features?.tailoring_enabled);
+      tailoringReady = Boolean(features?.tailoring_enabled);
 
       pushStatus = await getNativePushStatus();
       if (pushStatus === "enabled") {

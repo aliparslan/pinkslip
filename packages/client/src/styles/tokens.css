@@ -90,6 +90,8 @@
   --color-line: oklch(0.29 0.006 285);
   --color-line-2: oklch(0.36 0.007 285);
   --color-message-border: oklch(1 0 0 / 0.13);
+  /* Printed document canvas; intentionally remains paper-white in every app theme. */
+  --color-paper: oklch(1 0 0);
 
   /* Pink is identity and state, never the ambient canvas. */
   /* Lightened from 0.72 so the dark label on a filled pink button clears APCA 60

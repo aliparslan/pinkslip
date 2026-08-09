@@ -9,6 +9,9 @@ const ALLOWED_PROPERTIES = new Set([
   "latency_ms",
   "onboarding_version",
   "platform",
+  "error_code",
+  "size_bytes",
+  "extractor",
 ]);
 
 function sanitizeProperties(properties: Record<string, unknown>) {
