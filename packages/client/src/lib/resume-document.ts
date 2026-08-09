@@ -1,6 +1,6 @@
 import type { TailoredResume } from "../../../../shared/tailoring";
 
-export const RESUME_TEMPLATE_VERSION = "resume-v2";
+export const RESUME_TEMPLATE_VERSION = "resume-v3";
 export const RESUME_COMPILER_VERSION = "typst-web-v2";
 
 function value(input: string | undefined): string {
@@ -45,10 +45,10 @@ function section(title: string, body: string): string {
 }
 
 function bullets(items: Array<{ text: string }>): string {
-  return items
+  const values = items
     .filter((item) => nonEmpty(item.text))
-    .map((item) => `#resume-bullet(${value(item.text)})`)
-    .join("\n");
+    .map((item) => value(item.text));
+  return values.length > 0 ? `#resume-bullets(${values.join(", ")})` : "";
 }
 
 export function buildResumeTypstSource(resume: TailoredResume): string {
@@ -100,7 +100,7 @@ ${bullets(entry.bullets)}
 #set page(paper: "us-letter", margin: (x: 0.58in, y: 0.48in))
 #set text(font: "Source Sans 3", size: 11pt, fill: rgb("171717"), lang: "en")
 #set par(justify: false, leading: 0.52em)
-#set list(indent: 0.95em, body-indent: 0.35em, spacing: 0.14em, marker: [•])
+#set list(indent: 0.95em, body-indent: 0.35em, spacing: 0.28em, marker: [•])
 
 #let section(title) = {
   v(7pt)
@@ -128,7 +128,7 @@ ${bullets(entry.bullets)}
   v(1.5pt)
 }
 
-#let resume-bullet(body) = list.item(text(body))
+#let resume-bullets(..items) = list(..items.pos().map(item => text(item)))
 #let skill-row(label, body) = {
   if label != "" { text(label + ": ", weight: 600) }
   text(body)

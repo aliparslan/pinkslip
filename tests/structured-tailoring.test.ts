@@ -4,7 +4,11 @@ import {
   buildCandidateEvidence,
   validateTailoredResume,
 } from "../shared/tailoring";
-import { buildResumeFromRewrites, generateStructuredResume } from "../worker/tailor/structured";
+import {
+  buildResumeFromRewrites,
+  createTailoringPlan,
+  generateStructuredResume,
+} from "../worker/tailor/structured";
 import { buildResumeTypstSource, removeLowestPriorityContent } from "../packages/client/src/lib/resume-document";
 
 function profile(): ResumeProfile {
@@ -107,7 +111,7 @@ describe("structured resume grounding", () => {
     expect(validation.issues.some((issue) => issue.path === "skills")).toBe(true);
   });
 
-  test("does not publish when the constrained repair still fails review", async () => {
+  test("falls back to exact source evidence when the constrained repair still fails review", async () => {
     const source = profile();
     const evidence = buildCandidateEvidence(source);
     const evidenceId = evidence.find((item) => item.sourceType === "experience")?.id;
@@ -139,9 +143,56 @@ describe("structured resume grounding", () => {
     });
 
     expect(result.repaired).toBe(true);
-    expect(result.validation.valid).toBe(false);
-    expect(result.validation.issues.some((issue) => issue.message.includes("remains unsupported"))).toBe(true);
+    expect(result.validation).toEqual({ valid: true, issues: [] });
+    expect(result.resume.experience[0].bullets[0].text).toBe(source.experience[0].bullets[0]);
     expect(outputs).toHaveLength(0);
+  });
+
+  test("caps default bullet evidence while retaining all requirement matches", async () => {
+    const source = profile();
+    source.experience[0].bullets = Array.from(
+      { length: 10 },
+      (_, index) => `Built production service capability ${index + 1}.`,
+    );
+    const evidence = buildCandidateEvidence(source);
+    const bulletIds = evidence.filter((item) => item.sourceType === "experience").map((item) => item.id);
+    const ai = {
+      async run() {
+        return {
+          choices: [{ message: { content: JSON.stringify({
+            requirements: [
+              {
+                text: "Build reliable production services",
+                priority: "required",
+                keywords: ["reliable"],
+                evidenceIds: bulletIds.slice(2, 8),
+                reason: "Direct production evidence",
+              },
+              {
+                text: "Improve backend systems",
+                priority: "required",
+                keywords: ["backend"],
+                evidenceIds: bulletIds.slice(4, 10),
+                reason: "Direct backend evidence",
+              },
+            ],
+          }) } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        };
+      },
+    } as unknown as Ai;
+
+    const result = await createTailoringPlan({
+      ai,
+      model: "@cf/zai-org/glm-4.7-flash",
+      description: "Build reliable backend services.",
+      evidence,
+    });
+
+    expect(result.plan.matches.flatMap((match) => match.evidenceIds)).toHaveLength(12);
+    expect(result.plan.selectedEvidenceIds).toHaveLength(8);
+    expect(result.plan.selectedEvidenceIds.every((id) => bulletIds.includes(id))).toBe(true);
+    expect(result.plan.selectedEvidenceIds).toContain(bulletIds[0]);
   });
 
   test("the Typst source stays ATS-safe and never drops below 11 pt", () => {

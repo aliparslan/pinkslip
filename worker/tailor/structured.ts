@@ -53,6 +53,7 @@ export interface StructuredGenerationResult {
 const MAX_JOB_DESCRIPTION = 40_000;
 const MAX_EVIDENCE = 80;
 const MAX_EVIDENCE_TEXT = 800;
+const MAX_SELECTED_BULLET_EVIDENCE = 8;
 
 const planSchema = {
   type: "object",
@@ -251,6 +252,9 @@ export async function createTailoringPlan(args: {
       "You analyze job descriptions and match them to candidate evidence.",
       "Never infer experience. Only return evidence IDs from the supplied inventory.",
       "Distinguish actual required qualifications from preferred ones.",
+      "Keyword overlap alone is not evidence. Do not match generic engineering work to specialized security, privacy, IAM, or domain expertise.",
+      "A skills row shows familiarity, not proof that the candidate implemented or owned a system.",
+      "When the evidence is indirect or ambiguous, leave the requirement unmatched.",
       "Do not write a resume, cover letter, interview advice, or markdown.",
     ].join(" "),
     prompt: JSON.stringify({
@@ -284,7 +288,33 @@ export async function createTailoringPlan(args: {
       });
     }
   }
-  const selectedEvidenceIds = [...new Set(matches.flatMap((match) => match.evidenceIds))];
+  const evidenceById = new Map(args.evidence.map((item) => [item.id, item]));
+  const requirementById = new Map(requirements.map((item) => [item.id, item]));
+  const relevance = new Map<string, { score: number; order: number }>();
+  let order = 0;
+  for (const match of matches) {
+    const weight = requirementById.get(match.requirementId)?.priority === "required" ? 4 : 2;
+    for (const [evidenceIndex, id] of match.evidenceIds.entries()) {
+      const evidence = evidenceById.get(id);
+      if (evidence?.sourceType !== "experience" && evidence?.sourceType !== "project") continue;
+      const current = relevance.get(id) ?? { score: 0, order: order++ };
+      current.score += weight + Math.max(0, 2 - evidenceIndex);
+      relevance.set(id, current);
+    }
+  }
+  let selectedEvidenceIds = [...relevance.entries()]
+    .sort((a, b) => b[1].score - a[1].score || a[1].order - b[1].order)
+    .slice(0, MAX_SELECTED_BULLET_EVIDENCE)
+    .map(([id]) => id);
+  const mostRecentRoleEvidence = args.evidence.find((item) => item.sourceType === "experience");
+  if (
+    selectedEvidenceIds.length > 0
+    && mostRecentRoleEvidence
+    && !selectedEvidenceIds.includes(mostRecentRoleEvidence.id)
+  ) {
+    selectedEvidenceIds = [mostRecentRoleEvidence.id, ...selectedEvidenceIds]
+      .slice(0, MAX_SELECTED_BULLET_EVIDENCE);
+  }
   return {
     plan: {
       schemaVersion: 2,
@@ -375,6 +405,8 @@ function reviewPrompt(
     task: "Flag every rewrite that adds an unsupported claim, technology, metric, employer, title, date, or degree.",
     rules: [
       "A change in phrasing or emphasis is allowed.",
+      "Omitting a source detail is allowed and is never an unsupported claim.",
+      "Only flag a fact that appears in the rewrite but is absent from the source.",
       "A fact must be explicitly supported by its source text.",
       "Return an empty issues array only when every claim is grounded.",
     ],
@@ -407,9 +439,12 @@ export async function generateStructuredResume(args: {
     system: [
       "You rewrite resume bullets using only supplied source evidence.",
       "Preserve every number exactly. Never add a technology, responsibility, result, employer, title, date, degree, or metric.",
+      "Preserve supported outcomes and metrics; do not delete impact merely to shorten a bullet.",
+      "If the source bullet is already clear and relevant, return it unchanged.",
       "Use concise ATS-readable prose. Return one rewrite for each supplied evidence ID and no markdown.",
     ].join(" "),
     prompt: JSON.stringify({
+      task: "Align wording to the role while preserving each source bullet's action, scope, technology, and supported outcome.",
       jobDescription: args.description.slice(0, MAX_JOB_DESCRIPTION),
       evidence: evidenceForPrompt(selectedEvidence),
     }),
@@ -467,24 +502,30 @@ export async function generateStructuredResume(args: {
       clean: cleanReviewOutput,
     });
   }
-  const resume = buildResumeFromRewrites({
+  const hasUnmappedIssue = finalReview.data.issues.some((issue) => !allowedIds.has(issue.evidenceId));
+  const unresolvedIds = new Set(hasUnmappedIssue
+    ? selectedEvidence.map((item) => item.id)
+    : finalReview.data.issues.map((issue) => issue.evidenceId));
+  if (unresolvedIds.size > 0) {
+    const sourceById = new Map(selectedEvidence.map((item) => [item.id, item.text]));
+    rewrites = rewrites.map((item) => unresolvedIds.has(item.evidenceId)
+      ? { ...item, text: sourceById.get(item.evidenceId) ?? item.text }
+      : item
+    );
+  }
+  const safeResume = buildResumeFromRewrites({
     profile: args.profile,
     evidence: args.evidence,
     selectedEvidenceIds: args.selectedEvidenceIds,
     rewrites,
   });
-  const deterministicValidation = validateTailoredResume(args.profile, args.evidence, resume);
-  const semanticIssues = finalReview.data.issues.map((issue, index) => ({
-    code: "unsupported_claim" as const,
-    message: issue.reason,
-    path: `evidence.${issue.evidenceId || index}`,
-  }));
+  const safeValidation = validateTailoredResume(args.profile, args.evidence, safeResume);
   const validation: TailoringValidation = {
-    valid: deterministicValidation.valid && semanticIssues.length === 0,
-    issues: deterministicValidation.issues.concat(semanticIssues),
+    valid: safeValidation.valid,
+    issues: safeValidation.issues,
   };
   return {
-    resume,
+    resume: safeResume,
     validation,
     usage: mergeUsage(
       generation.usage,
