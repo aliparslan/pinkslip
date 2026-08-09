@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import ArrowDown from "phosphor-svelte/lib/ArrowDown";
   import ArrowUp from "phosphor-svelte/lib/ArrowUp";
+  import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
+  import CaretRight from "phosphor-svelte/lib/CaretRight";
   import Check from "phosphor-svelte/lib/Check";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Eye from "phosphor-svelte/lib/Eye";
@@ -36,11 +38,18 @@
   import SaveStatus from "../components/SaveStatus.svelte";
   import PageFailure from "../components/PageFailure.svelte";
   import InlineFailure from "../components/InlineFailure.svelte";
+  import Modal from "../components/Modal.svelte";
+  import EmptyState from "../components/EmptyState.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
   type ViewId = "resume" | "preview";
   type DraftSection = "experience" | "projects";
+  type EditingBullet = {
+    section: DraftSection;
+    entryIndex: number;
+    bulletIndex: number;
+  };
 
   let loading = $state(true);
   let loaded = $state(false);
@@ -49,11 +58,15 @@
   let exporting = $state(false);
   let compiling = $state(false);
   let error: string | null = $state(null);
+  let previewError: string | null = $state(null);
   let job: Job | null = $state(null);
   let tailoring: Tailoring | null = $state(null);
   let selectedEvidenceIds: string[] = $state([]);
   let activeView: ViewId = $state("resume");
   let progressMessage = $state("Reading the role");
+  let refreshOpen = $state(false);
+  let editingBullet: EditingBullet | null = $state(null);
+  let editingBulletText = $state("");
   let compiled: CompiledResumeDocument | null = $state(null);
   let previewUrl: string | null = $state(null);
   let saveTimer: number | null = null;
@@ -94,6 +107,40 @@
         )
     );
     return [...new Set([...ordered, ...selectedEvidenceIds])].filter((id) => selected.has(id));
+  });
+  let matchedRequirementCount = $derived(structured?.plan.matches.length ?? 0);
+  let activeBullet = $derived.by(() => {
+    if (!draft || !editingBullet) return null;
+    return draft[editingBullet.section][editingBullet.entryIndex]?.bullets[editingBullet.bulletIndex] ?? null;
+  });
+  let activeBulletLabel = $derived.by(() => {
+    if (!draft || !editingBullet) return "Resume bullet";
+    if (editingBullet.section === "experience") {
+      return draft.experience[editingBullet.entryIndex]?.title ?? "Resume bullet";
+    }
+    return draft.projects[editingBullet.entryIndex]?.name ?? "Resume bullet";
+  });
+  let activeBulletEvidence = $derived(
+    activeBullet?.evidenceIds.map((id) => evidenceById.get(id)).filter(Boolean) ?? []
+  );
+  let selectionsChanged = $derived.by(() => {
+    if (!structured || !draft) return false;
+    const current = [...selectedEvidenceIds].sort().join("|");
+    const saved = [...structured.plan.selectedEvidenceIds].sort().join("|");
+    const renderedEvidence = new Set([
+      ...draft.experience.flatMap((entry) => entry.bullets.flatMap((bullet) => bullet.evidenceIds)),
+      ...draft.projects.flatMap((entry) => entry.bullets.flatMap((bullet) => bullet.evidenceIds)),
+    ]);
+    const selectedDetailMissing = selectedEvidenceIds.some((id) => {
+      const evidence = evidenceById.get(id);
+      return (evidence?.sourceType === "experience" || evidence?.sourceType === "project")
+        && !renderedEvidence.has(id);
+    });
+    return current !== saved || selectedDetailMissing;
+  });
+  let activeBulletCount = $derived.by(() => {
+    if (!draft || !editingBullet) return 0;
+    return draft[editingBullet.section][editingBullet.entryIndex]?.bullets.length ?? 0;
   });
 
   function setTailoring(next: Tailoring | null) {
@@ -144,6 +191,7 @@
 
   async function createPlan() {
     if (!jobId || working) return;
+    refreshOpen = false;
     working = true;
     error = null;
     startProgress("plan");
@@ -217,31 +265,6 @@
     replaceDraft(next);
   }
 
-  function moveBullet(
-    section: DraftSection,
-    entryIndex: number,
-    bulletIndex: number,
-    direction: -1 | 1,
-  ) {
-    if (!draft) return;
-    const next = structuredClone(draft);
-    const bullets = next[section][entryIndex].bullets;
-    const target = bulletIndex + direction;
-    if (target < 0 || target >= bullets.length) return;
-    [bullets[bulletIndex], bullets[target]] = [bullets[target], bullets[bulletIndex]];
-    replaceDraft(next);
-  }
-
-  function moveEntry(section: DraftSection, entryIndex: number, direction: -1 | 1) {
-    if (!draft) return;
-    const next = structuredClone(draft);
-    const entries = next[section];
-    const target = entryIndex + direction;
-    if (target < 0 || target >= entries.length) return;
-    [entries[entryIndex], entries[target]] = [entries[target], entries[entryIndex]];
-    replaceDraft(next);
-  }
-
   function excludeBullet(section: DraftSection, entryIndex: number, bulletIndex: number) {
     if (!draft) return;
     const next = structuredClone(draft);
@@ -256,19 +279,51 @@
     replaceDraft(next);
   }
 
+  function openBulletEditor(section: DraftSection, entryIndex: number, bulletIndex: number) {
+    const bullet = draft?.[section][entryIndex]?.bullets[bulletIndex];
+    if (!bullet) return;
+    editingBulletText = bullet.text;
+    editingBullet = { section, entryIndex, bulletIndex };
+  }
+
+  function commitBulletEditor() {
+    if (!editingBullet || !activeBullet) return;
+    const nextText = editingBulletText.trim();
+    if (nextText && nextText !== activeBullet.text) {
+      updateBullet(
+        editingBullet.section,
+        editingBullet.entryIndex,
+        editingBullet.bulletIndex,
+        nextText,
+      );
+    }
+    editingBullet = null;
+  }
+
+  function moveActiveBullet(direction: -1 | 1) {
+    if (!editingBullet || !draft) return;
+    const next = structuredClone(draft);
+    const bullets = next[editingBullet.section][editingBullet.entryIndex]?.bullets ?? [];
+    const target = editingBullet.bulletIndex + direction;
+    if (target < 0 || target >= bullets.length) return;
+    const nextText = editingBulletText.trim();
+    if (nextText) bullets[editingBullet.bulletIndex].text = nextText;
+    [bullets[editingBullet.bulletIndex], bullets[target]] = [bullets[target], bullets[editingBullet.bulletIndex]];
+    replaceDraft(next);
+    editingBullet = { ...editingBullet, bulletIndex: target };
+  }
+
+  function excludeActiveBullet() {
+    if (!editingBullet) return;
+    excludeBullet(editingBullet.section, editingBullet.entryIndex, editingBullet.bulletIndex);
+    editingBullet = null;
+  }
+
   function includeEvidence(id: string) {
     if (!draft || !structured) return;
     const evidence = evidenceById.get(id);
     if (!evidence || (evidence.sourceType !== "experience" && evidence.sourceType !== "project")) return;
-    const next = structuredClone(draft);
-    const profileEntry = evidence.sourceType === "experience"
-      ? structured.evidence.find((item) => item.sourceEntryId === evidence.sourceEntryId)
-      : structured.evidence.find((item) => item.sourceEntryId === evidence.sourceEntryId);
-    if (!profileEntry) return;
-    // Re-inclusion is safest through a fresh generation because metadata is
-    // copied server-side and the model must re-run evidence validation.
     selectedEvidenceIds = [...new Set([...selectedEvidenceIds, id])];
-    tailoring = { ...structured, resumeDraft: next };
   }
 
   async function performSave(): Promise<boolean> {
@@ -325,6 +380,7 @@
   function clearPreview() {
     compileRevision += 1;
     compiled = null;
+    previewError = null;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
   }
@@ -342,7 +398,7 @@
     if (!draft || !structured) return null;
     const revision = ++compileRevision;
     compiling = true;
-    error = null;
+    previewError = null;
     try {
       const result = await compileResumeDocument(draft, priorityEvidenceIds);
       if (revision !== compileRevision) return null;
@@ -351,7 +407,9 @@
       compiled = result;
       return result;
     } catch (cause) {
-      if (revision === compileRevision) error = errorMessage(cause, "Could not build the resume preview");
+      if (revision === compileRevision) {
+        previewError = errorMessage(cause, "Could not build the resume preview");
+      }
       return null;
     } finally {
       if (revision === compileRevision) compiling = false;
@@ -361,6 +419,14 @@
   async function selectView(view: ViewId) {
     activeView = view;
     if (view === "preview" && !compiled) await compilePreview();
+  }
+
+  function handleViewKeydown(event: KeyboardEvent) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next: ViewId = event.key === "ArrowLeft" || event.key === "Home" ? "resume" : "preview";
+    void selectView(next);
+    window.requestAnimationFrame(() => document.getElementById(`tailoring-tab-${next}`)?.focus());
   }
 
   async function exportResume() {
@@ -421,15 +487,37 @@
   });
 </script>
 
-<div class="page pushed-screen">
-  <ScreenNav title="Tailor" onBack={() => void handleBack()} />
+<div class="page pushed-screen tailoring-screen">
+  <ScreenNav title="Tailor" onBack={() => void handleBack()}>
+    {#snippet trailing()}
+      {#if draft}<SaveStatus phase={savePresentation.phase} />{/if}
+    {/snippet}
+  </ScreenNav>
 
-  <main class="tailor-page-body">
+  <main class="page-frame tailor-page-body">
     {#if job && !loading}
       <header class="job-context">
-        <h1>{job.title}</h1>
-        <p>{job.company_name}</p>
+        <div class="job-context__copy">
+          <h2>{job.title}</h2>
+          <p>{job.company_name}</p>
+        </div>
+        {#if structured && !structured.requiresFreshPlan}
+          <button class="refresh-action" type="button" aria-label="Start over" onclick={() => (refreshOpen = true)}>
+            <ArrowsClockwise size={17} weight="bold" aria-hidden="true" />
+            <span>Start over</span>
+          </button>
+        {/if}
       </header>
+    {/if}
+
+    {#if structured?.sourceProfileChanged && !structured.requiresFreshPlan && !working}
+      <section class="source-change-notice" aria-live="polite">
+        <div>
+          <strong>Your resume has changed</strong>
+          <span>Update the matches to use your latest information.</span>
+        </div>
+        <button type="button" onclick={() => (refreshOpen = true)}>Update</button>
+      </section>
     {/if}
 
     {#if error && loaded}
@@ -445,7 +533,7 @@
     {:else if error && !loaded}
       <PageFailure
         title="Tailoring didn’t load"
-        message="Check your connection and try again."
+        message={error ?? "Try again in a moment."}
         onRetry={() => void loadExisting()}
       />
     {:else if working}
@@ -456,118 +544,143 @@
           <p>Your saved resume stays unchanged while we build this version.</p>
         </div>
       </section>
+    {:else if structured?.requiresFreshPlan}
+      <EmptyState
+        title="Update this tailoring"
+        message="Create fresh matches before you continue with this role."
+      >
+        {#snippet icon()}<ArrowsClockwise size={24} weight="bold" />{/snippet}
+        {#snippet actions()}
+          <button class="btn-primary btn-accent" type="button" onclick={() => void createPlan()}>
+            Update matches
+          </button>
+        {/snippet}
+      </EmptyState>
     {:else if !structured}
-      <section class="empty-tailoring">
-        <MagicWand size={26} weight="duotone" aria-hidden="true" />
-        <div>
-          <h2>Tailor your resume to this role</h2>
-          <p>First, review how the job requirements match evidence from your saved resume. Nothing is generated until you confirm the plan.</p>
-        </div>
-        <button class="btn-primary btn-accent full-width" type="button" onclick={() => void createPlan()}>
-          Read the role
-        </button>
-      </section>
+      <EmptyState
+        title="Tailor your resume"
+        message="See how this role matches your saved resume, then choose what to include."
+      >
+        {#snippet icon()}<MagicWand size={24} weight="duotone" />{/snippet}
+        {#snippet actions()}
+          <button class="btn-primary btn-accent" type="button" onclick={() => void createPlan()}>
+            Review matches
+          </button>
+        {/snippet}
+      </EmptyState>
     {:else if isPlanReview}
       <section class="plan-review">
-        <header class="section-heading">
-          <p class="eyebrow">Review before generation</p>
-          <h2>Requirement matches</h2>
-          <p>Choose the evidence that can be used. Gaps stay visible; the model is not allowed to fill them in.</p>
+        <header class="section-intro">
+          <h2>Review matches</h2>
+          <p>Only details from your saved resume will be used.</p>
+          <p class="match-summary" aria-live="polite">
+            {matchedRequirementCount} matched <span aria-hidden="true">·</span>
+            {structured.plan.gaps.length} not covered
+          </p>
         </header>
 
-        <div class="requirements">
+        <section class="review-section" aria-labelledby="requirements-heading">
+          <h3 id="requirements-heading">Role requirements</h3>
+          <div class="requirement-list">
           {#each structured.plan.requirements as requirement}
             {@const match = structured.plan.matches.find((item) => item.requirementId === requirement.id)}
             {@const gap = structured.plan.gaps.find((item) => item.requirementId === requirement.id)}
-            <section class="requirement" class:gap={Boolean(gap)}>
-              <div class="requirement-title">
-                {#if gap}<WarningCircle size={18} weight="fill" />{:else}<Check size={18} weight="bold" />{/if}
-                <div>
-                  <span class="priority">{requirement.priority}</span>
-                  <h3>{requirement.text}</h3>
-                </div>
+            <details class="requirement-row" class:gap={Boolean(gap)}>
+              <summary>
+                <span class="requirement-state" aria-hidden="true">
+                  {#if gap}<WarningCircle size={17} weight="fill" />{:else}<Check size={17} weight="bold" />{/if}
+                </span>
+                <span class="requirement-copy">
+                  <strong>{requirement.text}</strong>
+                  <small>{gap ? "Not in your resume" : "Matched"} · {requirement.priority}</small>
+                </span>
+                <CaretRight class="disclosure-caret" size={17} weight="bold" aria-hidden="true" />
+              </summary>
+              <div class="requirement-detail">
+                <p>{match?.reason ?? gap?.reason}</p>
+                {#if match}
+                  <small>
+                    Based on {match.evidenceIds
+                      .map((id) => evidenceById.get(id)?.label)
+                      .filter(Boolean)
+                      .filter((label, index, labels) => labels.indexOf(label) === index)
+                      .join(", ")}
+                  </small>
+                {/if}
               </div>
-              {#if match}
-                <p>{match.reason}</p>
-                <div class="evidence-options">
-                  {#each match.evidenceIds as evidenceId}
-                    {@const evidence = evidenceById.get(evidenceId)}
-                    {#if evidence}
-                      {#if evidence.sourceType === "experience" || evidence.sourceType === "project"}
-                        <label class="evidence-option">
-                          <input
-                            type="checkbox"
-                            checked={selectedEvidenceIds.includes(evidenceId)}
-                            onchange={() => toggleEvidence(evidenceId)}
-                          />
-                          <span>
-                            <strong>{evidence.label}</strong>
-                            <small>{evidence.text}</small>
-                          </span>
-                        </label>
-                      {:else}
-                        <div class="evidence-option static-evidence">
-                          <Check size={18} weight="bold" aria-hidden="true" />
-                          <span>
-                            <strong>{evidence.label}</strong>
-                            <small>{evidence.text} · Copied from your saved profile</small>
-                          </span>
-                        </div>
-                      {/if}
-                    {/if}
+            </details>
+          {/each}
+          </div>
+        </section>
+
+        <section class="review-section" aria-labelledby="evidence-heading">
+          <div class="review-heading-copy">
+            <h3 id="evidence-heading">Resume details to include</h3>
+            <p>Contact, education, and skills are copied exactly.</p>
+          </div>
+
+          {#each ["experience", "project"] as sourceType}
+            {@const items = structured.evidence.filter((item) => item.sourceType === sourceType)}
+            {#if items.length}
+              <div class="evidence-group">
+                <h4>{sourceType === "experience" ? "Experience" : "Projects"}</h4>
+                <div class="selection-list">
+                  {#each items as evidence}
+                    <label class="selection-row">
+                      <span>
+                        <strong>{evidence.label}</strong>
+                        <small>{evidence.text}</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={selectedEvidenceIds.includes(evidence.id)}
+                        onchange={() => toggleEvidence(evidence.id)}
+                      />
+                    </label>
                   {/each}
                 </div>
-              {:else if gap}
-                <p>{gap.reason}</p>
-              {/if}
-            </section>
+              </div>
+            {/if}
           {/each}
-        </div>
-
-        {#if selectableExcludedEvidence.length}
-          <details class="excluded-content plan-exclusions">
-            <summary>Other resume evidence ({selectableExcludedEvidence.length})</summary>
-            {#each selectableExcludedEvidence as evidence}
-              <label class="evidence-option">
-                <input type="checkbox" checked={false} onchange={() => toggleEvidence(evidence.id)} />
-                <span><strong>{evidence.label}</strong><small>{evidence.text}</small></span>
-              </label>
-            {/each}
-          </details>
-        {/if}
+        </section>
 
         <div class="sticky-action">
-          <span>{selectedEvidence.length} evidence item{selectedEvidence.length === 1 ? "" : "s"} selected</span>
+          <span aria-live="polite">{selectedEvidence.length} selected</span>
           <button
             class="btn-primary btn-accent"
             type="button"
             disabled={selectedEvidenceIds.length === 0}
             onclick={() => void generateResume()}
           >
-            Build resume
+            Create resume
           </button>
         </div>
       </section>
     {:else if draft}
       <section class="structured-workspace">
-        <div class="workspace-toolbar">
-          <div class="segmented-control" role="tablist" aria-label="Resume views">
+        <div class="my-jobs-tabs tailoring-tabs" class:preview-active={activeView === "preview"} role="tablist" aria-label="Tailored resume views">
             <button
+              id="tailoring-tab-resume"
               type="button"
               class:active={activeView === "resume"}
               role="tab"
               aria-selected={activeView === "resume"}
+              aria-controls="tailoring-panel"
+              tabindex={activeView === "resume" ? 0 : -1}
               onclick={() => void selectView("resume")}
+              onkeydown={handleViewKeydown}
             >Resume</button>
             <button
+              id="tailoring-tab-preview"
               type="button"
               class:active={activeView === "preview"}
               role="tab"
               aria-selected={activeView === "preview"}
+              aria-controls="tailoring-panel"
+              tabindex={activeView === "preview" ? 0 : -1}
               onclick={() => void selectView("preview")}
+              onkeydown={handleViewKeydown}
             >Preview</button>
-          </div>
-          <SaveStatus phase={savePresentation.phase} />
         </div>
 
         {#if structured.validation && !structured.validation.valid}
@@ -578,60 +691,55 @@
         {/if}
 
         {#if activeView === "resume"}
-          <div class="structured-editor" role="tabpanel">
+          <div
+            id="tailoring-panel"
+            class="structured-editor"
+            role="tabpanel"
+            aria-labelledby="tailoring-tab-resume"
+          >
             <section class="resume-section">
-              <h2>Contact</h2>
-              <div class="contact-summary">
-                <strong>{draft.contact.name}</strong>
-                <span>{[draft.contact.email, draft.contact.phone, draft.contact.location].filter(Boolean).join(" · ")}</span>
+              <header class="resume-section-heading">
+                <h2>Contact</h2>
+              </header>
+              <div class="summary-row">
+                <span>
+                  <strong>{draft.contact.name}</strong>
+                  <small>{[draft.contact.email, draft.contact.phone, draft.contact.location].filter(Boolean).join(" · ")}</small>
+                </span>
               </div>
             </section>
 
             {#if draft.experience.length}
               <section class="resume-section">
-                <h2>Experience</h2>
+                <header class="resume-section-heading">
+                  <h2>Experience</h2>
+                  <span>{draft.experience.length}</span>
+                </header>
                 {#each draft.experience as entry, entryIndex}
                   <article class="resume-entry">
                     <div class="entry-heading">
-                      <div><h3>{entry.title}</h3><p>{entry.company}</p></div>
-                      <div class="entry-heading-meta">
-                        <span>{[entry.startDate, entry.endDate].filter(Boolean).join(" – ")}</span>
-                        <div class="icon-actions">
-                          <button type="button" aria-label={`Move ${entry.title} up`} disabled={entryIndex === 0} onclick={() => moveEntry("experience", entryIndex, -1)}><ArrowUp size={17} weight="bold" /></button>
-                          <button type="button" aria-label={`Move ${entry.title} down`} disabled={entryIndex === draft.experience.length - 1} onclick={() => moveEntry("experience", entryIndex, 1)}><ArrowDown size={17} weight="bold" /></button>
-                        </div>
+                      <div>
+                        <h3>{entry.title}</h3>
+                        <p>{[entry.company, entry.location].filter(Boolean).join(" · ")}</p>
                       </div>
+                      <span>{[entry.startDate, entry.endDate].filter(Boolean).join(" – ")}</span>
                     </div>
-                    {#each entry.bullets as bullet, bulletIndex}
-                      <div class="bullet-editor">
-                        <textarea
-                          class="input-field"
-                          aria-label={`Bullet for ${entry.title}`}
-                          value={bullet.text}
-                          rows="3"
-                          oninput={(event) => updateBullet("experience", entryIndex, bulletIndex, event.currentTarget.value)}
-                        ></textarea>
-                        <div class="bullet-actions">
-                          <div class="evidence-chips" aria-label="Supporting evidence">
-                            {#each bullet.evidenceIds as evidenceId}
-                              {@const evidence = evidenceById.get(evidenceId)}
-                              {#if evidence}<span class="evidence-chip">{evidence.label}</span>{/if}
-                            {/each}
-                          </div>
-                          <div class="icon-actions">
-                            <button type="button" aria-label="Move bullet up" disabled={bulletIndex === 0} onclick={() => moveBullet("experience", entryIndex, bulletIndex, -1)}><ArrowUp size={17} weight="bold" /></button>
-                            <button type="button" aria-label="Move bullet down" disabled={bulletIndex === entry.bullets.length - 1} onclick={() => moveBullet("experience", entryIndex, bulletIndex, 1)}><ArrowDown size={17} weight="bold" /></button>
-                            <button type="button" aria-label="Exclude bullet" onclick={() => excludeBullet("experience", entryIndex, bulletIndex)}><X size={17} weight="bold" /></button>
-                          </div>
-                        </div>
-                        <details class="source-comparison">
-                          <summary>Compare with original</summary>
-                          {#each bullet.evidenceIds as evidenceId}
-                            <p>{evidenceById.get(evidenceId)?.text}</p>
-                          {/each}
-                        </details>
-                      </div>
-                    {/each}
+                    <div class="bullet-list">
+                      {#each entry.bullets as bullet, bulletIndex}
+                        <button
+                          class="bullet-row"
+                          type="button"
+                          onclick={() => openBulletEditor("experience", entryIndex, bulletIndex)}
+                        >
+                          <span class="bullet-mark" aria-hidden="true">•</span>
+                          <span class="bullet-copy">
+                            <span>{bullet.text}</span>
+                            <small>Edit and compare with original</small>
+                          </span>
+                          <CaretRight size={17} weight="bold" aria-hidden="true" />
+                        </button>
+                      {/each}
+                    </div>
                   </article>
                 {/each}
               </section>
@@ -639,92 +747,121 @@
 
             {#if draft.projects.length}
               <section class="resume-section">
-                <h2>Projects</h2>
+                <header class="resume-section-heading">
+                  <h2>Projects</h2>
+                  <span>{draft.projects.length}</span>
+                </header>
                 {#each draft.projects as entry, entryIndex}
                   <article class="resume-entry">
                     <div class="entry-heading">
-                      <div><h3>{entry.name}</h3><p>{entry.role ?? ""}</p></div>
-                      <div class="entry-heading-meta">
-                        <span>{entry.date ?? ""}</span>
-                        <div class="icon-actions">
-                          <button type="button" aria-label={`Move ${entry.name} up`} disabled={entryIndex === 0} onclick={() => moveEntry("projects", entryIndex, -1)}><ArrowUp size={17} weight="bold" /></button>
-                          <button type="button" aria-label={`Move ${entry.name} down`} disabled={entryIndex === draft.projects.length - 1} onclick={() => moveEntry("projects", entryIndex, 1)}><ArrowDown size={17} weight="bold" /></button>
-                        </div>
+                      <div>
+                        <h3>{entry.name}</h3>
+                        {#if entry.role}<p>{entry.role}</p>{/if}
                       </div>
+                      <span>{entry.date ?? ""}</span>
                     </div>
-                    {#each entry.bullets as bullet, bulletIndex}
-                      <div class="bullet-editor">
-                        <textarea
-                          class="input-field"
-                          aria-label={`Bullet for ${entry.name}`}
-                          value={bullet.text}
-                          rows="3"
-                          oninput={(event) => updateBullet("projects", entryIndex, bulletIndex, event.currentTarget.value)}
-                        ></textarea>
-                        <div class="bullet-actions">
-                          <div class="evidence-chips">
-                            {#each bullet.evidenceIds as evidenceId}
-                              {@const evidence = evidenceById.get(evidenceId)}
-                              {#if evidence}<span class="evidence-chip">{evidence.label}</span>{/if}
-                            {/each}
-                          </div>
-                          <div class="icon-actions">
-                            <button type="button" aria-label="Move bullet up" disabled={bulletIndex === 0} onclick={() => moveBullet("projects", entryIndex, bulletIndex, -1)}><ArrowUp size={17} weight="bold" /></button>
-                            <button type="button" aria-label="Move bullet down" disabled={bulletIndex === entry.bullets.length - 1} onclick={() => moveBullet("projects", entryIndex, bulletIndex, 1)}><ArrowDown size={17} weight="bold" /></button>
-                            <button type="button" aria-label="Exclude bullet" onclick={() => excludeBullet("projects", entryIndex, bulletIndex)}><X size={17} weight="bold" /></button>
-                          </div>
-                        </div>
-                        <details class="source-comparison"><summary>Compare with original</summary><p>{evidenceById.get(bullet.evidenceIds[0])?.text}</p></details>
-                      </div>
-                    {/each}
+                    <div class="bullet-list">
+                      {#each entry.bullets as bullet, bulletIndex}
+                        <button
+                          class="bullet-row"
+                          type="button"
+                          onclick={() => openBulletEditor("projects", entryIndex, bulletIndex)}
+                        >
+                          <span class="bullet-mark" aria-hidden="true">•</span>
+                          <span class="bullet-copy">
+                            <span>{bullet.text}</span>
+                            <small>Edit and compare with original</small>
+                          </span>
+                          <CaretRight size={17} weight="bold" aria-hidden="true" />
+                        </button>
+                      {/each}
+                    </div>
                   </article>
                 {/each}
               </section>
             {/if}
 
-            <section class="resume-section compact-section">
-              <h2>Education</h2>
+            <section class="resume-section">
+              <header class="resume-section-heading">
+                <h2>Education</h2>
+                <span>{draft.education.length}</span>
+              </header>
               {#each draft.education as entry}
-                <div class="static-row"><strong>{entry.institution}</strong><span>{[entry.startDate, entry.endDate].filter(Boolean).join(" – ")}</span></div>
+                <div class="summary-row">
+                  <span>
+                    <strong>{entry.institution}</strong>
+                    {#each entry.credentials as credential}
+                      <small>{[credential.degreeType, credential.fieldsOfStudy.join(" and ")].filter(Boolean).join(" · ")}</small>
+                    {/each}
+                    {#if entry.minors.length}<small>Minor in {entry.minors.join(" and ")}</small>{/if}
+                  </span>
+                  <small>{[entry.startDate, entry.endDate].filter(Boolean).join(" – ")}</small>
+                </div>
               {/each}
             </section>
 
-            <section class="resume-section compact-section">
-              <h2>Skills</h2>
+            <section class="resume-section">
+              <header class="resume-section-heading">
+                <h2>Skills</h2>
+                <span>{draft.skills.length}</span>
+              </header>
               {#each draft.skills as row}
                 <div class="skill-row"><strong>{row.category}</strong><span>{row.items}</span></div>
               {/each}
             </section>
 
             {#if excludedEvidence.some((item) => item.sourceType === "experience" || item.sourceType === "project")}
-              <details class="excluded-content">
-                <summary>Excluded evidence ({excludedEvidence.length})</summary>
+              <details class="disclosure-section">
+                <summary>
+                  <span>Left out ({selectableExcludedEvidence.length})</span>
+                  <CaretRight class="disclosure-caret" size={17} weight="bold" aria-hidden="true" />
+                </summary>
                 {#each excludedEvidence.filter((item) => item.sourceType === "experience" || item.sourceType === "project") as evidence}
                   <div class="excluded-row">
                     <span><strong>{evidence.label}</strong><small>{evidence.text}</small></span>
-                    <button class="btn-secondary" type="button" onclick={() => includeEvidence(evidence.id)}>
+                    <button class="row-action" type="button" onclick={() => includeEvidence(evidence.id)}>
                       <Plus size={16} weight="bold" /> Include
                     </button>
                   </div>
                 {/each}
-                <p class="rebuild-note">Rebuild the resume to validate newly included evidence.</p>
-                <button class="btn-primary" type="button" onclick={() => void generateResume()}>Rebuild with selections</button>
               </details>
             {/if}
 
+            {#if selectionsChanged}
+              <div class="update-resume-action">
+                <p>Your selections have changed.</p>
+                <button class="btn-primary" type="button" onclick={() => void generateResume()}>Update resume</button>
+              </div>
+            {/if}
+
             {#if structured.plan.gaps.length}
-              <section class="gaps-summary">
-                <h2>Gaps ({structured.plan.gaps.length})</h2>
+              <details class="disclosure-section gaps-summary">
+                <summary>
+                  <span>Not covered ({structured.plan.gaps.length})</span>
+                  <CaretRight class="disclosure-caret" size={17} weight="bold" aria-hidden="true" />
+                </summary>
                 {#each structured.plan.gaps as gap}
                   {@const requirement = structured.plan.requirements.find((item) => item.id === gap.requirementId)}
                   <div><WarningCircle size={17} weight="fill" /><span><strong>{requirement?.text}</strong><small>{gap.reason}</small></span></div>
                 {/each}
-              </section>
+              </details>
             {/if}
           </div>
         {:else}
-          <div class="preview-panel" role="tabpanel">
-            {#if compiling}
+          <div
+            id="tailoring-panel"
+            class="preview-panel"
+            role="tabpanel"
+            aria-labelledby="tailoring-tab-preview"
+          >
+            {#if previewError}
+              <InlineFailure
+                title="Preview didn’t build"
+                message={previewError}
+                retryLabel="Try preview again"
+                onRetry={() => void compilePreview()}
+              />
+            {:else if compiling}
               <div class="preview-loading"><Spinner size={22} label="Building preview" /></div>
             {:else if previewUrl && compiled}
               <img class="resume-preview" src={previewUrl} alt="Preview of the tailored resume" />
@@ -756,230 +893,520 @@
   </main>
 </div>
 
+{#if refreshOpen}
+  <Modal
+    title="Start fresh?"
+    subtitle="This will reread the current role and your latest saved resume. Downloaded versions stay unchanged."
+    busy={working}
+    onclose={() => (refreshOpen = false)}
+  >
+    <div class="modal-actions">
+      <button class="btn-secondary" type="button" onclick={() => (refreshOpen = false)}>Cancel</button>
+      <button class="btn-primary btn-accent" type="button" onclick={() => void createPlan()}>Start fresh</button>
+    </div>
+  </Modal>
+{/if}
+
+{#if editingBullet && activeBullet}
+  <Modal
+    title="Edit bullet"
+    subtitle={activeBulletLabel}
+    onclose={commitBulletEditor}
+  >
+    <div class="bullet-sheet">
+      <label for="tailored-bullet-text">Bullet</label>
+      <textarea
+        id="tailored-bullet-text"
+        class="input-field"
+        rows="6"
+        bind:value={editingBulletText}
+      ></textarea>
+
+      {#if activeBulletEvidence.length}
+        <details class="original-evidence">
+          <summary>
+            <span>View original</span>
+            <CaretRight class="disclosure-caret" size={17} weight="bold" aria-hidden="true" />
+          </summary>
+          {#each activeBulletEvidence as evidence}
+            <div>
+              <strong>{evidence?.label}</strong>
+              <p>{evidence?.text}</p>
+            </div>
+          {/each}
+        </details>
+      {/if}
+
+      <div class="bullet-sheet-actions">
+        <button
+          type="button"
+          disabled={editingBullet.bulletIndex === 0}
+          onclick={() => moveActiveBullet(-1)}
+        >
+          <ArrowUp size={17} weight="bold" aria-hidden="true" /> Move up
+        </button>
+        <button
+          type="button"
+          disabled={editingBullet.bulletIndex === activeBulletCount - 1}
+          onclick={() => moveActiveBullet(1)}
+        >
+          <ArrowDown size={17} weight="bold" aria-hidden="true" /> Move down
+        </button>
+        <button class="leave-out-action" type="button" onclick={excludeActiveBullet}>
+          <X size={17} weight="bold" aria-hidden="true" /> Leave out
+        </button>
+      </div>
+
+      <button
+        class="btn-primary btn-accent full-width"
+        type="button"
+        disabled={!editingBulletText.trim()}
+        onclick={commitBulletEditor}
+      >Done</button>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   .tailor-page-body {
     display: grid;
-    gap: var(--space-6);
-  }
-
-  .job-context,
-  .section-heading,
-  .empty-tailoring h2,
-  .progress-state h2,
-  .resume-section h2,
-  .gaps-summary h2 {
-    margin: 0;
+    gap: var(--space-8);
+    padding: var(--space-4) var(--screen-gutter) calc(var(--safe-bottom) + var(--space-8));
   }
 
   .job-context {
+    min-width: 0;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .job-context__copy {
+    min-width: 0;
     display: grid;
     gap: var(--space-1);
   }
 
-  .job-context h1 {
+  .job-context h2,
+  .job-context p,
+  .progress-state h2,
+  .progress-state p,
+  .section-intro h2,
+  .section-intro p,
+  .review-section h3,
+  .review-heading-copy p,
+  .resume-section h2,
+  .entry-heading h3,
+  .entry-heading p,
+  .update-resume-action p,
+  .original-evidence p {
     margin: 0;
-    color: var(--color-ink);
-    font-size: var(--fs-xl);
-    line-height: var(--leading-screen-title);
   }
 
-  .job-context p,
-  .empty-tailoring p,
-  .progress-state p,
-  .section-heading p,
-  .requirement p,
-  .rebuild-note {
-    margin: 0;
+  .job-context h2 {
+    overflow-wrap: anywhere;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: var(--leading-screen-title);
+    letter-spacing: var(--tracking-screen-title);
+  }
+
+  .job-context p {
     color: var(--color-ink-3);
+    font-size: var(--fs-sm);
     line-height: var(--leading-body);
   }
 
-  .progress-state,
-  .empty-tailoring {
+  .refresh-action,
+  .source-change-notice button,
+  .row-action {
+    appearance: none;
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    border: 0;
+    background: transparent;
+    color: var(--color-accent-soft-ink);
+    font: 600 var(--fs-xs) / 1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .refresh-action {
+    flex: none;
+    margin-block-start: calc(var(--space-2) * -1);
+    margin-inline-end: calc(var(--space-2) * -1);
+    padding-inline: var(--space-2);
+  }
+
+  .source-change-notice {
     display: grid;
-    gap: var(--space-5);
-    padding-block: var(--space-8);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-left: 2px solid var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .source-change-notice > div {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .source-change-notice strong {
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+  }
+
+  .source-change-notice span {
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
   }
 
   .progress-state {
+    min-height: 42dvh;
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr);
+    align-content: center;
     align-items: start;
+    gap: var(--space-4);
   }
 
-  .progress-state h2,
-  .empty-tailoring h2,
-  .section-heading h2 {
+  .progress-state h2 {
     color: var(--color-ink);
-    font-size: var(--fs-xl);
-    line-height: 1.25;
+    font-size: var(--fs-lg);
+    line-height: 1.3;
+  }
+
+  .progress-state p {
+    margin-top: var(--space-1);
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
   }
 
   .plan-review,
   .structured-workspace,
   .structured-editor {
     display: grid;
+  }
+
+  .plan-review {
+    gap: var(--space-8);
+  }
+
+  .structured-workspace {
     gap: var(--space-6);
   }
 
-  .workspace-toolbar,
-  .bullet-actions,
-  .sticky-action,
-  .download-action,
-  .static-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
+  .structured-editor {
+    gap: var(--space-8);
   }
 
-  .eyebrow,
-  .priority {
-    margin: 0 0 var(--space-1);
-    color: var(--color-ink-4);
-    font-size: var(--fs-2xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .section-heading {
+  .section-intro {
     display: grid;
     gap: var(--space-2);
   }
 
-  .requirements {
+  .section-intro h2 {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: var(--tracking-screen-title);
+  }
+
+  .section-intro > p:not(.match-summary),
+  .review-heading-copy p {
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
+  }
+
+  .section-intro p.match-summary {
+    margin-top: var(--space-1);
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
+
+  .match-summary span {
+    margin-inline: var(--space-1);
+    color: var(--color-ink-4);
+  }
+
+  .review-section {
     display: grid;
     gap: var(--space-3);
   }
 
-  .requirement {
+  .review-section > h3,
+  .review-heading-copy h3 {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .review-heading-copy {
     display: grid;
-    gap: var(--space-3);
-    padding-block: var(--space-4);
+    gap: var(--space-1);
+  }
+
+  .requirement-list,
+  .selection-list,
+  .bullet-list {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .requirement-row,
+  .disclosure-section,
+  .original-evidence {
     border-bottom: 1px solid var(--color-line);
   }
 
-  .requirement-title {
+  .requirement-row > summary,
+  .disclosure-section > summary,
+  .original-evidence > summary {
+    min-height: var(--tap-min);
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .requirement-row > summary::-webkit-details-marker,
+  .disclosure-section > summary::-webkit-details-marker,
+  .original-evidence > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .requirement-row > summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--space-3);
+    padding-block: var(--space-3);
+  }
+
+  .requirement-state {
+    width: var(--control-height-small);
+    height: var(--control-height-small);
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-good-soft);
     color: var(--color-good);
   }
 
-  .requirement.gap .requirement-title {
+  .requirement-row.gap .requirement-state {
+    background: transparent;
     color: var(--color-warn);
   }
 
-  .requirement h3 {
-    margin: 0;
-    color: var(--color-ink);
-    font-size: var(--fs-md);
-    line-height: 1.35;
-  }
-
-  .evidence-options {
-    display: grid;
-    gap: var(--space-2);
-    margin-left: calc(18px + var(--space-3));
-  }
-
-  .evidence-option {
-    min-height: var(--tap-min);
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-elev);
-  }
-
-  .evidence-option input {
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
-    accent-color: var(--color-accent);
-  }
-
-  .static-evidence > :global(svg) {
-    margin-top: 2px;
-    color: var(--color-good);
-  }
-
-  .plan-exclusions {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .evidence-option span,
+  .requirement-copy,
+  .selection-row > span,
+  .summary-row > span,
+  .bullet-copy,
   .excluded-row > span,
-  .gaps-summary div > span {
+  .gaps-summary > div > span {
     min-width: 0;
     display: grid;
     gap: var(--space-1);
   }
 
-  .evidence-option small,
+  .requirement-copy strong,
+  .selection-row strong,
+  .summary-row strong,
+  .excluded-row strong,
+  .original-evidence strong {
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .requirement-copy small,
+  .selection-row small,
+  .summary-row small,
   .excluded-row small,
-  .gaps-summary small {
+  .gaps-summary small,
+  .original-evidence p {
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
     line-height: 1.45;
   }
 
-  .sticky-action {
-    position: sticky;
-    bottom: calc(var(--safe-bottom) + var(--space-3));
-    z-index: 2;
-    padding: var(--space-3);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-lg);
-    background: var(--color-bg-elev);
-    box-shadow: var(--shadow-overlay);
-    color: var(--color-ink-3);
-    font-size: var(--fs-xs);
+  :global(.disclosure-caret) {
+    flex: none;
+    color: var(--color-ink-4);
+    transition: transform var(--duration-fast) var(--ease-standard);
   }
 
-  .workspace-toolbar {
-    align-items: center;
+  details[open] > summary :global(.disclosure-caret) {
+    transform: rotate(90deg);
   }
 
-  .workspace-toolbar .segmented-control {
-    flex: 1;
-  }
-
-  .resume-section {
+  .requirement-detail {
+    margin-inline-start: calc(var(--control-height-small) + var(--space-3));
+    padding: 0 0 var(--space-4);
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-2);
   }
 
-  .resume-section h2,
-  .gaps-summary h2 {
-    color: var(--color-ink);
-    font-size: var(--fs-lg);
-    line-height: 1.3;
+  .requirement-detail p {
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
   }
 
-  .contact-summary,
-  .skill-row {
+  .requirement-detail small {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+  }
+
+  .evidence-group {
     display: grid;
     gap: var(--space-1);
   }
 
-  .contact-summary span,
-  .skill-row span,
-  .entry-heading span,
-  .static-row span {
+  .evidence-group + .evidence-group {
+    margin-top: var(--space-4);
+  }
+
+  .evidence-group h4 {
+    margin: 0;
     color: var(--color-ink-3);
-    font-size: var(--fs-sm);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
+
+  .selection-row {
+    min-height: calc(var(--tap-min) + var(--space-5));
+    padding-block: var(--space-3);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    border-bottom: 1px solid var(--color-line);
+    cursor: pointer;
+  }
+
+  .selection-row input {
+    width: var(--space-5);
+    height: var(--space-5);
+    margin: 0;
+    accent-color: var(--color-accent);
+  }
+
+  .sticky-action,
+  .download-action {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-inline: calc(var(--screen-gutter) * -1);
+    padding: var(--space-3) var(--screen-gutter) calc(var(--safe-bottom) + var(--space-3));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-top: 1px solid var(--color-line);
+    background: var(--color-bg);
+  }
+
+  .sticky-action > span {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+  }
+
+  .tailoring-tabs {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .tailoring-tabs.preview-active::before {
+    transform: translateX(calc(100% + var(--space-1) - 1px));
+  }
+
+  .resume-section {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .resume-section-heading {
+    min-height: var(--tap-min);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .resume-section-heading h2 {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .resume-section-heading > span {
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-row,
+  .skill-row {
+    min-height: var(--tap-min);
+    padding-block: var(--space-2);
+    display: grid;
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  .summary-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .summary-row + .summary-row,
+  .skill-row + .skill-row {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .skill-row {
+    grid-template-columns: minmax(88px, 0.35fr) minmax(0, 1fr);
+  }
+
+  .skill-row strong {
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+  }
+
+  .skill-row span {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.45;
   }
 
   .resume-entry {
     display: grid;
-    gap: var(--space-3);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
+    gap: var(--space-2);
+  }
+
+  .resume-entry + .resume-entry {
+    padding-top: var(--space-4);
   }
 
   .entry-heading {
@@ -989,140 +1416,121 @@
     gap: var(--space-4);
   }
 
-  .entry-heading h3,
-  .entry-heading p {
-    margin: 0;
+  .entry-heading > div {
+    min-width: 0;
   }
 
   .entry-heading h3 {
     color: var(--color-ink);
     font-size: var(--fs-md);
-  }
-
-  .entry-heading p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-3);
-    font-size: var(--fs-sm);
-  }
-
-  .entry-heading-meta {
-    flex: none;
-    display: grid;
-    justify-items: end;
-    gap: var(--space-1);
-  }
-
-  .bullet-editor {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .bullet-editor textarea {
-    min-height: 88px;
-    resize: vertical;
-    line-height: var(--leading-body);
-  }
-
-  .evidence-chips {
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-
-  .evidence-chip {
-    max-width: 100%;
-    padding: var(--space-1) var(--space-2);
-    overflow: hidden;
-    border-radius: var(--radius-full);
-    background: var(--color-good-soft);
-    color: var(--color-good);
-    font-size: var(--fs-2xs);
     font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
   }
 
-  .icon-actions {
-    flex: none;
-    display: flex;
-    gap: var(--space-1);
-  }
-
-  .icon-actions button {
-    width: var(--tap-min);
-    height: var(--tap-min);
-    display: grid;
-    place-items: center;
-    border: 0;
-    border-radius: var(--radius-full);
-    background: transparent;
-    color: var(--color-ink-2);
-  }
-
-  .icon-actions button:disabled {
-    color: var(--color-ink-4);
-    opacity: 0.45;
-  }
-
-  .source-comparison,
-  .excluded-content,
-  .preview-meta details {
+  .entry-heading p,
+  .entry-heading > span {
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
+    line-height: 1.4;
   }
 
-  .source-comparison summary,
-  .excluded-content summary,
-  .preview-meta summary {
-    min-height: var(--tap-min);
-    display: flex;
-    align-items: center;
-    color: var(--color-ink-2);
-    font-weight: 600;
+  .entry-heading > span {
+    flex: none;
+    text-align: end;
   }
 
-  .source-comparison p {
-    margin: 0;
-    padding: var(--space-3);
-    border-left: 2px solid var(--color-good);
-    line-height: 1.5;
-  }
-
-  .compact-section {
-    padding-block: var(--space-2);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .skill-row {
-    grid-template-columns: minmax(90px, auto) 1fr;
-  }
-
-  .excluded-content {
+  .bullet-row {
+    appearance: none;
+    width: 100%;
+    min-height: calc(var(--tap-min) + var(--space-4));
+    padding: var(--space-3) 0;
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-2);
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    background: transparent;
+    color: var(--color-ink);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .bullet-mark {
+    color: var(--color-ink-3);
+    font-size: var(--fs-lg);
+    line-height: 1;
+  }
+
+  .bullet-copy > span {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .bullet-copy small {
+    color: var(--color-ink-4);
+    font-size: var(--fs-2xs);
+    line-height: 1.35;
+  }
+
+  .bullet-row > :global(svg) {
+    margin-top: var(--space-1);
+    color: var(--color-ink-4);
+  }
+
+  .disclosure-section {
+    display: grid;
+  }
+
+  .disclosure-section > summary,
+  .original-evidence > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-3);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
   }
 
   .excluded-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: var(--space-3);
     padding-block: var(--space-3);
-    border-bottom: 1px solid var(--color-line);
+    border-top: 1px solid var(--color-line);
   }
 
-  .gaps-summary {
-    display: grid;
+  .row-action {
+    color: var(--color-accent-soft-ink);
+  }
+
+  .update-resume-action {
+    padding: var(--space-3) 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    background: var(--color-bad-soft);
+  }
+
+  .update-resume-action p {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
   }
 
   .gaps-summary > div {
+    padding-block: var(--space-3);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
     gap: var(--space-2);
+    border-top: 1px solid var(--color-line);
     color: var(--color-warn);
   }
 
@@ -1130,6 +1538,7 @@
     min-height: 50dvh;
     display: grid;
     justify-items: center;
+    align-content: start;
     gap: var(--space-4);
   }
 
@@ -1157,21 +1566,113 @@
     font-size: var(--fs-xs);
   }
 
-  .download-action {
-    padding-bottom: calc(var(--safe-bottom) + var(--space-4));
+  .preview-meta summary {
+    min-height: var(--tap-min);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
   }
 
-  @media (max-width: 520px) {
-    .bullet-actions {
-      align-items: end;
+  .download-action {
+    justify-content: stretch;
+  }
+
+  .download-action > button {
+    width: 100%;
+  }
+
+  .modal-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .bullet-sheet {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .bullet-sheet > label {
+    margin-bottom: calc(var(--space-3) * -1);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+
+  .bullet-sheet textarea {
+    min-height: 9rem;
+    resize: vertical;
+    line-height: var(--leading-body);
+  }
+
+  .original-evidence > div {
+    padding-block: var(--space-3);
+    display: grid;
+    gap: var(--space-1);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .bullet-sheet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    border-top: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .bullet-sheet-actions button {
+    appearance: none;
+    min-height: var(--tap-min);
+    padding-inline: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-2);
+    font: 500 var(--fs-xs) / 1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .bullet-sheet-actions button:disabled {
+    color: var(--color-ink-4);
+    opacity: 0.45;
+  }
+
+  .bullet-sheet-actions .leave-out-action {
+    margin-inline-start: auto;
+    color: var(--color-bad);
+  }
+
+  @media (max-width: 420px) {
+    .job-context {
+      align-items: stretch;
     }
 
-    .evidence-chips {
-      display: grid;
+    .refresh-action {
+      align-self: start;
     }
 
-    .workspace-toolbar :global(.save-status) {
-      min-width: 72px;
+    .refresh-action span {
+      display: none;
+    }
+
+    .refresh-action :global(svg) {
+      width: var(--space-5);
+      height: var(--space-5);
+    }
+
+    .summary-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .summary-row > small {
+      justify-self: start;
+    }
+
+    .bullet-sheet-actions .leave-out-action {
+      width: 100%;
+      margin-inline-start: 0;
     }
   }
 </style>
