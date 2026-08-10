@@ -26,6 +26,7 @@
     type CompiledResumeDocument,
   } from "../lib/resume-document-client";
   import {
+    cloneTailoredResume,
     RESUME_COMPILER_VERSION,
     RESUME_TEMPLATE_VERSION,
   } from "../lib/resume-document";
@@ -260,14 +261,14 @@
     text: string,
   ) {
     if (!draft) return;
-    const next = structuredClone(draft);
+    const next = cloneTailoredResume(draft);
     next[section][entryIndex].bullets[bulletIndex].text = text;
     replaceDraft(next);
   }
 
   function excludeBullet(section: DraftSection, entryIndex: number, bulletIndex: number) {
     if (!draft) return;
-    const next = structuredClone(draft);
+    const next = cloneTailoredResume(draft);
     const [removed] = next[section][entryIndex].bullets.splice(bulletIndex, 1);
     if (!removed) return;
     if (next[section][entryIndex].bullets.length === 0) next[section].splice(entryIndex, 1);
@@ -302,7 +303,7 @@
 
   function moveActiveBullet(direction: -1 | 1) {
     if (!editingBullet || !draft) return;
-    const next = structuredClone(draft);
+    const next = cloneTailoredResume(draft);
     const bullets = next[editingBullet.section][editingBullet.entryIndex]?.bullets ?? [];
     const target = editingBullet.bulletIndex + direction;
     if (target < 0 || target >= bullets.length) return;
@@ -330,7 +331,7 @@
     if (!structured?.resumeDraft) return true;
     saving = true;
     const revision = editRevision;
-    const snapshot = structuredClone(structured.resumeDraft);
+    const snapshot = cloneTailoredResume(structured.resumeDraft);
     const presentationGeneration = savePresentation.begin();
     try {
       const response = await api.tailor.saveStructured(structured.id, snapshot, selectedEvidenceIds);

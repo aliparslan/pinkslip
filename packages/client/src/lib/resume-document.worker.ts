@@ -3,6 +3,8 @@
 import { $typst } from "@myriaddreamin/typst.ts";
 import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
+import compilerWasmUrl from "@myriaddreamin/typst-ts-web-compiler/wasm?url";
+import rendererWasmUrl from "@myriaddreamin/typst-ts-renderer/wasm?url";
 import regularFontUrl from "../assets/fonts/SourceSans3-Regular.ttf?url";
 import semiboldFontUrl from "../assets/fonts/SourceSans3-Semibold.ttf?url";
 import boldFontUrl from "../assets/fonts/SourceSans3-Bold.ttf?url";
@@ -25,6 +27,11 @@ let compileQueue: Promise<void> = Promise.resolve();
 
 function ensureInitialized() {
   if (initialized) return;
+  // The package's browser wrapper cannot infer its sibling WASM files after
+  // Vite bundles this module as a Capacitor Web Worker. Supplying Vite-managed
+  // URLs keeps both modules offline, hashed, and addressable via capacitor://.
+  $typst.setCompilerInitOptions({ getModule: () => compilerWasmUrl });
+  $typst.setRendererInitOptions({ getModule: () => rendererWasmUrl });
   $typst.use(
     TypstSnippet.disableDefaultFontAssets(),
     TypstSnippet.preloadFonts([regularFontUrl, semiboldFontUrl, boldFontUrl]),
@@ -39,11 +46,15 @@ async function compile(request: CompileRequest): Promise<void> {
     const bytes = await $typst.pdf({ mainContent: source });
     if (!bytes) throw new Error("Typst did not return a PDF.");
     const svg = await $typst.svg({ mainContent: source });
+    if (typeof svg !== "string") throw new Error("Typst did not return an SVG preview.");
     const copy = Uint8Array.from(bytes);
     const pdf = await PDFDocument.load(copy, { updateMetadata: false });
     const buffer = copy.buffer;
     const response: CompileResponse = { id, pdf: buffer, svg, pageCount: pdf.getPageCount() };
-    self.postMessage(response, { transfer: [buffer] });
+    // Use the transfer-list overload for WKWebView compatibility. Some iOS
+    // WebKit versions interpret the newer StructuredSerializeOptions object as
+    // a value to clone and fail the whole response with DataCloneError.
+    self.postMessage(response, [buffer]);
   } catch (error) {
     const response: CompileResponse = {
       id,

@@ -4,7 +4,7 @@ import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
 import { createEmptyResumeProfile } from "../../../shared/resume-profile";
 import type { TailoredResume } from "../../../shared/tailoring";
-import { buildResumeTypstSource } from "../src/lib/resume-document";
+import { buildResumeTypstSource, cloneTailoredResume } from "../src/lib/resume-document";
 
 beforeAll(async () => {
   const fontNames = [
@@ -75,6 +75,10 @@ describe("Typst resume compiler", () => {
       optionalSections: profile.optionalSections,
       removedForSpace: [],
     };
+    const reactiveDraft = new Proxy(resume, {});
+    const plainDraft = cloneTailoredResume(reactiveDraft);
+    expect(plainDraft).toEqual(resume);
+    expect(plainDraft).not.toBe(reactiveDraft);
     const source = buildResumeTypstSource(resume);
     const bytes = await $typst.pdf({ mainContent: source });
     expect(bytes).toBeTruthy();

@@ -152,7 +152,11 @@ ${optional}
 }
 
 export function cloneTailoredResume(resume: TailoredResume): TailoredResume {
-  return structuredClone(resume);
+  // Tailoring drafts are held in Svelte's deep reactive proxies. Proxies cannot
+  // cross structured-clone boundaries, while TailoredResume is intentionally a
+  // JSON-only persistence type. Serializing here gives the compiler, autosave,
+  // and edit operations a detached plain object on every platform.
+  return JSON.parse(JSON.stringify(resume)) as TailoredResume;
 }
 
 export function removeLowestPriorityContent(

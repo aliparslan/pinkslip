@@ -1,6 +1,7 @@
 import type { TailoredResume } from "../../../../shared/tailoring";
 import {
   buildResumeTypstSource,
+  cloneTailoredResume,
   removeLowestPriorityContent,
 } from "./resume-document";
 
@@ -58,7 +59,7 @@ export async function compileResumeDocument(
   initialResume: TailoredResume,
   priorityEvidenceIds: string[],
 ): Promise<CompiledResumeDocument> {
-  let resume = structuredClone(initialResume);
+  let resume = cloneTailoredResume(initialResume);
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const source = buildResumeTypstSource(resume);
     const result = await compileSource(source);
