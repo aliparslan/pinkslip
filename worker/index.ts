@@ -57,6 +57,7 @@ app.use(
       "Content-Type",
       "Authorization",
       "X-Pinkslip-Client",
+      "X-Pinkslip-Build",
     ],
   })
 );
