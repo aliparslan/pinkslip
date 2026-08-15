@@ -3,7 +3,7 @@ import {
   type ResumeProfile,
 } from "./resume-profile";
 
-export const RESUME_TEMPLATE_VERSION = "resume-v3";
+export const RESUME_TEMPLATE_VERSION = "resume-v4";
 export const RESUME_COMPILER_VERSION = "typst-web-v2";
 
 export type EvidenceSourceType = "experience" | "project" | "education" | "skills" | "additional";
@@ -354,6 +354,13 @@ function technologyTerms(value: string): string[] {
   });
 }
 
+function unsupportedTrailingFragment(value: string, supportedText: string): string | null {
+  const fragment = value.trim().match(/[.!?]\s+([A-Za-z]{1,3})$/)?.[1];
+  if (!fragment) return null;
+  const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(supportedText) ? null : fragment;
+}
+
 function sameMetadata(
   output: TailoredExperience | TailoredProject,
   source: ResumeProfile["experience"][number] | ResumeProfile["projects"][number],
@@ -485,6 +492,14 @@ export function validateTailoredResume(
           }
         }
         const supportedText = cited.map((item) => item.text).join(" ");
+        const trailingFragment = unsupportedTrailingFragment(bullet.text, supportedText);
+        if (trailingFragment) {
+          issues.push({
+            code: "unsupported_claim",
+            message: `The trailing text “${trailingFragment}” is not present in the cited evidence.`,
+            path: `${path}.${entryIndex}.bullets.${bulletIndex}`,
+          });
+        }
         const supportedTechnologies = new Set(technologyTerms(supportedText));
         for (const technology of technologyTerms(bullet.text)) {
           if (!supportedTechnologies.has(technology)) {

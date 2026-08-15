@@ -1284,10 +1284,11 @@ tailor.post("/tailorings/:id/artifacts", async (c) => {
   ) {
     return c.json({ error: "The generated resume is too large to save." }, 413);
   }
-  if (
-    templateVersion !== row.template_version
-    || compilerVersion !== row.compiler_version
-  ) {
+  const usesRecordedVersions = templateVersion === row.template_version
+    && compilerVersion === row.compiler_version;
+  const usesCurrentVersions = templateVersion === RESUME_TEMPLATE_VERSION
+    && compilerVersion === RESUME_COMPILER_VERSION;
+  if (!usesRecordedVersions && !usesCurrentVersions) {
     return c.json({
       error: "This resume was built with an outdated template. Build the preview again.",
       code: "tailoring_version_mismatch",

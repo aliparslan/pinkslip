@@ -1,8 +1,9 @@
 import type { TailoredResume } from "../../../../shared/tailoring";
 import {
+  advanceResumeFit,
   buildResumeTypstSource,
-  cloneTailoredResume,
-  removeLowestPriorityContent,
+  restoreAllSpaceRemovedContent,
+  type ResumeTemplateDensity,
 } from "./resume-document";
 
 interface WorkerResponse {
@@ -17,6 +18,7 @@ export interface CompiledResumeDocument {
   source: string;
   pdf: Uint8Array;
   pageCount: number;
+  density: ResumeTemplateDensity;
 }
 
 export interface ResumePdfVerification {
@@ -63,24 +65,26 @@ export async function compileResumeDocument(
   initialResume: TailoredResume,
   priorityEvidenceIds: string[],
 ): Promise<CompiledResumeDocument> {
-  let resume = cloneTailoredResume(initialResume);
+  let resume = restoreAllSpaceRemovedContent(initialResume);
+  let density: ResumeTemplateDensity = "standard";
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const source = buildResumeTypstSource(resume);
+    const source = buildResumeTypstSource(resume, density);
     const result = await compileSource(source);
     if (!result.pdf || !result.pageCount) {
       throw new Error("The resume compiler returned an incomplete document.");
     }
     if (result.pageCount <= 1) {
-      return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount };
+      return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount, density };
     }
-    const removal = removeLowestPriorityContent(resume, priorityEvidenceIds);
-    if (!removal.removed) {
+    const next = advanceResumeFit(resume, density, priorityEvidenceIds);
+    if (next.density === density && !next.removed) {
       if (result.pageCount <= 2) {
-        return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount };
+        return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount, density };
       }
       throw new Error("This resume needs more than two pages even at the minimum type size.");
     }
-    resume = removal.resume;
+    resume = next.resume;
+    density = next.density;
   }
   throw new Error("The resume could not be fitted safely within two pages.");
 }

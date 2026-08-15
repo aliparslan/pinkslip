@@ -56,20 +56,90 @@ function bullets(items: Array<{ text: string }>): string {
   return values.length > 0 ? `#resume-bullets(${values.join(", ")})` : "";
 }
 
-export function buildResumeTypstSource(resume: TailoredResume): string {
+export type ResumeTemplateDensity = "standard" | "compact";
+
+interface ResumeTemplateMetrics {
+  marginX: string;
+  marginY: string;
+  paragraphLeading: string;
+  listIndent: string;
+  listBodyIndent: string;
+  listSpacing: string;
+  sectionBefore: string;
+  sectionRuleAfter: string;
+  sectionAfter: string;
+  entryHeadingAfter: string;
+  entrySubheadingAfter: string;
+  entryAfter: string;
+  nameSize: string;
+  nameAfter: string;
+}
+
+const TEMPLATE_METRICS: Record<ResumeTemplateDensity, ResumeTemplateMetrics> = {
+  standard: {
+    marginX: "0.54in",
+    marginY: "0.44in",
+    paragraphLeading: "0.32em",
+    listIndent: "0.88em",
+    listBodyIndent: "0.3em",
+    listSpacing: "0.16em",
+    sectionBefore: "5pt",
+    sectionRuleAfter: "1.5pt",
+    sectionAfter: "2.5pt",
+    entryHeadingAfter: "0.25pt",
+    entrySubheadingAfter: "0.75pt",
+    entryAfter: "2.5pt",
+    nameSize: "18pt",
+    nameAfter: "1.5pt",
+  },
+  compact: {
+    marginX: "0.46in",
+    marginY: "0.34in",
+    paragraphLeading: "0.16em",
+    listIndent: "0.82em",
+    listBodyIndent: "0.25em",
+    listSpacing: "0.05em",
+    sectionBefore: "3pt",
+    sectionRuleAfter: "1pt",
+    sectionAfter: "1.5pt",
+    entryHeadingAfter: "0pt",
+    entrySubheadingAfter: "0.25pt",
+    entryAfter: "1.25pt",
+    nameSize: "17pt",
+    nameAfter: "1pt",
+  },
+};
+
+export function buildResumeTypstSource(
+  resume: TailoredResume,
+  density: ResumeTemplateDensity = "standard",
+): string {
+  const metrics = TEMPLATE_METRICS[density];
   const experience = resume.experience.map((entry) => `
+#block(width: 100%, breakable: false)[
 #entry-heading(${value(entry.title)}, ${value(dateRange(entry.startDate, entry.endDate))})
 #entry-subheading(${value(entry.company)}, ${value(entry.location)})
 ${bullets(entry.bullets)}
+]
+#entry-gap()
 `).join("\n");
 
-  const projects = resume.projects.map((entry) => `
+  const projects = resume.projects.map((entry) => {
+    const subtitle = [entry.role, entry.teamInfo].filter(nonEmpty).join(" · ");
+    const subheading = entry.url
+      ? `#entry-subheading-link(${value(subtitle)}, ${value(webHref(entry.url))}, ${value(entry.url)})`
+      : subtitle
+        ? `#entry-subheading(${value(subtitle)}, "")`
+        : "";
+    return `
+#block(width: 100%, breakable: false)[
 #entry-heading(${value(entry.name)}, ${value(entry.date)})
-${entry.url
-  ? `#entry-subheading-link(${value([entry.role, entry.teamInfo].filter(nonEmpty).join(" · "))}, ${value(webHref(entry.url))}, ${value(entry.url)})`
-  : `#entry-subheading(${value([entry.role, entry.teamInfo].filter(nonEmpty).join(" · "))}, "")`}
+${subheading}
 ${bullets(entry.bullets)}
-`).join("\n");
+]
+#entry-gap()
+`;
+  }).join("\n");
 
   const education = resume.education.map((entry) => {
     const credentials = entry.credentials.flatMap((credential) => {
@@ -82,8 +152,11 @@ ${bullets(entry.bullets)}
     const details = credentials.concat(entry.minors.map((minor) => `Minor in ${minor}`));
     const gpa = entry.gpa ? `GPA ${entry.gpa}` : "";
     return `
+#block(width: 100%, breakable: false)[
 #entry-heading(${value(entry.institution)}, ${value(dateRange(entry.startDate, entry.endDate))})
 #entry-subheading(${value(details.join("; "))}, ${value([entry.location, gpa].filter(nonEmpty).join(" · "))})
+]
+#entry-gap()
 `;
   }).join("\n");
 
@@ -102,49 +175,60 @@ ${bullets(entry.bullets)}
     .join(" #h(5pt) #text(\"·\") #h(5pt) ");
 
   return `
-#set page(paper: "us-letter", margin: (x: 0.58in, y: 0.48in))
+#set page(paper: "us-letter", margin: (x: ${metrics.marginX}, y: ${metrics.marginY}))
 #set text(font: "Source Sans 3", size: 11pt, fill: rgb("171717"), lang: "en")
-#set par(justify: false, leading: 0.52em)
-#set list(indent: 0.95em, body-indent: 0.35em, spacing: 0.28em, marker: [•])
+#set par(justify: false, leading: ${metrics.paragraphLeading})
+#set list(indent: ${metrics.listIndent}, body-indent: ${metrics.listBodyIndent}, spacing: ${metrics.listSpacing}, marker: [•])
 
-#let section(title) = {
-  v(7pt)
-  text(upper(title), size: 11.5pt, weight: 700, tracking: 0.04em)
-  v(2pt)
-  line(length: 100%, stroke: 0.55pt + rgb("525252"))
-  v(3pt)
-}
+#let section(title) = block(
+  width: 100%,
+  sticky: true,
+  above: ${metrics.sectionBefore},
+  below: ${metrics.sectionAfter},
+)[
+  #text(upper(title), size: 11.5pt, weight: 700, tracking: 0.04em)
+  #v(${metrics.sectionRuleAfter})
+  #line(length: 100%, stroke: 0.55pt + rgb("525252"))
+]
 
 #let entry-heading(left, right) = {
-  grid(text(left, weight: 600), text(right, weight: 500),
-    columns: (1fr, auto), column-gutter: 8pt)
-  v(0.5pt)
+  block(width: 100%)[
+    #grid(text(left, weight: 600), text(right, weight: 500),
+      columns: (1fr, auto), column-gutter: 8pt)
+  ]
+  v(${metrics.entryHeadingAfter})
 }
 
 #let entry-subheading(left, right) = {
-  grid(text(left, fill: rgb("404040")), text(right, fill: rgb("404040")),
-    columns: (1fr, auto), column-gutter: 8pt)
-  v(1.5pt)
+  block(width: 100%)[
+    #grid(text(left, fill: rgb("404040")), text(right, fill: rgb("404040")),
+      columns: (1fr, auto), column-gutter: 8pt)
+  ]
+  v(${metrics.entrySubheadingAfter})
 }
 
 #let entry-subheading-link(left, url, label) = {
-  grid(text(left, fill: rgb("404040")), link(url)[#text(label, fill: rgb("404040"))],
-    columns: (1fr, auto), column-gutter: 8pt)
-  v(1.5pt)
+  block(width: 100%)[
+    #grid(text(left, fill: rgb("404040")), link(url)[#text(label, fill: rgb("404040"))],
+      columns: (1fr, auto), column-gutter: 8pt)
+  ]
+  v(${metrics.entrySubheadingAfter})
 }
 
 #let resume-bullets(..items) = list(..items.pos().map(item => text(item)))
+#let entry-gap() = v(${metrics.entryAfter})
 #let skill-row(label, body) = {
   if label != "" { text(label + ": ", weight: 600) }
   text(body)
   linebreak()
 }
 
-#align(center)[
-  #text(${value(resume.contact.name)}, size: 19pt, weight: 700)
-  #v(2pt)
-  #text(size: 11pt, fill: rgb("404040"))[${contacts}]
-]
+#align(center, stack(
+  dir: ttb,
+  spacing: ${metrics.nameAfter},
+  [#text(${value(resume.contact.name)}, size: ${metrics.nameSize}, weight: 700)],
+  [#text(size: 11pt, fill: rgb("404040"))[${contacts}]],
+))
 
 ${section("Experience", experience)}
 ${section("Projects", projects)}
@@ -239,6 +323,30 @@ export function removeLowestPriorityContent(
   return { resume: next, removed };
 }
 
+export function advanceResumeFit(
+  resume: TailoredResume,
+  density: ResumeTemplateDensity,
+  priorityEvidenceIds: string[],
+): {
+  resume: TailoredResume;
+  density: ResumeTemplateDensity;
+  removed: TailoredResume["removedForSpace"][number] | null;
+} {
+  if (density === "standard") {
+    return {
+      resume: cloneTailoredResume(resume),
+      density: "compact",
+      removed: null,
+    };
+  }
+  const removal = removeLowestPriorityContent(resume, priorityEvidenceIds);
+  return {
+    resume: removal.resume,
+    density,
+    removed: removal.removed,
+  };
+}
+
 export function restoreRemovedContent(
   resume: TailoredResume,
   removedIndex: number,
@@ -264,4 +372,16 @@ export function restoreRemovedContent(
     return { resume: next, restored: true };
   }
   return { resume, restored: false };
+}
+
+export function restoreAllSpaceRemovedContent(resume: TailoredResume): TailoredResume {
+  let next = cloneTailoredResume(resume);
+  const protectedEvidenceIds = [...(next.spaceProtectedEvidenceIds ?? [])];
+  while (next.removedForSpace.length > 0) {
+    const restored = restoreRemovedContent(next, next.removedForSpace.length - 1);
+    if (!restored.restored) break;
+    next = restored.resume;
+  }
+  next.spaceProtectedEvidenceIds = protectedEvidenceIds;
+  return next;
 }

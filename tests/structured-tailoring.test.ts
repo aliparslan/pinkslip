@@ -142,6 +142,27 @@ describe("structured resume grounding", () => {
     expect(validation.issues.map((issue) => issue.code)).toContain("metadata_changed");
   });
 
+  test("rejects a dangling model fragment that is absent from the evidence", () => {
+    const source = profile();
+    const evidence = buildCandidateEvidence(source);
+    const resume = buildResumeFromRewrites({
+      profile: source,
+      evidence,
+      selectedEvidenceIds: [evidence[0].id],
+      rewrites: [{
+        evidenceId: evidence[0].id,
+        text: "Reduced request latency by 40% using caching. Hi",
+      }],
+    });
+
+    const validation = validateTailoredResume(source, evidence, resume);
+    expect(validation.valid).toBe(false);
+    expect(validation.issues).toContainEqual(expect.objectContaining({
+      code: "unsupported_claim",
+      path: "experience.0.bullets.0",
+    }));
+  });
+
   test("rejects copied sections and evidence attached to the wrong entry", () => {
     const source = profile();
     source.projects = [{
