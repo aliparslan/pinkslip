@@ -1,3 +1,5 @@
+import { platform, type PlatformFileExportResult } from "./platform";
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -12,19 +14,13 @@ export function tailoredResumePdfFileName(companyName?: string | null, jobTitle?
   return `${slug || "tailored-resume"}.pdf`;
 }
 
-export function downloadPdfBytes(fileName: string, bytes: Uint8Array) {
-  if (typeof document === "undefined") return;
-  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(arrayBuffer).set(bytes);
-  const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = fileName;
-    anchor.rel = "noopener";
-    anchor.click();
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-  }
+export function exportPdfBytes(
+  fileName: string,
+  bytes: Uint8Array,
+): Promise<PlatformFileExportResult> {
+  return platform().exportFile({
+    fileName,
+    contentType: "application/pdf",
+    bytes,
+  });
 }

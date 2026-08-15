@@ -1,5 +1,6 @@
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
@@ -274,6 +275,15 @@ function configureNativeDocument(): void {
   }, { passive: true });
 }
 
+function binaryToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 const iosRuntime: PlatformRuntime = {
   kind: "ios",
   async initialize() {
@@ -367,6 +377,24 @@ const iosRuntime: PlatformRuntime = {
       const result = await NativeActionMenu.present(options);
       return result.id ?? null;
     },
+  },
+  async exportFile({ fileName, bytes }) {
+    const path = `exports/${crypto.randomUUID()}-${fileName}`;
+    const written = await Filesystem.writeFile({
+      path,
+      data: binaryToBase64(bytes),
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    try {
+      await Share.share({
+        title: fileName,
+        files: [written.uri],
+      });
+      return "presented";
+    } finally {
+      await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(() => undefined);
+    }
   },
   async shareLink(options) {
     try {

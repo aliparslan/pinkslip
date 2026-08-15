@@ -27,6 +27,14 @@ export interface PlatformActionMenuOptions {
   actions: PlatformActionMenuItem[];
 }
 
+export interface PlatformFileExportOptions {
+  fileName: string;
+  contentType: string;
+  bytes: Uint8Array;
+}
+
+export type PlatformFileExportResult = "downloaded" | "presented";
+
 export interface PlatformRuntime {
   readonly kind: PlatformKind;
   initialize(): Promise<void>;
@@ -47,6 +55,7 @@ export interface PlatformRuntime {
   actionMenu: {
     present(options: PlatformActionMenuOptions): Promise<string | null>;
   };
+  exportFile(options: PlatformFileExportOptions): Promise<PlatformFileExportResult>;
   shareLink(options: { title?: string; text?: string; url: string }): Promise<void>;
   openApplication(url: string, onFinished?: () => void): Promise<() => void>;
   openExternal(url: string): void;

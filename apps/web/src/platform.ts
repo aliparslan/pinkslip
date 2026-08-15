@@ -75,6 +75,21 @@ const webRuntime: PlatformRuntime = {
       return null;
     },
   },
+  async exportFile({ fileName, contentType, bytes }) {
+    const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(arrayBuffer).set(bytes);
+    const url = URL.createObjectURL(new Blob([arrayBuffer], { type: contentType }));
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.rel = "noopener";
+      anchor.click();
+    } finally {
+      window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    }
+    return "downloaded";
+  },
   async shareLink(options) {
     try {
       if (navigator.share) {

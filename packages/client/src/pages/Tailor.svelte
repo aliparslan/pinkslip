@@ -23,6 +23,7 @@
   import { errorMessage } from "../lib/utils";
   import {
     compileResumeDocument,
+    resumePreviewDataUrl,
     type CompiledResumeDocument,
   } from "../lib/resume-document-client";
   import {
@@ -30,7 +31,7 @@
     RESUME_COMPILER_VERSION,
     RESUME_TEMPLATE_VERSION,
   } from "../lib/resume-document";
-  import { downloadPdfBytes, tailoredResumePdfFileName } from "../lib/pdf-resume";
+  import { exportPdfBytes, tailoredResumePdfFileName } from "../lib/pdf-resume";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
   import { SavePresentation } from "../lib/task-presentation.svelte";
   import { feedback } from "../lib/feedback.svelte";
@@ -382,7 +383,6 @@
     compileRevision += 1;
     compiled = null;
     previewError = null;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
   }
 
@@ -403,8 +403,7 @@
     try {
       const result = await compileResumeDocument(draft, priorityEvidenceIds);
       if (revision !== compileRevision) return null;
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      previewUrl = URL.createObjectURL(new Blob([result.svg], { type: "image/svg+xml" }));
+      previewUrl = resumePreviewDataUrl(result.svg);
       compiled = result;
       return result;
     } catch (cause) {
@@ -441,7 +440,7 @@
       if (!result) return;
       const validation = structured.validation;
       if (!validation?.valid) {
-        error = "Resolve the evidence warnings before downloading this resume.";
+        error = "Resolve the evidence warnings before exporting this resume.";
         return;
       }
       const pdfBlob = new Blob([Uint8Array.from(result.pdf)], { type: "application/pdf" });
@@ -453,13 +452,13 @@
         templateVersion: RESUME_TEMPLATE_VERSION,
         compilerVersion: RESUME_COMPILER_VERSION,
       });
-      downloadPdfBytes(
+      const delivery = await exportPdfBytes(
         tailoredResumePdfFileName(job?.company_name, job?.title),
         result.pdf,
       );
-      feedback.success("Resume downloaded");
+      if (delivery === "downloaded") feedback.success("Resume downloaded");
     } catch (cause) {
-      error = errorMessage(cause, "Could not download the resume");
+      error = errorMessage(cause, "Could not export the resume");
     } finally {
       exporting = false;
     }

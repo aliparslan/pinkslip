@@ -4,6 +4,7 @@ import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
 import { createEmptyResumeProfile } from "../../../shared/resume-profile";
 import type { TailoredResume } from "../../../shared/tailoring";
+import { resumePreviewDataUrl } from "../src/lib/resume-document-client";
 import { buildResumeTypstSource, cloneTailoredResume } from "../src/lib/resume-document";
 
 beforeAll(async () => {
@@ -22,6 +23,12 @@ beforeAll(async () => {
 });
 
 describe("Typst resume compiler", () => {
+  test("builds a self-contained preview URL without a blob dependency", () => {
+    const url = resumePreviewDataUrl('<svg xmlns="http://www.w3.org/2000/svg"><text>A &amp; B</text></svg>');
+    expect(url.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
+    expect(decodeURIComponent(url.split(",", 2)[1] ?? "")).toContain("A &amp; B");
+  });
+
   test("compiles the deterministic template into an extractable PDF", async () => {
     const profile = {
       ...createEmptyResumeProfile(),

@@ -21,6 +21,11 @@ export interface CompiledResumeDocument {
   pageCount: number;
 }
 
+/** WKWebView can reject blob: URLs for worker-generated SVGs. */
+export function resumePreviewDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 let worker: Worker | null = null;
 let nextRequestId = 1;
 const pending = new Map<number, {
