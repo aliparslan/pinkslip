@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { resolve } from "node:path";
+import { cloudflareTypstCompiler } from "../../scripts/vite-typst-compiler.mts";
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [cloudflareTypstCompiler(), svelte()],
+  worker: { plugins: () => [cloudflareTypstCompiler()] },
   publicDir: resolve(import.meta.dirname, "../../packages/client/public"),
   build: { outDir: "dist", emptyOutDir: true },
   server: {

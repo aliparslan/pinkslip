@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { resolve } from "node:path";
+import { offlineTypstCompiler } from "../../scripts/vite-typst-compiler.mts";
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [offlineTypstCompiler(), svelte()],
+  worker: { plugins: () => [offlineTypstCompiler()] },
   publicDir: resolve(import.meta.dirname, "../../packages/client/public"),
   resolve: {
     alias: [

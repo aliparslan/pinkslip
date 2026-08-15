@@ -3,8 +3,8 @@
 import { $typst } from "@myriaddreamin/typst.ts";
 import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
-import compilerWasmUrl from "@myriaddreamin/typst-ts-web-compiler/wasm?url";
 import rendererWasmUrl from "@myriaddreamin/typst-ts-renderer/wasm?url";
+import { loadTypstCompilerModule } from "virtual:pinkslip-typst-compiler";
 import regularFontUrl from "../assets/fonts/SourceSans3-Regular.ttf?url";
 import semiboldFontUrl from "../assets/fonts/SourceSans3-Semibold.ttf?url";
 import boldFontUrl from "../assets/fonts/SourceSans3-Bold.ttf?url";
@@ -27,10 +27,10 @@ let compileQueue: Promise<void> = Promise.resolve();
 
 function ensureInitialized() {
   if (initialized) return;
-  // The package's browser wrapper cannot infer its sibling WASM files after
-  // Vite bundles this module as a Capacitor Web Worker. Supplying Vite-managed
-  // URLs keeps both modules offline, hashed, and addressable via capacitor://.
-  $typst.setCompilerInitOptions({ getModule: () => compilerWasmUrl });
+  // The package cannot infer sibling WASM files once Vite bundles this worker.
+  // Each app build supplies its own compiler loader: Cloudflare-safe chunks on
+  // web and one offline, hashed asset in the signed Capacitor bundle.
+  $typst.setCompilerInitOptions({ getModule: loadTypstCompilerModule });
   $typst.setRendererInitOptions({ getModule: () => rendererWasmUrl });
   $typst.use(
     TypstSnippet.disableDefaultFontAssets(),
