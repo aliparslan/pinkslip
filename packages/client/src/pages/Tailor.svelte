@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import ArrowCounterClockwise from "phosphor-svelte/lib/ArrowCounterClockwise";
   import ArrowDown from "phosphor-svelte/lib/ArrowDown";
   import ArrowUp from "phosphor-svelte/lib/ArrowUp";
   import ArrowsClockwise from "phosphor-svelte/lib/ArrowsClockwise";
@@ -7,8 +8,12 @@
   import Check from "phosphor-svelte/lib/Check";
   import DownloadSimple from "phosphor-svelte/lib/DownloadSimple";
   import Eye from "phosphor-svelte/lib/Eye";
+  import FilePdf from "phosphor-svelte/lib/FilePdf";
+  import LockSimple from "phosphor-svelte/lib/LockSimple";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import Plus from "phosphor-svelte/lib/Plus";
+  import Sparkle from "phosphor-svelte/lib/Sparkle";
+  import Trash from "phosphor-svelte/lib/Trash";
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import X from "phosphor-svelte/lib/X";
   import { navigate } from "../router";
@@ -17,6 +22,7 @@
     api,
     type Job,
     type StructuredTailoring,
+    type TailoringArtifact,
     type TailoredResume,
     type Tailoring,
   } from "../lib/api";
@@ -24,12 +30,14 @@
   import {
     compileResumeDocument,
     resumePreviewDataUrl,
+    verifyCompiledResumePdf,
     type CompiledResumeDocument,
   } from "../lib/resume-document-client";
   import {
     cloneTailoredResume,
     RESUME_COMPILER_VERSION,
     RESUME_TEMPLATE_VERSION,
+    restoreRemovedContent as restoreRemovedResumeContent,
   } from "../lib/resume-document";
   import { exportPdfBytes, tailoredResumePdfFileName } from "../lib/pdf-resume";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
@@ -42,6 +50,7 @@
   import InlineFailure from "../components/InlineFailure.svelte";
   import Modal from "../components/Modal.svelte";
   import EmptyState from "../components/EmptyState.svelte";
+  import Switch from "../components/Switch.svelte";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -52,6 +61,73 @@
     entryIndex: number;
     bulletIndex: number;
   };
+  type WordDiffPart = {
+    kind: "same" | "added" | "removed";
+    value: string;
+  };
+
+  function tokenizeForDiff(value: string): string[] {
+    return value.match(/\s+|[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*|[^\s\p{L}\p{N}]/gu) ?? [];
+  }
+
+  function comparableDiffToken(value: string): string {
+    return /^\s+$/u.test(value) ? " " : value.toLocaleLowerCase();
+  }
+
+  function mergeDiffParts(parts: WordDiffPart[]): WordDiffPart[] {
+    const merged: WordDiffPart[] = [];
+    for (const part of parts) {
+      const previous = merged.at(-1);
+      if (previous?.kind === part.kind) previous.value += part.value;
+      else merged.push({ ...part });
+    }
+    return merged;
+  }
+
+  /** Word-and-punctuation LCS diff. Whitespace is retained so the comparison reads naturally. */
+  function wordDiff(original: string, tailored: string): WordDiffPart[] {
+    const before = tokenizeForDiff(original);
+    const after = tokenizeForDiff(tailored);
+    const rows = before.length + 1;
+    const columns = after.length + 1;
+    const table = Array.from({ length: rows }, () => new Uint16Array(columns));
+    for (let beforeIndex = before.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
+      for (let afterIndex = after.length - 1; afterIndex >= 0; afterIndex -= 1) {
+        table[beforeIndex][afterIndex] = comparableDiffToken(before[beforeIndex]) === comparableDiffToken(after[afterIndex])
+          ? table[beforeIndex + 1][afterIndex + 1] + 1
+          : Math.max(table[beforeIndex + 1][afterIndex], table[beforeIndex][afterIndex + 1]);
+      }
+    }
+    const parts: WordDiffPart[] = [];
+    let beforeIndex = 0;
+    let afterIndex = 0;
+    while (beforeIndex < before.length || afterIndex < after.length) {
+      if (
+        beforeIndex < before.length
+        && afterIndex < after.length
+        && comparableDiffToken(before[beforeIndex]) === comparableDiffToken(after[afterIndex])
+      ) {
+        parts.push({ kind: "same", value: after[afterIndex] });
+        beforeIndex += 1;
+        afterIndex += 1;
+      } else if (
+        afterIndex < after.length
+        && (beforeIndex >= before.length || table[beforeIndex][afterIndex + 1] > table[beforeIndex + 1][afterIndex])
+      ) {
+        parts.push({ kind: "added", value: after[afterIndex] });
+        afterIndex += 1;
+      } else if (beforeIndex < before.length) {
+        parts.push({ kind: "removed", value: before[beforeIndex] });
+        beforeIndex += 1;
+      }
+    }
+    return mergeDiffParts(parts);
+  }
+
+  const artifactDateFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
   let loading = $state(true);
   let loaded = $state(false);
@@ -69,6 +145,10 @@
   let refreshOpen = $state(false);
   let editingBullet: EditingBullet | null = $state(null);
   let editingBulletText = $state("");
+  let bulletInstruction = $state("");
+  let regeneratingBullet = $state(false);
+  let bulletRegenerationError: string | null = $state(null);
+  let bulletRegenerationStatus = $state("");
   let compiled: CompiledResumeDocument | null = $state(null);
   let previewUrl: string | null = $state(null);
   let saveTimer: number | null = null;
@@ -77,6 +157,13 @@
   let editRevision = 0;
   let compileRevision = 0;
   let saveInFlight: Promise<boolean> | null = null;
+  let restoringEvidenceId: string | null = $state(null);
+  let artifacts: TailoringArtifact[] = $state([]);
+  let artifactsLoading = $state(false);
+  let artifactsError: string | null = $state(null);
+  let artifactsTailoringId: string | null = null;
+  let artifactBusyId: string | null = $state(null);
+  let artifactDeleteTarget: TailoringArtifact | null = $state(null);
   const savePresentation = new SavePresentation();
 
   function structuredTailoring(value: Tailoring | null): StructuredTailoring | null {
@@ -125,6 +212,10 @@
   let activeBulletEvidence = $derived(
     activeBullet?.evidenceIds.map((id) => evidenceById.get(id)).filter(Boolean) ?? []
   );
+  let activeBulletOriginal = $derived(
+    activeBulletEvidence.map((item) => item?.text ?? "").filter(Boolean).join("\n")
+  );
+  let activeBulletDiff = $derived(wordDiff(activeBulletOriginal, editingBulletText));
   let selectionsChanged = $derived.by(() => {
     if (!structured || !draft) return false;
     const current = [...selectedEvidenceIds].sort().join("|");
@@ -150,11 +241,33 @@
     if (next?.kind === "structured") {
       selectedEvidenceIds = [...next.plan.selectedEvidenceIds];
       savePresentation.hydrate(next.updated_at);
+      if (artifactsTailoringId !== next.id) void loadArtifactHistory(next.id);
     } else {
       selectedEvidenceIds = [];
       savePresentation.hydrate(next?.created_at ?? null);
+      artifactsTailoringId = null;
+      artifacts = [];
     }
     clearPreview();
+  }
+
+  async function loadArtifactHistory(tailoringId = structured?.id) {
+    if (!tailoringId) return;
+    artifactsTailoringId = tailoringId;
+    artifactsLoading = true;
+    artifactsError = null;
+    try {
+      const response = await api.tailor.artifacts.list(tailoringId);
+      if (artifactsTailoringId === tailoringId) {
+        artifacts = [...response.artifacts].sort((left, right) => right.revision - left.revision);
+      }
+    } catch (cause) {
+      if (artifactsTailoringId === tailoringId) {
+        artifactsError = errorMessage(cause, "Could not load PDF history");
+      }
+    } finally {
+      if (artifactsTailoringId === tailoringId) artifactsLoading = false;
+    }
   }
 
   async function loadExisting() {
@@ -270,6 +383,7 @@
   function excludeBullet(section: DraftSection, entryIndex: number, bulletIndex: number) {
     if (!draft) return;
     const next = cloneTailoredResume(draft);
+    const sourceEntryId = next[section][entryIndex]?.sourceEntryId;
     const [removed] = next[section][entryIndex].bullets.splice(bulletIndex, 1);
     if (!removed) return;
     if (next[section][entryIndex].bullets.length === 0) next[section].splice(entryIndex, 1);
@@ -277,6 +391,9 @@
     next.removedForSpace.push({
       evidenceId: removed.evidenceIds[0] ?? removed.id,
       label: removed.text,
+      section,
+      sourceEntryId,
+      bullet: removed,
     });
     replaceDraft(next);
   }
@@ -285,6 +402,9 @@
     const bullet = draft?.[section][entryIndex]?.bullets[bulletIndex];
     if (!bullet) return;
     editingBulletText = bullet.text;
+    bulletInstruction = "";
+    bulletRegenerationError = null;
+    bulletRegenerationStatus = "";
     editingBullet = { section, entryIndex, bulletIndex };
   }
 
@@ -316,9 +436,76 @@
   }
 
   function excludeActiveBullet() {
-    if (!editingBullet) return;
+    if (!editingBullet || activeBullet?.locked) return;
     excludeBullet(editingBullet.section, editingBullet.entryIndex, editingBullet.bulletIndex);
     editingBullet = null;
+  }
+
+  function setActiveBulletLocked(locked: boolean) {
+    if (!editingBullet || !draft) return;
+    const next = cloneTailoredResume(draft);
+    const bullet = next[editingBullet.section][editingBullet.entryIndex]?.bullets[editingBullet.bulletIndex];
+    if (!bullet) return;
+    const nextText = editingBulletText.trim();
+    if (nextText) bullet.text = nextText;
+    bullet.locked = locked;
+    replaceDraft(next);
+    bulletRegenerationError = null;
+    bulletRegenerationStatus = locked
+      ? "This bullet will stay unchanged."
+      : "This bullet can be rewritten again.";
+  }
+
+  function findBulletLocation(resume: TailoredResume, bulletId: string): EditingBullet | null {
+    for (const section of ["experience", "projects"] as const) {
+      const entries = resume[section];
+      for (let entryIndex = 0; entryIndex < entries.length; entryIndex += 1) {
+        const bulletIndex = entries[entryIndex].bullets.findIndex((bullet) => bullet.id === bulletId);
+        if (bulletIndex >= 0) return { section, entryIndex, bulletIndex };
+      }
+    }
+    return null;
+  }
+
+  async function regenerateActiveBullet() {
+    if (!editingBullet || !activeBullet || !structured || regeneratingBullet || activeBullet.locked) return;
+    const location = { ...editingBullet };
+    const entry = draft?.[location.section][location.entryIndex];
+    if (!entry) return;
+    const bulletId = activeBullet.id;
+    const nextText = editingBulletText.trim();
+    if (nextText && nextText !== activeBullet.text) {
+      updateBullet(location.section, location.entryIndex, location.bulletIndex, nextText);
+      await tick();
+    }
+    clearSaveTimer();
+    if (!(await saveEdits())) return;
+    regeneratingBullet = true;
+    bulletRegenerationError = null;
+    bulletRegenerationStatus = "";
+    try {
+      const response = await api.tailor.regenerateBullet(structured.id, {
+        section: location.section,
+        sourceEntryId: entry.sourceEntryId,
+        bulletId,
+        instruction: bulletInstruction.trim() || undefined,
+      });
+      setTailoring(response.tailoring);
+      const nextDraft = response.tailoring.resumeDraft;
+      const nextLocation = nextDraft ? findBulletLocation(nextDraft, bulletId) : null;
+      if (nextDraft && nextLocation) {
+        editingBullet = nextLocation;
+        editingBulletText = nextDraft[nextLocation.section][nextLocation.entryIndex].bullets[nextLocation.bulletIndex].text;
+        bulletInstruction = "";
+        bulletRegenerationStatus = "Bullet updated.";
+      } else {
+        editingBullet = null;
+      }
+    } catch (cause) {
+      bulletRegenerationError = errorMessage(cause, "Could not rewrite this bullet");
+    } finally {
+      regeneratingBullet = false;
+    }
   }
 
   function includeEvidence(id: string) {
@@ -326,6 +513,96 @@
     const evidence = evidenceById.get(id);
     if (!evidence || (evidence.sourceType !== "experience" && evidence.sourceType !== "project")) return;
     selectedEvidenceIds = [...new Set([...selectedEvidenceIds, id])];
+  }
+
+  function removedItemKey(item: TailoredResume["removedForSpace"][number], itemIndex: number): string {
+    return `${item.section ?? "unknown"}:${item.sourceEntryId ?? ""}:${item.evidenceId}:${itemIndex}`;
+  }
+
+  async function restoreRemovedItem(itemIndex: number) {
+    if (!compiled || !structured || restoringEvidenceId) return;
+    const item = compiled.resume.removedForSpace[itemIndex];
+    if (!item) return;
+    const itemKey = removedItemKey(item, itemIndex);
+    restoringEvidenceId = itemKey;
+    error = null;
+    try {
+      const restoration = restoreRemovedResumeContent(compiled.resume, itemIndex);
+      if (!restoration.restored) {
+        throw new Error("This item cannot be restored from the saved preview.");
+      }
+      const next = restoration.resume;
+      if ((item.section === "experience" || item.section === "projects") && item.sourceEntryId && item.bullet) {
+        const entry = next[item.section].find((candidate) => candidate.sourceEntryId === item.sourceEntryId);
+        const restoredBullet = entry?.bullets.find((bullet) => bullet.id === item.bullet?.id);
+        if (restoredBullet) restoredBullet.locked = true;
+      }
+      replaceDraft(next);
+      await tick();
+      if (compileTimer !== null) window.clearTimeout(compileTimer);
+      compileTimer = null;
+      await compilePreview();
+    } catch (cause) {
+      error = errorMessage(cause, "Could not restore this content");
+    } finally {
+      restoringEvidenceId = null;
+    }
+  }
+
+  function artifactFileName(artifact: TailoringArtifact): string {
+    const base = tailoredResumePdfFileName(job?.company_name, job?.title);
+    return base.replace(/\.pdf$/i, `-v${artifact.revision}.pdf`);
+  }
+
+  async function downloadArtifact(artifact: TailoringArtifact) {
+    if (!structured || artifactBusyId) return;
+    artifactBusyId = artifact.id;
+    artifactsError = null;
+    try {
+      const pdf = await api.tailor.artifacts.download(structured.id, artifact.id);
+      const delivery = await exportPdfBytes(
+        artifactFileName(artifact),
+        new Uint8Array(await pdf.arrayBuffer()),
+      );
+      if (delivery === "downloaded") feedback.success("PDF downloaded");
+    } catch (cause) {
+      artifactsError = errorMessage(cause, "Could not download this PDF");
+    } finally {
+      artifactBusyId = null;
+    }
+  }
+
+  async function selectArtifact(artifact: TailoringArtifact) {
+    if (!structured || artifactBusyId || artifact.selected) return;
+    artifactBusyId = artifact.id;
+    artifactsError = null;
+    try {
+      const response = await api.tailor.artifacts.select(structured.id, artifact.id);
+      artifacts = artifacts.map((item) => ({
+        ...item,
+        selected: item.id === response.artifact.id,
+      }));
+    } catch (cause) {
+      artifactsError = errorMessage(cause, "Could not select this PDF");
+    } finally {
+      artifactBusyId = null;
+    }
+  }
+
+  async function deleteArtifact() {
+    if (!structured || !artifactDeleteTarget || artifactBusyId) return;
+    const target = artifactDeleteTarget;
+    artifactBusyId = target.id;
+    artifactsError = null;
+    try {
+      await api.tailor.artifacts.delete(structured.id, target.id);
+      artifactDeleteTarget = null;
+      await loadArtifactHistory(structured.id);
+    } catch (cause) {
+      artifactsError = errorMessage(cause, "Could not delete this PDF");
+    } finally {
+      artifactBusyId = null;
+    }
   }
 
   async function performSave(): Promise<boolean> {
@@ -397,6 +674,8 @@
 
   async function compilePreview(): Promise<CompiledResumeDocument | null> {
     if (!draft || !structured) return null;
+    const startedAt = performance.now();
+    const tailoringId = structured.id;
     const revision = ++compileRevision;
     compiling = true;
     previewError = null;
@@ -405,10 +684,28 @@
       if (revision !== compileRevision) return null;
       previewUrl = resumePreviewDataUrl(result.svg);
       compiled = result;
+      void api.tailor.recordQuality(tailoringId, {
+        stage: "compile",
+        outcome: "succeeded",
+        durationMs: Math.round(performance.now() - startedAt),
+        pageCount: result.pageCount,
+      }).catch(() => undefined);
       return result;
     } catch (cause) {
       if (revision === compileRevision) {
         previewError = errorMessage(cause, "Could not build the resume preview");
+        const failure = errorMessage(cause).toLocaleLowerCase();
+        const errorCode = failure.includes("wasm")
+          ? "compiler_wasm_failed"
+          : failure.includes("clone")
+            ? "compiler_clone_failed"
+            : "compiler_failed";
+        void api.tailor.recordQuality(tailoringId, {
+          stage: "compile",
+          outcome: "failed",
+          durationMs: Math.round(performance.now() - startedAt),
+          errorCode,
+        }).catch(() => undefined);
       }
       return null;
     } finally {
@@ -443,15 +740,24 @@
         error = "Resolve the evidence warnings before exporting this resume.";
         return;
       }
+      const pdfVerification = await verifyCompiledResumePdf(result.pdf, result.resume);
+      if (!pdfVerification.valid) {
+        error = "The PDF is missing resume content. Rebuild the preview and try again.";
+        clearPreview();
+        return;
+      }
       const pdfBlob = new Blob([Uint8Array.from(result.pdf)], { type: "application/pdf" });
-      await api.tailor.createArtifact(structured.id, {
+      const response = await api.tailor.createArtifact(structured.id, {
         pdf: pdfBlob,
         resume: result.resume,
         validation,
         typstSource: result.source,
         templateVersion: RESUME_TEMPLATE_VERSION,
         compilerVersion: RESUME_COMPILER_VERSION,
+        pageCount: result.pageCount,
       });
+      artifacts = [response.artifact, ...artifacts.filter((artifact) => artifact.id !== response.artifact.id)]
+        .sort((left, right) => right.revision - left.revision);
       const delivery = await exportPdfBytes(
         tailoredResumePdfFileName(job?.company_name, job?.title),
         result.pdf,
@@ -598,6 +904,12 @@
               </summary>
               <div class="requirement-detail">
                 <p>{match?.reason ?? gap?.reason}</p>
+                {#if requirement.source.quote}
+                  <blockquote>
+                    <span>From the posting</span>
+                    “{requirement.source.quote}”
+                  </blockquote>
+                {/if}
                 {#if match}
                   <small>
                     Based on {match.evidenceIds
@@ -728,13 +1040,17 @@
                       {#each entry.bullets as bullet, bulletIndex}
                         <button
                           class="bullet-row"
+                          class:locked={bullet.locked}
                           type="button"
+                          aria-label={`${bullet.locked ? "Locked bullet" : "Edit bullet"}: ${bullet.text}`}
                           onclick={() => openBulletEditor("experience", entryIndex, bulletIndex)}
                         >
                           <span class="bullet-mark" aria-hidden="true">•</span>
                           <span class="bullet-copy">
                             <span>{bullet.text}</span>
-                            <small>Edit and compare with original</small>
+                            <small>
+                              {#if bullet.locked}<LockSimple size={13} weight="fill" aria-hidden="true" /> Locked{:else}Edit and compare with original{/if}
+                            </small>
                           </span>
                           <CaretRight size={17} weight="bold" aria-hidden="true" />
                         </button>
@@ -764,13 +1080,17 @@
                       {#each entry.bullets as bullet, bulletIndex}
                         <button
                           class="bullet-row"
+                          class:locked={bullet.locked}
                           type="button"
+                          aria-label={`${bullet.locked ? "Locked bullet" : "Edit bullet"}: ${bullet.text}`}
                           onclick={() => openBulletEditor("projects", entryIndex, bulletIndex)}
                         >
                           <span class="bullet-mark" aria-hidden="true">•</span>
                           <span class="bullet-copy">
                             <span>{bullet.text}</span>
-                            <small>Edit and compare with original</small>
+                            <small>
+                              {#if bullet.locked}<LockSimple size={13} weight="fill" aria-hidden="true" /> Locked{:else}Edit and compare with original{/if}
+                            </small>
                           </span>
                           <CaretRight size={17} weight="bold" aria-hidden="true" />
                         </button>
@@ -846,6 +1166,68 @@
                 {/each}
               </details>
             {/if}
+
+            <section class="resume-section artifact-history" aria-labelledby="pdf-history-heading">
+              <header class="resume-section-heading">
+                <h2 id="pdf-history-heading">PDF history</h2>
+                {#if artifacts.length}<span>{artifacts.length}</span>{/if}
+              </header>
+              {#if artifactsError}
+                <InlineFailure
+                  title="PDF history needs attention"
+                  message={artifactsError}
+                  retryLabel="Try again"
+                  onRetry={() => void loadArtifactHistory()}
+                />
+              {/if}
+              {#if artifactsLoading && artifacts.length === 0}
+                <div class="artifact-loading"><Spinner size={18} label="Loading PDF history" /></div>
+              {:else if artifacts.length === 0}
+                <p class="artifact-empty">PDFs you download will stay here as separate versions.</p>
+              {:else}
+                <div class="artifact-list">
+                  {#each artifacts as artifact (artifact.id)}
+                    <article class="artifact-row" class:selected={artifact.selected}>
+                      <span class="artifact-icon" aria-hidden="true"><FilePdf size={20} weight="bold" /></span>
+                      <span class="artifact-copy">
+                        <strong>Version {artifact.revision}</strong>
+                        <small>
+                          {artifactDateFormatter.format(new Date(artifact.createdAt))}
+                          {#if artifact.pageCount} · {artifact.pageCount} page{artifact.pageCount === 1 ? "" : "s"}{/if}
+                        </small>
+                        {#if artifact.selected}<span class="artifact-selected"><Check size={13} weight="bold" /> Ready to use</span>{/if}
+                      </span>
+                      <span class="artifact-actions">
+                        {#if !artifact.selected}
+                          <button
+                            type="button"
+                            class="row-action"
+                            disabled={artifactBusyId !== null}
+                            onclick={() => void selectArtifact(artifact)}
+                          >Use this version</button>
+                        {/if}
+                        <button
+                          type="button"
+                          class="icon-btn"
+                          aria-label={`Download version ${artifact.revision}`}
+                          disabled={artifactBusyId !== null}
+                          onclick={() => void downloadArtifact(artifact)}
+                        >
+                          {#if artifactBusyId === artifact.id}<Spinner size={16} />{:else}<DownloadSimple size={17} weight="bold" />{/if}
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-btn artifact-delete"
+                          aria-label={`Delete version ${artifact.revision}`}
+                          disabled={artifactBusyId !== null}
+                          onclick={() => (artifactDeleteTarget = artifact)}
+                        ><Trash size={17} weight="bold" /></button>
+                      </span>
+                    </article>
+                  {/each}
+                </div>
+              {/if}
+            </section>
           </div>
         {:else}
           <div
@@ -866,14 +1248,51 @@
             {:else if previewUrl && compiled}
               <img class="resume-preview" src={previewUrl} alt="Preview of the tailored resume" />
               <div class="preview-meta">
-                <span>{compiled.pageCount} page{compiled.pageCount === 1 ? "" : "s"}</span>
+                <span class="preview-page-count">{compiled.pageCount} page{compiled.pageCount === 1 ? "" : "s"}</span>
                 {#if compiled.resume.removedForSpace.length}
-                  <details>
-                    <summary>{compiled.resume.removedForSpace.length} item{compiled.resume.removedForSpace.length === 1 ? "" : "s"} removed to fit</summary>
-                    <ul>
-                      {#each compiled.resume.removedForSpace as item}<li>{item.label}</li>{/each}
-                    </ul>
-                  </details>
+                  <section class="removed-for-space" aria-labelledby="removed-for-space-heading">
+                    <div class="removed-for-space-heading">
+                      <div>
+                        <h2 id="removed-for-space-heading">Removed to fit</h2>
+                        <span>{compiled.resume.removedForSpace.length}</span>
+                      </div>
+                      <p class="page-count-warning">
+                        <WarningCircle size={17} weight="fill" aria-hidden="true" />
+                        <span>Current preview: {compiled.pageCount} page{compiled.pageCount === 1 ? "" : "s"}. Restoring content can increase the page count. We’ll rebuild the preview before download.</span>
+                      </p>
+                    </div>
+                    <div class="removed-content-list">
+                      {#each compiled.resume.removedForSpace as item, itemIndex (removedItemKey(item, itemIndex))}
+                        {@const itemKey = removedItemKey(item, itemIndex)}
+                        <div class="removed-content-row">
+                          <span>
+                            <strong>
+                              {item.section === "experience"
+                                ? "Experience bullet"
+                                : item.section === "projects"
+                                  ? "Project bullet"
+                                  : "Resume section"}
+                            </strong>
+                            <small>{item.label}</small>
+                          </span>
+                          <button
+                            type="button"
+                            class="row-action"
+                            disabled={restoringEvidenceId !== null}
+                            aria-label={`Restore ${item.label}`}
+                            onclick={() => void restoreRemovedItem(itemIndex)}
+                          >
+                            {#if restoringEvidenceId === itemKey}
+                              <Spinner size={16} label="Restoring content" />
+                            {:else}
+                              <ArrowCounterClockwise size={16} weight="bold" aria-hidden="true" />
+                            {/if}
+                            Restore
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                  </section>
                 {/if}
               </div>
             {:else}
@@ -911,6 +1330,7 @@
   <Modal
     title="Edit bullet"
     subtitle={activeBulletLabel}
+    busy={regeneratingBullet}
     onclose={commitBulletEditor}
   >
     <div class="bullet-sheet">
@@ -922,47 +1342,160 @@
         bind:value={editingBulletText}
       ></textarea>
 
-      {#if activeBulletEvidence.length}
-        <details class="original-evidence">
-          <summary>
-            <span>View original</span>
-            <CaretRight class="disclosure-caret" size={17} weight="bold" aria-hidden="true" />
-          </summary>
-          {#each activeBulletEvidence as evidence}
-            <div>
-              <strong>{evidence?.label}</strong>
-              <p>{evidence?.text}</p>
+      <div class="trust-control-row">
+        <span>
+          <strong>Keep this bullet</strong>
+          <small>Future updates won’t rewrite or remove it.</small>
+        </span>
+        <Switch
+          checked={Boolean(activeBullet.locked)}
+          disabled={regeneratingBullet}
+          onCheckedChange={setActiveBulletLocked}
+          aria-label="Keep this bullet unchanged"
+        />
+      </div>
+
+      <section class="bullet-diff" aria-labelledby="bullet-diff-heading">
+        <header>
+          <h3 id="bullet-diff-heading">Original vs tailored</h3>
+          {#if activeBulletEvidence.length}
+            <p>Based on {activeBulletEvidence.map((item) => item?.label).filter(Boolean).join(", ")}</p>
+          {/if}
+        </header>
+        {#if activeBulletOriginal}
+          <div class="word-diff">
+            <div class="diff-block">
+              <span class="diff-label">Original</span>
+              <p class="diff-copy" aria-label={activeBulletOriginal}>
+                {#each activeBulletDiff.filter((part) => part.kind !== "added") as part}
+                  {#if part.kind === "removed"}
+                    <del aria-hidden="true">{part.value}</del>
+                  {:else}
+                    <span aria-hidden="true">{part.value}</span>
+                  {/if}
+                {/each}
+              </p>
             </div>
-          {/each}
-        </details>
-      {/if}
+            <div class="diff-block">
+              <span class="diff-label">Tailored</span>
+              <p class="diff-copy" aria-label={editingBulletText}>
+                {#each activeBulletDiff.filter((part) => part.kind !== "removed") as part}
+                  {#if part.kind === "added"}
+                    <ins aria-hidden="true">{part.value}</ins>
+                  {:else}
+                    <span aria-hidden="true">{part.value}</span>
+                  {/if}
+                {/each}
+              </p>
+            </div>
+          </div>
+        {:else}
+          <p class="diff-empty">No saved source text is available for comparison.</p>
+        {/if}
+      </section>
+
+      <form
+        class="bullet-regenerator"
+        onsubmit={(event) => {
+          event.preventDefault();
+          void regenerateActiveBullet();
+        }}
+      >
+        <div class="bullet-regenerator-heading">
+          <Sparkle size={18} weight="fill" aria-hidden="true" />
+          <span>
+            <strong>Rewrite this bullet</strong>
+            <small>{activeBullet.locked ? "Unlock it first to make another version." : "The rewrite can only use the same saved evidence."}</small>
+          </span>
+        </div>
+        <label for="bullet-rewrite-direction">Direction <span>(optional)</span></label>
+        <div class="bullet-regenerator-controls">
+          <input
+            id="bullet-rewrite-direction"
+            class="input-field"
+            type="text"
+            placeholder="Make it shorter"
+            enterkeyhint="done"
+            bind:value={bulletInstruction}
+            disabled={activeBullet.locked || regeneratingBullet}
+          />
+          <button
+            class="btn-secondary"
+            type="submit"
+            disabled={activeBullet.locked || regeneratingBullet}
+          >
+            {#if regeneratingBullet}<Spinner size={16} />{:else}<Sparkle size={16} weight="bold" aria-hidden="true" />{/if}
+            Rewrite
+          </button>
+        </div>
+        {#if bulletRegenerationError}
+          <InlineFailure title="Couldn’t rewrite this bullet" message={bulletRegenerationError} />
+        {/if}
+        {#if bulletRegenerationStatus}
+          <p class="regeneration-status" role="status" aria-live="polite">
+            <Check size={15} weight="bold" aria-hidden="true" /> {bulletRegenerationStatus}
+          </p>
+        {/if}
+      </form>
 
       <div class="bullet-sheet-actions">
         <button
           type="button"
-          disabled={editingBullet.bulletIndex === 0}
+          disabled={editingBullet.bulletIndex === 0 || regeneratingBullet}
           onclick={() => moveActiveBullet(-1)}
         >
           <ArrowUp size={17} weight="bold" aria-hidden="true" /> Move up
         </button>
         <button
           type="button"
-          disabled={editingBullet.bulletIndex === activeBulletCount - 1}
+          disabled={editingBullet.bulletIndex === activeBulletCount - 1 || regeneratingBullet}
           onclick={() => moveActiveBullet(1)}
         >
           <ArrowDown size={17} weight="bold" aria-hidden="true" /> Move down
         </button>
-        <button class="leave-out-action" type="button" onclick={excludeActiveBullet}>
-          <X size={17} weight="bold" aria-hidden="true" /> Leave out
+        <button
+          class="leave-out-action"
+          type="button"
+          disabled={activeBullet.locked || regeneratingBullet}
+          onclick={excludeActiveBullet}
+        >
+          <X size={17} weight="bold" aria-hidden="true" /> {activeBullet.locked ? "Unlock to leave out" : "Leave out"}
         </button>
       </div>
 
       <button
         class="btn-primary btn-accent full-width"
         type="button"
-        disabled={!editingBulletText.trim()}
+        disabled={!editingBulletText.trim() || regeneratingBullet}
         onclick={commitBulletEditor}
       >Done</button>
+    </div>
+  </Modal>
+{/if}
+
+{#if artifactDeleteTarget}
+  <Modal
+    title={`Delete version ${artifactDeleteTarget.revision}?`}
+    subtitle="This removes the saved PDF. Your current tailored resume stays unchanged."
+    busy={artifactBusyId === artifactDeleteTarget.id}
+    onclose={() => (artifactDeleteTarget = null)}
+  >
+    <div class="modal-actions">
+      <button
+        class="btn-secondary"
+        type="button"
+        disabled={artifactBusyId !== null}
+        onclick={() => (artifactDeleteTarget = null)}
+      >Cancel</button>
+      <button
+        class="btn-secondary btn-danger"
+        type="button"
+        disabled={artifactBusyId !== null}
+        onclick={() => void deleteArtifact()}
+      >
+        {#if artifactBusyId === artifactDeleteTarget.id}<Spinner size={16} />{:else}<Trash size={17} weight="bold" aria-hidden="true" />{/if}
+        Delete PDF
+      </button>
     </div>
   </Modal>
 {/if}
@@ -1001,8 +1534,7 @@
   .resume-section h2,
   .entry-heading h3,
   .entry-heading p,
-  .update-resume-action p,
-  .original-evidence p {
+  .update-resume-action p {
     margin: 0;
   }
 
@@ -1172,14 +1704,12 @@
   }
 
   .requirement-row,
-  .disclosure-section,
-  .original-evidence {
+  .disclosure-section {
     border-bottom: 1px solid var(--color-line);
   }
 
   .requirement-row > summary,
-  .disclosure-section > summary,
-  .original-evidence > summary {
+  .disclosure-section > summary {
     min-height: var(--tap-min);
     display: grid;
     align-items: center;
@@ -1188,8 +1718,7 @@
   }
 
   .requirement-row > summary::-webkit-details-marker,
-  .disclosure-section > summary::-webkit-details-marker,
-  .original-evidence > summary::-webkit-details-marker {
+  .disclosure-section > summary::-webkit-details-marker {
     display: none;
   }
 
@@ -1228,8 +1757,7 @@
   .requirement-copy strong,
   .selection-row strong,
   .summary-row strong,
-  .excluded-row strong,
-  .original-evidence strong {
+  .excluded-row strong {
     color: var(--color-ink);
     font-size: var(--fs-sm);
     font-weight: 600;
@@ -1240,8 +1768,7 @@
   .selection-row small,
   .summary-row small,
   .excluded-row small,
-  .gaps-summary small,
-  .original-evidence p {
+  .gaps-summary small {
     color: var(--color-ink-3);
     font-size: var(--fs-xs);
     line-height: 1.45;
@@ -1269,6 +1796,23 @@
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
     line-height: var(--leading-body);
+  }
+
+  .requirement-detail blockquote {
+    margin: 0;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-line-2);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
+  }
+
+  .requirement-detail blockquote span {
+    display: block;
+    margin-block-end: var(--space-1);
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    font-weight: 600;
   }
 
   .requirement-detail small {
@@ -1475,9 +2019,17 @@
   }
 
   .bullet-copy small {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
     color: var(--color-ink-4);
     font-size: var(--fs-2xs);
     line-height: 1.35;
+  }
+
+  .bullet-row.locked .bullet-mark,
+  .bullet-row.locked .bullet-copy small {
+    color: var(--color-accent-soft-ink);
   }
 
   .bullet-row > :global(svg) {
@@ -1489,8 +2041,7 @@
     display: grid;
   }
 
-  .disclosure-section > summary,
-  .original-evidence > summary {
+  .disclosure-section > summary {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-3);
     color: var(--color-ink-2);
@@ -1534,6 +2085,91 @@
     color: var(--color-warn);
   }
 
+  .artifact-list {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .artifact-loading {
+    min-height: calc(var(--tap-min) + var(--space-4));
+    display: grid;
+    place-items: center;
+  }
+
+  .artifact-empty {
+    margin: 0;
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: var(--leading-body);
+  }
+
+  .artifact-row {
+    min-height: calc(var(--tap-min) + var(--space-4));
+    padding-block: var(--space-3);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .artifact-row.selected {
+    box-shadow: inset 2px 0 var(--color-accent);
+    padding-inline-start: var(--space-3);
+  }
+
+  .artifact-icon {
+    width: var(--control-height-small);
+    height: var(--control-height-small);
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-sunken);
+    color: var(--color-ink-3);
+  }
+
+  .artifact-copy {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .artifact-copy > strong {
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    line-height: 1.35;
+  }
+
+  .artifact-copy > small {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .artifact-selected {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-accent-soft-ink);
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+  }
+
+  .artifact-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .row-action:disabled {
+    color: var(--color-ink-4);
+    cursor: default;
+  }
+
+  .artifact-delete {
+    color: var(--color-bad);
+  }
+
   .preview-panel {
     min-height: 50dvh;
     display: grid;
@@ -1566,11 +2202,93 @@
     font-size: var(--fs-xs);
   }
 
-  .preview-meta summary {
-    min-height: var(--tap-min);
+  .preview-page-count {
+    color: var(--color-ink-2);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .removed-for-space {
+    display: grid;
+    gap: var(--space-3);
+    border-top: 1px solid var(--color-line);
+    padding-top: var(--space-4);
+  }
+
+  .removed-for-space-heading {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .removed-for-space-heading > div {
     display: flex;
     align-items: center;
-    cursor: pointer;
+    gap: var(--space-2);
+  }
+
+  .removed-for-space-heading h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+  }
+
+  .removed-for-space-heading > div > span {
+    color: var(--color-ink-4);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page-count-warning {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2);
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+  }
+
+  .page-count-warning > :global(svg) {
+    margin-top: var(--space-1);
+    color: var(--color-warn);
+  }
+
+  .removed-content-list {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .removed-content-row {
+    min-height: calc(var(--tap-min) + var(--space-3));
+    padding-block: var(--space-2);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .removed-content-row > span {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .removed-content-row strong {
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+  }
+
+  .removed-content-row small {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
 
   .download-action {
@@ -1605,11 +2323,157 @@
     line-height: var(--leading-body);
   }
 
-  .original-evidence > div {
-    padding-block: var(--space-3);
+  .trust-control-row {
+    min-height: calc(var(--tap-min) + var(--space-3));
+    padding-block: var(--space-2);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    border-top: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .trust-control-row > span,
+  .bullet-regenerator-heading > span {
+    min-width: 0;
     display: grid;
     gap: var(--space-1);
+  }
+
+  .trust-control-row strong,
+  .bullet-regenerator-heading strong {
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    line-height: 1.35;
+  }
+
+  .trust-control-row small,
+  .bullet-regenerator-heading small {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+  }
+
+  .bullet-diff {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .bullet-diff > header {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .bullet-diff h3,
+  .bullet-diff p,
+  .bullet-regenerator p {
+    margin: 0;
+  }
+
+  .bullet-diff h3 {
+    color: var(--color-ink);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .bullet-diff > header p,
+  .diff-empty {
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+  }
+
+  .word-diff {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .diff-block {
+    display: grid;
+    grid-template-columns: var(--control-height) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  .diff-label {
+    padding-top: var(--space-1);
+    color: var(--color-ink-4);
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+  }
+
+  .diff-copy {
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .diff-copy del,
+  .diff-copy ins {
+    border-radius: var(--radius-xs);
+    padding-inline: var(--space-1);
+  }
+
+  .diff-copy del {
+    background: var(--color-bad-soft);
+    color: var(--color-bad);
+    text-decoration-thickness: 1px;
+  }
+
+  .diff-copy ins {
+    background: var(--color-good-soft);
+    color: var(--color-good);
+    text-decoration: none;
+  }
+
+  .bullet-regenerator {
+    display: grid;
+    gap: var(--space-3);
+    padding-block: var(--space-3);
     border-top: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .bullet-regenerator-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2);
+  }
+
+  .bullet-regenerator-heading > :global(svg) {
+    margin-top: var(--space-1);
+    color: var(--color-accent-soft-ink);
+  }
+
+  .bullet-regenerator > label {
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
+
+  .bullet-regenerator > label span {
+    color: var(--color-ink-4);
+    font-weight: 400;
+  }
+
+  .bullet-regenerator-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .regeneration-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-good);
+    font-size: var(--fs-xs);
+    font-weight: 600;
   }
 
   .bullet-sheet-actions {
@@ -1673,6 +2537,23 @@
     .bullet-sheet-actions .leave-out-action {
       width: 100%;
       margin-inline-start: 0;
+    }
+
+    .artifact-row {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .artifact-actions {
+      grid-column: 2;
+      justify-content: flex-start;
+    }
+
+    .bullet-regenerator-controls {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bullet-regenerator-controls .btn-secondary {
+      width: 100%;
     }
   }
 </style>

@@ -19,6 +19,7 @@ import {
 import { randomOpaqueToken, sha256Hex } from "../crypto";
 import { sendMagicLinkEmail } from "../email";
 import { recordProductEvent } from "../product-events";
+import { ArtifactStorageUnavailableError } from "../tailor/artifact-storage";
 import type { AuthIdentityRow, Env, UserRow, Variables } from "../types";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -418,7 +419,14 @@ auth.delete("/account", async (c) => {
   }
 
   const deletedUserId = c.get("userId");
-  await deleteUserAccountData(c.env.DB, deletedUserId);
+  try {
+    await deleteUserAccountData(c.env.DB, deletedUserId, c.env.RESUME_BUCKET);
+  } catch (error) {
+    if (error instanceof ArtifactStorageUnavailableError) {
+      return c.json({ error: error.message, code: error.code }, 503);
+    }
+    throw error;
+  }
 
   const guestSession = await createGuestSession(c.env.DB);
   c.header(

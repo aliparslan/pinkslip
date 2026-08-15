@@ -1,4 +1,10 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
+import type {
+  ResumeImportAssessment,
+  ResumeImportConfidenceLevel,
+  ResumeImportFieldConfidence,
+  ResumeImportFieldKind,
+} from "../../../../shared/resume-import";
 
 function textScore(value: string | undefined, weight: number): number {
   return value?.trim() ? weight : 0;
@@ -141,4 +147,116 @@ export function resumeImportWarnings(profile: Partial<ResumeProfile>): string[] 
     (profile.experience?.length ?? 0) === 0 ? "We couldn’t identify an experience section." : "",
     (profile.education?.length ?? 0) === 0 ? "We couldn’t identify an education section." : "",
   ].filter(Boolean);
+}
+
+const FUSED_FIELD = /,[A-Z]{2}[A-Z]|\b(?:university|college|institute)\b.*\b(?:bachelor|master|doctor|associate)\b/i;
+const DATE_VALUE = /^(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|spring|summer|fall|autumn|winter)\.?\s+)?(?:19|20)\d{2}$|^(?:present|current)$/i;
+const LOCATION_VALUE = /(?:,\s*[A-Z]{2}\b)|(?:\bremote\b)|(?:\b[A-Za-z .'-]+,\s*[A-Za-z .'-]+\b)/i;
+
+function confidenceForValue(
+  value: string | undefined,
+  kind: ResumeImportFieldKind,
+): Pick<ResumeImportFieldConfidence, "confidence" | "reason"> {
+  const clean = value?.trim() ?? "";
+  if (!clean) return { confidence: "low", reason: "missing" };
+  if (FUSED_FIELD.test(clean) || clean.includes(" | ")) {
+    return { confidence: "low", reason: "fused" };
+  }
+  if (kind === "date" && !DATE_VALUE.test(clean)) {
+    return { confidence: "medium", reason: "ambiguous" };
+  }
+  if (kind === "location" && !LOCATION_VALUE.test(clean)) {
+    return { confidence: "medium", reason: "inferred" };
+  }
+  if ((kind === "organization" || kind === "title" || kind === "credential" || kind === "field_of_study") && clean.length < 3) {
+    return { confidence: "medium", reason: "ambiguous" };
+  }
+  return { confidence: "high", reason: "well_formed" };
+}
+
+function field(
+  path: string,
+  label: string,
+  value: string | undefined,
+  kind: ResumeImportFieldKind,
+  optional = false,
+): ResumeImportFieldConfidence | null {
+  const clean = value?.trim() ?? "";
+  if (optional && !clean) return null;
+  return { path, label, value: clean, kind, ...confidenceForValue(clean, kind) };
+}
+
+/**
+ * Produces field-level review hints without pretending the parser knows more
+ * than it does. High confidence means structurally plausible, not verified.
+ */
+export function assessResumeImportFields(profile: Partial<ResumeProfile>): ResumeImportAssessment {
+  const fields: ResumeImportFieldConfidence[] = [];
+  const add = (item: ResumeImportFieldConfidence | null) => {
+    if (item) fields.push(item);
+  };
+
+  add(field("contact.name", "Name", profile.contact?.name, "identity"));
+  add(field("contact.email", "Email", profile.contact?.email, "identity", true));
+  add(field("contact.phone", "Phone", profile.contact?.phone, "identity", true));
+
+  for (const [index, entry] of (profile.experience ?? []).entries()) {
+    const prefix = `experience.${entry.id || index}`;
+    add(field(`${prefix}.company`, `Employer for ${entry.title || `role ${index + 1}`}`, entry.company, "organization"));
+    add(field(`${prefix}.title`, `Title at ${entry.company || `role ${index + 1}`}`, entry.title, "title"));
+    add(field(`${prefix}.location`, `Location for ${entry.company || `role ${index + 1}`}`, entry.location, "location", true));
+    add(field(`${prefix}.startDate`, `Start date for ${entry.company || `role ${index + 1}`}`, entry.startDate, "date", true));
+    add(field(`${prefix}.endDate`, `End date for ${entry.company || `role ${index + 1}`}`, entry.endDate, "date", true));
+  }
+
+  for (const [index, entry] of (profile.education ?? []).entries()) {
+    const prefix = `education.${entry.id || index}`;
+    add(field(`${prefix}.institution`, `School ${index + 1}`, entry.institution, "organization"));
+    add(field(`${prefix}.location`, `Location for ${entry.institution || `school ${index + 1}`}`, entry.location, "location", true));
+    add(field(`${prefix}.startDate`, `Start date for ${entry.institution || `school ${index + 1}`}`, entry.startDate, "date", true));
+    add(field(`${prefix}.endDate`, `End date for ${entry.institution || `school ${index + 1}`}`, entry.endDate, "date", true));
+    if (entry.credentials.length === 0) {
+      add(field(`${prefix}.credentials`, `Credential for ${entry.institution || `school ${index + 1}`}`, "", "credential"));
+    }
+    for (const [credentialIndex, credential] of entry.credentials.entries()) {
+      add(field(
+        `${prefix}.credentials.${credential.id || credentialIndex}.degreeType`,
+        `Degree at ${entry.institution || `school ${index + 1}`}`,
+        credential.degreeType,
+        "credential",
+      ));
+      if (credential.fieldsOfStudy.length === 0) {
+        add(field(
+          `${prefix}.credentials.${credential.id || credentialIndex}.fieldsOfStudy`,
+          `Field of study at ${entry.institution || `school ${index + 1}`}`,
+          "",
+          "field_of_study",
+        ));
+      } else {
+        for (const [fieldIndex, value] of credential.fieldsOfStudy.entries()) {
+          add(field(
+            `${prefix}.credentials.${credential.id || credentialIndex}.fieldsOfStudy.${fieldIndex}`,
+            `Field of study at ${entry.institution || `school ${index + 1}`}`,
+            value,
+            "field_of_study",
+          ));
+        }
+      }
+    }
+  }
+
+  for (const [index, entry] of (profile.projects ?? []).entries()) {
+    add(field(`projects.${entry.id || index}.name`, `Project ${index + 1}`, entry.name, "title"));
+  }
+
+  const reviewPaths = fields
+    .filter((item) => item.confidence !== "high")
+    .map((item) => item.path);
+  const levels: ResumeImportConfidenceLevel[] = fields.map((item) => item.confidence);
+  const overall: ResumeImportConfidenceLevel = levels.includes("low")
+    ? "low"
+    : levels.includes("medium")
+      ? "medium"
+      : "high";
+  return { overall, fields, reviewPaths };
 }

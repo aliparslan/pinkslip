@@ -26,9 +26,29 @@ describe("resume import fallback policy", () => {
     ))).rejects.toMatchObject({ code: "invalid_pdf" });
 
     await expect(validateResumePdf(new File(
-      ["%PDF-1.7"],
+      ["not a pdf"],
       "resume.txt",
       { type: "text/plain" },
     ))).rejects.toMatchObject({ code: "unsupported_type" });
+  });
+
+  test("accepts generic MIME types emitted by iOS document providers when the signature is valid", async () => {
+    await expect(validateResumePdf(new File(
+      ["%PDF-1.7"],
+      "resume.pdf",
+      { type: "application/octet-stream" },
+    ))).resolves.toBeUndefined();
+
+    await expect(validateResumePdf(new File(
+      ["%PDF-1.7"],
+      "resume.pdf",
+      { type: "application/x-pdf" },
+    ))).resolves.toBeUndefined();
+
+    await expect(validateResumePdf(new File(
+      ["%PDF-1.7"],
+      "resume.pdf",
+      { type: "text/plain" },
+    ))).resolves.toBeUndefined();
   });
 });

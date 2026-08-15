@@ -1,5 +1,42 @@
 export type PdfLink = { url: string };
 
+export const MAX_OCR_PAGES = 3;
+const OCR_RENDER_SCALE = 2.2;
+const OCR_MAX_DIMENSION = 1_800;
+const OCR_MAX_PIXELS = 2_500_000;
+const OCR_JPEG_QUALITY = 0.86;
+
+async function loadPdf(file: File) {
+  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.mjs?url"),
+  ]);
+  GlobalWorkerOptions.workerSrc = worker.default;
+  const data = new Uint8Array(await file.arrayBuffer());
+  return getDocument({ data }).promise;
+}
+
+export function ocrPageNumbers(totalPages: number): number[] {
+  const count = Math.min(MAX_OCR_PAGES, Math.max(0, Math.floor(totalPages)));
+  return Array.from({ length: count }, (_, index) => index + 1);
+}
+
+export function boundedOcrRenderScale(width: number, height: number): number {
+  if (!(width > 0) || !(height > 0)) return 1;
+  const dimensionScale = OCR_MAX_DIMENSION / Math.max(width, height);
+  const pixelScale = Math.sqrt(OCR_MAX_PIXELS / (width * height));
+  return Math.min(OCR_RENDER_SCALE, dimensionScale, pixelScale);
+}
+
+function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("The scanned PDF page could not be prepared."));
+    }, "image/jpeg", OCR_JPEG_QUALITY);
+  });
+}
+
 function textItemValue(item: unknown): { str: string; x: number; y: number; width: number } | null {
   if (!item || typeof item !== "object" || !("str" in item)) return null;
   const candidate = item as { str?: unknown; transform?: unknown; width?: unknown };
@@ -15,14 +52,7 @@ function textItemValue(item: unknown): { str: string; x: number; y: number; widt
 
 /** Browser-only PDF.js extraction used as the offline import fallback. */
 export async function extractPdfText(file: File): Promise<{ text: string; links: PdfLink[] }> {
-  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
-    import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.mjs?url"),
-  ]);
-  GlobalWorkerOptions.workerSrc = worker.default;
-
-  const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await getDocument({ data }).promise;
+  const pdf = await loadPdf(file);
   const allText: string[] = [];
   const allLinks: PdfLink[] = [];
 
@@ -72,4 +102,39 @@ export async function extractPdfText(file: File): Promise<{ text: string; links:
   }
 
   return { text: allText.join("\n\n"), links: allLinks };
+}
+
+/**
+ * Render only the first few pages for transient OCR. Pages are encoded one at
+ * a time and bounded by both dimensions and pixel count to avoid large mobile
+ * canvas allocations.
+ */
+export async function renderPdfPagesForOcr(file: File): Promise<Blob[]> {
+  const pdf = await loadPdf(file);
+  const images: Blob[] = [];
+
+  try {
+    for (const pageNumber of ocrPageNumbers(pdf.numPages)) {
+      const page = await pdf.getPage(pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({
+        scale: boundedOcrRenderScale(baseViewport.width, baseViewport.height),
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.ceil(viewport.width));
+      canvas.height = Math.max(1, Math.ceil(viewport.height));
+      try {
+        await page.render({ canvas, viewport, background: "rgb(255,255,255)" }).promise;
+        images.push(await canvasToJpeg(canvas));
+      } finally {
+        canvas.width = 1;
+        canvas.height = 1;
+        page.cleanup();
+      }
+    }
+  } finally {
+    await pdf.destroy();
+  }
+
+  return images;
 }

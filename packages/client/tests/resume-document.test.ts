@@ -4,8 +4,13 @@ import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
 import { createEmptyResumeProfile } from "../../../shared/resume-profile";
 import type { TailoredResume } from "../../../shared/tailoring";
-import { resumePreviewDataUrl } from "../src/lib/resume-document-client";
-import { buildResumeTypstSource, cloneTailoredResume } from "../src/lib/resume-document";
+import { resumePreviewDataUrl, verifyResumeExtractedText } from "../src/lib/resume-document-client";
+import {
+  buildResumeTypstSource,
+  cloneTailoredResume,
+  removeLowestPriorityContent,
+  restoreRemovedContent,
+} from "../src/lib/resume-document";
 
 beforeAll(async () => {
   const fontNames = [
@@ -101,6 +106,37 @@ describe("Typst resume compiler", () => {
     expect(text).toContain("Jane Doe");
     expect(text).toContain("Reduced request latency by 40% using caching.");
     expect(text.indexOf("EXPERIENCE")).toBeLessThan(text.indexOf("EDUCATION"));
+    expect(verifyResumeExtractedText(resume, text)).toEqual({
+      valid: true,
+      missing: [],
+      extractedCharacters: expect.any(Number),
+    });
+    expect(verifyResumeExtractedText(resume, "Jane Doe jane@example.com").missing).toContain(
+      "title: Software Engineer",
+    );
     await extracted.destroy();
   }, 30_000);
+
+  test("keeps restored optional content through later fit passes", () => {
+    const profile = createEmptyResumeProfile();
+    const resume: TailoredResume = {
+      schemaVersion: 2,
+      contact: profile.contact,
+      experience: [],
+      education: [],
+      projects: [],
+      skills: [],
+      optionalSections: [{
+        kind: "certifications",
+        items: [{ category: "Cloud", items: "Example certification" }],
+      }],
+      removedForSpace: [],
+    };
+    const removed = removeLowestPriorityContent(resume, []);
+    expect(removed.removed?.section).toBe("optionalSections");
+    const restored = restoreRemovedContent(removed.resume, 0);
+    expect(restored.restored).toBe(true);
+    expect(restored.resume.optionalSections[0]?.items).toHaveLength(1);
+    expect(removeLowestPriorityContent(restored.resume, []).removed).toBeNull();
+  });
 });

@@ -110,6 +110,40 @@ describe("adaptive resume import orchestration", () => {
     expect(result.profile.contact?.email).toBe("jane@example.com");
   });
 
+  test("uses optional vision OCR only when document extraction finds no text", async () => {
+    let ocrCalls = 0;
+    const result = await importResumeAdaptively({
+      parseLocal: async () => createEmptyResumeProfile(),
+      parseServer: async () => {
+        throw { code: "no_extractable_text", status: 422 };
+      },
+      parseOcr: async () => {
+        ocrCalls += 1;
+        return { profile: strongProfile(), warnings: [] };
+      },
+    });
+
+    expect(ocrCalls).toBe(1);
+    expect(result.extractor).toBe("workers_ai_ocr");
+    expect(result.profile.contact?.email).toBe("jane@example.com");
+  });
+
+  test("does not invoke vision OCR for protected or malformed documents", async () => {
+    let ocrCalls = 0;
+    const preciseFailure = { code: "protected_pdf", status: 422 };
+    await expect(importResumeAdaptively({
+      parseLocal: async () => createEmptyResumeProfile(),
+      parseServer: async () => {
+        throw preciseFailure;
+      },
+      parseOcr: async () => {
+        ocrCalls += 1;
+        return { profile: strongProfile(), warnings: [] };
+      },
+    })).rejects.toBe(preciseFailure);
+    expect(ocrCalls).toBe(0);
+  });
+
   test("preserves precise server file failures instead of accepting a weak parse", async () => {
     const preciseFailure = { code: "protected_pdf", status: 422 };
     await expect(importResumeAdaptively({

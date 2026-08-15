@@ -1,0 +1,39 @@
+[
+  {
+    "name": "two-column-style-contact-and-role",
+    "text": "JANE DOE | jane@example.com | Austin, TX\nEXPERIENCE\nSoftware Engineer | Acme Labs | Austin, TX | January 2024 – Present\n• Built a reliable service used by 20 teams.\nEDUCATION\nExample University | Austin, TX\nBachelor of Science in Computer Science | May 2024\nSKILLS\nLanguages: TypeScript, Python",
+    "expected": { "experience": 1, "education": 1, "projects": 0, "skills": 1 }
+  },
+  {
+    "name": "two-roles-at-one-employer",
+    "text": "JANE DOE\njane@example.com\nEXPERIENCE\nAcme Labs\nSenior Software Engineer | January 2024 – Present\n• Led platform reliability.\nSoftware Engineer | June 2022 – December 2023\n• Built internal tools.\nEDUCATION\nExample University\nBachelor of Science in Computer Science | May 2022",
+    "expected": { "experience": 2, "education": 1, "projects": 0, "skills": 0 }
+  },
+  {
+    "name": "multiple-credentials-and-minor",
+    "text": "JANE DOE\njane@example.com\nEDUCATION\nExample University | Austin, TX | May 2026\nBachelor of Science in Computer Science and Mathematics\nMinor in Economics",
+    "expected": { "experience": 0, "education": 1, "projects": 0, "skills": 0 }
+  },
+  {
+    "name": "activities-map-to-experience-and-projects",
+    "text": "JANE DOE\njane@example.com\nPROJECTS & ACTIVITIES\nCampus Navigator | Project Lead | 2025\n• Built an accessible campus routing prototype.\nVolunteer Tutor | Example Community Center | 2024\n• Taught weekly programming workshops.\nSKILLS & HOBBIES\nTechnical: Swift, TypeScript\nInterests: Cycling, photography",
+    "expected": { "experience": 0, "education": 0, "projects": 2, "skills": 2 }
+  },
+  {
+    "name": "links-are-retained",
+    "text": "JANE DOE\njane@example.com\nlinkedin.com/in/janedoe | github.com/janedoe\nPROJECTS\nPortfolio | janedoe.dev | 2025\n• Published selected product work.",
+    "expected": { "experience": 0, "education": 0, "projects": 1, "skills": 0 }
+  },
+  {
+    "name": "fused-school-location-and-degree-is-recovered",
+    "text": "JANE DOE\njane@example.com\nEDUCATION\nExample University | Austin, TXBachelor of Science in Computer Science | May 2026",
+    "expected": {
+      "experience": 0,
+      "education": 1,
+      "projects": 0,
+      "skills": 0,
+      "institution": "Example University",
+      "fieldOfStudy": "Computer Science"
+    }
+  }
+]

@@ -9,6 +9,7 @@ const ALLOWED_PROPERTIES = new Set([
   "latency_ms",
   "onboarding_version",
   "platform",
+  "client_build",
   "error_code",
   "size_bytes",
   "extractor",

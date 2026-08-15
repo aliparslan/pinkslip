@@ -3,6 +3,11 @@ import { extractPdfText } from "./pdf-extract";
 import { parseResumeText } from "./pdf-to-profile";
 
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+const PDF_PICKER_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/x-pdf",
+  "application/octet-stream",
+]);
 
 export type LocalResumeImportErrorCode =
   | "file_too_large"
@@ -24,9 +29,6 @@ export async function validateResumePdf(file: File): Promise<void> {
   if (file.size > MAX_RESUME_BYTES) {
     throw new LocalResumeImportError("file_too_large", "Choose a PDF smaller than 5 MB.");
   }
-  if (file.type && file.type !== "application/pdf") {
-    throw new LocalResumeImportError("unsupported_type", "Choose a PDF resume.");
-  }
   const signature = new Uint8Array(await file.slice(0, 5).arrayBuffer());
   const isPdf = signature.length === 5
     && signature[0] === 0x25
@@ -35,6 +37,9 @@ export async function validateResumePdf(file: File): Promise<void> {
     && signature[3] === 0x46
     && signature[4] === 0x2d;
   if (!isPdf) {
+    if (file.type && !PDF_PICKER_MIME_TYPES.has(file.type.toLowerCase())) {
+      throw new LocalResumeImportError("unsupported_type", "Choose a PDF resume.");
+    }
     throw new LocalResumeImportError("invalid_pdf", "This file is not a valid PDF.");
   }
 }

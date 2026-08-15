@@ -4,6 +4,10 @@ import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
 import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
+import {
+  evaluateTailoringQuality,
+  type TailoringQualitySnapshot,
+} from "../../shared/tailoring-quality";
 
 const metrics = new Hono<{ Bindings: Env; Variables: Variables }>();
 metrics.use("/*", requireAdmin);
@@ -28,6 +32,38 @@ interface EligibleOutcomeRow {
   dismissed: number;
 }
 
+interface TailoringQualityMetricRow {
+  tailoring_id: string | null;
+  stage: string;
+  outcome: string;
+  duration_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  requirement_count: number | null;
+  requirement_source_count: number | null;
+  bullet_count: number | null;
+  unsupported_claim_count: number | null;
+  page_count: number | null;
+  removed_item_count: number | null;
+  edited_bullet_count: number | null;
+  baseline_bullet_count: number | null;
+  error_code: string | null;
+}
+
+function ratio(numerator: number, denominator: number): number {
+  return denominator > 0 ? numerator / denominator : 0;
+}
+
+function average(values: number[]): number {
+  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function percentile95(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.ceil(sorted.length * 0.95) - 1] ?? 0;
+}
+
 metrics.get("/", async (c) => {
   const db = c.env.DB;
   await ensureEligibleJobs(db);
@@ -40,6 +76,8 @@ metrics.get("/", async (c) => {
     promptApplyClicks,
     eligibleOutcomes,
     tailoringConversions,
+    tailoringQualityRows,
+    tailoringArtifactSelection,
   ] = await Promise.all([
     db.prepare(
       `SELECT
@@ -120,6 +158,24 @@ metrics.get("/", async (c) => {
        WHERE tailored.event_name = 'tailoring_completed'
          AND datetime(tailored.occurred_at) >= datetime('now', '-30 days')`
     ).first<{ completed: number; converted: number }>(),
+    db.prepare(
+      `SELECT tailoring_id, stage, outcome, duration_ms, input_tokens, output_tokens,
+              requirement_count, requirement_source_count, bullet_count,
+              unsupported_claim_count, page_count, removed_item_count,
+              edited_bullet_count, baseline_bullet_count, error_code
+       FROM tailoring_quality_events
+       WHERE datetime(created_at) >= datetime('now', '-30 days')
+       ORDER BY created_at DESC
+       LIMIT 5000`
+    ).all<TailoringQualityMetricRow>(),
+    db.prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN s.artifact_id IS NOT NULL THEN 1 ELSE 0 END) AS selected
+       FROM tailored_resume_artifacts a
+       LEFT JOIN tailoring_artifact_selections s ON s.artifact_id = a.id
+       WHERE a.storage_state = 'available'
+         AND datetime(a.created_at) >= datetime('now', '-30 days')`
+    ).first<{ total: number; selected: number }>(),
   ]);
 
   const events = Object.fromEntries(
@@ -131,6 +187,46 @@ metrics.get("/", async (c) => {
   const eligibleDismissals = Number(eligibleOutcomes?.dismissed ?? 0);
   const completedTailorings = Number(tailoringConversions?.completed ?? 0);
   const convertedTailorings = Number(tailoringConversions?.converted ?? 0);
+  const qualityRows = tailoringQualityRows.results ?? [];
+  const artifactRows = qualityRows.filter((row) => (
+    row.stage === "artifact" && row.outcome === "succeeded" && row.error_code !== "selected"
+  ));
+  const planRows = qualityRows.filter((row) => row.stage === "plan" && row.outcome === "succeeded");
+  const generationRows = qualityRows.filter((row) => row.stage === "generate");
+  const compileRows = qualityRows.filter((row) => row.stage === "compile");
+  const pipelineLatencyByTailoring = new Map<string, number>();
+  for (const row of qualityRows) {
+    if (!row.tailoring_id || (row.stage !== "plan" && row.stage !== "generate") || row.duration_ms == null) continue;
+    pipelineLatencyByTailoring.set(
+      row.tailoring_id,
+      (pipelineLatencyByTailoring.get(row.tailoring_id) ?? 0) + row.duration_ms,
+    );
+  }
+  const requirementCount = planRows.reduce((sum, row) => sum + Number(row.requirement_count ?? 0), 0);
+  const requirementSourceCount = planRows.reduce((sum, row) => sum + Number(row.requirement_source_count ?? 0), 0);
+  const generatedBulletCount = generationRows.reduce((sum, row) => sum + Number(row.bullet_count ?? 0), 0);
+  const unsupportedClaims = generationRows.reduce((sum, row) => sum + Number(row.unsupported_claim_count ?? 0), 0);
+  const artifactTotal = Number(tailoringArtifactSelection?.total ?? 0);
+  const snapshot: TailoringQualitySnapshot = {
+    sampleSize: artifactRows.length,
+    unsupportedClaimRate: ratio(unsupportedClaims, generatedBulletCount),
+    requirementSourceCoverage: ratio(requirementSourceCount, requirementCount),
+    onePageRate: ratio(artifactRows.filter((row) => row.page_count === 1).length, artifactRows.length),
+    averageRemovedItems: average(artifactRows.map((row) => Number(row.removed_item_count ?? 0))),
+    averageEditDistance: ratio(
+      artifactRows.reduce((sum, row) => sum + Number(row.edited_bullet_count ?? 0), 0),
+      artifactRows.reduce((sum, row) => sum + Number(row.baseline_bullet_count ?? 0), 0),
+    ),
+    deviceFailureRate: ratio(
+      compileRows.filter((row) => row.outcome === "failed").length,
+      compileRows.length,
+    ),
+    p95LatencyMs: percentile95([...pipelineLatencyByTailoring.values()]),
+    averageInputTokens: average(generationRows.map((row) => Number(row.input_tokens ?? 0))),
+    averageOutputTokens: average(generationRows.map((row) => Number(row.output_tokens ?? 0))),
+    artifactAcceptanceRate: ratio(Number(tailoringArtifactSelection?.selected ?? 0), artifactTotal),
+  };
+  const tailoringQualityEvaluation = evaluateTailoringQuality(snapshot);
 
   return c.json({
     period_days: 30,
@@ -152,6 +248,12 @@ metrics.get("/", async (c) => {
     tailoring_to_application_rate: completedTailorings > 0
       ? Math.round((convertedTailorings / completedTailorings) * 1000) / 10
       : 0,
+    tailoring_quality: {
+      ...snapshot,
+      ready: tailoringQualityEvaluation.ready,
+      insufficientSample: tailoringQualityEvaluation.insufficientSample,
+      failedGates: tailoringQualityEvaluation.failed.map((failure) => failure.gate),
+    },
     open_reports: Number(openReports?.count ?? 0),
     open_feedback: Number(openFeedback?.count ?? 0),
     events,

@@ -76,6 +76,12 @@
         "vite": "^8.0.10",
       },
     },
+    "services/resume-compiler": {
+      "name": "@pinkslip/resume-compiler",
+      "dependencies": {
+        "@myriaddreamin/typst.ts": "0.7.0",
+      },
+    },
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -333,6 +339,8 @@
     "@pinkslip/client": ["@pinkslip/client@workspace:packages/client"],
 
     "@pinkslip/ios": ["@pinkslip/ios@workspace:apps/ios"],
+
+    "@pinkslip/resume-compiler": ["@pinkslip/resume-compiler@workspace:services/resume-compiler"],
 
     "@pinkslip/web": ["@pinkslip/web@workspace:apps/web"],
 

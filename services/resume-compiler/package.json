@@ -1,0 +1,8 @@
+{
+  "name": "@pinkslip/resume-compiler",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@myriaddreamin/typst.ts": "0.7.0"
+  }
+}

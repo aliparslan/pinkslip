@@ -2,6 +2,8 @@ export interface Env {
   DB: D1Database;
   AI?: Ai;
   RESUME_BUCKET?: R2Bucket;
+  /** Optional internal Service Binding; intentionally absent until approved. */
+  RESUME_COMPILER?: Fetcher;
   EMAIL?: {
     send(message: {
       to: string;
@@ -124,6 +126,7 @@ export interface TailoringRow {
   template_version: string;
   compiler_version: string;
   usage_id: string | null;
+  initial_resume_json: string | null;
   created_at: string;
   updated_at: string;
 }

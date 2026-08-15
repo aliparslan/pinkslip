@@ -32,6 +32,14 @@ export interface TailoringRequirement {
   text: string;
   priority: RequirementPriority;
   keywords: string[];
+  /** Exact text retained from the frozen job description. */
+  source: {
+    quote: string;
+    start: number;
+    end: number;
+  };
+  /** Model confidence, clamped to the inclusive 0–1 range. */
+  confidence: number;
 }
 
 export interface RequirementMatch {
@@ -58,6 +66,17 @@ export interface TailoredBullet {
   id: string;
   text: string;
   evidenceIds: string[];
+  /** Locked bullets are copied through focused regeneration without a model rewrite. */
+  locked?: boolean;
+}
+
+export interface RemovedForSpaceItem {
+  evidenceId: string;
+  label: string;
+  section?: "experience" | "projects" | "optionalSections";
+  sourceEntryId?: string;
+  bullet?: TailoredBullet;
+  optionalSection?: ResumeProfile["optionalSections"][number];
 }
 
 export interface TailoredExperience {
@@ -88,7 +107,9 @@ export interface TailoredResume {
   projects: TailoredProject[];
   skills: ResumeProfile["skills"];
   optionalSections: ResumeProfile["optionalSections"];
-  removedForSpace: Array<{ evidenceId: string; label: string }>;
+  removedForSpace: RemovedForSpaceItem[];
+  /** Content explicitly restored by the user is not silently removed on the next fit pass. */
+  spaceProtectedEvidenceIds?: string[];
 }
 
 export interface ValidationIssue {
@@ -114,6 +135,13 @@ export interface TailoringArtifact {
   templateVersion: string;
   compilerVersion: string;
   createdAt: string;
+  pageCount?: number;
+  pdfSha256?: string;
+  resumeSha256?: string;
+  selected?: boolean;
+  storageState?: "stored" | "missing";
+  retentionPolicy?: "until_deleted";
+  verification?: "client_only" | "server_reproduced" | "server_content_matched";
 }
 
 export interface StructuredTailoring {
@@ -187,6 +215,59 @@ function stableHash(value: string): string {
 
 export function stableTextId(prefix: string, value: string): string {
   return `${prefix}-${stableHash(value)}`;
+}
+
+export interface TailoringPlanIntegrityIssue {
+  code: "invalid_source_span" | "unknown_evidence" | "unknown_requirement" | "invalid_confidence";
+  path: string;
+  message: string;
+}
+
+/** Verify that the review plan is grounded in its frozen inputs before saving it. */
+export function validateTailoringPlan(
+  description: string,
+  evidence: CandidateEvidence[],
+  plan: TailoringPlan,
+): TailoringPlanIntegrityIssue[] {
+  const issues: TailoringPlanIntegrityIssue[] = [];
+  const evidenceIds = new Set(evidence.map((item) => item.id));
+  const requirementIds = new Set(plan.requirements.map((item) => item.id));
+  for (const [index, requirement] of plan.requirements.entries()) {
+    if (
+      requirement.source.start < 0
+      || requirement.source.end <= requirement.source.start
+      || description.slice(requirement.source.start, requirement.source.end) !== requirement.source.quote
+    ) {
+      issues.push({
+        code: "invalid_source_span",
+        path: `requirements.${index}.source`,
+        message: "The requirement is not linked to exact text in the saved job description.",
+      });
+    }
+    if (!Number.isFinite(requirement.confidence) || requirement.confidence < 0 || requirement.confidence > 1) {
+      issues.push({
+        code: "invalid_confidence",
+        path: `requirements.${index}.confidence`,
+        message: "Requirement confidence must be between zero and one.",
+      });
+    }
+  }
+  for (const [index, match] of plan.matches.entries()) {
+    if (!requirementIds.has(match.requirementId)) {
+      issues.push({ code: "unknown_requirement", path: `matches.${index}`, message: "A match refers to an unknown requirement." });
+    }
+    for (const evidenceId of match.evidenceIds) {
+      if (!evidenceIds.has(evidenceId)) {
+        issues.push({ code: "unknown_evidence", path: `matches.${index}`, message: "A match refers to evidence outside the saved resume." });
+      }
+    }
+  }
+  for (const [index, gap] of plan.gaps.entries()) {
+    if (!requirementIds.has(gap.requirementId)) {
+      issues.push({ code: "unknown_requirement", path: `gaps.${index}`, message: "A gap refers to an unknown requirement." });
+    }
+  }
+  return issues;
 }
 
 export function buildCandidateEvidence(profile: ResumeProfile): CandidateEvidence[] {

@@ -31,6 +31,7 @@
     createEmptyResumeProfile,
     normalizeResumeProfile,
   } from "../../../../shared/resume-profile";
+  import type { ResumeImportAssessment } from "../../../../shared/resume-import";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
   import { isIosApp } from "../lib/platform";
   import {
@@ -77,6 +78,7 @@
   let importInput: HTMLInputElement | null = $state(null);
   let pendingImport: Partial<ResumeProfile> | null = $state(null);
   let pendingImportWarnings: string[] = $state([]);
+  let pendingImportAssessment: ResumeImportAssessment | null = $state(null);
   let view: ResumeView = $state({ kind: "overview" });
   let addSectionOpen = $state(false);
   let clearResumeOpen = $state(false);
@@ -589,17 +591,32 @@
         serverAvailable: navigator.onLine,
         parseServer: async () => {
           const response = await api.resumeImport.parse(file);
-          return { profile: response.profile, warnings: response.warnings };
+          return {
+            profile: response.profile,
+            warnings: response.warnings,
+            assessment: response.assessment,
+          };
+        },
+        parseOcr: async () => {
+          const resumeOcr = await import("../lib/resume-import-ocr");
+          const response = await resumeOcr.parseScannedPdfWithOcr(file);
+          return {
+            profile: response.profile,
+            warnings: response.warnings,
+            assessment: response.assessment,
+          };
         },
       });
       const parsed = result.profile;
       pendingImportWarnings = result.warnings;
+      pendingImportAssessment = result.assessment ?? null;
       if (!hasResumeContent(parsed)) {
         throw new Error("No resume details were found");
       }
       pendingImport = parsed;
     } catch (failure) {
       pendingImportWarnings = [];
+      pendingImportAssessment = null;
       const typedCode = failure && typeof failure === "object" && "code" in failure
         && typeof failure.code === "string"
         ? failure.code as ResumeImportErrorCode
@@ -656,6 +673,7 @@
     if (pendingImport.optionalSections?.length) profile.optionalSections = pendingImport.optionalSections;
     pendingImport = null;
     pendingImportWarnings = [];
+    pendingImportAssessment = null;
     importError = null;
     lastImportFile = null;
     feedback.success("Resume imported");
@@ -665,6 +683,7 @@
   function cancelPdfImport() {
     pendingImport = null;
     pendingImportWarnings = [];
+    pendingImportAssessment = null;
   }
 
   function requestClearResume() {
@@ -685,6 +704,7 @@
       profile = normalizeResumeProfile(response.data);
       pendingImport = null;
       pendingImportWarnings = [];
+      pendingImportAssessment = null;
       importError = null;
       lastImportFile = null;
       draftRecord = null;
@@ -1178,6 +1198,25 @@
       <ul class="import-warnings">
         {#each pendingImportWarnings as warning}<li>{warning}</li>{/each}
       </ul>
+    {/if}
+    {#if pendingImportAssessment?.reviewPaths.length}
+      <section class="import-review" aria-labelledby="import-review-heading">
+        <div>
+          <strong id="import-review-heading">Review after importing</strong>
+          <p>The file was readable, but these details need your confirmation.</p>
+        </div>
+        <ul>
+          {#each pendingImportAssessment.fields.filter((field) => field.confidence !== "high").slice(0, 6) as field}
+            <li>
+              <span>{field.label}</span>
+              <small>{field.value || "Not found"}</small>
+            </li>
+          {/each}
+        </ul>
+        {#if pendingImportAssessment.reviewPaths.length > 6}
+          <p class="import-review-more">And {pendingImportAssessment.reviewPaths.length - 6} more details</p>
+        {/if}
+      </section>
     {/if}
     <div class="action-row import-actions">
       <button type="button" class="btn-secondary flex-fill" onclick={cancelPdfImport}>Cancel</button>
@@ -1743,6 +1782,24 @@
     font-size: var(--fs-xs);
     line-height: var(--leading-body);
   }
+
+  .import-review {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elev);
+  }
+
+  .import-review p,
+  .import-review ul { margin: 0; }
+  .import-review > div p,
+  .import-review-more { color: var(--color-ink-2); font-size: var(--fs-sm); }
+  .import-review ul { display: grid; gap: var(--space-2); padding: 0; list-style: none; }
+  .import-review li { display: grid; gap: 2px; }
+  .import-review li span { font-size: var(--fs-sm); font-weight: 600; }
+  .import-review li small { color: var(--color-ink-2); }
 
   .import-actions {
     margin-top: var(--space-5);

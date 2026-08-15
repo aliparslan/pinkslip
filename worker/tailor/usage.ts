@@ -21,7 +21,8 @@ export async function loadTailorUsage(args: {
   const today = startOfUtcDay();
   const [app, user] = await Promise.all([
     args.db.prepare(
-      `SELECT COUNT(*) AS count, COALESCE(SUM(provider_units), 0) AS provider_units
+      `SELECT COALESCE(SUM(attempt_count), 0) AS count,
+              COALESCE(SUM(COALESCE(provider_units, 0) + reserved_provider_units), 0) AS provider_units
        FROM tailor_usage
        WHERE model = ?
          AND created_at >= ?`
@@ -31,6 +32,7 @@ export async function loadTailorUsage(args: {
        FROM tailor_usage
        WHERE user_id = ?
          AND model = ?
+         AND state <> 'refunded'
          AND created_at >= ?`
     ).bind(args.userId, args.model, today).first<{ count: number }>(),
   ]);
@@ -70,19 +72,20 @@ export async function reserveAppTailorQuota(
   // all pass a count check before any one of them records usage.
   const result = await db.prepare(
     `INSERT INTO tailor_usage (
-       id, user_id, model, created_at, provider_units
+       id, user_id, model, created_at, provider_units,
+       state, reserved_provider_units, attempt_count
      )
-     SELECT ?, ?, ?, ?, ?
+     SELECT ?, ?, ?, ?, 0, 'reserved', ?, 1
      WHERE (
        SELECT COUNT(*) FROM tailor_usage
-       WHERE user_id = ? AND created_at >= ?
+       WHERE user_id = ? AND state <> 'refunded' AND created_at >= ?
      ) < ?
        AND (
-         SELECT COUNT(*) FROM tailor_usage
+         SELECT COALESCE(SUM(attempt_count), 0) FROM tailor_usage
          WHERE model = ? AND created_at >= ?
        ) < ?
        AND (
-         SELECT COALESCE(SUM(provider_units), 0) FROM tailor_usage
+         SELECT COALESCE(SUM(COALESCE(provider_units, 0) + reserved_provider_units), 0) FROM tailor_usage
          WHERE created_at >= ?
        ) + ? <= ?`
   ).bind(
@@ -112,16 +115,130 @@ export async function completeAppTailorUsage(args: {
   inputTokens: number;
   outputTokens: number;
   providerUnits: number | null;
+  preserveRefunded?: boolean;
 }) {
   await args.db.prepare(
     `UPDATE tailor_usage
      SET input_tokens = ?, output_tokens = ?,
-         provider_units = COALESCE(?, provider_units)
+         provider_units = CASE
+           WHEN ? IS NULL THEN COALESCE(provider_units, 0) + reserved_provider_units
+           ELSE COALESCE(provider_units, 0) + ?
+         END,
+         reserved_provider_units = 0,
+         state = CASE
+           WHEN ? = 1 AND state = 'refunded' THEN 'refunded'
+           ELSE 'completed'
+         END,
+         completed_at = ?,
+         refunded_at = CASE
+           WHEN ? = 1 AND state = 'refunded' THEN refunded_at
+           ELSE NULL
+         END,
+         failure_stage = NULL,
+         failure_code = NULL
      WHERE id = ?`
   ).bind(
     args.inputTokens || null,
     args.outputTokens || null,
     args.providerUnits,
+    args.providerUnits,
+    Number(args.preserveRefunded ?? false),
+    new Date().toISOString(),
+    Number(args.preserveRefunded ?? false),
     args.usageId
+  ).run();
+}
+
+/**
+ * Reserve a follow-up model request against the same user-visible tailoring.
+ * `chargeCredit` only reactivates a previously refunded tailoring; it never
+ * creates a second user charge for generation or focused regeneration.
+ */
+export async function reserveTailorProviderAttempt(args: {
+  db: D1Database;
+  usageId: string;
+  model: string;
+  userId: string;
+  chargeCredit: boolean;
+}): Promise<{ ok: true } | { ok: false; resets_at: string }> {
+  const today = startOfUtcDay();
+  const reservedUnits = WORKERS_AI_RESERVATION_NEURONS;
+  const result = await args.db.prepare(
+    `UPDATE tailor_usage
+     SET reserved_provider_units = reserved_provider_units + ?,
+         attempt_count = attempt_count + 1,
+         state = CASE
+           WHEN ? = 1 AND state = 'refunded' THEN 'reserved'
+           ELSE state
+         END,
+         refunded_at = CASE WHEN ? = 1 THEN NULL ELSE refunded_at END,
+         failure_stage = NULL,
+         failure_code = NULL
+     WHERE id = ?
+       AND user_id = ?
+       AND model = ?
+       AND (
+         ? = 0
+         OR state <> 'refunded'
+         OR (
+           SELECT COUNT(*) FROM tailor_usage
+           WHERE user_id = ? AND state <> 'refunded' AND created_at >= ?
+         ) < ?
+       )
+       AND (
+         SELECT COALESCE(SUM(attempt_count), 0) FROM tailor_usage
+         WHERE model = ? AND created_at >= ?
+       ) + 1 <= ?
+       AND (
+         SELECT COALESCE(SUM(COALESCE(provider_units, 0) + reserved_provider_units), 0)
+         FROM tailor_usage WHERE created_at >= ?
+       ) + ? <= ?`
+  ).bind(
+    reservedUnits,
+    Number(args.chargeCredit),
+    Number(args.chargeCredit),
+    args.usageId,
+    args.userId,
+    args.model,
+    Number(args.chargeCredit),
+    args.userId,
+    today,
+    APP_USER_DAILY_LIMIT,
+    args.model,
+    today,
+    WORKERS_AI_GLOBAL_DAILY_REQUEST_LIMIT,
+    today,
+    reservedUnits,
+    WORKERS_AI_DAILY_NEURON_LIMIT,
+  ).run();
+  return (result.meta.changes ?? 0) > 0
+    ? { ok: true }
+    : { ok: false, resets_at: nextUtcDay() };
+}
+
+/** Record provider work that did not produce a usable result. */
+export async function failAppTailorUsage(args: {
+  db: D1Database;
+  usageId: string;
+  stage: "plan" | "generate" | "regenerate";
+  code: string;
+  refundCredit: boolean;
+}): Promise<void> {
+  await args.db.prepare(
+    `UPDATE tailor_usage
+     SET provider_units = COALESCE(provider_units, 0) + reserved_provider_units,
+         reserved_provider_units = 0,
+         state = CASE WHEN ? = 1 THEN 'refunded' ELSE state END,
+         refunded_at = CASE WHEN ? = 1 THEN ? ELSE refunded_at END,
+         failure_stage = ?,
+         failure_code = ?
+     WHERE id = ?`
+  ).bind(
+    Number(args.refundCredit),
+    Number(args.refundCredit),
+    new Date().toISOString(),
+    args.stage,
+    args.code.replace(/[^a-z0-9_-]/gi, "_").slice(0, 80),
+    args.usageId,
   ).run();
 }

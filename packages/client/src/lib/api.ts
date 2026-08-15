@@ -1,5 +1,7 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
+import type { ResumeImportAssessment } from "../../../../shared/resume-import";
 import type { RoleId } from "../../../../shared/search-profile";
+import type { TailoringQualitySnapshot } from "../../../../shared/tailoring-quality";
 import type {
   StructuredTailoring,
   TailoredResume,
@@ -19,6 +21,7 @@ export interface ApiClientConfig {
   onAccessToken?: (token: string) => void | Promise<void>;
   onInvalidAccessToken?: (rejectedToken: string | null) => void | Promise<void>;
   client?: "web" | "ios";
+  build?: string;
 }
 
 let clientConfig: Required<Pick<ApiClientConfig, "baseUrl" | "client">> & ApiClientConfig = {
@@ -49,6 +52,7 @@ export async function apiFetch(path: string, options?: RequestInit, allowTokenRe
   const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   if (!headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
   if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
+  if (clientConfig.build) headers.set("X-Pinkslip-Build", clientConfig.build);
   const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
   if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
 
@@ -150,6 +154,32 @@ async function request<T>(
   return payload as T;
 }
 
+async function requestBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await apiFetch(path, { signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: unknown; code?: unknown } | null;
+    throw new ApiError(
+      typeof payload?.error === "string" ? payload.error : `API error: ${response.status}`,
+      response.status,
+      typeof payload?.code === "string" ? payload.code : undefined,
+      payload,
+    );
+  }
+  return response.blob();
+}
+
 export interface Job {
   id: string;
   company_id: string;
@@ -223,6 +253,7 @@ export interface ResumeImportResult {
     additional: number;
   };
   warnings: string[];
+  assessment: ResumeImportAssessment;
 }
 
 export interface ContentReport {
@@ -289,6 +320,11 @@ export interface ProductMetrics {
   push_registrations: number;
   profile_adjustments: number;
   tailoring_to_application_rate: number;
+  tailoring_quality: TailoringQualitySnapshot & {
+    ready: boolean;
+    insufficientSample: boolean;
+    failedGates: string[];
+  };
   open_reports: number;
   open_feedback: number;
   events: Record<string, number>;
@@ -609,6 +645,21 @@ export const api = {
         body,
       }, 45_000);
     },
+    ocr: (pages: Blob[]) => {
+      const body = new FormData();
+      for (const [index, page] of pages.entries()) {
+        const extension = page.type === "image/png"
+          ? "png"
+          : page.type === "image/webp"
+            ? "webp"
+            : "jpg";
+        body.append("page", page, `page-${index + 1}.${extension}`);
+      }
+      return request<ResumeImportResult>("/resume-import/ocr", {
+        method: "POST",
+        body,
+      }, 90_000);
+    },
   },
   tailor: {
     get: (jobId: string) => request<{ tailoring: Tailoring | null }>(`/tailor/${jobId}`),
@@ -623,6 +674,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }, 90_000),
+    regenerateBullet: (id: string, data: {
+      section: "experience" | "projects";
+      sourceEntryId: string;
+      bulletId: string;
+      instruction?: string;
+    }) => request<{ tailoring: StructuredTailoring }>(`/tailorings/${id}/regenerate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }, 90_000),
+    recordQuality: (id: string, data: {
+      stage: "preview" | "compile";
+      outcome: "succeeded" | "failed";
+      durationMs?: number;
+      pageCount?: number;
+      errorCode?: string;
+    }) => request<void>(`/tailorings/${id}/quality`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
     usage: (model?: string) => {
       const params = new URLSearchParams();
       if (model) params.set("model", model);
@@ -641,6 +711,7 @@ export const api = {
       typstSource: string;
       templateVersion: string;
       compilerVersion: string;
+      pageCount: number;
     }) => {
       const body = new FormData();
       body.set("pdf", data.pdf, "tailored-resume.pdf");
@@ -649,10 +720,29 @@ export const api = {
       body.set("typst_source", data.typstSource);
       body.set("template_version", data.templateVersion);
       body.set("compiler_version", data.compilerVersion);
+      body.set("page_count", String(data.pageCount));
       return request<{ artifact: TailoringArtifact }>(`/tailorings/${id}/artifacts`, {
         method: "POST",
         body,
       }, 60_000);
+    },
+    artifacts: {
+      list: (id: string) =>
+        request<{ artifacts: TailoringArtifact[] }>(`/tailorings/${id}/artifacts`),
+      download: (id: string, artifactId: string) =>
+        requestBlob(`/tailorings/${id}/artifacts/${artifactId}`),
+      select: (id: string, artifactId: string) =>
+        request<{ artifact: TailoringArtifact }>(`/tailorings/${id}/artifacts/${artifactId}/select`, {
+          method: "POST",
+        }),
+      delete: (id: string, artifactId: string) =>
+        request<{ ok: true }>(`/tailorings/${id}/artifacts/${artifactId}`, {
+          method: "DELETE",
+        }),
+      deleteAll: (id: string) =>
+        request<{ ok: true; deleted: number }>(`/tailorings/${id}/artifacts`, {
+          method: "DELETE",
+        }),
     },
   },
   runs: {

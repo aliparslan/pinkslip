@@ -291,10 +291,12 @@ const iosRuntime: PlatformRuntime = {
       throw new Error("The iOS entrypoint must run inside the Capacitor iOS shell.");
     }
     configureNativeDocument();
+    const appInfo = await App.getInfo();
     accessToken = (await SecureSession.get().catch((): { token?: string } => ({}))).token ?? null;
     configureApiClient({
       baseUrl: `${API_ORIGIN.replace(/\/$/, "")}/api/v2`,
       client: "ios",
+      build: `${appInfo.version}.${appInfo.build}`,
       getAccessToken: () => accessToken,
       onAccessToken: async (token) => {
         accessToken = token;

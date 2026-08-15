@@ -5,6 +5,7 @@ import type {
   TailoringRow,
 } from "./types";
 import { createEmptyResumeProfile, normalizeResumeProfile } from "../shared/resume-profile";
+import { deleteUserArtifactObjects } from "./tailor/artifact-storage";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -356,6 +357,10 @@ export async function mergeGuestDataIntoAccount(
     db.prepare("UPDATE applications SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE tailored_resume_artifacts SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE tailoring_artifact_selections SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE tailoring_quality_events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
+    db.prepare("UPDATE tailor_usage SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailorings SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE content_reports SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE feedback_submissions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
@@ -372,8 +377,13 @@ export async function mergeGuestDataIntoAccount(
 
 export async function deleteUserAccountData(
   db: D1Database,
-  userId: string
+  userId: string,
+  resumeBucket?: R2Bucket,
 ) {
+  // R2 is not covered by D1 foreign-key cascades. Delete private objects first;
+  // if storage is unavailable, leave the account and metadata intact so the
+  // deletion can be retried without orphaning files.
+  await deleteUserArtifactObjects({ db, bucket: resumeBucket, userId });
   await db.batch([
     db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM email_login_tokens WHERE lower(email) IN (SELECT lower(email) FROM auth_identities WHERE user_id = ?)").bind(userId),

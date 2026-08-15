@@ -27,6 +27,8 @@ interface PlanModelRequirement {
   text: string;
   priority: "required" | "preferred";
   keywords: string[];
+  sourceQuote: string;
+  confidence: number;
   evidenceIds: string[];
   reason: string;
 }
@@ -50,6 +52,13 @@ export interface StructuredGenerationResult {
   repaired: boolean;
 }
 
+export interface FocusedRegenerationResult {
+  resume: TailoredResume;
+  validation: TailoringValidation;
+  usage: ModelUsage;
+  repaired: boolean;
+}
+
 const MAX_JOB_DESCRIPTION = 40_000;
 const MAX_EVIDENCE = 80;
 const MAX_EVIDENCE_TEXT = 800;
@@ -66,11 +75,13 @@ const planSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["text", "priority", "keywords", "evidenceIds", "reason"],
+        required: ["text", "priority", "keywords", "sourceQuote", "confidence", "evidenceIds", "reason"],
         properties: {
           text: { type: "string" },
           priority: { type: "string", enum: ["required", "preferred"] },
           keywords: { type: "array", items: { type: "string" }, maxItems: 8 },
+          sourceQuote: { type: "string" },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
           evidenceIds: { type: "array", items: { type: "string" }, maxItems: 8 },
           reason: { type: "string" },
         },
@@ -151,6 +162,10 @@ function cleanPlanOutput(value: Record<string, unknown>): PlanModelOutput {
       text,
       priority: item.priority === "preferred" ? "preferred" as const : "required" as const,
       keywords: stringArray(item.keywords, 8),
+      sourceQuote: typeof item.sourceQuote === "string" ? item.sourceQuote.trim() : text,
+      confidence: typeof item.confidence === "number" && Number.isFinite(item.confidence)
+        ? Math.max(0, Math.min(1, item.confidence))
+        : 0.5,
       evidenceIds: stringArray(item.evidenceIds, 8),
       reason: typeof item.reason === "string" ? item.reason.trim() : "",
     }];
@@ -235,6 +250,29 @@ function evidenceForPrompt(evidence: CandidateEvidence[]) {
   }));
 }
 
+function locateRequirementSource(
+  description: string,
+  sourceQuote: string,
+  requirementText: string,
+): { quote: string; start: number; end: number } {
+  const candidates = [sourceQuote, requirementText]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  for (const candidate of candidates) {
+    const exact = description.indexOf(candidate);
+    if (exact >= 0) return { quote: candidate, start: exact, end: exact + candidate.length };
+    const insensitive = description.toLocaleLowerCase().indexOf(candidate.toLocaleLowerCase());
+    if (insensitive >= 0) {
+      return {
+        quote: description.slice(insensitive, insensitive + candidate.length),
+        start: insensitive,
+        end: insensitive + candidate.length,
+      };
+    }
+  }
+  return { quote: "", start: -1, end: -1 };
+}
+
 export async function createTailoringPlan(args: {
   ai: Ai;
   model: WorkersAiTailorModel;
@@ -252,6 +290,7 @@ export async function createTailoringPlan(args: {
       "You analyze job descriptions and match them to candidate evidence.",
       "Never infer experience. Only return evidence IDs from the supplied inventory.",
       "Distinguish actual required qualifications from preferred ones.",
+      "For every requirement, copy a short exact sourceQuote from the job description and report confidence from 0 to 1.",
       "Keyword overlap alone is not evidence. Do not match generic engineering work to specialized security, privacy, IAM, or domain expertise.",
       "A skills row shows familiarity, not proof that the candidate implemented or owned a system.",
       "When the evidence is indirect or ambiguous, leave the requirement unmatched.",
@@ -264,12 +303,17 @@ export async function createTailoringPlan(args: {
     }),
     clean: cleanPlanOutput,
   });
-  const requirements: TailoringRequirement[] = response.data.requirements.map((item, index) => ({
-    id: stableTextId(`requirement-${index}`, item.text),
-    text: item.text,
-    priority: item.priority,
-    keywords: item.keywords,
-  }));
+  const requirements: TailoringRequirement[] = response.data.requirements.map((item, index) => {
+    const source = locateRequirementSource(args.description, item.sourceQuote, item.text);
+    return {
+      id: stableTextId(`requirement-${index}`, item.text),
+      text: item.text,
+      priority: item.priority,
+      keywords: item.keywords,
+      source,
+      confidence: source.start >= 0 ? item.confidence : Math.min(item.confidence, 0.35),
+    };
+  });
   const matches: RequirementMatch[] = [];
   const gaps: TailoringGap[] = [];
   for (const [index, requirement] of requirements.entries()) {
@@ -386,6 +430,7 @@ export function buildResumeFromRewrites(args: {
     skills: structuredClone(args.profile.skills),
     optionalSections: structuredClone(args.profile.optionalSections),
     removedForSpace: [],
+    spaceProtectedEvidenceIds: [],
   };
 }
 
@@ -533,6 +578,108 @@ export async function generateStructuredResume(args: {
       repairUsage,
       repaired ? finalReview.usage : { inputTokens: 0, outputTokens: 0 },
     ),
+    repaired,
+  };
+}
+
+export async function regenerateStructuredBullet(args: {
+  ai: Ai;
+  model: WorkersAiTailorModel;
+  profile: ResumeProfile;
+  description: string;
+  evidence: CandidateEvidence[];
+  resume: TailoredResume;
+  section: "experience" | "projects";
+  sourceEntryId: string;
+  bulletId: string;
+  instruction?: string;
+}): Promise<FocusedRegenerationResult> {
+  const next = structuredClone(args.resume);
+  const entry = next[args.section].find((candidate) => candidate.sourceEntryId === args.sourceEntryId);
+  const bullet = entry?.bullets.find((candidate) => candidate.id === args.bulletId);
+  if (!entry || !bullet) throw new Error("That resume bullet no longer exists.");
+  if (bullet.locked) throw new Error("Unlock this bullet before regenerating it.");
+  const evidenceById = new Map(args.evidence.map((item) => [item.id, item]));
+  const citedEvidence = bullet.evidenceIds
+    .map((id) => evidenceById.get(id))
+    .filter((item): item is CandidateEvidence => Boolean(item));
+  if (citedEvidence.length === 0) throw new Error("This bullet has no saved evidence to regenerate from.");
+  const primaryEvidence = citedEvidence[0];
+  const generation = await runJson({
+    ai: args.ai,
+    model: args.model,
+    schemaName: "focused_resume_bullet",
+    schema: rewritesSchema,
+    maxTokens: 700,
+    system: [
+      "Rewrite one resume bullet using only the supplied source evidence.",
+      "Preserve every number exactly and never add technologies, scope, responsibilities, or results.",
+      "Follow the user's direction only when the evidence supports it. Return JSON only.",
+    ].join(" "),
+    prompt: JSON.stringify({
+      task: "Rewrite only this bullet. Do not alter any other resume content.",
+      instruction: args.instruction?.trim().slice(0, 300) || "Improve relevance and clarity.",
+      jobDescription: args.description.slice(0, MAX_JOB_DESCRIPTION),
+      currentBullet: bullet.text,
+      evidence: evidenceForPrompt(citedEvidence),
+    }),
+    clean: cleanRewriteOutput,
+  });
+  let rewritten = generation.data.rewrites.find((item) => item.evidenceId === primaryEvidence.id)?.text
+    ?? generation.data.rewrites[0]?.text
+    ?? bullet.text;
+  const review = await runJson({
+    ai: args.ai,
+    model: args.model,
+    schemaName: "focused_resume_evidence_review",
+    schema: reviewSchema,
+    maxTokens: 500,
+    system: "You are a strict factual resume verifier. Do not reward plausible inference. Return JSON only.",
+    prompt: reviewPrompt(args.evidence, [{ evidenceId: primaryEvidence.id, text: rewritten }]),
+    clean: cleanReviewOutput,
+  });
+  let repaired = false;
+  let repairUsage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
+  let finalReviewUsage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
+  if (review.data.issues.length) {
+    repaired = true;
+    const repair = await runJson({
+      ai: args.ai,
+      model: args.model,
+      schemaName: "focused_resume_bullet_repair",
+      schema: rewritesSchema,
+      maxTokens: 600,
+      system: "Remove every unsupported claim. Preserve supported facts and numbers exactly. Return JSON only.",
+      prompt: JSON.stringify({
+        evidence: evidenceForPrompt(citedEvidence),
+        rewrite: rewritten,
+        issues: review.data.issues,
+      }),
+      clean: cleanRewriteOutput,
+    });
+    repairUsage = repair.usage;
+    rewritten = repair.data.rewrites.find((item) => item.evidenceId === primaryEvidence.id)?.text
+      ?? repair.data.rewrites[0]?.text
+      ?? primaryEvidence.text;
+    const finalReview = await runJson({
+      ai: args.ai,
+      model: args.model,
+      schemaName: "focused_resume_final_review",
+      schema: reviewSchema,
+      maxTokens: 500,
+      system: "You are a strict factual resume verifier. Do not reward plausible inference. Return JSON only.",
+      prompt: reviewPrompt(args.evidence, [{ evidenceId: primaryEvidence.id, text: rewritten }]),
+      clean: cleanReviewOutput,
+    });
+    finalReviewUsage = finalReview.usage;
+    if (finalReview.data.issues.length) rewritten = primaryEvidence.text;
+  }
+  bullet.text = rewritten;
+  const validation = validateTailoredResume(args.profile, args.evidence, next);
+  return {
+    resume: next,
+    validation,
+    usage: mergeUsage(generation.usage, review.usage, repairUsage, finalReviewUsage),
     repaired,
   };
 }

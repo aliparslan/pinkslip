@@ -17,6 +17,10 @@
     return `${Math.round((seconds / 3600) * 10) / 10} hr`;
   }
 
+  function formatRatio(value: number) {
+    return `${Math.round(value * 1000) / 10}%`;
+  }
+
   async function loadProductHealth() {
     loading = true;
     loadError = null;
@@ -73,6 +77,17 @@
           <div><dt>Quick apply clicks</dt><dd>{productMetrics.apply_clicks_within_one_hour}</dd></div>
           <div><dt>Tailor to apply</dt><dd>{productMetrics.tailoring_to_application_rate}%</dd></div>
           <div><dt>New accounts</dt><dd>{productMetrics.accounts_created}</dd></div>
+        </dl>
+      </section>
+
+      <section class="metric-group">
+        <h3>Tailoring quality</h3>
+        <dl>
+          <div><dt>Evaluated PDFs</dt><dd>{productMetrics.tailoring_quality.sampleSize}/20</dd></div>
+          <div><dt>Unsupported claims</dt><dd>{formatRatio(productMetrics.tailoring_quality.unsupportedClaimRate)}</dd></div>
+          <div><dt>One-page PDFs</dt><dd>{formatRatio(productMetrics.tailoring_quality.onePageRate)}</dd></div>
+          <div><dt>Device compile failures</dt><dd>{formatRatio(productMetrics.tailoring_quality.deviceFailureRate)}</dd></div>
+          <div><dt>Supervised beta gate</dt><dd>{productMetrics.tailoring_quality.ready ? "Ready" : productMetrics.tailoring_quality.insufficientSample ? "Collecting data" : "Blocked"}</dd></div>
         </dl>
       </section>
 

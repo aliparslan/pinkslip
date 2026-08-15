@@ -1,5 +1,7 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
+import type { ResumeImportAssessment } from "../../../../shared/resume-import";
 import {
+  assessResumeImportFields,
   chooseBestResumeImport,
   resumeImportWarnings,
   shouldRequestServerResumeImport,
@@ -9,22 +11,29 @@ import { shouldUseLocalPdfFallback } from "./pdf-import";
 export interface ResumeImportCandidate {
   profile: Partial<ResumeProfile>;
   warnings: string[];
+  assessment?: ResumeImportAssessment;
 }
 
 export interface AdaptiveResumeImportResult extends ResumeImportCandidate {
-  extractor: "local_pdfjs" | "workers_ai";
+  extractor: "local_pdfjs" | "workers_ai" | "workers_ai_ocr";
   serverAttempted: boolean;
 }
 
 interface AdaptiveResumeImportOptions {
   parseLocal: () => Promise<Partial<ResumeProfile>>;
   parseServer: () => Promise<ResumeImportCandidate>;
+  parseOcr?: () => Promise<ResumeImportCandidate>;
   serverAvailable?: boolean;
 }
 
 type SettledLocalImport =
   | { ok: true; profile: Partial<ResumeProfile> }
   | { ok: false; failure: unknown };
+
+function failureCode(failure: unknown): string | null {
+  if (!failure || typeof failure !== "object" || !("code" in failure)) return null;
+  return typeof failure.code === "string" ? failure.code : null;
+}
 
 function localResult(
   profile: Partial<ResumeProfile>,
@@ -33,6 +42,7 @@ function localResult(
   return {
     profile,
     warnings: resumeImportWarnings(profile),
+    assessment: assessResumeImportFields(profile),
     extractor: "local_pdfjs",
     serverAttempted,
   };
@@ -46,6 +56,7 @@ function localResult(
 export async function importResumeAdaptively({
   parseLocal,
   parseServer,
+  parseOcr,
   serverAvailable = true,
 }: AdaptiveResumeImportOptions): Promise<AdaptiveResumeImportResult> {
   const local: SettledLocalImport = await parseLocal().then(
@@ -69,10 +80,20 @@ export async function importResumeAdaptively({
     }
     return {
       ...server,
+      assessment: server.assessment ?? assessResumeImportFields(server.profile),
       extractor: "workers_ai",
       serverAttempted: true,
     };
   } catch (serverFailure) {
+    if (parseOcr && failureCode(serverFailure) === "no_extractable_text") {
+      const ocr = await parseOcr();
+      return {
+        ...ocr,
+        assessment: ocr.assessment ?? assessResumeImportFields(ocr.profile),
+        extractor: "workers_ai_ocr",
+        serverAttempted: true,
+      };
+    }
     if (local.ok && shouldUseLocalPdfFallback(serverFailure)) {
       return localResult(local.profile, true);
     }

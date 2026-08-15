@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  completeAppTailorUsage,
+  failAppTailorUsage,
   loadTailorUsage,
   nextUtcDay,
   reserveAppTailorQuota,
+  reserveTailorProviderAttempt,
 } from "@worker/tailor/usage";
 
 function usageDb(
@@ -18,7 +21,8 @@ function usageDb(
     prepare(sql: string) {
       preparedSql.push(sql);
       const statement = {
-        bind() {
+        bind(...values: unknown[]) {
+          expect(values.length).toBe(sql.match(/\?/g)?.length ?? 0);
           return statement;
         },
         async first<T>() {
@@ -76,5 +80,40 @@ describe("tailoring usage", () => {
     );
     expect(rejected.ok).toBe(false);
     if (!rejected.ok) expect(rejected.resets_at).toEndWith("T00:00:00.000Z");
+  });
+
+  test("keeps provider reservations separate from refundable user credit", async () => {
+    const preparedSql: string[] = [];
+    const db = usageDb({ reservationChanges: 1 }, preparedSql);
+    expect(await reserveTailorProviderAttempt({
+      db,
+      usageId: "usage-1",
+      model: "@cf/zai-org/glm-4.7-flash",
+      userId: "user-1",
+      chargeCredit: false,
+    })).toEqual({ ok: true });
+    await failAppTailorUsage({
+      db,
+      usageId: "usage-1",
+      stage: "regenerate",
+      code: "provider_failed",
+      refundCredit: false,
+    });
+    expect(preparedSql.join("\n")).toContain("attempt_count = attempt_count + 1");
+    expect(preparedSql.join("\n")).toContain("provider_units = COALESCE(provider_units, 0) + reserved_provider_units");
+  });
+
+  test("can complete uncharged regeneration without restoring refunded credit", async () => {
+    const preparedSql: string[] = [];
+    await completeAppTailorUsage({
+      db: usageDb({}, preparedSql),
+      usageId: "usage-1",
+      inputTokens: 100,
+      outputTokens: 50,
+      providerUnits: null,
+      preserveRefunded: true,
+    });
+    expect(preparedSql.join("\n")).toContain("state = CASE");
+    expect(preparedSql.join("\n")).toContain("state = 'refunded'");
   });
 });

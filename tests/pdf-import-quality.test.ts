@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createEmptyResumeProfile } from "../shared/resume-profile";
 import {
+  assessResumeImportFields,
   assessResumeImportQuality,
   chooseBestResumeImport,
   resumeImportQualityScore,
@@ -117,5 +118,41 @@ describe("resume import quality selection", () => {
       "suspicious_fused_fields",
     ]));
     expect(shouldRequestServerResumeImport(fused)).toBe(true);
+  });
+
+  test("identifies the exact imported fields that need human review", () => {
+    const profile = {
+      ...createEmptyResumeProfile(),
+      contact: {
+        ...createEmptyResumeProfile().contact,
+        name: "Jane Doe",
+        email: "jane@example.com",
+      },
+      education: [{
+        id: "school-1",
+        institution: "",
+        location: "Austin",
+        startDate: "2022",
+        endDate: "May 2026",
+        minors: [],
+        credentials: [{
+          id: "degree-1",
+          degreeType: "bachelor" as const,
+          fieldsOfStudy: ["Example University | Computer Science"],
+        }],
+      }],
+    };
+
+    const assessment = assessResumeImportFields(profile);
+    expect(assessment.overall).toBe("low");
+    expect(assessment.reviewPaths).toEqual(expect.arrayContaining([
+      "education.school-1.institution",
+      "education.school-1.location",
+      "education.school-1.credentials.degree-1.fieldsOfStudy.0",
+    ]));
+    expect(assessment.fields.find((item) => item.path.endsWith("fieldsOfStudy.0"))).toMatchObject({
+      confidence: "low",
+      reason: "fused",
+    });
   });
 });

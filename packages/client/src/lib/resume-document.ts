@@ -1,4 +1,7 @@
-import type { TailoredResume } from "../../../../shared/tailoring";
+import {
+  stableTextId,
+  type TailoredResume,
+} from "../../../../shared/tailoring";
 
 export {
   RESUME_COMPILER_VERSION,
@@ -162,15 +165,37 @@ export function cloneTailoredResume(resume: TailoredResume): TailoredResume {
 export function removeLowestPriorityContent(
   resume: TailoredResume,
   priorityEvidenceIds: string[],
-): { resume: TailoredResume; removed: { evidenceId: string; label: string } | null } {
+): { resume: TailoredResume; removed: TailoredResume["removedForSpace"][number] | null } {
   const next = cloneTailoredResume(resume);
+  const protectedEvidence = new Set(next.spaceProtectedEvidenceIds ?? []);
   for (let sectionIndex = next.optionalSections.length - 1; sectionIndex >= 0; sectionIndex -= 1) {
     const optionalSection = next.optionalSections[sectionIndex];
-    const item = optionalSection.items.pop();
+    let itemIndex = -1;
+    for (let index = optionalSection.items.length - 1; index >= 0; index -= 1) {
+      const candidate = optionalSection.items[index];
+      const candidateId = stableTextId(
+        "optional",
+        `${optionalSection.kind}:${candidate.category}:${candidate.items}`,
+      );
+      if (!protectedEvidence.has(candidateId)) {
+        itemIndex = index;
+        break;
+      }
+    }
+    if (itemIndex < 0) continue;
+    const [item] = optionalSection.items.splice(itemIndex, 1);
     if (item) {
+      const evidenceId = stableTextId(
+        "optional",
+        `${optionalSection.kind}:${item.category}:${item.items}`,
+      );
       if (optionalSection.items.length === 0) next.optionalSections.splice(sectionIndex, 1);
-      const evidenceId = `optional-${optionalSection.kind}-${sectionIndex}`;
-      const removed = { evidenceId, label: item.category || optionalSection.kind };
+      const removed = {
+        evidenceId,
+        label: item.category || optionalSection.kind,
+        section: "optionalSections" as const,
+        optionalSection: { kind: optionalSection.kind, items: [item] },
+      };
       next.removedForSpace.push(removed);
       return { resume: next, removed };
     }
@@ -179,10 +204,20 @@ export function removeLowestPriorityContent(
   const priority = new Map(priorityEvidenceIds.map((id, index) => [id, index]));
   const candidates = [
     ...next.experience.flatMap((entry, entryIndex) => entry.bullets.length > 1
-      ? entry.bullets.map((bullet, bulletIndex) => ({ kind: "experience" as const, entryIndex, bulletIndex, bullet }))
+      ? entry.bullets.filter((bullet) => !bullet.locked).map((bullet) => ({
+          kind: "experience" as const,
+          entryIndex,
+          bulletIndex: entry.bullets.indexOf(bullet),
+          bullet,
+        }))
       : []),
     ...next.projects.flatMap((entry, entryIndex) => entry.bullets.length > 1
-      ? entry.bullets.map((bullet, bulletIndex) => ({ kind: "projects" as const, entryIndex, bulletIndex, bullet }))
+      ? entry.bullets.filter((bullet) => !bullet.locked).map((bullet) => ({
+          kind: "projects" as const,
+          entryIndex,
+          bulletIndex: entry.bullets.indexOf(bullet),
+          bullet,
+        }))
       : []),
   ].sort((a, b) => {
     const aRank = Math.max(...a.bullet.evidenceIds.map((id) => priority.get(id) ?? Number.MAX_SAFE_INTEGER));
@@ -196,7 +231,37 @@ export function removeLowestPriorityContent(
   const removed = {
     evidenceId: removedBullet.evidenceIds[0] ?? removedBullet.id,
     label: removedBullet.text,
+    section: candidate.kind,
+    sourceEntryId: entries[candidate.entryIndex].sourceEntryId,
+    bullet: removedBullet,
   };
   next.removedForSpace.push(removed);
   return { resume: next, removed };
+}
+
+export function restoreRemovedContent(
+  resume: TailoredResume,
+  removedIndex: number,
+): { resume: TailoredResume; restored: boolean } {
+  const next = cloneTailoredResume(resume);
+  const [removed] = next.removedForSpace.splice(removedIndex, 1);
+  if (!removed) return { resume: next, restored: false };
+  if (removed.section === "optionalSections" && removed.optionalSection) {
+    const existing = next.optionalSections.find((section) => section.kind === removed.optionalSection?.kind);
+    if (existing) existing.items.push(...removed.optionalSection.items);
+    else next.optionalSections.push(removed.optionalSection);
+    next.spaceProtectedEvidenceIds = [...new Set([...(next.spaceProtectedEvidenceIds ?? []), removed.evidenceId])];
+    return { resume: next, restored: true };
+  }
+  if (
+    (removed.section === "experience" || removed.section === "projects")
+    && removed.sourceEntryId
+    && removed.bullet
+  ) {
+    const entry = next[removed.section].find((candidate) => candidate.sourceEntryId === removed.sourceEntryId);
+    if (!entry) return { resume, restored: false };
+    entry.bullets.push(removed.bullet);
+    return { resume: next, restored: true };
+  }
+  return { resume, restored: false };
 }

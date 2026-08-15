@@ -5,12 +5,14 @@ import {
   RESUME_COMPILER_VERSION,
   RESUME_TEMPLATE_VERSION,
   serializeResumeProfileSnapshot,
+  validateTailoringPlan,
   validateTailoredResume,
 } from "../shared/tailoring";
 import {
   buildResumeFromRewrites,
   createTailoringPlan,
   generateStructuredResume,
+  regenerateStructuredBullet,
 } from "../worker/tailor/structured";
 import {
   buildResumeTypstSource,
@@ -216,6 +218,8 @@ describe("structured resume grounding", () => {
                 text: "Build reliable production services",
                 priority: "required",
                 keywords: ["reliable"],
+                sourceQuote: "Build reliable backend services.",
+                confidence: 0.93,
                 evidenceIds: bulletIds.slice(2, 8),
                 reason: "Direct production evidence",
               },
@@ -223,6 +227,8 @@ describe("structured resume grounding", () => {
                 text: "Improve backend systems",
                 priority: "required",
                 keywords: ["backend"],
+                sourceQuote: "Build reliable backend services.",
+                confidence: 0.84,
                 evidenceIds: bulletIds.slice(4, 10),
                 reason: "Direct backend evidence",
               },
@@ -244,6 +250,58 @@ describe("structured resume grounding", () => {
     expect(result.plan.selectedEvidenceIds).toHaveLength(8);
     expect(result.plan.selectedEvidenceIds.every((id) => bulletIds.includes(id))).toBe(true);
     expect(result.plan.selectedEvidenceIds).toContain(bulletIds[0]);
+    expect(result.plan.requirements[0].source).toEqual({
+      quote: "Build reliable backend services.",
+      start: 0,
+      end: 32,
+    });
+    expect(validateTailoringPlan("Build reliable backend services.", evidence, result.plan)).toEqual([]);
+  });
+
+  test("focused regeneration changes only an unlocked target bullet", async () => {
+    const source = profile();
+    const evidence = buildCandidateEvidence(source);
+    const selected = evidence.filter((item) => item.sourceType === "experience");
+    const resume = buildResumeFromRewrites({
+      profile: source,
+      evidence,
+      selectedEvidenceIds: selected.map((item) => item.id),
+      rewrites: [],
+    });
+    resume.experience[0].bullets[1].locked = true;
+    const beforeLocked = resume.experience[0].bullets[1].text;
+    const target = resume.experience[0].bullets[0];
+    const outputs = [
+      { rewrites: [{ evidenceId: target.evidenceIds[0], text: "Cut request latency 40% through caching." }] },
+      { issues: [] },
+    ];
+    const ai = {
+      async run() {
+        const next = outputs.shift();
+        if (!next) throw new Error("Unexpected model call");
+        return {
+          choices: [{ message: { content: JSON.stringify(next) } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        };
+      },
+    } as unknown as Ai;
+
+    const result = await regenerateStructuredBullet({
+      ai,
+      model: "@cf/zai-org/glm-4.7-flash",
+      profile: source,
+      description: "Improve backend latency.",
+      evidence,
+      resume,
+      section: "experience",
+      sourceEntryId: resume.experience[0].sourceEntryId,
+      bulletId: target.id,
+    });
+
+    expect(result.resume.experience[0].bullets[0].text).toBe("Cut request latency 40% through caching.");
+    expect(result.resume.experience[0].bullets[1].text).toBe(beforeLocked);
+    expect(result.resume.experience[0].bullets[1].locked).toBe(true);
+    expect(result.validation.valid).toBe(true);
   });
 
   test("the Typst source stays ATS-safe and never drops below 11 pt", () => {

@@ -33,6 +33,11 @@ const COMPACT_MONTH_RANGE_AT_END = new RegExp(`(${MONTH})\\.?\\s*(?:-|–|—|to
 const DATE_RANGE_AT_END = new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(Present|Current|${DATE})\\s*$`, "i");
 const SINGLE_DATE_AT_END = new RegExp(`(${DATE})\\s*$`, "i");
 const FUSED_STATE_COLUMN = new RegExp(`,\\s*(?:${US_STATES.map((state) => state.value).join("|")})(?=[A-Z])`);
+const FUSED_STATE_DEGREE_BOUNDARY = new RegExp(
+  `(,\\s*(?:${US_STATES.map((state) => state.value).join("|")}))`
+  + "(?=(?:Bachelor|Master|Doctor|Associate|Certificate|Diploma|Ph\\.?D|B\\.?\\s*[AS]\\.?|M\\.?\\s*[AS]\\.?|MCS|MBA|JD|MD)\\b)",
+  "gi",
+);
 
 const BULLET_PREFIX = /^(?:[\-•●◦▪‣\uF0B7]\s*)+/;
 
@@ -586,7 +591,11 @@ function parseOptionalSection(
 }
 
 export function parseResumeText(text: string, links: PdfLink[] = []): Partial<ResumeProfile> {
-  const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const lines = text
+    .replace(FUSED_STATE_DEGREE_BOUNDARY, "$1\n")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
   const sectionHeaders = lines
     .map((line, index) => ({ type: classifyLine(line), index }))
     .filter((entry): entry is { type: SectionType; index: number } => Boolean(entry.type));
