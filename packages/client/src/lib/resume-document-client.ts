@@ -8,7 +8,6 @@ import {
 interface WorkerResponse {
   id: number;
   pdf?: ArrayBuffer;
-  svg?: string;
   pageCount?: number;
   error?: string;
 }
@@ -17,7 +16,6 @@ export interface CompiledResumeDocument {
   resume: TailoredResume;
   source: string;
   pdf: Uint8Array;
-  svg: string;
   pageCount: number;
 }
 
@@ -25,11 +23,6 @@ export interface ResumePdfVerification {
   valid: boolean;
   missing: string[];
   extractedCharacters: number;
-}
-
-/** WKWebView can reject blob: URLs for worker-generated SVGs. */
-export function resumePreviewDataUrl(svg: string): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 let worker: Worker | null = null;
@@ -74,16 +67,16 @@ export async function compileResumeDocument(
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const source = buildResumeTypstSource(resume);
     const result = await compileSource(source);
-    if (!result.pdf || !result.svg || !result.pageCount) {
+    if (!result.pdf || !result.pageCount) {
       throw new Error("The resume compiler returned an incomplete document.");
     }
     if (result.pageCount <= 1) {
-      return { resume, source, pdf: new Uint8Array(result.pdf), svg: result.svg, pageCount: result.pageCount };
+      return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount };
     }
     const removal = removeLowestPriorityContent(resume, priorityEvidenceIds);
     if (!removal.removed) {
       if (result.pageCount <= 2) {
-        return { resume, source, pdf: new Uint8Array(result.pdf), svg: result.svg, pageCount: result.pageCount };
+        return { resume, source, pdf: new Uint8Array(result.pdf), pageCount: result.pageCount };
       }
       throw new Error("This resume needs more than two pages even at the minimum type size.");
     }

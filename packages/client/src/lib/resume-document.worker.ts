@@ -3,7 +3,6 @@
 import { $typst } from "@myriaddreamin/typst.ts";
 import { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { PDFDocument } from "pdf-lib";
-import rendererWasmUrl from "@myriaddreamin/typst-ts-renderer/wasm?url";
 import { loadTypstCompilerModule } from "virtual:pinkslip-typst-compiler";
 import regularFontUrl from "../assets/fonts/SourceSans3-Regular.ttf?url";
 import semiboldFontUrl from "../assets/fonts/SourceSans3-Semibold.ttf?url";
@@ -17,7 +16,6 @@ interface CompileRequest {
 interface CompileResponse {
   id: number;
   pdf?: ArrayBuffer;
-  svg?: string;
   pageCount?: number;
   error?: string;
 }
@@ -31,7 +29,6 @@ function ensureInitialized() {
   // Each app build supplies its own compiler loader: Cloudflare-safe chunks on
   // web and one offline, hashed asset in the signed Capacitor bundle.
   $typst.setCompilerInitOptions({ getModule: loadTypstCompilerModule });
-  $typst.setRendererInitOptions({ getModule: () => rendererWasmUrl });
   $typst.use(
     TypstSnippet.disableDefaultFontAssets(),
     TypstSnippet.preloadFonts([regularFontUrl, semiboldFontUrl, boldFontUrl]),
@@ -45,12 +42,10 @@ async function compile(request: CompileRequest): Promise<void> {
     ensureInitialized();
     const bytes = await $typst.pdf({ mainContent: source });
     if (!bytes) throw new Error("Typst did not return a PDF.");
-    const svg = await $typst.svg({ mainContent: source });
-    if (typeof svg !== "string") throw new Error("Typst did not return an SVG preview.");
     const copy = Uint8Array.from(bytes);
     const pdf = await PDFDocument.load(copy, { updateMetadata: false });
     const buffer = copy.buffer;
-    const response: CompileResponse = { id, pdf: buffer, svg, pageCount: pdf.getPageCount() };
+    const response: CompileResponse = { id, pdf: buffer, pageCount: pdf.getPageCount() };
     // Use the transfer-list overload for WKWebView compatibility. Some iOS
     // WebKit versions interpret the newer StructuredSerializeOptions object as
     // a value to clone and fail the whole response with DataCloneError.

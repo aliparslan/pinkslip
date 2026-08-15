@@ -67,8 +67,8 @@ stacking multiple tones or sizes is not supported.
 
 - **Tailoring trust workspace compositions** — Owner: Tailoring. Reason: the
   word-level evidence comparison, locked-bullet rewrite controls,
-  removed-for-space restoration, and PDF revision history are new mobile
-  interaction patterns awaiting hands-on iOS review. Only call site:
+  removed-for-space restoration, exact-PDF `ResumePdfPreview`, and PDF revision
+  history are new mobile interaction patterns awaiting hands-on iOS review. Only call site:
   `pages/Tailor.svelte`. Review or expire by 2026-09-15. These are feature-local
   compositions, not stable primitives; never promote or remove this marker
   without explicit user approval.

@@ -29,7 +29,6 @@
   import { errorMessage } from "../lib/utils";
   import {
     compileResumeDocument,
-    resumePreviewDataUrl,
     verifyCompiledResumePdf,
     type CompiledResumeDocument,
   } from "../lib/resume-document-client";
@@ -48,6 +47,7 @@
   import SaveStatus from "../components/SaveStatus.svelte";
   import PageFailure from "../components/PageFailure.svelte";
   import InlineFailure from "../components/InlineFailure.svelte";
+  import ResumePdfPreview from "../components/ResumePdfPreview.svelte";
   import Modal from "../components/Modal.svelte";
   import EmptyState from "../components/EmptyState.svelte";
   import Switch from "../components/Switch.svelte";
@@ -150,7 +150,6 @@
   let bulletRegenerationError: string | null = $state(null);
   let bulletRegenerationStatus = $state("");
   let compiled: CompiledResumeDocument | null = $state(null);
-  let previewUrl: string | null = $state(null);
   let saveTimer: number | null = null;
   let compileTimer: number | null = null;
   let progressTimer: number | null = null;
@@ -660,7 +659,6 @@
     compileRevision += 1;
     compiled = null;
     previewError = null;
-    previewUrl = null;
   }
 
   function queueCompile() {
@@ -682,7 +680,6 @@
     try {
       const result = await compileResumeDocument(draft, priorityEvidenceIds);
       if (revision !== compileRevision) return null;
-      previewUrl = resumePreviewDataUrl(result.svg);
       compiled = result;
       void api.tailor.recordQuality(tailoringId, {
         stage: "compile",
@@ -716,6 +713,26 @@
   async function selectView(view: ViewId) {
     activeView = view;
     if (view === "preview" && !compiled) await compilePreview();
+  }
+
+  function handlePreviewReady(durationMs: number) {
+    if (!structured || !compiled) return;
+    void api.tailor.recordQuality(structured.id, {
+      stage: "preview",
+      outcome: "succeeded",
+      durationMs,
+      pageCount: compiled.pageCount,
+    }).catch(() => undefined);
+  }
+
+  function handlePreviewError(message: string) {
+    previewError = message;
+    if (!structured) return;
+    void api.tailor.recordQuality(structured.id, {
+      stage: "preview",
+      outcome: "failed",
+      errorCode: "pdf_preview_failed",
+    }).catch(() => undefined);
   }
 
   function handleViewKeydown(event: KeyboardEvent) {
@@ -1245,8 +1262,13 @@
               />
             {:else if compiling}
               <div class="preview-loading"><Spinner size={22} label="Building preview" /></div>
-            {:else if previewUrl && compiled}
-              <img class="resume-preview" src={previewUrl} alt="Preview of the tailored resume" />
+            {:else if compiled}
+              <ResumePdfPreview
+                pdf={compiled.pdf}
+                pageCount={compiled.pageCount}
+                onReady={handlePreviewReady}
+                onError={handlePreviewError}
+              />
               <div class="preview-meta">
                 <span class="preview-page-count">{compiled.pageCount} page{compiled.pageCount === 1 ? "" : "s"}</span>
                 {#if compiled.resume.removedForSpace.length}
@@ -2182,16 +2204,6 @@
     min-height: 45dvh;
     display: grid;
     place-items: center;
-  }
-
-  .resume-preview {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-sm);
-    background: var(--color-paper);
-    box-shadow: var(--shadow-overlay);
   }
 
   .preview-meta {
