@@ -138,7 +138,11 @@ export function offlineTypstCompiler(): Plugin {
       if (id !== RESOLVED_VIRTUAL_MODULE_ID) return undefined;
       return `
 import compilerWasmUrl from ${JSON.stringify(`${compilerWasmPath}?url`)};
-export async function loadTypstCompilerModule() {
+// Keep URL delivery synchronous. typst.ts forwards getModule() to the
+// wasm-bindgen wrapper without awaiting it first. A Promise<string> therefore
+// bypasses the wrapper's URL handling and reaches WebAssembly.instantiate as a
+// string in WKWebView. A direct string is recognized and fetched correctly.
+export function loadTypstCompilerModule() {
   return compilerWasmUrl;
 }
 `;
