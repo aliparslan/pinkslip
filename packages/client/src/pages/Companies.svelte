@@ -792,6 +792,10 @@
 {/if}
 
 <style>
+  .native-layout .companies-page {
+    padding-bottom: calc(var(--space-10) + var(--safe-bottom));
+  }
+
   .source-summary {
     margin-bottom: 14px;
     display: flex;

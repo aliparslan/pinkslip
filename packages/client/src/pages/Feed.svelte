@@ -861,14 +861,14 @@
         class="filter-button"
         class:active={activeFilterCount > 0}
         onclick={openFilterSheet}
-        aria-label="Open filters"
+        aria-label={activeFilterCount > 0
+          ? `Open filters, ${activeFilterCount} active`
+          : "Open filters"}
       >
         <SlidersHorizontal size={15} weight="bold" />
         <span>Filters</span>
         {#if activeFilterCount > 0}
-          {#key activeFilterCount}
-            <span class="filter-count">{activeFilterCount}</span>
-          {/key}
+          <span class="filter-indicator" aria-hidden="true"></span>
         {/if}
       </button>
     </div>
@@ -880,7 +880,11 @@
       role="status"
       aria-hidden={!pullArmed && !refreshing}
     >
-      <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
+      {#if refreshing}
+        <Spinner size={17} />
+      {:else}
+        <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
+      {/if}
       <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
     </div>
   </div>

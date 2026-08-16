@@ -144,20 +144,14 @@ html.native-ios .filter-location-select[open] > summary {
 
 html.native-ios .filter-button {
   padding-inline: var(--space-3);
-  background: var(--color-control-bg);
+  background: var(--color-bg-elev);
   color: var(--color-ink-2);
 }
 
 html.native-ios .filter-button.active {
-  border-color: var(--color-control-selected-border);
-  background: var(--color-control-selected-bg);
-  color: var(--color-control-selected-ink);
-}
-
-html.native-ios .filter-button.active .filter-count {
-  border: 1px solid currentColor;
-  background: transparent;
-  color: currentColor;
+  border-color: var(--color-accent);
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
 }
 
 html.native-ios .chip-active,
@@ -181,11 +175,36 @@ html.native-ios .switch[data-state="checked"] {
   background: var(--color-control-selected-bg);
 }
 
+html.native-ios .switch.accent[data-state="checked"] {
+  background: var(--color-accent);
+}
+
 html.native-ios .native-layout .choice-card.active,
 html.native-ios .native-layout .location-chip.active {
   border-color: var(--color-control-selected-border);
   background: var(--color-control-selected-bg);
   color: var(--color-control-selected-ink);
+}
+
+html.native-ios .chip,
+html.native-ios .native-layout .role-card,
+html.native-ios .native-layout .location-chip {
+  min-height: var(--pill-height);
+  height: var(--pill-height);
+}
+
+html.native-ios .filter-choice {
+  height: auto;
+  min-height: var(--pill-height);
+  padding-block: var(--space-1);
+}
+
+html.native-ios .my-jobs-page {
+  padding-inline: 0;
+}
+
+html.native-ios .my-jobs-page > .my-jobs-tabs {
+  margin-inline: var(--screen-gutter);
 }
 
 .app-content-shell {

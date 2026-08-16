@@ -50,6 +50,11 @@
       && profile.roles.length === allRoleIds.length
       && allRoleIds.every((role) => profile.roles.includes(role)),
   );
+  let noLocationPreference = $derived(
+    nativeIos
+      && (profile.relocation_willing
+        || (profile.location_ids.length === 0 && profile.custom_locations.length === 0)),
+  );
   function roleSelected(role: RoleId): boolean {
     if (!nativeIos && role === "software_engineering") {
       return profile.roles.includes("software_engineering")
@@ -160,23 +165,33 @@
   function toggleLocation(location: LocationId) {
     profile = {
       ...profile,
+      relocation_willing: false,
       location_ids: profile.location_ids.includes(location)
         ? profile.location_ids.filter((item) => item !== location)
         : [...profile.location_ids, location],
     };
   }
+
+  function chooseNoLocationPreference() {
+    profile = {
+      ...profile,
+      location_ids: [],
+      custom_locations: [],
+      relocation_willing: false,
+    };
+  }
 </script>
 
-{#snippet allLocationsToggle(compact: boolean)}
+{#snippet allLocationsToggle()}
   <div class="anywhere-row">
     <div>
-      <div class="anywhere-title">{compact ? "Include all US locations" : "Open to anywhere"}</div>
-      {#if !compact}<div class="anywhere-help">Include roles outside your preferred metros.</div>{/if}
+      <div class="anywhere-title">Open to anywhere</div>
+      <div class="anywhere-help">Include roles outside your preferred metros.</div>
     </div>
     <Switch
       checked={profile.relocation_willing}
       onCheckedChange={(value) => profile = { ...profile, relocation_willing: value }}
-      aria-label={compact ? "Include all US locations" : "Open to anywhere"}
+      aria-label="Open to anywhere"
     />
   </div>
 {/snippet}
@@ -335,17 +350,28 @@
       </details>
     </div>
 
-    {#if !nativeIos}{@render allLocationsToggle(false)}{/if}
+    {#if !nativeIos}{@render allLocationsToggle()}{/if}
 
     <fieldset class="subfield preference-fieldset stack-sm">
       <legend class="subfield-label">Preferred metros</legend>
       <div class="location-grid">
+        {#if nativeIos}
+          <button
+            type="button"
+            class="location-chip"
+            class:active={noLocationPreference}
+            aria-pressed={noLocationPreference}
+            onclick={chooseNoLocationPreference}
+          >
+            No preference
+          </button>
+        {/if}
         {#each LOCATION_OPTIONS as location}
           <button
             type="button"
             class="location-chip"
-            class:active={profile.location_ids.includes(location.id)}
-            aria-pressed={profile.location_ids.includes(location.id)}
+            class:active={profile.location_ids.includes(location.id) && !noLocationPreference}
+            aria-pressed={profile.location_ids.includes(location.id) && !noLocationPreference}
             onclick={() => toggleLocation(location.id)}
           >
             {location.label}
@@ -353,8 +379,6 @@
         {/each}
       </div>
     </fieldset>
-
-    {#if nativeIos}{@render allLocationsToggle(true)}{/if}
 
     {#if showAdvanced && !nativeIos}
       <details class="advanced-fields">
