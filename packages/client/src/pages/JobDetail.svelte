@@ -32,6 +32,7 @@
   import Export from "phosphor-svelte/lib/Export";
   import DotsThree from "phosphor-svelte/lib/DotsThree";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
+  import ThumbsDown from "phosphor-svelte/lib/ThumbsDown";
   import Trash from "phosphor-svelte/lib/Trash";
   import MagicWand from "phosphor-svelte/lib/MagicWand";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
@@ -229,7 +230,6 @@
       if (nativeIos) {
         feedback.show({
           message: "Job hidden from your feed",
-          duration: 6_000,
           action: {
             label: "Undo",
             run: async () => {
@@ -289,6 +289,12 @@
     const action = await platform().actionMenu.present({
       source: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       actions: [
+        {
+          id: "save",
+          title: saved ? "Remove from saved jobs" : "Save job",
+          symbol: saved ? "bookmark.fill" : "bookmark",
+          disabled: saving,
+        },
         { id: "share", title: "Share job", symbol: "square.and.arrow.up" },
         {
           id: "hide-company",
@@ -305,7 +311,8 @@
         }] : []),
       ],
     }).catch(() => null);
-    if (action === "share") shareJob();
+    if (action === "save") void toggleSave();
+    else if (action === "share") shareJob();
     else if (action === "hide-company") void hideCompany();
     else if (action === "report") showReport = true;
     else if (action === "remove") showBlockConfirm = true;
@@ -580,39 +587,22 @@
                 <span class:visible={applied}><CheckCircle size={16} weight="fill" /></span>
               </span>
             {/if}
-            <span>Applied</span>
-          </button>
-          <button
-            class="btn-secondary btn-action"
-            class:saved-completed={saved}
-            aria-pressed={saved}
-            onclick={toggleSave}
-            disabled={saving}
-          >
-            {#if saving}
-              <Spinner />
-            {:else}
-              <span class="state-icon" aria-hidden="true">
-                <span class:visible={!saved}><BookmarkSimple size={16} /></span>
-                <span class:visible={saved}><BookmarkSimple size={16} weight="fill" /></span>
-              </span>
-            {/if}
-            <span class="state-label">
-              <span class:visible={!saved} aria-hidden={saved}>Save</span>
-              <span class:visible={saved} aria-hidden={!saved}>Saved</span>
+            <span class="applied-label">
+              <span class:visible={!applied} aria-hidden={applied}>I applied</span>
+              <span class:visible={applied} aria-hidden={!applied}>Applied</span>
             </span>
           </button>
           <button
             class="btn-secondary btn-action"
+            class:neutral-completed={dismissing}
             onclick={handleDismiss}
             disabled={dismissing}
           >
-            {#if dismissing}
-              <Spinner />
-            {:else}
-              <EyeSlash size={16} weight="bold" aria-hidden="true" />
-            {/if}
-            Hide
+            <span class="state-icon" aria-hidden="true">
+              <span class:visible={!dismissing}><ThumbsDown size={16} /></span>
+              <span class:visible={dismissing}><ThumbsDown size={16} weight="fill" /></span>
+            </span>
+            Not interested
           </button>
       </div>
 
@@ -685,12 +675,12 @@
           onclick={openApplication}
           disabled={openingApplication}
         >
-          {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="bold" />{/if}
+          {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="regular" />{/if}
           Apply
         </button>
       {:else}
         <button class="btn-primary btn-accent btn-action" disabled>
-          <ArrowSquareOut size={18} weight="bold" />
+          <ArrowSquareOut size={18} weight="regular" />
           Apply
         </button>
       {/if}
@@ -698,7 +688,7 @@
         class="btn-secondary btn-action"
         onclick={() => jobId && navigate(`/tailor/${jobId}`)}
       >
-        <MagicWand size={18} weight="bold" />
+        <MagicWand size={16} />
         Tailor
       </button>
     </div>
@@ -762,33 +752,30 @@
   }
 
   .state-icon,
-  .state-label {
+  .applied-label {
     display: grid;
     place-items: center;
   }
 
   .state-icon > span,
-  .state-label > span {
+  .applied-label > span {
     grid-area: 1 / 1;
     display: grid;
     place-items: center;
     opacity: 0;
-    filter: blur(4px);
-    transform: scale(0.25);
+    transform: scale(0.72);
     transition:
       opacity var(--duration-instant) var(--ease-standard),
-      filter var(--duration-instant) var(--ease-standard),
       transform var(--duration-instant) var(--ease-standard);
   }
 
-  .state-label > span {
+  .applied-label > span {
     transform: translateY(3px);
   }
 
   .state-icon > span.visible,
-  .state-label > span.visible {
+  .applied-label > span.visible {
     opacity: 1;
-    filter: blur(0);
     transform: none;
   }
 
@@ -797,25 +784,16 @@
   .btn-secondary.completed:disabled,
   .btn-secondary.completed:disabled:hover {
     opacity: 1;
-    border-color: var(--color-good-border);
+    border-color: color-mix(in oklch, var(--color-good) 42%, var(--color-line));
     background: var(--color-good-soft);
     color: var(--color-good);
   }
 
-  .btn-secondary.saved-completed,
-  .btn-secondary.saved-completed:hover,
-  .btn-secondary.saved-completed:disabled {
+  .btn-secondary.neutral-completed,
+  .btn-secondary.neutral-completed:disabled {
     opacity: 1;
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
-    color: var(--color-accent-soft-ink);
-  }
-
-  .job-state-actions .btn-action {
-    min-width: 0;
-    padding-inline: var(--space-2);
-    gap: var(--space-1);
-    font-size: var(--fs-xs);
+    background: var(--color-control-bg);
+    color: var(--color-ink-2);
   }
 
   .job-match-panel {
@@ -906,15 +884,15 @@
     <p class="modal-copy">
       This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
       <br /><br />
-      If you only want it gone from your own list, use <strong>Hide</strong> instead.
+      If you only want it gone from your own list, use <strong>Not interested</strong> instead.
     </p>
     <div class="stack-sm">
       <button
         class="btn-secondary full-width tall-control"
         onclick={() => { showBlockConfirm = false; handleDismiss(); }}
       >
-        <EyeSlash size={15} />
-        Hide
+        <ThumbsDown size={15} />
+        Not interested
       </button>
       <button
         class="btn-secondary btn-danger full-width tall-control"

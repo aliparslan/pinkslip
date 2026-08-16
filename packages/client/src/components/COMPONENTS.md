@@ -12,7 +12,7 @@ application code should not invent visually equivalent one-offs.
 | Page-level recovery | `PageFailure.svelte` | concise title, recovery message, optional retry and secondary actions |
 | Empty collection / first use | `EmptyState.svelte` | concise title, optional orientation copy, icon, and one next action; `compact` for embedded sections |
 | Partial-load recovery | `InlineFailure.svelte` | local title, recovery message, optional retry without replacing the whole page |
-| Boolean setting | `Switch.svelte` | controlled checked state, accessible label, optional semantic `accent` tone |
+| Boolean setting | `Switch.svelte` | controlled checked state and accessible label |
 | Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase` |
 | Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, dismiss callback, content/actions snippets |
 | Pushed-screen header | `ScreenNav.svelte` | title, back action, optional trailing content, native collapsing title |
@@ -65,14 +65,6 @@ stacking multiple tones or sizes is not supported.
 
 ## Quarantine
 
-- **iOS compact action compositions** — Owner: iOS polish. Reason: the
-  three-action job state row, inline notification tests, Resume header import,
-  and unboxed remaining-use meter are new compact arrangements awaiting
-  hands-on device review. Call sites: `pages/JobDetail.svelte`,
-  `pages/profile/NotifySection.svelte`, `pages/ResumeProfile.svelte`, and
-  `pages/profile/TailorSection.svelte`. Review or expire by 2026-09-15. These
-  remain feature-local compositions and must not become generic primitives
-  without a second independent use.
 - **Tailoring trust workspace compositions** — Owner: Tailoring. Reason: the
   word-level evidence comparison, locked-bullet rewrite controls,
   removed-for-space restoration, exact-PDF `ResumePdfPreview`, and PDF revision

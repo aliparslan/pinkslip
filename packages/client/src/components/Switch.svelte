@@ -5,13 +5,10 @@
 
   let {
     checked = $bindable(false),
-    tone = "default",
     ...restProps
-  }: WithoutChildrenOrChild<Switch.RootProps> & {
-    tone?: "default" | "accent";
-  } = $props();
+  }: WithoutChildrenOrChild<Switch.RootProps> = $props();
 </script>
 
-<Switch.Root bind:checked {...restProps} class={tone === "accent" ? "switch accent" : "switch"}>
+<Switch.Root bind:checked {...restProps} class="switch">
   <Switch.Thumb class="switch-thumb" />
 </Switch.Root>

@@ -61,58 +61,49 @@
 </script>
 
 <div
-  class="toast-motion"
+  class="toast-message"
+  class:success={toast.tone === "success"}
+  class:warning={toast.tone === "warning"}
+  class:error={toast.tone === "error"}
+  class:dragging
+  role={toast.tone === "error" ? "alert" : "status"}
+  style:transform={dragX ? `translateX(${dragX}px)` : undefined}
+  style:opacity={dragging ? Math.max(0.3, 1 - Math.abs(dragX) / (elWidth || 200)) : undefined}
   in:fly={{ y: 10, duration: 180 }}
-  out:fly={{ y: -6, duration: 140 }}
+  out:fly={{ y: 6, duration: 140 }}
+  onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerUp}
+  onmouseenter={() => feedback.pause(toast.id)}
+  onmouseleave={() => feedback.resume(toast.id)}
+  onfocusin={() => feedback.pause(toast.id)}
+  onfocusout={() => feedback.resume(toast.id)}
 >
-  <div
-    class="toast-message"
-    class:success={toast.tone === "success"}
-    class:warning={toast.tone === "warning"}
-    class:error={toast.tone === "error"}
-    class:dragging
-    role={toast.tone === "error" ? "alert" : "status"}
-    style:transform={dragX ? `translateX(${dragX}px)` : undefined}
-    style:opacity={dragging ? Math.max(0.3, 1 - Math.abs(dragX) / (elWidth || 200)) : undefined}
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
-    onmouseenter={() => feedback.pause(toast.id)}
-    onmouseleave={() => feedback.resume(toast.id)}
-    onfocusin={() => feedback.pause(toast.id)}
-    onfocusout={() => feedback.resume(toast.id)}
-  >
-    <Icon class="toast-icon" size={18} weight="fill" />
-    <span class="toast-copy">{toast.message}</span>
-    {#if toast.action}
-      <button
-        type="button"
-        class="toast-action"
-        onclick={async () => {
-          await toast.action?.run();
-          feedback.dismiss(toast.id);
-        }}
-      >
-        {toast.action.label}
-      </button>
-    {/if}
-    {#if toast.duration === null}
-      <button type="button" class="toast-close" aria-label="Dismiss message" onclick={() => feedback.dismiss(toast.id)}>
-        <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} />
-      </button>
-    {/if}
-  </div>
+  <Icon class="toast-icon" size={18} weight="fill" />
+  <span class="toast-copy">{toast.message}</span>
+  {#if toast.action}
+    <button
+      type="button"
+      class="toast-action"
+      onclick={async () => {
+        await toast.action?.run();
+        feedback.dismiss(toast.id);
+      }}
+    >
+      {toast.action.label}
+    </button>
+  {/if}
+  {#if toast.duration === null}
+    <button type="button" class="toast-close" aria-label="Dismiss message" onclick={() => feedback.dismiss(toast.id)}>
+      <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} />
+    </button>
+  {/if}
 </div>
 
 <style>
-  .toast-motion {
-    width: min(100%, 440px);
-    pointer-events: auto;
-  }
-
   .toast-message {
-    width: 100%;
+    width: min(100%, 440px);
     min-height: var(--tap-min);
     padding: 10px var(--space-3);
     display: grid;
@@ -126,6 +117,7 @@
     box-shadow: var(--shadow-toast);
     backdrop-filter: blur(18px) saturate(130%);
     -webkit-backdrop-filter: blur(18px) saturate(130%);
+    pointer-events: auto;
     touch-action: pan-y;
     transition: transform 200ms var(--ease-standard), opacity 200ms var(--ease-standard);
   }
@@ -168,6 +160,8 @@
   }
 
   :global(html.native-ios) .toast-message {
+    width: auto;
+    max-width: 100%;
     padding: var(--space-2) var(--space-3);
     gap: var(--space-2);
     background: var(--color-bg-elev);

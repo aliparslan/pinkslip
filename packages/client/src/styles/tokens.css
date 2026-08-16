@@ -15,7 +15,6 @@
   --control-height: 48px;
   --control-height-compact: 40px;
   --control-height-small: 32px;
-  --pill-height: 32px;
 
   /* Type */
   --fs-3xs: 11px;
@@ -108,7 +107,6 @@
 
   --color-good: oklch(0.73 0.14 150);
   --color-good-soft: oklch(0.235 0.035 150);
-  --color-good-border: oklch(0.52 0.085 150);
   --color-warn: oklch(0.79 0.14 75);
   --color-bad: oklch(0.72 0.17 25);
   --color-bad-soft: oklch(0.245 0.045 25);
@@ -121,8 +119,6 @@
   --color-control-selected-bg: oklch(0.37 0.007 285);
   --color-control-selected-ink: oklch(0.98 0.002 285);
   --color-control-selected-border: oklch(0.5 0.007 285);
-  --color-segmented-bg: var(--color-control-bg);
-  --color-segmented-selected-bg: var(--color-control-selected-bg);
   --color-scrim: oklch(0 0 0 / 0.52);
   /* Image edges only. Must stay pure white/black with alpha — a tinted neutral
      picks up whatever surface sits behind it and reads as dirt on the edge. */
@@ -164,7 +160,6 @@
      can show, so they rendered identically to these values anyway. */
   --color-good: oklch(0.48 0.132 150);
   --color-good-soft: oklch(0.955 0.025 150);
-  --color-good-border: oklch(0.68 0.08 150);
   --color-warn: oklch(0.53 0.111 75);
   --color-bad: oklch(0.5 0.18 25);
   --color-bad-soft: oklch(0.955 0.022 25);
@@ -177,8 +172,6 @@
   --color-control-selected-bg: oklch(0.255 0.006 285);
   --color-control-selected-ink: oklch(0.99 0.002 80);
   --color-control-selected-border: oklch(0.255 0.006 285);
-  --color-segmented-bg: var(--color-control-bg);
-  --color-segmented-selected-bg: var(--color-bg-elev);
   --color-scrim: oklch(0.12 0.006 285 / 0.38);
   --color-nav-dim: oklch(0.12 0.006 285);
   --color-image-outline: oklch(0 0 0 / 0.1);

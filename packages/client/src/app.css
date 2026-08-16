@@ -287,7 +287,7 @@ button { -webkit-tap-highlight-color: transparent; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: var(--pill-height);
+  height: var(--control-height-small);
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-line-2);
@@ -450,12 +450,27 @@ button { -webkit-tap-highlight-color: transparent; }
   transform: scale(0.96);
 }
 
-.filter-indicator {
-  width: var(--space-2);
-  height: var(--space-2);
-  flex: none;
+.filter-count {
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-full);
   background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  line-height: 1;
+  animation: filter-count-in var(--duration-instant) var(--ease-standard);
+}
+
+@keyframes filter-count-in {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
 }
 
 .feed-stale-notice {
@@ -1173,7 +1188,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .job-state-actions {
   margin-bottom: 24px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1332,6 +1347,39 @@ select.input-field {
   display: inline-flex;
   color: var(--color-ink-4);
   pointer-events: none;
+}
+
+.usage-meter {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-line-2);
+  color: var(--color-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+}
+
+.usage-meter strong {
+  color: var(--color-ink);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-meter-track {
+  height: 4px;
+  overflow: hidden;
+  margin: 8px 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-line-2);
+}
+
+.usage-meter-fill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: var(--color-accent);
 }
 
 .corpus-textarea,
@@ -1668,7 +1716,7 @@ select.input-field {
   grid-template-columns: repeat(2, 1fr);
   gap: 3px;
   border-radius: var(--radius-md);
-  background: var(--color-segmented-bg);
+  background: var(--color-bg-sunken);
 }
 
 .my-jobs-tabs::before {
@@ -1680,7 +1728,7 @@ select.input-field {
   left: 3px;
   width: calc((100% - 9px) / 2);
   border-radius: calc(var(--radius-md) - 3px);
-  background: var(--color-segmented-selected-bg);
+  background: var(--color-bg-elev);
   box-shadow: var(--shadow-control-active);
   transition: transform var(--duration-standard) var(--ease-standard);
 }
@@ -2352,10 +2400,6 @@ details.filter-advanced { display: contents; }
   flex: none;
   color: var(--color-ink-4);
   transition: transform var(--duration-fast) var(--ease-standard);
-}
-
-.feed-pull-reveal .spin {
-  color: var(--color-ink-4);
 }
 
 .feed-pull-reveal.armed svg { transform: scale(1.08); }

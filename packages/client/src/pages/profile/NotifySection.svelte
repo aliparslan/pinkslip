@@ -65,7 +65,6 @@
         checked={notificationEnabled}
         onCheckedChange={(value) => (notificationEnabled = value)}
         aria-label={nativeIos ? "Send new job alerts" : "Job alerts"}
-        tone="accent"
       />
     </div>
 
@@ -92,7 +91,7 @@
     </div>
 
     {#if pushStatus === "enabled"}
-      <div class="grouped-row test-notification-row">
+      <div class="grouped-row stack">
         <div class="grouped-row-copy">
           <div class="row-title">{nativeIos ? "Send a test" : "Test notification"}</div>
           {#if testingNotif || !nativeIos}
@@ -101,7 +100,7 @@
             </div>
           {/if}
         </div>
-        <div class="button-cluster test-notification-actions">
+        <div class="button-cluster">
           <button type="button" class="btn-secondary btn-mini" disabled={!!testingNotif} onclick={() => sendTest(0)}>
             Send now
           </button>
@@ -122,15 +121,4 @@
   }
 
   .setting-status.good { color: var(--color-good); }
-
-  .test-notification-actions {
-    flex: none;
-    flex-wrap: nowrap;
-    gap: var(--space-1);
-  }
-
-  .test-notification-actions :global(.btn-mini) {
-    padding-inline: var(--space-2);
-    font-size: var(--fs-xs);
-  }
 </style>

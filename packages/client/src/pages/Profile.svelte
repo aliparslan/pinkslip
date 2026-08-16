@@ -577,10 +577,6 @@
 {/if}
 
 <style>
-  .native-layout .you-destination-page {
-    padding-bottom: calc(var(--space-10) + var(--safe-bottom));
-  }
-
   .native-layout .you-page {
     gap: var(--space-8);
   }

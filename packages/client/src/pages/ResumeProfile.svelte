@@ -737,20 +737,6 @@
   });
 </script>
 
-{#snippet importResumeButton(compact: boolean)}
-  <button
-    type="button"
-    class={compact ? "btn-secondary resume-header-import" : "btn-primary btn-accent import-action"}
-    onclick={() => importInput?.click()}
-    disabled={importing}
-    aria-label={compact ? "Import resume from PDF" : undefined}
-    aria-describedby={importError ? "resume-import-error" : undefined}
-  >
-    {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
-    <span>{compact ? "Import" : "Import from PDF"}</span>
-  </button>
-{/snippet}
-
 <div class="page pushed-screen" class:native-layout={nativeIos}>
   <ScreenNav
     title={screenTitle}
@@ -774,6 +760,7 @@
         onRetry={() => void loadAll()}
       />
     {:else if view.kind === "overview"}
+      {#if nativeIos}<h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>{/if}
       <input
         class="visually-hidden-input"
         type="file"
@@ -781,13 +768,6 @@
         bind:this={importInput}
         onchange={handlePdfImport}
       />
-
-      {#if nativeIos}
-        <div class="resume-overview-heading">
-          <h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>
-          {@render importResumeButton(true)}
-        </div>
-      {/if}
 
       <div class="resume-overview">
         <section class="resume-section" aria-labelledby="contact-heading">
@@ -801,7 +781,16 @@
             </span>
             <CaretRight size={18} weight="bold" aria-hidden="true" />
           </button>
-          {#if !nativeIos}{@render importResumeButton(false)}{/if}
+          <button
+            type="button"
+            class="btn-primary btn-accent import-action"
+            onclick={() => importInput?.click()}
+            disabled={importing}
+            aria-describedby={importError ? "resume-import-error" : undefined}
+          >
+            {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
+            <span>Import from PDF</span>
+          </button>
           {#if importError}
             {@const recovery = importRecovery(importError.code)}
             <div id="resume-import-error" class="alert alert-error import-failure" role="alert">
@@ -1033,7 +1022,7 @@
           </section>
           <section class="editor-section stack-md">
             <h2>Dates</h2>
-            <div class="form-grid date-grid">
+            <div class="form-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} disabled={isCurrentRole(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
@@ -1141,7 +1130,7 @@
           </section>
           <section class="editor-section stack-md">
             <h2>Dates</h2>
-            <div class="form-grid date-grid">
+            <div class="form-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
@@ -1257,29 +1246,6 @@
 <style>
   .resume-frame {
     padding-top: var(--space-2);
-  }
-
-  .native-layout .resume-frame {
-    padding-bottom: calc(var(--space-10) + var(--safe-bottom));
-  }
-
-  .resume-overview-heading {
-    min-height: var(--screen-nav-height);
-    margin-bottom: var(--space-4);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-  }
-
-  .resume-overview-heading .screen-large-title {
-    margin: 0;
-  }
-
-  .resume-header-import {
-    min-height: var(--control-height-compact);
-    padding-inline: var(--space-3);
-    font-size: var(--fs-sm);
   }
 
   .resume-overview {
@@ -1865,14 +1831,6 @@
     .field.span-2,
     .span-2 {
       grid-column: auto;
-    }
-
-    .location-grid {
-      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-    }
-
-    .date-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>
