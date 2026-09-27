@@ -23,7 +23,11 @@
       import("pdfjs-dist/build/pdf.worker.mjs?url"),
     ]);
     GlobalWorkerOptions.workerSrc = workerModule.default;
-    return getDocument({ data: bytes }).promise;
+    const loadingTask = getDocument({ data: bytes });
+    return {
+      document: await loadingTask.promise,
+      destroy: () => loadingTask.destroy(),
+    };
   }
 
   async function renderPdf(
@@ -33,9 +37,10 @@
     revision: number,
   ) {
     const startedAt = performance.now();
-    let pdfDocument: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
+    let loadedPdf: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
     try {
-      pdfDocument = await loadPdfDocument(bytes);
+      loadedPdf = await loadPdfDocument(bytes);
+      const pdfDocument = loadedPdf.document;
       if (revision !== renderRevision) return;
       if (pdfDocument.numPages !== expectedPages) {
         throw new Error("The preview page count did not match the generated PDF.");
@@ -74,7 +79,7 @@
       host.replaceChildren();
       onError?.(cause instanceof Error ? cause.message : "The PDF preview could not be shown.");
     } finally {
-      await pdfDocument?.destroy();
+      await loadedPdf?.destroy();
     }
   }
 

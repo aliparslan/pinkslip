@@ -141,7 +141,8 @@ export async function verifyCompiledResumePdf(
     import("pdfjs-dist/build/pdf.worker.mjs?url"),
   ]);
   GlobalWorkerOptions.workerSrc = workerModule.default;
-  const document = await getDocument({ data: Uint8Array.from(pdfBytes) }).promise;
+  const loadingTask = getDocument({ data: Uint8Array.from(pdfBytes) });
+  const document = await loadingTask.promise;
   const pageText: string[] = [];
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
@@ -154,7 +155,7 @@ export async function verifyCompiledResumePdf(
       )).join(" "));
     }
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
   return verifyResumeExtractedText(resume, pageText.join("\n"));
 }

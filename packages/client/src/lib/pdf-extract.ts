@@ -13,7 +13,11 @@ async function loadPdf(file: File) {
   ]);
   GlobalWorkerOptions.workerSrc = worker.default;
   const data = new Uint8Array(await file.arrayBuffer());
-  return getDocument({ data }).promise;
+  const loadingTask = getDocument({ data });
+  return {
+    document: await loadingTask.promise,
+    destroy: () => loadingTask.destroy(),
+  };
 }
 
 export function ocrPageNumbers(totalPages: number): number[] {
@@ -52,7 +56,8 @@ function textItemValue(item: unknown): { str: string; x: number; y: number; widt
 
 /** Browser-only PDF.js extraction used as the offline import fallback. */
 export async function extractPdfText(file: File): Promise<{ text: string; links: PdfLink[] }> {
-  const pdf = await loadPdf(file);
+  const loadedPdf = await loadPdf(file);
+  const pdf = loadedPdf.document;
   const allText: string[] = [];
   const allLinks: PdfLink[] = [];
 
@@ -98,7 +103,7 @@ export async function extractPdfText(file: File): Promise<{ text: string; links:
       }
     }
   } finally {
-    await pdf.destroy();
+    await loadedPdf.destroy();
   }
 
   return { text: allText.join("\n\n"), links: allLinks };
@@ -110,7 +115,8 @@ export async function extractPdfText(file: File): Promise<{ text: string; links:
  * canvas allocations.
  */
 export async function renderPdfPagesForOcr(file: File): Promise<Blob[]> {
-  const pdf = await loadPdf(file);
+  const loadedPdf = await loadPdf(file);
+  const pdf = loadedPdf.document;
   const images: Blob[] = [];
 
   try {
@@ -133,7 +139,7 @@ export async function renderPdfPagesForOcr(file: File): Promise<Blob[]> {
       }
     }
   } finally {
-    await pdf.destroy();
+    await loadedPdf.destroy();
   }
 
   return images;

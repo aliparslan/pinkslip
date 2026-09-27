@@ -94,7 +94,8 @@ describe("Typst resume compiler", () => {
     expect(document.getPageCount()).toBe(1);
     expect(source.indexOf("Experience")).toBeLessThan(source.indexOf("Education"));
     const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const extracted = await getDocument({ data: Uint8Array.from(bytes ?? []) }).promise;
+    const loadingTask = getDocument({ data: Uint8Array.from(bytes ?? []) });
+    const extracted = await loadingTask.promise;
     const page = await extracted.getPage(1);
     const text = (await page.getTextContent()).items
       .map((item) => ("str" in item ? item.str : ""))
@@ -110,7 +111,7 @@ describe("Typst resume compiler", () => {
     expect(verifyResumeExtractedText(resume, "Jane Doe jane@example.com").missing).toContain(
       "title: Software Engineer",
     );
-    await extracted.destroy();
+    await loadingTask.destroy();
   }, 30_000);
 
   test("keeps restored optional content through later fit passes", () => {
