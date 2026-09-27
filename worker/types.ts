@@ -21,6 +21,12 @@ export interface Env {
   ACCESS_CODE?: string;
   APPLE_APP_ID?: string;
   APPLE_TEAM_ID?: string;
+  // Sign in with Apple server exchange/revocation. Both key values are secrets;
+  // APPLE_TOKEN_ENCRYPTION_KEY is 32 random bytes encoded as base64url.
+  APPLE_SIGN_IN_CLIENT_ID?: string;
+  APPLE_SIGN_IN_KEY_ID?: string;
+  APPLE_SIGN_IN_PRIVATE_KEY?: string;
+  APPLE_TOKEN_ENCRYPTION_KEY?: string;
   EMAIL_FROM_ADDRESS?: string;
   EMAIL_FROM_NAME?: string;
   WORKERS_AI_MODEL?: string;
@@ -48,16 +54,8 @@ export interface UserRow {
   created_at: string;
 }
 
-export type CompanySourceType =
-  | "greenhouse"
-  | "lever"
-  | "ashby"
-  | "workday"
-  | "rippling"
-  | "gem"
-  | "smartrecruiters"
-  | "yc"
-  | "custom";
+export type { CompanySourceType } from "../shared/company-sources";
+import type { CompanySourceType } from "../shared/company-sources";
 
 export interface CompanyRow {
   id: string;
@@ -156,6 +154,8 @@ export interface PushSubscriptionRow {
   // "web" for Web Push (p256dh/auth populated) or "ios" for APNs (endpoint holds
   // the device token; p256dh/auth are empty).
   platform: string;
+  /** Stable per-install identity used to replace a rotated APNs token. */
+  installation_id?: string | null;
 }
 
 export interface ProfileRow {
