@@ -52,6 +52,7 @@ import {
   ResumeCompilerIntegrityError,
 } from "../tailor/compiler-service";
 import { recordTailoringQualityEvent } from "../tailor/quality";
+import { resolveJobId } from "../job-identity";
 import type {
   Env,
   TailoringRow,
@@ -372,9 +373,9 @@ tailor.get("/tailor/usage", async (c) => {
 });
 
 tailor.get("/tailor/:job_id", async (c) => {
-  const { job_id } = c.req.param();
+  const jobId = await resolveJobId(c.env.DB, c.req.param("job_id"));
   const userId = c.get("userId");
-  const row = await getLatestUserTailoring(c.env.DB, userId, job_id);
+  const row = await getLatestUserTailoring(c.env.DB, userId, jobId);
   const latestArtifact = row
     ? await loadLatestArtifact(c.env.DB, userId, row.id)
     : null;
@@ -400,8 +401,8 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
       code: "tailor_not_configured",
     }, 503);
   }
-  const { job_id } = c.req.param();
-  const job = await loadJobForTailor(c.env.DB, job_id);
+  const jobId = await resolveJobId(c.env.DB, c.req.param("job_id"));
+  const job = await loadJobForTailor(c.env.DB, jobId);
   if (!job) return c.json({ error: "Job not found" }, 404);
   const description = await ensureJobDescription(c.env.DB, job);
   if (!description) {
