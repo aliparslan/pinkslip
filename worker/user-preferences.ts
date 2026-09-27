@@ -1,10 +1,9 @@
 import {
   DEFAULT_SEARCH_PROFILE,
   LOCATION_OPTIONS,
-  ONBOARDING_VERSION,
   ROLE_OPTIONS,
   normalizeSearchProfile,
-  type ExperienceLevel,
+  type CareerStage,
   type LocationId,
   type RoleId,
   type SearchProfile,
@@ -15,11 +14,20 @@ export interface UserPreferenceState {
   search_profile: SearchProfile;
 }
 
-interface SearchProfileRow {
+export interface SearchProfileRow {
   profile_json: string;
   notifications_enabled: number;
   onboarding_version: number;
   onboarding_completed_at: string | null;
+}
+
+export function searchProfileFromRow(row: SearchProfileRow): SearchProfile {
+  return normalizeSearchProfile({
+    ...JSON.parse(row.profile_json),
+    notifications_enabled: row.notifications_enabled === 1,
+    onboarding_version: row.onboarding_version,
+    onboarding_completed_at: row.onboarding_completed_at,
+  });
 }
 
 const LEGACY_SENIORITY_EXCLUSIONS = new Set([
@@ -64,15 +72,12 @@ function inferLocations(locations: string[]): {
   return { remote, locationIds, customLocations };
 }
 
-function inferExperience(maxYoe: unknown): ExperienceLevel {
+function inferExperience(maxYoe: unknown): CareerStage {
   const max = typeof maxYoe === "number" ? maxYoe : Number(maxYoe);
   if (!Number.isFinite(max)) return DEFAULT_SEARCH_PROFILE.target_levels[0];
   if (max <= 0) return "internship";
   if (max <= 1) return "new_grad";
-  if (max <= 3) return "early_career";
-  if (max <= 6) return "mid_level";
-  if (max <= 10) return "senior";
-  return "staff_plus";
+  return "early_career";
 }
 
 export function searchProfileFromLegacy(preferences: Record<string, unknown>): SearchProfile {
@@ -102,14 +107,9 @@ export function preferenceStateFromRecord(preferences: Record<string, unknown>):
     : hasLegacyProfile
       ? searchProfileFromLegacy(preferences)
       : normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
-  const profile = hasLegacyProfile && baseProfile.onboarding_version === 0
-    ? normalizeSearchProfile({
-        ...baseProfile,
-        onboarding_version: ONBOARDING_VERSION,
-        onboarding_completed_at: new Date().toISOString(),
-      })
-    : baseProfile;
-  return { search_profile: profile };
+  // Legacy users must see onboarding v3 once so internships cannot become an
+  // implicit alert preference. Their normalized roles and locations are kept.
+  return { search_profile: baseProfile };
 }
 
 async function persistTypedProfile(db: D1Database, userId: string, profile: SearchProfile) {
@@ -147,13 +147,7 @@ export async function loadUserPreferenceState(db: D1Database, userId: string): P
   ).bind(userId).first<SearchProfileRow>();
 
   if (row) {
-    const profile = normalizeSearchProfile({
-      ...JSON.parse(row.profile_json),
-      notifications_enabled: row.notifications_enabled === 1,
-      onboarding_version: row.onboarding_version,
-      onboarding_completed_at: row.onboarding_completed_at,
-    });
-    return { search_profile: profile };
+    return { search_profile: searchProfileFromRow(row) };
   }
 
   const legacy = preferenceStateFromRecord(await readUserPreferences(db, userId));
@@ -189,7 +183,14 @@ export async function saveUserPreferenceState(
   }
 
   if (changed) {
-    await db.prepare("DELETE FROM user_job_matches WHERE user_id = ?").bind(userId).run();
+    await db.batch([
+      db.prepare("DELETE FROM user_job_matches WHERE user_id = ?").bind(userId),
+      db.prepare(
+        `UPDATE notification_candidates
+         SET status = 'skipped', last_error = 'Preferences changed before delivery'
+         WHERE user_id = ? AND status IN ('pending', 'retry', 'sending')`
+      ).bind(userId),
+    ]);
   }
 
   return { search_profile: nextProfile };

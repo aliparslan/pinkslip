@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CAREER_STAGE_OPTIONS,
   DEFAULT_SEARCH_PROFILE,
+  ONBOARDING_VERSION,
   ROLE_OPTIONS,
   SEARCH_PROFILE_VERSION,
+  effectiveTargetStages,
   normalizeSearchProfile,
 } from "../shared/search-profile";
 import { classifyJob } from "@worker/job-features";
@@ -28,10 +31,11 @@ function job(overrides: Partial<JobListing>): JobListing {
 }
 
 describe("search profile", () => {
-  test("normalizes unknown values without losing a valid selection", () => {
+  test("normalizes unknown values without losing a valid current-stage selection", () => {
     const profile = normalizeSearchProfile({
+      version: SEARCH_PROFILE_VERSION,
       roles: ["backend", "not-a-role", "backend"],
-      target_levels: ["mid_level"],
+      target_levels: ["early_career", "mid_level"],
       years_experience: 4,
       work_modes: ["hybrid", "onsite"],
       location_ids: ["new_york", "not-a-location"],
@@ -41,7 +45,7 @@ describe("search profile", () => {
     });
 
     expect(profile.roles).toEqual(["backend"]);
-    expect(profile.target_levels).toEqual(["mid_level"]);
+    expect(profile.target_levels).toEqual(["early_career"]);
     expect(profile.years_experience).toBe(4);
     expect(profile.location_ids).toEqual(["new_york"]);
     expect(profile.custom_locations).toEqual(["Raleigh"]);
@@ -60,7 +64,11 @@ describe("search profile", () => {
     expect(profile.roles).toContain("backend");
     expect(profile.work_modes).toContain("remote");
     expect(profile.location_ids).toContain("new_york");
-    expect(profile.target_levels).toEqual(["early_career"]);
+    expect(profile.target_levels).toEqual(
+      CAREER_STAGE_OPTIONS.map((option) => option.id)
+    );
+    expect(profile.onboarding_version).toBe(0);
+    expect(effectiveTargetStages(profile)).toEqual(["new_grad", "early_career"]);
     expect(profile.excluded_titles).toEqual(["sales"]);
   });
 
@@ -73,6 +81,41 @@ describe("search profile", () => {
       "backend",
       "full_stack",
     ]);
+    expect(DEFAULT_SEARCH_PROFILE.target_levels).toEqual([
+      "internship",
+      "new_grad",
+      "early_career",
+    ]);
+  });
+
+  test("migrates every pre-v4 profile to all stages and gates internships until onboarding v3", () => {
+    const migrated = normalizeSearchProfile({
+      version: 3,
+      onboarding_version: 2,
+      roles: ["backend"],
+      location_ids: ["new_york"],
+      target_levels: ["new_grad"],
+    });
+
+    expect(migrated.target_levels).toEqual([
+      "internship",
+      "new_grad",
+      "early_career",
+    ]);
+    expect(migrated.roles).toEqual(["backend"]);
+    expect(migrated.location_ids).toEqual(["new_york"]);
+    expect(effectiveTargetStages(migrated)).toEqual(["new_grad", "early_career"]);
+    expect(effectiveTargetStages(normalizeSearchProfile({
+      ...migrated,
+      target_levels: ["internship"],
+    }))).toEqual(["new_grad", "early_career"]);
+
+    const confirmed = normalizeSearchProfile({
+      ...migrated,
+      onboarding_version: ONBOARDING_VERSION,
+      onboarding_completed_at: new Date().toISOString(),
+    });
+    expect(effectiveTargetStages(confirmed)).toEqual(migrated.target_levels);
   });
 
   test("drops product, program, and design roles from older profiles", () => {
@@ -287,6 +330,38 @@ describe("job features and binary matches", () => {
     expect(match).toEqual({ jobId: "job-1", plausible: true });
   });
 
+  test("excludes doctorate and security-clearance gates while allowing a master's", () => {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      primary_role: "software_engineering",
+      roles: ["software_engineering"],
+      work_modes: ["remote"],
+      location_ids: [],
+    });
+    const plausible = (description: string) => {
+      const listing = job({ title: "Software Engineer", description });
+      return evaluateJobForProfile(
+        "requirements-job",
+        listing,
+        classifyJob(listing),
+        profile
+      ).plausible;
+    };
+
+    expect(plausible(
+      "<h2>Basic qualifications</h2><li>PhD in computer science</li>"
+    )).toBe(false);
+    expect(plausible(
+      "Must currently possess and maintain an active TS/SCI security clearance."
+    )).toBe(false);
+    expect(plausible(
+      "<h2>Basic qualifications</h2><li>Master's degree in computer science</li>"
+    )).toBe(true);
+    expect(plausible(
+      "<h2>Preferred qualifications</h2><li>Active Secret clearance</li>"
+    )).toBe(true);
+  });
+
   test("specific research titles override generic SWE", () => {
     const hybridListing = job({
       title: "Research Software Engineer",
@@ -395,9 +470,9 @@ describe("job features and binary matches", () => {
   });
 });
 
-// pinkslip serves one fixed band: new grad through ~3 years. These pin both
-// edges, because the previous implementation only had a ceiling.
-describe("the new-grad band", () => {
+// These pin both edges of the public career-stage catalog because the previous
+// implementation only had a ceiling.
+describe("the career-stage band", () => {
   const newGradProfile = (overrides: Record<string, unknown> = {}) =>
     normalizeSearchProfile({
       ...DEFAULT_SEARCH_PROFILE,
@@ -438,10 +513,26 @@ describe("the new-grad band", () => {
     expect(matched("Backend Engineer", "Build and operate our APIs.").plausible).toBe(true);
   });
 
-  test("excludes senior, staff and internship titles", () => {
+  test("excludes senior and staff titles while gating internships before v3 confirmation", () => {
     expect(matched("Senior Backend Engineer", "Build APIs.").plausible).toBe(false);
     expect(matched("Staff Backend Engineer", "Build APIs.").plausible).toBe(false);
     expect(matched("Backend Engineer Intern", "Build APIs.").plausible).toBe(false);
+  });
+
+  test("matches confirmed internships only when the saved stage includes them", () => {
+    const confirmed = matched("Backend Engineer Intern", "Build APIs.", {
+      onboarding_version: ONBOARDING_VERSION,
+      onboarding_completed_at: new Date().toISOString(),
+      target_levels: ["internship"],
+    });
+    const earlyOnly = matched("Backend Engineer Intern", "Build APIs.", {
+      onboarding_version: ONBOARDING_VERSION,
+      onboarding_completed_at: new Date().toISOString(),
+      target_levels: ["new_grad", "early_career"],
+    });
+
+    expect(confirmed.plausible).toBe(true);
+    expect(earlyOnly.plausible).toBe(false);
   });
 
   test("widening target_levels cannot raise the ceiling", () => {
@@ -461,7 +552,7 @@ describe("the new-grad band", () => {
     // The frontier labs use this as their level-less IC title, so `\bstaff\b`
     // was discarding the single most relevant family of roles in the catalog.
     expect(classifyJob(job({ title: "Member of Technical Staff", location: "Remote - US", description: null })).seniority)
-      .toBe("unknown");
+      .toBe("early_career");
     expect(matched("Member of Technical Staff", "Build APIs.", {
       primary_role: "software_engineering",
       roles: ["software_engineering"],

@@ -1,8 +1,10 @@
 import {
+  effectiveTargetStages,
   isEligibleSeniority,
   MAX_YEARS_EXPERIENCE,
   profileRoleKeywords,
   specificRoleSpecialties,
+  type CareerStage,
   type SearchProfile,
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
@@ -10,16 +12,23 @@ import {
   classifyJob,
   ensureJobFeatures,
   ensureJobFeaturesForIds,
+  JOB_CLASSIFIER_VERSION,
   rowToListing,
+  storedJobFeaturesFromRow,
   type FeatureJobRow,
   type JobFeatures,
+  type StoredJobFeatureColumns,
 } from "./job-features";
-import { loadUserPreferenceState } from "./user-preferences";
+import {
+  loadUserPreferenceState,
+  searchProfileFromRow,
+  type SearchProfileRow,
+} from "./user-preferences";
 import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v5-fde";
+export const MATCHER_VERSION = "profile-v14-phd-internships";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -27,56 +36,32 @@ export interface UserJobMatch {
   plausible: boolean;
 }
 
-interface FeatureColumns {
-  role_family: JobFeatures["role_family"];
-  specialties_json: string;
-  seniority: JobFeatures["seniority"];
-  min_years: number | null;
-  max_years: number | null;
-  work_mode: JobFeatures["work_mode"];
-  countries_json: string;
-  metro_areas_json: string;
-  salary_min: number | null;
-  salary_max: number | null;
-  salary_currency: string | null;
-  salary_period: JobFeatures["salary_period"];
-  sponsorship_available: number | null;
+type MatchableJobRow = FeatureJobRow & StoredJobFeatureColumns & { evergreen: number | null };
+
+interface FeatureCompleteness {
+  classifier_version: string | null;
   requires_advanced_degree: number | null;
-  classifier_version: string;
-  confidence: number;
+  requires_security_clearance: number | null;
 }
 
-type MatchableJobRow = FeatureJobRow & FeatureColumns & { evergreen: number | null };
-function parseJsonList<T extends string>(value: string): T[] {
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item): item is T => typeof item === "string") : [];
-  } catch {
-    return [];
-  }
+interface CandidateFeatureState extends FeatureCompleteness {
+  id: string;
 }
 
-function rowToFeatures(row: FeatureColumns): JobFeatures {
-  return {
-    role_family: row.role_family,
-    specialties: parseJsonList(row.specialties_json),
-    seniority: row.seniority,
-    min_years: row.min_years,
-    max_years: row.max_years,
-    work_mode: row.work_mode,
-    countries: parseJsonList(row.countries_json),
-    metro_areas: parseJsonList(row.metro_areas_json),
-    salary_min: row.salary_min,
-    salary_max: row.salary_max,
-    salary_currency: row.salary_currency,
-    salary_period: row.salary_period,
-    sponsorship_available: row.sponsorship_available === null
-      ? null
-      : row.sponsorship_available === 1,
-    requires_advanced_degree: row.requires_advanced_degree === 1,
-    classifier_version: row.classifier_version,
-    confidence: row.confidence,
-  };
+function hasCurrentStoredJobFeatures(row: FeatureCompleteness): boolean {
+  return row.classifier_version === JOB_CLASSIFIER_VERSION
+    && row.requires_advanced_degree !== null
+    && row.requires_security_clearance !== null;
+}
+
+async function ensureCurrentCandidateFeatures(
+  db: D1Database,
+  candidates: CandidateFeatureState[]
+) {
+  const staleIds = candidates
+    .filter((candidate) => !hasCurrentStoredJobFeatures(candidate))
+    .map((candidate) => candidate.id);
+  await ensureJobFeaturesForIds(db, staleIds);
 }
 
 export function isLocationEligibleForProfile(
@@ -128,11 +113,11 @@ export function evaluateJobForProfile(
   const normalizedTitle = listing.title.toLowerCase();
   const legacyTitleMatch = features.specialties.length === 0
     && profileRoleKeywords(profile).some((keyword) => normalizedTitle.includes(keyword.toLowerCase()));
-  // Seniority is a fixed band, not a comparison against the user's selection.
-  // The old form was `featureRank > Math.max(...target_levels) + allowance`,
-  // which enforced a ceiling and no floor: selecting "Senior" alongside "Early
-  // career" raised the ceiling to staff+ and admitted everything beneath it.
-  const seniorityDisqualified = !isEligibleSeniority(features.seniority);
+  const careerStage = isEligibleSeniority(features.seniority)
+    ? features.seniority as CareerStage
+    : null;
+  const stageDisqualified = careerStage === null
+    || !effectiveTargetStages(profile).includes(careerStage);
 
   // A stated requirement above the ceiling is the only hard experience signal.
   // A posting that states nothing is NOT excluded — see ELIGIBLE_SENIORITIES.
@@ -144,6 +129,7 @@ export function evaluateJobForProfile(
   // seniority marker in the title — which is exactly why they dominated the
   // unknown-experience bucket.
   const advancedDegreeDisqualified = features.requires_advanced_degree;
+  const securityClearanceDisqualified = features.requires_security_clearance;
 
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
     && features.sponsorship_available === false;
@@ -161,7 +147,8 @@ export function evaluateJobForProfile(
 
   const plausible = !experienceDisqualified
     && !advancedDegreeDisqualified
-    && !seniorityDisqualified
+    && !securityClearanceDisqualified
+    && !stageDisqualified
     && !sponsorshipDisqualified
     && !locationDisqualified
     && !contentDisqualified
@@ -209,23 +196,33 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
 
 async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string[]) {
   if (jobIds && jobIds.length > 0) {
-    const placeholders = jobIds.map(() => "?").join(", ");
-    return db.prepare(
-      `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
-              j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
-              jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
-              jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
-              jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
-              jf.sponsorship_available, jf.requires_advanced_degree,
-              jf.classifier_version, jf.confidence
-       FROM jobs j
-       JOIN job_features jf ON jf.job_id = j.id
-       LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
-       WHERE j.id IN (${placeholders})
-         AND j.description IS NOT NULL
-         AND (jrq.job_id IS NULL OR jrq.state = 'approved')
-         AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
-    ).bind(...jobIds).all<MatchableJobRow>();
+    const rows: MatchableJobRow[] = [];
+    for (let offset = 0; offset < jobIds.length; offset += 75) {
+      const ids = jobIds.slice(offset, offset + 75);
+      const placeholders = ids.map(() => "?").join(", ");
+      const result = await db.prepare(
+        `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+                j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
+                jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
+                jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
+                jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
+                jf.sponsorship_available, jf.requires_advanced_degree,
+                jf.requires_security_clearance,
+                jf.classifier_version, jf.confidence
+         FROM jobs j
+         JOIN job_features jf ON jf.job_id = j.id
+         LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+         WHERE j.id IN (${placeholders})
+           AND j.description IS NOT NULL
+           AND jf.classifier_version = ?
+           AND jf.requires_advanced_degree IS NOT NULL
+           AND jf.requires_security_clearance IS NOT NULL
+           AND (jrq.job_id IS NULL OR jrq.state = 'approved')
+           AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
+      ).bind(...ids, JOB_CLASSIFIER_VERSION).all<MatchableJobRow>();
+      rows.push(...(result.results ?? []));
+    }
+    return { results: rows };
   }
 
   const cursor = await db.prepare(
@@ -239,8 +236,8 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
     ? "AND j.first_seen_at < ?"
     : "";
   const bindings: Array<string | number> = cursor?.match_cursor_seen_at
-    ? [cursor.match_cursor_seen_at, MATCH_WARM_BATCH_SIZE]
-    : [MATCH_WARM_BATCH_SIZE];
+    ? [JOB_CLASSIFIER_VERSION, cursor.match_cursor_seen_at, MATCH_WARM_BATCH_SIZE]
+    : [JOB_CLASSIFIER_VERSION, MATCH_WARM_BATCH_SIZE];
   return db.prepare(
     `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
             j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
@@ -248,10 +245,45 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
+            jf.requires_security_clearance,
             jf.classifier_version, jf.confidence
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
      JOIN job_features jf ON jf.job_id = j.id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+     WHERE c.enabled = 1
+       AND j.closed_at IS NULL
+       AND j.description IS NOT NULL
+       AND jf.classifier_version = ?
+       AND jf.requires_advanced_degree IS NOT NULL
+       AND jf.requires_security_clearance IS NOT NULL
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')
+       AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
+       ${cursorClause}
+     ORDER BY j.first_seen_at DESC
+     LIMIT ?`
+  ).bind(...bindings).all<MatchableJobRow>();
+}
+
+async function loadNormalCandidateFeatureStates(
+  db: D1Database,
+  userId: string
+): Promise<CandidateFeatureState[]> {
+  const cursor = await db.prepare(
+    "SELECT match_cursor_seen_at FROM user_search_profiles WHERE user_id = ?"
+  ).bind(userId).first<{ match_cursor_seen_at: string | null }>();
+  const cursorClause = cursor?.match_cursor_seen_at
+    ? "AND j.first_seen_at < ?"
+    : "";
+  const bindings: Array<string | number> = cursor?.match_cursor_seen_at
+    ? [cursor.match_cursor_seen_at, MATCH_WARM_BATCH_SIZE]
+    : [MATCH_WARM_BATCH_SIZE];
+  const result = await db.prepare(
+    `SELECT j.id, jf.classifier_version, jf.requires_advanced_degree,
+            jf.requires_security_clearance
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     LEFT JOIN job_features jf ON jf.job_id = j.id
      LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
      WHERE c.enabled = 1
        AND j.closed_at IS NULL
@@ -261,7 +293,27 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
        ${cursorClause}
      ORDER BY j.first_seen_at DESC
      LIMIT ?`
-  ).bind(...bindings).all<MatchableJobRow>();
+  ).bind(...bindings).all<CandidateFeatureState>();
+  return result.results ?? [];
+}
+
+async function loadEvergreenCandidateFeatureStates(
+  db: D1Database
+): Promise<CandidateFeatureState[]> {
+  const result = await db.prepare(
+    `SELECT j.id, jf.classifier_version, jf.requires_advanced_degree,
+            jf.requires_security_clearance
+     FROM jobs j
+     JOIN companies c ON c.id = j.company_id
+     LEFT JOIN job_features jf ON jf.job_id = j.id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+     WHERE c.enabled = 1 AND j.closed_at IS NULL AND j.evergreen = 1
+       AND j.description IS NOT NULL
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')
+     ORDER BY j.first_seen_at DESC
+     LIMIT 2500`
+  ).all<CandidateFeatureState>();
+  return result.results ?? [];
 }
 
 async function removeStaleMatches(db: D1Database, userId: string) {
@@ -280,15 +332,27 @@ export async function ensureUserJobMatches(db: D1Database, userId: string, jobId
   if (jobIds?.length) {
     await ensureJobFeaturesForIds(db, jobIds);
   } else {
-    await ensureJobFeatures(db, MATCH_WARM_BATCH_SIZE);
+    await ensureCurrentCandidateFeatures(
+      db,
+      await loadNormalCandidateFeatureStates(db, userId)
+    );
   }
   const state = await loadUserPreferenceState(db, userId);
   const result = await loadMatchableRows(db, userId, jobIds);
-  const rows = result.results ?? [];
+  // SQL guards are authoritative; the runtime check is defense in depth for
+  // mocked databases and any future query refactor that accidentally widens
+  // the selected feature set.
+  const rows = (result.results ?? []).filter(hasCurrentStoredJobFeatures);
   if (rows.length === 0) return [];
 
   const matches = rows.map((row) =>
-    evaluateJobForProfile(row.id, rowToListing(row), rowToFeatures(row), state.search_profile, row.evergreen === 1)
+    evaluateJobForProfile(
+      row.id,
+      rowToListing(row),
+      storedJobFeaturesFromRow(row),
+      state.search_profile,
+      row.evergreen === 1
+    )
   );
   await storeMatches(db, userId, matches);
 
@@ -318,10 +382,11 @@ export async function ensureUserJobMatchesReady(
        JOIN companies c ON c.id = j.company_id
        LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
        WHERE ujm.user_id = ? AND j.closed_at IS NULL AND c.enabled = 1
+         AND ujm.matcher_version = ?
          AND j.description IS NOT NULL
          AND (jrq.job_id IS NULL OR jrq.state = 'approved')
          AND (j.evergreen = 1 OR j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))`
-    ).bind(userId).first<{ count: number }>();
+    ).bind(userId, MATCHER_VERSION).first<{ count: number }>();
     if ((count?.count ?? 0) >= minimumMatches) return;
     const evaluated = await ensureUserJobMatches(db, userId);
     if (evaluated.length === 0) return;
@@ -352,6 +417,10 @@ export async function ensureUserEvergreenMatchesReady(
   ).bind(userId, MATCHER_VERSION).first<{ count: number }>();
   if ((existing?.count ?? 0) > 0) return;
 
+  await ensureCurrentCandidateFeatures(
+    db,
+    await loadEvergreenCandidateFeatureStates(db)
+  );
   const state = await loadUserPreferenceState(db, userId);
   const result = await db.prepare(
     `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
@@ -361,6 +430,7 @@ export async function ensureUserEvergreenMatchesReady(
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
+            jf.requires_security_clearance,
             jf.classifier_version, jf.confidence
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
@@ -368,16 +438,19 @@ export async function ensureUserEvergreenMatchesReady(
      LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
      WHERE c.enabled = 1 AND j.closed_at IS NULL AND j.evergreen = 1
        AND j.description IS NOT NULL
+       AND jf.classifier_version = ?
+       AND jf.requires_advanced_degree IS NOT NULL
+       AND jf.requires_security_clearance IS NOT NULL
        AND (jrq.job_id IS NULL OR jrq.state = 'approved')
      ORDER BY j.first_seen_at DESC
      LIMIT 2500`
-  ).all<MatchableJobRow>();
-  const rows = result.results ?? [];
+  ).bind(JOB_CLASSIFIER_VERSION).all<MatchableJobRow>();
+  const rows = (result.results ?? []).filter(hasCurrentStoredJobFeatures);
   const matches = rows.map((row) =>
     evaluateJobForProfile(
       row.id,
       rowToListing(row),
-      rowToFeatures(row),
+      storedJobFeaturesFromRow(row),
       state.search_profile,
       true
     )
@@ -434,14 +507,40 @@ export async function advanceBacklogMatching(
   return advanced;
 }
 
+export interface JobMatchInput {
+  jobId: string;
+  listing: JobListing;
+  evergreen?: boolean;
+  features?: JobFeatures;
+}
+
+export interface PreparedJobMatchInput extends JobMatchInput {
+  features: JobFeatures;
+}
+
+export function prepareJobsForMatching(
+  jobs: JobMatchInput[],
+  classifier: (listing: JobListing) => JobFeatures = classifyJob
+): PreparedJobMatchInput[] {
+  return jobs.map((job) => ({
+    ...job,
+    features: job.features
+      && job.features.classifier_version === JOB_CLASSIFIER_VERSION
+      && typeof job.features.requires_advanced_degree === "boolean"
+      && typeof job.features.requires_security_clearance === "boolean"
+      ? job.features
+      : classifier(job.listing),
+  }));
+}
+
 export async function matchListingsForUser(
   db: D1Database,
   userId: string,
-  jobs: Array<{ jobId: string; listing: JobListing; evergreen?: boolean }>
+  jobs: JobMatchInput[]
 ) {
   const state = await loadUserPreferenceState(db, userId);
-  const matches = jobs.map(({ jobId, listing, evergreen }) =>
-    evaluateJobForProfile(jobId, listing, classifyJob(listing), state.search_profile, evergreen === true)
+  const matches = prepareJobsForMatching(jobs).map(({ jobId, listing, evergreen, features }) =>
+    evaluateJobForProfile(jobId, listing, features, state.search_profile, evergreen === true)
   );
   await storeMatches(db, userId, matches);
   return matches;
@@ -449,13 +548,21 @@ export async function matchListingsForUser(
 
 export async function matchJobsForAllProfiles(
   db: D1Database,
-  jobs: Array<{ jobId: string; listing: JobListing; evergreen?: boolean }>
+  jobs: JobMatchInput[]
 ) {
   if (jobs.length === 0) return;
-  const users = await db.prepare("SELECT user_id FROM user_search_profiles")
-    .all<{ user_id: string }>();
-  for (const { user_id: userId } of users.results ?? []) {
-    await matchListingsForUser(db, userId, jobs);
+  const preparedJobs = prepareJobsForMatching(jobs);
+  const users = await db.prepare(
+    `SELECT user_id, profile_json, notifications_enabled,
+            onboarding_version, onboarding_completed_at
+     FROM user_search_profiles`
+  ).all<SearchProfileRow & { user_id: string }>();
+  for (const row of users.results ?? []) {
+    const profile = searchProfileFromRow(row);
+    const matches = preparedJobs.map(({ jobId, listing, evergreen, features }) =>
+      evaluateJobForProfile(jobId, listing, features, profile, evergreen === true)
+    );
+    await storeMatches(db, row.user_id, matches);
   }
 }
 

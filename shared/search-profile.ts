@@ -1,5 +1,5 @@
-export const SEARCH_PROFILE_VERSION = 3 as const;
-export const ONBOARDING_VERSION = 2 as const;
+export const SEARCH_PROFILE_VERSION = 4 as const;
+export const ONBOARDING_VERSION = 3 as const;
 
 export const ROLE_OPTIONS = [
   {
@@ -113,43 +113,48 @@ export function specificRoleSpecialties(specialties: readonly RoleId[]): RoleId[
   return specific.length > 0 ? specific : unique;
 }
 
-export const EXPERIENCE_OPTIONS = [
-  { id: "internship", label: "Internship", detail: "Student and internship roles", minYears: 0, maxYears: 0 },
-  { id: "new_grad", label: "New grad", detail: "Graduate and entry-level roles", minYears: 0, maxYears: 1 },
-  { id: "early_career", label: "Early career", detail: "Roughly 1-3 years", minYears: 0, maxYears: 3 },
-  { id: "mid_level", label: "Mid-level", detail: "Roughly 3-6 years", minYears: 2, maxYears: 6 },
-  { id: "senior", label: "Senior", detail: "Roughly 5-10 years", minYears: 5, maxYears: 10 },
-  { id: "staff_plus", label: "Staff+", detail: "Staff, principal, and leadership IC roles", minYears: 8, maxYears: 20 },
+export const CAREER_STAGE_OPTIONS = [
+  {
+    id: "internship",
+    label: "Internships",
+    detail: "Internships, co-ops, and apprenticeships",
+    minYears: 0,
+    maxYears: 0,
+  },
+  {
+    id: "new_grad",
+    label: "New grad",
+    detail: "Graduate and entry-level roles",
+    minYears: 0,
+    maxYears: 0,
+  },
+  {
+    id: "early_career",
+    label: "Early career (1–3 years)",
+    detail: "Roles asking for one to three years",
+    minYears: 1,
+    maxYears: 3,
+  },
 ] as const;
 
-export type ExperienceLevel = (typeof EXPERIENCE_OPTIONS)[number]["id"];
+export type CareerStage = (typeof CAREER_STAGE_OPTIONS)[number]["id"];
+
+/** @deprecated Use CAREER_STAGE_OPTIONS. Kept while older clients roll forward. */
+export const EXPERIENCE_OPTIONS = CAREER_STAGE_OPTIONS;
+/** @deprecated Use CareerStage. Kept while older clients roll forward. */
+export type ExperienceLevel = CareerStage;
 export type StretchTolerance = "strict" | "balanced" | "ambitious";
 
-// pinkslip targets exactly one audience: new grads through roughly three years.
-// This is deliberately a constant and not a user preference. When level was
-// user-selectable the filter compared against Math.max(target_levels), which put
-// a ceiling on seniority but no floor — so ticking "Senior" alongside "Early
-// career" removed the floor entirely and filled the feed with staff+ roles.
-// A fixed band cannot express that bug.
+// Pinkslip's public catalog stops at roughly three years. Career stage narrows
+// within that fixed ceiling; it cannot widen the feed to senior or staff roles.
 
 /** Highest stated years-of-experience requirement still considered a match. */
 export const MAX_YEARS_EXPERIENCE = 3;
 
-/**
- * Seniorities kept in the feed.
- *
- * `unknown` is included on purpose. Seniority is inferred from the job title, so
- * a posting whose title carries no level marker ("Software Engineer, Data")
- * lands here — and those are the single largest source of supply: 401 of the 685
- * eligible postings in production. A title with no seniority marker is usually
- * open to new grads, so excluding them would discard most of the catalog.
- */
-export const ELIGIBLE_SENIORITIES = [
-  "new_grad",
-  "early_career",
-  "mid_level",
-  "unknown",
-] as const satisfies readonly (ExperienceLevel | "unknown")[];
+/** Seniorities kept in the feed after the current classifier has run. */
+export const ELIGIBLE_SENIORITIES = CAREER_STAGE_OPTIONS.map(
+  (option) => option.id
+) as CareerStage[];
 
 export type EligibleSeniority = (typeof ELIGIBLE_SENIORITIES)[number];
 
@@ -179,7 +184,7 @@ export interface SearchProfile {
   primary_role: RoleId;
   roles: RoleId[];
   years_experience: number;
-  target_levels: ExperienceLevel[];
+  target_levels: CareerStage[];
   stretch_tolerance: StretchTolerance;
   countries: string[];
   location_ids: LocationId[];
@@ -204,7 +209,7 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   // independently removable chip.
   roles: ["software_engineering", "forward_deployed", "frontend", "backend", "full_stack"],
   years_experience: 1,
-  target_levels: ["new_grad", "early_career"],
+  target_levels: CAREER_STAGE_OPTIONS.map((option) => option.id),
   stretch_tolerance: "balanced",
   countries: ["US"],
   location_ids: ["sf_bay", "new_york", "chicago", "boston", "washington_dc", "seattle", "austin"],
@@ -220,7 +225,7 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
 };
 
 const ROLE_IDS = new Set<string>(ROLE_OPTIONS.map((option) => option.id));
-const EXPERIENCE_IDS = new Set<string>(EXPERIENCE_OPTIONS.map((option) => option.id));
+const CAREER_STAGE_IDS = new Set<string>(CAREER_STAGE_OPTIONS.map((option) => option.id));
 const LOCATION_IDS = new Set<string>(LOCATION_OPTIONS.map((option) => option.id));
 const WORK_MODES = new Set<string>(["remote", "hybrid", "onsite"]);
 const STRETCH_OPTIONS = new Set<string>(["strict", "balanced", "ambitious"]);
@@ -236,9 +241,9 @@ function numberInRange(value: unknown, fallback: number, min: number, max: numbe
   return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : fallback;
 }
 
-function levelFromLegacy(value: unknown): ExperienceLevel {
-  return typeof value === "string" && EXPERIENCE_IDS.has(value)
-    ? value as ExperienceLevel
+function levelFromLegacy(value: unknown): CareerStage {
+  return typeof value === "string" && CAREER_STAGE_IDS.has(value)
+    ? value as CareerStage
     : DEFAULT_SEARCH_PROFILE.target_levels[0];
 }
 
@@ -259,8 +264,14 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
       : roles;
   const selectedRoles = migratedRoles.length > 0 ? migratedRoles : [...DEFAULT_SEARCH_PROFILE.roles];
   const legacyLevel = levelFromLegacy(input.experience_level);
-  const targetLevels = stringList(input.target_levels, EXPERIENCE_OPTIONS.length)
-    .filter((level): level is ExperienceLevel => EXPERIENCE_IDS.has(level));
+  const requestedStages = stringList(input.target_levels, CAREER_STAGE_OPTIONS.length)
+    .filter((level): level is CareerStage => CAREER_STAGE_IDS.has(level));
+  // v4 intentionally resets the former six-level preference to the complete
+  // three-stage catalog. Existing users confirm that migrated selection in
+  // onboarding v3 before internship matches or alerts are allowed through.
+  const targetStages = sourceVersion < SEARCH_PROFILE_VERSION
+    ? CAREER_STAGE_OPTIONS.map((option) => option.id)
+    : requestedStages;
   const legacyRemote = input.remote === true;
   const workModes = stringList(input.work_modes, 3).filter((mode): mode is WorkMode => WORK_MODES.has(mode));
   const locationIds = stringList(input.location_ids, LOCATION_OPTIONS.length)
@@ -275,11 +286,13 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
     roles: selectedRoles,
     years_experience: numberInRange(
       input.years_experience,
-      EXPERIENCE_OPTIONS.find((option) => option.id === legacyLevel)?.maxYears ?? DEFAULT_SEARCH_PROFILE.years_experience,
+      CAREER_STAGE_OPTIONS.find((option) => option.id === legacyLevel)?.maxYears ?? DEFAULT_SEARCH_PROFILE.years_experience,
       0,
       40
     ),
-    target_levels: targetLevels.length > 0 ? targetLevels : [legacyLevel],
+    target_levels: targetStages.length > 0
+      ? targetStages
+      : CAREER_STAGE_OPTIONS.map((option) => option.id),
     stretch_tolerance: typeof input.stretch_tolerance === "string" && STRETCH_OPTIONS.has(input.stretch_tolerance)
       ? input.stretch_tolerance as StretchTolerance
       : DEFAULT_SEARCH_PROFILE.stretch_tolerance,
@@ -322,11 +335,26 @@ export function profileLocationAliases(profile: SearchProfile): string[] {
 }
 
 export function profileExperienceRange(profile: SearchProfile) {
-  const levels = EXPERIENCE_OPTIONS.filter((option) => profile.target_levels.includes(option.id));
+  const levels = CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id));
   return {
     minYears: levels.length > 0 ? Math.min(...levels.map((level) => level.minYears)) : 0,
     maxYears: levels.length > 0 ? Math.max(...levels.map((level) => level.maxYears)) : profile.years_experience,
   };
+}
+
+/**
+ * The stored v4 profile can contain internships before an existing user has
+ * confirmed the new onboarding question. Matching and alerts must use this
+ * effective view so an internship never arrives as a surprise during rollout.
+ */
+export function effectiveTargetStages(profile: SearchProfile): CareerStage[] {
+  if (
+    profile.onboarding_version >= ONBOARDING_VERSION
+    && profile.onboarding_completed_at !== null
+  ) {
+    return [...profile.target_levels];
+  }
+  return ["new_grad", "early_career"];
 }
 
 export function roleLabel(roleId: RoleId): string {
