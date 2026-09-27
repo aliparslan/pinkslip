@@ -1,6 +1,11 @@
 // Native iOS uses APNs. Browsers use the bundled service worker + Web Push.
 
-import { isIosApp, platform } from "./platform";
+import {
+  isIosApp,
+  platform,
+  type NotificationEnableResult,
+  type NotificationStatus,
+} from "./platform";
 
 export function isNativeIos(): boolean {
   return isIosApp();
@@ -16,11 +21,11 @@ export async function initNativePush(): Promise<void> {
 }
 
 /** Current notification permission as a UI status (no prompt). */
-export async function getNativePushStatus(): Promise<"enabled" | "disabled"> {
+export async function getNativePushStatus(): Promise<NotificationStatus> {
   return platform().notifications.status();
 }
 
 /** User-initiated counterpart to initNativePush: prompts, then registers. */
-export async function enableNativePush(): Promise<"enabled" | "denied"> {
+export async function enableNativePush(): Promise<NotificationEnableResult> {
   return platform().notifications.enable();
 }

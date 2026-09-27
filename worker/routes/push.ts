@@ -6,6 +6,7 @@ import { resolveApnsConfig, sendApnsNotification } from "../apns";
 import { recordProductEvent } from "../product-events";
 import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
+import { resolveJobIds } from "../job-identity";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -100,11 +101,12 @@ push.put("/settings", async (c) => {
 
 push.post("/opened", async (c) => {
   const body = await c.req.json<{ job_id?: string; job_ids?: string[] }>();
-  const jobIds = [...new Set([
+  const requestedJobIds = [...new Set([
     ...(Array.isArray(body.job_ids) ? body.job_ids : []),
     ...(body.job_id ? [body.job_id] : []),
   ].filter((jobId) => typeof jobId === "string" && jobId.length > 0))].slice(0, 50);
-  if (jobIds.length === 0) return c.json({ error: "Missing job id" }, 400);
+  if (requestedJobIds.length === 0) return c.json({ error: "Missing job id" }, 400);
+  const jobIds = [...new Set(await resolveJobIds(c.env.DB, requestedJobIds))];
   const openedAt = new Date().toISOString();
   const updates = await c.env.DB.batch(jobIds.map((jobId) =>
     c.env.DB.prepare(
@@ -130,10 +132,17 @@ push.post("/opened", async (c) => {
 // platform='ios' (device token in `endpoint`, empty p256dh/auth).
 push.post("/apns", async (c) => {
   const userId = c.get("userId");
-  const body = await c.req.json<{ token: string }>().catch(() => null);
+  const body = await c.req.json<{
+    token: string;
+    installation_id?: string;
+  }>().catch(() => null);
   const token = body?.token?.trim();
+  const installationId = body?.installation_id?.trim() || null;
   if (!token || !/^[a-f0-9]{64,400}$/i.test(token)) {
     return c.json({ error: "Missing device token" }, 400);
+  }
+  if (installationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(installationId)) {
+    return c.json({ error: "Invalid installation identifier" }, 400);
   }
   const owner = await c.env.DB.prepare(
     "SELECT user_id FROM push_subscriptions WHERE endpoint = ?"
@@ -145,16 +154,36 @@ push.post("/apns", async (c) => {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  await c.env.DB.prepare(
-    `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at, platform)
-     VALUES (?, ?, ?, '', '', ?, 'ios')
+  const upsert = c.env.DB.prepare(
+    `INSERT INTO push_subscriptions (
+       id, user_id, endpoint, p256dh, auth, created_at, platform, installation_id
+     )
+     VALUES (?, ?, ?, '', '', ?, 'ios', ?)
      ON CONFLICT(endpoint) DO UPDATE SET
        user_id = excluded.user_id,
        created_at = excluded.created_at,
-       platform = 'ios'`
+       platform = 'ios',
+       installation_id = COALESCE(excluded.installation_id, push_subscriptions.installation_id)`
   )
-    .bind(id, userId, token, now)
-    .run();
+    .bind(id, userId, token, now, installationId);
+
+  if (installationId) {
+    // APNs can rotate a token for the same installation. Remove the superseded
+    // endpoint before the upsert so delivery continues to fan out to devices,
+    // not to historical tokens for the same device.
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        `DELETE FROM push_subscriptions
+         WHERE user_id = ? AND platform = 'ios'
+           AND installation_id = ? AND endpoint != ?`
+      ).bind(userId, installationId, token),
+      upsert,
+    ]);
+  } else {
+    // Compatibility for already-installed clients during the deployment
+    // window. New iOS builds always provide the stable installation id.
+    await upsert.run();
+  }
 
   const created = await c.env.DB.prepare(
     "SELECT * FROM push_subscriptions WHERE endpoint = ?"
@@ -260,7 +289,7 @@ push.post("/test", async (c) => {
   }
 
   const payload: NotificationPayload = {
-    title: "pinkslip",
+    title: "Pinkslip",
     body: delay > 0 ? `Delayed test (${delay}s) - notifications working!` : "Test notification - everything is working!",
     data: { url: "/" },
   };

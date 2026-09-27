@@ -3,27 +3,83 @@ import { recordProductEvent } from "./product-events";
 import { buildNotificationPayload, type NotificationJob } from "./push";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
-import { MATCHER_VERSION } from "./user-job-matches";
+import {
+  JOB_CLASSIFIER_VERSION,
+  rowToListing,
+  storedJobFeaturesFromRow,
+  type FeatureJobRow,
+  type JobFeatures,
+  type StoredJobFeatureColumns,
+} from "./job-features";
+import { evaluateJobForProfile, MATCHER_VERSION } from "./user-job-matches";
+import {
+  searchProfileFromRow,
+  type SearchProfileRow,
+} from "./user-preferences";
 import { MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
+import type { SearchProfile } from "../shared/search-profile";
+import type { JobListing } from "./adapters/types";
 import {
   isDeadPushSubscription,
   resolveNotificationTransports,
   sendNotificationToSubscription,
 } from "./notification-transport";
 
-interface CandidateRow {
-  id: string;
+interface CandidateRow extends FeatureJobRow, StoredJobFeatureColumns, SearchProfileRow {
+  candidate_id: string;
   user_id: string;
   job_id: string;
   company: string;
-  title: string;
   attempt_count: number;
+  evergreen: number | null;
+}
+
+export function notificationJobMatchesCurrentProfile(
+  jobId: string,
+  listing: JobListing,
+  features: JobFeatures,
+  profile: SearchProfile,
+  evergreen = false
+): boolean {
+  return evaluateJobForProfile(
+    jobId,
+    listing,
+    features,
+    profile,
+    evergreen
+  ).plausible;
+}
+
+function notificationCandidateMatchesCurrentProfile(candidate: CandidateRow): boolean {
+  if (candidate.classifier_version !== JOB_CLASSIFIER_VERSION) return false;
+  return notificationJobMatchesCurrentProfile(
+    candidate.job_id,
+    rowToListing(candidate),
+    storedJobFeaturesFromRow(candidate),
+    searchProfileFromRow(candidate),
+    candidate.evergreen === 1
+  );
 }
 
 interface DeliveryRow {
   candidate_id: string;
   subscription_id: string;
   attempt_count: number;
+}
+
+const NOTIFICATION_JOB_ID_BATCH_SIZE = 75;
+
+export function notificationJobIdBatches(jobIds: string[]): string[][] {
+  const uniqueJobIds = [...new Set(jobIds)];
+  const batches: string[][] = [];
+  for (
+    let offset = 0;
+    offset < uniqueJobIds.length;
+    offset += NOTIFICATION_JOB_ID_BATCH_SIZE
+  ) {
+    batches.push(uniqueJobIds.slice(offset, offset + NOTIFICATION_JOB_ID_BATCH_SIZE));
+  }
+  return batches;
 }
 
 export function failureStatusAfterAttempt(
@@ -38,63 +94,75 @@ export async function createNotificationCandidates(
 ) {
   if (jobIds.length === 0) return 0;
   await ensureEligibleJobs(db);
-  const placeholders = jobIds.map(() => "?").join(", ");
-  const matches = await db.prepare(
-    `SELECT
-       ujm.user_id,
-       ujm.job_id
-     FROM user_job_matches ujm
-     JOIN jobs j ON j.id = ujm.job_id
-     JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
-     LEFT JOIN user_notification_settings uns ON uns.user_id = ujm.user_id
-     WHERE ujm.job_id IN (${placeholders})
-       AND ujm.matcher_version = ?
-       AND j.closed_at IS NULL
-       AND j.description IS NOT NULL
-       AND trim(j.description) != ''
-       AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
-       AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
-       AND COALESCE(uns.push_enabled, 1) = 1
-       AND NOT EXISTS (
-         SELECT 1 FROM user_blocked_companies ubc
-         WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
-       )
-       AND EXISTS (
-         SELECT 1 FROM push_subscriptions ps
-         WHERE ps.user_id = ujm.user_id
-       )`
-  ).bind(...jobIds, MATCHER_VERSION).all<{ user_id: string; job_id: string }>();
-  const rows = matches.results ?? [];
-  if (rows.length === 0) return 0;
-
   const now = new Date().toISOString();
   let created = 0;
-  for (let offset = 0; offset < rows.length; offset += 75) {
-    const results = await db.batch(rows.slice(offset, offset + 75).map((row) =>
-      db.prepare(
-        `INSERT INTO notification_candidates (
-           id, user_id, job_id, channel, status, created_at
-         ) VALUES (?, ?, ?, 'push', 'pending', ?)
-         ON CONFLICT(user_id, job_id, channel) DO UPDATE SET
-           status = 'pending',
-           attempt_count = 0,
-           last_error = NULL,
-           last_attempt_at = NULL,
-           sent_at = NULL
-         WHERE notification_candidates.status IN ('failed', 'skipped')`
-      ).bind(crypto.randomUUID(), row.user_id, row.job_id, now)
-    ));
-    created += results.reduce((sum, result) => sum + (result.meta.changes ?? 0), 0);
+  for (const ids of notificationJobIdBatches(jobIds)) {
+    const placeholders = ids.map(() => "?").join(", ");
+    const matches = await db.prepare(
+      `SELECT
+         ujm.user_id,
+         ujm.job_id
+       FROM user_job_matches ujm
+       JOIN jobs j ON j.id = ujm.job_id
+       JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
+       LEFT JOIN user_notification_settings uns ON uns.user_id = ujm.user_id
+       WHERE ujm.job_id IN (${placeholders})
+         AND ujm.matcher_version = ?
+         AND j.closed_at IS NULL
+         AND j.description IS NOT NULL
+         AND trim(j.description) != ''
+         AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
+         AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
+         AND COALESCE(uns.push_enabled, 1) = 1
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocked_companies ubc
+           WHERE ubc.user_id = ujm.user_id AND ubc.company_id = j.company_id
+         )
+         AND EXISTS (
+           SELECT 1 FROM push_subscriptions ps
+           WHERE ps.user_id = ujm.user_id
+         )`
+    ).bind(...ids, MATCHER_VERSION).all<{ user_id: string; job_id: string }>();
+    const rows = matches.results ?? [];
+    if (rows.length === 0) continue;
+
+    for (
+      let offset = 0;
+      offset < rows.length;
+      offset += NOTIFICATION_JOB_ID_BATCH_SIZE
+    ) {
+      const results = await db.batch(
+        rows.slice(offset, offset + NOTIFICATION_JOB_ID_BATCH_SIZE).map((row) =>
+          db.prepare(
+            `INSERT INTO notification_candidates (
+               id, user_id, job_id, channel, status, created_at
+             ) VALUES (?, ?, ?, 'push', 'pending', ?)
+             ON CONFLICT(user_id, job_id, channel) DO UPDATE SET
+               status = 'pending',
+               attempt_count = 0,
+               last_error = NULL,
+               last_attempt_at = NULL,
+               sent_at = NULL
+             WHERE notification_candidates.status IN ('failed', 'skipped')`
+          ).bind(crypto.randomUUID(), row.user_id, row.job_id, now)
+        )
+      );
+      created += results.reduce(
+        (sum, result) => sum + (result.meta.changes ?? 0),
+        0
+      );
+    }
+
+    await db.prepare(
+      `UPDATE notification_deliveries
+       SET status = 'retry', attempt_count = 0, last_error = NULL
+       WHERE status = 'failed'
+         AND candidate_id IN (
+           SELECT id FROM notification_candidates
+           WHERE status = 'pending' AND job_id IN (${placeholders})
+         )`
+    ).bind(...ids).run();
   }
-  await db.prepare(
-    `UPDATE notification_deliveries
-     SET status = 'retry', attempt_count = 0, last_error = NULL
-     WHERE status = 'failed'
-       AND candidate_id IN (
-         SELECT id FROM notification_candidates
-         WHERE status = 'pending' AND job_id IN (${placeholders})
-       )`
-  ).bind(...jobIds).run();
   return created;
 }
 
@@ -139,20 +207,34 @@ export async function deliverPendingNotifications(
   ).bind(MATCHER_VERSION).run();
 
   const candidates = await db.prepare(
-    `SELECT nc.id, nc.user_id, nc.job_id, c.name AS company, j.title, nc.attempt_count
+    `SELECT nc.id AS candidate_id, nc.user_id, nc.job_id,
+            c.name AS company, nc.attempt_count,
+            j.id, j.external_id, j.title, j.url, j.location, j.department,
+            j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
+            jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
+            jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
+            jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
+            jf.sponsorship_available, jf.requires_advanced_degree,
+            jf.requires_security_clearance, jf.classifier_version, jf.confidence,
+            usp.profile_json, usp.notifications_enabled,
+            usp.onboarding_version, usp.onboarding_completed_at
      FROM notification_candidates nc
      JOIN jobs j ON j.id = nc.job_id
      JOIN companies c ON c.id = j.company_id
+     JOIN job_features jf ON jf.job_id = j.id
      JOIN user_job_matches ujm
        ON ujm.user_id = nc.user_id
       AND ujm.job_id = nc.job_id
       AND ujm.matcher_version = ?
      LEFT JOIN user_notification_settings uns ON uns.user_id = nc.user_id
      JOIN user_search_profiles usp ON usp.user_id = nc.user_id
+     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
      WHERE nc.status IN ('pending', 'retry')
        AND j.closed_at IS NULL
        AND j.description IS NOT NULL
        AND trim(j.description) != ''
+       AND jf.classifier_version = ?
+       AND (jrq.job_id IS NULL OR jrq.state = 'approved')
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
        AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
@@ -162,8 +244,21 @@ export async function deliverPendingNotifications(
        )
      ORDER BY nc.created_at ASC
      LIMIT ?`
-  ).bind(MATCHER_VERSION, limit).all<CandidateRow>();
-  const available = candidates.results ?? [];
+  ).bind(MATCHER_VERSION, JOB_CLASSIFIER_VERSION, limit).all<CandidateRow>();
+  const available: CandidateRow[] = [];
+  const preferenceMismatches: CandidateRow[] = [];
+  for (const candidate of candidates.results ?? []) {
+    (notificationCandidateMatchesCurrentProfile(candidate)
+      ? available
+      : preferenceMismatches).push(candidate);
+  }
+  if (preferenceMismatches.length > 0) {
+    await db.batch(preferenceMismatches.map((candidate) => db.prepare(
+      `UPDATE notification_candidates
+       SET status = 'skipped', last_error = 'No longer matches live preferences'
+       WHERE id = ? AND status IN ('pending', 'retry')`
+    ).bind(candidate.candidate_id)));
+  }
   if (available.length === 0) return 0;
 
   const claimedAt = new Date().toISOString();
@@ -172,7 +267,7 @@ export async function deliverPendingNotifications(
       `UPDATE notification_candidates
        SET status = 'sending', attempt_count = attempt_count + 1, last_attempt_at = ?
        WHERE id = ? AND status IN ('pending', 'retry')`
-    ).bind(claimedAt, candidate.id)
+    ).bind(claimedAt, candidate.candidate_id)
   ));
   const rows = available.filter((_, index) => (claimResults[index].meta.changes ?? 0) > 0);
   if (rows.length === 0) return 0;
@@ -207,11 +302,11 @@ export async function deliverPendingNotifications(
           `INSERT OR IGNORE INTO notification_deliveries (
              candidate_id, subscription_id, status
            ) VALUES (?, ?, 'pending')`
-        ).bind(candidate.id, sub.id)
+        ).bind(candidate.candidate_id, sub.id)
       )
     ));
 
-    const candidateById = new Map(userCandidates.map((candidate) => [candidate.id, candidate]));
+    const candidateById = new Map(userCandidates.map((candidate) => [candidate.candidate_id, candidate]));
     const candidatePlaceholders = userCandidates.map(() => "?").join(", ");
     const deliveryRows = await db.prepare(
       `SELECT candidate_id, subscription_id, attempt_count
@@ -219,7 +314,7 @@ export async function deliverPendingNotifications(
        WHERE candidate_id IN (${candidatePlaceholders})
          AND status IN ('pending', 'retry')
          AND attempt_count < 3`
-    ).bind(...userCandidates.map((candidate) => candidate.id)).all<DeliveryRow>();
+    ).bind(...userCandidates.map((candidate) => candidate.candidate_id)).all<DeliveryRow>();
 
     for (const sub of subs) {
       const pending = (deliveryRows.results ?? [])
@@ -312,7 +407,7 @@ export async function deliverPendingNotifications(
            SUM(CASE WHEN status IN ('pending', 'retry', 'sending') THEN 1 ELSE 0 END) AS active_count
          FROM notification_deliveries
          WHERE candidate_id = ?`
-      ).bind(candidate.id).first<{ total: number; sent_count: number; active_count: number }>();
+      ).bind(candidate.candidate_id).first<{ total: number; sent_count: number; active_count: number }>();
       const total = state?.total ?? 0;
       const sentCount = state?.sent_count ?? 0;
       const activeCount = state?.active_count ?? 0;
@@ -324,7 +419,7 @@ export async function deliverPendingNotifications(
           `UPDATE notification_candidates
            SET status = 'sent', sent_at = ?, last_error = NULL
            WHERE id = ?`
-        ).bind(new Date().toISOString(), candidate.id).run();
+        ).bind(new Date().toISOString(), candidate.candidate_id).run();
         sent += 1;
         await recordProductEvent(db, {
           userId,
@@ -361,6 +456,6 @@ async function markCandidates(
       `UPDATE notification_candidates
        SET status = ?, last_error = ${preserveExistingError ? "COALESCE(last_error, ?)" : "?"}
        WHERE id = ?`
-    ).bind(status, error.slice(0, 1000), candidate.id)
+    ).bind(status, error.slice(0, 1000), candidate.candidate_id)
   ));
 }

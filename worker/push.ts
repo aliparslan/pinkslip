@@ -30,7 +30,9 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
   return {
     title: `${count} new jobs`,
     body,
-    data: { url: "/", job_ids: jobs.map((job) => job.jobId) },
+    // A grouped alert should land on a job the alert actually named. The full
+    // ID list is retained for analytics and future multi-job presentation.
+    data: { url: `/jobs/${jobs[0].jobId}`, job_ids: jobs.map((job) => job.jobId) },
   };
 }
 

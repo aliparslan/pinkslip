@@ -1,6 +1,14 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
 import type { ResumeImportAssessment } from "../../../../shared/resume-import";
-import type { RoleId } from "../../../../shared/search-profile";
+import type {
+  CareerStage,
+  RoleId,
+  SearchProfileV1,
+} from "../../../../shared/search-profile";
+import type {
+  CompanySourceType,
+  PollableCompanySourceType,
+} from "../../../../shared/company-sources";
 import type { TailoringQualitySnapshot } from "../../../../shared/tailoring-quality";
 import type {
   StructuredTailoring,
@@ -8,6 +16,7 @@ import type {
   TailoringArtifact,
   TailoringValidation,
 } from "../../../../shared/tailoring";
+import { syncCachedLibraryJob } from "./job-library-store";
 export type {
   DegreeType,
   OptionalSection,
@@ -126,7 +135,10 @@ async function request<T>(
     break;
   }
 
-  if (!res) throw new ApiError("Could not reach pinkslip. Please try again.", 503, "network_unavailable");
+  if (!res) {
+    const productName = clientConfig.client === "ios" ? "Pinkslip" : "pinkslip";
+    throw new ApiError(`Could not reach ${productName}. Please try again.`, 503, "network_unavailable");
+  }
 
   if (res.status === 204) {
     return undefined as T;
@@ -194,14 +206,14 @@ export interface Job {
   match_fact?: string | null;
   specialties?: RoleId[];
   sponsorship_available?: boolean | null;
-  source_type?: string | null;
+  source_type?: CompanySourceType | null;
   dismissed: number;
   description: string | null;
   salary: string | null;
   closed_at: string | null;
   company_name: string;
   company_domain: string;
-  ats_type?: string;
+  ats_type?: CompanySourceType;
   ats_slug?: string;
   saved?: boolean | number;
   applied?: boolean | number;
@@ -213,7 +225,7 @@ export interface Job {
 export interface Company {
   id: string;
   name: string;
-  ats_type: string;
+  ats_type: CompanySourceType;
   ats_slug: string;
   website: string;
   enabled: boolean | number;
@@ -413,6 +425,28 @@ export interface JobsListMeta {
   next_offset?: number;
 }
 
+export type CareerStageQuery =
+  | CareerStage
+  | `${CareerStage},${CareerStage}`
+  | `${CareerStage},${CareerStage},${CareerStage}`;
+
+export interface JobsListParams {
+  limit?: string;
+  offset?: string;
+  q?: string;
+  locations?: string;
+  roles?: string;
+  saved?: string;
+  min_salary?: string;
+  max_salary?: string;
+  stages?: CareerStageQuery;
+  /** @deprecated Older clients may continue sending numeric experience bounds. */
+  min_yoe?: string;
+  /** @deprecated Older clients may continue sending numeric experience bounds. */
+  max_yoe?: string;
+  posted?: string;
+}
+
 export interface MeResponse {
   user: User | null;
   session: SessionInfo;
@@ -420,6 +454,10 @@ export interface MeResponse {
   is_admin: boolean;
   features?: AppFeatures;
   native_token?: string;
+}
+
+export interface AccountDeletionResponse extends MeResponse {
+  apple_revoke_required: boolean;
 }
 
 export interface PreferenceState {
@@ -438,8 +476,13 @@ export const api = {
     get: () => request<{ me: MeResponse; preferences: PreferenceState }>("/bootstrap", undefined, 12_000),
   },
   jobs: {
-    list: (params?: Record<string, string>) => {
-      const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    list: (params?: JobsListParams) => {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(params ?? {})) {
+        if (value !== undefined) query.set(key, value);
+      }
+      const encoded = query.toString();
+      const qs = encoded ? `?${encoded}` : "";
       return request<{ jobs: Job[]; meta: JobsListMeta }>(`/jobs${qs}`);
     },
     get: (id: string) => request<Job>(`/jobs/${id}`),
@@ -455,19 +498,25 @@ export const api = {
       }),
     block: (id: string) =>
       request<void>(`/jobs/${id}/block`, { method: "DELETE" }),
-    markApplied: (id: string) =>
-      request<Job>(`/jobs/${id}`, {
+    markApplied: async (id: string) => {
+      const job = await request<Job>(`/jobs/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ applied: true, dismissed: true }),
-      }),
-    unmarkApplied: (id: string) =>
-      request<Job>(`/jobs/${id}`, {
+      });
+      syncCachedLibraryJob(job);
+      return job;
+    },
+    unmarkApplied: async (id: string) => {
+      const job = await request<Job>(`/jobs/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ applied: false, dismissed: false }),
-      }),
+      });
+      syncCachedLibraryJob(job);
+      return job;
+    },
   },
   companies: {
-    list: (atsType?: string) => {
+    list: (atsType?: CompanySourceType) => {
       const qs = atsType ? `?ats_type=${atsType}` : "";
       return request<{ companies: Company[] }>(`/companies${qs}`, undefined, 12_000);
     },
@@ -476,7 +525,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ enabled }),
       }),
-    update: (id: string, data: { name?: string; ats_type?: string; ats_slug?: string }) =>
+    update: (id: string, data: { name?: string; ats_type?: PollableCompanySourceType; ats_slug?: string }) =>
       request<Company>(`/companies/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -487,7 +536,7 @@ export const api = {
       request<void>(`/companies/${id}`, { method: "DELETE" }),
     create: (data: {
       name: string;
-      ats_type: string;
+      ats_type: PollableCompanySourceType;
       ats_slug: string;
       website?: string;
     }) =>
@@ -495,7 +544,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    verify: (data: { ats_type: string; ats_slug: string }) =>
+    verify: (data: { ats_type: PollableCompanySourceType; ats_slug: string }) =>
       request<VerifyCompanyResult>("/companies/verify", {
         method: "POST",
         body: JSON.stringify(data),
@@ -543,10 +592,10 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ endpoint }),
       }),
-    registerApns: (token: string) =>
+    registerApns: (token: string, installationId: string) =>
       request<{ id: string }>("/push/apns", {
         method: "POST",
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, installation_id: installationId }),
       }),
     test: (delay = 0) =>
       request<{ sent: number; total: number }>(`/push/test${delay ? `?delay=${delay}` : ""}`, {
@@ -582,7 +631,7 @@ export const api = {
     logout: () =>
       request<MeResponse>("/auth/logout", { method: "POST" }),
     deleteAccount: () =>
-      request<MeResponse>("/auth/account", { method: "DELETE" }),
+      request<AccountDeletionResponse>("/auth/account", { method: "DELETE" }),
   },
   stats: {
     get: () =>
@@ -612,16 +661,22 @@ export const api = {
   },
   savedJobs: {
     list: () => request<{ jobs: Job[] }>("/jobs/saved/list"),
-    save: (id: string) =>
-      request<Job>(`/jobs/${id}`, {
+    save: async (id: string) => {
+      const job = await request<Job>(`/jobs/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ saved: true }),
-      }),
-    unsave: (id: string) =>
-      request<Job>(`/jobs/${id}`, {
+      });
+      syncCachedLibraryJob(job);
+      return job;
+    },
+    unsave: async (id: string) => {
+      const job = await request<Job>(`/jobs/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ saved: false }),
-      }),
+      });
+      syncCachedLibraryJob(job);
+      return job;
+    },
   },
   appliedJobs: {
     list: () => request<{ jobs: Job[] }>("/jobs/applied/list"),
@@ -836,4 +891,3 @@ export const api = {
     get: () => request<ProductMetrics>("/metrics"),
   },
 };
-import type { SearchProfileV1 } from "../../../../shared/search-profile";

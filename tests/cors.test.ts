@@ -5,7 +5,7 @@ import type { Env } from "@worker/types";
 describe("native API CORS", () => {
   it("allows every header sent by the packaged iOS client", async () => {
     const response = await worker.fetch(
-      new Request("https://pinkslip.alip.dev/api/v2/bootstrap", {
+      new Request("https://pinkslip.work/api/v2/bootstrap", {
         method: "OPTIONS",
         headers: {
           Origin: "capacitor://localhost",

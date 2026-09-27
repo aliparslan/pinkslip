@@ -22,12 +22,17 @@ import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/
 import resumeImportRoutes from "./routes/resume-import";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
-import { runPollCycle } from "./poller";
+import {
+  NOTIFICATION_CRON_SCHEDULE,
+  runNotificationCycle,
+  runPollCycle,
+} from "./poller";
 import {
   defaultUserPreferenceState,
   loadUserPreferenceState,
 } from "./user-preferences";
 import { resolveAppTailorConfig } from "./tailor/config";
+import { LEGAL_STYLES, privacyPolicyPage, supportPage } from "./legal";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -36,6 +41,7 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 // our own web origin, the native Capacitor shells, and localhost during dev.
 const ALLOWED_ORIGINS = new Set([
   "https://pinkslip.alip.dev",
+  "https://pinkslip.work",
   "capacitor://localhost",
   "ionic://localhost",
 ]);
@@ -63,9 +69,10 @@ app.use(
 );
 
 // Baseline security headers on Worker responses. The static app shell sets its
-// own (richer) headers via packages/client/public/_headers, since Cloudflare Assets
+// own (richer) headers via apps/web/public/_headers, since Cloudflare Assets
 // serves it without invoking the Worker.
 app.use("/*", async (c, next) => {
+  const pathname = new URL(c.req.url).pathname;
   await next();
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -73,7 +80,9 @@ app.use("/*", async (c, next) => {
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   c.header(
     "Content-Security-Policy",
-    "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    pathname === "/privacy" || pathname === "/support"
+      ? "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+      : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
   );
 });
 
@@ -198,6 +207,24 @@ const serveAasa = (c: { env: Env }) =>
 
 app.get("/apple-app-site-association", (c) => serveAasa(c));
 app.get("/.well-known/apple-app-site-association", (c) => serveAasa(c));
+app.get("/legal.css", () => new Response(LEGAL_STYLES, {
+  headers: {
+    "content-type": "text/css; charset=utf-8",
+    "cache-control": "public, max-age=86400",
+  },
+}));
+app.get("/privacy", () => new Response(privacyPolicyPage(), {
+  headers: {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "public, max-age=3600",
+  },
+}));
+app.get("/support", () => new Response(supportPage(), {
+  headers: {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "public, max-age=3600",
+  },
+}));
 
 app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
@@ -284,7 +311,9 @@ app.post("/api/v2/poll", requireAdmin, async (c) => {
   const result = await runPollCycle(c.env, {
     scope: "manual",
     limit: limit > 0 ? limit : null,
-    sendNotifications: true,
+    // Notification matching has its own fresh-isolate cron. Keeping it out of
+    // this already-heavier manual poll avoids recreating the memory failure.
+    sendNotifications: false,
   });
 
   return c.json({
@@ -305,7 +334,7 @@ app.onError((error, c) => {
   });
   return c.json(
     {
-      error: "Something went wrong while loading pinkslip. Please try again.",
+      error: `Something went wrong while loading ${c.req.header("x-pinkslip-client") === "ios" ? "Pinkslip" : "pinkslip"}. Please try again.`,
       code: "internal_error",
       request_id: requestId,
     },
@@ -313,20 +342,28 @@ app.onError((error, c) => {
   );
 });
 
+export function scheduledCycle(cron: string): "notifications" | "poll" {
+  return cron === NOTIFICATION_CRON_SCHEDULE ? "notifications" : "poll";
+}
+
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     // The rejection is deliberately NOT swallowed. Swallowing it is what let the
     // poll cycle die every 15 minutes for six weeks while Cloudflare reported
     // `outcome: "ok"` with zero exceptions — nothing anywhere went red. Log for
     // context, then rethrow so the invocation is recorded as failed.
+    const cycle = scheduledCycle(event.cron);
     ctx.waitUntil(
-      runPollCycle(env)
-        .then((result) => {
-          console.log(`Poll complete: ${result.companiesPolled} companies, ${result.newJobsFound} new jobs, ${result.notificationsSent} notifications`);
-        })
+      (cycle === "notifications"
+        ? runNotificationCycle(env).then((result) => {
+            console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
+          })
+        : runPollCycle(env, { sendNotifications: false }).then((result) => {
+            console.log(`Poll complete: ${result.companiesPolled} companies, ${result.newJobsFound} new jobs`);
+          }))
         .catch((err) => {
-          console.error("Poll cycle failed:", err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
+          console.error(`${cycle === "notifications" ? "Notification" : "Poll"} cycle failed:`, err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
           throw err;
         })
     );

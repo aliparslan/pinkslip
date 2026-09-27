@@ -17,7 +17,7 @@ describe("buildNotificationPayload", () => {
     expect(result.data.job_ids).toEqual(["abc123"]);
   });
 
-  it("5+ jobs: 'N new jobs' title, company list (up to 4) + 'and more', '/' url", () => {
+  it("5+ jobs: opens the first notified job and retains every notified id", () => {
     const jobs: NotificationJob[] = [
       { company: "Anthropic", title: "SWE", jobId: "1" },
       { company: "OpenAI", title: "SWE", jobId: "2" },
@@ -31,11 +31,11 @@ describe("buildNotificationPayload", () => {
     expect(result.body).toContain("Anthropic");
     expect(result.body).toContain("Cohere");
     expect(result.body).not.toContain("DeepMind");
-    expect(result.data.url).toBe("/");
+    expect(result.data.url).toBe("/jobs/1");
     expect(result.data.job_ids).toEqual(["1", "2", "3", "4", "5"]);
   });
 
-  it("2–4 jobs: 'N new jobs' title, company names in body, '/' url", () => {
+  it("2–4 jobs: opens the first notified job and retains every notified id", () => {
     const jobs: NotificationJob[] = [
       { company: "Anthropic", title: "SWE Backend", jobId: "10" },
       { company: "OpenAI", title: "SWE Frontend", jobId: "11" },
@@ -47,7 +47,7 @@ describe("buildNotificationPayload", () => {
     expect(result.body).toContain("OpenAI");
     expect(result.body).toContain("Mistral");
     expect(result.body).not.toContain("and more");
-    expect(result.data.url).toBe("/");
+    expect(result.data.url).toBe("/jobs/10");
     expect(result.data.job_ids).toEqual(["10", "11", "12"]);
   });
 });
