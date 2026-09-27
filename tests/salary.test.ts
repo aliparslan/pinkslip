@@ -18,6 +18,12 @@ describe("salary helpers", () => {
     expect(extractSalaryFromHtml("<p>Compensation: $180k - $220k</p>")).toBe("$180k - $220k");
   });
 
+  it("extracts Amazon-style currency-suffixed salary ranges", () => {
+    expect(extractSalaryFromHtml(
+      "USA, WA, Seattle - 129,300.00 - 223,600.00 USD annually"
+    )).toBe("129,300.00 - 223,600.00 USD annually");
+  });
+
   it("formats greenhouse structured ranges", () => {
     expect(
       formatGreenhouseSalary({

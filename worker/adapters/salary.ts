@@ -15,6 +15,7 @@ interface LeverSalaryRange {
 const SALARY_PATTERNS = [
   /(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\s*)?(?:\$|£|€|¥)\s*[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:-|–|—|to)\s*(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\s*)?(?:\$|£|€|¥)\s*[\d,]+(?:\.\d{2})?(?:\s*[kK])?/gi,
   /\$[\d,]+(?:\.\d{2})?(?:\s*[kK])?\s*(?:\/\s*(?:yr|year|annually|annual|hr|hour|hourly))/gi,
+  /\b[\d,]+(?:\.\d{2})?\s*(?:-|–|—|to)\s*[\d,]+(?:\.\d{2})?\s*(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)(?:\s+(?:annually|annual|yearly|hourly))?/gi,
 ];
 
 function parseSalaryMagnitude(token: string): number {

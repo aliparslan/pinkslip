@@ -1,5 +1,11 @@
 import { ROLE_OPTIONS } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
+import {
+  hasPotentiallyEligibleSeniority,
+  requiresAdvancedDegree,
+  requiresSecurityClearance,
+  titleRequiresAdvancedDegree,
+} from "./job-features";
 import { isUsJobLocation } from "./us-jobs";
 import { isFreshPostedAt } from "../shared/job-policy";
 
@@ -17,7 +23,6 @@ import { isFreshPostedAt } from "../shared/job-policy";
 // "Mechanical Engineer" cannot be rescued by a later rule.
 
 export type ScopeReason =
-  | "rejected_internship"
   | "admitted_technical_head_noun"
   | "admitted_custom_title"
   | "admitted_compact_with_department"
@@ -43,13 +48,23 @@ const MANAGEMENT_PATTERN =
 const NON_TECHNICAL_FUNCTION_PATTERNS = [
   "account executive",
   "administrative assistant",
+  "administrative business partner",
+  "backend technician",
   "chief of staff",
   "clinical research",
+  "commercial counsel",
+  "customer and partner solutions engineer",
+  "customer and product solutions engineer",
   "content strategist",
   "controller",
+  "customer engineer",
   "customer experience",
+  "customer solutions",
   "customer success",
   "customer support",
+  "document research",
+  "developer relations engineer",
+  "engineering analyst",
   "equity research",
   "executive assistant",
   "financial analyst",
@@ -57,12 +72,23 @@ const NON_TECHNICAL_FUNCTION_PATTERNS = [
   "human resources",
   "legal counsel",
   "market research",
+  "marketing insights",
   "operations coordinator",
   "paralegal",
   "people operations",
+  "partner engineer",
+  "product deployment engineer",
+  "product solutions engineer",
   "recruiter",
   "recruiting",
   "research operations",
+  "research analyst",
+  "research and development analyst",
+  "research strategist",
+  "quantitative growth research",
+  "sales specialist",
+  "ads solutions engineer",
+  "technical solutions engineer",
   "sales development",
   "sales engineer",
   "sales representative",
@@ -70,6 +96,8 @@ const NON_TECHNICAL_FUNCTION_PATTERNS = [
   "support engineer",
   "talent acquisition",
   "technical writer",
+  "technical strategist",
+  "trading support",
   "tutor",
   "user experience research",
   "user research",
@@ -78,10 +106,30 @@ const NON_TECHNICAL_FUNCTION_PATTERNS = [
   // software, and carry no discipline word of their own to catch them.
   "local product engineer",
   "mechanical product engineer",
+  "softgoods",
+  "supply chain capacity engineer",
+  "visiting scholar",
 ] as const;
 
 const NON_TECHNICAL_FUNCTION_WORDS =
   /\b(?:economist|paralegal|recruiter|tutor|copywriter|salesperson)\b/i;
+
+// Shorthand internship titles need discipline-only admission ("iOS Intern",
+// "ML Intern"), but a technical noun elsewhere in the title must not turn a
+// business or design internship into an engineering role.
+const NON_TECHNICAL_INTERNSHIP_FUNCTION = new RegExp([
+  String.raw`\b(?:sales|marketing|finance|accounting|legal|recruiting|human resources|customer success|customer support|business development)\b`,
+  String.raw`\b(?:web|ui|ux|graphic|product)\s+design\b`,
+  String.raw`\bdesign(?:er)?\s+(?:interns?|internships?|co-?ops?|apprentices?|apprenticeships?)\b`,
+  String.raw`\bproduct(?:\s+(?:management|manager|design))?\s+(?:interns?|internships?|co-?ops?|apprentices?|apprenticeships?)\b`,
+  String.raw`\b(?:product|program|project)\s+management\b`,
+].join("|"), "i");
+
+// Uber's applicant system publishes general science roles under compact titles
+// such as "Scientist II, Tech". "Tech" is an organization label, not a
+// software discipline, so do not let the generic scientist head noun admit it.
+const GENERIC_TECH_SCIENTIST =
+  /\bscientist\s+(?:[ivx]+|\d+)\s*,\s*tech\b/i;
 
 /**
  * Engineering disciplines outside software. SpaceX and Anduril alone publish
@@ -95,10 +143,26 @@ const NON_TECHNICAL_FUNCTION_WORDS =
  * "Engineer" too and are excluded for the same reason.
  */
 const OTHER_ENGINEERING_DISCIPLINE =
-  /\b(?:mechanical|electrical|civil|structural|propulsion|manufacturing|chemical|biomedical|optical|industrial|aerospace|materials|avionics|thermal|hydraulic|welding|composites|rf|rfic|asic|soc|rtl|vlsi|fpga|semiconductor|silicon|analog|pcb|environmental|telecommunications|geotechnical|metallurgical|nuclear|petroleum|acoustic)\b/i;
+  /\b(?:process development|mechanical|electrical|civil|structural|propulsion|manufacturing|industrialization|chemical|biomedical|optical|industrial|aerospace|materials|avionics|thermal|hydraulic|welding|composites|hardware|rf|rfic|asic|soc|rtl|vlsi|fpga|semiconductor|silicon|cmos|analog|pcb|environmental|telecommunications|geotechnical|metallurgical|nuclear|petroleum|acoustic)\b/i;
 
 const SOFTWARE_ADJACENT_OVERRIDE =
   /\b(?:embedded|firmware|software|data|machine learning|ml|ai|security|infrastructure|platform|systems software|test automation)\b/i;
+
+const EXPLICIT_SOFTWARE_ROLE_HEAD =
+  /\b(?:software(?: development)? engineer|software developer|sde|swe)\b/i;
+const EXPLICIT_LONGFORM_SOFTWARE_ROLE_HEAD =
+  /\b(?:software(?: development)? engineer|software developer)\b/i;
+const EXPLICIT_DATA_ML_ROLE_HEAD =
+  /\b(?:(?:data|analytics|machine learning|ml|ai|ai\s*\/\s*ml)\s+engineer|systems development engineer)\b/i;
+const EXPLICIT_SECURITY_ROLE_HEAD =
+  /\b(?:cybersecurity|security|application security|product security)\s+engineer\b/i;
+const INVERTED_SOFTWARE_ROLE_HEAD =
+  /\bengineer(?:ing)?\s*,\s*software\b/i;
+const SOFTWARE_DEFINED_NETWORK_CONTROLLER =
+  /\bsoftware[- ]defined network controller\b/i;
+const DATA_CENTER_CONTEXT = /\b(?:data cent(?:er|re)|datacenter)\b/i;
+const MANUFACTURING_EXECUTION_SYSTEM =
+  /\bmanufacturing execution systems?\b/i;
 
 /**
  * Titles that end in "Engineer" but describe facilities, IT support, hardware
@@ -116,6 +180,10 @@ const NON_SOFTWARE_ENGINEERING_FUNCTION = [
   "data centre",
   "datacenter",
   "signal integrity",
+  "calibration engineer",
+  "camera architect",
+  "camera system engineer",
+  "dft engineer",
   "power integrity",
   "audio visual",
   "facilities engineer",
@@ -132,14 +200,44 @@ const NON_SOFTWARE_ENGINEERING_FUNCTION = [
   "it operations engineer",
   "it network",
   "network operations engineer",
+  "network implementation engineer",
+  "optical network engineer",
+  "power engineer",
+  "yield engineer",
   "help desk",
   "desktop support",
   "systems administrator",
   "system administrator",
+  "building, site & sustainability",
 ] as const;
+
+function hasExplicitSoftwareAdjacentRole(title: string): boolean {
+  return EXPLICIT_LONGFORM_SOFTWARE_ROLE_HEAD.test(title)
+    || EXPLICIT_DATA_ML_ROLE_HEAD.test(title)
+    || EXPLICIT_SECURITY_ROLE_HEAD.test(title)
+    || INVERTED_SOFTWARE_ROLE_HEAD.test(title)
+    || (/\b(?:sde|swe)\b/i.test(title) && /\bsoftware\b/i.test(title))
+    || /\b(?:embedded|firmware)\b/i.test(title);
+}
 
 const TECHNICAL_HEAD_NOUN =
   /\b(?:engineer|engineering|developer|scientist|researcher|architect|programmer|sde|swe|sdet)\b/i;
+const INTERNSHIP_ROLE_WORDING =
+  /\b(?:interns?|internships?|co-?ops?|apprentices?|apprenticeships?)\b/i;
+const TECHNICAL_INTERNSHIP_DISCIPLINE =
+  /\b(?:software|engineering|data science|machine learning|artificial intelligence|ai|ml|security|cyber ?security|infrastructure|platform|devops|site reliability|sre|cloud|research|quantitative|quant|algorithmic trading|mobile|ios|android|web|ui|frontend|front end|backend|back end|full[ -]?stack)\b/i;
+
+const EXPLICIT_TECHNICAL_INTERNSHIP_ROLE_HEAD =
+  /\b(?:(?:software|data|analytics|backend|back end|frontend|front end|full[ -]?stack|platform|infrastructure|cloud|security|cyber ?security|machine learning|ml|ai|mobile|ios|android|web)\s+(?:development\s+)?engineer(?:ing)?|(?:software|web|frontend|front end|backend|back end|full[ -]?stack|mobile|ios|android)\s+developer|(?:data|applied|research|machine learning|ml|ai)\s+scientist)\b/i;
+
+const TECHNICAL_CUSTOMER_SUPPORT_CONTEXT =
+  /\bcustomer support (?:systems?|platform|tools|infrastructure)\b/i;
+
+function hasExplicitTechnicalInternshipRole(title: string): boolean {
+  return INTERNSHIP_ROLE_WORDING.test(title)
+    && (hasExplicitSoftwareAdjacentRole(title)
+      || EXPLICIT_TECHNICAL_INTERNSHIP_ROLE_HEAD.test(title));
+}
 
 /**
  * Technical IC titles that carry no head noun at all. "Member of Technical
@@ -195,21 +293,56 @@ export function classifyTitleScope(
     return { admitted: false, reason: "rejected_management" };
   }
 
-  // Internships are out of scope entirely, so they are rejected at ingestion
-  // rather than merely excluded from matching. Storing them cost catalog space
-  // and let intern language leak into downstream classification.
-  if (/\b(?:intern|interns|internship|co-?op)\b/.test(normalizedTitle)) {
-    return { admitted: false, reason: "rejected_internship" };
+  if (/\bteam (?:lead|leader)\b/i.test(normalizedTitle)) {
+    return { admitted: false, reason: "rejected_management" };
   }
 
+  const explicitSoftwareRole = EXPLICIT_SOFTWARE_ROLE_HEAD.test(normalizedTitle);
+  const explicitTechnicalInternshipRole =
+    hasExplicitTechnicalInternshipRole(normalizedTitle);
   if (
-    NON_TECHNICAL_FUNCTION_PATTERNS.some((pattern) => containsPhrase(normalizedTitle, pattern))
+    NON_TECHNICAL_FUNCTION_PATTERNS.some((pattern) => {
+      if (!containsPhrase(normalizedTitle, pattern)) return false;
+      // "Controller" is normally the finance function. In an explicit
+      // software-defined-network title it names the system being built.
+      if (
+        pattern === "controller"
+        && explicitSoftwareRole
+        && SOFTWARE_DEFINED_NETWORK_CONTROLLER.test(normalizedTitle)
+      ) {
+        return false;
+      }
+      // Here "customer support" names the product domain, not the intern's
+      // function. Keep the exception tied to both an explicit technical role
+      // head and a systems/platform noun so "Customer Support Engineer" stays
+      // excluded.
+      if (
+        pattern === "customer support"
+        && explicitTechnicalInternshipRole
+        && TECHNICAL_CUSTOMER_SUPPORT_CONTEXT.test(normalizedTitle)
+      ) {
+        return false;
+      }
+      return true;
+    })
     || NON_TECHNICAL_FUNCTION_WORDS.test(normalizedTitle)
+    || (INTERNSHIP_ROLE_WORDING.test(normalizedTitle)
+      && !explicitTechnicalInternshipRole
+      && NON_TECHNICAL_INTERNSHIP_FUNCTION.test(normalizedTitle))
+    || GENERIC_TECH_SCIENTIST.test(normalizedTitle)
   ) {
     return { admitted: false, reason: "rejected_non_technical_function" };
   }
 
-  if (NON_SOFTWARE_ENGINEERING_FUNCTION.some((pattern) => containsPhrase(normalizedTitle, pattern))) {
+  if (NON_SOFTWARE_ENGINEERING_FUNCTION.some((pattern) => {
+    if (!containsPhrase(normalizedTitle, pattern)) return false;
+    // A bare data-center engineer is facilities/infrastructure work, while an
+    // explicit software/SDE title builds software for that environment.
+    const dataCenterPattern = ["data center", "data centre", "datacenter"].includes(pattern);
+    return !dataCenterPattern
+      || !explicitSoftwareRole
+      || !DATA_CENTER_CONTEXT.test(normalizedTitle);
+  })) {
     return { admitted: false, reason: "rejected_other_engineering_discipline" };
   }
 
@@ -218,7 +351,10 @@ export function classifyTitleScope(
   // Engineer, Mechanical" does not.
   if (
     OTHER_ENGINEERING_DISCIPLINE.test(normalizedTitle)
-    && !SOFTWARE_ADJACENT_OVERRIDE.test(normalizedTitle)
+    && !hasExplicitSoftwareAdjacentRole(normalizedTitle)
+    // MES names an enterprise software system, not a manufacturing-engineering
+    // discipline. Keep this exception tied to an explicit software role head.
+    && !(explicitSoftwareRole && MANUFACTURING_EXECUTION_SYSTEM.test(normalizedTitle))
   ) {
     return { admitted: false, reason: "rejected_other_engineering_discipline" };
   }
@@ -256,6 +392,8 @@ export function classifyTitleScope(
 
   if (
     TECHNICAL_HEAD_NOUN.test(normalizedTitle)
+    || (INTERNSHIP_ROLE_WORDING.test(normalizedTitle)
+      && TECHNICAL_INTERNSHIP_DISCIPLINE.test(normalizedTitle))
     || TITLE_KEYWORD_ADMISSIONS.some((keyword) => containsPhrase(normalizedTitle, keyword))
   ) {
     return { admitted: true, reason: "admitted_technical_head_noun" };
@@ -279,13 +417,56 @@ export function isTargetJobListing(
   return isTargetJobTitle(job.title, job.department, customTitles);
 }
 
+/**
+ * The stable part of catalog eligibility. Polling uses this to decide whether
+ * a returning source row may reopen after cleanup without treating an old but
+ * still-listed evergreen posting as newly eligible.
+ */
+export function isCurrentJobScopeListing(
+  job: Pick<JobListing, "title" | "department" | "location">,
+  customTitles: readonly string[] = []
+): boolean {
+  return isUsJobLocation(job.location)
+    && isTargetJobListing(job, customTitles);
+}
+
 export function isEligibleJobListing(
   job: Pick<JobListing, "title" | "department" | "location" | "postedAt">,
   customTitles: readonly string[] = []
 ): boolean {
-  return isUsJobLocation(job.location)
-    && isTargetJobListing(job, customTitles)
+  return isCurrentJobScopeListing(job, customTitles)
     && isFreshPostedAt(job.postedAt);
+}
+
+/**
+ * Requirements that are outside Pinkslip's fixed audience regardless of role,
+ * location, or years of experience. Description-less list results stay
+ * provisionally eligible until hydration supplies enough evidence.
+ */
+export function hasDisqualifyingJobRequirement(
+  job: Pick<JobListing, "title"> & Partial<Pick<JobListing, "description">>
+): boolean {
+  const clearanceScopedTitle = /\b(?:ts\s*\/\s*sci|top secret|(?:active|current)\s+(?:secret|security)\s+clearance|secret\s+clearance)\b/i
+    .test(job.title);
+  return titleRequiresAdvancedDegree(job.title)
+    || clearanceScopedTitle
+    || requiresAdvancedDegree(job.description ?? null)
+    || requiresSecurityClearance(job.description ?? null);
+}
+
+/**
+ * The broadest job worth hydrating or inserting for the fixed Pinkslip
+ * audience. Description-derived experience and degree rules run later, but an
+ * explicit senior/staff/management title is already deterministically out.
+ */
+export function isPotentialCatalogJobListing(
+  job: Pick<JobListing, "title" | "department" | "location" | "postedAt">
+    & Partial<Pick<JobListing, "description">>,
+  customTitles: readonly string[] = []
+): boolean {
+  return hasPotentiallyEligibleSeniority(job.title)
+    && !hasDisqualifyingJobRequirement(job)
+    && isEligibleJobListing(job, customTitles);
 }
 
 /**
@@ -318,11 +499,13 @@ export async function loadCustomTitles(db: D1Database): Promise<string[]> {
 }
 
 export async function ensureEligibleJobs(db: D1Database): Promise<number> {
-  // v5: the title gate became subtractive, so the previously-closed set has to
-  // be re-evaluated. Widening is self-healing anyway — every adapter returns a
-  // complete board snapshot, so a job closed under the old rules reopens on the
-  // next poll of its company.
-  const cleanupVersion = "eligible-jobs-v5";
+  // v8 distinguishes explicit software/data/ML roles that mention hardware
+  // from hardware/optical/mechanical titles that merely mention AI, platform,
+  // infrastructure, or test automation. It also removes non-employment and
+  // business-research titles surfaced by the Meta catalog audit. Widening
+  // remains self-healing —
+  // complete adapter snapshots reopen any role a future policy accepts again.
+  const cleanupVersion = "eligible-jobs-v12-process-development";
   const state = await db.prepare(
     "SELECT value FROM preferences WHERE key = 'eligible_jobs_cleanup_version'"
   ).first<{ value: string }>();

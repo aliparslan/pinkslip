@@ -7,6 +7,24 @@ export interface JobTimingInput {
   source_type?: string | null;
 }
 
+/**
+ * A row is visually new based on the source's posting timestamp whenever one
+ * exists. Discovery time is only the fallback for sources, such as Bloomberg,
+ * that do not publish a date at all.
+ */
+export function isFreshJobTiming(
+  job: Pick<JobTimingInput, "posted_at" | "first_seen_at">,
+  nowMs = Date.now(),
+  windowMs = 48 * 60 * 60 * 1000,
+): boolean {
+  const timestamp = job.posted_at ?? job.first_seen_at;
+  if (!timestamp) return false;
+  const timestampMs = new Date(timestamp).getTime();
+  if (!Number.isFinite(timestampMs)) return false;
+  const ageMs = nowMs - timestampMs;
+  return ageMs >= 0 && ageMs < windowMs;
+}
+
 function sourceTiming(job: JobTimingInput): string {
   if (job.posted_at) {
     const verb = job.source_type === "greenhouse" ? "Updated" : "Posted";

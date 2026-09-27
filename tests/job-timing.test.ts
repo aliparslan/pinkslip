@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  isFreshJobTiming,
   jobOriginalTimingLabel,
   jobTimingLabel,
   type JobTimingInput,
@@ -15,6 +16,28 @@ function job(overrides: Partial<JobTimingInput> = {}): JobTimingInput {
 }
 
 describe("job timing labels", () => {
+  test("uses a source post date instead of recent discovery for the new badge", () => {
+    const now = Date.parse("2026-08-28T12:00:00.000Z");
+    expect(isFreshJobTiming(job({
+      posted_at: "2026-08-19T12:00:00.000Z",
+      first_seen_at: "2026-08-28T11:59:00.000Z",
+    }), now)).toBe(false);
+  });
+
+  test("uses discovery as the new-badge fallback when a source has no date", () => {
+    const now = Date.parse("2026-08-28T12:00:00.000Z");
+    expect(isFreshJobTiming(job({
+      posted_at: null,
+      first_seen_at: "2026-08-28T11:59:00.000Z",
+    }), now)).toBe(true);
+  });
+
+  test("does not call invalid or future timestamps new", () => {
+    const now = Date.parse("2026-08-28T12:00:00.000Z");
+    expect(isFreshJobTiming(job({ posted_at: "not-a-date" }), now)).toBe(false);
+    expect(isFreshJobTiming(job({ posted_at: "2026-08-29T12:00:00.000Z" }), now)).toBe(false);
+  });
+
   test("calls an undated listing discovered rather than detected", () => {
     expect(jobTimingLabel(job())).toBe("Discovered 2d ago");
   });
