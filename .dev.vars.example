@@ -1,0 +1,9 @@
+# Secret names used to generate stable Worker binding types in every environment.
+# Keep values empty here. Put real local values in the ignored .dev.vars file and
+# production values in Cloudflare secrets.
+VAPID_PRIVATE_KEY=
+APNS_PRIVATE_KEY=
+APPLE_SIGN_IN_CLIENT_ID=
+APPLE_SIGN_IN_KEY_ID=
+APPLE_SIGN_IN_PRIVATE_KEY=
+APPLE_TOKEN_ENCRYPTION_KEY=
