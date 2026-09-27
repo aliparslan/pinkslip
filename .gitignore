@@ -45,6 +45,8 @@ bun.lockb
 
 # local browser traces and design-reference screenshots
 .playwright-mcp/
+.playwright-report/
+.playwright-results/
 sample-pics/
 
 # generated when Xcode Cloud is opened; shared schemes remain trackable

@@ -1,0 +1,77 @@
+{
+  "id": "/",
+  "scope": "/",
+  "name": "Pinkslip",
+  "short_name": "Pinkslip",
+  "description": "Discover early-career jobs, follow new openings, and organize applications.",
+  "lang": "en-US",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18171a",
+  "theme_color": "#18171a",
+  "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshots/jobs-narrow.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Pinkslip job feed on mobile"
+    },
+    {
+      "src": "/screenshots/jobs-wide.jpg",
+      "sizes": "1440x900",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Pinkslip job feed on desktop"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Jobs",
+      "short_name": "Jobs",
+      "description": "Open your current job feed",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "description": "Open saved and applied jobs",
+      "url": "/library/saved",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

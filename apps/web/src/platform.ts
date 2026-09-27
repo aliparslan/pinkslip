@@ -4,16 +4,16 @@ import {
   installPlatform,
   normalizeExternalUrl,
   openWebWindow,
+  type NotificationStatus,
   type PlatformRuntime,
 } from "../../../packages/client/src/lib/platform";
-
-let serviceWorkerPromise: Promise<ServiceWorkerRegistration> | null = null;
-
-function webPushSupported(): boolean {
-  return "serviceWorker" in navigator
-    && "PushManager" in window
-    && "Notification" in window;
-}
+import {
+  getNotificationCapability,
+  initializeWebEnvironment,
+  promptWebInstall,
+  refreshNotificationCapability,
+  registerWebServiceWorker,
+} from "./lib/web-environment";
 
 function decodeVapidKey(value: string): Uint8Array<ArrayBuffer> {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/")
@@ -22,41 +22,43 @@ function decodeVapidKey(value: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
 
-function ensureServiceWorker(): Promise<ServiceWorkerRegistration> {
-  if (!serviceWorkerPromise) {
-    serviceWorkerPromise = navigator.serviceWorker.register("/sw.js?v=3");
-  }
-  return serviceWorkerPromise;
-}
-
 const webRuntime: PlatformRuntime = {
   kind: "web",
   async initialize() {
-    if (webPushSupported()) await ensureServiceWorker();
+    await initializeWebEnvironment();
   },
   notifications: {
     async initialize() {
-      if (webPushSupported()) await ensureServiceWorker();
+      await initializeWebEnvironment();
     },
-    async status() {
-      if (!webPushSupported() || Notification.permission !== "granted") return "disabled";
-      const registration = await ensureServiceWorker();
-      return await registration.pushManager.getSubscription() ? "enabled" : "disabled";
+    async status(): Promise<NotificationStatus> {
+      return getNotificationCapability();
     },
     async enable() {
-      if (!webPushSupported()) return "denied";
+      const current = await getNotificationCapability();
+      if (current === "unsupported" || current === "requires-install" || current === "denied") {
+        return current;
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") return "denied";
-      const registration = await ensureServiceWorker();
+      const registration = await registerWebServiceWorker();
+      if (!registration) return "unsupported";
       const settings = await api.push.settings();
       if (!settings.vapid_public_key) throw new Error("Web push is not configured.");
       const subscription = await registration.pushManager.getSubscription()
         ?? await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: decodeVapidKey(settings.vapid_public_key),
-        });
+      });
       await api.push.subscribe(subscription);
+      await refreshNotificationCapability();
       return "enabled";
+    },
+    async openSettings() {
+      const result = await promptWebInstall();
+      if (result === "unavailable") {
+        window.dispatchEvent(new CustomEvent("pinkslip:install-help"));
+      }
     },
   },
   auth: {
@@ -116,7 +118,15 @@ export async function initializeWebPlatform(): Promise<void> {
   });
 
   navigator.serviceWorker?.addEventListener("message", (event) => {
-    const url = (event.data as { url?: unknown } | null)?.url;
-    if (typeof url === "string" && url.startsWith("/")) navigate(url);
+    const message = event.data as { type?: unknown; url?: unknown; jobIds?: unknown } | null;
+    if (message?.type === "pinkslip:notification-opened"
+      && typeof message.url === "string"
+      && message.url.startsWith("/")) {
+      navigate(message.url);
+      return;
+    }
+    if (message?.type === "pinkslip:push") {
+      window.dispatchEvent(new CustomEvent("pinkslip:push", { detail: message }));
+    }
   });
 }

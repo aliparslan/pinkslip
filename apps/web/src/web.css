@@ -1,0 +1,998 @@
+/* Web-only shell and composition rules. Shared component tokens remain the
+   source of color, type size, radius, and motion values; this file owns the
+   browser layout policy and never applies to the Capacitor bundle. */
+.web-app-shell {
+  --web-list-pane: 25.5rem;
+  --web-content-wide: 70rem;
+  --web-shell-wide: 90rem;
+
+  inline-size: 100%;
+  block-size: 100dvh;
+  min-block-size: 100svh;
+  padding-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* Wrapping and underline behavior remain browser-owned. These features vary
+   across engines and should not change WKWebView's native text composition. */
+.web-app-shell :where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+.web-app-shell :where(
+  .supporting-copy,
+  .page-description,
+  .modal-subtitle,
+  .empty-state-copy
+) {
+  text-wrap: pretty;
+}
+
+.web-app-shell :where(a) {
+  text-decoration-skip-ink: auto;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.12em;
+}
+
+.web-app-main {
+  container-name: web-main;
+  container-type: inline-size;
+  min-inline-size: 0;
+}
+
+.web-route-canvas {
+  min-block-size: 100%;
+}
+
+.web-route-canvas .screen-large-title,
+.web-route-canvas .tailor-page-body > .web-route-title,
+.web-route-canvas .web-resume-editor-title {
+  margin: 0 0 var(--space-6);
+  display: block;
+  color: var(--color-ink);
+  font-family: var(--font-heading);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-screen-title);
+  line-height: var(--leading-screen-title);
+}
+
+.web-you-workspace {
+  display: contents;
+}
+
+.web-you-navigation {
+  display: none;
+}
+
+.web-jobs-workspace {
+  min-block-size: 100%;
+}
+
+.web-jobs-workspace:not(.detail-selected) .web-workspace-detail,
+.web-jobs-workspace.detail-selected .web-workspace-master {
+  display: none;
+}
+
+.web-workspace-master,
+.web-workspace-detail {
+  min-inline-size: 0;
+  background: var(--color-bg);
+}
+
+.web-workspace-empty {
+  min-block-size: 100%;
+  padding: var(--space-8);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  color: var(--color-ink-3);
+  text-align: center;
+}
+
+.web-workspace-empty__icon {
+  inline-size: var(--control-height);
+  block-size: var(--control-height);
+  margin-block-end: var(--space-4);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-control-active);
+}
+
+.web-workspace-empty h2 {
+  margin: 0;
+}
+
+.web-workspace-empty p {
+  max-inline-size: 34ch;
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-3);
+  line-height: var(--leading-body);
+}
+
+.web-app-shell .job-row.viewed {
+  opacity: 1;
+}
+
+.web-app-shell .job-row.viewed .job-row__title {
+  color: var(--color-ink-2);
+  font-weight: 500;
+}
+
+.web-app-shell .text-link {
+  color: var(--color-accent-soft-ink);
+}
+
+.web-platform-install {
+  display: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+}
+
+.web-platform-install[data-compact-install="true"] {
+  display: grid;
+}
+
+.web-platform-install > div,
+.web-update-prompt > div {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.web-platform-install strong,
+.web-update-prompt strong {
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+}
+
+.web-platform-install span,
+.web-update-prompt span {
+  color: var(--color-ink-3);
+  font-size: var(--fs-xs);
+  line-height: var(--leading-body);
+}
+
+.web-update-prompt {
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-inline-end: var(--space-4);
+  inset-block-end: var(--overlay-bottom-offset);
+  inline-size: min(22rem, calc(100vw - var(--space-8)));
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+  box-shadow: var(--shadow-toast);
+}
+
+.web-platform-action-error {
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-inline-end: var(--space-4);
+  inset-block-end: calc(var(--overlay-bottom-offset) + var(--control-height) + var(--space-6));
+  max-inline-size: min(28rem, calc(100vw - var(--space-8)));
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-md);
+  background: var(--color-bad-soft);
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+}
+
+.web-install-help {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.web-install-help :where(ol, p) {
+  margin: 0;
+  color: var(--color-ink-2);
+  line-height: var(--leading-body);
+}
+
+.web-install-help ol {
+  padding-inline-start: var(--space-5);
+}
+
+.web-install-help li + li {
+  margin-block-start: var(--space-2);
+}
+
+/* Navigation is root-only in compact web. At workspace widths the same three
+   destinations become one persistent sidebar, including You. */
+@media (max-width: 56.249rem) {
+  .web-app-shell.root-navigation-visible {
+    padding-block-end: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
+  }
+
+  .web-app-shell:not(.root-navigation-visible) .tab-bar {
+    display: none;
+  }
+
+  .web-app-main {
+    padding-inline: env(safe-area-inset-left, 0) env(safe-area-inset-right, 0);
+  }
+
+  html[data-display-mode] .web-app-shell input,
+  html[data-display-mode] .web-app-shell textarea,
+  html[data-display-mode] .web-app-shell select {
+    font-size: var(--fs-md);
+  }
+
+  .web-app-shell .modal-drag-handle,
+  .web-app-shell .sheet-handle {
+    display: none;
+  }
+
+  /* Normal browser tabs should participate in document scrolling so the URL
+     bar, pull-to-refresh, text selection, and native link callouts work. */
+  html[data-display-mode="browser"],
+  html[data-display-mode="browser"] body,
+  html[data-display-mode="browser"] [id="app"] {
+    block-size: auto;
+    min-block-size: 100%;
+    overflow: clip visible;
+    overscroll-behavior-y: auto;
+  }
+
+  /* The shared shell uses an ID selector for its fixed-height native policy;
+     browser mode must outrank it so the document owns vertical scrolling. */
+  /* stylelint-disable-next-line selector-max-id, selector-max-specificity */
+  html[data-display-mode="browser"] #app {
+    block-size: auto;
+    min-block-size: 100%;
+    overflow: visible;
+  }
+
+  html[data-display-mode="browser"] body {
+    -webkit-touch-callout: default;
+  }
+
+  html[data-display-mode="browser"] .web-app-shell {
+    block-size: auto;
+    min-block-size: 100svh;
+    overflow: visible;
+  }
+
+  html[data-display-mode="browser"] .web-app-main {
+    overflow: visible;
+    overscroll-behavior-y: auto;
+  }
+
+  /* Installed web keeps app-like, safe-area-aware chrome without borrowing
+     native iOS gestures or transition layers. */
+  html[data-display-mode="standalone"] .web-app-shell {
+    block-size: 100dvh;
+    overflow: hidden;
+  }
+
+  html[data-display-mode="standalone"] .web-app-main {
+    overflow: hidden auto;
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Browser routes change immediately. State feedback may still use restrained
+   component transitions, but a web destination never slides in like iOS. */
+.web-app-shell .pushed-screen {
+  animation: none;
+}
+
+.web-app-shell :where(.btn-primary, .btn-secondary, .btn-action, .btn-mini, .icon-btn, .filter-button, .chip, .filter-choice):active {
+  transform: scale(0.96);
+}
+
+@media (min-width: 56.25rem) {
+  .web-app-shell {
+    inline-size: calc(100vw - var(--app-nav-wide));
+    block-size: 100dvh;
+    min-block-size: 0;
+    margin-inline-start: var(--app-nav-wide);
+    overflow: hidden;
+  }
+
+  .web-app-shell.admin-shell-active {
+    inline-size: 100vw;
+    margin-inline-start: 0;
+  }
+
+  .web-app-main {
+    block-size: 100%;
+    overflow: hidden auto;
+    overscroll-behavior-y: contain;
+  }
+
+  .web-app-shell .sheet-backdrop {
+    background: transparent;
+  }
+
+  .web-app-shell .sheet.filter-sheet {
+    inset-block: calc(var(--filter-anchor-top, 0px) + var(--space-2)) auto;
+    inset-inline: auto var(--filter-anchor-end, var(--space-4));
+    inline-size: min(26rem, calc(100vw - var(--space-8)));
+    max-block-size: calc(100dvh - var(--filter-anchor-top, 0px) - var(--space-4));
+    border-block-end: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-overlay);
+    transform: none;
+  }
+
+  .web-app-shell .tab-bar {
+    inset-block: 0;
+    inset-inline: 0 auto;
+    inline-size: var(--app-nav-wide);
+    block-size: 100dvh;
+    padding: var(--space-8) var(--space-4);
+    border-block-start: 0;
+    border-block-end: 0;
+    border-inline-end: 1px solid var(--color-line);
+    background: var(--color-bg-elev);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .web-app-shell .tab-bar__inner {
+    inline-size: 100%;
+    max-inline-size: none;
+    block-size: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-8);
+  }
+
+  .web-app-shell .tab-bar__brand {
+    min-block-size: var(--tap-min);
+    padding-inline: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 10px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    letter-spacing: var(--tracking-screen-title);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .web-app-shell .tab-bar__brand > span > span {
+    color: var(--color-accent);
+  }
+
+  .web-app-shell .tab-bar__mark {
+    display: block;
+    flex: none;
+    transform: rotate(-5deg);
+  }
+
+  .web-app-shell .tab-bar__links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 0;
+  }
+
+  .web-platform-install {
+    position: fixed;
+    z-index: calc(var(--z-navigation) + 1);
+    inset-inline: var(--space-4) auto;
+    inset-block: auto var(--space-4);
+    block-size: auto;
+    inline-size: calc(var(--app-nav-wide) - var(--space-8));
+    margin: 0;
+    padding: 0;
+    display: grid;
+    border: 0;
+    background: transparent;
+  }
+
+  .web-platform-install > div {
+    display: none;
+  }
+
+  .web-update-prompt {
+    inset-block-end: var(--space-5);
+  }
+
+  .web-app-shell .tab-bar__item {
+    min-block-size: var(--control-height);
+    padding-inline: var(--space-3);
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: var(--fs-base);
+    font-weight: 500;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .web-app-shell .tab-bar__item.active {
+    border-color: color-mix(in oklch, var(--color-accent) 22%, transparent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+  }
+
+  .web-app-shell .tab-bar__label {
+    transform: none;
+  }
+
+  .web-app-shell .screen-large-title {
+    text-wrap: balance;
+  }
+
+  .web-app-shell .job-action-bar-wrap {
+    inset-inline-start: var(--app-nav-wide);
+  }
+
+  .web-route-canvas > .page-content-root > .root-header .root-header-inner {
+    max-inline-size: var(--web-content-wide);
+    padding-inline: var(--space-8);
+  }
+
+  .web-workspace-master .root-header-inner,
+  .web-workspace-master .feed-page,
+  .web-workspace-master .page-frame {
+    max-inline-size: none;
+  }
+
+  .web-workspace-master .job-row-wrap {
+    border-block-end-color: color-mix(in oklch, var(--color-line) 76%, transparent);
+  }
+
+  .web-workspace-master .job-row {
+    min-block-size: 6.25rem;
+    padding: var(--space-3) var(--space-4);
+    grid-template-columns: var(--space-8) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    transition-property: background-color;
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .web-workspace-master .job-row__logo {
+    inline-size: var(--space-8);
+    block-size: var(--space-8);
+    margin-block-start: var(--space-1);
+    display: grid;
+    place-items: center;
+  }
+
+  .web-workspace-master .job-row__logo .logo-mark {
+    transform: scale(1.333);
+  }
+
+  .web-workspace-master .job-row__meta {
+    margin-block-end: var(--space-1);
+    font-size: var(--fs-xs);
+  }
+
+  .web-workspace-master .job-row__title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .web-workspace-master .job-row__sub,
+  .web-workspace-master .job-row__reason {
+    margin-block-start: var(--space-1);
+    font-size: var(--fs-xs);
+  }
+
+  .web-workspace-master .job-row.viewed {
+    opacity: 1;
+  }
+
+  .web-workspace-master .job-row.viewed .job-row__title {
+    color: var(--color-ink-2);
+    font-weight: 500;
+  }
+
+  .web-you-workspace {
+    inline-size: 100%;
+    max-inline-size: var(--web-content-wide);
+    min-block-size: 100%;
+    margin-inline: auto;
+    padding-inline: var(--space-8);
+    display: grid;
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-8);
+  }
+
+  .web-you-navigation {
+    position: sticky;
+    inset-block-start: var(--space-6);
+    padding-block: var(--space-6);
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .web-you-navigation__overview,
+  .web-you-navigation__group > a {
+    min-block-size: var(--control-height-compact);
+    padding-inline: var(--space-3);
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-ink-2);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .web-you-navigation__overview {
+    color: var(--color-accent-soft-ink);
+  }
+
+  .web-you-navigation__group {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .web-you-navigation__label {
+    padding-inline: var(--space-3);
+    color: var(--color-ink-4);
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+  }
+
+  .web-you-navigation__overview.active,
+  .web-you-navigation__group > a.active {
+    border-color: color-mix(in oklch, var(--color-accent) 22%, transparent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+  }
+
+  .web-you-workspace > .web-route-canvas {
+    min-inline-size: 0;
+  }
+
+  .web-route-canvas .page-frame,
+  .web-route-canvas .screen-content,
+  .web-route-canvas .tailor-page-body {
+    max-inline-size: var(--web-content-wide);
+    padding-inline: var(--space-8);
+  }
+
+  .web-route-canvas .screen-nav {
+    padding-inline: var(--space-6);
+  }
+
+  .web-route-canvas .you-page {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-8);
+  }
+
+  .web-route-canvas .you-page > .alert,
+  .web-route-canvas .you-page > .page-loading {
+    grid-column: 1 / -1;
+  }
+
+  .web-route-canvas .you-page > section {
+    min-inline-size: 0;
+  }
+
+  .web-route-canvas .you-settings-row {
+    min-block-size: 4.25rem;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .web-route-canvas .you-settings-row:focus-visible {
+    z-index: 1;
+  }
+
+  .web-route-canvas .you-destination-page,
+  .web-route-canvas .resume-frame {
+    max-inline-size: 64rem;
+  }
+
+  .web-route-canvas .you-focus-card,
+  .web-route-canvas .content-card {
+    padding: var(--space-6);
+  }
+
+  .web-route-canvas .resume-overview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .web-route-canvas .resume-overview-heading,
+  .web-route-canvas .resume-overview > :first-child,
+  .web-route-canvas .resume-overview > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .web-route-canvas .tailor-page-body {
+    max-inline-size: 80rem;
+  }
+
+  .web-route-canvas .tailor-page-body > .web-route-title {
+    margin-block-end: 0;
+    font-size: var(--fs-4xl);
+  }
+
+  .web-route-canvas .tailor-document {
+    box-shadow: var(--shadow-control-active);
+  }
+
+  .admin-shell-active .admin-page {
+    max-inline-size: 76rem;
+    padding: var(--space-6) var(--space-8) var(--space-10);
+  }
+
+  .admin-shell-active .admin-tabs {
+    max-inline-size: 42rem;
+  }
+}
+
+/* The top app header fits at 56.25rem, but secondary settings navigation needs
+   more room. Keep destination content single-pane until the workspace can
+   hold both columns without compressing forms below a useful measure. */
+@media (min-width: 56.25rem) {
+  @container web-main (max-width: 51.999rem) {
+    .web-you-workspace {
+      display: block;
+    }
+
+    .web-you-navigation {
+      display: none;
+    }
+  }
+}
+
+/* The Jobs/Library split is a container decision: it appears only when the
+   workspace itself has a full 60rem available below the app header. */
+@container web-main (min-width: 60rem) {
+  .web-jobs-workspace {
+    block-size: 100%;
+    min-block-size: 0;
+    display: grid;
+    grid-template-columns: var(--web-list-pane) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .web-jobs-workspace:not(.detail-selected) .web-workspace-detail,
+  .web-jobs-workspace.detail-selected .web-workspace-master,
+  .web-workspace-master,
+  .web-workspace-detail {
+    display: block;
+  }
+
+  .web-workspace-master {
+    min-block-size: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    border-inline-end: 1px solid var(--color-line);
+    background: var(--color-bg);
+  }
+
+  .web-workspace-detail {
+    min-block-size: 0;
+    overflow: hidden;
+    background: var(--color-bg-sunken);
+  }
+
+  .web-workspace-master > .page-content-root > .root-header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 9;
+    background: color-mix(in oklch, var(--color-bg) 96%, transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .web-workspace-master .root-header-inner {
+    min-block-size: 5rem;
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .web-workspace-master .root-header {
+    padding-block-start: 0;
+  }
+
+  .web-workspace-master .root-header :where(h1, h2) {
+    font-size: var(--fs-4xl);
+  }
+
+  .web-workspace-master .feed-controls {
+    inset-block-start: 5rem;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .web-workspace-master .feed-toolbar {
+    block-size: var(--control-height-compact);
+  }
+
+  .web-workspace-master .feed-pull-reveal {
+    display: none;
+  }
+
+  .web-workspace-master .feed-skeleton-row {
+    min-block-size: 5.75rem;
+    padding: var(--space-3) var(--space-4);
+    grid-template-columns: var(--space-8) minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .web-workspace-master .job-row[aria-current="page"] {
+    background: var(--color-accent-soft);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+
+  .web-workspace-master .job-row__menu-trigger {
+    opacity: 0.6;
+    transition-property: opacity, background-color;
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .web-workspace-master .job-row-wrap:focus-within .job-row__menu-trigger {
+    opacity: 1;
+  }
+
+  .web-workspace-master .my-jobs-page {
+    padding: var(--space-3) var(--space-4) var(--space-8);
+  }
+
+  .web-workspace-master .my-jobs-list {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .web-workspace-detail > .page-content-root {
+    block-size: 100%;
+    min-block-size: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .web-workspace-detail .job-detail-page {
+    min-block-size: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+  }
+
+  .web-workspace-detail .screen-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--space-2) var(--space-5);
+    background: color-mix(in oklch, var(--color-bg) 96%, transparent);
+  }
+
+  .web-workspace-detail .screen-nav__leading,
+  .web-workspace-detail .screen-nav__title {
+    display: none;
+  }
+
+  .web-workspace-detail .screen-nav__trailing {
+    grid-column: 2;
+  }
+
+  .web-workspace-detail .screen-content.job-detail-content {
+    max-inline-size: 72ch;
+    padding: var(--space-8) var(--space-8) var(--space-10);
+  }
+
+  .web-workspace-detail .job-description,
+  .web-workspace-detail .job-description-lede {
+    max-inline-size: 68ch;
+  }
+
+  .web-workspace-detail .job-action-bar-wrap {
+    position: static;
+    padding: var(--space-3) var(--space-8);
+    border-block-start: 1px solid var(--color-line);
+    background: var(--color-bg-elev);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .web-workspace-detail .job-action-bar {
+    max-inline-size: 72ch;
+    margin-inline: auto;
+  }
+
+  .web-workspace-empty {
+    background:
+      linear-gradient(var(--color-line), var(--color-line)) 50% 0 / 1px var(--space-10) no-repeat,
+      var(--color-bg-sunken);
+  }
+
+  .web-route-canvas .structured-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(28rem, 1fr);
+    align-items: start;
+  }
+
+  .web-route-canvas .resume-frame:has(.editor-form) {
+    max-inline-size: var(--web-content-wide);
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-8);
+  }
+
+  .web-route-canvas .resume-frame:has(.editor-form) > :where(.alert, .page-loading) {
+    grid-column: 1 / -1;
+  }
+
+  .web-route-canvas .resume-frame:has(.editor-form) > .web-resume-editor-title {
+    grid-column: 2;
+    margin-block-end: calc(var(--space-6) * -1);
+  }
+
+  .web-route-canvas .resume-frame:has(.editor-form) > .web-resume-outline {
+    position: sticky;
+    inset-block-start: var(--space-6);
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .web-route-canvas .web-resume-outline > button {
+    min-block-size: var(--control-height-compact);
+    padding-inline: var(--space-3);
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ink-2);
+    font: 500 var(--fs-sm) / 1.3 var(--font-sans);
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .web-route-canvas .web-resume-outline > button.active {
+    border-color: color-mix(in oklch, var(--color-accent) 22%, transparent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+  }
+
+  .web-route-canvas .resume-frame:has(.editor-form) > .editor-form {
+    grid-column: 2;
+  }
+
+  .web-route-canvas .structured-workspace > :where(.tailoring-tabs, .inline-failure, .download-action) {
+    grid-column: 1 / -1;
+  }
+
+  .web-route-canvas .tailoring-tabs {
+    display: none;
+  }
+
+  .web-route-canvas .structured-workspace > .structured-editor,
+  .web-route-canvas .structured-workspace > .preview-panel,
+  .web-route-canvas .structured-workspace > .structured-editor:not(.tailoring-panel-active),
+  .web-route-canvas .structured-workspace > .preview-panel:not(.tailoring-panel-active) {
+    display: grid;
+    min-inline-size: 0;
+  }
+
+  .web-route-canvas .preview-panel {
+    position: sticky;
+    inset-block-start: var(--space-6);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .web-app-shell .tab-bar__brand:hover,
+  .web-app-shell .tab-bar__item:hover {
+    background: var(--color-bg-sunken);
+  }
+
+  .web-app-shell .tab-bar__item.active:hover {
+    background: var(--color-accent-soft);
+  }
+
+  .web-you-navigation__overview:hover,
+  .web-you-navigation__group > a:hover,
+  .web-route-canvas .web-resume-outline > button:hover {
+    background: var(--color-bg-sunken);
+  }
+
+  .web-you-navigation__overview.active:hover,
+  .web-you-navigation__group > a.active:hover,
+  .web-route-canvas .web-resume-outline > button.active:hover {
+    background: var(--color-accent-soft);
+  }
+
+  .web-workspace-master .job-row:hover {
+    background: var(--color-bg-elev);
+  }
+
+  .web-workspace-master .job-row-wrap:hover .job-row__menu-trigger {
+    opacity: 1;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .web-workspace-master,
+  .web-app-shell .tab-bar {
+    border-color: var(--color-line-2);
+  }
+
+  .web-workspace-master .job-row[aria-current="page"] {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+}
+
+@media (forced-colors: active) {
+  .web-workspace-master .job-row[aria-current="page"],
+  .web-app-shell .tab-bar__item.active,
+  .web-you-navigation__overview.active,
+  .web-you-navigation__group > a.active,
+  .web-route-canvas .web-resume-outline > button.active {
+    border-color: Highlight;
+    background: Canvas;
+    color: Highlight;
+    forced-color-adjust: auto;
+  }
+
+  .web-workspace-master .job-row[aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* stylelint-disable declaration-no-important -- shared reduced-motion rules
+   intentionally use !important, so the web-only static skeleton must match. */
+@media (prefers-reduced-motion: reduce) {
+  .web-app-shell .skeleton {
+    animation: none !important;
+    opacity: 0.65;
+  }
+
+  .web-app-shell :where(.btn-primary, .btn-secondary, .btn-action, .btn-mini, .icon-btn, .filter-button, .chip, .filter-choice):active {
+    transform: none;
+  }
+}
+/* stylelint-enable declaration-no-important */

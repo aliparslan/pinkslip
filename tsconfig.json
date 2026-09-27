@@ -19,7 +19,13 @@
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["worker/**/*.ts", "shared/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
+  "include": [
+    "worker-configuration.d.ts",
+    "worker/**/*.ts",
+    "shared/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts"
+  ],
   // This config targets the Worker/Bun runtime (no DOM lib). These tests import
   // frontend (DOM-using) code, so they're typechecked by the frontend project
   // instead; bun still runs them via `bun test`.
@@ -28,11 +34,13 @@
     "dist",
     "frontend",
     "tests/drag-dismiss.test.ts",
+    "tests/bootstrap-cache.test.ts",
     "tests/native-api-client.test.ts",
     "tests/native-logo-cache.test.ts",
     "tests/nav-back.test.ts",
     "tests/resume-export.test.ts",
     "tests/salary-format.test.ts",
-    "tests/location-format.test.ts"
+    "tests/location-format.test.ts",
+    "tests/job-read-cache.test.ts"
   ]
 }

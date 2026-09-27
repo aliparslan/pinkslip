@@ -42,6 +42,32 @@ const svelteFiles = [
 ];
 const cssFiles = [...new Bun.Glob("packages/client/src/**/*.css").scanSync({ cwd: root })];
 
+const sharedProductFonts = [
+  "packages/client/src/assets/fonts/product/untitled-sans-vf-roman.woff2",
+  "packages/client/src/assets/fonts/product/untitled-sans-vf-italic.woff2",
+  "packages/client/src/assets/fonts/product/founders-grotesk-semibold.woff2",
+];
+for (const path of sharedProductFonts) {
+  if (!await Bun.file(resolve(root, path)).exists()) {
+    failures.push(`${path} is missing from the tracked shared font source`);
+  }
+}
+
+const frontendAuthoredFiles = [
+  "apps/ios/index.html",
+  "apps/ios/vite.config.ts",
+  "apps/web/index.html",
+  "apps/web/vite.config.ts",
+  ...new Bun.Glob("apps/{ios,web}/src/**/*.{css,svelte,ts}").scanSync({ cwd: root }),
+  ...new Bun.Glob("packages/client/src/**/*.{css,svelte,ts}").scanSync({ cwd: root }),
+];
+for (const path of frontendAuthoredFiles) {
+  const source = await read(path);
+  if (/local-preview|test-[^\s"')]+\.woff2|apps\/(?:ios|web)\/src\/fonts/.test(source)) {
+    failures.push(`${path} references an ignored preview or bundle-local font`);
+  }
+}
+
 for (const path of pageFiles) {
   if (path in reviewThresholds) continue;
   const lines = lineCount(await read(path));
