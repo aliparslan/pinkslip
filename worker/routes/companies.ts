@@ -1,65 +1,77 @@
 import { Hono } from "hono";
 import { isAdminUser, requireAdmin } from "../auth";
-import type { Env, CompanyRow, CompanySourceType, Variables } from "../types";
-import { pollCompany, sendNotificationsForJobs } from "../poller";
+import type { Env, CompanyRow, Variables } from "../types";
+import {
+  pollCompany,
+  sendNotificationsForJobs,
+  shouldQueueNotificationsForCompany,
+  type NewJobMeta,
+} from "../poller";
 import { matchJobsForAllProfiles } from "../user-job-matches";
-import { verifyCompanySource } from "../ats";
-import { normalizeGemSource } from "../adapters/gem";
-import { normalizeRipplingSource } from "../adapters/rippling";
-import { normalizeSmartRecruitersSource } from "../adapters/smartrecruiters";
-import { normalizeWorkdaySource } from "../adapters/workday";
-import { normalizeYcSource } from "../adapters/yc";
+import { loadCustomTitles } from "../job-scope";
+import {
+  defaultCompanyPollTier,
+  getCompanySourceType,
+  normalizeCompanySource,
+  verifyCompanySource,
+} from "../ats";
+import {
+  isPollableCompanySourceType,
+  type PollableCompanySourceType,
+} from "../../shared/company-sources";
 
 const companies = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-const KNOWN_SOURCE_TYPES = new Set<CompanySourceType>([
-  "greenhouse", "lever", "ashby", "workday", "rippling", "gem", "smartrecruiters", "yc", "custom",
-]);
+export interface ManualPollIndexDependencies {
+  match: typeof matchJobsForAllProfiles;
+  notify: typeof sendNotificationsForJobs;
+}
 
-function assertKnownSourceType(value: string): asserts value is CompanySourceType {
-  if (!KNOWN_SOURCE_TYPES.has(value as CompanySourceType)) {
-    throw new Error(`Unknown ATS type "${value}"`);
+const manualPollIndexDependencies: ManualPollIndexDependencies = {
+  match: matchJobsForAllProfiles,
+  notify: sendNotificationsForJobs,
+};
+
+/**
+ * Make manually imported jobs available in personalized feeds immediately.
+ *
+ * A disabled company is in backfill/verification mode, not invisible indexing
+ * mode: its matches remain hidden behind `companies.enabled` until activation.
+ * Notification candidates are the only derived state that must wait until the
+ * source is enabled, otherwise a historical catalog import becomes a push
+ * burst.
+ */
+export async function indexManualPollJobs(
+  db: D1Database,
+  env: Env,
+  company: Pick<CompanyRow, "enabled">,
+  newJobs: NewJobMeta[],
+  dependencies: ManualPollIndexDependencies = manualPollIndexDependencies
+): Promise<number> {
+  await dependencies.match(
+    db,
+    newJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+  );
+  if (!shouldQueueNotificationsForCompany(company)) return 0;
+  return dependencies.notify(db, env, newJobs);
+}
+
+function assertPollableSourceType(
+  value: unknown
+): asserts value is PollableCompanySourceType {
+  if (!isPollableCompanySourceType(value)) {
+    throw new Error(`Unsupported polling source "${value}"`);
   }
 }
 
-function effectiveSourceType(company: Pick<CompanyRow, "ats_type" | "source_type">) {
-  return company.source_type ?? company.ats_type;
-}
-
-function storedAtsType(sourceType: CompanySourceType): CompanyRow["ats_type"] {
+function storedAtsType(sourceType: PollableCompanySourceType): CompanyRow["ats_type"] {
   return ["greenhouse", "lever", "ashby"].includes(sourceType)
     ? sourceType as CompanyRow["ats_type"]
     : "custom";
 }
 
-function normalizeAtsSlug(sourceType: CompanySourceType, slug: string): string {
-  switch (sourceType) {
-    case "workday":
-      return normalizeWorkdaySource(slug);
-    case "rippling":
-      return normalizeRipplingSource(slug);
-    case "gem":
-      return normalizeGemSource(slug);
-    case "smartrecruiters":
-      return normalizeSmartRecruitersSource(slug);
-    case "yc":
-      return normalizeYcSource(slug);
-    case "greenhouse":
-    case "lever":
-    case "ashby": {
-      const trimmed = slug.trim();
-      if (/\s/.test(trimmed) || /:\/\//.test(trimmed) || trimmed.includes("/")) {
-        throw new Error(`Enter just the ${sourceType} board token, not a full URL`);
-      }
-      return trimmed;
-    }
-    default:
-      return slug.trim();
-  }
-}
-
 function serializeCompany<T extends CompanyRow>(company: T) {
-  return { ...company, ats_type: effectiveSourceType(company) };
+  return { ...company, ats_type: getCompanySourceType(company) };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -101,12 +113,13 @@ companies.get("/", async (c) => {
 
 companies.post("/verify", requireAdmin, async (c) => {
   const body = await c.req.json<{
-    ats_type: CompanySourceType;
+    ats_type: unknown;
     ats_slug: string;
   }>();
 
   try {
-    const atsSlug = normalizeAtsSlug(body.ats_type, body.ats_slug);
+    assertPollableSourceType(body.ats_type);
+    const atsSlug = normalizeCompanySource(body.ats_type, body.ats_slug);
     const jobs = await verifyCompanySource({
       ats_type: body.ats_type,
       ats_slug: atsSlug,
@@ -127,7 +140,7 @@ companies.post("/verify", requireAdmin, async (c) => {
 companies.post("/", requireAdmin, async (c) => {
   const body = await c.req.json<{
     name: string;
-    ats_type: CompanySourceType;
+    ats_type: unknown;
     ats_slug: string;
     website?: string;
   }>();
@@ -135,8 +148,8 @@ companies.post("/", requireAdmin, async (c) => {
   const name = body.name?.trim() ?? "";
   let atsSlug: string;
   try {
-    assertKnownSourceType(body.ats_type);
-    atsSlug = normalizeAtsSlug(body.ats_type, body.ats_slug);
+    assertPollableSourceType(body.ats_type);
+    atsSlug = normalizeCompanySource(body.ats_type, body.ats_slug);
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : "Invalid ATS source" }, 400);
   }
@@ -165,8 +178,9 @@ companies.post("/", requireAdmin, async (c) => {
 
   try {
     await c.env.DB.prepare(
-      `INSERT INTO companies (id, name, ats_type, source_type, ats_slug, website, enabled, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?)`
+      `INSERT INTO companies (
+         id, name, ats_type, source_type, ats_slug, website, enabled, poll_tier, added_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`
     )
       .bind(
         id,
@@ -175,6 +189,7 @@ companies.post("/", requireAdmin, async (c) => {
         body.ats_type,
         atsSlug,
         body.website?.trim() || null,
+        defaultCompanyPollTier(body.ats_type),
         now
       )
       .run();
@@ -200,7 +215,7 @@ companies.patch("/:id", requireAdmin, async (c) => {
     enabled?: boolean;
     name?: string;
     ats_slug?: string;
-    ats_type?: CompanySourceType;
+    ats_type?: unknown;
     website?: string;
   }>();
 
@@ -211,12 +226,23 @@ companies.patch("/:id", requireAdmin, async (c) => {
     .first<CompanyRow>();
   if (!current) return c.json({ error: "Not found" }, 404);
 
-  const nextAtsType = body.ats_type ?? effectiveSourceType(current);
+  let requestedAtsType: PollableCompanySourceType | undefined;
+  try {
+    if (body.ats_type !== undefined) {
+      assertPollableSourceType(body.ats_type);
+      requestedAtsType = body.ats_type;
+    }
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "Invalid ATS source" }, 400);
+  }
+
+  const currentSourceType = getCompanySourceType(current);
+  const nextAtsType = requestedAtsType ?? currentSourceType;
   let nextAtsSlug = current.ats_slug;
   if (body.ats_slug !== undefined || body.ats_type !== undefined) {
     try {
-      if (body.ats_type !== undefined) assertKnownSourceType(body.ats_type);
-      nextAtsSlug = normalizeAtsSlug(nextAtsType as CompanySourceType, body.ats_slug ?? current.ats_slug);
+      assertPollableSourceType(nextAtsType);
+      nextAtsSlug = normalizeCompanySource(nextAtsType, body.ats_slug ?? current.ats_slug);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Invalid ATS source" }, 400);
     }
@@ -240,9 +266,13 @@ companies.patch("/:id", requireAdmin, async (c) => {
     bindings.push(nextAtsSlug);
   }
 
-  if (body.ats_type !== undefined) {
+  if (requestedAtsType !== undefined) {
     setClauses.push("ats_type = ?", "source_type = ?");
-    bindings.push(storedAtsType(body.ats_type), body.ats_type);
+    bindings.push(storedAtsType(requestedAtsType), requestedAtsType);
+    if (requestedAtsType !== currentSourceType) {
+      setClauses.push("poll_tier = ?");
+      bindings.push(defaultCompanyPollTier(requestedAtsType));
+    }
     if (body.ats_slug === undefined && nextAtsSlug !== current.ats_slug) {
       setClauses.push("ats_slug = ?");
       bindings.push(nextAtsSlug);
@@ -318,16 +348,21 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
+  const fullBackfill = c.req.query("backfill") === "true";
+  if (fullBackfill && shouldQueueNotificationsForCompany(company)) {
+    return c.json({
+      error: "Full catalog backfill is only allowed while the company is disabled",
+    }, 400);
+  }
+
   const now = new Date().toISOString();
   try {
-    const newJobs = await pollCompany(company, db);
-    await matchJobsForAllProfiles(
-      db,
-      newJobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
-    );
-    const notificationsSent = await sendNotificationsForJobs(
+    const customTitles = await loadCustomTitles(db);
+    const newJobs = await pollCompany(company, db, customTitles, { fullBackfill });
+    const notificationsSent = await indexManualPollJobs(
       db,
       c.env,
+      company,
       newJobs
     );
     await db

@@ -1,16 +1,34 @@
-import type { ATSAdapter, JobContent, JobListing } from "./adapters/types";
+import type {
+  ATSAdapter,
+  JobContent,
+  JobListing,
+  JobReference,
+} from "./adapters/types";
 import type { Env, CompanyRow } from "./types";
 import { getAdapter, getCompanySourceType } from "./ats";
 import {
   advanceBacklogMatching,
   matchJobsForAllProfiles,
 } from "./user-job-matches";
-import { upsertJobFeatures } from "./job-features";
+import {
+  JOB_CLASSIFIER_VERSION,
+  ensureJobFeatures,
+  storedJobFeaturesFromRow,
+  upsertJobFeatures,
+  type JobFeatures,
+  type StoredJobFeatureColumns,
+} from "./job-features";
 import {
   createNotificationCandidates,
   deliverPendingNotifications,
 } from "./notification-delivery";
-import { ensureEligibleJobs, isEligibleJobListing, loadCustomTitles } from "./job-scope";
+import {
+  ensureEligibleJobs,
+  isCurrentJobScopeListing,
+  isEligibleJobListing,
+  isPotentialCatalogJobListing,
+  loadCustomTitles,
+} from "./job-scope";
 import { isEvergreenPosting } from "../shared/job-policy";
 import {
   notifyAdminsOfQuarantinedSources,
@@ -40,7 +58,28 @@ const MANUAL_TIER_TWO_BATCH = 250;
  * cycle instead of being silently excluded from notifications.
  */
 export const NOTIFICATION_MATCH_BATCH_SIZE = 150;
+/**
+ * Commit notification matching progress in smaller units without reducing the
+ * per-cycle throughput above. A failed checkpoint is retried next cycle while
+ * completed checkpoints stay cleared from the backlog.
+ */
+export const NOTIFICATION_MATCH_CHECKPOINT_SIZE = 25;
+export const NOTIFICATION_CRON_SCHEDULE = "2,17,32,47 * * * *";
 const CONTENT_BACKFILL_BATCH_SIZE = 20;
+
+/**
+ * Newly enabled detail-poor boards can expose thousands of otherwise eligible
+ * rows at once. Bound eager hydration per company so six concurrent company
+ * polls cannot consume the Worker's external-subrequest or memory budget in a
+ * single invocation. Successful rows become existing jobs, so the next poll
+ * naturally advances to the remaining discoveries; failed rows stay eligible
+ * for retry without preventing later rows in the same checkpoint from landing.
+ */
+export const NEW_JOB_HYDRATION_LIMIT_PER_COMPANY = 20;
+export const NEW_JOB_HYDRATION_CHECKPOINT_SIZE = 4;
+export const FULL_BACKFILL_NEW_JOB_LIMIT = 300;
+export const SOURCE_JOB_INSPECTION_POLICY_VERSION = 3;
+const POLL_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
 // is closed, so a single partial/failed ATS response can't remove valid jobs.
@@ -107,6 +146,36 @@ export function diffJobs(
   return fetched.filter((job) => !existingExternalIds.has(job.externalId));
 }
 
+/**
+ * A disabled source is being verified or backfilled. Its open catalog may be
+ * genuinely recent at the ATS, but it is not a stream of jobs newly posted
+ * since Pinkslip began watching the company. Persist those rows and their
+ * features without turning the initial catalog import into a push-notification
+ * burst; normal notifications begin only after the source is enabled.
+ */
+export function shouldQueueNotificationsForCompany(
+  company: Pick<CompanyRow, "enabled">
+): boolean {
+  return company.enabled === 1;
+}
+
+/**
+ * Decide whether a successful adapter response is safe to use for absence
+ * tracking. A schema-valid empty response is not enough evidence that an
+ * established board suddenly removed every posting: upstream maintenance and
+ * filter regressions can both look exactly like an empty board. Until an
+ * adapter can provide a stronger, source-specific completeness signal, keep
+ * the existing catalog intact and surface the empty snapshot as a poll error.
+ */
+export function isTrustworthyJobSnapshot(
+  fetchedCount: number,
+  openExistingCount: number
+): boolean {
+  if (fetchedCount === 0) return openExistingCount === 0;
+  return openExistingCount < 8
+    || fetchedCount >= Math.floor(openExistingCount * 0.5);
+}
+
 export async function runWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -162,24 +231,356 @@ async function hydrateListing(
   return mergeListingContent(listing, content);
 }
 
+interface DiscoveredJobCheckpointDependencies<T> {
+  hydrate: (discovered: T) => Promise<JobListing>;
+  accept: (listing: JobListing) => boolean;
+  persist: (listings: JobListing[]) => Promise<NewJobMeta[]>;
+  afterCheckpoint?: (
+    outcomes: Array<{
+      discovered: T;
+      result: PromiseSettledResult<JobListing>;
+      accepted: boolean;
+    }>
+  ) => Promise<void>;
+}
+
+interface DiscoveredJobCheckpointOptions {
+  limit?: number;
+  limitCeiling?: number;
+  checkpointSize?: number;
+  compactReturnMetadata?: boolean;
+}
+
+function compactNewJobMeta(job: NewJobMeta): NewJobMeta {
+  return {
+    ...job,
+    listing: {
+      ...job.listing,
+      // Cron only needs the count and IDs after persistence; notification
+      // matching reloads canonical content/features from D1. Dropping the large
+      // field here prevents six completed company polls from retaining every
+      // description until the slowest source settles.
+      description: null,
+    },
+  };
+}
+
+/**
+ * Rotate the bounded hydration window using the company's previous poll slot.
+ * Rows rejected only after detail inspection (for example a PhD or clearance
+ * requirement) remain absent by design, so always taking the first N rows
+ * would let them permanently hide valid rows later in a stable source order.
+ * The 15-minute poll ordinal advances the window by exactly one cap per normal
+ * cycle without persisting filter-policy decisions as permanent job blocks.
+ */
+export function rotateDiscoveredJobsForPoll<T>(
+  discoveredJobs: T[],
+  lastPolledAt: string | null,
+  windowSize = NEW_JOB_HYDRATION_LIMIT_PER_COMPANY
+): T[] {
+  if (discoveredJobs.length <= windowSize || windowSize <= 0) {
+    return discoveredJobs;
+  }
+
+  const lastPollMs = lastPolledAt ? Date.parse(lastPolledAt) : Number.NaN;
+  if (!Number.isFinite(lastPollMs)) return discoveredJobs;
+
+  const pollOrdinal = Math.floor(lastPollMs / POLL_ROTATION_INTERVAL_MS);
+  const start = (pollOrdinal * windowSize) % discoveredJobs.length;
+  if (start === 0) return discoveredJobs;
+  return [
+    ...discoveredJobs.slice(start),
+    ...discoveredJobs.slice(0, start),
+  ];
+}
+
+export async function processDiscoveredJobCheckpoints<T>(
+  discoveredJobs: T[],
+  dependencies: DiscoveredJobCheckpointDependencies<T>,
+  options: DiscoveredJobCheckpointOptions = {}
+): Promise<NewJobMeta[]> {
+  const limitCeiling = Math.max(
+    0,
+    options.limitCeiling ?? NEW_JOB_HYDRATION_LIMIT_PER_COMPANY
+  );
+  const limit = Math.max(
+    0,
+    Math.min(
+      limitCeiling,
+      options.limit ?? NEW_JOB_HYDRATION_LIMIT_PER_COMPANY
+    )
+  );
+  const checkpointSize = Math.max(
+    1,
+    Math.min(
+      NEW_JOB_HYDRATION_CHECKPOINT_SIZE,
+      options.checkpointSize ?? NEW_JOB_HYDRATION_CHECKPOINT_SIZE
+    )
+  );
+  const selected = discoveredJobs.slice(0, limit);
+  const persisted: NewJobMeta[] = [];
+
+  for (let offset = 0; offset < selected.length; offset += checkpointSize) {
+    const checkpoint = selected.slice(offset, offset + checkpointSize);
+    const hydration = await runWithConcurrency(
+      checkpoint,
+      checkpointSize,
+      dependencies.hydrate
+    );
+    const outcomes = checkpoint.map((discovered, index) => {
+      const result = hydration[index];
+      return {
+        discovered,
+        result,
+        accepted: result.status === "fulfilled"
+          && dependencies.accept(result.value),
+      };
+    });
+    const accepted = outcomes.flatMap(({ result, accepted: shouldAccept }) => {
+      if (result.status !== "fulfilled" || !shouldAccept) return [];
+      return [result.value];
+    });
+    if (accepted.length > 0) {
+      // Persist each checkpoint before hydrating the next one. A later upstream
+      // or D1 failure therefore leaves completed jobs, notification backlog rows,
+      // and features committed; the next poll retries only what is still absent.
+      const checkpointMeta = await dependencies.persist(accepted);
+      persisted.push(...(
+        options.compactReturnMetadata
+          ? checkpointMeta.map(compactNewJobMeta)
+          : checkpointMeta
+      ));
+    }
+    // The callback runs only after accepted rows have committed. Reference-only
+    // sources use it to remember every successful inspection, including jobs
+    // rejected by Pinkslip's audience filters. Failed details remain unresolved
+    // and are therefore retried on a later poll.
+    await dependencies.afterCheckpoint?.(outcomes);
+  }
+
+  return persisted;
+}
+
+interface ResolvedJobReferenceRow {
+  external_id: string;
+  job_url: string;
+  inspection_policy_version: number;
+}
+
+interface ExistingJobStateRow {
+  external_id: string;
+  closed_at: string | null;
+  missed_polls: number;
+}
+
+export function unresolvedJobReferences(
+  references: readonly JobReference[],
+  resolvedUrls: ReadonlyMap<string, string>,
+  existingIds: ReadonlySet<string>,
+  blockedIds: ReadonlySet<string>,
+  resolvedPolicyVersions?: ReadonlyMap<string, number>
+): JobReference[] {
+  return references.filter((reference) => {
+    if (existingIds.has(reference.externalId) || blockedIds.has(reference.externalId)) {
+      return false;
+    }
+    const inspectedAtCurrentPolicy = resolvedPolicyVersions === undefined
+      || (resolvedPolicyVersions.get(reference.externalId) ?? 0)
+        >= SOURCE_JOB_INSPECTION_POLICY_VERSION;
+    return resolvedUrls.get(reference.externalId) !== reference.url
+      || !inspectedAtCurrentPolicy;
+  });
+}
+
+export async function recordResolvedJobReferences(
+  db: D1Database,
+  companyId: string,
+  references: readonly JobReference[],
+  seenAt = new Date().toISOString()
+) {
+  for (let offset = 0; offset < references.length; offset += 75) {
+    await db.batch(references.slice(offset, offset + 75).map((reference) =>
+      db.prepare(
+        `INSERT INTO source_job_references (
+           company_id, external_id, job_url, first_seen_at, last_seen_at,
+           inspection_policy_version
+         ) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(company_id, external_id) DO UPDATE SET
+           job_url = excluded.job_url,
+           last_seen_at = excluded.last_seen_at,
+           inspection_policy_version = excluded.inspection_policy_version`
+      ).bind(
+        companyId,
+        reference.externalId,
+        reference.url,
+        seenAt,
+        seenAt,
+        SOURCE_JOB_INSPECTION_POLICY_VERSION
+      )
+    ));
+  }
+}
+
+async function deleteResolvedJobReferences(
+  db: D1Database,
+  companyId: string,
+  externalIds: readonly string[]
+) {
+  for (let offset = 0; offset < externalIds.length; offset += 75) {
+    const ids = externalIds.slice(offset, offset + 75);
+    const placeholders = ids.map(() => "?").join(", ");
+    await db.prepare(
+      `DELETE FROM source_job_references
+       WHERE company_id = ? AND external_id IN (${placeholders})`
+    ).bind(companyId, ...ids).run();
+  }
+}
+
+async function reconcileReferenceSnapshot(
+  db: D1Database,
+  companyId: string,
+  existingJobs: readonly ExistingJobStateRow[],
+  resolvedReferences: readonly ResolvedJobReferenceRow[],
+  currentIds: ReadonlySet<string>,
+  now: string
+) {
+  const statements: D1PreparedStatement[] = [];
+  for (const job of existingJobs) {
+    if (currentIds.has(job.external_id)) {
+      // Do not reopen rows closed by scope cleanup. A complete detail backfill
+      // can safely decide whether a closed job has become eligible again.
+      if (job.missed_polls !== 0) {
+        statements.push(
+          db.prepare(
+            `UPDATE jobs SET missed_polls = 0
+             WHERE company_id = ? AND external_id = ? AND missed_polls != 0`
+          ).bind(companyId, job.external_id)
+        );
+      }
+    } else if (job.closed_at === null) {
+      statements.push(
+        db.prepare(
+          `UPDATE jobs
+           SET missed_polls = missed_polls + 1,
+               closed_at = CASE
+                 WHEN missed_polls + 1 >= ? THEN ?
+                 ELSE NULL END
+           WHERE company_id = ? AND external_id = ? AND closed_at IS NULL`
+        ).bind(CLOSE_AFTER_MISSES, now, companyId, job.external_id)
+      );
+    }
+  }
+  for (let offset = 0; offset < statements.length; offset += 75) {
+    await db.batch(statements.slice(offset, offset + 75));
+  }
+
+  // Forget removed references so a later reappearance is inspected again.
+  // This is normally a tiny delete set and avoids rewriting the full manifest
+  // on every 15-minute poll.
+  await deleteResolvedJobReferences(
+    db,
+    companyId,
+    resolvedReferences
+      .filter((row) => !currentIds.has(row.external_id))
+      .map((row) => row.external_id)
+  );
+}
+
+function assertUniqueJobReferences(
+  adapterName: string,
+  references: readonly JobReference[]
+) {
+  const seen = new Set<string>();
+  for (const reference of references) {
+    if (seen.has(reference.externalId)) {
+      throw new Error(
+        `${adapterName} returned duplicate job reference ${reference.externalId}`
+      );
+    }
+    seen.add(reference.externalId);
+  }
+}
+
+interface PollCompanyOptions {
+  compactReturnMetadata?: boolean;
+  fullBackfill?: boolean;
+}
+
+export interface PollingSnapshot {
+  jobs: JobListing[];
+  /** Only complete snapshots may close jobs that are absent upstream. */
+  complete: boolean;
+}
+
+export async function fetchPollingSnapshot(
+  adapter: ATSAdapter,
+  slug: string,
+  mode: "discovery" | "complete" = "discovery"
+): Promise<PollingSnapshot> {
+  if (mode === "discovery" && adapter.fetchDiscoveryJobs) {
+    return {
+      jobs: await adapter.fetchDiscoveryJobs(slug),
+      complete: false,
+    };
+  }
+  return {
+    jobs: await adapter.fetchJobs(slug),
+    complete: true,
+  };
+}
+
 export async function pollCompany(
   company: CompanyRow,
   db: D1Database,
-  customTitles: readonly string[] = []
+  customTitles: readonly string[] = [],
+  options: PollCompanyOptions = {}
 ): Promise<NewJobMeta[]> {
   const adapter = getAdapter(getCompanySourceType(company));
 
   if (!adapter) return [];
 
-  const fetchedSnapshot = await adapter.fetchJobs(company.ats_slug);
+  const supportsReferenceDiscovery = adapter.fetchDiscoveryJobReferences !== undefined
+    && adapter.fetchJobListing !== undefined;
+  const useReferenceDiscovery = !options.fullBackfill
+    && supportsReferenceDiscovery;
+  const discoveryReferences = useReferenceDiscovery
+    ? await adapter.fetchDiscoveryJobReferences!(company.ats_slug)
+    : null;
+  const pollingSnapshot = discoveryReferences === null
+    ? await fetchPollingSnapshot(
+        adapter,
+        company.ats_slug,
+        options.fullBackfill ? "complete" : "discovery"
+      )
+    : { jobs: [], complete: false };
+  const fetchedSnapshot = pollingSnapshot.jobs;
+  // A complete detail backfill proves which manifest rows were inspected. Read
+  // the live manifest once more afterward: IDs added during the long crawl stay
+  // unresolved and will be picked up immediately by the next normal poll.
+  const fullBackfillReferences = options.fullBackfill && supportsReferenceDiscovery
+    ? await adapter.fetchDiscoveryJobReferences!(company.ats_slug)
+    : null;
+  if (discoveryReferences !== null) {
+    assertUniqueJobReferences(adapter.name, discoveryReferences);
+  }
+  if (fullBackfillReferences !== null) {
+    assertUniqueJobReferences(adapter.name, fullBackfillReferences);
+  }
   const fetched = fetchedSnapshot.filter((job) => isEligibleJobListing(job, customTitles));
   const fetchedExtIds = new Set(fetched.map((j) => j.externalId));
+  const reopenableExtIds = new Set(
+    fetchedSnapshot
+      .filter((job) => isCurrentJobScopeListing(job, customTitles))
+      .map((job) => job.externalId)
+  );
 
   const [existing, blocked] = await Promise.all([
     db
-      .prepare("SELECT external_id, closed_at FROM jobs WHERE company_id = ?")
+      .prepare(
+        "SELECT external_id, closed_at, missed_polls FROM jobs WHERE company_id = ?"
+      )
       .bind(company.id)
-      .all<{ external_id: string; closed_at: string | null }>(),
+      .all<ExistingJobStateRow>(),
     db
       .prepare("SELECT external_id FROM blocked_jobs WHERE company_id = ?")
       .bind(company.id)
@@ -192,16 +593,207 @@ export async function pollCompany(
   const blockedIds = new Set<string>(
     (blocked.results ?? []).map((r) => r.external_id)
   );
+  const resolved = discoveryReferences !== null || fullBackfillReferences !== null
+    ? await db.prepare(
+        `SELECT external_id, job_url, inspection_policy_version
+         FROM source_job_references
+         WHERE company_id = ?`
+      ).bind(company.id).all<ResolvedJobReferenceRow>()
+    : { results: [] as ResolvedJobReferenceRow[] };
+  const resolvedReferenceRows = resolved.results ?? [];
+
+  const now = new Date().toISOString();
+  const persistListings = async (jobs: JobListing[]): Promise<NewJobMeta[]> => {
+    const checkpointMeta: NewJobMeta[] = jobs.map((job) => ({
+      company: company.name,
+      title: job.title,
+      jobId: crypto.randomUUID(),
+      listing: job,
+    }));
+    const insertStmts = checkpointMeta.flatMap((job) => {
+      const statements = [
+        db
+        .prepare(
+          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+        )
+        .bind(
+          job.jobId,
+          company.id,
+          job.listing.externalId,
+          job.listing.title,
+          job.listing.url,
+          job.listing.location,
+          job.listing.department ?? null,
+          job.listing.postedAt ?? null,
+          now,
+          job.listing.description ?? null,
+          job.listing.salary ?? null
+        ),
+      ];
+      if (shouldQueueNotificationsForCompany(company)) {
+        statements.push(
+          db.prepare(
+            `INSERT INTO notification_match_backlog (job_id, queued_at)
+             VALUES (?, ?)
+             ON CONFLICT(job_id) DO NOTHING`
+          ).bind(job.jobId, now)
+        );
+      }
+      return statements;
+    });
+
+    // Each job insert and its backlog row commit together. Feature generation
+    // follows immediately while this checkpoint's full descriptions are live.
+    await db.batch(insertStmts);
+    await upsertJobFeatures(
+      db,
+      checkpointMeta.map((job) => ({ jobId: job.jobId, listing: job.listing }))
+    );
+    return checkpointMeta;
+  };
+
+  if (discoveryReferences !== null) {
+    const currentIds = new Set(
+      discoveryReferences.map((reference) => reference.externalId)
+    );
+    if (!isTrustworthyJobSnapshot(
+      discoveryReferences.length,
+      Math.max(openExistingCount, resolvedReferenceRows.length)
+    )) {
+      throw new Error(
+        `${adapter.name} returned a suspiciously truncated job reference snapshot`
+      );
+    }
+
+    const resolvedUrls = new Map(
+      resolvedReferenceRows.map((row) => [row.external_id, row.job_url])
+    );
+    const resolvedPolicyVersions = new Map(
+      resolvedReferenceRows.map((row) => [
+        row.external_id,
+        row.inspection_policy_version,
+      ])
+    );
+    // Rows already represented in the catalog or explicit blocklist do not
+    // need another detail request, but must be represented in the ledger after
+    // a migration or recovery.
+    await recordResolvedJobReferences(
+      db,
+      company.id,
+      discoveryReferences.filter((reference) =>
+        (existingIds.has(reference.externalId) || blockedIds.has(reference.externalId))
+        && (
+          resolvedUrls.get(reference.externalId) !== reference.url
+          || (resolvedPolicyVersions.get(reference.externalId) ?? 0)
+            < SOURCE_JOB_INSPECTION_POLICY_VERSION
+        )
+      ),
+      now
+    );
+
+    const discoveredReferences = unresolvedJobReferences(
+      discoveryReferences,
+      resolvedUrls,
+      existingIds,
+      blockedIds,
+      resolvedPolicyVersions
+    );
+    const hydrationOrder = rotateDiscoveredJobsForPoll(
+      discoveredReferences,
+      company.last_polled_at
+    );
+    const newJobs = await processDiscoveredJobCheckpoints<JobReference>(hydrationOrder, {
+      hydrate: async (reference) => {
+        const listing = await adapter.fetchJobListing!(
+          company.ats_slug,
+          reference.externalId,
+          reference.url
+        );
+        if (listing.externalId !== reference.externalId) {
+          throw new Error(
+            `${adapter.name} detail identity did not match reference ${reference.externalId}`
+          );
+        }
+        return listing;
+      },
+      accept: (job) => Boolean(
+        job.description?.trim()
+        && isPotentialCatalogJobListing(job, customTitles)
+      ),
+      persist: persistListings,
+      afterCheckpoint: async (outcomes) => {
+        await recordResolvedJobReferences(
+          db,
+          company.id,
+          outcomes.flatMap(({ discovered, result }) =>
+            result.status === "fulfilled" ? [discovered] : []
+          ),
+          now
+        );
+      },
+    }, {
+      compactReturnMetadata: options.compactReturnMetadata,
+    });
+
+    await reconcileReferenceSnapshot(
+      db,
+      company.id,
+      existingRows,
+      resolvedReferenceRows,
+      currentIds,
+      now
+    );
+    return newJobs;
+  }
+
+  const finalizeFullReferenceSnapshot = async () => {
+    if (fullBackfillReferences === null) return;
+    if (!isTrustworthyJobSnapshot(
+      fullBackfillReferences.length,
+      Math.max(fetchedSnapshot.length, resolvedReferenceRows.length)
+    )) {
+      throw new Error(
+        `${adapter.name} returned a suspiciously truncated post-backfill reference snapshot`
+      );
+    }
+    const fetchedSnapshotIds = new Set(
+      fetchedSnapshot.map((job) => job.externalId)
+    );
+    const currentIds = new Set(
+      fullBackfillReferences.map((reference) => reference.externalId)
+    );
+    await recordResolvedJobReferences(
+      db,
+      company.id,
+      fullBackfillReferences.filter((reference) =>
+        fetchedSnapshotIds.has(reference.externalId)
+      ),
+      now
+    );
+    await deleteResolvedJobReferences(
+      db,
+      company.id,
+      resolvedReferenceRows
+        .filter((row) => !currentIds.has(row.external_id))
+        .map((row) => row.external_id)
+    );
+  };
 
   // Guard against partial/failed ATS responses: if the fetch returned far fewer
   // jobs than we currently have open, treat it as incomplete and do NOT close the
   // missing ones (a partial page would otherwise wipe valid jobs from every
   // feed). Absent jobs are only closed after CLOSE_AFTER_MISSES consecutive
   // misses so one bad page can't nuke the board.
-  const now = new Date().toISOString();
-  const responseLooksComplete =
-    fetchedSnapshot.length > 0
-    && (openExistingCount < 8 || fetchedSnapshot.length >= Math.floor(openExistingCount * 0.5));
+  const responseLooksComplete = pollingSnapshot.complete && isTrustworthyJobSnapshot(
+    fetchedSnapshot.length,
+    openExistingCount
+  );
+  if (pollingSnapshot.complete && fetchedSnapshot.length === 0 && openExistingCount > 0) {
+    throw new Error(
+      `Source returned an empty snapshot while ${openExistingCount} jobs are still open`
+    );
+  }
 
   // The eligibility filter above drops anything past the freshness window, so
   // `fetched` cannot answer "is this still on the board?" for an aged posting.
@@ -214,15 +806,30 @@ export async function pollCompany(
     const listed = snapshotById.get(extId);
     if (listed) {
       const evergreen = isEvergreenPosting(listed.title, listed.postedAt, true);
-      updateStmts.push(
-        db
-          .prepare(
-            `UPDATE jobs SET missed_polls = 0, closed_at = NULL, evergreen = ?
-             WHERE company_id = ? AND external_id = ?
-               AND (missed_polls != 0 OR closed_at IS NOT NULL OR evergreen != ?)`
-          )
-          .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
-      );
+      if (reopenableExtIds.has(extId)) {
+        updateStmts.push(
+          db
+            .prepare(
+              `UPDATE jobs SET missed_polls = 0, closed_at = NULL, evergreen = ?
+               WHERE company_id = ? AND external_id = ?
+                 AND (missed_polls != 0 OR closed_at IS NOT NULL OR evergreen != ?)`
+            )
+            .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
+        );
+      } else {
+        // Cleanup deliberately closed this title/location. Seeing it on the
+        // upstream board again resets absence tracking but must not undo the
+        // scope decision that removed it from Pinkslip.
+        updateStmts.push(
+          db
+            .prepare(
+              `UPDATE jobs SET missed_polls = 0, evergreen = ?
+               WHERE company_id = ? AND external_id = ?
+                 AND (missed_polls != 0 OR evergreen != ?)`
+            )
+            .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
+        );
+      }
     }
     if (fetchedExtIds.has(extId)) {
       // Already handled above; an eligible posting is by definition listed.
@@ -250,81 +857,53 @@ export async function pollCompany(
   }
 
   const discoveredJobs = fetched.filter(
-    (job) => !existingIds.has(job.externalId) && !blockedIds.has(job.externalId)
+    (job) => !existingIds.has(job.externalId)
+      && !blockedIds.has(job.externalId)
+      // A title that is already explicitly senior/staff/management cannot be
+      // rescued by description content under Pinkslip's fixed audience rules.
+      // Skip both its detail request and its catalog row, while keeping it in
+      // fetchedSnapshot above so absence tracking remains authoritative.
+      && isPotentialCatalogJobListing(job, customTitles)
   );
-  if (discoveredJobs.length === 0) return [];
+  if (
+    fullBackfillReferences !== null
+    && discoveredJobs.length > FULL_BACKFILL_NEW_JOB_LIMIT
+  ) {
+    throw new Error(
+      `${adapter.name} full backfill found ${discoveredJobs.length} new catalog jobs, exceeding the ${FULL_BACKFILL_NEW_JOB_LIMIT}-job persistence limit`
+    );
+  }
+  if (discoveredJobs.length === 0) {
+    await finalizeFullReferenceSnapshot();
+    return [];
+  }
 
-  // Detail-poor list APIs (notably Workday, Rippling, and SmartRecruiters) are
-  // enriched before insertion. That makes experience, exact date, and location
-  // available before a role can enter any feed or notification candidate, and
-  // it means the detail screen never needs a visible "still loading" interlude.
-  const hydration = await runWithConcurrency(
+  // Detail-poor list APIs are enriched before insertion so experience, exact
+  // date, and location are available before a role enters any feed. Work in
+  // small persisted checkpoints: this bounds both external requests and the
+  // descriptions retained in memory while preserving retry-on-later-poll.
+  const hydrationOrder = rotateDiscoveredJobsForPoll(
     discoveredJobs,
-    6,
-    (job) => hydrateListing(adapter, company.ats_slug, job)
+    company.last_polled_at
   );
-  const newJobs = hydration.flatMap((result) => {
-    if (result.status !== "fulfilled") return [];
-    const job = result.value;
-    return job.description?.trim() && isEligibleJobListing(job, customTitles) ? [job] : [];
+  const newJobs = await processDiscoveredJobCheckpoints(hydrationOrder, {
+    hydrate: (job) => hydrateListing(adapter, company.ats_slug, job),
+    accept: (job) => Boolean(
+      job.description?.trim()
+      && isPotentialCatalogJobListing(job, customTitles)
+    ),
+    persist: persistListings,
+  }, {
+    limit: options.fullBackfill
+      ? FULL_BACKFILL_NEW_JOB_LIMIT
+      : NEW_JOB_HYDRATION_LIMIT_PER_COMPANY,
+    limitCeiling: options.fullBackfill
+      ? FULL_BACKFILL_NEW_JOB_LIMIT
+      : NEW_JOB_HYDRATION_LIMIT_PER_COMPANY,
+    compactReturnMetadata: options.compactReturnMetadata,
   });
-  if (newJobs.length === 0) return [];
-
-  const newMeta: NewJobMeta[] = [];
-  const insertStmts = [];
-
-  for (const job of newJobs) {
-    const id = crypto.randomUUID();
-
-    insertStmts.push(
-      db
-        .prepare(
-          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
-        )
-        .bind(
-          id,
-          company.id,
-          job.externalId,
-          job.title,
-          job.url,
-          job.location,
-          job.department ?? null,
-          job.postedAt ?? null,
-          now,
-          job.description ?? null,
-          job.salary ?? null
-        )
-    );
-    insertStmts.push(
-      db.prepare(
-        `INSERT INTO notification_match_backlog (job_id, queued_at)
-         VALUES (?, ?)
-         ON CONFLICT(job_id) DO NOTHING`
-      ).bind(id, now)
-    );
-
-    newMeta.push({
-      company: company.name,
-      title: job.title,
-      jobId: id,
-      listing: job,
-    });
-  }
-
-  if (insertStmts.length > 0) {
-    // Keep each job insert beside its queue insert in the same transactional
-    // batch, while avoiding an oversized D1 batch when a large board is added.
-    for (let offset = 0; offset < insertStmts.length; offset += 70) {
-      await db.batch(insertStmts.slice(offset, offset + 70));
-    }
-    await upsertJobFeatures(
-      db,
-      newMeta.map((job) => ({ jobId: job.jobId, listing: job.listing }))
-    );
-  }
-
-  return newMeta;
+  await finalizeFullReferenceSnapshot();
+  return newJobs;
 }
 
 interface MissingContentRow {
@@ -343,7 +922,11 @@ interface MissingContentRow {
   ats_slug: string;
 }
 
-interface NotificationBacklogRow {
+type NullableStoredJobFeatureColumns = {
+  [Key in keyof StoredJobFeatureColumns]: StoredJobFeatureColumns[Key] | null;
+};
+
+type NotificationBacklogRow = {
   job_id: string;
   external_id: string;
   title: string;
@@ -354,10 +937,29 @@ interface NotificationBacklogRow {
   description: string | null;
   salary: string | null;
   company_name: string;
+} & NullableStoredJobFeatureColumns;
+
+export interface NotificationMatchJob extends NewJobMeta {
+  features?: JobFeatures;
+}
+
+function hasStoredJobFeatures(
+  row: NotificationBacklogRow
+): row is NotificationBacklogRow & StoredJobFeatureColumns {
+  return row.role_family !== null
+    && row.specialties_json !== null
+    && row.seniority !== null
+    && row.work_mode !== null
+    && row.countries_json !== null
+    && row.metro_areas_json !== null
+    && row.requires_advanced_degree !== null
+    && row.requires_security_clearance !== null
+    && row.classifier_version === JOB_CLASSIFIER_VERSION
+    && row.confidence !== null;
 }
 
 export interface NotificationBacklogDependencies {
-  load: (db: D1Database, limit: number) => Promise<NewJobMeta[]>;
+  load: (db: D1Database, limit: number) => Promise<NotificationMatchJob[]>;
   match: typeof matchJobsForAllProfiles;
   createCandidates: typeof createNotificationCandidates;
   clear: (db: D1Database, jobIds: string[]) => Promise<void>;
@@ -366,7 +968,7 @@ export interface NotificationBacklogDependencies {
 async function loadNotificationMatchBacklog(
   db: D1Database,
   limit: number
-): Promise<NewJobMeta[]> {
+): Promise<NotificationMatchJob[]> {
   // Rows can become ineligible while waiting in the queue. Removing those
   // here prevents a permanently closed or content-less job from blocking the
   // oldest-first batch forever.
@@ -384,19 +986,37 @@ async function loadNotificationMatchBacklog(
 
   const result = await db.prepare(
     `SELECT nmb.job_id, j.external_id, j.title, j.url, j.location,
-            j.department, j.posted_at, j.description, j.salary,
-            c.name AS company_name
+            j.department, j.posted_at,
+            CASE
+              WHEN jf.job_id IS NULL
+                OR jf.classifier_version != ?
+                OR jf.requires_advanced_degree IS NULL
+                OR jf.requires_security_clearance IS NULL
+                THEN j.description
+              ELSE 'available'
+            END AS description,
+            j.salary, c.name AS company_name,
+            jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
+            jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
+            jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
+            jf.sponsorship_available, jf.requires_advanced_degree,
+            jf.requires_security_clearance,
+            jf.classifier_version, jf.confidence
      FROM notification_match_backlog nmb
      JOIN jobs j ON j.id = nmb.job_id
      JOIN companies c ON c.id = j.company_id
+     LEFT JOIN job_features jf ON jf.job_id = j.id
      ORDER BY nmb.queued_at ASC, nmb.job_id ASC
      LIMIT ?`
-  ).bind(limit).all<NotificationBacklogRow>();
+  ).bind(JOB_CLASSIFIER_VERSION, limit).all<NotificationBacklogRow>();
 
   return (result.results ?? []).map((row) => ({
     company: row.company_name,
     title: row.title,
     jobId: row.job_id,
+    features: hasStoredJobFeatures(row)
+      ? storedJobFeaturesFromRow(row)
+      : undefined,
     listing: {
       externalId: row.external_id,
       title: row.title,
@@ -435,18 +1055,32 @@ export async function processNotificationMatchBacklog(
   limit = NOTIFICATION_MATCH_BATCH_SIZE,
   dependencies: NotificationBacklogDependencies = notificationBacklogDependencies
 ): Promise<number> {
-  const jobs = await dependencies.load(db, limit);
-  if (jobs.length === 0) return 0;
+  let processed = 0;
+  while (processed < limit) {
+    const checkpointLimit = Math.min(
+      NOTIFICATION_MATCH_CHECKPOINT_SIZE,
+      limit - processed
+    );
+    const jobs = await dependencies.load(db, checkpointLimit);
+    if (jobs.length === 0) break;
 
-  await dependencies.match(
-    db,
-    jobs.map((job) => ({ jobId: job.jobId, listing: job.listing }))
-  );
-  await dependencies.createCandidates(db, jobs.map((job) => job.jobId));
-  // Candidate creation is idempotent. Clear only after it succeeds so a crash
-  // retries the whole batch instead of losing notifications.
-  await dependencies.clear(db, jobs.map((job) => job.jobId));
-  return jobs.length;
+    await dependencies.match(
+      db,
+      jobs.map((job) => ({
+        jobId: job.jobId,
+        listing: job.listing,
+        features: job.features,
+      }))
+    );
+    await dependencies.createCandidates(db, jobs.map((job) => job.jobId));
+    // Candidate creation is idempotent. Clear only after it succeeds so a crash
+    // retries this checkpoint instead of losing notifications.
+    await dependencies.clear(db, jobs.map((job) => job.jobId));
+    processed += jobs.length;
+
+    if (jobs.length < checkpointLimit) break;
+  }
+  return processed;
 }
 
 /**
@@ -532,7 +1166,7 @@ async function backfillMissingJobContent(
   }
 
   return repaired.flatMap(({ row, listing }) => {
-    if (!isEligibleJobListing(listing, customTitles)) return [];
+    if (!isPotentialCatalogJobListing(listing, customTitles)) return [];
     return [{
       company: row.company_name,
       title: listing.title,
@@ -555,6 +1189,21 @@ export async function sendNotificationsForJobs(
   return deliverPendingNotifications(db, env);
 }
 
+/**
+ * Notification matching runs in its own scheduled invocation so it receives a
+ * fresh Worker memory budget instead of inheriting the polling heap. The
+ * two-minute offset from source polling keeps posting-to-alert latency close to
+ * the existing cadence while preventing the two workloads from overlapping.
+ */
+export async function runNotificationCycle(env: Env): Promise<{
+  matchesProcessed: number;
+  notificationsSent: number;
+}> {
+  const matchesProcessed = await processNotificationMatchBacklog(env.DB);
+  const notificationsSent = await deliverPendingNotifications(env.DB, env);
+  return { matchesProcessed, notificationsSent };
+}
+
 export async function runPollCycle(
   env: Env,
   options: RunPollCycleOptions = {}
@@ -573,6 +1222,11 @@ export async function runPollCycle(
   const log: string[] = [];
   const trackRuns = await hasTable(db, "fetch_runs");
   await ensureEligibleJobs(db);
+  // Classifier migrations must progress without depending on an admin opening
+  // Inbox. The bounded batch prioritizes internship-like titles, so a career-
+  // stage policy change becomes visible promptly while the remaining catalog
+  // continues draining over subsequent poll cycles.
+  await ensureJobFeatures(db);
 
   if (trackRuns) {
     // Reap runs that never reached the completion UPDATE. A cron tick that is
@@ -645,7 +1299,9 @@ export async function runPollCycle(
   const results = await runWithConcurrency(
     companies,
     6,
-    (company) => pollCompany(company, db, customTitles)
+    (company) => pollCompany(company, db, customTitles, {
+      compactReturnMetadata: true,
+    })
   );
 
   const allNewJobs: NewJobMeta[] = [];

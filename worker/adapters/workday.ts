@@ -21,7 +21,10 @@ interface WorkdayPosting {
   externalPath: string;
   locationsText?: string;
   postedOn?: string;
-  bulletFields?: string[];
+  // Workday tenants occasionally emit null placeholders in this nominally
+  // string-only list. Keep the network shape honest and validate each value
+  // before using it as a requisition ID.
+  bulletFields?: unknown[];
 }
 
 interface WorkdayFacetValue {
@@ -229,7 +232,11 @@ async function fetchRemainingPages(
 }
 
 function mapPosting(source: WorkdaySource, posting: WorkdayPosting): JobListing {
-  const externalId = posting.bulletFields?.find((field) => field.trim()) ?? posting.externalPath;
+  const externalId = posting.bulletFields
+    ?.find((field): field is string =>
+      typeof field === "string" && field.trim().length > 0
+    )
+    ?.trim() ?? posting.externalPath;
   const rawLocation = posting.locationsText?.trim() || "";
   const aggregateLocation = rawLocation.match(/^(\d+)\s+locations?$/i);
   return {
@@ -280,6 +287,11 @@ export class WorkdayAdapter implements ATSAdapter {
     const source = parseWorkdaySource(slug);
     let appliedFacets: Record<string, string[]> = {};
     let firstPage = await fetchPage(source, 0, appliedFacets);
+
+    // A globally empty board may not include any facet metadata. The payload is
+    // still a complete, schema-valid zero-job snapshot, so return it instead of
+    // turning a legitimate closure into a permanent source failure.
+    if (firstPage.total === 0) return [];
 
     const facet = usFacet(firstPage);
     appliedFacets = { [facet.parameter]: facet.ids };

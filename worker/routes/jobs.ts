@@ -14,13 +14,33 @@ import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import { isUsJobLocation } from "../us-jobs";
 import {
+  CAREER_STAGE_OPTIONS,
   LOCATION_OPTIONS,
   MAX_YEARS_EXPERIENCE,
   ROLE_OPTIONS,
   specificRoleSpecialties,
+  type CareerStage,
   type RoleId,
 } from "../../shared/search-profile";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
+import { resolveJobId } from "../job-identity";
+
+/**
+ * Source timestamps arrive with mixed UTC representations and offsets, so the
+ * feed must normalize them before ordering. Keep first_seen_at as the factual
+ * fallback for sources that publish no date and as the stable tie-breaker for
+ * date-only sources.
+ */
+export const JOB_FEED_ORDER_BY =
+  "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
+
+export const JOB_MATCH_FACT_CASE = `CASE
+  WHEN jf.seniority = 'internship' THEN 'Internship'
+  WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
+  WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
+  WHEN jf.seniority = 'early_career' THEN 'Early-career role'
+  ELSE 'Experience not specified'
+END`;
 
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -41,13 +61,7 @@ const JOB_LIST_FIELDS = `
   j.posted_at,
   j.first_seen_at,
   j.evergreen,
-  CASE
-    WHEN jf.min_years = 0 THEN 'No experience required'
-    WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
-    WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
-    WHEN jf.seniority = 'early_career' THEN 'Early-career role'
-    ELSE 'Experience not specified'
-  END AS match_fact,
+  ${JOB_MATCH_FACT_CASE} AS match_fact,
   jf.specialties_json,
   jf.sponsorship_available,
   CAST(
@@ -90,13 +104,7 @@ const JOB_DETAIL_FIELDS = `
   j.posted_at,
   j.first_seen_at,
   j.evergreen,
-  CASE
-    WHEN jf.min_years = 0 THEN 'No experience required'
-    WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
-    WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
-    WHEN jf.seniority = 'early_career' THEN 'Early-career role'
-    ELSE 'Experience not specified'
-  END AS match_fact,
+  ${JOB_MATCH_FACT_CASE} AS match_fact,
   jf.specialties_json,
   jf.sponsorship_available,
   CAST(
@@ -140,6 +148,9 @@ type JobListRow = JobRow & {
 };
 
 const ROLE_IDS = new Set<string>(ROLE_OPTIONS.map((option) => option.id));
+const CAREER_STAGE_IDS = new Set<string>(
+  CAREER_STAGE_OPTIONS.map((option) => option.id)
+);
 
 function serializeJob(row: JobListRow) {
   let specialties: string[] = [];
@@ -212,6 +223,54 @@ export function parseRoleFilter(value: string | undefined): RoleId[] | undefined
   }
 
   return requested as RoleId[];
+}
+
+/** Strictly parses the v4 career-stage feed filter. */
+export function parseStageFilter(
+  value: string | undefined
+): CareerStage[] | undefined | null {
+  if (value === undefined) return undefined;
+
+  // Empty CSV segments are malformed, not harmless whitespace. Rejecting them
+  // prevents a typo such as `internship,` from silently becoming a broader
+  // valid request after parseListParam drops the empty token.
+  if (value.split(",").some((item) => item.trim() === "")) return null;
+
+  const requested = [...new Set(parseListParam(value))];
+  if (
+    requested.length === 0
+    || requested.some((stage) => !CAREER_STAGE_IDS.has(stage))
+  ) {
+    return null;
+  }
+  return requested as CareerStage[];
+}
+
+export function buildStageExperienceFilter(
+  stageFilter: CareerStage[] | undefined,
+  minYoe: number | null,
+  maxYoe: number | null
+): { conditions: string[]; bindings: Array<string | number> } {
+  if (stageFilter !== undefined) {
+    return {
+      conditions: [
+        `jf.seniority IN (${stageFilter.map(() => "?").join(", ")})`,
+      ],
+      bindings: [...stageFilter],
+    };
+  }
+
+  const conditions: string[] = [];
+  const bindings: Array<string | number> = [];
+  if (maxYoe !== null) {
+    conditions.push("(jf.min_years IS NULL OR jf.min_years <= ?)");
+    bindings.push(maxYoe);
+  }
+  if (minYoe !== null && minYoe > 0) {
+    conditions.push("jf.min_years IS NOT NULL AND jf.min_years >= ?");
+    bindings.push(minYoe);
+  }
+  return { conditions, bindings };
 }
 
 function buildLocationFilter(location: string | undefined, locations: string | undefined) {
@@ -287,10 +346,15 @@ jobs.get("/", async (c) => {
     max_yoe,
     posted,
     roles,
+    stages,
   } = c.req.query();
   const roleFilter = parseRoleFilter(roles);
   if (roleFilter === null) {
     return c.json({ error: "Invalid roles filter" }, 400);
+  }
+  const stageFilter = parseStageFilter(stages);
+  if (stageFilter === null) {
+    return c.json({ error: "Invalid stages filter" }, 400);
   }
 
   if (posted === "evergreen") {
@@ -423,14 +487,15 @@ jobs.get("/", async (c) => {
     bindings.push(userId);
   }
 
-  if (maxYoe !== null) {
-    conditions.push("(jf.min_years IS NULL OR jf.min_years <= ?)");
-    bindings.push(maxYoe);
-  }
-  if (minYoe !== null && minYoe > 0) {
-    conditions.push("jf.min_years IS NOT NULL AND jf.min_years >= ?");
-    bindings.push(minYoe);
-  }
+  // `stages` takes precedence. Legacy YOE filters remain only for clients
+  // released before profile v4.
+  const stageExperienceFilter = buildStageExperienceFilter(
+    stageFilter,
+    minYoe,
+    maxYoe
+  );
+  conditions.push(...stageExperienceFilter.conditions);
+  bindings.push(...stageExperienceFilter.bindings);
 
   const locationFilter = buildLocationFilter(location, locations);
   if (locationFilter) {
@@ -441,7 +506,7 @@ jobs.get("/", async (c) => {
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   // Feed order is intentionally factual: newest source/detection date first.
   // User eligibility is binary, so there is no hidden score affecting rank.
-  const orderBy = "date(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
+  const orderBy = JOB_FEED_ORDER_BY;
 
   const sql = `
     SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}
@@ -539,7 +604,7 @@ async function backfillJobContent(
 }
 
 jobs.get("/:id", async (c) => {
-  const { id } = c.req.param();
+  const id = await resolveJobId(c.env.DB, c.req.param("id"));
   const userId = c.get("userId");
   const db = c.env.DB;
   await ensureUserJobMatches(db, userId, [id]);
@@ -578,7 +643,7 @@ jobs.get("/:id", async (c) => {
 
 jobs.patch("/:id", async (c) => {
   const userId = c.get("userId");
-  const { id } = c.req.param();
+  const id = await resolveJobId(c.env.DB, c.req.param("id"));
   const body = await c.req.json<{ dismissed?: boolean; saved?: boolean; applied?: boolean }>();
   await ensureUserJobMatches(c.env.DB, userId, [id]);
 
@@ -682,7 +747,7 @@ jobs.patch("/:id", async (c) => {
 // Blocking is global, not per-user: the poller skips blocked external_ids, so the
 // job never returns from a later poll of the same company.
 jobs.delete("/:id/block", requireAdmin, async (c) => {
-  const { id } = c.req.param();
+  const id = await resolveJobId(c.env.DB, c.req.param("id"));
 
   const job = await c.env.DB.prepare(
     "SELECT id, company_id, external_id, title FROM jobs WHERE id = ?"

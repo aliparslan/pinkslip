@@ -1,10 +1,17 @@
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
+import { ensureEligibleJobs } from "../job-scope";
 import { validateFeedbackInput } from "../feedback";
 import { recordProductEvent } from "../product-events";
-import { rowToListing, type FeatureJobRow } from "../job-features";
+import {
+  ensureJobFeatures,
+  JOB_CLASSIFIER_VERSION,
+  rowToListing,
+  type FeatureJobRow,
+} from "../job-features";
 import { matchJobsForAllProfiles } from "../user-job-matches";
 import type { Env, Variables } from "../types";
+import { resolveJobId } from "../job-identity";
 
 const interactions = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -20,7 +27,7 @@ interactions.get("/viewed-jobs", async (c) => {
 
 interactions.post("/viewed-jobs/:id", async (c) => {
   const userId = c.get("userId");
-  const jobId = c.req.param("id");
+  const jobId = await resolveJobId(c.env.DB, c.req.param("id"));
   const job = await c.env.DB.prepare("SELECT id FROM jobs WHERE id = ?")
     .bind(jobId)
     .first<{ id: string }>();
@@ -45,9 +52,10 @@ interactions.post("/viewed-jobs/:id", async (c) => {
 });
 
 interactions.delete("/viewed-jobs/:id", async (c) => {
+  const jobId = await resolveJobId(c.env.DB, c.req.param("id"));
   await c.env.DB.prepare(
     "DELETE FROM viewed_jobs WHERE user_id = ? AND job_id = ?"
-  ).bind(c.get("userId"), c.req.param("id")).run();
+  ).bind(c.get("userId"), jobId).run();
   return c.body(null, 204);
 });
 
@@ -118,11 +126,14 @@ interactions.post("/reports", async (c) => {
     return c.json({ error: "A company or job is required" }, 400);
   }
 
+  const jobId = body.job_id
+    ? await resolveJobId(c.env.DB, body.job_id)
+    : null;
   let companyId = body.company_id ?? null;
-  if (body.job_id) {
+  if (jobId) {
     const job = await c.env.DB.prepare(
       "SELECT company_id FROM jobs WHERE id = ?"
-    ).bind(body.job_id).first<{ company_id: string }>();
+    ).bind(jobId).first<{ company_id: string }>();
     if (!job) return c.json({ error: "Job not found" }, 404);
     companyId = job.company_id;
   } else if (companyId) {
@@ -141,7 +152,7 @@ interactions.post("/reports", async (c) => {
     id,
     userId,
     companyId,
-    body.job_id ?? null,
+    jobId,
     body.report_type,
     body.notes?.trim().slice(0, 1000) ?? "",
     new Date().toISOString()
@@ -150,8 +161,8 @@ interactions.post("/reports", async (c) => {
     userId,
     sessionId: c.get("sessionId"),
     name: "content_reported",
-    entityType: body.job_id ? "job" : "company",
-    entityId: body.job_id ?? companyId,
+    entityType: jobId ? "job" : "company",
+    entityId: jobId ?? companyId,
     properties: { report_type: body.report_type },
   }).catch(() => undefined);
   return c.json({ id, status: "open" }, 201);
@@ -192,6 +203,11 @@ interactions.patch("/reports/:id", requireAdmin, async (c) => {
 });
 
 interactions.get("/job-reviews", requireAdmin, async (c) => {
+  await ensureEligibleJobs(c.env.DB);
+  // The review queue is where classifier changes are evaluated by a human.
+  // Reclassify one bounded batch before reading it so reopening/paginating the
+  // queue drains a classifier-version backlog instead of showing stale reasons.
+  await ensureJobFeatures(c.env.DB);
   const state = c.req.query("state") ?? "needs_review";
   if (!["needs_review", "approved", "rejected", "all"].includes(state)) {
     return c.json({ error: "Invalid review state" }, 400);
@@ -211,9 +227,11 @@ interactions.get("/job-reviews", requireAdmin, async (c) => {
      JOIN jobs j ON j.id = q.job_id
      JOIN companies c ON c.id = j.company_id
      WHERE (? = 'all' OR q.state = ?)
+       AND (q.state != 'needs_review' OR q.classifier_version = ?)
+       AND (q.state != 'needs_review' OR j.closed_at IS NULL)
      ORDER BY datetime(q.updated_at) DESC
      LIMIT ? OFFSET ?`
-    ).bind(state, state, limit + 1, offset).all<{
+    ).bind(state, state, JOB_CLASSIFIER_VERSION, limit + 1, offset).all<{
     job_id: string;
     state: "needs_review" | "approved" | "rejected";
     reason_codes_json: string;
@@ -230,9 +248,12 @@ interactions.get("/job-reviews", requireAdmin, async (c) => {
     }>(),
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count
-       FROM job_review_queue
-       WHERE (? = 'all' OR state = ?)`
-    ).bind(state, state).first<{ count: number }>(),
+       FROM job_review_queue q
+       JOIN jobs j ON j.id = q.job_id
+       WHERE (? = 'all' OR q.state = ?)
+         AND (q.state != 'needs_review' OR q.classifier_version = ?)
+         AND (q.state != 'needs_review' OR j.closed_at IS NULL)`
+    ).bind(state, state, JOB_CLASSIFIER_VERSION).first<{ count: number }>(),
   ]);
 
   const rawRows = result.results ?? [];
@@ -267,7 +288,7 @@ interactions.get("/job-reviews", requireAdmin, async (c) => {
 });
 
 interactions.patch("/job-reviews/:id", requireAdmin, async (c) => {
-  const jobId = c.req.param("id");
+  const jobId = await resolveJobId(c.env.DB, c.req.param("id"));
   const body: {
     state?: "needs_review" | "approved" | "rejected";
     admin_note?: string;

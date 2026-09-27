@@ -60,7 +60,9 @@ describe("WorkdayAdapter", () => {
             externalPath: "/job/Austin/Software-Engineer_R123",
             locationsText: "Austin, TX",
             postedOn: "Posted Today",
-            bulletFields: ["R123"],
+            // NVIDIA currently emits a null placeholder before the public
+            // requisition ID. It must not take down the entire company poll.
+            bulletFields: [null, " R123 "],
           },
           {
             title: "Product Designer",
@@ -95,6 +97,18 @@ describe("WorkdayAdapter", () => {
       description: null,
     }));
     expect(jobs[1].location).toBe("2 US locations");
+  });
+
+  it("accepts a complete zero-job board even when Workday omits facets", async () => {
+    const fetchMock = mock().mockResolvedValueOnce(response({
+      total: 0,
+      jobPostings: [],
+      facets: [],
+    }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    expect(await adapter.fetchJobs(SOURCE_URL)).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("never relabels an explicit foreign location as United States", async () => {
