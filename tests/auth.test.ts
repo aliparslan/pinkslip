@@ -1,12 +1,15 @@
 import { describe, it, expect } from "bun:test";
 import { Hono } from "hono";
 import {
+  apiTokenStorageKey,
   authMiddleware,
   generateApiToken,
   parseBearerToken,
   requireAdmin,
   requireAuthenticated,
+  shouldRecordAuthActivity,
 } from "@worker/auth";
+import { consumeEmailLoginToken } from "@worker/routes/auth";
 import preferenceRoutes from "@worker/routes/preferences";
 import type { Env, Variables } from "@worker/types";
 import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../shared/search-profile";
@@ -31,6 +34,95 @@ describe("generateApiToken", () => {
     expect(a).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(a.length).toBeGreaterThanOrEqual(42);
     expect(a).not.toBe(b);
+  });
+});
+
+describe("auth credential storage", () => {
+  it("derives a versioned storage key without retaining the bearer token", async () => {
+    const rawToken = generateApiToken();
+    const stored = await apiTokenStorageKey(rawToken);
+
+    expect(stored).toMatch(/^sha256:v1:[0-9a-f]{64}$/);
+    expect(stored).not.toContain(rawToken);
+  });
+
+  it("throttles non-security activity writes to once per hour", () => {
+    const now = Date.parse("2026-08-27T12:00:00.000Z");
+    expect(shouldRecordAuthActivity(null, now)).toBe(true);
+    expect(shouldRecordAuthActivity("2026-08-27T11:30:00.000Z", now)).toBe(false);
+    expect(shouldRecordAuthActivity("2026-08-27T11:00:00.000Z", now)).toBe(true);
+  });
+});
+
+function fakeMagicLinkDb(expiresAt = new Date(Date.now() + 60_000).toISOString()) {
+  let consumed = false;
+  let consumeCount = 0;
+
+  type FakeStatement = {
+    sql: string;
+    bindings: unknown[];
+    bind(...values: unknown[]): FakeStatement;
+  };
+
+  const db = {
+    prepare(sql: string) {
+      const statement: FakeStatement = {
+        sql: sql.replace(/\s+/g, " ").trim(),
+        bindings: [],
+        bind(...values: unknown[]) {
+          statement.bindings = values;
+          return statement;
+        },
+      };
+      return statement;
+    },
+    async batch(statements: FakeStatement[]) {
+      const [selection, consumption] = statements;
+      const selectionNow = String(selection.bindings[1]);
+      const updateNow = String(consumption.bindings[2]);
+      const sameTokenHash = selection.bindings[0] === consumption.bindings[1];
+      const valid = !consumed
+        && sameTokenHash
+        && selectionNow === updateNow
+        && Date.parse(expiresAt) > Date.parse(selectionNow);
+      const selectedRows = valid
+        ? [{ id: "email-token-1", email: "person@example.com" }]
+        : [];
+
+      if (valid) {
+        consumed = true;
+        consumeCount += 1;
+      }
+
+      return [
+        { success: true, meta: { changes: 0 }, results: selectedRows },
+        { success: true, meta: { changes: valid ? 1 : 0 }, results: [] },
+      ];
+    },
+  } as unknown as D1Database;
+
+  return { db, getConsumeCount: () => consumeCount };
+}
+
+describe("consumeEmailLoginToken", () => {
+  it("allows exactly one winner when the same magic link is consumed concurrently", async () => {
+    const { db, getConsumeCount } = fakeMagicLinkDb();
+    const results = await Promise.all([
+      consumeEmailLoginToken(db, "same-magic-link"),
+      consumeEmailLoginToken(db, "same-magic-link"),
+    ]);
+
+    expect(results.filter(Boolean)).toEqual([
+      { id: "email-token-1", email: "person@example.com" },
+    ]);
+    expect(getConsumeCount()).toBe(1);
+    expect(await consumeEmailLoginToken(db, "same-magic-link")).toBeNull();
+  });
+
+  it("does not consume an expired magic link", async () => {
+    const { db, getConsumeCount } = fakeMagicLinkDb("2020-01-01T00:00:00.000Z");
+    expect(await consumeEmailLoginToken(db, "expired-magic-link")).toBeNull();
+    expect(getConsumeCount()).toBe(0);
   });
 });
 
@@ -64,9 +156,9 @@ function fakeDb(
           return stmt;
         },
         async first<T>() {
-          if (normalized.includes("SELECT user_id FROM api_tokens WHERE token = ?")) {
+          if (normalized.includes("SELECT user_id, last_used_at FROM api_tokens WHERE token = ?")) {
             const userId = tokens[bindings[0]];
-            return (userId ? { user_id: userId } : null) as T | null;
+            return (userId ? { user_id: userId, last_used_at: null } : null) as T | null;
           }
           if (normalized.includes("SELECT id FROM users WHERE id = ? LIMIT 1")) {
             return (users.has(bindings[0]) ? { id: bindings[0] } : null) as T | null;
@@ -104,8 +196,15 @@ function fakeDb(
               state: bindings[2],
               expires_at: bindings[4],
             });
+          } else if (normalized.startsWith("UPDATE api_tokens SET token = ?")) {
+            const [nextToken, , currentToken] = bindings as string[];
+            const userId = tokens[currentToken];
+            if (userId) {
+              delete tokens[currentToken];
+              tokens[nextToken] = userId;
+            }
           }
-          return {} as any;
+          return { success: true, meta: { changes: 1 }, results: [] } as any;
         },
       };
       return stmt as any;
@@ -153,6 +252,54 @@ describe("authMiddleware", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: "user-42", sessionState: "authenticated" });
+  });
+
+  it("authenticates a raw bearer against a one-way storage key", async () => {
+    const rawToken = "fresh-token";
+    const storageKey = await apiTokenStorageKey(rawToken);
+    const db = fakeDb({ [storageKey]: "user-42" });
+    const app = appWith();
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/v2/me", {
+        headers: { authorization: `Bearer ${rawToken}` },
+      }),
+      ENV(db)
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: "user-42", sessionState: "authenticated" });
+  });
+
+  it("lazily replaces a legacy plaintext token after successful use", async () => {
+    const tokens: Record<string, string> = { "legacy-token": "user-42" };
+    const db = fakeDb(tokens);
+    const app = appWith();
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/v2/me", {
+        headers: { authorization: "Bearer legacy-token" },
+      }),
+      ENV(db)
+    );
+
+    expect(res.status).toBe(200);
+    expect(tokens["legacy-token"]).toBeUndefined();
+    expect(tokens[await apiTokenStorageKey("legacy-token")]).toBe("user-42");
+  });
+
+  it("does not accept a leaked storage key as the bearer credential", async () => {
+    const rawToken = "fresh-token";
+    const storageKey = await apiTokenStorageKey(rawToken);
+    const db = fakeDb({ [storageKey]: "user-42" });
+    const app = appWith();
+    const res = await (app.fetch as any)(
+      new Request("http://localhost/api/v2/me", {
+        headers: { authorization: `Bearer ${storageKey}` },
+      }),
+      ENV(db)
+    );
+
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { code: string }).code).toBe("invalid_token");
   });
 
   it("accepts an opaque native session without elevating a guest", async () => {

@@ -6,12 +6,20 @@ import {
 } from "../account";
 import { verifyAppleIdentityToken } from "../apple";
 import {
+  exchangeAppleAuthorizationCode,
+  resolveAppleServerConfig,
+  revokeAppleAuthorizationForUser,
+  storeAppleRefreshToken,
+} from "../apple-oauth";
+import {
   buildCookie,
   COOKIE_NAMES,
+  apiTokenStorageKey,
   countIdentitiesForUser,
   createGuestSession,
   generateApiToken,
   getPrimaryIdentity,
+  isApiTokenStorageKey,
   replaceSession,
   requireAuthenticated,
   revokeApiTokensForUser,
@@ -120,6 +128,7 @@ async function signInWithIdentity(
     email?: string | null;
     emailVerified?: boolean;
     fullName?: string | null;
+    afterIdentity?: (identity: { id: string; userId: string }) => Promise<void>;
   }
 ) {
   const now = new Date().toISOString();
@@ -147,13 +156,14 @@ async function signInWithIdentity(
     });
   }
 
+  const identityId = directIdentity?.id ?? crypto.randomUUID();
   if (!directIdentity) {
     await db.prepare(
       `INSERT INTO auth_identities (
          id, user_id, provider, provider_subject, email, email_verified, created_at, last_used_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
-      crypto.randomUUID(),
+      identityId,
       targetUserId,
       args.provider,
       args.providerSubject,
@@ -177,6 +187,7 @@ async function signInWithIdentity(
     ).run();
   }
 
+  await args.afterIdentity?.({ id: identityId, userId: targetUserId });
   await updateUserNameIfBlank(db, targetUserId, args.fullName);
   await revokeApiTokensForUser(db, targetUserId);
   const nextSession = await replaceSession(db, currentSessionId, targetUserId, "authenticated");
@@ -201,27 +212,35 @@ async function signInWithIdentity(
   return nextSession;
 }
 
-async function consumeEmailLoginToken(db: D1Database, rawToken: string) {
+export async function consumeEmailLoginToken(db: D1Database, rawToken: string) {
   const tokenHash = await sha256Hex(rawToken);
   const now = new Date().toISOString();
-  const row = await db.prepare(
-    `SELECT id, email
-     FROM email_login_tokens
-     WHERE token_hash = ?
-       AND consumed_at IS NULL
-       AND datetime(expires_at) > datetime(?)
-     LIMIT 1`
-  ).bind(tokenHash, now).first<{ id: string; email: string }>();
+  type EmailLoginTokenRow = { id: string; email: string };
 
-  if (!row) {
-    return null;
-  }
+  // D1 batches are transactions: the lookup and conditional consume execute
+  // sequentially without another verification interleaving between them. The
+  // repeated predicates are intentional—the update's change count is the
+  // compare-and-set result that decides which concurrent request won.
+  const [selection, consumption] = await db.batch<EmailLoginTokenRow>([
+    db.prepare(
+      `SELECT id, email
+       FROM email_login_tokens
+       WHERE token_hash = ?
+         AND consumed_at IS NULL
+         AND datetime(expires_at) > datetime(?)
+       LIMIT 1`
+    ).bind(tokenHash, now),
+    db.prepare(
+      `UPDATE email_login_tokens
+       SET consumed_at = ?
+       WHERE token_hash = ?
+         AND consumed_at IS NULL
+         AND datetime(expires_at) > datetime(?)`
+    ).bind(now, tokenHash, now),
+  ]);
 
-  await db.prepare(
-    "UPDATE email_login_tokens SET consumed_at = ? WHERE id = ?"
-  ).bind(now, row.id).run();
-
-  return row;
+  if ((consumption.meta.changes ?? 0) !== 1) return null;
+  return selection.results[0] ?? null;
 }
 
 auth.post("/token", requireAuthenticated, async (c) => {
@@ -231,14 +250,27 @@ auth.post("/token", requireAuthenticated, async (c) => {
     "SELECT token FROM api_tokens WHERE user_id = ? LIMIT 1"
   ).bind(userId).first<{ token: string }>();
 
-  if (existing?.token) {
+  if (existing?.token && !isApiTokenStorageKey(existing.token)) {
+    // Migrate a legacy plaintext row before returning the same credential to
+    // an older native client. Subsequent requests authenticate by its digest.
+    const storageKey = await apiTokenStorageKey(existing.token);
+    await c.env.DB.prepare(
+      "UPDATE api_tokens SET token = ? WHERE token = ? AND user_id = ?"
+    ).bind(storageKey, existing.token, userId).run();
     return c.json({ token: existing.token });
   }
 
   const token = generateApiToken();
-  await c.env.DB.prepare(
-    "INSERT INTO api_tokens (token, user_id, created_at) VALUES (?, ?, ?)"
-  ).bind(token, userId, new Date().toISOString()).run();
+  const storageKey = await apiTokenStorageKey(token);
+  const now = new Date().toISOString();
+  await c.env.DB.batch([
+    // A digest cannot be reversed for a repeat response. Reissuing from this
+    // endpoint therefore rotates any previous token for the account.
+    c.env.DB.prepare("DELETE FROM api_tokens WHERE user_id = ?").bind(userId),
+    c.env.DB.prepare(
+      "INSERT INTO api_tokens (token, user_id, created_at) VALUES (?, ?, ?)"
+    ).bind(storageKey, userId, now),
+  ]);
 
   return c.json({ token }, 201);
 });
@@ -276,6 +308,38 @@ auth.post("/apple/exchange", async (c) => {
     return c.json({ error: "Apple user identifier mismatch", code: "invalid_apple_token" }, 401);
   }
 
+  const appleConfig = resolveAppleServerConfig(c.env);
+  const authorizationCode = body?.authorizationCode?.trim();
+  let refreshToken: string | null = null;
+  if (appleConfig) {
+    if (!authorizationCode) {
+      return c.json({
+        error: "Apple did not provide the authorization needed to finish sign-in. Try again.",
+        code: "apple_authorization_code_required",
+      }, 400);
+    }
+    try {
+      const tokenResponse = await exchangeAppleAuthorizationCode(appleConfig, authorizationCode);
+      const exchangedIdentity = await verifyAppleIdentityToken(c.env, tokenResponse.id_token, nonce);
+      if (exchangedIdentity.sub !== verified.sub) {
+        return c.json({
+          error: "Apple authorization did not match this account.",
+          code: "invalid_apple_token",
+        }, 401);
+      }
+      refreshToken = tokenResponse.refresh_token;
+    } catch (error) {
+      console.error(JSON.stringify({
+        message: "apple authorization code exchange failed",
+        error: error instanceof Error ? error.message : String(error),
+      }));
+      return c.json({
+        error: "Apple sign-in could not be completed. Try again.",
+        code: "apple_authorization_exchange_failed",
+      }, 502);
+    }
+  }
+
   const nextSession = await signInWithIdentity(c, {
     provider: "apple",
     providerSubject: verified.sub,
@@ -285,6 +349,15 @@ auth.post("/apple/exchange", async (c) => {
     email: verified.email || null,
     emailVerified: verified.email_verified === true || verified.email_verified === "true",
     fullName: body?.fullName?.trim() || null,
+    afterIdentity: appleConfig && refreshToken
+      ? ({ id, userId }) => storeAppleRefreshToken(
+          c.env.DB,
+          appleConfig,
+          id,
+          userId,
+          refreshToken,
+        )
+      : undefined,
   });
 
   return c.json({
@@ -419,6 +492,12 @@ auth.delete("/account", async (c) => {
   }
 
   const deletedUserId = c.get("userId");
+  const appleIdentity = await c.env.DB.prepare(
+    "SELECT id FROM auth_identities WHERE user_id = ? AND provider = 'apple' LIMIT 1"
+  ).bind(deletedUserId).first<{ id: string }>();
+  const appleRevocation = appleIdentity
+    ? await revokeAppleAuthorizationForUser(c.env, deletedUserId)
+    : "no_token";
   try {
     await deleteUserAccountData(c.env.DB, deletedUserId, c.env.RESUME_BUCKET);
   } catch (error) {
@@ -440,6 +519,7 @@ auth.delete("/account", async (c) => {
 
   return c.json({
     ...await buildAccountState(c.env.DB, guestSession.user_id, "guest"),
+    apple_revoke_required: Boolean(appleIdentity) && appleRevocation !== "revoked",
     ...(c.get("authTransport") === "native" ? { native_token: guestSession.id } : {}),
   });
 });
@@ -458,7 +538,7 @@ export async function completeEmailMagicLink(
 
   const consumed = await consumeEmailLoginToken(env.DB, token);
   if (!consumed) {
-    return Response.redirect(new URL("/?auth=email-expired#/settings", request.url).toString(), 302);
+    return Response.redirect(new URL("/you/account?auth=email-expired", request.url).toString(), 302);
   }
 
   const identity = await findIdentityByProviderSubject(env.DB, "email", normalizeEmail(consumed.email))
@@ -493,7 +573,7 @@ export async function completeEmailMagicLink(
   // NB: Response.redirect() returns immutable headers in Workers, so appending
   // Set-Cookie to it throws ("Can't modify immutable headers") → 500. Build the
   // redirect manually so the session cookie can ride along.
-  const redirectUrl = new URL("/?auth=email-success#/settings", request.url);
+  const redirectUrl = new URL("/you/account?auth=email-success", request.url);
   return new Response(null, {
     status: 302,
     headers: {

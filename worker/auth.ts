@@ -16,6 +16,8 @@ export const COOKIE_NAMES = {
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2;
 export const ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const SESSION_TTL_MS = COOKIE_MAX_AGE * 1000;
+export const AUTH_ACTIVITY_WRITE_INTERVAL_MS = 60 * 60 * 1000;
+const API_TOKEN_STORAGE_PREFIX = "sha256:v1:";
 
 function parseCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
@@ -47,6 +49,36 @@ export function parseBearerToken(header: string | undefined): string | undefined
 
 export function generateApiToken(): string {
   return randomOpaqueToken(32);
+}
+
+/**
+ * API tokens are random 256-bit bearer credentials, so a one-way SHA-256
+ * storage key prevents a database read from immediately becoming account
+ * access without creating a practical offline-guessing risk.
+ */
+export async function apiTokenStorageKey(rawToken: string): Promise<string> {
+  return `${API_TOKEN_STORAGE_PREFIX}${await sha256Hex(`pinkslip-api-token:${rawToken}`)}`;
+}
+
+export function isApiTokenStorageKey(value: string): boolean {
+  return /^sha256:v1:[0-9a-f]{64}$/.test(value);
+}
+
+function isLegacyApiTokenCandidate(value: string): boolean {
+  // randomOpaqueToken() is base64url. In particular, it can never contain the
+  // ':' separators used by storage keys, so a leaked digest is not itself a
+  // usable bearer credential during the backwards-compatibility window.
+  return /^[A-Za-z0-9_-]{1,256}$/.test(value);
+}
+
+export function shouldRecordAuthActivity(
+  previousTimestamp: string | null,
+  nowMs = Date.now()
+): boolean {
+  if (!previousTimestamp) return true;
+  const previousMs = Date.parse(previousTimestamp);
+  return !Number.isFinite(previousMs)
+    || nowMs - previousMs >= AUTH_ACTIVITY_WRITE_INTERVAL_MS;
 }
 
 function generateSessionId(): string {
@@ -116,7 +148,8 @@ async function loadActiveSession(
   db: D1Database,
   sessionId: string
 ): Promise<AuthSessionRow | null> {
-  const now = new Date().toISOString();
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
   const row = await db.prepare(
     `SELECT id, user_id, state, created_at, expires_at, revoked_at, last_seen_at
      FROM auth_sessions
@@ -127,9 +160,11 @@ async function loadActiveSession(
 
   if (!row) return null;
 
-  await db.prepare(
-    "UPDATE auth_sessions SET last_seen_at = ? WHERE id = ?"
-  ).bind(now, sessionId).run().catch(() => undefined);
+  if (shouldRecordAuthActivity(row.last_seen_at, nowMs)) {
+    await db.prepare(
+      "UPDATE auth_sessions SET last_seen_at = ? WHERE id = ?"
+    ).bind(now, sessionId).run().catch(() => undefined);
+  }
 
   return row;
 }
@@ -217,13 +252,39 @@ export async function replaceSession(
 }
 
 async function resolveBearerUser(db: D1Database, bearer: string): Promise<string | null> {
-  const row = await db.prepare(
-    "SELECT user_id FROM api_tokens WHERE token = ?"
-  ).bind(bearer).first<{ user_id: string }>();
+  const storageKey = await apiTokenStorageKey(bearer);
+  type ApiTokenLookupRow = { user_id: string; last_used_at: string | null };
+
+  let matchedToken = storageKey;
+  let row = await db.prepare(
+    "SELECT user_id, last_used_at FROM api_tokens WHERE token = ?"
+  ).bind(storageKey).first<ApiTokenLookupRow>();
+
+  // Existing rows were historically stored as raw base64url tokens. Keep them
+  // working, but only accept the old raw-token alphabet so a leaked prefixed
+  // storage digest can never be replayed as a bearer credential.
+  if (!row && isLegacyApiTokenCandidate(bearer)) {
+    matchedToken = bearer;
+    row = await db.prepare(
+      "SELECT user_id, last_used_at FROM api_tokens WHERE token = ?"
+    ).bind(bearer).first<ApiTokenLookupRow>();
+  }
+
   if (!row?.user_id) return null;
-  await db.prepare(
-    "UPDATE api_tokens SET last_used_at = ? WHERE token = ?"
-  ).bind(new Date().toISOString(), bearer).run().catch(() => undefined);
+
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  if (matchedToken === bearer) {
+    // Lazily remove legacy plaintext credentials as they are used. Updating the
+    // primary key is safe because no table references api_tokens.token.
+    await db.prepare(
+      "UPDATE api_tokens SET token = ?, last_used_at = ? WHERE token = ?"
+    ).bind(storageKey, now, bearer).run().catch(() => undefined);
+  } else if (shouldRecordAuthActivity(row.last_used_at, nowMs)) {
+    await db.prepare(
+      "UPDATE api_tokens SET last_used_at = ? WHERE token = ?"
+    ).bind(now, storageKey).run().catch(() => undefined);
+  }
   return row.user_id;
 }
 
