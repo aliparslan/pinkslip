@@ -9,6 +9,7 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import { api, ApiError, configureApiClient } from "../../../packages/client/src/lib/api";
 import { navigate } from "../../../packages/client/src/router";
 import { resolvedTheme } from "../../../packages/client/src/lib/theme";
+import { nativeInstallationId } from "../../../packages/client/src/lib/installation-id";
 import {
   installPlatform,
   normalizeExternalUrl,
@@ -36,6 +37,38 @@ interface NativeAppearancePlugin {
   setTheme(options: { theme: "dark" | "light" }): Promise<void>;
 }
 
+type NativeContentSize =
+  | "xs"
+  | "small"
+  | "medium"
+  | "large"
+  | "xl"
+  | "xxl"
+  | "xxxl"
+  | "accessibility-medium"
+  | "accessibility-large"
+  | "accessibility-xl"
+  | "accessibility-xxl"
+  | "accessibility-xxxl";
+
+interface NativeAccessibilityPreferences {
+  contentSize: NativeContentSize;
+  increasedContrast: boolean;
+  reducedMotion: boolean;
+}
+
+interface NativeAccessibilityPlugin {
+  getPreferences(): Promise<NativeAccessibilityPreferences>;
+  addListener(
+    eventName: "preferencesChanged",
+    listener: (preferences: NativeAccessibilityPreferences) => void,
+  ): Promise<PluginListenerHandle>;
+}
+
+interface NativeSettingsPlugin {
+  openAppSettings(): Promise<void>;
+}
+
 interface NativeActionMenuPlugin {
   present(options: {
     source: { x: number; y: number; width: number; height: number };
@@ -51,10 +84,12 @@ interface NativeActionMenuPlugin {
 
 const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
+const NativeAccessibility = registerPlugin<NativeAccessibilityPlugin>("NativeAccessibility");
 const NativeAppearance = registerPlugin<NativeAppearancePlugin>("NativeAppearance");
 const NativeActionMenu = registerPlugin<NativeActionMenuPlugin>("NativeActionMenu");
+const NativeSettings = registerPlugin<NativeSettingsPlugin>("NativeSettings");
 const SecureSession = registerPlugin<SecureSessionPlugin>("SecureSession");
-const API_ORIGIN = import.meta.env.VITE_IOS_API_ORIGIN || "https://pinkslip.alip.dev";
+const API_ORIGIN = import.meta.env.VITE_IOS_API_ORIGIN || "https://pinkslip.work";
 // These are the sRGB equivalents of --color-bg in the shared OKLCH palette.
 // Capacitor Keyboard 8.0.5 samples the body's computed background before the
 // keyboard appears, but its native parser only accepts rgb()/hex values. An
@@ -72,6 +107,47 @@ let nativeRegistration: {
   resolve: () => void;
   reject: (error: Error) => void;
 } | null = null;
+
+const IOS_ROOT_FONT_SIZE: Record<NativeContentSize, number> = {
+  xs: 15,
+  small: 15.25,
+  medium: 15.5,
+  large: 16,
+  xl: 17,
+  xxl: 18,
+  xxxl: 19,
+  "accessibility-medium": 20,
+  "accessibility-large": 22,
+  "accessibility-xl": 24,
+  "accessibility-xxl": 26,
+  "accessibility-xxxl": 28,
+};
+
+function applyNativeAccessibilityPreferences(preferences: NativeAccessibilityPreferences): void {
+  const root = document.documentElement;
+  root.style.setProperty("--ios-root-font-size", `${IOS_ROOT_FONT_SIZE[preferences.contentSize]}px`);
+  root.dataset.iosContentSize = preferences.contentSize;
+  root.dataset.iosAccessibilityText = String(preferences.contentSize.startsWith("accessibility-"));
+  root.dataset.iosContrast = preferences.increasedContrast ? "more" : "standard";
+  root.dataset.iosReducedMotion = String(preferences.reducedMotion);
+}
+
+async function configureNativeAccessibility(): Promise<void> {
+  const applyCurrentPreferences = async () => {
+    const preferences = await NativeAccessibility.getPreferences();
+    applyNativeAccessibilityPreferences(preferences);
+  };
+  // Accessibility is an optional shell enhancement. A bridge registration
+  // issue must not prevent session restoration or the app from mounting.
+  await applyCurrentPreferences().catch(() => undefined);
+  await NativeAccessibility.addListener(
+    "preferencesChanged",
+    applyNativeAccessibilityPreferences,
+  ).catch(() => undefined);
+  await App.addListener("appStateChange", ({ isActive }) => {
+    if (isActive) void applyCurrentPreferences().catch(() => undefined);
+  }).catch(() => undefined);
+}
 
 async function createNativeSession(): Promise<void> {
   const session = await api.native.startSession();
@@ -110,7 +186,7 @@ async function ensurePushListeners(): Promise<void> {
   listenersReady = true;
   await PushNotifications.addListener("registration", async (token) => {
     try {
-      await api.push.registerApns(token.value);
+      await api.push.registerApns(token.value, nativeInstallationId());
       nativeRegistration?.resolve();
     } catch (error) {
       nativeRegistration?.reject(error instanceof Error ? error : new Error("APNs registration failed"));
@@ -291,6 +367,7 @@ const iosRuntime: PlatformRuntime = {
       throw new Error("The iOS entrypoint must run inside the Capacitor iOS shell.");
     }
     configureNativeDocument();
+    await configureNativeAccessibility();
     const appInfo = await App.getInfo();
     accessToken = (await SecureSession.get().catch((): { token?: string } => ({}))).token ?? null;
     configureApiClient({
@@ -323,7 +400,9 @@ const iosRuntime: PlatformRuntime = {
         if (!(error instanceof ApiError && error.code === "access_required")) throw error;
       }
     }
-    await this.notifications.initialize();
+    void this.notifications.initialize().catch((error) => {
+      console.error("Notification initialization failed:", error);
+    });
   },
   notifications: {
     async initialize() {
@@ -335,7 +414,8 @@ const iosRuntime: PlatformRuntime = {
     },
     async status() {
       const permission = await PushNotifications.checkPermissions();
-      return permission.receive === "granted" ? "enabled" : "disabled";
+      if (permission.receive === "granted") return "enabled";
+      return permission.receive === "denied" ? "denied" : "disabled";
     },
     async enable() {
       await ensurePushListeners();
@@ -343,6 +423,9 @@ const iosRuntime: PlatformRuntime = {
       if (permission.receive !== "granted") return "denied";
       await registerNativeDevice();
       return "enabled";
+    },
+    async openSettings() {
+      await NativeSettings.openAppSettings();
     },
   },
   auth: {

@@ -4,8 +4,21 @@ import AuthenticationServices
 import SafariServices
 import Security
 
+private func pinkslipSurfaceColor(for style: UIUserInterfaceStyle) -> UIColor {
+    style == .dark
+        ? UIColor(red: 14 / 255, green: 14 / 255, blue: 16 / 255, alpha: 1)
+        : UIColor(red: 251 / 255, green: 250 / 255, blue: 249 / 255, alpha: 1)
+}
+
 class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
+        let initialSurface = pinkslipSurfaceColor(for: traitCollection.userInterfaceStyle)
+        view.backgroundColor = initialSurface
+        view.window?.backgroundColor = initialSurface
+        webView?.backgroundColor = initialSurface
+        webView?.scrollView.backgroundColor = initialSurface
+        webView?.underPageBackgroundColor = initialSurface
+
         if let scrollView = webView?.scrollView {
             scrollView.bounces = true
             scrollView.alwaysBounceVertical = true
@@ -25,8 +38,109 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(AppleSignInPlugin())
         bridge?.registerPluginInstance(ApplicationBrowserPlugin())
         bridge?.registerPluginInstance(NativeActionMenuPlugin())
+        bridge?.registerPluginInstance(NativeAccessibilityPlugin())
         bridge?.registerPluginInstance(NativeAppearancePlugin())
+        bridge?.registerPluginInstance(NativeSettingsPlugin())
         bridge?.registerPluginInstance(SecureSessionPlugin())
+    }
+}
+
+@objc(NativeAccessibilityPlugin)
+public class NativeAccessibilityPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeAccessibilityPlugin"
+    public let jsName = "NativeAccessibility"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "getPreferences", returnType: CAPPluginReturnPromise)
+    ]
+
+    public override func load() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange),
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange),
+            name: UIAccessibility.darkerSystemColorsStatusDidChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange),
+            name: UIAccessibility.reduceMotionStatusDidChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func normalizedContentSize(_ category: UIContentSizeCategory) -> String {
+        switch category {
+        case .extraSmall: return "xs"
+        case .small: return "small"
+        case .medium: return "medium"
+        case .large: return "large"
+        case .extraLarge: return "xl"
+        case .extraExtraLarge: return "xxl"
+        case .extraExtraExtraLarge: return "xxxl"
+        case .accessibilityMedium: return "accessibility-medium"
+        case .accessibilityLarge: return "accessibility-large"
+        case .accessibilityExtraLarge: return "accessibility-xl"
+        case .accessibilityExtraExtraLarge: return "accessibility-xxl"
+        case .accessibilityExtraExtraExtraLarge: return "accessibility-xxxl"
+        default: return "large"
+        }
+    }
+
+    private func currentPreferences() -> [String: Any] {
+        [
+            "contentSize": normalizedContentSize(UIApplication.shared.preferredContentSizeCategory),
+            "increasedContrast": UIAccessibility.isDarkerSystemColorsEnabled,
+            "reducedMotion": UIAccessibility.isReduceMotionEnabled
+        ]
+    }
+
+    @objc private func preferencesDidChange() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.notifyListeners("preferencesChanged", data: self.currentPreferences())
+        }
+    }
+
+    @objc func getPreferences(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                call.reject("Native accessibility preferences are unavailable.")
+                return
+            }
+            call.resolve(self.currentPreferences())
+        }
+    }
+}
+
+@objc(NativeSettingsPlugin)
+public class NativeSettingsPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeSettingsPlugin"
+    public let jsName = "NativeSettings"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "openAppSettings", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func openAppSettings(_ call: CAPPluginCall) {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            call.reject("The app settings URL is unavailable.")
+            return
+        }
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:]) { opened in
+                if opened { call.resolve() }
+                else { call.reject("Could not open this app’s settings.") }
+            }
+        }
     }
 }
 
@@ -260,9 +374,7 @@ public class NativeAppearancePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        let color = theme == "dark"
-            ? UIColor(red: 14 / 255, green: 14 / 255, blue: 16 / 255, alpha: 1)
-            : UIColor(red: 251 / 255, green: 250 / 255, blue: 249 / 255, alpha: 1)
+        let color = pinkslipSurfaceColor(for: theme == "dark" ? .dark : .light)
 
         DispatchQueue.main.async { [weak self] in
             guard let self else {

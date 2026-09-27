@@ -12,7 +12,7 @@ const serverUrl = process.env.CAP_SERVER_URL;
 
 const config: CapacitorConfig = {
   appId: "dev.alip.pinkslip",
-  appName: "pinkslip",
+  appName: "Pinkslip",
   webDir: "dist",
   // Initial native surface. Once mounted, the runtime exposes the active theme
   // as an RGB body color for Capacitor 8.0.4+'s keyboard backdrop sampler.

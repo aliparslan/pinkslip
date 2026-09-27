@@ -1,15 +1,12 @@
-import App from "./IosApp.svelte";
-import { initializeIosPlatform } from "./platform";
+import IosBootstrap from "./IosBootstrap.svelte";
 import { mountApp } from "../../../packages/client/src/mount-app";
+import {
+  createHashNavigationAdapter,
+  installNavigationAdapter,
+} from "../../../packages/client/src/router";
 import "../../../packages/client/src/app.css";
 import "../../../packages/client/src/styles/ios.css";
-import "./typography.css";
 
-try {
-  await initializeIosPlatform();
-} catch (error) {
-  console.error("iOS platform initialization failed:", error);
-}
-
-const app = await mountApp(App);
+installNavigationAdapter(createHashNavigationAdapter());
+const app = await mountApp(IosBootstrap);
 export default app;

@@ -7,10 +7,12 @@
     routeDefinition,
     backTargetRoute,
     rootHeaderFor,
+    rootDestinationFor,
     routeShell,
     restoreScrollFor,
     scrollContainer,
     showsRootNavigation,
+    type RootDestination,
   } from "../../../packages/client/src/router";
   import AppSession from "../../../packages/client/src/app/AppSession.svelte";
   import RouteView from "../../../packages/client/src/app/RouteView.svelte";
@@ -22,6 +24,8 @@
     type LocalBackHandler,
   } from "../../../packages/client/src/lib/nav-back";
   import { hasOpenModal } from "../../../packages/client/src/lib/modal-stack.svelte";
+  import { flushActiveAutosaves } from "../../../packages/client/src/lib/autosave-lifecycle";
+  import { synchronizeSnapshotSearchValues } from "../../../packages/client/src/lib/navigation-snapshot";
   import {
     createFrameBatch,
     nextFrame,
@@ -45,6 +49,35 @@
       : backTargetRoute($currentRoute) ?? "/",
   );
 
+  const ROOT_DESTINATIONS: RootDestination[] = ["feed", "library", "you"];
+  const DEFAULT_ROOT_ROUTES: Record<RootDestination, string> = {
+    feed: "/",
+    library: "/library/saved",
+    you: "/you",
+  };
+  const RETAINED_YOU_ROUTE_IDS = new Set([
+    "you",
+    "you-preferences",
+    "you-alerts",
+    "you-tailoring",
+    "you-account",
+    "you-feedback",
+  ]);
+
+  function cachedRootDestinationFor(activeRoute: string): RootDestination | null {
+    if (showsRootNavigation(activeRoute)) return rootDestinationFor(activeRoute);
+    return RETAINED_YOU_ROUTE_IDS.has(routeDefinition(activeRoute).id) ? "you" : null;
+  }
+
+  const initialRootDestination = cachedRootDestinationFor($currentRoute);
+  const initialRootRoutes = { ...DEFAULT_ROOT_ROUTES };
+  if (initialRootDestination) initialRootRoutes[initialRootDestination] = $currentRoute;
+  let rootRoutes = $state<Record<RootDestination, string>>(initialRootRoutes);
+  let activeRootDestination = $derived(cachedRootDestinationFor(route));
+  let mountedRootDestinations = $state<RootDestination[]>(
+    initialRootDestination ? [initialRootDestination] : [],
+  );
+
   interface RouteSnapshot {
     html: string;
     scrollTop: number;
@@ -56,6 +89,37 @@
 
   $effect(() => {
     if (showsRootNavigation(route)) tabContextRoute = route;
+    const destination = cachedRootDestinationFor(route);
+    if (!destination) return;
+    rootRoutes[destination] = route;
+    if (!mountedRootDestinations.includes(destination)) {
+      mountedRootDestinations = [...mountedRootDestinations, destination];
+    }
+  });
+
+  async function warmRetainedRootsAfterActivePaint(cancelled: () => boolean): Promise<void> {
+    // Give the active route two paint opportunities before mounting hidden
+    // roots. Each additional root gets its own frame so its component and
+    // initial data work cannot contend with the first useful screen.
+    await nextFrame();
+    await nextFrame();
+    for (const destination of ROOT_DESTINATIONS) {
+      if (cancelled()) return;
+      if (!mountedRootDestinations.includes(destination)) {
+        mountedRootDestinations = [...mountedRootDestinations, destination];
+        await nextFrame();
+      }
+    }
+  }
+
+  $effect(() => {
+    const activeScrollContainer = main;
+    if (!activeScrollContainer) return;
+    let cancelled = false;
+    void warmRetainedRootsAfterActivePaint(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
   });
 
   const EDGE = 44;
@@ -93,13 +157,23 @@
       "admin-sources": "Sources",
       "admin-runs": "Runs",
     };
-    return fallbackTitles[routeDefinition(underlayRoute).id] ?? "pinkslip";
+    return fallbackTitles[routeDefinition(underlayRoute).id] ?? "Pinkslip";
   });
 
   function paint(dx: number): void {
-    if (foreground) foreground.style.transform = `translateX(${dx}px)`;
+    if (foreground) {
+      if (reducedMotion()) {
+        foreground.style.transform = "none";
+        foreground.style.opacity = `${1 - Math.min(0.28, (dx / Math.max(1, width)) * 0.28)}`;
+      } else {
+        foreground.style.transform = `translateX(${dx}px)`;
+      }
+    }
     if (underlay) underlay.style.transform = "translateX(0)";
-    if (dim) dim.style.opacity = "1";
+    if (dim) {
+      const progress = Math.min(1, dx / Math.max(1, width));
+      dim.style.opacity = `${1 - progress}`;
+    }
   }
 
   const paintBatch = createFrameBatch(paint);
@@ -118,6 +192,11 @@
     if (!main) return;
     const clone = main.cloneNode(true) as HTMLElement;
     clone.removeAttribute("id");
+    synchronizeSnapshotSearchValues(
+      Array.from(main.querySelectorAll<HTMLInputElement>('input[type="search"]')),
+      Array.from(clone.querySelectorAll<HTMLInputElement>('input[type="search"]')),
+    );
+    clone.querySelectorAll<HTMLElement>("[data-root-cache][hidden]").forEach((element) => element.remove());
     clone.querySelectorAll<HTMLElement>("[id]").forEach((element) => element.removeAttribute("id"));
     clone.querySelectorAll<HTMLElement>("[aria-live], [role='alert'], [role='status']").forEach((element) => {
       element.removeAttribute("aria-live");
@@ -167,19 +246,22 @@
   }
 
   async function waitForDestinationPaint(destination: string): Promise<void> {
-    const deadline = performance.now() + 1_500;
+    const deadline = performance.now() + 320;
     do {
       await nextFrame();
       await tick();
-      const pageRoot = main?.querySelector<HTMLElement>(".page-content-root");
+      const rootDestination = cachedRootDestinationFor(destination);
+      const pageRoot = rootDestination
+        ? main?.querySelector<HTMLElement>(
+            `[data-root-cache="${rootDestination}"]:not([hidden]) .page-content-root`,
+          )
+        : main?.querySelector<HTMLElement>(".ios-live-route .page-content-root");
       const routeRendered = pageRoot?.dataset.renderedRoute === destination;
       if (!routeRendered) continue;
       restoreScrollFor(destination);
-      if (!pageRoot.querySelector(".page-loading")) {
-        await nextFrame();
-        restoreScrollFor(destination);
-        return;
-      }
+      await nextFrame();
+      restoreScrollFor(destination);
+      return;
     } while (performance.now() < deadline);
     restoreScrollFor(destination);
     await nextFrame();
@@ -204,7 +286,9 @@
 
   async function revealLiveDestination(): Promise<void> {
     if (!foreground) return;
-    main?.querySelector<HTMLElement>(".pushed-screen")?.classList.add("nav-enter-suppressed");
+    main?.querySelector<HTMLElement>(
+      ".ios-live-route .pushed-screen, [data-root-cache]:not([hidden]) .pushed-screen",
+    )?.classList.add("nav-enter-suppressed");
     foreground.style.transition = "none";
     foreground.style.transform = "translateX(0)";
     foreground.style.opacity = "1";
@@ -305,7 +389,8 @@
     locked = false;
     paintBatch.flush();
     const distance = Math.max(0, lastX - startX);
-    const commit = distance > width * 0.4 || velocity > 0.35;
+    const requestedCommit = distance > width * 0.4 || velocity > 0.35;
+    const commit = requestedCommit ? await flushActiveAutosaves() : false;
     const destination = target;
     const snapshotKey = targetSnapshotKey;
     const localBack = targetLocalBack;
@@ -315,17 +400,22 @@
     if (foreground) foreground.style.transition = reducedMotion()
       ? `opacity ${duration}ms linear`
       : `transform ${duration}ms ${EASE}`;
+    if (dim) dim.style.transition = `opacity ${duration}ms ${EASE}`;
     if (commit) {
       if (foreground) {
         if (reducedMotion()) foreground.style.opacity = "0";
         else foreground.style.transform = `translateX(${width}px)`;
       }
+      if (dim) dim.style.opacity = "0";
     } else {
-      if (foreground) foreground.style.transform = "translateX(0)";
+      if (foreground) {
+        foreground.style.transform = "translateX(0)";
+        foreground.style.opacity = "1";
+      }
       if (underlay) underlay.style.transform = "translateX(0)";
       if (dim) dim.style.opacity = "1";
     }
-    await waitForAnimations([foreground], duration + 60);
+    await waitForAnimations([foreground, dim], duration + 60);
     if (commit && destination) {
       holdForegroundForDestinationSwap();
       await commitBack(destination, localBack);
@@ -346,6 +436,7 @@
     localBack: LocalBackHandler | null = null,
   ): Promise<void> {
     if (settling || swiping) return;
+    if (!(await flushActiveAutosaves())) return;
     settling = true;
     width = foreground?.getBoundingClientRect().width ?? innerWidth;
     const snapshotKey = localBack?.snapshotKey ?? destination;
@@ -366,7 +457,8 @@
     void foreground?.offsetWidth;
     await nextFrame();
     if (foreground) { foreground.style.transition = `transform ${PROGRAMMATIC_SETTLE}ms ${EASE}`; foreground.style.transform = `translateX(${width}px)`; }
-    await waitForAnimations([foreground], PROGRAMMATIC_SETTLE + 60);
+    if (dim) { dim.style.transition = `opacity ${PROGRAMMATIC_SETTLE}ms ${EASE}`; dim.style.opacity = "0"; }
+    await waitForAnimations([foreground, dim], PROGRAMMATIC_SETTLE + 60);
     holdForegroundForDestinationSwap();
     await commitBack(destination, localBack);
     routeSnapshots.delete(snapshotKey);
@@ -392,7 +484,9 @@
   $effect(() => {
     void route;
     if (!document.body.classList.contains("nav-animating")) return;
-    const page = main?.querySelector<HTMLElement>(".page");
+    const page = main?.querySelector<HTMLElement>(
+      ".ios-live-route .page, [data-root-cache]:not([hidden]) .page",
+    );
     if (page) page.style.animation = "none";
   });
 
@@ -478,7 +572,22 @@
     bind:this={foreground}
   >
     <main id="main-content" class="app-main" tabindex="-1" bind:this={main}>
-      <RouteView />
+      {#each mountedRootDestinations as destination}
+        <div
+          class="ios-root-cache"
+          data-root-cache={destination}
+          hidden={activeRootDestination !== destination}
+          inert={activeRootDestination !== destination}
+        >
+          <RouteView
+            routeOverride={rootRoutes[destination]}
+            active={activeRootDestination === destination}
+          />
+        </div>
+      {/each}
+      {#if !activeRootDestination}
+        <div class="ios-live-route"><RouteView /></div>
+      {/if}
     </main>
     <TabBar
       mobileHidden={!showsRootNavigation(route)}

@@ -6,7 +6,9 @@ import { offlineTypstCompiler } from "../../scripts/vite-typst-compiler.mts";
 export default defineConfig({
   plugins: [offlineTypstCompiler(), svelte()],
   worker: { plugins: () => [offlineTypstCompiler()] },
-  publicDir: resolve(import.meta.dirname, "../../packages/client/public"),
+  // The packaged native shell does not use the web manifest, service worker,
+  // favicons, or hosting headers from packages/client/public.
+  publicDir: false,
   resolve: {
     alias: [
       {
