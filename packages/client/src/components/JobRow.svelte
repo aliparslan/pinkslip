@@ -1,12 +1,12 @@
 <script lang="ts">
   import { flushSync, onDestroy } from "svelte";
-  import { navigate } from "../router";
-  import { setJobDetailReturnRoute } from "../lib/job-navigation";
+  import { navigateFromAnchor, routeHref } from "../router";
+  import { jobDetailRoute, jobOriginForListRoute } from "../lib/job-navigation";
   import { api, type Job } from "../lib/api";
   import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
-  import { jobTimingLabel } from "../lib/job-timing";
+  import { isFreshJobTiming, jobTimingLabel } from "../lib/job-timing";
   import { markViewed, setViewed } from "../lib/viewed";
-  import { feedback } from "../lib/feedback.svelte";
+  import { feedback, UNDO_TOAST_DURATION } from "../lib/feedback.svelte";
   import { hapticLight } from "../lib/haptics";
   import { createFrameBatch, delay, prefersReducedMotion } from "../lib/motion";
   import { sessionAccess } from "../lib/session-access";
@@ -32,7 +32,8 @@
     onSaved,
     onBlockRequest,
     returnTo = "/",
-    swipeActions = true,
+    swipeActions,
+    selected = false,
     contextLabel,
     surface = "feed",
     activeSwipeId,
@@ -46,6 +47,7 @@
     onBlockRequest?: (job: Job) => void;
     returnTo?: string;
     swipeActions?: boolean;
+    selected?: boolean;
     contextLabel?: string;
     surface?: "feed" | "card";
     activeSwipeId?: string | null;
@@ -82,8 +84,9 @@
   let armVisualTarget = 0;
   let armVisualStartedAt = 0;
   let armVisualDuration = 0;
-  let previousGestureX = 0;
   const nativeIos = isIosApp();
+  let swipeEnabled = $derived(swipeActions ?? nativeIos);
+  let detailRoute = $derived(jobDetailRoute(job.id, jobOriginForListRoute(returnTo)));
   const swipeBatch = createFrameBatch<number>(applySwipeOffset, nativeIos);
 
   const ACTION_PADDING = 12;
@@ -94,6 +97,7 @@
   const MAX_OVERDRAG = 18;
   const DESKTOP_RUBBER = 0.16;
   const FULL_SWIPE_RATIO = 0.5;
+  const FULL_SWIPE_RELEASE_HYSTERESIS = 24;
   const SWIPE_INTENT_DISTANCE = 6;
   // Give a deliberate diagonal swipe to the row; vertical scrolling still wins
   // when its travel is clearly dominant.
@@ -101,13 +105,14 @@
 
   // "NEW" only while the badge is honest: unviewed AND actually fresh.
   // (A 36-day-old listing labelled NEW undermines the whole speed pitch.)
-  const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1000;
-
   let hasAdminAction = $derived($sessionAccess.isAdmin && Boolean(onBlockRequest));
   let hasSaveAction = $derived(Boolean(onSaved));
   let hasHideAction = $derived(Boolean(onDismiss));
   let hasNativePrimaryAction = $derived(hasAdminAction || hasHideAction);
-  let showRowMenu = $derived(swipeActions && (hasSaveAction || Boolean(onDismiss) || hasAdminAction));
+  let showRowMenu = $derived(
+    (nativeIos ? swipeEnabled : true)
+      && (nativeIos || hasSaveAction || Boolean(onDismiss) || hasAdminAction)
+  );
   let rowMenuOpen = $state(false);
   let swipeActionCount = $derived(
     (hasSaveAction ? 1 : 0) + (nativeIos ? (hasNativePrimaryAction ? 1 : 0) : (hasAdminAction ? 1 : 0))
@@ -128,9 +133,7 @@
     job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description)
   ));
   let displayLocation = $derived(formatJobLocation(job.location));
-  let isFresh = $derived(
-    Boolean(job.first_seen_at && Date.now() - new Date(job.first_seen_at).getTime() < NEW_BADGE_WINDOW_MS)
-  );
+  let isFresh = $derived(isFreshJobTiming(job));
 
   function handleClick(event?: MouseEvent) {
     if (wasMenuJustDismissed()) return;
@@ -140,12 +143,7 @@
       return;
     }
     markViewed(job.id);
-    setJobDetailReturnRoute(returnTo);
-    if (nativeIos && event && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) {
-      return;
-    }
-    event?.preventDefault();
-    navigate(`/jobs/${job.id}`);
+    if (event) navigateFromAnchor(event, detailRoute);
   }
 
   $effect(() => {
@@ -174,6 +172,12 @@
           symbol: savedState ? "bookmark.fill" : "bookmark",
           disabled: saving,
         }] : []),
+        {
+          id: "toggle-read",
+          title: viewed ? "Mark as unread" : "Mark as read",
+          symbol: viewed ? "envelope" : "envelope.open",
+          disabled: updatingRead,
+        },
         ...(!hasAdminAction && hasHideAction ? [{
           id: "hide",
           title: "Hide",
@@ -190,6 +194,7 @@
     }).catch(() => null);
     markMenuDismissed();
     if (action === "save") void save();
+    else if (action === "toggle-read") void toggleReadState();
     else if (action === "hide") void dismiss();
     else if (action === "remove") onBlockRequest?.(job);
   }
@@ -344,17 +349,14 @@
       return;
     }
     const threshold = gestureRowWidth * FULL_SWIPE_RATIO;
-    const nextArmedSide = value <= -threshold
-      ? "left"
-      : value >= threshold
-        ? "right"
-        : null;
-    const leftBoundaryCrossed = (previousGestureX <= -threshold) !== (value <= -threshold);
-    const rightBoundaryCrossed = (previousGestureX >= threshold) !== (value >= threshold);
-    if (leftBoundaryCrossed) hapticLight();
-    if (rightBoundaryCrossed) hapticLight();
-    previousGestureX = value;
-    if (nextArmedSide !== armedSide && (nextArmedSide || armedSide)) {
+    const releaseThreshold = Math.max(0, threshold - FULL_SWIPE_RELEASE_HYSTERESIS);
+    let nextArmedSide = armedSide;
+    if (armedSide === "left" && value > -releaseThreshold) nextArmedSide = null;
+    else if (armedSide === "right" && value < releaseThreshold) nextArmedSide = null;
+    else if (!armedSide && value <= -threshold) nextArmedSide = "left";
+    else if (!armedSide && value >= threshold) nextArmedSide = "right";
+    if (nextArmedSide !== armedSide) {
+      if (nextArmedSide && !armedSide) hapticLight();
       beginArmMotion(nextArmedSide ? 1 : 0);
     }
     armedSide = nextArmedSide;
@@ -407,6 +409,8 @@
 
   async function slideOffAndRemove(action: () => Promise<unknown>): Promise<boolean> {
     if (dismissing) return false;
+    const wrapper = rowEl?.closest("[role='listitem']") ?? rowEl?.closest(".job-row-wrap");
+    const shouldRestoreFocus = Boolean(wrapper?.contains(document.activeElement));
     dismissing = true;
     swipeSide = "left";
     armedSide = null;
@@ -415,7 +419,15 @@
     await delay(nativeIos && prefersReducedMotion() ? 0 : nativeIos ? 220 : 240);
     try {
       await (request ?? action());
+      const adjacentRow = (wrapper?.nextElementSibling ?? wrapper?.previousElementSibling) as HTMLElement | null;
       onDismiss?.(job.id);
+      if (shouldRestoreFocus) {
+        window.requestAnimationFrame(() => {
+          const adjacentControl = adjacentRow?.querySelector<HTMLElement>(".job-row");
+          if (adjacentControl?.isConnected) adjacentControl.focus({ preventScroll: true });
+          else document.getElementById("main-content")?.focus({ preventScroll: true });
+        });
+      }
       return true;
     } catch {
       dismissing = false;
@@ -427,16 +439,22 @@
 
   async function dismiss() {
     const hidden = await slideOffAndRemove(() => api.jobs.dismiss(job.id));
-    if (!hidden || !onRestore || nativeIos) return;
+    if (!hidden || !onRestore) return;
 
     feedback.show({
       message: "Job hidden from your feed",
+      duration: UNDO_TOAST_DURATION,
       action: {
         label: "Undo",
         run: async () => {
           try {
             await api.jobs.undismiss(job.id);
             onRestore?.(job);
+            window.requestAnimationFrame(() => {
+              Array.from(document.querySelectorAll<HTMLElement>("[data-job-id]"))
+                .find((candidate) => candidate.dataset.jobId === job.id)
+                ?.focus({ preventScroll: true });
+            });
           } catch {
             feedback.error("Could not restore that job.");
           }
@@ -547,7 +565,7 @@
   }
 
   function onPointerDown(e: PointerEvent) {
-    if (!swipeActions || swipeActionCount === 0) return;
+    if (!swipeEnabled || swipeActionCount === 0) return;
     if (dismissing || saving || updatingRead) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointerId = e.pointerId;
@@ -562,7 +580,6 @@
     armVisualProgress = 0;
     armVisualFrom = 0;
     armVisualTarget = 0;
-    previousGestureX = currentSwipeOffset();
   }
 
   function onPointerMove(e: PointerEvent) {
@@ -583,7 +600,6 @@
       cancelNativePaint();
       const renderedOffset = renderedSwipeOffset();
       startOffsetX = renderedOffset;
-      previousGestureX = renderedOffset;
       startX = e.clientX;
       onSwipeOpen?.(job.id);
       flushSync(() => {
@@ -640,7 +656,7 @@
   class:native-swipe={nativeIos}
   class:swiping
 >
-  {#if nativeIos && swipeActions}
+  {#if nativeIos && swipeEnabled}
     <div
       class="swipe-actions swipe-actions-right"
       class:active-side={swipeSide === "right"}
@@ -752,7 +768,7 @@
         {/if}
       </div>
     {/if}
-  {:else if swipeActions && swipeX < -0.5}
+  {:else if swipeEnabled && swipeX < -0.5}
     <div class="swipe-actions swipe-actions-left interactive" class:removing={dismissing}>
       {#if hasSaveAction}
         <button
@@ -782,7 +798,7 @@
             onBlockRequest?.(job);
           }}
         >
-          <Prohibit size={18} weight="regular" />
+          <Prohibit size={18} weight="regular" aria-hidden="true" />
             <span>Block</span>
         </button>
       {/if}
@@ -803,23 +819,21 @@
     onpointercancel={onPointerCancel}
     ontransitionend={handleForegroundTransitionEnd}
   >
-    <svelte:element
-      this={nativeIos ? "a" : "div"}
+    <a
       class="job-row"
       class:viewed={viewed && !dismissing}
       class:has-menu={showRowMenu}
-      href={nativeIos ? `#/jobs/${job.id}` : undefined}
-      role={nativeIos ? undefined : "button"}
-      tabindex={nativeIos ? undefined : 0}
+      data-job-id={job.id}
+      href={routeHref(detailRoute)}
+      aria-current={selected ? "page" : undefined}
       onclick={handleClick}
-      onkeydown={(e: KeyboardEvent) => { if (!nativeIos && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handleClick(); } }}
     >
       <div class="job-row__logo">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={24} />
       </div>
       <div class="job-row__body">
         <div class="job-row__meta">
-          <span class="job-row__company">{job.company_name}</span>
+          <span class="job-row__company" title={job.company_name}>{job.company_name}</span>
           <span class="job-row__dot">·</span>
           <span class="job-row__time">{contextLabel ?? jobTimingLabel(job)}</span>
           {#if !contextLabel && !viewed && isFresh}
@@ -847,7 +861,7 @@
           </div>
         {/if}
       </div>
-    </svelte:element>
+    </a>
 
     {#if showRowMenu && (nativeIos || Math.abs(swipeX) < 0.5)}
       <div
@@ -861,7 +875,7 @@
             aria-label="Actions for {job.title} at {job.company_name}"
             onclick={openNativeRowMenu}
           >
-            <DotsThreeVertical size={18} weight="bold" />
+            <DotsThreeVertical size={18} weight="bold" aria-hidden="true" />
           </button>
         {:else}
           <DropdownMenu.Root bind:open={rowMenuOpen} onOpenChange={handleRowMenuOpenChange}>
@@ -869,7 +883,7 @@
               class="icon-btn icon-btn-sm job-row__menu-trigger"
               aria-label="Actions for {job.title} at {job.company_name}"
             >
-              <DotsThreeVertical size={18} weight="bold" />
+              <DotsThreeVertical size={18} weight="bold" aria-hidden="true" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content
@@ -883,19 +897,19 @@
               >
               {#if hasSaveAction && !savedState}
                 <DropdownMenu.Item class="menu-item" disabled={saving} onSelect={() => void save()}>
-                  <BookmarkSimple size={17} weight="regular" />
+                  <BookmarkSimple size={17} weight="regular" aria-hidden="true" />
                   <span>Save</span>
                 </DropdownMenu.Item>
               {/if}
               {#if !hasAdminAction}
                 <DropdownMenu.Item class="menu-item" disabled={dismissing} onSelect={() => void dismiss()}>
-                  <EyeSlash size={17} />
+                  <EyeSlash size={17} aria-hidden="true" />
                   <span>Hide</span>
                 </DropdownMenu.Item>
               {/if}
               {#if hasAdminAction}
                 <DropdownMenu.Item class="menu-item danger" onSelect={() => onBlockRequest?.(job)}>
-                  <Prohibit size={17} />
+                  <Prohibit size={17} aria-hidden="true" />
                   <span>Block for everyone</span>
                 </DropdownMenu.Item>
               {/if}
@@ -961,13 +975,7 @@
   .native-swipe .job-row-foreground.swiping { transition: none; }
   .job-row.viewed { opacity: 0.5; }
   .native-swipe .job-row.viewed { opacity: 1; }
-  .native-swipe .job-row__logo,
-  .native-swipe .job-row__body {
-    opacity: 1;
-    transition: opacity var(--duration-instant) var(--ease-standard);
-  }
-  .native-swipe .job-row.viewed .job-row__logo,
-  .native-swipe .job-row.viewed .job-row__body { opacity: 0.5; }
+  .native-swipe .job-row.viewed .job-row__title { font-weight: 400; }
   .job-row-foreground.dismissing { pointer-events: none; }
   .job-row.has-menu { padding-right: calc(var(--control-height-compact) + var(--space-3)); }
 
@@ -1006,8 +1014,21 @@
     font-size: var(--fs-2xs);
     color: var(--color-ink-3);
   }
-  .job-row__company { flex-shrink: 0; font-weight: 500; color: var(--color-ink); }
-  .job-row__dot { flex-shrink: 0; opacity: 0.4; }
+  .job-row__company {
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    color: var(--color-ink);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .job-row__dot {
+    flex-shrink: 0;
+    color: var(--color-ink-2);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+  }
   .job-row__time { flex-shrink: 0; }
   .job-row__new {
     width: 6px;
@@ -1065,6 +1086,7 @@
     border-radius: var(--radius-full);
     background: var(--color-ink-4);
   }
+
   .swipe-actions {
     position: absolute;
     inset: 0;

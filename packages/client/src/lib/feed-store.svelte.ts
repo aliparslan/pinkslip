@@ -1,7 +1,17 @@
 export type PostedFilter = "any" | "evergreen";
 
 import type { Job } from "./api";
-import { ROLE_OPTIONS, type RoleId } from "../../../../shared/search-profile";
+import {
+  ROLE_OPTIONS,
+  type CareerStage,
+  type RoleId,
+} from "../../../../shared/search-profile";
+import {
+  ALL_CAREER_STAGES,
+  reconcileCareerStageSelection,
+} from "./career-stage-filter";
+
+export { ALL_CAREER_STAGES } from "./career-stage-filter";
 
 export const PAGE_SIZE = 25;
 export const ALL_FEED_ROLE_IDS = ROLE_OPTIONS.map((option) => option.id) as RoleId[];
@@ -23,10 +33,10 @@ export const feed = $state({
   postedFilter: "any" as PostedFilter,
   minSalaryK: "",
   maxSalaryK: "",
-  // Zero through three years is the product-wide eligible band. The two-ended
-  // slider can narrow either edge without ever exposing out-of-scope roles.
-  minYoe: 0,
-  maxYoe: 3,
+  // Career stages are a temporary narrowing layer over the stages saved in the
+  // search profile. The API query is omitted while every saved stage is active.
+  availableCareerStages: [...ALL_CAREER_STAGES] as CareerStage[],
+  selectedCareerStages: [...ALL_CAREER_STAGES] as CareerStage[],
   nextOffset: 0,
   hasMore: true,
   hydrated: false,
@@ -39,8 +49,22 @@ export function markLocationsManuallySet() {
   userManuallySetLocations = true;
 }
 
-export function syncFeedPreferences(profile?: { location_ids?: string[]; work_modes?: string[] } | null, force = false) {
+export function syncFeedPreferences(profile?: {
+  location_ids?: string[];
+  work_modes?: string[];
+  target_levels?: CareerStage[];
+} | null, force = false) {
   if (!profile) return;
+
+  const stages = reconcileCareerStageSelection(
+    feed.selectedCareerStages,
+    feed.availableCareerStages,
+    profile.target_levels,
+    force,
+  );
+  feed.availableCareerStages = stages.available;
+  feed.selectedCareerStages = stages.selected;
+
   if (!force && userManuallySetLocations) return;
 
   const locationIds = profile.location_ids ?? [];
@@ -64,13 +88,18 @@ export function syncFeedPreferences(profile?: { location_ids?: string[]; work_mo
 }
 
 export function invalidateFeedForPreferences(
-  profile?: { location_ids?: string[]; work_modes?: string[] } | null
+  profile?: {
+    location_ids?: string[];
+    work_modes?: string[];
+    target_levels?: CareerStage[];
+  } | null
 ) {
   syncFeedPreferences(profile, true);
   // The sheet is a temporary narrowing layer over the saved search profile.
   // Preference changes reset it to No preference so a stale local role filter
   // cannot silently hide newly selected roles.
   feed.selectedRoles = [...ALL_FEED_ROLE_IDS];
+  feed.selectedCareerStages = [...feed.availableCareerStages];
   feed.preferenceRevision += 1;
   feed.hydrated = false;
   feed.lastLoadedAt = 0;

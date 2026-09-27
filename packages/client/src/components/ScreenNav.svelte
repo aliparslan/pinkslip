@@ -80,7 +80,7 @@
 >
   <div class="screen-nav__leading">
     <button type="button" class="screen-nav__back" aria-label={backLabel} onclick={onBack}>
-      <CaretLeft size={22} weight="bold" />
+      <CaretLeft size={22} weight="bold" aria-hidden="true" />
     </button>
   </div>
   {#if title && nativeIos && !nativeCollapsible}

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { fly } from "svelte/transition";
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import Info from "phosphor-svelte/lib/Info";
   import Warning from "phosphor-svelte/lib/Warning";
@@ -69,8 +68,6 @@
   role={toast.tone === "error" ? "alert" : "status"}
   style:transform={dragX ? `translateX(${dragX}px)` : undefined}
   style:opacity={dragging ? Math.max(0.3, 1 - Math.abs(dragX) / (elWidth || 200)) : undefined}
-  in:fly={{ y: 10, duration: 180 }}
-  out:fly={{ y: 6, duration: 140 }}
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
@@ -80,7 +77,7 @@
   onfocusin={() => feedback.pause(toast.id)}
   onfocusout={() => feedback.resume(toast.id)}
 >
-  <Icon class="toast-icon" size={18} weight="fill" />
+  <Icon class="toast-icon" size={18} weight="fill" aria-hidden="true" />
   <span class="toast-copy">{toast.message}</span>
   {#if toast.action}
     <button
@@ -96,7 +93,7 @@
   {/if}
   {#if toast.duration === null}
     <button type="button" class="toast-close" aria-label="Dismiss message" onclick={() => feedback.dismiss(toast.id)}>
-      <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} />
+      <X size={nativeIos ? 18 : 16} weight={nativeIos ? "bold" : "regular"} aria-hidden="true" />
     </button>
   {/if}
 </div>
@@ -160,7 +157,7 @@
   }
 
   :global(html.native-ios) .toast-message {
-    width: auto;
+    width: 100%;
     max-width: 100%;
     padding: var(--space-2) var(--space-3);
     gap: var(--space-2);

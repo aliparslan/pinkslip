@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import {
     api,
     ApiError,
@@ -9,7 +9,7 @@
     type ResumeProfile,
   } from "../lib/api";
   import { errorMessage } from "../lib/utils";
-  import { navigate } from "../router";
+  import { navigate, navigateBack } from "../router";
   import {
     announceLocalNavigation,
     registerLocalBackHandler,
@@ -71,7 +71,8 @@
   const savePresentation = new SavePresentation();
   let profile: ResumeProfile = $state(createEmptyResumeProfile());
   let autosaveTimer: number | null = null;
-  let saveAgain = false;
+  let activeSave: Promise<boolean> | null = null;
+  let lastSavedProfileKey = "";
   let importing = $state(false);
   let importError: { code: ResumeImportErrorCode; message: string } | null = $state(null);
   let lastImportFile: File | null = null;
@@ -86,6 +87,7 @@
   let clearResumeError: string | null = $state(null);
   let draftRecord: { section: CollectionSection; id: string } | null = null;
   let draftDirectSection: "skills" | OptionalSectionKind | null = null;
+  let editorReturnFocusId: string | null = null;
   const nativeIos = isIosApp();
 
   function currentDraftValue(): unknown {
@@ -271,11 +273,13 @@
 
   function openSection(section: DirectSection, captureOverview = true) {
     if (captureOverview) prepareResumeEditor();
+    editorReturnFocusId = `resume-section-${section}`;
     view = { kind: "section", section };
   }
 
   function openRecord(section: CollectionSection, id: string, captureOverview = true) {
     if (captureOverview) prepareResumeEditor();
+    editorReturnFocusId = `resume-record-${id}`;
     view = { kind: "record", section, id };
   }
 
@@ -302,15 +306,31 @@
       }
       draftDirectSection = null;
     }
+    const returnFocusId = editorReturnFocusId;
     view = { kind: "overview" };
+    editorReturnFocusId = null;
+    if (returnFocusId) {
+      void tick().then(() => document.getElementById(returnFocusId)?.focus({ preventScroll: true }));
+    }
   }
 
-  function handleBack() {
+  async function handleBack() {
+    if (autosaveTimer !== null) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (
+      savePresentation.phase === "dirty"
+      || savePresentation.phase === "saving"
+      || savePresentation.phase === "error"
+    ) {
+      if (!(await saveAll())) return;
+    }
     if (view.kind !== "overview") {
       if (!nativeIos || !requestBack()) returnToOverview();
       return;
     }
-    if (!requestBack()) navigate("/you");
+    if (!requestBack()) navigateBack("/you");
   }
 
   function addExperience() {
@@ -469,6 +489,7 @@
         skills: (data.skills ?? []).filter((entry) => hasResumeContent(entry)),
         optionalSections: optionalSections.filter((section) => hasResumeContent(section)),
       };
+      lastSavedProfileKey = JSON.stringify(profile);
       savePresentation.hydrate(profileRes.updated_at);
       loaded = true;
     } catch (loadError) {
@@ -478,28 +499,44 @@
     }
   }
 
-  async function saveAll(keepalive = false) {
-    if (saving) {
-      saveAgain = true;
-      return;
+  async function saveAll(keepalive = false): Promise<boolean> {
+    if (!loaded) return false;
+    if (activeSave) {
+      const activeSucceeded = await activeSave;
+      if (!activeSucceeded) return false;
+      if (JSON.stringify(profile) === lastSavedProfileKey) return true;
+      return saveAll(keepalive);
     }
+    if (JSON.stringify(profile) === lastSavedProfileKey) return true;
+
+    const save = saveCurrentProfile(keepalive);
+    activeSave = save;
+    const succeeded = await save;
+    if (activeSave === save) activeSave = null;
+    if (!succeeded) return false;
+    if (JSON.stringify(profile) !== lastSavedProfileKey) return saveAll(keepalive);
+    return true;
+  }
+
+  async function saveCurrentProfile(keepalive: boolean): Promise<boolean> {
     saving = true;
     error = null;
     const presentationGeneration = savePresentation.begin();
+    const sentProfileKey = JSON.stringify(profile);
+    let succeeded = false;
     try {
       const profileRes = await api.profile.update(profile, { keepalive });
+      lastSavedProfileKey = sentProfileKey;
       savePresentation.succeed(presentationGeneration, profileRes.updated_at ?? new Date().toISOString());
+      succeeded = true;
     } catch (saveError) {
       const message = errorMessage(saveError);
       error = message;
       savePresentation.fail(presentationGeneration, message);
     } finally {
       saving = false;
-      if (saveAgain) {
-        saveAgain = false;
-        void saveAll(keepalive);
-      }
     }
+    return succeeded;
   }
 
   function queueAutosave() {
@@ -519,11 +556,15 @@
     }, 800);
   }
 
-  function flushAutosave() {
-    if (autosaveTimer === null) return;
-    window.clearTimeout(autosaveTimer);
-    autosaveTimer = null;
-    void saveAll(true);
+  async function flushAutosave(): Promise<boolean> {
+    if (autosaveTimer !== null) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (!loaded) return true;
+    if (!activeSave && !savePresentation.hasUnsavedChanges
+      && JSON.stringify(profile) === lastSavedProfileKey) return true;
+    return saveAll(true);
   }
 
   function handleInput() {
@@ -702,6 +743,7 @@
     try {
       const response = await api.profile.update(createEmptyResumeProfile());
       profile = normalizeResumeProfile(response.data);
+      lastSavedProfileKey = JSON.stringify(profile);
       pendingImport = null;
       pendingImportWarnings = [];
       pendingImportAssessment = null;
@@ -737,19 +779,97 @@
   });
 </script>
 
+{#snippet importResumeButton(header: boolean)}
+  <button
+    type="button"
+    class={header
+      ? "btn-secondary btn-mini import-action resume-heading-import"
+      : "btn-primary btn-accent import-action"}
+    onclick={() => importInput?.click()}
+    disabled={importing}
+    aria-describedby={importError ? "resume-import-error" : undefined}
+  >
+    {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} weight="bold" aria-hidden="true" />{/if}
+    <span>{header ? "Import resume" : "Import from PDF"}</span>
+  </button>
+{/snippet}
+
+{#snippet importFailure()}
+  {#if importError}
+    {@const recovery = importRecovery(importError.code)}
+    <div id="resume-import-error" class="alert alert-error import-failure" role="alert">
+      <span>{importError.message}</span>
+      {#if recovery}<button type="button" class="import-retry" onclick={recovery.run}>{recovery.label}</button>{/if}
+    </div>
+  {/if}
+{/snippet}
+
 <div class="page pushed-screen" class:native-layout={nativeIos}>
   <ScreenNav
     title={screenTitle}
     collapsible={nativeIos && view.kind === "overview"}
-    backLabel={view.kind === "overview" ? "Back to You" : "Back"}
-    onBack={handleBack}
+    backLabel={view.kind === "overview" ? "Back to You" : "Back to resume"}
+    onBack={() => void handleBack()}
   >
     {#snippet trailing()}
-      <SaveStatus phase={savePresentation.phase} />
+      <SaveStatus
+        phase={savePresentation.phase}
+        errorMessage={savePresentation.errorMessage}
+        onRetry={async () => { await saveAll(); }}
+      />
     {/snippet}
   </ScreenNav>
 
   <div class="page-frame resume-frame">
+    <nav class="web-resume-outline" aria-label="Resume outline">
+      <button
+        type="button"
+        class:active={view.kind === "section" && view.section === "contact"}
+        aria-current={view.kind === "section" && view.section === "contact" ? "page" : undefined}
+        onclick={() => openSection("contact")}
+      >Contact info</button>
+      {#each profile.experience as entry (entry.id)}
+        <button
+          type="button"
+          class:active={view.kind === "record" && view.section === "experience" && currentRecordId === entry.id}
+          aria-current={view.kind === "record" && view.section === "experience" && currentRecordId === entry.id ? "page" : undefined}
+          onclick={() => openRecord("experience", entry.id)}
+        >{entry.title.trim() || "Untitled position"}</button>
+      {/each}
+      {#each profile.education as entry (entry.id)}
+        <button
+          type="button"
+          class:active={view.kind === "record" && view.section === "education" && currentRecordId === entry.id}
+          aria-current={view.kind === "record" && view.section === "education" && currentRecordId === entry.id ? "page" : undefined}
+          onclick={() => openRecord("education", entry.id)}
+        >{entry.institution.trim() || "Untitled education"}</button>
+      {/each}
+      {#each profile.projects as entry (entry.id)}
+        <button
+          type="button"
+          class:active={view.kind === "record" && view.section === "projects" && currentRecordId === entry.id}
+          aria-current={view.kind === "record" && view.section === "projects" && currentRecordId === entry.id ? "page" : undefined}
+          onclick={() => openRecord("projects", entry.id)}
+        >{entry.name.trim() || "Untitled project"}</button>
+      {/each}
+      <button
+        type="button"
+        class:active={view.kind === "section" && view.section === "skills"}
+        aria-current={view.kind === "section" && view.section === "skills" ? "page" : undefined}
+        onclick={() => openSection("skills")}
+      >Skills</button>
+      {#each profile.optionalSections as section (section.kind)}
+        <button
+          type="button"
+          class:active={view.kind === "section" && view.section === section.kind}
+          aria-current={view.kind === "section" && view.section === section.kind ? "page" : undefined}
+          onclick={() => openSection(section.kind)}
+        >{OPTIONAL_SECTION_LABELS[section.kind]}</button>
+      {/each}
+    </nav>
+    {#if view.kind !== "overview"}
+      <h1 class="web-resume-editor-title" data-screen-title-anchor>{screenTitle}</h1>
+    {/if}
     {#if error && (!nativeIos || loaded)}<div class="alert alert-error alert-spaced" role="alert">{error}</div>{/if}
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
@@ -760,7 +880,6 @@
         onRetry={() => void loadAll()}
       />
     {:else if view.kind === "overview"}
-      {#if nativeIos}<h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>{/if}
       <input
         class="visually-hidden-input"
         type="file"
@@ -768,35 +887,31 @@
         bind:this={importInput}
         onchange={handlePdfImport}
       />
+      <div class="resume-overview-heading">
+        <h1 class="screen-large-title" data-screen-title-anchor>Resume</h1>
+        {#if nativeIos}
+          {@render importResumeButton(true)}
+        {/if}
+      </div>
+      {#if nativeIos}
+        {@render importFailure()}
+      {/if}
 
       <div class="resume-overview">
         <section class="resume-section" aria-labelledby="contact-heading">
           <header class="resume-section-heading">
             <h2 id="contact-heading">Contact info</h2>
           </header>
-          <button type="button" class="identity-button" onclick={() => openSection("contact")}>
+          <button id="resume-section-contact" type="button" class="identity-button" onclick={() => openSection("contact")}>
             <span class="identity-copy">
               <strong id="resume-name">{profile.contact.name.trim() || "Add your name"}</strong>
               <small>{contactLine() || "Add email, phone, and location"}</small>
             </span>
             <CaretRight size={18} weight="bold" aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            class="btn-primary btn-accent import-action"
-            onclick={() => importInput?.click()}
-            disabled={importing}
-            aria-describedby={importError ? "resume-import-error" : undefined}
-          >
-            {#if importing}<Spinner size={16} />{:else}<UploadSimple size={17} aria-hidden="true" />{/if}
-            <span>Import from PDF</span>
-          </button>
-          {#if importError}
-            {@const recovery = importRecovery(importError.code)}
-            <div id="resume-import-error" class="alert alert-error import-failure" role="alert">
-              <span>{importError.message}</span>
-              {#if recovery}<button type="button" class="import-retry" onclick={recovery.run}>{recovery.label}</button>{/if}
-            </div>
+          {#if !nativeIos}
+            {@render importResumeButton(false)}
+            {@render importFailure()}
           {/if}
         </section>
 
@@ -813,7 +928,7 @@
           {#if profile.experience.length}
             <div class="resume-entries">
               {#each profile.experience as entry (entry.id)}
-                <button type="button" class="resume-entry" onclick={() => openRecord("experience", entry.id)}>
+                <button id="resume-record-{entry.id}" type="button" class="resume-entry" onclick={() => openRecord("experience", entry.id)}>
                   <span class="entry-copy">
                     <span class="entry-heading">
                       <strong>{entry.title.trim() || "Untitled position"}</strong>
@@ -844,7 +959,7 @@
           {#if profile.education.length}
             <div class="resume-entries">
               {#each profile.education as entry (entry.id)}
-                <button type="button" class="resume-entry" onclick={() => openRecord("education", entry.id)}>
+                <button id="resume-record-{entry.id}" type="button" class="resume-entry" onclick={() => openRecord("education", entry.id)}>
                   <span class="entry-copy">
                     <span class="entry-heading">
                       <strong>{entry.institution.trim() || "Untitled education"}</strong>
@@ -874,7 +989,7 @@
           {#if profile.projects.length}
             <div class="resume-entries">
               {#each profile.projects as entry (entry.id)}
-                <button type="button" class="resume-entry" onclick={() => openRecord("projects", entry.id)}>
+                <button id="resume-record-{entry.id}" type="button" class="resume-entry" onclick={() => openRecord("projects", entry.id)}>
                   <span class="entry-copy">
                     <span class="entry-heading">
                       <strong>{entry.name.trim() || "Untitled project"}</strong>
@@ -901,7 +1016,7 @@
             </div>
           </header>
           {#if profile.skills.length}
-            <button type="button" class="section-content" onclick={() => openSection("skills")}>
+            <button id="resume-section-skills" type="button" class="section-content" onclick={() => openSection("skills")}>
               <span class="section-content-copy">
                 {#each profile.skills as skill}
                   <span class="compact-line"><strong>{skill.category.trim() || "Skills"}</strong><span>{skill.items.trim() || "Add skills"}</span></span>
@@ -919,7 +1034,7 @@
             <header class="resume-section-heading">
               <h2 id="{section.kind}-heading">{OPTIONAL_SECTION_LABELS[section.kind]}</h2>
             </header>
-            <button type="button" class="section-content" onclick={() => openSection(section.kind)}>
+            <button id="resume-section-{section.kind}" type="button" class="section-content" onclick={() => openSection(section.kind)}>
               <span class="section-content-copy">
                 {#each section.items as item}
                   <span class="compact-line"><strong>{item.category.trim() || "Untitled"}</strong><span>{item.items.trim() || "Add details"}</span></span>
@@ -1022,7 +1137,7 @@
           </section>
           <section class="editor-section stack-md">
             <h2>Dates</h2>
-            <div class="form-grid">
+            <div class="form-grid date-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} disabled={isCurrentRole(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
@@ -1130,7 +1245,7 @@
           </section>
           <section class="editor-section stack-md">
             <h2>Dates</h2>
-            <div class="form-grid">
+            <div class="form-grid date-grid">
               <label class="field"><span>Start month</span><input class="input-field" type="month" value={monthInputValue(entry.startDate)} oninput={(event) => { entry.startDate = event.currentTarget.value; handleInput(); }} /></label>
               <label class="field"><span>End month</span><input class="input-field" type="month" value={monthInputValue(entry.endDate)} oninput={(event) => { entry.endDate = event.currentTarget.value; handleInput(); }} /></label>
             </div>
@@ -1255,6 +1370,27 @@
     padding-bottom: var(--space-8);
   }
 
+  .web-resume-outline {
+    display: none;
+  }
+
+  .web-resume-editor-title {
+    display: none;
+  }
+
+  .resume-overview-heading {
+    margin: var(--space-2) 0 var(--space-6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .resume-overview-heading .screen-large-title {
+    min-width: 0;
+    margin: 0;
+  }
+
   .resume-section {
     display: flex;
     flex-direction: column;
@@ -1269,6 +1405,12 @@
   }
 
   .native-layout .import-action { min-height: var(--tap-min); }
+
+  .native-layout .resume-heading-import {
+    flex: 0 0 auto;
+    margin: 0;
+    padding-inline: var(--space-3);
+  }
 
   .import-failure {
     max-width: 36rem;
@@ -1332,7 +1474,7 @@
   }
 
   .native-layout .identity-copy strong {
-    font-size: var(--fs-sm);
+    font-size: var(--fs-md);
     font-weight: 600;
     line-height: 1.3;
   }
@@ -1340,7 +1482,7 @@
   .identity-copy small {
     overflow: hidden;
     color: var(--color-ink-4);
-    font-size: var(--fs-sm);
+    font-size: var(--fs-xs);
     line-height: 1.4;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1832,5 +1974,6 @@
     .span-2 {
       grid-column: auto;
     }
+
   }
 </style>

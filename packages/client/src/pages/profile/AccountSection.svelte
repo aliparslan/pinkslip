@@ -4,6 +4,8 @@
   import { errorMessage } from "../../lib/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../../lib/native-auth";
   import { syncSessionAccess } from "../../lib/session-access";
+  import { clearBootstrapCache } from "../../lib/bootstrap-cache";
+  import { clearJobReadCache } from "../../lib/job-read-cache";
   import Modal from "../../components/Modal.svelte";
   import Spinner from "../../components/Spinner.svelte";
   import AppleMark from "../../components/AppleMark.svelte";
@@ -27,12 +29,22 @@
   } = $props();
 
   let emailLogin: string = $state("");
+  let emailLoginInput: HTMLInputElement | null = $state(null);
+  let emailLoginError: string | null = $state(null);
+  let emailLoginSentTo: string | null = $state(null);
   let sendingEmailLogin: boolean = $state(false);
   let signingInWithApple: boolean = $state(false);
   let signingOut: boolean = $state(false);
   let deletingAccount: boolean = $state(false);
   let showDeleteConfirm: boolean = $state(false);
   let showRestartConfirm: boolean = $state(false);
+
+  function emailAddressesMatch(current: string, sent: string | null): boolean {
+    return sent !== null
+      && current.trim().toLocaleLowerCase() === sent.toLocaleLowerCase();
+  }
+
+  let resendingEmailLogin = $derived(emailAddressesMatch(emailLogin, emailLoginSentTo));
 
   async function handleAppleLogin() {
     signingInWithApple = true;
@@ -41,7 +53,7 @@
       const response = await api.auth.signInWithApple(credential);
       syncSessionAccess(response);
       await onReload();
-      onSuccess("Signed in. Your pinkslip data now syncs across devices.");
+      onSuccess(`Signed in. Your ${nativeIos ? "Pinkslip" : "pinkslip"} data now syncs across devices.`);
     } catch (e) {
       if ((e as { code?: string })?.code === "CANCELED") return; // user dismissed the sheet — not an error
       onError(errorMessage(e, "Could not complete Sign in with Apple."));
@@ -51,11 +63,26 @@
   }
 
   async function handleEmailLoginStart() {
-    if (!emailLogin.trim() || sendingEmailLogin) return;
+    if (sendingEmailLogin) return;
+    const normalizedEmail = emailLogin.trim();
+    emailLogin = normalizedEmail;
+    emailLoginError = null;
+    if (!normalizedEmail) {
+      emailLoginError = "Enter your email address.";
+      emailLoginInput?.focus();
+      return;
+    }
+    if (emailLoginInput) emailLoginInput.value = normalizedEmail;
+    if (emailLoginInput && !emailLoginInput.validity.valid) {
+      emailLoginError = "Enter a valid email address.";
+      emailLoginInput.focus();
+      return;
+    }
     sendingEmailLogin = true;
     try {
-      await api.auth.startEmailLogin(emailLogin.trim());
-      onSuccess("Check your email for a sign-in link.");
+      await api.auth.startEmailLogin(normalizedEmail);
+      emailLoginSentTo = normalizedEmail;
+      onSuccess(`Sign-in link sent to ${normalizedEmail}.`);
     } catch (e) {
       onError(errorMessage(e));
     } finally {
@@ -67,9 +94,17 @@
     signingOut = true;
     try {
       await api.auth.logout();
+      await clearJobReadCache();
+      if (nativeIos) clearBootstrapCache();
       const nextUrl = new URL(window.location.href);
-      nextUrl.hash = "/";
-      window.history.replaceState({}, "", nextUrl.toString());
+      if (nativeIos) {
+        nextUrl.hash = "/";
+      } else {
+        nextUrl.pathname = "/";
+        nextUrl.search = "";
+        nextUrl.hash = "";
+      }
+      window.history.replaceState(window.history.state, "", nextUrl.toString());
       window.location.reload();
     } catch (e) {
       onError(errorMessage(e));
@@ -83,10 +118,13 @@
     deletingAccount = true;
     try {
       const response = await api.auth.deleteAccount();
+      await clearJobReadCache();
       syncSessionAccess(response);
       showDeleteConfirm = false;
       await onReload();
-      onSuccess("Account deleted. You can keep using pinkslip as a guest.");
+      onSuccess(response.apple_revoke_required
+        ? "Account deleted. Remove Pinkslip in your Apple ID’s Sign in with Apple settings to finish disconnecting it."
+        : `Account deleted. You can keep using ${nativeIos ? "Pinkslip" : "pinkslip"} as a guest.`);
     } catch (e) {
       onError(errorMessage(e));
     } finally {
@@ -149,26 +187,53 @@
         </button>
       {/if}
 
-      <div class="inline-form-row">
-        <div>
+      <form
+        class="inline-form-row email-login-form"
+        novalidate
+        aria-busy={sendingEmailLogin}
+        onsubmit={(event) => {
+          event.preventDefault();
+          void handleEmailLoginStart();
+        }}
+      >
+        <div class="email-login-field">
           <label for="email-login" class="field-label">Continue with email</label>
           <input
+            bind:this={emailLoginInput}
             id="email-login"
+            name="email"
             type="email"
             class="input-field"
             placeholder="you@example.com"
             bind:value={emailLogin}
+            required
             autocapitalize="off"
             autocomplete="email"
+            inputmode="email"
             spellcheck="false"
-            onkeydown={(event) => event.key === "Enter" && void handleEmailLoginStart()}
+            aria-invalid={emailLoginError ? "true" : undefined}
+            aria-describedby={emailLoginError
+              ? "email-login-error"
+              : emailLoginSentTo
+                ? "email-login-status"
+                : undefined}
+            oninput={() => (emailLoginError = null)}
           />
         </div>
-        <button class="btn-secondary" type="button" onclick={handleEmailLoginStart} disabled={sendingEmailLogin || !emailLogin.trim()}>
+        <button class="btn-secondary" type="submit" disabled={sendingEmailLogin}>
           {#if sendingEmailLogin}<Spinner />{/if}
-          Send link
+          {resendingEmailLogin ? "Resend link" : "Send link"}
         </button>
-      </div>
+        {#if emailLoginError}
+          <div id="email-login-error" class="alert alert-error email-login-feedback" role="alert">
+            {emailLoginError}
+          </div>
+        {:else if emailLoginSentTo}
+          <div id="email-login-status" class="alert alert-success email-login-feedback">
+            Link sent to <strong>{emailLoginSentTo}</strong>. Open it on this device to finish signing in.
+          </div>
+        {/if}
+      </form>
 
       <button class="text-button" type="button" onclick={() => (showRestartConfirm = true)} disabled={signingOut}>
         Restart onboarding
@@ -185,6 +250,14 @@
     font-size: var(--fs-lg);
     font-weight: 600;
     line-height: 1.3;
+  }
+
+  .email-login-field { min-width: 0; }
+
+  .email-login-feedback {
+    grid-column: 1 / -1;
+    margin-top: var(--space-1);
+    overflow-wrap: anywhere;
   }
 
 </style>

@@ -9,7 +9,7 @@
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import { DropdownMenu } from "bits-ui";
   import type { Company } from "../lib/api";
-  import { companySourceLabel } from "../lib/company-sources";
+  import { companyCareersUrl, companySourceLabel } from "../lib/company-sources";
   import CompanyLogo from "./CompanyLogo.svelte";
   import Switch from "./Switch.svelte";
   import Spinner from "./Spinner.svelte";
@@ -27,18 +27,7 @@
     onReport?: (id: string, name: string) => void;
   } = $props();
 
-  const atsUrls: Record<string, (slug: string) => string> = {
-    greenhouse: (slug) => `https://boards.greenhouse.io/${slug}`,
-    lever: (slug) => `https://jobs.lever.co/${slug}`,
-    ashby: (slug) => `https://jobs.ashbyhq.com/${slug}`,
-    workday: (slug) => slug,
-    rippling: (slug) => `https://ats.rippling.com/${slug}/jobs`,
-    gem: (slug) => `https://jobs.gem.com/${slug}`,
-    smartrecruiters: (slug) => `https://jobs.smartrecruiters.com/${slug}`,
-    yc: (slug) => `https://www.ycombinator.com/companies/${slug}/jobs`,
-  };
-
-  let careersUrl = $derived(atsUrls[company.ats_type]?.(company.ats_slug) ?? null);
+  let careersUrl = $derived(companyCareersUrl(company.ats_type, company.ats_slug));
   let hasError = $derived(company.last_poll_status === "error");
   let isQuarantined = $derived(Boolean(company.quarantined_at));
   let actionsOpen = $state(false);
@@ -162,12 +151,14 @@
     padding: 12px;
     content-visibility: auto;
     contain-intrinsic-size: auto 68px;
-    --company-row-copy-opacity: 1;
   }
 
-  .company-row > :global(.logo-mark),
-  .company-row > .flex-fill {
-    opacity: var(--company-row-copy-opacity);
+  .company-row.hidden .company-name {
+    font-weight: 500;
+  }
+
+  .company-row.hidden > :global(.logo-mark) {
+    filter: grayscale(0.72);
   }
 
   .company-name-row {
@@ -179,7 +170,7 @@
   .company-hidden-label {
     margin-inline-start: 7px;
     flex: none;
-    color: var(--color-ink-4);
+    color: var(--color-ink-3);
     font-size: var(--fs-xs);
     font-weight: 500;
   }

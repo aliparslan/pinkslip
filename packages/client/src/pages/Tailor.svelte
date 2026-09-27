@@ -10,13 +10,12 @@
   import Eye from "phosphor-svelte/lib/Eye";
   import FilePdf from "phosphor-svelte/lib/FilePdf";
   import LockSimple from "phosphor-svelte/lib/LockSimple";
-  import MagicWand from "phosphor-svelte/lib/MagicWand";
   import Plus from "phosphor-svelte/lib/Plus";
   import Sparkle from "phosphor-svelte/lib/Sparkle";
   import Trash from "phosphor-svelte/lib/Trash";
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import X from "phosphor-svelte/lib/X";
-  import { navigate } from "../router";
+  import { backTargetRoute, currentRoute, navigateBack } from "../router";
   import { requestBack } from "../lib/nav-back";
   import {
     api,
@@ -617,8 +616,7 @@
       if (revision !== editRevision) savePresentation.markDirty();
       return true;
     } catch (cause) {
-      const message = errorMessage(cause);
-      error = message;
+      const message = errorMessage(cause, "Could not save this resume");
       savePresentation.fail(presentationGeneration, message);
       return false;
     } finally {
@@ -631,7 +629,7 @@
       while (saveInFlight) {
         if (!(await saveInFlight)) return false;
       }
-      if (savePresentation.phase !== "dirty") return true;
+      if (!savePresentation.hasUnsavedChanges) return true;
       const current = performSave();
       saveInFlight = current;
       try {
@@ -653,6 +651,17 @@
   function clearSaveTimer() {
     if (saveTimer !== null) window.clearTimeout(saveTimer);
     saveTimer = null;
+  }
+
+  function retrySave() {
+    clearSaveTimer();
+    void saveEdits();
+  }
+
+  function saveFailureMessage(message: string): string {
+    const trimmed = message.trim();
+    const sentence = /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+    return `${sentence} Your edits are still here.`;
   }
 
   function clearPreview() {
@@ -790,17 +799,25 @@
   async function handleBack() {
     clearSaveTimer();
     if (!(await saveEdits())) return;
-    if (!requestBack()) navigate(jobId ? `/jobs/${jobId}` : "/");
+    if (!requestBack()) navigateBack(backTargetRoute($currentRoute) ?? (jobId ? `/jobs/${jobId}` : "/"));
+  }
+
+  function guardUnsavedNavigation(event: BeforeUnloadEvent) {
+    if (!savePresentation.hasUnsavedChanges) return;
+    event.preventDefault();
+    event.returnValue = "";
   }
 
   onMount(() => {
     void loadExisting();
+    window.addEventListener("beforeunload", guardUnsavedNavigation);
     const unregister = registerAutosaveFlush(() => {
       clearSaveTimer();
-      void saveEdits();
+      return saveEdits();
     });
     return () => {
       unregister();
+      window.removeEventListener("beforeunload", guardUnsavedNavigation);
       clearSaveTimer();
       if (compileTimer !== null) window.clearTimeout(compileTimer);
       clearProgressTimer();
@@ -811,13 +828,20 @@
 </script>
 
 <div class="page pushed-screen tailoring-screen">
-  <ScreenNav title="Tailor" onBack={() => void handleBack()}>
+  <ScreenNav title="Tailor" backLabel="Back to job" onBack={() => void handleBack()}>
     {#snippet trailing()}
-      {#if draft}<SaveStatus phase={savePresentation.phase} />{/if}
+      {#if draft}
+        <SaveStatus
+          phase={savePresentation.phase}
+          errorMessage={savePresentation.errorMessage}
+          onRetry={retrySave}
+        />
+      {/if}
     {/snippet}
   </ScreenNav>
 
-  <main class="page-frame tailor-page-body">
+  <div class="page-frame tailor-page-body">
+    <h1 class="web-route-title" data-screen-title-anchor>Tailor your resume</h1>
     {#if job && !loading}
       <header class="job-context">
         <div class="job-context__copy">
@@ -848,6 +872,15 @@
         title="Tailoring needs attention"
         message={error}
         onRetry={tailoring ? undefined : () => void loadExisting()}
+      />
+    {/if}
+
+    {#if savePresentation.phase === "error" && savePresentation.errorMessage}
+      <InlineFailure
+        title="Resume not saved"
+        message={saveFailureMessage(savePresentation.errorMessage)}
+        retryLabel="Retry save"
+        onRetry={retrySave}
       />
     {/if}
 
@@ -884,7 +917,7 @@
         title="Tailor your resume"
         message="See how this role matches your saved resume, then choose what to include."
       >
-        {#snippet icon()}<MagicWand size={24} weight="duotone" />{/snippet}
+        {#snippet icon()}<Sparkle size={24} weight="fill" />{/snippet}
         {#snippet actions()}
           <button class="btn-primary btn-accent" type="button" onclick={() => void createPlan()}>
             Review matches
@@ -994,7 +1027,7 @@
               class:active={activeView === "resume"}
               role="tab"
               aria-selected={activeView === "resume"}
-              aria-controls="tailoring-panel"
+              aria-controls="tailoring-panel-resume"
               tabindex={activeView === "resume" ? 0 : -1}
               onclick={() => void selectView("resume")}
               onkeydown={handleViewKeydown}
@@ -1005,7 +1038,7 @@
               class:active={activeView === "preview"}
               role="tab"
               aria-selected={activeView === "preview"}
-              aria-controls="tailoring-panel"
+              aria-controls="tailoring-panel-preview"
               tabindex={activeView === "preview" ? 0 : -1}
               onclick={() => void selectView("preview")}
               onkeydown={handleViewKeydown}
@@ -1019,10 +1052,10 @@
           />
         {/if}
 
-        {#if activeView === "resume"}
           <div
-            id="tailoring-panel"
+            id="tailoring-panel-resume"
             class="structured-editor"
+            class:tailoring-panel-active={activeView === "resume"}
             role="tabpanel"
             aria-labelledby="tailoring-tab-resume"
           >
@@ -1246,10 +1279,10 @@
               {/if}
             </section>
           </div>
-        {:else}
           <div
-            id="tailoring-panel"
+            id="tailoring-panel-preview"
             class="preview-panel"
+            class:tailoring-panel-active={activeView === "preview"}
             role="tabpanel"
             aria-labelledby="tailoring-tab-preview"
           >
@@ -1321,7 +1354,6 @@
               <button class="btn-secondary" type="button" onclick={() => void compilePreview()}><Eye size={17} /> Build preview</button>
             {/if}
           </div>
-        {/if}
 
         <div class="download-action">
           <button class="btn-primary btn-accent full-width" type="button" disabled={exporting || saving} onclick={() => void exportResume()}>
@@ -1331,7 +1363,7 @@
         </div>
       </section>
     {/if}
-  </main>
+  </div>
 </div>
 
 {#if refreshOpen}
@@ -1529,6 +1561,10 @@
     padding: var(--space-4) var(--screen-gutter) calc(var(--safe-bottom) + var(--space-8));
   }
 
+  .web-route-title {
+    display: none;
+  }
+
   .job-context {
     min-width: 0;
     display: flex;
@@ -1664,6 +1700,11 @@
 
   .structured-editor {
     gap: var(--space-8);
+  }
+
+  .structured-editor:not(.tailoring-panel-active),
+  .preview-panel:not(.tailoring-panel-active) {
+    display: none;
   }
 
   .section-intro {

@@ -13,13 +13,14 @@ application code should not invent visually equivalent one-offs.
 | Empty collection / first use | `EmptyState.svelte` | concise title, optional orientation copy, icon, and one next action; `compact` for embedded sections |
 | Partial-load recovery | `InlineFailure.svelte` | local title, recovery message, optional retry without replacing the whole page |
 | Boolean setting | `Switch.svelte` | controlled checked state and accessible label |
-| Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase` |
-| Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, dismiss callback, content/actions snippets |
+| Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase`, optional compact presentation, and a semantic Retry callback for failed saves |
+| Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, busy state, dismiss callback, content/actions snippets; always-visible 44px Close action; sheet drag begins from the handle/header and ignores interactive descendants |
 | Pushed-screen header | `ScreenNav.svelte` | title, back action, optional trailing content, native collapsing title |
-| Collapsed-header search | `HeaderSearch.svelte` | page-registered query binding, compact expand/collapse control |
+| Collapsed-header search | `HeaderSearch.svelte` | owner-keyed page registration that survives retained-root navigation, compact expand/collapse control |
 | Transient feedback | `Toast.svelte` + `ToastViewport.svelte` through `feedback.svelte.ts` | message, tone, optional Undo/action |
-| App navigation | `RootHeader.svelte`, `TabBar.svelte` | shell-owned; do not recreate inside pages |
+| App navigation | `RootHeader.svelte`, `TabBar.svelte` | shell-owned; retained root headers receive their active visibility state; do not recreate inside pages |
 | Product/Apple marks | `BrandMark.svelte`, `AppleMark.svelte` | fixed brand assets |
+| Branded app loading | `BrandLoading.svelte` | full-viewport brand lockup with an accessible loading label |
 
 ## Feature components
 
@@ -65,6 +66,42 @@ stacking multiple tones or sizes is not supported.
 
 ## Quarantine
 
+- **Web Jobs/Library master–detail workspace** — Owner: Web experience.
+  Reason: the persistent desktop Jobs/Library/You primary sidebar,
+  persistent list pane, route-aware
+  empty detail state, independent pane scrolling, and desktop-only action
+  placement are new browser compositions awaiting visual approval at the
+  supported desktop widths. Call site: `apps/web/src/WebApp.svelte`; styles live in
+  `apps/web/src/web.css`. Review or expire by 2026-09-30. This is a web-owned
+  feature composition, not a shared split-pane primitive; do not promote or
+  copy it until the documented reuse threshold and explicit user approval are
+  both met.
+- **Shared adaptive/mobile-web parity presentation** — Owner: Web experience.
+  Reason: the iOS-aligned type roles, canonical 44px controls, flat grouped
+  phone surfaces at 540px and below, and the roomier 541–899px composition are
+  shared visual policy awaiting side-by-side iOS review in light, dark, zoom,
+  and accessibility modes. Styles live in `packages/client/src/app.css` and
+  `packages/client/src/styles/typography.css`; browser wrapping and shell
+  adaptations live in `apps/web/src/web.css`. Call sites span Jobs, job detail,
+  Library, You/settings, Companies, Resume, Tailor, Admin, onboarding, and
+  global state surfaces. Review or expire by 2026-09-30. Do not promote these
+  breakpoint compositions as stable layout primitives before explicit visual
+  approval.
+- **Web secondary-route navigation workspaces** — Owner: Web experience.
+  Reason: the desktop You settings navigation and Resume outline/editor
+  composition are browser-specific adaptations awaiting keyboard, zoom, and
+  visual approval across the supported wide widths. Call sites:
+  `apps/web/src/WebYouNavigation.svelte`, `apps/web/src/WebApp.svelte`, and
+  `packages/client/src/pages/ResumeProfile.svelte`; styles live in
+  `apps/web/src/web.css`. Review or expire by 2026-09-30. Keep these as narrow
+  route compositions rather than promoting a generic sidebar or outline
+  primitive before the reuse threshold is met.
+- **Web install/update actions** — Owner: Web experience. Reason: quiet,
+  capability-driven installation and persistent waiting-update controls are
+  new browser-only compositions pending hands-on Safari and installed-PWA
+  review. Call site: `apps/web/src/WebPlatformActions.svelte`; styles live in
+  `apps/web/src/web.css`. Review or expire by 2026-09-30. Keep platform state
+  and side effects web-owned; this is not a shared notification primitive.
 - **Tailoring trust workspace compositions** — Owner: Tailoring. Reason: the
   word-level evidence comparison, locked-bullet rewrite controls,
   removed-for-space restoration, exact-PDF `ResumePdfPreview`, and PDF revision

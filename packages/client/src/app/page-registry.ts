@@ -1,4 +1,5 @@
 import type { Component } from "svelte";
+import { routePath } from "../route-config";
 import Feed from "../pages/Feed.svelte";
 import JobDetail from "../pages/JobDetail.svelte";
 import Profile from "../pages/Profile.svelte";
@@ -9,6 +10,7 @@ export type PageComponent = Component<{
   jobId?: string | null;
   routeOverride?: string;
   nativeIos?: boolean;
+  active?: boolean;
 }>;
 
 type PageModule = { default: Component<never> | PageComponent };
@@ -44,9 +46,10 @@ const routes: Record<string, PageEntry> = {
 const componentCache = new Map<string, PageComponent>();
 
 export function entryFor(route: string): PageEntry {
-  if (route.startsWith("/jobs/")) return { component: asPage(JobDetail) };
-  if (route.startsWith("/tailor/")) return { cacheKey: "tailor", load: loadTailor };
-  return routes[route] ?? routes["/"];
+  const path = routePath(route);
+  if (path.startsWith("/jobs/")) return { component: asPage(JobDetail) };
+  if (path.startsWith("/tailor/")) return { cacheKey: "tailor", load: loadTailor };
+  return routes[path] ?? routes["/"];
 }
 
 export function resolvedPage(route: string): PageComponent | null {
@@ -64,3 +67,13 @@ export async function loadPage(route: string): Promise<PageComponent> {
   componentCache.set(entry.cacheKey, component);
   return component;
 }
+
+export interface RoutePageRegistry {
+  resolvedPage(route: string): PageComponent | null;
+  loadPage(route: string): Promise<PageComponent>;
+}
+
+export const defaultPageRegistry: RoutePageRegistry = {
+  resolvedPage,
+  loadPage,
+};

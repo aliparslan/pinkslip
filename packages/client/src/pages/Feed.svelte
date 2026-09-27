@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { scrollContainer } from "../router";
-  import { api, type Job } from "../lib/api";
+  import { currentRoute, routeParam, scrollContainer } from "../router";
+  import { api, type Job, type JobsListParams } from "../lib/api";
+  import { jobReadPresentation, readJobsList } from "../lib/job-read-cache";
   import { timeAgo, errorMessage } from "../lib/utils";
   import {
+    ALL_CAREER_STAGES,
     ALL_FEED_ROLE_IDS,
     feed,
     markLocationsManuallySet,
@@ -19,7 +21,7 @@
   import PageFailure from "../components/PageFailure.svelte";
   import EmptyState from "../components/EmptyState.svelte";
   import { feedback } from "../lib/feedback.svelte";
-  import { Dialog, Slider } from "bits-ui";
+  import { Dialog } from "bits-ui";
   import { flip } from "svelte/animate";
   import { cubicOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
@@ -31,10 +33,18 @@
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import X from "phosphor-svelte/lib/X";
   import { dragDismiss } from "../lib/drag-dismiss";
-  import { createFrameBatch, delay } from "../lib/motion";
   import {
+    createFrameBatch,
+    delay,
+    motionDistance,
+    motionDuration,
+  } from "../lib/motion";
+  import { hapticLight } from "../lib/haptics";
+  import {
+    CAREER_STAGE_OPTIONS,
     LOCATION_OPTIONS,
     ROLE_OPTIONS,
+    type CareerStage,
     type LocationId,
     type RoleId,
   } from "../../../../shared/search-profile";
@@ -42,6 +52,11 @@
   import { isIosApp } from "../lib/platform";
   import { sessionAccess } from "../lib/session-access";
   import { headerChrome } from "../lib/header-chrome.svelte";
+  import { ActivationEdge } from "../lib/activation";
+  import { careerStageQuery, sameCareerStages } from "../lib/career-stage-filter";
+
+  let { active = true }: { active?: boolean } = $props();
+  let selectedJobId = $derived(routeParam($currentRoute, "jobId"));
 
   // Compact labels for the shared metro catalog. The filter sends metro
   // IDs to the API, so every onboarding metro is filterable here too.
@@ -86,8 +101,14 @@
   let loading: boolean = $state(!feed.hydrated && feed.jobs.length === 0);
   let error: string | null = $state(null);
   let filtersOpen: boolean = $state(false);
+  let filterTrigger: HTMLButtonElement | undefined = $state();
+  let filterAnchorEnd = $state(0);
+  let filterAnchorTop = $state(0);
   let refreshing: boolean = $state(false);
   let loadingMore: boolean = $state(false);
+  let criteriaLoads = $state(0);
+  let feedResultTotal = $state(feed.hasMore ? -1 : feed.jobs.length);
+  let resultAnnouncement = $state("");
   let searchTimer: number | null = null;
   let loadMoreSentinel: HTMLDivElement | undefined = $state(undefined);
   let feedPage: HTMLDivElement | undefined = $state(undefined);
@@ -96,6 +117,7 @@
   let pullSettling = $state(false);
   let pullTimer: number | null = null;
   let pullCandidate = false;
+  let pullHapticFired = false;
   let pullStartX = 0;
   let pullStartY = 0;
   let requestVersion = 0;
@@ -104,11 +126,12 @@
   let draftSelectedRoles: RoleId[] = $state([...ALL_FEED_ROLE_IDS]);
   let draftMinSalaryK = $state("");
   let draftMaxSalaryK = $state("");
-  let draftYoeRange: number[] = $state([0, 3]);
+  let draftSelectedCareerStages: CareerStage[] = $state([...ALL_CAREER_STAGES]);
   let draftSavedOnly = $state(false);
   let draftPostedFilter: PostedFilter = $state("any");
   let blockCandidate: Job | null = $state(null);
   let blockingJob = $state(false);
+  const activation = new ActivationEdge();
   const hiddenJobPositions = new Map<string, number>();
   const nativeIos = isIosApp();
   type FeedCriteria = Pick<typeof feed,
@@ -118,8 +141,8 @@
     | "savedOnly"
     | "minSalaryK"
     | "maxSalaryK"
-    | "minYoe"
-    | "maxYoe"
+    | "availableCareerStages"
+    | "selectedCareerStages"
     | "postedFilter"
   >;
   type FeedLoadOutcome = "success" | "failure" | "stale";
@@ -132,8 +155,8 @@
       savedOnly: feed.savedOnly,
       minSalaryK: feed.minSalaryK,
       maxSalaryK: feed.maxSalaryK,
-      minYoe: feed.minYoe,
-      maxYoe: feed.maxYoe,
+      availableCareerStages: [...feed.availableCareerStages],
+      selectedCareerStages: [...feed.selectedCareerStages],
       postedFilter: feed.postedFilter,
     };
   }
@@ -145,8 +168,8 @@
     feed.savedOnly = criteria.savedOnly;
     feed.minSalaryK = criteria.minSalaryK;
     feed.maxSalaryK = criteria.maxSalaryK;
-    feed.minYoe = criteria.minYoe;
-    feed.maxYoe = criteria.maxYoe;
+    feed.availableCareerStages = [...criteria.availableCareerStages];
+    feed.selectedCareerStages = [...criteria.selectedCareerStages];
     feed.postedFilter = criteria.postedFilter;
   }
 
@@ -154,9 +177,21 @@
   let showOlderJobsFilter = $derived(!nativeIos || $sessionAccess.isAdmin);
   let effectiveSavedOnly = $derived(!nativeIos && feed.savedOnly);
   const pullBatch = createFrameBatch<number>((value) => {
+    const nextArmed = value >= 44;
+    if (!pullHapticFired && nextArmed) {
+      pullHapticFired = true;
+      hapticLight();
+    }
     pullOffset = value;
-    pullArmed = value >= 44;
+    pullArmed = nextArmed;
   }, nativeIos);
+
+  function announceResults(message: string) {
+    resultAnnouncement = "";
+    window.requestAnimationFrame(() => {
+      resultAnnouncement = message;
+    });
+  }
 
   function removeJob(id: string) {
     const index = feed.jobs.findIndex((job) => job.id === id);
@@ -209,12 +244,15 @@
       && ALL_FEED_ROLE_IDS.every((role) => feed.selectedRoles.includes(role))
     )
   );
+  let hasCareerStageFilter = $derived(
+    !sameCareerStages(feed.selectedCareerStages, feed.availableCareerStages)
+  );
   let activeFilterCount = $derived.by(() => {
     let count = 0;
     if (hasRoleFilter) count += 1;
     if (hasLocationFilter) count += 1;
     if (feed.minSalaryK.trim() || feed.maxSalaryK.trim()) count += 1;
-    if (feed.minYoe !== 0 || feed.maxYoe !== 3) count += 1;
+    if (hasCareerStageFilter) count += 1;
     if (effectiveSavedOnly) count += 1;
     if (showOlderJobsFilter && feed.postedFilter !== "any") count += 1;
     return count;
@@ -248,12 +286,15 @@
       && ALL_FEED_ROLE_IDS.every((role) => draftSelectedRoles.includes(role))
     )
   );
+  let draftHasCareerStageFilter = $derived(
+    !sameCareerStages(draftSelectedCareerStages, feed.availableCareerStages)
+  );
   let draftFilterCount = $derived.by(() => {
     let count = 0;
     if (draftHasRoleFilter) count += 1;
     if (draftHasLocationFilter) count += 1;
     if (draftMinSalaryK.trim() || draftMaxSalaryK.trim()) count += 1;
-    if ((draftYoeRange[0] ?? 0) !== 0 || (draftYoeRange[1] ?? 3) !== 3) count += 1;
+    if (draftHasCareerStageFilter) count += 1;
     if (!nativeIos && draftSavedOnly) count += 1;
     if (showOlderJobsFilter && draftPostedFilter !== "any") count += 1;
     return count;
@@ -264,20 +305,12 @@
     if (labels.length <= 2) return labels.join(", ");
     return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
   });
-  let draftMinYoe = $derived(draftYoeRange[0] ?? 0);
-  let draftMaxYoe = $derived(draftYoeRange[1] ?? 3);
-
-  function experienceRangeLabel(min: number, max: number): string {
-    if (min === 0 && max === 0) return "No experience";
-    if (min === max) return `${min} ${min === 1 ? "year" : "years"}`;
-    return `${min}–${max} years`;
-  }
   function buildFeedParams(
     limit = PAGE_SIZE,
     offset = 0,
     criteria = captureFeedCriteria(),
   ) {
-    const params: Record<string, string> = {
+    const params: JobsListParams = {
       limit: String(limit),
       offset: String(offset),
     };
@@ -304,8 +337,11 @@
     const maxSalary = parseInt(criteria.maxSalaryK, 10);
     if (Number.isFinite(minSalary)) params.min_salary = String(minSalary * 1000);
     if (Number.isFinite(maxSalary)) params.max_salary = String(maxSalary * 1000);
-    if (criteria.minYoe > 0) params.min_yoe = String(criteria.minYoe);
-    if (criteria.maxYoe < 3) params.max_yoe = String(criteria.maxYoe);
+    const stages = careerStageQuery(
+      criteria.selectedCareerStages,
+      criteria.availableCareerStages,
+    );
+    if (stages) params.stages = stages as JobsListParams["stages"];
     if (showOlderJobsFilter && criteria.postedFilter !== "any") params.posted = criteria.postedFilter;
 
     return params;
@@ -344,29 +380,37 @@
     }
 
     try {
-      let jobsRes: Awaited<ReturnType<typeof api.jobs.list>>;
+      let jobsRes: Awaited<ReturnType<typeof readJobsList>>;
       if (!append && nativeIos) {
         const [statsRes, nextJobs] = await Promise.all([
           // Polling health is useful context, but it must never turn a healthy
           // jobs response into a full-feed failure.
           api.stats.get().catch(() => null),
-          api.jobs.list(requestParams),
+          readJobsList(requestParams),
         ]);
         if (version !== requestVersion) return "stale";
         if (statsRes) feed.lastPolled = statsRes.lastPolled ?? null;
         jobsRes = nextJobs;
       } else {
         if (!append) {
-          const statsRes = await api.stats.get();
+          const statsRes = await api.stats.get().catch(() => null);
           if (version !== requestVersion) return "stale";
-          feed.lastPolled = statsRes.lastPolled ?? null;
+          if (statsRes) feed.lastPolled = statsRes.lastPolled ?? null;
         }
-        jobsRes = await api.jobs.list(requestParams);
+        jobsRes = await readJobsList(requestParams);
       }
       if (version !== requestVersion) return "stale";
 
+      // A first-page cache fallback keeps the current rows useful, but it does
+      // not confirm that newly requested filter criteria reached the server.
+      // Treat it as a failed Apply so every client restores the last applied
+      // criteria and pagination while the saved-copy presentation stays visible.
+      if (options?.criteriaChange && jobsRes.source === "cache") {
+        return "failure";
+      }
+
       const incoming = jobsRes.jobs ?? [];
-      if (!append && incoming.length > 0) {
+      if (!append && jobsRes.source === "network" && incoming.length > 0) {
         void api.interactions.event({
           event_name: "job_displayed",
           entity_type: "feed",
@@ -387,21 +431,28 @@
         feed.jobs = incoming;
       }
 
-      feed.hasMore = Boolean(jobsRes.meta?.has_more);
+      feed.hasMore = jobsRes.source === "network" && Boolean(jobsRes.meta?.has_more);
+      feedResultTotal = Math.max(jobsRes.meta.total ?? feed.jobs.length, feed.jobs.length);
       const serverOffset = jobsRes.meta?.next_offset ?? (offset + incoming.length);
       feed.nextOffset = mergeFresh ? Math.max(previousJobs.length, serverOffset) : serverOffset;
       feed.hydrated = true;
       feed.lastLoadedAt = Date.now();
       if (!append) appliedCriteria = requestedCriteria;
+      announceResults(
+        append
+          ? `${feed.jobs.length} of ${feedResultTotal} jobs loaded.`
+          : `${feedResultTotal} ${feedResultTotal === 1 ? "job" : "jobs"} found.`
+      );
       return "success";
     } catch (e) {
       if (version !== requestVersion) return "stale";
       if (!hadJobs) {
         error = errorMessage(e);
-      } else if (!nativeIos && !append) {
-        error = errorMessage(e);
       } else if (append) {
-        feedback.error(errorMessage(e, "Couldn’t load more jobs."));
+        feedback.error(errorMessage(e, "Couldn’t load more jobs."), {
+          dedupeKey: "feed-load-more",
+          action: { label: "Retry", run: loadMore },
+        });
       } else {
         // A background refresh or filter retry should never replace a usable
         // feed with a full-page failure state. Keep the rendered rows stable
@@ -438,7 +489,14 @@
   }
 
   async function loadMore() {
-    if (loading || loadingMore || refreshing || !feed.hasMore) return;
+    if (
+      $jobReadPresentation.readOnly
+      || loading
+      || loadingMore
+      || refreshing
+      || criteriaLoads > 0
+      || !feed.hasMore
+    ) return;
     await loadFeedPage({
       silent: true,
       append: true,
@@ -455,12 +513,13 @@
     savedOnly?: boolean;
     minSalaryK?: string;
     maxSalaryK?: string;
-    minYoe?: number;
-    maxYoe?: number;
+    selectedCareerStages?: CareerStage[];
     postedFilter?: PostedFilter;
   }) {
     const hadExistingJobs = feed.jobs.length > 0;
+    const previousCriteria = captureFeedCriteria();
     const previousPagination = { hasMore: feed.hasMore, nextOffset: feed.nextOffset };
+    criteriaLoads += 1;
     if (updates?.selectedLocations !== undefined) {
       feed.selectedLocations = updates.selectedLocations;
       markLocationsManuallySet();
@@ -480,11 +539,13 @@
     if (updates?.maxSalaryK !== undefined) {
       feed.maxSalaryK = updates.maxSalaryK;
     }
-    if (updates?.minYoe !== undefined) {
-      feed.minYoe = updates.minYoe;
-    }
-    if (updates?.maxYoe !== undefined) {
-      feed.maxYoe = updates.maxYoe;
+    if (updates?.selectedCareerStages !== undefined) {
+      const constrained = feed.availableCareerStages.filter((stage) => (
+        updates.selectedCareerStages?.includes(stage)
+      ));
+      feed.selectedCareerStages = constrained.length > 0
+        ? constrained
+        : [...feed.availableCareerStages];
     }
     if (updates?.postedFilter !== undefined) {
       feed.postedFilter = updates.postedFilter;
@@ -492,17 +553,25 @@
     error = null;
     feed.hasMore = true;
     feed.nextOffset = 0;
-    const outcome = await loadFeedPage({
-      silent: true,
-      append: false,
-      limit: PAGE_SIZE,
-      offset: 0,
-      criteriaChange: true,
-    });
-    if (outcome === "failure" && nativeIos && hadExistingJobs) {
-      restoreFeedCriteria(appliedCriteria);
-      feed.hasMore = previousPagination.hasMore;
-      feed.nextOffset = previousPagination.nextOffset;
+    try {
+      const outcome = await loadFeedPage({
+        silent: true,
+        append: false,
+        limit: PAGE_SIZE,
+        offset: 0,
+        criteriaChange: true,
+      });
+      if (outcome === "failure" && hadExistingJobs) {
+        // Restore the state that existed immediately before this Apply. A
+        // long-lived applied snapshot can be overtaken by an ambient refresh,
+        // while this per-operation snapshot cannot drift during the request.
+        restoreFeedCriteria(previousCriteria);
+        appliedCriteria = previousCriteria;
+        feed.hasMore = previousPagination.hasMore;
+        feed.nextOffset = previousPagination.nextOffset;
+      }
+    } finally {
+      criteriaLoads = Math.max(0, criteriaLoads - 1);
     }
   }
 
@@ -539,12 +608,26 @@
       : next;
   }
 
+  function toggleCareerStageFilter(stage: CareerStage) {
+    const next = draftSelectedCareerStages.includes(stage)
+      ? draftSelectedCareerStages.filter((item) => item !== stage)
+      : feed.availableCareerStages.filter((item) => (
+          item === stage || draftSelectedCareerStages.includes(item)
+        ));
+    if (next.length > 0) draftSelectedCareerStages = next;
+  }
+
   function openFilterSheet() {
+    const triggerRect = filterTrigger?.getBoundingClientRect();
+    if (triggerRect) {
+      filterAnchorEnd = Math.max(0, window.innerWidth - triggerRect.right);
+      filterAnchorTop = triggerRect.bottom;
+    }
     draftSelectedLocations = [...feed.selectedLocations];
     draftSelectedRoles = [...feed.selectedRoles];
     draftMinSalaryK = feed.minSalaryK;
     draftMaxSalaryK = feed.maxSalaryK;
-    draftYoeRange = [feed.minYoe ?? 0, feed.maxYoe ?? 3];
+    draftSelectedCareerStages = [...feed.selectedCareerStages];
     draftSavedOnly = effectiveSavedOnly;
     draftPostedFilter = showOlderJobsFilter ? feed.postedFilter : "any";
     filtersOpen = true;
@@ -559,8 +642,7 @@
       selectedRoles: [...ALL_FEED_ROLE_IDS],
       minSalaryK: "",
       maxSalaryK: "",
-      minYoe: 0,
-      maxYoe: 3,
+      selectedCareerStages: [...feed.availableCareerStages],
       postedFilter: "any",
     });
   }
@@ -570,7 +652,7 @@
     draftSelectedRoles = [...ALL_FEED_ROLE_IDS];
     draftMinSalaryK = "";
     draftMaxSalaryK = "";
-    draftYoeRange = [0, 3];
+    draftSelectedCareerStages = [...feed.availableCareerStages];
     draftSavedOnly = false;
     draftPostedFilter = "any";
   }
@@ -582,8 +664,7 @@
       selectedRoles: [...draftSelectedRoles],
       minSalaryK: draftMinSalaryK,
       maxSalaryK: draftMaxSalaryK,
-      minYoe: draftMinYoe,
-      maxYoe: draftMaxYoe,
+      selectedCareerStages: [...draftSelectedCareerStages],
       savedOnly: nativeIos ? false : draftSavedOnly,
       postedFilter: showOlderJobsFilter ? draftPostedFilter : "any",
     });
@@ -625,7 +706,7 @@
   }
 
   async function triggerRefresh() {
-    if (refreshing) return;
+    if (refreshing || criteriaLoads > 0) return;
     refreshing = true;
     error = null;
     await loadFeed(true);
@@ -638,6 +719,10 @@
     if (!force && feed.hydrated && now - feed.lastLoadedAt < FEED_REFRESH_AFTER_MS) return;
     await loadFeed(true);
   }
+
+  $effect(() => {
+    if (activation.becameActive(active)) void refreshIfStale();
+  });
 
   $effect(() => {
     const revision = feed.preferenceRevision;
@@ -665,7 +750,7 @@
       pullOffset = 48;
       void triggerRefresh().finally(() => {
         pullOffset = 0;
-        window.setTimeout(() => { pullSettling = false; }, 240);
+        window.setTimeout(() => { pullSettling = false; }, motionDuration(240));
       });
       return;
     }
@@ -680,7 +765,7 @@
       pullArmed = false;
       pullSettling = false;
       pullTimer = null;
-    }, 240);
+    }, motionDuration(240));
   }
 
   $effect(() => {
@@ -693,6 +778,7 @@
       const touch = event.touches[0];
       pullStartX = touch.clientX;
       pullStartY = touch.clientY;
+      pullHapticFired = false;
       pullCandidate = true;
     };
     const handleTouchMove = (event: TouchEvent) => {
@@ -746,36 +832,36 @@
       loadFeed();
     }
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
+      if (active && document.visibilityState === "visible") {
         refreshIfStale();
       }
     };
     const handleFocus = () => {
-      refreshIfStale();
+      if (active) refreshIfStale();
     };
     const handlePageShow = () => {
-      refreshIfStale();
+      if (active) refreshIfStale();
     };
-    const handleServiceWorkerMessage = (event: MessageEvent<{ type?: string }>) => {
-      if (
-        event.data?.type === "pinkslip:push"
-        || event.data?.type === "pinkslip:notification-opened"
-      ) {
-        refreshIfStale(true);
-      }
+    const handleForegroundPush = () => {
+      if (!nativeIos) refreshIfStale(true);
+    };
+    const handleReconnect = () => {
+      if (!nativeIos) refreshIfStale(true);
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("pageshow", handlePageShow);
-    navigator.serviceWorker?.addEventListener("message", handleServiceWorkerMessage);
+    window.addEventListener("pinkslip:push", handleForegroundPush);
+    window.addEventListener("online", handleReconnect);
 
     return () => {
       unregisterHeaderSearch();
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handlePageShow);
-      navigator.serviceWorker?.removeEventListener("message", handleServiceWorkerMessage);
+      window.removeEventListener("pinkslip:push", handleForegroundPush);
+      window.removeEventListener("online", handleReconnect);
       if (searchTimer !== null) {
         window.clearTimeout(searchTimer);
       }
@@ -837,6 +923,9 @@
 {/snippet}
 
 <div bind:this={feedPage} class="page root-screen feed-page" class:pull-settling={pullSettling}>
+  <div class="feed-result-status" role="status" aria-live="polite" aria-atomic="true">
+    {resultAnnouncement}
+  </div>
   <!-- Search and filtering share one compact control surface. -->
   <div class="feed-controls">
     <div class="feed-toolbar">
@@ -847,6 +936,7 @@
           enterkeyhint="search"
           placeholder="Search"
           aria-label="Search jobs or companies"
+          disabled={$jobReadPresentation.readOnly}
           value={feed.searchQuery}
           oninput={(event) => scheduleSearch(event.currentTarget.value)}
           onkeydown={commitSearch}
@@ -858,12 +948,17 @@
         {/if}
       </div>
       <button
+        bind:this={filterTrigger}
         class="filter-button"
         class:active={activeFilterCount > 0}
+        disabled={$jobReadPresentation.readOnly}
         onclick={openFilterSheet}
-        aria-label="Open filters"
+        aria-label={activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : "Filters"}
+        aria-haspopup="dialog"
+        aria-controls={filtersOpen ? "feed-filter-sheet" : undefined}
+        aria-expanded={filtersOpen}
       >
-        <SlidersHorizontal size={15} weight="bold" />
+        <SlidersHorizontal size={15} weight="bold" aria-hidden="true" />
         <span>Filters</span>
         {#if activeFilterCount > 0}
           {#key activeFilterCount}
@@ -875,15 +970,35 @@
     <div
       class="feed-pull-reveal"
       class:armed={pullArmed}
+      class:refreshing={refreshing}
       style:height={`${pullOffset}px`}
       style:opacity={Math.min(1, pullOffset / 34)}
       role="status"
       aria-hidden={!pullArmed && !refreshing}
     >
       <ArrowClockwise size={17} weight="bold" aria-hidden="true" />
-      <span>{nativeIos ? (refreshing ? "Refreshing jobs…" : "Pull to refresh") : "Updates every 15 minutes. You’re caught up."}</span>
+      <span>{nativeIos
+        ? refreshing
+          ? "Refreshing jobs…"
+          : pullArmed
+            ? "Release to refresh"
+            : "Pull to refresh"
+        : "Updates every 15 minutes. You’re caught up."}</span>
     </div>
   </div>
+
+  {#if $jobReadPresentation.readOnly}
+    <div class="feed-stale-notice web-offline-copy" role="status">
+      <WarningCircle size={15} weight="bold" aria-hidden="true" />
+      <span>
+        Saved copy{#if $jobReadPresentation.savedAt} · from {timeAgo(new Date($jobReadPresentation.savedAt).toISOString())}{/if}.
+        Actions and filters return when you’re online.
+      </span>
+      <button onclick={triggerRefresh} disabled={refreshing || criteriaLoads > 0}>
+        {refreshing || criteriaLoads > 0 ? "Checking…" : "Try again"}
+      </button>
+    </div>
+  {/if}
 
   {#if pollStale && feed.lastPolled}
     <div class="feed-stale-notice">
@@ -895,7 +1010,7 @@
     </div>
   {/if}
 
-  <div aria-busy={nativeIos ? (loading || refreshing || loadingMore) : undefined}>
+  <div aria-busy={loading || refreshing || loadingMore || criteriaLoads > 0}>
     {#if loading}
       {#each Array(6) as _}
         <div class="feed-skeleton-row">
@@ -908,49 +1023,30 @@
         </div>
       {/each}
     {:else if error}
-      {#if nativeIos}
-        <PageFailure
-          title="Jobs didn’t load"
-          message="Check your connection and try again."
-          onRetry={() => void loadFeed()}
-        />
-      {:else}
-        <div class="alert alert-error feed-error" role="alert">{error}</div>
-      {/if}
+      <PageFailure
+        title="Jobs didn’t load"
+        message="Check your connection and try again."
+        onRetry={() => void loadFeed()}
+      />
     {:else if feed.jobs.length === 0}
-      {#if nativeIos}
-        <EmptyState title={feedEmptyTitle} message={feedEmptyMessage}>
-          {#snippet actions()}
-            {#if refinableFilterCount > 0}
-              <button class="btn-secondary" onclick={clearRefinableFilters}>
-                Clear filters
-              </button>
-            {/if}
-            <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
-              {#if refreshing}<Spinner />{/if}
-              Refresh now
+      <EmptyState title={feedEmptyTitle} message={feedEmptyMessage}>
+        {#snippet actions()}
+          {#if refinableFilterCount > 0 && !$jobReadPresentation.readOnly}
+            <button class="btn-secondary" onclick={clearRefinableFilters}>
+              Clear filters
             </button>
-          {/snippet}
-        </EmptyState>
-      {:else}
-        <div class="empty-state">
-          <h2 class="h-display h-display-sm empty-state-title">{feedEmptyTitle}</h2>
-          <div class="empty-state-copy feed-empty-copy">{feedEmptyMessage}</div>
-          <div class="button-cluster center">
-            {#if refinableFilterCount > 0}
-              <button class="btn-secondary" onclick={clearRefinableFilters}>Clear filters</button>
-            {/if}
-            <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
-              {#if refreshing}<Spinner />{/if}
-              Refresh now
-            </button>
-          </div>
-        </div>
-      {/if}
+          {/if}
+          <button class="btn-secondary" onclick={triggerRefresh} disabled={refreshing}>
+            {#if refreshing}<Spinner />{/if}
+            Refresh now
+          </button>
+        {/snippet}
+      </EmptyState>
     {:else}
       {#if nativeIos}
         <VirtualJobList
           jobs={feed.jobs}
+          total={feedResultTotal}
           {viewed}
           onDismiss={removeJob}
           onRestore={restoreJob}
@@ -959,14 +1055,16 @@
         />
       {:else}
         {#each feed.jobs as job (job.id)}
-          <div animate:flip={{ duration: 240, easing: cubicOut }}>
+          <div animate:flip={{ duration: motionDuration(240), easing: cubicOut }}>
             <JobRow
               {job}
+              selected={selectedJobId === job.id}
               viewed={viewed.has(job.id)}
-              onDismiss={removeJob}
-              onRestore={restoreJob}
-              onSaved={markJobSaved}
-              onBlockRequest={(candidate) => (blockCandidate = candidate)}
+              swipeActions={false}
+              onDismiss={$jobReadPresentation.readOnly ? undefined : removeJob}
+              onRestore={$jobReadPresentation.readOnly ? undefined : restoreJob}
+              onSaved={$jobReadPresentation.readOnly ? undefined : markJobSaved}
+              onBlockRequest={$jobReadPresentation.readOnly ? undefined : (candidate) => (blockCandidate = candidate)}
             />
           </div>
         {/each}
@@ -996,27 +1094,30 @@
           <div
             {...props}
             class="sheet-backdrop"
-            in:fade={{ duration: 160 }}
-            out:fade={{ duration: 120 }}
+            in:fade={{ duration: motionDuration(160) }}
+            out:fade={{ duration: motionDuration(120) }}
           ></div>
         {/if}
       {/snippet}
     </Dialog.Overlay>
-    <Dialog.Content forceMount restoreScrollDelay={260}>
+    <Dialog.Content forceMount restoreScrollDelay={motionDuration(260)}>
       {#snippet child({ props, open })}
         {#if open}
           <div
             {...props}
+            id="feed-filter-sheet"
             class="sheet filter-sheet"
+            style:--filter-anchor-end={`${filterAnchorEnd}px`}
+            style:--filter-anchor-top={`${filterAnchorTop}px`}
             use:dragDismiss={{ onDismiss: () => (filtersOpen = false), base: "translateX(-50%)" }}
-            in:fly={{ y: 20, duration: 220, easing: cubicOut }}
-            out:fly={{ y: 14, duration: 140, easing: cubicOut }}
+            in:fly={{ y: motionDistance(20), duration: motionDuration(220), easing: cubicOut }}
+            out:fly={{ y: motionDistance(14), duration: motionDuration(140), easing: cubicOut }}
           >
           <div class="sheet-handle"></div>
           <div class="filter-sheet-header">
             <Dialog.Title class="h-display h-display-md">Filters</Dialog.Title>
             <button class="icon-btn" aria-label="Close filters" onclick={() => (filtersOpen = false)}>
-              <X size={nativeIos ? 20 : 18} weight={nativeIos ? "bold" : "regular"} />
+              <X size={nativeIos ? 20 : 18} weight={nativeIos ? "bold" : "regular"} aria-hidden="true" />
             </button>
           </div>
 
@@ -1099,40 +1200,26 @@
             </section>
 
             <section class="filter-group">
-              <div class="filter-range-heading">
-                <span id="experience-filter-label">Experience required</span>
-                <output>
-                  {experienceRangeLabel(draftMinYoe, draftMaxYoe)}
-                </output>
+              <div id="career-stage-filter-label" class="filter-group-title">Career stage</div>
+              <div
+                class="filter-option-grid career-stage-filter-grid"
+                role="group"
+                aria-labelledby="career-stage-filter-label"
+              >
+                {#each CAREER_STAGE_OPTIONS.filter((option) => feed.availableCareerStages.includes(option.id)) as option}
+                  <button
+                    type="button"
+                    class="filter-choice"
+                    class:active={draftSelectedCareerStages.includes(option.id)}
+                    aria-pressed={draftSelectedCareerStages.includes(option.id)}
+                    aria-disabled={draftSelectedCareerStages.includes(option.id) && draftSelectedCareerStages.length === 1}
+                    onclick={() => toggleCareerStageFilter(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                {/each}
               </div>
-              <div class="filter-range">
-                <Slider.Root
-                  class="filter-dual-range"
-                  type="multiple"
-                  bind:value={draftYoeRange}
-                  min={0}
-                  max={3}
-                  step={1}
-                  aria-labelledby="experience-filter-label"
-                >
-                  <Slider.Range class="filter-dual-range-fill" />
-                  <Slider.Thumb
-                    class="filter-dual-range-thumb"
-                    index={0}
-                    aria-label="Minimum experience required"
-                    aria-valuetext={draftMinYoe === 0 ? "No minimum experience" : `${draftMinYoe} years minimum`}
-                  />
-                  <Slider.Thumb
-                    class="filter-dual-range-thumb"
-                    index={1}
-                    aria-label="Maximum experience required"
-                    aria-valuetext={`${draftMaxYoe} years maximum`}
-                  />
-                </Slider.Root>
-                <div class="filter-range-ticks" aria-hidden="true">
-                  <span>0</span><span>1</span><span>2</span><span>3</span>
-                </div>
-              </div>
+              <p class="filter-group-help">Choose at least one of your saved career stages.</p>
             </section>
 
             {#if nativeIos}
@@ -1175,3 +1262,35 @@
     </div>
   </Modal>
 {/if}
+
+<style>
+  .feed-result-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .career-stage-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .career-stage-filter-grid .filter-choice {
+    height: auto;
+    min-height: var(--tap-min);
+    white-space: normal;
+  }
+
+  .filter-group-help {
+    margin: 0;
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: var(--leading-body);
+  }
+</style>

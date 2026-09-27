@@ -1,10 +1,18 @@
 <script lang="ts">
-  import { currentRoute, navigate, rootDestinationFor, scrollContainer, type RootDestination } from "../router";
+  import {
+    currentRoute,
+    navigate,
+    rootDestinationFor,
+    routeHref,
+    scrollContainer,
+    shouldHandleRouteAnchor,
+    type RootDestination,
+  } from "../router";
   import BrandMark from "./BrandMark.svelte";
   import BookmarksSimple from "phosphor-svelte/lib/BookmarksSimple";
   import Briefcase from "phosphor-svelte/lib/Briefcase";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
-  import { isIosApp } from "../lib/platform";
+  import { prefersReducedMotion } from "../lib/motion";
 
   let {
     mobileHidden = false,
@@ -28,9 +36,11 @@
     return rootDestinationFor(route) === id;
   }
 
-  function selectTab(path: string, id: RootDestination): void {
+  function selectTab(event: MouseEvent, path: string, id: RootDestination): void {
+    if (!shouldHandleRouteAnchor(event)) return;
+    event.preventDefault();
     if (isActive(id)) {
-      const reduce = isIosApp() && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reduce = prefersReducedMotion();
       scrollContainer()?.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
       return;
     }
@@ -46,19 +56,19 @@
   aria-label="Main navigation"
 >
   <div class="tab-bar__inner">
-    <button type="button" class="tab-bar__brand" aria-label="Go to jobs" onclick={() => selectTab("/", "feed")}>
+    <a href={routeHref("/")} class="tab-bar__brand" aria-label="Go to jobs" onclick={(event) => selectTab(event, "/", "feed")}>
       <span class="tab-bar__mark"><BrandMark size={23} /></span>
       <span><span>pink</span>slip</span>
-    </button>
+    </a>
 
     <div class="tab-bar__links">
     {#each tabs as tab}
       {@const active = isActive(tab.id)}
-      <button
-        type="button"
+      <a
+        href={routeHref(tab.path)}
         class="tab-bar__item"
         class:active
-        onclick={() => selectTab(tab.path, tab.id)}
+        onclick={(event) => selectTab(event, tab.path, tab.id)}
         aria-current={active ? "page" : undefined}
       >
         <span class="tab-bar__icon" aria-hidden="true">
@@ -66,7 +76,7 @@
           <span class:visible={active}><tab.icon size={22} weight="fill" /></span>
         </span>
         <span class="tab-bar__label">{tab.label}</span>
-      </button>
+      </a>
     {/each}
     </div>
   </div>
@@ -113,15 +123,16 @@
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-ink-3);
+    text-decoration: none;
     font-family: var(--font-sans);
     font-size: var(--fs-3xs);
     font-weight: 500;
     transition:
       color var(--duration-instant) var(--ease-standard),
       background var(--duration-instant) var(--ease-standard),
-      transform 100ms var(--ease-standard);
+      transform var(--duration-instant) var(--ease-standard);
   }
-  .tab-bar__item:active { transform: scale(0.97); }
+  .tab-bar__item:active { transform: scale(0.96); }
   .tab-bar__item.active {
     color: var(--color-accent);
   }
@@ -140,15 +151,10 @@
     display: grid;
     place-items: center;
     opacity: 0;
-    transform: scale(0.72);
-    transition:
-      opacity var(--duration-instant) var(--ease-standard),
-      transform var(--duration-instant) var(--ease-standard);
   }
 
   .tab-bar__icon > span.visible {
     opacity: 1;
-    transform: scale(1);
   }
 
   @media (max-width: 899px) {
@@ -161,68 +167,4 @@
     }
   }
 
-  @media (min-width: 900px) {
-    .tab-bar {
-      top: 0;
-      right: auto;
-      width: var(--app-nav-wide);
-      padding: 28px var(--space-4);
-      border-top: 0;
-      border-right: 1px solid var(--color-line);
-      background: var(--color-bg-elev);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-    .tab-bar__inner {
-      max-width: none;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 28px;
-    }
-    .tab-bar__brand {
-      min-height: var(--tap-min);
-      padding: 6px var(--space-2);
-      display: inline-flex;
-      align-items: center;
-      align-self: flex-start;
-      gap: 10px;
-      border: 0;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--color-ink);
-      font-size: var(--fs-xl);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      cursor: pointer;
-    }
-    .tab-bar__brand > span > span {
-      color: var(--color-accent);
-    }
-    .tab-bar__mark {
-      display: block;
-      flex-shrink: 0;
-      transform: rotate(-5deg);
-    }
-    .tab-bar__links {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-1);
-      padding: 0;
-    }
-    .tab-bar__item {
-      min-height: 48px;
-      padding: 0 var(--space-3);
-      flex-direction: row;
-      justify-content: flex-start;
-      gap: var(--space-3);
-      border-radius: var(--radius-md);
-      font-size: var(--fs-base);
-    }
-    .tab-bar__label { transform: none; }
-    .tab-bar__item.active {
-      background: var(--color-accent-soft);
-      color: var(--color-accent-soft-ink);
-    }
-  }
 </style>

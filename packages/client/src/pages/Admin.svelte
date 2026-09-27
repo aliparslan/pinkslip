@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { currentRoute, navigate } from "../router";
+  import { currentRoute, navigateBack, navigateFromAnchor, routeHref } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";
   import { feedback } from "../lib/feedback.svelte";
@@ -22,7 +22,7 @@
   let active = $derived(destinations.find((destination) => destination.path === route) ?? destinations[0]);
 
   function backToYou() {
-    if (!requestBack()) navigate("/you");
+    if (!requestBack()) navigateBack("/you");
   }
 </script>
 
@@ -44,7 +44,7 @@
     </div>
   {:else}
     <div class="admin-page">
-      <h1 class="admin-view-title" data-screen-title-anchor>Admin</h1>
+      <h1 class="admin-view-title" data-screen-title-anchor>{active.label}</h1>
 
       <nav
         class="admin-tabs"
@@ -54,14 +54,14 @@
         aria-label="Admin sections"
       >
         {#each destinations as destination}
-          <button
-            type="button"
+          <a
+            href={routeHref(destination.path)}
             class:active={active.path === destination.path}
             aria-current={active.path === destination.path ? "page" : undefined}
-            onclick={() => navigate(destination.path)}
+            onclick={(event) => navigateFromAnchor(event, destination.path, { replace: true })}
           >
             {destination.label}
-          </button>
+          </a>
         {/each}
       </nav>
 
@@ -145,9 +145,11 @@
     transform: translateX(calc(300% + 9px));
   }
 
-  .admin-tabs button {
+  .admin-tabs a {
     min-width: 0;
     padding: 0 8px;
+    display: grid;
+    place-items: center;
     overflow: hidden;
     border: 0;
     border-radius: var(--radius-sm);
@@ -155,12 +157,13 @@
     color: var(--color-ink-3);
     font-size: var(--fs-sm);
     font-weight: 600;
+    text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
   }
 
-  .native-layout .admin-tabs button {
+  .native-layout .admin-tabs a {
     position: relative;
     z-index: 1;
     color: var(--color-ink-2);
@@ -168,13 +171,13 @@
     transition: color var(--duration-instant) var(--ease-standard);
   }
 
-  .admin-tabs button.active {
+  .admin-tabs a.active {
     background: var(--color-bg-elev);
     color: var(--color-ink);
     box-shadow: var(--shadow-control-active);
   }
 
-  .native-layout .admin-tabs button.active {
+  .native-layout .admin-tabs a.active {
     background: transparent;
     color: var(--color-ink);
     box-shadow: none;

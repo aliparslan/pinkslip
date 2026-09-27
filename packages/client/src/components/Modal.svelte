@@ -5,6 +5,8 @@
   import { focusTrap } from "../lib/focus-trap";
   import { registerModalOpen } from "../lib/modal-stack.svelte";
   import { isIosApp } from "../lib/platform";
+  import { motionDistance, motionDuration } from "../lib/motion";
+  import X from "phosphor-svelte/lib/X";
 
   let {
     title,
@@ -51,15 +53,15 @@
   class="modal-backdrop"
   role="presentation"
   style:--modal-scrim-opacity={`${backdropOpacity}`}
-  in:fade={{ duration: 160 }}
-  out:fade={{ duration: 120 }}
+  in:fade={{ duration: motionDuration(160) }}
+  out:fade={{ duration: motionDuration(120) }}
   onclick={(event) => { if (event.target === event.currentTarget) requestClose(); }}
 >
   <div
     class="modal-motion-shell"
     style="--modal-max-width: {maxWidth}px;"
-    in:fly={{ y: 12, duration: 220 }}
-    out:fly={{ y: 10, duration: 140 }}
+    in:fly={{ y: motionDistance(12), duration: motionDuration(220) }}
+    out:fly={{ y: motionDistance(10), duration: motionDuration(140) }}
   >
     <div
       class="modal-card"
@@ -69,7 +71,7 @@
       use:dragDismiss={{
         onDismiss: requestClose,
         disabled: busy,
-        startSelector: nativeIos ? undefined : ".modal-drag-handle",
+        startSelector: ".modal-drag-region",
         onOffsetChange: updateBackdropOpacity,
       }}
       aria-labelledby={titleId}
@@ -77,12 +79,64 @@
       tabindex="-1"
       onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
     >
-      <div class="modal-drag-handle" aria-hidden="true"></div>
-      <h2 id={titleId} class="h-display modal-title">{title}</h2>
-      {#if subtitle}
-        <p id={subtitleId} class="modal-subtitle">{subtitle}</p>
-      {/if}
+      <div class="modal-drag-region">
+        <div class="modal-drag-handle" aria-hidden="true"></div>
+        <h2 id={titleId} class="h-display modal-title">{title}</h2>
+        {#if subtitle}
+          <p id={subtitleId} class="modal-subtitle">{subtitle}</p>
+        {/if}
+      </div>
       {@render children()}
+      <button
+        type="button"
+        class="modal-close"
+        aria-label="Close"
+        disabled={busy}
+        onclick={requestClose}
+      >
+        <X size={20} weight="regular" aria-hidden="true" />
+      </button>
     </div>
   </div>
 </div>
+
+<style>
+  .modal-card { position: relative; }
+
+  .modal-drag-region {
+    padding-inline-end: calc(var(--tap-min) - var(--space-1));
+  }
+
+  .modal-close {
+    position: absolute;
+    top: var(--space-3);
+    inset-inline-end: var(--space-3);
+    width: var(--tap-min);
+    height: var(--tap-min);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ink-3);
+    cursor: pointer;
+  }
+
+  .modal-close:hover {
+    background: var(--color-bg-sunken);
+    color: var(--color-ink);
+  }
+
+  .modal-close:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (max-width: 640px) {
+    .modal-close {
+      top: var(--space-2);
+      inset-inline-end: var(--space-2);
+    }
+  }
+</style>

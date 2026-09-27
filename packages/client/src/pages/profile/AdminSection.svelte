@@ -21,6 +21,19 @@
     return `${Math.round(value * 1000) / 10}%`;
   }
 
+  function hasAlertActivity(metrics: ProductMetrics) {
+    return metrics.notification_latency_seconds > 0
+      || metrics.notification_open_rate > 0
+      || metrics.notifications_sent > 0
+      || metrics.push_registrations > 0;
+  }
+
+  function hasConversionActivity(metrics: ProductMetrics) {
+    return metrics.apply_clicks_within_one_hour > 0
+      || metrics.tailoring_to_application_rate > 0
+      || metrics.accounts_created > 0;
+  }
+
   async function loadProductHealth() {
     loading = true;
     loadError = null;
@@ -53,12 +66,16 @@
     <div class="metric-summary">
       <section class="metric-group">
         <h3>Alerts</h3>
-        <dl>
-          <div><dt>Job to alert</dt><dd>{formatLatency(productMetrics.notification_latency_seconds)}</dd></div>
-          <div><dt>Alert open rate</dt><dd>{productMetrics.notification_open_rate}%</dd></div>
-          <div><dt>Alerts sent</dt><dd>{productMetrics.notifications_sent}</dd></div>
-          <div><dt>Devices registered</dt><dd>{productMetrics.push_registrations}</dd></div>
-        </dl>
+        {#if hasAlertActivity(productMetrics)}
+          <dl>
+            <div><dt>Job to alert</dt><dd>{formatLatency(productMetrics.notification_latency_seconds)}</dd></div>
+            <div><dt>Alert open rate</dt><dd>{productMetrics.notification_open_rate}%</dd></div>
+            <div><dt>Alerts sent</dt><dd>{productMetrics.notifications_sent}</dd></div>
+            <div><dt>Devices registered</dt><dd>{productMetrics.push_registrations}</dd></div>
+          </dl>
+        {:else}
+          <p class="metric-group-empty">No alert activity in this period.</p>
+        {/if}
       </section>
 
       <section class="metric-group">
@@ -73,30 +90,42 @@
 
       <section class="metric-group">
         <h3>Conversion</h3>
-        <dl>
-          <div><dt>Quick apply clicks</dt><dd>{productMetrics.apply_clicks_within_one_hour}</dd></div>
-          <div><dt>Tailor to apply</dt><dd>{productMetrics.tailoring_to_application_rate}%</dd></div>
-          <div><dt>New accounts</dt><dd>{productMetrics.accounts_created}</dd></div>
-        </dl>
+        {#if hasConversionActivity(productMetrics)}
+          <dl>
+            <div><dt>Quick apply clicks</dt><dd>{productMetrics.apply_clicks_within_one_hour}</dd></div>
+            <div><dt>Tailor to apply</dt><dd>{productMetrics.tailoring_to_application_rate}%</dd></div>
+            <div><dt>New accounts</dt><dd>{productMetrics.accounts_created}</dd></div>
+          </dl>
+        {:else}
+          <p class="metric-group-empty">No conversion activity in this period.</p>
+        {/if}
       </section>
 
       <section class="metric-group">
         <h3>Tailoring quality</h3>
-        <dl>
-          <div><dt>Evaluated PDFs</dt><dd>{productMetrics.tailoring_quality.sampleSize}/20</dd></div>
-          <div><dt>Unsupported claims</dt><dd>{formatRatio(productMetrics.tailoring_quality.unsupportedClaimRate)}</dd></div>
-          <div><dt>One-page PDFs</dt><dd>{formatRatio(productMetrics.tailoring_quality.onePageRate)}</dd></div>
-          <div><dt>Device compile failures</dt><dd>{formatRatio(productMetrics.tailoring_quality.deviceFailureRate)}</dd></div>
-          <div><dt>Supervised beta gate</dt><dd>{productMetrics.tailoring_quality.ready ? "Ready" : productMetrics.tailoring_quality.insufficientSample ? "Collecting data" : "Blocked"}</dd></div>
-        </dl>
+        {#if productMetrics.tailoring_quality.sampleSize > 0}
+          <dl>
+            <div><dt>Evaluated PDFs</dt><dd>{productMetrics.tailoring_quality.sampleSize}/20</dd></div>
+            <div><dt>Unsupported claims</dt><dd>{formatRatio(productMetrics.tailoring_quality.unsupportedClaimRate)}</dd></div>
+            <div><dt>One-page PDFs</dt><dd>{formatRatio(productMetrics.tailoring_quality.onePageRate)}</dd></div>
+            <div><dt>Device compile failures</dt><dd>{formatRatio(productMetrics.tailoring_quality.deviceFailureRate)}</dd></div>
+            <div><dt>Supervised beta gate</dt><dd>{productMetrics.tailoring_quality.ready ? "Ready" : productMetrics.tailoring_quality.insufficientSample ? "Collecting data" : "Blocked"}</dd></div>
+          </dl>
+        {:else}
+          <p class="metric-group-empty">No PDFs evaluated yet. Collecting data.</p>
+        {/if}
       </section>
 
       <section class="metric-group">
         <h3>Inbox</h3>
-        <dl>
-          <div><dt>Active feedback</dt><dd>{productMetrics.open_feedback}</dd></div>
-          <div><dt>Open reports</dt><dd>{productMetrics.open_reports}</dd></div>
-        </dl>
+        {#if productMetrics.open_feedback > 0 || productMetrics.open_reports > 0}
+          <dl>
+            <div><dt>Active feedback</dt><dd>{productMetrics.open_feedback}</dd></div>
+            <div><dt>Open reports</dt><dd>{productMetrics.open_reports}</dd></div>
+          </dl>
+        {:else}
+          <p class="metric-group-empty">Inbox is clear.</p>
+        {/if}
       </section>
     </div>
   </section>
@@ -123,6 +152,13 @@
   }
 
   .metric-group dl { margin: 0; }
+
+  .metric-group-empty {
+    margin: 0 0 var(--space-2);
+    color: var(--color-ink-3);
+    font-size: var(--fs-sm);
+    line-height: 1.4;
+  }
 
   .metric-group dl > div {
     min-height: 38px;

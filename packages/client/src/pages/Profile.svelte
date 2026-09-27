@@ -8,13 +8,14 @@
   import { themeMode, type ThemeMode } from "../lib/theme";
   import { invalidateFeedForPreferences } from "../lib/feed-store.svelte";
   import {
+    CAREER_STAGE_OPTIONS,
     DEFAULT_SEARCH_PROFILE,
     LOCATION_OPTIONS,
     ROLE_OPTIONS,
     normalizeSearchProfile,
     type SearchProfileV1,
   } from "../../../../shared/search-profile";
-  import { currentRoute, navigate } from "../router";
+  import { currentRoute, navigateFromAnchor, navigateBack, routeHref } from "../router";
   import { requestBack } from "../lib/nav-back";
   import ScreenNav from "../components/ScreenNav.svelte";
   import AccountSection from "./profile/AccountSection.svelte";
@@ -27,7 +28,7 @@
   import CaretRight from "phosphor-svelte/lib/CaretRight";
   import ChatCircleDots from "phosphor-svelte/lib/ChatCircleDots";
   import FileText from "phosphor-svelte/lib/FileText";
-  import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import Sparkle from "phosphor-svelte/lib/Sparkle";
   import PaintBrush from "phosphor-svelte/lib/PaintBrush";
   import SlidersHorizontal from "phosphor-svelte/lib/SlidersHorizontal";
   import Spinner from "../components/Spinner.svelte";
@@ -39,12 +40,23 @@
   import { headerChrome } from "../lib/header-chrome.svelte";
   import UserCircle from "phosphor-svelte/lib/UserCircle";
   import Wrench from "phosphor-svelte/lib/Wrench";
-  import { isIosApp } from "../lib/platform";
+  import { isIosApp, type NotificationStatus } from "../lib/platform";
+  import { writeBootstrapCache } from "../lib/bootstrap-cache";
+  import { ActivationEdge } from "../lib/activation";
+  import { openInAppBrowser } from "../lib/application-browser";
+  import Lifebuoy from "phosphor-svelte/lib/Lifebuoy";
+  import ShieldCheck from "phosphor-svelte/lib/ShieldCheck";
 
   type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "feedback";
-  type PhosphorIcon = Component<{ size?: number | string }>;
+  type PhosphorIcon = Component<{ size?: number | string; weight?: "regular" | "bold" }>;
 
-  let { routeOverride }: { routeOverride?: string } = $props();
+  let {
+    routeOverride,
+    active = true,
+  }: {
+    routeOverride?: string;
+    active?: boolean;
+  } = $props();
   const nativeIos = isIosApp();
 
   const destinationTitles: Record<YouDestination, string> = {
@@ -80,9 +92,10 @@
   let features: AppFeatures | null = $state($sessionAccess.features);
   let searchProfile: SearchProfileV1 = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let notificationEnabled: boolean = $state(false);
-  let pushStatus: string = $state("disabled");
+  let pushStatus = $state<NotificationStatus>("disabled");
   let resumeReady = $state(false);
   let tailoringReady = $state(false);
+  const activation = new ActivationEdge();
 
   let feedbackType: "feature_request" | "general_feedback" = $state("feature_request");
   let feedbackTitle: string = $state("");
@@ -99,8 +112,8 @@
     const hasNoRolePreference = searchProfile.roles.length === ROLE_OPTIONS.length
       && ROLE_OPTIONS.every((option) => searchProfile.roles.includes(option.id));
     const locations = LOCATION_OPTIONS.filter((option) => searchProfile.location_ids.includes(option.id));
-    const location = nativeIos && searchProfile.relocation_willing
-      ? "All US locations"
+    const location = nativeIos && (searchProfile.relocation_willing || locations.length === 0)
+      ? "No metro preference"
       : locations.length === 0
       ? "Anywhere in the US"
       : locations.length === 1
@@ -109,12 +122,32 @@
     const roles = nativeIos && hasNoRolePreference
       ? "No role preference"
       : `${roleCount} ${roleCount === 1 ? "role" : "roles"}`;
-    return `${roles} · ${location}`;
+    const stages = CAREER_STAGE_OPTIONS.filter((option) => (
+      searchProfile.target_levels.includes(option.id)
+    ));
+    const stageSummary = stages.length === CAREER_STAGE_OPTIONS.length
+      ? "All career stages"
+      : stages.map((stage) => stage.label).join(" + ");
+    return `${stageSummary} · ${roles} · ${location}`;
   });
   let alertsSummary = $derived(
     notificationEnabled
-      ? pushStatus === "enabled" ? "On" : "On · finish device setup"
-      : "Off"
+      ? pushStatus === "enabled"
+        ? "On"
+        : pushStatus === "denied"
+          ? "On · permission denied"
+          : pushStatus === "requires-install"
+            ? "On · install required"
+            : pushStatus === "unsupported"
+              ? "On · unavailable here"
+              : "On · finish device setup"
+      : pushStatus === "denied"
+        ? "Permission denied"
+        : pushStatus === "requires-install"
+          ? "Install required"
+          : pushStatus === "unsupported"
+            ? "Unavailable here"
+            : "Off"
   );
   let accountSummary = $derived(
     sessionState === "authenticated"
@@ -135,7 +168,7 @@
   let loaded = $state(false);
   let lastSavedKey = $state("");
   let savingPrefs = $state(false);
-  let saveAgain = false;
+  let activeSave: Promise<boolean> | null = null;
   let autosaveTimer: number | null = null;
   let savedProfileKey = "";
   let savedNotificationEnabled = false;
@@ -159,22 +192,41 @@
     }, 1200);
   });
 
-  function flushAutosave() {
-    if (autosaveTimer === null) return;
-    window.clearTimeout(autosaveTimer);
-    autosaveTimer = null;
-    void performSave();
+  async function flushAutosave(): Promise<boolean> {
+    if (autosaveTimer !== null) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (!loaded) return true;
+    if (!activeSave && currentKey() === lastSavedKey) return true;
+    return performSave();
   }
 
-  async function performSave() {
-    if (!loaded) return;
-    if (savingPrefs) {
-      saveAgain = true;
-      return;
+  async function performSave(): Promise<boolean> {
+    if (!loaded) return false;
+    if (activeSave) {
+      const activeSucceeded = await activeSave;
+      if (!activeSucceeded) return false;
+      if (currentKey() === lastSavedKey) return true;
+      return performSave();
     }
+    if (currentKey() === lastSavedKey) return true;
+
+    const save = saveCurrentSettings();
+    activeSave = save;
+    const succeeded = await save;
+    if (activeSave === save) activeSave = null;
+    if (!succeeded) return false;
+    if (currentKey() !== lastSavedKey) return performSave();
+    return true;
+  }
+
+  async function saveCurrentSettings(): Promise<boolean> {
     savingPrefs = true;
+    error = null;
     const presentationGeneration = savePresentation.begin();
     const sentKey = currentKey();
+    let succeeded = false;
     try {
       const trimmedName = displayName.trim();
       const profileKey = JSON.stringify(searchProfile);
@@ -184,7 +236,7 @@
       const notificationChanged = sentNotificationEnabled !== savedNotificationEnabled;
       const [, savedPreferences] = await Promise.all([
         nameChanged ? api.me.update({ name: trimmedName }) : Promise.resolve(null),
-        profileChanged || notificationChanged
+        profileChanged
           ? api.preferences.update({
               search_profile: { ...searchProfile, notifications_enabled: sentNotificationEnabled },
             })
@@ -213,21 +265,19 @@
       }
       savePresentation.succeed(presentationGeneration);
       error = null;
+      succeeded = true;
     } catch (e) {
       const message = errorMessage(e);
       error = message;
       savePresentation.fail(presentationGeneration, message);
     } finally {
       savingPrefs = false;
-      if (saveAgain) {
-        saveAgain = false;
-        void performSave();
-      }
     }
+    return succeeded;
   }
 
-  async function loadSettings() {
-    loading = true;
+  async function loadSettings(silent = false) {
+    if (!silent) loading = true;
     error = null;
     const knownSessionState = $sessionAccess.state;
     try {
@@ -239,6 +289,7 @@
 
       if (bootstrapResult.status !== "fulfilled") throw bootstrapResult.reason;
       const { me, preferences } = bootstrapResult.value;
+      if (nativeIos) writeBootstrapCache(bootstrapResult.value);
       if (knownSessionState === "authenticated" && me.session.state !== "authenticated") {
         throw new Error("Unable to verify your session. Your signed-in state is unchanged. Try loading again.");
       }
@@ -295,7 +346,7 @@
     params.delete("auth");
     const nextSearch = params.toString();
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
-    window.history.replaceState({}, "", nextUrl);
+    window.history.replaceState(window.history.state, "", nextUrl);
   }
 
   async function submitProductFeedback() {
@@ -319,10 +370,10 @@
       feedbackType = "feature_request";
       feedbackTitle = "";
       feedbackDetails = "";
-      backToYou();
+      void backToYou();
       showSuccess(result.duplicate
         ? "That idea is already in your feedback queue."
-        : "Feedback sent. Thank you for helping shape pinkslip.");
+        : `Feedback sent. Thank you for helping shape ${nativeIos ? "Pinkslip" : "pinkslip"}.`);
     } catch (e) {
       feedbackError = errorMessage(e);
     } finally {
@@ -330,8 +381,13 @@
     }
   }
 
-  function backToYou() {
-    if (!requestBack()) navigate("/you");
+  async function backToYou() {
+    if (autosaveTimer !== null) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+    }
+    if (!(await flushAutosave())) return;
+    if (!requestBack()) navigateBack("/you");
   }
 
   onMount(() => {
@@ -352,17 +408,47 @@
     };
   });
 
+  $effect(() => {
+    if (activation.becameActive(active)) void loadSettings(true);
+  });
+
 </script>
 
 {#snippet destinationRow(label: string, detail: string, path: string, Icon: PhosphorIcon)}
-  <button class="you-settings-row" type="button" onclick={() => navigate(path)}>
-    <span class="you-settings-row-icon"><Icon size={18} /></span>
+  <a
+    class="you-settings-row"
+    href={routeHref(path)}
+    onclick={(event) => navigateFromAnchor(event, path)}
+  >
+    <span class="you-settings-row-icon" aria-hidden="true"><Icon size={22} weight="regular" /></span>
     <span class="you-settings-row-copy">
       <strong>{label}</strong>
       <small>{detail}</small>
     </span>
-    <CaretRight size={16} weight={nativeIos ? "bold" : "regular"} />
-  </button>
+    <CaretRight size={16} weight="regular" aria-hidden="true" />
+  </a>
+{/snippet}
+
+{#snippet externalDestinationRow(label: string, detail: string, url: string, Icon: PhosphorIcon)}
+  {#if nativeIos}
+    <button class="you-settings-row" type="button" onclick={() => void openInAppBrowser(url)}>
+      <span class="you-settings-row-icon" aria-hidden="true"><Icon size={22} weight="regular" /></span>
+      <span class="you-settings-row-copy">
+        <strong>{label}</strong>
+        <small>{detail}</small>
+      </span>
+      <CaretRight size={16} weight="regular" aria-hidden="true" />
+    </button>
+  {:else}
+    <a class="you-settings-row" href={url} target="_blank" rel="noopener noreferrer">
+      <span class="you-settings-row-icon" aria-hidden="true"><Icon size={22} weight="regular" /></span>
+      <span class="you-settings-row-copy">
+        <strong>{label}<span class="sr-only"> (opens in a new tab)</span></strong>
+        <small>{detail}</small>
+      </span>
+      <CaretRight size={16} weight="regular" aria-hidden="true" />
+    </a>
+  {/if}
 {/snippet}
 
 {#if destination}
@@ -371,13 +457,19 @@
       title={destinationTitle}
       collapsible={nativeIos}
       backLabel="Back to You"
-      onBack={backToYou}
-    />
+      onBack={() => void backToYou()}
+    >
+      {#snippet trailing()}
+        <SaveStatus
+          phase={savePresentation.phase}
+          errorMessage={savePresentation.errorMessage}
+          onRetry={async () => { await performSave(); }}
+        />
+      {/snippet}
+    </ScreenNav>
 
     <div class="page-frame you-destination-page">
-      {#if nativeIos}
-        <h1 class="screen-large-title" data-screen-title-anchor>{destinationTitle}</h1>
-      {/if}
+      <h1 class="screen-large-title" data-screen-title-anchor>{destinationTitle}</h1>
       {#if loading}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
       {:else if nativeIos && error && !loaded}
@@ -390,8 +482,6 @@
         {#if error}
           <div class="alert alert-error alert-spaced" role="alert">{error}</div>
         {/if}
-        <div class="you-saving-state"><SaveStatus phase={savePresentation.phase} /></div>
-
         {#if destination === "preferences"}
           <JobsSection bind:searchProfile showHeading={false} {nativeIos} />
         {:else if destination === "alerts"}
@@ -408,6 +498,7 @@
             {sessionState}
             {features}
             showHeading={false}
+            usageOutside={nativeIos}
             onError={showError}
             onSuccess={showSuccess}
           />
@@ -533,7 +624,7 @@
           <h2 class="section-eyebrow you-section-heading">Materials</h2>
           <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? (nativeIos ? "Structured resume ready" : "Ready") : "Add your resume", "/you/resume", FileText)}
-            {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", MagicWand)}
+            {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", Sparkle)}
           </div>
         </section>
 
@@ -541,7 +632,7 @@
           <h2 class="section-eyebrow you-section-heading">App</h2>
           <div class="surface-list">
             <div class="you-settings-row you-settings-row-static">
-              <span class="you-settings-row-icon"><PaintBrush size={18} /></span>
+              <span class="you-settings-row-icon"><PaintBrush size={22} weight="regular" aria-hidden="true" /></span>
               <span class="you-settings-row-copy">
                 <strong>Appearance</strong>
                 <small>Theme</small>
@@ -561,6 +652,8 @@
               </div>
             </div>
             {@render destinationRow("Help and feedback", "Ideas and support", "/you/feedback", ChatCircleDots)}
+            {@render externalDestinationRow("Support", "Contact and account help", "https://pinkslip.work/support", Lifebuoy)}
+            {@render externalDestinationRow("Privacy policy", "Data use and your choices", "https://pinkslip.work/privacy", ShieldCheck)}
           </div>
         </section>
 
@@ -583,13 +676,15 @@
 
   .native-layout .you-page .surface-list {
     overflow: visible;
+    width: calc(100% + var(--space-4) + var(--space-4));
+    margin-inline: calc(0px - var(--space-4));
     border: 0;
     border-radius: 0;
     background: transparent;
   }
 
   .native-layout .you-page .you-settings-row {
-    padding-inline: 0;
+    padding-inline: var(--space-4);
   }
 
   .native-layout .you-section-heading,

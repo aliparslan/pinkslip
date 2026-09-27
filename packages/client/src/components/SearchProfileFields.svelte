@@ -1,7 +1,9 @@
 <script lang="ts">
   import {
+    CAREER_STAGE_OPTIONS,
     LOCATION_OPTIONS,
     ROLE_OPTIONS,
+    type CareerStage,
     type LocationId,
     type RoleId,
     type SearchProfile,
@@ -46,9 +48,11 @@
   ];
   let workModePicker: HTMLDetailsElement | null = $state(null);
   let noRolePreference = $derived(
-    nativeIos
-      && profile.roles.length === allRoleIds.length
+    profile.roles.length === allRoleIds.length
       && allRoleIds.every((role) => profile.roles.includes(role)),
+  );
+  let noLocationPreference = $derived(
+    profile.relocation_willing || profile.location_ids.length === 0
   );
   function roleSelected(role: RoleId): boolean {
     if (!nativeIos && role === "software_engineering") {
@@ -60,6 +64,7 @@
   let visibleSelectedRoleCount = $derived(
     visibleRoleOptions.filter((option) => roleSelected(option.id)).length,
   );
+  let selectedCareerStageCount = $derived(profile.target_levels.length);
   let workModeSummary = $derived(
     profile.work_modes.length === workModeOptions.length
       ? "Any work mode"
@@ -101,12 +106,22 @@
   function toggleRole(role: RoleId) {
     const selected = roleSelected(role);
 
+    if (noRolePreference) {
+      const roles: RoleId[] = !nativeIos && role === "software_engineering"
+        ? ["software_engineering", "forward_deployed"]
+        : [role];
+      profile = {
+        ...profile,
+        roles,
+        primary_role: roles[0],
+      };
+      return;
+    }
+
     if (nativeIos) {
-      const roles = noRolePreference
-        ? [role]
-        : selected
-          ? profile.roles.filter((item) => item !== role)
-          : [...profile.roles, role];
+      const roles = selected
+        ? profile.roles.filter((item) => item !== role)
+        : [...profile.roles, role];
       const normalizedRoles = roles.length > 0 ? roles : [...allRoleIds];
       profile = {
         ...profile,
@@ -141,6 +156,19 @@
     };
   }
 
+  function toggleCareerStage(stage: CareerStage) {
+    const selected = profile.target_levels.includes(stage);
+    if (selected && selectedCareerStageCount === 1) return;
+    profile = {
+      ...profile,
+      target_levels: selected
+        ? profile.target_levels.filter((item) => item !== stage)
+        : CAREER_STAGE_OPTIONS
+            .map((option) => option.id)
+            .filter((item) => item === stage || profile.target_levels.includes(item)),
+    };
+  }
+
   function toggleWorkMode(mode: WorkMode) {
     const selected = profile.work_modes.includes(mode);
     const workModes = selected
@@ -158,11 +186,21 @@
   }
 
   function toggleLocation(location: LocationId) {
+    const selectedLocations = noLocationPreference ? [] : profile.location_ids;
     profile = {
       ...profile,
-      location_ids: profile.location_ids.includes(location)
-        ? profile.location_ids.filter((item) => item !== location)
-        : [...profile.location_ids, location],
+      location_ids: selectedLocations.includes(location)
+        ? selectedLocations.filter((item) => item !== location)
+        : [...selectedLocations, location],
+      relocation_willing: false,
+    };
+  }
+
+  function chooseNoLocationPreference() {
+    profile = {
+      ...profile,
+      location_ids: [],
+      relocation_willing: false,
     };
   }
 </script>
@@ -198,17 +236,15 @@
       aria-label={showHeadings ? undefined : "Target roles"}
       aria-labelledby={showHeadings ? "target-roles-title" : undefined}
     >
-      {#if nativeIos}
-        <button
-          type="button"
-          class="choice-card role-card"
-          class:active={noRolePreference}
-          aria-pressed={noRolePreference}
-          onclick={chooseNoRolePreference}
-        >
-          <span>No preference</span>
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="choice-card role-card"
+        class:active={noRolePreference}
+        aria-pressed={noRolePreference}
+        onclick={chooseNoRolePreference}
+      >
+        <span>No preference</span>
+      </button>
       {#each visibleRoleOptions as role}
         <button
           type="button"
@@ -256,17 +292,31 @@
   <section class="profile-field-section" class:native-layout={nativeIos}>
     <div class="profile-field-heading">
       <div>
-        <h2 class="profile-field-title">Experience level</h2>
-        <div class="profile-field-help">
-          {#if nativeIos}
-            Up to 3 years.
-          {:else}
-            Your job list is limited to new-grad and early-career roles. Jobs asking for
-            more than 3 years&mdash;or using senior, staff, or management titles&mdash;are
-            filtered out. Jobs without a stated requirement stay in.
-          {/if}
+        <h2 id="career-stage-title" class="profile-field-title">Career stage</h2>
+        <div id="career-stage-help" class="profile-field-help">
+          Choose one or more. Internships include co-ops and apprenticeships.
         </div>
       </div>
+      {#if !nativeIos}<span class="selection-count">{selectedCareerStageCount} selected</span>{/if}
+    </div>
+    <div
+      class="choice-grid career-stage-grid"
+      role="group"
+      aria-labelledby="career-stage-title"
+      aria-describedby="career-stage-help"
+    >
+      {#each CAREER_STAGE_OPTIONS as option}
+        <button
+          type="button"
+          class="choice-card career-stage-card"
+          class:active={profile.target_levels.includes(option.id)}
+          aria-pressed={profile.target_levels.includes(option.id)}
+          aria-disabled={profile.target_levels.includes(option.id) && selectedCareerStageCount === 1}
+          onclick={() => toggleCareerStage(option.id)}
+        >
+          <span>{option.label}</span>
+        </button>
+      {/each}
     </div>
   </section>
 {/if}
@@ -340,12 +390,21 @@
     <fieldset class="subfield preference-fieldset stack-sm">
       <legend class="subfield-label">Preferred metros</legend>
       <div class="location-grid">
+        <button
+          type="button"
+          class="location-chip"
+          class:active={noLocationPreference}
+          aria-pressed={noLocationPreference}
+          onclick={chooseNoLocationPreference}
+        >
+          No preference
+        </button>
         {#each LOCATION_OPTIONS as location}
           <button
             type="button"
             class="location-chip"
-            class:active={profile.location_ids.includes(location.id)}
-            aria-pressed={profile.location_ids.includes(location.id)}
+            class:active={profile.location_ids.includes(location.id) && !noLocationPreference}
+            aria-pressed={profile.location_ids.includes(location.id) && !noLocationPreference}
             onclick={() => toggleLocation(location.id)}
           >
             {location.label}
@@ -353,8 +412,6 @@
         {/each}
       </div>
     </fieldset>
-
-    {#if nativeIos}{@render allLocationsToggle(true)}{/if}
 
     {#if showAdvanced && !nativeIos}
       <details class="advanced-fields">
@@ -384,18 +441,48 @@
   .selection-count { flex-shrink: 0; color: var(--color-ink-3); font-family: var(--font-sans); font-size: var(--fs-xs); font-weight: 500; }
   .choice-grid { display: grid; gap: var(--space-2); }
   .role-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+  .career-stage-grid { display: flex; flex-wrap: wrap; }
   .choice-card, .location-chip {
     border: 1px solid var(--color-line-2);
     background: var(--color-bg-elev);
     color: var(--color-ink-2);
     font-family: inherit;
     cursor: pointer;
-    transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      background var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
   }
   .choice-card { min-height: 48px; padding: 10px var(--space-3); border-radius: var(--radius-md); text-align: left; font-size: var(--fs-sm); font-weight: 500; }
-  .role-card { min-height: 40px; padding: 0 13px; display: flex; align-items: center; border-radius: var(--radius-full); }
-  .choice-card:active, .location-chip:active { transform: scale(0.97); }
-  .native-layout .role-card { min-height: var(--tap-min); }
+  .role-card {
+    height: var(--pill-height);
+    min-height: var(--pill-height);
+    padding: 0 var(--space-3);
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+  }
+  .career-stage-card {
+    width: auto;
+    height: var(--pill-height);
+    min-height: var(--pill-height);
+    padding: 0 var(--space-3);
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .choice-card:active, .location-chip:active { transform: scale(0.96); }
+  .native-layout .role-card {
+    height: var(--pill-height);
+    min-height: var(--pill-height);
+    padding-inline: var(--space-3);
+  }
   .native-layout .choice-card,
   .native-layout .location-chip,
   .native-layout .work-mode-trigger {
@@ -407,6 +494,7 @@
   .native-layout .location-chip.active {
     border-color: var(--color-accent);
     background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
   }
   .native-layout .choice-card:active,
   .native-layout .location-chip:active { transform: scale(0.96); }
@@ -444,7 +532,7 @@
     display: grid;
     place-items: center;
     color: var(--color-ink-3);
-    transition: transform 140ms ease;
+    transition: transform var(--duration-fast) var(--ease-standard);
   }
   .work-mode-picker[open] .work-mode-chevron { transform: rotate(180deg); }
   .work-mode-menu {
@@ -460,8 +548,20 @@
   }
   /* .select-check lives in app.css — shared with the location filter dropdown. */
   .location-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-  .location-chip { min-height: 40px; padding: 6px 11px; border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 500; }
-  .native-layout .location-chip { min-height: var(--tap-min); }
+  .location-chip {
+    height: var(--pill-height);
+    min-height: var(--pill-height);
+    padding: 0 11px;
+    border-radius: var(--radius-full);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .native-layout .location-chip {
+    height: var(--pill-height);
+    min-height: var(--pill-height);
+    padding-block: 0;
+  }
   .anywhere-row { min-height: 52px; padding: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
   .anywhere-title { color: var(--color-ink); font-size: var(--fs-sm); font-weight: 500; }
   .anywhere-help { margin-top: 2px; color: var(--color-ink-3); font-size: var(--fs-xs); line-height: 1.35; }

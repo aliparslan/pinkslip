@@ -23,6 +23,7 @@ export interface ToastItem extends Required<Pick<ToastInput, "message" | "tone">
 }
 
 const DEFAULT_DURATION = 3_500;
+export const UNDO_TOAST_DURATION = 7_000;
 const MAX_VISIBLE = 2;
 
 /** Toasts carrying an action or an error persist until dismissed; everything

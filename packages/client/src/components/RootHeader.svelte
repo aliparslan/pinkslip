@@ -10,13 +10,17 @@
     subtitle = "",
     trailing,
     collapsible = false,
+    headingLevel = 1,
     ownerId,
+    active = true,
   }: {
     title: string;
     subtitle?: string;
     trailing?: Snippet;
     collapsible?: boolean;
+    headingLevel?: 1 | 2;
     ownerId?: string;
+    active?: boolean;
   } = $props();
 
   let headerElement: HTMLElement | undefined = $state();
@@ -32,6 +36,10 @@
       compact = false;
       return;
     }
+    // A retained root stays mounted behind a pushed screen. Preserve its
+    // collapsed state while inactive so returning does not paint the large
+    // title for one frame before the shared scroller is restored.
+    if (!active) return;
     const anchor = headerElement.parentElement?.querySelector<HTMLElement>("[data-root-title-anchor]");
     if (!anchor) {
       compact = false;
@@ -46,9 +54,13 @@
 
   $effect(() => {
     void title;
-    compact = false;
+    void active;
+    if (!collapsible) {
+      compact = false;
+      return;
+    }
     const scroller = scrollContainer();
-    if (!collapsible || !scroller || !headerElement) return;
+    if (!active || !scroller || !headerElement) return;
     scroller.addEventListener("scroll", scheduleCollapse, { passive: true });
     window.addEventListener("resize", scheduleCollapse, { passive: true });
     scheduleCollapse();
@@ -88,7 +100,7 @@
   <header bind:this={headerElement} class="root-header">
     <div class="root-header-inner">
       <div class="root-header-copy">
-        <h1>{displayedTitle}</h1>
+        {#if headingLevel === 2}<h2>{displayedTitle}</h2>{:else}<h1>{displayedTitle}</h1>{/if}
         {#if subtitle}<p>{subtitle}</p>{/if}
       </div>
       {#if trailing}<div class="root-header-trailing">{@render trailing()}</div>{/if}
@@ -124,7 +136,7 @@
     pointer-events: var(--root-header-copy-pointer-events, auto);
   }
 
-  .root-header h1 {
+  .root-header :where(h1, h2) {
     margin: 0;
     color: var(--color-ink);
     font-family: var(--font-heading);
@@ -237,6 +249,7 @@
     font-weight: 600;
     letter-spacing: var(--tracking-root-title);
     line-height: var(--leading-root-title);
+    overflow-wrap: anywhere;
     text-wrap: balance;
   }
 
@@ -248,13 +261,22 @@
   }
 
   @media (min-width: 900px) {
-    .root-header {
+    .root-header:not(.root-header-native) {
       padding-top: calc(var(--safe-top) + var(--space-8));
     }
 
     .root-header-inner {
       min-height: 104px;
       padding-bottom: var(--space-4);
+    }
+
+    .root-header-native {
+      left: calc(
+        var(--app-nav-wide)
+        + max(0px, (100vw - var(--app-nav-wide) - 720px) / 2)
+      );
+      width: min(calc(100vw - var(--app-nav-wide)), 720px);
+      transform: none;
     }
   }
 </style>

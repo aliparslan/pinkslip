@@ -2,11 +2,18 @@
   import { onMount } from "svelte";
   import { api, type Company } from "../lib/api";
   import { errorMessage } from "../lib/utils";
-  import { navigate } from "../router";
+  import { navigateBack } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";
   import { feedback } from "../lib/feedback.svelte";
-  import { companySourceLabel } from "../lib/company-sources";
+  import {
+    COMPANY_SOURCE_TYPES,
+    POLLABLE_COMPANY_SOURCE_TYPES,
+    companySourceInput,
+    companySourceLabel,
+    type CompanySourceType,
+    type PollableCompanySourceType,
+  } from "../lib/company-sources";
   import CompanyRow from "../components/CompanyRow.svelte";
   import FilterChips from "../components/FilterChips.svelte";
   import Modal from "../components/Modal.svelte";
@@ -28,17 +35,7 @@
   } = $props();
   let isAdminMode = $derived(mode === "admin" && $sessionAccess.isAdmin);
 
-  const MANAGED_ATS_TYPES = [
-    "greenhouse",
-    "lever",
-    "ashby",
-    "workday",
-    "rippling",
-    "gem",
-    "smartrecruiters",
-    "yc",
-  ] as const;
-  const ATS_TYPES = ["All", ...MANAGED_ATS_TYPES, "custom"];
+  const ATS_TYPES = ["All", ...COMPANY_SOURCE_TYPES] as const;
   const USER_VIEWS = ["All", "Hidden"];
   const ADMIN_STATUSES = [
     { value: "active", label: "Active" },
@@ -53,42 +50,6 @@
     busy: boolean;
     error: string | null;
     message: string | null;
-  }
-
-  const SOURCE_INPUTS: Record<string, { label: string; type: string; placeholder: string }> = {
-    workday: {
-      label: "Board URL",
-      type: "url",
-      placeholder: "https://company.wd5.myworkdayjobs.com/en-US/Site",
-    },
-    rippling: {
-      label: "Board slug or URL",
-      type: "text",
-      placeholder: "e.g. pace",
-    },
-    gem: {
-      label: "Board slug or URL",
-      type: "text",
-      placeholder: "e.g. gem",
-    },
-    smartrecruiters: {
-      label: "Company identifier or URL",
-      type: "text",
-      placeholder: "e.g. smartrecruiters",
-    },
-    yc: {
-      label: "YC company slug or URL",
-      type: "text",
-      placeholder: "e.g. onechronos",
-    },
-  };
-
-  function sourceInput(type: string) {
-    return SOURCE_INPUTS[type] ?? {
-      label: "ATS slug",
-      type: "text",
-      placeholder: "e.g. stripe",
-    };
   }
 
   function commitSearch(event: KeyboardEvent) {
@@ -115,13 +76,13 @@
 
   let showAddForm: boolean = $state(false);
   let addName: string = $state("");
-  let addAtsType: string = $state("greenhouse");
+  let addAtsType: PollableCompanySourceType = $state("greenhouse");
   let addSlug: string = $state("");
   let addWebsite: string = $state("");
   let adding: boolean = $state(false);
   let addVerification = $state<SourceVerification>({ busy: false, error: null, message: null });
 
-  let editTarget: { id: string; name: string; ats_type: string; ats_slug: string } | null = $state(null);
+  let editTarget: { id: string; name: string; ats_type: CompanySourceType; ats_slug: string } | null = $state(null);
   let saving: boolean = $state(false);
   let editVerification = $state<SourceVerification>({ busy: false, error: null, message: null });
 
@@ -347,6 +308,10 @@
 
   async function handleSaveEdit() {
     if (!editTarget || saving) return;
+    if (editTarget.ats_type === "custom") {
+      editVerification.error = "Choose a supported ATS type before saving.";
+      return;
+    }
     saving = true;
     const targetId = editTarget.id;
     const targetName = editTarget.name.trim();
@@ -386,7 +351,11 @@
     }
   }
 
-  async function verifySource(atsType: string, rawSlug: string, state: SourceVerification) {
+  async function verifySource(
+    atsType: PollableCompanySourceType,
+    rawSlug: string,
+    state: SourceVerification
+  ) {
     const atsSlug = rawSlug.trim();
     if (!atsSlug || state.busy) return;
     state.busy = true;
@@ -413,6 +382,10 @@
 
   function verifyEditedSource() {
     if (!editTarget) return;
+    if (editTarget.ats_type === "custom") {
+      editVerification.error = "Choose a supported ATS type before verifying.";
+      return;
+    }
     return verifySource(editTarget.ats_type, editTarget.ats_slug, editVerification);
   }
 
@@ -458,11 +431,11 @@
       collapsible
       searchable
       chromeOwnerId={isAdminMode ? "sources" : "companies"}
-      onBack={() => { if (!requestBack()) navigate("/you"); }}
+      onBack={() => { if (!requestBack()) navigateBack("/you"); }}
     />
   {/if}
   <div class="page-frame companies-page">
-    {#if nativeIos && !embedded}<h1 class="screen-large-title" data-screen-title-anchor>{isAdminMode ? "Sources" : "Companies"}</h1>{/if}
+    {#if !embedded}<h1 class="screen-large-title" data-screen-title-anchor>{isAdminMode ? "Sources" : "Companies"}</h1>{/if}
     {#if isAdminMode}
       <div class="source-summary" aria-label="Source status">
         <span><strong>{enabledCount}</strong> active</span>
@@ -556,7 +529,7 @@
               {#if nativeIos}
                 <div class="select-field-wrap">
                   <select id="add-ats" class="input-field" bind:value={addAtsType}>
-                    {#each MANAGED_ATS_TYPES as atsType}
+                    {#each POLLABLE_COMPANY_SOURCE_TYPES as atsType}
                       <option value={atsType}>{companySourceLabel(atsType)}</option>
                     {/each}
                   </select>
@@ -564,19 +537,19 @@
                 </div>
               {:else}
                 <select id="add-ats" class="input-field" bind:value={addAtsType}>
-                  {#each MANAGED_ATS_TYPES as atsType}
+                  {#each POLLABLE_COMPANY_SOURCE_TYPES as atsType}
                     <option value={atsType}>{companySourceLabel(atsType)}</option>
                   {/each}
                 </select>
               {/if}
             </div>
             <div class="flex-fill">
-              <label for="add-slug" class="field-label">{sourceInput(addAtsType).label}</label>
+              <label for="add-slug" class="field-label">{companySourceInput(addAtsType).label}</label>
               <input
                 id="add-slug"
                 class="input-field"
-                type={sourceInput(addAtsType).type}
-                placeholder={sourceInput(addAtsType).placeholder}
+                type={companySourceInput(addAtsType).type}
+                placeholder={companySourceInput(addAtsType).placeholder}
                 bind:value={addSlug}
               />
             </div>
@@ -727,32 +700,53 @@
           <label for="edit-ats" class="field-label">ATS type</label>
           {#if nativeIos}
             <div class="select-field-wrap">
-              <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
-                {#each MANAGED_ATS_TYPES as atsType}
+              <select
+                id="edit-ats"
+                class="input-field"
+                aria-describedby={editTarget.ats_type === "custom" ? "edit-source-migration-help" : undefined}
+                bind:value={editTarget.ats_type}
+              >
+                {#if editTarget.ats_type === "custom"}
+                  <option value="custom" disabled>Custom (legacy)</option>
+                {/if}
+                {#each POLLABLE_COMPANY_SOURCE_TYPES as atsType}
                   <option value={atsType}>{companySourceLabel(atsType)}</option>
                 {/each}
               </select>
               <span class="select-chevron" aria-hidden="true"><CaretDown size={14} /></span>
             </div>
           {:else}
-            <select id="edit-ats" class="input-field" bind:value={editTarget.ats_type}>
-              {#each MANAGED_ATS_TYPES as atsType}
+            <select
+              id="edit-ats"
+              class="input-field"
+              aria-describedby={editTarget.ats_type === "custom" ? "edit-source-migration-help" : undefined}
+              bind:value={editTarget.ats_type}
+            >
+              {#if editTarget.ats_type === "custom"}
+                <option value="custom" disabled>Custom (legacy)</option>
+              {/if}
+              {#each POLLABLE_COMPANY_SOURCE_TYPES as atsType}
                 <option value={atsType}>{companySourceLabel(atsType)}</option>
               {/each}
             </select>
           {/if}
         </div>
         <div class="flex-fill">
-          <label for="edit-slug" class="field-label">{sourceInput(editTarget.ats_type).label}</label>
+          <label for="edit-slug" class="field-label">{companySourceInput(editTarget.ats_type).label}</label>
           <input
             id="edit-slug"
             class="input-field"
-            type={sourceInput(editTarget.ats_type).type}
-            placeholder={sourceInput(editTarget.ats_type).placeholder}
+            type={companySourceInput(editTarget.ats_type).type}
+            placeholder={companySourceInput(editTarget.ats_type).placeholder}
             bind:value={editTarget.ats_slug}
           />
         </div>
       </div>
+      {#if editTarget.ats_type === "custom"}
+        <p id="edit-source-migration-help" class="helper-text">
+          Choose a supported ATS type to migrate this source before saving.
+        </p>
+      {/if}
       {#if editVerification.error}
         <div class="alert alert-error alert-compact" role="alert">
           {editVerification.error}

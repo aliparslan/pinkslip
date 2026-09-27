@@ -1,34 +1,6 @@
 @import "./styles/reset.css";
 @import "./styles/tokens.css";
-
-/* Geist (Vercel, SIL OFL — see public/fonts/geist/LICENSE.txt). Subset to Latin,
-   Latin-1, Latin Ext-A and typographic punctuation; the wght axis is intact. */
-@font-face {
-  font-family: "Geist";
-  src: url("/fonts/geist/geist-sans-variable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Real italic face. `font-synthesis: none` on body means an oblique is never
-   faked, and sanitized ATS job descriptions render <em> (ALLOWED_TAGS in
-   job-content.ts) — without this file that emphasis rendered as plain text. */
-@font-face {
-  font-family: "Geist";
-  src: url("/fonts/geist/geist-sans-italic-variable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Geist Mono";
-  src: url("/fonts/geist/geist-mono-variable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
+@import "./styles/typography.css";
 
 /* stylelint-disable-next-line selector-max-id, selector-max-specificity */
 html, body, #app {
@@ -82,6 +54,19 @@ body {
   transform: translateY(calc(var(--safe-top) + var(--space-2)));
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .app-main {
   flex: 1 1 auto;
   min-height: 0;
@@ -91,35 +76,6 @@ body {
   overflow: hidden auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-}
-
-/* The browser owns a responsive workspace shell. It deliberately has no iOS
-   swipe layers or status-bar surface; those belong to apps/ios/IosApp.svelte. */
-.web-app-shell {
-  width: 100%;
-  height: 100dvh;
-  padding-bottom: calc(var(--mobile-tab-bar-height) + var(--safe-bottom));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--color-bg);
-}
-
-.web-app-shell.admin-shell-active {
-  padding-bottom: 0;
-}
-
-@media (min-width: 900px) {
-  .web-app-shell {
-    width: calc(100vw - var(--app-nav-wide));
-    margin-left: var(--app-nav-wide);
-    padding-bottom: 0;
-  }
-
-  .web-app-shell.admin-shell-active {
-    width: 100vw;
-    margin-left: 0;
-  }
 }
 
 .page-content-root {
@@ -144,6 +100,10 @@ body {
 }
 
 button { -webkit-tap-highlight-color: transparent; }
+
+:where(button, a, input, textarea, select, summary, [role="button"]) {
+  touch-action: manipulation;
+}
 
 /* ── Typography ──────────────────────────────────────────── */
 
@@ -304,7 +264,6 @@ button { -webkit-tap-highlight-color: transparent; }
     border-color var(--duration-instant) var(--ease-standard);
 }
 
-.chip:hover { background: var(--color-bg-sunken); }
 .chip-active,
 .filter-choice.active {
   background: var(--color-accent-soft);
@@ -312,7 +271,6 @@ button { -webkit-tap-highlight-color: transparent; }
   border-color: var(--color-accent);
   font-weight: 600;
 }
-.chip-active:hover { background: var(--color-accent-soft); }
 
 .chip-wrap {
   display: flex;
@@ -433,13 +391,11 @@ button { -webkit-tap-highlight-color: transparent; }
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s, color .15s, transform .15s, box-shadow .15s;
+  transition-property: background-color, color, transform, box-shadow;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
 }
 
-.filter-button:hover {
-  color: var(--color-ink);
-  background: var(--color-bg-elev);
-}
 
 .filter-button.active {
   background: var(--color-accent-soft);
@@ -462,6 +418,7 @@ button { -webkit-tap-highlight-color: transparent; }
   color: var(--color-accent-ink);
   font-size: var(--fs-2xs);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   animation: filter-count-in var(--duration-instant) var(--ease-standard);
 }
@@ -549,7 +506,9 @@ button { -webkit-tap-highlight-color: transparent; }
   white-space: nowrap;
   cursor: pointer;
   outline: none;
-  transition: background .16s, color .16s, box-shadow .16s;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
 }
 
 .segmented-control button.active {
@@ -712,7 +671,9 @@ button { -webkit-tap-highlight-color: transparent; }
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s, color .15s, border-color .15s;
+  transition-property: background-color, color, border-color, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
 }
 
 .filter-location-select {
@@ -984,9 +945,10 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 0;
   cursor: pointer;
   color: var(--color-ink-3);
-  transition: background .15s, color .15s;
+  transition-property: background-color, color, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
 }
-.icon-btn:hover { background: var(--color-bg-sunken); color: var(--color-ink-2); }
 
 /* Compact icon button for inside list rows. */
 .icon-btn-sm {
@@ -1007,9 +969,6 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 1px solid var(--color-line-2);
 }
 
-.icon-btn-surface:hover {
-  background: var(--color-bg-sunken);
-}
 
 .field-action-control {
   width: var(--control-height);
@@ -1036,14 +995,15 @@ button { -webkit-tap-highlight-color: transparent; }
   gap: var(--space-2);
   -webkit-user-select: none;
   user-select: none;
-  transition: background .15s, border-color .15s, color .15s, opacity .15s, transform .1s;
+  transition-property: background-color, border-color, color, opacity, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
 }
 
 .btn-primary {
   background: var(--color-ink);
   color: var(--color-bg);
 }
-.btn-primary:hover { opacity: 0.9; }
 .btn-primary:active { transform: scale(0.96); }
 .btn-accent {
   background: var(--color-accent);
@@ -1055,7 +1015,6 @@ button { -webkit-tap-highlight-color: transparent; }
   background: var(--color-bg-elev);
   color: var(--color-ink);
 }
-.btn-secondary:hover { background: var(--color-bg-sunken); border-color: var(--color-line-2); }
 
 /* Disabled, but still legible: the label keeps enough contrast to read what
    the blocked action is (the old 0.42 opacity made buttons near-invisible). */
@@ -1084,7 +1043,6 @@ button { -webkit-tap-highlight-color: transparent; }
   color: #fff;
 }
 
-.btn-apple:hover { background: #111; opacity: 1; }
 .btn-apple:disabled,
 .btn-apple:disabled:hover {
   background: #000;
@@ -1106,10 +1064,6 @@ button { -webkit-tap-highlight-color: transparent; }
   color: var(--color-bad);
 }
 
-.btn-danger:hover {
-  background: var(--color-bg-sunken);
-  border-color: var(--color-line-2);
-}
 
 .btn-action {
   width: 100%;
@@ -1275,7 +1229,6 @@ button { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
 }
 
-.menu-item:hover,
 .menu-item[data-highlighted] {
   background: var(--color-bg-sunken);
   color: var(--color-ink);
@@ -1312,7 +1265,9 @@ button { -webkit-tap-highlight-color: transparent; }
   font-size: var(--fs-md);
   outline: none;
   width: 100%;
-  transition: border-color .15s, background-color .15s;
+  transition-property: border-color, background-color;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
   appearance: none;
   -webkit-appearance: none;
 }
@@ -1515,7 +1470,7 @@ select.input-field {
   background: var(--color-line);
   cursor: pointer;
   position: relative;
-  transition: background .2s;
+  transition: background-color var(--duration-standard) var(--ease-standard);
 }
 .switch[data-state="checked"] { background: var(--color-accent); }
 .switch:disabled { opacity: 0.5; cursor: default; }
@@ -1532,7 +1487,7 @@ select.input-field {
   height: 20px;
   border-radius: var(--radius-full);
   background: white;
-  transition: transform .2s;
+  transition: transform var(--duration-standard) var(--ease-standard);
 }
 .switch[data-state="checked"] .switch-thumb { transform: translateX(18px); }
 .switch::after {
@@ -1566,45 +1521,56 @@ select.input-field {
 
 .you-settings-row {
   appearance: none;
+  position: relative;
   width: 100%;
   min-height: 62px;
   padding: 10px 12px;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
   border: 0;
-  border-top: 0.5px solid var(--color-line);
   background: transparent;
   color: var(--color-ink);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.you-settings-row:first-child {
-  border-top: 0;
+.you-settings-row + .you-settings-row::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: calc(12px + 24px + 11px) 12px;
+  height: 0.5px;
+  background: var(--color-line);
 }
 
-.you-settings-row:hover {
+.you-settings-row:active {
   background: var(--color-bg-sunken);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .you-settings-row:hover {
+    background: var(--color-bg-sunken);
+  }
 }
 
 .you-settings-row-static {
   cursor: default;
 }
 
-.you-settings-row-static:hover {
+.you-settings-row-static:hover,
+.you-settings-row-static:active {
   background: transparent;
 }
 
 .you-settings-row-icon {
-  width: 34px;
+  width: 24px;
   height: 34px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-sunken);
   color: var(--color-ink-2);
 }
 
@@ -1648,13 +1614,6 @@ select.input-field {
 
 .you-destination-page {
   padding-top: 18px;
-}
-
-.you-saving-state {
-  margin-bottom: 10px;
-  color: var(--color-ink-3);
-  font-size: var(--fs-xs);
-  text-align: right;
 }
 
 .you-focus-card {
@@ -1737,7 +1696,7 @@ select.input-field {
   transform: translateX(calc(100% + 3px));
 }
 
-.my-jobs-tabs button {
+.my-jobs-tabs :where(button, a) {
   position: relative;
   z-index: 1;
   min-width: 0;
@@ -1754,10 +1713,11 @@ select.input-field {
   font-size: var(--fs-sm);
   font-weight: 500;
   cursor: pointer;
+  text-decoration: none;
   transition: color var(--duration-instant) var(--ease-standard);
 }
 
-.my-jobs-tabs button.active {
+.my-jobs-tabs :where(button, a).active {
   color: var(--color-ink);
 }
 
@@ -1795,6 +1755,7 @@ select.input-field {
   background: var(--color-bg-sunken);
   color: var(--color-ink-2);
   font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .my-jobs-list {
@@ -1943,6 +1904,48 @@ select.input-field {
 
 .company-request-row:first-child { border-top: 0; }
 .company-request-row > svg { flex-shrink: 0; color: var(--color-accent); }
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover,
+  .icon-btn:hover,
+  .icon-btn-surface:hover,
+  .btn-secondary:not(:disabled):hover,
+  .btn-danger:not(:disabled):hover {
+    background: var(--color-bg-sunken);
+  }
+
+  .chip-active:hover {
+    background: var(--color-accent-soft);
+  }
+
+  .filter-button:hover {
+    background: var(--color-bg-elev);
+    color: var(--color-ink);
+  }
+
+  .icon-btn:hover {
+    color: var(--color-ink-2);
+  }
+
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary:not(:disabled):hover,
+  .btn-danger:not(:disabled):hover {
+    border-color: var(--color-line-2);
+  }
+
+  .btn-apple:not(:disabled):hover {
+    background: #111;
+    opacity: 1;
+  }
+
+  .menu-item:hover {
+    background: var(--color-bg-sunken);
+    color: var(--color-ink);
+  }
+}
 
 :where(button, a, input, textarea, select, summary, [role="button"]):focus-visible {
   outline: 2px solid var(--color-accent);
@@ -2404,6 +2407,10 @@ details.filter-advanced { display: contents; }
 
 .feed-pull-reveal.armed svg { transform: scale(1.08); }
 
+.feed-pull-reveal.refreshing svg {
+  animation: spin 1s linear infinite;
+}
+
 .feed-page.pull-settling .feed-pull-reveal {
   transition: height var(--duration-standard) var(--ease-standard), opacity var(--duration-fast) ease;
 }
@@ -2496,10 +2503,6 @@ details.filter-advanced { display: contents; }
 
   .screen-nav__title {
     max-width: 420px;
-  }
-
-  .job-action-bar-wrap {
-    left: var(--app-nav-wide);
   }
 
   .job-action-bar {
@@ -2610,7 +2613,7 @@ details.filter-advanced { display: contents; }
 .chip:active,
 .filter-choice:active,
 .segmented-control button:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .sheet-backdrop {
@@ -2654,6 +2657,259 @@ details.filter-advanced { display: contents; }
   margin: 8px auto 0;
   flex-shrink: 0;
 }
+/* ── Shared compact presentation ──────────────────────────
+   Purely visual phone/tablet policy belongs here so browser and native shells
+   use one design system. Native gesture, keyboard, status-bar, and retained-
+   root behavior remains in styles/ios.css. */
+@media (max-width: 56.249rem) {
+  :root {
+    --control-height-compact: var(--tap-min);
+    --control-height-small: var(--tap-min);
+    --radius-sm: 8px;
+    --radius-xl: 20px;
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: max(16px, var(--fs-base));
+  }
+
+  .icon-btn-sm,
+  .icon-btn-xs,
+  .menu-item {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+
+  .job-description-link {
+    min-height: var(--tap-min);
+  }
+
+  .my-jobs-tabs {
+    height: 50px;
+  }
+
+  .you-destination-page {
+    padding-bottom: calc(var(--safe-bottom) + var(--space-8));
+  }
+
+  .test-notification-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .test-notification-row .button-cluster {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .resume-frame .location-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+
+  .resume-frame .date-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .resume-frame input[type="month"],
+  .resume-frame input[type="month"]::-webkit-datetime-edit,
+  .resume-frame input[type="month"]::-webkit-datetime-edit-fields-wrapper {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .chip {
+    height: var(--pill-height);
+    padding-inline: var(--space-3);
+  }
+
+  .chip.all-filter {
+    padding-inline: 18px;
+  }
+
+  details.filter-advanced {
+    display: block;
+    margin: 0;
+  }
+
+  details.filter-advanced > summary {
+    min-height: var(--tap-min);
+  }
+
+  .feed-loading-more {
+    width: 100%;
+    min-height: 56px;
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+  }
+
+  .feed-controls {
+    position: relative;
+    top: auto;
+    padding-top: var(--space-3);
+  }
+
+  .feed-toolbar {
+    height: var(--tap-min);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .feed-toolbar:focus-within {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .feed-toolbar:has(input:focus-visible) {
+    outline: none;
+  }
+
+  .feed-search,
+  .filter-button {
+    min-height: var(--tap-min);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-md);
+  }
+
+  .feed-search {
+    padding-inline: var(--space-3);
+    background: var(--color-input-bg);
+  }
+
+  .feed-search:has(input:focus-visible),
+  .input-field:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .feed-search input:focus-visible {
+    outline: none;
+  }
+
+  .feed-search__clear {
+    width: var(--tap-min);
+    height: var(--tap-min);
+    flex: none;
+    margin-inline-end: calc(var(--space-3) * -1);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-ink-3);
+  }
+
+  .filter-location-select > summary,
+  .filter-location-select[open] > summary,
+  .filter-button {
+    background: var(--color-input-bg);
+  }
+
+  .filter-button {
+    padding-inline: var(--space-3);
+    color: var(--color-ink-2);
+  }
+
+  .filter-button.active {
+    border-color: var(--color-control-border);
+    background: var(--color-input-bg);
+    color: var(--color-ink);
+  }
+
+  .filter-button.active .filter-count {
+    border: 0;
+    background: var(--color-control-selected-bg);
+    color: var(--color-control-selected-ink);
+  }
+
+  .active > .select-check {
+    border-color: var(--color-accent);
+    background: var(--color-control-selected-bg);
+    color: var(--color-accent);
+  }
+
+  .switch[data-state="checked"] {
+    background: var(--color-control-selected-bg);
+    box-shadow: inset 0 0 0 1px var(--color-control-selected-border);
+  }
+
+  .notification-settings .switch[data-state="checked"] {
+    background: var(--color-accent);
+    box-shadow: none;
+  }
+
+  .choice-card:active,
+  .location-chip:active {
+    transform: scale(0.96);
+  }
+
+  .screen-large-title {
+    margin: var(--space-2) 0 var(--space-6);
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: var(--fs-4xl);
+    font-weight: 600;
+    letter-spacing: var(--tracking-screen-title);
+    line-height: var(--leading-screen-title);
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+}
+
+/* Phones use the iOS information hierarchy and edge-to-edge grouped lists.
+   The middle band above keeps the same type and controls with roomier cards. */
+@media (max-width: 33.75rem) {
+  .root-header:not(.root-header-native) {
+    padding-top: calc(var(--safe-top) + var(--space-6));
+    border-bottom-color: transparent;
+  }
+
+  .root-header:not(.root-header-native) .root-header-inner {
+    min-height: auto;
+    padding: 0 var(--screen-gutter) var(--space-5);
+  }
+
+  .page-frame,
+  .screen-content,
+  .tailor-page-body {
+    padding-inline: var(--screen-gutter);
+  }
+
+  .you-page .surface-list,
+  .companies-page .company-list,
+  .library-page .my-jobs-list,
+  .admin-page .surface-list {
+    width: calc(100% + var(--screen-gutter) + var(--screen-gutter));
+    margin-inline: calc(0px - var(--screen-gutter));
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .you-page .you-settings-row {
+    padding-inline: var(--screen-gutter);
+  }
+
+  .you-page .you-settings-row + .you-settings-row::before {
+    inset-inline: calc(var(--screen-gutter) + 24px + 11px) var(--screen-gutter);
+  }
+}
+
+@media (min-width: 33.8125rem) and (max-width: 56.249rem) {
+  .page-frame,
+  .screen-content,
+  .tailor-page-body {
+    padding-inline: var(--space-6);
+  }
+}
+
 /* ── Skeleton ───────────────────────────────────────────── */
 
 .skeleton {
@@ -2683,7 +2939,8 @@ details.filter-advanced { display: contents; }
      Slowed rather than restored at full speed. */
   .spin,
   .skeleton,
-  .save-status-spinner {
+  .save-status-spinner,
+  .feed-pull-reveal.refreshing svg {
     animation-duration: 1.6s !important;
     animation-iteration-count: infinite !important;
   }

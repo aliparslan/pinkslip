@@ -10,14 +10,15 @@ export interface RouteDefinition {
   showRootNavigation?: boolean;
   rootHeaderTitle?: string;
   rootHeaderSubtitle?: string;
+  documentTitle?: string;
 }
 
 export const routeDefinitions: RouteDefinition[] = [
   { id: "feed", pattern: "/", shell: "consumer", depth: 0, rootDestination: "feed", showRootNavigation: true, rootHeaderTitle: "Jobs" },
   { id: "job", pattern: "/jobs/:jobId", shell: "consumer", depth: 1, rootDestination: "feed" },
   { id: "tailor", pattern: "/tailor/:jobId", shell: "consumer", depth: 2, rootDestination: "feed" },
-  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library" },
-  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library" },
+  { id: "library-saved", pattern: "/library/saved", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", documentTitle: "Library · Saved" },
+  { id: "library-applied", pattern: "/library/applied", shell: "consumer", depth: 0, rootDestination: "library", showRootNavigation: true, rootHeaderTitle: "Library", documentTitle: "Library · Applied" },
   { id: "you", pattern: "/you", shell: "consumer", depth: 0, rootDestination: "you", showRootNavigation: true, rootHeaderTitle: "You" },
   { id: "you-preferences", pattern: "/you/preferences", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-alerts", pattern: "/you/alerts", shell: "consumer", depth: 1, rootDestination: "you" },
@@ -26,10 +27,10 @@ export const routeDefinitions: RouteDefinition[] = [
   { id: "you-tailoring", pattern: "/you/tailoring", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-account", pattern: "/you/account", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-feedback", pattern: "/you/feedback", shell: "consumer", depth: 1, rootDestination: "you" },
-  { id: "admin-overview", pattern: "/admin", shell: "admin", depth: 1, rootDestination: "you" },
-  { id: "admin-inbox", pattern: "/admin/inbox", shell: "admin", depth: 1, rootDestination: "you" },
-  { id: "admin-sources", pattern: "/admin/sources", shell: "admin", depth: 1, rootDestination: "you" },
-  { id: "admin-runs", pattern: "/admin/runs", shell: "admin", depth: 1, rootDestination: "you" },
+  { id: "admin-overview", pattern: "/admin", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Manage" },
+  { id: "admin-inbox", pattern: "/admin/inbox", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Inbox" },
+  { id: "admin-sources", pattern: "/admin/sources", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Sources" },
+  { id: "admin-runs", pattern: "/admin/runs", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Runs" },
 ];
 
 const compatibilityRedirects: Record<string, string> = {
@@ -44,7 +45,15 @@ const compatibilityRedirects: Record<string, string> = {
 };
 
 export function routePath(route: string): string {
-  return (route.split("?")[0] || "/").replace(/\/+$/, "") || "/";
+  const withoutHashPrefix = route.startsWith("#") ? route.slice(1) : route;
+  const path = withoutHashPrefix.split("?")[0] || "/";
+  const rootedPath = path.startsWith("/") ? path : `/${path}`;
+  return rootedPath.replace(/\/+$/, "") || "/";
+}
+
+function routeQuery(route: string): string {
+  const queryIndex = route.indexOf("?");
+  return queryIndex >= 0 ? route.slice(queryIndex + 1) : "";
 }
 
 function matchesPattern(route: string, pattern: string): boolean {
@@ -55,17 +64,36 @@ function matchesPattern(route: string, pattern: string): boolean {
 }
 
 export function normalizeRoute(route: string): string {
-  const raw = route || "/";
+  const raw = route.trim() || "/";
   const path = routePath(raw);
-  const redirected = compatibilityRedirects[path];
-  if (!redirected) return raw;
-  const query = raw.includes("?") ? `?${raw.split("?").slice(1).join("?")}` : "";
-  return `${redirected}${query}`;
+  const canonicalPath = compatibilityRedirects[path] ?? path;
+  const query = routeQuery(raw);
+  return `${canonicalPath}${query ? `?${query}` : ""}`;
 }
 
 export function initialRouteForLocation(hash: string, pathname: string): string {
   const hashRoute = hash.startsWith("#") ? hash.slice(1) : hash;
   return normalizeRoute(hashRoute || pathname || "/");
+}
+
+/**
+ * Resolve a web URL, including the one-time migration from the legacy
+ * `/#/route` format. Query parameters that lived before the hash (for example
+ * the email sign-in result) are carried onto the clean route.
+ */
+export function initialHistoryRouteForLocation(
+  hash: string,
+  pathname: string,
+  search = "",
+): string {
+  const legacyRoute = hash.startsWith("#/") ? hash.slice(1) : "";
+  if (!legacyRoute) return normalizeRoute(`${pathname || "/"}${search}`);
+
+  const legacyPath = routePath(legacyRoute);
+  const legacyQuery = routeQuery(legacyRoute);
+  const outerQuery = search.startsWith("?") ? search.slice(1) : search;
+  const query = [outerQuery, legacyQuery].filter(Boolean).join("&");
+  return normalizeRoute(`${legacyPath}${query ? `?${query}` : ""}`);
 }
 
 export function routeDefinition(route: string): RouteDefinition {
@@ -95,6 +123,10 @@ export function rootHeaderFor(route: string): { title: string; subtitle: string 
   return definition.rootHeaderTitle
     ? { title: definition.rootHeaderTitle, subtitle: definition.rootHeaderSubtitle ?? "" }
     : null;
+}
+
+export function documentTitleFor(route: string): string | null {
+  return routeDefinition(route).documentTitle ?? null;
 }
 
 export function routeParam(route: string, name: string): string | null {

@@ -1,8 +1,14 @@
 import type { Job } from "./api";
 
 export type PlatformKind = "web" | "ios";
-export type NotificationStatus = "enabled" | "disabled";
-export type NotificationEnableResult = "enabled" | "denied";
+export type NotificationStatus =
+  | "unsupported"
+  | "requires-install"
+  | "promptable"
+  | "disabled"
+  | "denied"
+  | "enabled";
+export type NotificationEnableResult = NotificationStatus;
 
 export interface AppleCredential {
   identityToken: string;
@@ -42,6 +48,7 @@ export interface PlatformRuntime {
     initialize(): Promise<void>;
     status(): Promise<NotificationStatus>;
     enable(): Promise<NotificationEnableResult>;
+    openSettings(): Promise<void>;
   };
   auth: {
     appleAvailable(): boolean;
@@ -94,9 +101,10 @@ export function normalizeExternalUrl(rawUrl: string): string {
 export function openWebWindow(rawUrl: string): void {
   const url = normalizeExternalUrl(rawUrl);
   if (!url) return;
-  const externalWindow = window.open(url, "_blank", "noopener,noreferrer");
-  if (externalWindow) externalWindow.opener = null;
-  else window.location.assign(url);
+  // With `noopener`, browsers are allowed to return null even when the new tab
+  // opened successfully. Falling back to location.assign in that case opens
+  // the destination twice and replaces Pinkslip in the current tab.
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export type { Job };

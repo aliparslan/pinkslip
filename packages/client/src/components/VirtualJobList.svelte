@@ -6,6 +6,7 @@
 
   let {
     jobs,
+    total = jobs.length,
     viewed,
     onDismiss,
     onRestore,
@@ -13,6 +14,7 @@
     onBlockRequest,
   }: {
     jobs: Job[];
+    total?: number;
     viewed: Set<string>;
     onDismiss?: (id: string) => void;
     onRestore?: (job: Job) => void;
@@ -30,6 +32,7 @@
   let topSpacer = $state(0);
   let bottomSpacer = $state(0);
   let activeSwipeId: string | null = $state(null);
+  let assistiveExpanded = $state(false);
   let frame: number | null = null;
   const measuredHeights = new Map<string, number>();
   let cumulativeHeights: number[] = [0];
@@ -73,6 +76,13 @@
 
   function recalculate() {
     frame = null;
+    if (assistiveExpanded) {
+      startIndex = 0;
+      endIndex = jobs.length;
+      topSpacer = 0;
+      bottomSpacer = 0;
+      return;
+    }
     const scroller = scrollContainer();
     if (!scroller || !listElement || jobs.length === 0) {
       startIndex = 0;
@@ -108,6 +118,12 @@
   function handleScroll() {
     activeSwipeId = null;
     scheduleRecalculate();
+  }
+
+  function enableAssistiveExpansion() {
+    if (assistiveExpanded) return;
+    assistiveExpanded = true;
+    recalculate();
   }
 
   function measureRow(node: HTMLElement, id: string) {
@@ -158,10 +174,21 @@
   });
 </script>
 
-<div bind:this={listElement} class="virtual-job-list" aria-label="Jobs">
+<div
+  bind:this={listElement}
+  class="virtual-job-list"
+  role="list"
+  aria-label="Jobs"
+  onfocusin={enableAssistiveExpansion}
+>
   <div class="virtual-job-spacer" style:height={`${topSpacer}px`} aria-hidden="true"></div>
-  {#each visibleJobs as job (job.id)}
-    <div use:measureRow={job.id}>
+  {#each visibleJobs as job, visibleIndex (job.id)}
+    <div
+      role="listitem"
+      aria-posinset={startIndex + visibleIndex + 1}
+      aria-setsize={total < 0 ? -1 : Math.max(total, jobs.length)}
+      use:measureRow={job.id}
+    >
       <JobRow
         {job}
         viewed={viewed.has(job.id)}

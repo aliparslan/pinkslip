@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { api } from "../lib/api";
   import { errorMessage } from "../lib/utils";
   import { enableNativePush, getNativePushStatus, isNativeIos } from "../lib/native-push";
@@ -32,11 +32,13 @@
   let saving = $state(false);
   let enablingPush = $state(false);
   let pushStatus: "idle" | "enabled" | "denied" | "error" = $state("idle");
+  let pushAnnouncement = $state("");
   let profile: SearchProfile = $state(normalizeSearchProfile(DEFAULT_SEARCH_PROFILE));
   let error: string | null = $state(null);
   let onboardingStartRecorded = false;
   let profileInitialized = false;
   let scrollEl: HTMLDivElement | null = $state(null);
+  let finishButton: HTMLButtonElement | null = $state(null);
 
   $effect(() => {
     if (profileInitialized) return;
@@ -48,9 +50,14 @@
     let active = true;
     void getNativePushStatus()
       .then((status) => {
-        if (active && status === "enabled") {
+        if (!active) return;
+        if (status === "enabled") {
           pushStatus = "enabled";
           profile = normalizeSearchProfile({ ...profile, notifications_enabled: true });
+        } else if (status === "denied") {
+          pushStatus = "denied";
+          profile = normalizeSearchProfile({ ...profile, notifications_enabled: false });
+          pushAnnouncement = "Notification permission is off. You can enable alerts later in iOS Settings.";
         }
       })
       .catch(() => undefined);
@@ -74,7 +81,12 @@
   }
 
   async function beginOnboarding() {
-    if (isNativeIos() && profile.roles.length === 0) {
+    if (profile.target_levels.length === 0) {
+      error = "Choose at least one career stage to continue.";
+      focusFirst(".career-stage-card");
+      return;
+    }
+    if (profile.roles.length === 0) {
       error = "Choose at least one role to continue.";
       focusFirst(".role-card");
       return;
@@ -98,13 +110,20 @@
   }
 
   async function saveSearchProfile() {
-    if (saving || (!isNativeIos() && (profile.roles.length === 0 || profile.work_modes.length === 0))) return;
-    if (isNativeIos() && profile.roles.length === 0) {
+    if (saving) return;
+    if (profile.target_levels.length === 0) {
+      error = "Choose at least one career stage to continue.";
+      step = 1;
+      focusFirst(".career-stage-card");
+      return;
+    }
+    if (profile.roles.length === 0) {
       error = "Choose at least one role to continue.";
+      step = 1;
       focusFirst(".role-card");
       return;
     }
-    if (isNativeIos() && profile.work_modes.length === 0) {
+    if (profile.work_modes.length === 0) {
       error = "Choose at least one work mode to continue.";
       focusFirst(".work-mode-trigger");
       return;
@@ -126,17 +145,28 @@
     if (enablingPush) return;
     enablingPush = true;
     error = null;
+    let moveToFinish = false;
     try {
       const enabled = (await enableNativePush()) === "enabled";
       pushStatus = enabled ? "enabled" : "denied";
       if (enabled) {
         await api.push.updateSettings({ enabled: true, push_enabled: true });
         profile = normalizeSearchProfile({ ...profile, notifications_enabled: true });
+        pushAnnouncement = "Notifications are on for this device.";
+        moveToFinish = true;
+      } else {
+        pushAnnouncement = `Notification permission is off. You can enable alerts later in ${isNativeIos() ? "iOS Settings" : "your browser settings"}.`;
+        moveToFinish = true;
       }
     } catch {
       pushStatus = "error";
+      pushAnnouncement = "Unable to turn on alerts. Check your connection and try again.";
     } finally {
       enablingPush = false;
+    }
+    if (moveToFinish) {
+      await tick();
+      window.requestAnimationFrame(() => finishButton?.focus());
     }
   }
 
@@ -184,9 +214,9 @@
       >
         <CaretLeft size={21} weight="bold" />
       </button>
-      <div class="onboarding-brand" aria-label="pinkslip">
+      <div class="onboarding-brand" aria-label={nativeIos ? "Pinkslip" : "pinkslip"}>
         <BrandMark size={28} />
-        <span><strong>pink</strong>slip</span>
+        <span><strong>{nativeIos ? "Pink" : "pink"}</strong>slip</span>
       </div>
       <span aria-hidden="true"></span>
     </div>
@@ -211,12 +241,13 @@
         <section class="onboarding-step">
           <h1 tabindex="-1">Beat the crowd</h1>
           <p class="onboarding-copy">
-            Choose the roles you want. We&rsquo;ll alert you the moment we see a new posting.
+            Choose your career stages and roles. We&rsquo;ll alert you when a new posting fits.
           </p>
           <div class="onboarding-fields">
-            <SearchProfileFields bind:profile section="roles" showAdvanced={false} showHeadings={false} />
+            <SearchProfileFields bind:profile section="experience" showAdvanced={false} />
+            <SearchProfileFields bind:profile section="roles" showAdvanced={false} />
           </div>
-          {#if error && isNativeIos()}
+          {#if error}
             <div class="alert alert-error onboarding-alert" role="alert">{error}</div>
           {/if}
         </section>
@@ -239,11 +270,15 @@
             Get an alert when a new role fits your search.
           </p>
 
+          <div class="onboarding-push-status" role="status" aria-live="polite" aria-atomic="true">
+            {pushAnnouncement}
+          </div>
+
           {#if pushStatus === "enabled"}
             <div class="onboarding-status success">
               <Check size={17} weight="bold" /> Alerts are on for this device
             </div>
-          {:else}
+          {:else if pushStatus !== "denied"}
             <button
               type="button"
               class="btn-secondary full-width tall-control onboarding-alert-action"
@@ -261,7 +296,7 @@
               Permission is off. You can enable alerts later in {isNativeIos() ? "iOS Settings" : "your browser settings"}.
             </div>
           {:else if pushStatus === "error"}
-            <div class="alert alert-error onboarding-alert" role="alert">
+            <div class="alert alert-error onboarding-alert">
               Unable to turn on alerts. Check your connection and try again.
             </div>
           {:else if error}
@@ -279,14 +314,13 @@
         <button
           type="button"
           class="btn-primary btn-accent full-width onboarding-cta"
-          disabled={!isNativeIos() && profile.roles.length === 0}
           onclick={beginOnboarding}
         >Continue</button>
       {:else if step === 2}
         <button
           type="button"
           class="btn-primary btn-accent full-width onboarding-cta"
-          disabled={saving || (!isNativeIos() && profile.work_modes.length === 0)}
+          disabled={saving}
           onclick={saveSearchProfile}
         >
           {#if saving}<Spinner />{/if}
@@ -294,13 +328,14 @@
         </button>
       {:else}
         <button
+          bind:this={finishButton}
           type="button"
           class="btn-primary btn-accent full-width onboarding-cta"
           disabled={saving || enablingPush}
           onclick={finish}
         >
           {#if saving}<Spinner />{/if}
-          Start using pinkslip
+          Start using {nativeIos ? "Pinkslip" : "pinkslip"}
         </button>
       {/if}
     </div>
@@ -429,7 +464,12 @@
     line-height: 1.5;
   }
 
-  .onboarding-fields { margin-bottom: 0; }
+  .onboarding-fields {
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
   .onboarding-fields-after-title { margin-top: var(--space-6); }
   .onboarding-alert { margin: var(--space-3) 0 0; }
   .onboarding-footer {
@@ -450,6 +490,19 @@
   .onboarding-cta { margin: 0; }
 
   .onboarding-alert-action { margin-top: var(--space-2); }
+
+  .onboarding-push-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 
   .onboarding-status {
     min-height: 48px;

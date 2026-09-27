@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 import type { AccountInfo, AppFeatures, MeResponse, User } from "./api";
 import { setViewedJobsSession } from "./viewed";
+import { setJobLibraryOwner } from "./job-library-store";
 
 export interface SessionAccess {
   state: "anonymous" | "guest" | "authenticated";
@@ -22,6 +23,7 @@ export const sessionAccess = writable<SessionAccess>({
 
 export function syncSessionAccess(response: MeResponse) {
   setViewedJobsSession(response.user?.id ?? null);
+  setJobLibraryOwner(response.user?.id ?? null);
   sessionAccess.set({
     state: response.session.state,
     user: response.user,

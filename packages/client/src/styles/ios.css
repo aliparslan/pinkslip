@@ -5,11 +5,8 @@
 html.native-ios body { -webkit-touch-callout: default; }
 
 html.native-ios {
-  --control-height-compact: var(--tap-min);
-  --control-height-small: var(--tap-min);
   --duration-exit: 160ms;
   --duration-route: 340ms;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --color-native-modal-scrim: oklch(0 0 0 / 0.64);
   --overlay-bottom-offset: calc(var(--mobile-tab-bar-height) + var(--safe-bottom) + var(--space-1));
   --native-keyboard-offset: 0px;
@@ -20,20 +17,12 @@ html.native-ios[data-mode="light"] {
   --color-input-bg: var(--color-bg-elev);
 }
 
-html.native-ios :where(button, a, input, textarea, select, summary, [role="button"]) {
-  touch-action: manipulation;
+/* Route changes focus a non-interactive heading so VoiceOver receives the new
+   screen context. WKWebView can repaint that retained focus as a blue ring when
+   the app resumes; suppress only this temporary landing target, never controls. */
+html.native-ios [data-route-focus-target]:focus {
+  outline: none;
 }
-
-/* WKWebView zooms focused fields below 16px. */
-html.native-ios input,
-html.native-ios textarea {
-  font-size: 16px;
-}
-
-html.native-ios .job-description-link { min-height: var(--tap-min); }
-html.native-ios .my-jobs-tabs { height: 50px; }
-
-html.native-ios .chip.all-filter { padding-inline: 18px; }
 
 html.native-ios .native-session-failure {
   min-height: 100dvh;
@@ -44,28 +33,12 @@ html.native-ios .native-session-failure {
   background: var(--color-bg);
 }
 
+/* WKWebView can skip painting rows that use browser content-visibility while
+   a retained root is being restored. This is native rendering policy, not a
+   visual variant. */
 html.native-ios .company-row {
   contain: none;
   content-visibility: visible;
-  background: var(--color-bg);
-}
-
-html.native-ios .company-row.hidden {
-  --company-row-copy-opacity: 0.56;
-}
-
-html.native-ios details.filter-advanced {
-  display: block;
-  margin: 0;
-}
-
-html.native-ios details.filter-advanced > summary { min-height: var(--tap-min); }
-
-html.native-ios .feed-loading-more {
-  width: 100%;
-  min-height: 56px;
-  padding: var(--space-3) var(--space-4);
-  display: flex;
 }
 
 /* Root chrome stays opaque in WKWebView. Translucent backdrops caused content
@@ -78,114 +51,15 @@ html.native-ios .feed-controls {
   -webkit-backdrop-filter: none;
 }
 
-html.native-ios .feed-controls {
-  position: relative;
-  top: auto;
-  padding-top: var(--space-3);
-}
-
-html.native-ios .feed-toolbar {
-  height: var(--tap-min);
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-html.native-ios .feed-toolbar:focus-within {
-  border-color: transparent;
-  background: transparent;
-}
-
-html.native-ios .feed-toolbar:has(input:focus-visible) {
+/* WKWebView paints its own focused-field highlight; browser focus rings stay
+   in the shared stylesheet. */
+html.native-ios .input-field:focus-visible {
   outline: none;
 }
 
 html.native-ios .feed-search:has(input:focus-visible) {
   border-color: var(--color-accent);
-}
-
-html.native-ios .input-field:focus-visible {
   outline: none;
-}
-
-html.native-ios .feed-search,
-html.native-ios .filter-button {
-  min-height: var(--tap-min);
-  border: 1px solid var(--color-control-border);
-  border-radius: var(--radius-md);
-}
-
-html.native-ios .feed-search {
-  padding-inline: var(--space-3);
-  background: var(--color-input-bg);
-}
-
-html.native-ios .feed-search__clear {
-  width: var(--tap-min);
-  height: var(--tap-min);
-  flex: none;
-  margin-inline-end: calc(var(--space-3) * -1);
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-ink-3);
-}
-
-html.native-ios .filter-location-select > summary,
-html.native-ios .filter-location-select[open] > summary {
-  background: var(--color-input-bg);
-}
-
-html.native-ios .filter-button {
-  padding-inline: var(--space-3);
-  background: var(--color-control-bg);
-  color: var(--color-ink-2);
-}
-
-html.native-ios .filter-button.active {
-  border-color: var(--color-control-selected-border);
-  background: var(--color-control-selected-bg);
-  color: var(--color-control-selected-ink);
-}
-
-html.native-ios .filter-button.active .filter-count {
-  border: 1px solid currentColor;
-  background: transparent;
-  color: currentColor;
-}
-
-html.native-ios .chip-active,
-html.native-ios .filter-choice.active {
-  border-color: var(--color-control-selected-border);
-  background: var(--color-control-selected-bg);
-  color: var(--color-control-selected-ink);
-}
-
-html.native-ios .chip-active:hover {
-  background: var(--color-control-selected-bg);
-}
-
-html.native-ios .active > .select-check {
-  border-color: var(--color-control-selected-border);
-  background: var(--color-control-selected-bg);
-  color: var(--color-control-selected-ink);
-}
-
-html.native-ios .switch[data-state="checked"] {
-  background: var(--color-control-selected-bg);
-}
-
-html.native-ios .native-layout .choice-card.active,
-html.native-ios .native-layout .location-chip.active {
-  border-color: var(--color-control-selected-border);
-  background: var(--color-control-selected-bg);
-  color: var(--color-control-selected-ink);
 }
 
 .app-content-shell {
@@ -228,15 +102,123 @@ html.native-ios .native-layout .location-chip.active {
   transform: none;
 }
 
-.screen-large-title {
-  margin: var(--space-2) 0 var(--space-6);
-  color: var(--color-ink);
-  font-family: var(--font-heading);
-  font-size: var(--fs-4xl);
-  font-weight: 600;
-  letter-spacing: var(--tracking-screen-title);
-  line-height: var(--leading-screen-title);
-  text-wrap: balance;
+/* Accessibility Dynamic Type sizes keep the compact default untouched while
+   allowing text-bearing controls and titles to grow vertically when requested. */
+html.native-ios[data-ios-accessibility-text="true"] :where(
+  .btn-primary,
+  .btn-secondary,
+  .btn-action,
+  .btn-mini,
+  .filter-button,
+  .chip,
+  .filter-choice,
+  .segmented-control button,
+  .my-jobs-tabs button,
+  .choice-card,
+  .location-chip
+) {
+  height: auto;
+  min-height: var(--tap-min);
+  padding-block: var(--space-2);
+  white-space: normal;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] :where(
+  .input-field:not(textarea),
+  select
+) {
+  height: auto;
+  min-height: var(--tap-min);
+  padding-block: 10px;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .my-jobs-tabs {
+  height: auto;
+  min-height: 50px;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .native-layout .admin-tabs {
+  height: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .native-layout .admin-tabs::before {
+  display: none;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .native-layout .admin-tabs button {
+  min-height: var(--tap-min);
+  padding-block: var(--space-2);
+  overflow: visible;
+  line-height: var(--leading-body);
+  text-overflow: clip;
+  white-space: normal;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .native-layout .admin-tabs button.active {
+  background: var(--color-bg-elev);
+  box-shadow: var(--shadow-control-active);
+}
+
+html.native-ios .pushed-screen:has(.resume-frame) .screen-nav__title {
+  max-width: calc(100vw - 132px);
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .you-settings-row {
+  min-height: var(--tap-min);
+  padding-block: var(--space-3);
+  align-items: start;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .you-settings-row-copy :where(strong, small) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .job-row,
+html.native-ios[data-ios-accessibility-text="true"] :where(
+  .identity-button,
+  .resume-entry,
+  .section-content
+) {
+  height: auto;
+  min-height: var(--tap-min);
+  align-items: start;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .job-row__meta,
+html.native-ios[data-ios-accessibility-text="true"] .job-row__sub,
+html.native-ios[data-ios-accessibility-text="true"] .company-name-row {
+  flex-wrap: wrap;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .job-row__title {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .job-row__sub {
+  white-space: normal;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] :where(
+  .identity-copy small,
+  .entry-heading strong,
+  .entry-meta,
+  .entry-preview
+) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+html.native-ios[data-ios-accessibility-text="true"] .company-name-row {
+  align-items: flex-start;
 }
 
 html.native-ios .root-header-native {
@@ -282,6 +264,12 @@ html.native-ios .sheet-backdrop {
   position: relative;
   z-index: 1;
   background: var(--color-bg);
+}
+
+/* Root screens share this retained scroller. WKWebView's automatic anchoring
+   can otherwise move it while one preloaded root is swapped for another. */
+html.native-ios .nav-foreground > .app-main {
+  overflow-anchor: none;
 }
 
 .nav-foreground.is-swiping {
@@ -402,6 +390,14 @@ html.native-ios .pushed-screen.nav-enter-suppressed {
   pointer-events: none;
 }
 
+.ios-root-cache {
+  display: contents;
+}
+
+.ios-root-cache[hidden] {
+  display: none;
+}
+
 body.nav-animating .status-bar-scrim {
   background: transparent;
 }
@@ -421,34 +417,8 @@ body.nav-animating .toast-message {
 
 /* stylelint-enable declaration-no-important */
 
-html.native-ios :where(
-  .btn-primary,
-  .btn-secondary,
-  .btn-action,
-  .btn-mini,
-  .icon-btn,
-  .filter-button,
-  .screen-nav__back,
-  .chip,
-  .filter-choice,
-  .segmented-control button
-):active {
-  transform: scale(0.96);
-}
-
 .nav-underlay .pushed-screen {
   animation: none;
-}
-
-@media (min-width: 900px) {
-  .app-content-shell {
-    width: calc(100vw - var(--app-nav-wide));
-    max-width: none;
-    margin-left: var(--app-nav-wide);
-    margin-right: 0;
-  }
-
-  .app-content-shell.mobile-tabs-visible { padding-bottom: 0; }
 }
 
 /* Native tab bars leave with the software keyboard, including the short gap

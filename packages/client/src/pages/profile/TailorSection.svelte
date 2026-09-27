@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import ArrowRight from "phosphor-svelte/lib/ArrowRight";
-  import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import Sparkle from "phosphor-svelte/lib/Sparkle";
   import ShieldCheck from "phosphor-svelte/lib/ShieldCheck";
   import { api, type AppFeatures } from "../../lib/api";
   import { navigate } from "../../router";
@@ -10,12 +10,14 @@
     sessionState,
     features,
     showHeading = true,
+    usageOutside = false,
   }: {
     sessionState: "anonymous" | "guest" | "authenticated";
     features: AppFeatures | null;
     onError: (message: string) => void;
     onSuccess: (message: string) => void;
     showHeading?: boolean;
+    usageOutside?: boolean;
   } = $props();
 
   let includedCount = $state(0);
@@ -23,6 +25,12 @@
   let includedLimit = $derived(
     includedRemaining === null ? null : includedCount + includedRemaining
   );
+  let remainingPercent = $derived(
+    includedLimit === null
+      ? 0
+      : Math.min(100, ((includedRemaining ?? 0) / Math.max(1, includedLimit)) * 100)
+  );
+  let usageTone = $derived(remainingPercent > 50 ? "healthy" : remainingPercent > 20 ? "warning" : "critical");
   let ready = $derived(Boolean(
     sessionState === "authenticated"
     && features?.tailoring_enabled
@@ -43,11 +51,36 @@
   });
 </script>
 
+{#snippet usageMeter()}
+  {#if includedLimit !== null}
+    <div class="usage-meter" class:outside-usage={usageOutside}>
+      <div class="usage-copy">
+        <span class="usage-label"><Sparkle size={17} weight="fill" aria-hidden="true" /> Free uses today</span>
+        <strong>
+          <span>{includedRemaining ?? 0}</span><span class="usage-limit">/{includedLimit}</span>
+        </strong>
+      </div>
+      <div
+        class="usage-track"
+        role="progressbar"
+        aria-label="Free tailoring uses remaining today"
+        aria-valuemin="0"
+        aria-valuemax={includedLimit}
+        aria-valuenow={includedRemaining ?? 0}
+      >
+        <span class={usageTone} style="width: {remainingPercent}%;"></span>
+      </div>
+      <small class="usage-reset">Resets daily</small>
+    </div>
+  {/if}
+{/snippet}
+
 <section>
   {#if showHeading}<h2 class="section-eyebrow">Tailoring</h2>{/if}
+  {#if usageOutside}{@render usageMeter()}{/if}
   <div class="content-card tailoring-settings">
     <header class="tailoring-heading">
-      <span class="tailoring-icon" aria-hidden="true"><MagicWand size={21} weight="duotone" /></span>
+      <span class="tailoring-icon" aria-hidden="true"><Sparkle size={21} weight="fill" /></span>
       <div>
         <h2>AI tailoring</h2>
         <p>
@@ -62,25 +95,7 @@
       </div>
     </header>
 
-    {#if includedLimit !== null}
-      <div class="usage-meter">
-        <div class="usage-copy">
-          <span>Free uses today</span>
-          <strong>{includedCount}/{includedLimit}</strong>
-        </div>
-        <div
-          class="usage-track"
-          role="progressbar"
-          aria-label="Free tailoring uses today"
-          aria-valuemin="0"
-          aria-valuemax={includedLimit}
-          aria-valuenow={Math.min(includedCount, includedLimit)}
-        >
-          <span style="width: {Math.min(100, (includedCount / Math.max(1, includedLimit)) * 100)}%;"></span>
-        </div>
-        <small>{includedRemaining ?? 0} remaining</small>
-      </div>
-    {/if}
+    {#if !usageOutside}{@render usageMeter()}{/if}
 
     <div class="evidence-note">
       <ShieldCheck size={19} weight="fill" aria-hidden="true" />
@@ -131,18 +146,27 @@
   }
 
   .tailoring-icon {
-    width: var(--tap-min);
-    height: var(--tap-min);
+    width: var(--space-6);
+    height: var(--space-6);
     display: grid;
     place-items: center;
-    border-radius: var(--radius-full);
-    background: var(--color-accent-soft);
-    color: var(--color-accent-soft-ink);
+    color: var(--color-accent);
   }
 
   .usage-meter {
     display: grid;
     gap: var(--space-2);
+    font-family: var(--font-sans);
+  }
+
+  .usage-meter.outside-usage {
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .usage-copy {
@@ -152,6 +176,41 @@
     gap: var(--space-3);
     color: var(--color-ink-2);
     font-size: var(--fs-sm);
+  }
+
+  .usage-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .outside-usage .usage-label {
+    color: var(--color-ink);
+    font-size: var(--fs-base);
+    font-weight: 600;
+  }
+
+  .outside-usage .usage-copy > strong {
+    color: var(--color-ink);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .usage-limit {
+    color: var(--color-ink-3);
+    font-weight: 500;
+  }
+
+  .outside-usage .usage-track {
+    height: var(--space-3);
+  }
+
+  .usage-reset {
+    margin-top: calc(0px - var(--space-2));
+    color: var(--color-ink-4);
+    font-size: var(--fs-xs);
+    text-align: end;
   }
 
   .usage-track {
@@ -165,13 +224,12 @@
     height: 100%;
     display: block;
     border-radius: var(--radius-full);
-    background: var(--color-accent);
+    transition: width var(--duration-standard) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
   }
 
-  .usage-meter small {
-    color: var(--color-ink-4);
-    font-size: var(--fs-xs);
-  }
+  .usage-track span.healthy { background: var(--color-good); }
+  .usage-track span.warning { background: var(--color-warn); }
+  .usage-track span.critical { background: var(--color-bad); }
 
   .evidence-note {
     display: grid;

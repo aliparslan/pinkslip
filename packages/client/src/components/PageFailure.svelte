@@ -9,6 +9,7 @@
     onRetry,
     secondaryLabel,
     onSecondary,
+    headingLevel = 2,
   }: {
     title?: string;
     message?: string;
@@ -16,6 +17,7 @@
     onRetry?: () => void;
     secondaryLabel?: string;
     onSecondary?: () => void;
+    headingLevel?: 1 | 2;
   } = $props();
 </script>
 
@@ -23,7 +25,7 @@
   <div class="page-failure__icon" aria-hidden="true">
     <WifiSlash size={24} weight="bold" />
   </div>
-  <h2>{title}</h2>
+  <svelte:element this={headingLevel === 1 ? "h1" : "h2"}>{title}</svelte:element>
   <p>{message}</p>
   {#if onRetry || onSecondary}
     <div class="page-failure__actions">
@@ -64,7 +66,7 @@
     color: var(--color-ink-2);
   }
 
-  h2 {
+  :where(h1, h2) {
     margin: 0;
     font-family: var(--font-display);
     font-size: var(--fs-xl);

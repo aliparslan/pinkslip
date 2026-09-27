@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import { navigate } from "../router";
+  import { backTargetRoute, currentRoute, navigate, navigateBack } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { api, type Job } from "../lib/api";
+  import { jobReadPresentation, readJobDetail } from "../lib/job-read-cache";
   import { errorMessage } from "../lib/utils";
   import { shareLink } from "../lib/share";
   import { feed } from "../lib/feed-store.svelte";
   import { sessionAccess } from "../lib/session-access";
   import { markViewed } from "../lib/viewed";
-  import { feedback } from "../lib/feedback.svelte";
+  import { feedback, UNDO_TOAST_DURATION } from "../lib/feedback.svelte";
   import { applicationIntent } from "../lib/application-intent.svelte";
   import { jobOriginalTimingLabel, jobTimingLabel } from "../lib/job-timing";
   import { presentPending } from "../lib/task-presentation.svelte";
@@ -34,7 +35,7 @@
   import CheckCircle from "phosphor-svelte/lib/CheckCircle";
   import ThumbsDown from "phosphor-svelte/lib/ThumbsDown";
   import Trash from "phosphor-svelte/lib/Trash";
-  import MagicWand from "phosphor-svelte/lib/MagicWand";
+  import Sparkle from "phosphor-svelte/lib/Sparkle";
   import EyeSlash from "phosphor-svelte/lib/EyeSlash";
   import Flag from "phosphor-svelte/lib/Flag";
   import Spinner from "../components/Spinner.svelte";
@@ -56,6 +57,7 @@
   let showMore: boolean = $state(false);
   let blocking: boolean = $state(false);
   let descriptionPending: boolean = $state(false);
+  let descriptionStatus: string = $state("");
   let hidingCompany: boolean = $state(false);
   let showReport: boolean = $state(false);
   let reportType: string = $state("incorrect_details");
@@ -66,6 +68,8 @@
   let descriptionRefreshAttempts = 0;
   let interactionRevision = 0;
   let detailRequestGeneration = 0;
+  let detailSource: "network" | "cache" = $state("network");
+  let detailSavedAt: number | null = $state(null);
 
   const MAX_DESCRIPTION_REFRESH_ATTEMPTS = 5;
   const nativeIos = isIosApp();
@@ -88,6 +92,8 @@
   }
 
   function syncJobState(nextJob: Job, preserveInteractions = false) {
+    const wasWaitingForDescription = descriptionPending;
+    const hadDescription = Boolean(job?.description);
     job = preserveInteractions
       ? { ...nextJob, saved: saved ? 1 : 0, applied: applied ? 1 : 0 }
       : nextJob;
@@ -96,6 +102,11 @@
       applied = Boolean(nextJob.applied);
     }
     descriptionPending = Boolean(nextJob?.content_pending && !nextJob?.description);
+    if (wasWaitingForDescription && !descriptionPending && !hadDescription && nextJob.description) {
+      descriptionStatus = "Full job description loaded.";
+    } else if (wasWaitingForDescription && !descriptionPending && !hadDescription && !nextJob.description) {
+      descriptionStatus = "The full job description is not available yet.";
+    }
   }
 
   async function loadJobDetail(silent = false) {
@@ -109,8 +120,11 @@
     }
 
     try {
-      const nextJob = await api.jobs.get(requestedJobId);
+      const detailRead = await readJobDetail(requestedJobId);
+      const nextJob = detailRead.job;
       if (requestGeneration !== detailRequestGeneration || jobId !== requestedJobId) return;
+      detailSource = detailRead.source;
+      detailSavedAt = detailRead.savedAt;
       syncJobState(nextJob, interactionRevisionAtRequest !== interactionRevision);
       if (openedJobId !== requestedJobId) {
         openedJobId = requestedJobId;
@@ -123,7 +137,11 @@
         }).catch(() => undefined);
       }
 
-      if (descriptionPending && descriptionRefreshAttempts < MAX_DESCRIPTION_REFRESH_ATTEMPTS) {
+      if (detailRead.source === "cache") {
+        descriptionPending = false;
+        descriptionStatus = "Showing the last saved copy of this job.";
+        clearDescriptionRefreshTimer();
+      } else if (descriptionPending && descriptionRefreshAttempts < MAX_DESCRIPTION_REFRESH_ATTEMPTS) {
         clearDescriptionRefreshTimer();
         descriptionRefreshTimer = window.setTimeout(async () => {
           descriptionRefreshAttempts += 1;
@@ -131,6 +149,7 @@
         }, nextJob.content_refresh_after_ms ?? 1500);
       } else if (descriptionPending) {
         descriptionPending = false;
+        descriptionStatus = "The full job description is not available yet.";
         clearDescriptionRefreshTimer();
       } else if (!descriptionPending) {
         clearDescriptionRefreshTimer();
@@ -139,6 +158,10 @@
       if (requestGeneration !== detailRequestGeneration || jobId !== requestedJobId) return;
       if (!silent || !job) {
         error = errorMessage(e);
+      } else {
+        descriptionPending = false;
+        descriptionStatus = "Couldn’t check for the full job description. Try again.";
+        clearDescriptionRefreshTimer();
       }
     } finally {
       if (requestGeneration === detailRequestGeneration && jobId === requestedJobId) {
@@ -156,6 +179,9 @@
     error = null;
     loading = true;
     descriptionRefreshAttempts = 0;
+    detailSource = "network";
+    detailSavedAt = null;
+    descriptionStatus = "";
     clearDescriptionRefreshTimer();
     untrack(() => { void loadJobDetail(); });
 
@@ -169,7 +195,7 @@
   });
 
   async function markApplied() {
-    if (!jobId || !job || applying || (!nativeIos && applied)) return;
+    if ($jobReadPresentation.readOnly || !jobId || !job || applying || (!nativeIos && applied)) return;
     interactionRevision += 1;
     applying = true;
     try {
@@ -220,7 +246,7 @@
   }
 
   async function handleDismiss() {
-    if (!jobId || !job) return;
+    if ($jobReadPresentation.readOnly || !jobId || !job) return;
     const dismissedJob = job;
     dismissing = true;
     try {
@@ -230,6 +256,7 @@
       if (nativeIos) {
         feedback.show({
           message: "Job hidden from your feed",
+          duration: UNDO_TOAST_DURATION,
           action: {
             label: "Undo",
             run: async () => {
@@ -255,7 +282,7 @@
   }
 
   async function toggleSave() {
-    if (!jobId || saving) return;
+    if ($jobReadPresentation.readOnly || !jobId || saving) return;
     interactionRevision += 1;
     const newVal = !saved;
     saving = true;
@@ -289,12 +316,6 @@
     const action = await platform().actionMenu.present({
       source: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       actions: [
-        {
-          id: "save",
-          title: saved ? "Remove from saved jobs" : "Save job",
-          symbol: saved ? "bookmark.fill" : "bookmark",
-          disabled: saving,
-        },
         { id: "share", title: "Share job", symbol: "square.and.arrow.up" },
         {
           id: "hide-company",
@@ -311,15 +332,14 @@
         }] : []),
       ],
     }).catch(() => null);
-    if (action === "save") void toggleSave();
-    else if (action === "share") shareJob();
+    if (action === "share") shareJob();
     else if (action === "hide-company") void hideCompany();
     else if (action === "report") showReport = true;
     else if (action === "remove") showBlockConfirm = true;
   }
 
   async function handleBlock() {
-    if (!jobId || blocking) return;
+    if ($jobReadPresentation.readOnly || !jobId || blocking) return;
     blocking = true;
     try {
       await api.jobs.block(jobId);
@@ -343,6 +363,7 @@
       if (nativeIos) {
         feedback.show({
           message: `${job.company_name} hidden`,
+          duration: UNDO_TOAST_DURATION,
           action: {
             label: "Undo",
             run: async () => {
@@ -406,6 +427,31 @@
   let plainDescription = $derived.by(() => {
     return extractPlainTextFromHtml(job?.description);
   });
+  let applicationState = $derived.by(() => {
+    if (!job) return "unavailable" as const;
+    if (applied) return "applied" as const;
+    if (job.closed_at) return "closed" as const;
+    if (!job.url) return "unavailable" as const;
+    return "available" as const;
+  });
+  let applicationNeedsRecovery = $derived(
+    Boolean(job) && (applicationState === "closed" || applicationState === "unavailable")
+  );
+
+  async function retryDescription() {
+    descriptionRefreshAttempts = 0;
+    descriptionStatus = "Checking for the full job description.";
+    await loadJobDetail(true);
+    if (!descriptionPending && !job?.description && descriptionStatus === "Checking for the full job description.") {
+      descriptionStatus = "The full job description is not available yet.";
+    }
+  }
+
+  function returnToJobs() {
+    if (!requestBack()) {
+      navigateBack(backTargetRoute($currentRoute) ?? "/");
+    }
+  }
 
 </script>
 
@@ -433,19 +479,19 @@
     title={nativeIos ? job?.title ?? "" : ""}
     collapsible={nativeIos}
     backLabel="Back to jobs"
-    onBack={() => { if (!requestBack()) navigate("/"); }}
+    onBack={returnToJobs}
   >
     {#snippet trailing()}
       <div class="job-header-actions">
         {#if !nativeIos}
           <button class="icon-btn" aria-label="Share job" onclick={shareJob}>
-            <Export size={19} color="var(--color-ink-3)" />
+            <Export size={19} color="var(--color-ink-3)" aria-hidden="true" />
           </button>
           <button
             class="icon-btn"
             aria-label={saved ? "Remove from saved jobs" : "Save job"}
             aria-pressed={saved}
-            disabled={saving}
+            disabled={saving || $jobReadPresentation.readOnly}
             onclick={toggleSave}
           >
             <span class="state-icon" aria-hidden="true">
@@ -456,12 +502,12 @@
         {/if}
         {#if nativeIos}
           <button class="icon-btn" aria-label="More job actions" onclick={openNativeJobMenu}>
-            <DotsThree size={22} weight="bold" color="var(--color-ink-2)" />
+            <DotsThree size={22} weight="bold" color="var(--color-ink-2)" aria-hidden="true" />
           </button>
         {:else}
           <DropdownMenu.Root bind:open={showMore}>
-            <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions">
-              <DotsThree size={22} weight="bold" color="var(--color-ink-3)" />
+            <DropdownMenu.Trigger class="icon-btn" aria-label="More job actions" disabled={$jobReadPresentation.readOnly}>
+              <DotsThree size={22} weight="bold" color="var(--color-ink-3)" aria-hidden="true" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content
@@ -478,16 +524,16 @@
                   disabled={hidingCompany}
                   onSelect={() => void hideCompany()}
                 >
-                  {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} />{/if}
+                  {#if hidingCompany}<Spinner size={16} />{:else}<EyeSlash size={17} aria-hidden="true" />{/if}
                   <span>Hide {job?.company_name ?? "company"}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item class="menu-item" onSelect={() => { showReport = true; }}>
-                  <Flag size={17} />
+                  <Flag size={17} aria-hidden="true" />
                   <span>Report listing</span>
                 </DropdownMenu.Item>
                 {#if $sessionAccess.isAdmin}
                   <DropdownMenu.Item class="menu-item danger" onSelect={() => { showBlockConfirm = true; }}>
-                    <Trash size={17} />
+                    <Trash size={17} aria-hidden="true" />
                     <span>Block for everyone</span>
                   </DropdownMenu.Item>
                 {/if}
@@ -499,29 +545,33 @@
     {/snippet}
   </ScreenNav>
 
-  <div class="screen-content job-detail-content">
+  <div
+    class="screen-content job-detail-content"
+    class:has-action-status={applicationNeedsRecovery}
+  >
     {#if loading}
       <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading" /></div>
     {:else if error}
-      {#if nativeIos}
-        <PageFailure
-          title="This job didn’t load"
-          message={error.toLowerCase().includes("not found")
-            ? "The listing may have been removed."
-            : "Check your connection and try again."}
-          onRetry={() => void loadJobDetail()}
-        />
-      {:else}
-        <div class="job-detail-error" role="alert">
-          <h1 class="h-display h-display-sm">This job didn&rsquo;t load</h1>
-          <p>{error.toLowerCase().includes("not found") ? "The listing may have been removed since the alert was sent." : "Check your connection and try once more."}</p>
-          <div class="button-cluster">
-            <button class="btn-primary btn-accent" onclick={() => void loadJobDetail()}>Try again</button>
-            <button class="btn-secondary" onclick={() => { if (!requestBack()) navigate("/"); }}>Back to jobs</button>
-          </div>
+      <PageFailure
+        headingLevel={1}
+        title="This job didn’t load"
+        message={error.toLowerCase().includes("not found")
+          ? "The listing may have been removed."
+          : "Check your connection and try again."}
+        onRetry={() => void loadJobDetail()}
+        secondaryLabel={!nativeIos ? "Back to jobs" : undefined}
+        onSecondary={!nativeIos ? returnToJobs : undefined}
+      />
+    {:else if job}
+      {#if detailSource === "cache"}
+        <div class="feed-stale-notice web-offline-copy" role="status">
+          <span>
+            Saved copy{#if detailSavedAt} · {new Date(detailSavedAt).toLocaleString()}{/if}.
+            Actions return when you’re online.
+          </span>
+          <button onclick={() => void loadJobDetail()} disabled={loading}>Try again</button>
         </div>
       {/if}
-    {:else if job}
       <div class="job-detail-identity">
         <CompanyLogo name={job.company_name ?? "?"} domain={job.company_domain} size={52} />
         <div class="job-detail-heading">
@@ -542,19 +592,19 @@
       <div class="job-meta-strip job-detail-meta">
         {#if job.location}
           <div class="job-meta-item">
-            <MapPin size={15} />
+            <MapPin size={15} aria-hidden="true" />
             <span>{job.location}</span>
           </div>
         {/if}
         {#if displaySalary}
           <div class="job-meta-item">
-            <Money size={15} />
+            <Money size={15} aria-hidden="true" />
             <span>{displaySalary}</span>
           </div>
         {/if}
         {#if originalTiming}
           <div class="job-meta-item">
-            <ClockCounterClockwise size={15} />
+            <ClockCounterClockwise size={15} aria-hidden="true" />
             <span>{originalTiming}</span>
           </div>
         {/if}
@@ -572,11 +622,55 @@
       {/if}
 
       <div class="job-state-actions">
+        {#if nativeIos}
           <button
             class="btn-secondary btn-action"
             class:completed={applied}
-            disabled={applying || (!nativeIos && applied)}
-            aria-pressed={nativeIos ? applied : undefined}
+            disabled={applying}
+            aria-pressed={applied}
+            onclick={markApplied}
+          >
+            {#if applyingPending}
+              <Spinner />
+            {:else}
+              <span class="state-icon" aria-hidden="true">
+                <span class:visible={!applied}><CheckCircle size={17} weight="bold" /></span>
+                <span class:visible={applied}><CheckCircle size={17} weight="fill" /></span>
+              </span>
+            {/if}
+            Applied
+          </button>
+          <button
+            class="btn-secondary btn-action"
+            class:saved-completed={saved}
+            aria-label={saved ? "Remove from saved jobs" : "Save job"}
+            aria-pressed={saved}
+            onclick={toggleSave}
+            disabled={saving}
+          >
+            {#if saving}
+              <Spinner />
+            {:else}
+              <span class="state-icon" aria-hidden="true">
+                <span class:visible={!saved}><BookmarkSimple size={17} weight="bold" /></span>
+                <span class:visible={saved}><BookmarkSimple size={17} weight="fill" /></span>
+              </span>
+            {/if}
+            {saved ? "Saved" : "Save"}
+          </button>
+          <button
+            class="btn-secondary btn-action"
+            onclick={handleDismiss}
+            disabled={dismissing}
+          >
+            {#if dismissing}<Spinner />{:else}<EyeSlash size={17} weight="bold" aria-hidden="true" />{/if}
+            Hide
+          </button>
+        {:else}
+          <button
+            class="btn-secondary btn-action"
+            class:completed={applied}
+            disabled={applying || applied || $jobReadPresentation.readOnly}
             onclick={markApplied}
           >
             {#if applyingPending}
@@ -596,7 +690,7 @@
             class="btn-secondary btn-action"
             class:neutral-completed={dismissing}
             onclick={handleDismiss}
-            disabled={dismissing}
+            disabled={dismissing || $jobReadPresentation.readOnly}
           >
             <span class="state-icon" aria-hidden="true">
               <span class:visible={!dismissing}><ThumbsDown size={16} /></span>
@@ -604,62 +698,55 @@
             </span>
             Not interested
           </button>
+        {/if}
       </div>
 
-      {#if descriptionPending}
-        <div class="job-description-section">
-          <h2 class="section-title job-description-heading">
-            About the role
-          </h2>
+      <section
+        class="job-description-section"
+        aria-labelledby="job-description-heading"
+        aria-busy={descriptionPending}
+      >
+        <h2 id="job-description-heading" class="section-title job-description-heading">
+          About the role
+        </h2>
+        {#if descriptionPending}
           <p class="job-description-lede with-action">
             Pulling the full posting now. This usually lands in a second or two.
           </p>
-          <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
+          <button class="btn-secondary btn-mini" onclick={retryDescription}>
             Check again
           </button>
-        </div>
-      {:else if sanitizedDescription}
-        <div class="job-description-section">
-          <h2 class="section-title job-description-heading">
-            About the role
-          </h2>
+        {:else if sanitizedDescription}
           <div class="job-description">
             {@html sanitizedDescription}
           </div>
           {#if job.url}
             {@render originalPostingLink(job.url, false)}
           {/if}
-        </div>
-      {:else if plainDescription}
-        <div class="job-description-section">
-          <h2 class="section-title job-description-heading">
-            About the role
-          </h2>
+        {:else if plainDescription}
           <p class="job-description-lede">
             {plainDescription}
           </p>
           {#if job.url}
             {@render originalPostingLink(job.url, false)}
           {/if}
-        </div>
-      {:else}
-        <div class="job-description-section">
-          <h2 class="section-title job-description-heading">
-            About the role
-          </h2>
+        {:else}
           <p class="job-description-lede with-action">
             We couldn’t pull the full job description yet. The original posting may still have it.
           </p>
           <div class="button-cluster">
-            <button class="btn-secondary btn-mini" onclick={() => { descriptionRefreshAttempts = 0; void loadJobDetail(true); }}>
+            <button class="btn-secondary btn-mini" onclick={retryDescription}>
               Try again
             </button>
             {#if job.url}
               {@render originalPostingLink(job.url, true)}
             {/if}
           </div>
-        </div>
-      {/if}
+        {/if}
+      </section>
+      <div class="job-description-status" role="status" aria-live="polite" aria-atomic="true">
+        {descriptionStatus}
+      </div>
 
     {/if}
   </div>
@@ -667,28 +754,51 @@
 
 {#if !loading && !error && job}
   <div class="job-action-bar-wrap" data-nav-snapshot="exclude">
+    {#if applicationNeedsRecovery}
+      <div id="application-action-status" class="job-action-status">
+        <span>
+          {applicationState === "closed"
+            ? "This listing is closed."
+            : "Application link unavailable."}
+        </span>
+        <button type="button" class="text-button" onclick={() => (showReport = true)}>Report listing</button>
+      </div>
+    {/if}
     <div class="job-action-bar">
-      {#if job.url}
+      {#if applicationState === "available"}
         <button
           type="button"
           class="btn-primary btn-accent btn-action button-link"
           onclick={openApplication}
-          disabled={openingApplication}
+          disabled={openingApplication || $jobReadPresentation.readOnly}
         >
-          {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="regular" />{/if}
+          {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="bold" aria-hidden="true" />{/if}
           Apply
         </button>
       {:else}
-        <button class="btn-primary btn-accent btn-action" disabled>
-          <ArrowSquareOut size={18} weight="regular" />
-          Apply
+        <button
+          class="btn-secondary btn-action"
+          disabled
+          aria-describedby={applicationNeedsRecovery ? "application-action-status" : undefined}
+        >
+          {#if applicationState === "applied"}
+            <CheckCircle size={18} weight="fill" aria-hidden="true" />
+            Applied
+          {:else if applicationState === "closed"}
+            <ArrowSquareOut size={18} weight="bold" aria-hidden="true" />
+            Listing closed
+          {:else}
+            <ArrowSquareOut size={18} weight="bold" aria-hidden="true" />
+            Link unavailable
+          {/if}
         </button>
       {/if}
       <button
         class="btn-secondary btn-action"
         onclick={() => jobId && navigate(`/tailor/${jobId}`)}
+        disabled={$jobReadPresentation.readOnly}
       >
-        <MagicWand size={16} />
+        <Sparkle size={18} weight="fill" aria-hidden="true" />
         Tailor
       </button>
     </div>
@@ -696,18 +806,6 @@
 {/if}
 
 <style>
-  .job-detail-error {
-    padding: 44px 4px;
-  }
-
-  .job-detail-error p {
-    max-width: 34ch;
-    margin: 8px 0 18px;
-    color: var(--color-ink-3);
-    font-size: var(--fs-sm);
-    line-height: 1.5;
-  }
-
   .job-detail-title {
     font-family: var(--font-display);
     font-weight: 600;
@@ -739,6 +837,62 @@
 
   .native-layout .job-detail-content {
     padding-bottom: calc(88px + var(--safe-bottom));
+  }
+
+  .native-layout .job-detail-content.has-action-status {
+    padding-bottom: calc(118px + var(--safe-bottom));
+  }
+
+  .native-layout .job-state-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .native-layout .job-state-actions :global(.btn-action) {
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+
+  .job-description-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .job-action-status {
+    width: 100%;
+    max-width: 480px;
+    min-height: var(--space-6);
+    margin: 0 auto var(--space-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--color-ink-3);
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .job-action-status :global(.text-button) {
+    position: relative;
+    min-height: var(--space-6);
+    padding: 0;
+    flex: none;
+    font-size: inherit;
+  }
+
+  .job-action-status :global(.text-button)::before {
+    position: absolute;
+    inset: calc(var(--space-5) * -1) calc(var(--space-2) * -1) 0;
+    content: "";
   }
 
   .native-layout .job-description-link {
@@ -784,9 +938,19 @@
   .btn-secondary.completed:disabled,
   .btn-secondary.completed:disabled:hover {
     opacity: 1;
-    border-color: color-mix(in oklch, var(--color-good) 42%, var(--color-line));
+    border-color: var(--color-good);
     background: var(--color-good-soft);
     color: var(--color-good);
+  }
+
+  .btn-secondary.saved-completed,
+  .btn-secondary.saved-completed:hover,
+  .btn-secondary.saved-completed:disabled,
+  .btn-secondary.saved-completed:disabled:hover {
+    opacity: 1;
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
   }
 
   .btn-secondary.neutral-completed,
@@ -842,7 +1006,7 @@
 {#if showReport}
   <Modal
     title="What looks wrong?"
-    subtitle="Reports go to the pinkslip admin queue. They do not contact the employer."
+    subtitle={`Reports go to the ${nativeIos ? "Pinkslip" : "pinkslip"} admin queue. They do not contact the employer.`}
     busy={reporting}
     onclose={() => (showReport = false)}
   >
@@ -884,22 +1048,22 @@
     <p class="modal-copy">
       This will permanently remove <strong>{job?.title}</strong> from all users' feeds. It will never appear again, even in future polls.
       <br /><br />
-      If you only want it gone from your own list, use <strong>Not interested</strong> instead.
+      If you only want it gone from your own list, use <strong>{nativeIos ? "Hide" : "Not interested"}</strong> instead.
     </p>
     <div class="stack-sm">
       <button
         class="btn-secondary full-width tall-control"
         onclick={() => { showBlockConfirm = false; handleDismiss(); }}
       >
-        <ThumbsDown size={15} />
-        Not interested
+        {#if nativeIos}<EyeSlash size={15} weight="bold" aria-hidden="true" />{:else}<ThumbsDown size={15} aria-hidden="true" />{/if}
+        {nativeIos ? "Hide" : "Not interested"}
       </button>
       <button
         class="btn-secondary btn-danger full-width tall-control"
         disabled={blocking}
         onclick={handleBlock}
       >
-        {#if blocking}<Spinner />{:else}<Trash size={15} />{/if}
+        {#if blocking}<Spinner />{:else}<Trash size={15} aria-hidden="true" />{/if}
         {nativeIos ? "Remove permanently" : "Block permanently"}
       </button>
       <button

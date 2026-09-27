@@ -208,7 +208,13 @@
     font-size: var(--fs-xs);
   }
 
-  .run-log summary { cursor: pointer; font-weight: 600; }
+  .run-log summary {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+  }
   .run-log > div {
     margin-top: 8px;
     padding: 10px 12px;

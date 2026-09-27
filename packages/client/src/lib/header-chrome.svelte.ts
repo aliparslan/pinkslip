@@ -12,13 +12,22 @@ export interface RootTitleRegistration {
 }
 
 class HeaderChromeState {
-  search = $state<HeaderSearchRegistration | null>(null);
+  searches = $state<HeaderSearchRegistration[]>([]);
   rootTitle = $state<RootTitleRegistration | null>(null);
 
+  searchFor(ownerId: string | undefined): HeaderSearchRegistration | null {
+    if (!ownerId) return null;
+    return this.searches.find((registration) => registration.id === ownerId) ?? null;
+  }
+
   registerSearch(registration: HeaderSearchRegistration): () => void {
-    this.search = registration;
+    this.searches = [
+      ...this.searches.filter((candidate) => candidate.id !== registration.id),
+      registration,
+    ];
     return () => {
-      if (this.search === registration) this.search = null;
+      if (this.searchFor(registration.id) !== registration) return;
+      this.searches = this.searches.filter((candidate) => candidate !== registration);
     };
   }
 

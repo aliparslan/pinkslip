@@ -17,9 +17,7 @@
   let input: HTMLInputElement | undefined = $state();
   let toggle: HTMLButtonElement | undefined = $state();
   let previousRegistrationId: string | null = null;
-  let registration = $derived(
-    headerChrome.search?.id === ownerId ? headerChrome.search : null,
-  );
+  let registration = $derived(headerChrome.searchFor(ownerId));
   let value = $derived(registration?.value() ?? "");
 
   async function open() {

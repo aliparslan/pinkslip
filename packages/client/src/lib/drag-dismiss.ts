@@ -1,6 +1,6 @@
-// Svelte action: drag a bottom sheet down from anywhere to dismiss it. The
-// gesture is claimed only after downward intent is clear and the touched scroll
-// area is already at the top, so normal sheet scrolling remains native.
+// Svelte action: drag a bottom sheet down to dismiss it. Callers can constrain
+// the gesture to a handle/header; interactive descendants are always excluded
+// so beginning a tap on a control never turns into a sheet dismissal.
 
 import {
   createFrameBatch,
@@ -13,6 +13,24 @@ import { isIosApp } from "./platform";
 const DISMISS_AT = 110;
 const DIRECTION_LOCK_AT = 7;
 const DISMISS_VELOCITY = 0.55;
+const INTERACTIVE_DRAG_TARGET = [
+  "a[href]",
+  "button",
+  "input",
+  "label",
+  "select",
+  "textarea",
+  "summary",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[role='button']",
+  "[role='checkbox']",
+  "[role='link']",
+  "[role='radio']",
+  "[role='slider']",
+  "[role='switch']",
+  "[role='tab']",
+  "[data-drag-dismiss-ignore]",
+].join(",");
 
 export interface DragDismissOptions {
   onDismiss: () => void;
@@ -36,6 +54,13 @@ export function shouldDismissSheet(offset: number, height: number, velocity: num
   return offset > Math.min(DISMISS_AT, height * 0.3) || velocity > DISMISS_VELOCITY;
 }
 
+export function sheetDragStartAllowed(
+  withinStartRegion: boolean,
+  withinInteractiveControl: boolean,
+): boolean {
+  return withinStartRegion && !withinInteractiveControl;
+}
+
 export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOptions) {
   let options = initialOptions;
   let startX = 0;
@@ -52,6 +77,7 @@ export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOption
   let scrollable: HTMLElement | null = null;
   let settleVersion = 0;
   const nativeIos = isIosApp();
+  const dragDisabled = () => options.disabled || !nativeIos;
 
   const sheetHeight = () => node.offsetHeight || window.innerHeight;
 
@@ -88,8 +114,15 @@ export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOption
   }
 
   function canStartFrom(target: EventTarget | null): boolean {
-    return !options.startSelector
-      || (target instanceof Element && Boolean(target.closest(options.startSelector)));
+    const element = target instanceof Element
+      ? target
+      : target instanceof Node
+        ? target.parentElement
+        : null;
+    return sheetDragStartAllowed(
+      !options.startSelector || Boolean(element?.closest(options.startSelector)),
+      Boolean(element?.closest(INTERACTIVE_DRAG_TARGET)),
+    );
   }
 
   function beginTracking(clientX: number, clientY: number, target: EventTarget | null) {
@@ -105,11 +138,14 @@ export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOption
   async function settle(shouldDismiss: boolean) {
     const version = ++settleVersion;
     dismissing = shouldDismiss;
-    node.style.transition = "transform var(--duration-standard) var(--ease-standard)";
+    const reduceMotion = prefersReducedMotion();
+    node.style.transition = reduceMotion
+      ? "none"
+      : "transform var(--duration-standard) var(--ease-standard)";
     await nextFrame();
     if (version !== settleVersion) return;
     apply(shouldDismiss ? Math.max(window.innerHeight, sheetHeight() + 80) : 0);
-    await waitForAnimations([node], prefersReducedMotion() ? 20 : 320);
+    await waitForAnimations([node], reduceMotion ? 0 : 320);
     if (version !== settleVersion) return;
 
     if (shouldDismiss) {
@@ -124,7 +160,7 @@ export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOption
 
   function onStart(event: TouchEvent) {
     const touch = event.touches[0];
-    if (!touch || event.touches.length !== 1 || options.disabled || dismissing) return;
+    if (!touch || event.touches.length !== 1 || dragDisabled() || dismissing) return;
     if (!canStartFrom(event.target)) return;
     beginTracking(touch.clientX, touch.clientY, event.target);
   }
@@ -182,7 +218,7 @@ export function dragDismiss(node: HTMLElement, initialOptions: DragDismissOption
     // Pointer parity is only for the legacy web modal handle. Native sheets and
     // the feed filter use touch tracking across the surface; capturing ordinary
     // mouse clicks there would steal controls before intent is known.
-    if (!options.startSelector || event.pointerType === "touch" || event.button !== 0 || options.disabled || dismissing) return;
+    if (!options.startSelector || event.pointerType === "touch" || event.button !== 0 || dragDisabled() || dismissing) return;
     if (!canStartFrom(event.target)) return;
     pointerId = event.pointerId;
     beginTracking(event.clientX, event.clientY, event.target);

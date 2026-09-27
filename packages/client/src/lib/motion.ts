@@ -3,7 +3,16 @@ let reducedMotionQuery: MediaQueryList | undefined;
 
 export function prefersReducedMotion(): boolean {
   reducedMotionQuery ??= window.matchMedia("(prefers-reduced-motion: reduce)");
-  return reducedMotionQuery.matches;
+  return reducedMotionQuery.matches
+    || document.documentElement.dataset.iosReducedMotion === "true";
+}
+
+export function motionDuration(duration: number): number {
+  return prefersReducedMotion() ? 0 : duration;
+}
+
+export function motionDistance(distance: number): number {
+  return prefersReducedMotion() ? 0 : distance;
 }
 
 export function nextFrame(): Promise<void> {

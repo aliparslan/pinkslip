@@ -290,6 +290,27 @@ function humanizeAllCapsHeading(value: string): string {
   }).replace(/\bR&d\b/g, "R&D");
 }
 
+export function normalizedDescriptionHeadingLevel(level: number, minimumLevel: number): number {
+  const boundedLevel = Math.min(6, Math.max(1, Math.round(level)));
+  const boundedMinimum = Math.min(6, Math.max(1, Math.round(minimumLevel)));
+  return Math.min(6, boundedLevel + Math.max(0, 3 - boundedMinimum));
+}
+
+function normalizeDescriptionHeadingLevels(root: DocumentFragment): void {
+  const headings = Array.from(root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"));
+  if (headings.length === 0) return;
+  const minimumLevel = Math.min(...headings.map((heading) => Number(heading.tagName.slice(1))));
+
+  for (const heading of headings) {
+    const level = Number(heading.tagName.slice(1));
+    const normalizedLevel = normalizedDescriptionHeadingLevel(level, minimumLevel);
+    if (normalizedLevel === level) continue;
+    const replacement = heading.ownerDocument.createElement(`h${normalizedLevel}`);
+    while (heading.firstChild) replacement.appendChild(heading.firstChild);
+    heading.replaceWith(replacement);
+  }
+}
+
 export function sanitizeJobDescriptionHtml(
   html: string | null | undefined,
   context: { title?: string | null; companyName?: string | null } = {}
@@ -361,6 +382,10 @@ export function sanitizeJobDescriptionHtml(
     if (!leadingHeading || !isDuplicateLeadingJobHeading(leadingHeading.textContent ?? "", context)) break;
     leadingHeading.remove();
   }
+
+  // "About the role" is the page's h2. Preserve the ATS's relative outline,
+  // but shift its highest remaining heading below that app-owned section.
+  normalizeDescriptionHeadingLevels(template.content);
 
   return template.innerHTML.trim();
 }

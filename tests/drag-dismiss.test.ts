@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   sheetDragIntent,
+  sheetDragStartAllowed,
   shouldDismissSheet,
 } from "../packages/client/src/lib/drag-dismiss";
 
@@ -17,5 +18,12 @@ describe("sheet drag dismissal", () => {
     expect(shouldDismissSheet(80, 400, 0.2)).toBe(false);
     expect(shouldDismissSheet(111, 400, 0.2)).toBe(true);
     expect(shouldDismissSheet(25, 200, 0.7)).toBe(true);
+  });
+
+  test("starts only inside the configured drag region and never from a control", () => {
+    expect(sheetDragStartAllowed(true, false)).toBeTrue();
+    expect(sheetDragStartAllowed(false, false)).toBeFalse();
+    expect(sheetDragStartAllowed(true, true)).toBeFalse();
+    expect(sheetDragStartAllowed(false, true)).toBeFalse();
   });
 });

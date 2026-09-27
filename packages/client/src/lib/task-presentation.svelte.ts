@@ -6,6 +6,8 @@ export type SavePhase = "clean" | "dirty" | "saving" | "saved" | "error";
 
 export class SavePresentation {
   phase = $state<SavePhase>("clean");
+  /** Persistence truth, kept separate from the transient status animation. */
+  hasUnsavedChanges = $state(false);
   savedAt = $state<string | null>(null);
   errorMessage = $state<string | null>(null);
 
@@ -17,6 +19,7 @@ export class SavePresentation {
   markDirty(): void {
     this.generation += 1;
     this.clearTimers();
+    this.hasUnsavedChanges = true;
     this.errorMessage = null;
     this.phase = "dirty";
   }
@@ -25,6 +28,7 @@ export class SavePresentation {
     const generation = ++this.generation;
     this.clearTimers();
     this.errorMessage = null;
+    if (this.phase === "error") this.phase = "dirty";
     this.pendingTimer = window.setTimeout(() => {
       if (generation !== this.generation) return;
       this.savingShownAt = performance.now();
@@ -40,6 +44,7 @@ export class SavePresentation {
       window.clearTimeout(this.pendingTimer);
       this.pendingTimer = null;
     }
+    this.hasUnsavedChanges = false;
 
     const remaining = this.phase === "saving"
       ? Math.max(0, MIN_PENDING_DWELL_MS - (performance.now() - this.savingShownAt))
@@ -58,13 +63,18 @@ export class SavePresentation {
   fail(generation: number, message: string): void {
     if (generation !== this.generation) return;
     this.clearTimers();
+    // An error is a presentation phase, not a persistence state. The draft
+    // remains dirty until a later request actually succeeds.
+    this.hasUnsavedChanges = true;
     this.errorMessage = message;
     this.phase = "error";
   }
 
   hydrate(savedAt: string | null): void {
     this.clearTimers();
+    this.hasUnsavedChanges = false;
     this.savedAt = savedAt;
+    this.errorMessage = null;
     this.phase = "clean";
   }
 
