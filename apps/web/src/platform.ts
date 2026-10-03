@@ -1,5 +1,6 @@
 import { api } from "../../../packages/client/src/lib/api";
 import { navigate } from "../../../packages/client/src/router";
+import { invalidateFeedForNotification } from "../../../packages/client/src/lib/feed-store.svelte";
 import {
   installPlatform,
   normalizeExternalUrl,
@@ -122,6 +123,7 @@ export async function initializeWebPlatform(): Promise<void> {
     if (message?.type === "pinkslip:notification-opened"
       && typeof message.url === "string"
       && message.url.startsWith("/")) {
+      invalidateFeedForNotification();
       navigate(message.url);
       return;
     }

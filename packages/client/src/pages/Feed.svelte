@@ -122,6 +122,7 @@
   let pullStartY = 0;
   let requestVersion = 0;
   let handledPreferenceRevision = feed.preferenceRevision;
+  let handledNotificationRevision = feed.notificationRevision;
   let draftSelectedLocations: string[] = $state(["All"]);
   let draftSelectedRoles: RoleId[] = $state([...ALL_FEED_ROLE_IDS]);
   let draftMinSalaryK = $state("");
@@ -714,6 +715,9 @@
   }
 
   async function refreshIfStale(force = false) {
+    // The notification effect owns this refresh, including when returning
+    // from its detail route or waiting for another request to finish.
+    if (feed.notificationRevision !== handledNotificationRevision) return;
     const now = Date.now();
     if (refreshing || loading) return;
     if (!force && feed.hydrated && now - feed.lastLoadedAt < FEED_REFRESH_AFTER_MS) return;
@@ -722,6 +726,14 @@
 
   $effect(() => {
     if (activation.becameActive(active)) void refreshIfStale();
+  });
+
+  $effect(() => {
+    const revision = feed.notificationRevision;
+    if (!active || loading || refreshing || criteriaLoads > 0) return;
+    if (revision === handledNotificationRevision) return;
+    handledNotificationRevision = revision;
+    void triggerRefresh();
   });
 
   $effect(() => {

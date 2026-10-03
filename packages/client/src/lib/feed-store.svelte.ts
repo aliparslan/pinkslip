@@ -41,7 +41,15 @@ export const feed = $state({
   hasMore: true,
   hydrated: false,
   preferenceRevision: 0,
+  notificationRevision: 0,
 });
+
+export function invalidateFeedForNotification() {
+  // A notification can open a detail route while the retained feed still has
+  // a fresh-looking list from before the notified jobs arrived.
+  feed.lastLoadedAt = 0;
+  feed.notificationRevision += 1;
+}
 
 let userManuallySetLocations = false;
 

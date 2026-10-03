@@ -10,6 +10,7 @@ import { api, ApiError, configureApiClient } from "../../../packages/client/src/
 import { navigate } from "../../../packages/client/src/router";
 import { resolvedTheme } from "../../../packages/client/src/lib/theme";
 import { nativeInstallationId } from "../../../packages/client/src/lib/installation-id";
+import { invalidateFeedForNotification } from "../../../packages/client/src/lib/feed-store.svelte";
 import {
   installPlatform,
   normalizeExternalUrl,
@@ -178,7 +179,10 @@ function handleNotificationUrl(data: unknown): void {
     ? payload.job_ids.filter((jobId): jobId is string => typeof jobId === "string")
     : [];
   if (jobIds.length > 0) void api.push.opened(jobIds).catch(() => undefined);
-  if (typeof payload?.url === "string" && payload.url.startsWith("/")) navigate(payload.url);
+  if (typeof payload?.url === "string" && payload.url.startsWith("/")) {
+    invalidateFeedForNotification();
+    navigate(payload.url);
+  }
 }
 
 async function ensurePushListeners(): Promise<void> {
@@ -197,6 +201,9 @@ async function ensurePushListeners(): Promise<void> {
   });
   await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
     handleNotificationUrl(action.notification.data);
+  });
+  await PushNotifications.addListener("pushNotificationReceived", () => {
+    invalidateFeedForNotification();
   });
 }
 
