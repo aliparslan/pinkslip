@@ -44,7 +44,7 @@ function degreeRequirement(text: string, section: QualificationClause["section"]
   if (/\b(?:no degree|degree (?:is )?not required|degrees? (?:are )?not required)\b/.test(text)) return false;
   if (/\b(?:team of|work with|collaborat\w* with|founded by|mentor\w*|supervis\w*)\b/.test(text)) return false;
   return section === "required"
-    || /\b(?:required|requires?|must|minimum|you have|you hold)\b/.test(text)
+    || /\b(?:required|requires?|must|minimum|you have|you hold|employer (?:will )?accepts?)\b/.test(text)
     || /^(?:an? )?(?:bachelor|master|associate|bs\b|ba\b|ms\b|phd\b|doctorate|high school)/.test(text);
 }
 
@@ -105,7 +105,13 @@ export function extractQualificationRequirements(
       }
     }
     if (paths.some((path) => path.min_years !== null)) experienceSpecified = true;
-    if (paths.some((path) => path.education !== null || path.min_years !== null)) groups.push(paths);
+    if (paths.some((path) => path.education !== null || path.min_years !== null)) {
+      const previous = groups.at(-1);
+      if (/^(?:in the alternative|alternatively|or)\b/.test(text)
+        && previous?.some((path) => path.education !== null)) {
+        previous.push(...paths);
+      } else groups.push(paths);
+    }
   }
   return { groups, experience_specified: experienceSpecified };
 }

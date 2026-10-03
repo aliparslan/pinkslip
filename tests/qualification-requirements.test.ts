@@ -134,6 +134,12 @@ describe("education and experience preferences", () => {
     expect(parseExperienceRequirement("Software Engineer", "Ideally you'd have:\n4+ years of full-time engineering experience").min).toBeNull();
     expect(parseExperienceRequirement("Software Engineer", "Desirable Skills, Knowledge, and Experience\n7+ years of experience\nMust-Have Skills\n2+ years of professional experience").min).toBe(2);
   });
+  test("joins an explicitly continued qualification alternative across paragraphs", () => {
+    const description = "<p>Master's degree or foreign equivalent in CS, plus 3 years of related work experience.</p><p>In the alternative, the employer will accept a Bachelor's degree or foreign equivalent in CS, plus 5 years of post-bachelor's, progressive related work experience.</p><p>Must also have 3 years of experience with Python.</p>";
+    expect(parseExperienceRequirement("Software Engineer", description).min).toBe(3);
+    expect(matched(description, { highest_education: "master", max_required_years: 3 })).toBe(true);
+    expect(matched(description, { highest_education: "bachelor", max_required_years: 3 })).toBe(false);
+  });
   test("cached pathway facts survive storage without needing the description", () => {
     const requirements = parseQualificationRequirements("<h2>Requirements</h2><li>Bachelor's + 3 years OR master's + 1 year.</li>");
     expect(parseStoredQualifications(JSON.stringify(requirements))).toEqual(requirements);
