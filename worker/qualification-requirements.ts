@@ -127,7 +127,7 @@ export function extractQualificationRequirements(
     // A trailing ", with 5 years" applies to the qualification as a whole,
     // including the degree route before an equivalent-experience alternative.
     const sharedYears = text.match(/,\s*(?:with|plus|and)\s+(\d{1,2}\b[^;]*)/);
-    if (sharedYears) {
+    if (sharedYears && /\bequivalent (?:practical |professional |work )?experience\b/.test(text)) {
       const years = parseYears(sharedYears[1]);
       if (years.min !== null) {
         groups.push([{ education: null, min_years: years.min, max_years: years.max }]);
