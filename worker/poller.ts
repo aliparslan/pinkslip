@@ -1009,7 +1009,7 @@ async function loadNotificationMatchBacklog(
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
-            jf.requires_security_clearance,
+            jf.requires_security_clearance, jf.qualification_requirements_json,
             jf.classifier_version, jf.confidence
      FROM notification_match_backlog nmb
      JOIN jobs j ON j.id = nmb.job_id

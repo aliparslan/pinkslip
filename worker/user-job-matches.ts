@@ -1,8 +1,8 @@
 import {
   effectiveTargetStages,
   isEligibleSeniority,
-  MAX_YEARS_EXPERIENCE,
   profileRoleKeywords,
+  profileExperienceCeiling,
   specificRoleSpecialties,
   type CareerStage,
   type SearchProfile,
@@ -26,9 +26,10 @@ import {
 } from "./user-preferences";
 import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
+import { qualificationsEligible } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v15-qualification-alternatives";
+export const MATCHER_VERSION = "profile-v16-education-experience";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -122,7 +123,10 @@ export function evaluateJobForProfile(
   // A stated requirement above the ceiling is the only hard experience signal.
   // A posting that states nothing is NOT excluded — see ELIGIBLE_SENIORITIES.
   const experienceDisqualified = features.min_years !== null
-    && features.min_years > MAX_YEARS_EXPERIENCE;
+    && features.min_years > profileExperienceCeiling(profile);
+  const qualificationsDisqualified = features.qualification_requirements
+    ? !qualificationsEligible(features.qualification_requirements, profile, features.min_years)
+    : features.min_years === null && !profile.include_unspecified_experience;
 
   // A required doctorate rules a posting out regardless of stated years. These
   // roles read as early-career to every other signal — no years requirement, no
@@ -146,6 +150,7 @@ export function evaluateJobForProfile(
   });
 
   const plausible = !experienceDisqualified
+    && !qualificationsDisqualified
     && !advancedDegreeDisqualified
     && !securityClearanceDisqualified
     && !stageDisqualified
@@ -207,7 +212,7 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
                 jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
                 jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
                 jf.sponsorship_available, jf.requires_advanced_degree,
-                jf.requires_security_clearance,
+                jf.requires_security_clearance, jf.qualification_requirements_json,
                 jf.classifier_version, jf.confidence
          FROM jobs j
          JOIN job_features jf ON jf.job_id = j.id
@@ -245,7 +250,7 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
-            jf.requires_security_clearance,
+            jf.requires_security_clearance, jf.qualification_requirements_json,
             jf.classifier_version, jf.confidence
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
@@ -430,7 +435,7 @@ export async function ensureUserEvergreenMatchesReady(
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
-            jf.requires_security_clearance,
+            jf.requires_security_clearance, jf.qualification_requirements_json,
             jf.classifier_version, jf.confidence
      FROM jobs j
      JOIN companies c ON c.id = j.company_id

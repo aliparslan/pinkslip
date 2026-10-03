@@ -72,8 +72,10 @@ Reason counts cover audited rows and are incomplete during initial cache filling
 No key or input description is returned. Counts of stored decisions are not a
 live source inventory: sources may remove rows between observations.
 
-The seven core questions cover US eligibility, job family, mandatory experience,
-doctorate requirements, clearance, seniority and work mode. Skills extraction is
+The nine core questions cover US eligibility, job family, mandatory experience
+band and exact years, required education, doctorate requirements, clearance,
+seniority and work mode. The v2 qualification question contract creates a new
+cache key; it does not re-enable shadow or raise the daily call limit. Skills extraction is
 deliberately deferred until the core policy is calibrated. Explicit `unclear` and
 `unknown` answers are preserved. There is no unvalidated confidence threshold
 that silently admits or rejects jobs. Probability is not measured accuracy.
@@ -90,6 +92,35 @@ Before model decisions influence the feed, label a separate representative set
 covering false accepts and false rejects, evaluate each fact and eligibility
 outcome, and verify real ingestion-to-alert timing. This stratified queue finds
 disagreements; it does not establish a population-wide accuracy rate.
+
+## Education and experience preferences
+
+Apply `0079_qualification_requirements.sql` before deploying classifier v22 and
+matcher v16. Qualification groups are extracted deterministically once per
+listing and cached in `job_features.qualification_requirements_json`. All groups
+must be satisfied, but any complete route in each group can qualify. For
+`bachelor's + 4 years OR master's + 2 years`, the catalog sees the two-year route;
+a bachelor's graduate cannot borrow its years without also meeting its degree.
+Independent minimums still apply. Experience ranges use their lower bound.
+
+Search profile v5 adds optional highest completed education, a numeric
+`years_experience`, `max_required_years` (null follows personal experience), and
+`include_unspecified_experience`. Default migration keeps the former three-year
+ceiling, includes unstated experience, and applies no new education filter.
+Existing v4 role/stage choices and internship consent remain intact. Older
+clients that omit the new fields preserve the saved values. Preference edits
+invalidate matches and cancel pending alerts so feed and delivery use the same
+policy. Migration resets cursors even for users with no former matches.
+
+Mandatory completed degrees filter only when users select their education.
+Preferred and contextual mentions do not gate, explicit equivalent-experience
+routes remain available, and unstated education stays included. Current
+enrollment is distinct from a completed credential and is not inferred from the
+completed-education preference. These controls narrow the existing catalog:
+the US, early-career, three-year, doctorate-only and clearance policies remain.
+No extra model calls occur when users change preferences. Additional Jev shadow
+questions support comparison only; independent lowest-degree and lowest-years
+answers cannot safely represent conditional routes and never drive matching.
 
 ## Startup sources
 

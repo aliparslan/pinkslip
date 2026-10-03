@@ -13,6 +13,7 @@ import {
   MATCHER_VERSION,
   prepareJobsForMatching,
 } from "@worker/user-job-matches";
+import { saveUserPreferenceState } from "@worker/user-preferences";
 import {
   DEFAULT_SEARCH_PROFILE,
   ONBOARDING_VERSION,
@@ -123,6 +124,7 @@ function createMatchingSchema(sqlite: Database) {
       sponsorship_available INTEGER,
       requires_advanced_degree INTEGER,
       requires_security_clearance INTEGER,
+      qualification_requirements_json TEXT,
       classifier_version TEXT NOT NULL,
       confidence REAL NOT NULL,
       source_updated_at TEXT,
@@ -157,6 +159,12 @@ function createMatchingSchema(sqlite: Database) {
       match_cursor_seen_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE user_notification_settings (
+      user_id TEXT PRIMARY KEY, enabled INTEGER, push_enabled INTEGER, updated_at TEXT
+    );
+    CREATE TABLE notification_candidates (
+      user_id TEXT, status TEXT, last_error TEXT
     );
   `);
 }
@@ -342,6 +350,40 @@ describe("career-stage matching", () => {
 });
 
 describe("database feature freshness", () => {
+  it("preserves new preferences when an older client saves, and invalidates feed and pending alerts", async () => {
+    const { sqlite, db } = sqliteD1();
+    createMatchingSchema(sqlite);
+    seedProfile(sqlite);
+    const profile = normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "master", years_experience: 2, max_required_years: null, include_unspecified_experience: false });
+    sqlite.query("UPDATE user_search_profiles SET profile_json = ?, match_cursor_seen_at = ?").run(JSON.stringify(profile), "2026-01-01");
+    sqlite.query("INSERT INTO user_job_matches VALUES ('user-1', 'job', ?, 'now', 'now')").run(MATCHER_VERSION);
+    sqlite.exec("INSERT INTO notification_candidates VALUES ('user-1', 'pending', NULL)");
+    const { highest_education, max_required_years, include_unspecified_experience, ...legacy } = profile;
+    const saved = await saveUserPreferenceState(db, "user-1", { search_profile: { ...legacy, version: 4, years_experience: 1 } });
+    expect(saved.search_profile).toMatchObject({ highest_education, max_required_years, include_unspecified_experience, years_experience: 1 });
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 0 });
+    expect(sqlite.query("SELECT match_cursor_seen_at FROM user_search_profiles").get()).toEqual({ match_cursor_seen_at: null });
+    expect(sqlite.query("SELECT status FROM notification_candidates").get()).toEqual({ status: "skipped" });
+    sqlite.close();
+  });
+
+  it("uses cached degree routes during database matching, including evergreen rows without full text", async () => {
+    const { sqlite, db } = sqliteD1();
+    createMatchingSchema(sqlite);
+    seedProfile(sqlite);
+    const jobId = seedLegacyClearanceJob(sqlite, { evergreen: true });
+    sqlite.query("UPDATE jobs SET description = ? WHERE id = ?").run("<h2>Requirements</h2><li>Bachelor's + 4 years OR master's + 2 years.</li>", jobId);
+    sqlite.query("UPDATE user_search_profiles SET profile_json = ?").run(JSON.stringify(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "bachelor", location_ids: [] })));
+    await ensureUserEvergreenMatchesReady(db, "user-1");
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 0 });
+    const stored = sqlite.query("SELECT qualification_requirements_json FROM job_features WHERE job_id = ?").get(jobId) as { qualification_requirements_json: string };
+    expect(JSON.parse(stored.qualification_requirements_json).groups[0]).toHaveLength(2);
+    sqlite.query("UPDATE user_search_profiles SET profile_json = ?").run(JSON.stringify(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "master", max_required_years: 2, location_ids: [] })));
+    await ensureUserEvergreenMatchesReady(db, "user-1");
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 1 });
+    sqlite.close();
+  });
+
   it("reclassifies an exact normal candidate before matching and removes its old match", async () => {
     const { sqlite, db } = sqliteD1();
     createMatchingSchema(sqlite);

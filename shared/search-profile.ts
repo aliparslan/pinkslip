@@ -1,4 +1,4 @@
-export const SEARCH_PROFILE_VERSION = 4 as const;
+export const SEARCH_PROFILE_VERSION = 5 as const;
 export const ONBOARDING_VERSION = 3 as const;
 
 export const ROLE_OPTIONS = [
@@ -164,6 +164,26 @@ export function isEligibleSeniority(seniority: string): boolean {
 export type WorkMode = "remote" | "hybrid" | "onsite";
 export type WorkAuthorization = "authorized" | "sponsorship" | "not_sure";
 
+export const EDUCATION_OPTIONS = [
+  { id: "unspecified", label: "No education filter" },
+  { id: "none", label: "No completed degree" },
+  { id: "high_school", label: "High school / GED" },
+  { id: "associate", label: "Associate degree" },
+  { id: "bachelor", label: "Bachelor’s degree" },
+  { id: "master", label: "Master’s degree" },
+  { id: "doctorate", label: "Doctorate" },
+] as const;
+export type EducationLevel = Exclude<(typeof EDUCATION_OPTIONS)[number]["id"], "unspecified">;
+export type EducationPreference = (typeof EDUCATION_OPTIONS)[number]["id"];
+
+export function educationRank(level: EducationLevel): number {
+  return EDUCATION_OPTIONS.findIndex((option) => option.id === level);
+}
+
+export function profileExperienceCeiling(profile: SearchProfile): number {
+  return Math.min(MAX_YEARS_EXPERIENCE, profile.max_required_years ?? profile.years_experience);
+}
+
 export const LOCATION_OPTIONS = [
   { id: "sf_bay", label: "San Francisco / Bay Area", aliases: ["san francisco", "bay area", "palo alto", "mountain view", "sunnyvale", "san jose", "menlo park", "redwood city", "los gatos", "cupertino", "san mateo", "foster city", "south san francisco"] },
   { id: "new_york", label: "New York, NY", aliases: ["new york", "nyc", "brooklyn", "jersey city"] },
@@ -184,6 +204,10 @@ export interface SearchProfile {
   primary_role: RoleId;
   roles: RoleId[];
   years_experience: number;
+  highest_education: EducationPreference;
+  /** null follows the user's experience; a number permits an explicit stretch. */
+  max_required_years: number | null;
+  include_unspecified_experience: boolean;
   target_levels: CareerStage[];
   stretch_tolerance: StretchTolerance;
   countries: string[];
@@ -209,6 +233,9 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   // independently removable chip.
   roles: ["software_engineering", "forward_deployed", "frontend", "backend", "full_stack"],
   years_experience: 1,
+  highest_education: "unspecified",
+  max_required_years: MAX_YEARS_EXPERIENCE,
+  include_unspecified_experience: true,
   target_levels: CAREER_STAGE_OPTIONS.map((option) => option.id),
   stretch_tolerance: "balanced",
   countries: ["US"],
@@ -253,7 +280,7 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
     : {};
   const roles = stringList(input.roles, ROLE_OPTIONS.length).filter((role): role is RoleId => ROLE_IDS.has(role));
   const sourceVersion = typeof input.version === "number" ? input.version : 0;
-  const migratedRoles = sourceVersion < SEARCH_PROFILE_VERSION
+  const migratedRoles = sourceVersion < 4
     && roles.includes("software_engineering")
     && !roles.includes("forward_deployed")
       ? [
@@ -269,7 +296,7 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
   // v4 intentionally resets the former six-level preference to the complete
   // three-stage catalog. Existing users confirm that migrated selection in
   // onboarding v3 before internship matches or alerts are allowed through.
-  const targetStages = sourceVersion < SEARCH_PROFILE_VERSION
+  const targetStages = sourceVersion < 4
     ? CAREER_STAGE_OPTIONS.map((option) => option.id)
     : requestedStages;
   const legacyRemote = input.remote === true;
@@ -290,6 +317,17 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
       0,
       40
     ),
+    highest_education: EDUCATION_OPTIONS.some((option) => option.id === input.highest_education)
+      ? input.highest_education as EducationPreference
+      : "unspecified",
+    max_required_years: input.max_required_years === null
+      ? null
+      : typeof input.max_required_years === "number" && Number.isFinite(input.max_required_years)
+        ? numberInRange(input.max_required_years, MAX_YEARS_EXPERIENCE, 0, MAX_YEARS_EXPERIENCE)
+        : MAX_YEARS_EXPERIENCE,
+    include_unspecified_experience: typeof input.include_unspecified_experience === "boolean"
+      ? input.include_unspecified_experience
+      : true,
     target_levels: targetStages.length > 0
       ? targetStages
       : CAREER_STAGE_OPTIONS.map((option) => option.id),

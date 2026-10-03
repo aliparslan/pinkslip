@@ -215,7 +215,7 @@ export async function deliverPendingNotifications(
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
             jf.salary_min, jf.salary_max, jf.salary_currency, jf.salary_period,
             jf.sponsorship_available, jf.requires_advanced_degree,
-            jf.requires_security_clearance, jf.classifier_version, jf.confidence,
+            jf.requires_security_clearance, jf.qualification_requirements_json, jf.classifier_version, jf.confidence,
             usp.profile_json, usp.notifications_enabled,
             usp.onboarding_version, usp.onboarding_completed_at
      FROM notification_candidates nc

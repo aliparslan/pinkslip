@@ -66,6 +66,14 @@ stacking multiple tones or sizes is not supported.
 
 ## Quarantine
 
+- **Education and experience preference fields** — Owner: Job matching.
+  Reason: the optional completed-education selector, numeric experience input,
+  requirement ceiling, and unstated-experience switch reuse existing form and
+  Switch compositions but await hands-on visual review on iOS and web.
+  Call site: `SearchProfileFields.svelte`, used in onboarding and Job preferences.
+  Review or expire by 2026-10-17. The current catalog remains early-career and
+  excludes doctorate-only roles; the controls state those limits explicitly.
+
 - **Web Jobs/Library master–detail workspace** — Owner: Web experience.
   Reason: the persistent desktop Jobs/Library/You primary sidebar,
   persistent list pane, route-aware

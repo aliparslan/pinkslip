@@ -11,11 +11,17 @@ import {
   type WorkMode,
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
+import {
+  extractQualificationRequirements,
+  minimumNonDoctoralExperience,
+  parseStoredQualifications,
+  type QualificationRequirements,
+} from "./qualification-requirements";
 
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v21-qualification-alternatives";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v22-education-experience";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -46,6 +52,7 @@ export interface JobFeatures {
   sponsorship_available: boolean | null;
   requires_advanced_degree: boolean;
   requires_security_clearance: boolean;
+  qualification_requirements?: QualificationRequirements;
   classifier_version: string;
   confidence: number;
 }
@@ -66,6 +73,7 @@ export interface StoredJobFeatureColumns {
   sponsorship_available: number | null;
   requires_advanced_degree: number | null;
   requires_security_clearance: number | null;
+  qualification_requirements_json?: string | null;
   classifier_version: string;
   confidence: number;
 }
@@ -100,6 +108,7 @@ export function storedJobFeaturesFromRow(row: StoredJobFeatureColumns): JobFeatu
       : row.sponsorship_available === 1,
     requires_advanced_degree: row.requires_advanced_degree === 1,
     requires_security_clearance: row.requires_security_clearance === 1,
+    qualification_requirements: parseStoredQualifications(row.qualification_requirements_json) ?? undefined,
     classifier_version: row.classifier_version,
     confidence: row.confidence,
   };
@@ -153,7 +162,7 @@ function normalizeClassifierText(
     .replace(/&(?:quot|#34);/gi, "\"")
     .replace(/&(?:apos|#39|#x0*27);/gi, "'");
   if (preserveBlockBoundaries) {
-    normalized = normalized.replace(
+    normalized = normalized.replace(/\r?\n/g, "; ").replace(
       /<\/?(?:li|p|div|h[1-6]|ul|ol)\b[^>]*>|<br\s*\/?\s*>/gi,
       "; "
     );
@@ -221,9 +230,10 @@ function structuredMandatoryMinimums(title: string, description: string | null):
   return minimums;
 }
 
-export function parseExperienceRequirement(
+function parseLegacyExperienceRequirement(
   title: string,
-  description: string | null
+  description: string | null,
+  allowImpliedExperience = true,
 ): { min: number | null; max: number | null } {
   const text = normalizeClassifierText(`${title}\n${description ?? ""}`);
   // Preference-only figures must never raise the eligibility ceiling. Remove
@@ -231,8 +241,12 @@ export function parseExperienceRequirement(
   // mandatory requirements.
   const requiredText = requiredExperienceText(text);
   const candidates: Array<{ min: number; max: number | null }> = [];
+  const rangeSpans: Array<{ start: number; end: number }> = [];
   const collect = (source: string, pattern: RegExp, maxGroup?: number) => {
     for (const match of source.matchAll(pattern)) {
+      const start = match.index ?? 0;
+      if (!maxGroup && rangeSpans.some((span) => start >= span.start && start < span.end)) continue;
+      if (maxGroup) rangeSpans.push({ start, end: start + match[0].length });
       const min = Number(match[1]);
       const max = maxGroup ? Number(match[maxGroup]) : null;
       if (Number.isFinite(min)) {
@@ -261,6 +275,7 @@ export function parseExperienceRequirement(
     // is the one that determines whether an early-career applicant qualifies.
     return candidates.sort((a, b) => b.min - a.min)[0];
   }
+  if (!allowImpliedExperience) return { min: null, max: null };
   // A title is authoritative for internships. Body copy must use one of the
   // narrow role-defining shapes in hasExplicitInternshipSignal; merely
   // mentioning the company's internship program is not enough.
@@ -276,6 +291,27 @@ export function parseExperienceRequirement(
   return { min: null, max: null };
 }
 
+export function parseQualificationRequirements(description: string | null): QualificationRequirements {
+  return extractQualificationRequirements(
+    qualificationClauses(description ?? ""),
+    (text) => parseLegacyExperienceRequirement("", text, false),
+  );
+}
+
+function experienceFromRequirements(title: string, description: string | null, requirements: QualificationRequirements) {
+  const path = minimumNonDoctoralExperience(requirements);
+  if (path) return { min: path.min_years, max: path.max_years };
+  // No mandatory body years: role-defining signals may still imply zero.
+  if (hasExplicitInternshipSignal(title, description) || hasExplicitNewGradSignal(title, description)) {
+    return { min: 0, max: 0 };
+  }
+  return parseLegacyExperienceRequirement(title, null);
+}
+
+export function parseExperienceRequirement(title: string, description: string | null) {
+  return experienceFromRequirements(title, description, parseQualificationRequirements(description));
+}
+
 const DOCTORATE_DEGREE_SOURCE = String.raw`(?:ph\.?\s*d\.?|d\.?\s*phil\.?|doctorate|doctoral(?:\s+degree)?)`;
 const ELIGIBLE_DEGREE_SOURCE = String.raw`(?:bachelor(?:[’']?s)?(?:\s+degree)?|b\.?\s*a\.?|b\.?\s*s\.?|b\.?\s*sc\.?|b\.?\s*eng\.?|master(?:[’']?s)?(?:\s+degree)?|m\.?\s*a\.?|m\.?\s*s\.?|m\.?\s*sc\.?|m\.?\s*eng\.?|m\.?\s*b\.?\s*a\.?)`;
 const DEGREE_ALTERNATIVE_CONNECTOR_SOURCE = String.raw`(?:\/|\band\/or\b|\bor\b)`;
@@ -288,9 +324,9 @@ interface QualificationClause {
 }
 
 const PREFERRED_QUALIFICATION_HEADING =
-  /^(?:preferred(?: skills(?:\s*(?:and|&)\s*experience)?| qualifications?)?|desired qualifications?|nice[- ]to[- ]haves?|bonus qualifications?|what (?:will|would) set you apart|ways? to stand out)\b/;
+  /^(?:preferred(?: skills(?:\s*(?:and|&)\s*experience)?| qualifications?| experience)?|(?:desired|desirable) (?:qualifications?|skills|experience)|ideally\b|nice[- ]to[- ]haves?|bonus qualifications?|what (?:will|would) set you apart|ways? to stand out)\b/;
 const REQUIRED_QUALIFICATION_HEADING =
-  /^(?:(?:basic|required|minimum|must-have) qualifications?|requirements?|what (?:you(?:'ll)? need|we(?:'re| are) looking for)|who you are|you are a good fit if)\b/;
+  /^(?:(?:basic|required|minimum|must-have) (?:qualifications?|skills|experience)|requirements?|what (?:you(?:'ll)? need|we(?:'re| are) looking for)|who you are|you are a good fit if)\b/;
 const NON_QUALIFICATION_HEADING =
   /^(?:about (?:the role|us|you)|responsibilities|what you(?:'ll| will) do|the opportunity|benefits|compensation|equal opportunity|our company|who we are)\b/;
 
@@ -808,7 +844,8 @@ export function classifyJob(listing: JobListing): JobFeatures {
       ? ["software_engineering" as const] : []),
   ]);
   const primary = ROLE_OPTIONS.find((role) => specialties.includes(role.id));
-  const years = parseExperienceRequirement(listing.title, listing.description);
+  const qualificationRequirements = parseQualificationRequirements(listing.description);
+  const years = experienceFromRequirements(listing.title, listing.description, qualificationRequirements);
   const location = listing.location.toLowerCase();
   const workMode: JobFeatures["work_mode"] =
     /\bhybrid\b/.test(location) ? "hybrid"
@@ -845,6 +882,7 @@ export function classifyJob(listing: JobListing): JobFeatures {
     metro_areas: metros,
     ...salary,
     sponsorship_available: sponsorshipAvailable,
+    qualification_requirements: qualificationRequirements,
     // A doctorate in the public title scopes the role to doctorate candidates
     // even when the ATS omits or has not yet hydrated the description.
     requires_advanced_degree: titleRequiresAdvancedDegree(listing.title)
@@ -934,9 +972,9 @@ export async function upsertJobFeatures(
            job_id, role_family, specialties_json, seniority, min_years, max_years,
            work_mode, countries_json, metro_areas_json, salary_min, salary_max,
            salary_currency, salary_period, sponsorship_available,
-           requires_advanced_degree, requires_security_clearance,
+           requires_advanced_degree, requires_security_clearance, qualification_requirements_json,
            classifier_version, confidence, source_updated_at, classified_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(job_id) DO UPDATE SET
            role_family = excluded.role_family,
            specialties_json = excluded.specialties_json,
@@ -953,6 +991,7 @@ export async function upsertJobFeatures(
            sponsorship_available = excluded.sponsorship_available,
            requires_advanced_degree = excluded.requires_advanced_degree,
            requires_security_clearance = excluded.requires_security_clearance,
+           qualification_requirements_json = excluded.qualification_requirements_json,
            classifier_version = excluded.classifier_version,
            confidence = excluded.confidence,
            source_updated_at = excluded.source_updated_at,
@@ -974,6 +1013,7 @@ export async function upsertJobFeatures(
         feature.sponsorship_available === null ? null : feature.sponsorship_available ? 1 : 0,
         feature.requires_advanced_degree ? 1 : 0,
         feature.requires_security_clearance ? 1 : 0,
+        JSON.stringify(feature.qualification_requirements),
         feature.classifier_version,
         feature.confidence,
         sourceUpdatedAt ?? listing.postedAt,

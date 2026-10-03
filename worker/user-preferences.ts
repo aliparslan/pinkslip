@@ -167,6 +167,7 @@ export async function saveUserPreferenceState(
 ): Promise<UserPreferenceState> {
   const current = await loadUserPreferenceState(db, userId);
   const nextProfile = normalizeSearchProfile({
+    ...current.search_profile,
     ...(input.search_profile === undefined ? current.search_profile : input.search_profile as object),
   });
   const changed = JSON.stringify(current.search_profile) !== JSON.stringify(nextProfile);

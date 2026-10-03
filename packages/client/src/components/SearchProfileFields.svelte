@@ -1,9 +1,12 @@
 <script lang="ts">
   import {
     CAREER_STAGE_OPTIONS,
+    EDUCATION_OPTIONS,
+    MAX_YEARS_EXPERIENCE,
     LOCATION_OPTIONS,
     ROLE_OPTIONS,
     type CareerStage,
+    type EducationPreference,
     type LocationId,
     type RoleId,
     type SearchProfile,
@@ -317,6 +320,42 @@
           <span>{option.label}</span>
         </button>
       {/each}
+    </div>
+    <div class="subfield stack-sm">
+      <label for="years-experience" class="field-label">Years of relevant experience you have</label>
+      <input id="years-experience" class="input-field" type="number" min="0" max="40" step="1"
+        value={profile.years_experience}
+        onchange={(event) => profile = { ...profile, years_experience: Math.max(0, Math.min(40, Math.round(Number(event.currentTarget.value)))) }} />
+    </div>
+    <div class="subfield stack-sm">
+      <label for="max-required-years" class="field-label">Experience requirements to show</label>
+      <select id="max-required-years" class="input-field" value={profile.max_required_years === null ? "mine" : String(profile.max_required_years)}
+        onchange={(event) => profile = { ...profile, max_required_years: event.currentTarget.value === "mine" ? null : Number(event.currentTarget.value) }}>
+        <option value="mine">Up to my years of experience</option>
+        {#each Array.from({ length: MAX_YEARS_EXPERIENCE + 1 }, (_, years) => years) as years}
+          <option value={String(years)}>{years === 0 ? "No experience required" : `Up to ${years} ${years === 1 ? "year" : "years"}`}</option>
+        {/each}
+      </select>
+      <small class="profile-field-help">Pinkslip currently collects early-career jobs requiring up to 3 years. Choose a higher limit than your experience to include stretch opportunities.</small>
+    </div>
+    <div class="anywhere-row">
+      <div>
+        <div class="anywhere-title">Include jobs with unstated experience</div>
+        <div class="anywhere-help">Show listings that give no mandatory number of years.</div>
+      </div>
+      <Switch checked={profile.include_unspecified_experience}
+        onCheckedChange={(value) => profile = { ...profile, include_unspecified_experience: value }}
+        aria-label="Include jobs with unstated experience" />
+    </div>
+    <div class="subfield stack-sm">
+      <label for="highest-education" class="field-label">Highest completed education</label>
+      <select id="highest-education" class="input-field" value={profile.highest_education}
+        onchange={(event) => profile = { ...profile, highest_education: event.currentTarget.value as EducationPreference }}>
+        {#each EDUCATION_OPTIONS as option}
+          <option value={option.id}>{option.label}</option>
+        {/each}
+      </select>
+      <small class="profile-field-help">Filters stated mandatory degrees. Preferred degrees and equivalent-experience routes stay eligible. Unstated education stays included. Doctorate-only jobs remain outside the current catalog.</small>
     </div>
   </section>
 {/if}
