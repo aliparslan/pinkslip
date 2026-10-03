@@ -9,12 +9,15 @@ export interface QualificationPath {
   education: EducationLevel | null;
   min_years: number | null;
   max_years: number | null;
+  doctoral_enrollment?: boolean;
 }
 
 /** Every group is required; any complete path within a group can satisfy it. */
 export interface QualificationRequirements {
   groups: QualificationPath[][];
   experience_specified: boolean;
+  doctorate_requirement?: "none" | "completed" | "enrolled";
+  doctoral_internship_eligibility?: "doctoral_only" | "doctoral_eligible" | "other";
 }
 
 export interface QualificationClause {
@@ -22,7 +25,7 @@ export interface QualificationClause {
   section: "required" | "preferred" | "unknown";
 }
 
-const DEGREE = /\b(high[- ]school|ged|associate(?:['’]?s)?(?: degree)?|bachelor(?:['’]?s)?(?: degree)?|bs|ba|bsc|beng|master(?:['’]?s)?(?: degree)?|ms|ma|msc|meng|mba|phd|dphil|doctorate|doctoral degree)\b/g;
+const DEGREE = /\b(high[- ]school|ged|associate(?:['’]?s)?(?: degree)?|bachelor(?:['’]?s)?(?: degree)?|bs|ba|bsc|beng|master(?:['’]?s)?(?: degree)?|ms|ma|msc|meng|mba|phd|dphil|doctorate|doctoral(?: degree)?)\b/g;
 
 function degrees(text: string): EducationLevel[] {
   return [...text.matchAll(DEGREE)].map((match) => {
@@ -84,7 +87,10 @@ export function extractQualificationRequirements(
       // A bare number on a degree route ("BS + 4 years") is a requirement.
       const routeYears = branch.match(/\b(\d{1,2})\s*(?:\+|(?:-|to)\s*(\d{1,2}))?\s*(?:years?|yrs?|yoe)\b/);
       const min = years.min ?? (educationRequired && routeYears ? Number(routeYears[1]) : null);
-      const levels = educationRequired ? degrees(branch) : [];
+      const enrolled = /\b(?:pursuing|enrolled|working (?:towards?|toward)|(?:phd|doctoral|doctorate) students?|(?:phd|doctoral|doctorate) candidates?)\b/.test(branch)
+        && /\b(?:phd|doctorate|doctoral)\b/.test(branch)
+        && !/\b(?:mentor\w*|supervis\w*|advis\w*|teach\w*|support\w*|work with|team of|how)\b/.test(branch);
+      const levels = educationRequired || enrolled || degreeRequirement(branch, section) ? degrees(branch) : [];
       return {
         education: levels.length > 0 ? levels.reduce((a, b) =>
           branches.length > 1
@@ -92,6 +98,7 @@ export function extractQualificationRequirements(
             : educationRank(a) > educationRank(b) ? a : b) : null,
         min_years: min,
         max_years: years.max ?? (routeYears?.[2] ? Number(routeYears[2]) : null),
+        ...(enrolled ? { doctoral_enrollment: true } : {}),
       };
     });
     // "BS/MS + 2 years" shares the trailing years across its degree list.
@@ -138,12 +145,12 @@ export function extractQualificationRequirements(
   return { groups, experience_specified: experienceSpecified };
 }
 
-/** Catalog scope considers the easiest non-doctoral route; user matching later
+/** Catalog scope considers the easiest qualification route; user matching later
  * enforces the degree associated with that route. Independent bullets add up
  * as requirements, so their strictest minimum still wins. */
-export function minimumNonDoctoralExperience(requirements: QualificationRequirements) {
+export function minimumQualificationExperience(requirements: QualificationRequirements) {
   const selected = requirements.groups.map((group) => {
-    const paths = group.filter((path) => path.education !== "doctorate");
+    const paths = group;
     if (paths.length === 0 || paths.some((path) => path.min_years === null)) return null;
     return paths.reduce((a, b) => (a.min_years ?? 0) < (b.min_years ?? 0) ? a : b);
   }).filter((path): path is QualificationPath => path !== null);
@@ -157,14 +164,31 @@ export function qualificationsEligible(
   fallbackMinYears: number | null,
 ): boolean {
   const ceiling = profileExperienceCeiling(profile);
-  if (!requirements.experience_specified && fallbackMinYears === null && !profile.include_unspecified_experience) return false;
-  if (requirements.groups.length === 0) return fallbackMinYears === null || fallbackMinYears <= ceiling;
-  return requirements.groups.every((group) => group.some((path) => {
-    if (path.education === "doctorate") return false; // Current early-career catalog policy.
-    if (path.education !== null && profile.highest_education !== "unspecified"
-      && educationRank(profile.highest_education) < educationRank(path.education)) return false;
-    return path.min_years === null || path.min_years <= ceiling;
-  })) && (requirements.experience_specified || fallbackMinYears === null || fallbackMinYears <= ceiling);
+  const years = qualificationYearsForProfile(requirements, profile, fallbackMinYears);
+  if (years === undefined) return false;
+  if (years === null) return profile.include_unspecified_experience;
+  return years <= ceiling;
+}
+
+function educationEligible(path: QualificationPath, requirements: QualificationRequirements, profile: SearchProfile): boolean {
+  if (path.doctoral_enrollment || path.education === "doctorate" && requirements.doctorate_requirement === "enrolled") return profile.doctoral_student;
+  if (path.education === "doctorate") return profile.highest_education === "doctorate";
+  return path.education === null || profile.highest_education === "unspecified"
+    || educationRank(profile.highest_education) >= educationRank(path.education);
+}
+
+/** undefined means no educational route, null means no mandatory numeric years. */
+export function qualificationYearsForProfile(requirements: QualificationRequirements, profile: SearchProfile, fallback: number | null): number | null | undefined {
+  if (requirements.doctorate_requirement === "completed" && profile.highest_education !== "doctorate") return undefined;
+  if (requirements.doctorate_requirement === "enrolled" && !profile.doctoral_student) return undefined;
+  let minimum: number | null = null;
+  for (const group of requirements.groups) {
+    const available = group.filter((path) => educationEligible(path, requirements, profile));
+    if (available.length === 0) return undefined;
+    const years = available.some((path) => path.min_years === null) ? null : Math.min(...available.map((path) => path.min_years!));
+    if (years !== null) minimum = Math.max(minimum ?? 0, years);
+  }
+  return minimum ?? (!requirements.experience_specified ? fallback : null);
 }
 
 export function parseStoredQualifications(value: string | null | undefined): QualificationRequirements | null {
@@ -173,9 +197,12 @@ export function parseStoredQualifications(value: string | null | undefined): Qua
     const parsed = JSON.parse(value) as QualificationRequirements;
     const levels = new Set([null, "none", "high_school", "associate", "bachelor", "master", "doctorate"]);
     const years = (value: unknown) => value === null || typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 99;
+    if (parsed.doctorate_requirement !== undefined && !["none", "completed", "enrolled"].includes(parsed.doctorate_requirement)) return null;
+    if (parsed.doctoral_internship_eligibility !== undefined && !["doctoral_only", "doctoral_eligible", "other"].includes(parsed.doctoral_internship_eligibility)) return null;
     if (typeof parsed.experience_specified !== "boolean" || !Array.isArray(parsed.groups)
       || !parsed.groups.every((group) => Array.isArray(group) && group.length > 0 && group.every((path) =>
-        path && levels.has(path.education) && years(path.min_years) && years(path.max_years)))) return null;
+        path && levels.has(path.education) && years(path.min_years) && years(path.max_years)
+          && (path.doctoral_enrollment === undefined || typeof path.doctoral_enrollment === "boolean")))) return null;
     return parsed;
   } catch { return null; }
 }

@@ -336,7 +336,7 @@
           <option value={String(years)}>{years === 0 ? "No experience required" : `Up to ${years} ${years === 1 ? "year" : "years"}`}</option>
         {/each}
       </select>
-      <small class="profile-field-help">Pinkslip currently collects early-career jobs requiring up to 3 years. Choose a higher limit than your experience to include stretch opportunities.</small>
+      <small class="profile-field-help">Pinkslip collects jobs requiring up to 5 years. Choose a higher limit than your experience to include stretch opportunities.</small>
     </div>
     <div class="anywhere-row">
       <div>
@@ -355,8 +355,27 @@
           <option value={option.id}>{option.label}</option>
         {/each}
       </select>
-      <small class="profile-field-help">Filters stated mandatory degrees. Preferred degrees and equivalent-experience routes stay eligible. Unstated education stays included. Doctorate-only jobs remain outside the current catalog.</small>
+      <small class="profile-field-help">Filters stated mandatory degrees. Preferred degrees and equivalent-experience routes stay eligible. Unstated education stays included. Jobs requiring a completed PhD appear only when you select Doctorate.</small>
     </div>
+    <div class="anywhere-row">
+      <div>
+        <div class="anywhere-title">Currently pursuing a PhD</div>
+        <div class="anywhere-help">Include roles requiring doctoral enrollment. Internship searches show only internships that accept PhD students.</div>
+      </div>
+      <Switch checked={profile.doctoral_student}
+        onCheckedChange={(value) => profile = { ...profile, doctoral_student: value }}
+        aria-label="Currently pursuing a PhD" />
+    </div>
+    {#if profile.doctoral_student}
+      <div class="subfield stack-sm">
+        <label for="doctoral-internships" class="field-label">PhD internships to show</label>
+        <select id="doctoral-internships" class="input-field" value={profile.doctoral_internships}
+          onchange={(event) => profile = { ...profile, doctoral_internships: event.currentTarget.value === "only" ? "only" : "eligible" }}>
+          <option value="eligible">PhD-only and internships explicitly accepting PhD students</option>
+          <option value="only">Only internships restricted to PhD students</option>
+        </select>
+      </div>
+    {/if}
   </section>
 {/if}
 

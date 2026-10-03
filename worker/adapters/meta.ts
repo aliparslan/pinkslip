@@ -4,6 +4,7 @@ import type {
   JobListing,
   JobReference,
 } from "./types";
+import { MAX_YEARS_EXPERIENCE } from "../../shared/search-profile";
 import { extractSalaryFromHtml } from "./salary";
 import { fetchWithTimeout } from "../http";
 import {
@@ -453,7 +454,7 @@ function outOfScopeFallbackListing(
   const summary = metaPageDescription(html);
   if (/^(?:not logged in|meta careers|page not found)$/i.test(title)) return null;
   const explicitSeniorRole = summary !== null
-    && /\b(?:staff|senior|sr\.?|principal|lead)\s+(?:[a-z]+\s+){0,3}(?:engineer|developer|scientist|researcher|architect)\b/i
+    && /\b(?:staff|principal|distinguished)\s+(?:[a-z]+\s+){0,3}(?:engineer|developer|scientist|researcher|architect)\b/i
       .test(summary);
   const minimumYears = parseExperienceRequirement(title, summary).min;
   if (
@@ -461,7 +462,7 @@ function outOfScopeFallbackListing(
     && isTargetJobTitle(title)
     && !hasDisqualifyingJobRequirement({ title, description: summary })
     && !explicitSeniorRole
-    && (minimumYears === null || minimumYears <= 3)
+    && (minimumYears === null || minimumYears <= MAX_YEARS_EXPERIENCE)
   ) return null;
   return {
     externalId: reference.externalId,

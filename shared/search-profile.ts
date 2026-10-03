@@ -1,4 +1,4 @@
-export const SEARCH_PROFILE_VERSION = 5 as const;
+export const SEARCH_PROFILE_VERSION = 6 as const;
 export const ONBOARDING_VERSION = 3 as const;
 
 export const ROLE_OPTIONS = [
@@ -130,10 +130,10 @@ export const CAREER_STAGE_OPTIONS = [
   },
   {
     id: "early_career",
-    label: "Early career (1–3 years)",
-    detail: "Roles asking for one to three years",
+    label: "Early / mid-career (1–5 years)",
+    detail: "Professional roles asking for one to five years",
     minYears: 1,
-    maxYears: 3,
+    maxYears: 5,
   },
 ] as const;
 
@@ -145,11 +145,11 @@ export const EXPERIENCE_OPTIONS = CAREER_STAGE_OPTIONS;
 export type ExperienceLevel = CareerStage;
 export type StretchTolerance = "strict" | "balanced" | "ambitious";
 
-// Pinkslip's public catalog stops at roughly three years. Career stage narrows
-// within that fixed ceiling; it cannot widen the feed to senior or staff roles.
+// Personal preferences narrow the five-year catalog. Explicit senior titles
+// need a numeric requirement within that limit; staff/management stay excluded.
 
 /** Highest stated years-of-experience requirement still considered a match. */
-export const MAX_YEARS_EXPERIENCE = 3;
+export const MAX_YEARS_EXPERIENCE = 5;
 
 /** Seniorities kept in the feed after the current classifier has run. */
 export const ELIGIBLE_SENIORITIES = CAREER_STAGE_OPTIONS.map(
@@ -205,6 +205,8 @@ export interface SearchProfile {
   roles: RoleId[];
   years_experience: number;
   highest_education: EducationPreference;
+  doctoral_student: boolean;
+  doctoral_internships: "eligible" | "only";
   /** null follows the user's experience; a number permits an explicit stretch. */
   max_required_years: number | null;
   include_unspecified_experience: boolean;
@@ -234,6 +236,8 @@ export const DEFAULT_SEARCH_PROFILE: SearchProfile = {
   roles: ["software_engineering", "forward_deployed", "frontend", "backend", "full_stack"],
   years_experience: 1,
   highest_education: "unspecified",
+  doctoral_student: false,
+  doctoral_internships: "eligible",
   max_required_years: MAX_YEARS_EXPERIENCE,
   include_unspecified_experience: true,
   target_levels: CAREER_STAGE_OPTIONS.map((option) => option.id),
@@ -320,11 +324,13 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
     highest_education: EDUCATION_OPTIONS.some((option) => option.id === input.highest_education)
       ? input.highest_education as EducationPreference
       : "unspecified",
+    doctoral_student: input.doctoral_student === true,
+    doctoral_internships: input.doctoral_internships === "only" ? "only" : "eligible",
     max_required_years: input.max_required_years === null
       ? null
       : typeof input.max_required_years === "number" && Number.isFinite(input.max_required_years)
         ? numberInRange(input.max_required_years, MAX_YEARS_EXPERIENCE, 0, MAX_YEARS_EXPERIENCE)
-        : MAX_YEARS_EXPERIENCE,
+        : sourceVersion < 6 ? 3 : MAX_YEARS_EXPERIENCE,
     include_unspecified_experience: typeof input.include_unspecified_experience === "boolean"
       ? input.include_unspecified_experience
       : true,

@@ -2,9 +2,7 @@ import { ROLE_OPTIONS } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 import {
   hasPotentiallyEligibleSeniority,
-  requiresAdvancedDegree,
   requiresSecurityClearance,
-  titleRequiresAdvancedDegree,
 } from "./job-features";
 import { isUsJobLocation } from "./us-jobs";
 import { isFreshPostedAt } from "../shared/job-policy";
@@ -454,16 +452,14 @@ export function hasDisqualifyingJobRequirement(
 ): boolean {
   const clearanceScopedTitle = /\b(?:ts\s*\/\s*sci|top secret|(?:active|current)\s+(?:secret|security)\s+clearance|secret\s+clearance)\b/i
     .test(job.title);
-  return titleRequiresAdvancedDegree(job.title)
-    || clearanceScopedTitle
-    || requiresAdvancedDegree(job.description ?? null)
+  return clearanceScopedTitle
     || requiresSecurityClearance(job.description ?? null);
 }
 
 /**
- * The broadest job worth hydrating or inserting for the fixed Pinkslip
- * audience. Description-derived experience and degree rules run later, but an
- * explicit senior/staff/management title is already deterministically out.
+ * The broadest job worth hydrating or inserting. Personal degree requirements
+ * and experience routes run later; staff and management titles stay outside
+ * the catalog. Senior titles need hydrated numeric experience evidence.
  */
 export function isPotentialCatalogJobListing(
   job: Pick<JobListing, "title" | "department" | "location" | "postedAt">

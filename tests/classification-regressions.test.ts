@@ -30,7 +30,7 @@ describe("discard audit regressions", () => {
     expect(isTargetJobTitle("Recruiting Analytics Data Engineer")).toBe(true);
     expect(isTargetJobTitle("Technical Recruiting Coordinator")).toBe(false);
     expect(isTargetJobTitle("Software Engineer Recruiter")).toBe(false);
-    expect(isPotentialCatalogJobListing({ ...listing, title: "Senior Recruiting Analytics Data Engineer" })).toBe(false);
+    expect(isPotentialCatalogJobListing({ ...listing, title: "Senior Recruiting Analytics Data Engineer" })).toBe(true);
   });
 
   it("allows Google's quantified coding/analytics OR doctorate path", () => {

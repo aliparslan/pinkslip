@@ -1,13 +1,13 @@
 import type { JobListing } from "./adapters/types";
 import type { Env } from "./types";
 import { classifyTitleScope } from "./job-scope";
-import { classifyJob, hasPotentiallyEligibleSeniority, JOB_CLASSIFIER_VERSION, requiresAdvancedDegree, requiresSecurityClearance, titleRequiresAdvancedDegree } from "./job-features";
+import { classifyJob, catalogCareerStage, hasPotentiallyEligibleSeniority, JOB_CLASSIFIER_VERSION, requiresSecurityClearance } from "./job-features";
 import { isUsJobLocation } from "./us-jobs";
 import { isFreshPostedAt } from "../shared/job-policy";
 import { hasTable } from "./db-schema";
 import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevFetch } from "./jev";
 
-export const CLASSIFICATION_GATE_VERSION = `${JOB_CLASSIFIER_VERSION}/scope-v13`;
+export const CLASSIFICATION_GATE_VERSION = `${JOB_CLASSIFIER_VERSION}/scope-v14`;
 const MAX_DESCRIPTION_CHARS = 12_000;
 const MAX_SHADOW_CALLS_PER_DAY = 100;
 export const MAX_AUDIT_LISTINGS_PER_CHECKPOINT = 25;
@@ -19,10 +19,10 @@ export function catalogDecisionReason(job: JobListing, customTitles: readonly st
   if (!isUsJobLocation(job.location)) return "rejected_location";
   if (!isFreshPostedAt(job.postedAt)) return "rejected_freshness";
   if (!hasPotentiallyEligibleSeniority(job.title)) return "rejected_seniority";
-  if (titleRequiresAdvancedDegree(job.title) || requiresAdvancedDegree(job.description)) return "rejected_doctorate";
   if (/\b(?:ts\s*\/\s*sci|top secret|(?:active|current)\s+(?:secret|security)\s+clearance|secret\s+clearance)\b/i.test(job.title)
     || requiresSecurityClearance(job.description)) return "rejected_clearance";
-  return job.description?.trim() ? "catalog_candidate" : "needs_description";
+  if (!job.description?.trim()) return "needs_description";
+  return catalogCareerStage(classifyJob(job)) === null ? "rejected_seniority" : "catalog_candidate";
 }
 
 async function digest(value: string): Promise<string> {

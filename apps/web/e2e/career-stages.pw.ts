@@ -14,7 +14,7 @@ test("new onboarding starts with every career stage and completes v3", async ({ 
   });
 
   await page.goto("/");
-  for (const label of ["Internships", "New grad", "Early career (1–3 years)"]) {
+  for (const label of ["Internships", "New grad", "Early / mid-career (1–5 years)"]) {
     await expect(page.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
   }
 
@@ -51,7 +51,7 @@ test("migrated onboarding preserves preferences and requires one career stage", 
 
   const internships = page.getByRole("button", { name: "Internships", exact: true });
   const newGrad = page.getByRole("button", { name: "New grad", exact: true });
-  const earlyCareer = page.getByRole("button", { name: "Early career (1–3 years)", exact: true });
+  const earlyCareer = page.getByRole("button", { name: "Early / mid-career (1–5 years)", exact: true });
   await expect(internships).toHaveAttribute("aria-pressed", "true");
   await expect(newGrad).toHaveAttribute("aria-pressed", "true");
   await expect(earlyCareer).toHaveAttribute("aria-pressed", "true");
@@ -91,7 +91,7 @@ test("migrated onboarding preserves preferences and requires one career stage", 
   });
 
   await page.goto("/you");
-  await expect(page.getByText(/Early career \(1–3 years\) · 1 role · Chicago, IL/)).toBeVisible();
+  await expect(page.getByText(/Early \/ mid-career \(1–5 years\) · 1 role · Chicago, IL/)).toBeVisible();
 
   await page.goto("/you/preferences");
   const settingsNewGrad = page.getByRole("button", { name: "New grad", exact: true });
@@ -161,7 +161,7 @@ test("feed stages stay draft-only and emit only a proper subset", async ({ page 
   await filters.click();
   await expect(dialog.getByRole("button", { name: "Internships", exact: true })).toHaveAttribute("aria-pressed", "true");
   await dialog.getByRole("button", { name: "Internships", exact: true }).click();
-  await dialog.getByRole("button", { name: "Early career (1–3 years)", exact: true }).click();
+  await dialog.getByRole("button", { name: "Early / mid-career (1–5 years)", exact: true }).click();
   await dialog.getByRole("button", { name: "Apply", exact: true }).click();
 
   await expect.poll(() => jobsRequests.at(-1)?.searchParams.get("stages")).toBe("new_grad");
@@ -192,7 +192,7 @@ test("a failed stage Apply restores the last applied web selection", async ({ pa
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Internships", exact: true }).click();
-  await dialog.getByRole("button", { name: "Early career (1–3 years)", exact: true }).click();
+  await dialog.getByRole("button", { name: "Early / mid-career (1–5 years)", exact: true }).click();
   await dialog.getByRole("button", { name: "Apply", exact: true }).click();
   await expect.poll(() => jobsRequests.at(-1)?.searchParams.get("stages")).toBe("new_grad");
 
@@ -217,5 +217,5 @@ test("a failed stage Apply restores the last applied web selection", async ({ pa
   dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Internships", exact: true })).toHaveAttribute("aria-pressed", "false");
   await expect(dialog.getByRole("button", { name: "New grad", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(dialog.getByRole("button", { name: "Early career (1–3 years)", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(dialog.getByRole("button", { name: "Early / mid-career (1–5 years)", exact: true })).toHaveAttribute("aria-pressed", "false");
 });

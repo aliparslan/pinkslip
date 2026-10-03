@@ -79,7 +79,7 @@ const CONTENT_BACKFILL_BATCH_SIZE = 20;
 export const NEW_JOB_HYDRATION_LIMIT_PER_COMPANY = 20;
 export const NEW_JOB_HYDRATION_CHECKPOINT_SIZE = 4;
 export const FULL_BACKFILL_NEW_JOB_LIMIT = 300;
-export const SOURCE_JOB_INSPECTION_POLICY_VERSION = 4;
+export const SOURCE_JOB_INSPECTION_POLICY_VERSION = 5;
 const POLL_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it

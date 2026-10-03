@@ -20,7 +20,7 @@ describe("education and experience preferences", () => {
     expect(profile.max_required_years).toBe(3);
   });
   test("validates education, preserves follow-my-experience and clamps the public ceiling", () => {
-    expect(normalizeSearchProfile({ highest_education: "invented", max_required_years: 20, include_unspecified_experience: "false" })).toMatchObject({ highest_education: "unspecified", max_required_years: 3, include_unspecified_experience: true });
+    expect(normalizeSearchProfile({ highest_education: "invented", max_required_years: 20, include_unspecified_experience: "false" })).toMatchObject({ highest_education: "unspecified", max_required_years: 5, include_unspecified_experience: true });
     expect(normalizeSearchProfile({ years_experience: 0, max_required_years: null })).toMatchObject({ years_experience: 0, max_required_years: null });
   });
   test("actual years filter when requested, while an explicit stretch remains independent", () => {
@@ -28,7 +28,7 @@ describe("education and experience preferences", () => {
     expect(matched(description, { years_experience: 1, max_required_years: null })).toBe(false);
     expect(matched(description, { years_experience: 2, max_required_years: null })).toBe(true);
     expect(matched(description, { years_experience: 0, max_required_years: 3 })).toBe(true);
-    expect(matched("At least 4 years of experience.", { years_experience: 20, max_required_years: null })).toBe(false);
+    expect(matched("At least 6 years of experience.", { years_experience: 20, max_required_years: null })).toBe(false);
   });
   test("zero means zero and unspecified years are separately controllable", () => {
     expect(matched("At least 1 year of experience.", { max_required_years: 0 })).toBe(false);
@@ -63,7 +63,7 @@ describe("education and experience preferences", () => {
   });
   test("recognizes abbreviated and dotted degree routes", () => {
     const description = "<h2>Requirements</h2><li>B.S. + 4 years OR M.S. + 2 years.</li>";
-    expect(matched(description, { highest_education: "bachelor" })).toBe(false);
+    expect(matched(description, { highest_education: "bachelor", max_required_years: 3 })).toBe(false);
     expect(matched(description, { highest_education: "master", max_required_years: 2 })).toBe(true);
   });
   test("independent required bullets still apply to every alternative", () => {
@@ -92,10 +92,10 @@ describe("education and experience preferences", () => {
   });
   test("doctorate alternatives do not erase the non-doctoral experience requirement", () => {
     const description = "<h2>Requirements</h2><li>Master's degree and 3 years of experience OR PhD.</li>";
-    expect(parseExperienceRequirement("Software Engineer", description).min).toBe(3);
+    expect(parseExperienceRequirement("Software Engineer", description).min).toBeNull();
     expect(matched(description, { highest_education: "master", max_required_years: 2 })).toBe(false);
     expect(matched(description, { highest_education: "master", max_required_years: 3 })).toBe(true);
-    expect(matched("PhD required.", { highest_education: "doctorate" })).toBe(false);
+    expect(matched("PhD required.", { highest_education: "doctorate" })).toBe(true);
   });
   test("preferred section years do not affect eligibility, later required section does", () => {
     const description = "<h2>Preferred qualifications</h2><li>Master's degree and 7+ years of experience.</li><h2>Required qualifications</h2><li>2+ years of experience.</li>";
@@ -149,7 +149,7 @@ describe("education and experience preferences", () => {
   test("trailing experience applies to both degree and equivalent-experience routes", () => {
     const description = "Associate's degree in a technical field or equivalent practical experience, with 5-10 years of hands-on experience.";
     expect(parseExperienceRequirement("Software Engineer", description).min).toBe(5);
-    expect(matched(description, { highest_education: "master" })).toBe(false);
+    expect(matched(description, { highest_education: "master", max_required_years: 3 })).toBe(false);
   });
   test("minimum requirements resets a preferred section", () => {
     const description = "Preferred qualifications are useful but not required.\nMinimum requirements\n6+ years of experience in solutions engineering.";
@@ -173,4 +173,15 @@ describe("education and experience preferences", () => {
       db.query("INSERT INTO job_features (job_id, qualification_requirements_json) VALUES (?, ?)").run("job", JSON.stringify(parseQualificationRequirements("Bachelor's degree required.")));
     } finally { db.close(); }
   });
+  test("five-year migration clears stale personal matches and resets zero-match profile cursors", () => {
+    const db = new Database(":memory:");
+    db.exec("CREATE TABLE user_job_matches (user_id TEXT, job_id TEXT); CREATE TABLE user_search_profiles (user_id TEXT, match_cursor_seen_at TEXT); INSERT INTO user_job_matches VALUES ('user', 'job'); INSERT INTO user_search_profiles VALUES ('empty', '2026-01-01');");
+    db.exec(readFileSync(`${import.meta.dir}/../migrations/0080_five_years_doctoral_matches.sql`, "utf8"));
+    expect(db.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 0 });
+    expect(db.query("SELECT match_cursor_seen_at FROM user_search_profiles").get()).toEqual({ match_cursor_seen_at: null });
+    db.query("INSERT INTO user_job_matches (user_id, job_id, required_years) VALUES ('user', 'job', 5)").run();
+    expect(db.query("SELECT required_years FROM user_job_matches").get()).toEqual({ required_years: 5 });
+    db.close();
+  });
+
 });

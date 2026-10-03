@@ -31,3 +31,20 @@ test("onboarding saves a zero-year search independently of career stage", async 
   await expect(page.getByRole("heading", { level: 1, name: "Jobs" })).toBeVisible();
   expect(updates.at(-1)).toMatchObject({ years_experience: 0, max_required_years: 0, highest_education: "bachelor", target_levels: ["internship", "new_grad", "early_career"] });
 });
+
+
+test("doctoral enrollment and five-year ceiling save independently of completed education", async ({ page }) => {
+  const updates: SearchProfile[] = [];
+  await installApiMocks(page, { onPreferencesUpdate: (profile) => updates.push(structuredClone(profile)) });
+  await page.goto("/you/preferences");
+  await page.getByLabel("Highest completed education", { exact: true }).selectOption("master");
+  await page.getByLabel("Experience requirements to show", { exact: true }).selectOption("5");
+  await page.getByRole("switch", { name: "Currently pursuing a PhD", exact: true }).click();
+  await page.getByLabel("PhD internships to show", { exact: true }).selectOption("only");
+  await expect.poll(() => updates.at(-1)).toMatchObject({ highest_education: "master", max_required_years: 5, doctoral_student: true, doctoral_internships: "only" });
+  await page.reload();
+  await expect(page.getByRole("switch", { name: "Currently pursuing a PhD", exact: true })).toBeChecked();
+  await expect(page.getByLabel("PhD internships to show", { exact: true })).toHaveValue("only");
+  await expect(page.getByLabel("Experience requirements to show", { exact: true })).toHaveValue("5");
+  await expect(page.getByLabel("Highest completed education", { exact: true })).toHaveValue("master");
+});

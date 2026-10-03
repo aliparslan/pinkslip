@@ -1,15 +1,14 @@
 import {
   effectiveTargetStages,
-  isEligibleSeniority,
   profileRoleKeywords,
   profileExperienceCeiling,
   specificRoleSpecialties,
-  type CareerStage,
   type SearchProfile,
 } from "../shared/search-profile";
 import type { JobListing } from "./adapters/types";
 import {
   classifyJob,
+  catalogCareerStage,
   ensureJobFeatures,
   ensureJobFeaturesForIds,
   JOB_CLASSIFIER_VERSION,
@@ -26,15 +25,16 @@ import {
 } from "./user-preferences";
 import { isFreshPostedAt, MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
 import { isUsJobLocation } from "./us-jobs";
-import { qualificationsEligible } from "./qualification-requirements";
+import { qualificationsEligible, qualificationYearsForProfile } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v17-education-experience";
+export const MATCHER_VERSION = "profile-v18-five-years-doctoral";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
   jobId: string;
   plausible: boolean;
+  requiredYears?: number | null;
 }
 
 type MatchableJobRow = FeatureJobRow & StoredJobFeatureColumns & { evergreen: number | null };
@@ -114,9 +114,7 @@ export function evaluateJobForProfile(
   const normalizedTitle = listing.title.toLowerCase();
   const legacyTitleMatch = features.specialties.length === 0
     && profileRoleKeywords(profile).some((keyword) => normalizedTitle.includes(keyword.toLowerCase()));
-  const careerStage = isEligibleSeniority(features.seniority)
-    ? features.seniority as CareerStage
-    : null;
+  const careerStage = catalogCareerStage(features);
   const stageDisqualified = careerStage === null
     || !effectiveTargetStages(profile).includes(careerStage);
 
@@ -128,11 +126,17 @@ export function evaluateJobForProfile(
     ? !qualificationsEligible(features.qualification_requirements, profile, features.min_years)
     : features.min_years === null && !profile.include_unspecified_experience;
 
-  // A required doctorate rules a posting out regardless of stated years. These
-  // roles read as early-career to every other signal — no years requirement, no
-  // seniority marker in the title — which is exactly why they dominated the
-  // unknown-experience bucket.
-  const advancedDegreeDisqualified = features.requires_advanced_degree;
+  // Enrollment and a completed doctorate are separate qualifications.
+  const advancedDegreeDisqualified = features.requires_advanced_degree && (
+    features.qualification_requirements?.doctorate_requirement === "enrolled"
+      ? !profile.doctoral_student
+      : profile.highest_education !== "doctorate"
+  );
+  const doctoralInternship = features.qualification_requirements?.doctoral_internship_eligibility;
+  const doctoralInternshipDisqualified = careerStage === "internship" && profile.doctoral_student
+    && (profile.doctoral_internships === "only"
+      ? doctoralInternship !== "doctoral_only"
+      : doctoralInternship !== "doctoral_only" && doctoralInternship !== "doctoral_eligible");
   const securityClearanceDisqualified = features.requires_security_clearance;
 
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
@@ -152,6 +156,7 @@ export function evaluateJobForProfile(
   const plausible = !experienceDisqualified
     && !qualificationsDisqualified
     && !advancedDegreeDisqualified
+    && !doctoralInternshipDisqualified
     && !securityClearanceDisqualified
     && !stageDisqualified
     && !sponsorshipDisqualified
@@ -161,9 +166,13 @@ export function evaluateJobForProfile(
     && !countryDisqualified
     && !excludedTitleDisqualified
     && (selectedSpecialty || customTitle || legacyTitleMatch);
+  const requiredYears = features.qualification_requirements
+    ? qualificationYearsForProfile(features.qualification_requirements, profile, features.min_years)
+    : features.min_years;
   return {
     jobId,
     plausible,
+    requiredYears: requiredYears ?? null,
   };
 }
 
@@ -175,9 +184,9 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
     await db.batch(plausible.slice(offset, offset + 75).map((match) => {
       return db.prepare(
         `INSERT INTO user_job_matches (
-           user_id, job_id, matcher_version, matched_at, updated_at
+           user_id, job_id, matcher_version, matched_at, updated_at, required_years
          )
-         SELECT ?, ?, ?, ?, ?
+         SELECT ?, ?, ?, ?, ?, ?
          WHERE NOT EXISTS (
            SELECT 1
            FROM job_review_queue
@@ -186,13 +195,15 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
          ON CONFLICT(user_id, job_id) DO UPDATE SET
            matcher_version = excluded.matcher_version,
            matched_at = excluded.matched_at,
-           updated_at = excluded.updated_at`
+           updated_at = excluded.updated_at,
+           required_years = excluded.required_years`
       ).bind(
         userId,
         match.jobId,
         MATCHER_VERSION,
         now,
         now,
+        match.requiredYears ?? null,
         match.jobId
       );
     }));

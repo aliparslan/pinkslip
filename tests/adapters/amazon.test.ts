@@ -393,7 +393,7 @@ describe("AmazonAdapter", () => {
   it("does not retain HTML for titles already outside the fixed seniority band", async () => {
     installSoftwareSnapshot({
       hits: 1,
-      jobs: [posting(123, { title: "Senior Software Development Engineer" })],
+      jobs: [posting(123, { title: "Staff Software Development Engineer" })],
     });
 
     const jobs = await adapter.fetchJobs("amazon");

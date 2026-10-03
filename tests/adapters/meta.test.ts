@@ -251,15 +251,12 @@ describe("MetaAdapter", () => {
     });
   });
 
-  it("also skips a no-JSON role whose title explicitly requires a PhD", async () => {
+  it("fails closed for an eligible doctoral role missing structured content", async () => {
     installFetch(() => htmlResponse(
       `<html><head><meta name="title" content="Research Scientist, AI &amp; Systems Co-Design (PhD)"><link rel="canonical" href="${ORIGIN}/profile/job_details/101/"></head></html>`
     ));
-    expect(await new MetaAdapter().fetchJobListing("meta", "101"))
-      .toMatchObject({
-        title: "Research Scientist, AI & Systems Co-Design (PhD)",
-        description: null,
-      });
+    await expect(new MetaAdapter().fetchJobListing("meta", "101"))
+      .rejects.toThrow("returned 0 JobPosting records");
   });
 
   it("still fails closed when an eligible-looking page loses JobPosting data", async () => {

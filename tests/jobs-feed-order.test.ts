@@ -65,8 +65,8 @@ describe("career-stage feed query", () => {
     });
     expect(buildStageExperienceFilter(undefined, 1, 3)).toEqual({
       conditions: [
-        "(jf.min_years IS NULL OR jf.min_years <= ?)",
-        "jf.min_years IS NOT NULL AND jf.min_years >= ?",
+        "(us.required_years IS NULL OR us.required_years <= ?)",
+        "us.required_years IS NOT NULL AND us.required_years >= ?",
       ],
       bindings: [3, 1],
     });
@@ -74,11 +74,11 @@ describe("career-stage feed query", () => {
 
   it("labels internships before the shared zero-year fallback", () => {
     const db = new Database(":memory:");
-    db.run("CREATE TABLE job_features (seniority TEXT, min_years INTEGER)");
+    db.run("CREATE TABLE job_features (seniority TEXT, required_years INTEGER)");
     db.run("INSERT INTO job_features VALUES ('internship', 0), ('new_grad', 0), ('early_career', 2)");
 
     const rows = db.query<{ match_fact: string }, []>(
-      `SELECT ${JOB_MATCH_FACT_CASE} AS match_fact FROM job_features jf ORDER BY rowid`
+      `SELECT ${JOB_MATCH_FACT_CASE} AS match_fact FROM job_features jf JOIN job_features us ON us.rowid = jf.rowid ORDER BY jf.rowid`
     ).all();
     expect(rows.map((row) => row.match_fact)).toEqual([
       "Internship",
@@ -86,4 +86,14 @@ describe("career-stage feed query", () => {
       "Asks for 2+ years",
     ]);
   });
+  it("uses each user's degree route and admits known five-year senior roles in the expanded stage", () => {
+    const db = new Database(":memory:");
+    db.exec("CREATE TABLE job_features (job_id TEXT, seniority TEXT, min_years INTEGER); CREATE TABLE user_job_matches (job_id TEXT, required_years INTEGER); INSERT INTO job_features VALUES ('degree-route', 'early_career', 1), ('senior-five', 'senior', 5), ('mid-four', 'mid_level', 4); INSERT INTO user_job_matches VALUES ('degree-route', 5), ('senior-five', 5), ('mid-four', 4);");
+    const select = (filter: ReturnType<typeof buildStageExperienceFilter>) => db.query<{ job_id: string }, any[]>(`SELECT jf.job_id FROM job_features jf JOIN user_job_matches us ON us.job_id = jf.job_id WHERE ${filter.conditions.join(" AND ")} ORDER BY jf.job_id`).all(...filter.bindings).map(row => row.job_id);
+    expect(select(buildStageExperienceFilter(undefined, null, 3))).toEqual([]);
+    expect(select(buildStageExperienceFilter(undefined, 5, 5))).toEqual(["degree-route", "senior-five"]);
+    expect(select(buildStageExperienceFilter(["early_career"], null, null))).toEqual(["degree-route", "mid-four", "senior-five"]);
+    db.close();
+  });
+
 });

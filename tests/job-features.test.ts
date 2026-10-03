@@ -704,7 +704,7 @@ describe("classifyJob", () => {
   it("exposes the same title-only eligibility guard for memory-conscious adapters", () => {
     expect(hasPotentiallyEligibleSeniority("Software Engineer II")).toBe(true);
     expect(hasPotentiallyEligibleSeniority("Staff Engineer, New Grad Program")).toBe(false);
-    expect(hasPotentiallyEligibleSeniority("Senior Software Engineer")).toBe(false);
+    expect(hasPotentiallyEligibleSeniority("Senior Software Engineer")).toBe(true);
     expect(hasPotentiallyEligibleSeniority("Principal Applied Scientist")).toBe(false);
     expect(hasPotentiallyEligibleSeniority(
       "Compiler Engineer, MTIA Software (Technical Leadership)"

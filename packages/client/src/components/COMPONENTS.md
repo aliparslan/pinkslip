@@ -71,8 +71,9 @@ stacking multiple tones or sizes is not supported.
   requirement ceiling, and unstated-experience switch reuse existing form and
   Switch compositions but await hands-on visual review on iOS and web.
   Call site: `SearchProfileFields.svelte`, used in onboarding and Job preferences.
-  Review or expire by 2026-10-17. The current catalog remains early-career and
-  excludes doctorate-only roles; the controls state those limits explicitly.
+  Review or expire by 2026-10-17. The catalog permits up to five required years;
+  doctoral enrollment and completed education are separate controls. Doctoral
+  internship scope uses the existing select composition.
 
 - **Web Jobs/Library master–detail workspace** — Owner: Web experience.
   Reason: the persistent desktop Jobs/Library/You primary sidebar,

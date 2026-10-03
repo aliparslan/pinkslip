@@ -148,6 +148,7 @@ function createMatchingSchema(sqlite: Database) {
       matcher_version TEXT NOT NULL,
       matched_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      required_years INTEGER,
       UNIQUE(user_id, job_id)
     );
     CREATE TABLE user_search_profiles (
@@ -354,13 +355,13 @@ describe("database feature freshness", () => {
     const { sqlite, db } = sqliteD1();
     createMatchingSchema(sqlite);
     seedProfile(sqlite);
-    const profile = normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "master", years_experience: 2, max_required_years: null, include_unspecified_experience: false });
+    const profile = normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "master", years_experience: 2, max_required_years: null, include_unspecified_experience: false, doctoral_student: true, doctoral_internships: "only" });
     sqlite.query("UPDATE user_search_profiles SET profile_json = ?, match_cursor_seen_at = ?").run(JSON.stringify(profile), "2026-01-01");
-    sqlite.query("INSERT INTO user_job_matches VALUES ('user-1', 'job', ?, 'now', 'now')").run(MATCHER_VERSION);
+    sqlite.query("INSERT INTO user_job_matches VALUES ('user-1', 'job', ?, 'now', 'now', NULL)").run(MATCHER_VERSION);
     sqlite.exec("INSERT INTO notification_candidates VALUES ('user-1', 'pending', NULL)");
-    const { highest_education, max_required_years, include_unspecified_experience, ...legacy } = profile;
+    const { highest_education, max_required_years, include_unspecified_experience, doctoral_student, doctoral_internships, ...legacy } = profile;
     const saved = await saveUserPreferenceState(db, "user-1", { search_profile: { ...legacy, version: 4, years_experience: 1 } });
-    expect(saved.search_profile).toMatchObject({ highest_education, max_required_years, include_unspecified_experience, years_experience: 1 });
+    expect(saved.search_profile).toMatchObject({ highest_education, max_required_years, include_unspecified_experience, doctoral_student, doctoral_internships, years_experience: 1 });
     expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 0 });
     expect(sqlite.query("SELECT match_cursor_seen_at FROM user_search_profiles").get()).toEqual({ match_cursor_seen_at: null });
     expect(sqlite.query("SELECT status FROM notification_candidates").get()).toEqual({ status: "skipped" });
@@ -373,7 +374,7 @@ describe("database feature freshness", () => {
     seedProfile(sqlite);
     const jobId = seedLegacyClearanceJob(sqlite, { evergreen: true });
     sqlite.query("UPDATE jobs SET description = ? WHERE id = ?").run("<h2>Requirements</h2><li>Bachelor's + 4 years OR master's + 2 years.</li>", jobId);
-    sqlite.query("UPDATE user_search_profiles SET profile_json = ?").run(JSON.stringify(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "bachelor", location_ids: [] })));
+    sqlite.query("UPDATE user_search_profiles SET profile_json = ?").run(JSON.stringify(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "bachelor", max_required_years: 3, location_ids: [] })));
     await ensureUserEvergreenMatchesReady(db, "user-1");
     expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 0 });
     const stored = sqlite.query("SELECT qualification_requirements_json FROM job_features WHERE job_id = ?").get(jobId) as { qualification_requirements_json: string };
@@ -381,6 +382,7 @@ describe("database feature freshness", () => {
     sqlite.query("UPDATE user_search_profiles SET profile_json = ?").run(JSON.stringify(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, highest_education: "master", max_required_years: 2, location_ids: [] })));
     await ensureUserEvergreenMatchesReady(db, "user-1");
     expect(sqlite.query("SELECT COUNT(*) AS count FROM user_job_matches").get()).toEqual({ count: 1 });
+    expect(sqlite.query("SELECT required_years FROM user_job_matches").get()).toEqual({ required_years: 2 });
     sqlite.close();
   });
 
@@ -398,7 +400,7 @@ describe("database feature freshness", () => {
 
     const matches = await ensureUserJobMatches(db, "user-1");
 
-    expect(matches).toEqual([{ jobId, plausible: false }]);
+    expect(matches).toEqual([{ jobId, plausible: false, requiredYears: null }]);
     expect(sqlite.query(
       "SELECT classifier_version FROM job_features WHERE job_id = ?"
     ).get(jobId)).toEqual({ classifier_version: JOB_CLASSIFIER_VERSION });

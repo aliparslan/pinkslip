@@ -13,7 +13,7 @@ import {
 import type { JobListing } from "./adapters/types";
 import {
   extractQualificationRequirements,
-  minimumNonDoctoralExperience,
+  minimumQualificationExperience,
   parseStoredQualifications,
   type QualificationRequirements,
 } from "./qualification-requirements";
@@ -21,7 +21,7 @@ import {
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v23-education-experience";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v24-five-years-doctoral";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -299,7 +299,7 @@ export function parseQualificationRequirements(description: string | null): Qual
 }
 
 function experienceFromRequirements(title: string, description: string | null, requirements: QualificationRequirements) {
-  const path = minimumNonDoctoralExperience(requirements);
+  const path = minimumQualificationExperience(requirements);
   if (path) return { min: path.min_years, max: path.max_years };
   // No mandatory body years: role-defining signals may still imply zero.
   if (hasExplicitInternshipSignal(title, description) || hasExplicitNewGradSignal(title, description)) {
@@ -450,7 +450,8 @@ function doctorateMentionIsContextual(
   after: string,
   clause: string
 ): boolean {
-  return /^\s+filters?\b/.test(after)
+  return /\bhow\s*$/.test(before) && /^\s+(?:students?|candidates?)\b/.test(after)
+    || /^\s+filters?\b/.test(after)
     || /\b(?:collaborat(?:e|es|ing)|work(?:s|ing)? with|team of)\b[^.;]{0,90}$/.test(before)
     || /\b(?:founded|started) by\b[^.;]{0,140}$/.test(before)
     || /\b(?:serve|serves|support|supports|built for|used by|help(?:s|ing)?)\b[^.;]{0,110}$/.test(before)
@@ -642,7 +643,10 @@ function hasExplicitInternshipSignal(
   )) {
     return true;
   }
-  const text = normalizeClassifierText(description ?? "");
+  // Shared reapplication policies describe other vacancies as well as this
+  // one; an "internship role" in that footer is not this job's career stage.
+  const text = normalizeClassifierText(description ?? "", true).split(/[;|]/)
+    .filter((clause) => !/\b(?:re-?apply|reapplication|cool[- ]off)\b/.test(clause)).join("; ");
   const roleTerm = String.raw`(?:interns?|internships?|co-?ops?|apprentices?|apprenticeships?)`;
   const personRoleTerm = String.raw`(?:interns?|apprentices?)`;
   const explicitRolePatterns = [
@@ -732,10 +736,11 @@ function classifySeniority(
 
   if (/\b(?:chief|vice president|vp|head of)\b/.test(text)) return "executive";
   if (/\b(?:manager|director)\b/.test(text)) return "manager";
-  if (/\b(?:staff|principal|distinguished|fellow|technical leadership)\b/.test(text)) return "staff_plus";
+  if (/\b(?:staff|principal|distinguished|technical leadership)\b/.test(text)
+    || /\bfellow\b/.test(text) && !/\b(?:post-?doctoral|postdoc)\b/.test(text)) return "staff_plus";
   if (/\b(?:senior|sr\.?|lead)\b/.test(text)) return "senior";
   // Several large employers encode seniority numerically rather than spelling
-  // out "senior". Levels 4+ are outside pinkslip's 0-3 year audience even when
+  // out "senior". Levels 4+ need stated experience within the catalog ceiling;
   // the public description omits a literal years-of-experience requirement.
   if (
     /\bl\s*[4-9](?:\s*\/\s*l?\s*[4-9])?\b/.test(text)
@@ -756,7 +761,7 @@ function classifySeniority(
     return "early_career";
   }
   if ((years.min ?? 0) >= 5) return "senior";
-  if ((years.min ?? 0) > MAX_YEARS_EXPERIENCE) return "mid_level";
+  if ((years.min ?? 0) > 3) return "mid_level";
   // One-to-three-year requirements and otherwise unlevelled roles are both
   // early-career. The latter must never leak into internship or new-grad-only
   // selections.
@@ -765,12 +770,50 @@ function classifySeniority(
 
 /**
  * Cheap title-only guard for list adapters that already carry full job HTML.
- * A description can reveal a high experience minimum later, but it cannot make
- * an explicitly senior/staff/management title eligible for Pinkslip's fixed
- * early-career audience. Avoiding that HTML materially reduces poll memory.
+ * Senior titles need description evidence of an in-scope numeric minimum.
+ * Staff and management titles can be rejected before retaining their HTML.
  */
 export function hasPotentiallyEligibleSeniority(title: string): boolean {
-  return isEligibleSeniority(classifySeniority(title, { min: null, max: null }));
+  const seniority = classifySeniority(title, { min: null, max: null });
+  return isEligibleSeniority(seniority) || seniority === "mid_level" || seniority === "senior";
+}
+
+export function catalogCareerStage(features: Pick<JobFeatures, "seniority" | "min_years">): CareerStage | null {
+  if (features.min_years !== null && features.min_years > MAX_YEARS_EXPERIENCE) return null;
+  if (isEligibleSeniority(features.seniority)) return features.seniority as CareerStage;
+  if ((features.seniority === "mid_level" || features.seniority === "senior")
+    && features.min_years !== null && features.min_years <= MAX_YEARS_EXPERIENCE) return "early_career";
+  return null;
+}
+
+function doctorateRequirement(title: string, description: string | null, required: boolean): "none" | "completed" | "enrolled" {
+  if (!required) return "none";
+  const titleText = normalizeClassifierText(title);
+  const clauses = qualificationClauses(description ?? "").filter((clause) => clause.section !== "preferred"
+    && new RegExp(String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b`).test(clause.text)
+    && !hasEligibleDegreeAlternative(clause.text) && !hasEligibleDegreeCohortAlternative(clause.text));
+  if (clauses.some(({ text }) => /\b(?:completed|earned|awarded|obtained|hold|possess)\b|\bdegree must be completed\b/.test(text)
+    && !/\bin the process of obtaining\b/.test(text))) return "completed";
+  if (/\b(?:phd|doctoral|doctorate)\b/.test(titleText) && /\b(?:intern|internship|students?|candidates?)\b/.test(titleText)
+    || clauses.some(({ text }) => /\b(?:pursuing|enrolled|working towards?|working toward|(?:phd|doctoral|doctorate) students?|(?:phd|doctoral|doctorate) candidates?)\b/.test(text)
+      && !/\b(?:mentor\w*|supervis\w*|advis\w*|teach\w*|support\w*|work with|team of|how)\b/.test(text))) return "enrolled";
+  return "completed";
+}
+
+function doctoralInternshipEligibility(title: string, description: string | null, requirement: "none" | "completed" | "enrolled"): "doctoral_only" | "doctoral_eligible" | "other" {
+  if (requirement === "enrolled") return "doctoral_only";
+  const clauses = qualificationClauses(title + "\n" + (description ?? ""));
+  for (const { text, section } of clauses) {
+    if (section === "preferred" || /\b(?:preferred|optional|a plus|nice to have)\b/.test(text)) continue;
+    const phd = new RegExp(String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b`, "g");
+    for (const match of text.matchAll(phd)) {
+      const before = text.slice(0, match.index), after = text.slice((match.index ?? 0) + match[0].length);
+      if (doctorateMentionIsContextual(before, after, text)) continue;
+      if (hasEligibleDegreeAlternative(text) || hasEligibleDegreeCohortAlternative(text)
+        || /\b(?:pursuing|enrolled|students?|candidates?)\b/.test(text)) return "doctoral_eligible";
+    }
+  }
+  return "other";
 }
 
 function parseMoneyToken(token: string): number | null {
@@ -845,6 +888,10 @@ export function classifyJob(listing: JobListing): JobFeatures {
   ]);
   const primary = ROLE_OPTIONS.find((role) => specialties.includes(role.id));
   const qualificationRequirements = parseQualificationRequirements(listing.description);
+  const advancedDegree = titleRequiresAdvancedDegree(listing.title) || requiresAdvancedDegree(listing.description)
+    || qualificationRequirements.groups.some((group) => group.every((path) => path.education === "doctorate" && path.doctoral_enrollment));
+  qualificationRequirements.doctorate_requirement = doctorateRequirement(listing.title, listing.description, advancedDegree);
+  qualificationRequirements.doctoral_internship_eligibility = doctoralInternshipEligibility(listing.title, listing.description, qualificationRequirements.doctorate_requirement);
   const years = experienceFromRequirements(listing.title, listing.description, qualificationRequirements);
   const location = listing.location.toLowerCase();
   const workMode: JobFeatures["work_mode"] =
@@ -885,8 +932,7 @@ export function classifyJob(listing: JobListing): JobFeatures {
     qualification_requirements: qualificationRequirements,
     // A doctorate in the public title scopes the role to doctorate candidates
     // even when the ATS omits or has not yet hydrated the description.
-    requires_advanced_degree: titleRequiresAdvancedDegree(listing.title)
-      || requiresAdvancedDegree(listing.description),
+    requires_advanced_degree: advancedDegree,
     // Clearance levels in a public title are themselves a scope signal; body
     // mentions still need the requirement-aware detector above.
     requires_security_clearance: titleRequiresSecurityClearance(listing.title)
@@ -906,12 +952,11 @@ export function classifyReviewReasons(
 
   // The review queue is an eligibility safety net, not a catalog of every
   // uncertain phrase. A human decision cannot make a known senior/staff role or
-  // a 4+ year requirement eligible, so queuing those rows only creates work and
+  // a requirement beyond the catalog ceiling eligible, so queuing those rows creates work and
   // hides the genuinely ambiguous early-career cases among them.
   if (
-    !isEligibleSeniority(features.seniority)
+    catalogCareerStage(features) === null
     || (features.min_years !== null && features.min_years > MAX_YEARS_EXPERIENCE)
-    || features.requires_advanced_degree
     || features.requires_security_clearance
   ) {
     return reasons;

@@ -327,7 +327,7 @@ describe("job features and binary matches", () => {
     const match = evaluateJobForProfile("job-1", listing, classifyJob(listing), profile);
 
     expect(match.plausible).toBe(true);
-    expect(match).toEqual({ jobId: "job-1", plausible: true });
+    expect(match).toEqual({ jobId: "job-1", plausible: true, requiredYears: 2 });
   });
 
   test("excludes doctorate and security-clearance gates while allowing a master's", () => {
@@ -504,8 +504,8 @@ describe("the career-stage band", () => {
   });
 
   test("includes a requirement at the ceiling and excludes one above it", () => {
-    expect(matched("Backend Engineer", "At least 3 years of experience.").plausible).toBe(true);
-    expect(matched("Backend Engineer", "At least 4 years of experience.").plausible).toBe(false);
+    expect(matched("Backend Engineer", "At least 5 years of experience.").plausible).toBe(true);
+    expect(matched("Backend Engineer", "At least 6 years of experience.").plausible).toBe(false);
   });
 
   test("treats stated in-band and unstated requirements as binary eligibility", () => {

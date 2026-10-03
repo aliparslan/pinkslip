@@ -37,7 +37,7 @@ export const JOB_FEED_ORDER_BY =
 export const JOB_MATCH_FACT_CASE = `CASE
   WHEN jf.seniority = 'internship' THEN 'Internship'
   WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
-  WHEN jf.min_years IS NOT NULL THEN 'Asks for ' || jf.min_years || '+ years'
+  WHEN us.required_years IS NOT NULL THEN 'Asks for ' || us.required_years || '+ years'
   WHEN jf.seniority = 'early_career' THEN 'Early-career role'
   ELSE 'Experience not specified'
 END`;
@@ -252,22 +252,24 @@ export function buildStageExperienceFilter(
   maxYoe: number | null
 ): { conditions: string[]; bindings: Array<string | number> } {
   if (stageFilter !== undefined) {
+    const stages: string[] = [...stageFilter];
+    if (stageFilter.includes("early_career")) stages.push("mid_level", "senior");
     return {
       conditions: [
-        `jf.seniority IN (${stageFilter.map(() => "?").join(", ")})`,
+        `jf.seniority IN (${stages.map(() => "?").join(", ")})`,
       ],
-      bindings: [...stageFilter],
+      bindings: stages,
     };
   }
 
   const conditions: string[] = [];
   const bindings: Array<string | number> = [];
   if (maxYoe !== null) {
-    conditions.push("(jf.min_years IS NULL OR jf.min_years <= ?)");
+    conditions.push("(us.required_years IS NULL OR us.required_years <= ?)");
     bindings.push(maxYoe);
   }
   if (minYoe !== null && minYoe > 0) {
-    conditions.push("jf.min_years IS NOT NULL AND jf.min_years >= ?");
+    conditions.push("us.required_years IS NOT NULL AND us.required_years >= ?");
     bindings.push(minYoe);
   }
   return { conditions, bindings };
@@ -387,7 +389,7 @@ jobs.get("/", async (c) => {
     "c.enabled = 1",
     "j.closed_at IS NULL",
     "us.matcher_version = ?",
-    `(jf.min_years IS NULL OR jf.min_years <= ${MAX_YEARS_EXPERIENCE})`,
+    `(us.required_years IS NULL OR us.required_years <= ${MAX_YEARS_EXPERIENCE})`,
     "(jrq.job_id IS NULL OR jrq.state = 'approved')",
     `NOT EXISTS (
       SELECT 1 FROM user_blocked_companies ubc

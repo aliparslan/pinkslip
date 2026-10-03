@@ -66,7 +66,7 @@ describe("classification shadow", () => {
     await recordSourceDecisions(db, "company", jobs, [], false);
     expect(batches()).toBe(first);
     await recordSourceDecisions(db, "company", [{ ...job, description: "Minimum qualifications: PhD required." }], [], false);
-    expect(sqlite.query("SELECT reason FROM source_job_decisions WHERE external_id='one'").get()).toEqual({ reason: "rejected_doctorate" });
+    expect(sqlite.query("SELECT reason FROM source_job_decisions WHERE external_id='one'").get()).toEqual({ reason: "catalog_candidate" });
   });
 
   it("includes rejected geography and job families in shadow samples without altering production tables", async () => {
@@ -201,6 +201,6 @@ describe("classification shadow", () => {
 
   it("distinguishes missing content from a catalog candidate", () => {
     expect(catalogDecisionReason({ ...job, description: null })).toBe("needs_description");
-    expect(catalogDecisionReason({ ...job, title: "PhD Research Intern" })).toBe("rejected_doctorate");
+    expect(catalogDecisionReason({ ...job, title: "PhD Research Intern" })).toBe("catalog_candidate");
   });
 });

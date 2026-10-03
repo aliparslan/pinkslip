@@ -74,7 +74,7 @@ describe("job ingestion scope", () => {
     expect(isPotentialCatalogJobListing({
       ...listing,
       title: "Senior Software Development Engineer",
-    })).toBe(false);
+    })).toBe(true);
     expect(isPotentialCatalogJobListing({
       ...listing,
       title: "Principal Applied Scientist",
@@ -92,7 +92,7 @@ describe("job ingestion scope", () => {
     expect(isPotentialCatalogJobListing({
       ...listing,
       description: "<h2>Basic qualifications</h2><li>PhD in computer science</li>",
-    })).toBe(false);
+    })).toBe(true);
     expect(isPotentialCatalogJobListing({
       ...listing,
       description: "<h2>Basic qualifications</h2><li>Master's degree or PhD in computer science</li>",
@@ -107,7 +107,7 @@ describe("job ingestion scope", () => {
     })).toBe(false);
     expect(hasDisqualifyingJobRequirement({
       title: "Data Scientist - PhD",
-    })).toBe(true);
+    })).toBe(false);
 
     expect(hasDisqualifyingJobRequirement({
       title: "Software Engineer",
