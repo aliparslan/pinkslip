@@ -30,6 +30,12 @@ export interface Env {
   EMAIL_FROM_ADDRESS?: string;
   EMAIL_FROM_NAME?: string;
   WORKERS_AI_MODEL?: string;
+  OPENROUTER_API_KEY?: string;
+  /** Explicit opt-in: no classification telemetry/model work by default. */
+  JOB_CLASSIFICATION_AUDIT?: string;
+  JOB_CLASSIFICATION_SHADOW?: string;
+  /** Lower the hard ceiling of 100 provider calls per UTC day; 0 pauses calls. */
+  JEV_DAILY_CALL_LIMIT?: string;
   // APNs (native iOS push). Set APNS_KEY_ID/TEAM_ID/BUNDLE_ID as vars and
   // APNS_PRIVATE_KEY (the .p8 PEM contents) as a secret. APNS_SANDBOX="true"
   // targets the APNs sandbox host for Xcode debug / direct-install builds.

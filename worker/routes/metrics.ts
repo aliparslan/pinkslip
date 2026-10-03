@@ -4,6 +4,8 @@ import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
 import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
+import { hasTable } from "../db-schema";
+import { shadowDailyLimit } from "../classification-shadow";
 import {
   evaluateTailoringQuality,
   type TailoringQualitySnapshot,
@@ -11,6 +13,35 @@ import {
 
 const metrics = new Hono<{ Bindings: Env; Variables: Variables }>();
 metrics.use("/*", requireAdmin);
+
+metrics.get("/classification", async (c) => {
+  const db = c.env.DB;
+  if (!await hasTable(db, "job_classification_shadow")) {
+    return c.json({ available: false, shadow_enabled: false });
+  }
+  const [reasons, statuses, daily, usage, reviews] = await Promise.all([
+    db.prepare("SELECT reason, COUNT(*) AS count FROM source_job_decisions GROUP BY reason").all(),
+    db.prepare("SELECT status, COUNT(*) AS count FROM job_classification_shadow GROUP BY status").all(),
+    db.prepare("SELECT day, calls, reported_cost_usd FROM classification_daily_budget ORDER BY day DESC LIMIT 30").all(),
+    db.prepare(`SELECT COUNT(*) AS attempted, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
+      SUM(cost_usd) AS reported_cost_usd, SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unknown_cost_requests,
+      ROUND(AVG(latency_ms)) AS avg_latency_ms
+      FROM job_classification_shadow WHERE attempts > 0`).first(),
+    db.prepare(`SELECT s.cache_key, c.name AS company, s.external_id, s.reason AS sampled_reason,
+      d.reason AS current_catalog_reason, d.title, d.location, d.job_url, s.status, s.truncated,
+      s.baseline_json, s.answers_json, s.model, s.cost_usd, s.latency_ms, s.completed_at, s.error_code
+      FROM job_classification_shadow s JOIN companies c ON c.id=s.company_id
+      LEFT JOIN source_job_decisions d ON d.company_id=s.company_id AND d.external_id=s.external_id
+      WHERE s.status IN ('complete','failed') ORDER BY s.completed_at DESC LIMIT 50`).all(),
+  ]);
+  return c.json({ available: true,
+    audit_enabled: c.env.JOB_CLASSIFICATION_AUDIT === "true" || c.env.JOB_CLASSIFICATION_SHADOW === "true",
+    shadow_enabled: c.env.JOB_CLASSIFICATION_SHADOW === "true",
+    provider_key_configured: Boolean(c.env.OPENROUTER_API_KEY), daily_call_limit: shadowDailyLimit(c.env.JEV_DAILY_CALL_LIMIT),
+    reasons: reasons.results ?? [], statuses: statuses.results ?? [], daily: daily.results ?? [],
+    usage, reviews: reviews.results ?? [],
+  });
+});
 
 interface NotificationMetricRow {
   sent_count: number;

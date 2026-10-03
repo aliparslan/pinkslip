@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, setSystemTime } from "bun:test";
 import {
   AmazonAdapter,
   normalizeAmazonSource,
@@ -89,7 +89,9 @@ describe("AmazonAdapter", () => {
   beforeEach(() => {
     adapter = new AmazonAdapter();
     mock.restore();
+    setSystemTime(new Date("2026-08-29T12:00:00Z"));
   });
+  afterEach(() => setSystemTime());
 
   it("normalizes only the canonical source and official HTTPS URLs", () => {
     expect(normalizeAmazonSource("amazon")).toBe("amazon");

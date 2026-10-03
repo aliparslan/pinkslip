@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, setSystemTime } from "bun:test";
 import {
   GOOGLE_DISCOVERY_PAGE_LIMIT,
   GOOGLE_MAX_HTML_BYTES,
@@ -111,9 +111,12 @@ describe("GoogleCareersAdapter", () => {
   beforeEach(() => {
     adapter = new GoogleCareersAdapter();
     mock.restore();
+    // Fixtures represent live August postings; later wall time must not strip content.
+    setSystemTime(new Date("2026-08-29T12:00:00Z"));
   });
 
   afterEach(() => {
+    setSystemTime();
     globalThis.fetch = originalFetch;
   });
 

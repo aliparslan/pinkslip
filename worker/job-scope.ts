@@ -149,9 +149,9 @@ const SOFTWARE_ADJACENT_OVERRIDE =
   /\b(?:embedded|firmware|software|data|machine learning|ml|ai|security|infrastructure|platform|systems software|test automation)\b/i;
 
 const EXPLICIT_SOFTWARE_ROLE_HEAD =
-  /\b(?:software(?: development)? engineer|software developer|sde|swe)\b/i;
+  /\b(?:software(?: dev(?:elopment)?)? engineer|software developer|sde|swe)\b/i;
 const EXPLICIT_LONGFORM_SOFTWARE_ROLE_HEAD =
-  /\b(?:software(?: development)? engineer|software developer)\b/i;
+  /\b(?:software(?: dev(?:elopment)?)? engineer|software developer)\b/i;
 const EXPLICIT_DATA_ML_ROLE_HEAD =
   /\b(?:(?:data|analytics|machine learning|ml|ai|ai\s*\/\s*ml)\s+engineer|systems development engineer)\b/i;
 const EXPLICIT_SECURITY_ROLE_HEAD =
@@ -303,6 +303,10 @@ export function classifyTitleScope(
   if (
     NON_TECHNICAL_FUNCTION_PATTERNS.some((pattern) => {
       if (!containsPhrase(normalizedTitle, pattern)) return false;
+      // Recruiting is the data product's domain here, not the applicant's role.
+      if (pattern === "recruiting" && /\b(?:data|analytics) engineer\b/.test(normalizedTitle)) {
+        return false;
+      }
       // "Controller" is normally the finance function. In an explicit
       // software-defined-network title it names the system being built.
       if (
@@ -392,6 +396,8 @@ export function classifyTitleScope(
 
   if (
     TECHNICAL_HEAD_NOUN.test(normalizedTitle)
+    || (/\b(?:flight )?software associate\b/.test(normalizedTitle)
+      && /\bsoftware\b/.test(normalizedDepartment))
     || (INTERNSHIP_ROLE_WORDING.test(normalizedTitle)
       && TECHNICAL_INTERNSHIP_DISCIPLINE.test(normalizedTitle))
     || TITLE_KEYWORD_ADMISSIONS.some((keyword) => containsPhrase(normalizedTitle, keyword))

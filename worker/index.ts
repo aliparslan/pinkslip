@@ -22,6 +22,7 @@ import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/
 import resumeImportRoutes from "./routes/resume-import";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
+import { runClassificationShadow } from "./classification-shadow";
 import {
   NOTIFICATION_CRON_SCHEDULE,
   runNotificationCycle,
@@ -356,8 +357,9 @@ export default {
     const cycle = scheduledCycle(event.cron);
     ctx.waitUntil(
       (cycle === "notifications"
-        ? runNotificationCycle(env).then((result) => {
+        ? runNotificationCycle(env).then(async (result) => {
             console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
+            await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
           })
         : runPollCycle(env, { sendNotifications: false }).then((result) => {
             console.log(`Poll complete: ${result.companiesPolled} companies, ${result.newJobsFound} new jobs`);

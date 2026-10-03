@@ -35,6 +35,7 @@ import {
   type QuarantinedSource,
 } from "./admin-alerts";
 import { hasTable } from "./db-schema";
+import { sourceDecisionRecorder } from "./classification-shadow";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 
@@ -78,7 +79,7 @@ const CONTENT_BACKFILL_BATCH_SIZE = 20;
 export const NEW_JOB_HYDRATION_LIMIT_PER_COMPANY = 20;
 export const NEW_JOB_HYDRATION_CHECKPOINT_SIZE = 4;
 export const FULL_BACKFILL_NEW_JOB_LIMIT = 300;
-export const SOURCE_JOB_INSPECTION_POLICY_VERSION = 3;
+export const SOURCE_JOB_INSPECTION_POLICY_VERSION = 4;
 const POLL_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
@@ -504,6 +505,7 @@ function assertUniqueJobReferences(
 interface PollCompanyOptions {
   compactReturnMetadata?: boolean;
   fullBackfill?: boolean;
+  recordDecisions?: (companyId: string, jobs: JobListing[], customTitles: readonly string[]) => Promise<void>;
 }
 
 export interface PollingSnapshot {
@@ -554,6 +556,7 @@ export async function pollCompany(
       )
     : { jobs: [], complete: false };
   const fetchedSnapshot = pollingSnapshot.jobs;
+  await options.recordDecisions?.(company.id, fetchedSnapshot, customTitles);
   // A complete detail backfill proves which manifest rows were inspected. Read
   // the live manifest once more afterward: IDs added during the long crawl stay
   // unresolved and will be picked up immediately by the next normal poll.
@@ -723,6 +726,8 @@ export async function pollCompany(
       ),
       persist: persistListings,
       afterCheckpoint: async (outcomes) => {
+        await options.recordDecisions?.(company.id, outcomes.flatMap(({ result }) =>
+          result.status === "fulfilled" ? [result.value] : []), customTitles);
         await recordResolvedJobReferences(
           db,
           company.id,
@@ -893,6 +898,10 @@ export async function pollCompany(
       && isPotentialCatalogJobListing(job, customTitles)
     ),
     persist: persistListings,
+    afterCheckpoint: async (outcomes) => {
+      await options.recordDecisions?.(company.id, outcomes.flatMap(({ result }) =>
+        result.status === "fulfilled" ? [result.value] : []), customTitles);
+    },
   }, {
     limit: options.fullBackfill
       ? FULL_BACKFILL_NEW_JOB_LIMIT
@@ -1294,6 +1303,9 @@ export async function runPollCycle(
   // Custom titles are loaded once and shared across every company in the cycle
   // so a globally unrecognized title can still enter the catalog.
   const customTitles = await loadCustomTitles(db);
+  const recordDecisions = await sourceDecisionRecorder(db,
+    env.JOB_CLASSIFICATION_AUDIT === "true" || env.JOB_CLASSIFICATION_SHADOW === "true",
+    env.JOB_CLASSIFICATION_SHADOW === "true");
   const now = new Date().toISOString();
 
   const results = await runWithConcurrency(
@@ -1301,6 +1313,7 @@ export async function runPollCycle(
     6,
     (company) => pollCompany(company, db, customTitles, {
       compactReturnMetadata: true,
+      recordDecisions,
     })
   );
 

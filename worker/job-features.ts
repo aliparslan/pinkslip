@@ -15,7 +15,7 @@ import type { JobListing } from "./adapters/types";
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v20-phd-internships";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v21-qualification-alternatives";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -288,7 +288,7 @@ interface QualificationClause {
 }
 
 const PREFERRED_QUALIFICATION_HEADING =
-  /^(?:preferred(?: skills(?:\s*(?:and|&)\s*experience)?| qualifications?)?|desired qualifications?|nice to have|bonus qualifications?|what (?:will|would) set you apart|ways? to stand out)\b/;
+  /^(?:preferred(?: skills(?:\s*(?:and|&)\s*experience)?| qualifications?)?|desired qualifications?|nice[- ]to[- ]haves?|bonus qualifications?|what (?:will|would) set you apart|ways? to stand out)\b/;
 const REQUIRED_QUALIFICATION_HEADING =
   /^(?:(?:basic|required|minimum|must-have) qualifications?|requirements?|what (?:you(?:'ll)? need|we(?:'re| are) looking for)|who you are|you are a good fit if)\b/;
 const NON_QUALIFICATION_HEADING =
@@ -302,6 +302,7 @@ const NON_QUALIFICATION_HEADING =
  */
 function qualificationClauses(value: string): QualificationClause[] {
   const normalized = normalizeClassifierText(value, true)
+    .replace(/\b(?:e\.g\.|i\.e\.)/g, "example")
     // Sentence splitting must not sever a requirement cue from a dotted degree
     // or country abbreviation ("Ph.D. required", "U.S. clearance").
     .replace(/\bph\.\s*d\./g, "phd")
@@ -376,7 +377,14 @@ function hasExperienceAlternativeToDoctorate(clause: string): boolean {
   const experienceThenDoctorate = new RegExp(
     String.raw`\b${experiencePath}\b[^.;|]{0,120}?\bor\b[^.;|]{0,100}?\b${DOCTORATE_DEGREE_SOURCE}\b`
   );
-  return doctorateThenExperience.test(clause) || experienceThenDoctorate.test(clause);
+  // Google's quantified analytics/coding path can include a long list of
+  // tools, with or without "experience". Keep it inside the same bullet.
+  const quantifiedWorkThenDoctorate = new RegExp(
+    String.raw`\b\d{1,2}\s*\+?\s*years?\s+(?:of\s+)?[^.;|]{0,220}?\b(?:coding|querying|statistical analysis|experience)\b[^.;|]{0,160}?\bor\s+(?:an?\s+)?${DOCTORATE_DEGREE_SOURCE}\b`
+  );
+  return doctorateThenExperience.test(clause)
+    || experienceThenDoctorate.test(clause)
+    || quantifiedWorkThenDoctorate.test(clause);
 }
 
 export function titleRequiresAdvancedDegree(title: string): boolean {
@@ -794,6 +802,10 @@ export function classifyJob(listing: JobListing): JobFeatures {
     ...specialtyMatches,
     ...internshipSpecialtyMatches,
     ...departmentMatches,
+    ...(/\bsoftware(?: dev(?:elopment)?)? engineer\b/.test(title)
+      || (/\b(?:flight )?software associate\b/.test(title)
+        && /\bsoftware\b/i.test(listing.department ?? ""))
+      ? ["software_engineering" as const] : []),
   ]);
   const primary = ROLE_OPTIONS.find((role) => specialties.includes(role.id));
   const years = parseExperienceRequirement(listing.title, listing.description);

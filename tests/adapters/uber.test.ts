@@ -5,6 +5,7 @@ import {
   expect,
   it,
   mock,
+  setSystemTime,
 } from "bun:test";
 import {
   UberAdapter,
@@ -166,9 +167,13 @@ function cancellableErrorResponse(onCancel: () => void) {
 }
 
 describe("UberAdapter", () => {
-  beforeEach(() => mock.restore());
+  beforeEach(() => {
+    mock.restore();
+    setSystemTime(new Date("2026-08-29T12:00:00Z"));
+  });
 
   afterEach(() => {
+    setSystemTime();
     globalThis.fetch = originalFetch;
   });
 

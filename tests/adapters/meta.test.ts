@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock, setSystemTime } from "bun:test";
 import {
   MetaAdapter,
   extractMetaJobPosting,
@@ -81,11 +81,13 @@ function installFetch(
 }
 
 afterEach(() => {
+  setSystemTime();
   globalThis.fetch = originalFetch;
   mock.restore();
 });
 
 describe("MetaAdapter", () => {
+  beforeEach(() => setSystemTime(new Date("2026-08-29T12:00:00Z")));
   it("normalizes only the canonical source and official HTTPS hosts", () => {
     expect(normalizeMetaSource("meta")).toBe("meta");
     expect(normalizeMetaSource(" META ")).toBe("meta");
