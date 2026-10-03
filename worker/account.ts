@@ -204,6 +204,42 @@ async function mergeSingletonProfile(db: D1Database, sourceUserId: string, targe
   }
 }
 
+export async function mergePushSubscriptions(
+  db: D1Database,
+  sourceUserId: string,
+  targetUserId: string
+): Promise<void> {
+  if (sourceUserId === targetUserId) return;
+
+  // A guest and an account can hold different APNs tokens for the same app
+  // installation. Resolve those collisions before moving ownership, keeping
+  // the newer registration (the signing-in guest wins a timestamp tie).
+  // D1 batches are transactions, so pruning and transfer commit together.
+  await db.batch([
+    db.prepare(
+      `DELETE FROM push_subscriptions
+       WHERE user_id = ? AND platform = 'ios' AND installation_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM push_subscriptions source
+           WHERE source.user_id = ? AND source.platform = 'ios'
+             AND source.installation_id = push_subscriptions.installation_id
+             AND julianday(source.created_at) >= julianday(push_subscriptions.created_at)
+         )`
+    ).bind(targetUserId, sourceUserId),
+    db.prepare(
+      `DELETE FROM push_subscriptions
+       WHERE user_id = ? AND platform = 'ios' AND installation_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM push_subscriptions target
+           WHERE target.user_id = ? AND target.platform = 'ios'
+             AND target.installation_id = push_subscriptions.installation_id
+         )`
+    ).bind(sourceUserId, targetUserId),
+    db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?")
+      .bind(targetUserId, sourceUserId),
+  ]);
+}
+
 export async function mergeGuestDataIntoAccount(
   db: D1Database,
   args: {
@@ -353,10 +389,11 @@ export async function mergeGuestDataIntoAccount(
     ).bind(sourceUserId, row.job_id).run();
   }
 
+  await mergePushSubscriptions(db, sourceUserId, targetUserId);
+
   await db.batch([
     db.prepare("UPDATE applications SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
-    db.prepare("UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailored_resume_artifacts SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailoring_artifact_selections SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
     db.prepare("UPDATE tailoring_quality_events SET user_id = ? WHERE user_id = ?").bind(targetUserId, sourceUserId),
