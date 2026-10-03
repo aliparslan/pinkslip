@@ -21,9 +21,15 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
     };
   }
 
-  const companies = jobs.slice(0, 4).map((j) => j.company);
+  const companyCounts = new Map<string, number>();
+  for (const job of jobs) {
+    companyCounts.set(job.company, (companyCounts.get(job.company) ?? 0) + 1);
+  }
+  const companies = [...companyCounts.entries()]
+    .slice(0, 4)
+    .map(([company, jobCount]) => jobCount > 1 ? `${company} (${jobCount})` : company);
   const body =
-    count >= 5
+    companyCounts.size > 4
       ? `${companies.join(", ")} and more`
       : companies.join(", ");
 

@@ -50,6 +50,49 @@ describe("buildNotificationPayload", () => {
     expect(result.data.url).toBe("/jobs/10");
     expect(result.data.job_ids).toEqual(["10", "11", "12"]);
   });
+
+  it("summarizes four Amazon jobs and one Apple job without repeating companies", () => {
+    const jobs: NotificationJob[] = [
+      { company: "Amazon", title: "SWE", jobId: "1" },
+      { company: "Amazon", title: "SWE", jobId: "2" },
+      { company: "Amazon", title: "SWE", jobId: "3" },
+      { company: "Amazon", title: "SWE", jobId: "4" },
+      { company: "Apple", title: "SWE", jobId: "5" },
+    ];
+
+    expect(buildNotificationPayload(jobs)).toEqual({
+      title: "5 new jobs",
+      body: "Amazon (4), Apple",
+      data: { url: "/jobs/1", job_ids: ["1", "2", "3", "4", "5"] },
+    });
+  });
+
+  it("shows the full count for jobs from a single company", () => {
+    const jobs = Array.from({ length: 6 }, (_, index) => ({
+      company: "Amazon", title: "SWE", jobId: String(index + 1),
+    }));
+
+    const result = buildNotificationPayload(jobs);
+    expect(result.title).toBe("6 new jobs");
+    expect(result.body).toBe("Amazon (6)");
+  });
+
+  it("counts all jobs before limiting the summary to four distinct companies", () => {
+    const jobs = ["Amazon", "Apple", "Google", "Meta", "Microsoft", "Amazon"]
+      .map((company, index) => ({ company, title: "SWE", jobId: String(index + 1) }));
+
+    const result = buildNotificationPayload(jobs);
+    expect(result.title).toBe("6 new jobs");
+    expect(result.body).toBe("Amazon (2), Apple, Google, Meta and more");
+    expect(result.data.job_ids).toEqual(["1", "2", "3", "4", "5", "6"]);
+  });
+
+  it("shows all four companies when there are more than four jobs", () => {
+    const jobs = ["Amazon", "Apple", "Amazon", "Google", "Meta"]
+      .map((company, index) => ({ company, title: "SWE", jobId: String(index + 1) }));
+
+    expect(buildNotificationPayload(jobs).body).toBe("Amazon (2), Apple, Google, Meta");
+  });
 });
 
 const MOCK_SUBSCRIPTION: PushSubscription = {
