@@ -10,6 +10,7 @@ import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevFetch } from 
 export const CLASSIFICATION_GATE_VERSION = `${JOB_CLASSIFIER_VERSION}/scope-v13`;
 const MAX_DESCRIPTION_CHARS = 12_000;
 const MAX_SHADOW_CALLS_PER_DAY = 100;
+export const MAX_AUDIT_LISTINGS_PER_CHECKPOINT = 25;
 
 /** First catalog rejection, not a final personalized match decision. */
 export function catalogDecisionReason(job: JobListing, customTitles: readonly string[] = []): string {
@@ -44,6 +45,25 @@ export async function recordSourceDecisions(
   const prior = await db.prepare("SELECT external_id, content_hash, gate_version, reason FROM source_job_decisions WHERE company_id = ?")
     .bind(companyId).all<CachedDecision>();
   const known = new Map((prior.results ?? []).map((row) => [row.external_id, row]));
+  // Large boards can carry megabytes of rejected descriptions. Awaiting writes
+  // for their entire inventory holds six polling snapshots in memory at once.
+  // Fill unseen rows gradually, then rotate through cached rows for source edits.
+  const selected: JobListing[] = [];
+  const selectedIds = new Set<string>();
+  for (const job of jobs) {
+    if (!known.has(job.externalId) && !selectedIds.has(job.externalId)) {
+      selected.push(job);
+      selectedIds.add(job.externalId);
+      if (selected.length === MAX_AUDIT_LISTINGS_PER_CHECKPOINT) break;
+    }
+  }
+  const offset = (Math.floor(Date.now() / 900_000) * MAX_AUDIT_LISTINGS_PER_CHECKPOINT) % jobs.length;
+  for (let index = 0; index < jobs.length && selected.length < MAX_AUDIT_LISTINGS_PER_CHECKPOINT; index++) {
+    const job = jobs[(offset + index) % jobs.length];
+    if (selectedIds.has(job.externalId)) continue;
+    selected.push(job);
+    selectedIds.add(job.externalId);
+  }
   const cached = shadow ? await db.prepare("SELECT cache_key FROM job_classification_shadow WHERE company_id = ?")
     .bind(companyId).all<{ cache_key: string }>() : { results: [] };
   const knownShadow = new Set((cached.results ?? []).map((row) => row.cache_key));
@@ -54,9 +74,9 @@ export async function recordSourceDecisions(
     ? `${CLASSIFICATION_GATE_VERSION}/${await digest(JSON.stringify([...customTitles].sort()))}`
     : CLASSIFICATION_GATE_VERSION;
   // Sequential bounded batches keep hashing and D1 writes within Worker limits.
-  for (let offset = 0; offset < jobs.length; offset += 25) {
+  for (let offset = 0; offset < selected.length; offset += 25) {
     const statements: D1PreparedStatement[] = [];
-    for (const job of jobs.slice(offset, offset + 25)) {
+    for (const job of selected.slice(offset, offset + 25)) {
       const hash = await listingFingerprint(job);
       const old = known.get(job.externalId);
       const unchanged = old?.content_hash === hash && old.gate_version === gateVersion;

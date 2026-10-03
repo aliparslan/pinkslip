@@ -10,7 +10,7 @@ This is not yet a production model classifier rollout.
 Apply migration `0078_classification_shadow.sql` with the normal migration process
 before enabling either mode. Both modes are off unless explicitly configured:
 
-- `JOB_CLASSIFICATION_AUDIT=true`: record the latest catalog decision for observed
+- `JOB_CLASSIFICATION_AUDIT=true`: progressively record catalog decisions for
   source listings, including rejected rows. Unchanged content and decisions do
   not incur repeated writes. No provider calls.
 - `JOB_CLASSIFICATION_SHADOW=true`: also sample listings for Jev. Includes all
@@ -20,8 +20,12 @@ before enabling either mode. Both modes are off unless explicitly configured:
 - `JEV_DAILY_CALL_LIMIT`: integer 0–100; default 100, zero pauses calls. Invalid
   values fail closed. This cannot raise the hard 100-call daily ceiling.
 
-Start with audit on a small deployment/sample before enabling shadow across all
-sources: storing the initial source inventory adds D1 writes and hashing work.
+Audit at most 25 listings per recording checkpoint. Unseen IDs are prioritized;
+after the initial inventory is covered, cached rows rotate on the polling cadence
+to detect content changes. This bounds hashing, writes and time spent holding
+large source snapshots in memory. Large boards need multiple observations before
+the audit covers their full inventory. Ingestion itself still examines the full
+source snapshot. Start with a small sample before enabling shadow across sources.
 The cache records observed catalog decisions; it is not a historical archive or
 the final personalized match decision. Existing human overrides remain separate.
 Source adapters that omit descriptions for rejected rows contribute decision
@@ -64,6 +68,7 @@ statuses, daily reservations, reported token/cost totals, average provider laten
 and the 50 latest completed/failed samples with their posting URLs and answers.
 Each sample preserves the deterministic facts computed from the full source text
 at capture time, so review can compare individual fields with Jev's answers.
+Reason counts cover audited rows and are incomplete during initial cache filling.
 No key or input description is returned. Counts of stored decisions are not a
 live source inventory: sources may remove rows between observations.
 

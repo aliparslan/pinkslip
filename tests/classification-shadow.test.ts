@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
 import { Database } from "bun:sqlite";
-import { catalogDecisionReason, listingFingerprint, recordSourceDecisions, reserveShadowCall, runClassificationShadow, shadowDailyLimit } from "@worker/classification-shadow";
+import { catalogDecisionReason, listingFingerprint, MAX_AUDIT_LISTINGS_PER_CHECKPOINT, recordSourceDecisions, reserveShadowCall, runClassificationShadow, shadowDailyLimit } from "@worker/classification-shadow";
 import { classifyWithJev, JEV_MODEL, JEV_QUESTIONS, type JevFetch } from "@worker/jev";
 import type { JobListing } from "@worker/adapters/types";
 import type { Env } from "@worker/types";
@@ -43,6 +43,18 @@ function providerResponse() {
 }
 
 describe("classification shadow", () => {
+  it("bounds large source snapshots and progressively records unseen listings", async () => {
+    const { db, sqlite, batches } = await fixture();
+    const jobs = Array.from({ length: 60 }, (_, index) => ({ ...job, externalId: `job-${index}` }));
+    await recordSourceDecisions(db, "company", jobs, [], false);
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM source_job_decisions").get()).toEqual({ count: MAX_AUDIT_LISTINGS_PER_CHECKPOINT });
+    expect(batches()).toBe(1);
+    await recordSourceDecisions(db, "company", jobs, [], false);
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM source_job_decisions").get()).toEqual({ count: 50 });
+    await recordSourceDecisions(db, "company", jobs, [], false);
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM source_job_decisions").get()).toEqual({ count: 60 });
+  });
+
   it("records both accepts and rejects and skips unchanged deterministic writes", async () => {
     const { db, sqlite, batches } = await fixture();
     const jobs = [job, { ...job, externalId: "recruiter", title: "Recruiter" }, { ...job, externalId: "london", location: "London, UK" }];
