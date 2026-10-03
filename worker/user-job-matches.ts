@@ -28,7 +28,7 @@ import { isUsJobLocation } from "./us-jobs";
 import { qualificationsEligible, qualificationYearsForProfile } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v18-five-years-doctoral";
+export const MATCHER_VERSION = "profile-v19-doctoral-eligible-cohorts";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -134,9 +134,7 @@ export function evaluateJobForProfile(
   );
   const doctoralInternship = features.qualification_requirements?.doctoral_internship_eligibility;
   const doctoralInternshipDisqualified = careerStage === "internship" && profile.doctoral_student
-    && (profile.doctoral_internships === "only"
-      ? doctoralInternship !== "doctoral_only"
-      : doctoralInternship !== "doctoral_only" && doctoralInternship !== "doctoral_eligible");
+    && doctoralInternship !== "doctoral_only" && doctoralInternship !== "doctoral_eligible";
   const securityClearanceDisqualified = features.requires_security_clearance;
 
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"

@@ -49,10 +49,10 @@ describe("five-year and doctoral matching", () => {
       expect(match("Software Engineer Intern", text, student).plausible).toBe(false);
     }
   });
-  test("explicit mixed cohorts are optional and distinct from PhD-only internships", () => {
+  test("includes explicit mixed cohorts even when an older client requests the former exclusive mode", () => {
     for (const text of ["Requirements\nCurrently pursuing a BS/MS/PhD in computer science.", "Requirements\nCurrently enrolled in a bachelor's, master's or PhD program."]) {
       expect(match("Software Engineer Intern", text, student).plausible).toBe(true);
-      expect(match("Software Engineer Intern", text, { ...student, doctoral_internships: "only" }).plausible).toBe(false);
+      expect(match("Software Engineer Intern", text, { ...student, doctoral_internships: "only" }).plausible).toBe(true);
     }
     for (const text of ["Requirements\nCurrently pursuing a PhD.", "Currently pursuing a PhD.", "Currently enrolled in a doctoral program.", "Must be a doctoral student."]) {
       expect(match("Software Engineer Intern", text, { ...student, doctoral_internships: "only" }).plausible).toBe(true);
@@ -74,6 +74,7 @@ describe("five-year and doctoral matching", () => {
   test("existing users retain their explicit cap and doctoral preferences normalize safely", () => {
     expect(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, version: 5, max_required_years: 3 })).toMatchObject({ max_required_years: 3, doctoral_student: false });
     expect(normalizeSearchProfile({ version: 5 })).toMatchObject({ max_required_years: 3, doctoral_student: false });
+    expect(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, doctoral_internships: "only" })).toMatchObject({ doctoral_internships: "eligible" });
     expect(normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, doctoral_student: "true", doctoral_internships: "invalid" })).toMatchObject({ doctoral_student: false, doctoral_internships: "eligible" });
   });
   test("graduate vacancies are not internships because a shared application policy mentions them", () => {

@@ -206,7 +206,8 @@ export interface SearchProfile {
   years_experience: number;
   highest_education: EducationPreference;
   doctoral_student: boolean;
-  doctoral_internships: "eligible" | "only";
+  /** Retained for older clients; all doctoral searches include eligible cohorts. */
+  doctoral_internships: "eligible";
   /** null follows the user's experience; a number permits an explicit stretch. */
   max_required_years: number | null;
   include_unspecified_experience: boolean;
@@ -325,7 +326,7 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
       ? input.highest_education as EducationPreference
       : "unspecified",
     doctoral_student: input.doctoral_student === true,
-    doctoral_internships: input.doctoral_internships === "only" ? "only" : "eligible",
+    doctoral_internships: "eligible",
     max_required_years: input.max_required_years === null
       ? null
       : typeof input.max_required_years === "number" && Number.isFinite(input.max_required_years)

@@ -73,7 +73,7 @@ stacking multiple tones or sizes is not supported.
   Call site: `SearchProfileFields.svelte`, used in onboarding and Job preferences.
   Review or expire by 2026-10-17. The catalog permits up to five required years;
   doctoral enrollment and completed education are separate controls. Doctoral
-  internship scope uses the existing select composition.
+  searches include every explicitly eligible internship cohort.
 
 - **Web Jobs/Library master–detail workspace** — Owner: Web experience.
   Reason: the persistent desktop Jobs/Library/You primary sidebar,

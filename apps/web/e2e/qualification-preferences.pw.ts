@@ -40,11 +40,10 @@ test("doctoral enrollment and five-year ceiling save independently of completed 
   await page.getByLabel("Highest completed education", { exact: true }).selectOption("master");
   await page.getByLabel("Experience requirements to show", { exact: true }).selectOption("5");
   await page.getByRole("switch", { name: "Currently pursuing a PhD", exact: true }).click();
-  await page.getByLabel("PhD internships to show", { exact: true }).selectOption("only");
-  await expect.poll(() => updates.at(-1)).toMatchObject({ highest_education: "master", max_required_years: 5, doctoral_student: true, doctoral_internships: "only" });
+  await expect.poll(() => updates.at(-1)).toMatchObject({ highest_education: "master", max_required_years: 5, doctoral_student: true, doctoral_internships: "eligible" });
   await page.reload();
   await expect(page.getByRole("switch", { name: "Currently pursuing a PhD", exact: true })).toBeChecked();
-  await expect(page.getByLabel("PhD internships to show", { exact: true })).toHaveValue("only");
+  await expect(page.getByLabel("PhD internships to show", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Experience requirements to show", { exact: true })).toHaveValue("5");
   await expect(page.getByLabel("Highest completed education", { exact: true })).toHaveValue("master");
 });

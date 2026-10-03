@@ -366,16 +366,6 @@
         onCheckedChange={(value) => profile = { ...profile, doctoral_student: value }}
         aria-label="Currently pursuing a PhD" />
     </div>
-    {#if profile.doctoral_student}
-      <div class="subfield stack-sm">
-        <label for="doctoral-internships" class="field-label">PhD internships to show</label>
-        <select id="doctoral-internships" class="input-field" value={profile.doctoral_internships}
-          onchange={(event) => profile = { ...profile, doctoral_internships: event.currentTarget.value === "only" ? "only" : "eligible" }}>
-          <option value="eligible">PhD-only and internships explicitly accepting PhD students</option>
-          <option value="only">Only internships restricted to PhD students</option>
-        </select>
-      </div>
-    {/if}
   </section>
 {/if}
 

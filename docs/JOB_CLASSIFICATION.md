@@ -116,11 +116,33 @@ Mandatory completed degrees filter only when users select their education.
 Preferred and contextual mentions do not gate, explicit equivalent-experience
 routes remain available, and unstated education stays included. Current
 enrollment is distinct from a completed credential and is not inferred from the
-completed-education preference. These controls narrow the existing catalog:
-the US, early-career, three-year, doctorate-only and clearance policies remain.
-No extra model calls occur when users change preferences. Additional Jev shadow
+completed-education preference. No extra model calls occur when users change
+preferences. Additional Jev shadow
 questions support comparison only; independent lowest-degree and lowest-years
 answers cannot safely represent conditional routes and never drive matching.
+
+
+## Five-year catalog and doctoral eligibility
+
+Apply `0080_five_years_doctoral_matches.sql` before classifier v24 and matcher
+v19. The catalog permits numeric minimums through five years, including senior
+individual-contributor titles only when their stated experience is within that
+limit. Staff, management, non-US, stale and mandatory-clearance exclusions remain.
+The migration persists `user_job_matches.required_years` so feed labels and year
+filters use the complete qualification route available to that user.
+
+Profile v6 distinguishes `doctoral_student` from highest completed education.
+Completed-doctorate jobs require a completed doctorate; doctoral-enrollment jobs
+require current enrollment. Doctoral students selecting internships see both
+PhD-only internships and mixed cohorts that explicitly accept PhD students.
+Ordinary internships and postings without doctoral-eligibility evidence remain
+excluded from that search. The former exclusive-mode preference is normalized to
+`eligible` for older clients; there is no separate PhD-only restriction.
+
+Existing saved experience caps are preserved, while new profile defaults allow
+up to five years. Feed matching and notification delivery share the same policy
+and cached qualification facts. Jev remains a disabled comparison path in the
+production configuration; this expansion adds no model calls.
 
 ## Startup sources
 
