@@ -29,7 +29,7 @@ import { isUsJobLocation } from "./us-jobs";
 import { qualificationsEligible } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v16-education-experience";
+export const MATCHER_VERSION = "profile-v17-education-experience";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {

@@ -104,6 +104,18 @@ export function extractQualificationRequirements(
         path.max_years = next.max_years;
       }
     }
+    // "7 years in security or equivalent experience" changes the kind of
+    // experience, not the number. An unquantified equivalent route cannot
+    // silently erase the stated numeric minimum.
+    for (let index = 1; index < paths.length; index++) {
+      const path = paths[index], previous = paths[index - 1];
+      if (path.education === null && path.min_years === null
+        && previous.education === null && previous.min_years !== null
+        && /^equivalent\b/.test(branches[index].trim())) {
+        path.min_years = previous.min_years;
+        path.max_years = previous.max_years;
+      }
+    }
     if (paths.some((path) => path.min_years !== null)) experienceSpecified = true;
     if (paths.some((path) => path.education !== null || path.min_years !== null)) {
       const previous = groups.at(-1);
@@ -111,6 +123,16 @@ export function extractQualificationRequirements(
         && previous?.some((path) => path.education !== null)) {
         previous.push(...paths);
       } else groups.push(paths);
+    }
+    // A trailing ", with 5 years" applies to the qualification as a whole,
+    // including the degree route before an equivalent-experience alternative.
+    const sharedYears = text.match(/,\s*(?:with|plus|and)\s+(\d{1,2}\b[^;]*)/);
+    if (sharedYears) {
+      const years = parseYears(sharedYears[1]);
+      if (years.min !== null) {
+        groups.push([{ education: null, min_years: years.min, max_years: years.max }]);
+        experienceSpecified = true;
+      }
     }
   }
   return { groups, experience_specified: experienceSpecified };

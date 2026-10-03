@@ -95,8 +95,8 @@ disagreements; it does not establish a population-wide accuracy rate.
 
 ## Education and experience preferences
 
-Apply `0079_qualification_requirements.sql` before deploying classifier v22 and
-matcher v16. Qualification groups are extracted deterministically once per
+Apply `0079_qualification_requirements.sql` before deploying classifier v23 and
+matcher v17. Qualification groups are extracted deterministically once per
 listing and cached in `job_features.qualification_requirements_json`. All groups
 must be satisfied, but any complete route in each group can qualify. For
 `bachelor's + 4 years OR master's + 2 years`, the catalog sees the two-year route;

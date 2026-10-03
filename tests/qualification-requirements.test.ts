@@ -140,6 +140,22 @@ describe("education and experience preferences", () => {
     expect(matched(description, { highest_education: "master", max_required_years: 3 })).toBe(true);
     expect(matched(description, { highest_education: "bachelor", max_required_years: 3 })).toBe(false);
   });
+  test("equivalent types of experience do not waive numeric minima", () => {
+    for (const description of ["7+ years of security/IT compliance or equivalent experience.", "10 years of experience as an architect or equivalent experience in a customer-facing role."]) {
+      expect(matched(description)).toBe(false);
+      expect(parseExperienceRequirement("Software Engineer", description).min).toBeGreaterThan(3);
+    }
+  });
+  test("trailing experience applies to both degree and equivalent-experience routes", () => {
+    const description = "Associate's degree in a technical field or equivalent practical experience, with 5-10 years of hands-on experience.";
+    expect(parseExperienceRequirement("Software Engineer", description).min).toBe(5);
+    expect(matched(description, { highest_education: "master" })).toBe(false);
+  });
+  test("minimum requirements resets a preferred section", () => {
+    const description = "Preferred qualifications are useful but not required.\nMinimum requirements\n6+ years of experience in solutions engineering.";
+    expect(parseExperienceRequirement("Software Engineer", description).min).toBe(6);
+    expect(matched(description)).toBe(false);
+  });
   test("cached pathway facts survive storage without needing the description", () => {
     const requirements = parseQualificationRequirements("<h2>Requirements</h2><li>Bachelor's + 3 years OR master's + 1 year.</li>");
     expect(parseStoredQualifications(JSON.stringify(requirements))).toEqual(requirements);

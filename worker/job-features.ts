@@ -21,7 +21,7 @@ import {
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v22-education-experience";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v23-education-experience";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -326,7 +326,7 @@ interface QualificationClause {
 const PREFERRED_QUALIFICATION_HEADING =
   /^(?:preferred(?: skills(?:\s*(?:and|&)\s*experience)?| qualifications?| experience)?|(?:desired|desirable) (?:qualifications?|skills|experience)|ideally\b|nice[- ]to[- ]haves?|bonus qualifications?|what (?:will|would) set you apart|ways? to stand out)\b/;
 const REQUIRED_QUALIFICATION_HEADING =
-  /^(?:(?:basic|required|minimum|must-have) (?:qualifications?|skills|experience)|requirements?|what (?:you(?:'ll)? need|we(?:'re| are) looking for)|who you are|you are a good fit if)\b/;
+  /^(?:(?:basic|required|minimum|must-have) (?:qualifications?|requirements?|skills|experience)|requirements?|what (?:you(?:'ll)? need|we(?:'re| are) looking for)|who you are|you are a good fit if)\b/;
 const NON_QUALIFICATION_HEADING =
   /^(?:about (?:the role|us|you)|responsibilities|what you(?:'ll| will) do|the opportunity|benefits|compensation|equal opportunity|our company|who we are)\b/;
 
