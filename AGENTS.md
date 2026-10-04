@@ -25,3 +25,8 @@ inline visual variant just because it is faster to generate.
   testing materially clearer—state that tradeoff in the handoff.
 - Run `bun run check`, `bun test`, and both frontend builds after material UI or
   architecture changes.
+
+## Repository workflow
+
+Do not create pull requests. Commit and push authorized changes directly to
+`main` under the repository owner's configured identity.
