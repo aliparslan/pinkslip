@@ -21,3 +21,34 @@
 
 /manifest.json
   Cache-Control: public, max-age=0, must-revalidate
+
+# Personal app routes are not public search landing pages.
+/feed
+  X-Robots-Tag: noindex, follow
+
+/you/*
+  X-Robots-Tag: noindex, follow
+
+/library/*
+  X-Robots-Tag: noindex, follow
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+
+/jobs/*
+  X-Robots-Tag: noindex, follow
+
+/resume/*
+  X-Robots-Tag: noindex, follow
+
+/you
+  X-Robots-Tag: noindex, follow
+
+/library
+  X-Robots-Tag: noindex, follow
+
+/admin
+  X-Robots-Tag: noindex, nofollow
+
+/tailor/*
+  X-Robots-Tag: noindex, follow

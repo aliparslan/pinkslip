@@ -75,6 +75,7 @@ app.use(
 app.use("/*", async (c, next) => {
   const pathname = new URL(c.req.url).pathname;
   await next();
+  if (pathname.startsWith("/api/")) c.header("X-Robots-Tag", "noindex, nofollow");
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   c.header("X-Frame-Options", "DENY");

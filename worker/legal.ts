@@ -33,6 +33,7 @@ a { color: LinkText; text-underline-offset: 0.16em; }
 `;
 
 function page(title: string, description: string, content: string): string {
+  const path = title === "Privacy policy" ? "/privacy" : "/support";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -40,6 +41,7 @@ function page(title: string, description: string, content: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${description}">
   <title>${title} · Pinkslip</title>
+  <link rel="canonical" href="https://pinkslip.work${path}">
   <link rel="stylesheet" href="/legal.css">
 </head>
 <body>

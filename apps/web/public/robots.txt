@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Personal app pages use X-Robots-Tag: noindex. Allow crawling so crawlers
+# can read that directive; authentication protects personal data.
+Sitemap: https://pinkslip.work/sitemap.xml
