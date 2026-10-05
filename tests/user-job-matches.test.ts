@@ -7,9 +7,12 @@ import {
   JOB_CLASSIFIER_VERSION,
 } from "@worker/job-features";
 import {
+  catchUpNewJobMatches,
   evaluateJobForProfile,
   ensureUserEvergreenMatchesReady,
   ensureUserJobMatches,
+  ensureUserJobMatchesReady,
+  matchJobsForNotifiableProfiles,
   MATCHER_VERSION,
   prepareJobsForMatching,
 } from "@worker/user-job-matches";
@@ -158,6 +161,7 @@ function createMatchingSchema(sqlite: Database) {
       onboarding_version INTEGER NOT NULL,
       onboarding_completed_at TEXT,
       match_cursor_seen_at TEXT,
+      match_head_seen_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -455,6 +459,131 @@ describe("database feature freshness", () => {
     expect(featureLoads.map(({ bindings }) => bindings.length)).toEqual([76, 76, 2]);
     expect(sqlite.query("SELECT COUNT(*) AS count FROM job_features").get())
       .toEqual({ count: 151 });
+    sqlite.close();
+  });
+});
+
+describe("notification-scoped matching", () => {
+  const T0 = "2026-10-04T12:00:00.000Z";
+  const at = (minutes: number) => new Date(Date.parse(T0) + minutes * 60 * 1000).toISOString();
+
+  function createNotificationSchema(sqlite: Database) {
+    createMatchingSchema(sqlite);
+    sqlite.exec("CREATE TABLE push_subscriptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL)");
+  }
+
+  function seedMatchingProfile(
+    sqlite: Database,
+    userId: string,
+    options: { notifications?: boolean; headSeenAt?: string | null } = {}
+  ) {
+    const profile = normalizeSearchProfile({
+      ...DEFAULT_SEARCH_PROFILE,
+      onboarding_version: ONBOARDING_VERSION,
+      onboarding_completed_at: T0,
+      target_levels: ["early_career"],
+      location_ids: [],
+    });
+    sqlite.query(
+      `INSERT INTO user_search_profiles (
+         user_id, profile_json, notifications_enabled, onboarding_version,
+         onboarding_completed_at, match_cursor_seen_at, match_head_seen_at,
+         created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`
+    ).run(
+      userId,
+      JSON.stringify(profile),
+      options.notifications ? 1 : 0,
+      ONBOARDING_VERSION,
+      T0,
+      options.headSeenAt === undefined ? T0 : options.headSeenAt,
+      T0,
+      T0
+    );
+  }
+
+  function seedNewJob(sqlite: Database, id: string, firstSeenAt: string) {
+    sqlite.query("INSERT OR IGNORE INTO companies (id, enabled) VALUES ('company-1', 1)").run();
+    sqlite.query(
+      `INSERT INTO jobs (
+         id, company_id, external_id, title, url, location, department,
+         posted_at, first_seen_at, description, salary, closed_at, evergreen
+       ) VALUES (?, 'company-1', ?, 'Software Engineer', ?, 'Remote - US',
+         'Engineering', ?, ?, 'Build useful software.', NULL, NULL, 0)`
+    ).run(id, id, `https://example.com/jobs/${id}`, new Date().toISOString(), firstSeenAt);
+  }
+
+  const matchedJobs = (sqlite: Database, userId: string) =>
+    (sqlite.query(
+      "SELECT job_id FROM user_job_matches WHERE user_id = ? ORDER BY job_id"
+    ).all(userId) as Array<{ job_id: string }>).map((row) => row.job_id);
+
+  it("evaluates new jobs only for profiles that can receive a push", async () => {
+    const { sqlite, db } = sqliteD1();
+    createNotificationSchema(sqlite);
+    seedMatchingProfile(sqlite, "subscribed", { notifications: true });
+    seedMatchingProfile(sqlite, "guest");
+    seedMatchingProfile(sqlite, "muted", { notifications: true });
+    seedMatchingProfile(sqlite, "no-device", { notifications: true });
+    sqlite.run(`INSERT INTO push_subscriptions VALUES ('s1', 'subscribed'), ('s2', 'muted')`);
+    sqlite.run(`INSERT INTO user_notification_settings (user_id, enabled, push_enabled) VALUES ('muted', 1, 0)`);
+
+    await matchJobsForNotifiableProfiles(db, [{ jobId: "j1", listing: makeListing("j1") }]);
+
+    expect(matchedJobs(sqlite, "subscribed")).toEqual(["j1"]);
+    expect(matchedJobs(sqlite, "guest")).toEqual([]);
+    expect(matchedJobs(sqlite, "muted")).toEqual([]);
+    expect(matchedJobs(sqlite, "no-device")).toEqual([]);
+    sqlite.close();
+  });
+
+  it("catches a feed up on jobs discovered after its watermark", async () => {
+    const { sqlite, db } = sqliteD1();
+    createNotificationSchema(sqlite);
+    seedMatchingProfile(sqlite, "guest");
+    seedNewJob(sqlite, "before", at(-60));
+    // Same poll as the watermark: re-evaluated, never skipped.
+    seedNewJob(sqlite, "boundary", T0);
+    seedNewJob(sqlite, "after-1", at(1));
+    seedNewJob(sqlite, "after-2", at(2));
+
+    expect(await catchUpNewJobMatches(db, "guest")).toBe(3);
+    expect(matchedJobs(sqlite, "guest")).toEqual(["after-1", "after-2", "boundary"]);
+    expect(sqlite.query(
+      "SELECT match_head_seen_at FROM user_search_profiles WHERE user_id = 'guest'"
+    ).get()).toEqual({ match_head_seen_at: at(2) });
+
+    seedNewJob(sqlite, "after-3", at(3));
+    expect(await catchUpNewJobMatches(db, "guest")).toBe(2);
+    expect(matchedJobs(sqlite, "guest")).toContain("after-3");
+    sqlite.close();
+  });
+
+  it("initializes a missing watermark from the newest job", async () => {
+    const { sqlite, db } = sqliteD1();
+    createNotificationSchema(sqlite);
+    seedMatchingProfile(sqlite, "fresh", { headSeenAt: null });
+    seedNewJob(sqlite, "older", at(-5));
+    seedNewJob(sqlite, "newest", at(5));
+
+    await catchUpNewJobMatches(db, "fresh");
+
+    expect(matchedJobs(sqlite, "fresh")).toEqual(["newest", "older"]);
+    expect(sqlite.query(
+      "SELECT match_head_seen_at FROM user_search_profiles WHERE user_id = 'fresh'"
+    ).get()).toEqual({ match_head_seen_at: at(5) });
+    sqlite.close();
+  });
+
+  it("still surfaces new jobs when the feed already has enough matches", async () => {
+    const { sqlite, db } = sqliteD1();
+    createNotificationSchema(sqlite);
+    seedMatchingProfile(sqlite, "guest");
+    seedNewJob(sqlite, "after", at(1));
+
+    await ensureUserJobMatchesReady(db, "guest", 0);
+
+    expect(matchedJobs(sqlite, "guest")).toEqual(["after"]);
     sqlite.close();
   });
 });

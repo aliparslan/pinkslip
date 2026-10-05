@@ -8,7 +8,7 @@ import type { Env, CompanyRow } from "./types";
 import { getAdapter, getCompanySourceType } from "./ats";
 import {
   advanceBacklogMatching,
-  matchJobsForAllProfiles,
+  matchJobsForNotifiableProfiles,
 } from "./user-job-matches";
 import {
   JOB_CLASSIFIER_VERSION,
@@ -1028,7 +1028,7 @@ function hasStoredJobFeatures(
 
 export interface NotificationBacklogDependencies {
   load: (db: D1Database, limit: number) => Promise<NotificationMatchJob[]>;
-  match: typeof matchJobsForAllProfiles;
+  match: typeof matchJobsForNotifiableProfiles;
   createCandidates: typeof createNotificationCandidates;
   clear: (db: D1Database, jobIds: string[]) => Promise<void>;
 }
@@ -1113,7 +1113,7 @@ async function clearNotificationMatchBacklog(
 
 const notificationBacklogDependencies: NotificationBacklogDependencies = {
   load: loadNotificationMatchBacklog,
-  match: matchJobsForAllProfiles,
+  match: matchJobsForNotifiableProfiles,
   createCandidates: createNotificationCandidates,
   clear: clearNotificationMatchBacklog,
 };

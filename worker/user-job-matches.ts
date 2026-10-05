@@ -336,7 +336,7 @@ async function removeStaleMatches(db: D1Database, userId: string) {
   ).bind(userId, MATCHER_VERSION).run();
   if ((cleanup.meta.changes ?? 0) > 0) {
     await db.prepare(
-      "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"
+      "UPDATE user_search_profiles SET match_cursor_seen_at = NULL, match_head_seen_at = NULL WHERE user_id = ?"
     ).bind(userId).run();
   }
 }
@@ -377,6 +377,16 @@ export async function ensureUserJobMatches(db: D1Database, userId: string, jobId
         "UPDATE user_search_profiles SET match_cursor_seen_at = ?, updated_at = updated_at WHERE user_id = ?"
       ).bind(oldest, userId).run();
     }
+    // A profile's first warm-up starts from the newest job, so everything
+    // after that point is left to catchUpNewJobMatches.
+    const newest = rows[0]?.first_seen_at;
+    if (newest) {
+      await db.prepare(
+        `UPDATE user_search_profiles
+         SET match_head_seen_at = ?, updated_at = updated_at
+         WHERE user_id = ? AND match_head_seen_at IS NULL`
+      ).bind(newest, userId).run();
+    }
   }
   return matches;
 }
@@ -388,6 +398,7 @@ export async function ensureUserJobMatchesReady(
   maxBatches = 4
 ) {
   await removeStaleMatches(db, userId);
+  await catchUpNewJobMatches(db, userId);
   for (let batch = 0; batch < maxBatches; batch++) {
     const count = await db.prepare(
       `SELECT COUNT(*) AS count
@@ -418,6 +429,7 @@ export async function ensureUserEvergreenMatchesReady(
   userId: string
 ) {
   await removeStaleMatches(db, userId);
+  await catchUpNewJobMatches(db, userId);
   const existing = await db.prepare(
     `SELECT COUNT(*) AS count
      FROM user_job_matches ujm
@@ -560,16 +572,18 @@ export async function matchListingsForUser(
   return matches;
 }
 
-export async function matchJobsForAllProfiles(
+async function matchJobsForProfiles(
   db: D1Database,
-  jobs: JobMatchInput[]
+  jobs: JobMatchInput[],
+  profileFilter: string
 ) {
   if (jobs.length === 0) return;
   const preparedJobs = prepareJobsForMatching(jobs);
   const users = await db.prepare(
-    `SELECT user_id, profile_json, notifications_enabled,
-            onboarding_version, onboarding_completed_at
-     FROM user_search_profiles`
+    `SELECT usp.user_id, usp.profile_json, usp.notifications_enabled,
+            usp.onboarding_version, usp.onboarding_completed_at
+     FROM user_search_profiles usp
+     ${profileFilter}`
   ).all<SearchProfileRow & { user_id: string }>();
   for (const row of users.results ?? []) {
     const profile = searchProfileFromRow(row);
@@ -578,6 +592,105 @@ export async function matchJobsForAllProfiles(
     );
     await storeMatches(db, row.user_id, matches);
   }
+}
+
+/**
+ * Rare admin paths (approving a reviewed job) whose jobs are older than every
+ * feed's catch-up watermark, so they must still reach every profile directly.
+ */
+export async function matchJobsForAllProfiles(
+  db: D1Database,
+  jobs: JobMatchInput[]
+) {
+  await matchJobsForProfiles(db, jobs, "");
+}
+
+/**
+ * New-job matching ahead of notification delivery. Only profiles that could
+ * actually receive a push are evaluated (the same rules as
+ * createNotificationCandidates); guests and users without alerts pick the
+ * jobs up through catchUpNewJobMatches when they next open their feed.
+ */
+export async function matchJobsForNotifiableProfiles(
+  db: D1Database,
+  jobs: JobMatchInput[]
+) {
+  await matchJobsForProfiles(db, jobs, `
+     LEFT JOIN user_notification_settings uns ON uns.user_id = usp.user_id
+     WHERE COALESCE(uns.enabled, usp.notifications_enabled) = 1
+       AND COALESCE(uns.push_enabled, 1) = 1
+       AND EXISTS (SELECT 1 FROM push_subscriptions ps WHERE ps.user_id = usp.user_id)`);
+}
+
+/**
+ * Evaluates jobs discovered after the profile's head watermark, oldest first,
+ * then advances the watermark. Jobs from one poll share a first_seen_at, so
+ * the scan is inclusive of the watermark: the boundary group is re-evaluated
+ * (idempotently) rather than ever being split across batches and skipped.
+ */
+export async function catchUpNewJobMatches(
+  db: D1Database,
+  userId: string,
+  maxBatches = 4
+): Promise<number> {
+  let evaluated = 0;
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const profile = await db.prepare(
+      "SELECT match_head_seen_at FROM user_search_profiles WHERE user_id = ?"
+    ).bind(userId).first<{ match_head_seen_at: string | null }>();
+    if (!profile) return evaluated;
+    if (!profile.match_head_seen_at) {
+      // Never matched, or rewritten by a profile save. Every reset clears the
+      // backward cursor too, so this warm-up starts from the newest job and
+      // sets the watermark; the feed's early return on 25 existing matches
+      // must not leave a profile without one.
+      const matches = await ensureUserJobMatches(db, userId);
+      return evaluated + matches.length;
+    }
+
+    const candidates = await db.prepare(
+      `SELECT j.id, j.first_seen_at, jf.classifier_version,
+              jf.requires_advanced_degree, jf.requires_security_clearance
+       FROM jobs j
+       JOIN companies c ON c.id = j.company_id
+       LEFT JOIN job_features jf ON jf.job_id = j.id
+       WHERE j.first_seen_at >= ?
+         AND c.enabled = 1
+         AND j.closed_at IS NULL
+         AND j.description IS NOT NULL
+       ORDER BY j.first_seen_at ASC
+       LIMIT ?`
+    ).bind(profile.match_head_seen_at, MATCH_WARM_BATCH_SIZE)
+      .all<CandidateFeatureState & { first_seen_at: string }>();
+    const rows = candidates.results ?? [];
+    const newest = rows[rows.length - 1]?.first_seen_at;
+    if (!newest) return evaluated;
+
+    await ensureCurrentCandidateFeatures(db, rows);
+    const state = await loadUserPreferenceState(db, userId);
+    const matchable = (await loadMatchableRows(db, userId, rows.map((row) => row.id)))
+      .results?.filter(hasCurrentStoredJobFeatures) ?? [];
+    await storeMatches(db, userId, matchable.map((row) =>
+      evaluateJobForProfile(
+        row.id,
+        rowToListing(row),
+        storedJobFeaturesFromRow(row),
+        state.search_profile,
+        row.evergreen === 1
+      )
+    ));
+    evaluated += rows.length;
+
+    await db.prepare(
+      `UPDATE user_search_profiles
+       SET match_head_seen_at = ?, updated_at = updated_at
+       WHERE user_id = ? AND match_head_seen_at = ?`
+    ).bind(newest, userId, profile.match_head_seen_at).run();
+    if (rows.length < MATCH_WARM_BATCH_SIZE || newest === profile.match_head_seen_at) {
+      return evaluated;
+    }
+  }
+  return evaluated;
 }
 
 export async function invalidateJobMatches(db: D1Database, jobId: string) {

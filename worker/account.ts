@@ -273,6 +273,7 @@ export async function mergeGuestDataIntoAccount(
        onboarding_version = excluded.onboarding_version,
        onboarding_completed_at = excluded.onboarding_completed_at,
        match_cursor_seen_at = NULL,
+       match_head_seen_at = NULL,
        updated_at = excluded.updated_at
      WHERE datetime(excluded.updated_at) > datetime(user_search_profiles.updated_at)`
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
@@ -281,7 +282,7 @@ export async function mergeGuestDataIntoAccount(
     .run()
     .catch(() => undefined);
   await db.prepare(
-    "UPDATE user_search_profiles SET match_cursor_seen_at = NULL WHERE user_id = ?"
+    "UPDATE user_search_profiles SET match_cursor_seen_at = NULL, match_head_seen_at = NULL WHERE user_id = ?"
   ).bind(targetUserId).run().catch(() => undefined);
 
   await db.batch([

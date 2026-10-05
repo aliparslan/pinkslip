@@ -126,6 +126,7 @@ async function persistTypedProfile(db: D1Database, userId: string, profile: Sear
        onboarding_version = excluded.onboarding_version,
        onboarding_completed_at = excluded.onboarding_completed_at,
        match_cursor_seen_at = NULL,
+       match_head_seen_at = NULL,
        updated_at = excluded.updated_at`
   ).bind(
     userId,
