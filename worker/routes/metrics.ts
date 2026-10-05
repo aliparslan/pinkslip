@@ -7,6 +7,8 @@ import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 import { hasTable } from "../db-schema";
 import { shadowDailyLimit } from "../classification-shadow";
 import { aiBudgetStatus } from "../ai-budget";
+import { compareClassification, type Comparison, type JevAnswers } from "../classification-comparison";
+import type { JobFeatures } from "../job-features";
 import {
   evaluateTailoringQuality,
   type TailoringQualitySnapshot,
@@ -44,6 +46,115 @@ metrics.get("/classification", async (c) => {
     reasons: reasons.results ?? [], statuses: statuses.results ?? [], daily: daily.results ?? [],
     usage, reviews: reviews.results ?? [],
   });
+});
+
+/** Newest compared samples scanned per request; disagreements are a small slice. */
+const COMPARISON_SCAN_LIMIT = 1000;
+const REVIEW_VERDICTS = new Set(["rules", "jev", "neither", "unclear"]);
+
+interface ComparedRow {
+  cache_key: string;
+  company: string;
+  title: string | null;
+  location: string | null;
+  job_url: string | null;
+  sampled_reason: string;
+  baseline_json: string;
+  answers_json: string;
+  truncated: number;
+  completed_at: string;
+  verdict: string | null;
+  note: string | null;
+  reviewed_at: string | null;
+}
+
+function parseJson<T>(value: string, fallback: T): T {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+metrics.get("/classification/disagreements", async (c) => {
+  const db = c.env.DB;
+  if (!await hasTable(db, "classification_reviews")) {
+    return c.json({ available: false });
+  }
+  const [rows, spend] = await Promise.all([
+    db.prepare(`SELECT s.cache_key, c.name AS company, d.title, d.location, d.job_url,
+        s.reason AS sampled_reason, s.baseline_json, s.answers_json, s.truncated, s.completed_at,
+        r.verdict, r.note, r.reviewed_at
+      FROM job_classification_shadow s
+      JOIN companies c ON c.id = s.company_id
+      LEFT JOIN source_job_decisions d ON d.company_id = s.company_id AND d.external_id = s.external_id
+      LEFT JOIN classification_reviews r ON r.cache_key = s.cache_key
+      WHERE s.status = 'complete' AND s.answers_json IS NOT NULL
+      ORDER BY s.completed_at DESC
+      LIMIT ?`).bind(COMPARISON_SCAN_LIMIT).all<ComparedRow>(),
+    aiBudgetStatus(c.env),
+  ]);
+
+  const counts: Record<Comparison["kind"], number> = {
+    agree: 0, rules_only: 0, jev_only: 0, jev_unsure: 0, not_comparable: 0,
+  };
+  const verdicts: Record<string, number> = { rules: 0, jev: 0, neither: 0, unclear: 0 };
+  const disagreements = [];
+  for (const row of rows.results ?? []) {
+    const comparison = compareClassification(
+      row.sampled_reason,
+      parseJson<Partial<JobFeatures>>(row.baseline_json, {}),
+      parseJson<JevAnswers>(row.answers_json, {})
+    );
+    counts[comparison.kind]++;
+    if (comparison.kind !== "rules_only" && comparison.kind !== "jev_only") continue;
+    if (row.verdict) verdicts[row.verdict] = (verdicts[row.verdict] ?? 0) + 1;
+    disagreements.push({
+      cache_key: row.cache_key,
+      company: row.company,
+      title: row.title,
+      location: row.location,
+      job_url: row.job_url,
+      truncated: row.truncated === 1,
+      completed_at: row.completed_at,
+      ...comparison,
+      review: row.verdict ? { verdict: row.verdict, note: row.note, reviewed_at: row.reviewed_at } : null,
+    });
+  }
+
+  return c.json({
+    available: true,
+    scanned: rows.results?.length ?? 0,
+    counts,
+    verdicts,
+    month_spent_usd: spend.spentUsd,
+    monthly_budget_usd: spend.budgetUsd,
+    disagreements,
+  });
+});
+
+metrics.put("/classification/reviews/:cacheKey", async (c) => {
+  const body = await c.req.json<{ verdict?: unknown; note?: unknown }>().catch(() => ({}) as { verdict?: unknown; note?: unknown });
+  if (typeof body.verdict !== "string" || !REVIEW_VERDICTS.has(body.verdict)) {
+    return c.json({ error: "verdict must be rules, jev, neither or unclear" }, 400);
+  }
+  const note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 1000) : null;
+  const reviewedAt = new Date().toISOString();
+  const saved = await c.env.DB.prepare(`INSERT INTO classification_reviews (cache_key, verdict, note, reviewed_by, reviewed_at)
+      SELECT cache_key, ?, ?, ?, ? FROM job_classification_shadow WHERE cache_key = ?
+      ON CONFLICT(cache_key) DO UPDATE SET verdict = excluded.verdict, note = excluded.note,
+        reviewed_by = excluded.reviewed_by, reviewed_at = excluded.reviewed_at
+      RETURNING cache_key`)
+    .bind(body.verdict, note, c.get("userId"), reviewedAt, c.req.param("cacheKey"))
+    .first();
+  if (!saved) return c.json({ error: "Comparison not found" }, 404);
+  return c.json({ verdict: body.verdict, note, reviewed_at: reviewedAt });
+});
+
+metrics.delete("/classification/reviews/:cacheKey", async (c) => {
+  await c.env.DB.prepare("DELETE FROM classification_reviews WHERE cache_key = ?")
+    .bind(c.req.param("cacheKey")).run();
+  return c.body(null, 204);
 });
 
 interface NotificationMetricRow {
