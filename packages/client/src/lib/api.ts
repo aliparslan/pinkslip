@@ -402,6 +402,23 @@ export interface FetchRun {
   duration_ms: number | null;
 }
 
+export interface LatencySummary {
+  p50_minutes: number | null;
+  p95_minutes: number | null;
+  samples: number;
+}
+
+export interface PollTierLatency {
+  tier: 1 | 2;
+  mode: "cron" | "queue";
+  target_interval_minutes: number;
+  sources: number;
+  overdue_sources: number;
+  poll_gap: LatencySummary;
+  alert_delay: LatencySummary;
+  estimated_p95_minutes: number | null;
+}
+
 export interface VerifyCompanyResult {
   ok: boolean;
   error?: string;
@@ -802,6 +819,7 @@ export const api = {
   },
   runs: {
     list: (limit = 50) => request<{ runs: FetchRun[] }>(`/runs?limit=${limit}`),
+    latency: () => request<{ generated_at: string; tiers: PollTierLatency[] }>("/runs/latency"),
   },
   ops: {
     refreshAll: (limit?: number) =>

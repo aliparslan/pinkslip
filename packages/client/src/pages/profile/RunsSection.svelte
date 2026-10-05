@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type FetchRun } from "../../lib/api";
+  import { api, type FetchRun, type PollTierLatency } from "../../lib/api";
   import { errorMessage } from "../../lib/utils";
   import Spinner from "../../components/Spinner.svelte";
   import EmptyState from "../../components/EmptyState.svelte";
@@ -27,6 +27,7 @@
   let loading = $state(true);
   let loadError: string | null = $state(null);
   let runs: FetchRun[] = $state([]);
+  let latency: PollTierLatency[] = $state([]);
   let refreshingAll = $state(false);
   let refreshLog: string[] = $state([]);
   let refreshProgress = $state("");
@@ -36,6 +37,15 @@
     if (value < 1000) return `${value} ms`;
     if (value < 60_000) return `${Math.round(value / 100) / 10} sec`;
     return `${Math.floor(value / 60_000)} min ${Math.round((value % 60_000) / 1000)} sec`;
+  }
+
+  function formatMinutes(value: number | null) {
+    if (value === null) return "—";
+    if (value < 1) return "under 1 min";
+    if (value < 60) return `${Math.round(value)} min`;
+    const hours = Math.floor(value / 60);
+    const minutes = Math.round(value % 60);
+    return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
   }
 
   function formatRunDate(value: string) {
@@ -75,8 +85,13 @@
     loading = true;
     loadError = null;
     try {
-      const result = await api.runs.list(50);
+      // Latency is supplementary; a failure there must not hide the run list.
+      const [result, latencyReport] = await Promise.all([
+        api.runs.list(50),
+        api.runs.latency().catch(() => null),
+      ]);
       runs = result.runs ?? [];
+      latency = latencyReport?.tiers ?? [];
     } catch (caught) {
       loadError = errorMessage(caught);
       if (!nativeIos) onError(loadError);
@@ -140,6 +155,33 @@
       </details>
     {/if}
   </section>
+
+  {#if latency.length > 0}
+    <section class="admin-section">
+      <div class="admin-section-heading"><h2>Alert speed</h2><span>p50 · p95</span></div>
+      <div class="surface-list">
+        {#each latency as tier}
+          <article class="run-row">
+            <div class="run-row-header">
+              <div class="run-result">
+                <span class="run-status" class:bad={tier.overdue_sources > 0}></span>
+                <strong>Tier {tier.tier} · every {formatMinutes(tier.target_interval_minutes)}</strong>
+              </div>
+              <span class="tag">{tier.mode === "queue" ? "Queue" : "Cron"}</span>
+            </div>
+            <div class="run-summary">
+              Polled every {formatMinutes(tier.poll_gap.p50_minutes)} · {formatMinutes(tier.poll_gap.p95_minutes)}
+              <br />
+              Push {formatMinutes(tier.alert_delay.p50_minutes)} · {formatMinutes(tier.alert_delay.p95_minutes)} after discovery
+            </div>
+            <div class="run-date">
+              {#if tier.estimated_p95_minutes !== null}Worst case about {formatMinutes(tier.estimated_p95_minutes)} · {/if}{tier.sources} sources{#if tier.overdue_sources > 0} · <span class="latency-overdue">{tier.overdue_sources} overdue</span>{/if}
+            </div>
+          </article>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   <section class="admin-section">
     <div class="admin-section-heading"><h2>Recent runs</h2><span>{runs.length} loaded</span></div>
@@ -247,6 +289,7 @@
   }
 
   .run-status.bad { background: var(--color-bad); }
+  .latency-overdue { color: var(--color-bad); }
 
   .run-summary {
     margin-top: 6px;

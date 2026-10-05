@@ -75,6 +75,11 @@ stacking multiple tones or sizes is not supported.
   doctoral enrollment and completed education are separate controls. Doctoral
   searches include every explicitly eligible internship cohort.
 
+- **Admin alert-speed rows** — Owner: Operations. Reason: per-tier poll
+  cadence and discovery-to-push latency on the Runs page, for comparing a
+  tier's cron baseline with its queue cutover. Reuses the run-row styles; only
+  the overdue count adds a tone. Call site:
+  `packages/client/src/pages/profile/RunsSection.svelte`.
 - **Legacy-domain migration notice** — Owner: Web experience. Reason: a
   desktop-only address notice appears on the new host after visitors arrive
   through a legacy-host redirect; review its visibility and wording before the
