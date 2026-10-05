@@ -4,11 +4,14 @@ Use `bun run deploy` (or its explicit alias, `bun run deploy:web`) for every
 release that changes the browser app. It builds the frontend, applies remote
 database migrations, and publishes the worker with the new static assets.
 
-`bun run deploy:backend` intentionally preserves the already-published static
-assets through `wrangler.backend.toml`. It is only for worker or API changes
-that do not depend on a new frontend. The command prints this distinction
-before it starts so a backend-only release cannot be mistaken for a web
-release.
+`bun run deploy:backend` is disabled. It deployed through `wrangler.backend.toml`
+with `keep_assets`, which keeps the published files but not the `ASSETS`
+binding or `run_worker_first` routing, because those belong to each worker
+version. On 2026-10-05 a backend-only deploy served every web page as a 404
+for about 20 minutes. Wrangler rejects an `[assets]` block without a local
+directory, so the config can't carry the binding. Deploy every release with
+`bun run deploy` from a clean checkout of `main`, so the web bundle always
+matches committed code.
 
 The service worker checks for a new release at startup and when a tab becomes
 active. New workers activate immediately, clear the retired navigation cache,
@@ -38,9 +41,8 @@ bunx wrangler queues create pinkslip-source-poll-dlq
 bunx wrangler queues create pinkslip-notify
 ```
 
-`QUEUE_POLLING_TIERS = "1,2"` in `wrangler.toml` and `wrangler.backend.toml`
-puts both tiers on the queue. To roll a tier back, remove it from the list and
-deploy; the 15-minute cron cycle polls it again on its next tick. Admin → Runs
+`QUEUE_POLLING_TIERS = "1,2"` in `wrangler.toml` puts both tiers on the queue.
+To roll a tier back, remove it from the list and run `bun run deploy`; the 15-minute cron cycle polls it again on its next tick. Admin → Runs
 → Alert speed shows cadence and discovery-to-push latency per tier.
 
 The polling watchdog pushes to admin devices in two cases:

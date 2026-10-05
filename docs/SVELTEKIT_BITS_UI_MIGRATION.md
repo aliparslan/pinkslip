@@ -158,6 +158,6 @@ Use the existing release script or Xcode Cloud workflow described in `IOS.md`.
 The migration verification builds the iOS web bundle; it does not itself
 archive, sign, upload, or establish physical-device native behavior.
 
-The web release still uses `bun run deploy:web`. `deploy:backend` preserves the
-previous web assets and cannot publish this frontend migration. No database
+The web release still uses `bun run deploy:web`. `deploy:backend` is disabled
+(see `DEPLOYMENT.md`). No database
 migration or new Cloudflare product is introduced by these frontend changes.
