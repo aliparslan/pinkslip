@@ -92,8 +92,9 @@ EMAIL_FROM_NAME = "pinkslip"
 EMAIL_FROM_ADDRESS = "login@pinkslip.work"
 WORKERS_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
 # Poll tiers handled by the per-source queue instead of the 15-minute cron
-# cycle: "" (all cron), "2", or "1,2". Roll back by removing a tier.
-QUEUE_POLLING_TIERS = ""
+# cycle. Removing a tier hands it back to the cron cycle on its next tick;
+# that fallback is temporary and goes away once the queue path has proven out.
+QUEUE_POLLING_TIERS = "1,2"
 APPLE_APP_ID = "dev.alip.pinkslip"
 APPLE_TEAM_ID = "KV876H8952"
 APPLE_SIGN_IN_CLIENT_ID = "dev.alip.pinkslip"

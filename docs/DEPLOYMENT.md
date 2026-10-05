@@ -35,17 +35,10 @@ bunx wrangler queues create pinkslip-source-poll-dlq
 bunx wrangler queues create pinkslip-notify
 ```
 
-Rollout is controlled by `QUEUE_POLLING_TIERS` in both `wrangler.toml` and
-`wrangler.backend.toml`:
-
-1. Deploy with `""`. Behavior is unchanged, but every cron poll is now logged
-   to `source_polls`. Admin → Runs → Alert speed shows the cron baseline.
-2. Set it to `"2"` and deploy the backend. YC and long-tail sources move to the
-   hourly queue. Compare Alert speed against the baseline.
-3. Set it to `"1,2"` once tier 2 looks healthy.
-
-To roll back, remove a tier from the list and deploy. The cron cycle picks
-that tier up again on its next tick.
+`QUEUE_POLLING_TIERS = "1,2"` in `wrangler.toml` and `wrangler.backend.toml`
+puts both tiers on the queue. To roll a tier back, remove it from the list and
+deploy; the 15-minute cron cycle polls it again on its next tick. Admin → Runs
+→ Alert speed shows cadence and discovery-to-push latency per tier.
 
 The polling watchdog pushes to admin devices in two cases:
 - a queued source misses two cadences;
