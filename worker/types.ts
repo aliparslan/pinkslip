@@ -52,6 +52,7 @@ export interface Env {
   QUEUE_POLLING_TIERS?: string;
   SOURCE_POLL_PRIORITY_QUEUE?: Queue<SourcePollMessage>;
   SOURCE_POLL_QUEUE?: Queue<SourcePollMessage>;
+  NOTIFY_QUEUE?: Queue<NotifyMessage>;
 }
 
 export interface Variables {
@@ -70,6 +71,7 @@ export interface UserRow {
 
 export type { CompanySourceType } from "../shared/company-sources";
 import type { SourcePollMessage } from "./source-polling";
+import type { NotifyMessage } from "./notification-queue";
 import type { CompanySourceType } from "../shared/company-sources";
 
 export interface CompanyRow {

@@ -36,6 +36,7 @@ crons = ["*/15 * * * *", "2,17,32,47 * * * *", "* * * * *"]
 #   wrangler queues create pinkslip-source-poll-priority
 #   wrangler queues create pinkslip-source-poll
 #   wrangler queues create pinkslip-source-poll-dlq
+#   wrangler queues create pinkslip-notify
 [[queues.producers]]
 binding = "SOURCE_POLL_PRIORITY_QUEUE"
 queue = "pinkslip-source-poll-priority"
@@ -43,6 +44,10 @@ queue = "pinkslip-source-poll-priority"
 [[queues.producers]]
 binding = "SOURCE_POLL_QUEUE"
 queue = "pinkslip-source-poll"
+
+[[queues.producers]]
+binding = "NOTIFY_QUEUE"
+queue = "pinkslip-notify"
 
 # One source per invocation, so every poll gets its own CPU, memory, and
 # subrequest budget. Adapter errors are acknowledged after quarantine
@@ -57,6 +62,17 @@ dead_letter_queue = "pinkslip-source-poll-dlq"
 queue = "pinkslip-source-poll"
 max_batch_size = 1
 max_retries = 3
+dead_letter_queue = "pinkslip-source-poll-dlq"
+
+# New-job triggers from queued polls. One consumer at a time collapses a burst
+# into a single matching run within about a second; the notification cron still
+# sweeps the backlog if a trigger is ever lost.
+[[queues.consumers]]
+queue = "pinkslip-notify"
+max_batch_size = 100
+max_batch_timeout = 1
+max_concurrency = 1
+max_retries = 5
 dead_letter_queue = "pinkslip-source-poll-dlq"
 
 [observability]

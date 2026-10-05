@@ -1,6 +1,7 @@
 import { notifyAdminsOfQuarantinedSources } from "./admin-alerts";
 import { sourceDecisionRecorder } from "./classification-shadow";
 import { loadCustomTitles } from "./job-scope";
+import { requestNotificationRun } from "./notification-queue";
 import { companyPollOutcome, pollCompany, QUARANTINE_RETRY_MS } from "./poller";
 import {
   queuedPollingTiers,
@@ -170,7 +171,7 @@ const sourcePollDependencies: SourcePollDependencies = {
   loadCustomTitles,
   decisionRecorder: sourceDecisionRecorder,
   notifyAdmins: notifyAdminsOfQuarantinedSources,
-  onNewJobs: async () => undefined,
+  onNewJobs: requestNotificationRun,
 };
 
 export type SourcePollResult =

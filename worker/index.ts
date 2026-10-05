@@ -37,6 +37,11 @@ import {
   type SourcePollMessage,
 } from "./source-polling";
 import {
+  handleNotifyBatch,
+  NOTIFY_QUEUE_NAME,
+  type NotifyMessage,
+} from "./notification-queue";
+import {
   defaultUserPreferenceState,
   loadUserPreferenceState,
 } from "./user-preferences";
@@ -428,6 +433,9 @@ export default {
       case SOURCE_POLL_PRIORITY_QUEUE_NAME:
       case SOURCE_POLL_QUEUE_NAME:
         await handleSourcePollBatch(batch as MessageBatch<SourcePollMessage>, env);
+        return;
+      case NOTIFY_QUEUE_NAME:
+        await handleNotifyBatch(batch as MessageBatch<NotifyMessage>, env);
         return;
       default:
         console.error(`Unhandled queue ${batch.queue}; retrying ${batch.messages.length} message(s)`);
