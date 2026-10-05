@@ -36,6 +36,7 @@ import {
 } from "./admin-alerts";
 import { hasTable } from "./db-schema";
 import { sourceDecisionRecorder } from "./classification-shadow";
+import { queuedPollingTiers, sourcePollRecord } from "./poll-schedule";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 
@@ -52,6 +53,9 @@ const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 const TIER_TWO_POLLS_PER_CYCLE = 60;
 
 const MANUAL_TIER_TWO_BATCH = 250;
+
+/** Long enough to compare cadence before and after a tier changes paths. */
+const SOURCE_POLL_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Notification matching is jobs × profiles, so process it in bounded batches.
@@ -1350,10 +1354,16 @@ export async function runPollCycle(
   // last_polled_at ascending means a fixed slice per tick walks the whole tail
   // round-robin, so several hundred long-tail sources cost a bounded amount of
   // work per cycle instead of multiplying every tick's request and match load.
+  //
+  // Tiers listed in QUEUE_POLLING_TIERS are polled per source by the queue
+  // consumer instead, so this cycle must not select them at all.
+  const queuedTiers = queuedPollingTiers(env.QUEUE_POLLING_TIERS);
   const tierTwoLimit = scope === "manual" && companyLimit === null ? MANUAL_TIER_TWO_BATCH : TIER_TWO_POLLS_PER_CYCLE;
-  const companies = companyLimit === null
-    ? [...await selectTier(1, null), ...await selectTier(2, tierTwoLimit)]
-    : await selectTier(1, companyLimit);
+  const tierOne = queuedTiers.has(1) ? [] : await selectTier(1, companyLimit);
+  const tierTwo = queuedTiers.has(2) || companyLimit !== null
+    ? []
+    : await selectTier(2, tierTwoLimit);
+  const companies = [...tierOne, ...tierTwo];
 
   // Custom titles are loaded once and shared across every company in the cycle
   // so a globally unrecognized title can still enter the catalog.
@@ -1374,6 +1384,8 @@ export async function runPollCycle(
 
   const allNewJobs: NewJobMeta[] = [];
   const statusStmts = [];
+  const pollsFinishedAt = new Date().toISOString();
+  const trackSourcePolls = await hasTable(db, "source_polls");
   // Sources that crossed into quarantine on *this* cycle. Alerting only on the
   // transition is self-deduplicating: a source quarantines once, so admins get
   // one message per breakage rather than one every 15 minutes forever.
@@ -1383,6 +1395,17 @@ export async function runPollCycle(
     const company = companies[i];
     const outcome = companyPollOutcome(db, company, result, now);
     statusStmts.push(outcome.statement);
+    if (trackSourcePolls) {
+      statusStmts.push(sourcePollRecord(db, {
+        company,
+        tier: company.poll_tier ?? 1,
+        mode: "cron",
+        startedAt: now,
+        finishedAt: pollsFinishedAt,
+        newJobs: result.status === "fulfilled" ? result.value.length : 0,
+        error: outcome.error,
+      }));
+    }
     if (result.status === "fulfilled") {
       allNewJobs.push(...result.value);
       log.push(`${company.name}: ${result.value.length} new`);
@@ -1506,6 +1529,12 @@ export async function runPollCycle(
          AND datetime(created_at) < datetime('now', '-180 days')`
     ),
   ]);
+  if (trackSourcePolls) {
+    await db.prepare("DELETE FROM source_polls WHERE started_at < ?")
+      .bind(new Date(startedAtMs - SOURCE_POLL_RETENTION_MS).toISOString())
+      .run()
+      .catch(() => undefined);
+  }
 
   if (trackRuns) {
     await db.prepare(

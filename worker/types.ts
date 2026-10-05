@@ -45,6 +45,13 @@ export interface Env {
   APNS_BUNDLE_ID?: string;
   APNS_PRIVATE_KEY?: string;
   APNS_SANDBOX?: string;
+  /**
+   * Comma-separated poll tiers ("2", "1,2") handled by the per-source queue
+   * consumer instead of the 15-minute cron cycle. Empty keeps everything on cron.
+   */
+  QUEUE_POLLING_TIERS?: string;
+  SOURCE_POLL_PRIORITY_QUEUE?: Queue<SourcePollMessage>;
+  SOURCE_POLL_QUEUE?: Queue<SourcePollMessage>;
 }
 
 export interface Variables {
@@ -62,6 +69,7 @@ export interface UserRow {
 }
 
 export type { CompanySourceType } from "../shared/company-sources";
+import type { SourcePollMessage } from "./source-polling";
 import type { CompanySourceType } from "../shared/company-sources";
 
 export interface CompanyRow {
@@ -84,6 +92,10 @@ export interface CompanyRow {
    * surfaced to admins as needing attention. Cleared on the next success.
    */
   quarantined_at: string | null;
+  /** 1 = competitive set (15-minute cadence), 2 = long tail (hourly). */
+  poll_tier?: number | null;
+  /** Set while a queued poll for this source is in flight. */
+  poll_claimed_at?: string | null;
 }
 
 export interface JobRow {

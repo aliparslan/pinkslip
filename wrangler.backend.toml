@@ -27,7 +27,37 @@ name = "EMAIL"
 binding = "AI"
 
 [triggers]
-crons = ["*/15 * * * *", "2,17,32,47 * * * *"]
+crons = ["*/15 * * * *", "2,17,32,47 * * * *", "* * * * *"]
+
+# ─── Queue-based source polling ───────────────────────────────────────────────
+# The every-minute cron dispatches due sources for the tiers listed in
+# QUEUE_POLLING_TIERS; each source then polls in its own consumer invocation.
+# Create the queues once before the first deploy that includes these bindings:
+#   wrangler queues create pinkslip-source-poll-priority
+#   wrangler queues create pinkslip-source-poll
+#   wrangler queues create pinkslip-source-poll-dlq
+[[queues.producers]]
+binding = "SOURCE_POLL_PRIORITY_QUEUE"
+queue = "pinkslip-source-poll-priority"
+
+[[queues.producers]]
+binding = "SOURCE_POLL_QUEUE"
+queue = "pinkslip-source-poll"
+
+# One source per invocation, so every poll gets its own CPU, memory, and
+# subrequest budget. Adapter errors are acknowledged after quarantine
+# bookkeeping; only failed D1 writes are retried.
+[[queues.consumers]]
+queue = "pinkslip-source-poll-priority"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "pinkslip-source-poll-dlq"
+
+[[queues.consumers]]
+queue = "pinkslip-source-poll"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "pinkslip-source-poll-dlq"
 
 [observability]
 enabled = true
@@ -45,6 +75,9 @@ VAPID_PUBLIC_KEY = "BM8EzXoxkPPxG1IRS7CroVdKoLPNAs8AxDsZ6wlJB2uu2FyZyFAMXjdJvbg5
 EMAIL_FROM_NAME = "pinkslip"
 EMAIL_FROM_ADDRESS = "login@pinkslip.work"
 WORKERS_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
+# Poll tiers handled by the per-source queue instead of the 15-minute cron
+# cycle: "" (all cron), "2", or "1,2". Roll back by removing a tier.
+QUEUE_POLLING_TIERS = ""
 APPLE_APP_ID = "dev.alip.pinkslip"
 APPLE_TEAM_ID = "KV876H8952"
 APPLE_SIGN_IN_CLIENT_ID = "dev.alip.pinkslip"

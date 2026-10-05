@@ -29,6 +29,14 @@ import {
   runPollCycle,
 } from "./poller";
 import {
+  dispatchDueSources,
+  handleSourcePollBatch,
+  SOURCE_DISPATCH_CRON_SCHEDULE,
+  SOURCE_POLL_PRIORITY_QUEUE_NAME,
+  SOURCE_POLL_QUEUE_NAME,
+  type SourcePollMessage,
+} from "./source-polling";
+import {
   defaultUserPreferenceState,
   loadUserPreferenceState,
 } from "./user-preferences";
@@ -374,8 +382,30 @@ app.notFound((c) => {
   return c.json({ error: "Not found", code: "not_found" }, 404);
 });
 
-export function scheduledCycle(cron: string): "notifications" | "poll" {
+export type ScheduledCycle = "notifications" | "poll" | "dispatch";
+
+export function scheduledCycle(cron: string): ScheduledCycle {
+  if (cron === SOURCE_DISPATCH_CRON_SCHEDULE) return "dispatch";
   return cron === NOTIFICATION_CRON_SCHEDULE ? "notifications" : "poll";
+}
+
+async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void> {
+  if (cycle === "dispatch") {
+    const dispatched = await dispatchDueSources(env);
+    const total = dispatched.reduce((sum, result) => sum + result.dispatched, 0);
+    if (total > 0) {
+      console.log(`Source dispatch: ${dispatched.map((result) => `tier ${result.tier} ${result.dispatched}`).join(", ")}`);
+    }
+    return;
+  }
+  if (cycle === "notifications") {
+    const result = await runNotificationCycle(env);
+    console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
+    await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
+    return;
+  }
+  const result = await runPollCycle(env, { sendNotifications: false });
+  console.log(`Poll complete: ${result.companiesPolled} companies, ${result.newJobsFound} new jobs`);
 }
 
 export default {
@@ -387,18 +417,21 @@ export default {
     // context, then rethrow so the invocation is recorded as failed.
     const cycle = scheduledCycle(event.cron);
     ctx.waitUntil(
-      (cycle === "notifications"
-        ? runNotificationCycle(env).then(async (result) => {
-            console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
-            await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
-          })
-        : runPollCycle(env, { sendNotifications: false }).then((result) => {
-            console.log(`Poll complete: ${result.companiesPolled} companies, ${result.newJobsFound} new jobs`);
-          }))
-        .catch((err) => {
-          console.error(`${cycle === "notifications" ? "Notification" : "Poll"} cycle failed:`, err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
-          throw err;
-        })
+      runScheduledCycle(cycle, env).catch((err) => {
+        console.error(`${cycle} cycle failed:`, err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
+        throw err;
+      })
     );
+  },
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    switch (batch.queue) {
+      case SOURCE_POLL_PRIORITY_QUEUE_NAME:
+      case SOURCE_POLL_QUEUE_NAME:
+        await handleSourcePollBatch(batch as MessageBatch<SourcePollMessage>, env);
+        return;
+      default:
+        console.error(`Unhandled queue ${batch.queue}; retrying ${batch.messages.length} message(s)`);
+        batch.retryAll();
+    }
   },
 };
