@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
 import { Database } from "bun:sqlite";
 import { catalogDecisionReason, listingFingerprint, MAX_AUDIT_LISTINGS_PER_CHECKPOINT, recordSourceDecisions, reserveShadowCall, runClassificationShadow, shadowDailyLimit } from "@worker/classification-shadow";
-import { classifyWithJev, JEV_MODEL, JEV_QUESTIONS, type JevFetch } from "@worker/jev";
+import { classifyWithJev, JEV_MODEL, JEV_QUESTIONS, JEV_WORKERS_AI_MODEL, type JevRunner } from "@worker/jev";
 import type { JobListing } from "@worker/adapters/types";
 import type { Env } from "@worker/types";
 
@@ -12,7 +12,7 @@ type Binding = string | number | null;
 async function fixture() {
   const sqlite = new Database(":memory:");
   databases.push(sqlite);
-  sqlite.exec("PRAGMA foreign_keys=ON; CREATE TABLE companies(id TEXT PRIMARY KEY); INSERT INTO companies VALUES ('company');");
+  sqlite.exec("PRAGMA foreign_keys=ON; CREATE TABLE companies(id TEXT PRIMARY KEY); INSERT INTO companies VALUES ('company'); CREATE TABLE preferences(key TEXT PRIMARY KEY, value TEXT);");
   sqlite.exec(await Bun.file(new URL("../migrations/0078_classification_shadow.sql", import.meta.url)).text());
   let batches = 0;
   const db = {
@@ -38,9 +38,15 @@ async function fixture() {
 const job: JobListing = { externalId: "one", title: "Software Engineer", location: "Seattle, WA", department: "Software", description: "Build backend software. Two years of experience required.", postedAt: null, salary: null, url: "https://example.com/jobs/one" };
 
 function providerResponse() {
-  return { model: `${JEV_MODEL}-20260917`, id: "request", usage: { input_tokens: 1000, output_tokens: 50, cost: 0.000042 },
+  return { model: `${JEV_MODEL}.0`, usage: { input_tokens: 1000, output_tokens: 50 },
     answers: Object.fromEntries(Object.entries(JEV_QUESTIONS).map(([name, question]) => [name, { choice: Object.keys(question.criteria)[0] }])) };
 }
+
+function fakeAi(respond: (model: string, inputs: { state: unknown; questions: unknown }) => Promise<unknown>) {
+  return { run: (model: string, inputs: unknown) => respond(model, inputs as { state: unknown; questions: unknown }) } as JevRunner;
+}
+
+const noAlerts = async () => 0;
 
 describe("classification shadow", () => {
   it("bounds large source snapshots and progressively records unseen listings", async () => {
@@ -130,14 +136,15 @@ describe("classification shadow", () => {
     expect(shadowDailyLimit("-1")).toBe(0);
   });
 
-  it("does not call Jev with shadow disabled, missing key, or exhausted budget", async () => {
+  it("does not call Jev with shadow disabled, no AI binding, or exhausted budget", async () => {
     const { db, sqlite } = await fixture();
     await recordSourceDecisions(db, "company", [job], [], true);
     let calls = 0;
-    const fetcher = (async () => { calls++; return Response.json(providerResponse()); }) as JevFetch;
-    expect(await runClassificationShadow({ DB: db } as Env, fetcher)).toBe(0);
-    expect(await runClassificationShadow({ DB: db, JOB_CLASSIFICATION_SHADOW: "true" } as Env, fetcher)).toBe(0);
-    expect(await runClassificationShadow({ DB: db, JOB_CLASSIFICATION_SHADOW: "true", OPENROUTER_API_KEY: "test", JEV_DAILY_CALL_LIMIT: "0" } as Env, fetcher)).toBe(0);
+    const AI = fakeAi(async () => { calls++; return providerResponse(); }) as unknown as Ai;
+    expect(await runClassificationShadow({ DB: db, AI } as Env, noAlerts)).toBe(0);
+    expect(await runClassificationShadow({ DB: db, JOB_CLASSIFICATION_SHADOW: "true" } as Env, noAlerts)).toBe(0);
+    expect(await runClassificationShadow({ DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true", JEV_DAILY_CALL_LIMIT: "0" } as Env, noAlerts)).toBe(0);
+    expect(await runClassificationShadow({ DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true", AI_MONTHLY_BUDGET_USD: "0" } as Env, noAlerts)).toBe(0);
     expect(calls).toBe(0);
     expect(sqlite.query("SELECT status, attempts FROM job_classification_shadow").get()).toEqual({ status: "pending", attempts: 0 });
   });
@@ -146,32 +153,31 @@ describe("classification shadow", () => {
     const { db, sqlite } = await fixture();
     await recordSourceDecisions(db, "company", [job], [], true);
     let calls = 0;
-    const fetcher = (async (_url: unknown, init: RequestInit) => {
+    const AI = fakeAi(async (model, inputs) => {
       calls++;
-      const request = JSON.parse(init.body as string);
-      expect(request.state.reason).toBeUndefined();
-      expect(request.model).toBe(JEV_MODEL);
+      expect(model).toBe(JEV_WORKERS_AI_MODEL);
+      expect((inputs.state as { reason?: string }).reason).toBeUndefined();
       await new Promise((resolve) => setTimeout(resolve, 1));
-      return Response.json(providerResponse());
-    }) as JevFetch;
-    const env = { DB: db, JOB_CLASSIFICATION_SHADOW: "true", OPENROUTER_API_KEY: "test" } as Env;
-    const results = await Promise.all([runClassificationShadow(env, fetcher), runClassificationShadow(env, fetcher)]);
+      return providerResponse();
+    }) as unknown as Ai;
+    const env = { DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true" } as Env;
+    const results = await Promise.all([runClassificationShadow(env, noAlerts), runClassificationShadow(env, noAlerts)]);
     expect(results.reduce((sum, count) => sum + count, 0)).toBe(1);
     expect(calls).toBe(1);
     expect(sqlite.query("SELECT status, input_json, input_tokens, cost_usd FROM job_classification_shadow").get()).toEqual({ status: "complete", input_json: null, input_tokens: 1000, cost_usd: 0.000042 });
-    expect(await runClassificationShadow(env, fetcher)).toBe(0);
+    expect(await runClassificationShadow(env, noAlerts)).toBe(0);
   });
 
   it("preserves failures and unknown costs without auto-retrying paid calls", async () => {
     const { db, sqlite } = await fixture();
     await recordSourceDecisions(db, "company", [job], [], true);
     let calls = 0;
-    const fetcher = (async () => { calls++; return new Response("secret provider detail", { status: 429 }); }) as JevFetch;
-    const env = { DB: db, JOB_CLASSIFICATION_SHADOW: "true", OPENROUTER_API_KEY: "test" } as Env;
-    await runClassificationShadow(env, fetcher);
-    await runClassificationShadow(env, fetcher);
+    const AI = fakeAi(async () => { calls++; throw new Error("3040: capacity exceeded, secret provider detail"); }) as unknown as Ai;
+    const env = { DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true" } as Env;
+    await runClassificationShadow(env, noAlerts);
+    await runClassificationShadow(env, noAlerts);
     expect(calls).toBe(1);
-    expect(sqlite.query("SELECT status, error_code, cost_usd FROM job_classification_shadow").get()).toEqual({ status: "failed", error_code: "jev_http_429", cost_usd: null });
+    expect(sqlite.query("SELECT status, error_code, cost_usd FROM job_classification_shadow").get()).toEqual({ status: "failed", error_code: "jev_request_failed", cost_usd: null });
     expect(sqlite.query("SELECT calls FROM classification_daily_budget").get()).toEqual({ calls: 1 });
   });
 
@@ -180,8 +186,8 @@ describe("classification shadow", () => {
     await recordSourceDecisions(db, "company", [job, { ...job, externalId: "two" }], [], true);
     sqlite.query("UPDATE job_classification_shadow SET status='running', attempts=CASE WHEN external_id='one' THEN 1 ELSE 2 END, started_at='2020-01-01T00:00:00Z'").run();
     let calls = 0;
-    await runClassificationShadow({ DB: db, JOB_CLASSIFICATION_SHADOW: "true", OPENROUTER_API_KEY: "test" } as Env,
-      async () => { calls++; return Response.json(providerResponse()); });
+    const AI = fakeAi(async () => { calls++; return providerResponse(); }) as unknown as Ai;
+    await runClassificationShadow({ DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true" } as Env, noAlerts);
     expect(calls).toBe(1);
     expect(sqlite.query("SELECT external_id, status, attempts, input_json FROM job_classification_shadow ORDER BY external_id").all()).toEqual([
       { external_id: "one", status: "complete", attempts: 2, input_json: null },
@@ -192,9 +198,10 @@ describe("classification shadow", () => {
   it("rejects malformed provider decisions and does not fabricate usage", async () => {
     const invalid = providerResponse();
     invalid.answers.us_eligibility.choice = "maybe";
-    await expect(classifyWithJev({}, "test", (async () => Response.json(invalid)) as JevFetch)).rejects.toThrow("jev_invalid_answers");
+    await expect(classifyWithJev({}, fakeAi(async () => invalid))).rejects.toThrow("jev_invalid_answers");
+    await expect(classifyWithJev({}, fakeAi(async () => ({ ...providerResponse(), model: "jev-1.14.0" })))).rejects.toThrow("jev_invalid_model");
     const missingUsage = { ...providerResponse(), usage: undefined };
-    const result = await classifyWithJev({}, "test", (async () => Response.json(missingUsage)) as JevFetch);
+    const result = await classifyWithJev({}, fakeAi(async () => missingUsage));
     expect(result.costUsd).toBeNull();
     expect(result.inputTokens).toBeNull();
   });

@@ -1,5 +1,9 @@
-/** Jev's decision endpoint, not OpenRouter's chat-completions API. */
-export const JEV_MODEL = "typesafe/jev-1.13";
+/** Jev on Workers AI, billed to the Cloudflare account. */
+export const JEV_WORKERS_AI_MODEL = "typesafe/jev";
+/** Answers from any other release are rejected until the questions are re-reviewed. */
+export const JEV_MODEL = "jev-1.13";
+/** Workers AI list price. Output and cached input tokens are free. */
+const JEV_USD_PER_MILLION_INPUT_TOKENS = 0.042;
 export const JEV_QUESTION_VERSION = "pinkslip-core-v2-qualifications";
 
 function choice(instructions: string, criteria: Record<string, string>) {
@@ -51,26 +55,24 @@ function nonnegative(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-export type JevFetch = (url: string, init: RequestInit) => Promise<Response>;
+/** The slice of the Workers AI binding Jev needs; tests substitute a fake. */
+export interface JevRunner {
+  run(model: string, inputs: unknown, options?: { signal?: AbortSignal; tags?: string[] }): Promise<unknown>;
+}
 
-export async function classifyWithJev(state: unknown, key: string, fetcher: JevFetch = fetch): Promise<JevResult> {
+export async function classifyWithJev(state: unknown, ai: JevRunner): Promise<JevResult> {
   const start = Date.now();
-  const response = await fetcher("https://openrouter.ai/api/v1/systemone", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: JEV_MODEL, state, questions: JEV_QUESTIONS }),
+  const body = await ai.run(JEV_WORKERS_AI_MODEL, { state, questions: JEV_QUESTIONS }, {
     signal: AbortSignal.timeout(8_000),
-  });
-  // Never log provider bodies or authorization headers, including error responses.
-  if (!response.ok) throw new Error(`jev_http_${response.status}`);
-  const body = await response.json() as {
+    tags: ["feature:jev-shadow"],
+  }) as {
     answers?: Record<string, { choice?: unknown; probabilities?: Record<string, number> }>;
     model?: unknown; id?: unknown;
-    usage?: { input_tokens?: unknown; output_tokens?: unknown; cost?: unknown };
-  };
+    usage?: { input_tokens?: unknown; output_tokens?: unknown };
+  } | null;
   const answers: JevResult["answers"] = {};
   for (const [name, question] of Object.entries(JEV_QUESTIONS)) {
-    const answer = body.answers?.[name];
+    const answer = body?.answers?.[name];
     if (typeof answer?.choice !== "string" || !Object.hasOwn(question.criteria, answer.choice)) {
       throw new Error("jev_invalid_answers");
     }
@@ -79,10 +81,13 @@ export async function classifyWithJev(state: unknown, key: string, fetcher: JevF
         && nonnegative(probability) !== null && probability <= 1));
     answers[name] = { choice: answer.choice, probabilities };
   }
-  if (typeof body.model !== "string" || !body.model.startsWith(JEV_MODEL)) throw new Error("jev_invalid_model");
+  if (typeof body?.model !== "string" || !body.model.startsWith(JEV_MODEL)) throw new Error("jev_invalid_model");
+  const inputTokens = nonnegative(body.usage?.input_tokens);
   return {
     answers, model: body.model, requestId: typeof body.id === "string" ? body.id : null,
-    inputTokens: nonnegative(body.usage?.input_tokens), outputTokens: nonnegative(body.usage?.output_tokens),
-    costUsd: nonnegative(body.usage?.cost), latencyMs: Date.now() - start,
+    inputTokens, outputTokens: nonnegative(body.usage?.output_tokens),
+    // Counts every input token at list price, so cached input makes this an upper bound.
+    costUsd: inputTokens === null ? null : (inputTokens * JEV_USD_PER_MILLION_INPUT_TOKENS) / 1_000_000,
+    latencyMs: Date.now() - start,
   };
 }

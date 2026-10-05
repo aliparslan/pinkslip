@@ -5,7 +5,9 @@ import { classifyJob, catalogCareerStage, hasPotentiallyEligibleSeniority, JOB_C
 import { isUsJobLocation } from "./us-jobs";
 import { isFreshPostedAt } from "../shared/job-policy";
 import { hasTable } from "./db-schema";
-import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevFetch } from "./jev";
+import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevRunner } from "./jev";
+import { aiBudgetStatus, alertOnAiBudget } from "./ai-budget";
+import { notifyAdmins } from "./admin-alerts";
 
 export const CLASSIFICATION_GATE_VERSION = `${JOB_CLASSIFIER_VERSION}/scope-v14`;
 const MAX_DESCRIPTION_CHARS = 12_000;
@@ -135,14 +137,25 @@ export async function reserveShadowCall(db: D1Database, day: string, limit: numb
     .bind(day, limit).first());
 }
 
-export async function runClassificationShadow(env: Env, fetcher: JevFetch = fetch): Promise<number> {
-  if (env.JOB_CLASSIFICATION_SHADOW !== "true" || !env.OPENROUTER_API_KEY
+export async function runClassificationShadow(
+  env: Env,
+  alert: typeof notifyAdmins = notifyAdmins
+): Promise<number> {
+  if (env.JOB_CLASSIFICATION_SHADOW !== "true" || !env.AI
     || !await hasTable(env.DB, "job_classification_shadow")) return 0;
   const db = env.DB;
+  const ai = env.AI as unknown as JevRunner;
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
   const limit = shadowDailyLimit(env.JEV_DAILY_CALL_LIMIT);
   if (limit === 0) return 0;
+  // Checked once per invocation, so the month can overshoot by at most ten
+  // calls (about a cent at Jev's 32k-token ceiling).
+  const spend = await aiBudgetStatus(env, now);
+  if (spend.exhausted) {
+    await alertOnAiBudget(env, spend, alert);
+    return 0;
+  }
   const budget = await db.prepare("SELECT calls FROM classification_daily_budget WHERE day=?")
     .bind(day).first<{ calls: number }>();
   if ((budget?.calls ?? 0) >= limit) return 0;
@@ -172,7 +185,7 @@ export async function runClassificationShadow(env: Env, fetcher: JevFetch = fetc
       return;
     }
     try {
-      const result = await classifyWithJev(JSON.parse(row.input_json), env.OPENROUTER_API_KEY!, fetcher);
+      const result = await classifyWithJev(JSON.parse(row.input_json), ai);
       await db.batch([
         db.prepare(`UPDATE job_classification_shadow SET status='complete', input_json=NULL,
           completed_at=?, answers_json=?, model=?, request_id=?, input_tokens=?, output_tokens=?, cost_usd=?, latency_ms=?, error_code=NULL
@@ -194,5 +207,6 @@ export async function runClassificationShadow(env: Env, fetcher: JevFetch = fetc
   for (let offset = 0; offset < pending.length; offset += 2) {
     await Promise.all(pending.slice(offset, offset + 2).map((row) => work(row.cache_key)));
   }
+  if (completed > 0) await alertOnAiBudget(env, await aiBudgetStatus(env), alert);
   return completed;
 }

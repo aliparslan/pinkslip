@@ -6,6 +6,7 @@ import { MATCHER_VERSION } from "../user-job-matches";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 import { hasTable } from "../db-schema";
 import { shadowDailyLimit } from "../classification-shadow";
+import { aiBudgetStatus } from "../ai-budget";
 import {
   evaluateTailoringQuality,
   type TailoringQualitySnapshot,
@@ -19,7 +20,7 @@ metrics.get("/classification", async (c) => {
   if (!await hasTable(db, "job_classification_shadow")) {
     return c.json({ available: false, shadow_enabled: false });
   }
-  const [reasons, statuses, daily, usage, reviews] = await Promise.all([
+  const [reasons, statuses, daily, usage, reviews, spend] = await Promise.all([
     db.prepare("SELECT reason, COUNT(*) AS count FROM source_job_decisions GROUP BY reason").all(),
     db.prepare("SELECT status, COUNT(*) AS count FROM job_classification_shadow GROUP BY status").all(),
     db.prepare("SELECT day, calls, reported_cost_usd FROM classification_daily_budget ORDER BY day DESC LIMIT 30").all(),
@@ -33,11 +34,13 @@ metrics.get("/classification", async (c) => {
       FROM job_classification_shadow s JOIN companies c ON c.id=s.company_id
       LEFT JOIN source_job_decisions d ON d.company_id=s.company_id AND d.external_id=s.external_id
       WHERE s.status IN ('complete','failed') ORDER BY s.completed_at DESC LIMIT 50`).all(),
+    aiBudgetStatus(c.env),
   ]);
   return c.json({ available: true,
     audit_enabled: c.env.JOB_CLASSIFICATION_AUDIT === "true" || c.env.JOB_CLASSIFICATION_SHADOW === "true",
     shadow_enabled: c.env.JOB_CLASSIFICATION_SHADOW === "true",
-    provider_key_configured: Boolean(c.env.OPENROUTER_API_KEY), daily_call_limit: shadowDailyLimit(c.env.JEV_DAILY_CALL_LIMIT),
+    ai_binding_configured: Boolean(c.env.AI), daily_call_limit: shadowDailyLimit(c.env.JEV_DAILY_CALL_LIMIT),
+    monthly_budget_usd: spend.budgetUsd, month_spent_usd: spend.spentUsd,
     reasons: reasons.results ?? [], statuses: statuses.results ?? [], daily: daily.results ?? [],
     usage, reviews: reviews.results ?? [],
   });

@@ -15,8 +15,14 @@ before enabling either mode. Both modes are off unless explicitly configured:
   not incur repeated writes. No provider calls.
 - `JOB_CLASSIFICATION_SHADOW=true`: also sample listings for Jev. Includes all
   rejection categories, rather than sampling only today's accepted jobs.
-- `OPENROUTER_API_KEY`: Cloudflare secret containing a dedicated restricted
-  OpenRouter inference key. Never put a real key in TOML, examples, Git or logs.
+- Jev runs on Workers AI as `typesafe/jev` through the existing `AI` binding.
+  It is a third-party model, so it is paid from prepaid AI Gateway credits
+  (Dashboard → AI → AI Gateway → Credits Available), not the Workers plan.
+  With no credits loaded, every call fails with `2021: Insufficient AI Gateway
+  credits`. Leave auto top-up off and the loaded balance is a hard ceiling.
+- `AI_MONTHLY_BUDGET_USD`: calendar-month cap on reported model spend, default
+  10. Admins get a push at 50%, 80% and 100%; at 100% calls pause until the 1st.
+  Unreadable values fail closed at $0.
 - `JEV_DAILY_CALL_LIMIT`: integer 0–100; default 100, zero pauses calls. Invalid
   values fail closed. This cannot raise the hard 100-call daily ceiling.
 
@@ -57,14 +63,15 @@ Daily call reservations are atomic and happen before inference. Timeouts and
 crashes consume quota. Expired ten-minute leases can be reclaimed once, with a
 maximum two attempts per cache key; ordinary HTTP/malformed-output failures are
 retained for review and receive no automatic paid retry. The limit is a request
-ceiling, not a guaranteed dollar cap. Set a dollar limit on the dedicated
-OpenRouter key as well. Estimated fees depend on actual token usage; no new
-paid queue or AI subscription is required by this implementation.
+ceiling, not a dollar cap; `AI_MONTHLY_BUDGET_USD` is the dollar cap. Cost is
+recorded as input tokens at Jev's $0.042 per million list price (output and
+cached input are free), so it slightly overstates real spend. The budget is
+checked once per invocation and can overshoot by at most ten calls, about a cent.
 
 ## Review and usage
 
 Admin-only `GET /api/v2/metrics/classification` exposes reason counts, queue
-statuses, daily reservations, reported token/cost totals, average provider latency,
+statuses, daily reservations, this month's spend against the budget, reported token/cost totals, average provider latency,
 and the 50 latest completed/failed samples with their posting URLs and answers.
 Each sample preserves the deterministic facts computed from the full source text
 at capture time, so review can compare individual fields with Jev's answers.
