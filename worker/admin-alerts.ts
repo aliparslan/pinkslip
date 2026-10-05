@@ -46,14 +46,11 @@ export function buildSourceAlertPayload(
  * the job-alert `enabled` switch — turning off job alerts should not silently
  * also turn off "your ingestion is broken".
  */
-export async function notifyAdminsOfQuarantinedSources(
+export async function notifyAdmins(
   db: D1Database,
   env: Env,
-  newlyQuarantined: QuarantinedSource[],
-  totalQuarantined: number
+  payload: NotificationPayload
 ): Promise<number> {
-  if (newlyQuarantined.length === 0) return 0;
-
   const subscriptions = await db.prepare(
     `SELECT ps.*
      FROM push_subscriptions ps
@@ -66,7 +63,6 @@ export async function notifyAdminsOfQuarantinedSources(
   const subs = subscriptions.results ?? [];
   if (subs.length === 0) return 0;
 
-  const payload = buildSourceAlertPayload(newlyQuarantined, totalQuarantined);
   const transports = resolveNotificationTransports(env);
 
   let sent = 0;
@@ -89,4 +85,14 @@ export async function notifyAdminsOfQuarantinedSources(
   }
 
   return sent;
+}
+
+export async function notifyAdminsOfQuarantinedSources(
+  db: D1Database,
+  env: Env,
+  newlyQuarantined: QuarantinedSource[],
+  totalQuarantined: number
+): Promise<number> {
+  if (newlyQuarantined.length === 0) return 0;
+  return notifyAdmins(db, env, buildSourceAlertPayload(newlyQuarantined, totalQuarantined));
 }

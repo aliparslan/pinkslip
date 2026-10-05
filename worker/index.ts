@@ -36,6 +36,7 @@ import {
   SOURCE_POLL_QUEUE_NAME,
   type SourcePollMessage,
 } from "./source-polling";
+import { runPollingWatchdog } from "./polling-watchdog";
 import {
   handleNotifyBatch,
   NOTIFY_QUEUE_NAME,
@@ -396,11 +397,19 @@ export function scheduledCycle(cron: string): ScheduledCycle {
 
 async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void> {
   if (cycle === "dispatch") {
-    const dispatched = await dispatchDueSources(env);
-    const total = dispatched.reduce((sum, result) => sum + result.dispatched, 0);
-    if (total > 0) {
-      console.log(`Source dispatch: ${dispatched.map((result) => `tier ${result.tier} ${result.dispatched}`).join(", ")}`);
+    // The watchdog runs even when dispatch fails; that is when it matters most.
+    const [dispatch, watchdog] = await Promise.allSettled([
+      dispatchDueSources(env),
+      runPollingWatchdog(env),
+    ]);
+    if (dispatch.status === "fulfilled") {
+      const total = dispatch.value.reduce((sum, result) => sum + result.dispatched, 0);
+      if (total > 0) {
+        console.log(`Source dispatch: ${dispatch.value.map((result) => `tier ${result.tier} ${result.dispatched}`).join(", ")}`);
+      }
     }
+    if (dispatch.status === "rejected") throw dispatch.reason;
+    if (watchdog.status === "rejected") throw watchdog.reason;
     return;
   }
   if (cycle === "notifications") {
