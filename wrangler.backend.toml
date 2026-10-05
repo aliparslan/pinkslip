@@ -95,6 +95,11 @@ WORKERS_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
 # cycle. Removing a tier hands it back to the cron cycle on its next tick;
 # that fallback is temporary and goes away once the queue path has proven out.
 QUEUE_POLLING_TIERS = "1,2"
+# Run Jev on Workers AI beside the rules for comparison. It never changes what
+# users see. AI_MONTHLY_BUDGET_USD pauses it for the rest of the month once
+# the month's model spend reaches the cap.
+JOB_CLASSIFICATION_SHADOW = "true"
+AI_MONTHLY_BUDGET_USD = "10"
 APPLE_APP_ID = "dev.alip.pinkslip"
 APPLE_TEAM_ID = "KV876H8952"
 APPLE_SIGN_IN_CLIENT_ID = "dev.alip.pinkslip"
