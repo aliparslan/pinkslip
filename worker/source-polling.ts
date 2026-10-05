@@ -32,12 +32,30 @@ const DISPATCH_TICK_MS = 60 * 1000;
 /**
  * Per-tick ceilings spread a cold start (every source due at once) across a
  * few minutes instead of firing hundreds of polls at shared ATS hosts in the
- * same second. Steady state needs ~4 tier-1 and ~14 tier-2 polls per minute.
+ * same second. The ceiling is twice the tier's steady-state need, so the
+ * catalog can grow without a tier quietly falling behind its cadence.
  */
-export const SOURCE_DISPATCH_LIMIT_PER_TICK: Record<PollTier, number> = {
-  1: 10,
-  2: 30,
-};
+export const SOURCE_DISPATCH_HEADROOM = 2;
+const SOURCE_DISPATCH_MIN_PER_TICK = 10;
+
+export function dispatchLimitPerTick(tier: PollTier, pollableSources: number): number {
+  const cadenceTicks = SOURCE_POLL_INTERVAL_MS[tier] / DISPATCH_TICK_MS;
+  return Math.max(
+    SOURCE_DISPATCH_MIN_PER_TICK,
+    Math.ceil((pollableSources / cadenceTicks) * SOURCE_DISPATCH_HEADROOM)
+  );
+}
+
+async function pollableSourceCount(db: D1Database, tier: PollTier): Promise<number> {
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS count
+     FROM companies
+     WHERE enabled = 1
+       AND COALESCE(source_type, ats_type) != 'custom'
+       AND COALESCE(poll_tier, 1) = ?`
+  ).bind(tier).first<{ count: number }>();
+  return row?.count ?? 0;
+}
 
 /**
  * A consumer invocation can run for at most 15 minutes of wall time. A claim
@@ -65,8 +83,9 @@ export async function claimDueSources(
   db: D1Database,
   tier: PollTier,
   now: Date,
-  limit = SOURCE_DISPATCH_LIMIT_PER_TICK[tier]
+  limit?: number
 ): Promise<Array<{ id: string; poll_claimed_at: string }>> {
+  const tickLimit = limit ?? dispatchLimitPerTick(tier, await pollableSourceCount(db, tier));
   const claimedAt = now.toISOString();
   const dueBefore = new Date(
     now.getTime() - SOURCE_POLL_INTERVAL_MS[tier] + DISPATCH_TICK_MS
@@ -100,7 +119,7 @@ export async function claimDueSources(
     claimExpiredBefore,
     dueBefore,
     quarantineRetryBefore,
-    limit
+    tickLimit
   ).all<{ id: string; poll_claimed_at: string }>();
   return result.results ?? [];
 }

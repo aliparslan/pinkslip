@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   claimDueSources,
   dispatchDueSources,
+  dispatchLimitPerTick,
   handleSourcePollBatch,
   pollQueuedSource,
   SOURCE_DISPATCH_CRON_SCHEDULE,
@@ -191,6 +192,16 @@ describe("claimDueSources", () => {
     const claimed = await claimDueSources(db, 1, NOW, 2);
 
     expect(claimed.map((row) => row.id)).toEqual(["c0", "c1"]);
+  });
+});
+
+describe("dispatchLimitPerTick", () => {
+  it("keeps twice the steady-state rate, with a floor for small tiers", () => {
+    // 316 tier-1 sources every 15 minutes need ~21 polls a minute.
+    expect(dispatchLimitPerTick(1, 316)).toBe(43);
+    // ~800 hourly long-tail sources need ~14 a minute.
+    expect(dispatchLimitPerTick(2, 799)).toBe(27);
+    expect(dispatchLimitPerTick(1, 12)).toBe(10);
   });
 });
 
