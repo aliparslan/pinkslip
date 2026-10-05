@@ -41,6 +41,7 @@ const routes: Record<string, PageEntry> = {
   "/admin/inbox": { cacheKey: "admin", load: loadAdmin },
   "/admin/sources": { cacheKey: "admin", load: loadAdmin },
   "/admin/runs": { cacheKey: "admin", load: loadAdmin },
+  "/admin/jev": { cacheKey: "admin", load: loadAdmin },
 };
 
 const componentCache = new Map<string, PageComponent>();

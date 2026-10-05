@@ -7,6 +7,7 @@
   import AdminSection from "./profile/AdminSection.svelte";
   import InboxSection from "./profile/InboxSection.svelte";
   import RunsSection from "./profile/RunsSection.svelte";
+  import JevSection from "./profile/JevSection.svelte";
   import Companies from "./Companies.svelte";
   import { isIosApp } from "../lib/platform";
 
@@ -16,6 +17,7 @@
     { path: "/admin/inbox", label: "Inbox" },
     { path: "/admin/sources", label: "Sources" },
     { path: "/admin/runs", label: "Runs" },
+    { path: "/admin/jev", label: "Jev" },
   ] as const;
 
   let route = $derived($currentRoute);
@@ -51,6 +53,7 @@
         class:inbox-active={active.path === "/admin/inbox"}
         class:sources-active={active.path === "/admin/sources"}
         class:runs-active={active.path === "/admin/runs"}
+        class:jev-active={active.path === "/admin/jev"}
         aria-label="Admin sections"
       >
         {#each destinations as destination}
@@ -80,6 +83,11 @@
             onError={(message) => feedback.error(message)}
             onSuccess={(message) => feedback.success(message)}
           />
+        {:else if route === "/admin/jev"}
+          <JevSection
+            {nativeIos}
+            onError={(message) => feedback.error(message)}
+          />
         {:else}
           <AdminSection
             {nativeIos}
@@ -106,7 +114,7 @@
     margin-bottom: 22px;
     padding: 3px;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 3px;
     border-radius: var(--radius-md);
     background: var(--color-bg-sunken);
@@ -126,7 +134,7 @@
     top: 3px;
     bottom: 3px;
     left: 3px;
-    width: calc((100% - 15px) / 4);
+    width: calc((100% - 18px) / 5);
     border-radius: var(--radius-sm);
     background: var(--color-bg-elev);
     box-shadow: var(--shadow-control-active);
@@ -143,6 +151,10 @@
 
   .native-layout .admin-tabs.runs-active::before {
     transform: translateX(calc(300% + 9px));
+  }
+
+  .native-layout .admin-tabs.jev-active::before {
+    transform: translateX(calc(400% + 12px));
   }
 
   .admin-tabs a {
@@ -348,6 +360,6 @@
 
   @media (min-width: 720px) {
     .admin-page { padding-top: 20px; }
-    .admin-tabs { width: max-content; min-width: 420px; }
+    .admin-tabs { width: max-content; min-width: 520px; }
   }
 </style>

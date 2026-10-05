@@ -31,6 +31,7 @@ export const routeDefinitions: RouteDefinition[] = [
   { id: "admin-inbox", pattern: "/admin/inbox", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Inbox" },
   { id: "admin-sources", pattern: "/admin/sources", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Sources" },
   { id: "admin-runs", pattern: "/admin/runs", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Runs" },
+  { id: "admin-jev", pattern: "/admin/jev", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Jev" },
 ];
 
 const compatibilityRedirects: Record<string, string> = {

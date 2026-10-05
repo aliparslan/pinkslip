@@ -55,6 +55,7 @@ describe("frontend route configuration", () => {
     expect(documentTitleFor("/admin/inbox")).toBe("Admin · Inbox");
     expect(documentTitleFor("/admin/sources")).toBe("Admin · Sources");
     expect(documentTitleFor("/admin/runs")).toBe("Admin · Runs");
+    expect(documentTitleFor("/admin/jev")).toBe("Admin · Jev");
     expect(documentTitleFor("/you")).toBeNull();
   });
 

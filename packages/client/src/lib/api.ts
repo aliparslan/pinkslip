@@ -419,6 +419,47 @@ export interface PollTierLatency {
   estimated_p95_minutes: number | null;
 }
 
+export type ClassificationVerdict = "rules" | "jev" | "neither" | "unclear";
+
+export interface ClassificationCall {
+  decision: "include" | "exclude" | "unsure";
+  reason: string | null;
+}
+
+export interface ClassificationField {
+  field: string;
+  label: string;
+  rules: string;
+  jev: string;
+  confidence: number | null;
+  mismatch: boolean;
+}
+
+export interface ClassificationDisagreement {
+  cache_key: string;
+  company: string;
+  title: string | null;
+  location: string | null;
+  job_url: string | null;
+  truncated: boolean;
+  completed_at: string;
+  kind: "rules_only" | "jev_only";
+  rules: ClassificationCall;
+  jev: ClassificationCall;
+  fields: ClassificationField[];
+  review: { verdict: ClassificationVerdict; note: string | null; reviewed_at: string } | null;
+}
+
+export interface ClassificationDisagreements {
+  available: boolean;
+  scanned?: number;
+  counts?: Record<"agree" | "rules_only" | "jev_only" | "jev_unsure" | "not_comparable", number>;
+  verdicts?: Record<ClassificationVerdict, number>;
+  month_spent_usd?: number;
+  monthly_budget_usd?: number;
+  disagreements?: ClassificationDisagreement[];
+}
+
 export interface VerifyCompanyResult {
   ok: boolean;
   error?: string;
@@ -820,6 +861,16 @@ export const api = {
   runs: {
     list: (limit = 50) => request<{ runs: FetchRun[] }>(`/runs?limit=${limit}`),
     latency: () => request<{ generated_at: string; tiers: PollTierLatency[] }>("/runs/latency"),
+  },
+  classification: {
+    disagreements: () => request<ClassificationDisagreements>("/metrics/classification/disagreements"),
+    review: (cacheKey: string, verdict: ClassificationVerdict, note?: string) =>
+      request<NonNullable<ClassificationDisagreement["review"]>>(
+        `/metrics/classification/reviews/${encodeURIComponent(cacheKey)}`,
+        { method: "PUT", body: JSON.stringify({ verdict, note }) }
+      ),
+    clearReview: (cacheKey: string) =>
+      request<void>(`/metrics/classification/reviews/${encodeURIComponent(cacheKey)}`, { method: "DELETE" }),
   },
   ops: {
     refreshAll: (limit?: number) =>
