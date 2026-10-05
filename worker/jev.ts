@@ -62,10 +62,13 @@ export interface JevRunner {
 
 export async function classifyWithJev(state: unknown, ai: JevRunner): Promise<JevResult> {
   const start = Date.now();
-  const body = await ai.run(JEV_WORKERS_AI_MODEL, { state, questions: JEV_QUESTIONS }, {
+  const raw = await ai.run(JEV_WORKERS_AI_MODEL, { state, questions: JEV_QUESTIONS }, {
     signal: AbortSignal.timeout(8_000),
     tags: ["feature:jev-shadow"],
-  }) as {
+  }) as { state?: unknown; result?: unknown } | null;
+  // The binding wraps the decision as { state: "Completed", result }; anything
+  // short of a completed result fails the answer check below.
+  const body = (raw?.state === "Completed" ? raw.result : raw) as {
     answers?: Record<string, { choice?: unknown; probabilities?: Record<string, number> }>;
     model?: unknown; id?: unknown;
     usage?: { input_tokens?: unknown; output_tokens?: unknown };

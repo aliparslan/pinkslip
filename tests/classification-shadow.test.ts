@@ -195,11 +195,14 @@ describe("classification shadow", () => {
     ]);
   });
 
-  it("rejects malformed provider decisions and does not fabricate usage", async () => {
+  it("unwraps completed results, rejects malformed decisions and does not fabricate usage", async () => {
     const invalid = providerResponse();
     invalid.answers.us_eligibility.choice = "maybe";
     await expect(classifyWithJev({}, fakeAi(async () => invalid))).rejects.toThrow("jev_invalid_answers");
     await expect(classifyWithJev({}, fakeAi(async () => ({ ...providerResponse(), model: "jev-1.14.0" })))).rejects.toThrow("jev_invalid_model");
+    const wrapped = await classifyWithJev({}, fakeAi(async () => ({ state: "Completed", result: providerResponse() })));
+    expect(wrapped.model).toBe(`${JEV_MODEL}.0`);
+    await expect(classifyWithJev({}, fakeAi(async () => ({ state: "Queued", result: providerResponse() })))).rejects.toThrow("jev_invalid_answers");
     const missingUsage = { ...providerResponse(), usage: undefined };
     const result = await classifyWithJev({}, fakeAi(async () => missingUsage));
     expect(result.costUsd).toBeNull();
