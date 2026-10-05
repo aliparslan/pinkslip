@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import {
+  companyPollOutcome,
   diffJobs,
   fetchPollingSnapshot,
   isTrustworthyJobSnapshot,
@@ -25,6 +26,8 @@ import { scheduledCycle } from "@worker/index";
 import { buildSourceAlertPayload } from "@worker/admin-alerts";
 import type { JobListing, JobReference } from "@worker/adapters/types";
 import type { ATSAdapter } from "@worker/adapters/types";
+import type { CompanyRow } from "@worker/types";
+import { sqliteD1 } from "./sqlite-d1";
 
 function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobListing {
   return {
@@ -659,5 +662,93 @@ describe("buildSourceAlertPayload", () => {
     const payload = buildSourceAlertPayload(sources, 46);
     expect(payload.title).toBe("5 job sources stopped working");
     expect(payload.body).toBe("A, B, C +2 more — 46 total need fixing");
+  });
+});
+
+describe("companyPollOutcome", () => {
+  const companySchema = `
+    CREATE TABLE companies (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      last_poll_status TEXT,
+      last_poll_error TEXT,
+      last_polled_at TEXT,
+      poll_failure_count INTEGER NOT NULL DEFAULT 0,
+      quarantined_at TEXT
+    )`;
+
+  function company(overrides: Partial<CompanyRow> = {}): CompanyRow {
+    return {
+      id: "c1",
+      name: "Example",
+      ats_type: "greenhouse",
+      source_type: "greenhouse",
+      ats_slug: "example",
+      website: "example.com",
+      enabled: 1,
+      added_at: "2026-01-01T00:00:00.000Z",
+      last_poll_status: "error",
+      last_poll_error: "boom",
+      last_polled_at: null,
+      poll_failure_count: 2,
+      quarantined_at: null,
+      ...overrides,
+    };
+  }
+
+  it("clears the failure streak and quarantine on success", async () => {
+    const { sqlite, db } = sqliteD1();
+    sqlite.run(companySchema);
+    sqlite.run(
+      "INSERT INTO companies VALUES ('c1', 'Example', 'error', 'boom', NULL, 4, '2026-10-01T00:00:00.000Z')"
+    );
+
+    const outcome = companyPollOutcome(
+      db,
+      company({ poll_failure_count: 4, quarantined_at: "2026-10-01T00:00:00.000Z" }),
+      { status: "fulfilled", value: [] },
+      "2026-10-04T12:00:00.000Z"
+    );
+    await outcome.statement.run();
+
+    expect(outcome.error).toBeNull();
+    expect(outcome.newlyQuarantined).toBeNull();
+    expect(sqlite.query("SELECT * FROM companies").get()).toMatchObject({
+      last_poll_status: "ok",
+      last_poll_error: null,
+      last_polled_at: "2026-10-04T12:00:00.000Z",
+      poll_failure_count: 0,
+      quarantined_at: null,
+    });
+  });
+
+  it("reports quarantine only on the failure that crosses the threshold", async () => {
+    const { sqlite, db } = sqliteD1();
+    sqlite.run(companySchema);
+    sqlite.run("INSERT INTO companies VALUES ('c1', 'Example', 'error', 'boom', NULL, 2, NULL)");
+
+    const crossing = companyPollOutcome(
+      db,
+      company({ poll_failure_count: QUARANTINE_AFTER_FAILURES - 1 }),
+      { status: "rejected", reason: new Error("HTTP 404") },
+      "2026-10-04T12:00:00.000Z"
+    );
+    await crossing.statement.run();
+    expect(crossing.error).toBe("HTTP 404");
+    expect(crossing.newlyQuarantined).toEqual({ name: "Example", error: "HTTP 404" });
+    expect(sqlite.query("SELECT quarantined_at FROM companies").get()).toEqual({
+      quarantined_at: "2026-10-04T12:00:00.000Z",
+    });
+
+    const repeated = companyPollOutcome(
+      db,
+      company({
+        poll_failure_count: QUARANTINE_AFTER_FAILURES,
+        quarantined_at: "2026-10-04T12:00:00.000Z",
+      }),
+      { status: "rejected", reason: new Error("HTTP 404") },
+      "2026-10-05T12:00:00.000Z"
+    );
+    expect(repeated.newlyQuarantined).toBeNull();
   });
 });

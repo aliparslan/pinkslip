@@ -114,6 +114,61 @@ export function nextQuarantineState(
   };
 }
 
+export interface CompanyPollOutcome {
+  /** Persists the company's poll status, failure streak, and quarantine state. */
+  statement: D1PreparedStatement;
+  error: string | null;
+  /** Set only when this poll is the one that moved the source into quarantine. */
+  newlyQuarantined: QuarantinedSource | null;
+}
+
+/**
+ * Shared by the cron cycle and the per-source queue consumer so both paths
+ * apply identical success, failure-streak, and quarantine semantics.
+ */
+export function companyPollOutcome(
+  db: D1Database,
+  company: CompanyRow,
+  result: PromiseSettledResult<unknown>,
+  polledAt: string
+): CompanyPollOutcome {
+  if (result.status === "fulfilled") {
+    // A success clears the failure streak and releases quarantine, so a slug
+    // that starts working again returns to its normal cadence.
+    return {
+      statement: db.prepare(
+        `UPDATE companies
+         SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ?,
+             poll_failure_count = 0, quarantined_at = NULL
+         WHERE id = ?`
+      ).bind(polledAt, company.id),
+      error: null,
+      newlyQuarantined: null,
+    };
+  }
+
+  const error = result.reason instanceof Error
+    ? result.reason.message
+    : String(result.reason);
+  const quarantine = nextQuarantineState(
+    company.poll_failure_count ?? 0,
+    company.quarantined_at ?? null,
+    polledAt
+  );
+  return {
+    statement: db.prepare(
+      `UPDATE companies
+       SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ?,
+           poll_failure_count = ?, quarantined_at = ?
+       WHERE id = ?`
+    ).bind(error, polledAt, quarantine.failureCount, quarantine.quarantinedAt, company.id),
+    error,
+    newlyQuarantined: quarantine.quarantinedAt && !company.quarantined_at
+      ? { name: company.name, error }
+      : null,
+  };
+}
+
 interface PollStats {
   companiesPolled: number;
   newJobsFound: number;
@@ -1326,48 +1381,21 @@ export async function runPollCycle(
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const company = companies[i];
+    const outcome = companyPollOutcome(db, company, result, now);
+    statusStmts.push(outcome.statement);
     if (result.status === "fulfilled") {
       allNewJobs.push(...result.value);
       log.push(`${company.name}: ${result.value.length} new`);
-      // A success clears the failure streak and releases quarantine, so a slug
-      // that starts working again returns to the normal 15-minute cadence.
-      statusStmts.push(
-        db.prepare(
-          `UPDATE companies
-           SET last_poll_status = 'ok', last_poll_error = NULL, last_polled_at = ?,
-               poll_failure_count = 0, quarantined_at = NULL
-           WHERE id = ?`
-        ).bind(now, company.id)
-      );
     } else {
-      const errMsg =
-        result.reason instanceof Error
-          ? result.reason.message
-          : String(result.reason);
       pollErrors.push({
         companyId: company.id,
         companyName: company.name,
-        error: errMsg,
+        error: outcome.error ?? "",
       });
-      const quarantine = nextQuarantineState(
-        company.poll_failure_count ?? 0,
-        company.quarantined_at ?? null,
-        now
-      );
-      if (quarantine.quarantinedAt && !company.quarantined_at) {
-        newlyQuarantined.push({ name: company.name, error: errMsg });
-      }
+      if (outcome.newlyQuarantined) newlyQuarantined.push(outcome.newlyQuarantined);
       log.push(
-        `${company.name}: ERROR ${errMsg}`
-        + (quarantine.quarantinedAt && !company.quarantined_at ? " (quarantined)" : "")
-      );
-      statusStmts.push(
-        db.prepare(
-          `UPDATE companies
-           SET last_poll_status = 'error', last_poll_error = ?, last_polled_at = ?,
-               poll_failure_count = ?, quarantined_at = ?
-           WHERE id = ?`
-        ).bind(errMsg, now, quarantine.failureCount, quarantine.quarantinedAt, company.id)
+        `${company.name}: ERROR ${outcome.error}`
+        + (outcome.newlyQuarantined ? " (quarantined)" : "")
       );
     }
   }
