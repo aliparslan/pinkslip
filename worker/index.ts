@@ -80,12 +80,34 @@ app.use("/*", async (c, next) => {
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   c.header("X-Frame-Options", "DENY");
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  const assetContentPolicy = c.res.headers.get("Content-Security-Policy");
   c.header(
     "Content-Security-Policy",
     pathname === "/privacy" || pathname === "/support"
       ? "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-      : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+      : assetContentPolicy ?? "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
   );
+});
+
+// Send browser page visits on the old hostname to the new site while retaining
+// the requested path and query. API clients stay on the old host during the
+// transition so older native builds continue to work.
+app.use("/*", async (c, next) => {
+  const requestUrl = new URL(c.req.url);
+  const acceptsHtml = c.req.header("accept")?.includes("text/html") ?? false;
+  if (
+    requestUrl.hostname === "pinkslip.alip.dev"
+    && (c.req.method === "GET" || c.req.method === "HEAD")
+    && acceptsHtml
+    && !requestUrl.pathname.startsWith("/api/")
+  ) {
+    requestUrl.protocol = "https:";
+    requestUrl.hostname = "pinkslip.work";
+    requestUrl.port = "";
+    requestUrl.searchParams.set("ps_moved", "1");
+    return c.redirect(requestUrl.toString(), 308);
+  }
+  await next();
 });
 
 function appFeatures(env: Env) {
@@ -342,6 +364,14 @@ app.onError((error, c) => {
     },
     500
   );
+});
+
+app.notFound((c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: "Not found", code: "not_found" }, 404);
+  }
+  if (c.env.ASSETS) return c.env.ASSETS.fetch(c.req.raw);
+  return c.json({ error: "Not found", code: "not_found" }, 404);
 });
 
 export function scheduledCycle(cron: string): "notifications" | "poll" {

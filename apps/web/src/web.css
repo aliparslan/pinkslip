@@ -43,6 +43,10 @@
   min-inline-size: 0;
 }
 
+.web-domain-migration-notice {
+  display: none;
+}
+
 .web-route-canvas {
   min-block-size: 100%;
 }
@@ -302,6 +306,31 @@
 }
 
 @media (min-width: 56.25rem) {
+  .web-domain-migration-notice {
+    min-block-size: var(--control-height-small);
+    padding-inline: var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .web-domain-migration-notice a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .web-app-shell.domain-migration-notice-active > .web-app-main {
+    flex: 1 1 0;
+    min-block-size: 0;
+    block-size: auto;
+  }
+
   .web-app-shell {
     inline-size: calc(100vw - var(--app-nav-wide));
     block-size: 100dvh;

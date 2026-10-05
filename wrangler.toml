@@ -9,18 +9,14 @@ routes = [
 
 [assets]
 directory = "./apps/web/dist"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
-# Browser navigations normally prefer the SPA fallback. These paths must reach
-# the Worker even when Sec-Fetch-Mode is `navigate` (legal pages, Apple links,
-# and the email sign-in callback), while normal web routes stay asset-first.
+# Browser page routes reach the Worker first for the legacy-host redirect and
+# SPA fallback. Vite's hashed assets remain asset-first; the small root-level
+# public assets fall through to the ASSETS binding in the Worker.
 run_worker_first = [
-  "/api/*",
-  "/auth/email/verify",
-  "/apple-app-site-association",
-  "/.well-known/apple-app-site-association",
-  "/legal.css",
-  "/privacy",
-  "/support",
+  "/*",
+  "!/assets/*",
 ]
 
 [[d1_databases]]

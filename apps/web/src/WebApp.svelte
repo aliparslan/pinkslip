@@ -12,6 +12,20 @@
   import WebPlatformActions from "./WebPlatformActions.svelte";
   import WebYouNavigation from "./WebYouNavigation.svelte";
 
+  const newDomainUrl = (() => {
+    if (typeof window === "undefined") return "https://pinkslip.work";
+    const target = new URL(window.location.href);
+    target.protocol = "https:";
+    target.hostname = "pinkslip.work";
+    target.port = "";
+    return target.toString();
+  })();
+  const showDomainMigrationNotice = (() => {
+    if (typeof window === "undefined") return false;
+    const url = new URL(window.location.href);
+    return url.hostname === "pinkslip.work" && url.searchParams.get("ps_moved") === "1";
+  })();
+
   let route = $derived($currentRoute);
   let definition = $derived(routeDefinition(route));
   let consumerShell = $derived(routeShell(route) === "consumer");
@@ -46,7 +60,13 @@
     class="web-app-shell"
     class:admin-shell-active={!consumerShell}
     class:root-navigation-visible={rootNavigationVisible}
+    class:domain-migration-notice-active={showDomainMigrationNotice}
   >
+    {#if showDomainMigrationNotice}
+      <aside class="web-domain-migration-notice" aria-label="Site address update">
+        Pinkslip is now on <a href={newDomainUrl}>pinkslip.work</a>
+      </aside>
+    {/if}
     {#if consumerShell}<TabBar />{/if}
     <main id="main-content" class="app-main web-app-main" tabindex="-1">
       {#if collectionRoute}

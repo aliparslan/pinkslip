@@ -75,6 +75,11 @@ stacking multiple tones or sizes is not supported.
   doctoral enrollment and completed education are separate controls. Doctoral
   searches include every explicitly eligible internship cohort.
 
+- **Legacy-domain migration notice** — Owner: Web experience. Reason: a
+  desktop-only address notice appears on the new host after visitors arrive
+  through a legacy-host redirect; review its visibility and wording before the
+  old hostname is removed. Call site: `apps/web/src/WebApp.svelte`; styles
+  live in `apps/web/src/web.css`.
 - **Web Jobs/Library master–detail workspace** — Owner: Web experience.
   Reason: the persistent desktop Jobs/Library/You primary sidebar,
   persistent list pane, route-aware
