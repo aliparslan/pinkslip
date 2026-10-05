@@ -1,5 +1,4 @@
 import { api } from "../../../packages/client/src/lib/api";
-import { navigate } from "../../../packages/client/src/router";
 import { invalidateFeedForNotification } from "../../../packages/client/src/lib/feed-store.svelte";
 import {
   installPlatform,
@@ -111,24 +110,29 @@ const webRuntime: PlatformRuntime = {
   openExternal: openWebWindow,
 };
 
-export async function initializeWebPlatform(): Promise<void> {
+export function initializeWebPlatform(navigateFromNotification: (url: string) => Promise<void>): () => void {
   installPlatform(webRuntime);
   // Service-worker availability should never hold the product UI hostage.
   void webRuntime.initialize().catch((error) => {
     console.error("Web notification initialization failed:", error);
   });
 
-  navigator.serviceWorker?.addEventListener("message", (event) => {
+  const onMessage = (event: MessageEvent) => {
     const message = event.data as { type?: unknown; url?: unknown; jobIds?: unknown } | null;
     if (message?.type === "pinkslip:notification-opened"
       && typeof message.url === "string"
       && message.url.startsWith("/")) {
-      invalidateFeedForNotification();
-      navigate(message.url);
+      // Kit navigation is asynchronous. Invalidate after the target commits so
+      // a retained feed does not refresh while it is still becoming inactive.
+      void navigateFromNotification(message.url).then(invalidateFeedForNotification).catch((error) => {
+        console.error("Notification navigation failed:", error);
+      });
       return;
     }
     if (message?.type === "pinkslip:push") {
       window.dispatchEvent(new CustomEvent("pinkslip:push", { detail: message }));
     }
-  });
+  };
+  navigator.serviceWorker?.addEventListener("message", onMessage);
+  return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
 }

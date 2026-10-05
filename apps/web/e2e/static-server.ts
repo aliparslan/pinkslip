@@ -37,6 +37,12 @@ const server = Bun.serve({
     }
 
     const requestedPath = fileInsideDist(url.pathname);
+    const prerenderedPage = Bun.file(`${requestedPath}.html`);
+    if (requestedPath && !extname(url.pathname) && await prerenderedPage.exists()) {
+      return new Response(request.method === "HEAD" ? null : prerenderedPage, {
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },
+      });
+    }
     if (requestedPath) {
       const requestedFile = Bun.file(requestedPath);
       if (await requestedFile.exists()) {
@@ -52,7 +58,7 @@ const server = Bun.serve({
         return new Response(request.method === "HEAD" ? null : requestedFile, {
           headers: {
             "content-type": requestedFile.type,
-            "cache-control": url.pathname.startsWith("/assets/")
+            "cache-control": url.pathname.startsWith("/assets/") || url.pathname.startsWith("/_app/immutable/")
               ? "public, max-age=31536000, immutable"
               : "no-cache",
           },

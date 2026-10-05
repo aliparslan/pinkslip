@@ -1181,22 +1181,17 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .job-more-menu {
   width: min(260px, calc(100vw - 32px));
-  transform-origin: var(--bits-menu-content-transform-origin);
-  transition:
-    opacity var(--duration-instant) var(--ease-standard),
-    transform var(--duration-instant) var(--ease-standard);
-  will-change: opacity, transform;
 }
 
 .job-row-more-menu {
   width: min(148px, calc(100vw - 32px));
 }
 
-.job-more-menu[data-ending-style] {
-  transition-duration: 110ms;
-}
-
 .menu-surface {
+  transform-origin: var(--bits-dropdown-menu-content-transform-origin, var(--bits-menu-content-transform-origin, top));
+  transition:
+    opacity var(--duration-instant) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
   z-index: var(--z-overlay);
   padding: 5px;
   border: 1px solid var(--color-line-2);
@@ -1692,7 +1687,7 @@ select.input-field {
   transition: transform var(--duration-standard) var(--ease-standard);
 }
 
-.my-jobs-tabs.applied-active::before {
+.my-jobs-tabs[data-secondary-active]::before {
   transform: translateX(calc(100% + 3px));
 }
 
@@ -2868,8 +2863,8 @@ details.filter-advanced { display: contents; }
    The middle band above keeps the same type and controls with roomier cards. */
 @media (max-width: 33.75rem) {
   .root-header:not(.root-header-native) {
-    padding-top: calc(var(--safe-top) + var(--space-6));
-    border-bottom-color: transparent;
+    --root-header-padding-top: var(--space-6);
+    --root-header-divider: transparent;
   }
 
   .root-header:not(.root-header-native) .root-header-inner {

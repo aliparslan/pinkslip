@@ -1,11 +1,23 @@
 {
-  "extends": "@tsconfig/svelte/tsconfig.json",
+  "extends": "$app/tsconfig",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "types": [
+      "vite/client",
+      "$app/types"
+    ]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "../../packages/client/src/**/*.ts", "../../packages/client/src/**/*.svelte", "../../shared/**/*.ts"]
+  "include": [
+    "src",
+    "*",
+    "../../packages/client/src",
+    "../../shared"
+  ],
+  "exclude": [
+    "src/service-worker",
+    "e2e"
+  ]
 }

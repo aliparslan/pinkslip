@@ -111,9 +111,9 @@
 <style>
   .root-header {
     flex: none;
-    padding-top: calc(var(--safe-top) + var(--space-3));
+    padding-top: calc(var(--safe-top) + var(--root-header-padding-top, var(--space-3)));
     background: var(--color-bg);
-    border-bottom: 0.5px solid var(--color-line);
+    border-bottom: 0.5px solid var(--root-header-divider, var(--color-line));
   }
 
   .root-header-inner {

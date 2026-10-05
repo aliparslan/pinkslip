@@ -7,10 +7,10 @@ import {
   precacheAndRoute,
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
+import { immutable, assets, prerendered } from "$app/manifest";
+import { version } from "$app/env";
 
-declare const self: ServiceWorkerGlobalScope & {
-  __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
-};
+declare const self: ServiceWorkerGlobalScope;
 
 const RETIRED_NAVIGATION_CACHES = new Set(["web-navigation-v1"]);
 const LEGACY_CACHE_PREFIX = "pinkslip-";
@@ -59,7 +59,17 @@ registerRoute(new NavigationRoute(
 // Route order is significant in Workbox. Register navigation first so a
 // precached directory index cannot answer `/` before the network-only shell
 // policy gets a chance; the same precache remains available to the fallback.
-precacheAndRoute(self.__WB_MANIFEST);
+// Kit supplies the client manifest. Keep costly document engines on demand,
+// and retain the static adapter's fallback for offline deep links.
+const cacheable = (path: string) =>
+  /\.(?:html|js|css|woff2|png|svg|json)$/.test(path)
+  && !/(?:typst-compiler|pdf-|pdf\.worker|resume-document\.worker)/.test(path);
+precacheAndRoute([
+  ...immutable.filter(({ path }) => cacheable(path)).map(({ path }) => ({ url: path, revision: null })),
+  ...assets.filter(({ path }) => cacheable(path)).map(({ path }) => ({ url: path, revision: version })),
+  ...prerendered.map(({ path }) => ({ url: path, revision: version })),
+  { url: "/index.html", revision: version },
+]);
 
 function cleanAppTarget(rawTarget: unknown): string {
   if (typeof rawTarget !== "string" || !rawTarget.startsWith("/")) {

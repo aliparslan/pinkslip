@@ -55,7 +55,7 @@ describe("web PWA assets", () => {
 
   test("preloads the shared roman and display faces but leaves italic on demand", async () => {
     const workspaceRoot = resolve(import.meta.dir, "../../..");
-    const webIndex = await Bun.file(resolve(workspaceRoot, "apps/web/index.html")).text();
+    const webIndex = await Bun.file(resolve(workspaceRoot, "scripts/static-app-shell.mts")).text();
     const iosIndex = await Bun.file(resolve(workspaceRoot, "apps/ios/index.html")).text();
     const typography = await Bun.file(resolve(
       workspaceRoot,
@@ -63,8 +63,8 @@ describe("web PWA assets", () => {
     )).text();
 
     for (const source of [webIndex, iosIndex]) {
-      expect(source).toContain("untitled-sans-vf-roman.woff2");
-      expect(source).toContain("founders-grotesk-semibold.woff2");
+      expect(source).toContain("untitled-sans-vf-roman");
+      expect(source).toContain("founders-grotesk-semibold");
       expect(source).not.toContain('rel="preload" href="../../packages/client/src/assets/fonts/product/untitled-sans-vf-italic.woff2"');
     }
     expect(typography).toContain("untitled-sans-vf-italic.woff2");
@@ -73,14 +73,14 @@ describe("web PWA assets", () => {
 
   test("checks the network before the precached shell and activates releases automatically", async () => {
     const workspaceRoot = resolve(import.meta.dir, "../../..");
-    const worker = await Bun.file(resolve(workspaceRoot, "apps/web/src/sw.ts")).text();
+    const worker = await Bun.file(resolve(workspaceRoot, "apps/web/src/service-worker/index.ts")).text();
     const environment = await Bun.file(resolve(
       workspaceRoot,
       "apps/web/src/lib/web-environment.ts",
     )).text();
 
     expect(worker.indexOf("registerRoute(new NavigationRoute")).toBeLessThan(
-      worker.indexOf("precacheAndRoute(self.__WB_MANIFEST)"),
+      worker.indexOf("precacheAndRoute(["),
     );
     expect(worker).toContain('cache: "no-store"');
     expect(worker).toContain("event.waitUntil(self.skipWaiting())");

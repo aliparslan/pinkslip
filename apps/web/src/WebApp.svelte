@@ -6,7 +6,12 @@
     showsRootNavigation,
   } from "../../../packages/client/src/router";
   import AppSession from "../../../packages/client/src/app/AppSession.svelte";
-  import RouteView from "../../../packages/client/src/app/RouteView.svelte";
+  import type { Snippet } from "svelte";
+  import Feed from "../../../packages/client/src/pages/Feed.svelte";
+  import JobLibrary from "../../../packages/client/src/pages/JobLibrary.svelte";
+  import WebRouteFrame from "./WebRouteFrame.svelte";
+
+  let { children }: { children: Snippet } = $props();
   import BrandMark from "../../../packages/client/src/components/BrandMark.svelte";
   import TabBar from "../../../packages/client/src/components/TabBar.svelte";
   import WebPlatformActions from "./WebPlatformActions.svelte";
@@ -76,16 +81,18 @@
           data-workspace={collectionLabel.toLowerCase()}
         >
           <aside class="web-workspace-master" aria-label={`${collectionLabel} list`}>
-            <RouteView
-              routeOverride={collectionRoute}
-              active={!selectedJob}
-              rootHeadingLevel={selectedJob ? 2 : 1}
-            />
+            <WebRouteFrame route={collectionRoute} active={!selectedJob} headingLevel={selectedJob ? 2 : 1}>
+              {#if collectionRoute === "/"}
+                <Feed active={!selectedJob} />
+              {:else}
+                <JobLibrary routeOverride={collectionRoute} active={!selectedJob} />
+              {/if}
+            </WebRouteFrame>
           </aside>
 
           <section class="web-workspace-detail" aria-label={selectedJob ? "Selected job" : "Job details"}>
             {#if selectedJob}
-              <RouteView showRootHeader={false} />
+              <WebRouteFrame showRootHeader={false}>{@render children()}</WebRouteFrame>
             {:else}
               <div class="web-workspace-empty" aria-labelledby="web-workspace-empty-title">
                 <span class="web-workspace-empty__icon" aria-hidden="true">
@@ -103,12 +110,12 @@
         <div class="web-you-workspace">
           <WebYouNavigation />
           <div class="web-route-canvas" data-route-shell={routeShell(route)}>
-            <RouteView />
+            <WebRouteFrame>{@render children()}</WebRouteFrame>
           </div>
         </div>
       {:else}
         <div class="web-route-canvas" data-route-shell={routeShell(route)}>
-          <RouteView />
+          <WebRouteFrame>{@render children()}</WebRouteFrame>
         </div>
       {/if}
       <WebPlatformActions compactInstall={definition.id === "you"} />

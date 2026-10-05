@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { DropdownMenu } from "bits-ui";
   import {
     CAREER_STAGE_OPTIONS,
     EDUCATION_OPTIONS,
@@ -49,7 +50,6 @@
     { id: "sponsorship", label: "I need sponsorship" },
     { id: "not_sure", label: "I’m not sure" },
   ];
-  let workModePicker: HTMLDetailsElement | null = $state(null);
   let noRolePreference = $derived(
     profile.roles.length === allRoleIds.length
       && allRoleIds.every((role) => profile.roles.includes(role)),
@@ -76,31 +76,6 @@
           .map((option) => option.label)
           .join(", "),
   );
-
-  $effect(() => {
-    function closeWorkModePicker(event: PointerEvent) {
-      if (
-        workModePicker?.open
-        && event.target instanceof Node
-        && !workModePicker.contains(event.target)
-      ) {
-        workModePicker.open = false;
-      }
-    }
-
-    function closeWorkModePickerWithEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || !workModePicker?.open) return;
-      workModePicker.open = false;
-      workModePicker.querySelector<HTMLElement>("summary")?.focus();
-    }
-
-    document.addEventListener("pointerdown", closeWorkModePicker);
-    document.addEventListener("keydown", closeWorkModePickerWithEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeWorkModePicker);
-      document.removeEventListener("keydown", closeWorkModePickerWithEscape);
-    };
-  });
 
   function parseList(value: string): string[] {
     return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
@@ -402,35 +377,29 @@
 
     <div class="subfield stack-sm">
       <div id="work-mode-label" class="subfield-label">Work mode</div>
-      <details
-        bind:this={workModePicker}
-        class="work-mode-picker"
-      >
-        <summary class="work-mode-trigger" aria-labelledby="work-mode-label work-mode-value">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger class="work-mode-trigger" aria-labelledby="work-mode-label work-mode-value">
           <span id="work-mode-value">{workModeSummary || "Choose work modes"}</span>
-          <span class="work-mode-chevron" aria-hidden="true">
-            <CaretDown size={15} weight="bold" />
-          </span>
-        </summary>
-        <div class="menu-surface work-mode-menu" aria-label="Work modes">
-          {#each workModeOptions as option}
-            <button
-              type="button"
-              class="menu-item work-mode-option"
-              class:active={profile.work_modes.includes(option.id)}
-              aria-pressed={profile.work_modes.includes(option.id)}
-              onclick={() => toggleWorkMode(option.id)}
-            >
-              <span>{option.label}</span>
-              <span class="select-check" aria-hidden="true">
-                {#if profile.work_modes.includes(option.id)}
-                  <Check size={14} weight="bold" />
-                {/if}
-              </span>
-            </button>
-          {/each}
-        </div>
-      </details>
+          <span class="work-mode-chevron" aria-hidden="true"><CaretDown size={15} weight="bold" /></span>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content class="menu-surface work-mode-menu" align="start" sideOffset={6} aria-label="Work modes">
+            {#each workModeOptions as option}
+              <DropdownMenu.CheckboxItem
+                class="menu-item work-mode-option"
+                checked={profile.work_modes.includes(option.id)}
+                onCheckedChange={() => toggleWorkMode(option.id)}
+                closeOnSelect={false}
+              >
+                <span>{option.label}</span>
+                <span class="select-check" aria-hidden="true">
+                  {#if profile.work_modes.includes(option.id)}<Check size={14} weight="bold" />{/if}
+                </span>
+              </DropdownMenu.CheckboxItem>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
 
     {#if !nativeIos}{@render allLocationsToggle(false)}{/if}
@@ -533,7 +502,7 @@
   }
   .native-layout .choice-card,
   .native-layout .location-chip,
-  .native-layout .work-mode-trigger {
+  .native-layout :global(.work-mode-trigger) {
     border-color: var(--color-control-border);
     background: var(--color-input-bg);
   }
@@ -557,11 +526,10 @@
   .preference-fieldset > legend { padding: 0; }
   .native-layout .preference-fieldset { gap: 0; }
   .native-layout .preference-fieldset > legend { margin-block-end: var(--space-2); }
-  .work-mode-picker { position: relative; }
-  .work-mode-trigger {
+  :global(.work-mode-trigger) {
     width: 100%;
-    min-height: 48px;
-    padding: 0 14px;
+    min-height: var(--control-height);
+    padding: 0 var(--space-3);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -572,9 +540,7 @@
     color: var(--color-ink);
     font-size: var(--fs-md);
     cursor: pointer;
-    list-style: none;
   }
-  .work-mode-trigger::-webkit-details-marker { display: none; }
   .work-mode-chevron {
     flex-shrink: 0;
     display: grid;
@@ -582,15 +548,11 @@
     color: var(--color-ink-3);
     transition: transform var(--duration-fast) var(--ease-standard);
   }
-  .work-mode-picker[open] .work-mode-chevron { transform: rotate(180deg); }
-  .work-mode-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    z-index: 8;
+  :global(.work-mode-trigger[data-state="open"]) .work-mode-chevron { transform: rotate(180deg); }
+  :global(.work-mode-menu) {
+    min-width: var(--bits-dropdown-menu-anchor-width);
   }
-  .work-mode-option {
+  :global(.work-mode-option) {
     justify-content: space-between;
     font-size: var(--fs-md);
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Tabs } from "bits-ui";
   import { onMount, tick } from "svelte";
   import ArrowCounterClockwise from "phosphor-svelte/lib/ArrowCounterClockwise";
   import ArrowDown from "phosphor-svelte/lib/ArrowDown";
@@ -744,14 +745,6 @@
     }).catch(() => undefined);
   }
 
-  function handleViewKeydown(event: KeyboardEvent) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const next: ViewId = event.key === "ArrowLeft" || event.key === "Home" ? "resume" : "preview";
-    void selectView(next);
-    window.requestAnimationFrame(() => document.getElementById(`tailoring-tab-${next}`)?.focus());
-  }
-
   async function exportResume() {
     if (!structured?.resumeDraft || exporting) return;
     clearSaveTimer();
@@ -1019,31 +1012,17 @@
         </div>
       </section>
     {:else if draft}
-      <section class="structured-workspace">
-        <div class="my-jobs-tabs tailoring-tabs" class:preview-active={activeView === "preview"} role="tablist" aria-label="Tailored resume views">
-            <button
-              id="tailoring-tab-resume"
-              type="button"
-              class:active={activeView === "resume"}
-              role="tab"
-              aria-selected={activeView === "resume"}
-              aria-controls="tailoring-panel-resume"
-              tabindex={activeView === "resume" ? 0 : -1}
-              onclick={() => void selectView("resume")}
-              onkeydown={handleViewKeydown}
-            >Resume</button>
-            <button
-              id="tailoring-tab-preview"
-              type="button"
-              class:active={activeView === "preview"}
-              role="tab"
-              aria-selected={activeView === "preview"}
-              aria-controls="tailoring-panel-preview"
-              tabindex={activeView === "preview" ? 0 : -1}
-              onclick={() => void selectView("preview")}
-              onkeydown={handleViewKeydown}
-            >Preview</button>
+      <Tabs.Root value={activeView} onValueChange={(view) => void selectView(view as ViewId)} loop>
+      {#snippet child({ props })}
+      <section {...props} class="structured-workspace">
+        <Tabs.List aria-label="Tailored resume views">
+        {#snippet child({ props: listProps })}
+        <div {...listProps} class="my-jobs-tabs tailoring-tabs" data-secondary-active={activeView === "preview" ? "" : undefined}>
+          <Tabs.Trigger value="resume" id="tailoring-tab-resume" class={activeView === "resume" ? "active" : ""}>Resume</Tabs.Trigger>
+          <Tabs.Trigger value="preview" id="tailoring-tab-preview" class={activeView === "preview" ? "active" : ""}>Preview</Tabs.Trigger>
         </div>
+        {/snippet}
+        </Tabs.List>
 
         {#if structured.validation && !structured.validation.valid}
           <InlineFailure
@@ -1052,12 +1031,13 @@
           />
         {/if}
 
+          <Tabs.Content value="resume" id="tailoring-panel-resume">
+          {#snippet child({ props: panelProps })}
           <div
-            id="tailoring-panel-resume"
+            {...panelProps}
+            hidden={false}
             class="structured-editor"
             class:tailoring-panel-active={activeView === "resume"}
-            role="tabpanel"
-            aria-labelledby="tailoring-tab-resume"
           >
             <section class="resume-section">
               <header class="resume-section-heading">
@@ -1070,6 +1050,7 @@
                 </span>
               </div>
             </section>
+
 
             {#if draft.experience.length}
               <section class="resume-section">
@@ -1279,12 +1260,15 @@
               {/if}
             </section>
           </div>
+          {/snippet}
+          </Tabs.Content>
+          <Tabs.Content value="preview" id="tailoring-panel-preview">
+          {#snippet child({ props: panelProps })}
           <div
-            id="tailoring-panel-preview"
+            {...panelProps}
+            hidden={false}
             class="preview-panel"
             class:tailoring-panel-active={activeView === "preview"}
-            role="tabpanel"
-            aria-labelledby="tailoring-tab-preview"
           >
             {#if previewError}
               <InlineFailure
@@ -1354,6 +1338,8 @@
               <button class="btn-secondary" type="button" onclick={() => void compilePreview()}><Eye size={17} /> Build preview</button>
             {/if}
           </div>
+          {/snippet}
+          </Tabs.Content>
 
         <div class="download-action">
           <button class="btn-primary btn-accent full-width" type="button" disabled={exporting || saving} onclick={() => void exportResume()}>
@@ -1362,6 +1348,8 @@
           </button>
         </div>
       </section>
+      {/snippet}
+      </Tabs.Root>
     {/if}
   </div>
 </div>
@@ -1941,10 +1929,6 @@
   .tailoring-tabs {
     width: 100%;
     margin-bottom: 0;
-  }
-
-  .tailoring-tabs.preview-active::before {
-    transform: translateX(calc(100% + var(--space-1) - 1px));
   }
 
   .resume-section {

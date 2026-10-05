@@ -56,7 +56,7 @@ for (const path of sharedProductFonts) {
 const frontendAuthoredFiles = [
   "apps/ios/index.html",
   "apps/ios/vite.config.ts",
-  "apps/web/index.html",
+  "apps/web/src/app.html",
   "apps/web/vite.config.ts",
   ...new Bun.Glob("apps/{ios,web}/src/**/*.{css,svelte,ts}").scanSync({ cwd: root }),
   ...new Bun.Glob("packages/client/src/**/*.{css,svelte,ts}").scanSync({ cwd: root }),

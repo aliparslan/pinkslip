@@ -17,10 +17,28 @@ the shared session and route layers.
 
 ### `apps/web`
 
-Owns the browser entrypoint, responsive workspace composition, Vite output,
+Owns SvelteKit file routes and layouts, responsive workspace composition, static output,
 service-worker/Web Push integration, manifest behavior, Web Share fallback, and
 web-only release. “PWA” is an implementation detail; the product is presented as
 Pinkslip on the web.
+
+The web build uses SvelteKit 3 and `adapter-static`. Personalized routes under
+`src/routes/(app)` are client-rendered behind `AppSession`. Public routes such
+as `/about` are prerendered HTML. Cloudflare still serves `apps/web/dist` beside
+the existing Hono Worker; this migration adds no SSR Worker or paid service.
+
+`WebApp` retains the Feed/Library collection while a job is selected; leaf Kit
+routes render the detail and settings screens. Collection page entries are
+intentionally empty because their presentation belongs to the persistent shell.
+`WebRouteFrame` owns headers, render recovery, titles, and route focus.
+The shared navigation API delegates browser navigation to Kit through
+`kit-navigation.ts`; the shared page registry and hash adapter remain native-owned.
+When adding a route, add its Kit entry and shared route metadata. Domain screens
+continue to live in `packages/client`.
+
+Dialogs, settings switches, job menus, feed filter dialogs, work-mode menus,
+and Library/Tailor tabs use Bits UI. Tokens and canonical CSS own appearance and
+motion. Mobile sheet drag behavior remains an adaptive extension to the dialog.
 
 ### `apps/ios`
 

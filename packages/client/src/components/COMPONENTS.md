@@ -14,7 +14,7 @@ application code should not invent visually equivalent one-offs.
 | Partial-load recovery | `InlineFailure.svelte` | local title, recovery message, optional retry without replacing the whole page |
 | Boolean setting | `Switch.svelte` | controlled checked state and accessible label |
 | Autosave feedback | `SaveStatus.svelte` | `SavePresentation.phase`, optional compact presentation, and a semantic Retry callback for failed saves |
-| Dialog or mobile sheet | `Modal.svelte` | title, subtitle, width, initial focus policy, busy state, dismiss callback, content/actions snippets; always-visible 44px Close action; sheet drag begins from the handle/header and ignores interactive descendants |
+| Dialog or mobile sheet | `Modal.svelte` | Bits UI Dialog owns ARIA, keyboard, focus trapping/return, outside dismissal, and scroll lock; title, subtitle, width, initial focus policy, busy state, dismiss callback, content/actions snippets; always-visible 44px Close action; sheet drag begins from the handle/header and ignores interactive descendants |
 | Pushed-screen header | `ScreenNav.svelte` | title, back action, optional trailing content, native collapsing title |
 | Collapsed-header search | `HeaderSearch.svelte` | owner-keyed page registration that survives retained-root navigation, compact expand/collapse control |
 | Transient feedback | `Toast.svelte` + `ToastViewport.svelte` through `feedback.svelte.ts` | message, tone, optional Undo/action |
@@ -65,6 +65,18 @@ stacking multiple tones or sizes is not supported.
 - Update this file whenever a stable component or supported variant changes.
 
 ## Quarantine
+
+- **SvelteKit public About page** — Owner: Web experience. Reason: minimal
+  prerendered public content and route-specific metadata establish the SEO
+  boundary without replacing the Jobs feed. Uses existing page and button
+  compositions. Call site: `apps/web/src/routes/about/+page.svelte`. Needs
+  copy and visual review before expanding into a full landing page.
+- **Bits UI interaction migration** — Owner: Shared UI. Reason: existing
+  appearance is retained while Dialog, Tabs, and DropdownMenu take over
+  accessibility and interaction mechanics. Mobile drag remains custom.
+  Call sites: `Modal.svelte`, `SearchProfileFields.svelte`, `JobLibrary.svelte`,
+  and `Tailor.svelte`. Needs hands-on native iOS sheet, keyboard, and VoiceOver
+  review; this does not promote new appearance variants.
 
 - **Education and experience preference fields** — Owner: Job matching.
   Reason: the optional completed-education selector, numeric experience input,

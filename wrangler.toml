@@ -12,11 +12,12 @@ directory = "./apps/web/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 # Browser page routes reach the Worker first for the legacy-host redirect and
-# SPA fallback. Vite's hashed assets remain asset-first; the small root-level
+# SPA fallback. Hashed build assets remain asset-first; the small root-level
 # public assets fall through to the ASSETS binding in the Worker.
 run_worker_first = [
   "/*",
   "!/assets/*",
+  "!/_app/*",
 ]
 
 [[d1_databases]]

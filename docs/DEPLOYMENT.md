@@ -13,7 +13,10 @@ release.
 The service worker checks for a new release at startup and when a tab becomes
 active. New workers activate immediately, clear the retired navigation cache,
 and reload controlled tabs once. HTML navigations always revalidate the
-network; revisioned assets under `/assets/` remain long-lived and immutable.
+network; revisioned assets under `/_app/immutable/` remain long-lived and immutable.
+SvelteKit builds the worker, which is published at the existing `/sw.js` URL.
+The static HTML includes a CSP with hashes for Kit’s bootstrap; `_headers`
+adds the frame-ancestor policy, cache policy, and crawl directives.
 
 ## Queue-based source polling
 

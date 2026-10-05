@@ -10,7 +10,7 @@ cover-letter tailoring.
 - A Cloudflare Worker exposes the Hono API and serves the built frontend.
 - Cloudflare D1 stores accounts, search profiles, jobs, and product events.
 - Cloudflare R2 stores uploaded resume assets.
-- A Svelte 5/Vite web app provides the responsive browser experience and
+- A Svelte 5/SvelteKit web app provides the responsive browser experience and
   installable web capabilities.
 - A separate Capacitor 8.5 iOS app composes the shared product code around an
   iOS-specific shell, lifecycle, secure session, APNs, haptics, and share UI.
@@ -21,7 +21,7 @@ profiles created before the typed schema existed.
 
 ## Local setup
 
-Install Bun, then install the workspace from the repository root:
+Install Bun and Node 22.17+, then install the workspace from the repository root:
 
 ```sh
 bun install

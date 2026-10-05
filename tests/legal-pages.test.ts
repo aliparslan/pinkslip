@@ -32,9 +32,10 @@ describe("public legal pages", () => {
   test("browser navigations reach the Worker instead of the SPA fallback", async () => {
     const config = await Bun.file(new URL("../wrangler.toml", import.meta.url)).text();
 
-    expect(config).toContain('"/privacy"');
-    expect(config).toContain('"/support"');
-    expect(config).toContain('"/auth/email/verify"');
-    expect(config).toContain('"/.well-known/apple-app-site-association"');
+    const { assets } = Bun.TOML.parse(config) as { assets: { run_worker_first: string[] } };
+    expect(assets.run_worker_first).toContain("/*");
+    // Only build assets bypass the Worker; legal/auth paths match the wildcard.
+    expect(assets.run_worker_first.filter((pattern) => pattern.startsWith("!")))
+      .toEqual(["!/assets/*", "!/_app/*"]);
   });
 });

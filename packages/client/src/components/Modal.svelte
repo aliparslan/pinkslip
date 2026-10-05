@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { onDestroy, type Snippet } from "svelte";
   import { fade, fly } from "svelte/transition";
+  import { Dialog } from "bits-ui";
   import { dragDismiss } from "../lib/drag-dismiss";
-  import { focusTrap } from "../lib/focus-trap";
   import { registerModalOpen } from "../lib/modal-stack.svelte";
   import { isIosApp } from "../lib/platform";
   import { motionDistance, motionDuration } from "../lib/motion";
@@ -26,17 +26,13 @@
     children: Snippet;
   } = $props();
 
-  const titleId = `modal-title-${Math.random().toString(36).slice(2, 8)}`;
-  const subtitleId = `${titleId}-subtitle`;
   const nativeIos = isIosApp();
 
   let backdropEl: HTMLElement | undefined = $state();
   let backdropOpacity = $state(1);
 
-  $effect(() => {
-    if (!backdropEl) return;
-    return registerModalOpen(backdropEl);
-  });
+  let releaseModal: (() => void) | undefined;
+  onDestroy(() => releaseModal?.());
 
   function requestClose() {
     if (!busy) onclose();
@@ -48,14 +44,18 @@
   }
 </script>
 
+<Dialog.Root open={true} onOpenChange={(open) => { if (!open) requestClose(); }}>
+<Dialog.Portal>
+<Dialog.Overlay forceMount>
+{#snippet child({ props })}
 <div
+  {...props}
   bind:this={backdropEl}
   class="modal-backdrop"
   role="presentation"
   style:--modal-scrim-opacity={`${backdropOpacity}`}
   in:fade={{ duration: motionDuration(160) }}
   out:fade={{ duration: motionDuration(120) }}
-  onclick={(event) => { if (event.target === event.currentTarget) requestClose(); }}
 >
   <div
     class="modal-motion-shell"
@@ -63,27 +63,41 @@
     in:fly={{ y: motionDistance(12), duration: motionDuration(220) }}
     out:fly={{ y: motionDistance(10), duration: motionDuration(140) }}
   >
+    <Dialog.Content
+      forceMount
+      onEscapeKeydown={(event) => { if (busy) event.preventDefault(); }}
+      onInteractOutside={(event) => { if (busy) event.preventDefault(); }}
+      onOpenAutoFocus={(event) => {
+        // Bits captures the opener before this callback. Making the shell inert
+        // earlier would blur that opener before the library can remember it.
+        if (backdropEl) releaseModal = registerModalOpen(backdropEl);
+        if (initialFocus === "dialog") {
+          event.preventDefault();
+          backdropEl?.querySelector<HTMLElement>(".modal-card")?.focus();
+        }
+      }}
+      onCloseAutoFocus={() => {
+        // Restore the shell before Bits returns focus to the remembered opener.
+        releaseModal?.();
+        releaseModal = undefined;
+      }}
+    >
+    {#snippet child({ props: contentProps })}
     <div
+      {...contentProps}
       class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      use:focusTrap={{ initialFocus }}
       use:dragDismiss={{
         onDismiss: requestClose,
         disabled: busy,
         startSelector: ".modal-drag-region",
         onOffsetChange: updateBackdropOpacity,
       }}
-      aria-labelledby={titleId}
-      aria-describedby={subtitle ? subtitleId : undefined}
-      tabindex="-1"
-      onkeydown={(event) => { if (event.key === "Escape") requestClose(); }}
     >
       <div class="modal-drag-region">
         <div class="modal-drag-handle" aria-hidden="true"></div>
-        <h2 id={titleId} class="h-display modal-title">{title}</h2>
+        <Dialog.Title level={2} class="h-display modal-title">{title}</Dialog.Title>
         {#if subtitle}
-          <p id={subtitleId} class="modal-subtitle">{subtitle}</p>
+          <Dialog.Description class="modal-subtitle">{subtitle}</Dialog.Description>
         {/if}
       </div>
       {@render children()}
@@ -97,8 +111,14 @@
         <X size={20} weight="regular" aria-hidden="true" />
       </button>
     </div>
+    {/snippet}
+    </Dialog.Content>
   </div>
 </div>
+{/snippet}
+</Dialog.Overlay>
+</Dialog.Portal>
+</Dialog.Root>
 
 <style>
   .modal-card { position: relative; }

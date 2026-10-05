@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Tabs } from "bits-ui";
   import { api } from "../lib/api";
-  import { currentRoute, navigate, navigateFromAnchor, routeHref, routeParam } from "../router";
+  import { currentRoute, navigate, routeParam } from "../router";
   import { errorMessage, timeAgo } from "../lib/utils";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
@@ -44,24 +45,6 @@
     : error);
   const activation = new ActivationEdge();
 
-  function selectView(view: "saved" | "applied", moveFocus = false, event?: MouseEvent) {
-    const target = `/library/${view}`;
-    if (event) navigateFromAnchor(event, target);
-    else navigate(target);
-    if (moveFocus) {
-      window.requestAnimationFrame(() => {
-        document.getElementById(`my-jobs-tab-${view}`)?.focus();
-      });
-    }
-  }
-
-  function handleTabKeydown(event: KeyboardEvent) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const next = event.key === "ArrowLeft" || event.key === "Home" ? "saved" : "applied";
-    selectView(next, true);
-  }
-
   async function loadJobs(silent = false) {
     if (!silent) loading = true;
     error = null;
@@ -102,51 +85,32 @@
 </script>
 
 <div class="page root-screen library-page" class:native-layout={nativeIos}>
+  <Tabs.Root value={activeView} onValueChange={(view) => navigate(`/library/${view}`)} loop>
   <div class="page-frame my-jobs-page">
-    <div class="my-jobs-tabs" class:applied-active={activeView === "applied"} role="tablist" aria-label="Your jobs">
-      <a
-        id="my-jobs-tab-saved"
-        href={routeHref("/library/saved")}
-        class:active={activeView === "saved"}
-        role="tab"
-        aria-selected={activeView === "saved"}
-        aria-controls="my-jobs-panel"
-        tabindex={activeView === "saved" ? 0 : -1}
-        onclick={(event) => selectView("saved", false, event)}
-        onkeydown={handleTabKeydown}
-      >
+    <Tabs.List aria-label="Your jobs">
+    {#snippet child({ props })}
+    <div {...props} class="my-jobs-tabs" data-secondary-active={activeView === "applied" ? "" : undefined}>
+      <Tabs.Trigger value="saved" id="my-jobs-tab-saved" class={activeView === "saved" ? "active" : ""}>
         <span class="library-tab-icon saved" aria-hidden="true">
           <span class:visible={activeView !== "saved"}><BookmarkSimple size={17} weight="regular" /></span>
           <span class:visible={activeView === "saved"}><BookmarkSimple size={17} weight="fill" /></span>
         </span>
         <span>Saved</span>
         <small>{$jobLibrary.savedJobs.length}</small>
-      </a>
-      <a
-        id="my-jobs-tab-applied"
-        href={routeHref("/library/applied")}
-        class:active={activeView === "applied"}
-        role="tab"
-        aria-selected={activeView === "applied"}
-        aria-controls="my-jobs-panel"
-        tabindex={activeView === "applied" ? 0 : -1}
-        onclick={(event) => selectView("applied", false, event)}
-        onkeydown={handleTabKeydown}
-      >
+      </Tabs.Trigger>
+      <Tabs.Trigger value="applied" id="my-jobs-tab-applied" class={activeView === "applied" ? "active" : ""}>
         <span class="library-tab-icon applied" aria-hidden="true">
           <span class:visible={activeView !== "applied"}><CheckCircle size={17} weight="regular" /></span>
           <span class:visible={activeView === "applied"}><CheckCircle size={17} weight="fill" /></span>
         </span>
         <span>Applied</span>
         <small>{$jobLibrary.appliedJobs.length}</small>
-      </a>
+      </Tabs.Trigger>
     </div>
+    {/snippet}
+    </Tabs.List>
 
-    <div
-      id="my-jobs-panel"
-      role="tabpanel"
-      aria-labelledby={`my-jobs-tab-${activeView}`}
-    >
+    <Tabs.Content value={activeView}>
       {#if loading && !activeHydrated}
         <div class="page-loading" aria-busy="true"><Spinner size={22} label="Loading jobs" /></div>
       {:else if activeError && visibleJobs.length === 0}
@@ -211,8 +175,9 @@
         </div>
         {/if}
       {/if}
-    </div>
+    </Tabs.Content>
   </div>
+  </Tabs.Root>
 </div>
 
 <style>

@@ -1,41 +1,48 @@
 import { defineConfig } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { VitePWA } from "vite-plugin-pwa";
+import { sveltekit } from "@sveltejs/kit/vite";
+import adapterStatic from "@sveltejs/adapter-static";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import { renameSync } from "node:fs";
 import { resolve } from "node:path";
 import { cloudflareTypstCompiler } from "../../scripts/vite-typst-compiler.mts";
+import { finalizeStaticApp } from "../../scripts/static-app-shell.mts";
+
+const staticAdapter = adapterStatic({ pages: "dist", assets: "dist", fallback: "index.html" });
 
 export default defineConfig({
   plugins: [
     cloudflareTypstCompiler(),
-    svelte(),
-    VitePWA({
-      strategies: "injectManifest",
-      srcDir: "src",
-      filename: "sw.ts",
-      registerType: "autoUpdate",
-      injectRegister: null,
-      manifest: false,
-      injectManifest: {
-        globPatterns: ["**/*.{html,js,css,woff2,png,svg,json}"],
-        globIgnores: [
-          "**/*typst-compiler*",
-          "**/pdf-*.js",
-          "**/*pdf.worker*",
-          "**/*resume-document.worker*",
-          "**/*.bin",
-          "**/*.wasm",
-        ],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+    sveltekit({
+      preprocess: vitePreprocess(),
+      adapter: {
+        ...staticAdapter,
+        async adapt(builder) {
+          await staticAdapter.adapt(builder);
+          finalizeStaticApp("dist");
+          // Preserve the URL used by existing installations and push subscriptions.
+          renameSync("dist/service-worker.js", "dist/sw.js");
+        },
       },
-      devOptions: {
-        enabled: true,
-        type: "module",
+      files: { assets: "public", serviceWorker: "src/service-worker/index.ts" },
+      serviceWorker: { register: false },
+      csp: {
+        mode: "hash",
+        directives: {
+          "default-src": ["self"],
+          "script-src": ["self"],
+          "style-src": ["self", "unsafe-inline"],
+          "img-src": ["self", "data:", "https:"],
+          "font-src": ["self", "data:"],
+          "connect-src": ["self", "https://generativelanguage.googleapis.com"],
+          "worker-src": ["self", "blob:"],
+          "object-src": ["none"],
+          "base-uri": ["self"],
+          "form-action": ["self"],
+        },
       },
     }),
   ],
   worker: { plugins: () => [cloudflareTypstCompiler()] },
-  publicDir: resolve(import.meta.dirname, "public"),
-  build: { outDir: "dist", emptyOutDir: true },
   server: {
     host: true,
     fs: { allow: [resolve(import.meta.dirname, "../..")] },
