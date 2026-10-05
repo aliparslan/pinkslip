@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, FetchRunRow, Variables } from "../types";
 import { hasTable } from "../db-schema";
+import { loadPollingLatency } from "../polling-latency";
 
 const runs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -29,6 +30,10 @@ runs.get("/", requireAdmin, async (c) => {
     }
     throw error;
   }
+});
+
+runs.get("/latency", requireAdmin, async (c) => {
+  return c.json(await loadPollingLatency(c.env));
 });
 
 export default runs;
