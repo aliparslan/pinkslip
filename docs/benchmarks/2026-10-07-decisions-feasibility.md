@@ -1,5 +1,9 @@
 # OpenAI Decisions comparison: prepared, live run pending access
 
+Update: the live run completed later on October 7. See
+[results and recommendation](2026-10-07-decisions-results.md). The research
+notes below preserve the pre-run estimates and access status.
+
 Research date: October 7, 2026. No OpenAI requests were made. There is no
 measured Decisions accuracy, latency or billed cost yet.
 
