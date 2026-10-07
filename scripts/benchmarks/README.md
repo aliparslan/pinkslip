@@ -35,8 +35,13 @@ python scripts/benchmarks/run_representative.py --root "$benchmark_directory" --
 # Cloudflare equivalents need CLOUDFLARE_API_TOKEN with Workers AI permission.
 python scripts/benchmarks/run_representative.py --root "$benchmark_directory" --provider clef --budget 0.80
 python scripts/benchmarks/run_representative.py --root "$benchmark_directory" --provider clef-flash --budget 0.30
+# Decisions needs your own OPENAI_API_KEY in the process environment.
+python scripts/benchmarks/run_representative.py --root "$benchmark_directory" --provider decisions --dry-run
+python scripts/benchmarks/run_representative.py --root "$benchmark_directory" --provider decisions --budget 0.50
 bun scripts/benchmarks/representative_baseline.ts "$benchmark_directory"
 python scripts/benchmarks/analyze_representative.py --root "$benchmark_directory"
+# After a complete, valid Decisions run:
+python scripts/benchmarks/analyze_representative.py --root "$benchmark_directory" --providers baseline jev decisions
 python scripts/benchmarks/build_representative_review.py --root "$benchmark_directory"
 ```
 
@@ -51,6 +56,32 @@ cap. Failed calls without usage cannot be assumed free. Default published
 input rates used for estimates are Jev $0.042, Clef $0.24 and Clef Flash $0.09
 per million tokens; Cloudflare billing/allowances may differ. Prefer returned
 usage costs when provided.
+
+OpenAI Decisions uses `POST https://api.openai.com/v1/decisions`, model
+`gpt-6-luna`, in public beta as of October 7, 2026. The adapter preserves every
+question's instructions and option descriptions, converting the contract's
+named criteria to OpenAI's named questions and value/description choices. It
+serializes the same four posting fields as shared input. No reference answer
+is added. Returned refusals, missing questions, unknown options and duplicate
+names fail validation. Raw answers retain probabilities and confidence for
+later calibration; neither is treated as measured accuracy.
+
+Decisions costs $0.10 per million input tokens, with no cache-read, cache-write
+or output-token charges. The benchmark records cost from returned input usage,
+excluding cache reads, at the standard short-context price. It does not request
+regional processing. All current cases are well below the long-context pricing
+threshold. The 196-case dry-run estimate is approximately $0.184, using bytes/4;
+this is not a measured charge. No OpenAI credential is bundled with the repo.
+Source: [Decisions guide](https://developers.openai.com/api/docs/guides/decisions).
+
+Keep Jev's cached October 3 run as a historical reference. For a current
+provider/latency comparison, use a fresh private dataset directory, preserving
+the exact dataset and frozen labels, and rerun both models. Latency depends on
+the provider route: the original Jev run used OpenRouter, while the current app
+uses Workers AI. A difference in these measurements is not necessarily a model
+speed difference. Do not call either model again merely to rescore cached data.
+The analyzer requires complete, valid runs and reports paired labelled-field
+wins/losses for Jev versus Decisions, separately for real postings and controls.
 
 The parser projection evaluates extraction facts, not end-to-end feed
 eligibility. It uses the current parser and qualification matcher on the same
