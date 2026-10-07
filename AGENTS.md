@@ -26,6 +26,24 @@ inline visual variant just because it is faster to generate.
 - Run `bun run check`, `bun test`, and both frontend builds after material UI or
   architecture changes.
 
+## React stack (`packages/ui`, `apps/web-react`)
+
+The rules above carry over; the files differ. Read `packages/ui/README.md`
+before changing React UI.
+
+- Tokens live only in `packages/ui/src/styles/theme.css`, paint only in
+  `skin.css`, motion only in `motion.css`. Fix a look in those files, never with
+  a utility on one call site.
+- There is one style. Do not add style, theme, or accent variants; new needs
+  become tokens or a narrow semantic prop.
+- Durations are `--dur-*` tokens. Moving parts use a named `motion-*` class;
+  add a new one only when the same motion appears in three places.
+- Apps compose `@pinkslip/ui`; they do not import `@base-ui/react` directly.
+  The playground may, for demos.
+- New components start in the README's Quarantine list and appear in the
+  playground with real Pinkslip content until the user approves them.
+- `bun run check:frontend` enforces the mechanical parts of these rules.
+
 ## Repository workflow
 
 Do not create pull requests. Commit and push authorized changes directly to

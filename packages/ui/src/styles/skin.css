@@ -1,0 +1,406 @@
+/* Skin: the paint of every component.
+
+   Components keep layout (size, spacing, alignment) in utilities and take
+   their paint (fill, border, gradient, shadow, highlight) from a ps-* class
+   here. Utilities must not set paint on a skinned element, or they would win
+   over the skin and the two would drift apart.
+
+   The style is tactile: soft gradients on raised controls, recessed tracks
+   and fields, raised selections, translucent menus. Pressing scales; nothing
+   sinks.
+
+   Gradients use a hue shift: the light end turns slightly warmer and less
+   saturated, the dark end slightly cooler and deeper, the way a lit surface
+   does. A gradient that only changes lightness reads as plastic. */
+
+:root {
+  --skin-hi: oklch(1 0 0 / 0.55);
+  --skin-hi-strong: oklch(1 0 0 / 0.75);
+  --skin-shade-sm: oklch(0.16 0.01 285 / 0.06);
+  --skin-shade: oklch(0.16 0.01 285 / 0.14);
+  --skin-inset: oklch(0.16 0.01 285 / 0.09);
+  --skin-top: oklch(1 0 0);
+  --skin-bottom: oklch(0.955 0.004 80);
+  --skin-thumb-bottom: oklch(0.955 0.003 80);
+
+  --accent-top: oklch(from var(--color-accent) calc(l + 0.035) calc(c * 0.92) calc(h + 5));
+  --accent-bottom: oklch(from var(--color-accent) calc(l - 0.025) calc(c * 1.04) calc(h - 4));
+  --accent-ink-shadow: oklch(from var(--color-accent) calc(l - 0.2) c h / 0.35);
+  --accent-gradient: linear-gradient(to bottom, var(--accent-top), var(--color-accent));
+  --raised-gradient: linear-gradient(to bottom, var(--skin-top), var(--skin-bottom));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --skin-hi: oklch(1 0 0 / 0.1);
+    --skin-hi-strong: oklch(1 0 0 / 0.22);
+    --skin-shade-sm: oklch(0 0 0 / 0.25);
+    --skin-shade: oklch(0 0 0 / 0.45);
+    --skin-inset: oklch(0 0 0 / 0.35);
+    --skin-top: oklch(0.3 0.006 285);
+    --skin-bottom: oklch(0.255 0.006 285);
+    --skin-thumb-bottom: oklch(0.88 0.003 285);
+  }
+}
+
+:root[data-theme="dark"] {
+  --skin-hi: oklch(1 0 0 / 0.1);
+  --skin-hi-strong: oklch(1 0 0 / 0.22);
+  --skin-shade-sm: oklch(0 0 0 / 0.25);
+  --skin-shade: oklch(0 0 0 / 0.45);
+  --skin-inset: oklch(0 0 0 / 0.35);
+  --skin-top: oklch(0.3 0.006 285);
+  --skin-bottom: oklch(0.255 0.006 285);
+  --skin-thumb-bottom: oklch(0.88 0.003 285);
+}
+
+@layer components {
+  /* ================================================================ Buttons */
+
+  .ps-btn {
+    border: 1px solid transparent;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out),
+      filter var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+  .ps-press:active:not([data-disabled]) {
+    transform: scale(0.97);
+  }
+
+  .ps-btn--primary {
+    background: var(--accent-gradient);
+    border-color: var(--color-accent-edge);
+    color: var(--color-accent-ink);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 1px 2px var(--skin-shade);
+  }
+  .ps-btn--primary:active:not([data-disabled]) {
+    background: linear-gradient(to bottom, var(--color-accent), var(--accent-top));
+    box-shadow: inset 0 1px 2px var(--skin-shade);
+  }
+
+  .ps-btn--secondary {
+    background: var(--raised-gradient);
+    border-color: var(--color-line-2);
+    border-bottom-color: oklch(from var(--color-line-2) calc(l - 0.06) c h);
+    color: var(--color-ink);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 1px 2px var(--skin-shade-sm);
+  }
+  .ps-btn--secondary:active:not([data-disabled]) {
+    background: linear-gradient(to bottom, var(--skin-bottom), var(--skin-top));
+    box-shadow: inset 0 1px 2px var(--skin-inset);
+  }
+
+  .ps-btn--ghost {
+    background: transparent;
+    color: var(--color-ink-2);
+  }
+  .ps-btn--ghost:active {
+    background: var(--color-control-hover);
+  }
+
+  /* Destructive actions use the secondary button's paint with red text, so a
+     red fill never competes with the pink primary. */
+  .ps-btn--danger {
+    color: var(--color-bad);
+  }
+
+  @media (hover: hover) {
+    .ps-btn--primary:hover {
+      filter: brightness(1.05);
+    }
+    .ps-btn--secondary:hover {
+      background: linear-gradient(to bottom, var(--skin-top), var(--skin-top));
+    }
+    .ps-btn--ghost:hover {
+      background: var(--color-control);
+      color: var(--color-ink);
+    }
+  }
+
+  /* ============================================================ Fields
+
+     One recessed box for every kind of entry: text inputs, text areas,
+     select and combobox triggers, number fields, code digits. Labels sit
+     above it, outside the box. */
+
+  .ps-field {
+    border: 1px solid var(--color-line-2);
+    border-top-color: oklch(from var(--color-line-2) calc(l - 0.04) c h);
+    border-radius: var(--radius-control);
+    background: var(--color-field);
+    color: var(--color-ink);
+    box-shadow: inset 0 1px 2px var(--skin-inset);
+    transition:
+      box-shadow var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+  .ps-field:is(:focus-visible, :focus-within, [data-popup-open]) {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow:
+      inset 0 1px 2px var(--skin-inset),
+      0 0 0 3px oklch(from var(--color-accent) l c h / 0.25);
+  }
+  .ps-field[data-invalid],
+  [data-invalid] > .ps-field {
+    border-color: var(--color-bad);
+    box-shadow:
+      inset 0 1px 2px var(--skin-inset),
+      0 0 0 3px oklch(from var(--color-bad) l c h / 0.18);
+  }
+
+  /* ============================================== Segmented and toggles */
+
+  .ps-track {
+    background: var(--color-control);
+    border: 1px solid transparent;
+    box-shadow: inset 0 1px 2px var(--skin-inset);
+  }
+  .ps-seg {
+    color: var(--color-ink-2);
+    transition: color var(--dur-base) var(--ease-out);
+  }
+  .ps-seg[data-pressed] {
+    color: var(--color-ink);
+  }
+  @media (hover: hover) {
+    .ps-seg:not([data-pressed]):hover {
+      color: var(--color-ink);
+    }
+  }
+  .ps-seg-indicator {
+    background: var(--raised-gradient);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 0 0 0.5px var(--color-line-2),
+      0 1px 3px var(--skin-shade);
+  }
+
+  .ps-toggle {
+    color: var(--color-ink-2);
+    border: 1px solid transparent;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .ps-toggle:hover {
+      background: var(--color-control);
+      color: var(--color-ink);
+    }
+  }
+
+  /* Toolbar and menubar containers, and the buttons inside them. */
+  .ps-bar {
+    background: var(--raised-gradient);
+    border: 1px solid var(--color-line-2);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 1px 2px var(--skin-shade-sm);
+  }
+  .ps-bar-btn {
+    color: var(--color-ink-2);
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .ps-bar-btn:hover {
+      background: var(--color-control);
+      color: var(--color-ink);
+    }
+  }
+  .ps-bar-btn:focus-visible,
+  .ps-bar-btn[data-popup-open] {
+    background: var(--color-control);
+    color: var(--color-ink);
+  }
+
+  /* A pressed toggle is recessed into the surface, with the label in pink. */
+  .ps-toggle[data-pressed],
+  .ps-bar-btn[data-pressed] {
+    background: var(--color-control);
+    color: var(--color-accent-text);
+    box-shadow: inset 0 1px 2px var(--skin-inset);
+  }
+
+  /* ============================================== Checkbox, radio, switch */
+
+  .ps-mark {
+    border: 1px solid var(--color-line-2);
+    background: var(--raised-gradient);
+    color: var(--color-accent-ink);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 1px 1px var(--skin-shade-sm);
+    transition:
+      background-color var(--dur-instant) var(--ease-out),
+      border-color var(--dur-instant) var(--ease-out),
+      box-shadow var(--dur-instant) var(--ease-out);
+  }
+  .ps-mark:is([data-checked], [data-indeterminate]) {
+    background: var(--accent-gradient);
+    border-color: var(--color-accent-edge);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      0 1px 2px var(--skin-shade);
+  }
+
+  .ps-switch,
+  .ps-slider-track,
+  .ps-gauge-track {
+    box-shadow: inset 0 1px 3px var(--skin-inset);
+  }
+  .ps-switch {
+    background: var(--color-line-2);
+    transition:
+      background-color var(--dur-base) var(--ease-out),
+      box-shadow var(--dur-base) var(--ease-out);
+  }
+  .ps-slider-track {
+    background: var(--color-line-2);
+  }
+  .ps-gauge-track {
+    background: var(--color-line);
+  }
+  /* Filled tracks light from below, so the pink reads as lit from inside. */
+  .ps-switch[data-checked],
+  .ps-slider-range,
+  .ps-gauge-fill {
+    background: linear-gradient(to bottom, var(--accent-bottom), var(--accent-top));
+    box-shadow: inset 0 1px 2px var(--accent-ink-shadow);
+  }
+  .ps-thumb {
+    background: linear-gradient(to bottom, var(--color-thumb), var(--skin-thumb-bottom));
+    box-shadow:
+      0 1px 3px var(--skin-shade),
+      0 0 0 0.5px var(--skin-shade),
+      inset 0 1px 0 var(--skin-hi-strong);
+  }
+
+  /* ========================================================== Surfaces */
+
+  /* Menus, popovers, and cards that float are translucent glass. */
+  .ps-surface {
+    background: color-mix(in oklch, var(--color-raised) 82%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+    border: 1px solid color-mix(in oklch, var(--color-line-2) 70%, transparent);
+    box-shadow: var(--shadow-float);
+    color: var(--color-ink);
+  }
+  /* Toasts stay opaque. They often sit over busy content, such as a pink
+     Apply bar, where glass turns muddy. */
+  .ps-surface.ps-toast {
+    background: var(--color-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .ps-sheet {
+    background: var(--color-raised);
+    border: 0.5px solid var(--color-line-2);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-float);
+  }
+  .ps-sheet--bottom {
+    box-shadow: var(--shadow-sheet);
+  }
+  .ps-tooltip {
+    background: color-mix(in oklch, var(--color-raised) 88%, transparent);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 0.5px solid var(--color-line-2);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-float);
+  }
+
+  /* Menu and list items: the highlight fills with the accent. */
+  .ps-item {
+    color: var(--color-ink);
+  }
+  .ps-item[data-popup-open] {
+    background: var(--color-control);
+  }
+  .ps-item[data-highlighted] {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+  .ps-item-indicator {
+    color: var(--color-accent-text);
+  }
+  .ps-item[data-highlighted] .ps-item-indicator {
+    color: var(--color-accent-ink);
+  }
+  .ps-item--danger {
+    color: var(--color-bad);
+  }
+  .ps-item--danger[data-highlighted] {
+    background: var(--color-bad);
+    color: var(--color-bad-ink);
+  }
+
+  .ps-chip {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-accent) l c h / 0.25);
+  }
+  .ps-chip[data-highlighted] {
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  .ps-avatar {
+    background: var(--raised-gradient);
+    color: var(--color-ink-2);
+    box-shadow:
+      inset 0 1px 0 var(--skin-hi),
+      inset 0 0 0 1px var(--color-line);
+  }
+
+  /* The floating search pill at the top of the feed, and the cards inside
+     its search panel. */
+  .ps-pill,
+  .ps-card {
+    background: var(--color-raised);
+    border: 1px solid var(--color-line);
+    box-shadow:
+      0 1px 2px var(--skin-shade-sm),
+      0 8px 20px -8px var(--skin-shade);
+    transition:
+      box-shadow var(--dur-base) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .ps-pill:hover {
+      box-shadow:
+        0 1px 2px var(--skin-shade-sm),
+        0 10px 26px -8px var(--skin-shade);
+    }
+  }
+
+  /* A choice chip, as in the search panel. Picking one draws an ink ring. */
+  .ps-choice {
+    border: 1px solid var(--color-line-2);
+    background: var(--color-raised);
+    color: var(--color-ink);
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+  .ps-choice[data-pressed] {
+    border-color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-ink);
+  }
+}

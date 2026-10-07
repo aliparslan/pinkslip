@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@pinkslip/ui/styles.css";
+
+/* The design system's components live in packages/ui. */
+@source "../../../packages/ui/src";

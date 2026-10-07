@@ -58,3 +58,4 @@ apps/ios/ios/App/App.xcodeproj/xcshareddata/xcodecloud/
 
 # SvelteKit generated route types and build intermediates
 .svelte-kit/
+apps/*/dist-artifact/

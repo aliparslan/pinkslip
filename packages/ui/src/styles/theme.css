@@ -1,0 +1,239 @@
+/* Pinkslip tokens.
+   Stone paper, graphite ink, one pink (Raspberry). Pink marks identity and
+   the primary action, never the canvas. Neutrals keep two hues on purpose:
+   paper leans warm (80), ink leans cool (285).
+
+   Everything here is a decision. Components read these names only; paint for
+   each component lives in skin.css, and how things move in motion.css. */
+
+:root {
+  --control-h: 36px;
+
+  /* Motion. Every duration in the system reads one of these, and all of
+     them scale together, so the whole interface can be slowed down to
+     inspect or sped up to tune. Exits are shorter than entrances: leaving
+     should never make anyone wait. */
+  --motion-scale: 1;
+  --dur-instant: calc(90ms * var(--motion-scale));
+  --dur-fast: calc(150ms * var(--motion-scale));
+  --dur-base: calc(200ms * var(--motion-scale));
+  --dur-slow: calc(280ms * var(--motion-scale));
+  --dur-exit: calc(120ms * var(--motion-scale));
+  --dur-sheet: calc(440ms * var(--motion-scale));
+  --dur-sheet-exit: calc(260ms * var(--motion-scale));
+}
+
+/* Tailwind reads only these names. Defaults are wiped so every class maps to a
+   Pinkslip decision; anything else is a typo or an off-system value. */
+@theme {
+  --*: initial;
+
+  --spacing: 0.25rem;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --container-prose: 65ch;
+
+  --font-sans: "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-heading: "Pinkslip Founders Grotesk", "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* Type scale: 12 13 14 16 18 21 24 32 40, after Bringhurst's classic scale. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.125rem;
+  --text-ui: 0.875rem;
+  --text-ui--line-height: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.625rem;
+  --text-title: 1.3125rem;
+  --text-title--line-height: 1.625rem;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.75rem;
+  --text-display: 2rem;
+  --text-display--line-height: 2.25rem;
+  --text-hero: 2.5rem;
+  --text-hero--line-height: 2.625rem;
+  --tracking-heading: -0.012em;
+  --tracking-tight: -0.006em;
+
+  /* Corners nest: an inner radius is the outer radius minus the padding
+     between them, so curves stay concentric. */
+  --radius-mark: 5px;
+  --radius-item: 6px;
+  --radius-inset: 6px;
+  --radius-control: 8px;
+  --radius-surface: 12px;
+  --radius-sheet: 16px;
+  --radius-pill: 999px;
+
+  --blur-bar: 16px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  /* A gentle spring with a small overshoot, for things that slide into place
+     (segmented selection, tab rule, switch thumb). */
+  --ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 15.9%, 0.938 22.1%, 1.017 27.2%, 1.043 32.1%, 1.035 38.4%, 1.007 53.8%, 0.998 66.8%, 1);
+  /* What a bare transition-colors (or any transition-* without a duration)
+     falls back to. */
+  --default-transition-duration: var(--dur-fast);
+  --default-transition-timing-function: var(--ease-out);
+
+  /* Light palette. Dark values are redefined below, on the same names. */
+  --color-bg: oklch(0.985 0.002 80);
+  --color-raised: oklch(1 0 0);
+  --color-sunken: oklch(0.962 0.003 80);
+  --color-field: oklch(1 0 0);
+  --color-control: oklch(0.945 0.003 80);
+  --color-control-hover: oklch(0.915 0.004 80);
+  --color-ink: oklch(0.18 0.006 285);
+  --color-ink-2: oklch(0.34 0.006 285);
+  --color-ink-3: oklch(0.47 0.006 285);
+  --color-line: oklch(0.905 0.003 80);
+  --color-line-2: oklch(0.825 0.004 80);
+  --color-inverse: oklch(0.23 0.006 285);
+  --color-inverse-ink: oklch(0.98 0.002 80);
+
+  /* Raspberry. White labels on the accent clear 4.5:1 in both themes. */
+  --color-accent: oklch(0.54 0.19 0);
+  --color-accent-hover: oklch(0.5 0.19 0);
+  --color-accent-ink: oklch(0.99 0.002 70);
+  --color-accent-text: oklch(0.54 0.19 0);
+  --color-accent-edge: oklch(0.42 0.16 356);
+  --color-accent-soft: oklch(0.962 0.019 0);
+  --color-accent-soft-ink: oklch(0.42 0.14 0);
+
+  --color-good: oklch(0.48 0.132 150);
+  --color-good-soft: oklch(0.955 0.025 150);
+  --color-warn: oklch(0.53 0.111 75);
+  --color-warn-soft: oklch(0.96 0.03 85);
+  --color-bad: oklch(0.5 0.18 25);
+  --color-bad-soft: oklch(0.955 0.022 25);
+  --color-bad-ink: oklch(0.99 0.002 70);
+  --color-scrim: oklch(0.12 0.006 285 / 0.38);
+  --color-thumb: oklch(1 0 0);
+
+  --shadow-float: 0 1px 2px oklch(0.16 0.01 285 / 0.06), 0 14px 36px -8px oklch(0.16 0.01 285 / 0.2);
+  --shadow-sheet: 0 -10px 40px -12px oklch(0.16 0.01 285 / 0.22);
+  --shadow-thumb: 0 1px 3px oklch(0.16 0.01 285 / 0.22), 0 0 0 0.5px oklch(0.16 0.01 285 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: oklch(0.165 0.005 285);
+    --color-raised: oklch(0.205 0.006 285);
+    --color-sunken: oklch(0.135 0.004 285);
+    --color-field: oklch(0.19 0.006 285);
+    --color-control: oklch(0.245 0.006 285);
+    --color-control-hover: oklch(0.285 0.007 285);
+    --color-ink: oklch(0.965 0.003 285);
+    --color-ink-2: oklch(0.82 0.005 285);
+    --color-ink-3: oklch(0.68 0.006 285);
+    --color-line: oklch(0.285 0.006 285);
+    --color-line-2: oklch(0.365 0.007 285);
+    --color-inverse: oklch(0.94 0.003 285);
+    --color-inverse-ink: oklch(0.18 0.006 285);
+    --color-accent: oklch(0.58 0.19 0);
+    --color-accent-hover: oklch(0.62 0.19 0);
+    --color-accent-ink: oklch(0.99 0.002 70);
+    --color-accent-text: oklch(0.74 0.16 0);
+    --color-accent-edge: oklch(0.42 0.17 356);
+    --color-accent-soft: oklch(0.255 0.068 0);
+    --color-accent-soft-ink: oklch(0.86 0.11 0);
+    --color-good: oklch(0.73 0.14 150);
+    --color-good-soft: oklch(0.235 0.035 150);
+    --color-warn: oklch(0.79 0.14 75);
+    --color-warn-soft: oklch(0.25 0.04 75);
+    --color-bad: oklch(0.72 0.17 25);
+    --color-bad-soft: oklch(0.245 0.045 25);
+    --color-bad-ink: oklch(0.16 0.01 25);
+    --color-scrim: oklch(0 0 0 / 0.52);
+    --color-thumb: oklch(0.96 0.003 285);
+    --shadow-float: 0 0 0 1px oklch(1 0 0 / 0.04), 0 16px 40px -8px oklch(0 0 0 / 0.55);
+    --shadow-sheet: 0 -10px 40px -10px oklch(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: oklch(0.165 0.005 285);
+  --color-raised: oklch(0.205 0.006 285);
+  --color-sunken: oklch(0.135 0.004 285);
+  --color-field: oklch(0.19 0.006 285);
+  --color-control: oklch(0.245 0.006 285);
+  --color-control-hover: oklch(0.285 0.007 285);
+  --color-ink: oklch(0.965 0.003 285);
+  --color-ink-2: oklch(0.82 0.005 285);
+  --color-ink-3: oklch(0.68 0.006 285);
+  --color-line: oklch(0.285 0.006 285);
+  --color-line-2: oklch(0.365 0.007 285);
+  --color-inverse: oklch(0.94 0.003 285);
+  --color-inverse-ink: oklch(0.18 0.006 285);
+  --color-accent: oklch(0.58 0.19 0);
+  --color-accent-hover: oklch(0.62 0.19 0);
+  --color-accent-ink: oklch(0.99 0.002 70);
+  --color-accent-text: oklch(0.74 0.16 0);
+  --color-accent-edge: oklch(0.42 0.17 356);
+  --color-accent-soft: oklch(0.255 0.068 0);
+  --color-accent-soft-ink: oklch(0.86 0.11 0);
+  --color-good: oklch(0.73 0.14 150);
+  --color-good-soft: oklch(0.235 0.035 150);
+  --color-warn: oklch(0.79 0.14 75);
+  --color-warn-soft: oklch(0.25 0.04 75);
+  --color-bad: oklch(0.72 0.17 25);
+  --color-bad-soft: oklch(0.245 0.045 25);
+  --color-bad-ink: oklch(0.16 0.01 25);
+  --color-scrim: oklch(0 0 0 / 0.52);
+  --color-thumb: oklch(0.96 0.003 285);
+  --shadow-float: 0 0 0 1px oklch(1 0 0 / 0.04), 0 16px 40px -8px oklch(0 0 0 / 0.55);
+  --shadow-sheet: 0 -10px 40px -10px oklch(0 0 0 / 0.6);
+}
+
+/* Control heights. */
+@utility h-control {
+  height: var(--control-h);
+}
+@utility min-h-control {
+  min-height: var(--control-h);
+}
+@utility h-control-sm {
+  height: calc(var(--control-h) - 8px);
+}
+@utility h-control-lg {
+  height: calc(var(--control-h) + 8px);
+}
+@utility size-control {
+  width: var(--control-h);
+  height: var(--control-h);
+}
+@utility size-control-sm {
+  width: calc(var(--control-h) - 8px);
+  height: calc(var(--control-h) - 8px);
+}
+
+/* One focus treatment everywhere: a pink ring offset from the edge. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Sticky bars sit below the phone's status bar. */
+@utility top-safe {
+  top: env(safe-area-inset-top, 0px);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

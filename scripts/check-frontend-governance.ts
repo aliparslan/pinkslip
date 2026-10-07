@@ -16,6 +16,8 @@ const reviewThresholds: Record<string, number> = {
   "packages/client/src/components/Onboarding.svelte": 600,
   "packages/client/src/components/SearchProfileFields.svelte": 500,
   "packages/core/src/api.ts": 850,
+  "packages/ui/src/styles/motion.css": 400,
+  "packages/ui/src/styles/skin.css": 500,
   "packages/client/src/pages/Companies.svelte": 1100,
   "packages/client/src/pages/Feed.svelte": 1100,
   "packages/client/src/pages/JobDetail.svelte": 900,
@@ -160,6 +162,81 @@ for (const path of frameworkFiles) {
   }
 }
 
+// ------------------------------------------------- React design system
+// packages/ui owns every visual decision for the React apps: tokens in
+// theme.css, paint in skin.css, motion in motion.css, components in src/.
+// These checks keep the apps from growing a second, inline design system.
+
+const uiStyleDir = "packages/ui/src/styles";
+const uiModules = [...new Bun.Glob("packages/ui/src/**/*.{ts,tsx}").scanSync({ cwd: root })];
+const uiComponents = [...new Bun.Glob("packages/ui/src/*.tsx").scanSync({ cwd: root })];
+const uiCss = [...new Bun.Glob(`${uiStyleDir}/*.css`).scanSync({ cwd: root })];
+const reactAppModules = [...new Bun.Glob("apps/web-react/src/**/*.{ts,tsx}").scanSync({ cwd: root })];
+const reactAppCss = [...new Bun.Glob("apps/web-react/src/**/*.css").scanSync({ cwd: root })];
+const playgroundDir = "apps/web-react/src/playground/";
+
+const quotedStrings = (source: string) =>
+  [...source.matchAll(/"([^"\n]*)"|`([^`]*)`/g)].map((match) => match[1] ?? match[2] ?? "");
+const colorLiteral = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|color-mix)\(/i;
+// A raw number of milliseconds, or a Tailwind duration/delay, instead of a --dur-* token.
+const rawDurationClass = /(?:^|:)(?:duration|delay)-(?:\d|\[)/;
+// Arbitrary values for things the theme already decides. Layout values
+// (widths, grid tracks, viewport math) stay allowed.
+const offSystemArbitrary = /(?:^|:)(?:bg|text|border|outline|ring|shadow|fill|stroke|from|via|to|rounded|font|leading|tracking|ease|duration|delay|blur|backdrop-blur|opacity|z)-\[/;
+const skinClass = /^ps-(?:btn|field|track|seg|toggle|bar|mark|switch|thumb|slider|gauge|surface|sheet|tooltip|item|chip|avatar|pill|card|choice)/;
+const paintUtility = /(?:^|:)(?:bg|shadow|from|via|to)-|(?:^|:)border-(?:line|ink|accent|bad|good|warn|transparent|control)/;
+
+for (const path of [...uiModules, ...reactAppModules]) {
+  const source = await read(path);
+  const inPlayground = path.startsWith(playgroundDir);
+  if (colorLiteral.test(source)) failures.push(`${path} has a color literal; colors live in ${uiStyleDir}/theme.css`);
+  for (const literal of quotedStrings(source)) {
+    const tokens = literal.split(/\s+/).filter(Boolean);
+    for (const token of tokens) {
+      if (rawDurationClass.test(token)) failures.push(`${path} uses ${token}; use a dur-* token or a motion-* class`);
+      if (offSystemArbitrary.test(token)) failures.push(`${path} uses ${token}; use the theme's token for it`);
+    }
+    if (path.startsWith("packages/ui/") && tokens.some((token) => skinClass.test(token))) {
+      for (const token of tokens.filter((token) => paintUtility.test(token))) {
+        failures.push(`${path} paints a skinned element with ${token}; paint belongs in skin.css`);
+      }
+    }
+  }
+  if (!inPlayground && path.startsWith("apps/web-react/") && /from "@base-ui\/react/.test(source)) {
+    failures.push(`${path} imports Base UI directly; use or extend @pinkslip/ui`);
+  }
+  if (path.startsWith("packages/ui/")) {
+    for (const [, specifier] of source.matchAll(/from "([^"]+)"/g)) {
+      if (!/^(?:react|react-dom|clsx|@base-ui\/react\/[\w-]+|\.\.?\/.*)$/.test(specifier!)) {
+        failures.push(`${path} imports ${specifier}; packages/ui stays free of app, API, and domain code`);
+      }
+    }
+  }
+}
+
+const motionScaled = /calc\(\d+m?s \* var\(--motion-scale\)\)/g;
+for (const path of [...uiCss, ...reactAppCss]) {
+  const source = await read(path);
+  const name = basename(path);
+  if (/@theme\b/.test(source) && path !== `${uiStyleDir}/theme.css`) {
+    failures.push(`${path} declares @theme; tokens live only in ${uiStyleDir}/theme.css`);
+  }
+  if (path === `${uiStyleDir}/theme.css`) continue;
+  if (name !== "skin.css" && colorLiteral.test(source.replace(/\/\*[\s\S]*?\*\//g, ""))) {
+    failures.push(`${path} has a color literal; colors live in theme.css, paint in skin.css`);
+  }
+  const durations = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(motionScaled, "").match(/(?<![\w.-])\d*\.?\d+m?s\b/g) ?? [];
+  for (const value of durations.filter((value) => !/^(?:0m?s|1ms)$/.test(value))) {
+    failures.push(`${path} has a raw duration ${value}; use a --dur-* token`);
+  }
+}
+
+const uiCatalog = await read("packages/ui/README.md");
+for (const path of uiComponents) {
+  const name = basename(path, ".tsx");
+  if (!uiCatalog.includes(`${name}.tsx`)) failures.push(`packages/ui/src/${name}.tsx is missing from packages/ui/README.md`);
+}
+
 if (failures.length) {
   console.error(`Frontend governance failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
@@ -168,5 +245,6 @@ if (warnings.length) console.warn(`Frontend governance review:\n- ${warnings.joi
 
 console.log(
   `Frontend governance passed: ${componentFiles.length} cataloged components; `
-  + `${authoredStyleLines} authored CSS lines; ${allowedPlatformFiles.size} platform-debt files contained.`,
+  + `${authoredStyleLines} authored CSS lines; ${allowedPlatformFiles.size} platform-debt files contained; `
+  + `${uiComponents.length} React design-system modules cataloged.`,
 );
