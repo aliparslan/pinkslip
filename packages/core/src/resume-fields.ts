@@ -1,4 +1,4 @@
-import type { DegreeType } from "../../../../shared/resume-profile";
+import type { DegreeType } from "@pinkslip/domain/resume-profile";
 
 const STRUCTURAL_RESUME_KEYS = new Set(["id", "kind", "degreeType"]);
 

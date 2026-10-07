@@ -6,8 +6,8 @@
     type ClassificationDisagreement,
     type ClassificationDisagreements,
     type ClassificationVerdict,
-  } from "../../lib/api";
-  import { errorMessage } from "../../lib/utils";
+  } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { openInAppBrowser } from "../../lib/application-browser";
   import Spinner from "../../components/Spinner.svelte";
   import EmptyState from "../../components/EmptyState.svelte";

@@ -5,7 +5,7 @@ import {
   orderedCareerStages,
   reconcileCareerStageSelection,
   sameCareerStages,
-} from "../src/lib/career-stage-filter";
+} from "../src/career-stage-filter";
 
 describe("career-stage feed filtering", () => {
   test("uses the public catalog order", () => {

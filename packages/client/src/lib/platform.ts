@@ -1,4 +1,4 @@
-import type { Job } from "./api";
+import type { Job } from "@pinkslip/core/api";
 
 export type PlatformKind = "web" | "ios";
 export type NotificationStatus =

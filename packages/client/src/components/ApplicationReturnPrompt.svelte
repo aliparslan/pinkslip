@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { api } from "../lib/api";
+  import { api } from "@pinkslip/core/api";
   import { applicationIntent } from "../lib/application-intent.svelte";
-  import { errorMessage } from "../lib/utils";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { feedback } from "../lib/feedback.svelte";
   import { feed } from "../lib/feed-store.svelte";
   import { presentPending } from "../lib/task-presentation.svelte";

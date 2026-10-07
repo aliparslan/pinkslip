@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { resolveApiUrl } from "../lib/api";
+  import { resolveApiUrl } from "@pinkslip/core/api";
   import {
     acquireNativeCompanyLogo,
     invalidateNativeCompanyLogo,
   } from "../lib/native-logo-cache";
   import { isIosApp } from "../lib/platform";
-  import { companyMark } from "../lib/utils";
+  import { companyMark } from "@pinkslip/core/utils";
 
   // Native image elements cannot attach the bearer session required by the
   // remote API. Fetch each favicon once through the authenticated client and

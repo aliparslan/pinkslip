@@ -1,4 +1,4 @@
-import { api, type ResumeImportResult } from "./api";
+import { api, type ResumeImportResult } from "@pinkslip/core/api";
 import { renderPdfPagesForOcr } from "./pdf-extract";
 
 /** Render scanned pages locally, upload them transiently, and discard the images. */

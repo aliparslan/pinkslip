@@ -1,4 +1,4 @@
-import type { MeResponse, PreferenceState } from "./api";
+import type { MeResponse, PreferenceState } from "@pinkslip/core/api";
 
 export interface BootstrapSnapshot {
   me: MeResponse;

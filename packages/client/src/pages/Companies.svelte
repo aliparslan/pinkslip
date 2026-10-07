@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type Company } from "../lib/api";
-  import { errorMessage } from "../lib/utils";
+  import { api, type Company } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { navigateBack } from "../router";
   import { requestBack } from "../lib/nav-back";
   import { sessionAccess } from "../lib/session-access";

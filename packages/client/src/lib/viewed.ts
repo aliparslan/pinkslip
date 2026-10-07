@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { api } from "./api";
+import { api } from "@pinkslip/core/api";
 
 let current = new Set<string>();
 let currentUserId: string | null = null;

@@ -5,7 +5,7 @@ import {
   chooseBestResumeImport,
   resumeImportWarnings,
   shouldRequestServerResumeImport,
-} from "./resume-import-quality";
+} from "@pinkslip/core/resume-import-quality";
 import { shouldUseLocalPdfFallback } from "./pdf-import";
 
 export interface ResumeImportCandidate {

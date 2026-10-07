@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch } from "@pinkslip/core/api";
 
 export interface NativeLogoLease {
   url: Promise<string | null>;

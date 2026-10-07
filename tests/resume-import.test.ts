@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseResumeText } from "../packages/client/src/lib/pdf-to-profile";
+import { parseResumeText } from "../packages/core/src/pdf-to-profile";
 import { normalizeConvertedResumeText } from "../worker/routes/resume-import";
 
 describe("server resume conversion normalization", () => {

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // WebWorker is the browser-agnostic platform subset (fetch, URL, timers,
+    // FormData, AbortController) that React Native also provides. Leaving out
+    // DOM makes any `window` or `document` use in core a type error, so this
+    // package stays usable by both the web and iOS apps.
+    "lib": ["ES2023", "WebWorker"],
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts"]
+}

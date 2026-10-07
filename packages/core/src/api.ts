@@ -1,28 +1,27 @@
-import type { ResumeProfile } from "../../../../shared/resume-profile";
-import type { ResumeImportAssessment } from "../../../../shared/resume-import";
+import type { ResumeProfile } from "@pinkslip/domain/resume-profile";
+import type { ResumeImportAssessment } from "@pinkslip/domain/resume-import";
 import type {
   CareerStage,
   RoleId,
   SearchProfileV1,
-} from "../../../../shared/search-profile";
+} from "@pinkslip/domain/search-profile";
 import type {
   CompanySourceType,
   PollableCompanySourceType,
-} from "../../../../shared/company-sources";
-import type { TailoringQualitySnapshot } from "../../../../shared/tailoring-quality";
+} from "@pinkslip/domain/company-sources";
+import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type {
   StructuredTailoring,
   TailoredResume,
   TailoringArtifact,
   TailoringValidation,
-} from "../../../../shared/tailoring";
-import { syncCachedLibraryJob } from "./job-library-store";
+} from "@pinkslip/domain/tailoring";
 export type {
   DegreeType,
   OptionalSection,
   OptionalSectionKind,
   ResumeProfile,
-} from "../../../../shared/resume-profile";
+} from "@pinkslip/domain/resume-profile";
 
 export interface ApiClientConfig {
   baseUrl?: string;
@@ -108,7 +107,7 @@ async function request<T>(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       res = await apiFetch(path, {
         ...options,
@@ -116,7 +115,7 @@ async function request<T>(
       });
     } catch (error) {
       if (attempt + 1 < attempts) {
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
+        await new Promise<void>((resolve) => setTimeout(resolve, 260));
         continue;
       }
       if (controller.signal.aborted) {
@@ -124,12 +123,12 @@ async function request<T>(
       }
       throw error;
     } finally {
-      window.clearTimeout(timeout);
+      clearTimeout(timeout);
     }
 
     if (retryableStatuses.has(res.status) && attempt + 1 < attempts) {
       await res.body?.cancel().catch(() => undefined);
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
+      await new Promise<void>((resolve) => setTimeout(resolve, 260));
       continue;
     }
     break;
@@ -168,7 +167,7 @@ async function request<T>(
 
 async function requestBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
     response = await apiFetch(path, { signal: controller.signal });
@@ -178,7 +177,7 @@ async function requestBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
     }
     throw error;
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: unknown; code?: unknown } | null;
@@ -190,6 +189,22 @@ async function requestBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
     );
   }
   return response.blob();
+}
+
+type JobMutationListener = (job: Job) => void;
+const jobMutationListeners = new Set<JobMutationListener>();
+
+/** Lets each app keep its own caches coherent with successful saved/applied
+ * mutations, without this client depending on any UI state library. */
+export function onJobMutation(listener: JobMutationListener): () => void {
+  jobMutationListeners.add(listener);
+  return () => {
+    jobMutationListeners.delete(listener);
+  };
+}
+
+function publishJobMutation(job: Job): void {
+  for (const listener of jobMutationListeners) listener(job);
 }
 
 export interface Job {
@@ -561,7 +576,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ applied: true, dismissed: true }),
       });
-      syncCachedLibraryJob(job);
+      publishJobMutation(job);
       return job;
     },
     unmarkApplied: async (id: string) => {
@@ -569,7 +584,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ applied: false, dismissed: false }),
       });
-      syncCachedLibraryJob(job);
+      publishJobMutation(job);
       return job;
     },
   },
@@ -724,7 +739,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ saved: true }),
       });
-      syncCachedLibraryJob(job);
+      publishJobMutation(job);
       return job;
     },
     unsave: async (id: string) => {
@@ -732,7 +747,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ saved: false }),
       });
-      syncCachedLibraryJob(job);
+      publishJobMutation(job);
       return job;
     },
   },

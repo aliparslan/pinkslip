@@ -1,4 +1,4 @@
-import type { DegreeType, ResumeProfile } from "../../../../shared/resume-profile";
+import type { DegreeType, ResumeProfile } from "@pinkslip/domain/resume-profile";
 import {
   inferDegreeType,
   inferFieldOfStudy,

@@ -1,4 +1,4 @@
-import type { Job } from "./api";
+import type { Job } from "@pinkslip/core/api";
 import {
   normalizeExternalUrl,
   openExternalWindow,

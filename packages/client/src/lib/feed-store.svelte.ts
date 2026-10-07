@@ -1,6 +1,6 @@
 export type PostedFilter = "any" | "evergreen";
 
-import type { Job } from "./api";
+import type { Job } from "@pinkslip/core/api";
 import {
   ROLE_OPTIONS,
   type CareerStage,
@@ -9,9 +9,9 @@ import {
 import {
   ALL_CAREER_STAGES,
   reconcileCareerStageSelection,
-} from "./career-stage-filter";
+} from "@pinkslip/core/career-stage-filter";
 
-export { ALL_CAREER_STAGES } from "./career-stage-filter";
+export { ALL_CAREER_STAGES } from "@pinkslip/core/career-stage-filter";
 
 export const PAGE_SIZE = 25;
 export const ALL_FEED_ROLE_IDS = ROLE_OPTIONS.map((option) => option.id) as RoleId[];

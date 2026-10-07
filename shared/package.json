@@ -1,0 +1,9 @@
+{
+  "name": "@pinkslip/domain",
+  "private": true,
+  "type": "module",
+  "description": "Domain types and rules shared by the Worker and every client",
+  "exports": {
+    "./*": "./*.ts"
+  }
+}

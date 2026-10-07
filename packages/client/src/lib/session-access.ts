@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import type { AccountInfo, AppFeatures, MeResponse, User } from "./api";
+import type { AccountInfo, AppFeatures, MeResponse, User } from "@pinkslip/core/api";
 import { setViewedJobsSession } from "./viewed";
 import { setJobLibraryOwner } from "./job-library-store";
 

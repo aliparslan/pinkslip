@@ -1,4 +1,4 @@
-import { api } from "../../../packages/client/src/lib/api";
+import { api } from "@pinkslip/core/api";
 import { invalidateFeedForNotification } from "../../../packages/client/src/lib/feed-store.svelte";
 import {
   installPlatform,

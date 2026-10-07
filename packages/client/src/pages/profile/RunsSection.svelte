@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type FetchRun, type PollTierLatency } from "../../lib/api";
-  import { errorMessage } from "../../lib/utils";
+  import { api, type FetchRun, type PollTierLatency } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import Spinner from "../../components/Spinner.svelte";
   import EmptyState from "../../components/EmptyState.svelte";
   import InlineFailure from "../../components/InlineFailure.svelte";

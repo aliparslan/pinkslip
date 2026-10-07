@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { configureApiClient } from "../packages/client/src/lib/api";
+import { configureApiClient } from "../packages/core/src/api";
 import {
   acquireNativeCompanyLogo,
   createNativeLogoCache,

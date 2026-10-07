@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Tabs } from "bits-ui";
-  import { api } from "../lib/api";
+  import { api } from "@pinkslip/core/api";
   import { currentRoute, navigate, routeParam } from "../router";
-  import { errorMessage, timeAgo } from "../lib/utils";
+  import { errorMessage, timeAgo } from "@pinkslip/core/utils";
   import JobRow from "../components/JobRow.svelte";
   import Spinner from "../components/Spinner.svelte";
   import PageFailure from "../components/PageFailure.svelte";

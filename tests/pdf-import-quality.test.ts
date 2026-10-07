@@ -6,7 +6,7 @@ import {
   chooseBestResumeImport,
   resumeImportQualityScore,
   shouldRequestServerResumeImport,
-} from "../packages/client/src/lib/resume-import-quality";
+} from "../packages/core/src/resume-import-quality";
 
 describe("resume import quality selection", () => {
   test("prefers structured school and employer fields over a longer fused conversion", () => {

@@ -1,10 +1,10 @@
-import type { ResumeProfile } from "../../../../shared/resume-profile";
+import type { ResumeProfile } from "@pinkslip/domain/resume-profile";
 import type {
   ResumeImportAssessment,
   ResumeImportConfidenceLevel,
   ResumeImportFieldConfidence,
   ResumeImportFieldKind,
-} from "../../../../shared/resume-import";
+} from "@pinkslip/domain/resume-import";
 
 function textScore(value: string | undefined, weight: number): number {
   return value?.trim() ? weight : 0;

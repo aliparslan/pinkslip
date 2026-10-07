@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { currentRoute, routeParam, scrollContainer } from "../router";
-  import { api, type Job, type JobsListParams } from "../lib/api";
+  import { api, type Job, type JobsListParams } from "@pinkslip/core/api";
   import { jobReadPresentation, readJobsList } from "../lib/job-read-cache";
-  import { timeAgo, errorMessage } from "../lib/utils";
+  import { timeAgo, errorMessage } from "@pinkslip/core/utils";
   import {
     ALL_CAREER_STAGES,
     ALL_FEED_ROLE_IDS,
@@ -53,7 +53,7 @@
   import { sessionAccess } from "../lib/session-access";
   import { headerChrome } from "../lib/header-chrome.svelte";
   import { ActivationEdge } from "../lib/activation";
-  import { careerStageQuery, sameCareerStages } from "../lib/career-stage-filter";
+  import { careerStageQuery, sameCareerStages } from "@pinkslip/core/career-stage-filter";
 
   let { active = true }: { active?: boolean } = $props();
   let selectedJobId = $derived(routeParam($currentRoute, "jobId"));

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
-import type { Job } from "../src/lib/api";
+import type { Job } from "@pinkslip/core/api";
 
 const savedJob: Job = {
   id: "saved-1",

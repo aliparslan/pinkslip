@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { scrollContainer } from "../router";
-  import type { Job } from "../lib/api";
+  import type { Job } from "@pinkslip/core/api";
   import JobRow from "./JobRow.svelte";
 
   let {

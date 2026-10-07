@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import corpus from "./fixtures/resume-import/corpus.json";
-import { parseResumeText } from "../packages/client/src/lib/pdf-to-profile";
-import { assessResumeImportQuality } from "../packages/client/src/lib/resume-import-quality";
+import { parseResumeText } from "../packages/core/src/pdf-to-profile";
+import { assessResumeImportQuality } from "../packages/core/src/resume-import-quality";
 
 describe("sanitized resume import corpus", () => {
   for (const fixture of corpus) {

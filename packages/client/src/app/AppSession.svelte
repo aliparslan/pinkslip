@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from "svelte";
-  import { api, ApiError } from "../lib/api";
+  import { api, ApiError } from "@pinkslip/core/api";
   import { currentRoute, navigate, routeDefinition } from "../router";
   import { syncSessionAccess } from "../lib/session-access";
   import { applicationIntent } from "../lib/application-intent.svelte";

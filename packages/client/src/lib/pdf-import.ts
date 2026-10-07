@@ -1,6 +1,6 @@
 import type { ResumeProfile } from "../../../../shared/resume-profile";
 import { extractPdfText } from "./pdf-extract";
-import { parseResumeText } from "./pdf-to-profile";
+import { parseResumeText } from "@pinkslip/core/pdf-to-profile";
 
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
 const PDF_PICKER_MIME_TYPES = new Set([

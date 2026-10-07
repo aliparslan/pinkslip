@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Component } from "svelte";
-  import { api, type AccountInfo, type AppFeatures } from "../lib/api";
-  import { errorMessage } from "../lib/utils";
+  import { api, type AccountInfo, type AppFeatures } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { getNativePushStatus, initNativePush } from "../lib/native-push";
   import { sessionAccess, syncSessionAccess } from "../lib/session-access";
   import { themeMode, type ThemeMode } from "../lib/theme";

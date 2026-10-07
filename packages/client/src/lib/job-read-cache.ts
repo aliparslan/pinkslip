@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { api, type Job, type JobsListMeta, type JobsListParams } from "./api";
+import { api, type Job, type JobsListMeta, type JobsListParams } from "@pinkslip/core/api";
 
 export interface CachedRead<T> {
   value: T;

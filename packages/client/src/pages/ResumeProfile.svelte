@@ -7,8 +7,8 @@
     type OptionalSectionKind,
     type ResumeImportErrorCode,
     type ResumeProfile,
-  } from "../lib/api";
-  import { errorMessage } from "../lib/utils";
+  } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { navigate, navigateBack } from "../router";
   import {
     announceLocalNavigation,
@@ -45,7 +45,7 @@
     joinUsLocation,
     monthInputValue,
     splitUsLocation,
-  } from "../lib/resume-fields";
+  } from "@pinkslip/core/resume-fields";
 
   const OPTIONAL_SECTION_LABELS: Record<OptionalSectionKind, string> = {
     leadership: "Leadership & affiliations",

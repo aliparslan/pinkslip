@@ -20,6 +20,7 @@
     "@capacitor/share": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@pinkslip/client": "workspace:*",
+    "@pinkslip/core": "workspace:*",
     "svelte": "^5.57.1"
   },
   "devDependencies": {

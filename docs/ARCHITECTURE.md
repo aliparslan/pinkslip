@@ -4,9 +4,9 @@ Pinkslip has two product surfaces with one shared product core:
 
 ```text
 apps/web  ──┐
-            ├── packages/client ── shared domain contracts
-apps/ios  ──┘           │
-                        └── Worker API / D1 / R2
+            ├── packages/client ── packages/core ── shared (@pinkslip/domain)
+apps/ios  ──┘                           │                    │
+                                        └── Worker API / D1 / R2
 ```
 
 The dependency direction only points inward. Shared client code never imports a
@@ -53,7 +53,22 @@ onboarding/session gates, and design tokens. Platform-facing code calls the
 small runtime contract in `src/lib/platform.ts`; it does not detect viewport
 width, display mode, or Capacitor at runtime.
 
+### `packages/core`
+
+Owns client logic that does not depend on a UI framework or the DOM: the typed
+API client, resume text parsing and import quality, career-stage filtering, job
+timing, and small formatting helpers. Any app can use it, including future
+non-Svelte clients, and the Worker reuses its resume parsing. Its TypeScript
+project omits the DOM library, so `window` or `document` use fails `bun run
+check`. UI caches follow job mutations through `onJobMutation` rather than core
+importing a store.
+
 ### Worker and shared domain
+
+`shared/` is the `@pinkslip/domain` workspace package: types and rules used by
+both the Worker and clients. The Worker imports it by relative path; packages
+import it by name.
+
 
 The Worker remains the system boundary for authorization and data. Browser
 sessions use secure first-party cookies. iOS sessions reuse revocable
@@ -62,8 +77,9 @@ API tokens remain a separate authenticated-only capability.
 
 ## Where a change belongs
 
-- A route, domain rule, data shape, or reusable screen belongs in
-  `packages/client` or `shared`.
+- A route or reusable screen belongs in `packages/client`. A domain rule or data
+  shape belongs in `shared`. Client logic with no UI or DOM dependency belongs
+  in `packages/core`.
 - Browser navigation, install prompts, service-worker behavior, or desktop
   composition belongs in `apps/web`.
 - iOS navigation, lifecycle, Keychain, APNs, system presentation, or a Capacitor

@@ -1,7 +1,7 @@
 import {
   CAREER_STAGE_OPTIONS,
   type CareerStage,
-} from "../../../../shared/search-profile";
+} from "@pinkslip/domain/search-profile";
 
 export const ALL_CAREER_STAGES = CAREER_STAGE_OPTIONS.map(
   (option) => option.id,

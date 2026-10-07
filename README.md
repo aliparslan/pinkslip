@@ -85,8 +85,9 @@ it because it changes production data and code.
 - `worker/` — API routes, authentication, scoring, notifications, and tailoring
 - `apps/web/` — browser/PWA entrypoint, responsive shell, and web platform adapter
 - `apps/ios/` — Capacitor entrypoint, iOS shell, native adapter, and Xcode project
-- `packages/client/` — shared screens, components, routing, state, and API client
-- `shared/` — scoring constants and role-affinity logic used across layers
+- `packages/client/` — shared screens, components, routing, and state
+- `packages/core/` — framework-free API client and client logic for any app
+- `shared/` — `@pinkslip/domain`: types and rules used by the Worker and clients
 - `tests/` — Worker and pure-domain tests
 - `migrations/` — D1 schema history
 - `scripts/` — local database maintenance

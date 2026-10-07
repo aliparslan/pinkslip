@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Job } from "../../../packages/client/src/lib/api";
+import type { Job } from "@pinkslip/core/api";
 import {
   JOB_CACHE_MAX_AGE_MS,
   JOB_CACHE_MAX_DETAILS,

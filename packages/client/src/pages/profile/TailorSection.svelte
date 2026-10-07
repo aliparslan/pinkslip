@@ -3,7 +3,7 @@
   import ArrowRight from "phosphor-svelte/lib/ArrowRight";
   import Sparkle from "phosphor-svelte/lib/Sparkle";
   import ShieldCheck from "phosphor-svelte/lib/ShieldCheck";
-  import { api, type AppFeatures } from "../../lib/api";
+  import { api, type AppFeatures } from "@pinkslip/core/api";
   import { navigate } from "../../router";
 
   let {

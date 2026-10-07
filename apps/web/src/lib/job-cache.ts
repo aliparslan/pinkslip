@@ -1,4 +1,4 @@
-import type { Job } from "../../../../packages/client/src/lib/api";
+import type { Job } from "@pinkslip/core/api";
 
 export const JOB_CACHE_SCHEMA_VERSION = 1;
 export const JOB_CACHE_MAX_FEED_JOBS = 50;

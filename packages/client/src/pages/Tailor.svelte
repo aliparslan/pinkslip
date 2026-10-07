@@ -25,8 +25,8 @@
     type TailoringArtifact,
     type TailoredResume,
     type Tailoring,
-  } from "../lib/api";
-  import { errorMessage } from "../lib/utils";
+  } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import {
     compileResumeDocument,
     verifyCompiledResumePdf,

@@ -4,7 +4,7 @@ import {
   jobOriginalTimingLabel,
   jobTimingLabel,
   type JobTimingInput,
-} from "../packages/client/src/lib/job-timing";
+} from "../packages/core/src/job-timing";
 
 function job(overrides: Partial<JobTimingInput> = {}): JobTimingInput {
   return {

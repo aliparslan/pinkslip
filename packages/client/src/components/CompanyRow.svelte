@@ -8,7 +8,7 @@
   import Trash from "phosphor-svelte/lib/Trash";
   import WarningCircle from "phosphor-svelte/lib/WarningCircle";
   import { DropdownMenu } from "bits-ui";
-  import type { Company } from "../lib/api";
+  import type { Company } from "@pinkslip/core/api";
   import { companyCareersUrl, companySourceLabel } from "../lib/company-sources";
   import CompanyLogo from "./CompanyLogo.svelte";
   import Switch from "./Switch.svelte";

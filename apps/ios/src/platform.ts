@@ -6,7 +6,7 @@ import { Keyboard, KeyboardStyle } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Share } from "@capacitor/share";
 import { StatusBar, Style } from "@capacitor/status-bar";
-import { api, ApiError, configureApiClient } from "../../../packages/client/src/lib/api";
+import { api, ApiError, configureApiClient } from "@pinkslip/core/api";
 import { navigate } from "../../../packages/client/src/router";
 import { resolvedTheme } from "../../../packages/client/src/lib/theme";
 import { nativeInstallationId } from "../../../packages/client/src/lib/installation-id";

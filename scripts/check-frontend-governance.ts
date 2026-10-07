@@ -15,7 +15,7 @@ const reviewThresholds: Record<string, number> = {
   "packages/client/src/components/JobRow.svelte": 750,
   "packages/client/src/components/Onboarding.svelte": 600,
   "packages/client/src/components/SearchProfileFields.svelte": 500,
-  "packages/client/src/lib/api.ts": 850,
+  "packages/core/src/api.ts": 850,
   "packages/client/src/pages/Companies.svelte": 1100,
   "packages/client/src/pages/Feed.svelte": 1100,
   "packages/client/src/pages/JobDetail.svelte": 900,

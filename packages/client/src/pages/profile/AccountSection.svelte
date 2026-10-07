@@ -1,7 +1,7 @@
 <script lang="ts">
   // Owns the auth flows; the parent only needs to reload after a change.
-  import { api, type AccountInfo } from "../../lib/api";
-  import { errorMessage } from "../../lib/utils";
+  import { api, type AccountInfo } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { isNativeIosAuthAvailable, signInWithAppleNative } from "../../lib/native-auth";
   import { syncSessionAccess } from "../../lib/session-access";
   import { clearBootstrapCache } from "../../lib/bootstrap-cache";

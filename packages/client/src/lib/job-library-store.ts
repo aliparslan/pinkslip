@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import type { Job } from "./api";
+import { onJobMutation, type Job } from "@pinkslip/core/api";
 
 export interface JobLibraryState {
   savedJobs: Job[];
@@ -58,6 +58,10 @@ export function syncCachedLibraryJob(job: Job): void {
       : state.appliedJobs,
   }));
 }
+
+// Library lists only sync once hydrated, and hydration requires this module,
+// so registering on first import preserves the previous always-in-sync behavior.
+onJobMutation(syncCachedLibraryJob);
 
 export function clearJobLibrary(): void {
   jobLibrary.set(emptyState());

@@ -1,8 +1,8 @@
 import { Hono, type Context } from "hono";
 import { normalizeResumeProfile } from "../../shared/resume-profile";
-import { parseResumeText } from "../../packages/client/src/lib/pdf-to-profile";
-import { assessResumeImportFields } from "../../packages/client/src/lib/resume-import-quality";
-import { US_STATES } from "../../packages/client/src/lib/resume-fields";
+import { parseResumeText } from "../../packages/core/src/pdf-to-profile";
+import { assessResumeImportFields } from "../../packages/core/src/resume-import-quality";
+import { US_STATES } from "../../packages/core/src/resume-fields";
 import { recordProductEvent } from "../product-events";
 import type { Env, Variables } from "../types";
 

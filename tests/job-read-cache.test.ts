@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { api, type Job } from "../packages/client/src/lib/api";
+import { api, type Job } from "../packages/core/src/api";
 import {
   installJobReadCache,
   jobReadPresentation,

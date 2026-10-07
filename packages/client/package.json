@@ -9,6 +9,7 @@
   "dependencies": {
     "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
     "@myriaddreamin/typst.ts": "^0.7.0",
+    "@pinkslip/core": "workspace:*",
     "bits-ui": "^2.18.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "6.2.108",

@@ -1,5 +1,5 @@
 import { initializeWebPlatform } from "./platform";
-import type { Job } from "../../../packages/client/src/lib/api";
+import type { Job } from "@pinkslip/core/api";
 import { installJobReadCache } from "../../../packages/client/src/lib/job-read-cache";
 import {
   clearCachedJobs,

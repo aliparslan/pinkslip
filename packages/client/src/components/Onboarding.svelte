@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { api } from "../lib/api";
-  import { errorMessage } from "../lib/utils";
+  import { api } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { enableNativePush, getNativePushStatus, isNativeIos } from "../lib/native-push";
   import {
     DEFAULT_SEARCH_PROFILE,

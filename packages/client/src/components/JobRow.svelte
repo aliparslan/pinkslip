@@ -2,9 +2,9 @@
   import { flushSync, onDestroy } from "svelte";
   import { navigateFromAnchor, routeHref } from "../router";
   import { jobDetailRoute, jobOriginForListRoute } from "../lib/job-navigation";
-  import { api, type Job } from "../lib/api";
+  import { api, type Job } from "@pinkslip/core/api";
   import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
-  import { isFreshJobTiming, jobTimingLabel } from "../lib/job-timing";
+  import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
   import { markViewed, setViewed } from "../lib/viewed";
   import { feedback, UNDO_TOAST_DURATION } from "../lib/feedback.svelte";
   import { hapticLight } from "../lib/haptics";

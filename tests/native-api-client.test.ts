@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { api, apiFetch, configureApiClient } from "../packages/client/src/lib/api";
+import { api, apiFetch, configureApiClient } from "../packages/core/src/api";
 
 const originalFetch = globalThis.fetch;
 const testGlobal = globalThis as typeof globalThis & { window?: Window & typeof globalThis };

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api } from "../../lib/api";
-  import { errorMessage } from "../../lib/utils";
+  import { api } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import { enableNativePush, getNativePushStatus } from "../../lib/native-push";
   import { platform, type NotificationStatus } from "../../lib/platform";
   import Switch from "../../components/Switch.svelte";

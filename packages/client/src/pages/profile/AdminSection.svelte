@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, type ProductMetrics } from "../../lib/api";
-  import { errorMessage } from "../../lib/utils";
+  import { api, type ProductMetrics } from "@pinkslip/core/api";
+  import { errorMessage } from "@pinkslip/core/utils";
   import Spinner from "../../components/Spinner.svelte";
   import InlineFailure from "../../components/InlineFailure.svelte";
 
