@@ -144,6 +144,16 @@
     }
   }
 
+  /* A raised toggle that is on stays pressed in, in the accent. After the
+     hover rules so hovering doesn't lift it back up. */
+  .ps-btn--secondary[data-pressed] {
+    background:
+      linear-gradient(to bottom, var(--skin-bottom), var(--skin-top)) padding-box,
+      var(--raised-edge) border-box;
+    box-shadow: inset 0 1px 2px var(--skin-inset);
+    color: var(--color-accent-text);
+  }
+
   /* ============================================================ Fields
 
      One recessed box for every kind of entry: text inputs, text areas,

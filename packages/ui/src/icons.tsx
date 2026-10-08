@@ -26,6 +26,7 @@ function Icon({ size = 16, children, ...props }: IconProps) {
 export const CheckIcon = (p: IconProps) => <Icon {...p}><path d="M3.5 8.5l3 3 6-7" /></Icon>;
 export const DashIcon = (p: IconProps) => <Icon {...p}><path d="M4 8h8" /></Icon>;
 export const ChevronDownIcon = (p: IconProps) => <Icon {...p}><path d="M4 6l4 4 4-4" /></Icon>;
+export const ChevronLeftIcon = (p: IconProps) => <Icon {...p}><path d="M10 4L6 8l4 4" /></Icon>;
 export const ChevronRightIcon = (p: IconProps) => <Icon {...p}><path d="M6 4l4 4-4 4" /></Icon>;
 export const ChevronUpDownIcon = (p: IconProps) => <Icon {...p}><path d="M5 6l3-3 3 3M5 10l3 3 3-3" /></Icon>;
 export const CloseIcon = (p: IconProps) => <Icon {...p}><path d="M4 4l8 8M12 4l-8 8" /></Icon>;
@@ -41,6 +42,7 @@ export const MoreIcon = (p: IconProps) => (
     <circle cx="12.5" cy="8" r="1.25" />
   </Icon>
 );
+export const AlertIcon = (p: IconProps) => <Icon {...p}><circle cx="8" cy="8" r="6" /><path d="M8 5v3.5M8 11h.01" /></Icon>;
 export const BellIcon = (p: IconProps) => <Icon {...p}><path d="M4 11V7a4 4 0 018 0v4l1 1.5H3zM6.5 13.5a1.5 1.5 0 003 0" /></Icon>;
 export const HideIcon = (p: IconProps) => <Icon {...p}><path d="M2 8s2.2-4 6-4c1.1 0 2.1.3 2.9.8M14 8s-2.2 4-6 4c-1.1 0-2.1-.3-2.9-.8M6.6 9.4a2 2 0 012.8-2.8M2.5 13.5l11-11" /></Icon>;
 export const SlidersIcon = (p: IconProps) => <Icon {...p}><path d="M3 5h6M12 5h1M3 11h1M7 11h6" /><circle cx="10.5" cy="5" r="1.5" /><circle cx="5.5" cy="11" r="1.5" /></Icon>;

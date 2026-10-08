@@ -37,7 +37,7 @@ Rules, enforced by `bun run check:frontend`:
 | Module | Exports | Notes |
 | --- | --- | --- |
 | `button.tsx` | `Button`, `buttonClass` | Variants: primary (pink gradient), secondary (raised), ghost, danger (secondary with red text, so red never competes with pink). Sizes sm, md, lg, icon, icon-sm. |
-| `toggle.tsx` | `Toggle`, `Chip`, `chipClass`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label; sizes md, icon, icon-sm. `Chip` is the pill used for filters and choices. `Segmented` measures the pressed segment and slides a raised selection to it. |
+| `toggle.tsx` | `Toggle`, `Chip`, `chipClass`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label; sizes md, lg, icon, icon-sm. `raised` paints it like the secondary button, for a toggle in a row of buttons (Save in the job page's bar). `Chip` is the pill used for filters and choices. `Segmented` measures the pressed segment and slides a raised selection to it. |
 | `field.tsx` | `Field`, `TextField`, `Input`, `SearchInput`, `Fieldset`, `Form` | Label above, one recessed box for every kind of entry. Focus rings it pink; invalid rings it red. A passed `error` marks the field invalid. `Input` and `SearchInput` come in md and lg. |
 | `choice.tsx` | `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `ChoiceLabel`, `Switch` | Checked is always a pink fill. The switch thumb stretches while pressed and glides on release. |
 | `range.tsx` | `Slider`, `NumberField`, `Meter`, `Progress` | Filled tracks are flat pink, recessed. |
@@ -87,8 +87,19 @@ New since the last review in the playground, pending approval:
 - Gradient edges on raised controls; type size following control height
   (28/13, 36/14, 44/16); `Chip`; large inputs; `--surface` so rows match the
   surface under them; ease-in-out instead of springs.
-- The Jobs header (option B) in the playground: large search field and
-  filter chips. Next: no title, chips Location, Pay, New.
+- The Jobs header (option B) in the playground: no title, a large search
+  field, and the chips Location, Pay, and New.
+- `.ps-prose` in `base.css` for long-form text such as job postings, and
+  the back and alert icons.
+- The job page in the playground: a slim company row with when it was
+  posted, the exact title full width below, fit as a quiet line of what the
+  header doesn't already say, places and pay that open in a sheet when there
+  are many, and a bar of Save (which becomes the Track status) and Apply, or
+  Auto apply for subscribers. For
+  them: `Toggle` size `lg` and `raised`; `.ps-facts` in `base.css`, a dotted
+  line of facts that wraps without stray dots; and in core,
+  `jobLocationParts` and `jobPayBands`, which split a posting's places and
+  pay bands.
 
 ## iOS
 

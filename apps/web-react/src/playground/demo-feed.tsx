@@ -86,7 +86,7 @@ export function useDemoFeed(initialJobs: Job[]) {
     setLeaving(new Set());
   }
 
-  return { jobs, leaving, rowProps, isNew, reset };
+  return { jobs, leaving, selected, setSelected, rowProps, isNew, reset };
 }
 
 export type DemoFeed = ReturnType<typeof useDemoFeed>;

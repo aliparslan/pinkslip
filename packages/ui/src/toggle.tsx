@@ -4,22 +4,31 @@ import { Toolbar as BaseToolbar } from "@base-ui/react/toolbar";
 import { useLayoutEffect, useRef } from "react";
 import { cn, mergeClassName, styled } from "./lib/cn";
 
-export type ToggleSize = "md" | "icon" | "icon-sm";
+export type ToggleSize = "md" | "lg" | "icon" | "icon-sm";
 
 const toggleSizes: Record<ToggleSize, string> = {
-  md: "h-control rounded-control px-3",
-  icon: "size-control rounded-control",
-  "icon-sm": "size-control-sm rounded-inset",
+  md: "h-control rounded-control px-3 text-ui",
+  lg: "h-control-lg rounded-control px-4 text-body",
+  icon: "size-control rounded-control text-ui",
+  "icon-sm": "size-control-sm rounded-inset text-meta",
 };
 
-/** A pressed/unpressed action, such as Save. */
-export function Toggle({ size = "md", className, ...props }: BaseToggle.Props & { size?: ToggleSize }) {
+/** A pressed/unpressed action, such as Save. Flat by default, for toolbars
+ * and rows. `raised` paints it like the secondary button, for a toggle that
+ * sits in a row of buttons; pressing it in sinks it. */
+export function Toggle({
+  size = "md",
+  raised = false,
+  className,
+  ...props
+}: BaseToggle.Props & { size?: ToggleSize; raised?: boolean }) {
   return (
     <BaseToggle
       {...props}
       className={mergeClassName(
         cn(
-          "ps-toggle ps-press inline-flex shrink-0 cursor-pointer select-none items-center justify-center gap-2 text-ui font-medium focus-ring data-[disabled]:opacity-45",
+          raised ? "ps-btn ps-btn--secondary" : "ps-toggle",
+          "ps-press inline-flex shrink-0 cursor-pointer select-none items-center justify-center gap-2 font-medium focus-ring data-[disabled]:opacity-45",
           toggleSizes[size],
         ),
         className,

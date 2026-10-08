@@ -39,10 +39,12 @@ const pays = [
 interface Filters {
   places: Place[];
   minPay: number;
-  savedOnly: boolean;
+  /** The ids that were new when New was turned on. Kept fixed, so a job
+   * you open stays in the list instead of vanishing under your finger. */
+  newIds: string[] | null;
 }
 
-const noFilters: Filters = { places: [], minPay: 0, savedOnly: false };
+const noFilters: Filters = { places: [], minPay: 0, newIds: null };
 
 function lowestPayK(job: Job): number | null {
   const match = formatCompactSalaryText(job.salary)?.match(/(\d+(?:\.\d+)?)K/);
@@ -59,12 +61,12 @@ function matches(job: Job, query: string, filters: Filters): boolean {
     const pay = lowestPayK(job);
     if (pay === null || pay < filters.minPay) return false;
   }
-  if (filters.savedOnly && !job.saved) return false;
+  if (filters.newIds && !filters.newIds.includes(job.id)) return false;
   return true;
 }
 
 function activeCount(filters: Filters): number {
-  return (filters.places.length ? 1 : 0) + (filters.minPay ? 1 : 0) + (filters.savedOnly ? 1 : 0);
+  return (filters.places.length ? 1 : 0) + (filters.minPay ? 1 : 0) + (filters.newIds ? 1 : 0);
 }
 
 function placeSummary(filters: Filters): string {
@@ -162,15 +164,6 @@ function StickyBar({ children, className }: { children: ReactNode; className?: s
   );
 }
 
-function LargeTitle({ children }: { children?: ReactNode }) {
-  return (
-    <div className="flex items-end justify-between gap-3 px-4 pb-1 pt-6">
-      <h3 className="text-display">Jobs</h3>
-      {children}
-    </div>
-  );
-}
-
 function Status({ search }: { search: Search }) {
   const n = search.results.length;
   return (
@@ -229,8 +222,7 @@ function JobsHeader() {
   const { filters } = search;
   return (
     <Screen>
-      <LargeTitle />
-      <StickyBar className="flex flex-col gap-2 py-2">
+      <StickyBar className="flex flex-col gap-2 pb-2 pt-3">
         <div className="px-4">
           <SearchInput
             size="lg"
@@ -254,8 +246,14 @@ function JobsHeader() {
               <p className="text-meta text-ink-3">Jobs that don't list pay are left out while this is set.</p>
             </div>
           </ChipPopover>
-          <Chip pressed={filters.savedOnly} onPressedChange={(savedOnly) => search.setFilters({ ...filters, savedOnly })}>
-            Saved
+          <Chip
+            pressed={Boolean(filters.newIds)}
+            onPressedChange={(on) =>
+              search.setFilters({ ...filters, newIds: on ? feed.jobs.filter(feed.isNew).map((job) => job.id) : null })
+            }
+          >
+            New
+            <span className="tabular-nums text-ink-3">{feed.jobs.filter(feed.isNew).length}</span>
           </Chip>
           {search.count ? (
             <Button variant="ghost" onClick={() => search.setFilters(noFilters)} className="text-accent-text">
@@ -276,8 +274,10 @@ export function JobsHeaderGroup() {
     <Group id="jobs-header" title="Jobs header">
       <div className="flex flex-col gap-3 pt-3">
         <p className="max-w-prose text-body text-ink-2">
-          Option B, refined. The search field is large (44px, 16px type, so Safari doesn't zoom on focus); the chips
-          are medium (36px, 14px type), like every medium control. The list sits on the same surface as the header.
+          Option B, refined. No title: Jobs is the search-first tab, and the tab bar already says where you are. The
+          search field is large (44px, 16px type, so Safari doesn't zoom on focus); the chips are medium (36px, 14px
+          type). New shows only the jobs with the pink dot; ones you open while it's on stay put until you turn it
+          off.
         </p>
         <div>
           <Button size="sm" onClick={() => setRound((value) => value + 1)}>

@@ -38,18 +38,23 @@ function normalizeLocationPart(value: string): string {
   return part;
 }
 
-// ATS feeds often send a long list (sometimes with country names repeated).
-// Keep the first meaningful place visible and summarize the rest for feed rows;
-// the full source location remains available on the job detail screen.
-export function formatJobLocation(location: string | null | undefined): string | null {
-  if (!location) return null;
+/** Every place a posting lists, cleaned and without repeats, in the
+ * posting's order. Rows summarize these; the job page lists them all. */
+export function jobLocationParts(location: string | null | undefined): string[] {
+  if (!location) return [];
   const parts = location
     .split(/\s*(?:;|\||\s\/\s)\s*/)
     .map(normalizeLocationPart)
     .filter(Boolean);
-  const unique = [...new Set(parts.map((part) => part.toLowerCase()))]
+  return [...new Set(parts.map((part) => part.toLowerCase()))]
     .map((key) => parts.find((part) => part.toLowerCase() === key) as string);
+}
 
+// ATS feeds often send a long list (sometimes with country names repeated).
+// Keep the first meaningful place visible and summarize the rest for feed rows;
+// the full source location remains available on the job detail screen.
+export function formatJobLocation(location: string | null | undefined): string | null {
+  const unique = jobLocationParts(location);
   if (unique.length === 0) return null;
   if (unique.length === 1) return unique[0];
 
@@ -147,4 +152,26 @@ export function formatRowSalary(salary: string | null | undefined): string | nul
   const compact = formatCompactSalaryText(salary);
   if (!compact) return null;
   return compact.replace(/^([$£€¥]?)(\d+(?:\.\d+)?)K–\1(\d+(?:\.\d+)?)K/, "$1$2–$3K");
+}
+
+export interface PayBand {
+  /** Where the band applies, when the posting says ("New York", "Remote"). */
+  region: string | null;
+  /** The band in row form: "$160–190K", "$55/hr". */
+  amount: string;
+}
+
+/** The pay bands a posting lists, such as "New York: $160,000 - $190,000 |
+ * Remote: $140,000 - $170,000", each with its region when one is named.
+ * One band, or none, is the common case. */
+export function jobPayBands(salary: string | null | undefined): PayBand[] {
+  if (!salary) return [];
+  const bands: PayBand[] = [];
+  for (const part of salary.split(/\s*(?:\||;|·|•|\n)\s*/)) {
+    const amount = formatRowSalary(part);
+    if (!amount || bands.some((band) => band.amount === amount && !band.region)) continue;
+    const label = part.slice(0, part.search(/(?:USD|CAD|GBP|EUR)?\s*[$£€¥]|\d/)).replace(/[\s:–—-]+$/, "").trim();
+    bands.push({ region: /[a-z]/i.test(label) ? normalizeText(label) : null, amount });
+  }
+  return bands;
 }
