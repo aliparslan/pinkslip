@@ -3,7 +3,8 @@
   import { navigateFromAnchor, routeHref } from "../router";
   import { jobDetailRoute, jobOriginForListRoute } from "../lib/job-navigation";
   import { api, type Job } from "@pinkslip/core/api";
-  import { extractSalaryFromHtml, formatCompactSalaryText, formatJobLocation } from "../lib/job-content";
+  import { formatCompactSalaryText, formatJobLocation } from "@pinkslip/core/job-format";
+  import { extractSalaryFromHtml } from "../lib/job-content";
   import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
   import { markViewed, setViewed } from "../lib/viewed";
   import { feedback, UNDO_TOAST_DURATION } from "../lib/feedback.svelte";

@@ -11,7 +11,14 @@
 
    Gradients use a hue shift: the light end turns slightly warmer and less
    saturated, the dark end slightly cooler and deeper, the way a lit surface
-   does. A gradient that only changes lightness reads as plastic. */
+   does. A gradient that only changes lightness reads as plastic.
+
+   Raised controls are framed by a gradient edge, not a flat outline: light
+   at the top where it catches the light, fading down the sides to a darker
+   bottom where it meets the surface. The edge is a second background
+   clipped to the border box (the border itself is transparent), so it
+   follows the corners. It replaces the inner top highlight, which stacked
+   with a flat top border into a hard band. */
 
 :root {
   --skin-hi: oklch(1 0 0 / 0.55);
@@ -28,6 +35,11 @@
   --accent-ink-shadow: oklch(from var(--color-accent) calc(l - 0.2) c h / 0.35);
   --accent-gradient: linear-gradient(to bottom, var(--accent-top), var(--color-accent));
   --raised-gradient: linear-gradient(to bottom, var(--skin-top), var(--skin-bottom));
+  --edge-top: oklch(0.89 0.004 80);
+  --edge-bottom: oklch(0.75 0.006 80);
+  --raised-edge: linear-gradient(to bottom, var(--edge-top), var(--edge-bottom));
+  --accent-edge-top: oklch(from var(--color-accent-edge) calc(l + 0.12) calc(c * 0.9) calc(h + 4));
+  --accent-edge: linear-gradient(to bottom, var(--accent-edge-top), var(--color-accent-edge));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +52,8 @@
     --skin-top: oklch(0.3 0.006 285);
     --skin-bottom: oklch(0.255 0.006 285);
     --skin-thumb-bottom: oklch(0.88 0.003 285);
+    --edge-top: oklch(0.39 0.007 285);
+    --edge-bottom: oklch(0.21 0.006 285);
   }
 }
 
@@ -52,6 +66,8 @@
   --skin-top: oklch(0.3 0.006 285);
   --skin-bottom: oklch(0.255 0.006 285);
   --skin-thumb-bottom: oklch(0.88 0.003 285);
+  --edge-top: oklch(0.39 0.007 285);
+  --edge-bottom: oklch(0.21 0.006 285);
 }
 
 @layer components {
@@ -72,29 +88,30 @@
   }
 
   .ps-btn--primary {
-    background: var(--accent-gradient);
-    border-color: var(--color-accent-edge);
+    background:
+      var(--accent-gradient) padding-box,
+      var(--accent-edge) border-box;
     color: var(--color-accent-ink);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 1px 2px var(--skin-shade);
+    box-shadow: 0 1px 2px var(--skin-shade);
   }
   .ps-btn--primary:active:not([data-disabled]) {
-    background: linear-gradient(to bottom, var(--color-accent), var(--accent-top));
+    background:
+      linear-gradient(to bottom, var(--color-accent), var(--accent-top)) padding-box,
+      var(--accent-edge) border-box;
     box-shadow: inset 0 1px 2px var(--skin-shade);
   }
 
   .ps-btn--secondary {
-    background: var(--raised-gradient);
-    border-color: var(--color-line-2);
-    border-bottom-color: oklch(from var(--color-line-2) calc(l - 0.06) c h);
+    background:
+      var(--raised-gradient) padding-box,
+      var(--raised-edge) border-box;
     color: var(--color-ink);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 1px 2px var(--skin-shade-sm);
+    box-shadow: 0 1px 2px var(--skin-shade-sm);
   }
   .ps-btn--secondary:active:not([data-disabled]) {
-    background: linear-gradient(to bottom, var(--skin-bottom), var(--skin-top));
+    background:
+      linear-gradient(to bottom, var(--skin-bottom), var(--skin-top)) padding-box,
+      var(--raised-edge) border-box;
     box-shadow: inset 0 1px 2px var(--skin-inset);
   }
 
@@ -117,7 +134,9 @@
       filter: brightness(1.05);
     }
     .ps-btn--secondary:hover {
-      background: linear-gradient(to bottom, var(--skin-top), var(--skin-top));
+      background:
+        linear-gradient(to bottom, var(--skin-top), var(--skin-top)) padding-box,
+        var(--raised-edge) border-box;
     }
     .ps-btn--ghost:hover {
       background: var(--color-control);
@@ -177,11 +196,11 @@
     }
   }
   .ps-seg-indicator {
-    background: var(--raised-gradient);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 0 0 0.5px var(--color-line-2),
-      0 1px 3px var(--skin-shade);
+    border: 1px solid transparent;
+    background:
+      var(--raised-gradient) padding-box,
+      var(--raised-edge) border-box;
+    box-shadow: 0 1px 3px var(--skin-shade);
   }
 
   .ps-toggle {
@@ -202,11 +221,11 @@
 
   /* Toolbar and menubar containers, and the buttons inside them. */
   .ps-bar {
-    background: var(--raised-gradient);
-    border: 1px solid var(--color-line-2);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 1px 2px var(--skin-shade-sm);
+    border: 1px solid transparent;
+    background:
+      var(--raised-gradient) padding-box,
+      var(--raised-edge) border-box;
+    box-shadow: 0 1px 2px var(--skin-shade-sm);
   }
   .ps-bar-btn {
     color: var(--color-ink-2);
@@ -238,23 +257,22 @@
   /* ============================================== Checkbox, radio, switch */
 
   .ps-mark {
-    border: 1px solid var(--color-line-2);
-    background: var(--raised-gradient);
+    border: 1px solid transparent;
+    background:
+      var(--raised-gradient) padding-box,
+      var(--raised-edge) border-box;
     color: var(--color-accent-ink);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 1px 1px var(--skin-shade-sm);
+    box-shadow: 0 1px 1px var(--skin-shade-sm);
     transition:
       background-color var(--dur-instant) var(--ease-out),
       border-color var(--dur-instant) var(--ease-out),
       box-shadow var(--dur-instant) var(--ease-out);
   }
   .ps-mark:is([data-checked], [data-indeterminate]) {
-    background: var(--accent-gradient);
-    border-color: var(--color-accent-edge);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      0 1px 2px var(--skin-shade);
+    background:
+      var(--accent-gradient) padding-box,
+      var(--accent-edge) border-box;
+    box-shadow: 0 1px 2px var(--skin-shade);
   }
 
   .ps-switch,
@@ -274,11 +292,13 @@
   .ps-gauge-track {
     background: var(--color-line);
   }
-  /* Filled tracks light from below, so the pink reads as lit from inside. */
+  /* Filled tracks are flat pink, recessed like the track itself: a soft
+     shadow along the top edge, no gradient. Only raised things get a lit
+     gradient; a gradient inside a well reads as muddy. */
   .ps-switch[data-checked],
   .ps-slider-range,
   .ps-gauge-fill {
-    background: linear-gradient(to bottom, var(--accent-bottom), var(--accent-top));
+    background: var(--color-accent);
     box-shadow: inset 0 1px 2px var(--accent-ink-shadow);
   }
   .ps-thumb {
@@ -308,6 +328,7 @@
     backdrop-filter: none;
   }
   .ps-sheet {
+    --surface: var(--color-raised);
     background: var(--color-raised);
     border: 0.5px solid var(--color-line-2);
     color: var(--color-ink);
@@ -360,18 +381,64 @@
     color: var(--color-accent-ink);
   }
 
-  .ps-avatar {
-    background: var(--raised-gradient);
+  /* Badges: a short fact or status. Soft fill with a hairline of the same
+     hue, so a row of them reads as labels, never as buttons. */
+  .ps-badge {
+    background: var(--color-control);
     color: var(--color-ink-2);
-    box-shadow:
-      inset 0 1px 0 var(--skin-hi),
-      inset 0 0 0 1px var(--color-line);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-ink) l c h / 0.07);
+  }
+  .ps-badge--accent {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-accent) l c h / 0.22);
+  }
+  .ps-badge--good {
+    background: var(--color-good-soft);
+    color: var(--color-good);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-good) l c h / 0.22);
+  }
+  .ps-badge--warn {
+    background: var(--color-warn-soft);
+    color: var(--color-warn);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-warn) l c h / 0.24);
+  }
+  .ps-badge--bad {
+    background: var(--color-bad-soft);
+    color: var(--color-bad);
+    box-shadow: inset 0 0 0 1px oklch(from var(--color-bad) l c h / 0.22);
+  }
+
+  /* Company marks are tiles, not buttons: the lit edge of a raised control
+     at half strength, and no shadow, so they sit flat on the surface. */
+  .ps-avatar {
+    border: 1px solid transparent;
+    background:
+      var(--raised-gradient) padding-box,
+      linear-gradient(
+          to bottom,
+          color-mix(in oklch, var(--edge-top) 60%, var(--skin-top)),
+          color-mix(in oklch, var(--edge-bottom) 50%, var(--skin-bottom))
+        )
+        border-box;
+    color: var(--color-ink-2);
+  }
+
+  /* Loading placeholders. The highlight band is wider than the block and
+     sweeps across it (motion.css moves it). */
+  .ps-skeleton {
+    background-color: var(--color-control);
+    background-image: linear-gradient(90deg, transparent 35%, var(--skin-hi) 50%, transparent 65%);
+    background-size: 300% 100%;
+    background-repeat: no-repeat;
+    background-position: 100% 0;
   }
 
   /* The floating search pill at the top of the feed, and the cards inside
      its search panel. */
   .ps-pill,
   .ps-card {
+    --surface: var(--color-raised);
     background: var(--color-raised);
     border: 1px solid var(--color-line);
     box-shadow:
@@ -402,5 +469,53 @@
   .ps-choice[data-pressed] {
     border-color: var(--color-ink);
     box-shadow: inset 0 0 0 1px var(--color-ink);
+  }
+
+  /* A row in a list that opens something: a job, a company, a setting. The
+     row's main link carries .ps-row-link and stretches over the row; buttons
+     inside sit on top. Hover tints the row, pressing the link fills it, and
+     the selected row (the one open beside the list) stays filled. Focus
+     rings the whole row, inset, since rows sit edge to edge.
+
+     Rows take the color of the surface they sit on, so a list reads as part
+     of its page. --row-fill is the row's current color, opaque, so parts
+     that overlap the row can match it: actions that fade in over the end of
+     the text, the ring around a dot on the company mark. */
+  .ps-row {
+    --row-fill: var(--surface);
+    background: var(--row-fill);
+    color: var(--color-ink);
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .ps-row:hover {
+      --row-fill: color-mix(in oklch, var(--color-control) 55%, var(--surface));
+    }
+  }
+  .ps-row:has(.ps-row-link:active),
+  .ps-row[data-selected],
+  .ps-row[data-popup-open] {
+    --row-fill: var(--color-control);
+  }
+  .ps-row-link {
+    /* A long press opens the row's menu, not the browser's link preview. */
+    -webkit-touch-callout: none;
+  }
+  .ps-row-link:focus-visible {
+    outline: none;
+  }
+  .ps-row:has(.ps-row-link:focus-visible) {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+  .ps-row-actions {
+    background: linear-gradient(to right, transparent, var(--row-fill) 1rem);
+  }
+
+  /* The "new" dot, wherever it sits. On top of something (a company mark)
+     it gets a ring in the row's color so it reads as a cutout. */
+  .ps-new-dot {
+    background: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--row-fill, var(--surface));
   }
 }

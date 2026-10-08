@@ -5,6 +5,7 @@
   "description": "Pinkslip's web design system: tokens and styled Base UI components",
   "exports": {
     "./styles.css": "./src/styles/index.css",
+    "./lib/*": "./src/lib/*.ts",
     "./*": "./src/*.tsx"
   },
   "scripts": {

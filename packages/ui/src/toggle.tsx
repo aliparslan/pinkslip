@@ -2,14 +2,40 @@ import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import { Toolbar as BaseToolbar } from "@base-ui/react/toolbar";
 import { useLayoutEffect, useRef } from "react";
-import { mergeClassName, styled } from "./lib/cn";
+import { cn, mergeClassName, styled } from "./lib/cn";
+
+export type ToggleSize = "md" | "icon" | "icon-sm";
+
+const toggleSizes: Record<ToggleSize, string> = {
+  md: "h-control rounded-control px-3",
+  icon: "size-control rounded-control",
+  "icon-sm": "size-control-sm rounded-inset",
+};
 
 /** A pressed/unpressed action, such as Save. */
-export const Toggle = styled(
-  BaseToggle,
-  "ps-toggle ps-press inline-flex h-control cursor-pointer select-none items-center justify-center gap-2 rounded-control px-3 text-ui font-medium focus-ring data-[disabled]:opacity-45",
-  "Toggle",
-);
+export function Toggle({ size = "md", className, ...props }: BaseToggle.Props & { size?: ToggleSize }) {
+  return (
+    <BaseToggle
+      {...props}
+      className={mergeClassName(
+        cn(
+          "ps-toggle ps-press inline-flex shrink-0 cursor-pointer select-none items-center justify-center gap-2 text-ui font-medium focus-ring data-[disabled]:opacity-45",
+          toggleSizes[size],
+        ),
+        className,
+      )}
+    />
+  );
+}
+
+/** A choice chip: a pill that turns on and off, as in filters and the search
+ * sheet. Medium height and type, so it lines up with a medium field or
+ * button. Popover triggers that open a filter use the same class, with
+ * data-pressed set while the filter is on. */
+export const chipClass =
+  "ps-choice ps-press inline-flex h-control shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-pill px-3.5 text-ui font-medium focus-ring data-[disabled]:opacity-45";
+
+export const Chip = styled(BaseToggle, chipClass, "Chip");
 
 /** Segmented control: one choice among a few, shown side by side. The
  * selection slides to the pressed segment. Single selection only. */

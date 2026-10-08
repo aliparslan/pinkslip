@@ -6,10 +6,11 @@
    - Exits are shorter than entrances. Leaving should never make anyone wait.
    - Keyboard-driven opens and Escape closes are instant (Base UI marks them
      with data-instant).
-   - Things that slide into a new place (a selection, a tab rule, a switch
-     thumb) use the spring. Things that appear use ease-out.
+   - Things that move to a new place (a selection, a tab rule, a switch
+     thumb) use ease-in-out. Things that appear or leave use ease-out.
+     Nothing bounces.
    - Reduced motion keeps fades and drops movement: nothing slides, scales,
-     or springs, but nothing pops in without a cue either.
+     or grows, but nothing pops in without a cue either.
 
    Components use the named motions below (motion-pop, motion-fade, …) and do
    not compose their own transitions out of raw utilities, so one decision
@@ -105,12 +106,12 @@
   }
 }
 
-/* The check in a checkbox and the dot in a radio: grows from the center with
-   a small overshoot, shrinks away quickly. */
+/* The check in a checkbox and the dot in a radio: grows from the center,
+   shrinks away quickly. */
 @utility motion-mark {
   transition-property: opacity, scale;
-  transition-duration: var(--dur-base);
-  transition-timing-function: var(--ease-spring);
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-out);
   &[data-starting-style],
   &[data-ending-style] {
     opacity: 0;
@@ -122,11 +123,12 @@
   }
 }
 
-/* Something sliding to a new place: a switch thumb, the tab rule. */
+/* Something already on screen moving to a new place: a switch thumb, the
+   tab rule. Soft start, soft stop. */
 @utility motion-glide {
   transition-property: translate, width, height;
-  transition-duration: var(--dur-slow);
-  transition-timing-function: var(--ease-spring);
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-in-out);
 }
 
 /* A chevron turning to show a panel is open. */
@@ -136,10 +138,35 @@
   transition-timing-function: var(--ease-out);
 }
 
+/* A row leaving a list (hidden, removed, unsaved). It slides and fades
+   first, then the gap closes, so the eye sees which row went before the
+   rows below move up. Set data-leaving on the wrapper; clearing it (Undo)
+   plays the same motion backwards. Keep the wrapper in the list until the
+   chance to undo has passed. */
+@utility motion-dismiss {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    translate var(--dur-fast) var(--ease-out),
+    grid-template-rows var(--dur-base) var(--ease-out) var(--dur-instant);
+  &[data-leaving] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    translate: -0.75rem 0;
+    pointer-events: none;
+  }
+  &[data-leaving] > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
 /* ================================================= Parts with their own
    motion. These read chained Base UI variables, so they are written out. */
 
-/* Segmented control: the selection glides between segments. Position and
+/* Segmented control: the selection slides between segments. Position and
    size come from the Segmented component, which measures the pressed one. */
 .ps-seg-indicator {
   transform: translate(var(--seg-x, 0px), var(--seg-y, 0px));
@@ -149,9 +176,9 @@
 }
 [data-seg-ready] > .ps-seg-indicator {
   transition:
-    transform var(--dur-slow) var(--ease-spring),
-    width var(--dur-slow) var(--ease-spring),
-    height var(--dur-slow) var(--ease-spring),
+    transform var(--dur-slow) var(--ease-in-out),
+    width var(--dur-slow) var(--ease-in-out),
+    height var(--dur-slow) var(--ease-in-out),
     opacity var(--dur-fast) var(--ease-out);
 }
 
@@ -307,6 +334,30 @@
   animation: ps-pop var(--dur-sheet) var(--ease-out);
 }
 
+/* Spinner: the ticks turn one step at a time, like the system indicator. */
+@keyframes ps-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.ps-spinner {
+  animation: ps-spin calc(800ms * var(--motion-scale)) steps(8) infinite;
+}
+
+/* Skeleton: a soft highlight sweeps left to right, then pauses. */
+@keyframes ps-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  70%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+.ps-skeleton {
+  animation: ps-shimmer calc(1800ms * var(--motion-scale)) var(--ease-in-out) infinite;
+}
+
 /* ======================================================= Reduced motion
 
    Applies when the system asks for it, unless the page forces full motion
@@ -331,6 +382,9 @@
     width: 100%;
     animation: ps-breathe calc(1200ms * var(--motion-scale)) var(--ease-in-out) infinite alternate !important;
   }
+  :root:not([data-motion="full"]) .ps-spinner {
+    animation: ps-breathe calc(1200ms * var(--motion-scale)) var(--ease-in-out) infinite alternate !important;
+  }
 }
 
 :root[data-motion="reduced"] *,
@@ -348,8 +402,12 @@
   width: 100%;
   animation: ps-breathe calc(1200ms * var(--motion-scale)) var(--ease-in-out) infinite alternate !important;
 }
+:root[data-motion="reduced"] .ps-spinner {
+  animation: ps-breathe calc(1200ms * var(--motion-scale)) var(--ease-in-out) infinite alternate !important;
+}
 
-/* Indeterminate progress under reduced motion: the bar breathes in place. */
+/* Indeterminate progress and spinners under reduced motion: they breathe in
+   place instead of moving. */
 @keyframes ps-breathe {
   from {
     opacity: 0.35;

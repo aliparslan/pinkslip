@@ -68,7 +68,7 @@ export function Switch({ className, ...props }: BaseSwitch.Root.Props) {
       )}
     >
       {/* Pressing stretches the thumb toward the middle, the way a fingertip
-          flattens it; releasing glides it across with the spring. */}
+          flattens it; releasing slides it across. */}
       <BaseSwitch.Thumb className="ps-thumb motion-glide size-5 rounded-pill data-[checked]:translate-x-4.5 group-active:not-data-[disabled]:w-6 data-[checked]:group-active:not-data-[disabled]:translate-x-3.5" />
     </BaseSwitch.Root>
   );

@@ -42,4 +42,5 @@ export const MoreIcon = (p: IconProps) => (
   </Icon>
 );
 export const BellIcon = (p: IconProps) => <Icon {...p}><path d="M4 11V7a4 4 0 018 0v4l1 1.5H3zM6.5 13.5a1.5 1.5 0 003 0" /></Icon>;
+export const HideIcon = (p: IconProps) => <Icon {...p}><path d="M2 8s2.2-4 6-4c1.1 0 2.1.3 2.9.8M14 8s-2.2 4-6 4c-1.1 0-2.1-.3-2.9-.8M6.6 9.4a2 2 0 012.8-2.8M2.5 13.5l11-11" /></Icon>;
 export const SlidersIcon = (p: IconProps) => <Icon {...p}><path d="M3 5h6M12 5h1M3 11h1M7 11h6" /><circle cx="10.5" cy="5" r="1.5" /><circle cx="5.5" cy="11" r="1.5" /></Icon>;

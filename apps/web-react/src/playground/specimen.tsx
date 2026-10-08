@@ -1,6 +1,4 @@
-import { Avatar } from "@pinkslip/ui/display";
 import type { ReactNode } from "react";
-import { initials, type ExampleJob } from "./data";
 
 export function Group({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
@@ -28,33 +26,4 @@ export function Specimen({ name, use, children }: { name: string; use: string; c
 
 export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`flex flex-wrap items-center gap-2.5 ${className}`}>{children}</div>;
-}
-
-export function CompanyMark({ company, size = "md" }: { company: string; size?: "sm" | "md" }) {
-  return (
-    <Avatar.Root className={size === "sm" ? "size-8" : undefined}>
-      <Avatar.Fallback>{initials(company)}</Avatar.Fallback>
-    </Avatar.Root>
-  );
-}
-
-/** The feed row shape, used wherever a demo needs a job. */
-export function JobRow({ job, trailing }: { job: ExampleJob; trailing?: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 py-3">
-      <CompanyMark company={job.company} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="truncate text-ui font-medium text-ink">{job.title}</span>
-          <span className="shrink-0 text-meta tabular-nums text-ink-3">{job.posted}</span>
-        </div>
-        <span className="text-meta text-ink-2">{job.company}</span>
-        <span className="text-meta tabular-nums text-ink-3">
-          {job.location}
-          {job.salary ? `, ${job.salary}` : ""}
-        </span>
-      </div>
-      {trailing}
-    </div>
-  );
 }

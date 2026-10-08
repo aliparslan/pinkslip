@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { formatCompactSalaryText, normalizeSalaryText } from "../packages/client/src/lib/job-content";
+import { formatCompactSalaryText, normalizeSalaryText } from "../packages/core/src/job-format";
 
 describe("normalizeSalaryText", () => {
   it("normalizes spaced hyphens to a bare en dash", () => {

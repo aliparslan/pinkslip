@@ -6,7 +6,8 @@ import { BookmarkIcon, MoreIcon, ShareIcon, SlidersIcon } from "@pinkslip/ui/ico
 import { Segment, Segmented } from "@pinkslip/ui/toggle";
 import { useState } from "react";
 import { IconButton } from "./actions";
-import { CompanyMark, Group, Row, Specimen } from "../specimen";
+import { CompanyMark } from "../../components/company-mark";
+import { Group, Row, Specimen } from "../specimen";
 
 const reasons = [
   { value: "filled", label: "Closed or already filled" },
@@ -145,7 +146,7 @@ export function OverlaysGroup() {
               <PreviewCard.Positioner sideOffset={8}>
                 <PreviewCard.Popup>
                   <div className="flex items-center gap-3">
-                    <CompanyMark company="Ramp" />
+                    <CompanyMark name="Ramp" />
                     <div className="flex flex-col">
                       <span className="text-ui font-medium text-ink">Ramp</span>
                       <span className="text-meta text-ink-3">Finance automation, New York</span>

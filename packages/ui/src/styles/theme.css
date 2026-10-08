@@ -13,6 +13,11 @@
      them scale together, so the whole interface can be slowed down to
      inspect or sped up to tune. Exits are shorter than entrances: leaving
      should never make anyone wait. */
+  /* The surface content sits on. Containers that change it (sheets, cards)
+     set it again, so rows and cutouts inside can match whatever is under
+     them. */
+  --surface: var(--color-bg);
+
   --motion-scale: 1;
   --dur-instant: calc(90ms * var(--motion-scale));
   --dur-fast: calc(150ms * var(--motion-scale));
@@ -74,12 +79,13 @@
 
   --blur-bar: 16px;
 
+  /* Things that appear or leave use ease-out: fast start, gentle landing.
+     Things already on screen that move to a new place (a selection, a tab
+     rule, a switch thumb) use ease-in-out, so they start and stop softly.
+     Nothing in the interface bounces. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
-  /* A gentle spring with a small overshoot, for things that slide into place
-     (segmented selection, tab rule, switch thumb). */
-  --ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 15.9%, 0.938 22.1%, 1.017 27.2%, 1.043 32.1%, 1.035 38.4%, 1.007 53.8%, 0.998 66.8%, 1);
   /* What a bare transition-colors (or any transition-* without a duration)
      falls back to. */
   --default-transition-duration: var(--dur-fast);
@@ -196,7 +202,11 @@
   --shadow-sheet: 0 -10px 40px -10px oklch(0 0 0 / 0.6);
 }
 
-/* Control heights. */
+/* Control heights. Type size follows height, so controls side by side
+   always agree: small (28px) takes meta (13px), medium (36px) takes ui
+   (14px), large (44px) takes body (16px). Large is also the size for any
+   text field people type into on a phone, since Safari zooms the page when
+   a focused field is under 16px. */
 @utility h-control {
   height: var(--control-h);
 }

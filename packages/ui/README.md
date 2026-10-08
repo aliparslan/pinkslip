@@ -13,7 +13,7 @@ here ships in the production app yet.
 | --- | --- |
 | `src/styles/theme.css` | Every token: color (light and dark), type scale, radii, control height, durations, easings. Tailwind's defaults are wiped, so a class that is not backed by a token here does not exist. |
 | `src/styles/skin.css` | Paint for each component (`ps-*` classes): fills, borders, gradients, shadows, highlights. The style is tactile: raised controls, recessed fields and tracks, glass menus. |
-| `src/styles/motion.css` | How things move: the `dur-*` utilities, the named motions (`motion-pop`, `motion-dialog`, `motion-fade`, `motion-collapse`, `motion-mark`, `motion-glide`, `motion-turn`), the parts with their own motion (segmented selection, drawer, toasts), and reduced motion. |
+| `src/styles/motion.css` | How things move: the `dur-*` utilities, the named motions (`motion-pop`, `motion-dialog`, `motion-fade`, `motion-collapse`, `motion-mark`, `motion-glide`, `motion-turn`, `motion-dismiss`), the parts with their own motion (segmented selection, drawer, toasts, spinner, skeleton), and reduced motion. |
 | `src/styles/base.css` | Page canvas, headings, selection, focus outline. |
 | `src/*.tsx` | Components. Layout in utilities, paint from a `ps-*` class, motion from a `motion-*` class. |
 
@@ -37,10 +37,10 @@ Rules, enforced by `bun run check:frontend`:
 | Module | Exports | Notes |
 | --- | --- | --- |
 | `button.tsx` | `Button`, `buttonClass` | Variants: primary (pink gradient), secondary (raised), ghost, danger (secondary with red text, so red never competes with pink). Sizes sm, md, lg, icon, icon-sm. |
-| `toggle.tsx` | `Toggle`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label. `Segmented` measures the pressed segment and glides a raised selection to it. |
-| `field.tsx` | `Field`, `TextField`, `Input`, `SearchInput`, `Fieldset`, `Form` | Label above, one recessed box for every kind of entry. Focus rings it pink; invalid rings it red. A passed `error` marks the field invalid. |
+| `toggle.tsx` | `Toggle`, `Chip`, `chipClass`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label; sizes md, icon, icon-sm. `Chip` is the pill used for filters and choices. `Segmented` measures the pressed segment and slides a raised selection to it. |
+| `field.tsx` | `Field`, `TextField`, `Input`, `SearchInput`, `Fieldset`, `Form` | Label above, one recessed box for every kind of entry. Focus rings it pink; invalid rings it red. A passed `error` marks the field invalid. `Input` and `SearchInput` come in md and lg. |
 | `choice.tsx` | `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `ChoiceLabel`, `Switch` | Checked is always a pink fill. The switch thumb stretches while pressed and glides on release. |
-| `range.tsx` | `Slider`, `NumberField`, `Meter`, `Progress` | Filled tracks are lit from below. |
+| `range.tsx` | `Slider`, `NumberField`, `Meter`, `Progress` | Filled tracks are flat pink, recessed. |
 | `otp-field.tsx` | `OTPField` | The six-digit sign-in code. |
 | `select.tsx` | `Select` | Field-styled trigger, glass list. |
 | `combobox.tsx` | `Combobox`, `Autocomplete` | Multiple selection shows pink chips inside the field. |
@@ -49,12 +49,19 @@ Rules, enforced by `bun run check:frontend`:
 | `menu.tsx` | `Menu`, `ContextMenu`, `Menubar`, `MenubarTrigger`, `menuItemDanger` | Highlight fills with the accent. |
 | `navigation-menu.tsx` | `NavigationMenu` | Public site only; the app uses tabs. |
 | `disclosure.tsx` | `Accordion`, `Collapsible`, `Tabs` | Panels collapse by height; the tab rule glides. |
-| `display.tsx` | `Avatar`, `Separator`, `ScrollArea` | Company marks are squared off. |
+| `display.tsx` | `Avatar`, `Badge`, `Separator`, `ScrollArea` | Avatar sizes sm (24), md (40), lg (56); company marks are squared off. Badge tones: neutral, accent, good, warn, bad. |
+| `loading.tsx` | `Spinner`, `Skeleton` | The spinner turns in eight steps like the system one; under reduced motion it breathes instead. Skeletons shimmer, and hold still under reduced motion. |
 | `toast.tsx` | `ToastProvider`, `Toaster`, `useToastManager` | Stacked, opaque, swipe to dismiss. `data.leading` takes a company mark. |
 | `icons.tsx` | Control icons | Affordances only (check, chevrons, close, search, bookmark, share, more, bell, sliders). Product icons wait for an icon family. |
 
 Shared class strings live in `src/lib/surface.ts` (glass surface, menu items)
-and helpers in `src/lib/cn.ts` (`cn`, `styled`, `mergeClassName`).
+and helpers in `src/lib/cn.ts` (`cn`, `styled`, `mergeClassName`); apps can
+import them from `@pinkslip/ui/lib/*`.
+
+List rows that open something (a job, a company, a setting) take their paint
+from `.ps-row` in `skin.css`: the row's main link carries `.ps-row-link` and
+stretches over the row, hover tints it, pressing fills it, `data-selected`
+keeps it filled, and focus rings the whole row.
 
 ## Quarantine
 
@@ -62,13 +69,26 @@ New since the last review in the playground, pending approval:
 
 - Fields put the label above a recessed box (the form-box "slip" field is
   gone).
-- The motion system: named motions, exits shorter than entrances, springs for
+- The motion system: named motions, exits shorter than entrances, ease-in-out for
   things that glide, instant keyboard opens, and reduced motion that keeps
   fades but drops movement.
 - Switch thumb stretch on press; the search card's summary and question
   cross-fade.
 - The playground's View panel: theme, motion speed (down to a tenth), and a
   reduced-motion preview.
+- Parts, first batch: `Badge`, `Spinner`, `Skeleton`, Avatar sizes, `Toggle`
+  sizes, the `.ps-row` list row, and `motion-dismiss` for rows leaving a list
+  (job rows, companies, saved jobs, admin queues). In the app:
+  `CompanyMark`, `JobRow`, `JobRowSkeleton`, `JobList`
+  (`apps/web-react/src/components`).
+- The two-line job row (approved layout: title over company, place, and pay;
+  age and saved status on the right; the new dot on the logo), with hover
+  actions and a right-click or long-press menu.
+- Gradient edges on raised controls; type size following control height
+  (28/13, 36/14, 44/16); `Chip`; large inputs; `--surface` so rows match the
+  surface under them; ease-in-out instead of springs.
+- The Jobs header (option B) in the playground: large search field and
+  filter chips. Next: no title, chips Location, Pay, New.
 
 ## iOS
 

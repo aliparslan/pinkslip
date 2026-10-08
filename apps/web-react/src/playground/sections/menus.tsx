@@ -1,12 +1,12 @@
 import { Button } from "@pinkslip/ui/button";
 import { Tabs } from "@pinkslip/ui/disclosure";
-import { Separator } from "@pinkslip/ui/display";
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, MoreIcon } from "@pinkslip/ui/icons";
 import { ContextMenu, Menu, Menubar, MenubarTrigger, menuItemDanger } from "@pinkslip/ui/menu";
 import { NavigationMenu } from "@pinkslip/ui/navigation-menu";
 import { useState } from "react";
-import { exampleJobs } from "../data";
-import { Group, JobRow, Specimen } from "../specimen";
+import { JobRow } from "../../components/job-row";
+import { appliedJobs, sampleJobs } from "../data";
+import { Group, Specimen } from "../specimen";
 
 function Shortcut({ keys }: { keys: string }) {
   return <span className="ml-auto pl-6 text-meta tabular-nums text-ink-3">{keys}</span>;
@@ -16,7 +16,7 @@ export function MenusGroup() {
   const [muted, setMuted] = useState(false);
   const [theme, setTheme] = useState("system");
   const [salaries, setSalaries] = useState(true);
-  const ramp = exampleJobs[0]!;
+  const ramp = sampleJobs[0]!;
 
   return (
     <Group id="menus" title="Menus and navigation">
@@ -61,8 +61,8 @@ export function MenusGroup() {
 
       <Specimen name="Context Menu" use="The same actions on a feed row, by right-click or long-press.">
         <ContextMenu.Root>
-          <ContextMenu.Trigger className="max-w-110 select-none rounded-control border border-dashed border-line-2 px-3">
-            <JobRow job={ramp} />
+          <ContextMenu.Trigger className="max-w-110 select-none overflow-hidden rounded-control border border-dashed border-line-2">
+            <JobRow job={ramp} href="#menus" onOpen={(event) => event.preventDefault()} />
           </ContextMenu.Trigger>
           <ContextMenu.Portal>
             <ContextMenu.Positioner>
@@ -218,20 +218,22 @@ export function MenusGroup() {
             <Tabs.Indicator />
           </Tabs.List>
           <Tabs.Panel value="saved">
-            {exampleJobs.slice(0, 3).map((job, index) => (
-              <div key={job.id}>
-                {index > 0 ? <Separator /> : null}
-                <JobRow job={job} />
-              </div>
-            ))}
+            <ul className="-mx-4">
+              {sampleJobs.slice(0, 3).map((job) => (
+                <li key={job.id}>
+                  <JobRow job={job} href="#menus" onOpen={(event) => event.preventDefault()} />
+                </li>
+              ))}
+            </ul>
           </Tabs.Panel>
           <Tabs.Panel value="applied">
-            {exampleJobs.slice(3).map((job, index) => (
-              <div key={job.id}>
-                {index > 0 ? <Separator /> : null}
-                <JobRow job={job} />
-              </div>
-            ))}
+            <ul className="-mx-4">
+              {appliedJobs.map((job) => (
+                <li key={job.id}>
+                  <JobRow job={job} href="#menus" timing="applied" onOpen={(event) => event.preventDefault()} />
+                </li>
+              ))}
+            </ul>
           </Tabs.Panel>
         </Tabs.Root>
       </Specimen>

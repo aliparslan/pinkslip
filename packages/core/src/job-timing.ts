@@ -49,3 +49,13 @@ export function jobOriginalTimingLabel(job: JobTimingInput): string | null {
   if (job.source_type !== "greenhouse" || !job.posted_at || !job.first_seen_at) return null;
   return `Discovered ${timeAgo(job.first_seen_at)}`;
 }
+
+/** A list row's age: "now", "4m", "3h", "2d", "5mo". Rows have no room for
+ * "Posted" or "ago"; the job's page says which date this is. */
+export function compactJobAge(
+  job: Pick<JobTimingInput, "posted_at" | "first_seen_at">,
+): string | null {
+  const timestamp = job.posted_at ?? job.first_seen_at;
+  if (!timestamp) return null;
+  return timeAgo(timestamp).replace(/ ago$/, "").replace("just now", "now");
+}

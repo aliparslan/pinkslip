@@ -38,7 +38,7 @@ function ToastList() {
         ) : null}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <BaseToast.Title className="text-ui font-medium text-ink" />
-          <BaseToast.Description className="text-meta text-ink-2" />
+          <BaseToast.Description className="line-clamp-2 text-meta text-ink-2" />
         </div>
         <BaseToast.Action className="h-control-sm shrink-0 cursor-pointer rounded-inset px-2.5 text-meta font-medium text-accent-text hover:bg-accent-soft focus-ring" />
         <BaseToast.Close

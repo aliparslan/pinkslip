@@ -6,12 +6,16 @@ import { DisclosureGroup, DisplayGroup, FeedbackGroup } from "./sections/display
 import { EntryGroup } from "./sections/entry";
 import { MenusGroup } from "./sections/menus";
 import { OverlaysGroup } from "./sections/overlays";
+import { PartsGroup } from "./sections/parts";
 import { PatternsGroup } from "./sections/patterns";
 import { PickersGroup } from "./sections/pickers";
 import { RangesGroup } from "./sections/ranges";
+import { JobsHeaderGroup } from "./sections/jobs-header";
 import { TunePanel, useTune } from "./tune";
 
 const sections = [
+  ["jobs-header", "Jobs header"],
+  ["parts", "Parts"],
   ["patterns", "Patterns"],
   ["actions", "Actions"],
   ["entry", "Text entry"],
@@ -41,7 +45,7 @@ export function Playground() {
         <main className="mx-auto max-w-170 px-4 pb-24 pt-8 sm:px-6">
           <h1 className="text-display">Components</h1>
           <p className="mt-3 max-w-prose text-body text-ink-2">
-            Product patterns first, then all 38 Base UI components, with real Pinkslip content. One style, tactile,
+            The parts pages are built from, then product patterns, then all 38 Base UI components, with real Pinkslip content. One style, tactile,
             in Raspberry. Open View to switch the theme, slow motion down, or preview reduced motion.
           </p>
           <nav aria-label="Sections" className="no-scrollbar -mx-1.5 mt-6 overflow-x-auto">
@@ -59,6 +63,8 @@ export function Playground() {
             </ul>
           </nav>
 
+          <JobsHeaderGroup />
+          <PartsGroup />
           <PatternsGroup />
           <ActionsGroup />
           <EntryGroup />

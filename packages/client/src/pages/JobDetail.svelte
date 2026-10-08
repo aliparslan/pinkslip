@@ -15,10 +15,10 @@
   import { presentPending } from "../lib/task-presentation.svelte";
   import { isIosApp, platform } from "../lib/platform";
   import { roleLabel } from "../../../../shared/search-profile";
+  import { normalizeSalaryText } from "@pinkslip/core/job-format";
   import {
     extractPlainTextFromHtml,
     extractSalaryFromHtml,
-    normalizeSalaryText,
     sanitizeJobDescriptionHtml,
   } from "../lib/job-content";
   import { DropdownMenu } from "bits-ui";

@@ -1,14 +1,14 @@
 import { Accordion } from "@base-ui/react/accordion";
-import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { Button } from "@pinkslip/ui/button";
 import { Separator } from "@pinkslip/ui/display";
 import { BookmarkIcon, SearchIcon, ShareIcon } from "@pinkslip/ui/icons";
 import { Drawer, DrawerHandle } from "@pinkslip/ui/overlay";
 import { useToastManager } from "@pinkslip/ui/toast";
-import { Segment, Segmented, Toggle } from "@pinkslip/ui/toggle";
+import { Chip, Segment, Segmented, Toggle } from "@pinkslip/ui/toggle";
 import { useState, type ReactNode } from "react";
-import { CompanyMark, Group, Specimen } from "../specimen";
+import { CompanyMark } from "../../components/company-mark";
+import { Group, Specimen } from "../specimen";
 import { IconButton } from "./actions";
 
 /* ---------------------------------------------------------------- Search */
@@ -44,9 +44,6 @@ function placesSummary(places: string[]): string {
   const first = placeChoices.find((p) => p.value === places[0])?.label ?? "";
   return places.length === 1 ? first : `${first} and ${places.length - 1} more`;
 }
-
-const choiceChip =
-  "ps-choice ps-press inline-flex h-9 cursor-pointer select-none items-center rounded-pill px-3.5 text-meta font-medium focus-ring";
 
 function SearchSection({
   value,
@@ -128,9 +125,9 @@ function SearchPill() {
                     className="flex flex-wrap gap-2"
                   >
                     {roleChoices.map((choice) => (
-                      <BaseToggle key={choice} value={choice} className={choiceChip}>
+                      <Chip key={choice} value={choice}>
                         {choice}
-                      </BaseToggle>
+                      </Chip>
                     ))}
                   </ToggleGroup>
                 </SearchSection>
@@ -143,9 +140,9 @@ function SearchPill() {
                     className="flex flex-wrap gap-2"
                   >
                     {placeChoices.map((choice) => (
-                      <BaseToggle key={choice.value} value={choice.value} className={choiceChip}>
+                      <Chip key={choice.value} value={choice.value}>
                         {choice.label}
-                      </BaseToggle>
+                      </Chip>
                     ))}
                   </ToggleGroup>
                 </SearchSection>
@@ -197,7 +194,7 @@ function JobDetail() {
       toasts.add({
         title: "Saved to Library",
         description: "Software Engineer, New Grad at Ramp",
-        data: { leading: <CompanyMark company="Ramp" size="sm" /> },
+        data: { leading: <CompanyMark name="Ramp" size="sm" /> },
         actionProps: { children: "Undo", onClick: () => setSaved(false) },
       });
     }
@@ -208,9 +205,9 @@ function JobDetail() {
       <div className="no-scrollbar flex h-full flex-col overflow-y-auto">
         <div className="flex flex-col gap-4 px-5 pb-8 pt-5">
           <div className="flex items-start justify-between gap-3">
-            <CompanyMark company="Ramp" />
+            <CompanyMark name="Ramp" size="lg" />
             <div className="flex items-center gap-1">
-              <Toggle pressed={saved} onPressedChange={save} aria-label={saved ? "Saved" : "Save job"} className="ps-pop">
+              <Toggle size="icon" pressed={saved} onPressedChange={save} aria-label={saved ? "Saved" : "Save job"} className="ps-pop">
                 <BookmarkIcon size={18} className="ps-pop-icon" fill={saved ? "currentColor" : "none"} />
               </Toggle>
               <IconButton label="Share">

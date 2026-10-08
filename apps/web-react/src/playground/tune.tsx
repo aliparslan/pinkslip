@@ -152,7 +152,7 @@ export function TunePanel({ tune, setTune }: { tune: Tune; setTune: (tune: Tune)
                 />
                 <SegmentedRow
                   label="Reduced motion"
-                  hint="Reduced keeps fades and drops movement: nothing slides, scales, or springs."
+                  hint="Reduced keeps fades and drops movement: nothing slides or scales."
                   value={tune.motion}
                   options={[
                     { value: "system", label: "System" },

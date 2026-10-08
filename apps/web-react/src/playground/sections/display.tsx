@@ -4,7 +4,8 @@ import { ScrollArea, Separator } from "@pinkslip/ui/display";
 import { ChevronDownIcon } from "@pinkslip/ui/icons";
 import { useToastManager } from "@pinkslip/ui/toast";
 import { companies } from "../data";
-import { CompanyMark, Group, Row, Specimen } from "../specimen";
+import { CompanyMark } from "../../components/company-mark";
+import { Group, Row, Specimen } from "../specimen";
 
 const questions = [
   {
@@ -116,7 +117,7 @@ export function DisplayGroup() {
       <Specimen name="Avatar" use="Company marks. Initials stand in until a logo loads.">
         <Row>
           {["Ramp", "Figma", "Datadog", "Notion", "Cloudflare"].map((company) => (
-            <CompanyMark key={company} company={company} />
+            <CompanyMark key={company} name={company} />
           ))}
         </Row>
       </Specimen>
@@ -140,7 +141,7 @@ export function DisplayGroup() {
                   <li key={company}>
                     {index > 0 ? <Separator /> : null}
                     <div className="flex items-center gap-3 py-2.5">
-                      <CompanyMark company={company} size="sm" />
+                      <CompanyMark name={company} size="sm" />
                       <span className="text-ui text-ink">{company}</span>
                     </div>
                   </li>
