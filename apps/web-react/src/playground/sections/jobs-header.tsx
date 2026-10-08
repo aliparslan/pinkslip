@@ -203,7 +203,7 @@ function Results({ feed, search, jobs = search.results }: { feed: DemoFeed; sear
 function ChipPopover({ label, active, children }: { label: string; active: boolean; children: ReactNode }) {
   return (
     <Popover.Root>
-      <Popover.Trigger data-pressed={active || undefined} className={chipClass}>
+      <Popover.Trigger data-pressed={active || undefined} className={chipClass({ size: "sm" })}>
         {label}
         <ChevronDownIcon size={14} className="-mr-0.5 text-ink-3" />
       </Popover.Trigger>
@@ -232,7 +232,7 @@ function JobsHeader() {
             aria-label="Search jobs"
           />
         </div>
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-0.5">
+        <div className="no-scrollbar -my-1 flex gap-2 overflow-x-auto px-4 py-1.5">
           <ChipPopover label={filters.places.length ? placeSummary(filters) : "Location"} active={!!filters.places.length}>
             <div className="flex flex-col gap-3">
               <span className="text-ui font-medium text-ink">Location</span>
@@ -247,6 +247,7 @@ function JobsHeader() {
             </div>
           </ChipPopover>
           <Chip
+            size="sm"
             pressed={Boolean(filters.newIds)}
             onPressedChange={(on) =>
               search.setFilters({ ...filters, newIds: on ? feed.jobs.filter(feed.isNew).map((job) => job.id) : null })
@@ -256,7 +257,7 @@ function JobsHeader() {
             <span className="tabular-nums text-ink-3">{feed.jobs.filter(feed.isNew).length}</span>
           </Chip>
           {search.count ? (
-            <Button variant="ghost" onClick={() => search.setFilters(noFilters)} className="text-accent-text">
+            <Button variant="ghost" size="sm" onClick={() => search.setFilters(noFilters)} className="text-accent-text">
               Clear
             </Button>
           ) : null}

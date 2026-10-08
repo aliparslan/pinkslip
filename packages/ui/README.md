@@ -37,7 +37,7 @@ Rules, enforced by `bun run check:frontend`:
 | Module | Exports | Notes |
 | --- | --- | --- |
 | `button.tsx` | `Button`, `buttonClass` | Variants: primary (pink gradient), secondary (raised), ghost, danger (secondary with red text, so red never competes with pink). Sizes sm, md, lg, icon, icon-sm. |
-| `toggle.tsx` | `Toggle`, `Chip`, `chipClass`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label; sizes md, lg, icon, icon-sm. `raised` paints it like the secondary button, for a toggle in a row of buttons (Save in the job page's bar). `Chip` is the pill used for filters and choices. `Segmented` measures the pressed segment and slides a raised selection to it. |
+| `toggle.tsx` | `Toggle`, `Chip`, `chipClass`, `Segmented`, `Segment`, `Toolbar` | A pressed toggle is recessed with a pink label; sizes md, lg, icon, icon-sm. `raised` paints it like the secondary button, for a toggle in a row of buttons (Save in the job page's bar). `Chip` is the pill used for filters and choices: size sm (28px, with a 40px tap area) for a filter row under search, md inside sheets and popovers. `Segmented` measures the pressed segment and slides a raised selection to it. |
 | `field.tsx` | `Field`, `TextField`, `Input`, `SearchInput`, `Fieldset`, `Form` | Label above, one recessed box for every kind of entry. Focus rings it pink; invalid rings it red. A passed `error` marks the field invalid. `Input` and `SearchInput` come in md and lg. |
 | `choice.tsx` | `Checkbox`, `CheckboxGroup`, `Radio`, `RadioGroup`, `ChoiceLabel`, `Switch` | Checked is always a pink fill. The switch thumb stretches while pressed and glides on release. |
 | `range.tsx` | `Slider`, `NumberField`, `Meter`, `Progress` | Filled tracks are flat pink, recessed. |
@@ -100,6 +100,11 @@ New since the last review in the playground, pending approval:
   line of facts that wraps without stray dots; and in core,
   `jobLocationParts` and `jobPayBands`, which split a posting's places and
   pay bands.
+- Track in the playground: small stage chips over one list, rows that name
+  the stage, the job beside the list on desktop, the season as a funnel that
+  switches to a flow chart, and a job page with your application as a tab
+  (opened first once you've applied). Shows where email updates and
+  outreach would appear. `Chip` size `sm` came from here.
 
 ## iOS
 

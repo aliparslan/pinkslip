@@ -12,9 +12,11 @@ import { PickersGroup } from "./sections/pickers";
 import { RangesGroup } from "./sections/ranges";
 import { JobPageGroup } from "./sections/job-page";
 import { JobsHeaderGroup } from "./sections/jobs-header";
+import { TrackGroup } from "./sections/track";
 import { TunePanel, useTune } from "./tune";
 
 const sections = [
+  ["track", "Track"],
   ["job-page", "Job page"],
   ["jobs-header", "Jobs header"],
   ["parts", "Parts"],
@@ -65,6 +67,7 @@ export function Playground() {
             </ul>
           </nav>
 
+          <TrackGroup />
           <JobPageGroup />
           <JobsHeaderGroup />
           <PartsGroup />

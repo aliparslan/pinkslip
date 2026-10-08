@@ -37,14 +37,29 @@ export function Toggle({
   );
 }
 
-/** A choice chip: a pill that turns on and off, as in filters and the search
- * sheet. Medium height and type, so it lines up with a medium field or
- * button. Popover triggers that open a filter use the same class, with
- * data-pressed set while the filter is on. */
-export const chipClass =
-  "ps-choice ps-press inline-flex h-control shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-pill px-3.5 text-ui font-medium focus-ring data-[disabled]:opacity-45";
+export type ChipSize = "sm" | "md";
 
-export const Chip = styled(BaseToggle, chipClass, "Chip");
+/* Small chips sit in a filter row under a search field, as on Jobs and
+   Track; the pill is 28px but its tap area reaches 40px. Medium chips are
+   choices inside a sheet or popover, lined up with medium fields. */
+const chipSizes: Record<ChipSize, string> = {
+  sm: "h-control-sm gap-1 px-3 text-meta after:absolute after:inset-x-0 after:-inset-y-1.5",
+  md: "h-control gap-1.5 px-3.5 text-ui",
+};
+
+/** A choice chip: a pill that turns on and off, as in filters and the search
+ * sheet. Popover triggers that open a filter use the same class, with
+ * data-pressed set while the filter is on. */
+export function chipClass({ size = "md" }: { size?: ChipSize } = {}) {
+  return cn(
+    "ps-choice ps-press relative inline-flex shrink-0 cursor-pointer select-none items-center rounded-pill font-medium focus-ring data-[disabled]:opacity-45",
+    chipSizes[size],
+  );
+}
+
+export function Chip({ size = "md", className, ...props }: BaseToggle.Props & { size?: ChipSize }) {
+  return <BaseToggle {...props} className={mergeClassName(chipClass({ size }), className)} />;
+}
 
 /** Segmented control: one choice among a few, shown side by side. The
  * selection slides to the pressed segment. Single selection only. */
