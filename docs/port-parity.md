@@ -3,7 +3,8 @@
 Source snapshot: `8b9a77c`, audited 2026-10-09. Companion to
 [the port plan](REACT_EXPO_PORT_PLAN.md), chunk **0.3**.
 
-**Inventory drafted; owner scope review pending. Nothing below is marked as
+**Inventory drafted; architecture/design direction reviewed on 2026-10-09;
+remaining feature-scope choices are recorded below. Nothing below is marked as
 implemented in React or Expo.** The earlier React/Expo attempt and stash were
 not used. Sources are the current Svelte web/Capacitor application, API client,
 Worker routes, component catalog, and tests.
@@ -19,8 +20,18 @@ The saved decisions remain: TanStack Start web, native Expo iOS, Base UI with
 CSS Modules on web, no Tailwind, shared data/domain logic, Hono as the API,
 web first, and outright Svelte/Capacitor removal at chunk 3.4.
 
+The owner reaffirmed the shell/placeholder cutover, accepted the shared-code,
+state-ownership, and public/personal-data boundaries, and asked for the closest
+practical reproduction of the current design through Base UI and a consistent
+component kit. Native resume import and application-browser experiments move
+into foundations. These decisions are D12–D16 in the plan; they do not approve
+new visual implementations or settle the remaining feature cuts below.
+
 | Item | Current scope / review status |
 | --- | --- |
+| Cutover | Outright replacement at 3.4 reaffirmed. Feature screens follow in Phase 4. |
+| Design and kit | Preserve the current look through semantic tokens and a mapped Base UI kit, built before feature screens. Capture references in 0.4 and compare kit/screens in 2.4/Phase 4. |
+| Native feasibility | Validate session/data, resume import/files, and application-browser filling in 1.6a–c. Resolve import strategy D10 in 1.6b, ahead of the full native port. |
 | Discover, read, save, apply, Library, You/settings, companies, resume, answers | Preserve the behaviors below. No proposed cuts. |
 | Onboarding | Explicit redesign in 4.7; preserve preference validation, migration, and completion semantics. |
 | Tailoring | Full current behavior inventoried for reference. D7 still leans toward a placeholder; full editor/export is not an approved cut yet. |
@@ -81,7 +92,10 @@ public SSR must not include personal saved/applied state.
 - [ ] **G12** Preserve original timing versus discovery timing, evergreen/closed/content-pending indicators, salary formatting/fallback, and logo fallback. Native logo cache and web `/logo?domain=…` are platform implementations of the same outcome.
 - [ ] **G13** External links open once without replacing the web app. Share uses the OS/browser share sheet or clipboard fallback and treats cancellation normally. Native file export presents the share sheet; web export downloads a PDF.
 - [ ] **G14** Preserve cached-feed/detail saved-copy indication and disabled writes/pagination while read-only, or record the explicit offline scope cut above. Query persistence alone does not make the web app shell available offline.
-- [ ] **G15** Reuse catalog contracts and semantic tokens. React/native components remain in Quarantine until owner approval; existence in the old stable catalog is behavioral evidence, not automatic approval of a new visual implementation.
+- [ ] **G15** Match the current visual design through the component catalog, semantic tokens, and mapped Base UI patterns. Preserve reference images before Svelte removal; compare kit compositions and finished screens using matching fixture content/viewports. React/native components remain in Quarantine until owner approval; current screenshots do not automatically approve new implementations.
+- [ ] **G16** Query owns server data without a parallel global copy. Validated web URLs own committed shareable filters; local/form state owns filter drafts and edits. Feature coordination owns autosave/application-return behavior. Cross-screen stores need an explicit use and reset policy.
+- [ ] **G17** Share pure rules, API/capability contracts, and applicable data hooks. File/PDF execution, notifications, credential storage, navigation, and browser bridges remain app-owned adapters. Verify the boundary with 1.6's native experiments before broad feature implementation.
+- [ ] **G18** Public SSR reads a Hono public projection with no personal fields, user credentials, or session creation. Client queries fetch personal state separately; server clients/caches are request-scoped. Tests distinguish public reads, guest/authenticated state, and private authorization.
 
 **Common API calls:** `bootstrap.get` → `GET /bootstrap`; `access.unlock` →
 `POST /access`; `native.startSession` → `POST /native/session`;
@@ -208,6 +222,7 @@ company request); logo. Admin-only CRUD belongs to R17.
 - [ ] Validate PDF signature/type and 5 MB limit before import. Adaptive local extraction → server parse / OCR follows quality assessment, not merely a failed HTTP request. Scanned/protected/invalid/empty PDFs, offline, rate limit, sign-in-required, and unavailable conversion each have relevant recovery.
 - [ ] Preview the proposed *data import*: counts, warnings, and uncertain fields before confirmation. Cancel changes nothing; confirm replaces populated collections and updates nonempty contact fields while retaining absent sections. Current resume screen does not embed `ResumePdfPreview`; that component is used by Tailor. A new PDF preview here is additional scope.
 - [ ] Keep the imported PDF locally for application attachment. Clear-resume confirmation removes profile content/local attachment but preserves previously created tailored artifacts; account logout/deletion also clears the local file.
+- [ ] Native import/files/preview use the strategy proven in 1.6b (D10); the full editor in 6.9 consumes those contracts. Record text/scanned fixture results and device limitations early.
 
 **API:** `profile.get` / `profile.update` (`GET` / `PUT /profile`, optional
 keepalive); `resumeImport.parse` (`POST /resume-import/parse`, multipart file);
@@ -316,6 +331,7 @@ calls from R08; `interactions.event`.
 - [ ] Prepare and edit answers before opening the real form; load the local resume attachment. Browser mode opens externally; native supports script-assisted filling. Do not claim browser cross-origin autofill works without the native bridge.
 - [ ] Native browser reads each loaded form, obtains a plan, fills individual fields/files, rereads required answers, learns user corrections, and reports outcomes. Refilling, page changes, timeouts, manual fallback, close cleanup, and submission detection remain functional.
 - [ ] Auto-submit is separately feature-gated; missing required answers, CAPTCHA, and validation failures leave control with the user. Only confirmed submission marks Applied. The employer page receives fill data, never the Pinkslip session token.
+- [ ] Prove the native bridge and file attachment on controlled form fixtures in 1.6c, then complete supported ATS integration and device checks in 6.10. Keep prototype results distinct from production feature parity.
 
 **API:** `apply.prepare` (`GET /apply/jobs/:jobId`); `apply.saveAnswers`
 (`PUT /apply/jobs/:jobId/answers`); `apply.plan` (`POST /apply/plan`);
@@ -435,5 +451,6 @@ change; no replacement UI has been implemented or approved.
 - [x] Inventory the 19 app routes and public About page against the current source.
 - [x] Map screen calls, shared feature/platform calls, redirects, and existing test evidence.
 - [x] Identify differences between current behavior and planned additions/cuts.
+- [x] Record the owner's architecture, design-fidelity, native-experiment, and outright-cutover decisions (2026-10-09; plan D12–D16 and reaffirmed D2).
 - [ ] Owner reviews scope and records any cuts (completion gate for chunk 0.3).
 - [ ] Implement and verify the web/native parity rows in their assigned chunks.

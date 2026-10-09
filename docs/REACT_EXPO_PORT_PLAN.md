@@ -1,7 +1,7 @@
 # React + Expo port plan
 
-Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. The [0.3 parity inventory](port-parity.md) is drafted and awaiting owner scope review; its implementation findings feed into Phase 1. D1–D3, D5, D6 and D11 decided 2026-10-09; the rest are due at the chunk that needs them.
-The Svelte site is replaced outright in 3.4: no users yet, so no preview domain and no side-by-side running.
+Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. The [0.3 parity inventory](port-parity.md) is drafted; architecture and design direction were reviewed on 2026-10-09, with remaining feature-scope choices still recorded there. D1–D3, D5, D6, D11 and D12–D16 are decided; the rest are due at the chunk that needs them.
+The owner reaffirmed outright replacement in 3.4: no users yet, so no preview domain and no side-by-side running. Cutover remains at the shell/placeholder stage; it does not wait for the core feature loop.
 
 Handoff recovered 2026-10-09: Claude's `port-1.1-webapp` worktree contains an
 uncommitted package manifest/lockfile change; `port-1.2-tokens` contains an
@@ -23,32 +23,65 @@ route map, `wrangler*.toml`, `docs/DEPLOYMENT.md` and
 | Web framework | **TanStack Start** (React 19, Vite 8). Public pages are rendered on the server (SSR); app pages render on the client. No Next.js |
 | Server data | **TanStack Query**, shared by web and iOS |
 | Web components | **Base UI** primitives in a kit we own (shadcn's model and naming, not its code), styled with **CSS Modules**. No Tailwind anywhere |
-| iOS | **Expo** (SDK 57, Expo Router) with **native screens**. Screens are built twice; everything below the UI is shared |
+| iOS | **Expo** (SDK 57, Expo Router) with **native screens**. Share domain rules, API contracts, and applicable data hooks; each app owns its platform execution |
 | API | **Hono stays the only API.** Web and iOS both consume it. Start's server functions don't become a second API |
-| Order | Web first, iOS second |
+| Design | Match the current Pinkslip design as closely as practical through Base UI, CSS Modules, tokens, and a documented kit. Consolidate repeated controls before porting screens |
+| State | Query owns server data; validated web URLs own shareable filters; local/form state owns drafts and temporary UI. Add cross-screen stores only for demonstrated needs |
+| Public data | Hono exposes an explicit public job projection; personal state remains session-owned. SSR clients and caches are request-scoped |
+| Order | Web product first, iOS product second; prove native data access, resume import, and application-browser capabilities during foundations |
 
 Why the web goes first: the web is the product today and iOS wraps it. Also,
-the shared layer (tokens, core, Query hooks) gets proven on one platform before
-the second one depends on it.
+the shared layer (tokens, core, Query hooks) gets exercised by the web product
+while focused native experiments check its assumptions before broad adoption.
 
 ## 2. Target layout
 
 ```
 shared/            exists  domain types + validation shared with the API
-packages/core/     exists  framework-free client logic; gains an injectable transport + modules lifted from packages/client
+packages/core/     exists  pure client/domain transformations, transport factory and platform-neutral contracts
 packages/tokens/   new     design tokens in TS → tokens.css (web), tokens.ts (native), and prop-type unions for both kits
-packages/data/     new     React (no DOM): TanStack Query hooks, session, Platform interface
-apps/webapp/       new     TanStack Start app; kit in src/kit/   → deploys as Worker `pinkslip-web`
-apps/native/       new     Expo app; kit in src/kit/
+packages/data/     new     React (no DOM): TanStack Query definitions/hooks and session coordination
+apps/webapp/       new     TanStack Start app; kit in src/kit/, browser adapters in src/platform/ → Worker `pinkslip-web`
+apps/native/       new     Expo app; kit in src/kit/, native adapters in src/platform/
 worker/            exists  Hono API Worker `pinkslip`; loses its [assets] when the new site goes live (3.4)
 ──────── deleted when the new site replaces the old one (3.4) ────────
 apps/web, packages/client  Svelte web shell + app
 apps/ios                   Capacitor iOS wrapper (iOS gets no updates until the Expo app ships)
 ```
 
-**Dependency rule:** apps → data → core → shared, and apps → tokens. Nothing
-under `packages/` imports React DOM, Base UI, CSS or React Native. A kit never
-fetches data.
+**Dependency rule:** apps → data → core → shared, and apps → tokens. Shared
+runtime packages do not import React DOM, Base UI, React Native, or browser
+storage/PDF execution. Apps import generated token CSS or native token values.
+A pure kit component never fetches data or owns navigation.
+
+### Ownership boundaries (D12–D14)
+
+- **Shared:** domain types/validation, matching and formatting rules, API
+  request/response contracts, pure resume transformations, and applicable
+  Query definitions/hooks. Define narrow capability contracts where shared
+  behavior needs a platform service; apps provide the implementations.
+- **App-owned:** routing/navigation, file picking and storage, PDF extraction
+  and rendering, notification registration, credential storage, haptics,
+  share/mail handoff, and the application-browser bridge. Browser DOM scripts
+  for form filling may be shared as generated payloads; their execution lives
+  in the employer WebView, never in Hermes or SSR.
+- **Server state:** Query is the client cache authority. List/detail/library
+  changes update or invalidate that cache; do not mirror those resources in
+  a second global store. Persistence is a platform adapter and follows the
+  explicit offline scope decision.
+- **Navigation and drafts:** validated web search parameters own committed,
+  shareable filters. Filter-sheet edits stay local until Apply. Form drafts,
+  modal visibility, and edit focus remain local. Autosave sequencing and
+  application-return workflows are feature behavior; Query does not replace
+  them. Native route parameters and local state serve the same user intent.
+- **Cross-screen state:** add a store only for a concrete workflow that does
+  not belong in Query, navigation, or local state; record its owner and reset
+  rules. Zustand is an option, not a foundation dependency.
+- **Public versus personal:** public SSR reads only a Hono-owned public job
+  projection, with no user/admin token or guest-session creation. Saved,
+  applied, viewed and other personal fields load through session-scoped
+  queries on the client. Keep public and personal query keys/data separate;
+  scope every server API client and QueryClient to its request.
 
 `apps/webapp` and `apps/native` are working names. Rename `webapp` → `web` once
 the Svelte app is deleted, if you like.
@@ -90,9 +123,9 @@ has not inspected. [Cloudflare pricing](https://developers.cloudflare.com/worker
 | Framework | TanStack Start 1.168 | Expo SDK 57 / RN 0.87 | — |
 | Routing | TanStack Router (inside Start): typed params and typed, validated search params | Expo Router: native stacks, tabs, form sheets | Route names and path shapes |
 | Server state | TanStack Query 5, with the SSR cache sent to the browser through Start | TanStack Query 5, cache persisted to disk | `packages/data` hooks |
-| Client state | URL search params, then component state, then Zustand (cross-screen state only) | Same | Zustand stores, when needed |
+| Client state | Validated URL filters; local component/form drafts | Native navigation parameters; local component/form drafts | Only demonstrated cross-screen workflows; no duplicate server-data store |
 | Forms | TanStack Form or React Hook Form (D4) | Same library | Validation schemas in `shared/` |
-| Components | Base UI 1.9 + CSS Modules | Own kit on Unistyles (D8) + Expo UI for system controls | Component names and prop types |
+| Components | Base UI 1.9 + CSS Modules matching current design | Own kit on Unistyles (D8) + Expo UI for system controls | Semantic names/tokens and compatible props where the behavior matches |
 | Icons | `@phosphor-icons/react` | `phosphor-react-native` | Same icon set as today |
 | Long lists | TanStack Virtual | FlashList 2 | — |
 | Tests | Playwright + axe (flows), bun test (logic) | Maestro (flows), bun test (logic) | bun test |
@@ -105,13 +138,37 @@ Things deliberately left out:
 
 ## 4. Styling contract (web)
 
+### Current-design target (D15)
+
+The current Svelte web and Capacitor screens are the visual references. Retain
+Pinkslip's fonts, ink hierarchy, colors, density, spacing, surface treatment,
+icon states, and responsive compositions as closely as practical. Use the
+existing component catalog and semantic tokens to settle repeated decisions.
+Onboarding remains the separately recorded redesign; other visual changes need
+a reason and review rather than arising incidentally during the rewrite.
+
+Build the kit in Phase 2 before the feature screens. Map actual existing
+patterns to its controls, compositions, or feature components; the candidate
+list is not a requirement to wrap every Base UI export. Base UI provides
+supported interaction mechanics, while our CSS Modules provide Pinkslip's
+appearance. Reuse those mechanics instead of rebuilding focus, menus, or
+dialog behavior per screen. Document any genuine missing capability.
+
+Chunk 0.4 preserves reference screenshots and a pattern map before Svelte is
+removed. Chunk 2.4 compares controls and representative compositions against
+those references; each Phase 4 screen repeats the comparison at screen scale.
+Screenshots do not automatically approve a component. New implementations
+remain in Quarantine under the catalog's normal promotion rules.
+
 ### What "shadcn on Base UI with CSS Modules" means here
 
 We take shadcn's **model** but none of its code:
 - **We own every component's source**, in `apps/webapp/src/kit/`.
 - **Components follow shadcn's anatomy and naming** (`Dialog`, `DialogTrigger`,
   `DialogContent`…).
-- **Each one wraps Base UI parts.**
+- **Interactive controls wrap the applicable Base UI parts.** Typography,
+  layout, and feature compositions use semantic markup and documented tokens;
+  they do not need an artificial Base UI wrapper.
 - **We never run the shadcn CLI**, because its output is Tailwind.
 
 ```
@@ -180,8 +237,9 @@ export function Button({ variant = "secondary", size = "md", className, ...props
 5. **Typography and spacing are components:** `<Text size="sm" tone="ink-3" weight="medium">`,
    `<Heading level={2}>`, `<Stack gap="3">`, `<Inline gap="2" align="center">`.
    Their prop types are unions generated from tokens, so an off-scale value is a
-   **type error**. The native kit exposes the same components and props, so
-   screens read the same on both platforms.
+   **type error**. The native kit reuses semantic names and compatible props
+   where they fit; native navigation, menus, and form controls keep their own
+   platform contracts.
 6. **The global CSS is exactly four files:** `tokens.css` (generated),
    `reset.css`, `base.css` (body, selection, focus ring) and `fonts.css`. No
    other global styles, and no `:global()` outside them.
@@ -212,10 +270,11 @@ from extra font sizes.
   `bun run dev:web` (the phone can reach it over the LAN). After 3.4, each slice
   ships to `pinkslip.work` once it's verified locally and you've OK'd it.
   `noindex` stays on until the SEO slice (4.16) lands.
-- **Lift shared logic, don't rewrite it.** Framework-free modules in
-  `packages/client/src/lib` move into `packages/core` (chunk 1.4), so they
-  survive the Svelte deletion. Only the stateful Svelte rune stores (`*.svelte.ts`) get rewritten,
-  as hooks.
+- **Preserve logic with the right owner.** Audit candidate modules in
+  `packages/client/src/lib` during 1.4. Move pure rules into `core`; rewrite
+  Svelte state as Query definitions, feature hooks, or local state according to
+  its owner. Browser/native execution moves to app adapters. Preserve required
+  algorithms, fixtures, and reference assets before deleting Svelte in 3.4.
 - **Parity checklist.** `docs/port-parity.md` (chunk 0.3) lists, per route:
   - every behaviour
   - every state: loading, empty, error, guest, signed-in
@@ -227,15 +286,18 @@ from extra font sizes.
 - **Parity tests.** The existing Playwright harness (`api-mocks`, `static-server`,
   axe) moves to `apps/webapp/e2e`. Each slice ports its specs to role- and
   label-based selectors, which test behaviour rather than markup.
-  `design-system-contracts` and `visual-contracts` are replaced by kit screenshots
-  (chunk 2.4).
+  `design-system-contracts` and `visual-contracts` get new kit and screen specs
+  (chunk 2.4 and Phase 4). Keep the old images as visual references; do not
+  replace them with new snapshots without inspecting differences.
 - **Rendering policy.** SSR is used only where Google or link previews need it:
-  - `/jobs/:jobId`, `/about`, and the homepage's public content get SSR, rendered as a
-    guest. The user's own state (saved, applied) fills in on the client.
+  - `/jobs/:jobId`, `/about`, and the homepage's public content get SSR, rendered
+    from anonymous public data. The user's own state (saved, applied) fills in on
+    the client through separate session-scoped queries.
   - Library, You, admin and tailoring are client-only.
 
-  That keeps auth off the server and keeps most of the port free of server-safety
-  concerns.
+  Public rendering does not consume personal credentials. Auth callbacks and
+  API forwarding remain server responsibilities; every SSR path still needs
+  request isolation and a browser-free import graph.
 - **Rollback.** `wrangler rollback` on either Worker. Before 3.4 is verified,
   moving the custom domains back to the API Worker restores the Svelte site.
 
@@ -246,7 +308,9 @@ from extra font sizes.
 2. The screen is built only from kit components plus that screen's own module CSS.
 3. Loading, empty, error, guest, narrow and wide states all work, in dark, light
    and increased contrast.
-4. Its parity rows are ticked and its Playwright + axe specs pass.
+4. Its parity rows are ticked, its Playwright + axe specs pass, and screenshots
+   have been compared with the preserved current-design references. Intentional
+   differences are documented and reviewed.
 5. You've used it (locally, or on `pinkslip.work` after 3.4) and said it's good,
    then it's committed and deployed. Nothing is pushed or deployed without your OK.
 
@@ -288,6 +352,25 @@ have been assumed. Review the scope before marking complete; D7/D9 may remain
 conditional until their assigned chunks. Record the offline web tradeoff explicitly.
 *Done when:* every route has rows, and you've read it and cut anything not worth porting.
 
+**0.4 Current-design references and pattern map** · M · needs D15
+- Capture or verify current screenshots with deterministic fixture data for
+  Jobs/list filters, detail, Library, You/settings, resume, companies, and the
+  shared loading/empty/error/dialog/menu states. Include narrow and wide web,
+  dark/light, and native reference screens for the later Expo kit.
+- Existing visual-test baselines are starting evidence; record which were
+  verified against the current app, and distinguish missing captures from
+  approved references. Keep increased-contrast and keyboard states represented.
+- Record each repeated visual pattern's source, tokens, existing call sites,
+  target Base UI control or composition, and review status. Keep domain behavior
+  in feature components. Consolidate equivalent one-offs into the documented
+  canonical pattern; do not promote generic primitives without the reuse threshold.
+- Preserve screenshots, the pattern map, fonts, and catalog references outside
+  the Svelte directories before 3.4. A reference is not blanket approval of
+  the old Quarantine entries or new implementations.
+
+*Done when:* Phase 2 has a concrete visual reference and mapped existing use
+for each planned kit pattern, with remaining capture gaps explicitly recorded.
+
 ### Phase 1: Foundations
 
 **1.1 Start app and web Worker** · M · needs D5
@@ -304,6 +387,10 @@ conditional until their assigned chunks. Record the offline web tradeoff explici
 - Public job SSR needs an explicit anonymous read contract: today's job API
   requires a session, and a service binding does not bypass that check. Keep
   crawler reads free of guest-session creation and personal data.
+- Define the public projection in Hono and prove that it omits personal fields,
+  creates no session, and leaves private endpoints protected. Public reads use
+  neither browser cookies nor bearer credentials; separate user-interaction
+  queries own saved/applied/viewed state.
 
 *Done when:* `vite dev` runs the API and web together, with D1, against your local data.
 
@@ -346,15 +433,17 @@ computed values.
   - on native (absolute URL, bearer token from secure storage)
 - Use per-request client configuration and Query caches on the server; the
   current module-global client configuration cannot safely own SSR sessions.
-- **Lifted modules.** Framework-free modules move from `packages/client/src/lib`
-  into `core`, with their tests: formatting, job-content, job-navigation, viewed,
-  autosave-lifecycle, PDF import/extract, resume-document, the
-  resume-import orchestrator, form-reader/filler, application-autofill and
-  auto-apply. Each is checked for Svelte imports as it moves.
-- Also check browser/runtime dependencies before lifting: `viewed` has a
-  Svelte store; job-content, autosave lifecycle, PDF execution and local resume
-  storage need platform adapters. Share pure transformations and contracts,
-  not browser-only execution under Hermes. See the parity inventory findings.
+- **Audit and move by responsibility.** Candidates include formatting,
+  job-content/navigation, viewed state, autosave lifecycle, resume parsing and
+  compilation, import orchestration, form-reader/filler and auto-apply. Move
+  only pure transformations, shared workflows with injected dependencies, and
+  platform-neutral contracts into `core`, with their applicable tests.
+- Rewrite viewed/server state under Query; split navigation and autosave
+  lifecycle from their router/document bindings. Keep DOM sanitization,
+  PDF.js/Worker/WASM execution, local resume storage and platform bridges in
+  app adapters. Preserve the pure parser and domain validation in shared code.
+- Exercise the boundaries in 1.6 before migrating every module. Expand the
+  shared layer only after the browser and native prototypes validate it.
 - **Autofill bridge.** The bridge call
   (`webkit.messageHandlers.pinkslipAutofill`) is abstracted so the Expo WebView
   can supply its own.
@@ -363,29 +452,67 @@ Svelte behaviour stays unchanged.
 *Done when:* the Svelte web and iOS apps pass check, tests and e2e on the moved code.
 
 **1.5 Data package** · M
-- QueryClient defaults and a query-key factory.
-- Hooks for every resource: jobs, job, library, profile, preferences, alerts,
-  companies, resume, answers, apply, outreach, admin.
+- QueryClient defaults and a query-key factory, with public/personal key
+  separation and owner-change clearing/cancellation.
+- Initial hooks for session, jobs, job detail, and Library. Add profile,
+  preferences, alerts, companies, resume, answers, apply, outreach, and admin
+  hooks with their feature slices, following the same ownership rules.
 - Optimistic save/apply.
 - A session hook.
-- The `Platform` interface (haptics, share, push, open external, application
-  browser, secure storage) with a web implementation.
+- Inject narrow platform capabilities where shared coordination needs them;
+  implementations live in each app's `src/platform/`. Pure UI receives props
+  and callbacks instead of importing those services.
+- Define one owner for every state: Query for server resources, URL for
+  committed web filters, local/form state for drafts, and feature coordination
+  for save/return workflows. No generic global store is required to start.
 - Start's Query SSR integration, so server-loaded data reaches the browser without a refetch.
 
 *Done when:* the 1.1 pages use the hooks, and no request repeats after hydration.
 
-**1.6 Native compatibility smoke test** · S · throwaway
-A minimal Expo app that imports `core`, `data` and `tokens`, signs in with a bearer
-token against the local worker, and lists job titles.
-*Done when:* the shared layer runs under Metro/Hermes. This catches web-only
-assumptions before 50 screens depend on them.
+**1.6 Early native feasibility experiments** · three focused chunks · needs D16
+Run once the minimal contracts from 1.4/1.5 exist, before expanding the shared
+layer and feature screens. These prove capabilities; the product iOS build
+still follows the web product in Phase 6.
+
+**1.6a Data and session** · S
+A minimal Expo development app imports `core`, `data` and `tokens`, establishes
+a bearer session against the local Worker, and lists job titles. Exercise
+token storage/rotation and owner changes. Verify Metro/Hermes imports have no
+accidental DOM or Svelte dependency.
+
+**1.6b Resume import and file lifecycle** · M · resolves D10
+Pick fixture PDFs on iOS, preserve the local attachment, parse text and scanned
+examples through the available server path, and test a WebView fallback if
+needed. Exercise multipart uploads, authentication, malformed/protected PDFs,
+cancel/error recovery, preview, and deletion. Compare outputs with the current
+parser/assessment contract; document the chosen server/WebView strategy and
+any device limitations before implementing the full editor.
+
+**1.6c Application browser and autofill bridge** · M
+Use controlled form fixtures to prove injected read/fill scripts, file
+attachment, page changes, typed bridge messages, timeout/close cleanup, and
+manual completion. Verify Pinkslip credentials stay outside the form page.
+Exercise submission detection and feature-gated submission only against test
+forms. Record which ATS behaviors need later integration checks in 6.10.
+
+*Done when:* each experiment has reproducible steps and observed results on
+an iOS runtime, with physical-device-only checks identified; D10 and the
+required adapters are recorded. Compilation alone is insufficient. Keep useful
+fixtures/contracts, while prototype UI remains in Quarantine. Failed experiments
+change the adapter design before broad feature implementation.
 
 ### Phase 2: Web kit
+
+This remains a dedicated phase ahead of feature-screen implementation. Use
+0.4's current-design references and pattern map to choose and style components;
+the goal is consistent reuse of Pinkslip's current design. Keep new kit entries
+in its catalog's Quarantine section until reviewed, with existing call sites
+as evidence for the reuse threshold.
 
 **2.1 Foundations** · M
 - Components: `Text`, `Heading`, `Stack`, `Inline`, `Icon` (Phosphor, token
   sizes only), `Separator`, `VisuallyHidden`, `Spinner`, `Skeleton`, `Badge`,
-  `Surface`.
+  documented grouped-surface and layout compositions.
 - A dev-only `/_kit` playground that renders every component in every state.
 
 **2.2 Actions and inputs** · L
@@ -404,13 +531,21 @@ assumptions before 50 screens depend on them.
 - Feedback: `Toast` (Base UI's toast manager), `Progress`/`Meter`.
 - Disclosure: `Tabs`, `Accordion`/`Collapsible`.
 
-**2.4 Kit verification** · S
+**2.4 Kit verification** · M
 - Playwright screenshots of `/_kit` in dark, light and increased contrast, at
   narrow and wide widths.
+- Compare with 0.4's references using the same fixture content and viewport.
+  Include representative static compositions (job row, settings group, filter
+  sheet), so a control that looks correct alone is also checked in context.
+- Check fonts, density, spacing, colors, borders/radii, icon states, and
+  loading/disabled/selected/focus/open states. Record intentional differences;
+  a changed snapshot is not itself evidence that the new appearance is right.
 - An axe pass.
 - Keyboard and focus-return tests for every overlay.
 
-*Done when:* screenshots are committed as baselines.
+*Done when:* reference comparisons and behavior checks pass, visual differences
+are reviewed, and the accepted kit screenshots are committed as baselines.
+Feature-screen comparisons continue in Phase 4.
 
 ### Phase 3: Web shell
 
@@ -436,8 +571,12 @@ Screens are placeholders at this stage.
 - Pending UI, empty states, an offline banner, and the toast viewport.
 
 **3.4 Replace the Svelte site** · M
+- Outright replacement remains at this shell/placeholder milestone, as
+  reaffirmed by the owner. Feature screens follow in Phase 4.
 - Port the Playwright harness (`api-mocks`, axe) to `apps/webapp/e2e` before
   `apps/web` goes, and run it in `bun run check`.
+- Confirm 0.4's current-design references, token/font sources, catalog, and
+  reusable test fixtures survive outside the directories being removed.
 - Tag `svelte-final`, then delete `apps/web`, `packages/client` and `apps/ios`
   plus their dependencies (Svelte, bits-ui, Capacitor, `postcss-html`). Update
   `bun run check`, the governance script, CLAUDE.md and AGENTS.md.
@@ -464,7 +603,7 @@ production once it's done.
 |---|---|---|---|
 | 4.1 | Job row and list | `JobRow` (1.25k lines today) split into parts (logo, meta, timing, badges, quick actions); TanStack Virtual list | L |
 | 4.2 | Feed `/` | Search, filter chips, career-stage filter, filters typed in the URL, viewed state, new-since markers, empty states. Public SSR content for the homepage (title, description, canonical, readable product copy) | L |
-| 4.3 | Job detail `/jobs/:jobId` | **SSR as guest.** Description-block renderer (from core), company header, save/apply/share/external actions, the "back from applying" prompt, next/previous navigation | L |
+| 4.3 | Job detail `/jobs/:jobId` | **Anonymous public SSR.** Public projection from Hono; personal interaction queries on the client. Description-block renderer, company header, save/apply/share/external actions, the "back from applying" prompt, next/previous navigation | L |
 | 4.4 | Library | Saved and applied, status changes, optimistic updates | M |
 | 4.5 | You, Account, Feedback | Hub, account management, feedback | M |
 | 4.6 | Preferences | `SearchProfileFields`: qualifications, career stage, work authorization, locations. **First form-heavy slice, so it settles D4** | M |
@@ -494,6 +633,8 @@ The old site was already replaced in 3.4; this phase is the finish line.
 **6.1 Scaffold** · M
 - `apps/native` with Expo Router: tabs (Jobs, Library, You) plus native stacks
   that mirror the web routes.
+- Reuse the validated contracts, fixture tests, and appropriate setup from
+  1.6; replace prototype UI with the reviewed native kit and product screens.
 - **Same bundle ID as the Capacitor app**, so it ships as an update.
 - `ios/` is committed, because Xcode Cloud needs the project in the repo before
   any script runs; run prebuild locally when native config changes.
@@ -503,10 +644,13 @@ The old site was already replaced in 3.4; this phase is the finish line.
   entitlements and capabilities are in the `svelte-final` tag for reference.
 
 **6.2 Native kit** · L · needs D8
-- The same component names and prop unions as the web kit: `Text`, `Heading`,
+- Shared semantic names and compatible props where they fit: `Text`, `Heading`,
   `Stack`, `Inline`, `Icon`, `Button`, `IconButton`, `Field`, `Input`, `Textarea`,
   `Switch`, `Checkbox`, `SegmentedControl`, `ListRow`, `Toast`, `EmptyState`,
   `Skeleton`.
+- Match the current native reference screens and design tokens while using
+  native control/navigation behavior. Platform-specific components need not
+  reproduce the web kit's DOM anatomy or full prop API.
 - Sheets use Expo Router's native form sheets, with detents (the snap heights a
   sheet can rest at).
 - Menus and pickers use system controls.
@@ -533,13 +677,15 @@ The old site was already replaced in 3.4; this phase is the finish line.
 **6.8 Onboarding** · M
 
 **6.9 Resume and Answers** · L · needs D10
-pdf.js doesn't run in Hermes, React Native's JavaScript engine. Either import
-happens on the server (check `worker/routes/resume-import.ts` first), or the web
-pipeline runs in a hidden WebView. PDF preview uses a WebView or QuickLook.
+Implement the server/WebView import strategy and file/preview adapters proven
+in 1.6b. The pure resume rules remain shared; PDF.js execution does not move
+into Hermes. Build the editor and Answers UI on those validated contracts,
+including the import-quality, persistence, and recovery requirements.
 
 **6.10 Apply and outreach** · L
 - Auto-apply's application browser becomes `react-native-webview`, with the
-  fill scripts from core injected through the bridge abstracted in 1.4.
+  fill scripts injected through the bridge proven in 1.6c. Integrate the
+  supported ATS flows and complete the recorded device/integration checks.
 - The prep sheet and outreach sheet move to native.
 
 **6.11 Admin** · S · needs D9 · admin links out to the web.
@@ -575,18 +721,19 @@ code was already deleted in 3.4).
   main, and every build fails once it's deleted. Disable it first (3.4).
 - **Production is the test site after 3.4.** Every deploy is live. Keep
   `noindex` until 4.16, and keep deploys per slice, each verified locally first.
-- **Auto-apply on iOS** depends on injecting scripts into a WebView. Prove it in
-  6.10 before porting the surrounding UI.
-- **Scope creep from redesigning.** Port the behaviour and rebuild the visuals.
-  Only onboarding (4.7) is an explicit redesign; other UX ideas go into the
-  parity doc as follow-ups, not into the slice.
+- **Native file and browser capabilities** affect the shared boundaries.
+  Prove resume import and autofill in 1.6b/1.6c; integrate the product flows in
+  6.9/6.10 after those results establish the adapters.
+- **Visual drift from rebuilding controls independently.** Match the current
+  design through the mapped kit and preserved references. Only onboarding
+  (4.7) is an explicit redesign; other UX ideas remain separate follow-ups.
 
 ## 8. Decisions
 
 | # | Decision | Options | Lean | Needed by |
 |---|---|---|---|---|
 | D1 | Earlier attempt on main | Delete from main / leave it | ✅ **Delete** (decided 2026-10-09). Git history and the stash keep it | 0.2 |
-| D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Replace outright** (decided 2026-10-09; no users yet). Frozen until 3.4, then deleted | 0.1 |
+| D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Replace outright** (decided and reaffirmed 2026-10-09; no users yet). Frozen until the shell/placeholder cutover in 3.4, then deleted; do not defer cutover until the feature loop is complete | 0.1 / 3.4 |
 | D3 | Fonts | Klim (buy **web and app** licences; the app licence matters once Expo bundles the fonts) / Geist (OFL, free) | ✅ **Klim** (decided 2026-10-09). Licences bought before launch; trial files are fine until then. Make sure the bought files include the full character set (see 1.2) | 1.2 |
 | D4 | Form library | TanStack Form / React Hook Form | **TanStack Form**: form-level listeners suit autosave, types are stricter, works on RN. Switch to RHF if it fights us in 4.6 | 4.6 |
 | D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account recorded as on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No second subscription; ordinary service-binding requests have no extra request fee. SSR still adds metered CPU and requests; see cost clarification above | 1.1 |
@@ -594,5 +741,10 @@ code was already deleted in 3.4).
 | D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder** until the feature is un-tabled | 4.15 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
 | D9 | Admin on iOS | Link out to web / build natively | **Link out** | 6.11 |
-| D10 | Resume import on iOS | Server-side / hidden WebView | Decide after reading `worker/routes/resume-import.ts` | 6.9 |
+| D10 | Resume import on iOS | Server-side / hidden WebView | Resolve through the early native import experiment, then implement the chosen adapter in 6.9 | 1.6b |
 | D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | ✅ **Moot**: no users to carry over | — |
+| D12 | Shared boundaries | Share all code below UI / share rules and contracts with app adapters | ✅ **Rules/contracts and applicable Query hooks shared; platform execution app-owned** (2026-10-09) | 1.4–1.6 |
+| D13 | State ownership | Parallel global stores / explicit owners by state type | ✅ **Query for server data, validated web URLs for committed filters, local/form drafts, and narrowly justified cross-screen workflows** (2026-10-09) | 1.5 |
+| D14 | Public and personal job data | Session-dependent SSR / public projection plus personal queries | ✅ **Hono public projection, separate session-owned personal data, request-scoped SSR clients/caches** (2026-10-09) | 1.1 / 1.4–1.5 |
+| D15 | Design and kit | Redesign per screen / reproduce current design through a mapped kit | ✅ **Match current Pinkslip closely with Base UI, CSS Modules and tokens; dedicated kit phase, reference comparisons, and component reuse** (2026-10-09) | 0.4 / Phase 2 |
+| D16 | Native validation timing | Discover constraints during full native port / early capability experiments | ✅ **Prove native data/session, resume import/files, and application-browser autofill during foundations** (2026-10-09); product iOS still follows web | 1.6 |
