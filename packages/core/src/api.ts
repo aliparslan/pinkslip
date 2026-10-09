@@ -44,6 +44,9 @@ export type {
 
 export interface ApiClientConfig {
   baseUrl?: string;
+  /** Injectable transport: a service binding during SSR, or a test double.
+   * Defaults to the global `fetch`. */
+  fetch?: typeof fetch;
   getAccessToken?: () => string | null | Promise<string | null>;
   onAccessToken?: (token: string) => void | Promise<void>;
   onInvalidAccessToken?: (rejectedToken: string | null) => void | Promise<void>;
@@ -51,50 +54,49 @@ export interface ApiClientConfig {
   build?: string;
 }
 
-let clientConfig: Required<Pick<ApiClientConfig, "baseUrl" | "client">> & ApiClientConfig = {
-  baseUrl: "/api/v2",
-  client: "web",
-};
-
-export function configureApiClient(config: ApiClientConfig): void {
-  clientConfig = {
-    ...clientConfig,
-    ...config,
-    baseUrl: (config.baseUrl ?? clientConfig.baseUrl).replace(/\/$/, ""),
-  };
+/** Per-client request plumbing. Nothing here is shared between instances, so
+ * concurrent SSR requests and native sessions cannot leak into each other. */
+interface ClientContext {
+  config: ApiClientConfig;
 }
 
-/** Resolve an API-relative path against the active client origin. The web app
- * keeps its same-origin `/api/v2` base, while the packaged iOS WebView uses the
+function createClientContext(config: ApiClientConfig): ClientContext {
+  return { config };
+}
+
+/** Resolve an API-relative path against one client's origin. The web app keeps
+ * its same-origin `/api/v2` base, while the packaged iOS WebView uses the
  * configured HTTPS origin instead of resolving assets under capacitor://. */
-export function resolveApiUrl(path: string): string {
+function resolveUrlFor(context: ClientContext, path: string): string {
+  const baseUrl = (context.config.baseUrl ?? "/api/v2").replace(/\/$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${clientConfig.baseUrl}${normalizedPath}`;
+  return `${baseUrl}${normalizedPath}`;
 }
 
-/** Fetch a response body without consuming it while preserving the configured
- * native API origin and bearer session. Used by streaming endpoints. */
-export async function apiFetch(path: string, options?: RequestInit, allowTokenRecovery = true): Promise<Response> {
+/** Fetch a response body without consuming it while preserving this client's
+ * origin and bearer session. Used by streaming endpoints. */
+async function fetchApiFor(context: ClientContext, path: string, options?: RequestInit, allowTokenRecovery = true): Promise<Response> {
+  const config = context.config;
   const headers = new Headers(options?.headers);
   const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   if (!headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
-  if (clientConfig.client === "ios") headers.set("X-Pinkslip-Client", "ios");
-  if (clientConfig.build) headers.set("X-Pinkslip-Build", clientConfig.build);
-  const requestAccessToken = await clientConfig.getAccessToken?.() ?? null;
+  if (config.client === "ios") headers.set("X-Pinkslip-Client", "ios");
+  if (config.build) headers.set("X-Pinkslip-Build", config.build);
+  const requestAccessToken = await config.getAccessToken?.() ?? null;
   if (requestAccessToken) headers.set("Authorization", `Bearer ${requestAccessToken}`);
 
-  const response = await fetch(resolveApiUrl(path), {
+  const response = await (config.fetch ?? fetch)(resolveUrlFor(context, path), {
     credentials: "include",
     ...options,
     headers,
   });
 
-  if (response.status === 401 && allowTokenRecovery && clientConfig.onInvalidAccessToken) {
+  if (response.status === 401 && allowTokenRecovery && config.onInvalidAccessToken) {
     const payload = await response.clone().json().catch(() => null) as { code?: string } | null;
     if (payload?.code === "invalid_token") {
       await response.body?.cancel().catch(() => undefined);
-      await clientConfig.onInvalidAccessToken(requestAccessToken);
-      return apiFetch(path, options, false);
+      await config.onInvalidAccessToken(requestAccessToken);
+      return fetchApiFor(context, path, options, false);
     }
   }
   return response;
@@ -114,7 +116,8 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+async function requestFor<T>(
+  context: ClientContext,
   path: string,
   options?: RequestInit,
   timeoutMs = 20_000
@@ -128,7 +131,7 @@ async function request<T>(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      res = await apiFetch(path, {
+      res = await fetchApiFor(context, path, {
         ...options,
         signal: controller.signal,
       });
@@ -154,7 +157,7 @@ async function request<T>(
   }
 
   if (!res) {
-    const productName = clientConfig.client === "ios" ? "Pinkslip" : "pinkslip";
+    const productName = context.config.client === "ios" ? "Pinkslip" : "pinkslip";
     throw new ApiError(`Could not reach ${productName}. Please try again.`, 503, "network_unavailable");
   }
 
@@ -170,7 +173,7 @@ async function request<T>(
   if (typeof payload === "object" && payload !== null) {
     const nextToken = (payload as Record<string, unknown>).native_token;
     if (typeof nextToken === "string" && nextToken) {
-      await clientConfig.onAccessToken?.(nextToken);
+      await context.config.onAccessToken?.(nextToken);
     }
   }
 
@@ -184,12 +187,12 @@ async function request<T>(
   return payload as T;
 }
 
-async function requestBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
+async function requestBlobFor(context: ClientContext, path: string, timeoutMs = 60_000): Promise<Blob> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
-    response = await apiFetch(path, { signal: controller.signal });
+    response = await fetchApiFor(context, path, { signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
@@ -559,7 +562,17 @@ export interface PreferenceState {
   search_profile: SearchProfileV1;
 }
 
-export const api = {
+function createEndpoints(context: ClientContext) {
+  const resolveUrl = (path: string) => resolveUrlFor(context, path);
+  const fetchApi = (path: string, options?: RequestInit, allowTokenRecovery = true) =>
+    fetchApiFor(context, path, options, allowTokenRecovery);
+  const request = <T>(path: string, options?: RequestInit, timeoutMs?: number) =>
+    requestFor<T>(context, path, options, timeoutMs);
+  const requestBlob = (path: string, timeoutMs?: number) => requestBlobFor(context, path, timeoutMs);
+
+  return {
+  resolveUrl,
+  fetchApi,
   native: {
     startSession: () =>
       request<{ token: string; expires_at: string; session: SessionInfo }>(
@@ -1053,4 +1066,28 @@ export const api = {
   metrics: {
     get: () => request<ProductMetrics>("/metrics"),
   },
-};
+  };
+}
+
+export type ApiClient = ReturnType<typeof createEndpoints>;
+
+/** Creates an isolated client. Pass a service-binding fetch during SSR, or a
+ * secure-storage token provider on native. */
+export function createApiClient(config: ApiClientConfig = {}): ApiClient {
+  return createEndpoints(createClientContext(config));
+}
+
+const defaultConfig: ApiClientConfig & { baseUrl: string } = { baseUrl: "/api/v2", client: "web" };
+
+export function configureApiClient(config: ApiClientConfig): void {
+  Object.assign(defaultConfig, config);
+  defaultConfig.baseUrl = (config.baseUrl ?? defaultConfig.baseUrl).replace(/\/$/, "");
+}
+
+/** The browser/default API client. Per-request clients use `createApiClient`. */
+export const api = createApiClient(defaultConfig);
+
+/** Default-client convenience wrappers, kept for existing app code. */
+export const resolveApiUrl = (path: string) => api.resolveUrl(path);
+export const apiFetch = (path: string, options?: RequestInit, allowTokenRecovery = true) =>
+  api.fetchApi(path, options, allowTokenRecovery);

@@ -459,7 +459,21 @@ check was verified against a deliberately bad fixture.
 
 *Done when:* a deliberately bad file fails each check.
 
-**1.4 Core transport and lifted logic** · M
+**1.4 Core transport and lifted logic** · M · ✅ implemented locally
+`createApiClient(config)` now builds an isolated client — its own `fetch`, base
+URL, client/build headers and token callbacks — while the legacy `api`,
+`configureApiClient`, `resolveApiUrl` and `apiFetch` exports keep the default
+same-origin browser client working. The autosave registry moved to core with the
+page-hide binding left in `packages/client`, and
+`autofillScript(payload, bridge)` can report through an Expo WebView transport.
+The audit in [`packages/core/README.md`](../packages/core/README.md) records the
+owner for every `packages/client/src/lib` module; pure modules move only after
+the 1.6 native experiments validate the boundaries. Svelte behaviour is
+unchanged. `bun test` and `bun run check` pass; the Svelte web e2e run still has
+three pre-existing visual-contract snapshot diffs (`you-preferences`
+desktop/mobile and `onboarding` mobile, all whole-page text-metric ghosting) and
+a flaky font-preload spec. They reproduce without 1.4 and were left untouched
+rather than re-baselined.
 - **Injectable transport.** The `packages/core` API client takes its `fetch`,
   base URL and token provider as inputs, so the same client works in three places:
   - in the browser (relative URLs)

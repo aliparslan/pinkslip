@@ -1,27 +1,19 @@
-export type AutosaveFlush = () => void | boolean | Promise<void | boolean>;
+import {
+  flushActiveAutosaves,
+  registerAutosaveFlush as registerCoreAutosaveFlush,
+  type AutosaveFlush,
+} from "@pinkslip/core/autosave-lifecycle";
 
-const activeAutosaveFlushes = new Set<AutosaveFlush>();
+export type { AutosaveFlush };
+export { flushActiveAutosaves };
 
 function flushWithoutBlocking(flush: AutosaveFlush): void {
   void Promise.resolve().then(flush).catch(() => undefined);
 }
 
-/** Flush every mounted autosave owner before a shell-level navigation commits.
- * Returning false keeps the current screen visible so failed edits are never
- * silently discarded by native back navigation. */
-export async function flushActiveAutosaves(): Promise<boolean> {
-  const results = await Promise.all([...activeAutosaveFlushes].map(async (flush) => {
-    try {
-      return (await flush()) !== false;
-    } catch {
-      return false;
-    }
-  }));
-  return results.every(Boolean);
-}
-
+/** The core registry plus the browser's best-effort page-hide flushing. */
 export function registerAutosaveFlush(flush: AutosaveFlush): () => void {
-  activeAutosaveFlushes.add(flush);
+  const unregisterCore = registerCoreAutosaveFlush(flush);
   const flushWhenHidden = () => {
     if (document.visibilityState === "hidden") flushWithoutBlocking(flush);
   };
@@ -33,7 +25,6 @@ export function registerAutosaveFlush(flush: AutosaveFlush): () => void {
   return () => {
     document.removeEventListener("visibilitychange", flushWhenHidden);
     window.removeEventListener("pagehide", flushOnPageHide);
-    activeAutosaveFlushes.delete(flush);
-    flushWithoutBlocking(flush);
+    unregisterCore();
   };
 }

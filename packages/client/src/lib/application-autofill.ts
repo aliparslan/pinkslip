@@ -18,6 +18,15 @@ export interface AutofillReport {
   missed: string[];
 }
 
+/** The native transport the injected form script reports through. Capacitor
+ * exposes a WebKit message handler; an Expo WebView exposes
+ * `window.ReactNativeWebView.postMessage`. */
+export type AutofillBridge =
+  | { kind: "webkit-message-handler"; handler?: string }
+  | { kind: "react-native-webview" };
+
+export const DEFAULT_AUTOFILL_BRIDGE: AutofillBridge = { kind: "webkit-message-handler", handler: "pinkslipAutofill" };
+
 export function autofillPayload(
   prepared: PreparedApplication,
   resume: AutofillPayload["resume"],
@@ -40,7 +49,7 @@ export function autofillPayload(
  * It only fills fields that are still empty, so "Fill again" picks up fields
  * that rendered late without undoing the user's own edits. It never submits.
  */
-async function fillApplication(payload: AutofillPayload): Promise<AutofillReport> {
+async function fillApplication(payload: AutofillPayload, bridge: AutofillBridge): Promise<AutofillReport> {
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const norm = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
   const answers = (field: AutofillField) => (Array.isArray(field.answer) ? field.answer : [field.answer]);
@@ -238,14 +247,27 @@ async function fillApplication(payload: AutofillPayload): Promise<AutofillReport
       report.missed.push(field.id);
     }
   }
-  const bridge = (window as unknown as {
-    webkit?: { messageHandlers?: { pinkslipAutofill?: { postMessage: (message: unknown) => void } } };
-  }).webkit?.messageHandlers?.pinkslipAutofill;
-  bridge?.postMessage(report);
+  const postReport = (value: AutofillReport) => {
+    if (bridge.kind === "react-native-webview") {
+      const reactNative = (window as unknown as {
+        ReactNativeWebView?: { postMessage: (message: string) => void };
+      }).ReactNativeWebView;
+      reactNative?.postMessage(JSON.stringify(value));
+      return;
+    }
+    const handler = bridge.handler ?? "pinkslipAutofill";
+    const transport = (window as unknown as {
+      webkit?: { messageHandlers?: Record<string, { postMessage: (message: unknown) => void }> };
+    }).webkit?.messageHandlers?.[handler];
+    transport?.postMessage(value);
+  };
+  postReport(report);
   return report;
 }
 
-/** The script the native browser injects into the application page. */
-export function autofillScript(payload: AutofillPayload): string {
-  return `(${fillApplication.toString()})(${JSON.stringify(payload)});`;
+/** The script the native browser injects into the application page. Pass a
+ * `react-native-webview` bridge for the Expo WebView; the default reports to
+ * Capacitor's WebKit message handler. */
+export function autofillScript(payload: AutofillPayload, bridge: AutofillBridge = DEFAULT_AUTOFILL_BRIDGE): string {
+  return `(${fillApplication.toString()})(${JSON.stringify(payload)}, ${JSON.stringify(bridge)});`;
 }
