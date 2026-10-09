@@ -4,8 +4,9 @@ Source snapshot: `8b9a77c`, audited 2026-10-09. Companion to
 [the port plan](REACT_EXPO_PORT_PLAN.md), chunk **0.3**.
 
 **Inventory drafted; architecture/design direction reviewed on 2026-10-09;
-remaining feature-scope choices are recorded below. Nothing below is marked as
-implemented in React or Expo.** The earlier React/Expo attempt and stash were
+remaining feature-scope choices are recorded below. No feature parity row below
+is marked complete.** The React foundation is now implemented locally; see the
+plan's chunk 1.1 and the progress note below. The earlier React/Expo attempt and stash were
 not used. Sources are the current Svelte web/Capacitor application, API client,
 Worker routes, component catalog, and tests.
 
@@ -436,17 +437,29 @@ and autofill also require device verification.
 6. **Preserve unfinished work from this migration.** Claude left an uncommitted
    `apps/webapp/package.json` and lockfile change in worktree `port-1.1-webapp`,
    and an uncommitted `packages/tokens/src/oklch.ts` in `port-1.2-tokens`.
-   Neither is a completed foundation. Review these current-attempt starter files
-   when taking those chunks; the removed earlier attempt remains out of scope.
+   These were starter files at the audit snapshot. The manifest has since been
+   reviewed and used for the implemented 1.1 foundation; the color helper still
+   needs review in 1.2. Both worktrees remain untouched. The removed earlier
+   attempt remains out of scope.
 
 ## Progress
 
-Validation on 2026-10-09: source-to-document coverage check found all 19 app
+Inventory validation on 2026-10-09: source-to-document coverage check found all 19 app
 routes, eight compatibility redirects, and 88 invoked API methods; local
 Markdown links and `git diff --check` passed. The existing application's
 `bun run check`, 853 unit tests, web build, and iOS web-bundle build passed.
 Playwright and hands-on device checks were not run for this documentation
-change; no replacement UI has been implemented or approved.
+change.
+
+Foundation implementation on 2026-10-09: chunk 1.1 now has public list/detail SSR,
+client-only account reads, forwarding through the API binding, noindex and
+404 coverage. The new Hono public projection is read-only and separate from
+private routes. Checks passed: `bun run check`, 861 unit tests, seven Chromium
+browser tests (including axe), both existing frontend builds, the React build,
+and a deployment dry run. Forty-eight fresh design captures and 26 historical
+images are preserved in [the reference set](port-design/README.md). These
+foundation compositions remain Quarantine; product parity, native verification
+and production cutover are still pending.
 
 - [x] Inventory the 19 app routes and public About page against the current source.
 - [x] Map screen calls, shared feature/platform calls, redirects, and existing test evidence.

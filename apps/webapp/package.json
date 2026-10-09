@@ -1,0 +1,37 @@
+{
+  "name": "@pinkslip/webapp",
+  "private": true,
+  "type": "module",
+  "description": "React web application for Pinkslip",
+  "scripts": {
+    "dev": "vite dev --host 127.0.0.1 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 3000",
+    "check": "tsc --noEmit",
+    "check:e2e": "tsc --noEmit --project e2e/tsconfig.json",
+    "worker:types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false",
+    "check:worker-types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false --check",
+    "test:e2e": "playwright test",
+    "capture:references": "bun e2e/capture-references.ts"
+  },
+  "dependencies": {
+    "@pinkslip/domain": "workspace:*",
+    "@pinkslip/tokens": "workspace:*",
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-start": "1.168.60",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.63.1",
+    "@cloudflare/workers-types": "5.20260828.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "@playwright/test": "1.62.1",
+    "@axe-core/playwright": "4.13.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "wrangler": "4.149.0"
+  }
+}

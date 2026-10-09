@@ -1,0 +1,351 @@
+{
+  "sourceCommit": "4684819708a4d488aec8ec5c859509a797ddc071",
+  "capturedAt": "2026-10-09T20:24:13.052Z",
+  "fixtureClock": "2026-09-01T12:00:00.000Z",
+  "fixture": "apps/web/e2e/api-mocks.ts",
+  "status": "Current Svelte references, not approval of replacement UI",
+  "gaps": [
+    "Physical iOS/Capacitor captures",
+    "Loading transitions",
+    "Feature menus",
+    "VoiceOver review"
+  ],
+  "captures": [
+    {
+      "file": "jobs-390-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "detail-390-light.png",
+      "path": "/jobs/smoke-job",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "library-390-light.png",
+      "path": "/library/saved",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "you-390-light.png",
+      "path": "/you",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "preferences-390-light.png",
+      "path": "/you/preferences",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "resume-390-light.png",
+      "path": "/you/resume",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "companies-390-light.png",
+      "path": "/you/companies",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "filters-390-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "keyboard-focus-390-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "increased-contrast-390-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "empty-390-light.png",
+      "path": "/library/applied",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "error-390-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "jobs-390-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "detail-390-dark.png",
+      "path": "/jobs/smoke-job",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "library-390-dark.png",
+      "path": "/library/saved",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "you-390-dark.png",
+      "path": "/you",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "preferences-390-dark.png",
+      "path": "/you/preferences",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "resume-390-dark.png",
+      "path": "/you/resume",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "companies-390-dark.png",
+      "path": "/you/companies",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "filters-390-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "keyboard-focus-390-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "increased-contrast-390-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "empty-390-dark.png",
+      "path": "/library/applied",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "error-390-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "jobs-1440-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "detail-1440-light.png",
+      "path": "/jobs/smoke-job",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "library-1440-light.png",
+      "path": "/library/saved",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "you-1440-light.png",
+      "path": "/you",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "preferences-1440-light.png",
+      "path": "/you/preferences",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "resume-1440-light.png",
+      "path": "/you/resume",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "companies-1440-light.png",
+      "path": "/you/companies",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "filters-1440-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "keyboard-focus-1440-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "increased-contrast-1440-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "empty-1440-light.png",
+      "path": "/library/applied",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "error-1440-light.png",
+      "path": "/",
+      "mode": "light",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "jobs-1440-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "detail-1440-dark.png",
+      "path": "/jobs/smoke-job",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "library-1440-dark.png",
+      "path": "/library/saved",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "you-1440-dark.png",
+      "path": "/you",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "preferences-1440-dark.png",
+      "path": "/you/preferences",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "resume-1440-dark.png",
+      "path": "/you/resume",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "companies-1440-dark.png",
+      "path": "/you/companies",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "filters-1440-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "keyboard-focus-1440-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "increased-contrast-1440-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "empty-1440-dark.png",
+      "path": "/library/applied",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "error-1440-dark.png",
+      "path": "/",
+      "mode": "dark",
+      "width": 1440,
+      "height": 1000
+    }
+  ]
+}

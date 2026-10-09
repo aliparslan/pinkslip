@@ -1,0 +1,9 @@
+{
+  "name": "@pinkslip/tokens",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./fonts.css": "./src/fonts.css"
+  }
+}

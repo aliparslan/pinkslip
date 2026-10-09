@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Development-only companion; production still uses the repository config.
+  // No AI, email, queue or scheduled bindings run in the web foundation.
+  "name": "pinkslip",
+  "main": "../../worker/index.ts",
+  "compatibility_date": "2026-08-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "pinkslip",
+    "database_id": "fc0ff85d-0921-4b25-b4b2-c77a6ed28371",
+    "migrations_dir": "../../migrations"
+  }],
+  "r2_buckets": [{ "binding": "RESUME_BUCKET", "bucket_name": "pinkslip-resumes" }],
+  "vars": {
+    "VAPID_PUBLIC_KEY": "",
+    "VAPID_SUBJECT": "mailto:dev@localhost",
+    "APPLE_APP_ID": "dev.alip.pinkslip",
+    "APPLE_TEAM_ID": "KV876H8952"
+  }
+}

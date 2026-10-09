@@ -11,6 +11,7 @@ import {
   requireAdmin,
 } from "./auth";
 import jobRoutes from "./routes/jobs";
+import publicJobRoutes from "./routes/public-jobs";
 import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
 import pushRoutes from "./routes/push";
@@ -271,6 +272,9 @@ app.get("/support", () => new Response(supportPage(), {
   },
 }));
 
+// Only this explicit, read-only projection is public, including behind the
+// invite gate. All existing personal and administrative endpoints keep auth.
+app.route("/api/v2/public", publicJobRoutes);
 app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
 

@@ -3,10 +3,17 @@
 Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. The [0.3 parity inventory](port-parity.md) is drafted; architecture and design direction were reviewed on 2026-10-09, with remaining feature-scope choices still recorded there. D1–D3, D5, D6, D11 and D12–D16 are decided; the rest are due at the chunk that needs them.
 The owner reaffirmed outright replacement in 3.4: no users yet, so no preview domain and no side-by-side running. Cutover remains at the shell/placeholder stage; it does not wait for the core feature loop.
 
-Handoff recovered 2026-10-09: Claude's `port-1.1-webapp` worktree contains an
-uncommitted package manifest/lockfile change; `port-1.2-tokens` contains an
-uncommitted color-conversion helper. These are current-attempt starter files,
-not finished chunks. Preserve and review them when continuing those chunks.
+Implementation started 2026-10-09: [web foundation](../apps/webapp/README.md)
+now runs in the local Workers runtime, with public job SSR and client-only
+account reads through Hono. [Design references](port-design/README.md) preserve
+48 current captures, 26 historical baselines, the catalog, tokens and fonts.
+The shared token package currently preserves CSS/assets; TS/native generation
+is still 1.2. No production deployment or Svelte removal has happened.
+
+Claude's current-attempt `port-1.1-webapp` starter manifest was reviewed and
+used for the pinned runtime dependencies. Its worktree is untouched.
+`port-1.2-tokens` still contains an uncommitted color-conversion helper to
+review when implementing native token generation.
 
 Fresh start. This plan was written without consulting the earlier React/Expo
 attempt (`apps/web-react`, `apps/mobile`, `packages/ui`, `stash@{0}`). The live
@@ -22,7 +29,7 @@ route map, `wrangler*.toml`, `docs/DEPLOYMENT.md` and
 |---|---|
 | Web framework | **TanStack Start** (React 19, Vite 8). Public pages are rendered on the server (SSR); app pages render on the client. No Next.js |
 | Server data | **TanStack Query**, shared by web and iOS |
-| Web components | **Base UI** primitives in a kit we own (shadcn's model and naming, not its code), styled with **CSS Modules**. No Tailwind anywhere |
+| Web components | **Base UI** primitives with product-owned components and **CSS Modules**. No Tailwind. shadcn and Linear are visual references only; no dependency, naming, or anatomy requirement |
 | iOS | **Expo** (SDK 57, Expo Router) with **native screens**. Share domain rules, API contracts, and applicable data hooks; each app owns its platform execution |
 | API | **Hono stays the only API.** Web and iOS both consume it. Start's server functions don't become a second API |
 | Design | Match the current Pinkslip design as closely as practical through Base UI, CSS Modules, tokens, and a documented kit. Consolidate repeated controls before porting screens |
@@ -160,16 +167,19 @@ those references; each Phase 4 screen repeats the comparison at screen scale.
 Screenshots do not automatically approve a component. New implementations
 remain in Quarantine under the catalog's normal promotion rules.
 
-### What "shadcn on Base UI with CSS Modules" means here
+### Product-owned components on Base UI
 
-We take shadcn's **model** but none of its code:
+The owner clarified that shadcn and Linear are aesthetic references only.
+Pinkslip's current design, actual use cases, and Base UI's supported behavior
+determine our component contracts:
 - **We own every component's source**, in `apps/webapp/src/kit/`.
-- **Components follow shadcn's anatomy and naming** (`Dialog`, `DialogTrigger`,
-  `DialogContent`…).
+- **Choose names and composition for Pinkslip's use cases.** No obligation to
+  copy another kit's anatomy, prop API, file structure, or implementation.
 - **Interactive controls wrap the applicable Base UI parts.** Typography,
   layout, and feature compositions use semantic markup and documented tokens;
   they do not need an artificial Base UI wrapper.
-- **We never run the shadcn CLI**, because its output is Tailwind.
+- **No shadcn dependency or generated components.** Base UI supplies behavior;
+  the current tokens and CSS Modules supply appearance.
 
 ```
 src/kit/button/
@@ -182,16 +192,16 @@ src/kit/button/
 import { Button as BaseButton } from "@base-ui/react/button";
 import styles from "./Button.module.css";
 
-type ButtonProps = BaseButton.Props & {
+type ButtonProps = Omit<BaseButton.Props, "className" | "style"> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md";
 };
 
-export function Button({ variant = "secondary", size = "md", className, ...props }: ButtonProps) {
+export function Button({ variant = "secondary", size = "md", ...props }: ButtonProps) {
   return (
     <BaseButton
       {...props}
-      className={className ? `${styles.root} ${className}` : styles.root}
+      className={styles.root}
       data-variant={variant}
       data-size={size}
     />
@@ -353,6 +363,9 @@ conditional until their assigned chunks. Record the offline web tradeoff explici
 *Done when:* every route has rows, and you've read it and cut anything not worth porting.
 
 **0.4 Current-design references and pattern map** · M · needs D15
+Progress: [references and pattern map](port-design/README.md) captured on
+2026-10-09. Remaining native/menu/loading/toast/autosave evidence is recorded;
+new implementations still need visual review.
 - Capture or verify current screenshots with deterministic fixture data for
   Jobs/list filters, detail, Library, You/settings, resume, companies, and the
   shared loading/empty/error/dialog/menu states. Include narrow and wide web,
@@ -373,7 +386,11 @@ for each planned kit pattern, with remaining capture gaps explicitly recorded.
 
 ### Phase 1: Foundations
 
-**1.1 Start app and web Worker** · M · needs D5
+**1.1 Start app and web Worker** · M · needs D5 · ✅ implemented locally
+See [setup, contracts and cutover preparation](../apps/webapp/README.md).
+Public list/detail SSR, a client-only account route, service-binding forwarding,
+private authorization, noindex, and real 404s are covered by unit/browser checks.
+Foundation route compositions remain in Quarantine until the kit/screen port.
 - Scaffold `apps/webapp`: TanStack Start, React 19, Vite 8 and the Cloudflare Vite
   plugin, deployed as Worker `pinkslip-web` with a service binding to `pinkslip`.
 - `/api/*` is forwarded through the binding. Preserve the Worker-owned email
@@ -395,6 +412,8 @@ for each planned kit pattern, with remaining capture gaps explicitly recorded.
 *Done when:* `vite dev` runs the API and web together, with D1, against your local data.
 
 **1.2 Tokens package** · M · needs D3
+Progress: unchanged web CSS, fonts and first-paint theme preference are in place.
+The TS source, generated native values/unions, and equivalence/glyph checks remain.
 - Port `packages/client/src/styles/tokens.css` into a TS source of truth:
   - the dark default, `[data-mode="light"]`, and the increased-contrast variants
     (including iOS increased contrast)
