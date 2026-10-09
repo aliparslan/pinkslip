@@ -12,6 +12,7 @@ import type {
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
+import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
   ApplicationAnswerValue,
   ApplyPlan,
@@ -30,6 +31,7 @@ export type {
   PreparedApplicationField,
 } from "@pinkslip/domain/application-form";
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
+export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 export type {
   OutreachContact,
   OutreachMessage,
@@ -582,6 +584,12 @@ function createEndpoints(context: ClientContext) {
   },
   bootstrap: {
     get: () => request<{ me: MeResponse; preferences: PreferenceState }>("/bootstrap", undefined, 12_000),
+  },
+  /** Anonymous catalog reads. `credentials: "omit"` keeps browser requests
+   * credential-free, matching the server-side public contract. */
+  public: {
+    jobs: () => request<PublicJobList>("/public/jobs", { credentials: "omit" }, 12_000),
+    job: (id: string) => request<PublicJob>(`/public/jobs/${encodeURIComponent(id)}`, { credentials: "omit" }),
   },
   jobs: {
     list: (params?: JobsListParams) => {

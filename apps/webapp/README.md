@@ -27,10 +27,12 @@ and legal pages pass through the API service binding with their original
 URL, request body, cookies, and response headers. Legacy-host browser visits
 retain the existing redirect to `pinkslip.work`.
 
-Public loaders use `/api/v2/public/jobs` and `/api/v2/public/jobs/:id`.
-They construct fresh credential-free requests on the server and omit browser
-credentials on the client. Hono returns a bounded catalog preview and explicit
-job fields, excluding personal state and internal source/moderation fields.
+Public routes load through `@pinkslip/data` query options backed by the
+credential-free `GET /api/v2/public/jobs` and `:id` endpoints: `credentials:
+"omit"` in the browser, a fresh service-binding request on the server. SSR data
+is dehydrated into the page and hydrated without a refetch. Hono returns a
+bounded catalog preview and explicit job fields, excluding personal state and
+internal source/moderation fields.
 Closed, disabled-source, stale non-evergreen, and unapproved review-queue jobs
 are excluded. This public projection is available even when the invite gate
 protects personal APIs. It performs reads only: no guest creation, matching,
@@ -44,6 +46,13 @@ equivalence against the frozen Svelte styles and a glyph-coverage check for the
 Klim trials. The tiny theme bootstrap preserves the existing `pinkslip-theme`
 preference before first paint. Foundation compositions remain in
 [Quarantine](src/kit/COMPONENTS.md).
+
+The data layer is `@pinkslip/data`: Query defaults, the public/personal key
+factory, the `/me` session hook, job/Library query options and optimistic
+save/apply updates. `getRouter()` creates a per-request QueryClient and API
+client, passes them through router context and `DataProvider`, and
+`setupRouterSsrQueryIntegration` dehydrates server-loaded data. Session
+bootstrap, the invite gate and owner-change clearing in the shell arrive in 3.2.
 
 The app loads exactly four global stylesheets in layer order: generated
 `@pinkslip/tokens/tokens.css` (`@layer tokens`), `fonts.css`, `reset.css`

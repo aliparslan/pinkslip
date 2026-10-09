@@ -1,0 +1,26 @@
+{
+  "name": "@pinkslip/data",
+  "private": true,
+  "type": "module",
+  "description": "TanStack Query definitions and session coordination shared by web and native",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@pinkslip/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": ">=5.102.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.104.1",
+    "@types/react": "19.3.0",
+    "react": "19.3.0",
+    "typescript": "^6.0.3"
+  }
+}

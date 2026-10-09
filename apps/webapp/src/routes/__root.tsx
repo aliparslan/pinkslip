@@ -1,11 +1,12 @@
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
+import type { RouterContext } from "../platform/router-context";
 import styles from "../styles/Shell.module.css";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
 import fontsCss from "@pinkslip/tokens/fonts.css?url";
 import resetCss from "../styles/reset.css?url";
 import baseCss from "../styles/base.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },

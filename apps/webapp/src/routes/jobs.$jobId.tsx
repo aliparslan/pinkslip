@@ -1,10 +1,11 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { loadPublicJob } from "../platform/public-jobs";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { publicJobQueryOptions } from "@pinkslip/data";
 import styles from "../styles/Jobs.module.css";
 
 export const Route = createFileRoute("/jobs/$jobId")({
-  loader: async ({ params }) => {
-    const job = await loadPublicJob(params.jobId);
+  loader: async ({ context, params }) => {
+    const job = await context.queryClient.ensureQueryData(publicJobQueryOptions(context.api, params.jobId));
     if (!job) throw notFound();
     return job;
   },
@@ -13,7 +14,10 @@ export const Route = createFileRoute("/jobs/$jobId")({
 });
 
 function Job() {
-  const job = Route.useLoaderData();
+  const { api } = Route.useRouteContext();
+  const { jobId } = Route.useParams();
+  const { data: job } = useSuspenseQuery(publicJobQueryOptions(api, jobId));
+  if (!job) throw notFound();
   return <article>
     <p className={styles.company}>{job.company_name}</p>
     <h1>{job.title}</h1>

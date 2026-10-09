@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // WebWorker keeps this package free of `document`/`window`; React hooks are
+    // allowed, but DOM APIs are an app-adapter concern.
+    "lib": ["ES2023", "WebWorker"],
+    "types": ["bun"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"]
+}

@@ -88,3 +88,14 @@ test("hydration, keyboard skip navigation and narrow layouts work", async ({ pag
   await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("server-loaded jobs hydrate without a second browser request", async ({ page }) => {
+  const catalogRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/v2/public/jobs") catalogRequests.push(request.url());
+  });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Jobs", exact: true })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(catalogRequests).toEqual([]);
+});

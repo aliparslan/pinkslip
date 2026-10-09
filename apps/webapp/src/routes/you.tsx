@@ -1,21 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useOwnerChangeCleanup, useSession } from "@pinkslip/data";
 
 export const Route = createFileRoute("/you")({
   ssr: false,
-  loader: async () => {
-    const response = await fetch("/api/v2/me", { credentials: "same-origin" });
-    if (response.status === 401) return { state: "anonymous" };
-    if (!response.ok) throw new Error("Your account couldn’t be loaded.");
-    const account: { session: { state: string } } = await response.json();
-    return account.session;
-  },
   component: You,
 });
 
 function You() {
-  const session = Route.useLoaderData();
+  const session = useSession();
+  useOwnerChangeCleanup();
   return <section>
     <h1>You</h1>
-    <p>{session.state === "authenticated" ? "You’re signed in." : "Your account and preferences will live here."}</p>
+    {session.isPending
+      ? <p>Loading your account…</p>
+      : session.isError
+        ? <p role="alert">Your account couldn’t be loaded. <button type="button" onClick={() => void session.refetch()}>Retry</button></p>
+        : <p>{session.data?.state === "authenticated" ? "You’re signed in." : "Your account and preferences will live here."}</p>}
   </section>;
 }

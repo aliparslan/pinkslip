@@ -499,7 +499,15 @@ rather than re-baselined.
 Svelte behaviour stays unchanged.
 *Done when:* the Svelte web and iOS apps pass check, tests and e2e on the moved code.
 
-**1.5 Data package** · M
+**1.5 Data package** · M · ✅ implemented locally
+`packages/data` (React, no DOM) owns `createAppQueryClient`, the
+public/personal `queryKeys` factory with `clearPersonalQueries` for owner
+changes, the session hook, public and personal job options, Library hooks and
+optimistic save/apply cache updates with rollback. The webapp creates a
+per-request QueryClient and API client in `getRouter()`, passes them through
+router context and `DataProvider`, and `setupRouterSsrQueryIntegration`
+dehydrates server-loaded data; a Playwright test asserts zero browser requests
+to the public catalog after hydration.
 - QueryClient defaults and a query-key factory, with public/personal key
   separation and owner-change clearing/cancellation.
 - Initial hooks for session, jobs, job detail, and Library. Add profile,

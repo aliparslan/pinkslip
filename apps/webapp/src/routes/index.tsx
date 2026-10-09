@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { loadPublicJobs } from "../platform/public-jobs";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { publicJobsQueryOptions } from "@pinkslip/data";
 import styles from "../styles/Jobs.module.css";
 
 export const Route = createFileRoute("/")({
-  loader: () => loadPublicJobs(),
+  loader: ({ context }) => context.queryClient.ensureQueryData(publicJobsQueryOptions(context.api)),
   component: Jobs,
 });
 
 function Jobs() {
-  const { jobs } = Route.useLoaderData();
+  const { api } = Route.useRouteContext();
+  const { data } = useSuspenseQuery(publicJobsQueryOptions(api));
+  const { jobs } = data;
   return <section>
     <h1>Jobs</h1>
     <p className={styles.intro}>Early-career opportunities, straight from company career pages.</p>
