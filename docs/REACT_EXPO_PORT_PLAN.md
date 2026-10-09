@@ -1,7 +1,12 @@
 # React + Expo port plan
 
-Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. D1–D3, D5, D6 and D11 decided 2026-10-09; the rest are due at the chunk that needs them.
+Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. The [0.3 parity inventory](port-parity.md) is drafted and awaiting owner scope review; its implementation findings feed into Phase 1. D1–D3, D5, D6 and D11 decided 2026-10-09; the rest are due at the chunk that needs them.
 The Svelte site is replaced outright in 3.4: no users yet, so no preview domain and no side-by-side running.
+
+Handoff recovered 2026-10-09: Claude's `port-1.1-webapp` worktree contains an
+uncommitted package manifest/lockfile change; `port-1.2-tokens` contains an
+uncommitted color-conversion helper. These are current-attempt starter files,
+not finished chunks. Preserve and review them when continuing those chunks.
 
 Fresh start. This plan was written without consulting the earlier React/Expo
 attempt (`apps/web-react`, `apps/mobile`, `packages/ui`, `stash@{0}`). The live
@@ -68,6 +73,15 @@ API as an auxiliary Worker). Same hostname, so no CORS and no cookie issues.
 There's no preview domain. The web Worker runs locally until chunk 3.4, when it
 takes over `pinkslip.work` and `pinkslip.alip.dev` and the Svelte site is deleted.
 There are no users yet, so production is the test site from then on.
+
+**Cost clarification (checked 2026-10-09):** the recorded $5/month Workers plan
+does not need a second subscription for the web Worker. SSR adds metered
+requests and CPU, shared with existing usage. Standard includes 10 million
+requests and 30 million CPU milliseconds/month; excess costs $0.30/million
+requests and $0.02/million CPU milliseconds. Ordinary service-binding calls
+add CPU but no second request charge; Workers Caching has separate counting
+rules. Actual incremental cost depends on account usage, which this handoff
+has not inspected. [Cloudflare pricing](https://developers.cloudflare.com/workers/platform/pricing/).
 
 ## 3. Stack
 
@@ -261,12 +275,17 @@ to CLAUDE.md.
 Git history and `stash@{0}` keep everything.
 *Done when:* `bun run check` passes and the tree has only live code.
 
-**0.3 Parity inventory** · M
+**0.3 Parity inventory** · M · inventory drafted; owner scope review pending
 Write `docs/port-parity.md` covering all 19 app routes (including
 `/you/answers`) plus `/about`, the compatibility redirects, the legacy `/#/` URL migration, the platform
 behaviours (haptics, share, push, in-app application browser, autofill) and
 every API call per screen. Sources: the Svelte pages, `packages/core/src/api.ts`
 and the existing e2e specs.
+Draft: [port-parity.md](port-parity.md), including 19 app routes, `/about`,
+shared flows, API calls, redirects, platform behavior, test gaps, and explicit
+differences between existing behavior and planned additions. No scope cuts
+have been assumed. Review the scope before marking complete; D7/D9 may remain
+conditional until their assigned chunks. Record the offline web tradeoff explicitly.
 *Done when:* every route has rows, and you've read it and cut anything not worth porting.
 
 ### Phase 1: Foundations
@@ -274,12 +293,17 @@ and the existing e2e specs.
 **1.1 Start app and web Worker** · M · needs D5
 - Scaffold `apps/webapp`: TanStack Start, React 19, Vite 8 and the Cloudflare Vite
   plugin, deployed as Worker `pinkslip-web` with a service binding to `pinkslip`.
-- `/api/*` is forwarded through the binding.
+- `/api/*` is forwarded through the binding. Preserve the Worker-owned email
+  callback, both Apple association URLs, privacy/support/legal stylesheet,
+  and legacy-host handling too; see N02 in the parity inventory.
 - One server-rendered page and one client-only page prove two things: a server-side
   fetch through the binding works, and a browser fetch to the same origin works.
 - `X-Robots-Tag: noindex` on everything.
 - Deploy config for `pinkslip.work` and `pinkslip.alip.dev` is prepared but not
   run; the deploy happens in 3.4.
+- Public job SSR needs an explicit anonymous read contract: today's job API
+  requires a session, and a service binding does not bypass that check. Keep
+  crawler reads free of guest-session creation and personal data.
 
 *Done when:* `vite dev` runs the API and web together, with D1, against your local data.
 
@@ -320,11 +344,17 @@ computed values.
   - in the browser (relative URLs)
   - during SSR (through the service binding)
   - on native (absolute URL, bearer token from secure storage)
+- Use per-request client configuration and Query caches on the server; the
+  current module-global client configuration cannot safely own SSR sessions.
 - **Lifted modules.** Framework-free modules move from `packages/client/src/lib`
   into `core`, with their tests: formatting, job-content, job-navigation, viewed,
   autosave-lifecycle, PDF import/extract, resume-document, the
   resume-import orchestrator, form-reader/filler, application-autofill and
   auto-apply. Each is checked for Svelte imports as it moves.
+- Also check browser/runtime dependencies before lifting: `viewed` has a
+  Svelte store; job-content, autosave lifecycle, PDF execution and local resume
+  storage need platform adapters. Share pure transformations and contracts,
+  not browser-only execution under Hermes. See the parity inventory findings.
 - **Autofill bridge.** The bridge call
   (`webkit.messageHandlers.pinkslipAutofill`) is abstracted so the Expo WebView
   can supply its own.
@@ -559,7 +589,7 @@ code was already deleted in 3.4).
 | D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Replace outright** (decided 2026-10-09; no users yet). Frozen until 3.4, then deleted | 0.1 |
 | D3 | Fonts | Klim (buy **web and app** licences; the app licence matters once Expo bundles the fonts) / Geist (OFL, free) | ✅ **Klim** (decided 2026-10-09). Licences bought before launch; trial files are fine until then. Make sure the bought files include the full character set (see 1.2) | 1.2 |
 | D4 | Form library | TanStack Form / React Hook Form | **TanStack Form**: form-level listeners suit autosave, types are stricter, works on RN. Switch to RHF if it fights us in 4.6 | 4.6 |
-| D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account is on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No price difference: Cloudflare has no per-Worker fee, and calls between Workers over a service binding aren't billed as extra requests | 1.1 |
+| D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account recorded as on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No second subscription; ordinary service-binding requests have no extra request fee. SSR still adds metered CPU and requests; see cost clarification above | 1.1 |
 | D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | ✅ **Neither** (decided 2026-10-09; no users yet). Capacitor is deleted in 3.4, and iOS gets no updates until the Expo app ships | 3.4 |
 | D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder** until the feature is un-tabled | 4.15 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
