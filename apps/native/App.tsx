@@ -15,6 +15,7 @@ import {
   DataProvider,
   clearPersonalQueries,
   createAppQueryClient,
+  queryKeys,
   useJobsList,
   useOwnerChangeCleanup,
   useSession,
@@ -55,14 +56,19 @@ function Prototype() {
   const session = useSession();
   const jobs = useJobsList();
   const [rotating, setRotating] = useState(false);
+  const [rotateError, setRotateError] = useState<string | null>(null);
   useOwnerChangeCleanup();
 
   const rotate = async () => {
     setRotating(true);
+    setRotateError(null);
     try {
-      await clearPersonalQueries(queryClient);
+      // Mint the new bearer first so the reset refetches belong to the new owner.
       await rotateSession();
-      await queryClient.invalidateQueries();
+      await clearPersonalQueries(queryClient);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session() });
+    } catch (cause) {
+      setRotateError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setRotating(false);
     }
@@ -92,9 +98,15 @@ function Prototype() {
             {rotating ? "Rotating…" : "Rotate token"}
           </Text>
         </Pressable>
+        {rotateError
+          ? <Text style={{ color: theme.bad, fontSize: fontSize.sm }}>rotate failed: {rotateError}</Text>
+          : null}
 
         <View style={{ marginTop: space["4"], gap: space["1"] }}>
           <Text style={{ color: theme.ink, fontSize: fontSize.lg, fontWeight: "600" }}>Jobs</Text>
+          <Text style={{ color: theme["ink-4"], fontSize: fontSize.xs }}>
+            query: {jobs.status}/{jobs.fetchStatus}
+          </Text>
           {jobs.isPending ? <ActivityIndicator /> : null}
           {jobs.isError
             ? <Text style={{ color: theme.bad, fontSize: fontSize.sm }}>{(jobs.error as Error).message}</Text>

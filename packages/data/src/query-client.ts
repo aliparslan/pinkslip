@@ -25,10 +25,14 @@ export function createAppQueryClient(config: QueryClientConfig = {}): QueryClien
   });
 }
 
-/** Cancel in-flight personal reads and drop their caches when the owner
- * changes. Owner-scoped screens call this; the shell wires it in 3.2. */
+/** Cancel in-flight personal reads and clear their data when the owner
+ * changes. Uses `resetQueries`, not `removeQueries`: removing a query that a
+ * mounted hook is observing orphans that hook in a pending state instead of
+ * refetching for the new owner. Owner-scoped screens call this; the shell wires
+ * it in 3.2. */
 export async function clearPersonalQueries(queryClient: QueryClient): Promise<void> {
   const filter = { queryKey: queryKeys.personal.root };
   await queryClient.cancelQueries(filter);
-  queryClient.removeQueries(filter);
+  await queryClient.resetQueries(filter);
+  queryClient.removeQueries({ ...filter, type: "inactive" });
 }

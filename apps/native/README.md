@@ -24,13 +24,21 @@ The simulator reaches the host's `127.0.0.1:3000`. A physical device needs the
 dev host to bind beyond loopback and an override:
 `EXPO_PUBLIC_API_URL=http://<lan-ip>:3000/api/v2 bun --filter @pinkslip/native start`.
 
-## Record on the runtime
+## Observed on the iOS simulator (2026-10-09, iPhone 17, iOS 26.4)
 
-- [ ] First launch mints a guest session; relaunch reuses the stored token.
-- [ ] "Rotate token" mints a new session; personal queries are cleared and
-      `/me` plus the feed refetch with the new bearer.
-- [ ] Job titles from the local D1 catalog render.
-- [ ] No red screen for DOM globals (`document`/`window`) or module errors.
+- [x] First launch mints a guest session; the screen shows `session: guest`.
+- [x] Relaunch reuses the keychain token: terminating Expo Go and reopening
+      stays `guest` without minting a new session.
+- [x] Job titles from the local D1 catalog render (25 shown).
+- [x] No DOM/red-screen errors; the only logged warning is the
+      `SafeAreaView` deprecation below.
+- [ ] Rotate token: the first tap exposed a real bug. `clearPersonalQueries`
+      used `removeQueries` while the jobs hook was mounted, which orphaned the
+      query in a permanent pending state (the API and the new session were
+      healthy; the feed returned in 40 ms). Fixed to `resetQueries` plus
+      removal of inactive entries only, reordered to mint before clearing, and
+      covered by a regression test. One more tap should confirm the end-to-end
+      flow.
 
 ## Known gaps for 6.x, recorded during this experiment
 
@@ -41,3 +49,5 @@ dev host to bind beyond loopback and an override:
   only exercise guest-session rotation until 6.3 lands.
 - The app has no invite-gate handling: with `ACCESS_CODE` configured,
   `/native/session` returns `access_required` and startup shows that error.
+- `SafeAreaView` from `react-native` is deprecated in RN 0.86; the native kit
+  should use `react-native-safe-area-context`.
