@@ -32,6 +32,10 @@ export type {
 } from "@pinkslip/domain/application-form";
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
+
+/** Web passes a File/Blob; native passes a local file reference that its
+ * networking layer turns into a multipart file part. */
+export type ResumeUploadFile = Blob | { uri: string; name: string; type: string };
 export type {
   OutreachContact,
   OutreachMessage,
@@ -865,9 +869,14 @@ function createEndpoints(context: ClientContext) {
       }),
   },
   resumeImport: {
-    parse: (file: File) => {
+    parse: (file: ResumeUploadFile) => {
       const body = new FormData();
-      body.set("file", file, file.name);
+      if (file instanceof Blob) {
+        body.append("file", file, "name" in file ? (file as File).name : "resume.pdf");
+      } else {
+        // React Native serializes { uri, name, type } into a multipart file part.
+        body.append("file", file as unknown as Blob);
+      }
       return request<ResumeImportResult>("/resume-import/parse", {
         method: "POST",
         body,

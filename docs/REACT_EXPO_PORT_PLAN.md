@@ -548,13 +548,22 @@ a bearer session against the local Worker, and lists job titles. Exercise
 token storage/rotation and owner changes. Verify Metro/Hermes imports have no
 accidental DOM or Svelte dependency.
 
-**1.6b Resume import and file lifecycle** · M · resolves D10
+**1.6b Resume import and file lifecycle** · M · resolves D10 · ✅ exercised on the iOS simulator
 Pick fixture PDFs on iOS, preserve the local attachment, parse text and scanned
 examples through the available server path, and test a WebView fallback if
 needed. Exercise multipart uploads, authentication, malformed/protected PDFs,
 cancel/error recovery, preview, and deletion. Compare outputs with the current
 parser/assessment contract; document the chosen server/WebView strategy and
 any device limitations before implementing the full editor.
+
+The prototype stages a picked or bundled PDF in app documents, uploads it
+through the shared client, maps server errors and deletes the local copy.
+Observed on iPhone 17 / iOS 26.4 against the AI-enabled Worker: text PDF →
+parsed profile; no-text PDF → `no_extractable_text`; malformed → `invalid_pdf`;
+`/resume-import/ocr` parses a rendered page image. Multipart needs
+expo-file-system's `File` Blob; the `{uri,name,type}` triple fails in Expo's
+native fetch. Details, harness commands and remaining gaps are in
+[apps/native/README.md](../apps/native/README.md).
 
 **1.6c Application browser and autofill bridge** · M
 Use controlled form fixtures to prove injected read/fill scripts, file
@@ -809,7 +818,7 @@ code was already deleted in 3.4).
 | D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder** until the feature is un-tabled | 4.15 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
 | D9 | Admin on iOS | Link out to web / build natively | **Link out** | 6.11 |
-| D10 | Resume import on iOS | Server-side / hidden WebView | Resolve through the early native import experiment, then implement the chosen adapter in 6.9 | 1.6b |
+| D10 | Resume import on iOS | Server-side / hidden WebView | ✅ **Resolved 2026-10-09**: server-side parse for text PDFs (validated from native). Scanned PDFs return `no_extractable_text`; render pages natively or reuse the web PDF.js path in a hidden WebView before calling `/resume-import/ocr` — recommend the WebView in 6.9, native renderer as fallback. Import needs sign-in (6.3) | 1.6b |
 | D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | ✅ **Moot**: no users to carry over | — |
 | D12 | Shared boundaries | Share all code below UI / share rules and contracts with app adapters | ✅ **Rules/contracts and applicable Query hooks shared; platform execution app-owned** (2026-10-09) | 1.4–1.6 |
 | D13 | State ownership | Parallel global stores / explicit owners by state type | ✅ **Query for server data, validated web URLs for committed filters, local/form drafts, and narrowly justified cross-screen workflows** (2026-10-09) | 1.5 |

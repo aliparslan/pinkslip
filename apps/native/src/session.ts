@@ -4,7 +4,7 @@ import * as SecureStore from "expo-secure-store";
 export type { ApiClient };
 
 const TOKEN_KEY = "pinkslip-native-token";
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:3000/api/v2";
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:3000/api/v2";
 
 let client: ApiClient | null = null;
 let accessToken: string | null = null;
@@ -46,4 +46,10 @@ export async function initializeSession(): Promise<ApiClient> {
 export async function rotateSession(): Promise<void> {
   await storeToken(null);
   await startGuestSession();
+}
+
+/** Prototype-only: seed the Keychain with a harness bearer token so the
+ * authenticated resume-import path can be exercised before sign-in (6.3). */
+export async function useDevBearerToken(token: string): Promise<void> {
+  await storeToken(token);
 }

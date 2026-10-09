@@ -94,6 +94,20 @@ describe("api client transport", () => {
     expect(sentHeaders(calls.calls[0]).get("content-type")).toBeNull();
   });
 
+  test("sends resume uploads as multipart", async () => {
+    const calls = capture({ profile: {} });
+    const client = createApiClient({ fetch: calls.fetchImpl });
+
+    await client.resumeImport.parse(new Blob(["%PDF-1.4"], { type: "application/pdf" }));
+
+    const body = calls.calls[0].init?.body;
+    expect(calls.calls[0].url).toBe("/api/v2/resume-import/parse");
+    expect(body).toBeInstanceOf(FormData);
+    const file = (body as FormData).get("file");
+    expect(file).toBeInstanceOf(Blob);
+    expect((file as Blob).type).toBe("application/pdf");
+  });
+
   test("resolves relative paths against a normalized base", () => {
     expect(createApiClient().resolveUrl("/jobs")).toBe("/api/v2/jobs");
     expect(createApiClient().resolveUrl("jobs")).toBe("/api/v2/jobs");

@@ -9,6 +9,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "work.pinkslip.native-prototype"
-    }
+    },
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }
