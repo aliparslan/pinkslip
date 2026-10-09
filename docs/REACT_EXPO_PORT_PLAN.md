@@ -1,6 +1,7 @@
 # React + Expo port plan
 
-Drafted 2026-10-09. Status: **agreed**. D1–D3 and D5 decided 2026-10-09; the rest are due at the chunk that needs them.
+Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. D1–D3, D5, D6 and D11 decided 2026-10-09; the rest are due at the chunk that needs them.
+The Svelte site is replaced outright in 3.4: no users yet, so no preview domain and no side-by-side running.
 
 Fresh start. This plan was written without consulting the earlier React/Expo
 attempt (`apps/web-react`, `apps/mobile`, `packages/ui`, `stash@{0}`). The live
@@ -34,10 +35,10 @@ packages/tokens/   new     design tokens in TS → tokens.css (web), tokens.ts (
 packages/data/     new     React (no DOM): TanStack Query hooks, session, Platform interface
 apps/webapp/       new     TanStack Start app; kit in src/kit/   → deploys as Worker `pinkslip-web`
 apps/native/       new     Expo app; kit in src/kit/
-worker/            exists  Hono API Worker `pinkslip`; loses its [assets] at web cutover
-─────────── deleted at cutover ───────────
-apps/web                 Svelte web shell        (Phase 5)
-packages/client, apps/ios Svelte UI + Capacitor   (Phase 7, after Expo ships; see D6)
+worker/            exists  Hono API Worker `pinkslip`; loses its [assets] when the new site goes live (3.4)
+──────── deleted when the new site replaces the old one (3.4) ────────
+apps/web, packages/client  Svelte web shell + app
+apps/ios                   Capacitor iOS wrapper (iOS gets no updates until the Expo app ships)
 ```
 
 **Dependency rule:** apps → data → core → shared, and apps → tokens. Nothing
@@ -64,7 +65,9 @@ in-process call with no network hop):
 
 Dev runs both Workers in one `vite dev` (the Cloudflare Vite plugin runs the
 API as an auxiliary Worker). Same hostname, so no CORS and no cookie issues.
-Before cutover the web Worker lives at `next.pinkslip.work`.
+There's no preview domain. The web Worker runs locally until chunk 3.4, when it
+takes over `pinkslip.work` and `pinkslip.alip.dev` and the Svelte site is deleted.
+There are no users yet, so production is the test site from then on.
 
 ## 3. Stack
 
@@ -182,16 +185,22 @@ from extra font sizes.
 
 ## 5. How the migration runs
 
-- **Svelte freeze.** After chunk 0.1, Svelte only gets bug fixes. New features
-  are built in the React app, and the slice order changes so their slice lands
-  first. Trade-off: on the web they're only visible at `next.` until cutover.
-- **Dogfood on `next.pinkslip.work`.** The new app is deployed for real from
-  Phase 1 onwards and used daily on your phone. It has its own sign-in (a new
-  origin), and Apple's web sign-in needs `next.` added as a return URL.
+- **Replace, don't run side by side.** There are no users, so there's no preview
+  domain, gradual cutover or compatibility window. The Svelte app gets no new
+  work, and API changes don't have to keep it working. It stays up, untouched,
+  until chunk 3.4 replaces it. Then `apps/web`, `packages/client` and `apps/ios`
+  are deleted, with a `svelte-final` tag pointing at the last version.
+- **Reading the old code after 3.4.** The parity checklist is the primary
+  reference. For details, read the tagged code with
+  `git show svelte-final:<path>`, or check it out read-only with
+  `git worktree add ../pinkslip-svelte svelte-final`.
+- **Develop locally, then production is the test site.** Until 3.4, use
+  `bun run dev:web` (the phone can reach it over the LAN). After 3.4, each slice
+  ships to `pinkslip.work` once it's verified locally and you've OK'd it.
+  `noindex` stays on until the SEO slice (4.16) lands.
 - **Lift shared logic, don't rewrite it.** Framework-free modules in
-  `packages/client/src/lib` move into `packages/core` (chunk 1.4), and Svelte
-  imports them from there, so both apps run the same code during the
-  transition. Only the stateful Svelte rune stores (`*.svelte.ts`) get rewritten,
+  `packages/client/src/lib` move into `packages/core` (chunk 1.4), so they
+  survive the Svelte deletion. Only the stateful Svelte rune stores (`*.svelte.ts`) get rewritten,
   as hooks.
 - **Parity checklist.** `docs/port-parity.md` (chunk 0.3) lists, per route:
   - every behaviour
@@ -213,9 +222,8 @@ from extra font sizes.
 
   That keeps auth off the server and keeps most of the port free of server-safety
   concerns.
-- **Rollback.** Cutovers are route changes on Cloudflare, so rolling back means
-  reverting the route or running `wrangler rollback`. The last Svelte commit gets a
-  tag.
+- **Rollback.** `wrangler rollback` on either Worker. Before 3.4 is verified,
+  moving the custom domains back to the API Worker restores the Svelte site.
 
 ### Definition of done (every web slice)
 
@@ -225,8 +233,8 @@ from extra font sizes.
 3. Loading, empty, error, guest, narrow and wide states all work, in dark, light
    and increased contrast.
 4. Its parity rows are ticked and its Playwright + axe specs pass.
-5. You've used it on `next.` and said it's good, then it's committed. Nothing is
-   pushed without your OK.
+5. You've used it (locally, or on `pinkslip.work` after 3.4) and said it's good,
+   then it's committed and deployed. Nothing is pushed or deployed without your OK.
 
 **Sizes:** S ≈ one sitting · M ≈ 2–3 sittings · L ≈ a week of sittings · XL = split it.
 
@@ -236,14 +244,14 @@ from extra font sizes.
 
 ### Phase 0: Clear the decks
 
-**0.1 Land in-flight work and freeze Svelte** · S · needs D2
+**0.1 Land in-flight work and freeze Svelte** · S · needs D2 · ✅ done
 Finish and commit the answer-bank feature, which is uncommitted now. It touches
 14 files, including `AnswersSection.svelte`, `worker/apply/answer-bank.ts`, the
 `/you/answers` route and `tests/apply-answers.test.ts`. Then add the freeze rule
 to CLAUDE.md.
 *Done when:* the working tree is clean, the answer bank works on web and iOS, and the freeze is written down.
 
-**0.2 Remove the earlier attempt from main** · S · needs D1
+**0.2 Remove the earlier attempt from main** · S · needs D1 · ✅ done
 - Delete `apps/web-react`, `apps/mobile`, `packages/ui` and the empty `apps/web-svelte`.
 - Remove them from `bun run check`.
 - Fix the stale CLAUDE.md lines: the fonts section says Geist under `frontend/`,
@@ -269,10 +277,11 @@ and the existing e2e specs.
 - `/api/*` is forwarded through the binding.
 - One server-rendered page and one client-only page prove two things: a server-side
   fetch through the binding works, and a browser fetch to the same origin works.
-- Deploy to `next.pinkslip.work`, with `noindex` and `X-Robots-Tag` on everything.
+- `X-Robots-Tag: noindex` on everything.
+- Deploy config for `pinkslip.work` and `pinkslip.alip.dev` is prepared but not
+  run; the deploy happens in 3.4.
 
-*Done when:* `vite dev` runs the API and web together, with D1, against your local data,
-and `next.` is live.
+*Done when:* `vite dev` runs the API and web together, with D1, against your local data.
 
 **1.2 Tokens package** · M · needs D3
 - Port `packages/client/src/styles/tokens.css` into a TS source of truth:
@@ -396,17 +405,30 @@ Screens are placeholders at this stage.
 - A route error boundary (page-level and inline failures).
 - Pending UI, empty states, an offline banner, and the toast viewport.
 
-**3.4 Dogfood loop** · S
-- A deploy script for `pinkslip-web` → `next.`.
-- The ported Playwright harness, run in `bun run check`.
+**3.4 Replace the Svelte site** · M
+- Port the Playwright harness (`api-mocks`, axe) to `apps/webapp/e2e` before
+  `apps/web` goes, and run it in `bun run check`.
+- Tag `svelte-final`, then delete `apps/web`, `packages/client` and `apps/ios`
+  plus their dependencies (Svelte, bits-ui, Capacitor, `postcss-html`). Update
+  `bun run check`, the governance script, CLAUDE.md and AGENTS.md.
+- Deploy `pinkslip-web` and move both hostnames to it (cutover option from
+  1.1's README). Remove `[assets]` from the API Worker and bring back a safe
+  `deploy:backend`. Confirm crons and queues are unaffected.
+- Serve a **kill-switch service worker** at the old service worker's URL: it
+  clears the Svelte caches and unregisters itself, so installed PWAs and old
+  tabs stop showing the old app.
+- `noindex` stays on until 4.16.
+- **You:** disable the Xcode Cloud workflow before this reaches main. It builds
+  `apps/ios`, which no longer exists. It comes back for the Expo app in 6.13.
 
-*Done when:* you can open `next.` on your phone, sign in, and click through
-every placeholder route.
+*Done when:* `pinkslip.work` serves the new app, you can sign in on your phone
+and click through every placeholder route, and the API, crons and queues work.
 
 ### Phase 4: Web screens
 
 These follow the user's core loop first (discover → read → save → apply), so
-`next.` becomes usable daily as early as possible.
+the live site becomes usable daily as early as possible. Each slice deploys to
+production once it's done.
 
 | # | Slice | Covers | Size |
 |---|---|---|---|
@@ -427,31 +449,15 @@ These follow the user's core loop first (discover → read → save → apply), 
 | 4.15 | Tailoring | Per D7: placeholder (S) or full port (XL, split) | S / XL |
 | 4.16 | SEO and previews | Per-route `head()` (title, description, canonical → `pinkslip.work`, OG/Twitter); `JobPosting` JSON-LD with `validThrough`, and closed jobs drop it; dynamic OG images per job (optional); sitemap generated from D1; robots; `noindex` on personal routes; `/about` prerendered | M |
 
-### Phase 5: Web cutover
+### Phase 5: Web launch
 
-**5.1 Parity audit** · M
-- Every parity row is ticked.
+The old site was already replaced in 3.4; this phase is the finish line.
+
+**5.1 Parity review and search launch** · M
+- Every parity row is ticked, or consciously cut.
 - The full e2e + axe suite passes.
-- A week on `next.` with no fallback to the old site.
-
-**5.2 Service-worker handover** · M
-Installed PWAs keep running the Svelte service worker until something replaces
-it. The new app serves a worker at the **old worker's URL**, which clears the
-Svelte caches and hands control to the new worker. Test the upgrade path from an
-installed Svelte PWA, and the manifest.
-
-**5.3 Flip** · S
-- Route `pinkslip.work/*` and `pinkslip.alip.dev/*` to `pinkslip-web`; `/api/*`
-  stays on `pinkslip`.
-- Remove `[assets]` from the API Worker and re-enable a safe `deploy:backend`.
-- Run the Search Console sitemap submission and the Rich Results test.
-- Tag `svelte-web-final`.
-
-**5.4 Delete the Svelte web shell** · S
-- Delete `apps/web`.
-- Keep `packages/client` and `apps/ios` if D6 is "freeze" (the iOS app still
-  ships them until Phase 7).
-- Update CLAUDE.md and `bun run check`.
+- Remove `noindex` from public routes (personal routes keep it). Submit the
+  sitemap in Search Console and run the Rich Results test on a job page.
 
 ### Phase 6: Expo iOS (native screens)
 
@@ -461,9 +467,10 @@ installed Svelte PWA, and the manifest.
 - **Same bundle ID as the Capacitor app**, so it ships as an update.
 - `ios/` is committed, because Xcode Cloud needs the project in the repo before
   any script runs; run prebuild locally when native config changes.
-- A **separate Xcode Cloud workflow** with manual start and internal TestFlight
-  only. Pushes to main keep archiving the Capacitor app until 6.13. Both workflows
-  share the app record's build-number sequence.
+- The Xcode Cloud workflow (disabled in 3.4) points at `apps/native`, with
+  manual start and internal TestFlight only until 6.13. Build numbers continue
+  the existing app record's sequence. The Capacitor project's bundle ID,
+  entitlements and capabilities are in the `svelte-final` tag for reference.
 
 **6.2 Native kit** · L · needs D8
 - The same component names and prop unions as the web kit: `Text`, `Heading`,
@@ -509,17 +516,15 @@ pipeline runs in a hidden WebView. PDF preview uses a WebView or QuickLook.
 
 **6.12 Tailoring** · per D7.
 
-**6.13 iOS cutover** · M · needs D11
-- Sign-in continuity (D11).
+**6.13 Ship the Expo app** · S
+- Xcode Cloud builds `apps/native` on every push to main again.
 - Push token re-registration on first launch.
-- The main Xcode Cloud workflow switches to `apps/native`.
 - Version 2.0.0.
 
 ### Phase 7: Cleanup
 
-Delete `apps/ios` (Capacitor), `packages/client`, and the Svelte, bits-ui and
-`postcss-html` dependencies. Final CLAUDE.md update. Optionally rename
-`apps/webapp` → `apps/web`.
+Final CLAUDE.md update. Optionally rename `apps/webapp` → `apps/web` (the Svelte
+code was already deleted in 3.4).
 
 ---
 
@@ -534,13 +539,12 @@ Delete `apps/ios` (Capacitor), `packages/client`, and the Svelte, bits-ui and
   relative times after mount. Keep the SSR surface small (§5).
 - **Web Workers and WASM under Start** (pdf.js, OCR). Use client-only routes,
   and prove loading works at the start of 4.10.
-- **Service-worker handover.** A forgotten Svelte worker keeps serving the old
-  app to installed PWAs. Chunk 5.2 exists for this.
-- **Apple sign-in return URLs** need `next.pinkslip.work` before 3.2, plus
-  native configuration in 6.3.
-- **The shared App Store record.** Expo builds reuse the Capacitor app's bundle
-  ID and build numbers, so a mis-triggered workflow could put an Expo build in
-  front of testers early. Keep the separate workflow on manual start.
+- **Stale service worker.** A forgotten Svelte worker keeps serving the old
+  app to installed PWAs and old tabs. The kill-switch worker in 3.4 exists for this.
+- **Xcode Cloud after 3.4.** The workflow builds `apps/ios` on every push to
+  main, and every build fails once it's deleted. Disable it first (3.4).
+- **Production is the test site after 3.4.** Every deploy is live. Keep
+  `noindex` until 4.16, and keep deploys per slice, each verified locally first.
 - **Auto-apply on iOS** depends on injecting scripts into a WebView. Prove it in
   6.10 before porting the surrounding UI.
 - **Scope creep from redesigning.** Port the behaviour and rebuild the visuals.
@@ -552,13 +556,13 @@ Delete `apps/ios` (Capacitor), `packages/client`, and the Svelte, bits-ui and
 | # | Decision | Options | Lean | Needed by |
 |---|---|---|---|---|
 | D1 | Earlier attempt on main | Delete from main / leave it | ✅ **Delete** (decided 2026-10-09). Git history and the stash keep it | 0.2 |
-| D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Freeze** (decided 2026-10-09) | 0.1 |
+| D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Replace outright** (decided 2026-10-09; no users yet). Frozen until 3.4, then deleted | 0.1 |
 | D3 | Fonts | Klim (buy **web and app** licences; the app licence matters once Expo bundles the fonts) / Geist (OFL, free) | ✅ **Klim** (decided 2026-10-09). Licences bought before launch; trial files are fine until then. Make sure the bought files include the full character set (see 1.2) | 1.2 |
 | D4 | Form library | TanStack Form / React Hook Form | **TanStack Form**: form-level listeners suit autosave, types are stricter, works on RN. Switch to RHF if it fights us in 4.6 | 4.6 |
 | D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account is on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No price difference: Cloudflare has no per-Worker fee, and calls between Workers over a service binding aren't billed as extra requests | 1.1 |
-| D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | **Freeze.** Rewrapping means throwaway glue (~1.2k lines) plus a separate SPA-mode build | 5.4 |
+| D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | ✅ **Neither** (decided 2026-10-09; no users yet). Capacitor is deleted in 3.4, and iOS gets no updates until the Expo app ships | 3.4 |
 | D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder** until the feature is un-tabled | 4.15 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
 | D9 | Admin on iOS | Link out to web / build natively | **Link out** | 6.11 |
 | D10 | Resume import on iOS | Server-side / hidden WebView | Decide after reading `worker/routes/resume-import.ts` | 6.9 |
-| D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | **Re-sign-in**, unless the handover proves cheap | 6.13 |
+| D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | ✅ **Moot**: no users to carry over | — |
