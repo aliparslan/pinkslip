@@ -2,6 +2,7 @@ import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/r
 import styles from "../styles/Shell.module.css";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
 import fontsCss from "@pinkslip/tokens/fonts.css?url";
+import resetCss from "../styles/reset.css?url";
 import baseCss from "../styles/base.css?url";
 
 export const Route = createRootRoute({
@@ -12,7 +13,7 @@ export const Route = createRootRoute({
       { title: "Pinkslip" },
       { name: "robots", content: "noindex, nofollow" },
     ],
-    links: [themeCss, fontsCss, baseCss].map((href) => ({ rel: "stylesheet", href })),
+    links: [themeCss, fontsCss, resetCss, baseCss].map((href) => ({ rel: "stylesheet", href })),
   }),
   component: Root,
   notFoundComponent: () => <section><h1>Page not found</h1><Link to="/">Back to Jobs</Link></section>,

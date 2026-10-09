@@ -44,6 +44,15 @@ equivalence against the frozen Svelte styles and a glyph-coverage check for the
 Klim trials. The tiny theme bootstrap preserves the existing `pinkslip-theme`
 preference before first paint. Foundation compositions remain in
 [Quarantine](src/kit/COMPONENTS.md).
+
+The app loads exactly four global stylesheets in layer order: generated
+`@pinkslip/tokens/tokens.css` (`@layer tokens`), `fonts.css`, `reset.css`
+(`@layer reset`) and `base.css` (`@layer base`). Screens and kit components use
+CSS Modules; `lint:css` enforces the ported rules (token-only colors and type,
+no `!important`, nesting depth, weights 400/500/600), generated
+`*.module.css.d.ts` files make class typos type errors, and
+`scripts/check-webapp-governance.ts` rejects Base UI imports outside `src/kit/`,
+string-literal `className`, non-custom-property inline styles and Tailwind.
 shadcn and Linear are aesthetic references, with no required component API.
 
 ## Verification

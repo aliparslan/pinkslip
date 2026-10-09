@@ -1,6 +1,35 @@
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); font-size: var(--fs-md); line-height: var(--leading-body); }
-h1 { font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 600; line-height: var(--leading-screen-title); letter-spacing: var(--tracking-screen-title); }
-a { color: inherit; text-underline-offset: 0.2em; }
-a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: var(--space-1); }
-::selection { background: var(--color-selection-bg); color: var(--color-selection-ink); }
+/* Body, selection and focus-ring defaults only. Everything else belongs to the
+   kit or a screen module. The h1 rule bridges until the Heading component
+   lands in Phase 2. */
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--fs-md);
+    line-height: var(--leading-body);
+  }
+
+  h1 {
+    font-family: var(--font-heading);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: var(--leading-screen-title);
+    letter-spacing: var(--tracking-screen-title);
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: var(--space-1);
+  }
+
+  ::selection {
+    background: var(--color-selection-bg);
+    color: var(--color-selection-ink);
+  }
+}

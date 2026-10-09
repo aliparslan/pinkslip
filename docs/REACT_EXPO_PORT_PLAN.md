@@ -437,7 +437,17 @@ and the font glyph contract.
 *Done when:* a script shows the generated CSS resolves to values identical to today's
 computed values.
 
-**1.3 CSS architecture and enforcement** · S
+**1.3 CSS architecture and enforcement** · S · ✅ implemented locally
+The webapp now loads exactly four global stylesheets in layer order: generated
+`tokens.css` (`@layer tokens`), `fonts.css`, `reset.css` (`@layer reset`) and
+`base.css` (`@layer base`). The stylelint config is ported to `apps/webapp`,
+where it lints plain `.css` files for real — the old `postcss-html` override left
+them unchecked, which surfaced and fixed a deprecated `appearance: button`.
+CSS modules emit typed `.d.ts` declarations, and
+`scripts/check-webapp-governance.ts` fails on Base UI imports outside `src/kit/`,
+string-literal `className`, non-custom-property inline styles and Tailwind. Each
+check was verified against a deliberately bad fixture.
+
 - The four global files and the layer order.
 - The stylelint config ported, plus CSS-Module rules.
 - Typed CSS Modules.

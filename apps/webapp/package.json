@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 3000",
     "check": "tsc --noEmit",
+    "lint:css": "stylelint 'src/**/*.css'",
+    "generate:css-modules": "bun ../../scripts/generate-webapp-css-modules.ts",
+    "check:css-modules": "bun ../../scripts/generate-webapp-css-modules.ts --check",
     "check:e2e": "tsc --noEmit --project e2e/tsconfig.json",
     "worker:types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false",
     "check:worker-types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false --check",
@@ -30,6 +33,7 @@
     "@vitejs/plugin-react": "6.1.2",
     "@playwright/test": "1.62.1",
     "@axe-core/playwright": "4.13.0",
+    "stylelint": "^17.14.1",
     "typescript": "6.0.3",
     "vite": "8.3.4",
     "wrangler": "4.149.0"
