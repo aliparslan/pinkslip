@@ -119,6 +119,9 @@
     },
     "packages/tokens": {
       "name": "@pinkslip/tokens",
+      "devDependencies": {
+        "typescript": "^6.0.3",
+      },
     },
     "services/resume-compiler": {
       "name": "@pinkslip/resume-compiler",

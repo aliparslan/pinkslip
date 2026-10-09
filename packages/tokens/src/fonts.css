@@ -1,6 +1,8 @@
 /* Shared product typography for the browser and the native WebView. The
    existing WOFF2 trial files live in the tokens package so both Vite bundles
-   fingerprint and emit the exact same source assets. */
+   fingerprint and emit the exact same source assets. The semantic
+   `--font-*` / `--leading-*` / `--tracking-*` values are generated into
+   tokens.css from src/tokens.ts. */
 @font-face {
   font-family: "Pinkslip Untitled Sans";
   src: url("../fonts/untitled-sans-vf-roman.woff2") format("woff2");
@@ -27,17 +29,5 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-}
-
-:root {
-  --font-heading: "Pinkslip Founders Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-sans: "Pinkslip Untitled Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --leading-body: 1.46;
-  --leading-root-title: 1.12;
-  --leading-screen-title: 1.14;
-  --tracking-root-title: -0.012em;
-  --tracking-screen-title: -0.01em;
 }
 

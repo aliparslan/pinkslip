@@ -1,9 +1,28 @@
 # Pinkslip tokens
 
-The web foundation preserves the current CSS and Klim font files byte-for-byte.
-`src/tokens.css` is copied from the frozen Svelte app; `src/fonts.css` preserves
-its font definitions and type roles with package-relative asset URLs.
+The single source of truth is `src/tokens.ts`. `bun run generate` emits:
 
-The TypeScript source, native values, generated unions, and computed-value
-equivalence checks remain chunk 1.2. Do not introduce a second palette here.
-The font files are the existing trials; the planned license/glyph checks remain.
+- `src/tokens.css` — the web stylesheet, keeping the frozen Svelte custom-property
+  names, the `@layer reset, tokens, base, kit, app` order, and every mode. This
+  also owns the `--font-*` / `--leading-*` / `--tracking-*` values, so
+  `src/fonts.css` holds only the `@font-face` declarations.
+- `src/native.ts` — native values: OKLCH converted to hex/rgba, lengths to point
+  numbers at the 16px web root, shadows to native geometry. `light`, `contrast`
+  and `lightContrast` mirror the web cascade; safe-area and `calc()` compositions
+  are web-only and intentionally absent.
+- `src/types.ts` — prop-value unions shared by the web and native kits, so an
+  off-scale value is a type error on both platforms.
+
+`bun run check` fails when the generated files drift, when any resolved value
+differs from the frozen `packages/client/src/styles/tokens.css` plus
+`typography.css` (95 values across 32 cascade contexts), or when a font misses a
+required glyph. The equivalence comparison reports itself as skipped after chunk
+3.4 deletes the frozen styles.
+
+The Klim WOFF2s are still the cut-down trials: they carry ~67 characters and
+almost no punctuation. `scripts/glyphs.ts` records their exact coverage, so a
+font whose sha256 changes switches automatically to full-coverage mode and must
+contain every character in `REQUIRED_PUNCTUATION`. Run
+`bun scripts/check-glyphs.ts --strict` against the bought files before launch.
+
+Do not add a second palette or a hand-edited generated file.

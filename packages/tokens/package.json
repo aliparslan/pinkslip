@@ -3,7 +3,17 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/tokens.ts",
+    "./native": "./src/native.ts",
+    "./types": "./src/types.ts",
     "./tokens.css": "./src/tokens.css",
     "./fonts.css": "./src/fonts.css"
+  },
+  "scripts": {
+    "generate": "bun scripts/generate.ts",
+    "check": "bun scripts/generate.ts --check && bun scripts/check-equivalence.ts && bun scripts/check-glyphs.ts && tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }

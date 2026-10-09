@@ -22,7 +22,7 @@
     "deploy:backend": "bun scripts/deploy-mode-note.ts backend && bun run db:migrate:remote && wrangler deploy --config wrangler.backend.toml --keep-vars",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "check": "bun run check:frontend && bun run check:worker-types && bunx tsc --noEmit && bun --filter @pinkslip/core check && bun --filter @pinkslip/client check && bun --filter @pinkslip/client lint:css && bun --filter @pinkslip/web check && bun run check:e2e:web && bun --filter @pinkslip/ios check && bun --filter @pinkslip/webapp check:worker-types && bun --filter @pinkslip/webapp check && bun run check:e2e:react",
+    "check": "bun run check:frontend && bun run check:worker-types && bunx tsc --noEmit && bun --filter @pinkslip/tokens check && bun --filter @pinkslip/core check && bun --filter @pinkslip/client check && bun --filter @pinkslip/client lint:css && bun --filter @pinkslip/web check && bun run check:e2e:web && bun --filter @pinkslip/ios check && bun --filter @pinkslip/webapp check:worker-types && bun --filter @pinkslip/webapp check && bun run check:e2e:react",
     "check:frontend": "bun scripts/check-frontend-governance.ts",
     "check:worker-types": "wrangler types worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false --env-file .dev.vars.example --check",
     "worker:types": "wrangler types worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false --env-file .dev.vars.example",

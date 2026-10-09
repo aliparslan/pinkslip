@@ -37,10 +37,13 @@ protects personal APIs. It performs reads only: no guest creation, matching,
 content backfills, or user activity writes. The personalized feed and full job
 description renderer are later feature slices.
 
-The current semantic CSS and font assets are preserved in `@pinkslip/tokens`;
-TypeScript/native token generation remains chunk 1.2. The tiny theme bootstrap
-preserves the existing `pinkslip-theme` preference before first paint.
-Foundation compositions remain in [Quarantine](src/kit/COMPONENTS.md).
+The token source and generator are implemented (chunk 1.2): `tokens.css`,
+native values and kit unions are generated from `packages/tokens/src/tokens.ts`.
+The current semantic CSS and font assets are preserved, with computed-value
+equivalence against the frozen Svelte styles and a glyph-coverage check for the
+Klim trials. The tiny theme bootstrap preserves the existing `pinkslip-theme`
+preference before first paint. Foundation compositions remain in
+[Quarantine](src/kit/COMPONENTS.md).
 shadcn and Linear are aesthetic references, with no required component API.
 
 ## Verification

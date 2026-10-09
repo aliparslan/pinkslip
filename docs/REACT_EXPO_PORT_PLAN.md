@@ -7,8 +7,10 @@ Implementation started 2026-10-09: [web foundation](../apps/webapp/README.md)
 now runs in the local Workers runtime, with public job SSR and client-only
 account reads through Hono. [Design references](port-design/README.md) preserve
 48 current captures, 26 historical baselines, the catalog, tokens and fonts.
-The shared token package currently preserves CSS/assets; TS/native generation
-is still 1.2. No production deployment or Svelte removal has happened.
+The shared token package now generates `tokens.css`, native values and kit
+unions from `packages/tokens/src/tokens.ts`, with computed-value equivalence
+against the frozen Svelte styles. The Klim trials stay in place with a glyph
+check that switches to strict full coverage when the bought files land. No production deployment or Svelte removal has happened.
 
 Claude's current-attempt `port-1.1-webapp` starter manifest was reviewed and
 used for the pinned runtime dependencies. Its worktree is untouched.
@@ -411,9 +413,12 @@ Foundation route compositions remain in Quarantine until the kit/screen port.
 
 *Done when:* `vite dev` runs the API and web together, with D1, against your local data.
 
-**1.2 Tokens package** · M · needs D3
-Progress: unchanged web CSS, fonts and first-paint theme preference are in place.
-The TS source, generated native values/unions, and equivalence/glyph checks remain.
+**1.2 Tokens package** · M · needs D3 · ✅ implemented locally
+The TS source of truth (`packages/tokens/src/tokens.ts`) generates
+`tokens.css`, native values and kit prop unions. Fonts and the first-paint theme
+bootstrap are in place, and `bun run check` enforces both computed-value
+equivalence with the frozen Svelte styles (95 values across 32 cascade contexts)
+and the font glyph contract.
 - Port `packages/client/src/styles/tokens.css` into a TS source of truth:
   - the dark default, `[data-mode="light"]`, and the increased-contrast variants
     (including iOS increased contrast)
