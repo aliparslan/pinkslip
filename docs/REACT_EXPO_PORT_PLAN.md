@@ -530,7 +530,15 @@ Run once the minimal contracts from 1.4/1.5 exist, before expanding the shared
 layer and feature screens. These prove capabilities; the product iOS build
 still follows the web product in Phase 6.
 
-**1.6a Data and session** · S
+**1.6a Data and session** · S · ✅ implemented locally; iOS runtime observations pending
+`apps/native` is a minimal Expo SDK 57 app: a SecureStore-backed guest bearer
+session against the local Worker (`POST /api/v2/native/session`), the
+`@pinkslip/data` session and jobs hooks, native token values, and a prototype
+screen (Quarantine). Metro/Hermes bundles it (641 modules, 1.6 MB `.hbc`) with a
+singleton resolver for React/Query, and a root test keeps core/data/tokens free
+of DOM and Svelte. The run/observation checklist is in
+[apps/native/README.md](../apps/native/README.md); known gaps recorded there are
+native font families (6.2) and real owner changes needing sign-in (6.3).
 A minimal Expo development app imports `core`, `data` and `tokens`, establishes
 a bearer session against the local Worker, and lists job titles. Exercise
 token storage/rotation and owner changes. Verify Metro/Hermes imports have no

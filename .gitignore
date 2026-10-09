@@ -6,6 +6,8 @@ packages/*/node_modules/
 # build output
 dist/
 apps/*/dist/
+apps/*/.expo/
+apps/native/expo-env.d.ts
 out/
 coverage/
 *.lcov

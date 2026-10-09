@@ -1,0 +1,26 @@
+{
+  "name": "@pinkslip/native",
+  "private": true,
+  "version": "0.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "export:ios": "expo export --platform ios --output-dir dist",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pinkslip/core": "workspace:*",
+    "@pinkslip/data": "workspace:*",
+    "@pinkslip/tokens": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
+    "expo": "~57.0.27",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "^6.0.3"
+  }
+}
