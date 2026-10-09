@@ -22,6 +22,10 @@ import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/
 import resumeImportRoutes from "./routes/resume-import";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
+import outreachRoutes from "./routes/outreach";
+import applyRoutes from "./routes/apply";
+import { flagEnabled } from "./feature-flags";
+import { remindDueFollowUps } from "./outreach/reminders";
 import { runClassificationShadow } from "./classification-shadow";
 import {
   NOTIFICATION_CRON_SCHEDULE,
@@ -124,10 +128,13 @@ app.use("/*", async (c, next) => {
   await next();
 });
 
-function appFeatures(env: Env) {
+function appFeatures(env: Env, account: { is_admin: boolean; session: { state: string } }) {
   const tailoring = resolveAppTailorConfig(env);
   return {
     access_required: Boolean(env.ACCESS_CODE?.trim()),
+    outreach_enabled: account.session.state === "authenticated" && flagEnabled(env.OUTREACH, account.is_admin),
+    auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin),
+    auto_submit_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SUBMIT, account.is_admin),
     tailoring_enabled: Boolean(tailoring),
     tailoring_provider: tailoring?.provider ?? null,
     tailoring_model: tailoring?.model ?? "",
@@ -278,6 +285,8 @@ app.route("/api/v2", tailorRoutes);
 app.route("/api/v2/runs", runRoutes);
 app.route("/api/v2/interactions", interactionRoutes);
 app.route("/api/v2/metrics", metricRoutes);
+app.route("/api/v2/outreach", outreachRoutes);
+app.route("/api/v2/apply", applyRoutes);
 app.route("/api/v2/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
   completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))
@@ -318,7 +327,7 @@ app.get("/api/v2/me", async (c) => {
   const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
   return c.json({
     ...accountState,
-    features: appFeatures(c.env),
+    features: appFeatures(c.env, accountState),
   });
 });
 app.get("/api/v2/bootstrap", async (c) => {
@@ -330,7 +339,7 @@ app.get("/api/v2/bootstrap", async (c) => {
       : loadUserPreferenceState(c.env.DB, c.get("userId")),
   ]);
   return c.json({
-    me: { ...accountState, features: appFeatures(c.env) },
+    me: { ...accountState, features: appFeatures(c.env, accountState) },
     preferences,
   });
 });
@@ -398,10 +407,15 @@ export function scheduledCycle(cron: string): ScheduledCycle {
 async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void> {
   if (cycle === "dispatch") {
     // The watchdog runs even when dispatch fails; that is when it matters most.
-    const [dispatch, watchdog] = await Promise.allSettled([
+    // Follow-up reminders ride the same every-minute tick so they land on time.
+    const [dispatch, watchdog, reminders] = await Promise.allSettled([
       dispatchDueSources(env),
       runPollingWatchdog(env),
+      remindDueFollowUps(env),
     ]);
+    if (reminders.status === "fulfilled" && reminders.value.reminded > 0) {
+      console.log(`Follow-up reminders: ${reminders.value.reminded} due, ${reminders.value.delivered} pushes delivered`);
+    }
     if (dispatch.status === "fulfilled") {
       const total = dispatch.value.reduce((sum, result) => sum + result.dispatched, 0);
       if (total > 0) {
@@ -410,6 +424,7 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void>
     }
     if (dispatch.status === "rejected") throw dispatch.reason;
     if (watchdog.status === "rejected") throw watchdog.reason;
+    if (reminders.status === "rejected") throw reminders.reason;
     return;
   }
   if (cycle === "notifications") {

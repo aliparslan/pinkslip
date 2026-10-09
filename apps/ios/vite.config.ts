@@ -21,6 +21,9 @@ export default defineConfig({
       },
     ],
   },
+  // Pre-bundling pdfjs-dist turns the worker's `?url` import into the worker
+  // module itself, so live reload got no worker URL and PDF import failed.
+  optimizeDeps: { exclude: ["pdfjs-dist"] },
   build: { outDir: "dist", emptyOutDir: true },
   server: {
     host: true,

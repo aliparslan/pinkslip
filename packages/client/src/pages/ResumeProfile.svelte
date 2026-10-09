@@ -33,6 +33,7 @@
   } from "../../../../shared/resume-profile";
   import type { ResumeImportAssessment } from "../../../../shared/resume-import";
   import { registerAutosaveFlush } from "../lib/autosave-lifecycle";
+  import { saveResumeFile } from "../lib/resume-file-store";
   import { isIosApp } from "../lib/platform";
   import {
     DEGREE_OPTIONS,
@@ -716,6 +717,8 @@
     pendingImportWarnings = [];
     pendingImportAssessment = null;
     importError = null;
+    // Kept on this device so autofill can attach it to applications.
+    if (lastImportFile) void saveResumeFile(lastImportFile).catch(() => undefined);
     lastImportFile = null;
     feedback.success("Resume imported");
     queueAutosave();

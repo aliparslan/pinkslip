@@ -51,6 +51,16 @@ export interface Env {
    * consumer instead of the 15-minute cron cycle. Empty keeps everything on cron.
    */
   QUEUE_POLLING_TIERS?: string;
+  /** Recruiter outreach: "on" for every signed-in user, "admin" for admins, unset for nobody. */
+  OUTREACH?: string;
+  /** Stands in as every company's recruiter until real discovery exists. */
+  OUTREACH_TEST_RECIPIENT?: string;
+  /** Testing only: "2,5" makes follow-ups come due 2 and 5 minutes after the email before. */
+  OUTREACH_FOLLOW_UP_MINUTES?: string;
+  /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
+  AUTO_APPLY?: string;
+  /** Lets autofill press Submit itself: "on", "admin", or unset. */
+  AUTO_APPLY_SUBMIT?: string;
   SOURCE_POLL_PRIORITY_QUEUE?: Queue<SourcePollMessage>;
   SOURCE_POLL_QUEUE?: Queue<SourcePollMessage>;
   NOTIFY_QUEUE?: Queue<NotifyMessage>;

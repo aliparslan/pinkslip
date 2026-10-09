@@ -28,6 +28,15 @@ interface ApplicationBrowserPlugin {
   addListener(eventName: "finished", listener: () => void): Promise<PluginListenerHandle>;
 }
 
+interface ApplicationFillerPlugin {
+  open(options: { url: string; script?: string }): Promise<void>;
+  run(options: { script: string }): Promise<{ value: string }>;
+  setStatus(options: { text: string }): Promise<void>;
+  close(): Promise<void>;
+  addListener(eventName: "finished" | "refill", listener: () => void): Promise<PluginListenerHandle>;
+  addListener(eventName: "loaded", listener: (event: { url: string }) => void): Promise<PluginListenerHandle>;
+}
+
 interface SecureSessionPlugin {
   get(): Promise<{ token?: string }>;
   set(options: { token: string }): Promise<void>;
@@ -85,6 +94,7 @@ interface NativeActionMenuPlugin {
 
 const AppleSignIn = registerPlugin<AppleSignInPlugin>("AppleSignIn");
 const ApplicationBrowser = registerPlugin<ApplicationBrowserPlugin>("ApplicationBrowser");
+const ApplicationFiller = registerPlugin<ApplicationFillerPlugin>("ApplicationFiller");
 const NativeAccessibility = registerPlugin<NativeAccessibilityPlugin>("NativeAccessibility");
 const NativeAppearance = registerPlugin<NativeAppearancePlugin>("NativeAppearance");
 const NativeActionMenu = registerPlugin<NativeActionMenuPlugin>("NativeActionMenu");
@@ -502,6 +512,45 @@ const iosRuntime: PlatformRuntime = {
     try {
       if (onFinished) handle = await ApplicationBrowser.addListener("finished", onFinished);
       await ApplicationBrowser.open({ url });
+      return () => void handle?.remove();
+    } catch (error) {
+      await handle?.remove();
+      throw error;
+    }
+  },
+  applicationBrowser: {
+    async open(rawUrl, events) {
+      const url = normalizeExternalUrl(rawUrl);
+      if (!url) throw new Error("A valid URL is required.");
+      const handles: PluginListenerHandle[] = [];
+      try {
+        if (events.onLoaded) handles.push(await ApplicationFiller.addListener("loaded", ({ url: loaded }) => events.onLoaded?.(loaded)));
+        if (events.onRefill) handles.push(await ApplicationFiller.addListener("refill", () => events.onRefill?.()));
+        if (events.onFinished) handles.push(await ApplicationFiller.addListener("finished", () => events.onFinished?.()));
+        await ApplicationFiller.open({ url });
+        return () => handles.forEach((handle) => void handle.remove());
+      } catch (error) {
+        handles.forEach((handle) => void handle.remove());
+        throw error;
+      }
+    },
+    async run(body) {
+      return (await ApplicationFiller.run({ script: body })).value;
+    },
+    async setStatus(text) {
+      await ApplicationFiller.setStatus({ text });
+    },
+    async close() {
+      await ApplicationFiller.close();
+    },
+  },
+  async openApplicationWithAutofill(rawUrl, script, onFinished) {
+    const url = normalizeExternalUrl(rawUrl);
+    if (!url) throw new Error("A valid URL is required.");
+    let handle: PluginListenerHandle | null = null;
+    try {
+      if (onFinished) handle = await ApplicationFiller.addListener("finished", onFinished);
+      await ApplicationFiller.open({ url, script });
       return () => void handle?.remove();
     } catch (error) {
       await handle?.remove();

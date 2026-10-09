@@ -4,7 +4,13 @@ import {
   openExternalWindow,
   openNativeApplicationBrowser,
 } from "./application-browser";
-import { isIosApp } from "./platform";
+import { isIosApp, platform } from "./platform";
+
+/** A prepared application: the ATS-hosted form and the script that fills it. */
+export interface ApplicationAutofill {
+  url: string;
+  script: string;
+}
 
 export interface ApplicationIntent {
   jobId: string;
@@ -32,7 +38,7 @@ class ApplicationIntentController {
     return () => this.clearReturnListeners();
   }
 
-  async open(job: Job): Promise<void> {
+  async open(job: Job, autofill: ApplicationAutofill | null = null): Promise<void> {
     const targetUrl = normalizeExternalUrl(job.url ?? "");
     if (!targetUrl) return;
 
@@ -48,11 +54,23 @@ class ApplicationIntentController {
 
     try {
       if (isIosApp()) {
+        const onFinished = () => {
+          this.clearReturnListeners();
+          this.present(intent);
+        };
+        const runtime = platform();
+        if (autofill && runtime.openApplicationWithAutofill) {
+          try {
+            this.nativeCleanup = await runtime.openApplicationWithAutofill(autofill.url, autofill.script, onFinished);
+            return;
+          } catch {
+            // Builds from before autofill lack the plugin; open the plain browser.
+            this.nativeCleanup?.();
+            this.nativeCleanup = null;
+          }
+        }
         try {
-          this.nativeCleanup = await openNativeApplicationBrowser(intent.url, () => {
-            this.clearReturnListeners();
-            this.present(intent);
-          });
+          this.nativeCleanup = await openNativeApplicationBrowser(intent.url, onFinished);
           return;
         } catch {
           // Older installed builds do not have the app-local plugin yet. Keep

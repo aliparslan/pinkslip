@@ -3,6 +3,7 @@ import Capacitor
 import AuthenticationServices
 import SafariServices
 import Security
+import WebKit
 
 private func pinkslipSurfaceColor(for style: UIUserInterfaceStyle) -> UIColor {
     style == .dark
@@ -37,6 +38,7 @@ class BridgeViewController: CAPBridgeViewController {
         // default). registerPluginInstance() has no such guard — use it here.
         bridge?.registerPluginInstance(AppleSignInPlugin())
         bridge?.registerPluginInstance(ApplicationBrowserPlugin())
+        bridge?.registerPluginInstance(ApplicationFillerPlugin())
         bridge?.registerPluginInstance(NativeActionMenuPlugin())
         bridge?.registerPluginInstance(NativeAccessibilityPlugin())
         bridge?.registerPluginInstance(NativeAppearancePlugin())
@@ -535,6 +537,245 @@ public class ApplicationBrowserPlugin: CAPPlugin, CAPBridgedPlugin, SFSafariView
             browser = nil
         }
         notifyListeners("finished", data: [:])
+    }
+}
+
+/// Opens an application form in a web view the app can drive: `run` executes
+/// a script in the page and returns its JSON result, and "loaded" fires after
+/// each page load. The app reads, fills, and submits through these.
+@objc(ApplicationFillerPlugin)
+public class ApplicationFillerPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "ApplicationFillerPlugin"
+    public let jsName = "ApplicationFiller"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "run", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise)
+    ]
+
+    private weak var navigation: UINavigationController?
+    private weak var filler: ApplicationFillerViewController?
+
+    @objc func open(_ call: CAPPluginCall) {
+        guard let rawURL = call.getString("url"),
+              let url = URL(string: rawURL),
+              url.scheme?.lowercased() == "https" else {
+            call.reject("A valid HTTPS application URL is required.")
+            return
+        }
+        let script = call.getString("script") ?? ""
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let presenter = self.bridge?.viewController else {
+                call.reject("The application browser is unavailable.")
+                return
+            }
+            let filler = ApplicationFillerViewController(
+                url: url,
+                script: script,
+                onLoaded: { [weak self] loaded in
+                    self?.notifyListeners("loaded", data: ["url": loaded.absoluteString])
+                },
+                onRefill: { [weak self] in
+                    self?.notifyListeners("refill", data: [:])
+                },
+                onFinished: { [weak self] in
+                    self?.notifyListeners("finished", data: [:])
+                }
+            )
+            let navigation = UINavigationController(rootViewController: filler)
+            // Over, not instead of: a full-screen modal takes the app's web view
+            // out of the window, iOS then suspends it, and the fill it drives
+            // stalls until the form is closed.
+            navigation.modalPresentationStyle = .overFullScreen
+            let present = {
+                presenter.present(navigation, animated: true) { call.resolve() }
+            }
+            if let existing = self.navigation, existing.presentingViewController != nil {
+                existing.dismiss(animated: false, completion: present)
+            } else {
+                present()
+            }
+            self.navigation = navigation
+            self.filler = filler
+        }
+    }
+
+    /// Runs `script` as the body of an async function in the form page and
+    /// resolves with what it returns, which must be a string (JSON).
+    @objc func run(_ call: CAPPluginCall) {
+        guard let script = call.getString("script") else {
+            call.reject("A script is required.")
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let filler = self?.filler else {
+                call.reject("The application browser is closed.", "CLOSED")
+                return
+            }
+            filler.run(script) { result in
+                switch result {
+                case .success(let value):
+                    call.resolve(["value": value as? String ?? ""])
+                case .failure(let error):
+                    call.reject(error.localizedDescription, "SCRIPT_FAILED")
+                }
+            }
+        }
+    }
+
+    @objc func setStatus(_ call: CAPPluginCall) {
+        let text = call.getString("text") ?? ""
+        DispatchQueue.main.async { [weak self] in
+            self?.filler?.navigationItem.title = text.isEmpty ? nil : text
+            call.resolve()
+        }
+    }
+
+    @objc func close(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            self?.filler?.closeFromApp()
+            call.resolve()
+        }
+    }
+}
+
+final class ApplicationFillerViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    private static let reportHandler = "pinkslipAutofill"
+
+    private let url: URL
+    private let script: String
+    private let onLoaded: (URL) -> Void
+    private let onRefill: () -> Void
+    private let onFinished: () -> Void
+    private var webView: WKWebView?
+    private var finished = false
+
+    init(
+        url: URL,
+        script: String,
+        onLoaded: @escaping (URL) -> Void,
+        onRefill: @escaping () -> Void,
+        onFinished: @escaping () -> Void
+    ) {
+        self.url = url
+        self.script = script
+        self.onLoaded = onLoaded
+        self.onRefill = onRefill
+        self.onFinished = onFinished
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+
+        let contentController = WKUserContentController()
+        if !script.isEmpty {
+            contentController.addUserScript(
+                WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+            )
+        }
+        contentController.add(WeakScriptMessageHandler(self), name: Self.reportHandler)
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = contentController
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        ])
+        self.webView = webView
+
+        navigationItem.title = url.host
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .done, target: self, action: #selector(close)
+        )
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Fill", style: .plain, target: self, action: #selector(fillAgain)
+        )
+
+        webView.load(URLRequest(url: url))
+    }
+
+    func run(_ source: String, completion: @escaping (Result<Any?, Error>) -> Void) {
+        guard let webView else {
+            completion(.failure(NSError(domain: "ApplicationFiller", code: 1)))
+            return
+        }
+        webView.callAsyncJavaScript(source, arguments: [:], in: nil, in: .page) { result in
+            completion(result.map { $0 })
+        }
+    }
+
+    @objc private func close() {
+        dismiss(animated: true) { [weak self] in self?.finish() }
+    }
+
+    func closeFromApp() {
+        close()
+    }
+
+    /// Asks the app to read and fill again, for fields that appeared after the
+    /// page loaded. The legacy injected script reruns too.
+    @objc private func fillAgain() {
+        if !script.isEmpty { webView?.evaluateJavaScript(script, completionHandler: nil) }
+        onRefill()
+    }
+
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.reportHandler)
+        onFinished()
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let loaded = webView.url { onLoaded(loaded) }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let report = message.body as? [String: Any],
+              let filled = report["filled"] as? Int,
+              let total = report["total"] as? Int else { return }
+        navigationItem.title = "Filled \(filled) of \(total)"
+    }
+
+    /// Links that open a new window load here instead.
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if navigationAction.targetFrame == nil { webView.load(navigationAction.request) }
+        return nil
+    }
+}
+
+/// WKUserContentController retains its handlers; this keeps it from retaining
+/// the view controller.
+final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: WKScriptMessageHandler?
+
+    init(_ target: WKScriptMessageHandler) {
+        self.target = target
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        target?.userContentController(userContentController, didReceive: message)
     }
 }
 

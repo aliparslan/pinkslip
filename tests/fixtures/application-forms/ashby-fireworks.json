@@ -1,0 +1,455 @@
+{
+ "id": "a610c272-0a28-47a8-af24-ca3001453b4e",
+ "title": "Privacy Program Engineer",
+ "applicationForm": {
+  "id": "c267f8aa-44fa-4094-9f84-f158c35c3552",
+  "sections": [
+   {
+    "title": null,
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552__systemfield_name",
+      "field": {
+       "id": "99b0fcae-c6f2-4b49-8cd9-00025048ff26",
+       "path": "_systemfield_name",
+       "humanReadablePath": "Name",
+       "title": "Legal Name",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_586c76d9-d7cf-4ff1-8c8e-a6be00823d41",
+      "field": {
+       "id": "dd467a61-3bec-4402-a684-97dcbe6a6b4b",
+       "path": "586c76d9-d7cf-4ff1-8c8e-a6be00823d41",
+       "humanReadablePath": "",
+       "title": "Preferred Name (if applicable)",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552__systemfield_email",
+      "field": {
+       "id": "88a5ac4f-4d2d-434d-9787-e891aa6a4bee",
+       "path": "_systemfield_email",
+       "humanReadablePath": "Email",
+       "title": "Email",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Email",
+       "__autoSerializationID": "EmailField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_377f8e90-d8f6-4312-ae26-018eec3c72f8",
+      "field": {
+       "id": "e4ebf013-3de8-4ba7-9780-55ae378dfe2f",
+       "path": "377f8e90-d8f6-4312-ae26-018eec3c72f8",
+       "humanReadablePath": "",
+       "title": "Phone Number",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Phone",
+       "__autoSerializationID": "PhoneField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552__systemfield_resume",
+      "field": {
+       "id": "37a5ebef-0486-4a11-b0aa-d710068e17f7",
+       "path": "_systemfield_resume",
+       "humanReadablePath": "Resume",
+       "title": "Resume",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "File",
+       "__autoSerializationID": "FileField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_61ba6d67-d15e-43bf-b7c8-7ecdc4bfcaa8",
+      "field": {
+       "id": "8dc76b64-5fed-46e0-9258-93da69eb081e",
+       "path": "61ba6d67-d15e-43bf-b7c8-7ecdc4bfcaa8",
+       "humanReadablePath": "",
+       "title": "LinkedIn URL",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Url",
+       "__autoSerializationID": "UrlField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_c6e9eef0-e7e6-4289-93c2-5007a6666bc4",
+      "field": {
+       "id": "39ae56e0-4209-42f0-9724-0e58bc2b7aee",
+       "path": "c6e9eef0-e7e6-4289-93c2-5007a6666bc4",
+       "humanReadablePath": "",
+       "title": "Are you authorized to work in the country where the job is located?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_ef5bb6f5-533b-41bb-9f68-476063d43b3f",
+      "field": {
+       "id": "a4f792ef-947b-40cf-8341-51edfd7dca4f",
+       "path": "ef5bb6f5-533b-41bb-9f68-476063d43b3f",
+       "humanReadablePath": "",
+       "title": "Will you now or in the future require visa sponsorship to work in the country where this position is located?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552__systemfield_location",
+      "field": {
+       "id": "37ef7904-a9f9-45d3-9c56-53b8a887844f",
+       "path": "_systemfield_location",
+       "humanReadablePath": "Location",
+       "title": "Where are you currently located?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Location",
+       "locationTypes": [
+        "Country",
+        "Region",
+        "City"
+       ],
+       "__autoSerializationID": "LocationField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_4341de9e-0ec6-4998-80b7-6c7281c2db9d",
+      "field": {
+       "id": "61ba0589-af56-4ef9-bd8d-5160724f3273",
+       "path": "4341de9e-0ec6-4998-80b7-6c7281c2db9d",
+       "humanReadablePath": "",
+       "title": "Which office location(s) are you interested in?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "MultiValueSelect",
+       "selectableValues": [
+        {
+         "label": "London, UK",
+         "value": "London, UK"
+        },
+        {
+         "label": "New York, NY",
+         "value": "New York, NY"
+        },
+        {
+         "label": "Remote, US",
+         "value": "Remote, US"
+        },
+        {
+         "label": "San Mateo, CA",
+         "value": "San Mateo, CA"
+        },
+        {
+         "label": "Singapore",
+         "value": "Singapore"
+        }
+       ],
+       "__autoSerializationID": "MultiValueSelectField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_f0267a5a-6fbb-4208-a9a0-cf9a85446514",
+      "field": {
+       "id": "995f3ff1-48d3-4164-91c9-cd94bfdea359",
+       "path": "f0267a5a-6fbb-4208-a9a0-cf9a85446514",
+       "humanReadablePath": "",
+       "title": "Are you open to a hybrid schedule with in-office days on Monday, Wednesday, and Friday?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_0876f33d-c9c1-4ee4-a682-3a5982466727",
+      "field": {
+       "id": "62ab47dc-8a51-4c11-a7c4-0305eb10cd4e",
+       "path": "0876f33d-c9c1-4ee4-a682-3a5982466727",
+       "humanReadablePath": "",
+       "title": "Why are you interested in Fireworks AI?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_3c0fef82-08ca-42ed-ba16-d3da6927e986",
+      "field": {
+       "id": "0e4f0793-acb7-4cd8-8bec-9a7387d8d78a",
+       "path": "3c0fef82-08ca-42ed-ba16-d3da6927e986",
+       "humanReadablePath": "",
+       "title": "If offered a position, what is your ideal start-date?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Date",
+       "__autoSerializationID": "DateField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552_659f0a18-0cc5-4e07-88b2-942147c5205f",
+      "field": {
+       "id": "a4ea9bd3-c310-443d-b187-98b6de9edb96",
+       "path": "659f0a18-0cc5-4e07-88b2-942147c5205f",
+       "humanReadablePath": "",
+       "title": "Do you have any initial compensation expectations?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Number",
+       "__autoSerializationID": "NumberField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "c267f8aa-44fa-4094-9f84-f158c35c3552__systemfield_recording_consent",
+      "field": {
+       "id": "8b991436-38c9-42ac-9371-f0f1cfb9c8b2",
+       "path": "_systemfield_recording_consent",
+       "humanReadablePath": "Interview Recording Consent",
+       "title": "Interview Recording Consent",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "ValueSelect",
+       "selectableValues": [
+        {
+         "label": "Yes, I consent to be recorded",
+         "value": "CanRecord"
+        },
+        {
+         "label": "Opt out of recording",
+         "value": "DoNotRecord"
+        }
+       ],
+       "__autoSerializationID": "ValueSelectField"
+      },
+      "isRequired": true,
+      "descriptionHtml": "<p style=\"min-height:1.5em\"><strong>About Interview Recording</strong></p><p style=\"min-height:1.5em\">To keep your interview experience seamless and distraction-free, we use an AI Notetaker to record and transcribe our interviews. This helps interviewers focus fully on the conversation and ensures your responses are captured accurately. The recording will only be used internally for evaluation. If you would prefer not to be recorded, you can opt out on this page. Opting out will not impact your candidacy in any way.</p>"
+     }
+    ]
+   }
+  ]
+ },
+ "surveyForms": [
+  {
+   "id": "b3d69500-d2f0-4f36-b979-c8a19da49e0d",
+   "sections": [
+    {
+     "title": null,
+     "fieldEntries": [
+      {
+       "id": "b3d69500-d2f0-4f36-b979-c8a19da49e0d__systemfield_eeoc_gender",
+       "field": {
+        "id": "2ae94743-8c3d-41f5-8810-ae6ee3cd47cc",
+        "path": "_systemfield_eeoc_gender",
+        "humanReadablePath": "Gender",
+        "title": "Gender",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "Male",
+          "value": "male"
+         },
+         {
+          "label": "Female",
+          "value": "female"
+         },
+         {
+          "label": "Decline to self-identify",
+          "value": "decline_to_self_identify"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": "<p>Input gender</p>"
+      },
+      {
+       "id": "b3d69500-d2f0-4f36-b979-c8a19da49e0d__systemfield_eeoc_race",
+       "field": {
+        "id": "01a74d69-91c5-4eea-846b-5a1d660423d1",
+        "path": "_systemfield_eeoc_race",
+        "humanReadablePath": "Race",
+        "title": "Race",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "Hispanic or Latino",
+          "value": "hispanic_or_latino"
+         },
+         {
+          "label": "White (Not Hispanic or Latino)",
+          "value": "white"
+         },
+         {
+          "label": "Black or African American (Not Hispanic or Latino)",
+          "value": "black_or_african_american"
+         },
+         {
+          "label": "Native Hawaiian or Other Pacific Islander (Not Hispanic or Latino)",
+          "value": "native_hawaiian_or_other_pacific_islander"
+         },
+         {
+          "label": "Asian (Not Hispanic or Latino)",
+          "value": "asian"
+         },
+         {
+          "label": "American Indian or Alaska Native (Not Hispanic or Latino)",
+          "value": "american_indian_or_alaska_native"
+         },
+         {
+          "label": "Two or More Races (Not Hispanic or Latino)",
+          "value": "two_or_more_races"
+         },
+         {
+          "label": "Decline to self-identify",
+          "value": "decline_to_self_identify"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": "<ul><li><p><strong>Hispanic or Latino</strong> - A person of Cuban, Mexican, Puerto Rican, South or Central American, or other Spanish culture or origin regardless of race.</p></li></ul><ul><li><p><strong>White</strong> (Not Hispanic or Latino) - A person having origins in any of the original peoples of Europe, the Middle East, or North Africa.</p></li><li><p><strong>Black or African American</strong> (Not Hispanic or Latino) - A person having origins in any of the Black racial groups of Africa.</p></li><li><p><strong>Native Hawaiian or Other Pacific Islander</strong> (Not Hispanic or Latino) - A person having origins in any of the peoples of Hawaii, Guam, Samoa, or other Pacific Islands.</p></li><li><p><strong>Asian</strong> (Not Hispanic or Latino) - A person having origins in any of the original peoples of the Far East, Southeast Asia, or the Indian Subcontinent, including, for example, Cambodia, China, India, Japan, Korea, Malaysia, Pakistan, the Philippine Islands, Thailand, and Vietnam.</p></li><li><p><strong>American Indian or Alaska Native</strong> (Not Hispanic or Latino) - A person having origins in any of the original peoples of North and South America (including Central America), and who maintain tribal affiliation or community attachment.</p></li><li><p><strong>Two or More Races</strong> (Not Hispanic or Latino) - All persons who identify with more than one of the above five races.</p></li></ul>"
+      }
+     ]
+    },
+    {
+     "title": null,
+     "fieldEntries": [
+      {
+       "id": "b3d69500-d2f0-4f36-b979-c8a19da49e0d__systemfield_eeoc_veteran_status",
+       "field": {
+        "id": "2b7d5898-d23f-47de-a32e-a7fd27951e2d",
+        "path": "_systemfield_eeoc_veteran_status",
+        "humanReadablePath": "Veteran Status",
+        "title": "Veteran Status",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "I identify as one or more of the classifications of protected veteran listed above",
+          "value": "protected_veteran"
+         },
+         {
+          "label": "I am not a protected veteran",
+          "value": "non_protected_veteran"
+         },
+         {
+          "label": "I decline to self-identify for protected veteran status",
+          "value": "decline_to_self_identify"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -10,7 +10,7 @@
   import { sessionAccess } from "../lib/session-access";
   import { markViewed } from "../lib/viewed";
   import { feedback, UNDO_TOAST_DURATION } from "../lib/feedback.svelte";
-  import { applicationIntent } from "../lib/application-intent.svelte";
+  import { applicationIntent, type ApplicationAutofill } from "../lib/application-intent.svelte";
   import { jobOriginalTimingLabel, jobTimingLabel } from "@pinkslip/core/job-timing";
   import { presentPending } from "../lib/task-presentation.svelte";
   import { isIosApp, platform } from "../lib/platform";
@@ -40,6 +40,10 @@
   import Flag from "phosphor-svelte/lib/Flag";
   import Spinner from "../components/Spinner.svelte";
   import PageFailure from "../components/PageFailure.svelte";
+  import OutreachSheet from "../components/OutreachSheet.svelte";
+  import ApplicationPrepSheet from "../components/ApplicationPrepSheet.svelte";
+  import { autoApply } from "../lib/auto-apply";
+  import EnvelopeSimple from "phosphor-svelte/lib/EnvelopeSimple";
 
   let { jobId = null }: { jobId?: string | null } = $props();
 
@@ -63,6 +67,15 @@
   let reportType: string = $state("incorrect_details");
   let reportNotes: string = $state("");
   let reporting: boolean = $state(false);
+  let showOutreach: boolean = $state(false);
+  let outreachThreadId: string | null = $state(null);
+  let outreachEnabled = $derived(Boolean($sessionAccess.features?.outreach_enabled));
+  let autoApplyEnabled = $derived(Boolean($sessionAccess.features?.auto_apply_enabled));
+  let showPrep: boolean = $state(false);
+  // A follow-up reminder links here with ?outreach=<thread> to open that email.
+  let requestedOutreachThread = $derived(
+    new URLSearchParams($currentRoute.split("?")[1] ?? "").get("outreach")
+  );
   let openedJobId: string | null = null;
   let descriptionRefreshTimer: number | null = null;
   let descriptionRefreshAttempts = 0;
@@ -190,6 +203,17 @@
     };
   });
 
+  let handledOutreachRequest: string | null = null;
+  $effect(() => {
+    const requested = requestedOutreachThread;
+    if (!requested || requested === handledOutreachRequest || !outreachEnabled || !job) return;
+    handledOutreachRequest = requested;
+    untrack(() => {
+      outreachThreadId = requested;
+      showOutreach = true;
+    });
+  });
+
   onDestroy(() => {
     clearDescriptionRefreshTimer();
   });
@@ -227,7 +251,7 @@
     }
   }
 
-  async function openApplication() {
+  async function openApplication(autofill: ApplicationAutofill | null = null) {
     if (!job?.url || openingApplication) return;
     openingApplication = true;
     void api.interactions.event({
@@ -237,9 +261,48 @@
       properties: {},
     }).catch(() => undefined);
     try {
-      await applicationIntent.open(job);
+      await applicationIntent.open(job, autofill);
     } catch (e) {
       feedback.error(errorMessage(e, "Could not open the application page."));
+    } finally {
+      openingApplication = false;
+    }
+  }
+
+  /** Opens the form in the native browser, which reads, fills, and (when
+   * allowed) submits it. Where that browser doesn't exist, the prep sheet
+   * shows the answers instead. */
+  async function startApplication() {
+    if (!job || !jobId || openingApplication) return;
+    const browser = platform().applicationBrowser;
+    if (!autoApplyEnabled) return void openApplication();
+    if (!browser) {
+      showPrep = true;
+      return;
+    }
+    const applyingTo = job;
+    const id = jobId;
+    openingApplication = true;
+    void api.interactions.event({
+      event_name: "apply_clicked",
+      entity_type: "job",
+      entity_id: id,
+      properties: { source: "auto_apply" },
+    }).catch(() => undefined);
+    try {
+      const prepared = await api.apply.prepare(id).catch(() => null);
+      const url = prepared?.apply_url ?? applyingTo.url;
+      if (!url) return;
+      void autoApply(browser, {
+        jobId: id,
+        url,
+        autoSubmit: Boolean($sessionAccess.features?.auto_submit_enabled),
+        onSubmitted: () => {
+          void api.jobs.markApplied(id).then((updated) => {
+            if (jobId === id) syncJobState(updated);
+          }).catch(() => undefined);
+        },
+      }).catch((error) => feedback.error(errorMessage(error, "Could not open the application page.")));
     } finally {
       openingApplication = false;
     }
@@ -764,12 +827,12 @@
         <button type="button" class="text-button" onclick={() => (showReport = true)}>Report listing</button>
       </div>
     {/if}
-    <div class="job-action-bar">
+    <div class="job-action-bar" class:three-up={outreachEnabled}>
       {#if applicationState === "available"}
         <button
           type="button"
           class="btn-primary btn-accent btn-action button-link"
-          onclick={openApplication}
+          onclick={() => void startApplication()}
           disabled={openingApplication || $jobReadPresentation.readOnly}
         >
           {#if openingApplication}<Spinner />{:else}<ArrowSquareOut size={18} weight="bold" aria-hidden="true" />{/if}
@@ -801,11 +864,25 @@
         <Sparkle size={18} weight="fill" aria-hidden="true" />
         Tailor
       </button>
+      {#if outreachEnabled}
+        <button
+          class="btn-secondary btn-action"
+          onclick={() => { outreachThreadId = null; showOutreach = true; }}
+          disabled={$jobReadPresentation.readOnly}
+        >
+          <EnvelopeSimple size={18} weight="bold" aria-hidden="true" />
+          Email
+        </button>
+      {/if}
     </div>
   </div>
 {/if}
 
 <style>
+  .job-action-bar.three-up {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+
   .job-detail-title {
     font-family: var(--font-display);
     font-weight: 600;
@@ -1002,6 +1079,24 @@
   }
 
 </style>
+
+{#if showPrep && job && jobId}
+  <ApplicationPrepSheet
+    {jobId}
+    companyName={job.company_name}
+    onopen={(autofill) => void openApplication(autofill)}
+    onclose={() => (showPrep = false)}
+  />
+{/if}
+
+{#if showOutreach && job && jobId}
+  <OutreachSheet
+    {jobId}
+    companyName={job.company_name}
+    threadId={outreachThreadId}
+    onclose={() => { showOutreach = false; outreachThreadId = null; }}
+  />
+{/if}
 
 {#if showReport}
   <Modal

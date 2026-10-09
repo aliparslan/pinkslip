@@ -10,12 +10,29 @@ import type {
   PollableCompanySourceType,
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
+import type {
+  ApplicationAnswerValue,
+  ApplyPlan,
+  FormControl,
+  PreparedApplication,
+} from "@pinkslip/domain/application-form";
 import type {
   StructuredTailoring,
   TailoredResume,
   TailoringArtifact,
   TailoringValidation,
 } from "@pinkslip/domain/tailoring";
+export type {
+  ApplicationAnswerValue,
+  PreparedApplication,
+  PreparedApplicationField,
+} from "@pinkslip/domain/application-form";
+export type {
+  OutreachContact,
+  OutreachMessage,
+  OutreachThread,
+} from "@pinkslip/domain/outreach";
 export type {
   DegreeType,
   OptionalSection,
@@ -378,6 +395,9 @@ export interface AccountInfo {
 
 export interface AppFeatures {
   access_required: boolean;
+  outreach_enabled?: boolean;
+  auto_apply_enabled?: boolean;
+  auto_submit_enabled?: boolean;
   tailoring_enabled: boolean;
   tailoring_provider: "workers_ai" | null;
   tailoring_model: string;
@@ -750,6 +770,54 @@ export const api = {
       publishJobMutation(job);
       return job;
     },
+  },
+  apply: {
+    prepare: (jobId: string) => request<PreparedApplication>(`/apply/jobs/${jobId}`, undefined, 30_000),
+    plan: (jobId: string | null, controls: FormControl[]) =>
+      request<ApplyPlan & { cost_usd: number }>("/apply/plan", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId, controls }),
+      }, 30_000),
+    report: (report: Record<string, unknown>) =>
+      request<void>("/apply/report", { method: "POST", body: JSON.stringify(report) }),
+    learn: (controls: FormControl[]) =>
+      request<{ saved: number }>("/apply/learn", {
+        method: "POST",
+        body: JSON.stringify({ controls }),
+      }),
+    saveAnswers: (jobId: string, answers: Record<string, ApplicationAnswerValue | null>) =>
+      request<PreparedApplication>(`/apply/jobs/${jobId}/answers`, {
+        method: "PUT",
+        body: JSON.stringify({ answers }),
+      }, 30_000),
+  },
+  outreach: {
+    list: (jobId?: string) =>
+      request<{ threads: OutreachThread[] }>(
+        `/outreach/threads${jobId ? `?job_id=${encodeURIComponent(jobId)}` : ""}`
+      ),
+    get: (threadId: string) => request<OutreachThread>(`/outreach/threads/${threadId}`),
+    start: (jobId: string) =>
+      request<OutreachThread>("/outreach/threads", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId }),
+      }),
+    edit: (messageId: string, changes: { subject?: string; body?: string }) =>
+      request<OutreachThread>(`/outreach/messages/${messageId}`, {
+        method: "PATCH",
+        body: JSON.stringify(changes),
+      }),
+    markSent: (messageId: string, timeZone: string) =>
+      request<OutreachThread>(`/outreach/messages/${messageId}/sent`, {
+        method: "POST",
+        body: JSON.stringify({ time_zone: timeZone }),
+      }),
+    markReplied: (threadId: string) =>
+      request<OutreachThread>(`/outreach/threads/${threadId}/replied`, { method: "POST" }),
+    stop: (threadId: string) =>
+      request<OutreachThread>(`/outreach/threads/${threadId}/stop`, { method: "POST" }),
+    discard: (threadId: string) =>
+      request<void>(`/outreach/threads/${threadId}`, { method: "DELETE" }),
   },
   appliedJobs: {
     list: () => request<{ jobs: Job[] }>("/jobs/applied/list"),

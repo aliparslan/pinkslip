@@ -1,0 +1,142 @@
+{
+ "id": "a5cb058a-681c-4f72-8b4d-1429b154a182",
+ "title": "Senior Systems Engineer - Network",
+ "surveyForms": [],
+ "applicationForm": {
+  "id": "fb767b4f-1616-41e4-9392-25c79e8ca004",
+  "sections": [
+   {
+    "title": null,
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004__systemfield_name",
+      "field": {
+       "id": "d5fcb6f1-8949-45d3-ae75-db574a5166d7",
+       "path": "_systemfield_name",
+       "humanReadablePath": "Name",
+       "title": "Name",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004__systemfield_email",
+      "field": {
+       "id": "e634090c-90fa-49ae-aae6-360b9ff942dc",
+       "path": "_systemfield_email",
+       "humanReadablePath": "Email",
+       "title": "Email",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Email",
+       "__autoSerializationID": "EmailField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004__systemfield_resume",
+      "field": {
+       "id": "3666df30-971f-41b3-a0f5-bfeed8029b59",
+       "path": "_systemfield_resume",
+       "humanReadablePath": "Resume",
+       "title": "Resume",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "File",
+       "__autoSerializationID": "FileField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004_9b74b690-81c0-4cb1-a866-e373246f178a",
+      "field": {
+       "id": "a775959a-fb08-4432-9a51-d786432bbefa",
+       "path": "9b74b690-81c0-4cb1-a866-e373246f178a",
+       "humanReadablePath": "",
+       "title": "Are you legally authorized to work in the United States?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004_355a2d86-d576-4c2b-b5c0-a411348780c3",
+      "field": {
+       "id": "a775959a-fb08-4432-9a51-d786432bbefa",
+       "path": "355a2d86-d576-4c2b-b5c0-a411348780c3",
+       "humanReadablePath": "",
+       "title": "Will you require visa sponsorship now or in the future?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004_630f6006-b6b5-487f-bf03-abbce3314fd6",
+      "field": {
+       "id": "21b62602-12cd-4460-b5b8-2488667e009c",
+       "path": "630f6006-b6b5-487f-bf03-abbce3314fd6",
+       "humanReadablePath": "",
+       "title": "Please share your LinkedIn profile.",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Url",
+       "__autoSerializationID": "UrlField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "fb767b4f-1616-41e4-9392-25c79e8ca004_bfcb382b-1f09-4d72-8ffd-194b0c636446",
+      "field": {
+       "id": "64065e6f-0e8b-46c5-a589-b5c0443573ac",
+       "path": "bfcb382b-1f09-4d72-8ffd-194b0c636446",
+       "humanReadablePath": "",
+       "title": "Please share links to GitHub, portfolio, publications, or hardware projects (if applicable).",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Url",
+       "__autoSerializationID": "UrlField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   }
+  ]
+ }
+}

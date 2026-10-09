@@ -9,6 +9,7 @@
   import Modal from "../../components/Modal.svelte";
   import Spinner from "../../components/Spinner.svelte";
   import AppleMark from "../../components/AppleMark.svelte";
+  import { clearResumeFile } from "../../lib/resume-file-store";
 
   let {
     sessionState,
@@ -95,6 +96,7 @@
     try {
       await api.auth.logout();
       await clearJobReadCache();
+      await clearResumeFile();
       if (nativeIos) clearBootstrapCache();
       const nextUrl = new URL(window.location.href);
       if (nativeIos) {
@@ -119,6 +121,7 @@
     try {
       const response = await api.auth.deleteAccount();
       await clearJobReadCache();
+      await clearResumeFile();
       syncSessionAccess(response);
       showDeleteConfirm = false;
       await onReload();

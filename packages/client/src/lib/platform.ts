@@ -41,6 +41,23 @@ export interface PlatformFileExportOptions {
 
 export type PlatformFileExportResult = "downloaded" | "presented";
 
+export interface ApplicationBrowserEvents {
+  /** A page finished loading; read it again. */
+  onLoaded?: (url: string) => void;
+  /** The user tapped Fill. */
+  onRefill?: () => void;
+  /** The browser closed. */
+  onFinished?: () => void;
+}
+
+export interface ApplicationBrowserSession {
+  open(url: string, events: ApplicationBrowserEvents): Promise<() => void>;
+  /** Runs `body` as an async function in the form page; it must return a string. */
+  run(body: string): Promise<string>;
+  setStatus(text: string): Promise<void>;
+  close(): Promise<void>;
+}
+
 export interface PlatformRuntime {
   readonly kind: PlatformKind;
   initialize(): Promise<void>;
@@ -65,6 +82,11 @@ export interface PlatformRuntime {
   exportFile(options: PlatformFileExportOptions): Promise<PlatformFileExportResult>;
   shareLink(options: { title?: string; text?: string; url: string }): Promise<void>;
   openApplication(url: string, onFinished?: () => void): Promise<() => void>;
+  /** Opens an application form and runs an autofill script in it. Only the
+   * iOS app can do this; elsewhere the form opens without filling. */
+  openApplicationWithAutofill?(url: string, script: string, onFinished?: () => void): Promise<() => void>;
+  /** A form browser the app drives step by step (iOS only). */
+  applicationBrowser?: ApplicationBrowserSession;
   openExternal(url: string): void;
 }
 

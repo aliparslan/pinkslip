@@ -66,6 +66,28 @@ stacking multiple tones or sizes is not supported.
 
 ## Quarantine
 
+- **Native application browser (auto-apply)** — Owner: Auto-apply. Reason:
+  on iOS, Apply opens the form in a native web view that the app drives: it
+  reads any form (`lib/form-reader.ts`), asks the server how to answer it,
+  fills it (`lib/form-filler.ts`), and submits when `AUTO_APPLY_SUBMIT` allows.
+  Status shows in the native title bar; there is no new Svelte UI. Call site:
+  `JobDetail.svelte` via `lib/auto-apply.ts`. Needs hands-on iOS review.
+- **Application prep sheet** — Owner: Auto-apply. Reason: shows a job's real
+  application questions (Greenhouse, Ashby) filled from the resume, saved
+  answers, and job preferences, with unanswered required questions first and
+  voluntary surveys declined by default. Answers save to the user's bank on
+  change. Reuses `Modal`, chip, select, and form compositions; the grouped
+  question list is new. Call site: `ApplicationPrepSheet.svelte`, opened by
+  the job page's Apply action. Behind the `AUTO_APPLY` flag. Needs hands-on
+  iOS and web review.
+- **Recruiter outreach sheet** — Owner: Outreach. Reason: drafts the first
+  email and two follow-ups to a company's recruiter; the user sends each from
+  their own mail app and marks it sent, and follow-ups come due on a schedule.
+  Reuses `Modal`, form, alert, and action-row compositions; only the step list
+  is new. Call site: `OutreachSheet.svelte`, opened from the job page's Email
+  action and from follow-up reminders (`/jobs/:id?outreach=<thread>`). Behind
+  the `OUTREACH` flag. Needs hands-on iOS and web review.
+
 - **SvelteKit public About page** — Owner: Web experience. Reason: minimal
   prerendered public content and route-specific metadata establish the SEO
   boundary without replacing the Jobs feed. Uses existing page and button

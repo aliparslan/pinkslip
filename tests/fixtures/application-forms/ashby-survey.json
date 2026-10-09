@@ -1,0 +1,994 @@
+{
+ "id": "804f6fcb-e244-4734-b3c9-029c108359f4",
+ "title": "Senior Developer Advocate",
+ "applicationForm": {
+  "id": "92fb2fa1-c72b-490c-aa51-d121092d7387",
+  "sections": [
+   {
+    "title": null,
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387__systemfield_resume",
+      "field": {
+       "id": "a579aef5-1b74-4d6a-857e-91580fc9e160",
+       "path": "_systemfield_resume",
+       "humanReadablePath": "Resume",
+       "title": "Resume",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "File",
+       "__autoSerializationID": "FileField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387__systemfield_name",
+      "field": {
+       "id": "d49fb39e-273d-477a-a4f4-a6652bbcc8f7",
+       "path": "_systemfield_name",
+       "humanReadablePath": "Name",
+       "title": "Full Name",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_fd55c60d-8d94-4e4d-92f5-354bc161f98d",
+      "field": {
+       "id": "fd55c60d-8d94-4e4d-92f5-354bc161f98d",
+       "path": "fd55c60d-8d94-4e4d-92f5-354bc161f98d",
+       "humanReadablePath": "",
+       "title": "Pronouns",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": "<p>In order for us to address you in accordance with your communication preferences.</p>"
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387__systemfield_email",
+      "field": {
+       "id": "04f3f053-b1c4-470e-bfbb-343fc74304ea",
+       "path": "_systemfield_email",
+       "humanReadablePath": "Email",
+       "title": "Email",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Email",
+       "__autoSerializationID": "EmailField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_6712e866-62af-4b9a-bd11-5adebc47ff36",
+      "field": {
+       "id": "6712e866-62af-4b9a-bd11-5adebc47ff36",
+       "path": "6712e866-62af-4b9a-bd11-5adebc47ff36",
+       "humanReadablePath": "",
+       "title": "Phone Number",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Phone",
+       "__autoSerializationID": "PhoneField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387__systemfield_location",
+      "field": {
+       "id": "79fc13b8-6968-4e36-9b65-e9ad453bdc48",
+       "path": "_systemfield_location",
+       "humanReadablePath": "Location",
+       "title": "Current Location",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Location",
+       "locationTypes": [
+        "Country",
+        "Region",
+        "City"
+       ],
+       "__autoSerializationID": "LocationField"
+      },
+      "isRequired": true,
+      "descriptionHtml": "<p>We use this to determine whether we can legally employ you in the entity where you are located.</p>"
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_6e43103e-f19e-459d-a3a8-12e11347ad4a",
+      "field": {
+       "id": "6e43103e-f19e-459d-a3a8-12e11347ad4a",
+       "path": "6e43103e-f19e-459d-a3a8-12e11347ad4a",
+       "humanReadablePath": "",
+       "title": "Current Company",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   },
+   {
+    "title": "Links",
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_4da0632a-2b74-4b55-b79d-e985327997f1",
+      "field": {
+       "id": "4da0632a-2b74-4b55-b79d-e985327997f1",
+       "path": "4da0632a-2b74-4b55-b79d-e985327997f1",
+       "humanReadablePath": "",
+       "title": "LinkedIn URL",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_b93dd76e-922b-4209-a927-c3305cd132a1",
+      "field": {
+       "id": "b93dd76e-922b-4209-a927-c3305cd132a1",
+       "path": "b93dd76e-922b-4209-a927-c3305cd132a1",
+       "humanReadablePath": "",
+       "title": "X (formerly Twitter) URL",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_4046054c-bd29-42cb-b07b-023c120bc038",
+      "field": {
+       "id": "4046054c-bd29-42cb-b07b-023c120bc038",
+       "path": "4046054c-bd29-42cb-b07b-023c120bc038",
+       "humanReadablePath": "",
+       "title": "GitHub URL",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_2caad0fa-69cf-49ea-81d7-eadc9a92607e",
+      "field": {
+       "id": "2caad0fa-69cf-49ea-81d7-eadc9a92607e",
+       "path": "2caad0fa-69cf-49ea-81d7-eadc9a92607e",
+       "humanReadablePath": "",
+       "title": "Portfolio URL",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_880ea0d2-c69b-4da4-a107-1f942d612e9c",
+      "field": {
+       "id": "880ea0d2-c69b-4da4-a107-1f942d612e9c",
+       "path": "880ea0d2-c69b-4da4-a107-1f942d612e9c",
+       "humanReadablePath": "",
+       "title": "Other website",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   },
+   {
+    "title": "Application Questions",
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_8aa3ad5d-cc97-4c01-8939-0141a34c02c7",
+      "field": {
+       "id": "8aa3ad5d-cc97-4c01-8939-0141a34c02c7",
+       "path": "8aa3ad5d-cc97-4c01-8939-0141a34c02c7",
+       "humanReadablePath": "",
+       "title": "Do you have any close personal relationships (e.g. family members, domestic partners, friends, etc.) currently working at 1Password that might create a conflict of interest (or the perception of one)?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_7624df3c-1f8a-4bf1-bef5-d60e8d7ae595",
+      "field": {
+       "id": "7624df3c-1f8a-4bf1-bef5-d60e8d7ae595",
+       "path": "7624df3c-1f8a-4bf1-bef5-d60e8d7ae595",
+       "humanReadablePath": "",
+       "title": "If you responded \"yes\" to the question above, please briefly describe the nature of the relationship. Your response will be kept confidential and will not automatically disqualify you from consideration.",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_50944526-07b4-4b0c-a6f8-f83d0933158d",
+      "field": {
+       "id": "50944526-07b4-4b0c-a6f8-f83d0933158d",
+       "path": "50944526-07b4-4b0c-a6f8-f83d0933158d",
+       "humanReadablePath": "",
+       "title": "Current job title?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_77f3c5da-9ba0-4544-91ba-6b6ccb20d27e",
+      "field": {
+       "id": "77f3c5da-9ba0-4544-91ba-6b6ccb20d27e",
+       "path": "77f3c5da-9ba0-4544-91ba-6b6ccb20d27e",
+       "humanReadablePath": "",
+       "title": "What is the beginning of your desired annual base salary range? (please format with no commas, i.e. $50000, \u00a350000)",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_c7df239a-70dd-4a06-b25c-b0bdfbfec8d6",
+      "field": {
+       "id": "c7df239a-70dd-4a06-b25c-b0bdfbfec8d6",
+       "path": "c7df239a-70dd-4a06-b25c-b0bdfbfec8d6",
+       "humanReadablePath": "",
+       "title": "What is the end of your desired annual base salary range? (please format with no commas, i.e. $70000, \u00a370000)",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "String",
+       "__autoSerializationID": "StringField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_472d621b-2701-4554-b984-cb89a59c4bcf",
+      "field": {
+       "id": "472d621b-2701-4554-b984-cb89a59c4bcf",
+       "path": "472d621b-2701-4554-b984-cb89a59c4bcf",
+       "humanReadablePath": "",
+       "title": "Do you have experience in cybersecurity SaaS?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_a6abc491-53d1-4ed6-8f77-bb58eff928b6",
+      "field": {
+       "id": "a6abc491-53d1-4ed6-8f77-bb58eff928b6",
+       "path": "a6abc491-53d1-4ed6-8f77-bb58eff928b6",
+       "humanReadablePath": "",
+       "title": "Size of company you have worked for most recently",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "ValueSelect",
+       "selectableValues": [
+        {
+         "label": ">100",
+         "value": ">100"
+        },
+        {
+         "label": "101-999",
+         "value": "101-999"
+        },
+        {
+         "label": "1000-2499",
+         "value": "1000-2499"
+        },
+        {
+         "label": "2500-4999",
+         "value": "2500-4999"
+        },
+        {
+         "label": "5000+",
+         "value": "5000+"
+        }
+       ],
+       "__autoSerializationID": "ValueSelectField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_cf24af61-3cb2-4ab4-8e9b-5b5c967479eb",
+      "field": {
+       "id": "cf24af61-3cb2-4ab4-8e9b-5b5c967479eb",
+       "path": "cf24af61-3cb2-4ab4-8e9b-5b5c967479eb",
+       "humanReadablePath": "",
+       "title": "Why 1Password?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": true,
+      "descriptionHtml": "<p><strong>There are a lot of great companies out there. What makes you excited to work at 1Password?</strong></p>"
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_1adc62f5-8f85-4c26-9896-666b5bc8bba6",
+      "field": {
+       "id": "cf24af61-3cb2-4ab4-8e9b-5b5c967479eb",
+       "path": "1adc62f5-8f85-4c26-9896-666b5bc8bba6",
+       "humanReadablePath": "",
+       "title": "Please share an example of a technical demo, talk, article, video, or other resource you personally created for a developer audience. What did you create, who was it for, and what impact did it have?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": true,
+      "descriptionHtml": "<p><strong>Links are welcome. Maximum 150 words.</strong></p>"
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_e6ecaff7-494e-43c4-a67e-c050dfb98329",
+      "field": {
+       "id": "cf24af61-3cb2-4ab4-8e9b-5b5c967479eb",
+       "path": "e6ecaff7-494e-43c4-a67e-c050dfb98329",
+       "humanReadablePath": "",
+       "title": "Tell us about a developer product, workflow, or technical topic you have represented publicly. What made you a credible voice on that topic?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": true,
+      "descriptionHtml": "<p><strong>Maximum 150 words.</strong></p>"
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_01449cd7-96c4-4837-8c7f-f0e0a27857d8",
+      "field": {
+       "id": "01449cd7-96c4-4837-8c7f-f0e0a27857d8",
+       "path": "01449cd7-96c4-4837-8c7f-f0e0a27857d8",
+       "humanReadablePath": "",
+       "title": "I understand that 1Password offers of employment are conditional on satisfactory completion of a background check.",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "MultiValueSelect",
+       "selectableValues": [
+        {
+         "label": "I understand",
+         "value": "I understand"
+        }
+       ],
+       "__autoSerializationID": "MultiValueSelectField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_b2f3649c-2acd-41c2-9091-7f4f9966ceec",
+      "field": {
+       "id": "b2f3649c-2acd-41c2-9091-7f4f9966ceec",
+       "path": "b2f3649c-2acd-41c2-9091-7f4f9966ceec",
+       "humanReadablePath": "",
+       "title": "Additional Information",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   },
+   {
+    "title": "Accommodations",
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_8c848614-51dd-4b9b-a024-487ec000e850",
+      "field": {
+       "id": "8c848614-51dd-4b9b-a024-487ec000e850",
+       "path": "8c848614-51dd-4b9b-a024-487ec000e850",
+       "humanReadablePath": "",
+       "title": "Helping you bring your best self to the recruitment process means a lot to us. Other than your ethnicity, gender, and disability status (survey below), is there anything you would like to share with us, or information to help us accommodate you?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   },
+   {
+    "title": null,
+    "descriptionHtml": null,
+    "fieldEntries": [
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_0bcb278d-9475-4a52-8102-dac2deeb1e01",
+      "field": {
+       "id": "6906f567-c06b-4130-b2f0-5397fa427141",
+       "path": "0bcb278d-9475-4a52-8102-dac2deeb1e01",
+       "humanReadablePath": "",
+       "title": "What brought you to this job posting",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "ValueSelect",
+       "selectableValues": [
+        {
+         "label": "Agency",
+         "value": "Agency"
+        },
+        {
+         "label": "Black Professionals in Tech Network",
+         "value": "Black Professionals in Tech Network"
+        },
+        {
+         "label": "Blog / news article",
+         "value": "Blog / news article"
+        },
+        {
+         "label": "Campus event / job portal",
+         "value": "Campus event / job portal"
+        },
+        {
+         "label": "Canadian Cybersecurity Jobs",
+         "value": "Canadian Cybersecurity Jobs"
+        },
+        {
+         "label": "CLOC",
+         "value": "CLOC"
+        },
+        {
+         "label": "Dribble",
+         "value": "Dribble"
+        },
+        {
+         "label": "Facebook",
+         "value": "Facebook"
+        },
+        {
+         "label": "Glassdoor",
+         "value": "Glassdoor"
+        },
+        {
+         "label": "hired.com",
+         "value": "hired.com"
+        },
+        {
+         "label": "IDPro",
+         "value": "IDPro"
+        },
+        {
+         "label": "Indeed",
+         "value": "Indeed"
+        },
+        {
+         "label": "Instagram",
+         "value": "Instagram"
+        },
+        {
+         "label": "Ladders",
+         "value": "Ladders"
+        },
+        {
+         "label": "LinkedIn Jobs",
+         "value": "LinkedIn Jobs"
+        },
+        {
+         "label": "LinkedIn Social Post",
+         "value": "LinkedIn Social Post"
+        },
+        {
+         "label": "Newsletter",
+         "value": "Newsletter",
+         "isArchived": false
+        },
+        {
+         "label": "Other",
+         "value": "Other"
+        },
+        {
+         "label": "Otta",
+         "value": "Otta"
+        },
+        {
+         "label": "Previously worked at 1Password",
+         "value": "Previously worked at 1Password"
+        },
+        {
+         "label": "Queertech",
+         "value": "Queertech"
+        },
+        {
+         "label": "Word of mouth",
+         "value": "Word of mouth"
+        },
+        {
+         "label": "X (formerly Twitter)",
+         "value": "X (formerly Twitter)"
+        },
+        {
+         "label": "Youtube",
+         "value": "Youtube"
+        }
+       ],
+       "__autoSerializationID": "ValueSelectField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_5c6225d3-a122-4769-8dd2-dd45f5762b4f",
+      "field": {
+       "id": "c1ea3b81-44d0-441a-8707-cdff0ba60bf6",
+       "path": "5c6225d3-a122-4769-8dd2-dd45f5762b4f",
+       "humanReadablePath": "",
+       "title": "If you responded \"other\" to the question above, let us know how you found this job posting",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "LongText",
+       "__autoSerializationID": "LongTextField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_eb634a92-9aca-4245-9807-043caa84840e",
+      "field": {
+       "id": "e2636ae9-66ac-43c9-9f3c-877303ca223b",
+       "path": "eb634a92-9aca-4245-9807-043caa84840e",
+       "humanReadablePath": "",
+       "title": "This role requires you to already be legally authorized to work in the countries listed in the job posting and 1Password will not be offering work authorization, relocation assistance, or sponsorship/transferring of a visa. Do you live in, and are you legally authorized to work in the countries listed in the job posting?",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "Boolean",
+       "__autoSerializationID": "BooleanField"
+      },
+      "isRequired": true,
+      "descriptionHtml": null
+     },
+     {
+      "id": "92fb2fa1-c72b-490c-aa51-d121092d7387_9fac80b8-e39d-408a-a5c5-7296b2b61538",
+      "field": {
+       "id": "9bd5ec68-1521-4451-abd5-3a77e6009857",
+       "path": "9fac80b8-e39d-408a-a5c5-7296b2b61538",
+       "humanReadablePath": "",
+       "title": "Interested in learning more about exciting careers at 1Password? Check this box to sign up. You can unsubscribe at any time.",
+       "isNullable": false,
+       "isPrivate": false,
+       "isDeactivated": false,
+       "isMany": false,
+       "metadata": {},
+       "type": "MultiValueSelect",
+       "selectableValues": [
+        {
+         "label": " Yes",
+         "value": " ",
+         "isArchived": false
+        }
+       ],
+       "__autoSerializationID": "MultiValueSelectField"
+      },
+      "isRequired": false,
+      "descriptionHtml": null
+     }
+    ]
+   }
+  ]
+ },
+ "surveyForms": [
+  {
+   "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2",
+   "sections": [
+    {
+     "title": "Candidate Demographic Survey for 1Password",
+     "fieldEntries": [
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_aabdaff4-8bad-45e1-8121-b589277688c7",
+       "field": {
+        "id": "0288564f-acac-4acb-b8ed-dbbe59d3fb24",
+        "path": "aabdaff4-8bad-45e1-8121-b589277688c7",
+        "humanReadablePath": "",
+        "title": "How do you identify your racial or ethnic background?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "MultiValueSelect",
+        "selectableValues": [
+         {
+          "label": "Black",
+          "value": "Black"
+         },
+         {
+          "label": "Caribbean",
+          "value": "Caribbean"
+         },
+         {
+          "label": "East Asian",
+          "value": "East Asian"
+         },
+         {
+          "label": "Indigenous",
+          "value": "Indigenous"
+         },
+         {
+          "label": "Latino or Hispanic",
+          "value": "Latino or Hispanic"
+         },
+         {
+          "label": "Middle Eastern",
+          "value": "Middle Eastern"
+         },
+         {
+          "label": "Pacific Islander",
+          "value": "Pacific Islander"
+         },
+         {
+          "label": "South Asian",
+          "value": "South Asian"
+         },
+         {
+          "label": "Southeast Asian",
+          "value": "Southeast Asian"
+         },
+         {
+          "label": "White",
+          "value": "White"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         },
+         {
+          "label": "Not listed",
+          "value": "Not listed"
+         }
+        ],
+        "__autoSerializationID": "MultiValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": "<p>Please select all that apply.</p>"
+      },
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_50ea5f07-0f48-4ad6-b9f1-6bb886f58c6d",
+       "field": {
+        "id": "c4cc5a24-8a35-474b-a36c-053a8feabeb0",
+        "path": "50ea5f07-0f48-4ad6-b9f1-6bb886f58c6d",
+        "humanReadablePath": "",
+        "title": "Do you identify as transgender?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "No",
+          "value": "No"
+         },
+         {
+          "label": "Yes",
+          "value": "Yes"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": null
+      },
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_6d3cd940-f7e3-4cf7-9cfd-1e4ef0407386",
+       "field": {
+        "id": "2d882ca9-faf7-480d-aa80-be55591f7775",
+        "path": "6d3cd940-f7e3-4cf7-9cfd-1e4ef0407386",
+        "humanReadablePath": "",
+        "title": "Which option best describes your gender identity?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "Man",
+          "value": "Man"
+         },
+         {
+          "label": "Non-binary",
+          "value": "Non-binary"
+         },
+         {
+          "label": "Woman",
+          "value": "Woman"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         },
+         {
+          "label": "Not listed",
+          "value": "Not listed"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": null
+      },
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_9e305fc2-c304-4191-a65b-cd230860b031",
+       "field": {
+        "id": "70bc5067-3f86-48ad-b9b5-d3f573eea42f",
+        "path": "9e305fc2-c304-4191-a65b-cd230860b031",
+        "humanReadablePath": "",
+        "title": "Do you identify as a member of the LGBTQ2S+ (Lesbian, Gay, Bisexual, Transgender, Queer, Two-Spirit) community?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "No",
+          "value": "No"
+         },
+         {
+          "label": "Yes",
+          "value": "Yes"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": null
+      },
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_4b4eb899-89c4-4319-bf0e-4cb02fac8615",
+       "field": {
+        "id": "aac0e832-84d8-4b8b-a7d1-48b9614ff1c1",
+        "path": "4b4eb899-89c4-4319-bf0e-4cb02fac8615",
+        "humanReadablePath": "",
+        "title": "Do you identify as having a disability?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "No",
+          "value": "No"
+         },
+         {
+          "label": "Yes",
+          "value": "Yes"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": null
+      },
+      {
+       "id": "b43b568c-d938-4833-8b88-9c5007d4fdd2_cae3b8c5-accb-4bdd-a17d-f98cd0d56358",
+       "field": {
+        "id": "76bd235e-cc0f-41df-ad16-7d541ce2ed71",
+        "path": "cae3b8c5-accb-4bdd-a17d-f98cd0d56358",
+        "humanReadablePath": "",
+        "title": "Are you a current or previously serving member in the military or armed forces? If so, what capacity?",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "ValueSelect",
+        "selectableValues": [
+         {
+          "label": "No",
+          "value": "No"
+         },
+         {
+          "label": "Active Duty",
+          "value": "Active Duty"
+         },
+         {
+          "label": "Reserve Force",
+          "value": "Reserve Force"
+         },
+         {
+          "label": "Veteran / Retired",
+          "value": "Veteran / Retired"
+         },
+         {
+          "label": "Not listed",
+          "value": "Not listed"
+         },
+         {
+          "label": "Prefer not to say",
+          "value": "Prefer not to say"
+         }
+        ],
+        "__autoSerializationID": "ValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": "<p>This includes any military service or armed forces globally.</p>"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "3b0afe5c-3094-4fca-b824-e69f0eaefc9c",
+   "sections": [
+    {
+     "title": null,
+     "fieldEntries": [
+      {
+       "id": "3b0afe5c-3094-4fca-b824-e69f0eaefc9c__systemfield_data_consent_ack",
+       "field": {
+        "id": "1b0ff276-a072-497d-9ae6-8bce2a04bbe9",
+        "path": "_systemfield_data_consent_ack",
+        "humanReadablePath": "Future Contact Consent",
+        "title": "",
+        "isNullable": false,
+        "isPrivate": false,
+        "isDeactivated": false,
+        "isMany": false,
+        "metadata": {},
+        "type": "MultiValueSelect",
+        "selectableValues": [
+         {
+          "label": "I agree",
+          "value": "data_consent_ack"
+         }
+        ],
+        "__autoSerializationID": "MultiValueSelectField"
+       },
+       "isRequired": false,
+       "descriptionHtml": "<p>Do you agree to allow 1Password to contact you about job opportunities for up to 1 year?</p><p><a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://1password.com/files/candidate-privacy-notice.pdf\">Recruiting Privacy Policy</a></p>"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
