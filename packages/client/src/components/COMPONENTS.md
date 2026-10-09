@@ -87,6 +87,16 @@ stacking multiple tones or sizes is not supported.
   is new. Call site: `OutreachSheet.svelte`, opened from the job page's Email
   action and from follow-up reminders (`/jobs/:id?outreach=<thread>`). Behind
   the `OUTREACH` flag. Needs hands-on iOS and web review.
+- **Application answers screen** — Owner: Auto-apply. Reason: You →
+  Application answers (`/you/answers`) asks the common application questions
+  up front (sponsorship, which is the job-preferences work authorization;
+  office days; relocation; start and graduation dates; salary; pronouns) and
+  lists every answer auto-apply remembered, each editable inline or deleted
+  with Undo. Reuses chip, form, `content-card`, `surface-list`, `EmptyState`,
+  `InlineFailure`, and `SaveStatus` compositions; only the remembered-answer
+  row is new. Call site: `pages/profile/AnswersSection.svelte`, rendered by
+  `Profile.svelte`. Behind the `AUTO_APPLY` flag. Needs hands-on iOS and web
+  review.
 
 - **SvelteKit public About page** — Owner: Web experience. Reason: minimal
   prerendered public content and route-specific metadata establish the SEO

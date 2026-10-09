@@ -5,8 +5,9 @@
     routeDefinition,
     routeHref,
   } from "../../../packages/client/src/router";
+  import { sessionAccess } from "../../../packages/client/src/lib/session-access";
 
-  const groups = [
+  let groups = $derived([
     {
       label: "Search",
       destinations: [
@@ -20,6 +21,9 @@
       destinations: [
         { id: "you-resume", label: "Resume", path: "/you/resume" },
         { id: "you-tailoring", label: "Tailoring", path: "/you/tailoring" },
+        ...($sessionAccess.features?.auto_apply_enabled
+          ? [{ id: "you-answers", label: "Application answers", path: "/you/answers" }]
+          : []),
       ],
     },
     {
@@ -29,7 +33,7 @@
         { id: "you-account", label: "Account", path: "/you/account" },
       ],
     },
-  ] as const;
+  ]);
 
   let activeId = $derived(routeDefinition($currentRoute).id);
 </script>

@@ -22,6 +22,9 @@
   import JobsSection from "./profile/JobsSection.svelte";
   import TailorSection from "./profile/TailorSection.svelte";
   import NotifySection from "./profile/NotifySection.svelte";
+  import AnswersSection from "./profile/AnswersSection.svelte";
+  import EmptyState from "../components/EmptyState.svelte";
+  import ClipboardText from "phosphor-svelte/lib/ClipboardText";
   import Bell from "phosphor-svelte/lib/Bell";
   import Buildings from "phosphor-svelte/lib/Buildings";
   import CaretDown from "phosphor-svelte/lib/CaretDown";
@@ -47,7 +50,7 @@
   import Lifebuoy from "phosphor-svelte/lib/Lifebuoy";
   import ShieldCheck from "phosphor-svelte/lib/ShieldCheck";
 
-  type YouDestination = "preferences" | "alerts" | "tailoring" | "account" | "feedback";
+  type YouDestination = "preferences" | "alerts" | "tailoring" | "answers" | "account" | "feedback";
   type PhosphorIcon = Component<{ size?: number | string; weight?: "regular" | "bold" }>;
 
   let {
@@ -63,6 +66,7 @@
     preferences: "Job preferences",
     alerts: "Job alerts",
     tailoring: "Tailoring",
+    answers: "Application answers",
     account: "Account",
     feedback: "Send feedback",
   };
@@ -83,6 +87,8 @@
   let loading: boolean = $state(true);
   let error: string | null = $state(null);
   const savePresentation = new SavePresentation();
+  // Answers save on their own; job preferences (sponsorship) still autosave.
+  const answersPresentation = new SavePresentation();
 
   let displayName: string = $state($sessionAccess.user?.name ?? "");
   let savedDisplayName: string = $state($sessionAccess.user?.name ?? "");
@@ -405,6 +411,7 @@
       unregisterAutosaveFlush();
       unregisterRootTitle();
       savePresentation.destroy();
+      answersPresentation.destroy();
     };
   });
 
@@ -460,11 +467,15 @@
       onBack={() => void backToYou()}
     >
       {#snippet trailing()}
-        <SaveStatus
-          phase={savePresentation.phase}
-          errorMessage={savePresentation.errorMessage}
-          onRetry={async () => { await performSave(); }}
-        />
+        {#if destination === "answers" && answersPresentation.phase !== "clean"}
+          <SaveStatus phase={answersPresentation.phase} errorMessage={answersPresentation.errorMessage} />
+        {:else}
+          <SaveStatus
+            phase={savePresentation.phase}
+            errorMessage={savePresentation.errorMessage}
+            onRetry={async () => { await performSave(); }}
+          />
+        {/if}
       {/snippet}
     </ScreenNav>
 
@@ -502,6 +513,12 @@
             onError={showError}
             onSuccess={showSuccess}
           />
+        {:else if destination === "answers"}
+          {#if features?.auto_apply_enabled}
+            <AnswersSection bind:searchProfile presentation={answersPresentation} {active} />
+          {:else}
+            <EmptyState compact title="Not available" />
+          {/if}
         {:else if destination === "feedback"}
           <form class="feedback-page-form" onsubmit={(event) => { event.preventDefault(); void submitProductFeedback(); }}>
             <p class="feedback-page-intro">
@@ -625,6 +642,9 @@
           <div class="surface-list">
             {@render destinationRow("Resume", resumeReady ? (nativeIos ? "Structured resume ready" : "Ready") : "Add your resume", "/you/resume", FileText)}
             {@render destinationRow("Tailoring", tailoringReady ? (nativeIos ? "Provider ready" : "Ready") : "Finish setup", "/you/tailoring", Sparkle)}
+            {#if features?.auto_apply_enabled}
+              {@render destinationRow("Application answers", "Reused on every application", "/you/answers", ClipboardText)}
+            {/if}
           </div>
         </section>
 

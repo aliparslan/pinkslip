@@ -31,6 +31,7 @@ const routes: Record<string, PageEntry> = {
   "/you/preferences": { component: asPage(Profile) },
   "/you/alerts": { component: asPage(Profile) },
   "/you/tailoring": { component: asPage(Profile) },
+  "/you/answers": { component: asPage(Profile) },
   "/you/account": { component: asPage(Profile) },
   "/you/feedback": { component: asPage(Profile) },
   "/you/companies": { cacheKey: "companies", load: loadCompanies },

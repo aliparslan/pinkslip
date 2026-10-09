@@ -4,6 +4,7 @@ import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
 import { ApplyError, prepareApplication, saveApplicationAnswers } from "../apply/prepare";
 import { learnAnswers, planApplication } from "../apply/plan";
+import { deleteAnswer, listAnswers, saveAnswer } from "../apply/answer-bank";
 import type { FormControl, FormControlKind } from "../../shared/application-form";
 import type { Env, Variables } from "../types";
 
@@ -35,6 +36,24 @@ apply.put("/jobs/:id/answers", async (c) => {
     jobId,
     body.answers as Record<string, unknown>,
   ));
+});
+
+/** The answers bank: everything learned from forms plus the up-front answers. */
+apply.get("/answers", async (c) => {
+  return c.json({ answers: await listAnswers(c.env.DB, c.get("userId")) });
+});
+
+apply.put("/answers/:key", async (c) => {
+  const body = await c.req.json<{ value?: unknown; label?: unknown }>().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body) || !("value" in body)) {
+    return c.json({ error: "Missing answer", code: "invalid_request" }, 400);
+  }
+  return c.json(await saveAnswer(c.env.DB, c.get("userId"), c.req.param("key"), body));
+});
+
+apply.delete("/answers/:key", async (c) => {
+  await deleteAnswer(c.env.DB, c.get("userId"), c.req.param("key"));
+  return c.body(null, 204);
 });
 
 const CONTROL_KINDS = new Set<FormControlKind>([

@@ -25,6 +25,7 @@ export const routeDefinitions: RouteDefinition[] = [
   { id: "you-companies", pattern: "/you/companies", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-resume", pattern: "/you/resume", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-tailoring", pattern: "/you/tailoring", shell: "consumer", depth: 1, rootDestination: "you" },
+  { id: "you-answers", pattern: "/you/answers", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-account", pattern: "/you/account", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "you-feedback", pattern: "/you/feedback", shell: "consumer", depth: 1, rootDestination: "you" },
   { id: "admin-overview", pattern: "/admin", shell: "admin", depth: 1, rootDestination: "you", documentTitle: "Admin · Manage" },

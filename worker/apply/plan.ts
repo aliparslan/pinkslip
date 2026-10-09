@@ -24,6 +24,8 @@ import {
   storedAnswer,
 } from "./answers";
 import { acceptedJevAnswer, answerWithJev, type JevQuestion } from "./jev-answers";
+import { commonAnswerFacts } from "./answer-bank";
+import { COMMON_QUESTIONS } from "../../shared/application-answers";
 import type { JevRunner } from "../jev";
 import { preferredWorkAuthorization, savedAnswers } from "./prepare";
 
@@ -111,6 +113,8 @@ export function applicantFacts(input: {
   name: string;
   workAuthorization: WorkAuthorization | null;
   answered: Array<{ label: string; value: ApplicationAnswerValue }>;
+  /** Up-front answers from the answers screen, always included in full. */
+  preferences?: Array<{ label: string; value: string }>;
   job: { title: string; company: string; location: string } | null;
 }): string {
   const { profile } = input;
@@ -131,6 +135,10 @@ export function applicantFacts(input: {
     `Every employer the applicant has worked for: ${work.join("; ") || "none listed"}`,
     `Work authorization: ${describeWorkAuthorization(input.workAuthorization)}`,
   ];
+  if (input.preferences && input.preferences.length > 0) {
+    lines.push("Answers the applicant set for every application:");
+    for (const { label, value } of input.preferences) lines.push(`- ${label}: ${value.slice(0, 200)}`);
+  }
   if (input.answered.length > 0) {
     lines.push("Answers the applicant gave on earlier applications:");
     for (const { label, value } of input.answered.slice(0, 40)) {
@@ -141,10 +149,15 @@ export function applicantFacts(input: {
   return lines.join("\n");
 }
 
+/** The most recent answers learned from forms. Up-front answers are left out
+ * here because `commonAnswerFacts` always lists them. */
 async function answeredLabels(db: D1Database, userId: string) {
+  const common = COMMON_QUESTIONS.map(() => "?").join(", ");
   const rows = await db.prepare(
-    `SELECT label, value_json FROM application_answers WHERE user_id = ? ORDER BY updated_at DESC LIMIT 40`
-  ).bind(userId).all<{ label: string; value_json: string }>();
+    `SELECT label, value_json FROM application_answers
+     WHERE user_id = ? AND answer_key NOT IN (${common})
+     ORDER BY updated_at DESC LIMIT 40`
+  ).bind(userId, ...COMMON_QUESTIONS.map((question) => question.key)).all<{ label: string; value_json: string }>();
   return (rows.results ?? []).flatMap((row) => {
     try {
       return [{ label: row.label, value: JSON.parse(row.value_json) as ApplicationAnswerValue }];
@@ -283,6 +296,7 @@ export async function planApplication(
           name: user?.name ?? "",
           workAuthorization,
           answered,
+          preferences: commonAnswerFacts(saved),
           job: job ?? null,
         }), jevQuestions);
         answers = result.answers;

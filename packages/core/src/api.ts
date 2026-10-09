@@ -11,6 +11,7 @@ import type {
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
+import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type {
   ApplicationAnswerValue,
   ApplyPlan,
@@ -28,6 +29,7 @@ export type {
   PreparedApplication,
   PreparedApplicationField,
 } from "@pinkslip/domain/application-form";
+export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 export type {
   OutreachContact,
   OutreachMessage,
@@ -790,6 +792,15 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ answers }),
       }, 30_000),
+    /** The answers bank, newest first. */
+    answers: () => request<{ answers: SavedApplicationAnswer[] }>("/apply/answers"),
+    setAnswer: (key: string, value: ApplicationAnswerValue, label?: string) =>
+      request<SavedApplicationAnswer>(`/apply/answers/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        body: JSON.stringify(label ? { value, label } : { value }),
+      }),
+    deleteAnswer: (key: string) =>
+      request<void>(`/apply/answers/${encodeURIComponent(key)}`, { method: "DELETE" }),
   },
   outreach: {
     list: (jobId?: string) =>

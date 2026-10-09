@@ -60,6 +60,7 @@
     "you-preferences",
     "you-alerts",
     "you-tailoring",
+    "you-answers",
     "you-account",
     "you-feedback",
   ]);
@@ -150,6 +151,7 @@
       "you-companies": "Companies",
       "you-resume": "Resume",
       "you-tailoring": "Tailoring",
+      "you-answers": "Application answers",
       "you-account": "Account",
       "you-feedback": "Help & feedback",
       "admin-overview": "Admin",
