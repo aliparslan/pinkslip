@@ -17,6 +17,7 @@ fi
 
 cd "${CI_PRIMARY_REPOSITORY_PATH}"
 bun install --frozen-lockfile
+bun test tests/native-release.test.ts
 
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8

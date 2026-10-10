@@ -25,6 +25,16 @@ app (`dev.alip.pinkslip`), so it ships as an update.
   `ios/` and deletes files it doesn't know, so restore them afterwards with
   `git checkout -- ios/ci_scripts ios/Podfile.lock ios/Pinkslip/PrivacyInfo.xcprivacy ios/Pinkslip.xcworkspace`,
   then `LANG=en_US.UTF-8 pod install` in `ios/`.
+  Preserve `expo-build-properties` → `ios.enableSceneSupport` in `app.json`;
+  iOS 27 requires the scene lifecycle. After regeneration, align both
+  `MARKETING_VERSION` entries in the Xcode project with `expo.version`, then
+  run `bun test tests/native-release.test.ts` from the repository root. This
+  check also runs in Xcode Cloud before the archive.
+
+The release version is **1.3.0**. Apple requires a separate build number;
+Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
+does not display that number. See [the recovery notes](../../docs/native-1.3-recovery.md)
+for the launch diagnosis and local verification flows.
 
 ## Run it
 

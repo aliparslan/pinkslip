@@ -3,7 +3,7 @@
     "name": "Pinkslip",
     "slug": "pinkslip",
     "scheme": "pinkslip",
-    "version": "2.0.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -24,6 +24,14 @@
       "appleTeamId": "KV876H8952"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
       "expo-router",
       "expo-asset",
       "expo-web-browser",

@@ -723,7 +723,7 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 
 ### Phase 6: Expo iOS (native screens)
 
-**6.1 Scaffold** · M · ✅ 2026-10-10: `apps/native` is the product app: Expo Router with native tabs (Jobs, Library, You) and a stack per tab; the job route is shared by Jobs and Library. Bundle ID `dev.alip.pinkslip`, version 2.0.0, Sign in with Apple, push and associated-domain entitlements matching the Capacitor app. `ios/` committed with `ci_scripts/ci_post_clone.sh` (Node, Bun, CocoaPods). Builds and runs on the iOS 26.4 simulator. The prototype screen is gone; the 1.6b resume helpers stay for 6.9
+**6.1 Scaffold** · M · ✅ 2026-10-10: `apps/native` is the product app: Expo Router with native tabs (Jobs, Library, You) and a stack per tab; the job route is shared by Jobs and Library. Bundle ID `dev.alip.pinkslip`, version 1.3.0 (owner correction), Sign in with Apple, push and associated-domain entitlements matching the Capacitor app. `ios/` committed with `ci_scripts/ci_post_clone.sh` (Node, Bun, CocoaPods). Builds and runs on the iOS 26.4 simulator. The prototype screen is gone; the 1.6b resume helpers stay for 6.9
 - `apps/native` with Expo Router: tabs (Jobs, Library, You) plus native stacks
   that mirror the web routes.
 - Reuse the validated contracts, fixture tests, and appropriate setup from
@@ -790,9 +790,9 @@ including the import-quality, persistence, and recovery requirements.
 **6.13 Ship the Expo app** · S
 - Xcode Cloud builds `apps/native` on every push to main again.
 - Push token re-registration on first launch.
-- Version 2.0.0.
+- Version 1.3.0 (owner, 2026-10-10).
 
-Progress (2026-10-10): the app side is ready. Version 2.0.0, bundle
+Progress (2026-10-10): the initial app build reached TestFlight. Version corrected to 1.3.0, bundle
 `dev.alip.pinkslip`, team `KV876H8952` set in the project, shared scheme
 `Pinkslip`, `ios/ci_scripts/ci_post_clone.sh` (Node, Bun, CocoaPods), APNs
 re-registration on every launch with permission. Release builds run on the
@@ -800,6 +800,8 @@ iOS 26.4 simulator against production. Left for the owner: in App Store
 Connect, point the Xcode Cloud workflow at `apps/native/ios/Pinkslip.xcworkspace`
 (scheme Pinkslip, Archive, TestFlight internal, manual start first), and deploy
 the API so universal links include `/jobs/*`.
+
+Recovery (2026-10-10): TestFlight 2.0.0 (67) crashed before React on iOS 27 because the generated app did not adopt the scene lifecycle. Expo SDK 57.0.27 already includes the scene delegate; `expo-build-properties` with `ios.enableSceneSupport` now generates the manifest and factory provider, moving window/startup into Expo’s scene delegate. A release configuration regression check also runs before Xcode Cloud archives. Release version is **1.3.0**; TestFlight’s parenthesized build number is required Apple metadata. Validation and remaining phone checks: `docs/native-1.3-recovery.md`.
 
 ### Phase 7: Cleanup
 
