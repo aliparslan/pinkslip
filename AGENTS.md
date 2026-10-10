@@ -72,6 +72,11 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
 - Dev server gotcha: after adding an import of a new `@base-ui/react/*`
   subpath, a running `vite dev` re-bundles and can 500 with two React
   copies ("reading 'useRef'"). Restart the dev server.
+- Run one webapp dev server at a time. Every `vite dev` in `apps/webapp`
+  shares `node_modules/.vite`, so a second server re-bundling dependencies
+  breaks the first ("file does not exist … in the optimize deps directory").
+  The dev API worker reads the repository-root `.dev.vars` (merged in
+  `vite.config.ts`); restart after editing it.
 
 ### Working with the owner
 
