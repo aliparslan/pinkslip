@@ -53,7 +53,6 @@ export function Shell({ children }: { children: ReactNode }) {
     <nav aria-label="Main navigation" className={styles.navigation}>
       <Link to="/" className={styles.brand} aria-label="Pinkslip home">
         <BrandMark />
-        <span><span className={styles.brandPink}>pink</span>slip</span>
       </Link>
       <ul className={styles.destinations}>
         {destinations.map((destination) => {

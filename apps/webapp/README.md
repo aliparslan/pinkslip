@@ -82,6 +82,13 @@ bun run build
 bunx wrangler deploy --dry-run
 ```
 
+## Brand icons
+
+`public/favicon.svg`, the PWA and Apple touch PNGs and the notification badge are
+generated from one mark by `bun run icons` (`scripts/generate-icons.mjs`). Its
+geometry matches `src/features/shell/BrandMark.tsx`. The mark is a placeholder
+until the commissioned logo.
+
 ## Cutover (chunk 3.4)
 
 The Svelte site was replaced outright; its code is at the `svelte-final` tag.
