@@ -99,6 +99,11 @@ QUEUE_POLLING_TIERS = "1,2"
 # the month's model spend reaches the cap.
 JOB_CLASSIFICATION_SHADOW = "true"
 AI_MONTHLY_BUDGET_USD = "10"
+# Recruiter outreach for admins only. Real recruiter discovery isn't built, so
+# every company's "recruiter" is this stand-in address: test emails reach the
+# owner, never a real recruiter.
+OUTREACH = "admin"
+OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
 
 # ─── Native iOS push (APNs) ───────────────────────────────────────────────────
 # The .p8 contents go in a secret, NOT here:  wrangler secret put APNS_PRIVATE_KEY

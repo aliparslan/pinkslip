@@ -16,7 +16,8 @@
     "check:worker-types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false --check",
     "test:e2e": "playwright test",
     "deploy": "vite build && wrangler deploy --config dist/server/wrangler.json",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "share-image": "node scripts/generate-share-image.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

@@ -1,8 +1,7 @@
 import { CANONICAL_ORIGIN } from "../../server/routing";
 
-/** The social preview for pages without their own image: the app's jobs
- * screen. */
-const DEFAULT_IMAGE = { url: `${CANONICAL_ORIGIN}/screenshots/jobs-wide.jpg`, alt: "Pinkslip's job feed" };
+/** The link preview image (`bun run share-image` writes it). */
+const DEFAULT_IMAGE = { url: `${CANONICAL_ORIGIN}/og-image.png`, alt: "Pinkslip: early-career jobs, straight from the source", width: "1200", height: "630" };
 
 export interface PublicHead {
   /** The full document title. */
@@ -32,6 +31,8 @@ export function publicHead({ title, shareTitle = title, description, path, type 
       { property: "og:description", content: description },
       { property: "og:image", content: DEFAULT_IMAGE.url },
       { property: "og:image:alt", content: DEFAULT_IMAGE.alt },
+      { property: "og:image:width", content: DEFAULT_IMAGE.width },
+      { property: "og:image:height", content: DEFAULT_IMAGE.height },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: shareTitle },
       { name: "twitter:description", content: description },
