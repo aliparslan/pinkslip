@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
 import { Shell } from "../features/shell/Shell";
+import { ToastProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
 import fontsCss from "@pinkslip/tokens/fonts.css?url";
@@ -25,7 +26,7 @@ function Root() {
   return <html lang="en" suppressHydrationWarning>
     <head><script src="/theme.js" /><HeadContent /></head>
     <body>
-      <Shell><Outlet /></Shell>
+      <ToastProvider><Shell><Outlet /></Shell></ToastProvider>
       <Scripts />
     </body>
   </html>;

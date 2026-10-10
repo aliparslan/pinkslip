@@ -1,12 +1,14 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  ArrowSquareOut, Bell, BookmarkSimple, Buildings, CaretRight, DotsThree, MagnifyingGlass, PaperPlaneTilt, X,
+  ArrowSquareOut, Bell, BookmarkSimple, Buildings, CaretRight, CheckCircle, DotsThree, DotsThreeVertical, EyeSlash,
+  MagnifyingGlass, PaperPlaneTilt, Trash, X,
 } from "@phosphor-icons/react";
 import {
-  Alert, Badge, Button, Checkbox, Field, Fieldset, Form, Heading, Icon, IconButton, Inline, Input, LinkButton,
-  SaveStatus, Select, SelectCheck, Separator, Skeleton, Spinner, Stack, Surface, Switch, Text, Textarea,
-  ToggleGroup, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
+  Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, Field, Fieldset, Form, Heading, Icon, IconButton,
+  Inline, Input, LinkButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
+  SelectCheck, Separator, Sheet, Skeleton, Spinner, Stack, Surface, Switch, TabPanel, Tabs, Text, Textarea, toast,
+  ToggleGroup, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
 } from "../kit";
 import styles from "../styles/Kit.module.css";
 
@@ -148,6 +150,9 @@ function Kit() {
     <Actions />
     <Inputs />
     <Choices />
+    <Overlays />
+    <Feedback />
+    <Disclosures />
 
     <Section title="Assistive text">
       <Text>Visible text<VisuallyHidden> with a hidden suffix for screen readers</VisuallyHidden>.</Text>
@@ -269,6 +274,135 @@ function Choices() {
       <SaveStatus phase={phase} errorMessage="Network error" onRetry={() => setPhase("saving")} />
       <SaveStatus phase={phase} compact />
     </Inline>
+  </Section>;
+}
+
+const workModes = ["Remote", "Hybrid", "On-site"] as const;
+
+function Overlays() {
+  const [dialog, setDialog] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const [confirm, setConfirm] = useState<"logout" | "delete" | null>(null);
+  const [pending, setPending] = useState(false);
+  const [modes, setModes] = useState<string[]>(["Remote"]);
+  const [filter, setFilter] = useState("All");
+  const runConfirm = () => {
+    setPending(true);
+    window.setTimeout(() => {
+      setPending(false);
+      setConfirm(null);
+      toast.success(confirm === "delete" ? "Account deleted (demo)" : "Logged out (demo)");
+    }, 1200);
+  };
+  return <Section title="Overlays">
+    <Inline gap="2" wrap>
+      <Button variant="secondary" onClick={() => setDialog(true)}>Open dialog</Button>
+      <Button variant="secondary" onClick={() => setSheet(true)}>Open filter sheet</Button>
+      <Button variant="secondary" onClick={() => setConfirm("logout")}>Log out…</Button>
+      <Button variant="danger" onClick={() => setConfirm("delete")}>Delete account…</Button>
+    </Inline>
+    <Inline justify="between">
+      <Text>Job row actions</Text>
+      <Inline gap="1">
+        <Menu trigger={{ icon: DotsThreeVertical, label: "Actions for Frontend Engineer at Stripe", size: "sm" }}>
+          <MenuItem icon={BookmarkSimple} onSelect={() => toast.success("Saved")}>Save</MenuItem>
+          <MenuItem icon={EyeSlash} onSelect={() => toast.show({ message: "Job hidden", action: { label: "Undo", run: () => { toast.show("Restored"); } }, duration: UNDO_TOAST_DURATION })}>Hide</MenuItem>
+          <MenuSeparator />
+          <MenuItem icon={Trash} tone="danger" onSelect={() => toast.error("Couldn't delete. Try again.")}>Delete</MenuItem>
+          <MenuItem icon={CheckCircle} disabled onSelect={() => {}}>Disabled</MenuItem>
+        </Menu>
+        <Menu trigger={{ icon: DotsThree, label: "More job actions" }}>
+          <MenuItem onSelect={() => {}}>Report a problem</MenuItem>
+        </Menu>
+      </Inline>
+    </Inline>
+    <Text id="kit-work-mode" size="sm" weight="medium" tone="ink-2">Work mode</Text>
+    <Menu align="start" label="Work modes" trigger={{ value: modes.join(", "), placeholder: "Choose work modes", labelledBy: "kit-work-mode" }}>
+      {workModes.map((mode) =>
+        <MenuCheckboxItem key={mode} checked={modes.includes(mode)}
+          onCheckedChange={(on) => setModes(on ? [...modes, mode] : modes.filter((item) => item !== mode))}>
+          {mode}
+        </MenuCheckboxItem>)}
+    </Menu>
+
+    <Dialog open={dialog} onOpenChange={setDialog} title="Request a company" subtitle="We'll add its career page to the feed.">
+      <Form aria-label="Request a company" onSubmit={() => setDialog(false)}>
+        <Field label="Company name"><Input placeholder="Stripe" /></Field>
+        <Field label="Careers page" optional><Input type="url" placeholder="https://" /></Field>
+        <Button type="submit" variant="accent" fullWidth>Send request</Button>
+      </Form>
+    </Dialog>
+    <Sheet open={sheet} onOpenChange={setSheet} title="Filters" closeLabel="Close filters" footer={<>
+      <Button variant="secondary" onClick={() => setFilter("All")}>Reset</Button>
+      <Button variant="accent" onClick={() => setSheet(false)}>Show 128 jobs</Button>
+    </>}>
+      <Text size="xs" weight="semibold" tone="ink-4">Listing</Text>
+      <ToggleGroup label="Listing" value={filter} onValueChange={setFilter}
+        options={["All", "Internship", "New grad", "Early career"].map((value) => ({ value, label: value }))} />
+      {Array.from({ length: 8 }, (_, index) =>
+        <Inline key={index} justify="between"><Text>Filter row {index + 1}</Text><Switch label={`Filter ${index + 1}`} checked={index % 2 === 0} onCheckedChange={() => {}} /></Inline>)}
+    </Sheet>
+    <AlertDialog
+      open={confirm === "logout"}
+      onOpenChange={(open) => !open && setConfirm(null)}
+      title="Log out?"
+      description="You'll be signed out on this device. Your account data stays saved."
+      confirmLabel="Log out"
+      pending={pending}
+      onConfirm={runConfirm}
+    />
+    <AlertDialog
+      open={confirm === "delete"}
+      onOpenChange={(open) => !open && setConfirm(null)}
+      title="Delete your account?"
+      description="Your account and synced data will be permanently deleted. This cannot be undone."
+      confirmLabel="Delete account"
+      tone="danger"
+      pending={pending}
+      onConfirm={runConfirm}
+    />
+  </Section>;
+}
+
+function Feedback() {
+  const [step, setStep] = useState(2);
+  return <Section title="Feedback">
+    <Inline gap="2" wrap>
+      <Button variant="secondary" size="compact" onClick={() => toast.show("Preferences updated")}>Info toast</Button>
+      <Button variant="secondary" size="compact" onClick={() => toast.success("Resume uploaded")}>Success</Button>
+      <Button variant="secondary" size="compact" onClick={() => toast.warning("Some jobs couldn't load")}>Warning</Button>
+      <Button variant="secondary" size="compact" onClick={() => toast.error("Couldn't save. Check your connection.", { duration: null })}>Error (stays)</Button>
+      <Button variant="secondary" size="compact" onClick={() => toast.show({ message: "Saving…", dedupeKey: "kit-save" })}>Deduped</Button>
+    </Inline>
+    <Stack gap="2">
+      <Text size="sm" tone="ink-3">Onboarding steps</Text>
+      <Progress label="Setup progress" variant="steps" value={step} max={4} valueText={`Step ${step} of 4`} />
+      <Inline gap="2">
+        <Button size="compact" variant="secondary" onClick={() => setStep(Math.max(1, step - 1))}>Back</Button>
+        <Button size="compact" variant="secondary" onClick={() => setStep(Math.min(4, step + 1))}>Next</Button>
+      </Inline>
+    </Stack>
+    <Stack gap="2">
+      <Text size="sm" tone="ink-3">Usage meter</Text>
+      <Progress label="Tailoring credits used" value={7} max={20} valueText="7 of 20 used" />
+    </Stack>
+  </Section>;
+}
+
+function Disclosures() {
+  const [view, setView] = useState<"saved" | "applied">("saved");
+  return <Section title="Tabs and disclosure">
+    <Tabs label="Your jobs" value={view} onValueChange={setView} tabs={[
+      { value: "saved", label: "Saved", icon: BookmarkSimple, count: 12 },
+      { value: "applied", label: "Applied", icon: PaperPlaneTilt, count: 3 },
+    ]}>
+      <TabPanel value="saved"><Text tone="ink-3">Saved jobs panel</Text></TabPanel>
+      <TabPanel value="applied"><Text tone="ink-3">Applied jobs panel</Text></TabPanel>
+    </Tabs>
+    <Disclosure summary="More options">
+      <Field label="Minimum salary" optional><Input inputMode="numeric" placeholder="120" /></Field>
+      <Checkbox checked onCheckedChange={() => {}}>Include unspecified experience</Checkbox>
+    </Disclosure>
   </Section>;
 }
 

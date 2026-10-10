@@ -41,6 +41,26 @@ visual references only; component APIs follow Pinkslip's needs.
   `CheckboxGroup`. `Combobox`/`Autocomplete` moves to 2.3 with the other
   popups. Rendered at `/_kit`; awaiting the 2.4 comparison and owner review.
 
+- **Overlays and feedback (2.3)** — Owner: Web port. Files: `kit/dialog`
+  (`Dialog`, `Sheet`, `AlertDialog`), `kit/menu`, `kit/toast`, `kit/tabs`,
+  `kit/disclosure`, `kit/progress`. `Dialog` is `Modal.svelte`: a centered
+  `.modal-card` that becomes a bottom sheet at 640px and below, sized sm/md/lg
+  (340/380/560px; the 350, 390 and 520px one-offs round to these). `Sheet` is
+  the feed's `.sheet.filter-sheet` with its header, scrolling body and pinned
+  footer. Both use Base UI's Drawer, so swipe-down dismissal replaces
+  `drag-dismiss.ts`. `AlertDialog` is the Cancel/confirm Modal pattern with
+  alert-dialog semantics (no outside-click or swipe dismissal). `Menu` is
+  `.menu-surface`/`.menu-item` with an icon-button or select-style trigger
+  (`.work-mode-trigger`) and checkbox items using `SelectCheck`. `toast` and
+  `ToastProvider` are `feedback.svelte.ts` + `Toast.svelte` on Base UI's toast
+  manager (two visible, 3.5s default, actions persist, `dedupeKey` updates in
+  place); the provider is mounted in `__root.tsx`. `Tabs` is `.my-jobs-tabs`
+  with Base UI's indicator. `Disclosure` is `.advanced-fields`. `Progress` is
+  the usage meter (`bar`) and the onboarding step track (`steps`). Not built,
+  because the current app has no call site: `Tooltip`, `Popover`,
+  `Combobox`/`Autocomplete` (locations are fixed chips and company search is
+  a plain input). Rendered at `/_kit`; awaiting the 2.4 comparison.
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

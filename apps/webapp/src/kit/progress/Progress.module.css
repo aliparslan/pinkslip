@@ -1,0 +1,37 @@
+/* `variant="bar"` is the `.usage-meter-track`/`-fill` bar; `variant="steps"`
+   is the onboarding step track (one segment per step). */
+.root[data-variant="bar"] .track {
+  /* intentional: the Svelte meter track is 4px */
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-line-2);
+}
+
+.indicator {
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  transition: width var(--duration-standard) var(--ease-standard);
+}
+
+.root[data-variant="steps"] {
+  display: flex;
+  gap: var(--space-2);
+  width: min(100%, 400px);
+  margin-inline: auto;
+}
+
+.step {
+  flex: 1;
+  /* intentional: the Svelte onboarding step track is 3px */
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-line);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.step[data-active] {
+  background: var(--color-accent);
+}

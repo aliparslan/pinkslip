@@ -593,7 +593,7 @@ as evidence for the reuse threshold.
   documented grouped-surface and layout compositions.
 - A dev-only `/_kit` playground that renders every component in every state.
 
-**2.2 Actions and inputs** · L · ✅ implemented locally (2026-10-09): `Button`, `LinkButton`, `IconButton`, `Field`, `Input`, `Textarea`, `Select` (native), `Fieldset`, `Form`, `Checkbox`, `SelectCheck`, `Switch`, `ToggleGroup` (chips and segmented), `Alert`, `SaveStatus`. `RadioGroup`, `NumberField` and `CheckboxGroup` are skipped (no call site in the current app); `Combobox`/`Autocomplete` moves to 2.3 with the other popups
+**2.2 Actions and inputs** · L · ✅ implemented locally (2026-10-09): `Button`, `LinkButton`, `IconButton`, `Field`, `Input`, `Textarea`, `Select` (native), `Fieldset`, `Form`, `Checkbox`, `SelectCheck`, `Switch`, `ToggleGroup` (chips and segmented), `Alert`, `SaveStatus`. `RadioGroup`, `NumberField` and `CheckboxGroup` are skipped (no call site in the current app); `Combobox`/`Autocomplete` was deferred to 2.3, which then skipped it too (no call site)
 - Actions: `Button`, `IconButton`, `LinkButton`.
 - Text inputs: `Input`, `Textarea`, `Field` (label plus error, with **no
   description slot by default**, to keep text light), `Fieldset`, `Form`.
@@ -602,7 +602,7 @@ as evidence for the reuse threshold.
   `ToggleGroup` (filter chips).
 - Status: `SaveStatus`.
 
-**2.3 Overlays and feedback** · L
+**2.3 Overlays and feedback** · L · ✅ implemented locally (2026-10-09): `Dialog` and `Sheet` (both on Base UI Drawer, so swipe-down dismissal replaces `drag-dismiss.ts`), `AlertDialog`, `Menu` (with `MenuItem`, `MenuCheckboxItem`, `MenuSeparator`), `toast` + `ToastProvider`, `Tabs`, `Disclosure`, `Progress` (bar and steps). `Tooltip`, `Popover`, `Meter` and `Combobox`/`Autocomplete` are skipped: the current app has no call site. Add them when a screen needs one
 - Overlays: `Dialog`, `AlertDialog`, `Drawer` (bottom sheet, which Base UI's
   Drawer provides with swipe-to-dismiss, replacing `drag-dismiss.ts`), `Popover`,
   `Menu`, `Tooltip`.

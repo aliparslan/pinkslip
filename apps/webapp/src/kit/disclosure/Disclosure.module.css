@@ -1,0 +1,48 @@
+/* `.advanced-fields` from SearchProfileFields.svelte: a quiet "more options"
+   toggle under a hairline, opening with a height transition. */
+.root {
+  padding-block-start: var(--space-3);
+  border-block-start: 0.5px solid var(--color-line);
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height-small);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.caret {
+  display: grid;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.trigger[data-panel-open] .caret {
+  transform: rotate(180deg);
+}
+
+.panel {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height var(--duration-standard) var(--ease-standard);
+}
+
+.panel[data-starting-style],
+.panel[data-ending-style] {
+  height: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding-block-start: 13px;
+}

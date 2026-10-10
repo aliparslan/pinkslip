@@ -1,0 +1,111 @@
+/* `.menu-surface` and `.menu-item` from the Svelte app.css, plus the
+   select-style trigger from SearchProfileFields.svelte (`.work-mode-trigger`). */
+.positioner {
+  z-index: var(--z-overlay);
+  outline: none;
+}
+
+.popup {
+  /* intentional: the Svelte job row menu width */
+  min-width: min(148px, calc(100vw - 32px));
+  padding: 5px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  box-shadow: var(--shadow-toast);
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--duration-instant) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.popup[data-variant="field"] {
+  min-width: var(--anchor-width);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height-compact);
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.item[data-highlighted] {
+  background: var(--color-bg-sunken);
+  color: var(--color-ink);
+}
+
+.item[data-disabled] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.item[data-tone="danger"] {
+  color: var(--color-bad);
+}
+
+.checkItem {
+  justify-content: space-between;
+  font-size: var(--fs-md);
+}
+
+.separator {
+  height: 0.5px;
+  margin: 4px 6px;
+  background: var(--color-line);
+}
+
+.fieldTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  font-size: var(--fs-md);
+  text-align: start;
+  cursor: pointer;
+}
+
+.fieldValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldValue[data-placeholder] {
+  color: var(--color-ink-4);
+}
+
+.chevron {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--color-ink-3);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.fieldTrigger[data-popup-open] .chevron {
+  transform: rotate(180deg);
+}

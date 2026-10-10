@@ -1,0 +1,121 @@
+/* Toast.svelte and ToastViewport.svelte: up to two messages stacked above
+   the tab bar on phones and in the bottom-right corner on wide screens.
+   Base UI positions each toast; `--toast-offset-y` stacks them. */
+.viewport {
+  position: fixed;
+  inset-inline: var(--space-4);
+  inset-block-end: var(--overlay-bottom-offset);
+  z-index: var(--z-toast);
+  width: min(calc(100% - 2 * var(--space-4)), 440px);
+  margin-inline: auto;
+}
+
+.toast {
+  --gap: var(--space-2);
+  --offset-y: calc(var(--toast-offset-y) * -1 - var(--toast-index) * var(--gap) + var(--toast-swipe-movement-y));
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: calc(100 - var(--toast-index));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--color-message-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-bg-elev) 94%, transparent);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-toast);
+  backdrop-filter: blur(18px) saturate(130%);
+  transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.toast[data-starting-style] {
+  opacity: 0;
+  transform: translateY(calc(var(--offset-y) + 12px));
+}
+
+.toast[data-ending-style] {
+  opacity: 0;
+  transform: translateX(var(--toast-swipe-movement-x)) translateY(calc(var(--offset-y) + 8px));
+  transition-duration: var(--duration-instant);
+}
+
+.toast[data-ending-style][data-swipe-direction="left"] {
+  transform: translateX(calc(var(--toast-swipe-movement-x) - 120%)) translateY(var(--offset-y));
+}
+
+.toast[data-ending-style][data-swipe-direction="right"] {
+  transform: translateX(calc(var(--toast-swipe-movement-x) + 120%)) translateY(var(--offset-y));
+}
+
+.toast[data-swiping] {
+  transition-duration: 0ms;
+}
+
+.toast[data-limited] {
+  opacity: 0;
+}
+
+/* The icon and live region carry the status; the border stays neutral. */
+.icon {
+  display: grid;
+  color: var(--color-ink-3);
+}
+
+.toast[data-type="success"] .icon { color: var(--color-good); }
+.toast[data-type="warning"] .icon { color: var(--color-warn); }
+.toast[data-type="error"] .icon { color: var(--color-bad); }
+
+.message {
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.action,
+.close {
+  /* intentional: the Svelte toast buttons are 32px inside a 44px toast */
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.action {
+  padding: 0 var(--space-2);
+  color: var(--color-accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  /* intentional: square 32px close button */
+  width: 32px;
+  padding: 0;
+  color: var(--color-ink-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .action:hover,
+  .close:hover {
+    background: var(--color-bg-sunken);
+  }
+}
+
+@media (min-width: 900px) {
+  .viewport {
+    inset-inline: auto var(--space-6);
+    inset-block-end: var(--space-6);
+    width: 440px;
+  }
+}
