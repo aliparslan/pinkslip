@@ -16,21 +16,15 @@ shared semantic tokens; domain actions belong in features.
   Review on the signed phone is still needed; testing flows are in
   `docs/port-closeout.md`.
 
-- **Native lists and swipes (6.4/6.6 follow-up)** — `NativeList.tsx` exposes
-  `NativeList`, `NativeListContent`, and `NativeSwipeRow`. Used independently
-  by Jobs and Library: SwiftUI owns the plain list, separators, pull to
-  refresh, reveal buttons, full-swipe recognition, cancellation, and motion.
-  `RNHostView` preserves the existing kit row and header compositions, their
-  Dynamic Type sizing, menus and VoiceOver actions. The kit measures the
-  actual list width before Yoga calculates row height, so long titles wrap
-  instead of stretching a SwiftUI cell beyond the screen. `NativeListContent`
-  bridges self-sizing headers, empty states and pagination footers; `onVisible`
-  loads another page when the footer appears. SwiftUI lays out list cells
-  lazily, but the React row tree is mounted for the loaded pages rather than
-  recycled by FlashList. Large-feed performance needs device review.
-  Swipe buttons use system action colors to retain native label contrast.
-  Domain actions, optimistic updates and Undo stay in features/data.
-  Demo: development-only `/you/kit-swipes` (Kit → Native swipes).
+- **SwipeRow (replaces NativeList, 2026-10-10)** — one full-swipe action per
+  side inside FlashList: grey behind the row while dragging, filled with its
+  colour and a haptic past the commit point (30% of the width, at least
+  88pt), released to run; a flick commits too. `removes` slides the row away
+  for actions that take it out of the list. FlashList keeps the native large
+  title and search bar collapsing, which the SwiftUI List broke, and recycles
+  rows. Every action is also in the long-press menu and the row's
+  accessibility actions. Demo: development-only `/you/kit-swipes` (Kit →
+  Swipes).
 - **Filled Menu sizing correction** — the existing `fill` prop now measures
   its container and constrains the nested SwiftUI menu trigger. This preserves
   wrapping in JobRow and Select; the native menu actions remain unchanged.

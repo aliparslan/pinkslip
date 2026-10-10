@@ -1,13 +1,15 @@
 import { availableStages, feedParams, filterCount, profileLocations, withoutRefinements } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
 import { useFeed, usePreferences, useStats, useViewedJobs } from "@pinkslip/data";
+import { FlashList } from "@shopify/flash-list";
 import { router } from "expo-router";
 import { ArrowClockwise, Funnel, MagnifyingGlass, WarningCircle } from "phosphor-react-native";
 import { useEffect, useMemo } from "react";
-import { View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, Inline, NativeList, NativeListContent, Skeleton, Spinner, Text, toast } from "../../kit";
+import { Button, EmptyState, Inline, Skeleton, Spinner, Text, toast } from "../../kit";
 import { JobRow } from "../jobs/JobRow";
+import { RowSeparator } from "../jobs/RowSeparator";
 import { useJobActions, type RowJob } from "../jobs/useJobActions";
 import { useTrack } from "../jobs/track";
 import { setFeedSearch, useFeedSearch } from "./feed-search";
@@ -80,21 +82,23 @@ export function Feed() {
     </View>}
   </View>;
 
-  if (feed.isPending) return <NativeList onRefresh={refresh}>
-    <NativeListContent>{header}</NativeListContent>
-    {[0, 1, 2, 3, 4, 5].map((id) => <NativeListContent key={id}><SkeletonRow /></NativeListContent>)}
-  </NativeList>;
+  if (feed.isPending) return <View style={styles.fill}><FlashList data={[0, 1, 2, 3, 4, 5]} renderItem={() => <SkeletonRow />}
+    contentInsetAdjustmentBehavior="automatic" ListHeaderComponent={header} /></View>;
   if (feed.isError && !feed.data) {
     return <View style={styles.center}><EmptyState icon={WarningCircle} title="Jobs didn't load" message="Check your connection and try again."
       actions={<Button pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} /></View>;
   }
 
-  return <NativeList onRefresh={refresh}>
-    <NativeListContent>{header}</NativeListContent>
-    {jobs.map((job) => <JobRow key={job.id} job={job} viewed={viewed.data?.has(job.id)} onPress={open} actions={actions} />)}
-    {jobs.length > 0 ? <NativeListContent key={`more-${jobs.length}`} onVisible={loadMore}><View style={styles.footer}>
+  return <FlashList data={jobs} keyExtractor={(job) => job.id} contentInsetAdjustmentBehavior="automatic" style={styles.fill}
+    ListHeaderComponent={header}
+    renderItem={({ item }) => <JobRow job={item} viewed={viewed.data?.has(item.id)} onPress={open} actions={actions} />}
+    ItemSeparatorComponent={RowSeparator}
+    onEndReached={loadMore} onEndReachedThreshold={0.6}
+    refreshControl={<RefreshControl refreshing={feed.isRefetching && !feed.isFetchingNextPage} onRefresh={() => void refresh()} tintColor={theme.colors["ink-3"]} />}
+    ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
       {feed.hasNextPage ? <Spinner label="Loading more jobs" /> : <Text size="sm" tone="ink-4">You're all caught up. Go touch grass.</Text>}
-    </View></NativeListContent> : <NativeListContent>{search.q && refinements === 0
+    </View> : null}
+    ListEmptyComponent={search.q && refinements === 0
       ? <EmptyState icon={MagnifyingGlass} title="No matches" message="Try a different company, title or city."
         actions={<Button onPress={() => setFeedSearch({ ...search, q: undefined })}>Clear search</Button>} />
       : <EmptyState icon={refinements > 0 ? Funnel : undefined}
@@ -103,8 +107,7 @@ export function Feed() {
         actions={<Inline gap="2">
           {refinements > 0 && <Button onPress={() => setFeedSearch(withoutRefinements(search))}>Clear filters</Button>}
           <Button icon={ArrowClockwise} pending={feed.isRefetching} onPress={() => void refresh()}>Refresh now</Button>
-        </Inline>} />}</NativeListContent>}
-  </NativeList>;
+        </Inline>} />} />;
 }
 
 function SkeletonRow() {

@@ -27,7 +27,7 @@ export function KitGallery() {
       <Inline gap="2"><Badge>New</Badge><Badge>Closed</Badge></Inline>
     </Section>
     <Section title="Actions">
-      <Button onPress={() => router.push("/you/kit-swipes")}>Native swipes</Button>
+      <Button onPress={() => router.push("/you/kit-swipes")}>Swipes</Button>
       <Button variant="primary" icon={Briefcase}>Apply</Button>
       <Button icon={BookmarkSimple}>Save</Button>
       <Button variant="danger" icon={Trash}>Delete</Button>

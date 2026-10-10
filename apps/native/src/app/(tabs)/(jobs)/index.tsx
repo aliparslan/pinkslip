@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { useRef, useState } from "react";
+import { useUnistyles } from "react-native-unistyles";
 import { Feed, useFeedCriteria } from "../../../features/feed/Feed";
 import { feedSearch, setFeedSearch } from "../../../features/feed/feed-search";
 import { FilterSheet } from "../../../features/feed/FilterSheet";
@@ -7,6 +8,7 @@ import { FilterSheet } from "../../../features/feed/FilterSheet";
 const SEARCH_DEBOUNCE_MS = 250;
 
 export default function JobsScreen() {
+  const { theme } = useUnistyles();
   const { filters } = useFeedCriteria();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -35,7 +37,8 @@ export default function JobsScreen() {
         type: "button",
         label: "Filters",
         icon: { type: "sfSymbol", name: "line.3.horizontal.decrease" },
-        badge: filters > 0 ? { value: filters } : undefined,
+        // The pink fill with its dark ink, not the system's red alert badge.
+        badge: filters > 0 ? { value: String(filters), style: { backgroundColor: theme.colors["accent-fill"], color: theme.colors["accent-ink"] } } : undefined,
         accessibilityLabel: filters > 0 ? `Filters, ${filters} active` : "Filters",
         onPress: () => setFiltersOpen(true),
       }],

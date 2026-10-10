@@ -1,8 +1,9 @@
 import { formatCompactSalaryText, formatJobLocation } from "@pinkslip/core/job-format";
 import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
+import { ArrowCounterClockwise, BookmarkSimple, CheckCircle, EyeSlash, X } from "phosphor-react-native";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu, NativeSwipeRow, Text, type MenuItem, type NativeSwipeAction } from "../../kit";
+import { Menu, SwipeRow, Text, type MenuItem, type SwipeAction } from "../../kit";
 import { CompanyLogo } from "./CompanyLogo";
 import type { JobActions, RowJob } from "./useJobActions";
 
@@ -31,12 +32,12 @@ export function JobRow({ job, viewed = false, contextLabel, onPress, actions }: 
   const { save, unsave, markApplied, unmarkApplied, toggleRead, hide, block } = actions;
 
   // The feed's right swipe toggles Save; Library's moves a saved job to applied.
-  const leading: NativeSwipeAction | null = save && !saved ? { label: "Save", icon: "bookmark", tone: "accent", run: () => save(job) }
-    : save && unsave && saved ? { label: "Unsave", icon: "bookmark.slash", tone: "neutral", run: () => unsave(job) }
-    : markApplied && !applied ? { label: "Applied", icon: "checkmark.circle", tone: "accent", run: () => markApplied(job) } : null;
-  const trailing: NativeSwipeAction | null = hide ? { label: "Hide", icon: "eye.slash", tone: "bad", run: () => hide(job) }
-    : unsave && saved ? { label: "Remove", icon: "xmark", tone: "bad", run: () => unsave(job) }
-    : unmarkApplied && applied ? { label: "Didn't apply", icon: "arrow.uturn.backward", tone: "neutral", run: () => unmarkApplied(job) } : null;
+  const leading: SwipeAction | null = save && !saved ? { label: "Save", icon: BookmarkSimple, tone: "accent", run: () => save(job) }
+    : save && unsave && saved ? { label: "Unsave", icon: BookmarkSimple, tone: "neutral", run: () => unsave(job) }
+    : markApplied && !applied ? { label: "Applied", icon: CheckCircle, tone: "accent", removes: true, run: () => markApplied(job) } : null;
+  const trailing: SwipeAction | null = hide ? { label: "Hide", icon: EyeSlash, tone: "bad", removes: true, run: () => hide(job) }
+    : unsave && saved ? { label: "Remove", icon: X, tone: "bad", removes: true, run: () => unsave(job) }
+    : unmarkApplied && applied ? { label: "Didn't apply", icon: ArrowCounterClockwise, tone: "neutral", removes: true, run: () => unmarkApplied(job) } : null;
 
   const menu: (MenuItem | false | undefined)[] = [
     save && !saved && { id: "save", title: "Save", icon: "bookmark", onSelect: () => save(job) },
@@ -49,7 +50,7 @@ export function JobRow({ job, viewed = false, contextLabel, onPress, actions }: 
   ];
 
   const a11yActions = menu.filter((item): item is MenuItem => Boolean(item));
-  return <NativeSwipeRow leading={leading} trailing={trailing}>
+  return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Menu items={menu} openOn="longPress" fill>
       <Pressable onPress={() => onPress(job)} style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         accessibilityRole="button" accessibilityLabel={`${job.title} at ${job.company_name}${fresh ? ", new" : ""}`}
@@ -66,7 +67,7 @@ export function JobRow({ job, viewed = false, contextLabel, onPress, actions }: 
         </View>
       </Pressable>
     </Menu>
-  </NativeSwipeRow>;
+  </SwipeRow>;
 }
 
 const styles = StyleSheet.create((theme) => ({
