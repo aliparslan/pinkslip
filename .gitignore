@@ -51,14 +51,14 @@ bun.lockb
 .playwright-results/
 sample-pics/
 
-# generated when Xcode Cloud is opened; shared schemes remain trackable
-apps/ios/ios/App/App.xcodeproj/xcshareddata/xcodecloud/
-
 # local agent notes and generated planning artifacts
 /CLAUDE.md
 /docs/superpowers/
 
-# SvelteKit generated route types and build intermediates
-.svelte-kit/
+# Local leftovers of the Capacitor app deleted in chunk 3.4 (Pods, archives,
+# Xcode user state); safe to delete, never to commit.
+/apps/ios/
+
+# build intermediates
 apps/*/dist-artifact/
 apps/*/.tanstack/

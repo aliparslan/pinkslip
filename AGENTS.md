@@ -1,40 +1,38 @@
 # Pinkslip frontend rules
 
-Before changing UI, read `packages/client/src/components/COMPONENTS.md`. Reuse
-the documented component or composition pattern when it fits; do not create an
-inline visual variant just because it is faster to generate.
+The web app is `apps/webapp` (TanStack Start, Base UI, CSS Modules). Before
+changing UI, read `apps/webapp/src/kit/COMPONENTS.md` and the "Web kit" section
+below. Reuse the documented component or composition pattern when it fits; do
+not create an inline visual variant just because it is faster to generate.
 
-- Use semantic tokens from `packages/client/src/styles/tokens.css`. Do not add
-  raw palette, type-size, radius, or motion values when a token expresses the
-  intent.
-- Keep pure UI free of API, router, store, and domain imports. Domain behavior
-  belongs in feature components or route pages.
+- Use semantic tokens from `packages/tokens` (generated `tokens.css`). Do not
+  add raw palette, type-size, radius, or motion values when a token expresses
+  the intent.
+- Keep the kit free of API, router, store, and domain imports. Domain behavior
+  belongs in `src/features` or route files.
 - Add a stable primitive only after the same need appears in three places or in
   two independent features. Prefer a narrow semantic prop such as `tone` or
   `size` over arbitrary class passthroughs and large prop matrices.
 - New or unreviewed UI belongs in the Quarantine section of the component
   catalog until the user explicitly approves it. Document why it exists and
   where it is used.
-- Do not add new `isIosApp()` branches or `html.native-ios` rules to shared
-  pages/components when the policy can live in a shell, token, or adaptive
-  component. Existing call sites are grandfathered debt, not precedent.
 - Treat file length and total CSS as review signals, not optimization targets.
   A refactor should reduce duplicated decisions, dependencies, or mixed
   responsibilities; moving the same code into more files is not a cleanup.
   Growth is acceptable when it adds necessary behavior or makes ownership and
   testing materially clearer—state that tradeoff in the handoff.
-- Run `bun run check`, `bun test`, and both frontend builds after material UI or
-  architecture changes.
+- Run `bun run check`, `bun test`, `bun run build` and the Playwright suite
+  after material UI or architecture changes.
 
 ## React + Expo port (in progress)
 
 The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
 
-- New UI work goes in the React app (`apps/webapp`, TanStack Start + Base UI +
-  CSS Modules). The Svelte app (`apps/web`, `packages/client`, `apps/ios`) gets
-  no new work and is deleted at the cutover in chunk 3.4 (tagged
-  `svelte-final`). The owner accepts the gaps that cutover leaves for the
-  dozen or so testers.
+- The Svelte web app, `packages/client` and the Capacitor iOS app were deleted
+  in chunk 3.4. Read them with `git show svelte-final:<path>`; the parity
+  checklist (`docs/port-parity.md`) and the screenshots in
+  `docs/port-design/current/` are the design reference. The owner accepts the
+  gaps the cutover left until Phase 4 fills them.
 - The port reproduces the current design. The redesign is a separate, later
   project; don't redesign screens during the port.
 - No Tailwind or NativeWind, anywhere. No Next.js.
@@ -89,10 +87,10 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
 - Keep commits to one chunk or decision each, and record chunk status and
   decisions in `docs/REACT_EXPO_PORT_PLAN.md`; another agent reviews the
   history afterwards.
-- Next up is Phase 3 (web shell: routes, session, states, then the 3.4
-  cutover). The app frame already exists (`features/shell/Shell.tsx`: left
-  sidebar at 900px and up, bottom tab bar below). The 3.4 cutover needs the
-  owner's explicit go-ahead to deploy and to disable Xcode Cloud.
+- Phase 3 (web shell) is done; Phase 4 builds the screens. Each slice deploys
+  only with the owner's go-ahead (`bun run deploy:web`; the API deploys
+  separately with `deploy:backend`). Xcode Cloud stays off until the Expo app
+  (6.1/6.13).
 
 ## Repository workflow
 

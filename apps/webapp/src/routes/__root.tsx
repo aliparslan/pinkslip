@@ -19,8 +19,16 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Pinkslip" },
       { name: "robots", content: "noindex, nofollow" },
+      { name: "theme-color", content: "#0e0e10" },
     ],
-    links: [themeCss, fontsCss, resetCss, baseCss, navigationCss].map((href) => ({ rel: "stylesheet", href })),
+    links: [
+      ...[themeCss, fontsCss, resetCss, baseCss, navigationCss].map((href) => ({ rel: "stylesheet", href })),
+      // The installable-app metadata the Svelte site shipped (apps/web/src/app.html).
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon-180.png" },
+      { rel: "manifest", href: "/manifest.json" },
+    ],
   }),
   component: Root,
   notFoundComponent: NotFoundPage,

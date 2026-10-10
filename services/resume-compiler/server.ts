@@ -19,7 +19,7 @@ const fontsReady = Promise.all([
   "SourceSans3-Semibold.ttf",
   "SourceSans3-Bold.ttf",
 ].map(async (name) => new Uint8Array(
-  await Bun.file(new URL(`../../packages/client/src/assets/fonts/${name}`, import.meta.url)).arrayBuffer(),
+  await Bun.file(new URL(`./fonts/${name}`, import.meta.url)).arrayBuffer(),
 ))).then((fonts) => {
   compiler.use(TypstSnippet.disableDefaultFontAssets(), TypstSnippet.preloadFonts(fonts));
 });

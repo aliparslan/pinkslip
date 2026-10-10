@@ -3,8 +3,9 @@
  *
  * The browser resolves `var()` at use time, so equality is checked per cascade
  * context (mode, contrast, reduced motion, wide layout) after resolving every
- * reference. This runs as a test and as `bun run check:equivalence`; once chunk
- * 3.4 deletes the old app it reports itself as skipped instead of failing.
+ * reference. This runs as a test and as `bun run check:equivalence`. The
+ * Svelte app was deleted in chunk 3.4; `reference/` keeps a verbatim copy of its
+ * two stylesheets from the `svelte-final` tag, so the comparison still runs.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,8 +14,8 @@ import { breakpoints, intentionalDivergences } from "../src/tokens";
 const repoRoot = join(import.meta.dir, "..", "..", "..");
 const generatedPath = join(repoRoot, "packages/tokens/src/tokens.css");
 const referencePaths = [
-  join(repoRoot, "packages/client/src/styles/tokens.css"),
-  join(repoRoot, "packages/client/src/styles/typography.css"),
+  join(repoRoot, "packages/tokens/reference/svelte-tokens.css"),
+  join(repoRoot, "packages/tokens/reference/svelte-typography.css"),
 ];
 
 interface Context {

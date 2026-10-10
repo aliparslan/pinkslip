@@ -15,7 +15,7 @@
     "worker:types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false",
     "check:worker-types": "wrangler types worker-configuration.d.ts --env-interface WebBindings --include-runtime=false --check",
     "test:e2e": "playwright test",
-    "capture:references": "bun e2e/capture-references.ts"
+    "deploy": "vite build && wrangler deploy --config dist/server/wrangler.json"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",

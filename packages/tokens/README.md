@@ -14,10 +14,11 @@ The single source of truth is `src/tokens.ts`. `bun run generate` emits:
   off-scale value is a type error on both platforms.
 
 `bun run check` fails when the generated files drift, when any resolved value
-differs from the frozen `packages/client/src/styles/tokens.css` plus
-`typography.css` (95 values across 32 cascade contexts), or when a font misses a
-required glyph. The equivalence comparison reports itself as skipped after chunk
-3.4 deletes the frozen styles.
+differs from the frozen Svelte `tokens.css` plus `typography.css` (95 values
+across 32 cascade contexts), or when a font misses a required glyph. The Svelte
+app is gone (chunk 3.4), so `reference/` keeps verbatim copies of those two
+files from the `svelte-final` tag; never edit them. Deliberate differences go in
+`intentionalDivergences`.
 
 The Klim WOFF2s are still the cut-down trials: they carry ~67 characters and
 almost no punctuation. `scripts/glyphs.ts` records their exact coverage, so a

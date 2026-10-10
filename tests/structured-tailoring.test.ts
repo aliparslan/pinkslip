@@ -19,7 +19,7 @@ import {
   removeLowestPriorityContent,
   RESUME_COMPILER_VERSION as CLIENT_COMPILER_VERSION,
   RESUME_TEMPLATE_VERSION as CLIENT_TEMPLATE_VERSION,
-} from "../packages/client/src/lib/resume-document";
+} from "../packages/core/src/resume-document";
 import {
   createResumeProfileSnapshot,
   loadResumeProfileSnapshot,

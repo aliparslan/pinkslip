@@ -8,8 +8,8 @@ function flushWithoutBlocking(flush: AutosaveFlush): void {
 
 /** Flush every mounted autosave owner before a navigation commits. Returning
  * false keeps the current screen visible so failed edits are never silently
- * discarded. Platform shells bind page-hide events and call this; the web
- * adapter lives in `packages/client` until the Svelte app is removed. */
+ * discarded. Platform shells bind page-hide events and call this; the web app
+ * adds that binding with its first autosaving screen (4.6). */
 export async function flushActiveAutosaves(): Promise<boolean> {
   const results = await Promise.all([...activeAutosaveFlushes].map(async (flush) => {
     try {

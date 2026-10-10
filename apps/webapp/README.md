@@ -1,29 +1,30 @@
-# React web foundation
+# Pinkslip web app
 
-TanStack Start runs in a separate `pinkslip-web` Worker. Hono remains the API.
-This is chunk 1.1: public Jobs and job-summary pages prove SSR, and the
-client-only You placeholder proves same-origin account reads. Product screens,
-Query integration, the Base UI kit, and the full navigation shell follow.
+TanStack Start runs in the `pinkslip-web` Worker, which owns both hostnames.
+Hono remains the only API. Since chunk 3.4 this is the production site: the
+shell, session, page states and placeholders are in, and the product screens
+arrive in Phase 4.
 
 From the repository root:
 
 ```sh
 bun install
-bun run dev:web
-# http://127.0.0.1:3000
-bun run build:react
-bun run test:e2e:react
+bun run dev        # http://127.0.0.1:3000
+bun run build
+bun run test:e2e
+bun run deploy:web
 ```
 
-`dev:web` applies local migrations and starts both Workers. The Vite plugin
+`dev` applies local migrations and starts both Workers. Run only one at a time,
+because every `vite dev` here shares `node_modules/.vite`. The Vite plugin
 shares the repository's `.wrangler/state` so existing local D1 data is usable.
 `wrangler.api.local.jsonc` runs the real Hono entry with local D1/R2 only.
 AI, email, queues and scheduled handlers are not configured for this development
 companion. Production continues to use the root Wrangler configuration.
 No production resource is migrated or deployed by these commands.
 
-Browser requests to `/api/*`, the email callback, both Apple association paths,
-and legal pages pass through the API service binding with their original
+Browser requests to `/api/*`, the email callback and both Apple association
+paths pass through the API service binding with their original
 URL, request body, cookies, and response headers. Legacy-host browser visits
 retain the existing redirect to `pinkslip.work`.
 
@@ -81,25 +82,13 @@ bun run build
 bunx wrangler deploy --dry-run
 ```
 
-## Cutover preparation (chunk 3.4)
+## Cutover (chunk 3.4)
 
-The web config deliberately has no active hostnames and no deploy script.
-After the planned shell/kit milestone, preserve the Svelte tag and references,
-disable the old Xcode workflow, then move both custom domains off the API
-Worker and add these routes to `wrangler.jsonc`:
-
-```json
-"routes": [
-  { "pattern": "pinkslip.work", "custom_domain": true },
-  { "pattern": "pinkslip.alip.dev", "custom_domain": true }
-]
-```
-
-Use the built web config in `dist/server/wrangler.json` for the web deployment.
-Remove the API's Svelte assets only during that coordinated cutover; API crons
-and queues keep their existing deployment. The retirement service worker and
-remaining shell routes belong to that milestone. Keep the web response and
-asset `noindex` headers until the search-launch slice.
+The Svelte site was replaced outright; its code is at the `svelte-final` tag.
+`public/sw.js` replaces the old service worker at its URL and retires it
+(`e2e/retirement.pw.ts`). Deploy steps and checks are in
+[docs/port-chunk-3.4.md](../../docs/port-chunk-3.4.md). Keep the `noindex`
+response and meta tags until the search-launch slice.
 
 References: [Cloudflare's Start integration](https://developers.cloudflare.com/workers/framework-guides/web-apps/tanstack-start/),
 [Vite auxiliary Workers](https://developers.cloudflare.com/workers/vite-plugin/reference/api/),

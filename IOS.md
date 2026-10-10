@@ -1,5 +1,9 @@
 # pinkslip for iOS
 
+> The Capacitor app this describes was deleted in chunk 3.4 of the port
+> (`git show svelte-final:apps/ios/...`). The Expo app replaces it in Phase 6.
+> The APNs key, push and device-testing notes still apply to the Worker side.
+
 The iOS app is a Capacitor 8.5 application with its own entrypoint and UI shell.
 Its production web assets are packaged into the App Store binary; it does not
 load the deployed website at runtime. Shared screens and product logic live in

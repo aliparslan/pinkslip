@@ -7,13 +7,15 @@ cover-letter tailoring.
 
 ## How it is built
 
-- A Cloudflare Worker exposes the Hono API and serves the built frontend.
+- A Cloudflare Worker (`pinkslip`) runs the Hono API, crons and queues.
 - Cloudflare D1 stores accounts, search profiles, jobs, and product events.
 - Cloudflare R2 stores uploaded resume assets.
-- A Svelte 5/SvelteKit web app provides the responsive browser experience and
-  installable web capabilities.
-- A separate Capacitor 8.5 iOS app composes the shared product code around an
-  iOS-specific shell, lifecycle, secure session, APNs, haptics, and share UI.
+- A React web app (TanStack Start, Base UI, CSS Modules) runs as a second
+  Worker (`pinkslip-web`), owns the hostnames and forwards API paths to the API
+  through a service binding.
+- An Expo iOS app with native screens is planned (Phase 6 of
+  `docs/REACT_EXPO_PORT_PLAN.md`). The earlier Svelte web app and Capacitor iOS
+  app are preserved at the `svelte-final` tag.
 
 `user_search_profiles` is the canonical source for matching and notification
 preferences. The old `user_preferences` table is read only as an import path for
@@ -39,33 +41,26 @@ ACCESS_CODE=
 Non-secret defaults and binding names live in `wrangler.toml`. Never commit
 real secret values.
 
-Run the Worker and web app in separate terminals:
-
-```sh
-# Repository root: repairs and migrates local D1, then starts the API.
-bun run dev
-
-# Repository root: starts the responsive web app and proxies /api to the Worker.
-bun --filter @pinkslip/web dev
-```
+From the repository root, `bun run dev` migrates local D1 and starts the web
+app at http://127.0.0.1:3000 with the Hono API running beside it. That
+development API reads the root `.dev.vars`. Run one dev server at a time: they
+share Vite's dependency cache. `bun run dev:api` starts the API alone.
 
 The local email binding simulates delivery and records the message in local
-development output; it does not send real email. `bun run dev:prod-data` uses
-remote Cloudflare resources and should only be used deliberately.
+development output; it does not send real email.
 
 ## Verification
 
 ```sh
 bun test
 bun run check
-bun run build:frontend
-bun run build:ios
-bun run db:migrate
+bun run build
+bun run test:e2e   # Playwright, against the dev server
 ```
 
 Tests use Bun's built-in test runner. `bun run check` covers Worker TypeScript,
-shared client code, both app entrypoints, and CSS. See `IOS.md` for native builds
-and physical-device push testing.
+the shared packages, tokens and fonts, and the web app's types, CSS and
+governance rules.
 
 ## Database and deployment
 
@@ -76,22 +71,24 @@ bun run db:migrate          # local D1
 bun run db:migrate:remote   # production D1
 ```
 
-`bun run deploy` applies remote migrations, builds the frontend, and deploys
-the Worker. Review the migration and verify the full local suite before using
-it because it changes production data and code.
+`bun run deploy:backend` applies remote migrations and deploys the API Worker.
+`bun run deploy:web` builds and deploys the web Worker. `bun run deploy` runs
+both, API first. Review the migration and verify the full local suite before
+deploying, because these commands change production data and code.
 
 ## Project map
 
 - `worker/` — API routes, authentication, scoring, notifications, and tailoring
-- `apps/web/` — browser/PWA entrypoint, responsive shell, and web platform adapter
-- `apps/ios/` — Capacitor entrypoint, iOS shell, native adapter, and Xcode project
-- `packages/client/` — shared screens, components, routing, and state
+- `apps/webapp/` — the React web app and its `pinkslip-web` Worker
+- `apps/native/` — Expo experiments from the port's foundations (Phase 1.6)
+- `packages/data/` — TanStack Query hooks and the session, shared by the apps
 - `packages/core/` — framework-free API client and client logic for any app
+- `packages/tokens/` — design tokens for web and native, plus the font checks
 - `shared/` — `@pinkslip/domain`: types and rules used by the Worker and clients
 - `tests/` — Worker and pure-domain tests
 - `migrations/` — D1 schema history
 - `scripts/` — local database maintenance
-- `IOS.md` — iOS build, APNs setup, and device testing
+- `IOS.md` — APNs setup and device testing (written for the retired Capacitor app)
 - `docs/ARCHITECTURE.md` — ownership rules, release boundaries, and workflows
 
 The current polling and matching pipeline is live. Future source expansion,

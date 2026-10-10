@@ -107,7 +107,7 @@ A separate web Worker that reaches the API through a **service binding** (an
 in-process call with no network hop):
 - **Makes API and web deploys independent.** This fixes the 2026-10-05 incident
   structurally: a backend-only deploy dropped the `ASSETS` binding and 404'd
-  every page, and `deploy:backend` has been disabled since.
+  every page, and `deploy:backend` was disabled until 3.4 made it safe again.
 - **Keeps React SSR code out of the API Worker's bundle and CPU budget.**
 - **Lets Start use its standard Cloudflare setup** with no custom glue.
 
@@ -648,7 +648,7 @@ Screens are placeholders at this stage.
 - A route error boundary (page-level and inline failures).
 - Pending UI, empty states, an offline banner, and the toast viewport.
 
-**3.4 Replace the Svelte site** · M · partly done in the working tree (2026-10-10): assets, fonts, token references and two core candidates moved out of the Svelte directories; the `/sw.js` kill switch is tested. Deletion, scripts, Worker config, docs and the deploy wait for the owner; exact steps in [port-chunk-3.4.md](port-chunk-3.4.md)
+**3.4 Replace the Svelte site** · M · ✅ local work done (2026-10-10); domain move and deploy pending, see [port-chunk-3.4.md](port-chunk-3.4.md). Tagged `svelte-final` (`bb3c986`) and deleted `apps/web`, `packages/client`, `apps/ios`, their tests and scripts, and `wrangler.backend.toml`; first moved out the public files, the resume compiler's fonts (with its own Typst compiler dependency), verbatim Svelte token CSS for the equivalence check, `resume-document.ts` (to core) and `job-content.ts` (to the web app: it uses the DOM), and the Playwright API mocks. `/sw.js` is the kill switch (`e2e/retirement.pw.ts`). Scripts: `dev` is the web app, `deploy:backend` is safe again, `deploy:web` deploys the built web config, `deploy` runs both; CI builds the web app only. The owner chose a placeholder logo at the same time: two stacked slips, mark only, no wordmark. Left for the owner: moving the two custom domains in `wrangler.toml`/`apps/webapp/wrangler.jsonc` (the agent's permissions block domain edits), disabling Xcode Cloud, push and deploy
 - Outright replacement remains at this shell/placeholder milestone, as
   reaffirmed by the owner. Feature screens follow in Phase 4.
 - Port the Playwright harness (`api-mocks`, axe) to `apps/webapp/e2e` before
