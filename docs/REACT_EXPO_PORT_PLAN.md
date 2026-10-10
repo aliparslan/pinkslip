@@ -723,7 +723,7 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 
 ### Phase 6: Expo iOS (native screens)
 
-**6.1 Scaffold** · M
+**6.1 Scaffold** · M · ✅ 2026-10-10: `apps/native` is the product app: Expo Router with native tabs (Jobs, Library, You) and a stack per tab; the job route is shared by Jobs and Library. Bundle ID `dev.alip.pinkslip`, version 2.0.0, Sign in with Apple, push and associated-domain entitlements matching the Capacitor app. `ios/` committed with `ci_scripts/ci_post_clone.sh` (Node, Bun, CocoaPods). Builds and runs on the iOS 26.4 simulator. The prototype screen is gone; the 1.6b resume helpers stay for 6.9
 - `apps/native` with Expo Router: tabs (Jobs, Library, You) plus native stacks
   that mirror the web routes.
 - Reuse the validated contracts, fixture tests, and appropriate setup from
@@ -736,7 +736,7 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
   the existing app record's sequence. The Capacitor project's bundle ID,
   entitlements and capabilities are in the `svelte-final` tag for reference.
 
-**6.2 Native kit** · L · needs D8
+**6.2 Native kit** · L · needs D8 · ✅ 2026-10-10: `src/kit` on Unistyles: Text, Heading, Stack/Inline, Icon (Phosphor), Button, IconButton, Field/Input/Textarea, Switch, Checkbox, SegmentedControl and Menu (system controls via Expo UI), ToggleGroup/MultiToggleGroup chips, ListSection/ListRow, Surface, Separator, Spinner, Badge, Skeleton (still under Reduce Motion), EmptyState, Toast (the web's API), Screen. Four themes from `tokens.ts` (dark, light, increased contrast for each) follow the system scheme, iOS Increase Contrast and the Appearance pin; text scales with Dynamic Type; system font for now. Native large-title navigation bars replace the web's root/screen headings. Dev gallery at You → Kit
 - Shared semantic names and compatible props where they fit: `Text`, `Heading`,
   `Stack`, `Inline`, `Icon`, `Button`, `IconButton`, `Field`, `Input`, `Textarea`,
   `Switch`, `Checkbox`, `SegmentedControl`, `ListRow`, `Toast`, `EmptyState`,
@@ -750,7 +750,7 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 - Themed from `tokens.ts` (dark, light, increased contrast) and supports Dynamic
   Type.
 
-**6.3 Platform and session** · M
+**6.3 Platform and session** · M · ✅ 2026-10-10: `src/platform`: Keychain bearer session (guest on first launch, rotation via `native_token`), native Sign in with Apple (nonce sent to Apple and the API, as before), the Query cache persisted to MMKV (successful reads, a week, busted by app version), push via `expo-notifications` raw APNs tokens with re-registration on launch and tap-to-open, link mapping for universal links and push URLs (the email sign-in link verifies in the app), haptics and share. The feed's filter rules moved to `@pinkslip/core/feed-criteria` for both apps
 - Native Apple sign-in, with the bearer token kept in secure storage.
 - The Query cache persisted to disk.
 - Haptics and share.

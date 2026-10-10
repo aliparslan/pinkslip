@@ -1,56 +1,44 @@
-# Pinkslip native prototype (1.6a / 1.6b)
+# Pinkslip for iOS (Expo)
 
-Feasibility experiment, not a product app: the real Expo app is Phase 6.
+The native app (port plan Phase 6): Expo SDK 57, Expo Router (native tabs and
+stacks), a Unistyles kit themed from `@pinkslip/tokens`, and the shared
+`@pinkslip/core` / `@pinkslip/data` layers. Same bundle ID as the Capacitor
+app (`dev.alip.pinkslip`), so it ships as an update.
 
-## What it proves
+## Layout
 
-- `packages/core`'s `createApiClient` works on native: a bearer guest session
-  is minted against the local Worker (`POST /api/v2/native/session`), stored in
-  the iOS keychain with `expo-secure-store`, and sent as `Authorization: Bearer`.
-- `packages/data` hooks run under React Native: `useSession`, `useJobsList`,
-  `useOwnerChangeCleanup`, and the shared QueryClient defaults.
-- `packages/tokens/native` values are consumable directly.
-- Resume import works server-side: a picked/bundled PDF is staged in app
-  documents, uploaded as multipart through the shared client, parsed by the
-  Worker, and the local copy can be deleted. Server errors map to user copy.
-- Metro/Hermes bundles the shared TypeScript sources with no DOM or Svelte
-  dependency (a root test enforces the boundary statically).
+- `src/app/`: routes. `(tabs)` holds the Jobs, Library and You stacks;
+  `(jobs,library)/jobs/[jobId]` is shared, so a job opens inside whichever tab
+  you're in.
+- `src/kit/`: the native kit (D8). Same semantic names and props as the web kit
+  where the behavior matches; menus and segmented controls are the system's
+  (Expo UI). Dev-only gallery: You → Kit.
+- `src/platform/`: session (Keychain bearer token), Sign in with Apple, the
+  persisted Query cache (MMKV), push (raw APNs tokens for `worker/apns.ts`),
+  links, haptics, share.
+- `src/theme/`: four themes (dark, light, and their increased-contrast
+  variants) chosen from the system scheme, iOS Increase Contrast and the You →
+  Appearance pin.
+- `ios/`: committed for Xcode Cloud (`ci_scripts/ci_post_clone.sh` installs
+  Node, Bun and CocoaPods). Re-run prebuild after native config changes:
+  `CI=1 bunx expo prebuild --platform ios --no-install`, then
+  `LANG=en_US.UTF-8 pod install` in `ios/`.
 
 ## Run it
 
 ```sh
-bun run dev:web                        # webapp + API companion on :3000
-bun --filter @pinkslip/native start    # Metro; press i for the iOS simulator
+bun --filter @pinkslip/native start         # Metro for the development build
 ```
 
-The simulator reaches the host's `127.0.0.1:3000`. A physical device needs the
-dev host to bind beyond loopback and an override:
-`EXPO_PUBLIC_API_URL=http://<lan-ip>:3000/api/v2 bun --filter @pinkslip/native start`.
+Build the development app once with Xcode (or `xcodebuild`) from
+`ios/Pinkslip.xcworkspace`, scheme `Pinkslip`, then open it in the simulator.
+It talks to production (`https://pinkslip.work/api/v2`) unless
+`EXPO_PUBLIC_API_URL` points elsewhere, e.g. the local Worker:
+`EXPO_PUBLIC_API_URL=http://127.0.0.1:3000/api/v2 bun --filter @pinkslip/native start`.
 
-**Resume import needs the real Worker config** (`bunx wrangler dev --port 8787`,
-which has the `[ai]` binding). The webapp's API companion on :3000 deliberately
-omits AI and answers `conversion_unavailable` (503). Start Metro with
-`EXPO_PUBLIC_API_URL=http://127.0.0.1:8787/api/v2` for the import experiment.
+## Feasibility notes from 1.6
 
-## Deep-link harness
-
-Headless runs are driven through Expo Go deep links; the app also has buttons
-for manual use.
-
-```sh
-xcrun simctl openurl booted "exp://<host>:8081/--/import/text"
-xcrun simctl openurl booted "exp://<host>:8081/--/import/notext"
-xcrun simctl openurl booted "exp://<host>:8081/--/import/malformed"
-xcrun simctl openurl booted "exp://<host>:8081/--/pick"      # system picker
-xcrun simctl openurl booted "exp://<host>:8081/--/delete"    # delete local copy
-xcrun simctl openurl booted "exp://<host>:8081/--/auth?token=<bearer>"
-xcrun simctl openurl booted "exp://<host>:8081/--/guest"     # mint a new guest
-```
-
-`/auth` is prototype-only: it seeds the Keychain with an existing harness token
-so the authenticated import path can run before sign-in (6.3).
-
-## Observed — 1.6a data and session (iPhone 17, iOS 26.4)
+### 1.6a data and session (iPhone 17, iOS 26.4)
 
 - [x] First launch mints a guest session; the screen shows `session: guest`.
 - [x] Relaunch reuses the keychain token: terminating Expo Go and reopening
@@ -63,7 +51,7 @@ so the authenticated import path can run before sign-in (6.3).
       query in a permanent pending state. Fixed to `resetQueries` plus removal
       of inactive entries only, with a regression test.
 
-## Observed — 1.6b resume import (iPhone 17, iOS 26.4, Worker :8787 with AI)
+### 1.6b resume import (iPhone 17, iOS 26.4, Worker :8787 with AI)
 
 - [x] The staged attachment lands in app documents and survives; `delete`
       removes it (`local file: none`).

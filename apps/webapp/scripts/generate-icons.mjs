@@ -1,5 +1,5 @@
 // Writes every brand icon from one mark: public/favicon.svg, the PWA and
-// Apple touch PNGs, and the monochrome notification badge. The geometry
+// Apple touch PNGs, the monochrome notification badge, and the iOS app icon. The geometry
 // matches src/features/shell/BrandMark.tsx. Run `bun run icons` from
 // apps/webapp after changing the mark.
 import { chromium } from "@playwright/test";
@@ -43,10 +43,12 @@ for (const [file, source, size] of [
   ["icon-512.png", tile, 512],
   ["icon-maskable-512.png", maskable, 512],
   ["apple-touch-icon-180.png", apple, 180],
+  // The iOS app icon (apps/native): full-bleed, opaque, 1024px.
+  ["../../../native/assets/icon.png", apple, 1024],
 ]) {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${source}`);
   await page.screenshot({ path: new URL(`../public/icons/${file}`, import.meta.url).pathname, omitBackground: true });
 }
 await browser.close();
-console.log("Wrote favicon.svg, notification-badge.svg and five PNG icons.");
+console.log("Wrote favicon.svg, notification-badge.svg, five PNG icons and the iOS app icon.");
