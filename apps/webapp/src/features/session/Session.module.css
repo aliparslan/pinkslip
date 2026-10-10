@@ -1,0 +1,13 @@
+/* The access gate's centered card (the current `.access-card`). */
+.gate {
+  width: 100%;
+  max-width: 420px;
+  margin: var(--space-10) auto 0;
+}
+
+.pending {
+  display: grid;
+  place-items: center;
+  min-height: 40dvh;
+  color: var(--color-ink-3);
+}

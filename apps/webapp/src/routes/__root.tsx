@@ -2,6 +2,8 @@ import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanst
 import { Shell } from "../features/shell/Shell";
 import { NavigationEffects } from "../features/navigation/NavigationEffects";
 import { NotFoundPage, RouteErrorPage } from "../features/states/PageStates";
+import { SessionEffects } from "../features/session/SessionEffects";
+import { SessionGate } from "../features/session/SessionGate";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
@@ -29,7 +31,7 @@ function Root() {
   return <html lang="en" suppressHydrationWarning>
     <head><script src="/theme.js" /><HeadContent /></head>
     <body>
-      <TooltipProvider><ToastProvider><NavigationEffects /><Shell><Outlet /></Shell></ToastProvider></TooltipProvider>
+      <TooltipProvider><ToastProvider><NavigationEffects /><SessionEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell></ToastProvider></TooltipProvider>
       <Scripts />
     </body>
   </html>;

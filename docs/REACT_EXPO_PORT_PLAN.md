@@ -638,7 +638,7 @@ Feature-screen comparisons continue in Phase 4.
 
 Screens are placeholders at this stage.
 
-**3.2 Session and access** · M
+**3.2 Session and access** · M · ✅ implemented locally (2026-10-10). Each page's metadata has an `access` level: `public` (catalog, job detail, About, legal, 404s) never waits for the session; `personal` waits and shows the access gate when the deployment is locked; `admin` also requires `is_admin` and otherwise renders the 404 page. The session query distinguishes `locked` (401 `access_required`) from anonymous. The shell owns `useOwnerChangeCleanup` and the email sign-in result (`?auth=email-success|email-expired` from the API's `/auth/email/verify` redirect becomes a toast and the parameter is removed). Sign-out (`useSignOut`) is on the Account placeholder with the current confirmation. `e2e/session.pw.ts` covers the gate, admin guard, email result, sign-out and a failed session load. Decisions: the catalog stays readable behind the access code (the API's public projection already is; the Svelte app gated everything); Apple sign-in stays iOS-only as in the Svelte web app (`appleAvailable: () => false`), so web Apple sign-in moves to Phase 6 with native auth; email sign-in *start* and onboarding come with the Account and onboarding screens in Phase 4
 - Session bootstrap and guest browsing.
 - The invite gate.
 - Apple sign-in (web) and the email sign-in result.

@@ -4,31 +4,35 @@ export interface PageMetadata {
   shell: "consumer" | "admin";
   depth: number;
   root: "jobs" | "library" | "you" | null;
+  /** `public` renders for everyone, including behind the access code (the
+   * catalog is the API's public projection). `personal` needs a session and
+   * shows the access gate when locked. `admin` also needs an admin. */
+  access: "public" | "personal" | "admin";
 }
 
 export const pages = {
-  "/": { title: "Jobs", shell: "consumer", depth: 0, root: "jobs" },
-  "/jobs/$jobId": { title: "Job", shell: "consumer", depth: 1, root: "jobs" },
-  "/tailor/$jobId": { title: "Tailor resume", shell: "consumer", depth: 2, root: "jobs" },
-  "/library/saved": { title: "Saved", shell: "consumer", depth: 0, root: "library" },
-  "/library/applied": { title: "Applied", shell: "consumer", depth: 0, root: "library" },
-  "/you": { title: "You", shell: "consumer", depth: 0, root: "you" },
-  "/you/preferences": { title: "Job preferences", shell: "consumer", depth: 1, root: "you" },
-  "/you/alerts": { title: "Alerts", shell: "consumer", depth: 1, root: "you" },
-  "/you/companies": { title: "Companies", shell: "consumer", depth: 1, root: "you" },
-  "/you/resume": { title: "Resume", shell: "consumer", depth: 1, root: "you" },
-  "/you/tailoring": { title: "Tailoring", shell: "consumer", depth: 1, root: "you" },
-  "/you/answers": { title: "Application answers", shell: "consumer", depth: 1, root: "you" },
-  "/you/account": { title: "Account", shell: "consumer", depth: 1, root: "you" },
-  "/you/feedback": { title: "Help and feedback", shell: "consumer", depth: 1, root: "you" },
-  "/admin": { title: "Manage", shell: "admin", depth: 1, root: "you" },
-  "/admin/inbox": { title: "Inbox", shell: "admin", depth: 1, root: "you" },
-  "/admin/sources": { title: "Sources", shell: "admin", depth: 1, root: "you" },
-  "/admin/runs": { title: "Runs", shell: "admin", depth: 1, root: "you" },
-  "/admin/jev": { title: "Jev", shell: "admin", depth: 1, root: "you" },
-  "/about": { title: "About Pinkslip", shell: "consumer", depth: 0, root: null },
-  "/privacy": { title: "Privacy policy", shell: "consumer", depth: 0, root: null },
-  "/support": { title: "Support", shell: "consumer", depth: 0, root: null },
+  "/": { title: "Jobs", shell: "consumer", depth: 0, root: "jobs", access: "public" },
+  "/jobs/$jobId": { title: "Job", shell: "consumer", depth: 1, root: "jobs", access: "public" },
+  "/tailor/$jobId": { title: "Tailor resume", shell: "consumer", depth: 2, root: "jobs", access: "personal" },
+  "/library/saved": { title: "Saved", shell: "consumer", depth: 0, root: "library", access: "personal" },
+  "/library/applied": { title: "Applied", shell: "consumer", depth: 0, root: "library", access: "personal" },
+  "/you": { title: "You", shell: "consumer", depth: 0, root: "you", access: "personal" },
+  "/you/preferences": { title: "Job preferences", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/alerts": { title: "Alerts", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/companies": { title: "Companies", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/resume": { title: "Resume", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/tailoring": { title: "Tailoring", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/answers": { title: "Application answers", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/account": { title: "Account", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/you/feedback": { title: "Help and feedback", shell: "consumer", depth: 1, root: "you", access: "personal" },
+  "/admin": { title: "Manage", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/admin/inbox": { title: "Inbox", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/admin/sources": { title: "Sources", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/admin/runs": { title: "Runs", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/admin/jev": { title: "Jev", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/about": { title: "About Pinkslip", shell: "consumer", depth: 0, root: null, access: "public" },
+  "/privacy": { title: "Privacy policy", shell: "consumer", depth: 0, root: null, access: "public" },
+  "/support": { title: "Support", shell: "consumer", depth: 0, root: null, access: "public" },
 } as const satisfies Record<string, PageMetadata>;
 
 /** You's destinations, grouped as in the current design's secondary nav. The

@@ -15,6 +15,11 @@ const placeholders = [
 ] as const;
 
 test("every planned placeholder has a direct route, title and one main heading", async ({ page, request }) => {
+  // Admin placeholders are a 404 for non-admins (3.2), so browse as an admin.
+  await page.route("**/api/v2/me", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ user: { id: "a1", name: "Admin", role: "admin", created_at: "2026-01-01" }, session: { state: "authenticated" }, account: null, is_admin: true }),
+  }));
   for (const [path, heading, title] of placeholders) {
     const html = await request.get(path);
     expect(html.status(), path).toBe(200);

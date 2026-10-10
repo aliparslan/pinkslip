@@ -4,7 +4,7 @@ import {
   Bell, Buildings, CaretRight, ChatCircleText, FileText, Lifebuoy, SlidersHorizontal, Sparkle, UserCircle,
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
-import { useOwnerChangeCleanup, useSession } from "@pinkslip/data";
+import { useSession } from "@pinkslip/data";
 import { Button, Heading, Icon, Inline, Separator, Stack, Surface, Text } from "../kit";
 import { pages, pageHead, youGroups, type SectionPath } from "../features/navigation/pages";
 import styles from "../styles/You.module.css";
@@ -31,7 +31,6 @@ const icons: Partial<Record<SectionPath, PhosphorIcon>> = {
  * Row details (role counts, alert status) arrive with each Phase 4 screen. */
 function You() {
   const session = useSession();
-  useOwnerChangeCleanup();
   return <Stack gap="6">
     <Stack gap="2">
       <Heading level={1} variant="root">You</Heading>

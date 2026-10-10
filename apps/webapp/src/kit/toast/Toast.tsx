@@ -1,5 +1,5 @@
 import { Toast } from "@base-ui/react/toast";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CheckCircle, Info, Warning, WarningCircle, X } from "@phosphor-icons/react";
 import styles from "./Toast.module.css";
 
@@ -32,8 +32,19 @@ function resolveTimeout(input: ToastInput): number {
   return duration ?? 0;
 }
 
+// Effects run child-first, so a page can call `toast` on its first render
+// before the provider below has subscribed to the manager. Hold those
+// messages and replay them once the provider mounts.
+let providerMounted = false;
+const early: Array<() => void> = [];
+
 function show(input: string | ToastInput): string {
   const toast = typeof input === "string" ? { message: input } : input;
+  if (!providerMounted) {
+    const id = toast.dedupeKey ?? `early-${early.length}-${Date.now()}`;
+    early.push(() => show({ ...toast, dedupeKey: id }));
+    return id;
+  }
   const tone = toast.tone ?? "info";
   return manager.add({
     id: toast.dedupeKey,
@@ -84,6 +95,11 @@ function ToastList() {
 
 /** Mount once at the root. */
 export function ToastProvider({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    providerMounted = true;
+    early.splice(0).forEach((replay) => replay());
+    return () => { providerMounted = false; };
+  }, []);
   return <Toast.Provider toastManager={manager} limit={MAX_VISIBLE}>
     {children}
     <Toast.Portal>
