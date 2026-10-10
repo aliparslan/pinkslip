@@ -1,4 +1,4 @@
-import { createAppQueryClient, DataProvider, useOwnerChangeCleanup } from "@pinkslip/data";
+import { createAppQueryClient, DataProvider, useOwnerChangeCleanup, useSession } from "@pinkslip/data";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as Notifications from "expo-notifications";
 import { router, SplashScreen } from "expo-router";
@@ -11,6 +11,7 @@ import { persistOptions } from "../../platform/persistence";
 import { notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
+import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
 watchAppearance();
@@ -38,7 +39,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
     <DataProvider api={api}>
       <AppEffects api={api} />
-      {children}
+      <ResumeOcrProvider>{children}</ResumeOcrProvider>
       <ToastHost />
     </DataProvider>
   </PersistQueryClientProvider>;
@@ -46,13 +47,20 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
 function AppEffects({ api }: { api: ApiClient }) {
   useOwnerChangeCleanup();
+  const { data: session } = useSession();
+  const owner = session?.me?.user?.id;
+  useEffect(() => { if (owner) void refreshDevicePush(api); }, [api, owner]);
   useEffect(() => {
-    void refreshDevicePush(api);
+    const handled = new Set<string>();
     // A tapped alert opens its job (or the feed) and records the open.
     const open = (response: Notifications.NotificationResponse) => {
+      const id = response.notification.request.identifier;
+      if (handled.has(id)) return;
+      handled.add(id);
+      void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
       const target = notificationTarget(response);
       if (target.jobIds.length > 0) void api.push.opened(target.jobIds).catch(() => undefined);
-      const path = target.url ? appPathFor(target.url) : null;
+      const path = target.url ? appPathFor(target.url) : "/";
       if (path) router.push(path as never);
     };
     const last = Notifications.getLastNotificationResponse();

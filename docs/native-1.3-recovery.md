@@ -107,6 +107,14 @@ that flag or alter an account.
   The unsigned simulator logs an expected notifications Keychain entitlement
   warning; it reaches the app and does not reproduce the supplied launch trap.
 
+## TestFlight follow-up
+
+The owner authorized the push and release. Commits `b5a539c` and `4e006d7`
+were pushed to main; GitHub CI run `38089715023` passed. The owner reported
+Xcode Cloud build 68 running, then confirmed the new TestFlight app works on
+their iPhone. The launch-crash recovery is closed on that device report.
+Individual feature checks below remain separate from that general report.
+
 ## Owner testing flows
 
 1. From the repository root run `bun run check`, `bun test`, `bun run build`,
@@ -129,8 +137,8 @@ that flag or alter an account.
 5. In Jobs, save/unsave a row; hide one and use Undo. In Library, mark a saved
    job applied, remove another and use Undo, then use Didn't apply in Applied.
    Check taps, long-press menus and VoiceOver actions as well as swipes.
-6. A fresh signed TestFlight archive needs the owner's push/build go-ahead.
-   On the actual iPhone, repeat cold launch, background/foreground, a shared
-   job link and the swipe flows. Simulator success does not replace this
-   final signed-device check. TestFlight will continue showing its required
-   parenthesized build number.
+6. In the new TestFlight installation on the actual iPhone, repeat cold
+   launch, background/foreground, a shared job link and the swipe flows.
+   The owner has confirmed the app works; record the individual results when
+   completing the remaining native parity checks. TestFlight will continue
+   showing its required parenthesized build number.

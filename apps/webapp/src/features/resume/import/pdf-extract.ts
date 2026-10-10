@@ -1,10 +1,7 @@
-export type PdfLink = { url: string };
+import { boundedOcrRenderScale, ocrPageNumbers, OCR_JPEG_QUALITY } from "@pinkslip/core/resume-ocr";
+export { boundedOcrRenderScale, ocrPageNumbers, MAX_OCR_PAGES } from "@pinkslip/core/resume-ocr";
 
-export const MAX_OCR_PAGES = 3;
-const OCR_RENDER_SCALE = 2.2;
-const OCR_MAX_DIMENSION = 1_800;
-const OCR_MAX_PIXELS = 2_500_000;
-const OCR_JPEG_QUALITY = 0.86;
+export type PdfLink = { url: string };
 
 async function loadPdf(file: File) {
   const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
@@ -18,18 +15,6 @@ async function loadPdf(file: File) {
     document: await loadingTask.promise,
     destroy: () => loadingTask.destroy(),
   };
-}
-
-export function ocrPageNumbers(totalPages: number): number[] {
-  const count = Math.min(MAX_OCR_PAGES, Math.max(0, Math.floor(totalPages)));
-  return Array.from({ length: count }, (_, index) => index + 1);
-}
-
-export function boundedOcrRenderScale(width: number, height: number): number {
-  if (!(width > 0) || !(height > 0)) return 1;
-  const dimensionScale = OCR_MAX_DIMENSION / Math.max(width, height);
-  const pixelScale = Math.sqrt(OCR_MAX_PIXELS / (width * height));
-  return Math.min(OCR_RENDER_SCALE, dimensionScale, pixelScale);
 }
 
 function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {

@@ -11,17 +11,24 @@ export function EmailLinkSignIn() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const api = useApi();
   const queryClient = useQueryClient();
-  const started = useRef(false);
+  const attempt = useRef<{ token: string; promise: Promise<unknown> } | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (started.current || !token) return;
-    started.current = true;
-    api.auth.verifyEmailToken(token).then(async () => {
+    if (!token) return;
+    let active = true;
+    setFailed(false);
+    if (attempt.current?.token !== token) {
+      const previous = attempt.current?.promise ?? Promise.resolve();
+      attempt.current = { token, promise: previous.catch(() => undefined).then(() => api.auth.verifyEmailToken(token)) };
+    }
+    attempt.current.promise.then(async () => {
+      if (!active) return;
       haptics.success();
       await queryClient.invalidateQueries({ queryKey: queryKeys.session() });
-      router.replace("/you");
-    }, () => setFailed(true));
+      if (active) router.replace("/you");
+    }, () => { if (active) setFailed(true); });
+    return () => { active = false; };
   }, [api, queryClient, token]);
 
   if (!token || failed) {

@@ -52,7 +52,7 @@ export interface ApiClientConfig {
   baseUrl?: string;
   /** Injectable transport: a service binding during SSR, or a test double.
    * Defaults to the global `fetch`. */
-  fetch?: typeof fetch;
+  fetch?: (input: string, init?: RequestInit) => Promise<Response>;
   getAccessToken?: () => string | null | Promise<string | null>;
   onAccessToken?: (token: string) => void | Promise<void>;
   onInvalidAccessToken?: (rejectedToken: string | null) => void | Promise<void>;
@@ -702,7 +702,7 @@ function createEndpoints(context: ClientContext) {
           job_ids: Array.isArray(jobIds) ? jobIds : [jobIds],
         }),
       }),
-    subscribe: (subscription: PushSubscription) =>
+    subscribe: (subscription: { toJSON(): unknown }) =>
       request<{ ok: boolean }>("/push/subscribe", {
         method: "POST",
         body: JSON.stringify(subscription.toJSON()),

@@ -1,29 +1,19 @@
-import { createApiClient, type ApiClient } from "@pinkslip/core/api";
+import type { ApiClient } from "@pinkslip/core/api";
 import * as SecureStore from "expo-secure-store";
+import { createSessionController } from "./session-controller";
+import { API_URL } from "./config";
+export { API_URL, WEB_URL } from "./config";
 
 export type { ApiClient };
 
 const TOKEN_KEY = "pinkslip-native-token";
 
-/** Production unless a dev build points elsewhere (`EXPO_PUBLIC_API_URL`, e.g.
- * the local Worker at http://127.0.0.1:3000/api/v2). */
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://pinkslip.work/api/v2";
-export const WEB_URL = API_URL.replace(/\/api\/v2\/?$/, "");
-
-let client: ApiClient | null = null;
-let accessToken: string | null = null;
-
-async function storeToken(token: string | null): Promise<void> {
-  accessToken = token;
-  if (token) await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => undefined);
-  else await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => undefined);
-}
-
-async function startGuestSession(): Promise<void> {
-  if (!client) throw new Error("API client is not ready");
-  const session = await client.native.startSession();
-  await storeToken(session.token);
-}
+const controller = createSessionController({
+  baseUrl: API_URL,
+  readToken: () => SecureStore.getItemAsync(TOKEN_KEY),
+  writeToken: (token) => token ? SecureStore.setItemAsync(TOKEN_KEY, token) : SecureStore.deleteItemAsync(TOKEN_KEY),
+});
+export const currentSessionToken = controller.currentToken;
 
 /**
  * The app's one bearer client. The token lives in the Keychain; the API
@@ -32,25 +22,10 @@ async function startGuestSession(): Promise<void> {
  * fresh guest session once, unless another request already rotated it.
  */
 export async function initializeSession(): Promise<ApiClient> {
-  if (client) return client;
-  accessToken = (await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null)) ?? null;
-  client = createApiClient({
-    baseUrl: API_URL,
-    client: "ios",
-    getAccessToken: () => accessToken,
-    onAccessToken: (token) => storeToken(token),
-    onInvalidAccessToken: async (rejected) => {
-      if (rejected && accessToken && rejected !== accessToken) return;
-      await storeToken(null);
-      await startGuestSession();
-    },
-  });
-  if (!accessToken) await startGuestSession();
-  return client;
+  return controller.initialize();
 }
 
 /** Forgets the session (after account deletion) and starts a new guest. */
 export async function resetSession(): Promise<void> {
-  await storeToken(null);
-  await startGuestSession();
+  await controller.reset();
 }

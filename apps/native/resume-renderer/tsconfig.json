@@ -1,0 +1,4 @@
+{
+  "extends": "../autofill/tsconfig.json",
+  "include": ["*.ts"]
+}

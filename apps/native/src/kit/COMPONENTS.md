@@ -7,6 +7,15 @@ shared semantic tokens; domain actions belong in features.
 
 ## Quarantine
 
+- **Application and import compositions (integration closeout)** — the
+  feature-owned `ApplicationBrowser` uses an iOS page sheet with drag-down
+  dismissal, existing Button/IconButton/Text, and a polite status line. Fill
+  remains on the right. Resume and onboarding retain the existing import
+  review/error composition; OCR adds a hidden, inaccessible local renderer,
+  not a new kit primitive. Cancelling the review retains the previous PDF.
+  Review on the signed phone is still needed; testing flows are in
+  `docs/port-closeout.md`.
+
 - **Native lists and swipes (6.4/6.6 follow-up)** — `NativeList.tsx` exposes
   `NativeList`, `NativeListContent`, and `NativeSwipeRow`. Used independently
   by Jobs and Library: SwiftUI owns the plain list, separators, pull to

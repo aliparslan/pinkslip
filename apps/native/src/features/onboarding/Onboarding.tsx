@@ -13,7 +13,9 @@ import { Button, EmptyState, Heading, IconButton, Spinner, Stack, Text, toast } 
 import { haptics } from "../../platform/haptics";
 import { devicePushStatus, enableDevicePush, type DevicePushStatus } from "../../platform/push";
 import { MetroField, RoleField, StageField, WorkFields } from "../preferences/ProfileFields";
-import { pickAndImportResume, ResumeImportFailure } from "../resume/import";
+import { ResumeImportFailure } from "../resume/import";
+import { useImportResume } from "../resume/useImportResume";
+import { keepResumeFile } from "../../platform/resume-file";
 
 const STEPS = 4;
 
@@ -32,6 +34,7 @@ export function Onboarding() {
 function Steps({ initial }: { initial: Profile }) {
   const { theme } = useUnistyles();
   const api = useApi();
+  const importResume = useImportResume();
   const save = useUpdatePreferences();
   const updatePush = useUpdatePushSettings();
   const saveResume = useSaveResume();
@@ -80,10 +83,13 @@ function Steps({ initial }: { initial: Profile }) {
   const importFile = async () => {
     setResume({ state: "importing" });
     try {
-      const imported = await pickAndImportResume(api);
+      const imported = await importResume();
       if (!imported) { setResume({ state: "idle" }); return; }
       const current = normalizeResumeProfile((await api.profile.get()).data);
+      if (!imported.isCurrent()) { setResume({ state: "idle" }); return; }
       await saveResume.mutateAsync(applyImport(current, imported.profile, normalizeResumeProfile));
+      if (!imported.isCurrent()) return;
+      await keepResumeFile(imported.sourceFile);
       setResume({ state: "done", summary: importSummary(imported.profile) || "Contact details" });
     } catch (error) {
       setResume({ state: "error", message: error instanceof ResumeImportFailure ? error.message : "Couldn't import that resume. Try again." });

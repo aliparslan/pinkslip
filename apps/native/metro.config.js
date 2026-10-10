@@ -16,6 +16,7 @@ config.resolver.nodeModulesPaths = [
 
 // Bundled fixture PDFs are required as assets by the 1.6b experiment.
 if (!config.resolver.assetExts.includes("pdf")) config.resolver.assetExts.push("pdf");
+if (!config.resolver.assetExts.includes("html")) config.resolver.assetExts.push("html");
 
 const singletons = ["react", "react-dom", "@tanstack/react-query"];
 config.resolver.resolveRequest = (context, moduleName, platform) => {

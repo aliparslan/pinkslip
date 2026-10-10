@@ -6,8 +6,9 @@
   "scripts": {
     "start": "expo start",
     "export:ios": "expo export --platform ios --output-dir dist",
-    "check": "tsc --noEmit && tsc --noEmit -p autofill && bun scripts/build-autofill.ts --check",
+    "check": "tsc --noEmit && tsc --noEmit -p autofill && tsc --noEmit -p resume-renderer && bun scripts/build-autofill.ts --check && bun scripts/build-resume-renderer.ts --check",
     "autofill": "bun scripts/build-autofill.ts",
+    "resume-renderer": "bun scripts/build-resume-renderer.ts",
     "test:autofill": "playwright test -c playwright.config.ts"
   },
   "dependencies": {
@@ -60,6 +61,7 @@
     "@playwright/test": "1.62.1",
     "@types/react": "~19.2.0",
     "babel-preset-expo": "~57.0.0",
+    "pdfjs-dist": "6.2.108",
     "typescript": "^6.0.3"
   }
 }

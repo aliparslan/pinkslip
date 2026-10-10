@@ -2,7 +2,7 @@ import type { OptionalSectionKind, ResumeProfile } from "@pinkslip/core/api";
 import { DEGREE_OPTIONS, formatDegree, formatResumeDate, hasResumeContent } from "@pinkslip/core/resume-fields";
 import { applyImport, importSummary } from "@pinkslip/core/resume-import-apply";
 import { createEmptyResumeProfile, normalizeResumeProfile, type DegreeType } from "@pinkslip/domain/resume-profile";
-import { useApi, useAutosave, useResumeProfile, useSaveResume } from "@pinkslip/data";
+import { useAutosave, useResumeProfile, useSaveResume } from "@pinkslip/data";
 import * as Crypto from "expo-crypto";
 import { Stack as RouterStack } from "expo-router";
 import { Plus, Trash, UploadSimple, WarningCircle } from "phosphor-react-native";
@@ -10,9 +10,10 @@ import { useState, type ReactNode } from "react";
 import { Alert, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button, EmptyState, Field, ListRow, ListSection, SaveStatus, Screen, Select, Sheet, Spinner, Stack, Text, toast, UNDO_TOAST_DURATION } from "../../kit";
-import { clearResumeFile } from "../../platform/resume-file";
+import { clearResumeFile, keepResumeFile } from "../../platform/resume-file";
 import { Bullets, CityState, DateRange, MonthField, PairList, TextField } from "./fields";
-import { pickAndImportResume, ResumeImportFailure, type ImportedResume } from "./import";
+import { ResumeImportFailure, type ImportedResume } from "./import";
+import { useImportResume } from "./useImportResume";
 
 const OPTIONAL: Record<OptionalSectionKind, string> = {
   leadership: "Leadership & affiliations", certifications: "Certifications", publications: "Publications", awards: "Awards & honors", volunteer: "Volunteer experience",
@@ -48,7 +49,7 @@ export function Resume() {
 }
 
 function Editor({ initial }: { initial: ResumeProfile }) {
-  const api = useApi();
+  const importResume = useImportResume();
   const save = useSaveResume();
   const [profile, setProfile] = useState(initial);
   const [edit, setEdit] = useState<string | null>(null);
@@ -83,7 +84,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
     setImporting(true);
     setFailure(null);
     try {
-      const result = await pickAndImportResume(api);
+      const result = await importResume();
       if (result) setPending(result);
     } catch (error) {
       setFailure(error instanceof ResumeImportFailure ? error : new ResumeImportFailure("unknown"));
@@ -145,9 +146,14 @@ function Editor({ initial }: { initial: ResumeProfile }) {
       footer={<View style={styles.footer}>
         <View style={styles.half}><Button fullWidth onPress={() => setPending(null)}>Cancel</Button></View>
         <View style={styles.half}><Button variant="primary" fullWidth onPress={() => {
-          if (pending) setProfile(applyImport(profile, pending.profile, normalizeResumeProfile));
+          if (!pending?.isCurrent()) { setPending(null); return; }
+          const accepted = pending;
+          setProfile(applyImport(profile, accepted.profile, normalizeResumeProfile));
           setPending(null);
-          toast.success("Resume imported");
+          void keepResumeFile(accepted.sourceFile).then(() => toast.success("Resume imported"), () => {
+            clearResumeFile();
+            toast.error("Resume imported, but the PDF couldn't be kept for applications. Import it again.");
+          });
         }}>Use this resume</Button></View>
       </View>}>
       {pending && <Stack gap="3">

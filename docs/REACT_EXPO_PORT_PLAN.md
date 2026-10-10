@@ -759,6 +759,16 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 - Deep links and universal links (the API Worker serves the
   `apple-app-site-association` file).
 
+Closeout (2026-10-10): session initialization now coalesces guest requests,
+serializes Keychain writes, retries failed storage without swallowing the
+failure, and prevents an old invalid-session response from replacing a newer
+sign-in. Email-link verification tolerates effect replay and overlapping
+links. Push registration refreshes after an owner change; tap responses are
+consumed once. Link mapping rejects foreign origins and handles both custom
+scheme forms. Controller and link regression tests pass. The owner confirmed
+native Apple sign-in and notification delivery/tap; signed-account persistence
+after force-close and real job-link destinations remain owner checks.
+
 **6.4 Feed** · L · Native lists, filter sheets, the job row. ✅ 2026-10-10: `features/feed`, `features/jobs`. The personalized feed for the committed filters (kept in `feed-search.ts`; the web keeps them in the URL), search in the navigation bar's search field, a Filters bar button with a count badge opening a form sheet (`/filters`: every metro plus Remote, salary, stages, saved only; a draft until Apply), pull to refresh, more as you scroll, the stale-poller notice, the setup prompt, and the web's empty states. Job rows: logo, company and timing, title, location and salary, read rows down the ink ramp, the new dot; swipe right to save (Library: mark applied), left to hide (Library: remove, didn't apply), a long-press system menu with every action, and VoiceOver actions for every menu action. Follow-up: replaced custom/Reanimated swipes and FlashList with Expo UI SwiftUI List/SwipeActions at the owner’s request; native reveal buttons and full swipes in both Jobs and Library. See `docs/native-1.3-recovery.md` for the React mounting trade-off and device checks
 
 **6.5 Job detail** · L · a native renderer for core's job-description blocks; actions and share. ✅ 2026-10-10: `features/job-detail`. Company, title, facts, the posting drawn from `parseJobDescription` blocks (links open in Safari), Apply and Save under the title (a bottom bar would sit under the floating tab bar), and the rest in the navigation bar's system menu (I applied / didn't apply, Not interested, Email recruiter, Tailor, Share sheet, Hide company, Report as a form sheet, admin Block with a system confirmation). Apply opens the posting in Safari inside the app; closing it asks "Did you apply?". Opens at once from the list's cached copy
@@ -769,7 +779,7 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 
 **6.8 Onboarding** · M · ✅ 2026-10-10: `/welcome` as a full-screen modal, the web's four steps (what, where, skippable resume import, alerts) with a step bar and motion, the version/completion stamp and events; "Not now" never blocks
 
-**6.9 Resume and Answers** · L · needs D10 · ✅ 2026-10-10 (text PDFs): the editor (overview; each record in a sheet; month fields typed as YYYY-MM; Undo on remove; Clear) and import with the review step, both on the shared rules (import merge and messages moved to `@pinkslip/core/resume-import-apply`). Import is the server parse (D10); the PDF is kept on the iPhone for applications. Scanned PDFs still answer `no_extractable_text`: the WebView OCR path is not built yet. Answers: the web's answer bank, typed dates
+**6.9 Resume and Answers** · L · needs D10 · ✅ 2026-10-10: the editor (overview; each record in a sheet; month fields typed as YYYY-MM; Undo on remove; Clear) and import with the review step, both on the shared rules (import merge and messages moved to `@pinkslip/core/resume-import-apply`). Text PDFs use the existing server parse. Missing text falls back to a bundled, temporary WebView running PDF.js: the first three pages become bounded JPEGs sent to the existing OCR endpoint. PDF execution stays out of Hermes, and the renderer has no cookies, network assets or API credentials. Protected/malformed PDFs have specific errors; cancellation and owner changes discard late results. The original application PDF is retained only after accepting the import. WebKit fixtures cover text, blank, malformed, image-only multipage and protected PDFs. The full picker → OCR service → review → retained attachment flow on the owner's iPhone remains unverified. Answers: the web's answer bank, typed dates
 Implement the server/WebView import strategy and file/preview adapters proven
 in 1.6b. The pure resume rules remain shared; PDF.js execution does not move
 into Hermes. Build the editor and Answers UI on those validated contracts,
@@ -781,7 +791,38 @@ including the import-quality, persistence, and recovery requirements.
   supported ATS flows and complete the recorded device/integration checks.
 - The prep sheet and outreach sheet move to native.
 
-✅ 2026-10-10: with `auto_apply_enabled`, Apply opens the application browser (`features/apply/ApplicationBrowser.tsx`, a full-screen `react-native-webview`) running the Capacitor app's loop (`platform/autofill/auto-apply.ts`): read, plan, fill one field at a time, reread, learn corrections, submit only with `auto_submit_enabled`; a confirmed submission marks the job applied. Hermes can't serialize functions, so the page scripts in `autofill/` are built into strings by `scripts/build-autofill.ts` (checked in `bun run check`) and tested in WebKit against a fixture form (`tests/autofill.pw.ts`: read, fill every kind, upload, submit). The prep sheet isn't needed natively (as before). Outreach is a native page sheet. Real-ATS device checks still need a person on a phone. Universal links now include `/jobs/*` (API change, ships with the backend)
+✅ 2026-10-10: with `auto_apply_enabled`, Apply opens the application browser (`features/apply/ApplicationBrowser.tsx`, a `react-native-webview` in a draggable iOS page sheet, per the owner) running the ported loop (`platform/autofill/auto-apply-loop.ts`): read, plan, fill one field at a time, reread, learn corrections, submit only with `auto_submit_enabled`; only a confirmed submission marks the job applied. Navigation and dismissal cancel pending bridge calls and invalidate old plans. The loop watches for a form mounted after page load. Hermes can't serialize functions, so the page scripts in `autofill/` are built into strings by `scripts/build-autofill.ts` (checked in `bun run check`) and tested in WebKit against a fixture form (`tests/autofill.pw.ts`: read, fill every kind, upload, submit). The prep sheet isn't needed natively (as before). Outreach is a native page sheet. Real-ATS device checks still need a person on a phone. Universal links include `/jobs/*` in source, pending API deployment.
+
+Production diagnosis (read-only, 2026-10-10): `AUTO_APPLY` and
+`AUTO_APPLY_SUBMIT` are absent from the active API deployment, explaining the
+owner's Safari sheet. This chunk configures `AUTO_APPLY="admin"` so the two
+admin accounts can exercise Fill after an authorized API deployment.
+Automatic submission remains off. The live AASA file currently has only the
+email-link path; deploying the existing source adds job links. Neither change
+has been deployed during this closeout.
+
+Native integration closeout chunk: implementation and local checks complete;
+no version bump or native dependency/provisioning change. The bundled PDF.js
+asset adds about 1.8 MB and has a deterministic generation check. The extracted
+loop/controller isolate lifecycle decisions for regression tests. Release
+build and signed iOS 27 simulator launch pass; real ATS, signed-account
+persistence, scanned import and job-link checks remain in
+[port-closeout.md](port-closeout.md). Tailoring stays tabled.
+
+Owner testing for the native integration chunk:
+
+1. From the repository root run `bun test tests/native-auto-apply.test.ts
+   tests/native-session.test.ts tests/native-resume-import.test.ts`, then
+   `cd apps/native && bunx playwright test -c playwright.config.ts`.
+   Expect the loop/session/import policy cases and all seven WebKit fixtures
+   to pass. `bun --filter @pinkslip/native export:ios` from the root must include
+   `assets/resume-renderer.html` in the exported assets.
+2. On a new signed build, open You → Resume and import a text PDF, then an
+   image-only PDF. Expect a review with extracted records; cancelling leaves
+   the previous application attachment intact. After accepting, open a
+   supported application form and check its retained PDF. After the approved
+   API deployment, an Apple admin's Apply opens a draggable sheet with Fill
+   on the right. Stop before submitting a real application.
 
 **6.11 Admin** · S · needs D9 · admin links out to the web. ✅ 2026-10-10: You → Admin workspace opens pinkslip.work/admin in Safari
 
@@ -803,7 +844,15 @@ the API so universal links include `/jobs/*`.
 
 Recovery (2026-10-10): TestFlight 2.0.0 (67) crashed before React on iOS 27 because the generated app did not adopt the scene lifecycle. Expo SDK 57.0.27 already includes the scene delegate; `expo-build-properties` with `ios.enableSceneSupport` now generates the manifest and factory provider, moving window/startup into Expo’s scene delegate. A release configuration regression check also runs before Xcode Cloud archives. Release version is **1.3.0**; TestFlight’s parenthesized build number is required Apple metadata. Validation and remaining phone checks: `docs/native-1.3-recovery.md`.
 
-Interaction follow-up (2026-10-10): native List/SwipeActions replace custom job swipes in Jobs and Library; measured list and menu widths preserve wrapped titles. Apply and Done sit on the right, destructive controls use readable red text, autosave shows only failures, and the app icon uses the dark variant. Code and local checks are complete (845 unit tests, web checks/build, browser behavior and updated phone kit screenshots, Release/Debug simulator builds, 300-row native pagination). Native kit additions remain in Quarantine. Full swipes, pull to refresh and long-press menus still need touch-device verification; a new signed TestFlight build has not shipped. See `docs/native-1.3-recovery.md` for exact results and testing flows.
+Interaction follow-up (2026-10-10): native List/SwipeActions replace custom job swipes in Jobs and Library; measured list and menu widths preserve wrapped titles. Apply and Done sit on the right, destructive controls use readable red text, autosave shows only failures, and the app icon uses the dark variant. Code and local checks are complete (845 unit tests, web checks/build, browser behavior and updated phone kit screenshots, Release/Debug simulator builds, 300-row native pagination). Native kit additions remain in Quarantine. The fixes were pushed to main (`4e006d7`, GitHub CI passed), and the owner confirmed the new TestFlight installation works on their iPhone. This closes the launch-crash recovery; it does not establish completion of every feature-specific device check. See `docs/native-1.3-recovery.md` for exact results and testing flows.
+
+Authorized closeout (2026-10-10): the owner approved finishing the remaining
+integrations and explicitly tabled tailoring for much later. The native
+implementation chunk above is complete locally. Website Apple sign-in is the
+separate account chunk; the owner chose a redirect rather than a popup.
+Production activation, Apple portal setup and the remaining signed-phone flows
+are separate from local implementation proof. Scope and testing flows:
+[port-closeout.md](port-closeout.md).
 
 ### Phase 7: Cleanup
 
@@ -846,10 +895,10 @@ code was already deleted in 3.4).
 | D4 | Form library | TanStack Form / React Hook Form | **TanStack Form**: form-level listeners suit autosave, types are stricter, works on RN. Switch to RHF if it fights us in 4.6. **Revised in 4.6 (2026-10-10):** no form library for settings screens. They autosave field by field with no Submit, so plain state plus `useAutosave` is smaller and shared with onboarding. Revisit for the resume editor (4.11), the first submit-heavy form | 4.6 |
 | D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account recorded as on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No second subscription; ordinary service-binding requests have no extra request fee. SSR still adds metered CPU and requests; see cost clarification above | 1.1 |
 | D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | ✅ **Neither** (decided 2026-10-09; no users yet). Capacitor is deleted in 3.4, and iOS gets no updates until the Expo app ships | 3.4 |
-| D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder** until the feature is un-tabled | 4.15 |
+| D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder indefinitely**; owner tabled tailoring for much later on 2026-10-10. Resume only on explicit owner instruction | 4.15 / 6.12 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
 | D9 | Admin on iOS | Link out to web / build natively | **Link out** | 6.11 |
-| D10 | Resume import on iOS | Server-side / hidden WebView | ✅ **Resolved 2026-10-09**: server-side parse for text PDFs (validated from native). Scanned PDFs return `no_extractable_text`; render pages natively or reuse the web PDF.js path in a hidden WebView before calling `/resume-import/ocr` — recommend the WebView in 6.9, native renderer as fallback. Import needs sign-in (6.3) | 1.6b |
+| D10 | Resume import on iOS | Server-side / hidden WebView | ✅ **Resolved**: server-side parse for text PDFs, then a local hidden PDF.js WebView for image-only PDFs before `/resume-import/ocr`. Implemented 2026-10-10 with first-three-page/dimension/pixel bounds and WebKit fixture proof. Full signed-device OCR/import/attachment check remains open. Import needs sign-in (6.3) | 1.6b / 6.9 |
 | D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | ✅ **Moot**: no users to carry over | — |
 | D12 | Shared boundaries | Share all code below UI / share rules and contracts with app adapters | ✅ **Rules/contracts and applicable Query hooks shared; platform execution app-owned** (2026-10-09) | 1.4–1.6 |
 | D13 | State ownership | Parallel global stores / explicit owners by state type | ✅ **Query for server data, validated web URLs for committed filters, local/form drafts, and narrowly justified cross-screen workflows** (2026-10-09) | 1.5 |

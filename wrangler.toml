@@ -104,6 +104,9 @@ AI_MONTHLY_BUDGET_USD = "10"
 # owner, never a real recruiter.
 OUTREACH = "admin"
 OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
+# Autofill is available to signed-in admins. Submission stays manual unless
+# AUTO_APPLY_SUBMIT is explicitly enabled separately.
+AUTO_APPLY = "admin"
 
 # ─── Native iOS push (APNs) ───────────────────────────────────────────────────
 # The .p8 contents go in a secret, NOT here:  wrangler secret put APNS_PRIVATE_KEY
