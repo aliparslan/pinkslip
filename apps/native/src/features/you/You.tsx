@@ -1,46 +1,58 @@
-import { useSession, useSignOut } from "@pinkslip/data";
-import * as AppleAuthentication from "expo-apple-authentication";
-import { router } from "expo-router";
-import { Wrench } from "phosphor-react-native";
-import { useUnistyles } from "react-native-unistyles";
-import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text, toast } from "../../kit";
+import { profileSummary } from "@pinkslip/core/profile-fields";
+import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
+import { usePreferences, usePushSettings, useResumeProfile, useSession } from "@pinkslip/data";
+import { router, type Href } from "expo-router";
+import {
+  Bell, Buildings, ChatCircleDots, ClipboardText, FileText, SlidersHorizontal, Sparkle, UserCircle, Wrench,
+} from "phosphor-react-native";
+import { Linking } from "react-native";
+import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text } from "../../kit";
+import { WEB_URL } from "../../platform/session";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../theme/appearance";
-import { useAppleSignIn } from "../account/useSignIn";
+import { useDevicePush } from "../alerts/Alerts";
 
-/** 6-A scaffold of You: who you are, Sign in with Apple, Appearance and sign
- * out. 6.7 adds the settings rows. */
+/** `Profile.svelte`'s overview: grouped rows, each with a one-line summary of
+ * where that setting stands, plus Appearance. Admin opens the web workspace
+ * (D9). Support and Privacy stay off for now (owner). */
 export function You() {
-  const { theme } = useUnistyles();
   const session = useSession();
-  const signIn = useAppleSignIn();
-  const signOut = useSignOut();
+  const me = session.data?.me;
+  const preferences = usePreferences();
+  const push = usePushSettings();
+  const resume = useResumeProfile();
+  const { status: device } = useDevicePush();
   const appearance = useAppearancePreference();
   const signedIn = session.data?.state === "authenticated";
-  const account = session.data?.me?.account;
+  const resumeData = resume.data?.data;
+  const resumeReady = Boolean(resumeData?.contact.name || resumeData?.experience.length || resumeData?.education.length || resumeData?.projects.length);
+  const alerts = push.data === undefined || device === null ? undefined
+    : push.data.enabled ? (device === "enabled" ? "On" : device === "denied" ? "On · blocked in Settings" : "On · turn on for this iPhone") : "Off";
+  const go = (href: Href) => () => router.push(href);
 
   return <Screen>
-    <ListSection label="Account">
-      <ListRow title={signedIn ? (account?.email ?? "Signed in") : "Browsing as a guest"}
-        detail={signedIn ? (account?.provider === "apple" ? "Apple" : "Email") : "Sign in to keep your jobs on every device"} />
+    {me?.is_admin && <ListSection label="Admin">
+      <ListRow title="Admin workspace" detail="Opens on the web" icon={Wrench} onPress={() => void Linking.openURL(`${WEB_URL}/admin`)} />
+    </ListSection>}
+    <ListSection label="Search">
+      <ListRow title="Job preferences" icon={SlidersHorizontal} onPress={go("/you/preferences")}
+        detail={preferences.data ? profileSummary(normalizeSearchProfile(preferences.data.search_profile)) : undefined} />
+      <ListRow title="Job alerts" icon={Bell} detail={alerts} onPress={go("/you/alerts")} />
+      <ListRow title="Companies" icon={Buildings} detail="Hidden companies and requests" onPress={go("/you/companies")} />
     </ListSection>
-    {!signedIn && <AppleAuthentication.AppleAuthenticationButton
-      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-      buttonStyle={theme.mode === "light" || theme.mode === "lightContrast" ? AppleAuthentication.AppleAuthenticationButtonStyle.BLACK : AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-      cornerRadius={theme.radius.md} style={{ height: theme.sizing["control-height"] }}
-      onPress={() => { if (!signIn.isPending) signIn.mutate(); }} />}
+    <ListSection label="Materials">
+      <ListRow title="Resume" icon={FileText} detail={resume.data ? (resumeReady ? "Ready" : "Add your resume") : undefined} onPress={go("/you/resume")} />
+      <ListRow title="Tailoring" icon={Sparkle} detail="Coming soon" onPress={go("/you/tailoring")} />
+      {me?.features?.auto_apply_enabled && <ListRow title="Application answers" icon={ClipboardText} detail="Reused on every application" onPress={go("/you/answers")} />}
+    </ListSection>
     <Stack gap="2">
       <Text size="xs" weight="semibold" tone="ink-4">Appearance</Text>
       <SegmentedControl<AppearancePreference> value={appearance} onValueChange={setAppearancePreference}
         segments={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
     </Stack>
-    {signedIn && <ListSection>
-      <ListRow title="Log out" destructive onPress={() => signOut.mutate(undefined, {
-        onSuccess: () => toast.success("Logged out"),
-        onError: () => toast.error("Couldn't log out. Try again."),
-      })} />
-    </ListSection>}
-    {__DEV__ && <ListSection label="Development">
-      <ListRow title="Kit" icon={Wrench} onPress={() => router.push("/you/kit")} />
-    </ListSection>}
+    <ListSection label="Pinkslip">
+      <ListRow title="Help and feedback" icon={ChatCircleDots} detail="Ideas and problems" onPress={go("/you/feedback")} />
+      <ListRow title="Account" icon={UserCircle} detail={signedIn ? (me?.account?.email ?? "Signed in") : "Guest · sign in to sync"} onPress={go("/you/account")} />
+    </ListSection>
+    {__DEV__ && <ListSection label="Development"><ListRow title="Kit" icon={Wrench} onPress={go("/you/kit")} /></ListSection>}
   </Screen>;
 }

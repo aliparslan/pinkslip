@@ -10,6 +10,8 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: PhosphorIcon;
+  /** Draws the icon filled (a toggle that's on, e.g. Saved). */
+  iconFill?: boolean;
   /** Shows a spinner in place of the icon and blocks presses. */
   pending?: boolean;
   disabled?: boolean;
@@ -22,7 +24,7 @@ export interface ButtonProps {
 const ink = { primary: "accent-ink", secondary: "ink", danger: "paper" } as const;
 
 /** The web kit's Button: primary (pink), secondary (control surface), danger. */
-export function Button({ variant = "secondary", size = "default", icon: Glyph, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
+export function Button({ variant = "secondary", size = "default", icon: Glyph, iconFill, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
   const { theme } = useUnistyles();
   // "default" is reserved in Unistyles variants, so the style uses "regular".
   styles.useVariants({ variant, size: size === "compact" ? "compact" : "regular" });
@@ -32,7 +34,7 @@ export function Button({ variant = "secondary", size = "default", icon: Glyph, p
     accessibilityState={{ disabled: inactive, busy: pending }} disabled={inactive} onPress={onPress}
     style={({ pressed }) => [styles.root, fullWidth && styles.full, pressed && styles.pressed, disabled && styles.disabled]}>
     {pending ? <ActivityIndicator size="small" color={color} />
-      : Glyph ? <Glyph size={size === "compact" ? 16 : 18} weight="bold" color={color} /> : null}
+      : Glyph ? <Glyph size={size === "compact" ? 16 : 18} weight={iconFill ? "fill" : "bold"} color={color} /> : null}
     <RNText style={[styles.label, { color }]} maxFontSizeMultiplier={1.6} numberOfLines={1}>{children}</RNText>
   </Pressable>;
 }

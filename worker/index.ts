@@ -230,15 +230,16 @@ app.post("/api/v2/native/session", async (c) => {
 });
 
 // Apple fetches this directly from /.well-known/ and does NOT follow redirects,
-// so both paths must serve the JSON body itself (no redirect). Keep `paths`
-// scoped to the magic-link route so only those links open the app.
+// so both paths must serve the JSON body itself (no redirect). `paths` lists
+// what the iOS app can show: the magic-link route and job pages (a shared job
+// link opens in the app when it's installed).
 function appleAppSiteAssociation(env: Env) {
   const teamId = env.APPLE_TEAM_ID?.trim() || env.APNS_TEAM_ID?.trim();
   const appId = env.APPLE_APP_ID?.trim() || env.APNS_BUNDLE_ID?.trim() || "dev.alip.pinkslip";
   return {
     applinks: {
       apps: [],
-      details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*"] }] : [],
+      details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*", "/jobs/*"] }] : [],
     },
   };
 }

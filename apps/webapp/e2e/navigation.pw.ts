@@ -16,6 +16,8 @@ const routes = [
 ] as const;
 
 test("every screen has a direct route, title and one main heading", async ({ page, request }) => {
+  // It visits every route, two loads each.
+  test.setTimeout(60_000);
   // Built screens load their data from the (mocked) API.
   await installApiMocks(page);
   // Admin screens are a 404 for non-admins (3.2), so browse as an admin.

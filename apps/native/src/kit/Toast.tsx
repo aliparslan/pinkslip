@@ -1,7 +1,8 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { AccessibilityInfo, Pressable, View } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet as RNStyleSheet, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FullWindowOverlay } from "react-native-screens";
 import { StyleSheet } from "react-native-unistyles";
 import { Text } from "./Text";
 
@@ -60,12 +61,14 @@ export const toast = {
   dismiss,
 };
 
-/** Renders the toasts above the tab bar. Mount once at the root. */
+/** Renders the toasts above the tab bar, in a full-window overlay so native
+ * screens and sheets don't cover them. Mount once at the root. */
 export function ToastHost() {
   const shown = useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => toasts);
   const insets = useSafeAreaInsets();
   useEffect(() => () => { for (const timer of timers.values()) clearTimeout(timer); }, []);
-  return <View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + 64 }]}>
+  if (shown.length === 0) return null;
+  return <FullWindowOverlay><View pointerEvents="box-none" style={RNStyleSheet.absoluteFill}><View pointerEvents="box-none" style={[styles.host, { bottom: insets.bottom + 64 }]}>
     {shown.map((item) => <Animated.View key={item.id} entering={FadeInDown.duration(180)} exiting={FadeOutDown.duration(140)}
       style={styles.toast} accessibilityLiveRegion="polite">
       <View style={[styles.dot, styles.tone(item.tone ?? "info")]} />
@@ -75,7 +78,7 @@ export function ToastHost() {
         <Text size="sm" weight="semibold" tone="accent">{item.action.label}</Text>
       </Pressable> : null}
     </Animated.View>)}
-  </View>;
+  </View></View></FullWindowOverlay>;
 }
 
 const styles = StyleSheet.create((theme) => ({

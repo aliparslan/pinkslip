@@ -759,17 +759,17 @@ turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
 - Deep links and universal links (the API Worker serves the
   `apple-app-site-association` file).
 
-**6.4 Feed** · L · FlashList, native filter sheets, the job row.
+**6.4 Feed** · L · FlashList, native filter sheets, the job row. ✅ 2026-10-10: `features/feed`, `features/jobs`. The personalized feed for the committed filters (kept in `feed-search.ts`; the web keeps them in the URL), search in the navigation bar's search field, a Filters bar button with a count badge opening a form sheet (`/filters`: every metro plus Remote, salary, stages, saved only; a draft until Apply), pull to refresh, more as you scroll, the stale-poller notice, the setup prompt, and the web's empty states. Job rows: logo, company and timing, title, location and salary, read rows down the ink ramp, the new dot; swipe right to save (Library: mark applied), left to hide (Library: remove, didn't apply), a long-press system menu with every action, and VoiceOver actions for the swipes
 
-**6.5 Job detail** · L · a native renderer for core's job-description blocks; actions and share.
+**6.5 Job detail** · L · a native renderer for core's job-description blocks; actions and share. ✅ 2026-10-10: `features/job-detail`. Company, title, facts, the posting drawn from `parseJobDescription` blocks (links open in Safari), Apply and Save under the title (a bottom bar would sit under the floating tab bar), and the rest in the navigation bar's system menu (I applied / didn't apply, Not interested, Email recruiter, Tailor, Share sheet, Hide company, Report as a form sheet, admin Block with a system confirmation). Apply opens the posting in Safari inside the app; closing it asks "Did you apply?". Opens at once from the list's cached copy
 
-**6.6 Library** · M
+**6.6 Library** · M · ✅ 2026-10-10: `features/library`. Saved and Applied in a system segmented control with counts, swipe or menu to remove / undo an application (with Undo), "Applied 3d ago", each list loading on its own
 
-**6.7 You and settings** · L · Preferences, Alerts, Account, Feedback, Companies.
+**6.7 You and settings** · L · Preferences, Alerts, Account, Feedback, Companies. ✅ 2026-10-10: You (grouped rows with live summaries, Appearance), Job preferences (the shared profile fields; field rules moved to `@pinkslip/core/profile-fields`, autosave to `@pinkslip/data`), Alerts (account switch, this iPhone's permission and APNs registration, Settings when blocked, rechecked on return, tests now / in 5 s), Account (Sign in with Apple, email link that opens the app, name autosave, log out, start over, delete with the Apple follow-up), Feedback, Companies (search, All/Hidden, hide with Undo, restore, report and request sheets)
 
-**6.8 Onboarding** · M
+**6.8 Onboarding** · M · ✅ 2026-10-10: `/welcome` as a full-screen modal, the web's four steps (what, where, skippable resume import, alerts) with a step bar and motion, the version/completion stamp and events; "Not now" never blocks
 
-**6.9 Resume and Answers** · L · needs D10
+**6.9 Resume and Answers** · L · needs D10 · ✅ 2026-10-10 (text PDFs): the editor (overview; each record in a sheet; month fields typed as YYYY-MM; Undo on remove; Clear) and import with the review step, both on the shared rules (import merge and messages moved to `@pinkslip/core/resume-import-apply`). Import is the server parse (D10); the PDF is kept on the iPhone for applications. Scanned PDFs still answer `no_extractable_text`: the WebView OCR path is not built yet. Answers: the web's answer bank, typed dates
 Implement the server/WebView import strategy and file/preview adapters proven
 in 1.6b. The pure resume rules remain shared; PDF.js execution does not move
 into Hermes. Build the editor and Answers UI on those validated contracts,
@@ -781,9 +781,11 @@ including the import-quality, persistence, and recovery requirements.
   supported ATS flows and complete the recorded device/integration checks.
 - The prep sheet and outreach sheet move to native.
 
-**6.11 Admin** · S · needs D9 · admin links out to the web.
+✅ 2026-10-10: with `auto_apply_enabled`, Apply opens the application browser (`features/apply/ApplicationBrowser.tsx`, a full-screen `react-native-webview`) running the Capacitor app's loop (`platform/autofill/auto-apply.ts`): read, plan, fill one field at a time, reread, learn corrections, submit only with `auto_submit_enabled`; a confirmed submission marks the job applied. Hermes can't serialize functions, so the page scripts in `autofill/` are built into strings by `scripts/build-autofill.ts` (checked in `bun run check`) and tested in WebKit against a fixture form (`tests/autofill.pw.ts`: read, fill every kind, upload, submit). The prep sheet isn't needed natively (as before). Outreach is a native page sheet. Real-ATS device checks still need a person on a phone. Universal links now include `/jobs/*` (API change, ships with the backend)
 
-**6.12 Tailoring** · per D7.
+**6.11 Admin** · S · needs D9 · admin links out to the web. ✅ 2026-10-10: You → Admin workspace opens pinkslip.work/admin in Safari
+
+**6.12 Tailoring** · per D7. ✅ 2026-10-10: the coming-soon page on You → Tailoring and the job's Tailor resume
 
 **6.13 Ship the Expo app** · S
 - Xcode Cloud builds `apps/native` on every push to main again.

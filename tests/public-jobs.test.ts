@@ -185,3 +185,11 @@ describe("public job projection", () => {
     expect(queries).toHaveLength(0);
   });
 });
+
+describe("apple-app-site-association", () => {
+  it("opens sign-in links and job pages in the iOS app", async () => {
+    const response = await worker.fetch(new Request("https://pinkslip.work/.well-known/apple-app-site-association"), { APPLE_TEAM_ID: "TEAM", APPLE_APP_ID: "dev.alip.pinkslip" } as Env);
+    const body = await response.json() as { applinks: { details: { appID: string; paths: string[] }[] } };
+    expect(body.applinks.details).toEqual([{ appID: "TEAM.dev.alip.pinkslip", paths: ["/auth/email/verify*", "/jobs/*"] }]);
+  });
+});

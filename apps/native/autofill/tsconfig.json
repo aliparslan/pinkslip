@@ -1,0 +1,16 @@
+{
+  // Page scripts: they run inside employer pages (WebView), so they get the
+  // DOM library the app itself doesn't have. Built into strings by
+  // scripts/build-autofill.ts.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["*.ts"]
+}

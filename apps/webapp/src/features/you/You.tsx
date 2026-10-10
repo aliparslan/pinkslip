@@ -75,7 +75,7 @@ export function You() {
   ];
   const materials: Row[] = [
     { to: "/you/resume", label: "Resume", icon: FileText, detail: resume.data ? (resumeReady ? "Ready" : "Add your resume") : undefined },
-    { to: "/you/tailoring", label: "Tailoring", icon: Sparkle, detail: me?.features?.tailoring_enabled ? "Ready" : "Coming soon" },
+    { to: "/you/tailoring", label: "Tailoring", icon: Sparkle, detail: "Coming soon" },
     ...(me?.features?.auto_apply_enabled ? [{ to: "/you/answers", label: "Application answers", icon: ClipboardText, detail: "Reused on every application" } as const] : []),
   ];
   const signedIn = session.data?.state === "authenticated";
