@@ -6,7 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import {
   Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, EmptyState, Field, Fieldset, Form, Heading, Icon, IconButton,
-  Inline, Input, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
+  Inline, Input, Menu, MultiToggleGroup, SearchInput, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
   SelectCheck, Separator, Sheet, Skeleton, Spinner, Stack, Surface, Switch, TabPanel, Tabs, Text, Textarea, toast,
   ToggleGroup, Tooltip, InfoTip, Popover, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
 } from "../kit";
@@ -230,6 +230,7 @@ function Inputs() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [education, setEducation] = useState("bachelors");
   return <Section title="Inputs">
+    <SearchInput aria-label="Search jobs or companies" placeholder="Search" />
     <Form aria-label="Kit form" onSubmit={() => setSubmitted(email.includes("@") ? null : "Enter a valid email address.")}>
       <Field label="Email" error={submitted}>
         <Input type="email" placeholder="you@school.edu" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -279,7 +280,10 @@ function Choices() {
   const [anywhere, setAnywhere] = useState(false);
   const [alerts, setAlerts] = useState(true);
   const [phase, setPhase] = useState<SavePhase>("saved");
+  const [stages, setStages] = useState<string[]>(["internship", "new_grad"]);
   return <Section title="Choices">
+    <MultiToggleGroup label="Career stage" value={stages} onValueChange={setStages} min={1}
+      options={[{ value: "internship", label: "Internships" }, { value: "new_grad", label: "New grad" }, { value: "early_career", label: "Early career" }]} />
     <ToggleGroup label="Feed filter" value={filter} onValueChange={setFilter}
       options={feedFilters.map((value) => ({ value, label: value }))} />
     <ToggleGroup label="Disagreement filter" variant="segmented" value={view} onValueChange={setView}

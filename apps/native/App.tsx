@@ -6,7 +6,7 @@ import {
   createAppQueryClient,
   queryKeys,
   useApi,
-  useJobsList,
+  useFeed,
   useOwnerChangeCleanup,
   useSession,
 } from "@pinkslip/data";
@@ -72,7 +72,7 @@ function Prototype() {
   const scheme = useColorScheme() === "light" ? "light" : "dark";
   const theme = color[scheme];
   const session = useSession();
-  const jobs = useJobsList();
+  const jobs = useFeed({});
   const [rotating, setRotating] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<LocalResumeFile | null>(null);
@@ -229,7 +229,7 @@ function Prototype() {
           {jobs.isError
             ? <Text style={{ color: theme.bad, fontSize: fontSize.sm }}>{(jobs.error as Error).message}</Text>
             : null}
-          {jobs.data?.jobs.slice(0, 25).map((job) => (
+          {jobs.data?.pages[0]?.jobs.slice(0, 25).map((job) => (
             <Text key={job.id} style={{ color: theme["ink-2"], fontSize: fontSize.sm }}>{job.title}</Text>
           ))}
         </View>

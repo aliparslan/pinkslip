@@ -1,10 +1,14 @@
 import type { Job } from "@pinkslip/core/api";
-import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 
 export interface JobsCollection {
   jobs: Job[];
 }
+
+/** A list query's data: Library's plain array, a `{ jobs }` collection, or
+ * the feed's pages. */
+type CachedCollection = Job[] | JobsCollection | InfiniteData<JobsCollection>;
 
 type Snapshot = [QueryKey, unknown][];
 export type Restore = () => void;
@@ -22,8 +26,14 @@ function restoreAll(queryClient: QueryClient, snapshots: Snapshot[]): Restore {
 }
 
 function updateCollections(queryClient: QueryClient, key: QueryKey, update: (jobs: Job[]) => Job[]): void {
-  queryClient.setQueriesData<JobsCollection>({ queryKey: key }, (previous) =>
-    previous ? { ...previous, jobs: update(previous.jobs) } : previous);
+  queryClient.setQueriesData<CachedCollection>({ queryKey: key }, (previous) => {
+    if (!previous) return previous;
+    if (Array.isArray(previous)) return update(previous);
+    if ("pages" in previous) {
+      return { ...previous, pages: previous.pages.map((page) => ({ ...page, jobs: update(page.jobs) })) };
+    }
+    return { ...previous, jobs: update(previous.jobs) };
+  });
 }
 
 function upsert(jobs: Job[], job: Job): Job[] {
@@ -38,6 +48,7 @@ export function setJobSaved(queryClient: QueryClient, id: string, saved: boolean
   const snapshots = [
     snapshot(queryClient, queryKeys.personal.job(id)),
     snapshot(queryClient, queryKeys.personal.saved()),
+    snapshot(queryClient, queryKeys.personal.jobsRoot),
   ];
   queryClient.setQueryData<Job>(queryKeys.personal.job(id), (previous) => {
     const next = job ? (previous ? { ...previous, ...job } : job) : previous;
@@ -45,8 +56,11 @@ export function setJobSaved(queryClient: QueryClient, id: string, saved: boolean
   });
   updateCollections(queryClient, queryKeys.personal.saved(), (jobs) => {
     if (!saved) return jobs.filter((entry) => entry.id !== id);
-    return job ? upsert(jobs, job) : jobs;
+    return job ? upsert(jobs, { ...job, saved: true }) : jobs;
   });
+  // Feed rows only change their flag (it hides the row menu's Save).
+  updateCollections(queryClient, queryKeys.personal.jobsRoot, (jobs) =>
+    jobs.map((entry) => (entry.id === id ? { ...entry, saved } : entry)));
   return restoreAll(queryClient, snapshots);
 }
 
@@ -75,6 +89,13 @@ export function setJobApplied(queryClient: QueryClient, job: Job, applied: boole
 export function removeJobFromLists(queryClient: QueryClient, id: string): Restore {
   const snapshots = [snapshot(queryClient, queryKeys.personal.jobsRoot)];
   updateCollections(queryClient, queryKeys.personal.jobsRoot, (jobs) => jobs.filter((entry) => entry.id !== id));
+  return restoreAll(queryClient, snapshots);
+}
+
+/** Optimistically drop a company's jobs from every discovery list. */
+export function removeCompanyFromLists(queryClient: QueryClient, companyId: string): Restore {
+  const snapshots = [snapshot(queryClient, queryKeys.personal.jobsRoot)];
+  updateCollections(queryClient, queryKeys.personal.jobsRoot, (jobs) => jobs.filter((entry) => entry.company_id !== companyId));
   return restoreAll(queryClient, snapshots);
 }
 

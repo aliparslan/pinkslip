@@ -94,6 +94,7 @@ export interface AlertDialogProps {
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
   /** `danger` for destructive actions (delete account). */
   tone?: "primary" | "danger";
   /** The confirm action is running: both buttons disable and it can't close. */
@@ -104,7 +105,7 @@ export interface AlertDialogProps {
 /** A yes/no confirmation. Unlike `Dialog` it doesn't close on an outside
  * click or a swipe: the person has to choose. */
 export function AlertDialog({
-  open, onOpenChange, title, description, confirmLabel, tone = "primary", pending, onConfirm,
+  open, onOpenChange, title, description, confirmLabel, cancelLabel = "Cancel", tone = "primary", pending, onConfirm,
 }: AlertDialogProps) {
   return <BaseAlertDialog.Root open={open} onOpenChange={guardedChange(pending, onOpenChange)}>
     <BaseAlertDialog.Portal>
@@ -116,7 +117,7 @@ export function AlertDialog({
             <BaseAlertDialog.Description className={styles.subtitle}>{description}</BaseAlertDialog.Description>
           </div>
           <div className={styles.actions}>
-            <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>{cancelLabel}</Button>
             <Button variant={tone} pending={pending} onClick={onConfirm}>{confirmLabel}</Button>
           </div>
         </BaseAlertDialog.Popup>

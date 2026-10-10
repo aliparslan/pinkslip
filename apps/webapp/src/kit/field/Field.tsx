@@ -5,7 +5,7 @@ import { Input as BaseInput } from "@base-ui/react/input";
 import type {
   FormEventHandler, InputHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes, TextareaHTMLAttributes,
 } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
 import { cx } from "../cx";
 import styles from "./Field.module.css";
 
@@ -42,6 +42,17 @@ export type InputProps = NativeProps<InputHTMLAttributes<HTMLInputElement>> & { 
 /** `.input-field`. Inside a `Field` it picks up the label and error wiring. */
 export function Input(props: InputProps) {
   return <BaseInput {...props} className={styles.control} />;
+}
+
+export type SearchInputProps = Omit<InputProps, "type"> & { "aria-label": string };
+
+/** A search box: the input with a leading magnifying glass. Labelled by its
+ * `aria-label`, since search boxes rarely have a visible label. */
+export function SearchInput(props: SearchInputProps) {
+  return <div className={styles.searchWrap}>
+    <span className={styles.searchIcon} aria-hidden><MagnifyingGlass size={17} weight="bold" /></span>
+    <BaseInput {...props} type="search" enterKeyHint="search" className={cx(styles.control, styles.search)} />
+  </div>;
 }
 
 export type TextareaProps = NativeProps<TextareaHTMLAttributes<HTMLTextAreaElement>> & { ref?: Ref<HTMLTextAreaElement> };

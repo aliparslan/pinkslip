@@ -1,7 +1,7 @@
 import type { ApiClient } from "@pinkslip/core/api";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { removeJobFromLists, setJobViewed } from "./cache";
+import { removeCompanyFromLists, removeJobFromLists, setJobViewed } from "./cache";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
 
@@ -84,5 +84,39 @@ export function useBlockJob() {
     },
     onError: (_error, _id, rollback) => rollback?.(),
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobsRoot }),
+  });
+}
+
+/** Hide every job from a company. Like `useHideJob`, the rows leave at once,
+ * a failure puts them back, and `undo` restores the company. */
+export function useHideCompany() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useCallback(async (companyId: string): Promise<HiddenJob> => {
+    await queryClient.cancelQueries({ queryKey: queryKeys.personal.jobsRoot });
+    const restore = removeCompanyFromLists(queryClient, companyId);
+    try {
+      await api.companies.block(companyId);
+    } catch (error) {
+      restore();
+      throw error;
+    }
+    return {
+      undo: async () => {
+        await api.companies.restore(companyId);
+        restore();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobsRoot });
+      },
+    };
+  }, [api, queryClient]);
+}
+
+export type ReportType = "expired_listing" | "incorrect_details" | "duplicate_listing" | "broken_source" | "other";
+
+export function useReportJob() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (input: { jobId: string; type: ReportType; notes: string }) =>
+      api.interactions.report({ job_id: input.jobId, report_type: input.type, notes: input.notes }),
   });
 }

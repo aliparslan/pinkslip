@@ -102,6 +102,31 @@
   transform: translateY(-50%);
 }
 
+/* The feed's `.feed-search`: a leading glass inside the input's padding. */
+.searchWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.searchIcon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--space-3);
+  display: inline-flex;
+  color: var(--color-ink-3);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.search {
+  padding-inline-start: var(--space-10);
+}
+
+.search::-webkit-search-decoration {
+  appearance: none;
+}
+
 .fieldset {
   display: flex;
   flex-direction: column;

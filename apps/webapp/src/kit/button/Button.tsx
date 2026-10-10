@@ -25,6 +25,8 @@ export interface ButtonProps extends ButtonLookProps {
   form?: string;
   "aria-label"?: string;
   "aria-describedby"?: string;
+  /** For a toggle button, e.g. Save/Saved. */
+  "aria-pressed"?: boolean;
   ref?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }

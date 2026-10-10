@@ -42,3 +42,35 @@ export function ToggleGroup<Value extends string>({
       </Toggle>)}
   </BaseToggleGroup>;
 }
+
+export interface MultiToggleGroupProps<Value extends string> {
+  label: string;
+  options: ReadonlyArray<ToggleOption<Value>>;
+  value: readonly Value[];
+  onValueChange: (value: Value[]) => void;
+  /** Keeps at least this many pressed (the feed's career stages need one). */
+  min?: number;
+}
+
+/** Several choices as chips, e.g. the feed's career stages. Values come back
+ * in the options' order. */
+export function MultiToggleGroup<Value extends string>({
+  label, options, value, onValueChange, min = 0,
+}: MultiToggleGroupProps<Value>) {
+  return <BaseToggleGroup
+    aria-label={label}
+    className={styles.root}
+    data-variant="chips"
+    multiple
+    value={[...value]}
+    onValueChange={(next) => {
+      if (next.length < min) return;
+      onValueChange(options.map((option) => option.value).filter((option) => next.includes(option)));
+    }}
+  >
+    {options.map((option) =>
+      <Toggle key={option.value} value={option.value} disabled={option.disabled} className={cx(styles.item, styles.chip)}>
+        {option.label}
+      </Toggle>)}
+  </BaseToggleGroup>;
+}

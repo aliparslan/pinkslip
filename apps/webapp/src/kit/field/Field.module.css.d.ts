@@ -9,6 +9,9 @@ declare const styles: {
   readonly "legend": string;
   readonly "optional": string;
   readonly "root": string;
+  readonly "search": string;
+  readonly "searchIcon": string;
+  readonly "searchWrap": string;
   readonly "select": string;
   readonly "selectWrap": string;
   readonly "textarea": string;

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Job } from "@pinkslip/core/api";
-import { removeJobFromLists, setJobApplied, setJobSaved, setJobViewed } from "../src/cache";
+import { removeCompanyFromLists, removeJobFromLists, setJobApplied, setJobSaved, setJobViewed } from "../src/cache";
 import { queryKeys } from "../src/keys";
 import { createAppQueryClient } from "../src/query-client";
 import { makeJob } from "./job-fixture";
@@ -9,14 +9,17 @@ function seeded(savedJobs: Job[] = []) {
   const client = createAppQueryClient();
   const job = makeJob();
   client.setQueryData(queryKeys.personal.job(job.id), job);
-  client.setQueryData(queryKeys.personal.saved(), { jobs: savedJobs });
-  client.setQueryData(queryKeys.personal.applied(), { jobs: [] });
+  client.setQueryData(queryKeys.personal.saved(), savedJobs);
+  client.setQueryData(queryKeys.personal.applied(), []);
   client.setQueryData(queryKeys.personal.jobs({ limit: "20" }), { jobs: [job], meta: { total: 1 } });
   return { client, job };
 }
 
-const collection = (client: ReturnType<typeof createAppQueryClient>, key: readonly unknown[]) =>
-  client.getQueryData<{ jobs: Job[] }>(key)?.jobs.map((entry) => entry.id);
+// Library lists cache a plain array (savedJobsQueryOptions); the feed a collection.
+const collection = (client: ReturnType<typeof createAppQueryClient>, key: readonly unknown[]) => {
+  const data = client.getQueryData<Job[] | { jobs: Job[] }>(key);
+  return (Array.isArray(data) ? data : data?.jobs)?.map((entry) => entry.id);
+};
 const detail = (client: ReturnType<typeof createAppQueryClient>, id: string) =>
   client.getQueryData<Job>(queryKeys.personal.job(id));
 
@@ -62,7 +65,7 @@ describe("optimistic job cache updates", () => {
   test("unapplying removes the applied entry", () => {
     const client = createAppQueryClient();
     const job = makeJob({ applied: true, dismissed: 1 });
-    client.setQueryData(queryKeys.personal.applied(), { jobs: [job] });
+    client.setQueryData(queryKeys.personal.applied(), [job]);
     client.setQueryData(queryKeys.personal.job(job.id), job);
 
     const rollback = setJobApplied(client, job, false);
@@ -102,5 +105,42 @@ describe("hide, block and read state", () => {
 
     rollback();
     expect(client.getQueryData<string[]>(queryKeys.personal.viewed())).toEqual(["a"]);
+  });
+});
+
+describe("feed pages", () => {
+  const pages = (jobs: Job[][]) => ({
+    pages: jobs.map((page) => ({ jobs: page, meta: { total: 4 } })),
+    pageParams: jobs.map((_, index) => index * 2),
+  });
+  const ids = (client: ReturnType<typeof createAppQueryClient>, key: readonly unknown[]) =>
+    client.getQueryData<{ pages: { jobs: Job[] }[] }>(key)?.pages.map((page) => page.jobs.map((job) => job.id));
+
+  test("hide and company hide reach every loaded page and roll back", () => {
+    const client = createAppQueryClient();
+    const key = queryKeys.personal.jobs({ q: "eng" });
+    client.setQueryData(key, pages([
+      [makeJob({ id: "a" }), makeJob({ id: "b", company_id: "x" })],
+      [makeJob({ id: "c", company_id: "x" }), makeJob({ id: "d" })],
+    ]));
+
+    const restore = removeJobFromLists(client, "d");
+    expect(ids(client, key)).toEqual([["a", "b"], ["c"]]);
+    const restoreCompany = removeCompanyFromLists(client, "x");
+    expect(ids(client, key)).toEqual([["a"], []]);
+
+    restoreCompany();
+    restore();
+    expect(ids(client, key)).toEqual([["a", "b"], ["c", "d"]]);
+  });
+
+  test("saving flags the feed row so its menu drops Save", () => {
+    const client = createAppQueryClient();
+    const key = queryKeys.personal.jobs({});
+    client.setQueryData(key, pages([[makeJob({ id: "a" })]]));
+    const rollback = setJobSaved(client, "a", true);
+    expect(client.getQueryData<{ pages: { jobs: Job[] }[] }>(key)?.pages[0].jobs[0].saved).toBe(true);
+    rollback();
+    expect(client.getQueryData<{ pages: { jobs: Job[] }[] }>(key)?.pages[0].jobs[0].saved).toBeUndefined();
   });
 });
