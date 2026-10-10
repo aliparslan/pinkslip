@@ -31,7 +31,7 @@ app (`dev.alip.pinkslip`), so it ships as an update.
   run `bun test tests/native-release.test.ts` from the repository root. This
   check also runs in Xcode Cloud before the archive.
 
-The release version is **1.3.0**. Apple requires a separate build number;
+The release version is **1.3.1**. Apple requires a separate build number;
 Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
 does not display that number. See [the recovery notes](../../docs/native-1.3-recovery.md)
 for the launch diagnosis and local verification flows.
