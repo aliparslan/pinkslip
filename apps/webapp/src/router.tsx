@@ -2,6 +2,7 @@ import { createRouter } from "@tanstack/react-router";
 import { DataProvider, createAppQueryClient } from "@pinkslip/data";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
+import { RouteErrorPage } from "./features/states/PageStates";
 import { createWebApiClient } from "./platform/api";
 import type { RouterContext } from "./platform/router-context";
 
@@ -15,6 +16,8 @@ export function getRouter() {
     routeTree,
     context,
     scrollRestoration: true,
+    // Each route's own boundary, so a failing page keeps the app frame.
+    defaultErrorComponent: RouteErrorPage,
     Wrap: ({ children }) => <DataProvider api={api}>{children}</DataProvider>,
   });
   // Dehydrates server-loaded query data into the page and hydrates it in the

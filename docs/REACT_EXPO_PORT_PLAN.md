@@ -644,7 +644,7 @@ Screens are placeholders at this stage.
 - Apple sign-in (web) and the email sign-in result.
 - The admin guard and sign-out.
 
-**3.3 Shared states** · S
+**3.3 Shared states** · S · page-level states ✅ implemented locally (2026-10-09): kit `EmptyState`; `features/states/PageStates.tsx` with the 404 page (root `notFoundComponent`), a missing-job 404 (`/jobs/$jobId` `notFoundComponent`) and the route error page (router `defaultErrorComponent` plus root `errorComponent`, with "Try again" that resets and invalidates); dev-only `/_kit-error` to exercise it; `e2e/states.pw.ts`. Remaining: inline failures, pending UI, the offline banner
 - A route error boundary (page-level and inline failures).
 - Pending UI, empty states, an offline banner, and the toast viewport.
 

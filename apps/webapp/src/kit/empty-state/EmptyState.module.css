@@ -1,0 +1,42 @@
+/* EmptyState.svelte and PageFailure.svelte, which differed only in icon size
+   (44 and 48px) and title ink. One component now: a 48px icon disc and the
+   display-sm heading. */
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-5);
+  text-align: center;
+}
+
+.root[data-compact] {
+  max-width: none;
+  padding: var(--space-5) var(--space-4);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  margin-block-end: var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-control-bg);
+  color: var(--color-ink-2);
+}
+
+.message {
+  max-width: 32ch;
+  margin-block-start: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-5);
+}

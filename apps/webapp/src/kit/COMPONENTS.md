@@ -80,6 +80,14 @@ Design consistency fixes applied after the port, and open questions, are in
   app has no call site: `Combobox`/`Autocomplete` (locations are fixed chips and company search is
   a plain input). Rendered at `/_kit`; awaiting the 2.4 comparison.
 
+- **EmptyState (3.3)** — Owner: Web port. Files: `kit/empty-state`. One
+  component for `EmptyState.svelte` and `PageFailure.svelte`, which differed
+  only in icon size and title ink: a 48px icon disc, the `display-sm`
+  heading (or `section` when `compact`), a `sm`/`ink-3` message and centered
+  actions; `alert` adds `role="alert"` for failures. Used by
+  `features/states/PageStates.tsx` for the 404, missing-job and route-error
+  pages.
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

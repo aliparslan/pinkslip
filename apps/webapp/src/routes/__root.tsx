@@ -1,5 +1,6 @@
-import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { Shell } from "../features/shell/Shell";
+import { NotFoundPage, RouteErrorPage } from "../features/states/PageStates";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
@@ -18,8 +19,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     links: [themeCss, fontsCss, resetCss, baseCss].map((href) => ({ rel: "stylesheet", href })),
   }),
   component: Root,
-  notFoundComponent: () => <section><h1>Page not found</h1><Link to="/">Back to Jobs</Link></section>,
-  errorComponent: () => <section role="alert"><h1>Something went wrong</h1><p>Reload the page to try again.</p><a href="/">Back to Jobs</a></section>,
+  notFoundComponent: NotFoundPage,
+  errorComponent: RouteErrorPage,
 });
 
 function Root() {

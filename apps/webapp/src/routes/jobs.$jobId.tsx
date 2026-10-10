@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { publicJobQueryOptions } from "@pinkslip/data";
+import { JobNotFoundPage } from "../features/states/PageStates";
 import styles from "../styles/Jobs.module.css";
 
 export const Route = createFileRoute("/jobs/$jobId")({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/jobs/$jobId")({
   },
   head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.title} at ${loaderData.company_name} · Pinkslip` : "Job not found · Pinkslip" }] }),
   component: Job,
+  notFoundComponent: JobNotFoundPage,
 });
 
 function Job() {

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KitRouteImport } from './routes/[_]kit'
+import { Route as KitErrorRouteImport } from './routes/[_]kit-error'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const KitRoute = KitRouteImport.update({
   id: '/_kit',
   path: '/_kit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitErrorRoute = KitErrorRouteImport.update({
+  id: '/_kit-error',
+  path: '/_kit-error',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -56,6 +62,7 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
+  '/_kit-error': typeof KitErrorRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
+  '/_kit-error': typeof KitErrorRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
+  '/_kit-error': typeof KitErrorRoute
   '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/_kit'
+    | '/_kit-error'
     | '/library'
     | '/privacy'
     | '/support'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/_kit'
+    | '/_kit-error'
     | '/library'
     | '/privacy'
     | '/support'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_kit'
+    | '/_kit-error'
     | '/library'
     | '/privacy'
     | '/support'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KitRoute: typeof KitRoute
+  KitErrorRoute: typeof KitErrorRoute
   LibraryRoute: typeof LibraryRoute
   PrivacyRoute: typeof PrivacyRoute
   SupportRoute: typeof SupportRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/_kit'
       fullPath: '/_kit'
       preLoaderRoute: typeof KitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_kit-error': {
+      id: '/_kit-error'
+      path: '/_kit-error'
+      fullPath: '/_kit-error'
+      preLoaderRoute: typeof KitErrorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KitRoute: KitRoute,
+  KitErrorRoute: KitErrorRoute,
   LibraryRoute: LibraryRoute,
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,

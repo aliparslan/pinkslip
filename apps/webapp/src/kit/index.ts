@@ -4,6 +4,7 @@ export { Button, LinkButton, type ButtonSize, type ButtonVariant } from "./butto
 export { Checkbox, SelectCheck } from "./checkbox/Checkbox";
 export { AlertDialog, Dialog, Sheet } from "./dialog/Dialog";
 export { Disclosure } from "./disclosure/Disclosure";
+export { EmptyState } from "./empty-state/EmptyState";
 export { Field, Fieldset, Form, Input, Select, Textarea } from "./field/Field";
 export { Heading, type HeadingVariant } from "./heading/Heading";
 export { IconButton, type IconButtonSize } from "./icon-button/IconButton";

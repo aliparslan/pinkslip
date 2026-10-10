@@ -1,11 +1,11 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  ArrowSquareOut, Bell, BookmarkSimple, Buildings, CaretRight, CheckCircle, DotsThree, DotsThreeVertical, EyeSlash,
+  ArrowSquareOut, BookmarksSimple, Bell, BookmarkSimple, Buildings, CaretRight, CheckCircle, DotsThree, DotsThreeVertical, EyeSlash,
   MagnifyingGlass, PaperPlaneTilt, Trash, X,
 } from "@phosphor-icons/react";
 import {
-  Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, Field, Fieldset, Form, Heading, Icon, IconButton,
+  Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, EmptyState, Field, Fieldset, Form, Heading, Icon, IconButton,
   Inline, Input, LinkButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
   SelectCheck, Separator, Sheet, Skeleton, Spinner, Stack, Surface, Switch, TabPanel, Tabs, Text, Textarea, toast,
   ToggleGroup, Tooltip, InfoTip, Popover, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
@@ -154,6 +154,17 @@ function Kit() {
     <Hints />
     <Feedback />
     <Disclosures />
+
+    <Section title="Empty and failure states">
+      <Surface variant="card">
+        <EmptyState icon={BookmarksSimple} title="No saved jobs yet" message="Save jobs from the feed to keep them here."
+          actions={<LinkButton to="/" variant="primary">Browse jobs</LinkButton>} />
+      </Surface>
+      <Surface variant="list">
+        <EmptyState compact title="No matches" message="Try fewer filters." />
+      </Surface>
+      <Text size="sm" tone="ink-3">Page-level states: open /does-not-exist (404) or /_kit-error (route error with retry).</Text>
+    </Section>
 
     <Section title="Assistive text">
       <Text>Visible text<VisuallyHidden> with a hidden suffix for screen readers</VisuallyHidden>.</Text>
