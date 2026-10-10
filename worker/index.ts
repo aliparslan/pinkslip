@@ -273,6 +273,33 @@ app.get("/support", () => new Response(supportPage(), {
 // Only this explicit, read-only projection is public, including behind the
 // invite gate. All existing personal and administrative endpoints keep auth.
 app.route("/api/v2/public", publicJobRoutes);
+// Company favicon proxy. The app never hits Google's favicon service from the
+// user's device (no third party learns which companies they browse); responses
+// cache at the edge and in the browser for a day. Favicons carry nothing
+// personal, so, like the public catalog, they need no access code or session.
+app.get("/api/v2/logo", async (c) => {
+  const domain = (c.req.query("domain") ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
+    return c.json({ error: "Invalid domain" }, 400);
+  }
+  const upstream = await fetch(
+    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
+    { cf: { cacheEverything: true, cacheTtl: 86400 } }
+  );
+  // Google answers unknown domains with a 404 and a generic globe; the client
+  // shows initials instead. Misses are cached too, so a company without a
+  // favicon doesn't send every row view upstream.
+  if (!upstream.ok || !upstream.body) {
+    return c.json({ error: "Logo unavailable" }, 404, { "cache-control": "public, max-age=86400" });
+  }
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      "content-type": upstream.headers.get("content-type") ?? "image/png",
+      "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
+    },
+  });
+});
 app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
 
@@ -302,29 +329,6 @@ app.get("/api/v2/health", (c) =>
     timestamp: new Date().toISOString(),
   })
 );
-// Company favicon proxy. The app never hits Google's favicon service from the
-// user's device (no third party learns which companies they browse); responses
-// cache at the edge and in the browser for a day.
-app.get("/api/v2/logo", async (c) => {
-  const domain = (c.req.query("domain") ?? "").trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
-    return c.json({ error: "Invalid domain" }, 400);
-  }
-  const upstream = await fetch(
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
-    { cf: { cacheEverything: true, cacheTtl: 86400 } }
-  );
-  if (!upstream.ok || !upstream.body) {
-    return c.json({ error: "Logo unavailable" }, 404);
-  }
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      "content-type": upstream.headers.get("content-type") ?? "image/png",
-      "cache-control": "public, max-age=86400",
-    },
-  });
-});
 app.get("/api/v2/me", async (c) => {
   const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
   return c.json({

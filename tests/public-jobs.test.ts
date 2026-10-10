@@ -146,6 +146,16 @@ describe("public job projection", () => {
     expect(queries).toHaveLength(0);
   });
 
+  it("serves company logos behind the invite gate, like the catalog", async () => {
+    const { request, env } = fixture();
+    env.ACCESS_CODE = "invite-gate";
+    // An invalid domain is rejected by the proxy itself (no upstream fetch),
+    // which proves the request got past the access gate.
+    const response = await request("/logo?domain=not-a-domain");
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "Invalid domain" });
+  });
+
   it("leaves personal routes protected, including behind the invite gate", async () => {
     const { request, env, queries } = fixture();
     for (const path of ["/jobs", "/profile", "/companies"]) {
