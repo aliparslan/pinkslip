@@ -76,7 +76,7 @@ function ToastList() {
         }}
       >{action.label}</button>}
       {item.timeout === 0 && <Toast.Close className={styles.close} aria-label="Dismiss message">
-        <X size={16} aria-hidden />
+        <X size={16} weight="bold" aria-hidden />
       </Toast.Close>}
     </Toast.Root>;
   });

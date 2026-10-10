@@ -2,9 +2,9 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  /* intentional: the Svelte .tag is a fixed 22px pill with 7px padding */
-  height: 22px;
-  padding: 0 7px;
+  /* intentional: a fixed 24px tag, on the 4px grid */
+  height: 24px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-xs);
   background: var(--color-bg-sunken);
   color: var(--color-ink-3);

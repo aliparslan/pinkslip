@@ -6,7 +6,7 @@
 
 .popup {
   max-width: min(240px, calc(100vw - 24px));
-  padding: 5px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-ink);
   color: var(--color-bg);

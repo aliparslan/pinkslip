@@ -8,7 +8,7 @@
 .popup {
   /* intentional: the Svelte job row menu width */
   min-width: min(148px, calc(100vw - 32px));
-  padding: 5px;
+  padding: var(--space-1);
   border: 1px solid var(--color-line-2);
   border-radius: var(--radius-md);
   background: var(--color-bg-elev);
@@ -36,8 +36,9 @@
   gap: var(--space-2);
   width: 100%;
   min-height: var(--control-height-compact);
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  /* Concentric with the popup: radius-md minus the 4px inset. */
+  border-radius: var(--radius-xs);
   color: var(--color-ink-2);
   font-size: var(--fs-sm);
   cursor: pointer;
@@ -52,7 +53,7 @@
 
 .item[data-disabled] {
   cursor: default;
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .item[data-tone="danger"] {
@@ -66,7 +67,7 @@
 
 .separator {
   height: 0.5px;
-  margin: 4px 6px;
+  margin: var(--space-1) var(--space-3);
   background: var(--color-line);
 }
 

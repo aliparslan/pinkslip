@@ -5,7 +5,7 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { Spinner } from "../spinner/Spinner";
 import styles from "./Button.module.css";
 
-export type ButtonVariant = "primary" | "accent" | "secondary" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "danger";
 export type ButtonSize = "default" | "compact";
 
 interface ButtonLookProps {
@@ -39,8 +39,7 @@ function Leading({ icon: Glyph, size, pending }: { icon?: PhosphorIcon; size: Bu
   return Glyph ? <Glyph size={iconSize(size)} weight="bold" aria-hidden focusable="false" /> : null;
 }
 
-/** The app's text button. `accent` is the pink call to action; `primary` is
- * the ink-filled default. */
+/** The app's text button. `primary` is the pink call to action. */
 export function Button({
   variant = "primary", size = "default", fullWidth, icon, type = "button", disabled, pending, children, ...rest
 }: ButtonProps) {

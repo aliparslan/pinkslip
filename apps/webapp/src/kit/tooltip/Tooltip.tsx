@@ -17,7 +17,7 @@ export function Tooltip({ content, side = "top", children }: TooltipProps) {
   return <BaseTooltip.Root>
     <BaseTooltip.Trigger render={children} />
     <BaseTooltip.Portal>
-      <BaseTooltip.Positioner className={styles.positioner} side={side} sideOffset={6} collisionPadding={12}>
+      <BaseTooltip.Positioner className={styles.positioner} side={side} sideOffset={8} collisionPadding={12}>
         <BaseTooltip.Popup className={styles.popup}>{content}</BaseTooltip.Popup>
       </BaseTooltip.Positioner>
     </BaseTooltip.Portal>

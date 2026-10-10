@@ -1,5 +1,7 @@
-/* `.btn-primary`/`.btn-secondary` from the Svelte app.css. `accent` was
-   `.btn-primary.btn-accent` and `danger` was `.btn-secondary.btn-danger`;
+/* `.btn-primary`/`.btn-secondary` from the Svelte app.css. `primary` is
+   `.btn-primary.btn-accent`, the pink call to action (the ink-filled
+   `.btn-primary` had one call site and was dropped), and `danger` is
+   `.btn-secondary.btn-danger`;
    `size="compact"` is `.btn-mini` and `fullWidth` compact is `.btn-action`. */
 .root {
   appearance: none;
@@ -28,14 +30,12 @@
   transform: scale(0.96);
 }
 
+/* Filled buttons have no visible border (the 1px stays, transparent, so every
+   variant is the same size); secondary and danger keep the neutral outline
+   so they still read on raised surfaces like dialogs. */
 .root[data-variant="primary"] {
-  background: var(--color-ink);
-  color: var(--color-bg);
-}
-
-.root[data-variant="accent"] {
-  border-color: color-mix(in oklch, var(--color-accent) 74%, var(--color-ink));
-  background: var(--color-accent);
+  border-color: transparent;
+  background: var(--color-accent-fill);
   color: var(--color-accent-ink);
 }
 
@@ -51,7 +51,7 @@
 
 .root[data-size="compact"] {
   min-height: var(--control-height-compact);
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   font-size: var(--fs-sm);
 }
 
@@ -71,7 +71,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .root:is([data-variant="primary"], [data-variant="accent"]):not([data-disabled]):hover {
+  .root[data-variant="primary"]:not([data-disabled]):hover {
     opacity: 0.9;
   }
 

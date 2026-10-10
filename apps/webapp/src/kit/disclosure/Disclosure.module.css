@@ -43,6 +43,6 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  padding-block-start: 13px;
+  gap: var(--space-3);
+  padding-block-start: var(--space-3);
 }

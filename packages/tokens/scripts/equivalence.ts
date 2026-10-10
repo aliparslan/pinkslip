@@ -8,7 +8,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { breakpoints } from "../src/tokens";
+import { breakpoints, intentionalDivergences } from "../src/tokens";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
 const generatedPath = join(repoRoot, "packages/tokens/src/tokens.css");
@@ -191,7 +191,7 @@ export function compareEquivalence(): EquivalenceResult {
     for (const name of names) {
       const expected = reference.get(name);
       const actual = generated.get(name);
-      if (expected === actual) continue;
+      if (expected === actual || name in intentionalDivergences) continue;
       if (expected === undefined) problems.push(`${label}: ${name} only exists in the generated stylesheet`);
       else if (actual === undefined) problems.push(`${label}: ${name} is missing from the generated stylesheet`);
       else problems.push(`${label}: ${name} is ${actual}, expected ${expected}`);

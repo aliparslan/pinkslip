@@ -58,7 +58,7 @@ export function Menu({ trigger, align = "end", disabled, label, children }: Menu
         <span className={styles.chevron} aria-hidden><CaretDown size={15} weight="bold" /></span>
       </BaseMenu.Trigger>}
     <BaseMenu.Portal>
-      <BaseMenu.Positioner className={styles.positioner} side="bottom" align={align} sideOffset={6} collisionPadding={12} positionMethod="fixed">
+      <BaseMenu.Positioner className={styles.positioner} side="bottom" align={align} sideOffset={8} collisionPadding={12} positionMethod="fixed">
         <BaseMenu.Popup className={styles.popup} data-variant={field ? "field" : "actions"} aria-label={label}>
           {children}
         </BaseMenu.Popup>

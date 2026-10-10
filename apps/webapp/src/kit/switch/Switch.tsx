@@ -6,17 +6,13 @@ export interface SwitchProps {
   onCheckedChange: (checked: boolean) => void;
   /** Accessible name. Rows show the same text visibly beside the switch. */
   label: string;
-  /** `accent` keeps the pink track on phones, for screens where the switch
-   * is the main control (notification settings). */
-  tone?: "default" | "accent";
   disabled?: boolean;
   name?: string;
 }
 
-export function Switch({ checked, onCheckedChange, label, tone = "default", disabled, name }: SwitchProps) {
+export function Switch({ checked, onCheckedChange, label, disabled, name }: SwitchProps) {
   return <BaseSwitch.Root
     className={styles.root}
-    data-tone={tone}
     checked={checked}
     onCheckedChange={(next) => onCheckedChange(next)}
     aria-label={label}

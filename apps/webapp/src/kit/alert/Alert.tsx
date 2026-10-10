@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import styles from "./Alert.module.css";
 
-export type AlertTone = "error" | "success" | "warn";
+export type AlertTone = "error" | "success" | "warning";
 
 export interface AlertProps {
   tone: AlertTone;

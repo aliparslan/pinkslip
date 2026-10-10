@@ -8,6 +8,20 @@ visual references only; component APIs follow Pinkslip's needs.
 
 ## Quarantine
 
+Design consistency fixes applied after the port, and open questions, are in
+`docs/kit-design-review.md`. Rules every kit component follows:
+
+- Spacing uses the space tokens only (4px grid). Raw pixels are for
+  component dimensions, never padding, margins or gaps.
+- Heights: `control-height` 48 (buttons, inputs, default icon buttons, tabs),
+  `control-height-compact` 40 (compact controls, menu items), and
+  `control-height-small` 32; compact and small grow to 44 on phones.
+- Radii: inner elements are concentric with their container (container
+  radius minus the inset), e.g. `radius-xs` inside a 4px-inset `radius-md`.
+- Selection: choosing a value is pink; choosing a view is a raised pill.
+- Filled buttons have no visible border; outlined ones use `line-2`.
+- Disabled is opacity 0.6. Focus is a 2px accent outline at a 2px offset.
+
 - **Foundation kit (2.1)** — Owner: Web port. Files: `kit/text`, `kit/heading`,
   `kit/layout` (`Stack`, `Inline`), `kit/surface`, `kit/icon`, `kit/separator`,
   `kit/visually-hidden`, `kit/spinner`, `kit/skeleton`, `kit/badge`. Each
@@ -26,14 +40,15 @@ visual references only; component APIs follow Pinkslip's needs.
   `Textarea`, `Select`, `Fieldset`, `Form`), `kit/checkbox` (`Checkbox`,
   `SelectCheck`), `kit/switch`, `kit/toggle-group`, `kit/alert`,
   `kit/save-status`. Each reproduces an app.css role: `Button` variants are
-  `.btn-primary`, `.btn-primary.btn-accent`, `.btn-secondary` and
-  `.btn-secondary.btn-danger`, `size="compact"` is `.btn-mini` and
+  `.btn-primary.btn-accent` (`primary`), `.btn-secondary` and
+  `.btn-secondary.btn-danger` (the ink `.btn-primary` was dropped), `size="compact"` is `.btn-mini` and
   `fullWidth` compact is `.btn-action`; `IconButton` is `.icon-btn` with
   `-sm`/`-xs`/`-surface`; `Field` is `.field-label` + `.label-opt` with the
   error as an `.alert-error`, and the controls are `.input-field`,
   `.textarea-field` and the native select with `.select-chevron`; `Checkbox`
   and `SelectCheck` are `.select-check`; `Switch` is `.switch`; `ToggleGroup`
-  is `.chip-wrap`/`.chip` (`chips`) and `.segmented-control` (`segmented`);
+  is `.chip-wrap`/`.chip` (`chips`) and a `segmented` variant that uses the
+  `Tabs` track and pill;
   `Alert` is `.alert-*`; `SaveStatus` is `SaveStatus.svelte`. The phone
   `:root` overrides from app.css (tap-height compact controls, looser radii)
   live in `styles/base.css`. Not built, because the current app has no call

@@ -33,18 +33,14 @@
     color: var(--color-selection-ink);
   }
 
-  /* Below the wide breakpoint every control grows to the tap target and the
-     radii loosen, as the Svelte app.css did after its tokens. Native screens
-     are always this size, so they read the phone values directly. Inputs stay
-     at 16px or more so iOS Safari doesn't zoom on focus. */
+  /* Below the wide breakpoint compact and small controls grow to the tap
+     target, as the Svelte app.css did after its tokens. Native screens are
+     always this size, so they read the phone values directly. Inputs stay at
+     16px or more so iOS Safari doesn't zoom on focus. */
   @media (max-width: 56.249rem) {
     :root {
       --control-height-compact: var(--tap-min);
       --control-height-small: var(--tap-min);
-      /* intentional: the Svelte phone radii, not on the token scale */
-      --radius-sm: 8px;
-      /* intentional: the Svelte phone radii, not on the token scale */
-      --radius-xl: 20px;
       --ease-standard: cubic-bezier(0.2, 0, 0, 1);
     }
 

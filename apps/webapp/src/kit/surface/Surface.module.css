@@ -12,8 +12,7 @@
 }
 
 .root[data-variant="card"] {
-  /* intentional: the Svelte .content-card uses 18px, between space-4 and -5 */
-  padding: 18px;
+  padding: var(--space-5);
 }
 
 /* Phones use edge-to-edge grouped lists (Svelte app.css, max-width 540px). */

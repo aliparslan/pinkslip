@@ -6,7 +6,7 @@
  */
 export type ThemeName = "dark" | "light" | "contrast" | "lightContrast";
 export type BreakpointToken = "wide";
-export type ColorToken = "bg" | "bg-elev" | "bg-sunken" | "ink" | "ink-2" | "ink-3" | "ink-4" | "line" | "line-2" | "message-border" | "paper" | "accent" | "accent-ink" | "accent-soft" | "accent-soft-ink" | "selection-bg" | "selection-ink" | "good" | "good-soft" | "warn" | "bad" | "bad-soft" | "control-bg" | "input-bg" | "control-border" | "control-active-bg" | "control-active-ink" | "control-selected-bg" | "control-selected-ink" | "control-selected-border" | "scrim" | "image-outline" | "nav-dim";
+export type ColorToken = "bg" | "bg-elev" | "bg-sunken" | "ink" | "ink-2" | "ink-3" | "ink-4" | "line" | "line-2" | "message-border" | "paper" | "accent" | "accent-fill" | "accent-ink" | "accent-soft" | "accent-soft-ink" | "selection-bg" | "selection-ink" | "good" | "good-soft" | "warn" | "bad" | "bad-soft" | "control-bg" | "input-bg" | "control-border" | "control-active-bg" | "control-active-ink" | "control-selected-bg" | "control-selected-ink" | "control-selected-border" | "scrim" | "image-outline" | "nav-dim";
 export type ShadowToken = "control-active" | "overlay" | "overlay-lg" | "toast" | "sheet";
 export type RadiusToken = "xs" | "sm" | "md" | "lg" | "xl" | "full";
 export type SpaceToken = "1" | "2" | "3" | "4" | "5" | "6" | "8" | "10";

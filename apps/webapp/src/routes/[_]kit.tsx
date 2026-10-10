@@ -161,7 +161,7 @@ function Kit() {
   </Stack>;
 }
 
-const buttonVariants: ButtonVariant[] = ["accent", "primary", "secondary", "danger"];
+const buttonVariants: ButtonVariant[] = ["primary", "secondary", "danger"];
 
 function Actions() {
   const [pending, setPending] = useState(false);
@@ -174,9 +174,9 @@ function Actions() {
       {buttonVariants.map((variant) => <Button key={variant} variant={variant} size="compact">{variant}</Button>)}
     </Inline>
     <Inline gap="2" wrap>
-      <Button variant="accent" icon={PaperPlaneTilt}>Send email</Button>
+      <Button variant="primary" icon={PaperPlaneTilt}>Send email</Button>
       <Button variant="secondary" disabled>Disabled</Button>
-      <Button variant="accent" pending={pending} onClick={() => {
+      <Button variant="primary" pending={pending} onClick={() => {
         setPending(true);
         window.setTimeout(() => setPending(false), 1500);
       }}>{pending ? "Saving…" : "Save (pending 1.5s)"}</Button>
@@ -224,7 +224,7 @@ function Inputs() {
         <Input defaultValue="Can't edit this" />
       </Field>
       <Inline gap="2">
-        <Button type="submit" variant="accent">Submit (empty email shows the error)</Button>
+        <Button type="submit" variant="primary">Submit (empty email shows the error)</Button>
       </Inline>
     </Form>
     <Fieldset legend="Fieldset legend">
@@ -233,7 +233,7 @@ function Inputs() {
     </Fieldset>
     <Alert tone="error">Couldn't save your changes. Try again.</Alert>
     <Alert tone="success">Resume uploaded.</Alert>
-    <Alert tone="warn">Your session expires soon.</Alert>
+    <Alert tone="warning">Your session expires soon.</Alert>
   </Section>;
 }
 
@@ -262,8 +262,8 @@ function Choices() {
       <Switch label="Open to anywhere" checked={anywhere} onCheckedChange={setAnywhere} />
     </Inline>
     <Inline justify="between">
-      <Text>Job alerts (accent on phones)</Text>
-      <Switch label="Job alerts" tone="accent" checked={alerts} onCheckedChange={setAlerts} />
+      <Text>Job alerts</Text>
+      <Switch label="Job alerts" checked={alerts} onCheckedChange={setAlerts} />
     </Inline>
     <Inline justify="between">
       <Text tone="ink-3">Disabled</Text>
@@ -330,12 +330,12 @@ function Overlays() {
       <Form aria-label="Request a company" onSubmit={() => setDialog(false)}>
         <Field label="Company name"><Input placeholder="Stripe" /></Field>
         <Field label="Careers page" optional><Input type="url" placeholder="https://" /></Field>
-        <Button type="submit" variant="accent" fullWidth>Send request</Button>
+        <Button type="submit" variant="primary" fullWidth>Send request</Button>
       </Form>
     </Dialog>
     <Sheet open={sheet} onOpenChange={setSheet} title="Filters" closeLabel="Close filters" footer={<>
       <Button variant="secondary" onClick={() => setFilter("All")}>Reset</Button>
-      <Button variant="accent" onClick={() => setSheet(false)}>Show 128 jobs</Button>
+      <Button variant="primary" onClick={() => setSheet(false)}>Show 128 jobs</Button>
     </>}>
       <Text size="xs" weight="semibold" tone="ink-4">Listing</Text>
       <ToggleGroup label="Listing" value={filter} onValueChange={setFilter}
@@ -388,7 +388,7 @@ function Hints() {
       <Popover align="start" trigger={<IconButton icon={DotsThree} label="Popover from an icon button" tooltip />}>
         <Stack gap="2">
           <Text size="sm">Popovers can hold controls.</Text>
-          <Button variant="accent" size="compact">Do it</Button>
+          <Button variant="primary" size="compact">Do it</Button>
         </Stack>
       </Popover>
     </Inline>

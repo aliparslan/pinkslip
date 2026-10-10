@@ -7,7 +7,6 @@ import type {
 } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { cx } from "../cx";
-import alertStyles from "../alert/Alert.module.css";
 import styles from "./Field.module.css";
 
 export interface FieldProps {
@@ -30,7 +29,7 @@ export function Field({ label, optional, error, disabled, name, children }: Fiel
       {optional && <span className={styles.optional}> optional</span>}
     </BaseField.Label>
     {children}
-    {error && <BaseField.Error match className={cx(alertStyles.root, styles.error)} data-tone="error" role="alert">
+    {error && <BaseField.Error match className={styles.error} role="alert">
       {error}
     </BaseField.Error>}
   </BaseField.Root>;

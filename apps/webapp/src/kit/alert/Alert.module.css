@@ -1,6 +1,6 @@
-/* `.alert` and its `-error`, `-success` and `-warn` tones. */
+/* `.alert` and its `-error`, `-success` and `-warn` tones (`warning` here, matching `toast`). */
 .root {
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
   line-height: 1.5;
@@ -16,7 +16,7 @@
   color: var(--color-good);
 }
 
-.root[data-tone="warn"] {
+.root[data-tone="warning"] {
   background: color-mix(in oklch, var(--color-warn) 14%, transparent);
   color: var(--color-warn);
 }

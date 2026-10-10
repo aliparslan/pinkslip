@@ -1,10 +1,12 @@
-/* `.icon-btn` and its `-sm`, `-xs` and `-surface` modifiers. */
+/* `.icon-btn` and its `-sm`, `-xs` and `-surface` modifiers. The default is
+   the control height (48px), so an icon button lines up with buttons and
+   inputs in a row; `sm` and `xs` match compact buttons. */
 .root {
   display: grid;
   flex: none;
   place-items: center;
-  width: var(--tap-min);
-  height: var(--tap-min);
+  width: var(--control-height);
+  height: var(--control-height);
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -44,7 +46,7 @@
 
 .root[data-disabled] {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.6;
   transform: none;
 }
 

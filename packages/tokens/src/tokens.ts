@@ -4,15 +4,29 @@
  * unions (`types.ts`).
  *
  * `bun run generate` writes those files; `bun run check` fails when they drift.
- * Values mirror the frozen Svelte design exactly, and `check-equivalence.ts`
- * compares every resolved value against that frozen copy until chunk 3.4
- * deletes the old app.
+ * Values mirror the frozen Svelte design, and `check-equivalence.ts` compares
+ * every resolved value against that frozen copy until chunk 3.4 deletes the
+ * old app. Deliberate changes are listed in `intentionalDivergences`.
  *
  * Modes are expressed the way the browser cascades them: `dark` is the base
  * semantic set, `light` overrides it, and the `prefers-contrast` media query
  * reuses the attribute-driven contrast values because WKWebView does not
  * reliably expose iOS Increase Contrast through media queries.
  */
+
+/**
+ * Tokens that deliberately differ from the frozen Svelte design, with why.
+ * The equivalence check skips these names. See docs/kit-design-review.md.
+ */
+export const intentionalDivergences: Record<string, string> = {
+  "--radius-sm": "8px at every width; Svelte used 6px on desktop (a duplicate of radius-xs) and 8px on phones",
+  "--radius-xl": "20px at every width; Svelte jumped from 14px to 20px below 900px",
+  "--color-accent": "rose (hue 5) instead of magenta (hue 350), for text and icons",
+  "--color-accent-fill": "new: filled controls use one rose in both modes with white text",
+  "--color-accent-ink": "white on the rose fill in both modes; Svelte used near-black in dark mode",
+  "--color-accent-soft": "rose hue",
+  "--color-accent-soft-ink": "rose hue",
+};
 
 /** Breakpoints are emitted as media queries, never as custom properties. */
 export const breakpoints = {
@@ -100,10 +114,10 @@ export const base = {
 /** Dark is the default mode and also carries the mode-independent radii. */
 export const dark = {
   "--radius-xs": "6px",
-  "--radius-sm": "6px",
+  "--radius-sm": "8px",
   "--radius-md": "10px",
   "--radius-lg": "14px",
-  "--radius-xl": "14px",
+  "--radius-xl": "20px",
   "--radius-full": "999px",
 
   // Near-neutral graphite. Chroma stays deliberately below 0.008.
@@ -123,12 +137,16 @@ export const dark = {
   // Pink is identity and state, never the ambient canvas.
   // Lightened from 0.72 so the dark label on a filled pink button clears APCA 60
   // (was Lc 51.8, now 61.8). Chroma follows the sRGB ceiling down as L rises.
-  "--color-accent": "oklch(0.78 0.153 350)",
-  "--color-accent-ink": "oklch(0.16 0.01 350)",
-  "--color-accent-soft": "oklch(0.255 0.055 350)",
+  // Rose. `accent` is for pink text, icons, borders and focus rings;
+  // `accent-fill` is for filled controls and is the same in both modes, with
+  // white `accent-ink` on top (4.6:1).
+  "--color-accent": "oklch(0.8 0.118 5)",
+  "--color-accent-fill": "oklch(0.584 0.17 5)",
+  "--color-accent-ink": "oklch(0.99 0.002 70)",
+  "--color-accent-soft": "oklch(0.255 0.055 5)",
   // Chroma sits at the sRGB ceiling for this L/H. Raising it does nothing on
   // screen — the browser gamut-maps it straight back down.
-  "--color-accent-soft-ink": "oklch(0.86 0.089 350)",
+  "--color-accent-soft-ink": "oklch(0.86 0.078 5)",
   "--color-selection-bg": "oklch(0.91 0.004 285)",
   "--color-selection-ink": "oklch(0.18 0.006 285)",
 
@@ -174,10 +192,9 @@ export const light = {
   "--color-line-2": "oklch(0.825 0.004 80)",
   "--color-message-border": "oklch(0 0 0 / 0.14)",
 
-  "--color-accent": "oklch(0.57 0.205 350)",
-  "--color-accent-ink": "oklch(0.99 0.002 70)",
-  "--color-accent-soft": "oklch(0.965 0.018 350)",
-  "--color-accent-soft-ink": "oklch(0.4 0.15 350)",
+  "--color-accent": "oklch(0.56 0.17 5)",
+  "--color-accent-soft": "oklch(0.965 0.017 5)",
+  "--color-accent-soft-ink": "oklch(0.4 0.15 5)",
   "--color-selection-bg": "oklch(0.22 0.006 285)",
   "--color-selection-ink": "oklch(0.99 0.002 80)",
 

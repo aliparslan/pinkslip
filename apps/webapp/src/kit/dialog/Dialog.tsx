@@ -26,7 +26,7 @@ function guardedChange(busy: boolean | undefined, onOpenChange: (open: boolean) 
 
 function CloseButton({ label, busy, size = 20 }: { label: string; busy?: boolean; size?: 18 | 20 }) {
   return <Drawer.Close className={cx(iconButtonStyles.root, styles.close)} data-size="default" aria-label={label} disabled={busy}>
-    <X size={size} aria-hidden focusable="false" />
+    <X size={size} weight="bold" aria-hidden focusable="false" />
   </Drawer.Close>;
 }
 
@@ -77,7 +77,7 @@ export function Sheet({ open, onOpenChange, title, busy, closeLabel = "Close", f
           <div className={styles.sheetHeader}>
             <Drawer.Title className={headingStyles.root} data-variant="display-md">{title}</Drawer.Title>
             <Drawer.Close className={iconButtonStyles.root} data-size="default" aria-label={closeLabel} disabled={busy}>
-              <X size={18} aria-hidden focusable="false" />
+              <X size={18} weight="bold" aria-hidden focusable="false" />
             </Drawer.Close>
           </div>
           <Drawer.Content className={styles.sheetBody}>{children}</Drawer.Content>
@@ -95,7 +95,7 @@ export interface AlertDialogProps {
   description: string;
   confirmLabel: string;
   /** `danger` for destructive actions (delete account). */
-  tone?: "accent" | "danger";
+  tone?: "primary" | "danger";
   /** The confirm action is running: both buttons disable and it can't close. */
   pending?: boolean;
   onConfirm: () => void;
@@ -104,7 +104,7 @@ export interface AlertDialogProps {
 /** A yes/no confirmation. Unlike `Dialog` it doesn't close on an outside
  * click or a swipe: the person has to choose. */
 export function AlertDialog({
-  open, onOpenChange, title, description, confirmLabel, tone = "accent", pending, onConfirm,
+  open, onOpenChange, title, description, confirmLabel, tone = "primary", pending, onConfirm,
 }: AlertDialogProps) {
   return <BaseAlertDialog.Root open={open} onOpenChange={guardedChange(pending, onOpenChange)}>
     <BaseAlertDialog.Portal>

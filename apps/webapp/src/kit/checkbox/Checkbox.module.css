@@ -28,14 +28,14 @@
 }
 
 .box[data-checked] {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
+  border-color: var(--color-accent-fill);
+  background: var(--color-accent-fill);
   color: var(--color-accent-ink);
 }
 
 .box[data-disabled] {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .box:focus-visible {
@@ -52,14 +52,6 @@
   from {
     opacity: 0;
     transform: scale(0.78);
-  }
-}
-
-@media (max-width: 56.249rem) {
-  .box[data-checked] {
-    border-color: var(--color-accent);
-    background: var(--color-control-selected-bg);
-    color: var(--color-accent);
   }
 }
 

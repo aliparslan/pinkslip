@@ -1,5 +1,5 @@
 /* New in the port: a small card in the `.menu-surface` family for short
-   explanations and inline controls. */
+   explanations and inline controls, with the menu's radius and shadow. */
 .positioner {
   z-index: var(--z-overlay);
 }
@@ -9,12 +9,12 @@
   max-width: min(320px, calc(100vw - 24px));
   padding: var(--space-4);
   border: 1px solid var(--color-line-2);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-bg-elev);
   color: var(--color-ink-2);
   font-size: var(--fs-sm);
   line-height: 1.5;
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-toast);
   outline: none;
   transform-origin: var(--transform-origin);
   transition:
