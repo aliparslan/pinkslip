@@ -868,6 +868,8 @@ Production activation, Apple portal setup and the remaining signed-phone flows
 are separate from local implementation proof. Scope and testing flows:
 [port-closeout.md](port-closeout.md).
 
+Header and swipe fix, release 1.3.1 (2026-10-10): the SwiftUI List hid the scroll view from the native stack, so the large title and search bar stopped collapsing. Jobs and Library are back on FlashList with the kit's `SwipeRow` (`d56ea3e`, review in [codex-review-2026-10-10.md](codex-review-2026-10-10.md)). Headers now follow dark mode through a navigation theme, and the owner set the version to 1.3.1 (`4cb9969`, pushed). Left: the owner's phone checks, the external TestFlight archive setting, and the optional website Apple portal setup.
+
 ### Phase 7: Cleanup
 
 ✅ Local documentation cleanup completed 2026-10-10: updated the ignored local
