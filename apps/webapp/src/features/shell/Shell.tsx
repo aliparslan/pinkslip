@@ -1,8 +1,8 @@
 import { Link, useCanGoBack, useMatches, useRouter, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BookmarksSimple, Briefcase, CaretLeft, UserCircle, type Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { IconButtonAnchor, Text } from "../../kit";
-import { adminPages, pages, youGroups, type SectionPath } from "../navigation/pages";
+import { IconButtonAnchor, Tooltip } from "../../kit";
+import { adminPages, pages, type SectionPath } from "../navigation/pages";
 import { backTarget, jobRoot } from "../navigation/back-target";
 import { OfflineBanner } from "../states/OfflineBanner";
 import { BrandMark } from "./BrandMark";
@@ -30,9 +30,11 @@ function SectionLinks({ paths, pathname }: { paths: readonly SectionPath[]; path
 }
 
 /**
- * App frame. Wide screens get a left sidebar: brand, then each destination as
- * a full row, with You's and Admin's sections nested under the active one.
- * Phones keep the bottom tab bar. Pages below a root get the current design's
+ * App frame. Wide screens get a narrow icon rail: the mark, then each
+ * destination as an icon with its name in a tooltip (the name is also the
+ * link's text, visually hidden there). Phones keep the bottom tab bar with
+ * labels. You's sections live on the You screen; admin pages get a section
+ * bar above the content at every width. Pages below a root get the current design's
  * screen bar: an icon-only Back and the centered title. Library's Saved and
  * Applied tabs and You's grouped list belong to those screens, not the shell.
  */
@@ -59,30 +61,20 @@ export function Shell({ children }: { children: ReactNode }) {
           const active = root === destination.root;
           const Glyph = destination.icon;
           return <li key={destination.to}>
-            <Link
-              to={destination.to}
-              className={styles.destination}
-              data-active={active || undefined}
-              aria-current={active ? "page" : undefined}
-            >
-              <Glyph size={22} weight={active ? "fill" : "regular"} aria-hidden />
-              <span>{destination.label}</span>
-            </Link>
-            {active && destination.root === "you" && <div className={styles.sidebarSections}>
-              {admin
-                ? <><Text size="xs" weight="semibold" tone="ink-4">Admin</Text><SectionLinks paths={adminPages} pathname={location.pathname} /></>
-                : youGroups.map((group) => <div key={group.label} className={styles.sectionGroup}>
-                  <Text size="xs" weight="semibold" tone="ink-4">{group.label}</Text>
-                  <SectionLinks paths={group.paths} pathname={location.pathname} />
-                </div>)}
-            </div>}
+            <Tooltip content={destination.label} side="right">
+              <Link
+                to={destination.to}
+                className={styles.destination}
+                data-active={active || undefined}
+                aria-current={active ? "page" : undefined}
+              >
+                <Glyph size={22} weight={active ? "fill" : "regular"} aria-hidden />
+                <span className={styles.label}>{destination.label}</span>
+              </Link>
+            </Tooltip>
           </li>;
         })}
       </ul>
-      <div className={styles.legal}>
-        <Link to="/privacy">Privacy</Link>
-        <Link to="/support">Support</Link>
-      </div>
     </nav>
     <main id="main" tabIndex={-1} className={styles.main}>
       {/* The screen bar is inside the transition group so it moves with its
@@ -99,7 +91,7 @@ export function Shell({ children }: { children: ReactNode }) {
           }} />
         <div className={styles.screenTitle} aria-hidden>{page.title}</div>
       </header>}
-      {admin && <nav aria-label="Admin navigation" className={styles.phoneSections}>
+      {admin && <nav aria-label="Admin navigation" className={styles.sectionNav}>
         <SectionLinks paths={adminPages} pathname={location.pathname} />
       </nav>}
       <OfflineBanner />

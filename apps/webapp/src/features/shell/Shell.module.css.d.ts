@@ -5,17 +5,15 @@ declare const styles: {
   readonly "destination": string;
   readonly "destinations": string;
   readonly "frame": string;
-  readonly "legal": string;
+  readonly "label": string;
   readonly "main": string;
   readonly "mark": string;
   readonly "navigation": string;
-  readonly "phoneSections": string;
   readonly "screenNav": string;
   readonly "screenTitle": string;
-  readonly "sectionGroup": string;
   readonly "sectionLink": string;
+  readonly "sectionNav": string;
   readonly "sections": string;
-  readonly "sidebarSections": string;
   readonly "skip": string;
 };
 

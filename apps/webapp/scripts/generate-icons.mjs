@@ -19,8 +19,9 @@ function mark(color, scale = 1, id = "gap") {
 
 const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${body}</svg>\n`;
 
-// Browser tabs: a rounded pink tile, the mark as large as it can be.
-const favicon = svg(`<rect width="32" height="32" rx="7" fill="${pink}"/>${mark(ink, 0.92)}`);
+// Browser tabs: the pink mark on its own, as in the sidebar, as large as it
+// can be. No tile, so it sits on any tab-bar colour.
+const favicon = svg(mark(pink, 1.08));
 // Desktop install and shortcuts ("any"): the same tile with more air.
 const tile = svg(`<rect width="32" height="32" rx="7" fill="${pink}"/>${mark(ink, 0.78)}`);
 // Maskable and Apple touch icons are full-bleed: the OS cuts the shape, and

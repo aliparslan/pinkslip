@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#ff8cc5"/><g transform="translate(16 16) scale(0.92) translate(-16.2 -15.6)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g transform="translate(16 16) scale(1.08) translate(-16.2 -15.6)">
     <mask id="gap"><rect width="32" height="32" fill="#fff"/><rect x="8" y="8.5" width="13" height="18.5" rx="2.4" fill="#000" stroke="#000" stroke-width="3" transform="rotate(-5 14.5 17.75)"/></mask>
-    <g mask="url(#gap)"><rect x="11" y="4.5" width="13" height="18.5" rx="2.4" fill="#110c0e" opacity="0.5" transform="rotate(9 17.5 13.75)"/></g>
-    <rect x="8" y="8.5" width="13" height="18.5" rx="2.4" fill="#110c0e" transform="rotate(-5 14.5 17.75)"/>
+    <g mask="url(#gap)"><rect x="11" y="4.5" width="13" height="18.5" rx="2.4" fill="#ff8cc5" opacity="0.5" transform="rotate(9 17.5 13.75)"/></g>
+    <rect x="8" y="8.5" width="13" height="18.5" rx="2.4" fill="#ff8cc5" transform="rotate(-5 14.5 17.75)"/>
   </g></svg>
