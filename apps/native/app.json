@@ -11,20 +11,38 @@
       "bundleIdentifier": "dev.alip.pinkslip",
       "supportsTablet": false,
       "usesAppleSignIn": true,
-      "associatedDomains": ["applinks:pinkslip.work", "applinks:pinkslip.alip.dev"],
+      "associatedDomains": [
+        "applinks:pinkslip.work",
+        "applinks:pinkslip.alip.dev"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
-      }
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "appleTeamId": "KV876H8952"
     },
     "plugins": [
       "expo-router",
       "expo-asset",
       "expo-web-browser",
       "expo-secure-store",
-      ["expo-notifications", { "enableBackgroundRemoteNotifications": true }],
+      [
+        "expo-notifications",
+        {
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
       "expo-apple-authentication",
-      ["react-native-edge-to-edge", { "android": { "parentTheme": "Default" } }]
+      [
+        "react-native-edge-to-edge",
+        {
+          "android": {
+            "parentTheme": "Default"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

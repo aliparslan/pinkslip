@@ -105,7 +105,8 @@ function Editor({ initial }: { initial: ResumeProfile }) {
   const [kind, id] = edit?.split(":") ?? [];
 
   return <Screen>
-    <RouterStack.Screen options={{ headerRight: () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
+    {/* An empty header item still draws a glass button, so it appears only with a status. */}
+    <RouterStack.Screen options={{ headerRight: autosave.phase === "clean" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
     <Stack gap="3">
       <View><Button variant="primary" icon={UploadSimple} pending={importing} onPress={() => void runImport()}>{importing ? "Reading your resume…" : "Import from PDF"}</Button></View>
       {failure && <Text size="sm" tone="bad">{failure.message}</Text>}

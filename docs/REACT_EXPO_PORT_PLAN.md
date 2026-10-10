@@ -792,6 +792,15 @@ including the import-quality, persistence, and recovery requirements.
 - Push token re-registration on first launch.
 - Version 2.0.0.
 
+Progress (2026-10-10): the app side is ready. Version 2.0.0, bundle
+`dev.alip.pinkslip`, team `KV876H8952` set in the project, shared scheme
+`Pinkslip`, `ios/ci_scripts/ci_post_clone.sh` (Node, Bun, CocoaPods), APNs
+re-registration on every launch with permission. Release builds run on the
+iOS 26.4 simulator against production. Left for the owner: in App Store
+Connect, point the Xcode Cloud workflow at `apps/native/ios/Pinkslip.xcworkspace`
+(scheme Pinkslip, Archive, TestFlight internal, manual start first), and deploy
+the API so universal links include `/jobs/*`.
+
 ### Phase 7: Cleanup
 
 Final CLAUDE.md update. Optionally rename `apps/webapp` → `apps/web` (the Svelte

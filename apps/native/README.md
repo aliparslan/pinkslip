@@ -21,8 +21,10 @@ app (`dev.alip.pinkslip`), so it ships as an update.
   Appearance pin.
 - `ios/`: committed for Xcode Cloud (`ci_scripts/ci_post_clone.sh` installs
   Node, Bun and CocoaPods). Re-run prebuild after native config changes:
-  `CI=1 bunx expo prebuild --platform ios --no-install`, then
-  `LANG=en_US.UTF-8 pod install` in `ios/`.
+  `CI=1 bunx expo prebuild --platform ios --no-install`. It regenerates
+  `ios/` and deletes files it doesn't know, so restore them afterwards with
+  `git checkout -- ios/ci_scripts ios/Podfile.lock ios/Pinkslip/PrivacyInfo.xcprivacy ios/Pinkslip.xcworkspace`,
+  then `LANG=en_US.UTF-8 pod install` in `ios/`.
 
 ## Run it
 
