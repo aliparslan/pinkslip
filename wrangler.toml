@@ -2,23 +2,13 @@ name = "pinkslip"
 main = "worker/index.ts"
 compatibility_date = "2026-08-27"
 compatibility_flags = ["nodejs_compat"]
-routes = [
-  { pattern = "pinkslip.alip.dev", custom_domain = true },
-  { pattern = "pinkslip.work", custom_domain = true }
-]
-
-[assets]
-directory = "./apps/web/dist"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-# Browser page routes reach the Worker first for the legacy-host redirect and
-# SPA fallback. Hashed build assets remain asset-first; the small root-level
-# public assets fall through to the ASSETS binding in the Worker.
-run_worker_first = [
-  "/*",
-  "!/assets/*",
-  "!/_app/*",
-]
+# No routes and no assets: since chunk 3.4 the web Worker (apps/webapp,
+# `pinkslip-web`) owns pinkslip.work and pinkslip.alip.dev and forwards API
+# paths here through its `API` service binding. Without routes Wrangler would
+# default to a public workers.dev URL, so keep this Worker reachable only
+# through that binding. A backend deploy can't take the site down.
+workers_dev = false
+preview_urls = false
 
 [[d1_databases]]
 binding = "DB"

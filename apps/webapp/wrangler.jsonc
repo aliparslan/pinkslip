@@ -6,7 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  // Production domains remain on the Svelte Worker until chunk 3.4.
+  // Both hostnames moved here from the API Worker in chunk 3.4. API paths are
+  // forwarded to it through the `API` binding (src/server/routing.ts).
+  "routes": [
+    { "pattern": "pinkslip.work", "custom_domain": true },
+    { "pattern": "pinkslip.alip.dev", "custom_domain": true }
+  ],
   "services": [{ "binding": "API", "service": "pinkslip" }],
   "observability": {
     "enabled": true,

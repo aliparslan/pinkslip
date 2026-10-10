@@ -88,9 +88,8 @@ app.use(
   })
 );
 
-// Baseline security headers on Worker responses. The static app shell sets its
-// own (richer) headers via apps/web/public/_headers, since Cloudflare Assets
-// serves it without invoking the Worker.
+// Baseline security headers on API responses. Web pages come from the
+// pinkslip-web Worker, which sets its own page policy.
 app.use("/*", async (c, next) => {
   const pathname = new URL(c.req.url).pathname;
   await next();
@@ -99,12 +98,11 @@ app.use("/*", async (c, next) => {
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   c.header("X-Frame-Options", "DENY");
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-  const assetContentPolicy = c.res.headers.get("Content-Security-Policy");
   c.header(
     "Content-Security-Policy",
     pathname === "/privacy" || pathname === "/support"
       ? "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-      : assetContentPolicy ?? "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+      : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
   );
 });
 
@@ -393,13 +391,7 @@ app.onError((error, c) => {
   );
 });
 
-app.notFound((c) => {
-  if (c.req.path.startsWith("/api/")) {
-    return c.json({ error: "Not found", code: "not_found" }, 404);
-  }
-  if (c.env.ASSETS) return c.env.ASSETS.fetch(c.req.raw);
-  return c.json({ error: "Not found", code: "not_found" }, 404);
-});
+app.notFound((c) => c.json({ error: "Not found", code: "not_found" }, 404));
 
 export type ScheduledCycle = "notifications" | "poll" | "dispatch";
 

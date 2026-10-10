@@ -29,13 +29,20 @@ describe("public legal pages", () => {
     expect(LEGAL_STYLES).not.toContain("javascript:");
   });
 
-  test("browser navigations reach the Worker instead of the SPA fallback", async () => {
-    const config = await Bun.file(new URL("../wrangler.toml", import.meta.url)).text();
+  test("the web Worker owns the hostnames and the API serves no pages", async () => {
+    // Chunk 3.4: a backend deploy must never be able to take the site down.
+    const api = Bun.TOML.parse(await Bun.file(new URL("../wrangler.toml", import.meta.url)).text()) as Record<string, unknown>;
+    expect(api.assets).toBeUndefined();
+    expect(api.routes).toBeUndefined();
+    expect(api.workers_dev).toBe(false);
 
-    const { assets } = Bun.TOML.parse(config) as { assets: { run_worker_first: string[] } };
-    expect(assets.run_worker_first).toContain("/*");
-    // Only build assets bypass the Worker; legal/auth paths match the wildcard.
-    expect(assets.run_worker_first.filter((pattern) => pattern.startsWith("!")))
-      .toEqual(["!/assets/*", "!/_app/*"]);
+    const webSource = await Bun.file(new URL("../apps/webapp/wrangler.jsonc", import.meta.url)).text();
+    const web = JSON.parse(webSource.replace(/^\s*\/\/.*$/gm, "")) as {
+      routes: { pattern: string; custom_domain: boolean }[];
+      services: { binding: string; service: string }[];
+    };
+    expect(web.routes.map((route) => route.pattern).sort()).toEqual(["pinkslip.alip.dev", "pinkslip.work"]);
+    expect(web.routes.every((route) => route.custom_domain)).toBe(true);
+    expect(web.services).toContainEqual({ binding: "API", service: "pinkslip" });
   });
 });

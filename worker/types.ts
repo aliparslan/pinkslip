@@ -1,5 +1,4 @@
 export interface Env {
-  ASSETS?: Fetcher;
   DB: D1Database;
   AI?: Ai;
   RESUME_BUCKET?: R2Bucket;

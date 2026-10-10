@@ -34,34 +34,23 @@
   and the core, tokens and web app READMEs.
 - **Unchanged:** `noindex` (meta tag plus `X-Robots-Tag`).
 
-## Owner: move the domains (config edit the agent couldn't make)
+## Domain move (done)
 
-In `wrangler.toml` (the API), delete the `routes = [...]` block and the whole
-`[assets]` block, including its comment and `run_worker_first`. Until you do,
-`deploy:backend` fails, because `./apps/web/dist` no longer exists. That's safe.
-
-In `apps/webapp/wrangler.jsonc`, replace the "Production domains remain…"
-comment with:
-
-```jsonc
-"routes": [
-  { "pattern": "pinkslip.work", "custom_domain": true },
-  { "pattern": "pinkslip.alip.dev", "custom_domain": true }
-],
-```
-
-Optional cleanup in the API, any time after:
-- Drop the `ASSETS` fallback in `worker/index.ts` `notFound`, the asset-CSP
-  passthrough, and the `ASSETS` case in `tests/cors.test.ts`.
-- Run `bun run worker:types`.
-- Delete the now-unreachable Hono `/privacy`, `/support` and `/legal.css`
-  handlers; the web app renders those pages.
+- `wrangler.toml` (the API) has no `routes` or `[assets]`, and it sets
+  `workers_dev = false` and `preview_urls = false`. Without routes, Wrangler
+  would otherwise give it a public workers.dev URL. It's reachable only through
+  the web Worker's service binding.
+- `apps/webapp/wrangler.jsonc` owns `pinkslip.work` and `pinkslip.alip.dev`.
+- The API's `ASSETS` fallback and asset-CSP passthrough are gone, and the types
+  are regenerated. `tests/legal-pages.test.ts` now asserts this topology.
+- Still to clean up later: the Hono `/privacy`, `/support` and `/legal.css`
+  handlers. They're unreachable, because the web app renders those pages.
 
 ## Owner: deploy day
 
 1. Disable the Xcode Cloud workflow. It builds `apps/ios` on every push to main,
    and that folder is gone.
-2. Make the domain edit above, run `bun run check`, and commit.
+2. Run `bun run check` and `bun test` on a clean checkout of `main`.
 3. Push `main` and the tag: `git push origin main svelte-final`.
 4. `bun run deploy:web`. Wrangler should offer to move both custom domains from
    `pinkslip` to `pinkslip-web`; answer yes. If it refuses, detach them from
