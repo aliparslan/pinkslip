@@ -2,12 +2,12 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const placeholders = [
-  ["/library/saved", "Saved", "Library · Saved"],
-  ["/library/applied", "Applied", "Library · Applied"],
-  ["/you/preferences", "Job preferences"], ["/you/alerts", "Alerts"],
+  ["/library/saved", "Library", "Library · Saved"],
+  ["/library/applied", "Library", "Library · Applied"],
+  ["/you/preferences", "Job preferences"], ["/you/alerts", "Job alerts"],
   ["/you/companies", "Companies"], ["/you/resume", "Resume"],
   ["/you/tailoring", "Tailoring"], ["/you/answers", "Application answers"],
-  ["/you/account", "Account"], ["/you/feedback", "Feedback"],
+  ["/you/account", "Account"], ["/you/feedback", "Help and feedback"],
   ["/admin", "Manage", "Admin · Manage"], ["/admin/inbox", "Inbox", "Admin · Inbox"],
   ["/admin/sources", "Sources", "Admin · Sources"], ["/admin/runs", "Runs", "Admin · Runs"],
   ["/admin/jev", "Jev", "Admin · Jev"], ["/tailor/fixture", "Tailor resume"],
@@ -49,7 +49,8 @@ test("all compatibility redirects preserve search and anchors", async ({ request
 test("legacy hash migration preserves both queries and replaces the history entry", async ({ page }) => {
   await page.goto("/?login=success#/my-jobs/applied?from=email");
   await expect(page).toHaveURL("/library/applied?login=success&from=email");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Applied");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Library");
+  await expect(page.getByRole("tab", { name: /Applied/ })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("link", { name: "You", exact: true }).click();
   await page.goBack();
   await expect(page).toHaveURL("/library/applied?login=success&from=email");
@@ -72,7 +73,8 @@ for (const width of [320, 390, 1280]) {
     await page.goto("/you");
     await expect(page.getByRole("heading", { level: 1, name: "You" })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("you-navigation.png"), fullPage: true });
-    const preferences = page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true });
+    // The You overview rows, plus the sidebar's nested links on wide screens.
+    const preferences = page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).first();
     await preferences.focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL("/you/preferences");
@@ -81,9 +83,9 @@ for (const width of [320, 390, 1280]) {
     await page.getByRole("link", { name: "Back", exact: true }).click();
     await expect(page).toHaveURL("/you");
     await page.getByRole("link", { name: "Library", exact: true }).click();
-    await page.getByRole("link", { name: "Applied", exact: true }).filter({ visible: true }).click();
+    await page.getByRole("tab", { name: /Applied/ }).click();
     await expect(page).toHaveURL("/library/applied");
-    await expect(page.getByRole("link", { name: "Applied", exact: true }).filter({ visible: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("tab", { name: /Applied/ })).toHaveAttribute("aria-selected", "true");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
@@ -154,13 +156,13 @@ test("route depth drives transitions and reduced motion disables them", async ({
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/you");
   await expect(page.getByRole("heading", { level: 1, name: "You" })).toBeVisible();
-  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).click();
+  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).first().click();
   await expect(page).toHaveURL("/you/preferences");
   await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as unknown as { routeTransitionTypes: string[][] }).routeTransitionTypes)).toEqual([["deeper"], ["shallower"]]);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).click();
+  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: "Job preferences", exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { routeTransitionTypes: string[][] }).routeTransitionTypes)).toHaveLength(2);
 });

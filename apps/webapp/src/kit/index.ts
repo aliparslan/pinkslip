@@ -7,7 +7,7 @@ export { Disclosure } from "./disclosure/Disclosure";
 export { EmptyState } from "./empty-state/EmptyState";
 export { Field, Fieldset, Form, Input, Select, Textarea } from "./field/Field";
 export { Heading, type HeadingVariant } from "./heading/Heading";
-export { IconButton, type IconButtonSize } from "./icon-button/IconButton";
+export { IconButton, IconButtonAnchor, type IconButtonSize } from "./icon-button/IconButton";
 export { Icon, type IconSize } from "./icon/Icon";
 export { Inline, Stack } from "./layout/Layout";
 export { Menu, MenuCheckboxItem, MenuItem, MenuSeparator } from "./menu/Menu";

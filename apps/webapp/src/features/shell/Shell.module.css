@@ -16,8 +16,34 @@
   view-transition-name: page;
 }
 
-.back {
-  margin-block-end: var(--space-4);
+/* The current design's screen bar (`.screen-nav`): sticky and blurred like
+   the tab bar, Back on the left, the title centered, a hairline below. It
+   bleeds to the main column's edges. */
+.screenNav {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-navigation);
+  display: grid;
+  grid-template-columns: var(--control-height) minmax(0, 1fr) var(--control-height);
+  align-items: center;
+  min-height: calc(var(--screen-nav-height) + var(--safe-top));
+  margin: calc(-1 * var(--space-6)) calc(-1 * var(--screen-gutter)) var(--space-4);
+  padding: var(--safe-top) var(--space-2) 0;
+  border-block-end: 0.5px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.screenTitle {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebarSections {
@@ -28,12 +54,8 @@
   margin-block-end: var(--space-6);
 }
 
-.phoneSections[data-section="you"] {
-  margin-block-start: var(--space-6);
-}
-
-.phoneSections[data-section="you"] .sections {
-  flex-direction: column;
+.sectionGroup + .sectionGroup {
+  margin-block-start: var(--space-3);
 }
 
 .sections {
@@ -60,10 +82,6 @@
 .sectionLink[aria-current="page"] {
   color: var(--color-ink);
   background: var(--color-bg-elev);
-}
-
-.sectionLink[aria-current="page"] {
-  font-weight: 600;
 }
 
 .skip {
@@ -199,12 +217,19 @@
     color: var(--color-accent-soft-ink);
   }
 
+  .screenNav {
+    margin: calc(-1 * var(--space-10)) calc(-1 * var(--space-8)) var(--space-6);
+    padding-block-start: 0;
+  }
+
   .phoneSections {
     display: none;
   }
 
   .sidebarSections {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
     margin-inline-start: var(--space-4);
     margin-block: var(--space-2);
   }

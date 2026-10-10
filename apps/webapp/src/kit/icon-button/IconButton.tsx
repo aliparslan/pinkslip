@@ -1,5 +1,5 @@
 import { Button as BaseButton } from "@base-ui/react/button";
-import type { ButtonHTMLAttributes, Ref } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, Ref } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import type { IconSize } from "../icon/Icon";
 import { Tooltip } from "../tooltip/Tooltip";
@@ -43,4 +43,22 @@ export function IconButton({
     <Glyph size={iconSize ?? defaultIconSize[size]} weight={pressed ? "fill" : "bold"} aria-hidden focusable="false" />
   </BaseButton>;
   return tooltip ? <Tooltip content={label}>{button}</Tooltip> : button;
+}
+
+export interface IconButtonAnchorProps
+  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className" | "style" | "children" | "aria-label"> {
+  icon: PhosphorIcon;
+  label: string;
+  size?: IconButtonSize;
+  iconSize?: IconSize;
+  /** `strong` draws the icon in full ink, for primary navigation like Back. */
+  tone?: "default" | "strong";
+  ref?: Ref<HTMLAnchorElement>;
+}
+
+/** An icon-only link with the icon button's look (the screen bar's Back). */
+export function IconButtonAnchor({ icon: Glyph, label, size = "default", iconSize, tone = "default", ...rest }: IconButtonAnchorProps) {
+  return <a {...rest} aria-label={label} className={styles.root} data-size={size} data-tone={tone}>
+    <Glyph size={iconSize ?? defaultIconSize[size]} weight="bold" aria-hidden focusable="false" />
+  </a>;
 }

@@ -97,13 +97,14 @@ Design consistency fixes applied after the port, and open questions, are in
   primitives. Phase 2 replaces their temporary compositions using the preserved
   design references before the product screen port.
 
-- **Route shell and placeholders (3.1)** — Owner: Web port. Files:
-  `features/shell/Shell.tsx`, `features/navigation`, and the route files.
-  Extends the approved desktop sidebar with nested Library/You/Admin links;
-  phones use the existing bottom tabs, a You destination list, and section
-  links for Library/Admin. Back uses browser history or a safe direct-link
-  fallback. Route metadata owns titles, shell, depth and root selection.
-  Placeholder pages reuse `Heading`, `Stack` and `Text`; they contain no
-  feature actions or private data. Content-only depth transitions use shared
-  motion tokens and are disabled for reduced motion. These compositions need
-  owner review; they do not introduce or promote a stable UI primitive.
+- **Route shell and placeholders (3.1, revised after review)** — Owner: Web
+  port. Files: `features/shell/Shell.tsx`, `features/navigation`, the route
+  files, `routes/library.tsx`, `routes/you.index.tsx`. Pages below a root get
+  the current design's screen bar (icon-only Back via `IconButtonAnchor`
+  `tone="strong"`, centered title, hairline). Library is a "Library" title over
+  link-based kit `Tabs`; the You overview is grouped `Surface` rows. The wide
+  sidebar nests You's groups (Search, Materials, Pinkslip) and Admin's pages;
+  phones show section links only for Admin. Route metadata owns titles, shell,
+  depth and root selection. See `docs/port-review-3.1.md`. Kit additions:
+  `IconButtonAnchor` (an icon-only link) and `TabItem.render` (a router link
+  per tab, keeping the kit router-free).

@@ -1,0 +1,22 @@
+/* A You overview row (the current `.surface-list` row): icon, title, chevron. */
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink-2);
+  text-decoration: none;
+}
+
+.chevron {
+  display: grid;
+  color: var(--color-ink-4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--color-bg-sunken);
+  }
+}

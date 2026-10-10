@@ -1,8 +1,8 @@
 import { Link, useCanGoBack, useMatches, useRouter, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { ArrowLeft, BookmarksSimple, Briefcase, UserCircle, type Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { ButtonAnchor, Text } from "../../kit";
-import { adminPages, libraryPages, pages, youPages, type SectionPath } from "../navigation/pages";
+import { BookmarksSimple, Briefcase, CaretLeft, UserCircle, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { IconButtonAnchor, Text } from "../../kit";
+import { adminPages, pages, youGroups, type SectionPath } from "../navigation/pages";
 import { backTarget, jobRoot } from "../navigation/back-target";
 import { BrandMark } from "./BrandMark";
 import styles from "./Shell.module.css";
@@ -30,10 +30,10 @@ function SectionLinks({ paths, pathname }: { paths: readonly SectionPath[]; path
 
 /**
  * App frame. Wide screens get a left sidebar: brand, then each destination as
- * a full row (the old desktop squeezed phone tab icons into a 232px rail and
- * stacked a second navigation column beside it on You). Phones keep the
- * bottom tab bar. Sub-sections such as You's settings nest under their
- * destination in the sidebar as their routes are ported.
+ * a full row, with You's and Admin's sections nested under the active one.
+ * Phones keep the bottom tab bar. Pages below a root get the current design's
+ * screen bar: an icon-only Back and the centered title. Library's Saved and
+ * Applied tabs and You's grouped list belong to those screens, not the shell.
  */
 export function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -41,13 +41,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const location = useRouterState({ select: (state) => state.location });
   const page = useMatches({ select: (matches) => matches.at(-1)?.staticData.page });
   const root = page?.root === "jobs" && page.depth > 0 && jobRoot(location.search) !== "/" ? "library" : page?.root;
-  const sectionPaths = page?.shell === "admin" ? adminPages : root === "library" ? libraryPages : root === "you" ? youPages : null;
-  const sectionLabel = page?.shell === "admin" ? "Admin navigation" : root === "library" ? "Library navigation" : "You navigation";
-  const isYouOverview = page?.shell === "consumer" && root === "you" && page.depth === 0;
-  const phoneSections = sectionPaths && (page?.depth === 0 || page?.shell === "admin")
-    ? <nav aria-label={sectionLabel} className={styles.phoneSections} data-section={isYouOverview ? "you" : undefined}>
-      <SectionLinks paths={sectionPaths} pathname={location.pathname} />
-    </nav> : null;
+  const admin = page?.shell === "admin";
   const goBack = () => {
     if (canGoBack) router.history.back();
     else if (page) void router.navigate({ href: backTarget(page, location.pathname, location.search), replace: true });
@@ -74,9 +68,13 @@ export function Shell({ children }: { children: ReactNode }) {
               <Glyph size={22} weight={active ? "fill" : "regular"} aria-hidden />
               <span>{destination.label}</span>
             </Link>
-            {active && sectionPaths && <div className={styles.sidebarSections}>
-              {page?.shell === "admin" && <Text size="xs" tone="ink-3">Admin</Text>}
-              <SectionLinks paths={sectionPaths} pathname={location.pathname} />
+            {active && destination.root === "you" && <div className={styles.sidebarSections}>
+              {admin
+                ? <><Text size="xs" weight="semibold" tone="ink-4">Admin</Text><SectionLinks paths={adminPages} pathname={location.pathname} /></>
+                : youGroups.map((group) => <div key={group.label} className={styles.sectionGroup}>
+                  <Text size="xs" weight="semibold" tone="ink-4">{group.label}</Text>
+                  <SectionLinks paths={group.paths} pathname={location.pathname} />
+                </div>)}
             </div>}
           </li>;
         })}
@@ -87,18 +85,20 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
     </nav>
     <main id="main" tabIndex={-1} className={styles.main}>
-      {page && page.depth > 0 && <div className={styles.back}>
-        <ButtonAnchor variant="secondary" size="compact" icon={ArrowLeft}
+      {page && page.depth > 0 && <header className={styles.screenNav}>
+        <IconButtonAnchor icon={CaretLeft} label="Back" iconSize={22} tone="strong"
           href={backTarget(page, location.pathname, location.search)}
           onClick={(event) => {
             if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             goBack();
-          }}>Back</ButtonAnchor>
-      </div>}
-      {!isYouOverview && phoneSections}
+          }} />
+        <div className={styles.screenTitle} aria-hidden>{page.title}</div>
+      </header>}
+      {admin && <nav aria-label="Admin navigation" className={styles.phoneSections}>
+        <SectionLinks paths={adminPages} pathname={location.pathname} />
+      </nav>}
       <div className={styles.content}>{children}</div>
-      {isYouOverview && phoneSections}
     </main>
   </div>;
 }

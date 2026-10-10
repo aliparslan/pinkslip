@@ -40,6 +40,10 @@
   background: var(--color-bg-elev);
 }
 
+.root[data-tone="strong"] {
+  color: var(--color-ink);
+}
+
 .root[data-pressed] {
   color: var(--color-accent);
 }
