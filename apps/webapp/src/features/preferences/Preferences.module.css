@@ -1,0 +1,12 @@
+.sections {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.switchRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height-compact);
+}

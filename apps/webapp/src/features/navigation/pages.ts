@@ -1,7 +1,8 @@
 /** Route presentation belongs to the web shell, never to the component kit. */
 export interface PageMetadata {
   title: string;
-  shell: "consumer" | "admin";
+  /** `focus` drops the navigation (onboarding). */
+  shell: "consumer" | "admin" | "focus";
   depth: number;
   root: "jobs" | "library" | "you" | null;
   /** `public` renders for everyone, including behind the access code (the
@@ -32,6 +33,7 @@ export const pages = {
   "/admin/sources": { title: "Sources", shell: "admin", depth: 1, root: "you", access: "admin" },
   "/admin/runs": { title: "Runs", shell: "admin", depth: 1, root: "you", access: "admin" },
   "/admin/jev": { title: "Jev", shell: "admin", depth: 1, root: "you", access: "admin" },
+  "/welcome": { title: "Set up", shell: "focus", depth: 0, root: null, access: "personal" },
   "/about": { title: "About Pinkslip", shell: "consumer", depth: 0, root: null, access: "public" },
   "/privacy": { title: "Privacy policy", shell: "consumer", depth: 0, root: null, access: "public" },
   "/support": { title: "Support", shell: "consumer", depth: 0, root: null, access: "public" },

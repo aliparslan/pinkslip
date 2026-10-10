@@ -73,7 +73,8 @@ test("signing out confirms, adopts the new session and says so", async ({ page }
   await confirm.getByRole("button", { name: "Log out" }).click();
   await expect(confirm).toBeHidden();
   await expect(page.getByText("Signed out").first()).toBeVisible();
-  await expect(page.getByText("Not signed in")).toBeVisible();
+  // Like the current app, signing out returns to Jobs.
+  await expect(page).toHaveURL("/");
 });
 
 test("a failed session load offers a retry", async ({ page }) => {

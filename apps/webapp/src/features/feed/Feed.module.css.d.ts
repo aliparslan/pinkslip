@@ -6,6 +6,8 @@ declare const styles: {
   readonly "more": string;
   readonly "root": string;
   readonly "salary": string;
+  readonly "setup": string;
+  readonly "setupIcon": string;
   readonly "sheetActions": string;
   readonly "skeletonCopy": string;
   readonly "skeletonRow": string;

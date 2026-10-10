@@ -5,6 +5,7 @@ import { NotFoundPage, RouteErrorPage } from "../features/states/PageStates";
 import { SessionEffects } from "../features/session/SessionEffects";
 import { SessionGate } from "../features/session/SessionGate";
 import { ApplicationReturnPrompt } from "../features/job-detail/ApplicationReturnPrompt";
+import { PushEffects } from "../features/alerts/PushEffects";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
@@ -42,7 +43,7 @@ function Root() {
   return <html lang="en" suppressHydrationWarning>
     <head><script src="/theme.js" /><HeadContent /></head>
     <body>
-      <TooltipProvider><ToastProvider><NavigationEffects /><SessionEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
+      <TooltipProvider><ToastProvider><NavigationEffects /><SessionEffects /><PushEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
       <Scripts />
     </body>
   </html>;

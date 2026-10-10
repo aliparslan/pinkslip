@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
+import { installApiMocks } from "./api-mocks";
 
 const placeholders = [
   ["/library/saved", "Library", "Library · Saved"],
@@ -15,6 +16,8 @@ const placeholders = [
 ] as const;
 
 test("every planned placeholder has a direct route, title and one main heading", async ({ page, request }) => {
+  // Built screens load their data from the (mocked) API.
+  await installApiMocks(page);
   // Admin placeholders are a 404 for non-admins (3.2), so browse as an admin.
   await page.route("**/api/v2/me", (route) => route.fulfill({
     status: 200, contentType: "application/json",
@@ -159,16 +162,17 @@ test("route depth drives transitions and reduced motion disables them", async ({
       return start(options);
     }) as typeof start;
   });
+  await installApiMocks(page);
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/you");
   await expect(page.getByRole("heading", { level: 1, name: "You" })).toBeVisible();
-  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole("link", { name: /^Job preferences/ }).filter({ visible: true }).first().click();
   await expect(page).toHaveURL("/you/preferences");
   await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as unknown as { routeTransitionTypes: string[][] }).routeTransitionTypes)).toEqual([["deeper"], ["shallower"]]);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.getByRole("link", { name: "Job preferences", exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole("link", { name: /^Job preferences/ }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: "Job preferences", exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { routeTransitionTypes: string[][] }).routeTransitionTypes)).toHaveLength(2);
 });

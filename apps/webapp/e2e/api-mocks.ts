@@ -188,6 +188,9 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/api\/v2/, "");
+    if (request.method() !== "GET") {
+      options.onWrite?.({ method: request.method(), path, body: request.postDataJSON() });
+    }
 
     if (path === "/logo") {
       await route.fulfill({ status: 404, body: "" });
@@ -228,9 +231,6 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
         savedJobs: 1,
         lastPolled: "2026-08-25T12:00:00.000Z",
       });
-    }
-    if (request.method() !== "GET") {
-      options.onWrite?.({ method: request.method(), path, body: request.postDataJSON() });
     }
     const jobs = (options.jobs ?? [smokeJob]).map(current);
     const everyJob = () => {

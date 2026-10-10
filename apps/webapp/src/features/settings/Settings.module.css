@@ -1,0 +1,44 @@
+/* Settings rows inside a list `Surface` (`.grouped-row`): copy on the left,
+   one control on the right. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+}
+
+.copy {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.status {
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.status[data-tone="good"] {
+  color: var(--color-good);
+}
+
+.status[data-tone="warn"] {
+  color: var(--color-warn);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.titleRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}

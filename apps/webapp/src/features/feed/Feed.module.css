@@ -79,3 +79,19 @@
 .sheetActions[data-single] {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* The onboarding offer above the list. */
+.setup {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+}
+
+.setupIcon {
+  color: var(--color-accent);
+}

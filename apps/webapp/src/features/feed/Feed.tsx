@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowClockwise, Funnel, MagnifyingGlass, SlidersHorizontal, WarningCircle } from "@phosphor-icons/react";
+import { ArrowClockwise, Funnel, MagnifyingGlass, SlidersHorizontal, Sparkle, WarningCircle, X } from "@phosphor-icons/react";
+import { ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
 import { timeAgo } from "@pinkslip/core/utils";
 import { useFeed, usePreferences, usePublicJobs, useStats, useViewedJobs } from "@pinkslip/data";
-import { Alert, Badge, Button, EmptyState, Heading, SearchInput, Skeleton, Spinner, toast, VisuallyHidden } from "../../kit";
+import { Alert, Badge, Button, EmptyState, Heading, IconButton, SearchInput, Skeleton, Spinner, Text, toast, VisuallyHidden } from "../../kit";
+import { LinkButton } from "../navigation/LinkButton";
 import { JobList } from "../jobs/JobList";
 import type { JobRowJob } from "../jobs/JobRow";
 import { useJobActions } from "../jobs/useJobActions";
@@ -168,6 +170,8 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
       </Button>}
     </div>
 
+    {reader && profile && (!profile.onboarding_completed_at || profile.onboarding_version < ONBOARDING_VERSION) && <SetupPrompt />}
+
     {pollStale && lastPolled && <Alert tone="warning" size="compact" icon={WarningCircle}
       action={<Button variant="secondary" size="compact" pending={feed.isRefetching} onClick={refresh}>Refresh</Button>}>
       <span suppressHydrationWarning>Results may be stale · updated {timeAgo(lastPolled)}</span>
@@ -196,6 +200,26 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
       defaults={defaults} personal={personal} onApply={onSearchChange} />}
     {dialog}
   </section>;
+}
+
+const SETUP_DISMISSED = "pinkslip-setup-dismissed";
+
+/** Until onboarding is done, the feed offers it; it never blocks browsing.
+ * Dismissing hides it in this browser. */
+function SetupPrompt() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(SETUP_DISMISSED) === "1"; } catch { return false; }
+  });
+  if (dismissed) return null;
+  return <div className={styles.setup}>
+    <Sparkle size={20} weight="fill" aria-hidden className={styles.setupIcon} />
+    <Text weight="medium">Get jobs that fit you</Text>
+    <LinkButton to="/welcome" variant="primary" size="compact">Set up</LinkButton>
+    <IconButton icon={X} label="Dismiss" size="sm" iconSize={16} onClick={() => {
+      try { localStorage.setItem(SETUP_DISMISSED, "1"); } catch { /* still hides for now */ }
+      setDismissed(true);
+    }} />
+  </div>;
 }
 
 function SkeletonRows() {

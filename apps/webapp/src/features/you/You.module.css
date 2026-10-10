@@ -1,0 +1,47 @@
+/* You overview rows (`.you-settings-row`): icon, title over a one-line
+   summary, chevron. Wide screens put the groups in two columns. */
+.groups {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink-2);
+  text-decoration: none;
+  list-style: none;
+}
+
+.copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.chevron {
+  display: grid;
+  color: var(--color-ink-4);
+}
+
+.select {
+  width: 9rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:not([data-static]):hover {
+    background: var(--color-bg-sunken);
+  }
+}

@@ -51,6 +51,9 @@ export function Shell({ children }: { children: ReactNode }) {
     else if (page) void router.navigate({ href: backTarget(page, location.pathname, location.search), replace: true });
   };
 
+  // Onboarding brings its own frame and landmarks.
+  if (page?.shell === "focus") return <><OfflineBanner />{children}</>;
+
   return <div className={styles.frame}>
     <a href="#main" className={styles.skip}>Skip to content</a>
     <nav aria-label="Main navigation" className={styles.navigation}>

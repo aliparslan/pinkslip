@@ -22,6 +22,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as YouRouteImport } from './routes/you'
 import { Route as SplitIndexRouteImport } from './routes/_split.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -108,6 +109,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const YouRoute = YouRouteImport.update({
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/resume': typeof ResumeRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
   '/you': typeof YouRouteWithChildren
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/jev': typeof AdminJevRoute
@@ -275,6 +282,7 @@ export interface FileRoutesByTo {
   '/resume': typeof ResumeRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   '/resume': typeof ResumeRoute
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
   '/you': typeof YouRouteWithChildren
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/jev': typeof AdminJevRoute
@@ -353,6 +362,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/settings'
     | '/support'
+    | '/welcome'
     | '/you'
     | '/admin/inbox'
     | '/admin/jev'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/settings'
     | '/support'
+    | '/welcome'
     | '/admin/inbox'
     | '/admin/jev'
     | '/admin/runs'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/resume'
     | '/settings'
     | '/support'
+    | '/welcome'
     | '/you'
     | '/admin/inbox'
     | '/admin/jev'
@@ -464,6 +476,7 @@ export interface RootRouteChildren {
   ResumeRoute: typeof ResumeRoute
   SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
+  WelcomeRoute: typeof WelcomeRoute
   YouRoute: typeof YouRouteWithChildren
   MyJobsAppliedRoute: typeof MyJobsAppliedRoute
   MyJobsSavedRoute: typeof MyJobsSavedRoute
@@ -561,6 +574,13 @@ declare module '@tanstack/react-router' {
       path: '/support'
       fullPath: '/support'
       preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/you': {
@@ -803,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResumeRoute: ResumeRoute,
   SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
+  WelcomeRoute: WelcomeRoute,
   YouRoute: YouRouteWithChildren,
   MyJobsAppliedRoute: MyJobsAppliedRoute,
   MyJobsSavedRoute: MyJobsSavedRoute,

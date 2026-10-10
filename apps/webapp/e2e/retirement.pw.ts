@@ -22,3 +22,21 @@ test("the old app's public files carry over", async ({ request }) => {
     expect((await request.get(path)).status(), path).toBe(200);
   }
 });
+
+// Port plan 4.8: web push gets its own worker at a new URL. It handles push
+// and notification clicks only: no caches, and pages still load from the network.
+test("the push worker installs without caching or serving pages", async ({ page }) => {
+  await page.goto("/about");
+  const scope = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.register("/push-worker.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    return registration.scope;
+  });
+  expect(new URL(scope).pathname).toBe("/");
+  const response = await page.reload();
+  expect(response?.fromServiceWorker()).toBe(false);
+  expect(await page.evaluate(async () => (await caches.keys()).length)).toBe(0);
+  await page.evaluate(async () => {
+    for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
+  });
+});

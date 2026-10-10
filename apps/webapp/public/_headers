@@ -6,3 +6,7 @@
 # The kill-switch service worker (public/sw.js) must never be cached.
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
+
+# The push worker must update as soon as it changes.
+/push-worker.js
+  Cache-Control: no-cache
