@@ -12,23 +12,29 @@ function fixture() {
   sqlite.exec(`
     CREATE TABLE companies (id TEXT PRIMARY KEY, name TEXT, website TEXT, enabled INTEGER);
     CREATE TABLE jobs (
-      id TEXT PRIMARY KEY, company_id TEXT, title TEXT, url TEXT, location TEXT,
+      id TEXT PRIMARY KEY, external_id TEXT, company_id TEXT, title TEXT, url TEXT, location TEXT,
       department TEXT, salary TEXT, posted_at TEXT, first_seen_at TEXT,
       evergreen INTEGER, closed_at TEXT, description TEXT
     );
     CREATE TABLE job_review_queue (job_id TEXT, state TEXT, admin_note TEXT);
     CREATE TABLE job_aliases (alias_id TEXT, job_id TEXT);
     CREATE TABLE job_features (
-      job_id TEXT PRIMARY KEY, seniority TEXT NOT NULL, min_years INTEGER,
-      requires_security_clearance INTEGER
+      job_id TEXT PRIMARY KEY, role_family TEXT, specialties_json TEXT, seniority TEXT NOT NULL,
+      min_years INTEGER, max_years INTEGER, work_mode TEXT, countries_json TEXT,
+      metro_areas_json TEXT, salary_min INTEGER, salary_max INTEGER, salary_currency TEXT,
+      salary_period TEXT, sponsorship_available INTEGER, requires_advanced_degree INTEGER,
+      requires_security_clearance INTEGER, qualification_requirements_json TEXT,
+      classifier_version TEXT, confidence REAL
     );
-    -- Every fixture job starts as an eligible new-grad role; tests override.
+    -- Every fixture job starts as a new-grad software role in Chicago, which a
+    -- new guest's default profile matches; tests override.
     CREATE TRIGGER default_features AFTER INSERT ON jobs BEGIN
-      INSERT INTO job_features VALUES (NEW.id, 'new_grad', NULL, 0);
+      INSERT INTO job_features VALUES (NEW.id, 'engineering', '["software_engineering"]', 'new_grad',
+        NULL, NULL, 'onsite', '["US"]', '["chicago"]', NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'test', 1);
     END;
     INSERT INTO companies VALUES ('company', 'Acme', 'example.com', 1), ('disabled', 'Hidden', 'hidden.example', 0);
     INSERT INTO jobs VALUES (
-      'open', 'company', 'Frontend Engineer', 'https://example.com/job', 'Chicago',
+      'open', 'ext-open', 'company', 'Frontend Engineer', 'https://example.com/job', 'Chicago',
       'Engineering', '$120,000', datetime('now'), datetime('now'), 0, NULL, '<p>Build interfaces.</p>'
     );
     INSERT INTO job_aliases VALUES ('old-id', 'open');
@@ -78,7 +84,7 @@ describe("public job projection", () => {
   it("keeps closed, disabled, stale, and unapproved jobs out of both list and detail", async () => {
     const { request, sqlite } = fixture();
     for (const id of ["closed", "disabled", "stale", "needs-review", "rejected", "approved", "evergreen", "undated"]) {
-      sqlite.run(`INSERT INTO jobs SELECT ?, company_id, title, url, location, department,
+      sqlite.run(`INSERT INTO jobs SELECT ?, external_id, company_id, title, url, location, department,
         salary, posted_at, first_seen_at, evergreen, closed_at, description FROM jobs WHERE id = 'open'`, [id]);
     }
     sqlite.run("UPDATE jobs SET closed_at = datetime('now') WHERE id = 'closed'");
@@ -99,10 +105,10 @@ describe("public job projection", () => {
     expect(detail).not.toHaveProperty("admin_note");
   });
 
-  it("keeps roles the app never lists out of both list and detail", async () => {
+  it("lists only what a new guest's default feed would show", async () => {
     const { request, sqlite } = fixture();
-    for (const id of ["senior", "senior-short", "clearance", "abroad", "no-description"]) {
-      sqlite.run(`INSERT INTO jobs SELECT ?, company_id, title, url, location, department,
+    for (const id of ["senior", "senior-short", "clearance", "abroad", "no-description", "not-software"]) {
+      sqlite.run(`INSERT INTO jobs SELECT ?, external_id, company_id, title, url, location, department,
         salary, posted_at, first_seen_at, evergreen, closed_at, description FROM jobs WHERE id = 'open'`, [id]);
     }
     sqlite.run("UPDATE job_features SET seniority = 'senior', min_years = 8 WHERE job_id = 'senior'");
@@ -111,16 +117,19 @@ describe("public job projection", () => {
     sqlite.run("UPDATE job_features SET requires_security_clearance = 1 WHERE job_id = 'clearance'");
     sqlite.run("UPDATE jobs SET location = 'London, United Kingdom' WHERE id = 'abroad'");
     sqlite.run("UPDATE jobs SET description = '  ' WHERE id = 'no-description'");
+    // Engineering, but not one of the software roles a new guest starts with.
+    sqlite.run(`UPDATE job_features SET specialties_json = '["mechanical"]' WHERE job_id = 'not-software'`);
+    sqlite.run("UPDATE jobs SET title = 'Senior Weld Engineer' WHERE id = 'not-software'");
     const body = await (await request("/public/jobs")).json() as { jobs: { id: string }[] };
     expect(body.jobs.map((j) => j.id).sort()).toEqual(["open", "senior-short"]);
-    for (const id of ["senior", "clearance", "abroad", "no-description"]) {
+    for (const id of ["senior", "clearance", "abroad", "no-description", "not-software"]) {
       expect((await request(`/public/jobs/${id}`)).status).toBe(404);
     }
   });
 
   it("bounds the public preview and does not accept private feed filters", async () => {
     const { request, sqlite } = fixture();
-    for (let i = 0; i < 35; i++) sqlite.run(`INSERT INTO jobs SELECT ?, company_id, title,
+    for (let i = 0; i < 35; i++) sqlite.run(`INSERT INTO jobs SELECT ?, external_id, company_id, title,
       url, location, department, salary, posted_at, first_seen_at, evergreen,
       closed_at, description FROM jobs WHERE id = 'open'`, [`job-${i}`]);
     const body = await (await request("/public/jobs?saved=true&limit=1000")).json() as { jobs: unknown[] };

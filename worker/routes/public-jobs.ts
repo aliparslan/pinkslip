@@ -3,8 +3,9 @@ import type { Env } from "../types";
 import type { PublicJob, PublicJobSummary } from "../../shared/public-jobs";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 import { resolveJobId } from "../job-identity";
-import { catalogCareerStage, type ClassifiedSeniority } from "../job-features";
-import { isUsJobLocation } from "../us-jobs";
+import { rowToListing, storedJobFeaturesFromRow, type FeatureJobRow, type StoredJobFeatureColumns } from "../job-features";
+import { evaluateJobForProfile } from "../user-job-matches";
+import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../../shared/search-profile";
 
 const publicJobs = new Hono<{ Bindings: Env }>();
 
@@ -13,8 +14,13 @@ const publicJobs = new Hono<{ Bindings: Env }>();
 const fields = `
   j.id, j.title, j.url, j.location, j.department, j.salary,
   j.posted_at, j.first_seen_at, j.evergreen,
+  j.external_id, j.description,
   c.name AS company_name, c.website AS company_domain,
-  jf.seniority, jf.min_years, jf.requires_security_clearance
+  jf.role_family, jf.specialties_json, jf.seniority, jf.min_years, jf.max_years,
+  jf.work_mode, jf.countries_json, jf.metro_areas_json, jf.salary_min,
+  jf.salary_max, jf.salary_currency, jf.salary_period, jf.sponsorship_available,
+  jf.requires_advanced_degree, jf.requires_security_clearance,
+  jf.qualification_requirements_json, jf.classifier_version, jf.confidence
 `;
 const fromPublished = `
   FROM jobs j
@@ -22,25 +28,28 @@ const fromPublished = `
   JOIN job_features jf ON jf.job_id = j.id
   LEFT JOIN job_review_queue review ON review.job_id = j.id
   WHERE c.enabled = 1 AND j.closed_at IS NULL
-    AND j.description IS NOT NULL AND trim(j.description) != ''
-    AND COALESCE(jf.requires_security_clearance, 0) = 0
     AND (review.job_id IS NULL OR review.state = 'approved')
     AND (j.evergreen = 1 OR j.posted_at IS NULL
       OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
 `;
-type SummaryRow = Omit<PublicJobSummary, "evergreen"> & {
+type SummaryRow = Omit<PublicJobSummary, "evergreen"> & FeatureJobRow & StoredJobFeatureColumns & {
   evergreen: number;
-  seniority: ClassifiedSeniority;
-  min_years: number | null;
-  requires_security_clearance: number | null;
 };
 
-/** The baseline every signed-in feed shares before personal preferences: an
- * early-career stage within the experience ceiling, in the US. Without it the
- * public pages would show senior roles the app itself never lists. */
+/** A new guest's search profile: software roles at every early-career stage
+ * in the default US metros. Public pages show exactly what that guest's feed
+ * would, so they never list roles the app itself hides (senior, non-software,
+ * clearance-only, outside the US). */
+const GUEST_PROFILE = normalizeSearchProfile(DEFAULT_SEARCH_PROFILE);
+
 function eligible(row: SummaryRow): boolean {
-  return catalogCareerStage({ seniority: row.seniority, min_years: row.min_years }) !== null
-    && isUsJobLocation(row.location);
+  return evaluateJobForProfile(
+    row.id,
+    rowToListing(row),
+    storedJobFeaturesFromRow(row),
+    GUEST_PROFILE,
+    row.evergreen === 1,
+  ).plausible;
 }
 
 // Explicit serialization prevents a future SQL join from accidentally leaking
@@ -70,8 +79,8 @@ publicJobs.get("/jobs", async (c) => {
 publicJobs.get("/jobs/:id", async (c) => {
   const id = await resolveJobId(c.env.DB, c.req.param("id"));
   const row = await c.env.DB.prepare(`
-    SELECT ${fields}, j.description ${fromPublished} AND j.id = ?
-  `).bind(id).first<SummaryRow & { description: string | null }>();
+    SELECT ${fields} ${fromPublished} AND j.id = ?
+  `).bind(id).first<SummaryRow>();
   if (!row || !eligible(row)) return c.json({ error: "Job not found" }, 404);
   return c.json({ ...summary(row), description: row.description } satisfies PublicJob);
 });
