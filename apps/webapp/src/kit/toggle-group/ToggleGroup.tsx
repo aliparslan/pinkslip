@@ -14,26 +14,31 @@ export interface ToggleGroupProps<Value extends string> {
   /** Accessible name for the group. */
   label: string;
   options: ReadonlyArray<ToggleOption<Value>>;
-  value: Value;
+  /** Undefined only with `onClear`: nothing chosen yet. */
+  value: Value | undefined;
   onValueChange: (value: Value) => void;
+  /** Pressing the chosen option again clears it ("unanswered"). Without
+   * this, there's always a value. */
+  onClear?: () => void;
   /** `chips` wraps pill buttons (feed filters); `segmented` is a compact
    * single-row switcher. */
   variant?: "chips" | "segmented";
 }
 
 /** Single choice from a few pressed-state buttons. Pressing the selected
- * option keeps it selected, so there's always a value. */
+ * option keeps it selected (or clears it, with `onClear`). */
 export function ToggleGroup<Value extends string>({
-  label, options, value, onValueChange, variant = "chips",
+  label, options, value, onValueChange, onClear, variant = "chips",
 }: ToggleGroupProps<Value>) {
   return <BaseToggleGroup
     aria-label={label}
     className={styles.root}
     data-variant={variant}
-    value={[value]}
+    value={value === undefined ? [] : [value]}
     onValueChange={(next) => {
       const chosen = next[0] as Value | undefined;
-      if (chosen !== undefined && chosen !== value) onValueChange(chosen);
+      if (chosen === undefined) onClear?.();
+      else if (chosen !== value) onValueChange(chosen);
     }}
   >
     {options.map((option) =>

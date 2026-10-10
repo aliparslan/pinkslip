@@ -39,4 +39,7 @@ export default defineConfig(({ command, isPreview }) => ({
     tanstackStart(),
     react(),
   ],
+  // PDF.js loads only when someone imports a resume. Bundle it up front in
+  // development, or its first use reloads the page mid-import.
+  optimizeDeps: { include: ["pdfjs-dist"] },
 }));

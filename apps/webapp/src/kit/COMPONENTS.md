@@ -123,6 +123,10 @@ Design consistency fixes applied after the port, and open questions, are in
   `features/feed`, `features/job-detail`, `features/library`, sharing
   `features/split/SplitLayout` (list beside the job on wide screens).
 
+- **Resume and answers additions (4.10–4.12)** — `ToggleGroup` takes
+  `onClear`: pressing the chosen chip again clears it (an unanswered
+  question), with `value` undefined when nothing is chosen. Demo on `/_kit`.
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

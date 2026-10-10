@@ -30,6 +30,7 @@
     "@tanstack/react-router-ssr-query": "1.167.3",
     "@tanstack/react-start": "1.168.60",
     "@tanstack/react-virtual": "3.14.13",
+    "pdfjs-dist": "6.2.108",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

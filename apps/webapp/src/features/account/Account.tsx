@@ -4,6 +4,7 @@ import { EnvelopeSimple } from "@phosphor-icons/react";
 import { useDeleteAccount, useSession, useSignOut, useStartEmailLogin, useUpdateName } from "@pinkslip/data";
 import { Alert, AlertDialog, Badge, Button, Field, Heading, Input, SaveStatus, Stack, Surface, Text, toast } from "../../kit";
 import { useAutosave } from "../settings/useAutosave";
+import { clearResumeFile } from "../resume/resume-file";
 import settings from "../settings/Settings.module.css";
 import styles from "./Account.module.css";
 
@@ -56,6 +57,8 @@ export function Account() {
       pending={signOut.isPending}
       onConfirm={() => signOut.mutate(undefined, {
         onSuccess: () => {
+          // The imported PDF on this device belongs to the person leaving.
+          void clearResumeFile();
           const restarting = confirm === "restart";
           setConfirm(null);
           toast.success(restarting ? "Started over" : "Signed out");
@@ -74,6 +77,7 @@ export function Account() {
       pending={deleteAccount.isPending}
       onConfirm={() => deleteAccount.mutate(undefined, {
         onSuccess: (response) => {
+          void clearResumeFile();
           setConfirm(null);
           toast.success(response.apple_revoke_required
             ? "Account deleted. Remove Pinkslip under Sign in with Apple in your Apple ID settings to finish."

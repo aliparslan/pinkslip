@@ -281,7 +281,10 @@ function Choices() {
   const [alerts, setAlerts] = useState(true);
   const [phase, setPhase] = useState<SavePhase>("saved");
   const [stages, setStages] = useState<string[]>(["internship", "new_grad"]);
+  const [relocate, setRelocate] = useState<"yes" | "no" | undefined>(undefined);
   return <Section title="Choices">
+    <ToggleGroup label="Open to relocation (tap again to clear)" value={relocate} onValueChange={setRelocate} onClear={() => setRelocate(undefined)}
+      options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
     <MultiToggleGroup label="Career stage" value={stages} onValueChange={setStages} min={1}
       options={[{ value: "internship", label: "Internships" }, { value: "new_grad", label: "New grad" }, { value: "early_career", label: "Early career" }]} />
     <ToggleGroup label="Feed filter" value={filter} onValueChange={setFilter}

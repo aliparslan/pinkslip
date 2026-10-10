@@ -37,6 +37,9 @@
     "tests/resume-export.test.ts",
     "tests/salary-format.test.ts",
     "tests/location-format.test.ts",
-    "tests/job-content.test.ts"
+    "tests/job-content.test.ts",
+    "tests/resume-import-policy.test.ts",
+    "tests/resume-import-ocr.test.ts",
+    "tests/resume-import-orchestrator.test.ts"
   ]
 }

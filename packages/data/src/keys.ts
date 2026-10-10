@@ -21,6 +21,7 @@ export const queryKeys = {
     preferences: () => ["personal", "preferences"] as const,
     push: () => ["personal", "push"] as const,
     resume: () => ["personal", "resume"] as const,
+    answers: () => ["personal", "answers"] as const,
   },
   session: () => ["session"] as const,
 } as const;

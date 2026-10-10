@@ -94,6 +94,8 @@ test("the feed offers setup until it's done; finishing saves the search and retu
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Where can you work?" })).toBeFocused();
   await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Add your resume" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("heading", { name: "Hear about new jobs first" })).toBeVisible();
   await page.getByRole("button", { name: "Show my jobs" }).click();
   await expect(page).toHaveURL("/");

@@ -81,6 +81,8 @@ export interface ApiMockOptions {
   jobs?: MockJob[];
   saved?: MockJob[];
   applied?: MockJob[];
+  /** The answers bank (Application answers). */
+  answers?: { key: string; label: string; value: string | string[]; updated_at: string }[];
   /** Every write, for assertions. */
   onWrite?: (write: { method: string; path: string; body: unknown }) => void;
 }
@@ -231,6 +233,13 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
         savedJobs: 1,
         lastPolled: "2026-08-25T12:00:00.000Z",
       });
+    }
+    if (path === "/apply/answers") return json(route, { answers: options.answers ?? [] });
+    if (path.startsWith("/apply/answers/")) {
+      const key = decodeURIComponent(path.slice("/apply/answers/".length));
+      if (request.method() === "DELETE") return route.fulfill({ status: 204, body: "" });
+      const body = request.postDataJSON() as { value: string; label?: string };
+      return json(route, { key, label: body.label ?? "", value: body.value, updated_at: "2026-10-10T12:00:00.000Z" });
     }
     const jobs = (options.jobs ?? [smokeJob]).map(current);
     const everyJob = () => {

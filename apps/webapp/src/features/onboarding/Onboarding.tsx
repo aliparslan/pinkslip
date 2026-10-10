@@ -1,23 +1,25 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { BellRinging, CaretLeft, Check } from "@phosphor-icons/react";
+import { BellRinging, CaretLeft, Check, UploadSimple } from "@phosphor-icons/react";
 import { normalizeSearchProfile, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
-import { useApi, usePreferences, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
+import { normalizeResumeProfile } from "@pinkslip/domain/resume-profile";
+import { useApi, usePreferences, useSaveResume, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
 import { Alert, Button, IconButton, Progress, Stack, Text, toast } from "../../kit";
 import { enablePush, readPushStatus, type PushStatus } from "../alerts/push";
 import { MetroField, RoleField, StageField, WorkFields } from "../preferences/ProfileFields";
 import type { Profile } from "../preferences/profile";
 import { PageFailure, PageLoading } from "../states/LoadStates";
 import { BrandMark } from "../shell/BrandMark";
+import { applyImport, importResume, importSummary, ResumeImportFailure } from "../resume/import/run";
+import { saveResumeFile } from "../resume/resume-file";
 import styles from "./Onboarding.module.css";
 
-const STEPS = 3;
+const STEPS = 4;
 
 /** Onboarding, rebuilt (port plan 4.7): only what changes your matches, one
  * short step at a time, then alerts. No helper text. It never blocks
- * browsing: the feed offers it until it's done, and finishing (or saving the
- * search on step 2) is what starts a visitor's guest session. A skippable
- * resume step joins when resume import lands (4.10). */
+ * browsing: the feed offers it until it's done, and saving the search on
+ * step 2 is what starts a visitor's guest session. The resume is skippable. */
 export function Onboarding() {
   const preferences = usePreferences();
   if (preferences.isPending) return <PageLoading label="Loading" />;
@@ -34,6 +36,9 @@ function Steps({ initial }: { initial: Profile }) {
   const [profile, setProfile] = useState(initial);
   const [push, setPush] = useState<PushStatus | "error" | null>(null);
   const [enabling, setEnabling] = useState(false);
+  const saveResume = useSaveResume();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [resume, setResume] = useState<{ state: "idle" | "importing" } | { state: "done"; summary: string } | { state: "error"; message: string }>({ state: "idle" });
   const heading = useRef<HTMLHeadingElement>(null);
   const started = useRef(false);
   const change = (patch: Partial<Profile>) => setProfile((current) => ({ ...current, ...patch }));
@@ -57,6 +62,10 @@ function Steps({ initial }: { initial: Profile }) {
       setStep(2);
       return;
     }
+    if (step === 3) {
+      setStep(4);
+      return;
+    }
     if (step === 2) {
       try {
         const saved = await save.mutateAsync({ search_profile: profile });
@@ -78,6 +87,19 @@ function Steps({ initial }: { initial: Profile }) {
       void navigate({ to: "/" });
     } catch {
       toast.error("Couldn't finish setup. Try again.");
+    }
+  };
+
+  const importFile = async (file: File) => {
+    setResume({ state: "importing" });
+    try {
+      const imported = await importResume(api, file);
+      const current = normalizeResumeProfile((await api.profile.get()).data);
+      await saveResume.mutateAsync(applyImport(current, imported.profile, normalizeResumeProfile));
+      void saveResumeFile(file).catch(() => undefined);
+      setResume({ state: "done", summary: importSummary(imported.profile) || "Contact details" });
+    } catch (error) {
+      setResume({ state: "error", message: error instanceof ResumeImportFailure ? error.message : "Couldn’t import that resume. Try again." });
     }
   };
 
@@ -119,6 +141,18 @@ function Steps({ initial }: { initial: Profile }) {
           <MetroField profile={profile} onChange={change} />
         </Stack>}
         {step === 3 && <Stack gap="6">
+          <h1 ref={heading} tabIndex={-1} id="onboarding-title" className={styles.title}>Add your resume</h1>
+          <Text tone="ink-2">It fills in applications for you. You can skip this and add it later.</Text>
+          <input ref={fileInput} type="file" accept="application/pdf,.pdf" hidden
+            onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void importFile(file); }} />
+          {resume.state === "done"
+            ? <p className={styles.done}><Check size={18} weight="bold" aria-hidden /> Imported {resume.summary}</p>
+            : <Button variant="secondary" fullWidth icon={UploadSimple} pending={resume.state === "importing"} onClick={() => fileInput.current?.click()}>
+              {resume.state === "importing" ? "Reading your resume…" : "Import from PDF"}
+            </Button>}
+          {resume.state === "error" && <Alert tone="error">{resume.message}</Alert>}
+        </Stack>}
+        {step === 4 && <Stack gap="6">
           <h1 ref={heading} tabIndex={-1} id="onboarding-title" className={styles.title}>Hear about new jobs first</h1>
           <Text tone="ink-2">We’ll send an alert when a new posting fits your search.</Text>
           {push === "enabled"
@@ -134,8 +168,8 @@ function Steps({ initial }: { initial: Profile }) {
     </main>
 
     <footer className={styles.footer}>
-      <Button variant="primary" fullWidth pending={save.isPending} disabled={enabling} onClick={() => void next()}>
-        {step === STEPS ? "Show my jobs" : "Continue"}
+      <Button variant="primary" fullWidth pending={save.isPending} disabled={enabling || resume.state === "importing"} onClick={() => void next()}>
+        {step === STEPS ? "Show my jobs" : step === 3 && resume.state !== "done" ? "Skip for now" : "Continue"}
       </Button>
       {step === 1 && <Button variant="secondary" fullWidth onClick={() => void navigate({ to: "/" })}>Not now</Button>}
     </footer>
