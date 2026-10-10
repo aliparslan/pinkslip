@@ -609,7 +609,7 @@ as evidence for the reuse threshold.
 - Feedback: `Toast` (Base UI's toast manager), `Progress`/`Meter`.
 - Disclosure: `Tabs`, `Accordion`/`Collapsible`.
 
-**2.4 Kit verification** · M
+**2.4 Kit verification** · M · ✅ implemented locally (2026-10-09): `apps/webapp/e2e/kit.pw.ts` runs axe (WCAG 2.1 A/AA) on `/_kit` in dark, light and increased contrast; keyboard and focus-return tests for Dialog, Sheet, AlertDialog, Menu, checkbox Menu, Popover, Tooltip and Tabs; and full-page screenshot baselines at 390px and 1280px in each theme (`e2e/kit.pw.ts-snapshots/`). The kit intentionally diverges from the 0.4 references after the owner's design review (`docs/kit-design-review.md`: 4px spacing, aligned heights, radius scale, pastel accent fill with dark text), so the baselines are the accepted look, not a match to the Svelte screenshots
 - Playwright screenshots of `/_kit` in dark, light and increased contrast, at
   narrow and wide widths.
 - Compare with 0.4's references using the same fixture content and viewport.

@@ -21,11 +21,8 @@
 export const intentionalDivergences: Record<string, string> = {
   "--radius-sm": "8px at every width; Svelte used 6px on desktop (a duplicate of radius-xs) and 8px on phones",
   "--radius-xl": "20px at every width; Svelte jumped from 14px to 20px below 900px",
-  "--color-accent": "rose (hue 5) instead of magenta (hue 350), for text and icons",
-  "--color-accent-fill": "new: filled controls use one rose in both modes with white text",
-  "--color-accent-ink": "white on the rose fill in both modes; Svelte used near-black in dark mode",
-  "--color-accent-soft": "rose hue",
-  "--color-accent-soft-ink": "rose hue",
+  "--color-accent-fill": "new: filled controls use the pastel pink in both modes with dark text (9.1:1)",
+  "--color-accent-ink": "dark text on the pastel fill in both modes; Svelte used white on a deep magenta in light mode",
 };
 
 /** Breakpoints are emitted as media queries, never as custom properties. */
@@ -137,16 +134,14 @@ export const dark = {
   // Pink is identity and state, never the ambient canvas.
   // Lightened from 0.72 so the dark label on a filled pink button clears APCA 60
   // (was Lc 51.8, now 61.8). Chroma follows the sRGB ceiling down as L rises.
-  // Rose. `accent` is for pink text, icons, borders and focus rings;
-  // `accent-fill` is for filled controls and is the same in both modes, with
-  // white `accent-ink` on top (4.6:1).
-  "--color-accent": "oklch(0.8 0.118 5)",
-  "--color-accent-fill": "oklch(0.584 0.17 5)",
-  "--color-accent-ink": "oklch(0.99 0.002 70)",
-  "--color-accent-soft": "oklch(0.255 0.055 5)",
-  // Chroma sits at the sRGB ceiling for this L/H. Raising it does nothing on
-  // screen — the browser gamut-maps it straight back down.
-  "--color-accent-soft-ink": "oklch(0.86 0.078 5)",
+  // `accent` is for pink text, icons, borders and focus rings. `accent-fill`
+  // is for filled controls: the pastel pink in both modes, always with dark
+  // `accent-ink` on top (9.1:1).
+  "--color-accent": "oklch(0.78 0.153 350)",
+  "--color-accent-fill": "oklch(0.78 0.153 350)",
+  "--color-accent-ink": "oklch(0.16 0.01 350)",
+  "--color-accent-soft": "oklch(0.255 0.055 350)",
+  "--color-accent-soft-ink": "oklch(0.86 0.089 350)",
   "--color-selection-bg": "oklch(0.91 0.004 285)",
   "--color-selection-ink": "oklch(0.18 0.006 285)",
 
@@ -192,9 +187,9 @@ export const light = {
   "--color-line-2": "oklch(0.825 0.004 80)",
   "--color-message-border": "oklch(0 0 0 / 0.14)",
 
-  "--color-accent": "oklch(0.56 0.17 5)",
-  "--color-accent-soft": "oklch(0.965 0.017 5)",
-  "--color-accent-soft-ink": "oklch(0.4 0.15 5)",
+  "--color-accent": "oklch(0.57 0.205 350)",
+  "--color-accent-soft": "oklch(0.965 0.018 350)",
+  "--color-accent-soft-ink": "oklch(0.4 0.15 350)",
   "--color-selection-bg": "oklch(0.22 0.006 285)",
   "--color-selection-ink": "oklch(0.99 0.002 80)",
 

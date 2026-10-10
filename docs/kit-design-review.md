@@ -81,16 +81,20 @@ product call), or **redesign** (bigger, left for the planned design refresh).
     still read on raised surfaces like dialogs. This matches common practice
     (Linear, shadcn, Apple): fills carry no stroke, outlines are neutral.
 
-19. **Rose instead of magenta, with white text on fills.** The dark-mode pink
-    button had near-black text, the one dark-on-color label in a mode where
-    every other label is light. White on that pastel pink is 2.2:1, so the
-    pink itself moved. The accent is now rose (hue 5 instead of 350), split
-    in two: `accent-fill` (`oklch(0.584 0.17 5)`, #c9456e) for buttons,
-    switches, checkboxes, progress and the brand mark, identical in both
-    modes with white `accent-ink` (4.6:1); and `accent` for pink text, icons,
-    borders and focus rings, light rose in dark mode (9.6:1 on the page) and
-    a deeper rose in light mode (4.9:1). Hue 5 is as warm as it can go before
-    it reads as the error red (hue 25). Native gets the same values.
+19. **One pink fill, dark text on it in both modes.** The owner compared
+    white text on a deeper pink (magenta, then rose) with the pastel and chose
+    the pastel with dark text. The accent splits in two: `accent-fill`
+    (`oklch(0.78 0.153 350)`, #ff8cc5) for buttons, switches, checkboxes,
+    progress and the brand mark, the same in both modes with dark
+    `accent-ink` (9.1:1); and `accent` for pink text, icons, borders and
+    focus rings, unchanged from Svelte (pastel in dark mode, deep pink in
+    light mode for 4.5:1 on the page). Bright colors only pass with dark text
+    (Robinhood's green and lime work the same way), so dark-on-pink is the
+    rule everywhere rather than a dark-mode exception. Don't put white text
+    on `accent-fill`.
+20. **Accessibility fixes from the 2.4 axe pass.** Alert text mixes 25% ink
+    into its tone so it clears 4.5:1 on its tint in both modes (light-mode
+    amber was below AA, inherited from Svelte).
 
 ## Still open
 

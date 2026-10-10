@@ -1,4 +1,6 @@
 /* `.alert` and its `-error`, `-success` and `-warn` tones (`warning` here, matching `toast`). */
+/* The text mixes a quarter of the ink into the tone, so it clears 4.5:1 on
+   its own tint in both modes (light-mode amber alone measured below AA). */
 .root {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
@@ -8,15 +10,15 @@
 
 .root[data-tone="error"] {
   background: color-mix(in oklch, var(--color-bad) 14%, transparent);
-  color: var(--color-bad);
+  color: color-mix(in oklch, var(--color-bad) 75%, var(--color-ink));
 }
 
 .root[data-tone="success"] {
   background: color-mix(in oklch, var(--color-good) 14%, transparent);
-  color: var(--color-good);
+  color: color-mix(in oklch, var(--color-good) 75%, var(--color-ink));
 }
 
 .root[data-tone="warning"] {
   background: color-mix(in oklch, var(--color-warn) 14%, transparent);
-  color: var(--color-warn);
+  color: color-mix(in oklch, var(--color-warn) 75%, var(--color-ink));
 }
