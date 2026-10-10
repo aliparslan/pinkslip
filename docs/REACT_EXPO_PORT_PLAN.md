@@ -587,7 +587,7 @@ the goal is consistent reuse of Pinkslip's current design. Keep new kit entries
 in its catalog's Quarantine section until reviewed, with existing call sites
 as evidence for the reuse threshold.
 
-**2.1 Foundations** · M
+**2.1 Foundations** · M · ✅ implemented locally (2026-10-09): `Text`, `Heading`, `Stack`/`Inline`, `Surface`, `Icon`, `Separator`, `VisuallyHidden`, `Spinner`, `Skeleton`, `Badge`, and the dev-only `/_kit` page
 - Components: `Text`, `Heading`, `Stack`, `Inline`, `Icon` (Phosphor, token
   sizes only), `Separator`, `VisuallyHidden`, `Spinner`, `Skeleton`, `Badge`,
   documented grouped-surface and layout compositions.
@@ -826,3 +826,4 @@ code was already deleted in 3.4).
 | D14 | Public and personal job data | Session-dependent SSR / public projection plus personal queries | ✅ **Hono public projection, separate session-owned personal data, request-scoped SSR clients/caches** (2026-10-09) | 1.1 / 1.4–1.5 |
 | D15 | Design and kit | Redesign per screen / reproduce current design through a mapped kit | ✅ **Match current Pinkslip closely with Base UI, CSS Modules and tokens; dedicated kit phase, reference comparisons, and component reuse** (2026-10-09) | 0.4 / Phase 2 |
 | D16 | Native validation timing | Discover constraints during full native port / early capability experiments | ✅ **Prove native data/session, resume import/files, and application-browser autofill during foundations** (2026-10-09); product iOS still follows web | 1.6 |
+| D17 | Desktop layout | Reproduce the Svelte desktop (232px icon rail + second You column + split job actions) / redesign the desktop frame | ✅ **Redesign the frame only** (owner, 2026-10-09, "based on your judgement"): a real left sidebar with brand, full-row destinations and nested sub-sections; phones keep the current tab bar. Job-detail actions are consolidated when 4.3 ports that screen. Everything else still matches the current design | 3.1 / 4.3 |

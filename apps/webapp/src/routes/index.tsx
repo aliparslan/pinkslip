@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { publicJobsQueryOptions } from "@pinkslip/data";
+import { Heading } from "../kit";
 import styles from "../styles/Jobs.module.css";
 
 export const Route = createFileRoute("/")({
@@ -13,7 +14,7 @@ function Jobs() {
   const { data } = useSuspenseQuery(publicJobsQueryOptions(api));
   const { jobs } = data;
   return <section>
-    <h1>Jobs</h1>
+    <Heading level={1} variant="root">Jobs</Heading>
     <p className={styles.intro}>Early-career opportunities, straight from company career pages.</p>
     {jobs.length === 0
       ? <p>No openings to show right now. Check back soon.</p>

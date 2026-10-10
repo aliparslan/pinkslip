@@ -1,6 +1,6 @@
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
+import { Shell } from "../features/shell/Shell";
 import type { RouterContext } from "../platform/router-context";
-import styles from "../styles/Shell.module.css";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
 import fontsCss from "@pinkslip/tokens/fonts.css?url";
 import resetCss from "../styles/reset.css?url";
@@ -25,18 +25,7 @@ function Root() {
   return <html lang="en" suppressHydrationWarning>
     <head><script src="/theme.js" /><HeadContent /></head>
     <body>
-      <a href="#main" className={styles.skip}>Skip to content</a>
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <Link to="/" className={styles.brand}>pinkslip</Link>
-          <nav aria-label="Main navigation" className={styles.navigation}>
-            <Link to="/">Jobs</Link>
-            <Link to="/you">You</Link>
-          </nav>
-        </header>
-        <main id="main" tabIndex={-1}><Outlet /></main>
-        <footer className={styles.footer}><a href="/privacy">Privacy</a><a href="/support">Support</a></footer>
-      </div>
+      <Shell><Outlet /></Shell>
       <Scripts />
     </body>
   </html>;

@@ -1,0 +1,163 @@
+/* App frame: bottom tab bar on phones (the current TabBar), left sidebar on
+   wide screens. The breakpoint is the tokens' `wide` (900px). */
+.frame {
+  min-height: 100dvh;
+}
+
+.main {
+  width: 100%;
+  max-width: var(--app-reading-width);
+  margin-inline: auto;
+  padding: var(--space-6) var(--screen-gutter) calc(var(--mobile-tab-bar-height) + var(--safe-bottom) + var(--space-8));
+  outline: none;
+}
+
+.skip {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+/* Phone: fixed bottom tab bar with the brand and legal links hidden. */
+.navigation {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: var(--z-navigation);
+  border-block-start: 1px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-bg) 94%, transparent);
+  backdrop-filter: blur(20px);
+}
+
+.brand,
+.legal {
+  display: none;
+}
+
+.destinations {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0 var(--space-3) var(--safe-bottom);
+  list-style: none;
+}
+
+.destination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 0 7px;
+  border-radius: var(--radius-md);
+  color: var(--color-ink-3);
+  font-size: var(--fs-3xs);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    color var(--duration-instant) var(--ease-standard),
+    background var(--duration-instant) var(--ease-standard);
+}
+
+.destination[data-active] {
+  color: var(--color-accent);
+}
+
+.mark {
+  display: block;
+  flex: none;
+  color: var(--color-accent);
+}
+
+/* Wide: sticky left sidebar with full-width destination rows. */
+@media (min-width: 900px) {
+  .frame {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .main {
+    padding: var(--space-10) var(--space-8) var(--space-10);
+  }
+
+  .navigation {
+    position: sticky;
+    inset: 0 auto auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    height: 100dvh;
+    padding: var(--space-6) var(--space-4);
+    border-block-start: 0;
+    border-inline-end: 1px solid var(--color-line);
+    background: var(--color-bg);
+    backdrop-filter: none;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-2);
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .brandPink {
+    color: var(--color-accent);
+  }
+
+  .destinations {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 0;
+  }
+
+  .destination {
+    flex-direction: row;
+    gap: var(--space-3);
+    min-height: var(--tap-min);
+    padding: 0 var(--space-3);
+    color: var(--color-ink-2);
+    font-size: var(--fs-md);
+  }
+
+  .destination:hover {
+    background: var(--color-bg-elev);
+    color: var(--color-ink);
+  }
+
+  .destination[data-active] {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-soft-ink);
+  }
+
+  .legal {
+    display: flex;
+    gap: var(--space-4);
+    margin-block-start: auto;
+    padding-inline: var(--space-2);
+    font-size: var(--fs-sm);
+  }
+
+  .legal a {
+    color: var(--color-ink-3);
+    text-decoration: none;
+  }
+
+  .legal a:hover {
+    color: var(--color-ink);
+  }
+}

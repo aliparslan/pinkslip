@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KitRouteImport } from './routes/[_]kit'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as YouRouteImport } from './routes/you'
@@ -18,6 +20,16 @@ import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitRoute = KitRouteImport.update({
+  id: '/_kit',
+  path: '/_kit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -43,6 +55,8 @@ const JobsJobIdRoute = JobsJobIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/_kit': typeof KitRoute
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/you': typeof YouRoute
@@ -50,6 +64,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/_kit': typeof KitRoute
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/you': typeof YouRoute
@@ -58,6 +74,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_kit': typeof KitRoute
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/you': typeof YouRoute
@@ -65,14 +83,38 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/support' | '/you' | '/jobs/$jobId'
+  fullPaths:
+    | '/'
+    | '/_kit'
+    | '/library'
+    | '/privacy'
+    | '/support'
+    | '/you'
+    | '/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/support' | '/you' | '/jobs/$jobId'
-  id: '__root__' | '/' | '/privacy' | '/support' | '/you' | '/jobs/$jobId'
+  to:
+    | '/'
+    | '/_kit'
+    | '/library'
+    | '/privacy'
+    | '/support'
+    | '/you'
+    | '/jobs/$jobId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_kit'
+    | '/library'
+    | '/privacy'
+    | '/support'
+    | '/you'
+    | '/jobs/$jobId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  KitRoute: typeof KitRoute
+  LibraryRoute: typeof LibraryRoute
   PrivacyRoute: typeof PrivacyRoute
   SupportRoute: typeof SupportRoute
   YouRoute: typeof YouRoute
@@ -86,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_kit': {
+      id: '/_kit'
+      path: '/_kit'
+      fullPath: '/_kit'
+      preLoaderRoute: typeof KitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -121,6 +177,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  KitRoute: KitRoute,
+  LibraryRoute: LibraryRoute,
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,
   YouRoute: YouRoute,

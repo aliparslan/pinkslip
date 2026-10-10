@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useOwnerChangeCleanup, useSession } from "@pinkslip/data";
+import { Heading } from "../kit";
 
 export const Route = createFileRoute("/you")({
   ssr: false,
@@ -10,7 +11,7 @@ function You() {
   const session = useSession();
   useOwnerChangeCleanup();
   return <section>
-    <h1>You</h1>
+    <Heading level={1} variant="root">You</Heading>
     {session.isPending
       ? <p>Loading your account…</p>
       : session.isError
