@@ -1,10 +1,12 @@
 import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
-test("public page renders without JavaScript and stays unindexed", async ({ request, browser }) => {
+test("public page renders without JavaScript and can be indexed; personal pages can't", async ({ request, browser }) => {
   const response = await request.get("/");
   expect(response.status()).toBe(200);
-  expect(response.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  // SEARCH_INDEXING is "on" (wrangler.jsonc): public pages carry no robots header.
+  expect(response.headers()["x-robots-tag"]).toBeUndefined();
+  expect((await request.get("/you")).headers()["x-robots-tag"]).toBe("noindex, nofollow");
   expect(response.headers()["set-cookie"]).toBeUndefined();
   expect(await response.text()).toContain("Early-career opportunities");
   const context = await browser.newContext({ javaScriptEnabled: false });

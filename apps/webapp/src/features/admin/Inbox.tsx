@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowSquareOut } from "@phosphor-icons/react";
 import type { ContentReport, FeedbackSubmission, JobReview } from "@pinkslip/core/api";
 import {
@@ -28,13 +28,32 @@ function Section({ title, count, children }: { title: string; count?: string; ch
 }
 
 function Entries<T>({ items, keyOf, empty, render }: { items: T[]; keyOf: (item: T) => string; empty: string; render: (item: T) => ReactNode }) {
-  if (items.length === 0) return <Surface variant="list"><div className={styles.empty}>{empty}</div></Surface>;
-  return <Surface variant="list" bleedOnPhone as="ul">
-    {items.map((item, index) => <li key={keyOf(item)} className={styles.item}>
-      {index > 0 && <Separator />}
-      <div className={styles.entry}>{render(item)}</div>
-    </li>)}
-  </Surface>;
+  const root = useRef<HTMLDivElement>(null);
+  const keys = items.map(keyOf);
+  const previous = useRef(keys);
+  // A decision removes its entry, and the focused button with it: move focus
+  // to the entry that took its place (or the empty message) so keyboard
+  // users keep their spot.
+  useLayoutEffect(() => {
+    const before = previous.current;
+    previous.current = keys;
+    const removedAt = before.findIndex((key) => !keys.includes(key));
+    const focused = document.activeElement;
+    if (removedAt < 0 || (focused && focused !== document.body && document.contains(focused))) return;
+    const rows = root.current?.querySelectorAll<HTMLElement>("[data-entry]");
+    const target = rows?.length ? rows[Math.min(removedAt, rows.length - 1)] : root.current?.querySelector<HTMLElement>("[data-empty]");
+    target?.focus({ preventScroll: true });
+  });
+  return <div ref={root}>
+    {items.length === 0
+      ? <Surface variant="list"><div className={styles.empty} tabIndex={-1} data-empty>{empty}</div></Surface>
+      : <Surface variant="list" bleedOnPhone as="ul">
+        {items.map((item, index) => <li key={keyOf(item)} className={styles.item}>
+          {index > 0 && <Separator />}
+          <div className={styles.entry} tabIndex={-1} data-entry>{render(item)}</div>
+        </li>)}
+      </Surface>}
+  </div>;
 }
 
 /** `InboxSection.svelte`: feedback, listing reports, and jobs the classifier

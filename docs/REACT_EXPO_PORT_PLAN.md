@@ -706,6 +706,21 @@ The old site was already replaced in 3.4; this phase is the finish line.
 - Remove `noindex` from public routes (personal routes keep it). Submit the
   sitemap in Search Console and run the Rich Results test on a job page.
 
+✅ 2026-10-10: web parity reviewed in [parity-review-5.1.md](parity-review-5.1.md):
+web-only rows ticked, two gaps fixed (inbox focus after a decision, the
+pending-description announcement), and `e2e/a11y.pw.ts` added (axe on all 23
+screens, phone and desktop, light and dark). Owner decisions: offline web cut,
+web Apple sign-in deferred to Phase 6, the URL filter model kept, and
+`SEARCH_INDEXING` turned on. Left for the owner: Search Console and the Rich
+Results test.
+
+Progress (2026-10-10): web parity reviewed in
+[parity-review-5.1.md](parity-review-5.1.md): web-only rows ticked, two gaps
+fixed (inbox focus after a decision, the pending-description announcement),
+and `e2e/a11y.pw.ts` added (axe on all 23 screens, phone and desktop, light
+and dark). Waiting on the owner: the proposed cuts in that review, and
+turning on `SEARCH_INDEXING` (then Search Console and the Rich Results test).
+
 ### Phase 6: Expo iOS (native screens)
 
 **6.1 Scaffold** · M

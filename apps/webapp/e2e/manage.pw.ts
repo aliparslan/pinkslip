@@ -81,6 +81,8 @@ test("inbox: a decision leaves the list and Undo restores it; reviews take a not
   await expect(page.getByText("No open reports.")).toBeVisible();
   await page.getByRole("button", { name: "Resolve" }).click();
   await expect(page.getByText("Dark mode for the resume")).toHaveCount(0);
+  // Focus doesn't fall to the page when the entry (and its button) leaves.
+  await expect(page.getByText("No active feedback.")).toBeFocused();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect.poll(() => writes.filter((write) => write.path === "/interactions/feedback/f1").map((write) => write.body))
     .toEqual([{ status: "resolved" }, { status: "new" }]);

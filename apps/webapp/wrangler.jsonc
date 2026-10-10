@@ -14,7 +14,7 @@
   ],
   "services": [{ "binding": "API", "service": "pinkslip" }],
   // "on" lets search engines index the public pages (src/server/routing.ts).
-  "vars": { "SEARCH_INDEXING": "off" },
+  "vars": { "SEARCH_INDEXING": "on" },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 },

@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise,
   DotsThree, EnvelopeSimple, EyeSlash, Flag, MapPin, Money, Prohibit, ShareNetwork, Sparkle, ThumbsDown, type IconProps,
@@ -15,7 +15,7 @@ import {
 } from "@pinkslip/data";
 import {
   AlertDialog, Badge, Button, Heading, Menu, MenuItem, MenuSeparator, Skeleton, Text, toast,
-  UNDO_TOAST_DURATION,
+  UNDO_TOAST_DURATION, VisuallyHidden,
 } from "../../kit";
 import { ApplicationPrepSheet } from "../apply/ApplicationPrepSheet";
 import { OutreachDialog } from "../apply/OutreachDialog";
@@ -164,6 +164,15 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   const original = jobOriginalTimingLabel(job);
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
     [job.description, job.title, job.company_name]);
+  // Announce when a pending posting arrives, or stops trying.
+  const [descriptionNews, setDescriptionNews] = useState("");
+  const wasPending = useRef(pendingDescription);
+  useEffect(() => {
+    if (wasPending.current && !pendingDescription) {
+      setDescriptionNews(blocks.length > 0 ? "The full posting loaded." : "The full posting isn't available yet.");
+    }
+    wasPending.current = pendingDescription;
+  }, [pendingDescription, blocks.length]);
   const saved = Boolean(job.saved);
   const applied = Boolean(job.applied);
   const closed = Boolean(job.closed_at);
@@ -223,6 +232,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
 
     <section className={styles.about} aria-labelledby="about-role" aria-busy={pendingDescription || !full || undefined}>
       <Heading level={2} variant="section" id="about-role">About the role</Heading>
+      <VisuallyHidden><span role="status" aria-live="polite">{descriptionNews}</span></VisuallyHidden>
       {!full ? <div className={styles.descriptionSkeleton}>
         <Skeleton width="92%" /><Skeleton width="86%" /><Skeleton width="64%" />
       </div>

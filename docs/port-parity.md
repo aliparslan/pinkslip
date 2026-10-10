@@ -77,26 +77,26 @@ public SSR must not include personal saved/applied state.
 ### Session, access, and data ownership
 
 - [ ] **G01** Distinguish anonymous, guest, authenticated, and admin. `bootstrap.get` supplies session, feature flags, and preferences. A passive anonymous read must not create a D1 user/session. First permitted mutation can establish a guest; signing in preserves/merges that guest's state according to the existing auth contract.
-- [ ] **G02** Preserve the shared-code gate (`access_required`): required/incorrect code errors, busy state, focused retry, successful unlock followed by bootstrap. Show loading and recoverable startup failure separately.
+- [x] **G02** Preserve the shared-code gate (`access_required`): required/incorrect code errors, busy state, focused retry, successful unlock followed by bootstrap. Show loading and recoverable startup failure separately.
 - [ ] **G03** Preserve versioned onboarding replay, initialize from saved preferences, and avoid dropping signed-in state when a refresh fails. Native can display its cached bootstrap while refreshing. Cached web reading currently admits only feed/detail after bootstrap failure.
-- [ ] **G04** Partition/clear personal data caches when the user changes. Logout/deletion clears cached jobs and the locally imported resume file. New Query caches and SSR clients must not reuse personal state across users or requests.
+- [x] **G04** Partition/clear personal data caches when the user changes. Logout/deletion clears cached jobs and the locally imported resume file. New Query caches and SSR clients must not reuse personal state across users or requests.
 - [ ] **G05** Native bearer storage, client/build headers, token rotation, and one retry on `invalid_token`; a stale request must not clear a newer sign-in token. Native magic links work both on cold launch and when already open, once per token.
-- [ ] **G06** Preserve session feature gates: `auto_apply_enabled`, `auto_submit_enabled`, `outreach_enabled`, and tailoring availability/provider/model. Hidden buttons are not substitutes for API authorization.
+- [x] **G06** Preserve session feature gates: `auto_apply_enabled`, `auto_submit_enabled`, `outreach_enabled`, and tailoring availability/provider/model. Hidden buttons are not substitutes for API authorization.
 
 ### Navigation, presentation, and persistence
 
 - [ ] **G07** Jobs/Library/You roots retain useful list position and state. Web supports narrow navigation and desktop master–detail panes; deep links, reload, browser history, and back-to-origin work. `from=library-saved` / `from=library-applied` survives reload and defaults safely to Jobs for invalid values.
 - [ ] **G08** Preserve native stacks, back gestures, sheet dismissal, keyboard avoidance, safe areas, and scroll restoration as outcomes. Reimplement using native navigation rather than porting CSS/WebView emulation. The shell owns these decisions.
-- [ ] **G09** Every data screen has initial loading, first-use/empty, full failure with retry, usable-data refresh failure, and mutation busy/error feedback where applicable. Guest/signed-in/admin and feature-off states are distinct. Static About has no data-loading/empty state.
+- [x] **G09** Every data screen has initial loading, first-use/empty, full failure with retry, usable-data refresh failure, and mutation busy/error feedback where applicable. Guest/signed-in/admin and feature-off states are distinct. Static About has no data-loading/empty state.
 - [ ] **G10** Dark/light/system appearance, increased contrast, reduced motion, narrow/wide layouts, zoom/Dynamic Type, visible focus, labeled controls, one route landmark, and keyboard/screen-reader access. Modal focus trap/return, Escape, accessible names, and an explicit Close control remain required.
-- [ ] **G11** Autosaves serialize in-flight changes, retain edits typed during a save, expose saving/saved/failure and Retry, and flush before app navigation. Failed flush prevents silent loss on back navigation. Page-hide flushing is best effort; native needs an AppState/navigation adapter.
-- [ ] **G12** Preserve original timing versus discovery timing, evergreen/closed/content-pending indicators, salary formatting/fallback, and logo fallback. Native logo cache and web `/logo?domain=…` are platform implementations of the same outcome.
+- [x] **G11** Autosaves serialize in-flight changes, retain edits typed during a save, expose saving/saved/failure and Retry, and flush before app navigation. Failed flush prevents silent loss on back navigation. Page-hide flushing is best effort; native needs an AppState/navigation adapter.
+- [x] **G12** Preserve original timing versus discovery timing, evergreen/closed/content-pending indicators, salary formatting/fallback, and logo fallback. Native logo cache and web `/logo?domain=…` are platform implementations of the same outcome.
 - [ ] **G13** External links open once without replacing the web app. Share uses the OS/browser share sheet or clipboard fallback and treats cancellation normally. Native file export presents the share sheet; web export downloads a PDF.
 - [ ] **G14** Preserve cached-feed/detail saved-copy indication and disabled writes/pagination while read-only, or record the explicit offline scope cut above. Query persistence alone does not make the web app shell available offline.
 - [ ] **G15** Match the current visual design through the component catalog, semantic tokens, and mapped Base UI patterns. Preserve reference images before Svelte removal; compare kit compositions and finished screens using matching fixture content/viewports. React/native components remain in Quarantine until owner approval; current screenshots do not automatically approve new implementations.
-- [ ] **G16** Query owns server data without a parallel global copy. Validated web URLs own committed shareable filters; local/form state owns filter drafts and edits. Feature coordination owns autosave/application-return behavior. Cross-screen stores need an explicit use and reset policy.
+- [x] **G16** Query owns server data without a parallel global copy. Validated web URLs own committed shareable filters; local/form state owns filter drafts and edits. Feature coordination owns autosave/application-return behavior. Cross-screen stores need an explicit use and reset policy.
 - [ ] **G17** Share pure rules, API/capability contracts, and applicable data hooks. File/PDF execution, notifications, credential storage, navigation, and browser bridges remain app-owned adapters. Verify the boundary with 1.6's native experiments before broad feature implementation.
-- [ ] **G18** Public SSR reads a Hono public projection with no personal fields, user credentials, or session creation. Client queries fetch personal state separately; server clients/caches are request-scoped. Tests distinguish public reads, guest/authenticated state, and private authorization.
+- [x] **G18** Public SSR reads a Hono public projection with no personal fields, user credentials, or session creation. Client queries fetch personal state separately; server clients/caches are request-scoped. Tests distinguish public reads, guest/authenticated state, and private authorization.
 
 **Common API calls:** `bootstrap.get` → `GET /bootstrap`; `access.unlock` →
 `POST /access`; `native.startSession` → `POST /native/session`;
@@ -111,9 +111,9 @@ the Query implementation.
 
 ### R01 — Jobs `/`
 
-- [ ] Search, locations/Remote, salary bounds, saved-only on web, career-stage subset, and evergreen filter. Native also has temporary role filters; native evergreen controls are admin-only. Empty states distinguish no jobs, no matches, and no saved jobs.
-- [ ] Filters are draft-only until Apply; Cancel leaves results unchanged. Failed Apply restores previous criteria and pagination, including a cached fallback that cannot confirm the requested criteria. “All saved career stages” omits the stages parameter; an explicit empty subset is not broadened silently.
-- [ ] Preferences seed locations/work modes/stages; manual location choices survive ordinary bootstrap refresh. Preference changes invalidate the feed and reset temporary role/stage narrowing. New URL filters must preserve these semantics.
+- [x] Search, locations/Remote, salary bounds, saved-only on web, career-stage subset, and evergreen filter. Native also has temporary role filters; native evergreen controls are admin-only. Empty states distinguish no jobs, no matches, and no saved jobs.
+- [x] Filters are draft-only until Apply; Cancel leaves results unchanged. Failed Apply restores previous criteria and pagination, including a cached fallback that cannot confirm the requested criteria. “All saved career stages” omits the stages parameter; an explicit empty subset is not broadened silently.
+- [x] Preferences seed locations/work modes/stages; manual location choices survive ordinary bootstrap refresh. Preference changes invalidate the feed and reset temporary role/stage narrowing. New URL filters must preserve these semantics.
 - [ ] Incremental pagination, search debouncing, refresh, native pull-to-refresh, new-job indicators, viewed state, and stale-poller context. Stale requests cannot overwrite newer criteria. Failed stats must not fail an otherwise healthy feed; failed refresh/load-more retains visible rows and offers recovery.
 - [ ] Row open/save/unsave/hide, native Undo, mark viewed/unviewed, and admin block confirmation; synchronize successful mutations across feed, detail, and Library. Back from detail preserves the list; notification return intentionally refreshes it.
 
@@ -131,13 +131,13 @@ Logos use `GET /logo?domain=…` directly or through the native cache.
 
 ### R02 — Job detail `/jobs/:jobId`
 
-- [ ] Company, role facts, location/pay, timing, sanitized description and plain-text fallback, external listing, share, and back-to-origin. Missing/closed jobs and absent descriptions have usable recovery states.
-- [ ] A pending description refreshes a bounded number of times (currently five), announces arrival or unavailability, and stops on navigation. Background refresh never resets a save/apply action performed since that request began.
+- [x] Company, role facts, location/pay, timing, sanitized description and plain-text fallback, external listing, share, and back-to-origin. Missing/closed jobs and absent descriptions have usable recovery states.
+- [x] A pending description refreshes a bounded number of times (currently five), announces arrival or unavailability, and stops on navigation. Background refresh never resets a save/apply action performed since that request began.
 - [ ] Optimistic save/unsave with rollback and synchronized lists. Mark applied removes the job from discovery; native can unmark applied and restore it. Web currently prevents repeating Mark applied, rather than offering that toggle.
 - [ ] Hide listing, hide company, native Undo, report listing with reason/notes, and admin-only global removal confirmation. Mutation failures leave a recoverable screen.
-- [ ] Plain Apply opens the employer site and records a pending application intent. Returning asks whether the user applied; opening a site alone must not mark the job applied. Intent survives a same-tab reload, expires, and is dismissed after answering.
-- [ ] Feature-gated prep/auto-apply and outreach requirements below. `?outreach=<thread>` opens the requested reminder thread once the job and feature state are ready.
-- [ ] Planned SSR renders public fields without user state; client hydration fills in personal actions without duplicate fetching or changing another user's cache. Public API access is a prerequisite, described under implementation findings.
+- [x] Plain Apply opens the employer site and records a pending application intent. Returning asks whether the user applied; opening a site alone must not mark the job applied. Intent survives a same-tab reload, expires, and is dismissed after answering.
+- [x] Feature-gated prep/auto-apply and outreach requirements below. `?outreach=<thread>` opens the requested reminder thread once the job and feature state are ready.
+- [x] Planned SSR renders public fields without user state; client hydration fills in personal actions without duplicate fetching or changing another user's cache. Public API access is a prerequisite, described under implementation findings.
 
 **Reads:** `jobs.get` (`GET /jobs/:id`, including description refresh), logo.
 **Writes:** `savedJobs.save`, `savedJobs.unsave`, `jobs.dismiss`, `jobs.undismiss`,
@@ -150,7 +150,7 @@ also calls `jobs.markApplied` and must update Library.
 
 ### R03 — Tailor `/tailor/:jobId` (full port conditional on D7)
 
-- [ ] Resolve D7: either an intentional coming-soon state with no generation calls, or all remaining R03 requirements. Preserve route/back behavior in either case.
+- [x] Resolve D7: either an intentional coming-soon state with no generation calls, or all remaining R03 requirements. Preserve route/back behavior in either case.
 - [ ] Load job/existing tailoring; distinguish no plan, pending, generated, source-profile changed, stale plan requiring regeneration, and initial/partial failure. Select/exclude evidence before generation; show requirements, matches, and gaps.
 - [ ] Edit/reorder/exclude/lock bullets, compare with original evidence at word level, regenerate an unlocked bullet with instructions, and restore content removed for space. Validate the evidence before export.
 - [ ] Serialized autosave/retry and unsaved-navigation guard; responsive editor/preview tabs retain editor state. Compile the exact PDF preview with Worker/WASM failure recovery.
@@ -168,9 +168,9 @@ also calls `jobs.markApplied` and must update Library.
 
 ### R04 / R05 — Library saved and applied
 
-- [ ] Both `/library/saved` and `/library/applied` are reloadable routes. Tabs support keyboard selection, counts, browser history, and focus retention. Each has its own empty state and navigation to a job preserving its origin.
-- [ ] Preserve both hydrated collections on return and update them from successful save/apply changes elsewhere. Applied entries show application timing. Clear data when the session owner changes.
-- [ ] Initial loading, usable-data refresh errors, and list action failure recovery. Native currently loads the lists independently so one failure does not hide the other; preserve this resilience in the new shared data layer.
+- [x] Both `/library/saved` and `/library/applied` are reloadable routes. Tabs support keyboard selection, counts, browser history, and focus retention. Each has its own empty state and navigation to a job preserving its origin.
+- [x] Preserve both hydrated collections on return and update them from successful save/apply changes elsewhere. Applied entries show application timing. Clear data when the session owner changes.
+- [x] Initial loading, usable-data refresh errors, and list action failure recovery. Native currently loads the lists independently so one failure does not hide the other; preserve this resilience in the new shared data layer.
 
 **Reads on either route:** `savedJobs.list` (`GET /jobs/saved/list`),
 `appliedJobs.list` (`GET /jobs/applied/list`). **Row writes:** R01 common row
@@ -178,7 +178,7 @@ actions; successful detail/return-prompt apply mutations also update these lists
 
 ### R06 — You `/you`
 
-- [ ] Account/guest summary, preferences summary, notification capability/status, resume readiness, tailoring readiness, and links to settings. Answers/outreach-related entry points respect feature availability; admin navigation respects role.
+- [x] Account/guest summary, preferences summary, notification capability/status, resume readiness, tailoring readiness, and links to settings. Answers/outreach-related entry points respect feature availability; admin navigation respects role.
 - [ ] Appearance switch persists dark/light/system preference. Preserve privacy/support entry points, native in-app opening, and browser navigation. Load errors must not falsely turn a known signed-in session into a guest.
 
 **API:** Profile common reads. Shared settings autosave uses `me.update`
@@ -187,9 +187,9 @@ actions; successful detail/return-prompt apply mutations also update these lists
 
 ### R07 — Job preferences `/you/preferences`
 
-- [ ] Roles and no-preference choice; career stages with at least one selected; work-mode multiselect; work authorization; metros/Remote/anywhere/relocation. Preserve normalization of the forward-deployed role grouping on web.
-- [ ] Relevant years of experience, required-years ceiling, unstated-experience inclusion, completed education, and doctoral enrollment are independent fields. Reset-to-defaults works and persists.
-- [ ] Web advanced include/exclude job-title lists and additional location text are inventoried; do not silently omit them from the new form. Autosave/retry and back-navigation flush follow G11 and refresh feed criteria on success.
+- [x] Roles and no-preference choice; career stages with at least one selected; work-mode multiselect; work authorization; metros/Remote/anywhere/relocation. Preserve normalization of the forward-deployed role grouping on web.
+- [x] Relevant years of experience, required-years ceiling, unstated-experience inclusion, completed education, and doctoral enrollment are independent fields. Reset-to-defaults works and persists.
+- [x] Web advanced include/exclude job-title lists and additional location text are inventoried; do not silently omit them from the new form. Autosave/retry and back-navigation flush follow G11 and refresh feed criteria on success.
 
 **API:** Profile common reads; `preferences.update`; `interactions.event`
 (`search_profile_adjusted`). No standalone form-specific endpoint.
@@ -208,9 +208,9 @@ The web service worker calls the same opened endpoint directly.
 
 ### R09 — Companies `/you/companies`
 
-- [ ] Search by name/source identifier, source-type filter, All/Hidden views, incremental display, no-match state, logo/fallback, and company links. Native All currently includes hidden companies; web All excludes them.
-- [ ] Hide/restore a company for this user with pending state/error recovery; report a company. Keep this separate from admin disabling/deleting a source globally. The current implementation is visibility/blocking, not a separate follow-subscription API.
-- [ ] Request a missing company from search: name, careers URL, notes, validation, submission busy/error, and duplicate feedback handling.
+- [x] Search by name/source identifier, source-type filter, All/Hidden views, incremental display, no-match state, logo/fallback, and company links. Native All currently includes hidden companies; web All excludes them.
+- [x] Hide/restore a company for this user with pending state/error recovery; report a company. Keep this separate from admin disabling/deleting a source globally. The current implementation is visibility/blocking, not a separate follow-subscription API.
+- [x] Request a missing company from search: name, careers URL, notes, validation, submission busy/error, and duplicate feedback handling.
 
 **API:** `companies.list` (`GET /companies`); `companies.block`, `companies.restore`;
 `interactions.report`; `interactions.submitFeedback` (`POST /interactions/feedback`,
@@ -219,10 +219,10 @@ company request); logo. Admin-only CRUD belongs to R17.
 ### R10 — Resume `/you/resume`
 
 - [ ] Load/edit contact, experience, education (multiple credentials/majors/minors), projects, skill groups, and optional sections. Add/remove entries/bullets with Undo where currently provided; preserve month dates, current-role state, location fields, and native cancellation of untouched new entries.
-- [ ] Overview/section/record navigation retains position. Autosave tracks newer edits during requests; dirty exit flush and failure/retry do not discard work. Empty resume and loading/failure states remain useful.
-- [ ] Validate PDF signature/type and 5 MB limit before import. Adaptive local extraction → server parse / OCR follows quality assessment, not merely a failed HTTP request. Scanned/protected/invalid/empty PDFs, offline, rate limit, sign-in-required, and unavailable conversion each have relevant recovery.
-- [ ] Preview the proposed *data import*: counts, warnings, and uncertain fields before confirmation. Cancel changes nothing; confirm replaces populated collections and updates nonempty contact fields while retaining absent sections. Current resume screen does not embed `ResumePdfPreview`; that component is used by Tailor. A new PDF preview here is additional scope.
-- [ ] Keep the imported PDF locally for application attachment. Clear-resume confirmation removes profile content/local attachment but preserves previously created tailored artifacts; account logout/deletion also clears the local file.
+- [x] Overview/section/record navigation retains position. Autosave tracks newer edits during requests; dirty exit flush and failure/retry do not discard work. Empty resume and loading/failure states remain useful.
+- [x] Validate PDF signature/type and 5 MB limit before import. Adaptive local extraction → server parse / OCR follows quality assessment, not merely a failed HTTP request. Scanned/protected/invalid/empty PDFs, offline, rate limit, sign-in-required, and unavailable conversion each have relevant recovery.
+- [x] Preview the proposed *data import*: counts, warnings, and uncertain fields before confirmation. Cancel changes nothing; confirm replaces populated collections and updates nonempty contact fields while retaining absent sections. Current resume screen does not embed `ResumePdfPreview`; that component is used by Tailor. A new PDF preview here is additional scope.
+- [x] Keep the imported PDF locally for application attachment. Clear-resume confirmation removes profile content/local attachment but preserves previously created tailored artifacts; account logout/deletion also clears the local file.
 - [ ] Native import/files/preview use the strategy proven in 1.6b (D10); the full editor in 6.9 consumes those contracts. Record text/scanned fixture results and device limitations early.
 
 **API:** `profile.get` / `profile.update` (`GET` / `PUT /profile`, optional
@@ -232,16 +232,16 @@ extraction and local file persistence do not themselves call the API.
 
 ### R11 — Tailoring settings `/you/tailoring`
 
-- [ ] Feature/account readiness, link to structured resume, and coming-soon/unavailable state. If keeping the live feature, show provider/model-aware daily included usage and reset information. Resolve its relationship to the D7 placeholder explicitly.
+- [x] Feature/account readiness, link to structured resume, and coming-soon/unavailable state. If keeping the live feature, show provider/model-aware daily included usage and reset information. Resolve its relationship to the D7 placeholder explicitly.
 
 **API:** Profile common reads; `tailor.usage` (`GET /tailor/usage?model=…`) when
 the current usage-meter conditions apply.
 
 ### R12 — Application answers `/you/answers`
 
-- [ ] Feature-off state; loading/retry; common questions and remembered-answer empty state. Sponsorship edits the shared work-authorization preference rather than a conflicting second truth.
-- [ ] Office mode/hybrid days, relocation, start date, graduation month (resume default), salary, pronouns/custom response. Preserve nullable/unanswered and declined answers without inventing values.
-- [ ] Remembered boolean/text/long-text/list answers can be edited or deleted with Undo. Optimistic failures restore the prior value/position; save presentation surfaces failures. Keyboard edit/commit/cancel works.
+- [x] Feature-off state; loading/retry; common questions and remembered-answer empty state. Sponsorship edits the shared work-authorization preference rather than a conflicting second truth.
+- [x] Office mode/hybrid days, relocation, start date, graduation month (resume default), salary, pronouns/custom response. Preserve nullable/unanswered and declined answers without inventing values.
+- [x] Remembered boolean/text/long-text/list answers can be edited or deleted with Undo. Optimistic failures restore the prior value/position; save presentation surfaces failures. Keyboard edit/commit/cancel works.
 
 **API:** Profile common reads; `apply.answers` (`GET /apply/answers`);
 `apply.setAnswer` / `apply.deleteAnswer` (`PUT` / `DELETE /apply/answers/:encodedKey`);
@@ -261,21 +261,21 @@ uses Worker-owned **`GET /auth/email/verify`**, outside `/api/v2`.
 
 ### R14 — Feedback `/you/feedback`
 
-- [ ] Feature-request/general-feedback type, subject validation, optional details, pending/error, and duplicate-vs-new success. Successful submission returns to You; failed submission retains the draft.
+- [x] Feature-request/general-feedback type, subject validation, optional details, pending/error, and duplicate-vs-new success. Successful submission returns to You; failed submission retains the draft.
 
 **API:** Profile common reads; `interactions.submitFeedback`.
 
 ### R15 — Admin overview `/admin`
 
-- [ ] Denied state and Back to You for non-admins on every admin route. Authorized users can switch among Manage, Inbox, Sources, Runs, and Jev without losing the admin shell.
-- [ ] Product metrics, activity/conversion and operational/quality summaries, loading, missing values, and failed-load recovery. Preserve the existing metric meanings, not just the labels.
+- [x] Denied state and Back to You for non-admins on every admin route. Authorized users can switch among Manage, Inbox, Sources, Runs, and Jev without losing the admin shell.
+- [x] Product metrics, activity/conversion and operational/quality summaries, loading, missing values, and failed-load recovery. Preserve the existing metric meanings, not just the labels.
 
 **API:** `metrics.get` (`GET /metrics`).
 
 ### R16 — Admin inbox `/admin/inbox`
 
-- [ ] Feedback, listing reports, and jobs needing review load with independent states where supported. Feedback can be planned/resolved/declined; reports resolved/dismissed; jobs approved/rejected with an optional note.
-- [ ] Expand/load more review results without duplicates, retain total/has-more, disable duplicate actions, and recover from failure. Native Undo restores prior status/order and focus after removal; port keyboard focus recovery to the new web UI.
+- [x] Feedback, listing reports, and jobs needing review load with independent states where supported. Feedback can be planned/resolved/declined; reports resolved/dismissed; jobs approved/rejected with an optional note.
+- [x] Expand/load more review results without duplicates, retain total/has-more, disable duplicate actions, and recover from failure. Native Undo restores prior status/order and focus after removal; port keyboard focus recovery to the new web UI.
 
 **API:** `interactions.reports` (`GET /interactions/reports?status=open`);
 `interactions.feedback` (`GET /interactions/feedback?status=active`);
@@ -286,9 +286,9 @@ uses Worker-owned **`GET /auth/email/verify`**, outside `/api/v2`.
 
 ### R17 — Admin sources `/admin/sources`
 
-- [ ] Search/source-type/status filters (active, needs attention, disabled, any), counts, incremental list, failed/quarantined source status, and empty/error/loading states.
-- [ ] Add/edit name, source type/identifier, website on creation, source verification, global enable/disable, and delete confirmation. Editable/pollable source types follow the domain catalog. Editing can trigger a poll and reports its result separately from persistence.
-- [ ] Preserve verification pending/error/success and clear stale verification when inputs change. Ordinary company controls must not expose these admin operations.
+- [x] Search/source-type/status filters (active, needs attention, disabled, any), counts, incremental list, failed/quarantined source status, and empty/error/loading states.
+- [x] Add/edit name, source type/identifier, website on creation, source verification, global enable/disable, and delete confirmation. Editable/pollable source types follow the domain catalog. Editing can trigger a poll and reports its result separately from persistence.
+- [x] Preserve verification pending/error/success and clear stale verification when inputs change. Ordinary company controls must not expose these admin operations.
 
 **API:** `companies.list`; `companies.toggle` / `companies.update`
 (`PATCH /companies/:id`); `companies.create` (`POST /companies`);
@@ -297,16 +297,16 @@ uses Worker-owned **`GET /auth/email/verify`**, outside `/api/v2`.
 
 ### R18 — Admin runs `/admin/runs`
 
-- [ ] Fetch-run history, duration/counts/status, readable per-company errors with expansion, and empty/loading/failure. Alert-speed rows show cadence, p50/p95, overdue sources, and unavailable data without making history fail.
-- [ ] Refresh-all operation has a busy state, result counts/log, success/error, and refreshed history. Preserve the longer timeout for this operation.
+- [x] Fetch-run history, duration/counts/status, readable per-company errors with expansion, and empty/loading/failure. Alert-speed rows show cadence, p50/p95, overdue sources, and unavailable data without making history fail.
+- [x] Refresh-all operation has a busy state, result counts/log, success/error, and refreshed history. Preserve the longer timeout for this operation.
 
 **API:** `runs.list` (`GET /runs?limit=50`); `runs.latency`
 (`GET /runs/latency`, optional result); `ops.refreshAll` (`POST /poll`).
 
 ### R19 — Admin Jev `/admin/jev`
 
-- [ ] Comparison availability, summary counts, open/reviewed filters, empty/loading/error, per-field disagreement, truncation indication, and original job link.
-- [ ] Record rules/Jev/neither/unclear verdict; reopen a review; show per-item busy/error and update counts without losing the list.
+- [x] Comparison availability, summary counts, open/reviewed filters, empty/loading/error, per-field disagreement, truncation indication, and original job link.
+- [x] Record rules/Jev/neither/unclear verdict; reopen a review; show per-item busy/error and update counts without losing the list.
 
 **API:** `classification.disagreements` (`GET /metrics/classification/disagreements`);
 `classification.review` / `classification.clearReview`
@@ -314,21 +314,21 @@ uses Worker-owned **`GET /auth/email/verify`**, outside `/api/v2`.
 
 ### R20 — About `/about`
 
-- [ ] Public readable content with JavaScript disabled, title/description/canonical/OG/Twitter metadata, and Open Pinkslip link. Preserve its distinction from gated personal routes. No API calls or session bootstrap required.
+- [x] Public readable content with JavaScript disabled, title/description/canonical/OG/Twitter metadata, and Open Pinkslip link. Preserve its distinction from gated personal routes. No API calls or session bootstrap required.
 
 ## Flows without their own route
 
 ### Onboarding (3.2 / 4.7 / 6.8)
 
-- [ ] Begin → validated search preferences → optional notifications → finish, with back navigation, focus movement, existing-choice migration, failure retry, and version/completion timestamp persistence. Current flow has three steps and no resume import; the planned skippable resume step is a redesign addition.
-- [ ] Notification refusal/failure does not trap setup. Preserve `onboarding_started` / `onboarding_completed` events and feed invalidation after successful preference saves.
+- [x] Begin → validated search preferences → optional notifications → finish, with back navigation, focus movement, existing-choice migration, failure retry, and version/completion timestamp persistence. Current flow has three steps and no resume import; the planned skippable resume step is a redesign addition.
+- [x] Notification refusal/failure does not trap setup. Preserve `onboarding_started` / `onboarding_completed` events and feed invalidation after successful preference saves.
 
 **API:** `preferences.update`; `push.updateSettings`; platform registration
 calls from R08; `interactions.event`.
 
 ### Application prep and native auto-apply (4.13 / 6.10)
 
-- [ ] Load supported ATS questions, with initially unanswered required questions first and a stable group order after editing. Show about/questions/voluntary groups, declined defaults, missing count, text/choice/multiselect controls, and save failure feedback. Unsupported forms open normally; failed preparation can recover.
+- [x] Load supported ATS questions, with initially unanswered required questions first and a stable group order after editing. Show about/questions/voluntary groups, declined defaults, missing count, text/choice/multiselect controls, and save failure feedback. Unsupported forms open normally; failed preparation can recover.
 - [ ] Prepare and edit answers before opening the real form; load the local resume attachment. Browser mode opens externally; native supports script-assisted filling. Do not claim browser cross-origin autofill works without the native bridge.
 - [ ] Native browser reads each loaded form, obtains a plan, fills individual fields/files, rereads required answers, learns user corrections, and reports outcomes. Refilling, page changes, timeouts, manual fallback, close cleanup, and submission detection remain functional.
 - [ ] Auto-submit is separately feature-gated; missing required answers, CAPTCHA, and validation failures leave control with the user. Only confirmed submission marks Applied. The employer page receives fill data, never the Pinkslip session token.
@@ -342,8 +342,8 @@ flow, not to pure kit components.
 
 ### Recruiter outreach (4.13 / 6.10)
 
-- [ ] Open existing/requested thread or generate one; handle no recruiter, loading, error/retry, and feature-off. Show first email and two follow-ups, recipient, due times, sent/replied/stopped state.
-- [ ] Edit and save subject/body before opening the user's mail app; copy with recovery. Mark Sent explicitly with timezone, mark replied, stop follow-ups, or discard. Opening mail alone must not record a sent email. Reminders reopen the correct thread via R02.
+- [x] Open existing/requested thread or generate one; handle no recruiter, loading, error/retry, and feature-off. Show first email and two follow-ups, recipient, due times, sent/replied/stopped state.
+- [x] Edit and save subject/body before opening the user's mail app; copy with recovery. Mark Sent explicitly with timezone, mark replied, stop follow-ups, or discard. Opening mail alone must not record a sent email. Reminders reopen the correct thread via R02.
 
 **API:** `outreach.list` (`GET /outreach/threads?job_id=…`); `outreach.get`
 (`GET /outreach/threads/:id`); `outreach.start` (`POST /outreach/threads`);
@@ -373,8 +373,8 @@ flow, not to pure kit components.
 | `/sw.js` | Existing registration URL; chunk 3.4's retirement worker must be served here, then coordinated with the future push worker |
 | `/manifest.json`, icons, `/robots.txt`, `/sitemap.xml` | Decide and verify web ownership during cutover; public indexing remains disabled until launch criteria are met |
 
-- [ ] **N01** Exercise every redirect with reload and query parameters, plus legacy hash links with outer auth query state.
-- [ ] **N02** Exercise email callback, legal/support, both association URLs, API cookies/bearer/Set-Cookie, and legacy-host behavior through the actual new Worker routing.
+- [x] **N01** Exercise every redirect with reload and query parameters, plus legacy hash links with outer auth query state.
+- [x] **N02** Exercise email callback, legal/support, both association URLs, API cookies/bearer/Set-Cookie, and legacy-host behavior through the actual new Worker routing.
 - [ ] **N03** Old installed PWAs and open tabs stop serving the retired shell. Cache retirement does not accidentally remove a newly registered push worker or unrelated origin data. Record the explicit offline/install scope decision.
 
 ## Existing evidence and missing tests
@@ -467,3 +467,10 @@ and production cutover are still pending.
 - [x] Record the owner's architecture, design-fidelity, native-experiment, and outright-cutover decisions (2026-10-09; plan D12–D16 and reaffirmed D2).
 - [ ] Owner reviews scope and records any cuts (completion gate for chunk 0.3).
 - [ ] Implement and verify the web/native parity rows in their assigned chunks.
+
+5.1 web review on 2026-10-10 ([parity-review-5.1.md](parity-review-5.1.md)):
+web-only rows are ticked. Rows that still carry native requirements stay open
+for Phase 6, even where the web half is done. Proposed cuts and decisions
+(offline web, web Apple sign-in, the filter-failure model, search launch) are
+decided by the owner the same day: offline web cut, web Apple sign-in
+deferred to Phase 6, the URL filter model kept, search indexing on.
