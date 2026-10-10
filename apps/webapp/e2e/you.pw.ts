@@ -81,6 +81,7 @@ test("a guest signs in by email link, with validation first", async ({ page }) =
   await guest(page);
   await page.goto("/you/account");
   await expect(page.getByText("Browsing as a guest")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in with Apple" })).toHaveCount(0);
   await page.getByLabel("Email").fill("not-an-email");
   await page.getByRole("button", { name: "Send link" }).click();
   await expect(page.getByText("Enter a valid email address.")).toBeVisible();
@@ -89,6 +90,34 @@ test("a guest signs in by email link, with validation first", async ({ page }) =
   await expect(page.getByText("Link sent to avery@example.com.", { exact: false })).toBeVisible();
   expect(writes.find((write) => write.path === "/auth/email/start")?.body).toEqual({ email: "avery@example.com" });
   await expect(page.getByRole("button", { name: "Resend link" })).toBeVisible();
+});
+
+test("configured Apple sign-in starts through a normal same-origin POST", async ({ page }) => {
+  await installApiMocks(page);
+  await page.route("**/api/v2/me", (route) => route.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ user: { id: "guest", name: "", role: "user", created_at: "2026-01-01" }, session: { state: "guest" }, account: null,
+      is_admin: false, features: { web_apple_sign_in_enabled: true } }) }));
+  const starts: string[] = [];
+  await page.route("**/api/v2/auth/apple/web/start", (route) => {
+    starts.push(route.request().method());
+    return route.fulfill({ status: 303, headers: { location: "/you/account?apple=cancelled" } });
+  });
+  await page.goto("/you/account");
+  await page.getByRole("button", { name: "Sign in with Apple" }).click();
+  await expect(page.getByText("Browsing as a guest")).toBeVisible();
+  await expect.poll(() => starts).toEqual(["POST"]);
+  await expect.poll(() => new URL(page.url()).searchParams.has("apple")).toBe(false);
+});
+
+test("Apple callback errors are announced once and retain unrelated query parameters", async ({ page }) => {
+  await installApiMocks(page);
+  await guest(page);
+  await page.goto("/you/account?apple=error&source=test");
+  const message = page.getByLabel("Notifications").getByText("Apple sign-in didn't finish. Try again.", { exact: true });
+  await expect(message).toBeVisible();
+  await expect(message).toHaveCount(1);
+  await expect.poll(() => new URL(page.url()).searchParams.has("apple")).toBe(false);
+  expect(new URL(page.url()).searchParams.get("source")).toBe("test");
 });
 
 test("feedback needs a subject, sends, and returns to You", async ({ page }) => {

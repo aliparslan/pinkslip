@@ -8,6 +8,12 @@ visual references only; component APIs follow Pinkslip's needs.
 
 ## Quarantine
 
+- **Website Apple sign-in composition (integration closeout)** — Account uses
+  the existing full-width secondary Button and AppleLogo in a normal HTML
+  form. Hono owns the redirect and callback; no router/API dependencies enter
+  the kit. The button appears only when server configuration is complete.
+  Product review is at `/you/account`; fixture coverage is in `e2e/you.pw.ts`.
+
 Design consistency fixes applied after the port, and open questions, are in
 `docs/kit-design-review.md`. Rules every kit component follows:
 

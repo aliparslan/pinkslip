@@ -46,8 +46,10 @@ function encryptionKeyBytes(encoded: string): Uint8Array {
   return bytes;
 }
 
-export function resolveAppleServerConfig(env: Env): AppleServerConfig | null {
-  const clientId = env.APPLE_SIGN_IN_CLIENT_ID?.trim() || env.APPLE_APP_ID?.trim();
+export function resolveAppleServerConfig(env: Env, audience?: string): AppleServerConfig | null {
+  const nativeClient = env.APPLE_SIGN_IN_CLIENT_ID?.trim() || env.APPLE_APP_ID?.trim();
+  const clientId = audience ?? nativeClient;
+  if (audience && audience !== nativeClient && audience !== env.APPLE_WEB_CLIENT_ID?.trim()) return null;
   const teamId = env.APPLE_TEAM_ID?.trim();
   const keyId = env.APPLE_SIGN_IN_KEY_ID?.trim();
   const privateKey = env.APPLE_SIGN_IN_PRIVATE_KEY?.trim();
@@ -105,12 +107,14 @@ export async function exchangeAppleAuthorizationCode(
   config: AppleServerConfig,
   authorizationCode: string,
   fetcher: AppleOAuthFetch = (input, init) => fetch(input, init),
+  redirectUri?: string,
 ): Promise<AppleTokenResponse> {
   const response = await appleFormRequest(APPLE_TOKEN_URL, new URLSearchParams({
     client_id: config.clientId,
     client_secret: await buildAppleClientSecret(config),
     code: authorizationCode,
     grant_type: "authorization_code",
+    ...(redirectUri ? { redirect_uri: redirectUri } : {}),
   }), fetcher);
   type AppleTokenBody = Partial<AppleTokenResponse> & { error?: string };
   const body = await response.json<AppleTokenBody>().catch((): AppleTokenBody => ({}));
@@ -193,7 +197,9 @@ export async function storeAppleRefreshToken(
   userId: string,
   refreshToken: string,
 ): Promise<void> {
-  const encrypted = await encryptAppleRefreshToken(refreshToken, identityId, config.encryptionKey);
+  // Bind the token to its issuing client without a schema migration. Old rows
+  // contain a plain token and retain the native client on read.
+  const encrypted = await encryptAppleRefreshToken(JSON.stringify({ refreshToken, clientId: config.clientId }), identityId, config.encryptionKey);
   const now = new Date().toISOString();
   await db.prepare(
     `INSERT INTO apple_refresh_tokens (identity_id, user_id, encrypted_token, created_at, updated_at)
@@ -221,12 +227,15 @@ export async function revokeAppleAuthorizationForUser(
   ).bind(userId).first<{ identity_id: string; encrypted_token: string }>();
   if (!row) return "no_token";
   try {
-    const refreshToken = await decryptAppleRefreshToken(
+    const stored = await decryptAppleRefreshToken(
       row.encrypted_token,
       row.identity_id,
       config.encryptionKey,
     );
-    await revokeAppleRefreshToken(config, refreshToken);
+    const envelope = stored.startsWith("{") ? JSON.parse(stored) as { refreshToken: string; clientId: string } : null;
+    const issuer = envelope ? resolveAppleServerConfig(env, envelope.clientId) : config;
+    if (!issuer || (envelope && typeof envelope.refreshToken !== "string")) throw new Error("Stored Apple client is not configured");
+    await revokeAppleRefreshToken(issuer, envelope?.refreshToken ?? stored);
     return "revoked";
   } catch (error) {
     console.error(JSON.stringify({

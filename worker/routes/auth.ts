@@ -5,6 +5,7 @@ import {
   normalizeEmail,
 } from "../account";
 import { verifyAppleIdentityToken } from "../apple";
+import { APPLE_WEB_CALLBACK, appleFlowCookie, appleWebConfig, readAppleWebFlow, startAppleWebFlow } from "../apple-web";
 import {
   exchangeAppleAuthorizationCode,
   resolveAppleServerConfig,
@@ -13,6 +14,7 @@ import {
 } from "../apple-oauth";
 import {
   buildCookie,
+  accessGrantValue,
   COOKIE_NAMES,
   apiTokenStorageKey,
   countIdentitiesForUser,
@@ -20,6 +22,7 @@ import {
   generateApiToken,
   getPrimaryIdentity,
   isApiTokenStorageKey,
+  loadActiveSession,
   replaceSession,
   requireAuthenticated,
   revokeApiTokensForUser,
@@ -31,6 +34,66 @@ import { ArtifactStorageUnavailableError } from "../tailor/artifact-storage";
 import type { AuthIdentityRow, Env, UserRow, Variables } from "../types";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+auth.post("/apple/web/start", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const origin = new URL(c.req.url).origin;
+  if (c.req.header("origin") !== origin || c.get("authTransport") !== "cookie") {
+    return c.json({ error: "Start Apple sign-in from Account on this website." }, 403);
+  }
+  if (c.get("sessionState") === "authenticated") return c.redirect("/you/account", 303);
+  const sessionId = c.get("sessionId");
+  if (!sessionId || !appleWebConfig(c.env)) return c.redirect("/you/account?apple=unavailable", 303);
+  try {
+    const grant = c.env.ACCESS_CODE?.trim() ? await accessGrantValue(c.env.ACCESS_CODE.trim()) : null;
+    const flow = await startAppleWebFlow(c.env, sessionId, origin, grant);
+    c.header("Set-Cookie", flow.cookie, { append: true });
+    return c.redirect(flow.authorization, 303);
+  } catch { return c.redirect("/you/account?apple=unavailable", 303); }
+});
+
+auth.post("/apple/web/callback", async (c) => {
+  c.header("Cache-Control", "no-store");
+  c.header("Set-Cookie", appleFlowCookie("", true), { append: true });
+  try {
+    if (!c.req.header("content-type")?.startsWith("application/x-www-form-urlencoded")) throw new Error("Invalid Apple callback");
+    const body = new URLSearchParams(await c.req.text());
+    const origin = new URL(c.req.url).origin;
+    const flow = await readAppleWebFlow(c.env, c.req.header("cookie"), body.get("state") ?? "", origin);
+    const grant = c.env.ACCESS_CODE?.trim() ? await accessGrantValue(c.env.ACCESS_CODE.trim()) : null;
+    if (flow.accessGrant !== grant) throw new Error("Access changed during sign-in");
+    const original = await loadActiveSession(c.env.DB, flow.sessionId);
+    if (!original || original.state !== "guest") throw new Error("Session changed during sign-in");
+    if (body.get("error") === "user_cancelled_authorize") return c.redirect("/you/account?apple=cancelled", 303);
+    const code = body.get("code");
+    const token = body.get("id_token");
+    const config = appleWebConfig(c.env);
+    if (!config || !code || !token || body.has("error")) throw new Error("Incomplete Apple sign-in");
+    const verified = await verifyAppleIdentityToken(c.env, token, flow.nonce, flow.clientId);
+    const exchange = await exchangeAppleAuthorizationCode(config, code, undefined, origin + APPLE_WEB_CALLBACK);
+    const exchanged = await verifyAppleIdentityToken(c.env, exchange.id_token, flow.nonce, flow.clientId);
+    if (typeof verified.sub !== "string" || !verified.sub || exchanged.sub !== verified.sub) throw new Error("Apple account mismatch");
+    if (!(await loadActiveSession(c.env.DB, original.id))) throw new Error("Session ended during sign-in");
+    c.set("userId", original.user_id);
+    c.set("sessionId", original.id);
+    c.set("sessionState", original.state);
+    c.set("authTransport", "cookie");
+    let fullName: string | null = null;
+    // The name is a display preference. The email and account identifier are
+    // accepted only from Apple's verified token, never its user form field.
+    try {
+      const user = JSON.parse(body.get("user") ?? "null") as { name?: { firstName?: string; lastName?: string } } | null;
+      fullName = [user?.name?.firstName, user?.name?.lastName].filter((part) => typeof part === "string").join(" ").slice(0, 80) || null;
+    } catch { /* Apple supplies user only on first consent. */ }
+    await signInWithIdentity(c, { provider: "apple", providerSubject: verified.sub,
+      email: verified.email ?? null, emailVerified: verified.email_verified === true || verified.email_verified === "true", fullName,
+      afterIdentity: ({ id, userId }) => storeAppleRefreshToken(c.env.DB, config, id, userId, exchange.refresh_token) });
+    return c.redirect("/you/account?apple=success", 303);
+  } catch {
+    // Do not expose or log Apple's identity token, code, or relay address.
+    return c.redirect("/you/account?apple=error", 303);
+  }
+});
 
 async function loadUser(db: D1Database, userId: string) {
   return db.prepare(

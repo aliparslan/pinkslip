@@ -24,6 +24,8 @@ export interface Env {
   // Sign in with Apple server exchange/revocation. Both key values are secrets;
   // APPLE_TOKEN_ENCRYPTION_KEY is 32 random bytes encoded as base64url.
   APPLE_SIGN_IN_CLIENT_ID?: string;
+  /** Services ID grouped with the native App ID; enables browser sign-in. */
+  APPLE_WEB_CLIENT_ID?: string;
   APPLE_SIGN_IN_KEY_ID?: string;
   APPLE_SIGN_IN_PRIVATE_KEY?: string;
   APPLE_TOKEN_ENCRYPTION_KEY?: string;

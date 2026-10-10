@@ -1,6 +1,6 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { EnvelopeSimple } from "@phosphor-icons/react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { AppleLogo, EnvelopeSimple } from "@phosphor-icons/react";
 import { useDeleteAccount, useSession, useSignOut, useStartEmailLogin, useUpdateName } from "@pinkslip/data";
 import { Alert, AlertDialog, Badge, Button, Field, Heading, Input, SaveStatus, Stack, Surface, Text, toast } from "../../kit";
 import { useAutosave } from "../settings/useAutosave";
@@ -11,17 +11,28 @@ import styles from "./Account.module.css";
 const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 /** `AccountSection.svelte` plus the display name: who you are, email sign-in
- * for guests, and log out / delete / start over. Web Apple sign-in waits for
- * Phase 6's native auth. */
+ * for guests, and log out / delete / start over. Apple redirects through Hono
+ * when the website's Services ID and server credentials are configured. */
 export function Account() {
   const navigate = useNavigate();
   const { data: session } = useSession();
   const signedIn = session?.state === "authenticated";
   const hasSession = signedIn || session?.state === "guest";
   const account = session?.me?.account;
+  const { apple } = useSearch({ from: "/you/account" });
+  const handledApple = useRef<string | undefined>(undefined);
   const [confirm, setConfirm] = useState<"logout" | "restart" | "delete" | null>(null);
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
+
+  useEffect(() => {
+    if (!apple || handledApple.current === apple) return;
+    handledApple.current = apple;
+    if (apple === "success") toast.success("Signed in with Apple");
+    else if (apple === "error") toast.error("Apple sign-in didn't finish. Try again.");
+    else if (apple === "unavailable") toast.error("Apple sign-in is temporarily unavailable. Use email or try again later.");
+    void navigate({ to: "/you/account", search: (previous) => ({ ...previous, apple: undefined }), replace: true });
+  }, [apple, navigate]);
 
   return <Stack gap="6">
     <Heading level={1} variant="screen">Account</Heading>
@@ -42,7 +53,7 @@ export function Account() {
           <Button variant="secondary" onClick={() => setConfirm("logout")}>Log out</Button>
           <Button variant="danger" onClick={() => setConfirm("delete")}>Delete account</Button>
         </div>
-      </Stack> : <EmailSignIn onRestart={hasSession ? () => setConfirm("restart") : undefined} />}
+      </Stack> : <EmailSignIn appleEnabled={session?.me?.features?.web_apple_sign_in_enabled ?? false} onRestart={hasSession ? () => setConfirm("restart") : undefined} />}
     </Surface>
 
     <AlertDialog
@@ -110,7 +121,7 @@ function NameCard({ initial }: { initial: string }) {
   </Surface>;
 }
 
-function EmailSignIn({ onRestart }: { onRestart?: () => void }) {
+function EmailSignIn({ onRestart, appleEnabled }: { onRestart?: () => void; appleEnabled: boolean }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -122,6 +133,9 @@ function EmailSignIn({ onRestart }: { onRestart?: () => void }) {
       <Text weight="medium">Browsing as a guest</Text>
       <Text size="sm" tone="ink-3">Sign in to keep your jobs and preferences on every device.</Text>
     </Stack>
+    {appleEnabled && <form method="post" action="/api/v2/auth/apple/web/start">
+      <Button type="submit" variant="secondary" icon={AppleLogo} fullWidth>Sign in with Apple</Button>
+    </form>}
     <form className={styles.emailForm} noValidate onSubmit={(event) => {
       event.preventDefault();
       const value = email.trim();

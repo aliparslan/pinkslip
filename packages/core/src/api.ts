@@ -409,6 +409,7 @@ export interface AppFeatures {
   outreach_enabled?: boolean;
   auto_apply_enabled?: boolean;
   auto_submit_enabled?: boolean;
+  web_apple_sign_in_enabled?: boolean;
   tailoring_enabled: boolean;
   tailoring_provider: "workers_ai" | null;
   tailoring_model: string;

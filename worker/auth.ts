@@ -145,7 +145,7 @@ export const requireAdmin = createMiddleware<{
   await next();
 });
 
-async function loadActiveSession(
+export async function loadActiveSession(
   db: D1Database,
   sessionId: string
 ): Promise<AuthSessionRow | null> {
@@ -292,7 +292,10 @@ async function resolveBearerUser(db: D1Database, bearer: string): Promise<string
 export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Variables }>(
   async (c, next) => {
     const pathname = new URL(c.req.url).pathname;
-    if (pathname === "/api/v2/access" || pathname === "/api/v2/health") {
+    // Apple form-posts across origins: the short-lived encrypted flow cookie
+    // authenticates this callback; ordinary SameSite=Lax cookies are absent.
+    if (pathname === "/api/v2/access" || pathname === "/api/v2/health"
+      || (pathname === "/api/v2/auth/apple/web/callback" && c.req.method === "POST")) {
       await next();
       return;
     }

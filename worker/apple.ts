@@ -57,7 +57,8 @@ function resolveExpectedAudience(env: Env): string {
 export async function verifyAppleIdentityToken(
   env: Env,
   identityToken: string,
-  expectedNonce?: string
+  expectedNonce?: string,
+  expectedAudience = resolveExpectedAudience(env),
 ): Promise<AppleJwtPayload> {
   const parts = identityToken.split(".");
   if (parts.length !== 3) {
@@ -105,7 +106,6 @@ export async function verifyAppleIdentityToken(
     throw new Error("Apple identity token issuer mismatch");
   }
 
-  const expectedAudience = resolveExpectedAudience(env);
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
   if (!audiences.includes(expectedAudience)) {
     throw new Error("Apple identity token audience mismatch");

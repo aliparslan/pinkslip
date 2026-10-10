@@ -769,6 +769,20 @@ scheme forms. Controller and link regression tests pass. The owner confirmed
 native Apple sign-in and notification delivery/tap; signed-account persistence
 after force-close and real job-link destinations remain owner checks.
 
+Website Apple sign-in account chunk (2026-10-10): ✅ implemented locally,
+using the owner's chosen full-page redirect. Hono owns the start and form-post
+callback; Account shows the kit button only when the Services ID and server
+credentials are configured. The flow binds the guest session, origin, state,
+nonce, expiry and access grant in an encrypted `__Host-` cookie; both signed
+Apple identity tokens must agree before the existing guest merge and session
+rotation. Only verified token emails can link accounts. Encrypted refresh
+tokens retain their issuing native/website client, with old native rows still
+readable. Nine protocol tests cover the real Hono routes and database schema;
+the Account fixtures cover the normal POST and callback feedback. The owner
+does not yet have a website Services ID. Portal configuration, deployment and
+actual Apple consent remain outstanding; the setup and numbered testing flows
+are in [apple-web-sign-in-setup.md](apple-web-sign-in-setup.md).
+
 **6.4 Feed** · L · Native lists, filter sheets, the job row. ✅ 2026-10-10: `features/feed`, `features/jobs`. The personalized feed for the committed filters (kept in `feed-search.ts`; the web keeps them in the URL), search in the navigation bar's search field, a Filters bar button with a count badge opening a form sheet (`/filters`: every metro plus Remote, salary, stages, saved only; a draft until Apply), pull to refresh, more as you scroll, the stale-poller notice, the setup prompt, and the web's empty states. Job rows: logo, company and timing, title, location and salary, read rows down the ink ramp, the new dot; swipe right to save (Library: mark applied), left to hide (Library: remove, didn't apply), a long-press system menu with every action, and VoiceOver actions for every menu action. Follow-up: replaced custom/Reanimated swipes and FlashList with Expo UI SwiftUI List/SwipeActions at the owner’s request; native reveal buttons and full swipes in both Jobs and Library. See `docs/native-1.3-recovery.md` for the React mounting trade-off and device checks
 
 **6.5 Job detail** · L · a native renderer for core's job-description blocks; actions and share. ✅ 2026-10-10: `features/job-detail`. Company, title, facts, the posting drawn from `parseJobDescription` blocks (links open in Safari), Apply and Save under the title (a bottom bar would sit under the floating tab bar), and the rest in the navigation bar's system menu (I applied / didn't apply, Not interested, Email recruiter, Tailor, Share sheet, Hide company, Report as a form sheet, admin Block with a system confirmation). Apply opens the posting in Safari inside the app; closing it asks "Did you apply?". Opens at once from the list's cached copy
@@ -848,8 +862,8 @@ Interaction follow-up (2026-10-10): native List/SwipeActions replace custom job 
 
 Authorized closeout (2026-10-10): the owner approved finishing the remaining
 integrations and explicitly tabled tailoring for much later. The native
-implementation chunk above is complete locally. Website Apple sign-in is the
-separate account chunk; the owner chose a redirect rather than a popup.
+implementation and website Apple sign-in account chunks are complete locally;
+the owner chose a redirect rather than a popup.
 Production activation, Apple portal setup and the remaining signed-phone flows
 are separate from local implementation proof. Scope and testing flows:
 [port-closeout.md](port-closeout.md).
@@ -906,3 +920,4 @@ code was already deleted in 3.4).
 | D15 | Design and kit | Redesign per screen / reproduce current design through a mapped kit | ✅ **Match current Pinkslip closely with Base UI, CSS Modules and tokens; dedicated kit phase, reference comparisons, and component reuse** (2026-10-09) | 0.4 / Phase 2 |
 | D16 | Native validation timing | Discover constraints during full native port / early capability experiments | ✅ **Prove native data/session, resume import/files, and application-browser autofill during foundations** (2026-10-09); product iOS still follows web | 1.6 |
 | D17 | Desktop layout | Reproduce the Svelte desktop (232px icon rail + second You column + split job actions) / redesign the desktop frame | ✅ **Redesign the frame only** (owner, 2026-10-09, "based on your judgement"): a real left sidebar with brand, full-row destinations and nested sub-sections; phones keep the current tab bar. **Revised 2026-10-10 (owner):** with the wordmark dropped, wide screens get a narrow icon rail instead: the mark, then Jobs/Library/You as icons with tooltips. Privacy and Support links are hidden for now (the pages remain), You's sections live on the You screen, and admin pages get a section bar at every width. Job-detail actions are consolidated when 4.3 ports that screen. Everything else still matches the current design | 3.1 / 4.3 |
+| D18 | Website Apple sign-in presentation | Redirect / popup SDK | ✅ **Redirect to Apple**, returning to Account (owner, 2026-10-10). Services ID grouped with the native App ID; Hono callback owns authentication. Implemented locally, pending owner portal setup and deployment | 6.3 closeout |
