@@ -1,0 +1,68 @@
+/* Phones and narrow windows: the list, or the open job, one at a time. The
+   "Select a job" pane only exists beside a list. */
+.root:not([data-detail]) > .detail {
+  display: none;
+}
+
+.detail {
+  outline: none;
+}
+
+/* Wide (matches SPLIT_QUERY): the list column scrolls with the window and
+   the job sits beside it in its own scrolling pane, the current desktop
+   layout. */
+@media (min-width: 1100px) {
+  .root {
+    display: grid;
+    grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+
+  .list {
+    min-width: 0;
+    padding: var(--space-10) var(--screen-gutter) var(--space-10);
+    border-inline-end: 1px solid var(--color-line);
+  }
+
+  .root:not([data-detail]) > .detail,
+  .detail {
+    position: sticky;
+    inset-block-start: 0;
+    display: block;
+    height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--color-bg-sunken);
+  }
+}
+
+/* "Select a job". */
+.placeholder {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  min-height: 100%;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.placeholderMark {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  margin-block-end: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+  box-shadow: var(--shadow-control-active);
+}
+
+.placeholderMessage {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}

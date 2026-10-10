@@ -96,6 +96,7 @@ for (const width of [320, 390, 1280]) {
   });
 }
 
+// A job beside its list (wide screens) has no Back; these run at phone width.
 test("direct links use safe Back destinations, including the Library origin after reload", async ({ browser }) => {
   for (const [path, target] of [
     ["/you/resume", "/you"], ["/admin/runs", "/admin"],
@@ -103,7 +104,7 @@ test("direct links use safe Back destinations, including the Library origin afte
     ["/jobs/port-fixture-does-not-exist?from=https://example.com", "/"],
     ["/tailor/fixture?from=library-saved", "/jobs/fixture?from=library-saved"],
   ]) {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     await page.goto(path);
     await page.reload();
@@ -124,7 +125,7 @@ test("unknown nested and legacy routes remain genuine 404s", async ({ page }) =>
 });
 
 test("Back has a usable destination before JavaScript loads", async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto("/jobs/port-fixture-does-not-exist?from=library-saved");
   const back = page.getByRole("link", { name: "Back", exact: true });

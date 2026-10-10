@@ -13,6 +13,8 @@ export interface JobListProps {
   from?: JobOrigin;
   onOpen?: (job: JobRowJob) => void;
   actions?: JobRowActions;
+  /** Replaces a row's timing label, e.g. "Applied 3d ago". */
+  contextLabel?: (job: JobRowJob) => string | undefined;
 }
 
 const estimatedRowHeight = 76;
@@ -23,7 +25,7 @@ const estimatedRowHeight = 76;
  * focusing into the list mounts every row again so keyboard and screen-reader
  * users can move through all of them. Both modes render the same tree, keyed
  * by job, so switching never remounts a row (or closes its open menu). */
-export function JobList({ jobs, total = jobs.length, label = "Jobs", viewed, selectedId, from, onOpen, actions }: JobListProps) {
+export function JobList({ jobs, total = jobs.length, label = "Jobs", viewed, selectedId, from, onOpen, actions, contextLabel }: JobListProps) {
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -72,7 +74,7 @@ export function JobList({ jobs, total = jobs.length, label = "Jobs", viewed, sel
         return <div key={job.id} ref={virtual ? virtualizer.measureElement : undefined} data-index={index}
           role="listitem" aria-posinset={index + 1} aria-setsize={setSize}>
           <JobRow job={job} viewed={viewed?.has(job.id)} selected={job.id === selectedId}
-            from={from} onOpen={onOpen} actions={actions} />
+            from={from} onOpen={onOpen} actions={actions} contextLabel={contextLabel?.(job)} />
         </div>;
       })}
     </div>

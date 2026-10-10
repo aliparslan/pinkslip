@@ -53,7 +53,7 @@ test("a local catalog job renders its title without client JavaScript", async ({
   const response = await page.goto(`/jobs/${encodeURIComponent(job.id)}`);
   expect(response?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: job.title, exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View on company website" })).toHaveAttribute("href", job.url);
+  await expect(page.getByRole("link", { name: "Read the original posting" })).toHaveAttribute("href", job.url);
   await context.close();
 });
 

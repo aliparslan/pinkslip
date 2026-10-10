@@ -1,0 +1,81 @@
+/* `Feed.svelte`: title, one row of search and filters, the poller notice,
+   then full-bleed rows. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.intro {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Rows carry their own inset, so the list bleeds by one gutter and each
+   row's logo lines up with the heading. */
+.list {
+  margin-inline: calc(-1 * var(--screen-gutter));
+  border-block-start: 0.5px solid var(--color-line);
+}
+
+.more,
+.end {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  margin: var(--space-4) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-block-end: 0.5px solid var(--color-line);
+}
+
+.skeletonCopy {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Filter sheet. */
+.salary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.toggleRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+}
+
+.sheetActions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--space-2);
+}
+
+.sheetActions[data-single] {
+  grid-template-columns: minmax(0, 1fr);
+}

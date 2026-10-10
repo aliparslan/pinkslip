@@ -8,14 +8,16 @@ export interface PageMetadata {
    * catalog is the API's public projection). `personal` needs a session and
    * shows the access gate when locked. `admin` also needs an admin. */
   access: "public" | "personal" | "admin";
+  /** Shares the list-beside-job layout (features/split), full width on wide screens. */
+  split?: boolean;
 }
 
 export const pages = {
-  "/": { title: "Jobs", shell: "consumer", depth: 0, root: "jobs", access: "public" },
-  "/jobs/$jobId": { title: "Job", shell: "consumer", depth: 1, root: "jobs", access: "public" },
+  "/": { title: "Jobs", shell: "consumer", depth: 0, root: "jobs", access: "public", split: true },
+  "/jobs/$jobId": { title: "Job", shell: "consumer", depth: 1, root: "jobs", access: "public", split: true },
   "/tailor/$jobId": { title: "Tailor resume", shell: "consumer", depth: 2, root: "jobs", access: "personal" },
-  "/library/saved": { title: "Saved", shell: "consumer", depth: 0, root: "library", access: "personal" },
-  "/library/applied": { title: "Applied", shell: "consumer", depth: 0, root: "library", access: "personal" },
+  "/library/saved": { title: "Saved", shell: "consumer", depth: 0, root: "library", access: "personal", split: true },
+  "/library/applied": { title: "Applied", shell: "consumer", depth: 0, root: "library", access: "personal", split: true },
   "/you": { title: "You", shell: "consumer", depth: 0, root: "you", access: "personal" },
   "/you/preferences": { title: "Job preferences", shell: "consumer", depth: 1, root: "you", access: "personal" },
   "/you/alerts": { title: "Alerts", shell: "consumer", depth: 1, root: "you", access: "personal" },

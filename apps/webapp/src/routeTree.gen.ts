@@ -9,10 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as KitRouteImport } from './routes/[_]kit'
 import { Route as KitErrorRouteImport } from './routes/[_]kit-error'
 import { Route as KitListRouteImport } from './routes/[_]kit-list'
+import { Route as SplitRouteImport } from './routes/_split'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CompaniesRouteImport } from './routes/companies'
@@ -23,15 +23,12 @@ import { Route as ResumeRouteImport } from './routes/resume'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as YouRouteImport } from './routes/you'
+import { Route as SplitIndexRouteImport } from './routes/_split.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
 import { Route as AdminJevRouteImport } from './routes/admin.jev'
 import { Route as AdminRunsRouteImport } from './routes/admin.runs'
 import { Route as AdminSourcesRouteImport } from './routes/admin.sources'
-import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
-import { Route as LibraryIndexRouteImport } from './routes/library.index'
-import { Route as LibraryAppliedRouteImport } from './routes/library.applied'
-import { Route as LibrarySavedRouteImport } from './routes/library.saved'
 import { Route as MyJobsAppliedRouteImport } from './routes/my-jobs.applied'
 import { Route as MyJobsSavedRouteImport } from './routes/my-jobs.saved'
 import { Route as TailorJobIdRouteImport } from './routes/tailor.$jobId'
@@ -45,12 +42,10 @@ import { Route as YouOperationsRouteImport } from './routes/you.operations'
 import { Route as YouPreferencesRouteImport } from './routes/you.preferences'
 import { Route as YouResumeRouteImport } from './routes/you.resume'
 import { Route as YouTailoringRouteImport } from './routes/you.tailoring'
+import { Route as SplitJobsJobIdRouteImport } from './routes/_split.jobs.$jobId'
+import { Route as SplitLibraryAppliedRouteImport } from './routes/_split.library.applied'
+import { Route as SplitLibrarySavedRouteImport } from './routes/_split.library.saved'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const KitRoute = KitRouteImport.update({
   id: '/_kit',
   path: '/_kit',
@@ -64,6 +59,10 @@ const KitErrorRoute = KitErrorRouteImport.update({
 const KitListRoute = KitListRouteImport.update({
   id: '/_kit-list',
   path: '/_kit-list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplitRoute = SplitRouteImport.update({
+  id: '/_split',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -116,6 +115,11 @@ const YouRoute = YouRouteImport.update({
   path: '/you',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SplitIndexRoute = SplitIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SplitRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -140,26 +144,6 @@ const AdminSourcesRoute = AdminSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
   getParentRoute: () => AdminRoute,
-} as any)
-const JobsJobIdRoute = JobsJobIdRouteImport.update({
-  id: '/jobs/$jobId',
-  path: '/jobs/$jobId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LibraryIndexRoute = LibraryIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => LibraryRoute,
-} as any)
-const LibraryAppliedRoute = LibraryAppliedRouteImport.update({
-  id: '/applied',
-  path: '/applied',
-  getParentRoute: () => LibraryRoute,
-} as any)
-const LibrarySavedRoute = LibrarySavedRouteImport.update({
-  id: '/saved',
-  path: '/saved',
-  getParentRoute: () => LibraryRoute,
 } as any)
 const MyJobsAppliedRoute = MyJobsAppliedRouteImport.update({
   id: '/my-jobs/applied',
@@ -226,16 +210,31 @@ const YouTailoringRoute = YouTailoringRouteImport.update({
   path: '/tailoring',
   getParentRoute: () => YouRoute,
 } as any)
+const SplitJobsJobIdRoute = SplitJobsJobIdRouteImport.update({
+  id: '/jobs/$jobId',
+  path: '/jobs/$jobId',
+  getParentRoute: () => SplitRoute,
+} as any)
+const SplitLibraryAppliedRoute = SplitLibraryAppliedRouteImport.update({
+  id: '/library/applied',
+  path: '/library/applied',
+  getParentRoute: () => SplitRoute,
+} as any)
+const SplitLibrarySavedRoute = SplitLibrarySavedRouteImport.update({
+  id: '/library/saved',
+  path: '/library/saved',
+  getParentRoute: () => SplitRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
   '/_kit-list': typeof KitListRoute
+  '/': typeof SplitIndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/companies': typeof CompaniesRoute
-  '/library': typeof LibraryRouteWithChildren
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/resume': typeof ResumeRoute
@@ -246,9 +245,6 @@ export interface FileRoutesByFullPath {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
-  '/jobs/$jobId': typeof JobsJobIdRoute
-  '/library/applied': typeof LibraryAppliedRoute
-  '/library/saved': typeof LibrarySavedRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -262,16 +258,18 @@ export interface FileRoutesByFullPath {
   '/you/resume': typeof YouResumeRoute
   '/you/tailoring': typeof YouTailoringRoute
   '/admin/': typeof AdminIndexRoute
-  '/library/': typeof LibraryIndexRoute
   '/you/': typeof YouIndexRoute
+  '/jobs/$jobId': typeof SplitJobsJobIdRoute
+  '/library/applied': typeof SplitLibraryAppliedRoute
+  '/library/saved': typeof SplitLibrarySavedRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
   '/_kit-list': typeof KitListRoute
   '/about': typeof AboutRoute
   '/companies': typeof CompaniesRoute
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/resume': typeof ResumeRoute
@@ -281,9 +279,6 @@ export interface FileRoutesByTo {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
-  '/jobs/$jobId': typeof JobsJobIdRoute
-  '/library/applied': typeof LibraryAppliedRoute
-  '/library/saved': typeof LibrarySavedRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -296,20 +291,23 @@ export interface FileRoutesByTo {
   '/you/preferences': typeof YouPreferencesRoute
   '/you/resume': typeof YouResumeRoute
   '/you/tailoring': typeof YouTailoringRoute
+  '/': typeof SplitIndexRoute
   '/admin': typeof AdminIndexRoute
-  '/library': typeof LibraryIndexRoute
   '/you': typeof YouIndexRoute
+  '/jobs/$jobId': typeof SplitJobsJobIdRoute
+  '/library/applied': typeof SplitLibraryAppliedRoute
+  '/library/saved': typeof SplitLibrarySavedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
   '/_kit-list': typeof KitListRoute
+  '/_split': typeof SplitRouteWithChildren
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/companies': typeof CompaniesRoute
-  '/library': typeof LibraryRouteWithChildren
+  '/library': typeof LibraryRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/resume': typeof ResumeRoute
@@ -320,9 +318,6 @@ export interface FileRoutesById {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
-  '/jobs/$jobId': typeof JobsJobIdRoute
-  '/library/applied': typeof LibraryAppliedRoute
-  '/library/saved': typeof LibrarySavedRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -335,17 +330,20 @@ export interface FileRoutesById {
   '/you/preferences': typeof YouPreferencesRoute
   '/you/resume': typeof YouResumeRoute
   '/you/tailoring': typeof YouTailoringRoute
+  '/_split/': typeof SplitIndexRoute
   '/admin/': typeof AdminIndexRoute
-  '/library/': typeof LibraryIndexRoute
   '/you/': typeof YouIndexRoute
+  '/_split/jobs/$jobId': typeof SplitJobsJobIdRoute
+  '/_split/library/applied': typeof SplitLibraryAppliedRoute
+  '/_split/library/saved': typeof SplitLibrarySavedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/_kit'
     | '/_kit-error'
     | '/_kit-list'
+    | '/'
     | '/about'
     | '/admin'
     | '/companies'
@@ -360,9 +358,6 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
-    | '/jobs/$jobId'
-    | '/library/applied'
-    | '/library/saved'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -376,16 +371,18 @@ export interface FileRouteTypes {
     | '/you/resume'
     | '/you/tailoring'
     | '/admin/'
-    | '/library/'
     | '/you/'
+    | '/jobs/$jobId'
+    | '/library/applied'
+    | '/library/saved'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/_kit'
     | '/_kit-error'
     | '/_kit-list'
     | '/about'
     | '/companies'
+    | '/library'
     | '/privacy'
     | '/profile'
     | '/resume'
@@ -395,9 +392,6 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
-    | '/jobs/$jobId'
-    | '/library/applied'
-    | '/library/saved'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -410,15 +404,18 @@ export interface FileRouteTypes {
     | '/you/preferences'
     | '/you/resume'
     | '/you/tailoring'
+    | '/'
     | '/admin'
-    | '/library'
     | '/you'
+    | '/jobs/$jobId'
+    | '/library/applied'
+    | '/library/saved'
   id:
     | '__root__'
-    | '/'
     | '/_kit'
     | '/_kit-error'
     | '/_kit-list'
+    | '/_split'
     | '/about'
     | '/admin'
     | '/companies'
@@ -433,9 +430,6 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
-    | '/jobs/$jobId'
-    | '/library/applied'
-    | '/library/saved'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -448,27 +442,29 @@ export interface FileRouteTypes {
     | '/you/preferences'
     | '/you/resume'
     | '/you/tailoring'
+    | '/_split/'
     | '/admin/'
-    | '/library/'
     | '/you/'
+    | '/_split/jobs/$jobId'
+    | '/_split/library/applied'
+    | '/_split/library/saved'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   KitRoute: typeof KitRoute
   KitErrorRoute: typeof KitErrorRoute
   KitListRoute: typeof KitListRoute
+  SplitRoute: typeof SplitRouteWithChildren
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   CompaniesRoute: typeof CompaniesRoute
-  LibraryRoute: typeof LibraryRouteWithChildren
+  LibraryRoute: typeof LibraryRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ResumeRoute: typeof ResumeRoute
   SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
   YouRoute: typeof YouRouteWithChildren
-  JobsJobIdRoute: typeof JobsJobIdRoute
   MyJobsAppliedRoute: typeof MyJobsAppliedRoute
   MyJobsSavedRoute: typeof MyJobsSavedRoute
   TailorJobIdRoute: typeof TailorJobIdRoute
@@ -476,13 +472,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_kit': {
       id: '/_kit'
       path: '/_kit'
@@ -502,6 +491,13 @@ declare module '@tanstack/react-router' {
       path: '/_kit-list'
       fullPath: '/_kit-list'
       preLoaderRoute: typeof KitListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_split': {
+      id: '/_split'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof SplitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -574,6 +570,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof YouRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_split/': {
+      id: '/_split/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof SplitIndexRouteImport
+      parentRoute: typeof SplitRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -608,34 +611,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/sources'
       preLoaderRoute: typeof AdminSourcesRouteImport
       parentRoute: typeof AdminRoute
-    }
-    '/jobs/$jobId': {
-      id: '/jobs/$jobId'
-      path: '/jobs/$jobId'
-      fullPath: '/jobs/$jobId'
-      preLoaderRoute: typeof JobsJobIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/library/': {
-      id: '/library/'
-      path: '/'
-      fullPath: '/library/'
-      preLoaderRoute: typeof LibraryIndexRouteImport
-      parentRoute: typeof LibraryRoute
-    }
-    '/library/applied': {
-      id: '/library/applied'
-      path: '/applied'
-      fullPath: '/library/applied'
-      preLoaderRoute: typeof LibraryAppliedRouteImport
-      parentRoute: typeof LibraryRoute
-    }
-    '/library/saved': {
-      id: '/library/saved'
-      path: '/saved'
-      fullPath: '/library/saved'
-      preLoaderRoute: typeof LibrarySavedRouteImport
-      parentRoute: typeof LibraryRoute
     }
     '/my-jobs/applied': {
       id: '/my-jobs/applied'
@@ -728,8 +703,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof YouTailoringRouteImport
       parentRoute: typeof YouRoute
     }
+    '/_split/jobs/$jobId': {
+      id: '/_split/jobs/$jobId'
+      path: '/jobs/$jobId'
+      fullPath: '/jobs/$jobId'
+      preLoaderRoute: typeof SplitJobsJobIdRouteImport
+      parentRoute: typeof SplitRoute
+    }
+    '/_split/library/applied': {
+      id: '/_split/library/applied'
+      path: '/library/applied'
+      fullPath: '/library/applied'
+      preLoaderRoute: typeof SplitLibraryAppliedRouteImport
+      parentRoute: typeof SplitRoute
+    }
+    '/_split/library/saved': {
+      id: '/_split/library/saved'
+      path: '/library/saved'
+      fullPath: '/library/saved'
+      preLoaderRoute: typeof SplitLibrarySavedRouteImport
+      parentRoute: typeof SplitRoute
+    }
   }
 }
+
+interface SplitRouteChildren {
+  SplitIndexRoute: typeof SplitIndexRoute
+  SplitJobsJobIdRoute: typeof SplitJobsJobIdRoute
+  SplitLibraryAppliedRoute: typeof SplitLibraryAppliedRoute
+  SplitLibrarySavedRoute: typeof SplitLibrarySavedRoute
+}
+
+const SplitRouteChildren: SplitRouteChildren = {
+  SplitIndexRoute: SplitIndexRoute,
+  SplitJobsJobIdRoute: SplitJobsJobIdRoute,
+  SplitLibraryAppliedRoute: SplitLibraryAppliedRoute,
+  SplitLibrarySavedRoute: SplitLibrarySavedRoute,
+}
+
+const SplitRouteWithChildren = SplitRoute._addFileChildren(SplitRouteChildren)
 
 interface AdminRouteChildren {
   AdminInboxRoute: typeof AdminInboxRoute
@@ -748,21 +760,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
-interface LibraryRouteChildren {
-  LibraryAppliedRoute: typeof LibraryAppliedRoute
-  LibrarySavedRoute: typeof LibrarySavedRoute
-  LibraryIndexRoute: typeof LibraryIndexRoute
-}
-
-const LibraryRouteChildren: LibraryRouteChildren = {
-  LibraryAppliedRoute: LibraryAppliedRoute,
-  LibrarySavedRoute: LibrarySavedRoute,
-  LibraryIndexRoute: LibraryIndexRoute,
-}
-
-const LibraryRouteWithChildren =
-  LibraryRoute._addFileChildren(LibraryRouteChildren)
 
 interface YouRouteChildren {
   YouAccountRoute: typeof YouAccountRoute
@@ -793,21 +790,20 @@ const YouRouteChildren: YouRouteChildren = {
 const YouRouteWithChildren = YouRoute._addFileChildren(YouRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   KitRoute: KitRoute,
   KitErrorRoute: KitErrorRoute,
   KitListRoute: KitListRoute,
+  SplitRoute: SplitRouteWithChildren,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   CompaniesRoute: CompaniesRoute,
-  LibraryRoute: LibraryRouteWithChildren,
+  LibraryRoute: LibraryRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ResumeRoute: ResumeRoute,
   SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
   YouRoute: YouRouteWithChildren,
-  JobsJobIdRoute: JobsJobIdRoute,
   MyJobsAppliedRoute: MyJobsAppliedRoute,
   MyJobsSavedRoute: MyJobsSavedRoute,
   TailorJobIdRoute: TailorJobIdRoute,

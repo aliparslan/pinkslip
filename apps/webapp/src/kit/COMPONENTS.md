@@ -115,6 +115,14 @@ Design consistency fixes applied after the port, and open questions, are in
   virtualizer; the server render and a focused list render every row. Demos:
   `/_kit` (Job rows) and `/_kit-list`.
 
+- **Feed, job page and Library additions (4.2–4.4)** — Owner: Web port.
+  `SearchInput` (`.feed-search`: an input with a leading glass, named by its
+  `aria-label`), `MultiToggleGroup` (chips with several values and a
+  minimum, for career stages), `AlertDialog` `cancelLabel` ("Not yet"), and
+  `Button` `aria-pressed` (Save/Saved). Demos on `/_kit`. Screens:
+  `features/feed`, `features/job-detail`, `features/library`, sharing
+  `features/split/SplitLayout` (list beside the job on wide screens).
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

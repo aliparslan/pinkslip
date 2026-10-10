@@ -5,6 +5,7 @@ import { routeTree } from "./routeTree.gen";
 import { RouteErrorPage } from "./features/states/PageStates";
 import { PageLoading } from "./features/states/LoadStates";
 import { createWebApiClient } from "./platform/api";
+import { SPLIT_QUERY } from "./features/split/media";
 import type { RouterContext } from "./platform/router-context";
 
 export function getRouter() {
@@ -21,9 +22,12 @@ export function getRouter() {
       types: ({ fromLocation, toLocation, pathChanged }): string[] | false => {
         if (!pathChanged || !fromLocation || typeof window === "undefined"
           || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-        const from = router.getMatchedRoutes(fromLocation.pathname)[2]?.options.staticData?.page;
-        const to = router.getMatchedRoutes(toLocation.pathname)[2]?.options.staticData?.page;
+        const page = (pathname: string) => router.getMatchedRoutes(pathname)[2]?.options.staticData?.page;
+        const from = page(fromLocation.pathname);
+        const to = page(toLocation.pathname);
         if (!from || !to || from.depth === to.depth) return false;
+        // Beside its list, a job swaps in place; the list doesn't move.
+        if (from.split && to.split && window.matchMedia(SPLIT_QUERY).matches) return false;
         return [to.depth > from.depth ? "deeper" : "shallower"];
       },
     },

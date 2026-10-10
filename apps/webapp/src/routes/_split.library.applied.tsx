@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Text } from "../kit";
 import { pages, pageHead } from "../features/navigation/pages";
+import { SelectJob } from "../features/split/SelectJob";
 
-export const Route = createFileRoute("/library/applied")({
+// The list renders in the shared layout (features/split).
+export const Route = createFileRoute("/_split/library/applied")({
   ssr: false,
   staticData: { page: pages["/library/applied"] },
   head: () => pageHead(pages["/library/applied"]),
-  component: () => <Text tone="ink-3">Applied jobs are coming soon.</Text>,
+  component: SelectJob,
 });

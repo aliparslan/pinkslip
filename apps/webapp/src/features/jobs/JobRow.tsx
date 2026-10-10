@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookmarkSimple, DotsThreeVertical, EnvelopeOpen, EnvelopeSimple, EyeSlash, Prohibit } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, BookmarkSimple, CheckCircle, DotsThreeVertical, EnvelopeOpen, EnvelopeSimple, EyeSlash, Prohibit, X } from "@phosphor-icons/react";
 import type { Job } from "@pinkslip/core/api";
 import { formatCompactSalaryText, formatJobLocation } from "@pinkslip/core/job-format";
 import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
 import { Menu, MenuItem, MenuSeparator } from "../../kit";
 import { CompanyLogo } from "./CompanyLogo";
+import { useSplit } from "./split";
 import { extractSalaryFromHtml } from "./job-content";
 import styles from "./JobRow.module.css";
 
@@ -13,13 +14,18 @@ import styles from "./JobRow.module.css";
  * the match reason, source type and saved state. */
 export type JobRowJob = Pick<Job, "id" | "title" | "company_name" | "company_domain" | "location" | "salary"
   | "posted_at" | "first_seen_at" | "evergreen">
-  & Partial<Pick<Job, "description" | "source_type" | "match_fact" | "saved">>;
+  & Partial<Pick<Job, "description" | "source_type" | "match_fact" | "saved" | "applied" | "applied_at">>;
 
 export type JobOrigin = "library-saved" | "library-applied";
 
 /** Row actions. Each is optional; the menu shows only what the owner wires. */
 export interface JobRowActions {
   onSave?: (job: JobRowJob) => void;
+  /** Library: take the job out of Saved (the row leaves that list). */
+  onUnsave?: (job: JobRowJob) => void;
+  onMarkApplied?: (job: JobRowJob) => void;
+  /** Applied list: move the job back to the feed. */
+  onUnmarkApplied?: (job: JobRowJob) => void;
   onToggleRead?: (job: JobRowJob, viewed: boolean) => void;
   onHide?: (job: JobRowJob) => void;
   /** Admin only: remove the job for everyone (the owner confirms first). */
@@ -48,21 +54,26 @@ const exitMs = 160;
  * native app (Phase 6). */
 export function JobRow({ job, viewed = false, selected, contextLabel, from, onOpen, actions = {} }: JobRowProps) {
   const [leaving, setLeaving] = useState(false);
+  const split = useSplit();
   const location = formatJobLocation(job.location);
   const salary = formatCompactSalaryText(job.salary?.trim() ? job.salary : extractSalaryFromHtml(job.description ?? null));
   const fresh = !contextLabel && !viewed && isFreshJobTiming(job);
   const saved = Boolean(job.saved);
-  const { onSave, onToggleRead, onHide, onBlock } = actions;
-  const hasMenu = Boolean((onSave && !saved) || onToggleRead || onHide || onBlock);
+  const { onSave, onUnsave, onMarkApplied, onUnmarkApplied, onToggleRead, onHide, onBlock } = actions;
+  const applied = Boolean(job.applied);
+  const hasMenu = Boolean((onSave && !saved) || (onUnsave && saved) || (onMarkApplied && !applied)
+    || (onUnmarkApplied && applied) || onToggleRead || onHide || onBlock);
 
-  const hide = () => {
-    if (!onHide) return;
+  // Removing actions slide the row out first, unless motion is reduced.
+  const leave = (action: (job: JobRowJob) => void) => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      onHide(job);
+      action(job);
       return;
     }
     setLeaving(true);
-    window.setTimeout(() => onHide(job), exitMs);
+    window.setTimeout(() => action(job), exitMs);
+    // A removal that fails puts the row back; show it again.
+    window.setTimeout(() => setLeaving(false), exitMs + 1000);
   };
 
   return <div className={styles.root} data-leaving={leaving || undefined}>
@@ -70,6 +81,7 @@ export function JobRow({ job, viewed = false, selected, contextLabel, from, onOp
       to="/jobs/$jobId"
       params={{ jobId: job.id }}
       search={from ? { from } : {}}
+      resetScroll={!split}
       className={styles.link}
       data-viewed={viewed || undefined}
       data-has-menu={hasMenu || undefined}
@@ -98,10 +110,13 @@ export function JobRow({ job, viewed = false, selected, contextLabel, from, onOp
     {hasMenu && <div className={styles.accessory}>
       <Menu trigger={{ icon: DotsThreeVertical, label: `Actions for ${job.title} at ${job.company_name}`, size: "sm", iconSize: 18 }}>
         {onSave && !saved && <MenuItem icon={BookmarkSimple} onSelect={() => onSave(job)}>Save</MenuItem>}
+        {onUnsave && saved && <MenuItem icon={X} onSelect={() => leave(onUnsave)}>Remove from saved</MenuItem>}
+        {onMarkApplied && !applied && <MenuItem icon={CheckCircle} onSelect={() => onMarkApplied(job)}>Mark as applied</MenuItem>}
+        {onUnmarkApplied && applied && <MenuItem icon={ArrowCounterClockwise} onSelect={() => leave(onUnmarkApplied)}>I didn't apply</MenuItem>}
         {onToggleRead && <MenuItem icon={viewed ? EnvelopeSimple : EnvelopeOpen} onSelect={() => onToggleRead(job, !viewed)}>
           {viewed ? "Mark as unread" : "Mark as read"}
         </MenuItem>}
-        {onHide && <MenuItem icon={EyeSlash} onSelect={hide}>Hide</MenuItem>}
+        {onHide && <MenuItem icon={EyeSlash} onSelect={() => leave(onHide)}>Hide</MenuItem>}
         {onBlock && <>
           <MenuSeparator />
           <MenuItem icon={Prohibit} tone="danger" onSelect={() => onBlock(job)}>Block for everyone</MenuItem>

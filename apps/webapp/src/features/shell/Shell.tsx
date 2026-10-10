@@ -5,6 +5,7 @@ import { IconButtonAnchor, Tooltip } from "../../kit";
 import { adminPages, pages, type SectionPath } from "../navigation/pages";
 import { backTarget, jobRoot } from "../navigation/back-target";
 import { OfflineBanner } from "../states/OfflineBanner";
+import { rememberedFeedSearch } from "../feed/criteria";
 import { BrandMark } from "./BrandMark";
 import styles from "./Shell.module.css";
 
@@ -64,6 +65,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <Tooltip content={destination.label} side="right">
               <Link
                 to={destination.to}
+                // Jobs returns to the filters it was left with.
+                search={destination.to === "/" ? rememberedFeedSearch() : undefined}
                 className={styles.destination}
                 data-active={active || undefined}
                 aria-current={active ? "page" : undefined}
@@ -76,7 +79,7 @@ export function Shell({ children }: { children: ReactNode }) {
         })}
       </ul>
     </nav>
-    <main id="main" tabIndex={-1} className={styles.main}>
+    <main id="main" tabIndex={-1} className={styles.main} data-split={page?.split || undefined}>
       {/* The screen bar is inside the transition group so it moves with its
           page; outside it, the group animated from below the old page's top
           and looked like the content being pushed down. */}

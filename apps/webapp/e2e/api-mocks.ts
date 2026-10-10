@@ -77,6 +77,26 @@ export interface ApiMockOptions {
   onPreferencesUpdate?: (profile: SearchProfile) => void;
   onJobsRequest?: (url: URL) => void;
   jobsError?: boolean | ((url: URL) => boolean);
+  /** The feed's jobs (default: the smoke job). Job reads and writes use them too. */
+  jobs?: MockJob[];
+  saved?: MockJob[];
+  applied?: MockJob[];
+  /** Every write, for assertions. */
+  onWrite?: (write: { method: string; path: string; body: unknown }) => void;
+}
+
+export type MockJob = Omit<typeof smokeJob, "saved" | "applied" | "id" | "external_id" | "title" | "company_name" | "company_id"> & {
+  id: string;
+  external_id: string;
+  title: string;
+  company_name: string;
+  company_id: string;
+  saved?: boolean;
+  applied?: boolean;
+};
+
+export function mockJob(id: string, overrides: Partial<MockJob> = {}): MockJob {
+  return { ...smokeJob, id, external_id: `ext-${id}`, saved: false, ...overrides };
 }
 
 const smokeCompanies = [
@@ -160,6 +180,10 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
     preferences: { search_profile: searchProfile },
   });
 
+  // Writes to a job stick, so refetches after a change see it.
+  const writes = new Map<string, Record<string, unknown>>();
+  const current = <Job extends { id: string }>(job: Job): Job => ({ ...job, ...writes.get(job.id) });
+
   await page.route("**/api/v2/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -205,10 +229,29 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
         lastPolled: "2026-08-25T12:00:00.000Z",
       });
     }
+    if (request.method() !== "GET") {
+      options.onWrite?.({ method: request.method(), path, body: request.postDataJSON() });
+    }
+    const jobs = (options.jobs ?? [smokeJob]).map(current);
+    const everyJob = () => {
+      // The smoke job is saved by default, so it belongs to the default saved list.
+      const all = [...(options.jobs ?? []), ...(options.saved ?? [smokeJob]), ...(options.applied ?? [])];
+      return [...new Map(all.map((job) => [job.id, current(job)])).values()];
+    };
     if (path === "/interactions/viewed-jobs") return json(route, { job_ids: [] });
-    if (path === "/jobs/saved/list") return json(route, { jobs: [smokeJob] });
-    if (path === "/jobs/applied/list") return json(route, { jobs: [] });
-    if (path === `/jobs/${smokeJob.id}`) return json(route, smokeJob);
+    if (path === "/jobs/saved/list") return json(route, { jobs: everyJob().filter((job) => job.saved) });
+    if (path === "/jobs/applied/list") return json(route, { jobs: everyJob().filter((job) => job.applied) });
+    const jobPath = /^\/jobs\/([^/]+)$/.exec(path);
+    if (jobPath && jobPath[1] !== "saved" && jobPath[1] !== "applied") {
+      const id = decodeURIComponent(jobPath[1]);
+      const known = [...jobs, ...(options.saved ?? []), ...(options.applied ?? [])].find((job) => job.id === id)
+        ?? (id === smokeJob.id ? smokeJob : null);
+      if (!known) return json(route, { error: "Job not found" }, 404);
+      if (request.method() === "PATCH") {
+        writes.set(id, { ...writes.get(id), ...(request.postDataJSON() as Record<string, unknown>) });
+      }
+      return json(route, current(known));
+    }
     if (path === "/jobs") {
       options.onJobsRequest?.(url);
       const jobsError = typeof options.jobsError === "function"
@@ -218,8 +261,8 @@ export async function installApiMocks(page: Page, options: ApiMockOptions = {}):
         return json(route, { error: "Jobs could not be loaded." }, 503);
       }
       return json(route, {
-        jobs: [smokeJob],
-        meta: { total: 1, count: 1, has_more: false, next_offset: 1 },
+        jobs,
+        meta: { total: jobs.length, count: jobs.length, has_more: false, next_offset: jobs.length },
       });
     }
 

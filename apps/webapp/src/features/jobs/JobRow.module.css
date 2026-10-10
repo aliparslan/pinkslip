@@ -29,8 +29,10 @@
   padding-inline-end: calc(var(--control-height-small) + var(--space-3));
 }
 
+/* The job open beside the list: a raised row with the accent edge. */
 .link[aria-current="page"] {
   background: var(--color-bg-elev);
+  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 .link:focus-visible {

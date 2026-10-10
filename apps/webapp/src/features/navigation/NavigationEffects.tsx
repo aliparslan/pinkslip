@@ -20,8 +20,10 @@ export function NavigationEffects() {
 
   useEffect(() => {
     if (previousPath.current && pathname !== previousPath.current) {
+      // The open job's pane when it sits beside its list, else the page.
       // Prevent focus from undoing the router's history scroll restoration.
-      document.getElementById("main")?.focus({ preventScroll: true });
+      const target = document.querySelector<HTMLElement>("[data-route-focus]") ?? document.getElementById("main");
+      target?.focus({ preventScroll: true });
     }
     previousPath.current = pathname;
   }, [pathname]);
