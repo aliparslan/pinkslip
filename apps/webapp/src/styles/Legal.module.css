@@ -1,0 +1,79 @@
+/* Long-form legal text, matching the current app's screen titles, section
+   titles and job-description prose. Body markup is shared HTML, so its
+   elements are styled through the `.body` container. */
+.page {
+  max-width: var(--app-reading-width);
+}
+
+.header {
+  margin-block-end: var(--space-8);
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-ink-4);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading);
+  font-size: var(--fs-root-title);
+  font-weight: 600;
+  line-height: var(--leading-root-title);
+  letter-spacing: var(--tracking-root-title);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.body {
+  color: var(--color-ink-2);
+  font-size: var(--fs-md);
+  line-height: var(--leading-body);
+}
+
+.body h2 {
+  margin: var(--space-8) 0 var(--space-2);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.body p,
+.body ul {
+  margin: 0 0 var(--space-3);
+  text-wrap: pretty;
+}
+
+.body ul {
+  padding-inline-start: var(--space-5);
+  list-style: disc;
+}
+
+.body li + li {
+  margin-block-start: var(--space-2);
+}
+
+.body strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.body a {
+  color: var(--color-ink);
+  text-decoration: underline;
+}
+
+.body nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin-block-start: var(--space-6);
+}

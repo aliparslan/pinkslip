@@ -62,8 +62,19 @@ test("applies stored and system appearance before hydration", async ({ page }) =
   await expect(page.locator("html")).toHaveAttribute("data-mode", "dark");
 });
 
-test("forwards legal pages, AASA and private-route authorization", async ({ request }) => {
-  for (const path of ["/privacy", "/support", "/legal.css", "/apple-app-site-association", "/.well-known/apple-app-site-association"]) {
+test("renders legal pages in the app with their canonical URLs", async ({ page }) => {
+  for (const [path, title] of [["/privacy", "Privacy policy"], ["/support", "Support"]] as const) {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(page).toHaveTitle(`${title} · Pinkslip`);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `https://pinkslip.work${path}`);
+    await expect(page.getByRole("link", { name: "login@pinkslip.work" }).first()).toBeVisible();
+  }
+});
+
+test("forwards AASA and private-route authorization", async ({ request }) => {
+  for (const path of ["/apple-app-site-association", "/.well-known/apple-app-site-association"]) {
     const response = await request.get(path);
     expect(response.status()).toBe(200);
     expect(response.headers()["x-robots-tag"]).toBe("noindex, nofollow");
