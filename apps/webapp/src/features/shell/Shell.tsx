@@ -85,6 +85,10 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
     </nav>
     <main id="main" tabIndex={-1} className={styles.main}>
+      {/* The screen bar is inside the transition group so it moves with its
+          page; outside it, the group animated from below the old page's top
+          and looked like the content being pushed down. */}
+      <div className={styles.content}>
       {page && page.depth > 0 && <header className={styles.screenNav}>
         <IconButtonAnchor icon={CaretLeft} label="Back" iconSize={22} tone="strong"
           href={backTarget(page, location.pathname, location.search)}
@@ -98,7 +102,8 @@ export function Shell({ children }: { children: ReactNode }) {
       {admin && <nav aria-label="Admin navigation" className={styles.phoneSections}>
         <SectionLinks paths={adminPages} pathname={location.pathname} />
       </nav>}
-      <div className={styles.content}>{children}</div>
+      {children}
+      </div>
     </main>
   </div>;
 }

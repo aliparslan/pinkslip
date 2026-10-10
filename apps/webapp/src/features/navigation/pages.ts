@@ -14,7 +14,7 @@ export const pages = {
   "/library/applied": { title: "Applied", shell: "consumer", depth: 0, root: "library" },
   "/you": { title: "You", shell: "consumer", depth: 0, root: "you" },
   "/you/preferences": { title: "Job preferences", shell: "consumer", depth: 1, root: "you" },
-  "/you/alerts": { title: "Job alerts", shell: "consumer", depth: 1, root: "you" },
+  "/you/alerts": { title: "Alerts", shell: "consumer", depth: 1, root: "you" },
   "/you/companies": { title: "Companies", shell: "consumer", depth: 1, root: "you" },
   "/you/resume": { title: "Resume", shell: "consumer", depth: 1, root: "you" },
   "/you/tailoring": { title: "Tailoring", shell: "consumer", depth: 1, root: "you" },

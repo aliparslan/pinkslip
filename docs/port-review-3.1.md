@@ -39,8 +39,8 @@ current design already has an answer.
    overview renders a grouped `Surface` list of its destinations; the shell
    only adds the nested sidebar links on wide screens, grouped like the
    current secondary nav.
-4. **Labels drifted from the current copy.** "Alerts" and "Feedback" are "Job
-   alerts" and "Help and feedback" in the current app. *Fixed.*
+4. **Labels drifted from the current copy.** "Feedback" is "Help and
+   feedback" in the current app. *Fixed.* (The owner kept "Alerts".)
 5. **Kit rule: section links used weight 600** for the active item. The rules
    reserve 600 for display type. *Fixed* (500, with the soft background).
 6. **Raw markup in a new route.** `you.index.tsx` kept the foundation's raw

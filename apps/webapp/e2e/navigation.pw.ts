@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 const placeholders = [
   ["/library/saved", "Library", "Library · Saved"],
   ["/library/applied", "Library", "Library · Applied"],
-  ["/you/preferences", "Job preferences"], ["/you/alerts", "Job alerts"],
+  ["/you/preferences", "Job preferences"], ["/you/alerts", "Alerts"],
   ["/you/companies", "Companies"], ["/you/resume", "Resume"],
   ["/you/tailoring", "Tailoring"], ["/you/answers", "Application answers"],
   ["/you/account", "Account"], ["/you/feedback", "Help and feedback"],
