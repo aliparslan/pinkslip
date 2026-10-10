@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 // Page-level states (port plan 3.3): 404s and the route error boundary.
 

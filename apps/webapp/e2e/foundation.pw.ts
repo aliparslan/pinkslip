@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 test("public page renders without JavaScript and stays unindexed", async ({ request, browser }) => {
@@ -14,14 +14,18 @@ test("public page renders without JavaScript and stays unindexed", async ({ requ
   await context.close();
 });
 
-test("browser navigation uses the existing same-origin account API", async ({ page, request }) => {
+test.describe("against the real account API", () => {
+  test.use({ realSession: true });
+  test("browser navigation uses the existing same-origin account API", async ({ page, request }) => {
   const html = await (await request.get("/you")).text();
   expect(html).not.toContain("Your account and preferences will live here.");
   const account = page.waitForResponse((response) => response.url().endsWith("/api/v2/me"));
   await page.goto("/");
   await page.getByRole("link", { name: "You", exact: true }).click();
   expect([200, 401]).toContain((await account).status());
-  await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
+  // A local ACCESS_CODE in .dev.vars locks personal pages behind the gate.
+  await expect(page.getByRole("heading", { level: 1 }).filter({ hasText: /^(You|Enter the shared code)$/ })).toBeVisible();
+  });
 });
 
 test("public job data comes from Hono and missing jobs have real 404s", async ({ request }) => {
