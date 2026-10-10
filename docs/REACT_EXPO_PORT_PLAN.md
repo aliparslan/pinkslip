@@ -1,6 +1,7 @@
 # React + Expo port plan
 
 Drafted 2026-10-09. Status: **in progress**. 0.1 and 0.2 are done. The [0.3 parity inventory](port-parity.md) is drafted; architecture and design direction were reviewed on 2026-10-09, with remaining feature-scope choices still recorded there. D1–D3, D5, D6, D11 and D12–D16 are decided; the rest are due at the chunk that needs them.
+**2026-10-09 (owner, after reviewing the foundation):** switch over at 3.4 and accept the gaps; the ~dozen testers know there will be downtime. Native work waits for Phase 6. Review fixes applied: page security headers on the web Worker, the public job projection limited to roles the app lists (early-career stage, US, no clearance, has a description), and the dead `{ uri, name, type }` upload path removed. See `docs/port-foundation-review.md`.
 The owner reaffirmed outright replacement in 3.4: no users yet, so no preview domain and no side-by-side running. Cutover remains at the shell/placeholder stage; it does not wait for the core feature loop.
 
 Implementation started 2026-10-09: [web foundation](../apps/webapp/README.md)
@@ -565,7 +566,7 @@ expo-file-system's `File` Blob; the `{uri,name,type}` triple fails in Expo's
 native fetch. Details, harness commands and remaining gaps are in
 [apps/native/README.md](../apps/native/README.md).
 
-**1.6c Application browser and autofill bridge** · M
+**1.6c Application browser and autofill bridge** · M · ⏸ parked 2026-10-09 until Phase 6, so the web port (and the features waiting on it) comes first
 Use controlled form fixtures to prove injected read/fill scripts, file
 attachment, page changes, typed bridge messages, timeout/close cleanup, and
 manual completion. Verify Pinkslip credentials stay outside the form page.
@@ -811,7 +812,7 @@ code was already deleted in 3.4).
 |---|---|---|---|---|
 | D1 | Earlier attempt on main | Delete from main / leave it | ✅ **Delete** (decided 2026-10-09). Git history and the stash keep it | 0.2 |
 | D2 | Svelte freeze | Freeze after the answer bank lands / keep building in Svelte | ✅ **Replace outright** (decided and reaffirmed 2026-10-09; no users yet). Frozen until the shell/placeholder cutover in 3.4, then deleted; do not defer cutover until the feature loop is complete | 0.1 / 3.4 |
-| D3 | Fonts | Klim (buy **web and app** licences; the app licence matters once Expo bundles the fonts) / Geist (OFL, free) | ✅ **Klim** (decided 2026-10-09). Licences bought before launch; trial files are fine until then. Make sure the bought files include the full character set (see 1.2) | 1.2 |
+| D3 | Fonts | Klim (buy **web and app** licences; the app licence matters once Expo bundles the fonts) / Geist (OFL, free) | ✅ **Klim** (decided 2026-10-09). Licences bought before launch; trial files are fine until then. Make sure the bought files include the full character set (see 1.2) **iOS uses the system font (SF) for now** (owner, 2026-10-09), so the Klim app licence is only needed if that changes. | 1.2 |
 | D4 | Form library | TanStack Form / React Hook Form | **TanStack Form**: form-level listeners suit autosave, types are stricter, works on RN. Switch to RHF if it fights us in 4.6 | 4.6 |
 | D5 | Hosting | Separate web Worker + service binding / one Worker composing both | ✅ **Separate** (decided 2026-10-09; account recorded as on the $5 Paid plan): fixes the deploy coupling behind the Oct 5 outage. No second subscription; ordinary service-binding requests have no extra request fee. SSR still adds metered CPU and requests; see cost clarification above | 1.1 |
 | D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | ✅ **Neither** (decided 2026-10-09; no users yet). Capacitor is deleted in 3.4, and iOS gets no updates until the Expo app ships | 3.4 |

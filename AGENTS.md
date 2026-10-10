@@ -26,6 +26,25 @@ inline visual variant just because it is faster to generate.
 - Run `bun run check`, `bun test`, and both frontend builds after material UI or
   architecture changes.
 
+## React + Expo port (in progress)
+
+The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
+
+- New UI work goes in the React app (`apps/webapp`, TanStack Start + Base UI +
+  CSS Modules). The Svelte app (`apps/web`, `packages/client`, `apps/ios`) gets
+  no new work and is deleted at the cutover in chunk 3.4 (tagged
+  `svelte-final`). The owner accepts the gaps that cutover leaves for the
+  dozen or so testers.
+- The port reproduces the current design. The redesign is a separate, later
+  project; don't redesign screens during the port.
+- No Tailwind or NativeWind, anywhere. No Next.js.
+- Fonts are the Klim trial files until the owner buys the web and app
+  licences. Keep the glyph check passing.
+- Hono stays the only API. Start server functions don't become a second API.
+- Don't name things "next" (domains, scripts, branches).
+- Don't push, deploy, or run remote migrations without the owner's go-ahead
+  for that change. Never add AI co-author trailers to commits.
+
 ## Repository workflow
 
 Do not create pull requests. Commit and push authorized changes directly to
