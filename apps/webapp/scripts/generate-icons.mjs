@@ -37,6 +37,8 @@ await writeFile(new URL("../public/icons/notification-badge.svg", import.meta.ur
 const browser = await chromium.launch();
 const page = await browser.newPage();
 for (const [file, source, size] of [
+  // Tab icon for browsers without SVG favicons (older Safari): the bare mark.
+  ["favicon-96.png", favicon, 96],
   ["icon-192.png", tile, 192],
   ["icon-512.png", tile, 512],
   ["icon-maskable-512.png", maskable, 512],
@@ -47,4 +49,4 @@ for (const [file, source, size] of [
   await page.screenshot({ path: new URL(`../public/icons/${file}`, import.meta.url).pathname, omitBackground: true });
 }
 await browser.close();
-console.log("Wrote favicon.svg, notification-badge.svg and four PNG icons.");
+console.log("Wrote favicon.svg, notification-badge.svg and five PNG icons.");

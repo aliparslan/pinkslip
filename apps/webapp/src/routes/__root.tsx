@@ -24,8 +24,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     links: [
       ...[themeCss, fontsCss, resetCss, baseCss, navigationCss].map((href) => ({ rel: "stylesheet", href })),
       // The installable-app metadata the Svelte site shipped (apps/web/src/app.html).
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },
+      // Tab icons are the bare mark only: browsers that also saw the 192px
+      // install icon (a pink tile) sometimes picked it for the tab.
+      { rel: "icon", type: "image/svg+xml", sizes: "any", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "96x96", href: "/icons/favicon-96.png" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon-180.png" },
       { rel: "manifest", href: "/manifest.json" },
     ],
