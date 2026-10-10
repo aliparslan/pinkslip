@@ -221,7 +221,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
     <div className={styles.actionBar}>
       {(closed || !job.url) && !applied && <p className={styles.actionStatus} id="application-status">
         {closed ? "This listing is closed." : "Application link unavailable."}
-        {access.canAct && <button type="button" className={styles.textButton} onClick={() => setReporting(true)}>Report listing</button>}
+        {access.personal && <button type="button" className={styles.textButton} onClick={() => setReporting(true)}>Report listing</button>}
       </p>}
       <div className={styles.actions}>
         {applied
@@ -230,23 +230,24 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
             aria-describedby={closed || !job.url ? "application-status" : undefined}
             onClick={() => {
               if (access.personal) track("apply_clicked", { type: "job", id: job.id });
-              openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: job.url });
+              // Only a session can record an application, so visitors aren't asked.
+              openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: job.url }, access.personal);
             }}>
             {closed ? "Listing closed" : job.url ? "Apply" : "Link unavailable"}
           </Button>}
-        {access.canAct && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}
+        {access.canRead && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}
           aria-label={saved ? "Remove from saved jobs" : "Save job"}>
           {saved ? "Saved" : "Save"}
         </Button>}
         <Menu label="More job actions" trigger={{ icon: DotsThree, label: "More job actions" }}>
-          {access.canAct && (applied
+          {access.personal && (applied
             ? <MenuItem icon={ArrowCounterClockwise} onSelect={() => setApplied(false)}>I didn't apply</MenuItem>
             : <MenuItem icon={CheckCircle} onSelect={() => setApplied(true)}>I applied</MenuItem>)}
-          {access.canAct && !applied && <MenuItem icon={ThumbsDown} onSelect={notInterested}>Not interested</MenuItem>}
+          {access.personal && !applied && <MenuItem icon={ThumbsDown} onSelect={notInterested}>Not interested</MenuItem>}
           {access.personal && <MenuItem icon={Sparkle} onSelect={() => void navigate({ to: "/tailor/$jobId", params: { jobId: job.id }, search: from ? { from } : {} })}>Tailor resume</MenuItem>}
           <MenuItem icon={ShareNetwork} onSelect={() => void share(job)}>Share</MenuItem>
           {access.personal && job.company_id && <MenuItem icon={EyeSlash} onSelect={hideTheCompany}>Hide {job.company_name}</MenuItem>}
-          {access.canAct && <MenuItem icon={Flag} onSelect={() => setReporting(true)}>Report listing</MenuItem>}
+          {access.personal && <MenuItem icon={Flag} onSelect={() => setReporting(true)}>Report listing</MenuItem>}
           {access.admin && <>
             <MenuSeparator />
             <MenuItem icon={Prohibit} tone="danger" onSelect={() => setConfirmBlock(true)}>Block for everyone</MenuItem>

@@ -42,10 +42,12 @@ test.describe("feed", () => {
     await expect.poll(() => last()?.get("min_salary")).toBe("120000");
     expect(last()?.get("saved")).toBe("true");
     expect(last()?.get("stages")).toBe("new_grad,early_career");
-    await expect(page.getByRole("button", { name: "Filters, 3 active" })).toBeVisible();
+    // The profile's metros are preselected, as in the current app.
+    expect(last()?.get("locations")).toContain("chicago");
+    await expect(page.getByRole("button", { name: "Filters, 4 active" })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole("button", { name: "Filters, 3 active" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filters, 4 active" })).toBeVisible();
   });
 
   test("an empty filtered feed offers to clear the filters", async ({ page }) => {
@@ -54,6 +56,7 @@ test.describe("feed", () => {
     await expect(page.getByRole("heading", { name: "No jobs match your filters" })).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
     await expect(page).not.toHaveURL(/min=/);
+    await expect(page).toHaveURL(/loc=all/);
     await expect(page.getByRole("heading", { name: "No jobs right now" })).toBeVisible();
     await expect(page.getByText("You’re all caught up. Go touch grass.")).toHaveCount(0);
   });
@@ -70,20 +73,25 @@ test.describe("feed", () => {
     await expect(page.locator('[data-job-id="job-b"]')).toBeVisible();
   });
 
-  test("visitors get the public preview with local search and no filters", async ({ page }) => {
+  test("visitors read the full feed with filters; only saving starts a session", async ({ page }) => {
+    const requests: URL[] = [];
+    await installApiMocks(page, { jobs, onJobsRequest: (url) => requests.push(url) });
     await page.route("**/api/v2/me", (route) => route.fulfill({
       status: 200, contentType: "application/json",
       body: JSON.stringify({ user: null, session: { state: "anonymous" }, account: null, is_admin: false }),
     }));
-    let personalRequests = 0;
-    await page.route("**/api/v2/jobs?**", (route) => { personalRequests += 1; return route.abort(); });
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await expect(page.getByRole("heading", { level: 1, name: "Jobs" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Filters/ })).toHaveCount(0);
-    await page.getByRole("searchbox", { name: "Search jobs or companies" }).fill("zzzz-no-such-job");
-    await expect(page.getByRole("heading", { name: "No matches" })).toBeVisible();
-    expect(personalRequests).toBe(0);
+    await expect(page.locator('[data-job-id="job-b"]')).toBeVisible();
+    expect(requests.length).toBeGreaterThan(0);
+    await page.getByRole("button", { name: /Filters/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Filters" });
+    await expect(sheet.getByRole("switch", { name: "Saved jobs only" })).toHaveCount(0);
+    await sheet.getByRole("button", { name: "Close filters" }).click();
+
+    await page.getByRole("button", { name: "Actions for Platform Engineer at Northstar Labs" }).click();
+    await expect(page.getByRole("menuitem", { name: "Save" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Hide" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: /Mark as/ })).toHaveCount(0);
   });
 });
 

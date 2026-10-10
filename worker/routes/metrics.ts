@@ -1,3 +1,4 @@
+import { CATALOG_READER_ID } from "../catalog-reader";
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
 import type { Env, Variables } from "../types";
@@ -258,7 +259,8 @@ metrics.get("/", async (c) => {
                WHERE ubc.user_id = usp.user_id AND ubc.company_id = j.company_id
              )
          ) >= 10 THEN 1 ELSE 0 END) AS enough_matches
-       FROM user_search_profiles usp`
+       FROM user_search_profiles usp
+       WHERE usp.user_id != '${CATALOG_READER_ID}'`
     ).bind(MATCHER_VERSION).first<ViableUserRow>(),
     db.prepare(
       "SELECT COUNT(*) AS count FROM content_reports WHERE status = 'open'"

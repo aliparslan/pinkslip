@@ -8,7 +8,7 @@ import type { JobRowJob } from "../jobs/JobRow";
 import { useJobActions } from "../jobs/useJobActions";
 import { useTrack } from "../jobs/track";
 import { PageFailure } from "../states/LoadStates";
-import { availableStages, feedParams, filterCount, withoutRefinements, type FeedSearch } from "./criteria";
+import { availableStages, feedParams, filterCount, profileLocations, withoutRefinements, type FeedSearch } from "./criteria";
 import { FilterSheet } from "./FilterSheet";
 import styles from "./Feed.module.css";
 
@@ -33,19 +33,25 @@ export interface FeedProps {
 /**
  * `Feed.svelte` for the web: the Jobs title, search and filters, the
  * poller's staleness notice, then the list with incremental loading. With a
- * session it's the personalized feed; visitors and the locked deployment get
- * the public preview the page was server-rendered with.
+ * session it's the personalized feed; a visitor reads the same feed as a new
+ * guest would. Only the locked deployment (and the server render) shows the
+ * public preview.
  */
 export function Feed({ search, onSearchChange, selectedId, onOrderChange }: FeedProps) {
   const { actions, dialog, onOpen, access } = useJobActions("feed");
   const { personal } = access;
-  const preferences = usePreferences(personal);
+  // Visitors read the feed too (as the API's catalog account); only the
+  // locked deployment can't.
+  const reader = access.canRead;
+  const preferences = usePreferences(reader);
   const profile = preferences.data?.search_profile;
   const available = useMemo(() => availableStages(profile?.target_levels), [profile?.target_levels]);
-  const params = useMemo(() => feedParams(search, available), [search, available]);
-  const feed = useFeed(params, personal && (!search.stage || preferences.isSuccess));
+  const defaults = useMemo(() => profileLocations(profile), [profile]);
+  const params = useMemo(() => feedParams(search, available, defaults), [search, available, defaults]);
+  // Locations and stages default from the profile, so the request waits for it.
+  const feed = useFeed(params, reader && preferences.isSuccess);
   const preview = usePublicJobs();
-  const stats = useStats(personal);
+  const stats = useStats(reader);
   const viewed = useViewedJobs(personal);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -73,11 +79,11 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
     () => (preview.data?.jobs ?? []).filter((job) => matches(job, text)),
     [preview.data, text],
   );
-  const showPersonal = personal && (personalJobs !== undefined || feed.isError);
+  const showPersonal = reader && (personalJobs !== undefined || feed.isError);
   const jobs: readonly JobRowJob[] = showPersonal ? (personalJobs ?? []) : previewJobs;
   const total = showPersonal ? Math.max(feed.data?.pages[0]?.meta.total ?? 0, jobs.length) : jobs.length;
-  // A first personal load with filters set has nothing honest to show yet.
-  const waiting = personal && !showPersonal && (feed.isPending && Object.keys(search).length > 0);
+  // A first feed load with filters set has nothing honest to show yet.
+  const waiting = reader && !showPersonal && (feed.isPending && Object.keys(search).length > 0);
 
   useEffect(() => { onOrderChange?.(jobs.map((job) => job.id)); }, [jobs, onOrderChange]);
 
@@ -131,7 +137,7 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
   const lastPolled = stats.data?.lastPolled;
   // Compared once per render; the notice only needs to be roughly right.
   const pollStale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
-  const filters = filterCount(search, available);
+  const filters = filterCount(search, available, defaults);
   const refinements = filters - (search.saved ? 1 : 0);
 
   return <section className={styles.root} aria-labelledby="feed-title">
@@ -146,17 +152,17 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
         onChange={(event) => {
           const value = event.target.value;
           setText(value);
-          if (!personal) return;
+          if (!reader) return;
           if (timer.current !== null) window.clearTimeout(timer.current);
           timer.current = window.setTimeout(() => commitSearch(value), SEARCH_DEBOUNCE_MS);
         }}
         onKeyDown={(event) => {
-          if (event.key !== "Enter" || !personal) return;
+          if (event.key !== "Enter" || !reader) return;
           event.preventDefault();
           commitSearch(event.currentTarget.value);
         }}
       />
-      {personal && <Button variant="secondary" icon={SlidersHorizontal} onClick={() => setFiltersOpen(true)}
+      {reader && <Button variant="secondary" icon={SlidersHorizontal} onClick={() => setFiltersOpen(true)}
         aria-label={filters > 0 ? `Filters, ${filters} active` : "Filters"}>
         Filters{filters > 0 && <Badge>{filters}</Badge>}
       </Button>}
@@ -172,7 +178,7 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
     <div className={styles.list} aria-busy={feed.isFetching || undefined}>
       {waiting ? <SkeletonRows />
         : showPersonal && feed.isError && !feed.data ? <PageFailure title="Jobs didn't load" onRetry={() => void feed.refetch()} retrying={feed.isFetching} />
-        : jobs.length === 0 ? <EmptyFeed search={search} refinements={refinements} personal={personal}
+        : jobs.length === 0 ? <EmptyFeed search={search} refinements={refinements} live={reader}
           refreshing={feed.isRefetching} onRefresh={refresh}
           onClear={() => onSearchChange(withoutRefinements(search))}
           onClearSearch={() => { setText(""); onSearchChange({ ...search, q: undefined }); }}
@@ -186,8 +192,8 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
         </>}
     </div>
 
-    {personal && <FilterSheet open={filtersOpen} onOpenChange={setFiltersOpen} search={search} available={available}
-      metros={profile?.location_ids ?? []} onApply={onSearchChange} />}
+    {reader && <FilterSheet open={filtersOpen} onOpenChange={setFiltersOpen} search={search} available={available}
+      defaults={defaults} personal={personal} onApply={onSearchChange} />}
     {dialog}
   </section>;
 }
@@ -208,7 +214,8 @@ function SkeletonRows() {
 interface EmptyFeedProps {
   search: FeedSearch;
   refinements: number;
-  personal: boolean;
+  /** The real feed (not the locked preview): it can filter and refresh. */
+  live: boolean;
   refreshing: boolean;
   text: string;
   onRefresh: () => void;
@@ -216,8 +223,8 @@ interface EmptyFeedProps {
   onClearSearch: () => void;
 }
 
-function EmptyFeed({ search, refinements, personal, refreshing, text, onRefresh, onClear, onClearSearch }: EmptyFeedProps) {
-  const searching = Boolean(personal ? search.q : text.trim());
+function EmptyFeed({ search, refinements, live, refreshing, text, onRefresh, onClear, onClearSearch }: EmptyFeedProps) {
+  const searching = Boolean(live ? search.q : text.trim());
   if (searching && refinements === 0) {
     return <EmptyState icon={MagnifyingGlass} title="No matches"
       message="Try a different company, title or city."
@@ -233,7 +240,7 @@ function EmptyFeed({ search, refinements, personal, refreshing, text, onRefresh,
       : saved ? "Save roles from the job page to keep them handy."
         : "New roles show up here as they’re posted.";
   return <EmptyState icon={refinements > 0 ? Funnel : undefined} title={title} message={message}
-    actions={personal && <>
+    actions={live && <>
       {refinements > 0 && <Button variant="secondary" onClick={onClear}>Clear filters</Button>}
       <Button variant="secondary" icon={ArrowClockwise} pending={refreshing} onClick={onRefresh}>Refresh now</Button>
     </>} />;

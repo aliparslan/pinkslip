@@ -158,7 +158,8 @@ describe("public job projection", () => {
 
   it("leaves personal routes protected, including behind the invite gate", async () => {
     const { request, env, queries } = fixture();
-    for (const path of ["/jobs", "/profile", "/companies"]) {
+    // The feed list itself is readable (as the catalog account; see auth tests).
+    for (const path of ["/jobs/saved/list", "/profile", "/companies"]) {
       const response = await request(path);
       expect(response.status).toBe(401);
       expect(await response.json()).toMatchObject({ code: "session_required" });

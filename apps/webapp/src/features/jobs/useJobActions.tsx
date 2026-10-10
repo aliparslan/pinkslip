@@ -10,9 +10,10 @@ import type { JobRowActions, JobRowJob } from "./JobRow";
 
 export type JobListContext = "feed" | "saved" | "applied";
 
-/** What the person can do from here: the public catalog behind the access
- * code is read-only; a visitor without a session can save or hide (their
- * first change starts a guest session, as the API designs it). */
+/** What the person can do from here. Behind the access code only the public
+ * catalog is readable. A visitor without a session reads the full feed (as
+ * the API's catalog account) and can save, which starts a guest session;
+ * everything else needs a session (owner, 2026-10-10). */
 const subscribeNever = () => () => {};
 
 export function useSessionAccess() {
@@ -24,7 +25,7 @@ export function useSessionAccess() {
   return {
     state,
     personal: state === "guest" || state === "authenticated",
-    canAct: state === "guest" || state === "authenticated" || state === "anonymous",
+    canRead: state === "guest" || state === "authenticated" || state === "anonymous",
     admin: hydrated && Boolean(session?.me?.is_admin),
   };
 }
@@ -65,7 +66,7 @@ export function useJobActions(context: JobListContext) {
     onError: () => toast.error("Couldn't save that job. Try again."),
   });
 
-  const actions: JobRowActions = !access.canAct ? {} : {
+  const actions: JobRowActions = !access.canRead ? {} : {
     onSave: context === "feed" ? saveJob : undefined,
     onUnsave: context === "saved" ? (job) => unsave.mutate(job.id, {
       onSuccess: () => toast.show({
@@ -92,7 +93,7 @@ export function useJobActions(context: JobListContext) {
         onError: () => toast.error("Couldn't update that job. Try again."),
       })
       : undefined,
-    onHide: context === "feed" ? (job) => {
+    onHide: context === "feed" && access.personal ? (job) => {
       hideJob(job.id).then((hidden) => {
         promote();
         toast.show({

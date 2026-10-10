@@ -1,8 +1,8 @@
 import { useId, useState } from "react";
-import { CAREER_STAGE_OPTIONS, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
+import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, type CareerStage } from "@pinkslip/domain/search-profile";
 import { Button, Field, Input, Menu, MenuCheckboxItem, MultiToggleGroup, Sheet, Stack, Switch, Text } from "../../kit";
 import {
-  locationLabels, locationSummary, locations as chosenLocations, selectedStages, type FeedLocation, type FeedSearch,
+  locationLabels, locationParam, locationSummary, locations as chosenLocations, selectedStages, type FeedLocation, type FeedSearch,
 } from "./criteria";
 import styles from "./Feed.module.css";
 
@@ -17,9 +17,9 @@ interface Draft {
   saved: boolean;
 }
 
-function draftFrom(search: FeedSearch, available: readonly CareerStage[]): Draft {
+function draftFrom(search: FeedSearch, available: readonly CareerStage[], defaults: readonly FeedLocation[]): Draft {
   return {
-    locations: chosenLocations(search),
+    locations: chosenLocations(search, defaults),
     min: search.min ? String(search.min) : "",
     max: search.max ? String(search.max) : "",
     stages: selectedStages(search, available),
@@ -36,19 +36,22 @@ export interface FilterSheetProps {
   search: FeedSearch;
   /** The profile's career stages; the filter can only narrow them. */
   available: readonly CareerStage[];
-  /** The profile's metros; other metros would only ever be empty. */
-  metros: readonly LocationId[];
+  /** The profile's own locations, preselected when the URL has none. */
+  defaults: readonly FeedLocation[];
+  /** "Saved jobs only" needs a session. */
+  personal: boolean;
   onApply: (search: FeedSearch) => void;
 }
 
 /** The feed's filter sheet (`Feed.svelte`'s `.filter-sheet`). Changes are a
  * draft until Apply, so closing the sheet discards them. */
-export function FilterSheet({ open, onOpenChange, search, available, metros, onApply }: FilterSheetProps) {
-  const [draft, setDraft] = useState(() => draftFrom(search, available));
+export function FilterSheet({ open, onOpenChange, search, available, defaults, personal, onApply }: FilterSheetProps) {
+  const [draft, setDraft] = useState(() => draftFrom(search, available, defaults));
   const locationLabel = useId();
   const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
-  const choices: FeedLocation[] = ["remote", ...metros];
-  const defaults = draftFrom({}, available);
+  // Every metro, as in the current app, not just the profile's.
+  const choices: FeedLocation[] = ["remote", ...LOCATION_OPTIONS.map((option) => option.id)];
+  const cleared: Draft = { ...draftFrom({}, available, defaults), locations: [] };
   const changed = draft.locations.length > 0 || draft.min || draft.max || draft.stages.length !== available.length
     || draft.listing !== "any" || draft.saved;
 
@@ -56,13 +59,14 @@ export function FilterSheet({ open, onOpenChange, search, available, metros, onA
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setDraft(draftFrom(search, available));
+    if (open) setDraft(draftFrom(search, available, defaults));
   }
 
   const apply = () => {
     const next: FeedSearch = {};
     if (search.q) next.q = search.q;
-    if (draft.locations.length > 0) next.loc = draft.locations.join(",");
+    const loc = locationParam(draft.locations, defaults);
+    if (loc) next.loc = loc;
     const min = Number.parseInt(draft.min, 10);
     const max = Number.parseInt(draft.max, 10);
     if (min > 0) next.min = min;
@@ -76,7 +80,7 @@ export function FilterSheet({ open, onOpenChange, search, available, metros, onA
 
   return <Sheet open={open} onOpenChange={onOpenChange} title="Filters" closeLabel="Close filters"
     footer={<div className={styles.sheetActions} data-single={changed ? undefined : true}>
-      {changed && <Button variant="secondary" onClick={() => setDraft(defaults)}>Reset</Button>}
+      {changed && <Button variant="secondary" onClick={() => setDraft(cleared)}>Reset</Button>}
       <Button variant="primary" onClick={apply}>Apply</Button>
     </div>}>
     <Stack gap="6">
@@ -110,10 +114,10 @@ export function FilterSheet({ open, onOpenChange, search, available, metros, onA
             .map((option) => ({ value: option.id, label: option.label }))} />
       </Stack>}
 
-      <div className={styles.toggleRow}>
+      {personal && <div className={styles.toggleRow}>
         <Text>Saved jobs only</Text>
         <Switch label="Saved jobs only" checked={draft.saved} onCheckedChange={(saved) => set({ saved })} />
-      </div>
+      </div>}
     </Stack>
   </Sheet>;
 }

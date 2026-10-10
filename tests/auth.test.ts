@@ -1,3 +1,4 @@
+import { CATALOG_READER_ID } from "../worker/catalog-reader";
 import { describe, it, expect } from "bun:test";
 import { Hono } from "hono";
 import {
@@ -219,6 +220,10 @@ function appWith() {
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
   }));
+  app.get("/api/v2/jobs", (c) => c.json({
+    userId: c.get("userId"),
+    sessionState: c.get("sessionState"),
+  }));
   app.get("/api/v2/bootstrap", (c) => c.json({
     userId: c.get("userId"),
     sessionState: c.get("sessionState"),
@@ -360,6 +365,22 @@ describe("authMiddleware", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: "", sessionState: "anonymous" });
     expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("lets visitors read the feed as the catalog account without creating a session", async () => {
+    const db = fakeDb({});
+    const app = appWith();
+    const res = await (app.fetch as any)(new Request("http://localhost/api/v2/jobs?q=engineer"), ENV(db));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: CATALOG_READER_ID, sessionState: "anonymous" });
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("keeps the catalog account to the feed list", async () => {
+    const db = fakeDb({});
+    const app = appWith();
+    const res = await (app.fetch as any)(new Request("http://localhost/api/v2/me"), ENV(db));
+    expect(((await res.json()) as { userId: string }).userId).toBe("");
   });
 
   it("allows the combined bootstrap read without creating a session", async () => {

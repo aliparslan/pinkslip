@@ -1,3 +1,4 @@
+import { CATALOG_READER_ID } from "./catalog-reader";
 import { createMiddleware } from "hono/factory";
 import type {
   AuthIdentityRow,
@@ -368,6 +369,8 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
         "/api/v2/me",
         "/api/v2/preferences",
         "/api/v2/logo",
+        "/api/v2/stats",
+        "/api/v2/jobs",
       ]);
       if (!anonymousReads.has(pathname)) {
         return c.json(
@@ -375,7 +378,10 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
           401
         );
       }
-      c.set("userId", "");
+      // The feed list reads as the built-in catalog account (a new guest's
+      // defaults); everything else stays userless. Writes never get here:
+      // they create a guest session above.
+      c.set("userId", pathname === "/api/v2/jobs" ? CATALOG_READER_ID : "");
       c.set("sessionId", null);
       c.set("sessionState", "anonymous");
       c.set("authTransport", "anonymous");

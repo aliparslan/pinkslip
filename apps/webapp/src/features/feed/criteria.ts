@@ -8,7 +8,8 @@ import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, type CareerStage, type Location
  * absent key means "everything the profile allows".
  *
  * - `q`: search text
- * - `loc`: comma-separated metro ids and/or `remote`
+ * - `loc`: comma-separated metro ids and/or `remote`, or `all` for anywhere;
+ *   absent means the profile's own metros, as the current app preselected
  * - `stage`: comma-separated career stages (a subset of the profile's)
  * - `min`, `max`: salary bounds in thousands of dollars
  * - `listing=evergreen`: only long-running listings
@@ -46,7 +47,7 @@ export function validateFeedSearch(search: Record<string, unknown>): FeedSearch 
   const q = typeof search.q === "string" ? search.q.slice(0, 200) : "";
   const result: FeedSearch = {};
   if (q.trim()) result.q = q;
-  const loc = list(search.loc, locationIds);
+  const loc = search.loc === "all" ? "all" : list(search.loc, locationIds);
   if (loc) result.loc = loc;
   const stage = list(search.stage, stageIds);
   if (stage) result.stage = stage;
@@ -59,8 +60,35 @@ export function validateFeedSearch(search: Record<string, unknown>): FeedSearch 
   return result;
 }
 
-export const locations = (search: FeedSearch): FeedLocation[] =>
-  (search.loc?.split(",") ?? []) as FeedLocation[];
+export interface LocationProfile {
+  location_ids?: readonly string[];
+  work_modes?: readonly string[];
+}
+
+/** The metros the current app preselected from the profile
+ * (`syncFeedPreferences`): only Remote for remote-only searches, otherwise
+ * the profile's metros (plus Remote when it's allowed), or anywhere when the
+ * profile picked every metro or none. */
+export function profileLocations(profile: LocationProfile | undefined): FeedLocation[] {
+  const metros = (profile?.location_ids ?? []).filter((id) => locationIds.has(id)) as FeedLocation[];
+  const modes = profile?.work_modes ?? [];
+  if (modes.length === 1 && modes[0] === "remote") return ["remote"];
+  if (metros.length > 0 && metros.length < LOCATION_OPTIONS.length) return modes.includes("remote") ? ["remote", ...metros] : metros;
+  return [];
+}
+
+/** The locations in effect; empty means anywhere. */
+export function locations(search: FeedSearch, defaults: readonly FeedLocation[]): FeedLocation[] {
+  if (search.loc === "all") return [];
+  return search.loc ? search.loc.split(",") as FeedLocation[] : [...defaults];
+}
+
+/** The `loc` value for a chosen set: nothing when it's the profile's own. */
+export function locationParam(chosen: readonly FeedLocation[], defaults: readonly FeedLocation[]): string | undefined {
+  const same = chosen.length === defaults.length && defaults.every((id) => chosen.includes(id));
+  if (same) return undefined;
+  return chosen.length === 0 ? "all" : chosen.join(",");
+}
 
 /** The stages the filter offers: the profile's, in display order. */
 export const availableStages = (profileStages: readonly CareerStage[] | undefined): CareerStage[] =>
@@ -75,10 +103,10 @@ export function selectedStages(search: FeedSearch, available: readonly CareerSta
 
 /** The API query for one set of filters. Page size and offset are added by
  * the feed query. */
-export function feedParams(search: FeedSearch, available: readonly CareerStage[]): JobsListParams {
+export function feedParams(search: FeedSearch, available: readonly CareerStage[], defaults: readonly FeedLocation[]): JobsListParams {
   const params: JobsListParams = {};
   if (search.q?.trim()) params.q = search.q.trim();
-  const chosen = locations(search);
+  const chosen = locations(search, defaults);
   if (chosen.length > 0) params.locations = chosen.map((id) => (id === "remote" ? "Remote" : id)).join(",");
   const stages = careerStageQuery(selectedStages(search, available), available);
   if (stages) params.stages = stages as CareerStageQuery;
@@ -90,9 +118,9 @@ export function feedParams(search: FeedSearch, available: readonly CareerStage[]
 }
 
 /** How many filter groups narrow the feed (search is separate). */
-export function filterCount(search: FeedSearch, available: readonly CareerStage[]): number {
+export function filterCount(search: FeedSearch, available: readonly CareerStage[], defaults: readonly FeedLocation[]): number {
   return [
-    search.loc,
+    locations(search, defaults).length > 0,
     search.min || search.max,
     careerStageQuery(selectedStages(search, available), available),
     search.listing,
@@ -101,9 +129,9 @@ export function filterCount(search: FeedSearch, available: readonly CareerStage[
 }
 
 /** The filters without the view-like `saved` and the search text, which the
- * empty state's "Clear filters" keeps. */
+ * empty state's "Clear filters" keeps. Location goes to anywhere. */
 export function withoutRefinements(search: FeedSearch): FeedSearch {
-  const next: FeedSearch = {};
+  const next: FeedSearch = { loc: "all" };
   if (search.q) next.q = search.q;
   if (search.saved) next.saved = 1;
   return next;

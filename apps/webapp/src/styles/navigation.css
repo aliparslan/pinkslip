@@ -19,10 +19,16 @@
     overflow: clip;
   }
 
+  /* Never scale a snapshot: draw it at its own size from the top and crop
+     the rest. A job opened for the first time grows while it slides in (its
+     description arrives mid-animation), and a scaled live snapshot squashed. */
   ::view-transition-old(page),
   ::view-transition-new(page) {
-    block-size: auto;
+    inline-size: 100%;
+    block-size: 100%;
     inset-block-start: 0;
+    object-fit: none;
+    object-position: top;
   }
 
   @media (prefers-reduced-motion: no-preference) {

@@ -47,7 +47,11 @@ function stored(): ApplicationIntent | null {
  * tab and, when the person comes back to this one, ask whether they applied.
  * The intent survives a reload (an installed app that was evicted while the
  * person was away) for the rest of the browser session. */
-export function openApplication(job: { id: string; title: string; company_name: string; url: string }) {
+export function openApplication(job: { id: string; title: string; company_name: string; url: string }, ask = true) {
+  if (!ask) {
+    window.open(job.url, "_blank", "noopener,noreferrer");
+    return;
+  }
   const intent: ApplicationIntent = { jobId: job.id, title: job.title, company: job.company_name, openedAt: Date.now() };
   stopWatching?.();
   store(intent);
