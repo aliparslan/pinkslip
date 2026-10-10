@@ -21,9 +21,10 @@ export interface ButtonProps {
   children: ReactNode;
 }
 
-const ink = { primary: "accent-ink", secondary: "ink", danger: "paper" } as const;
+const ink = { primary: "accent-ink", secondary: "ink", danger: "bad" } as const;
 
-/** The web kit's Button: primary (pink), secondary (control surface), danger. */
+/** The web kit's Button: primary (pink), secondary (control surface), and
+ * danger (red text on the control surface, as iOS draws destructive actions). */
 export function Button({ variant = "secondary", size = "default", icon: Glyph, iconFill, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
   const { theme } = useUnistyles();
   // "default" is reserved in Unistyles variants, so the style uses "regular".
@@ -51,7 +52,7 @@ const styles = StyleSheet.create((theme) => ({
       variant: {
         primary: { backgroundColor: theme.colors["accent-fill"] },
         secondary: { backgroundColor: theme.colors["control-bg"], borderWidth: 1, borderColor: theme.colors["control-border"] },
-        danger: { backgroundColor: theme.colors.bad },
+        danger: { backgroundColor: theme.colors["control-bg"], borderWidth: 1, borderColor: theme.colors["control-border"] },
       },
       size: {
         regular: { minHeight: theme.sizing["control-height"], paddingHorizontal: theme.space["5"] },

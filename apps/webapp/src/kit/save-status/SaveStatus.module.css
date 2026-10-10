@@ -1,50 +1,16 @@
-/* The autosave indicator beside settings headers (SaveStatus.svelte). */
+/* A failed autosave beside a settings header; nothing shows otherwise. */
 .root {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  /* intentional: reserves room so the header doesn't shift between phases */
-  min-width: 64px;
-  /* intentional: matches the 13px icon plus line height */
-  min-height: 20px;
-  color: var(--color-ink-4);
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.root[data-compact] {
-  /* intentional: compact keeps only the icon visible */
-  min-width: 52px;
-}
-
-.root[data-phase="error"] {
   color: var(--color-bad);
+  font-size: var(--fs-xs);
 }
 
 .content {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  opacity: 0;
-  transform: translateY(2px);
-  transition:
-    opacity var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
-}
-
-.content[data-visible] {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.spinner {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .retry {
@@ -60,10 +26,4 @@
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .content {
-    transform: none;
-  }
 }

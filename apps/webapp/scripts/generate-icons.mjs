@@ -7,6 +7,7 @@ import { writeFile } from "node:fs/promises";
 
 const pink = "#ff8cc5"; // --color-accent-fill
 const ink = "#110c0e"; // --color-accent-ink
+const plum = "#1f1219"; // the iOS app icon's background, as the 1.x app had
 
 /** The mark in a 32-unit box, scaled by `scale` around its visual center. */
 function mark(color, scale = 1, id = "gap") {
@@ -28,6 +29,8 @@ const tile = svg(`<rect width="32" height="32" rx="7" fill="${pink}"/>${mark(ink
 // maskable content must sit inside the central 80% circle.
 const maskable = svg(`<rect width="32" height="32" fill="${pink}"/>${mark(ink, 0.6)}`);
 const apple = svg(`<rect width="32" height="32" fill="${pink}"/>${mark(ink, 0.72)}`);
+// The iOS app icon: the pink mark on dark plum, full-bleed and opaque.
+const iosApp = svg(`<rect width="32" height="32" fill="${plum}"/>${mark(pink, 0.72)}`);
 // Android tints the badge from its alpha channel.
 const badge = svg(mark("#fff", 0.92));
 
@@ -44,7 +47,7 @@ for (const [file, source, size] of [
   ["icon-maskable-512.png", maskable, 512],
   ["apple-touch-icon-180.png", apple, 180],
   // The iOS app icon (apps/native): full-bleed, opaque, 1024px.
-  ["../../../native/assets/icon.png", apple, 1024],
+  ["../../../native/assets/icon.png", iosApp, 1024],
 ]) {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${source}`);

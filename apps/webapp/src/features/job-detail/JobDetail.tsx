@@ -58,7 +58,7 @@ async function share(job: DetailJob) {
 /**
  * `JobDetail.svelte` for the web, with its actions in one place (D17): the
  * company and title, location, salary and dates, the posting,
- * and one action bar (Apply, Save, and a menu with everything else) pinned
+ * and one action bar (a menu with everything else, Save, and Apply) pinned
  * to the bottom. Anyone can read it: the server renders the public listing,
  * and a session adds saved/applied state and the match reason.
  */
@@ -253,17 +253,6 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
         {access.personal && <button type="button" className={styles.textButton} onClick={() => setReporting(true)}>Report listing</button>}
       </p>}
       <div className={styles.actions}>
-        {applied
-          ? <Button variant="secondary" icon={CheckCircle} disabled>Applied</Button>
-          : <Button variant="primary" icon={ArrowSquareOut} disabled={closed || !job.url}
-            aria-describedby={closed || !job.url ? "application-status" : undefined}
-            onClick={() => (autoApply ? setPreparing(true) : apply(null))}>
-            {closed ? "Listing closed" : job.url ? "Apply" : "Link unavailable"}
-          </Button>}
-        {access.canRead && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}
-          aria-label={saved ? "Remove from saved jobs" : "Save job"}>
-          {saved ? "Saved" : "Save"}
-        </Button>}
         <Menu label="More job actions" trigger={{ icon: DotsThree, label: "More job actions" }}>
           {access.personal && (applied
             ? <MenuItem icon={ArrowCounterClockwise} onSelect={() => setApplied(false)}>I didn't apply</MenuItem>
@@ -279,6 +268,17 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
             <MenuItem icon={Prohibit} tone="danger" onSelect={() => setConfirmBlock(true)}>Block for everyone</MenuItem>
           </>}
         </Menu>
+        {access.canRead && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}
+          aria-label={saved ? "Remove from saved jobs" : "Save job"}>
+          {saved ? "Saved" : "Save"}
+        </Button>}
+        {applied
+          ? <Button variant="secondary" icon={CheckCircle} disabled>Applied</Button>
+          : <Button variant="primary" icon={ArrowSquareOut} disabled={closed || !job.url}
+            aria-describedby={closed || !job.url ? "application-status" : undefined}
+            onClick={() => (autoApply ? setPreparing(true) : apply(null))}>
+            {closed ? "Listing closed" : job.url ? "Apply" : "Link unavailable"}
+          </Button>}
       </div>
     </div>
 

@@ -205,12 +205,12 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       </View>
       <View style={styles.actionBlock}>
         <View style={styles.actions}>
+          <Button icon={BookmarkSimple} iconFill={saved} accessibilityLabel={saved ? "Remove from saved jobs" : "Save job"} onPress={toggleSave}>{saved ? "Saved" : "Save"}</Button>
           <View style={styles.primary}>
             {applied ? <Button icon={CheckCircle} fullWidth disabled>Applied</Button>
               : <Button variant="primary" icon={ArrowSquareOut} fullWidth disabled={closed || !job.url}
                 onPress={() => (autoApply ? void startAutoApply() : void openApplication(null))}>{closed ? "Listing closed" : "Apply"}</Button>}
           </View>
-          <Button icon={BookmarkSimple} iconFill={saved} accessibilityLabel={saved ? "Remove from saved jobs" : "Save job"} onPress={toggleSave}>{saved ? "Saved" : "Save"}</Button>
         </View>
         {(closed || !job.url) && !applied && <Text size="sm" tone="ink-3">{closed ? "This listing is closed." : "Application link unavailable."}</Text>}
       </View>

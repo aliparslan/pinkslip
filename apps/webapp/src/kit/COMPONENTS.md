@@ -23,6 +23,9 @@ Design consistency fixes applied after the port, and open questions, are in
 - Button labels are weight 450, the one exception to 400/500/600: Untitled
   Sans' 500 reads as bold on a filled button (owner, 2026-10-10).
 - Disabled is opacity 0.6. Focus is a 2px accent outline at a 2px offset.
+- Confirming actions sit on the right of a horizontal action group (owner,
+  2026-10-10). Autosave shows only failure and Retry; successful saves are
+  automatic, with a visually hidden status announcement.
 
 - **Foundation kit (2.1)** — Owner: Web port. Files: `kit/text`, `kit/heading`,
   `kit/layout` (`Stack`, `Inline`), `kit/surface`, `kit/icon`, `kit/separator`,

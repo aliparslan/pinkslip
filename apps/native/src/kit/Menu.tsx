@@ -1,5 +1,6 @@
 import { MenuView, type MenuAction } from "@expo/ui/community/menu";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { View } from "react-native";
 
 type SFSymbol = Extract<MenuAction["image"], string>;
 
@@ -23,10 +24,16 @@ export function Menu({ items, title, openOn = "press", fill, children }: {
   fill?: boolean;
   children: ReactNode;
 }) {
+  const [width, setWidth] = useState(0);
   const actions = items.filter((item): item is MenuItem => Boolean(item));
-  return <MenuView title={title} shouldOpenOnLongPress={openOn === "longPress"} style={fill ? { alignSelf: "stretch" } : undefined}
+  const trigger = <MenuView title={title} shouldOpenOnLongPress={openOn === "longPress"} style={fill ? { width } : undefined}
     actions={actions.map((item) => ({ id: item.id, title: item.title, image: item.icon, attributes: { destructive: item.destructive, disabled: item.disabled } }))}
     onPressAction={({ nativeEvent }) => actions.find((item) => item.id === nativeEvent.event)?.onSelect()}>
-    {children}
+    {fill ? <View style={{ width }}>{children}</View> : children}
   </MenuView>;
+  // Expo's menu hosts its trigger in a second self-sizing SwiftUI surface.
+  // Constrain that trigger as well, or its text measures at intrinsic width.
+  return fill ? <View style={{ alignSelf: "stretch" }} onLayout={({ nativeEvent }) => setWidth(nativeEvent.layout.width)}>
+    {width > 0 && trigger}
+  </View> : trigger;
 }

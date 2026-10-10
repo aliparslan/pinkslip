@@ -36,7 +36,7 @@ function PreferencesForm({ initial }: { initial: Profile }) {
 
   return <Screen>
     {/* An empty header item still draws a glass button, so it appears only with a status. */}
-    <RouterStack.Screen options={{ headerRight: autosave.phase === "clean" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
+    <RouterStack.Screen options={{ headerRight: autosave.phase !== "error" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
     <View key={generation} style={{ gap: 16 }}>
       <Surface><Stack gap="5"><Heading>What</Heading><RoleField profile={profile} onChange={change} /><TitleFields profile={profile} onChange={change} /></Stack></Surface>
       <Surface><Stack gap="5"><Heading>Experience</Heading><StageField profile={profile} onChange={change} /><ExperienceFields profile={profile} onChange={change} /></Stack></Surface>

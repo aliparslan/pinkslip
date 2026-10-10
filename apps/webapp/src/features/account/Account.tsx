@@ -102,7 +102,7 @@ function NameCard({ initial }: { initial: string }) {
     <Stack gap="2">
       <div className={settings.titleRow}>
         <Text size="sm" weight="medium" tone="ink-2">Name</Text>
-        <SaveStatus phase={autosave.phase} onRetry={autosave.retry} compact />
+        <SaveStatus phase={autosave.phase} onRetry={autosave.retry} />
       </div>
       <Input aria-label="Name" autoComplete="name" placeholder="Your name" value={name} maxLength={80}
         onChange={(event) => setName(event.target.value)} />

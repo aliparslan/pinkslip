@@ -1,13 +1,12 @@
 import { availableStages, feedParams, filterCount, profileLocations, withoutRefinements } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
 import { useFeed, usePreferences, useStats, useViewedJobs } from "@pinkslip/data";
-import { FlashList } from "@shopify/flash-list";
 import { router } from "expo-router";
 import { ArrowClockwise, Funnel, MagnifyingGlass, WarningCircle } from "phosphor-react-native";
 import { useEffect, useMemo } from "react";
-import { RefreshControl, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, Inline, Skeleton, Spinner, Text, toast } from "../../kit";
+import { Button, EmptyState, Inline, NativeList, NativeListContent, Skeleton, Spinner, Text, toast } from "../../kit";
 import { JobRow } from "../jobs/JobRow";
 import { useJobActions, type RowJob } from "../jobs/useJobActions";
 import { useTrack } from "../jobs/track";
@@ -60,7 +59,7 @@ export function Feed() {
     onOpen(job);
     router.push({ pathname: "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } });
   };
-  const refresh = () => { void feed.refetch(); void stats.refetch(); };
+  const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
   const loadMore = () => {
     if (!feed.hasNextPage || feed.isFetchingNextPage) return;
     void feed.fetchNextPage().then((result) => {
@@ -81,23 +80,21 @@ export function Feed() {
     </View>}
   </View>;
 
-  if (feed.isPending) return <View style={styles.fill}><FlashList data={[0, 1, 2, 3, 4, 5]} renderItem={() => <SkeletonRow />}
-    contentInsetAdjustmentBehavior="automatic" ListHeaderComponent={header} /></View>;
+  if (feed.isPending) return <NativeList onRefresh={refresh}>
+    <NativeListContent>{header}</NativeListContent>
+    {[0, 1, 2, 3, 4, 5].map((id) => <NativeListContent key={id}><SkeletonRow /></NativeListContent>)}
+  </NativeList>;
   if (feed.isError && !feed.data) {
     return <View style={styles.center}><EmptyState icon={WarningCircle} title="Jobs didn't load" message="Check your connection and try again."
       actions={<Button pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} /></View>;
   }
 
-  return <FlashList data={jobs} keyExtractor={(job) => job.id} contentInsetAdjustmentBehavior="automatic" style={styles.fill}
-    ListHeaderComponent={header}
-    renderItem={({ item }) => <JobRow job={item} viewed={viewed.data?.has(item.id)} onPress={open} actions={actions} />}
-    ItemSeparatorComponent={() => <View style={styles.separator} />}
-    onEndReached={loadMore} onEndReachedThreshold={0.6}
-    refreshControl={<RefreshControl refreshing={feed.isRefetching && !feed.isFetchingNextPage} onRefresh={refresh} tintColor={theme.colors["ink-3"]} />}
-    ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
+  return <NativeList onRefresh={refresh}>
+    <NativeListContent>{header}</NativeListContent>
+    {jobs.map((job) => <JobRow key={job.id} job={job} viewed={viewed.data?.has(job.id)} onPress={open} actions={actions} />)}
+    {jobs.length > 0 ? <NativeListContent key={`more-${jobs.length}`} onVisible={loadMore}><View style={styles.footer}>
       {feed.hasNextPage ? <Spinner label="Loading more jobs" /> : <Text size="sm" tone="ink-4">You're all caught up. Go touch grass.</Text>}
-    </View> : null}
-    ListEmptyComponent={search.q && refinements === 0
+    </View></NativeListContent> : <NativeListContent>{search.q && refinements === 0
       ? <EmptyState icon={MagnifyingGlass} title="No matches" message="Try a different company, title or city."
         actions={<Button onPress={() => setFeedSearch({ ...search, q: undefined })}>Clear search</Button>} />
       : <EmptyState icon={refinements > 0 ? Funnel : undefined}
@@ -105,8 +102,9 @@ export function Feed() {
         message={refinements > 0 ? "Try widening or clearing your filters." : search.saved ? "Save roles from the job page to keep them handy." : "New roles show up here as they're posted."}
         actions={<Inline gap="2">
           {refinements > 0 && <Button onPress={() => setFeedSearch(withoutRefinements(search))}>Clear filters</Button>}
-          <Button icon={ArrowClockwise} pending={feed.isRefetching} onPress={refresh}>Refresh now</Button>
-        </Inline>} />} />;
+          <Button icon={ArrowClockwise} pending={feed.isRefetching} onPress={() => void refresh()}>Refresh now</Button>
+        </Inline>} />}</NativeListContent>}
+  </NativeList>;
 }
 
 function SkeletonRow() {
@@ -124,7 +122,6 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row", alignItems: "center", gap: theme.space["2"], padding: theme.space["3"],
     borderRadius: theme.radius.md, backgroundColor: theme.colors["bg-elev"],
   },
-  separator: { height: StyleSheet.hairlineWidth, marginLeft: theme.gutter + 24 + theme.space["3"], backgroundColor: theme.colors.line },
   footer: { alignItems: "center", paddingVertical: theme.space["8"], paddingBottom: theme.space["10"] },
   skeleton: { flexDirection: "row", gap: theme.space["3"], paddingHorizontal: theme.gutter, paddingVertical: theme.space["4"] },
   skeletonCopy: { flex: 1, gap: theme.space["2"] },

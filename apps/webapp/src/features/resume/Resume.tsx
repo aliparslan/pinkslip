@@ -160,8 +160,8 @@ function View({ title, heading, done, remove, children }: { title: ReactNode; he
       </Stack>
     </Surface>
     <div className={styles.viewActions}>
-      {done}
       {remove && <Button variant="danger" icon={Trash} onClick={remove}>Remove</Button>}
+      {done}
     </div>
   </Stack>;
 }

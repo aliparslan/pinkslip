@@ -3,8 +3,6 @@ declare const styles: {
   readonly "content": string;
   readonly "retry": string;
   readonly "root": string;
-  readonly "spin": string;
-  readonly "spinner": string;
 };
 
 export default styles;

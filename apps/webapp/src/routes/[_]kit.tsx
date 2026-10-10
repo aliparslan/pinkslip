@@ -312,7 +312,6 @@ function Choices() {
       <ToggleGroup label="Save phase" variant="segmented" value={phase} onValueChange={setPhase}
         options={phases.map((value) => ({ value, label: value }))} />
       <SaveStatus phase={phase} errorMessage="Network error" onRetry={() => setPhase("saving")} />
-      <SaveStatus phase={phase} compact />
     </Inline>
   </Section>;
 }

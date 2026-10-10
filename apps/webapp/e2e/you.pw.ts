@@ -30,7 +30,7 @@ test("preferences autosave a moment after a change and can reset", async ({ page
   await installApiMocks(page, { onWrite: (write) => writes.push(write) });
   await page.goto("/you/preferences");
   await page.getByRole("button", { name: "Internships" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(1);
   const saved = writes.filter((write) => write.path === "/preferences").at(-1)?.body as { search_profile: { target_levels: string[] } };
   expect(saved.search_profile.target_levels).toEqual(["new_grad", "early_career"]);
 
@@ -41,6 +41,29 @@ test("preferences autosave a moment after a change and can reset", async ({ page
 
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   await expect(page.getByRole("button", { name: "Internships" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("quiet autosave still exposes a failed write and Retry preserves the change", async ({ page }) => {
+  const writes: Write[] = [];
+  await installApiMocks(page, { onWrite: (write) => writes.push(write) });
+  let fail = true;
+  await page.route("**/api/v2/preferences", async (route) => {
+    if (fail && route.request().method() === "PUT") {
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Try again" }) });
+    }
+    await route.fallback();
+  });
+  await page.goto("/you/preferences");
+  await page.getByRole("button", { name: "Internships" }).click();
+  await expect(page.getByText("Not saved", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Not saved" })).toHaveCount(1);
+  fail = false;
+  await page.getByRole("button", { name: /Retry saving/ }).click();
+  await expect(page.getByText("Not saved", { exact: true })).toHaveCount(0);
+  await expect.poll(() => writes.filter((write) => write.path === "/preferences").at(-1)?.body)
+    .toMatchObject({ search_profile: { target_levels: ["new_grad", "early_career"] } });
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Internships" })).toHaveAttribute("aria-pressed", "false");
 });
 
 test("alerts: the account switch saves; the device row reflects the browser", async ({ page }) => {

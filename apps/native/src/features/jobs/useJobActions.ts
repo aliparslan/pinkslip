@@ -54,10 +54,17 @@ export function useJobActions(context: JobListContext) {
 
   const actions: JobActions = {
     save: context === "feed" ? saveJob : undefined,
+    // In Library the row leaves, so it gets Undo; in the feed it stays.
     unsave: context === "saved" ? (job) => unsave.mutate(job.id, {
       onSuccess: () => toast.show({ message: "Removed from saved", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => saveJob(job) } }),
       onError: () => toast.error("Couldn't update your saved jobs. Try again."),
-    }) : undefined,
+    }) : context === "feed" ? (job) => {
+      haptics.tap();
+      unsave.mutate(job.id, {
+        onSuccess: () => toast.show({ message: "Removed from saved" }),
+        onError: () => toast.error("Couldn't update your saved jobs. Try again."),
+      });
+    } : undefined,
     markApplied: context === "saved" ? (job) => markApplied.mutate(job, {
       onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); },
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),

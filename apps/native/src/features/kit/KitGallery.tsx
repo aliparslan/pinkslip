@@ -1,4 +1,5 @@
 import { BookmarkSimple, Briefcase, Flag, Plus, Trash } from "phosphor-react-native";
+import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import {
@@ -26,6 +27,7 @@ export function KitGallery() {
       <Inline gap="2"><Badge>New</Badge><Badge>Closed</Badge></Inline>
     </Section>
     <Section title="Actions">
+      <Button onPress={() => router.push("/you/kit-swipes")}>Native swipes</Button>
       <Button variant="primary" icon={Briefcase}>Apply</Button>
       <Button icon={BookmarkSimple}>Save</Button>
       <Button variant="danger" icon={Trash}>Delete</Button>

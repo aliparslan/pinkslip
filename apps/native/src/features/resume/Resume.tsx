@@ -106,7 +106,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
 
   return <Screen>
     {/* An empty header item still draws a glass button, so it appears only with a status. */}
-    <RouterStack.Screen options={{ headerRight: autosave.phase === "clean" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
+    <RouterStack.Screen options={{ headerRight: autosave.phase !== "error" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
     <Stack gap="3">
       <View><Button variant="primary" icon={UploadSimple} pending={importing} onPress={() => void runImport()}>{importing ? "Reading your resume…" : "Import from PDF"}</Button></View>
       {failure && <Text size="sm" tone="bad">{failure.message}</Text>}
@@ -182,9 +182,9 @@ function RecordSheet({ kind, id, profile, update, onClose, onRemove }: {
   const removeOptional = () => { update((draft) => ({ ...draft, optionalSections: draft.optionalSections.filter((section) => section.kind !== id) })); onClose(); };
 
   return <Sheet open={Boolean(open)} onOpenChange={(next) => { if (!next) onClose(); }} title={title}
-    footer={<View style={{ flexDirection: "row", gap: 12 }}>
-      <View style={{ flex: 1 }}><Button variant="primary" fullWidth onPress={onClose}>Done</Button></View>
+    footer={<View style={styles.footer}>
       {(exists || kind === "opt") && <Button variant="danger" icon={Trash} onPress={() => (collection && id ? onRemove(collection, id, removeLabel) : removeOptional())}>Remove</Button>}
+      <View style={{ flex: 1 }}><Button variant="primary" fullWidth onPress={onClose}>Done</Button></View>
     </View>}>
     {kind === "contact" && <ContactEditor profile={profile} update={update} />}
     {kind === "skills" && <PairList titleLabel="Group" detailLabel="Skills" detailPlaceholder="TypeScript, React, Postgres" items={profile.skills} onChange={(skills) => update((draft) => ({ ...draft, skills }))} />}

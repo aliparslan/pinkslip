@@ -46,7 +46,7 @@ export function Account() {
 
   return <Screen>
     {/* An empty header item still draws a glass button, so it appears only with a status. */}
-    <RouterStack.Screen options={{ headerRight: autosave.phase === "clean" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
+    <RouterStack.Screen options={{ headerRight: autosave.phase !== "error" ? undefined : () => <SaveStatus phase={autosave.phase} onRetry={autosave.retry} /> }} />
     <Field label="Name"><Input autoComplete="name" textContentType="name" placeholder="Your name" value={name} maxLength={80} onChangeText={setName} /></Field>
     {signedIn ? <Surface>
       <Stack gap="4">
