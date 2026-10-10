@@ -28,6 +28,7 @@ import { useNeighbours } from "../split/neighbours";
 import { PageFailure, PageLoading } from "../states/LoadStates";
 import { JobNotFoundPage } from "../states/PageStates";
 import { openApplication } from "./application-return";
+import { useTrack } from "../jobs/track";
 import { Description } from "./Description";
 import { ReportDialog } from "./ReportDialog";
 import styles from "./JobDetail.module.css";
@@ -87,9 +88,12 @@ export function JobDetail() {
   const job: DetailJob | undefined = personal.data ?? publicJob.data ?? seed;
 
   const markViewed = useMarkViewed();
+  const track = useTrack();
   useEffect(() => {
-    if (access.personal) markViewed(jobId);
-  }, [access.personal, jobId, markViewed]);
+    if (!access.personal) return;
+    markViewed(jobId);
+    track("job_opened", { type: "job", id: jobId });
+  }, [access.personal, jobId, markViewed, track]);
 
   if (!job) {
     // Not in the public catalog: a signed-in person's own copy may still
@@ -137,6 +141,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   const [reporting, setReporting] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const { previous, next } = useNeighbours(job.id);
+  const track = useTrack();
 
   // j/k step through the list beside the job, as in mail and feed readers.
   useEffect(() => {
@@ -246,7 +251,10 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
           ? <Button variant="secondary" icon={CheckCircle} disabled>Applied</Button>
           : <Button variant="primary" icon={ArrowSquareOut} disabled={closed || !job.url}
             aria-describedby={closed || !job.url ? "application-status" : undefined}
-            onClick={() => openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: job.url })}>
+            onClick={() => {
+              if (access.personal) track("apply_clicked", { type: "job", id: job.id });
+              openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: job.url });
+            }}>
             {closed ? "Listing closed" : job.url ? "Apply" : "Link unavailable"}
           </Button>}
         {access.canAct && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}

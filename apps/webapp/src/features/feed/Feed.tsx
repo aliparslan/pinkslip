@@ -6,6 +6,7 @@ import { Alert, Badge, Button, EmptyState, Heading, SearchInput, Skeleton, Spinn
 import { JobList } from "../jobs/JobList";
 import type { JobRowJob } from "../jobs/JobRow";
 import { useJobActions } from "../jobs/useJobActions";
+import { useTrack } from "../jobs/track";
 import { PageFailure } from "../states/LoadStates";
 import { availableStages, feedParams, filterCount, withoutRefinements, type FeedSearch } from "./criteria";
 import { FilterSheet } from "./FilterSheet";
@@ -91,6 +92,14 @@ export function Feed({ search, onSearchChange, selectedId, onOrderChange }: Feed
     announcedFor.current = key;
     setAnnouncement(`${total} ${total === 1 ? "job" : "jobs"} found.`);
   }, [showPersonal, feed.isFetching, params, total]);
+
+  // One "displayed" event per fresh first page, as the current feed sent.
+  const track = useTrack();
+  const firstPageAt = feed.data?.pages.length === 1 ? feed.dataUpdatedAt : 0;
+  const firstPageCount = feed.data?.pages[0]?.jobs.length ?? 0;
+  useEffect(() => {
+    if (firstPageAt && firstPageCount > 0) track("job_displayed", { type: "feed", properties: { count: firstPageCount } });
+  }, [firstPageAt, firstPageCount, track]);
 
   // A background refresh that fails keeps the rows and says so once.
   useEffect(() => {
