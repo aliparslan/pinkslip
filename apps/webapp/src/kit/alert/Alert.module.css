@@ -1,0 +1,22 @@
+/* `.alert` and its `-error`, `-success` and `-warn` tones. */
+.root {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.root[data-tone="error"] {
+  background: color-mix(in oklch, var(--color-bad) 14%, transparent);
+  color: var(--color-bad);
+}
+
+.root[data-tone="success"] {
+  background: color-mix(in oklch, var(--color-good) 14%, transparent);
+  color: var(--color-good);
+}
+
+.root[data-tone="warn"] {
+  background: color-mix(in oklch, var(--color-warn) 14%, transparent);
+  color: var(--color-warn);
+}

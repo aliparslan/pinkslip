@@ -1,0 +1,60 @@
+/* `.icon-btn` and its `-sm`, `-xs` and `-surface` modifiers. */
+.root {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink-3);
+  cursor: pointer;
+  transition-property: background-color, color, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
+}
+
+.root:active {
+  transform: scale(0.96);
+}
+
+.root[data-size="sm"],
+.root[data-size="xs"] {
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+}
+
+.root[data-size="sm"] {
+  border-radius: var(--radius-sm);
+}
+
+.root[data-size="xs"] {
+  border-radius: var(--radius-xs);
+}
+
+.root[data-surface] {
+  border: 1px solid var(--color-line-2);
+  background: var(--color-bg-elev);
+}
+
+.root[data-pressed] {
+  color: var(--color-accent);
+}
+
+.root[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root:not([data-disabled]):hover {
+    background: var(--color-bg-sunken);
+    color: var(--color-ink-2);
+  }
+
+  .root[data-pressed]:not([data-disabled]):hover {
+    color: var(--color-accent);
+  }
+}

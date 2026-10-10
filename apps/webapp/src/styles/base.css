@@ -23,13 +23,36 @@
     text-underline-offset: 0.2em;
   }
 
-  a:focus-visible {
+  :where(button, a, input, textarea, select, summary, [role="button"]):focus-visible {
     outline: 2px solid var(--color-accent);
-    outline-offset: var(--space-1);
+    outline-offset: 2px;
   }
 
   ::selection {
     background: var(--color-selection-bg);
     color: var(--color-selection-ink);
+  }
+
+  /* Below the wide breakpoint every control grows to the tap target and the
+     radii loosen, as the Svelte app.css did after its tokens. Native screens
+     are always this size, so they read the phone values directly. Inputs stay
+     at 16px or more so iOS Safari doesn't zoom on focus. */
+  @media (max-width: 56.249rem) {
+    :root {
+      --control-height-compact: var(--tap-min);
+      --control-height-small: var(--tap-min);
+      /* intentional: the Svelte phone radii, not on the token scale */
+      --radius-sm: 8px;
+      /* intentional: the Svelte phone radii, not on the token scale */
+      --radius-xl: 20px;
+      --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    input,
+    textarea,
+    select {
+      /* stylelint-disable-next-line declaration-property-value-allowed-list */
+      font-size: max(16px, var(--fs-base));
+    }
   }
 }

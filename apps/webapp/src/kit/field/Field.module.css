@@ -1,0 +1,123 @@
+/* `.field-label`, `.label-opt`, `.input-field`, `.textarea-field` and the
+   `.select-field-wrap` + `.select-chevron` pair from the Svelte app.css. */
+.root {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
+  display: block;
+  margin-block-end: 6px;
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+/* Required is the default and unmarked; only optional fields say so. */
+.optional {
+  color: var(--color-ink-4);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+
+.error {
+  margin-block-start: var(--space-2);
+}
+
+.control {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  background: var(--color-input-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  transition-property: border-color, background-color;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
+}
+
+.control:focus {
+  border-color: var(--color-accent);
+  background: var(--color-control-active-bg);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.control::placeholder {
+  color: var(--color-ink-4);
+}
+
+.control[data-disabled] {
+  color: var(--color-ink-3);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.control[data-invalid] {
+  border-color: var(--color-bad);
+}
+
+.textarea {
+  display: block;
+  /* intentional: the Svelte .textarea-field minimum, roughly five lines */
+  min-height: 128px;
+  padding: var(--space-3);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.selectWrap {
+  position: relative;
+  width: 100%;
+}
+
+.select {
+  padding-inline-end: 38px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.chevron {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 12px;
+  display: inline-flex;
+  color: var(--color-ink-4);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  color: var(--color-ink-4);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

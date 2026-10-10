@@ -1,0 +1,90 @@
+/* `variant="chips"` is `.chip-wrap` + `.chip`/`.chip-active` (feed filters);
+   `variant="segmented"` is `.segmented-control`. */
+.root[data-variant="chips"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 1px 0 4px;
+}
+
+.root[data-variant="segmented"] {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-self: flex-start;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto visible;
+  border-radius: var(--radius-sm);
+  scrollbar-width: none;
+}
+
+.item {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--color-ink-2);
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
+}
+
+.item:active {
+  transform: scale(0.96);
+}
+
+.item[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.chip {
+  gap: 6px;
+  height: var(--control-height-small);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-elev);
+}
+
+.chip[data-pressed] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-soft-ink);
+  font-weight: 600;
+}
+
+.segment {
+  justify-content: center;
+  min-width: max-content;
+  height: var(--control-height-compact);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+
+.segment[data-pressed] {
+  background: var(--color-control-active-bg);
+  color: var(--color-control-active-ink);
+  box-shadow: var(--shadow-control-active);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:not([data-pressed]):hover {
+    background: var(--color-bg-sunken);
+  }
+}
+
+/* Phones keep chips at the 32px pill rather than the 44px tap height. */
+@media (max-width: 56.249rem) {
+  .chip {
+    height: var(--pill-height);
+  }
+}

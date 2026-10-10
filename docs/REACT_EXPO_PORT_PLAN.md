@@ -593,7 +593,7 @@ as evidence for the reuse threshold.
   documented grouped-surface and layout compositions.
 - A dev-only `/_kit` playground that renders every component in every state.
 
-**2.2 Actions and inputs** · L
+**2.2 Actions and inputs** · L · ✅ implemented locally (2026-10-09): `Button`, `LinkButton`, `IconButton`, `Field`, `Input`, `Textarea`, `Select` (native), `Fieldset`, `Form`, `Checkbox`, `SelectCheck`, `Switch`, `ToggleGroup` (chips and segmented), `Alert`, `SaveStatus`. `RadioGroup`, `NumberField` and `CheckboxGroup` are skipped (no call site in the current app); `Combobox`/`Autocomplete` moves to 2.3 with the other popups
 - Actions: `Button`, `IconButton`, `LinkButton`.
 - Text inputs: `Input`, `Textarea`, `Field` (label plus error, with **no
   description slot by default**, to keep text light), `Fieldset`, `Form`.

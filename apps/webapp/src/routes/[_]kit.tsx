@@ -1,9 +1,12 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, BookmarkSimple, Buildings, CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
 import {
-  Badge, Heading, Icon, Inline, Separator, Skeleton, Spinner, Stack, Surface, Text, VisuallyHidden,
-  type IconSize, type TextTone,
+  ArrowSquareOut, Bell, BookmarkSimple, Buildings, CaretRight, DotsThree, MagnifyingGlass, PaperPlaneTilt, X,
+} from "@phosphor-icons/react";
+import {
+  Alert, Badge, Button, Checkbox, Field, Fieldset, Form, Heading, Icon, IconButton, Inline, Input, LinkButton,
+  SaveStatus, Select, SelectCheck, Separator, Skeleton, Spinner, Stack, Surface, Switch, Text, Textarea,
+  ToggleGroup, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
 } from "../kit";
 import styles from "../styles/Kit.module.css";
 
@@ -142,10 +145,131 @@ function Kit() {
       </Stack>
     </Section>
 
+    <Actions />
+    <Inputs />
+    <Choices />
+
     <Section title="Assistive text">
       <Text>Visible text<VisuallyHidden> with a hidden suffix for screen readers</VisuallyHidden>.</Text>
     </Section>
   </Stack>;
+}
+
+const buttonVariants: ButtonVariant[] = ["accent", "primary", "secondary", "danger"];
+
+function Actions() {
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
+  return <Section title="Actions">
+    <Inline gap="2" wrap>
+      {buttonVariants.map((variant) => <Button key={variant} variant={variant}>{variant}</Button>)}
+    </Inline>
+    <Inline gap="2" wrap>
+      {buttonVariants.map((variant) => <Button key={variant} variant={variant} size="compact">{variant}</Button>)}
+    </Inline>
+    <Inline gap="2" wrap>
+      <Button variant="accent" icon={PaperPlaneTilt}>Send email</Button>
+      <Button variant="secondary" disabled>Disabled</Button>
+      <Button variant="accent" pending={pending} onClick={() => {
+        setPending(true);
+        window.setTimeout(() => setPending(false), 1500);
+      }}>{pending ? "Saving…" : "Save (pending 1.5s)"}</Button>
+      <LinkButton to="/" icon={ArrowSquareOut}>Link button</LinkButton>
+    </Inline>
+    <Button variant="secondary" size="compact" fullWidth>Full-width compact (.btn-action)</Button>
+    <Inline gap="2">
+      <IconButton icon={DotsThree} label="More" />
+      <IconButton icon={BookmarkSimple} label="Save job" pressed={saved} onClick={() => setSaved(!saved)} />
+      <IconButton icon={X} label="Close" surface />
+      <IconButton icon={DotsThree} label="More (small)" size="sm" />
+      <IconButton icon={X} label="Remove (extra small)" size="xs" />
+      <IconButton icon={Bell} label="Disabled" disabled />
+    </Inline>
+  </Section>;
+}
+
+function Inputs() {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const [education, setEducation] = useState("bachelors");
+  return <Section title="Inputs">
+    <Form aria-label="Kit form" onSubmit={() => setSubmitted(email.includes("@") ? null : "Enter a valid email address.")}>
+      <Field label="Email" error={submitted}>
+        <Input type="email" placeholder="you@school.edu" value={email} onChange={(event) => setEmail(event.target.value)} />
+      </Field>
+      <Field label="Portfolio" optional>
+        <Input type="url" placeholder="https://" />
+      </Field>
+      <Field label="Years of experience">
+        <Input type="number" min={0} max={40} step={1} defaultValue={0} />
+      </Field>
+      <Field label="Highest completed education">
+        <Select value={education} onChange={(event) => setEducation(event.target.value)}>
+          <option value="high_school">High school</option>
+          <option value="bachelors">Bachelor's</option>
+          <option value="masters">Master's</option>
+          <option value="doctorate">Doctorate</option>
+        </Select>
+      </Field>
+      <Field label="Cover note" optional>
+        <Textarea placeholder="A few lines about why this role" />
+      </Field>
+      <Field label="Disabled" disabled>
+        <Input defaultValue="Can't edit this" />
+      </Field>
+      <Inline gap="2">
+        <Button type="submit" variant="accent">Submit (empty email shows the error)</Button>
+      </Inline>
+    </Form>
+    <Fieldset legend="Fieldset legend">
+      <Field label="First name"><Input autoComplete="given-name" /></Field>
+      <Field label="Last name"><Input autoComplete="family-name" /></Field>
+    </Fieldset>
+    <Alert tone="error">Couldn't save your changes. Try again.</Alert>
+    <Alert tone="success">Resume uploaded.</Alert>
+    <Alert tone="warn">Your session expires soon.</Alert>
+  </Section>;
+}
+
+const feedFilters = ["All", "Saved", "Applied", "Hidden"] as const;
+const phases: SavePhase[] = ["clean", "dirty", "saving", "saved", "error"];
+
+function Choices() {
+  const [filter, setFilter] = useState<(typeof feedFilters)[number]>("All");
+  const [view, setView] = useState<"open" | "reviewed">("open");
+  const [current, setCurrent] = useState(true);
+  const [anywhere, setAnywhere] = useState(false);
+  const [alerts, setAlerts] = useState(true);
+  const [phase, setPhase] = useState<SavePhase>("saved");
+  return <Section title="Choices">
+    <ToggleGroup label="Feed filter" value={filter} onValueChange={setFilter}
+      options={feedFilters.map((value) => ({ value, label: value }))} />
+    <ToggleGroup label="Disagreement filter" variant="segmented" value={view} onValueChange={setView}
+      options={[{ value: "open", label: "To review 4" }, { value: "reviewed", label: "Reviewed 12" }]} />
+    <Inline gap="4" wrap>
+      <Checkbox checked={current} onCheckedChange={setCurrent}>Current role</Checkbox>
+      <Checkbox checked={false} onCheckedChange={() => {}} disabled>Disabled</Checkbox>
+      <Inline gap="2"><SelectCheck checked /><SelectCheck checked={false} /><Text as="span" size="sm" tone="ink-3">Menu check boxes</Text></Inline>
+    </Inline>
+    <Inline justify="between">
+      <Text>Open to anywhere</Text>
+      <Switch label="Open to anywhere" checked={anywhere} onCheckedChange={setAnywhere} />
+    </Inline>
+    <Inline justify="between">
+      <Text>Job alerts (accent on phones)</Text>
+      <Switch label="Job alerts" tone="accent" checked={alerts} onCheckedChange={setAlerts} />
+    </Inline>
+    <Inline justify="between">
+      <Text tone="ink-3">Disabled</Text>
+      <Switch label="Disabled switch" checked disabled onCheckedChange={() => {}} />
+    </Inline>
+    <Inline gap="4" wrap>
+      <ToggleGroup label="Save phase" variant="segmented" value={phase} onValueChange={setPhase}
+        options={phases.map((value) => ({ value, label: value }))} />
+      <SaveStatus phase={phase} errorMessage="Network error" onRetry={() => setPhase("saving")} />
+      <SaveStatus phase={phase} compact />
+    </Inline>
+  </Section>;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

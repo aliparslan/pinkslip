@@ -1,0 +1,81 @@
+/* `.btn-primary`/`.btn-secondary` from the Svelte app.css. `accent` was
+   `.btn-primary.btn-accent` and `danger` was `.btn-secondary.btn-danger`;
+   `size="compact"` is `.btn-mini` and `fullWidth` compact is `.btn-action`. */
+.root {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition-property: background-color, border-color, color, opacity, transform;
+  transition-duration: var(--duration-instant);
+  transition-timing-function: var(--ease-standard);
+}
+
+.root:active {
+  transform: scale(0.96);
+}
+
+.root[data-variant="primary"] {
+  background: var(--color-ink);
+  color: var(--color-bg);
+}
+
+.root[data-variant="accent"] {
+  border-color: color-mix(in oklch, var(--color-accent) 74%, var(--color-ink));
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.root[data-variant="secondary"] {
+  background: var(--color-bg-elev);
+  color: var(--color-ink);
+}
+
+.root[data-variant="danger"] {
+  background: var(--color-bg-elev);
+  color: var(--color-bad);
+}
+
+.root[data-size="compact"] {
+  min-height: var(--control-height-compact);
+  padding: 0 14px;
+  font-size: var(--fs-sm);
+}
+
+.root[data-full-width] {
+  width: 100%;
+}
+
+/* Disabled, but still legible: the label keeps enough contrast to read what
+   the blocked action is. */
+.root[data-disabled] {
+  border-color: var(--color-line);
+  background: color-mix(in oklch, var(--color-bg-elev) 72%, var(--color-line));
+  color: var(--color-ink-3);
+  cursor: default;
+  opacity: 0.6;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .root:is([data-variant="primary"], [data-variant="accent"]):not([data-disabled]):hover {
+    opacity: 0.9;
+  }
+
+  .root:is([data-variant="secondary"], [data-variant="danger"]):not([data-disabled]):hover {
+    background: var(--color-bg-sunken);
+  }
+}
