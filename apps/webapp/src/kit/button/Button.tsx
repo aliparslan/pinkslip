@@ -26,6 +26,7 @@ export interface ButtonProps extends ButtonLookProps {
   form?: string;
   "aria-label"?: string;
   "aria-describedby"?: string;
+  ref?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }
 

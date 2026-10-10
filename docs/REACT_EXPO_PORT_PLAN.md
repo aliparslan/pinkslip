@@ -602,7 +602,7 @@ as evidence for the reuse threshold.
   `ToggleGroup` (filter chips).
 - Status: `SaveStatus`.
 
-**2.3 Overlays and feedback** · L · ✅ implemented locally (2026-10-09): `Dialog` and `Sheet` (both on Base UI Drawer, so swipe-down dismissal replaces `drag-dismiss.ts`), `AlertDialog`, `Menu` (with `MenuItem`, `MenuCheckboxItem`, `MenuSeparator`), `toast` + `ToastProvider`, `Tabs`, `Disclosure`, `Progress` (bar and steps). `Tooltip`, `Popover`, `Meter` and `Combobox`/`Autocomplete` are skipped: the current app has no call site. Add them when a screen needs one
+**2.3 Overlays and feedback** · L · ✅ implemented locally (2026-10-09): `Dialog` and `Sheet` (both on Base UI Drawer, so swipe-down dismissal replaces `drag-dismiss.ts`), `AlertDialog`, `Menu` (with `MenuItem`, `MenuCheckboxItem`, `MenuSeparator`), `toast` + `ToastProvider`, `Tabs`, `Disclosure`, `Progress` (bar and steps), plus `Tooltip`, `Popover` and `InfoTip`, which the owner asked for although the Svelte app had none. `Meter` and `Combobox`/`Autocomplete` are skipped: no call site. Add them when a screen needs one
 - Overlays: `Dialog`, `AlertDialog`, `Drawer` (bottom sheet, which Base UI's
   Drawer provides with swipe-to-dismiss, replacing `drag-dismiss.ts`), `Popover`,
   `Menu`, `Tooltip`.

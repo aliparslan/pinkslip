@@ -8,7 +8,7 @@ import {
   Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, Field, Fieldset, Form, Heading, Icon, IconButton,
   Inline, Input, LinkButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
   SelectCheck, Separator, Sheet, Skeleton, Spinner, Stack, Surface, Switch, TabPanel, Tabs, Text, Textarea, toast,
-  ToggleGroup, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
+  ToggleGroup, Tooltip, InfoTip, Popover, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
 } from "../kit";
 import styles from "../styles/Kit.module.css";
 
@@ -151,6 +151,7 @@ function Kit() {
     <Inputs />
     <Choices />
     <Overlays />
+    <Hints />
     <Feedback />
     <Disclosures />
 
@@ -361,6 +362,36 @@ function Overlays() {
       pending={pending}
       onConfirm={runConfirm}
     />
+  </Section>;
+}
+
+function Hints() {
+  const [saved, setSaved] = useState(false);
+  return <Section title="Tooltips and popovers">
+    <Text size="sm" tone="ink-3">Tooltips show on hover or keyboard focus with a mouse; touch skips them.</Text>
+    <Inline gap="2">
+      <IconButton icon={BookmarkSimple} label={saved ? "Unsave job" : "Save job"} tooltip pressed={saved} onClick={() => setSaved(!saved)} />
+      <IconButton icon={EyeSlash} label="Hide job" tooltip />
+      <IconButton icon={ArrowSquareOut} label="Open the posting" tooltip surface />
+      <Tooltip content="Sends from your connected inbox"><Button variant="secondary" size="compact" icon={PaperPlaneTilt}>Send</Button></Tooltip>
+    </Inline>
+    <Inline gap="1">
+      <Text as="span">Match score 86</Text>
+      <InfoTip label="About match scores" title="Match score">
+        How closely the role fits your search preferences and resume. It doesn't affect which jobs you see.
+      </InfoTip>
+    </Inline>
+    <Inline gap="2">
+      <Popover title="Why this job?" trigger={<Button variant="secondary" size="compact">Why this job?</Button>}>
+        New grad software role in Chicago, posted 2 days ago on the company's career page.
+      </Popover>
+      <Popover align="start" trigger={<IconButton icon={DotsThree} label="Popover from an icon button" tooltip />}>
+        <Stack gap="2">
+          <Text size="sm">Popovers can hold controls.</Text>
+          <Button variant="accent" size="compact">Do it</Button>
+        </Stack>
+      </Popover>
+    </Inline>
   </Section>;
 }
 

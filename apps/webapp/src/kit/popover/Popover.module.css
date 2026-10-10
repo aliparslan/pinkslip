@@ -1,0 +1,70 @@
+/* New in the port: a small card in the `.menu-surface` family for short
+   explanations and inline controls. */
+.positioner {
+  z-index: var(--z-overlay);
+}
+
+.popup {
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: var(--space-4);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  box-shadow: var(--shadow-overlay);
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--duration-instant) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.title {
+  margin-block-end: var(--space-1);
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.infoTrigger {
+  display: inline-grid;
+  place-items: center;
+  /* intentional: an inline 24px icon target inside text, with the hit area
+     grown by the ::after below */
+  width: 24px;
+  /* intentional: as above */
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink-4);
+  vertical-align: middle;
+  cursor: pointer;
+  position: relative;
+}
+
+.infoTrigger::after {
+  position: absolute;
+  inset: -10px;
+  content: "";
+}
+
+.infoTrigger[data-popup-open] {
+  color: var(--color-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .infoTrigger:hover {
+    color: var(--color-ink-2);
+  }
+}

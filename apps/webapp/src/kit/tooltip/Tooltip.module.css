@@ -1,0 +1,31 @@
+/* New in the port: the Svelte app had no tooltips. An inverted label in the
+   primary button's colors, so it reads as a label rather than a surface. */
+.positioner {
+  z-index: var(--z-toast);
+}
+
+.popup {
+  max-width: min(240px, calc(100vw - 24px));
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: var(--color-bg);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--duration-instant) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+/* Tooltips that open within the provider's timeout skip the animation. */
+.popup[data-instant] {
+  transition: none;
+}

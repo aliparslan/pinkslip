@@ -56,9 +56,13 @@ visual references only; component APIs follow Pinkslip's needs.
   manager (two visible, 3.5s default, actions persist, `dedupeKey` updates in
   place); the provider is mounted in `__root.tsx`. `Tabs` is `.my-jobs-tabs`
   with Base UI's indicator. `Disclosure` is `.advanced-fields`. `Progress` is
-  the usage meter (`bar`) and the onboarding step track (`steps`). Not built,
-  because the current app has no call site: `Tooltip`, `Popover`,
-  `Combobox`/`Autocomplete` (locations are fixed chips and company search is
+  the usage meter (`bar`) and the onboarding step track (`steps`). `Tooltip`
+  (inverted label; `IconButton tooltip` shows its label on hover and focus,
+  desktop only), `Popover` and `InfoTip` (an ⓘ that opens on hover and on
+  tap) are new in the port, added at the owner's request: the Svelte app had
+  none, so their look extends the menu surface and has no reference to match.
+  `TooltipProvider` is mounted in `__root.tsx`. Not built, because the current
+  app has no call site: `Combobox`/`Autocomplete` (locations are fixed chips and company search is
   a plain input). Rendered at `/_kit`; awaiting the 2.4 comparison.
 
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
