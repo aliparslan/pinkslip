@@ -3,8 +3,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { publicJobsQueryOptions } from "@pinkslip/data";
 import { Heading } from "../kit";
 import styles from "../styles/Jobs.module.css";
+import { pages, pageHead } from "../features/navigation/pages";
 
 export const Route = createFileRoute("/")({
+  ssr: true,
+  staticData: { page: pages["/"] },
+  head: () => pageHead(pages["/"]),
   loader: ({ context }) => context.queryClient.ensureQueryData(publicJobsQueryOptions(context.api)),
   component: Jobs,
 });

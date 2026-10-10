@@ -627,7 +627,7 @@ Feature-screen comparisons continue in Phase 4.
 
 ### Phase 3: Web shell
 
-**3.1 Routes and layout** · M
+**3.1 Routes and layout** · M · ✅ implemented locally (2026-10-09): all 19 app routes plus About/legal routes, explicit page SSR policy, typed `staticData.page`, nested sidebar/phone section navigation, eight compatibility redirects and legacy hash migration, history Back with safe direct-link fallbacks, keyboard route focus, scroll restoration and reduced-motion-aware depth transitions. Product screens remain placeholders. Checks, 902 unit tests, all three frontend builds and 41 distinct browser checks pass; existing kit screenshot baselines are unchanged. Details and owner testing flows: [port-chunk-3.1.md](port-chunk-3.1.md). New shell compositions remain in Quarantine for owner review
 - All routes as Start routes, each with its SSR flag.
 - `staticData` carries what `route-config.ts` carries today: shell, depth, root
   destination, titles.

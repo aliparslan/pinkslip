@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { Shell } from "../features/shell/Shell";
+import { NavigationEffects } from "../features/navigation/NavigationEffects";
 import { NotFoundPage, RouteErrorPage } from "../features/states/PageStates";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
@@ -7,6 +8,7 @@ import themeCss from "@pinkslip/tokens/tokens.css?url";
 import fontsCss from "@pinkslip/tokens/fonts.css?url";
 import resetCss from "../styles/reset.css?url";
 import baseCss from "../styles/base.css?url";
+import navigationCss from "../styles/navigation.css?url";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
@@ -16,7 +18,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { title: "Pinkslip" },
       { name: "robots", content: "noindex, nofollow" },
     ],
-    links: [themeCss, fontsCss, resetCss, baseCss].map((href) => ({ rel: "stylesheet", href })),
+    links: [themeCss, fontsCss, resetCss, baseCss, navigationCss].map((href) => ({ rel: "stylesheet", href })),
   }),
   component: Root,
   notFoundComponent: NotFoundPage,
@@ -27,7 +29,7 @@ function Root() {
   return <html lang="en" suppressHydrationWarning>
     <head><script src="/theme.js" /><HeadContent /></head>
     <body>
-      <TooltipProvider><ToastProvider><Shell><Outlet /></Shell></ToastProvider></TooltipProvider>
+      <TooltipProvider><ToastProvider><NavigationEffects /><Shell><Outlet /></Shell></ToastProvider></TooltipProvider>
       <Scripts />
     </body>
   </html>;

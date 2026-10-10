@@ -1,6 +1,6 @@
 export { Alert, type AlertTone } from "./alert/Alert";
 export { Badge } from "./badge/Badge";
-export { Button, LinkButton, type ButtonSize, type ButtonVariant } from "./button/Button";
+export { Button, ButtonAnchor, type ButtonSize, type ButtonVariant } from "./button/Button";
 export { Checkbox, SelectCheck } from "./checkbox/Checkbox";
 export { AlertDialog, Dialog, Sheet } from "./dialog/Dialog";
 export { Disclosure } from "./disclosure/Disclosure";

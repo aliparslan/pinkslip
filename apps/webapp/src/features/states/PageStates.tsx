@@ -1,7 +1,8 @@
 import { useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ArrowClockwise, Briefcase, Compass, WarningCircle } from "@phosphor-icons/react";
-import { Button, EmptyState, LinkButton } from "../../kit";
+import { Button, EmptyState } from "../../kit";
+import { LinkButton } from "../navigation/LinkButton";
 
 /** Unknown paths. The server already answers these with a 404 status. */
 export function NotFoundPage() {

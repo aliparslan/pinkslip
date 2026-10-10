@@ -36,7 +36,7 @@ Design consistency fixes applied after the port, and open questions, are in
   the 2.4 reference comparison and owner review.
 
 - **Actions and inputs (2.2)** — Owner: Web port. Files: `kit/button`
-  (`Button`, `LinkButton`), `kit/icon-button`, `kit/field` (`Field`, `Input`,
+  (`Button`, `ButtonAnchor`), `kit/icon-button`, `kit/field` (`Field`, `Input`,
   `Textarea`, `Select`, `Fieldset`, `Form`), `kit/checkbox` (`Checkbox`,
   `SelectCheck`), `kit/switch`, `kit/toggle-group`, `kit/alert`,
   `kit/save-status`. Each reproduces an app.css role: `Button` variants are
@@ -55,6 +55,8 @@ Design consistency fixes applied after the port, and open questions, are in
   site: `RadioGroup`, `NumberField` (number inputs use `Input type="number"`),
   `CheckboxGroup`. `Combobox`/`Autocomplete` moves to 2.3 with the other
   popups. Rendered at `/_kit`; awaiting the 2.4 comparison and owner review.
+  The typed `LinkButton` lives in `features/navigation/LinkButton.tsx`; it
+  wraps the kit's `ButtonAnchor` so the pure UI has no router dependency.
 
 - **Overlays and feedback (2.3)** — Owner: Web port. Files: `kit/dialog`
   (`Dialog`, `Sheet`, `AlertDialog`), `kit/menu`, `kit/toast`, `kit/tabs`,
@@ -94,3 +96,14 @@ Design consistency fixes applied after the port, and open questions, are in
   and API forwarding. They are not completed feature screens or approved kit
   primitives. Phase 2 replaces their temporary compositions using the preserved
   design references before the product screen port.
+
+- **Route shell and placeholders (3.1)** — Owner: Web port. Files:
+  `features/shell/Shell.tsx`, `features/navigation`, and the route files.
+  Extends the approved desktop sidebar with nested Library/You/Admin links;
+  phones use the existing bottom tabs, a You destination list, and section
+  links for Library/Admin. Back uses browser history or a safe direct-link
+  fallback. Route metadata owns titles, shell, depth and root selection.
+  Placeholder pages reuse `Heading`, `Stack` and `Text`; they contain no
+  feature actions or private data. Content-only depth transitions use shared
+  motion tokens and are disabled for reduced motion. These compositions need
+  owner review; they do not introduce or promote a stable UI primitive.

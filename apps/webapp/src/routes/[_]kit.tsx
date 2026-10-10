@@ -6,11 +6,12 @@ import {
 } from "@phosphor-icons/react";
 import {
   Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, EmptyState, Field, Fieldset, Form, Heading, Icon, IconButton,
-  Inline, Input, LinkButton, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
+  Inline, Input, Menu, MenuCheckboxItem, MenuItem, MenuSeparator, Progress, SaveStatus, Select,
   SelectCheck, Separator, Sheet, Skeleton, Spinner, Stack, Surface, Switch, TabPanel, Tabs, Text, Textarea, toast,
   ToggleGroup, Tooltip, InfoTip, Popover, UNDO_TOAST_DURATION, VisuallyHidden, type ButtonVariant, type IconSize, type SavePhase, type TextTone,
 } from "../kit";
 import styles from "../styles/Kit.module.css";
+import { LinkButton } from "../features/navigation/LinkButton";
 
 /** Development-only catalog of every kit component and state. Phase 2.4
  * screenshots this page in each theme and width. */

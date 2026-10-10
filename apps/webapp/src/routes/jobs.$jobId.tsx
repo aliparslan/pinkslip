@@ -3,8 +3,11 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { publicJobQueryOptions } from "@pinkslip/data";
 import { JobNotFoundPage } from "../features/states/PageStates";
 import styles from "../styles/Jobs.module.css";
+import { pages } from "../features/navigation/pages";
 
 export const Route = createFileRoute("/jobs/$jobId")({
+  ssr: true,
+  staticData: { page: pages["/jobs/$jobId"] },
   loader: async ({ context, params }) => {
     const job = await context.queryClient.ensureQueryData(publicJobQueryOptions(context.api, params.jobId));
     if (!job) throw notFound();

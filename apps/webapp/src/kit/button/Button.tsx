@@ -1,5 +1,4 @@
 import { Button as BaseButton } from "@base-ui/react/button";
-import { createLink } from "@tanstack/react-router";
 import type { AnchorHTMLAttributes, MouseEventHandler, ReactNode, Ref } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { Spinner } from "../spinner/Spinner";
@@ -61,7 +60,7 @@ export function Button({
 
 type ButtonAnchorProps = ButtonLookProps & AnchorHTMLAttributes<HTMLAnchorElement> & { ref?: Ref<HTMLAnchorElement> };
 
-function ButtonAnchor({ variant = "secondary", size = "default", fullWidth, icon, children, ...rest }: ButtonAnchorProps) {
+export function ButtonAnchor({ variant = "secondary", size = "default", fullWidth, icon, children, ...rest }: ButtonAnchorProps) {
   return <a
     {...rest}
     className={styles.root}
@@ -73,6 +72,3 @@ function ButtonAnchor({ variant = "secondary", size = "default", fullWidth, icon
     {children}
   </a>;
 }
-
-/** Navigation that looks like a button, with the router's typed `to`. */
-export const LinkButton = createLink(ButtonAnchor);

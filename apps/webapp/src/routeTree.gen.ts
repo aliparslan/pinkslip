@@ -12,11 +12,38 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KitRouteImport } from './routes/[_]kit'
 import { Route as KitErrorRouteImport } from './routes/[_]kit-error'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ResumeRouteImport } from './routes/resume'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as YouRouteImport } from './routes/you'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
+import { Route as AdminJevRouteImport } from './routes/admin.jev'
+import { Route as AdminRunsRouteImport } from './routes/admin.runs'
+import { Route as AdminSourcesRouteImport } from './routes/admin.sources'
 import { Route as JobsJobIdRouteImport } from './routes/jobs.$jobId'
+import { Route as LibraryIndexRouteImport } from './routes/library.index'
+import { Route as LibraryAppliedRouteImport } from './routes/library.applied'
+import { Route as LibrarySavedRouteImport } from './routes/library.saved'
+import { Route as MyJobsAppliedRouteImport } from './routes/my-jobs.applied'
+import { Route as MyJobsSavedRouteImport } from './routes/my-jobs.saved'
+import { Route as TailorJobIdRouteImport } from './routes/tailor.$jobId'
+import { Route as YouIndexRouteImport } from './routes/you.index'
+import { Route as YouAccountRouteImport } from './routes/you.account'
+import { Route as YouAlertsRouteImport } from './routes/you.alerts'
+import { Route as YouAnswersRouteImport } from './routes/you.answers'
+import { Route as YouCompaniesRouteImport } from './routes/you.companies'
+import { Route as YouFeedbackRouteImport } from './routes/you.feedback'
+import { Route as YouOperationsRouteImport } from './routes/you.operations'
+import { Route as YouPreferencesRouteImport } from './routes/you.preferences'
+import { Route as YouResumeRouteImport } from './routes/you.resume'
+import { Route as YouTailoringRouteImport } from './routes/you.tailoring'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,6 +60,21 @@ const KitErrorRoute = KitErrorRouteImport.update({
   path: '/_kit-error',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompaniesRoute = CompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -41,6 +83,21 @@ const LibraryRoute = LibraryRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeRoute = ResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupportRoute = SupportRouteImport.update({
@@ -53,42 +110,225 @@ const YouRoute = YouRouteImport.update({
   path: '/you',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInboxRoute = AdminInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminJevRoute = AdminJevRouteImport.update({
+  id: '/jev',
+  path: '/jev',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRunsRoute = AdminRunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSourcesRoute = AdminSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => AdminRoute,
+} as any)
 const JobsJobIdRoute = JobsJobIdRouteImport.update({
   id: '/jobs/$jobId',
   path: '/jobs/$jobId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LibraryRoute,
+} as any)
+const LibraryAppliedRoute = LibraryAppliedRouteImport.update({
+  id: '/applied',
+  path: '/applied',
+  getParentRoute: () => LibraryRoute,
+} as any)
+const LibrarySavedRoute = LibrarySavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
+  getParentRoute: () => LibraryRoute,
+} as any)
+const MyJobsAppliedRoute = MyJobsAppliedRouteImport.update({
+  id: '/my-jobs/applied',
+  path: '/my-jobs/applied',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyJobsSavedRoute = MyJobsSavedRouteImport.update({
+  id: '/my-jobs/saved',
+  path: '/my-jobs/saved',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TailorJobIdRoute = TailorJobIdRouteImport.update({
+  id: '/tailor/$jobId',
+  path: '/tailor/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const YouIndexRoute = YouIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouAccountRoute = YouAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouAlertsRoute = YouAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouAnswersRoute = YouAnswersRouteImport.update({
+  id: '/answers',
+  path: '/answers',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouCompaniesRoute = YouCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouFeedbackRoute = YouFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouOperationsRoute = YouOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouPreferencesRoute = YouPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouResumeRoute = YouResumeRouteImport.update({
+  id: '/resume',
+  path: '/resume',
+  getParentRoute: () => YouRoute,
+} as any)
+const YouTailoringRoute = YouTailoringRouteImport.update({
+  id: '/tailoring',
+  path: '/tailoring',
+  getParentRoute: () => YouRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
-  '/library': typeof LibraryRoute
+  '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/companies': typeof CompaniesRoute
+  '/library': typeof LibraryRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
+  '/resume': typeof ResumeRoute
+  '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
-  '/you': typeof YouRoute
+  '/you': typeof YouRouteWithChildren
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/jev': typeof AdminJevRoute
+  '/admin/runs': typeof AdminRunsRoute
+  '/admin/sources': typeof AdminSourcesRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/library/applied': typeof LibraryAppliedRoute
+  '/library/saved': typeof LibrarySavedRoute
+  '/my-jobs/applied': typeof MyJobsAppliedRoute
+  '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/tailor/$jobId': typeof TailorJobIdRoute
+  '/you/account': typeof YouAccountRoute
+  '/you/alerts': typeof YouAlertsRoute
+  '/you/answers': typeof YouAnswersRoute
+  '/you/companies': typeof YouCompaniesRoute
+  '/you/feedback': typeof YouFeedbackRoute
+  '/you/operations': typeof YouOperationsRoute
+  '/you/preferences': typeof YouPreferencesRoute
+  '/you/resume': typeof YouResumeRoute
+  '/you/tailoring': typeof YouTailoringRoute
+  '/admin/': typeof AdminIndexRoute
+  '/library/': typeof LibraryIndexRoute
+  '/you/': typeof YouIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
-  '/library': typeof LibraryRoute
+  '/about': typeof AboutRoute
+  '/companies': typeof CompaniesRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
+  '/resume': typeof ResumeRoute
+  '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
-  '/you': typeof YouRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/jev': typeof AdminJevRoute
+  '/admin/runs': typeof AdminRunsRoute
+  '/admin/sources': typeof AdminSourcesRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/library/applied': typeof LibraryAppliedRoute
+  '/library/saved': typeof LibrarySavedRoute
+  '/my-jobs/applied': typeof MyJobsAppliedRoute
+  '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/tailor/$jobId': typeof TailorJobIdRoute
+  '/you/account': typeof YouAccountRoute
+  '/you/alerts': typeof YouAlertsRoute
+  '/you/answers': typeof YouAnswersRoute
+  '/you/companies': typeof YouCompaniesRoute
+  '/you/feedback': typeof YouFeedbackRoute
+  '/you/operations': typeof YouOperationsRoute
+  '/you/preferences': typeof YouPreferencesRoute
+  '/you/resume': typeof YouResumeRoute
+  '/you/tailoring': typeof YouTailoringRoute
+  '/admin': typeof AdminIndexRoute
+  '/library': typeof LibraryIndexRoute
+  '/you': typeof YouIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
-  '/library': typeof LibraryRoute
+  '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/companies': typeof CompaniesRoute
+  '/library': typeof LibraryRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
+  '/resume': typeof ResumeRoute
+  '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
-  '/you': typeof YouRoute
+  '/you': typeof YouRouteWithChildren
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/jev': typeof AdminJevRoute
+  '/admin/runs': typeof AdminRunsRoute
+  '/admin/sources': typeof AdminSourcesRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/library/applied': typeof LibraryAppliedRoute
+  '/library/saved': typeof LibrarySavedRoute
+  '/my-jobs/applied': typeof MyJobsAppliedRoute
+  '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/tailor/$jobId': typeof TailorJobIdRoute
+  '/you/account': typeof YouAccountRoute
+  '/you/alerts': typeof YouAlertsRoute
+  '/you/answers': typeof YouAnswersRoute
+  '/you/companies': typeof YouCompaniesRoute
+  '/you/feedback': typeof YouFeedbackRoute
+  '/you/operations': typeof YouOperationsRoute
+  '/you/preferences': typeof YouPreferencesRoute
+  '/you/resume': typeof YouResumeRoute
+  '/you/tailoring': typeof YouTailoringRoute
+  '/admin/': typeof AdminIndexRoute
+  '/library/': typeof LibraryIndexRoute
+  '/you/': typeof YouIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,42 +336,129 @@ export interface FileRouteTypes {
     | '/'
     | '/_kit'
     | '/_kit-error'
+    | '/about'
+    | '/admin'
+    | '/companies'
     | '/library'
     | '/privacy'
+    | '/profile'
+    | '/resume'
+    | '/settings'
     | '/support'
     | '/you'
+    | '/admin/inbox'
+    | '/admin/jev'
+    | '/admin/runs'
+    | '/admin/sources'
     | '/jobs/$jobId'
+    | '/library/applied'
+    | '/library/saved'
+    | '/my-jobs/applied'
+    | '/my-jobs/saved'
+    | '/tailor/$jobId'
+    | '/you/account'
+    | '/you/alerts'
+    | '/you/answers'
+    | '/you/companies'
+    | '/you/feedback'
+    | '/you/operations'
+    | '/you/preferences'
+    | '/you/resume'
+    | '/you/tailoring'
+    | '/admin/'
+    | '/library/'
+    | '/you/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/_kit'
     | '/_kit-error'
-    | '/library'
+    | '/about'
+    | '/companies'
     | '/privacy'
+    | '/profile'
+    | '/resume'
+    | '/settings'
     | '/support'
-    | '/you'
+    | '/admin/inbox'
+    | '/admin/jev'
+    | '/admin/runs'
+    | '/admin/sources'
     | '/jobs/$jobId'
+    | '/library/applied'
+    | '/library/saved'
+    | '/my-jobs/applied'
+    | '/my-jobs/saved'
+    | '/tailor/$jobId'
+    | '/you/account'
+    | '/you/alerts'
+    | '/you/answers'
+    | '/you/companies'
+    | '/you/feedback'
+    | '/you/operations'
+    | '/you/preferences'
+    | '/you/resume'
+    | '/you/tailoring'
+    | '/admin'
+    | '/library'
+    | '/you'
   id:
     | '__root__'
     | '/'
     | '/_kit'
     | '/_kit-error'
+    | '/about'
+    | '/admin'
+    | '/companies'
     | '/library'
     | '/privacy'
+    | '/profile'
+    | '/resume'
+    | '/settings'
     | '/support'
     | '/you'
+    | '/admin/inbox'
+    | '/admin/jev'
+    | '/admin/runs'
+    | '/admin/sources'
     | '/jobs/$jobId'
+    | '/library/applied'
+    | '/library/saved'
+    | '/my-jobs/applied'
+    | '/my-jobs/saved'
+    | '/tailor/$jobId'
+    | '/you/account'
+    | '/you/alerts'
+    | '/you/answers'
+    | '/you/companies'
+    | '/you/feedback'
+    | '/you/operations'
+    | '/you/preferences'
+    | '/you/resume'
+    | '/you/tailoring'
+    | '/admin/'
+    | '/library/'
+    | '/you/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KitRoute: typeof KitRoute
   KitErrorRoute: typeof KitErrorRoute
-  LibraryRoute: typeof LibraryRoute
+  AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  CompaniesRoute: typeof CompaniesRoute
+  LibraryRoute: typeof LibraryRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
+  ProfileRoute: typeof ProfileRoute
+  ResumeRoute: typeof ResumeRoute
+  SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
-  YouRoute: typeof YouRoute
+  YouRoute: typeof YouRouteWithChildren
   JobsJobIdRoute: typeof JobsJobIdRoute
+  MyJobsAppliedRoute: typeof MyJobsAppliedRoute
+  MyJobsSavedRoute: typeof MyJobsSavedRoute
+  TailorJobIdRoute: typeof TailorJobIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -157,6 +484,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KitErrorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/companies': {
+      id: '/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof CompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
@@ -169,6 +517,27 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume': {
+      id: '/resume'
+      path: '/resume'
+      fullPath: '/resume'
+      preLoaderRoute: typeof ResumeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/support': {
@@ -185,6 +554,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof YouRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inbox': {
+      id: '/admin/inbox'
+      path: '/inbox'
+      fullPath: '/admin/inbox'
+      preLoaderRoute: typeof AdminInboxRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/jev': {
+      id: '/admin/jev'
+      path: '/jev'
+      fullPath: '/admin/jev'
+      preLoaderRoute: typeof AdminJevRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/runs': {
+      id: '/admin/runs'
+      path: '/runs'
+      fullPath: '/admin/runs'
+      preLoaderRoute: typeof AdminRunsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/sources': {
+      id: '/admin/sources'
+      path: '/sources'
+      fullPath: '/admin/sources'
+      preLoaderRoute: typeof AdminSourcesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/jobs/$jobId': {
       id: '/jobs/$jobId'
       path: '/jobs/$jobId'
@@ -192,18 +596,200 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/library/': {
+      id: '/library/'
+      path: '/'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof LibraryRoute
+    }
+    '/library/applied': {
+      id: '/library/applied'
+      path: '/applied'
+      fullPath: '/library/applied'
+      preLoaderRoute: typeof LibraryAppliedRouteImport
+      parentRoute: typeof LibraryRoute
+    }
+    '/library/saved': {
+      id: '/library/saved'
+      path: '/saved'
+      fullPath: '/library/saved'
+      preLoaderRoute: typeof LibrarySavedRouteImport
+      parentRoute: typeof LibraryRoute
+    }
+    '/my-jobs/applied': {
+      id: '/my-jobs/applied'
+      path: '/my-jobs/applied'
+      fullPath: '/my-jobs/applied'
+      preLoaderRoute: typeof MyJobsAppliedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-jobs/saved': {
+      id: '/my-jobs/saved'
+      path: '/my-jobs/saved'
+      fullPath: '/my-jobs/saved'
+      preLoaderRoute: typeof MyJobsSavedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tailor/$jobId': {
+      id: '/tailor/$jobId'
+      path: '/tailor/$jobId'
+      fullPath: '/tailor/$jobId'
+      preLoaderRoute: typeof TailorJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/you/': {
+      id: '/you/'
+      path: '/'
+      fullPath: '/you/'
+      preLoaderRoute: typeof YouIndexRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/account': {
+      id: '/you/account'
+      path: '/account'
+      fullPath: '/you/account'
+      preLoaderRoute: typeof YouAccountRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/alerts': {
+      id: '/you/alerts'
+      path: '/alerts'
+      fullPath: '/you/alerts'
+      preLoaderRoute: typeof YouAlertsRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/answers': {
+      id: '/you/answers'
+      path: '/answers'
+      fullPath: '/you/answers'
+      preLoaderRoute: typeof YouAnswersRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/companies': {
+      id: '/you/companies'
+      path: '/companies'
+      fullPath: '/you/companies'
+      preLoaderRoute: typeof YouCompaniesRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/feedback': {
+      id: '/you/feedback'
+      path: '/feedback'
+      fullPath: '/you/feedback'
+      preLoaderRoute: typeof YouFeedbackRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/operations': {
+      id: '/you/operations'
+      path: '/operations'
+      fullPath: '/you/operations'
+      preLoaderRoute: typeof YouOperationsRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/preferences': {
+      id: '/you/preferences'
+      path: '/preferences'
+      fullPath: '/you/preferences'
+      preLoaderRoute: typeof YouPreferencesRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/resume': {
+      id: '/you/resume'
+      path: '/resume'
+      fullPath: '/you/resume'
+      preLoaderRoute: typeof YouResumeRouteImport
+      parentRoute: typeof YouRoute
+    }
+    '/you/tailoring': {
+      id: '/you/tailoring'
+      path: '/tailoring'
+      fullPath: '/you/tailoring'
+      preLoaderRoute: typeof YouTailoringRouteImport
+      parentRoute: typeof YouRoute
+    }
   }
 }
+
+interface AdminRouteChildren {
+  AdminInboxRoute: typeof AdminInboxRoute
+  AdminJevRoute: typeof AdminJevRoute
+  AdminRunsRoute: typeof AdminRunsRoute
+  AdminSourcesRoute: typeof AdminSourcesRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminInboxRoute: AdminInboxRoute,
+  AdminJevRoute: AdminJevRoute,
+  AdminRunsRoute: AdminRunsRoute,
+  AdminSourcesRoute: AdminSourcesRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface LibraryRouteChildren {
+  LibraryAppliedRoute: typeof LibraryAppliedRoute
+  LibrarySavedRoute: typeof LibrarySavedRoute
+  LibraryIndexRoute: typeof LibraryIndexRoute
+}
+
+const LibraryRouteChildren: LibraryRouteChildren = {
+  LibraryAppliedRoute: LibraryAppliedRoute,
+  LibrarySavedRoute: LibrarySavedRoute,
+  LibraryIndexRoute: LibraryIndexRoute,
+}
+
+const LibraryRouteWithChildren =
+  LibraryRoute._addFileChildren(LibraryRouteChildren)
+
+interface YouRouteChildren {
+  YouAccountRoute: typeof YouAccountRoute
+  YouAlertsRoute: typeof YouAlertsRoute
+  YouAnswersRoute: typeof YouAnswersRoute
+  YouCompaniesRoute: typeof YouCompaniesRoute
+  YouFeedbackRoute: typeof YouFeedbackRoute
+  YouOperationsRoute: typeof YouOperationsRoute
+  YouPreferencesRoute: typeof YouPreferencesRoute
+  YouResumeRoute: typeof YouResumeRoute
+  YouTailoringRoute: typeof YouTailoringRoute
+  YouIndexRoute: typeof YouIndexRoute
+}
+
+const YouRouteChildren: YouRouteChildren = {
+  YouAccountRoute: YouAccountRoute,
+  YouAlertsRoute: YouAlertsRoute,
+  YouAnswersRoute: YouAnswersRoute,
+  YouCompaniesRoute: YouCompaniesRoute,
+  YouFeedbackRoute: YouFeedbackRoute,
+  YouOperationsRoute: YouOperationsRoute,
+  YouPreferencesRoute: YouPreferencesRoute,
+  YouResumeRoute: YouResumeRoute,
+  YouTailoringRoute: YouTailoringRoute,
+  YouIndexRoute: YouIndexRoute,
+}
+
+const YouRouteWithChildren = YouRoute._addFileChildren(YouRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KitRoute: KitRoute,
   KitErrorRoute: KitErrorRoute,
-  LibraryRoute: LibraryRoute,
+  AboutRoute: AboutRoute,
+  AdminRoute: AdminRouteWithChildren,
+  CompaniesRoute: CompaniesRoute,
+  LibraryRoute: LibraryRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
+  ProfileRoute: ProfileRoute,
+  ResumeRoute: ResumeRoute,
+  SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
-  YouRoute: YouRoute,
+  YouRoute: YouRouteWithChildren,
   JobsJobIdRoute: JobsJobIdRoute,
+  MyJobsAppliedRoute: MyJobsAppliedRoute,
+  MyJobsSavedRoute: MyJobsSavedRoute,
+  TailorJobIdRoute: TailorJobIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

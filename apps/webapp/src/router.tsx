@@ -16,6 +16,16 @@ export function getRouter() {
     routeTree,
     context,
     scrollRestoration: true,
+    defaultViewTransition: {
+      types: ({ fromLocation, toLocation, pathChanged }): string[] | false => {
+        if (!pathChanged || !fromLocation || typeof window === "undefined"
+          || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+        const from = router.getMatchedRoutes(fromLocation.pathname)[2]?.options.staticData?.page;
+        const to = router.getMatchedRoutes(toLocation.pathname)[2]?.options.staticData?.page;
+        if (!from || !to || from.depth === to.depth) return false;
+        return [to.depth > from.depth ? "deeper" : "shallower"];
+      },
+    },
     // Each route's own boundary, so a failing page keeps the app frame.
     defaultErrorComponent: RouteErrorPage,
     Wrap: ({ children }) => <DataProvider api={api}>{children}</DataProvider>,

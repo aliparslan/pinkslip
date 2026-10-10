@@ -1,0 +1,39 @@
+/* Only route depth changes animate. Navigation chrome stays still, and
+   browsers without typed View Transitions simply replace the page. */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(page),
+  ::view-transition-new(page) {
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :root:active-view-transition-type(deeper)::view-transition-new(page) {
+      animation: page-forward var(--duration-standard) var(--ease-standard) both;
+    }
+
+    :root:active-view-transition-type(shallower)::view-transition-new(page) {
+      animation: page-back var(--duration-standard) var(--ease-standard) both;
+    }
+
+    :root:active-view-transition-type(deeper)::view-transition-old(page),
+    :root:active-view-transition-type(shallower)::view-transition-old(page) {
+      animation: page-leave var(--duration-fast) var(--ease-standard) both;
+    }
+  }
+
+  @keyframes page-forward {
+    from { opacity: 0; transform: translateX(var(--space-6)); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes page-back {
+    from { opacity: 0; transform: translateX(calc(-1 * var(--space-6))); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes page-leave {
+    to { opacity: 0; }
+  }
+}
