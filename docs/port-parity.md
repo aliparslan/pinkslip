@@ -3,12 +3,11 @@
 Source snapshot: `8b9a77c`, audited 2026-10-09. Companion to
 [the port plan](REACT_EXPO_PORT_PLAN.md), chunk **0.3**.
 
-**Inventory drafted; architecture/design direction reviewed on 2026-10-09;
-remaining feature-scope choices are recorded below. No feature parity row below
-is marked complete.** The React foundation is now implemented locally; see the
-plan's chunk 1.1 and the progress note below. The earlier React/Expo attempt and stash were
-not used. Sources are the current Svelte web/Capacitor application, API client,
-Worker routes, component catalog, and tests.
+This is the frozen Svelte/Capacitor inventory. Read references to deleted source
+paths with `git show svelte-final:<path>`. Current implementation and validation
+status is in the progress notes, the port plan and [integration closeout](port-closeout.md).
+The earlier React/Expo attempt and stash were not used. The owner confirmed the
+new TestFlight installation launches; that is separate from full native parity.
 
 Checkboxes are acceptance requirements for the replacement, not a claim that
 the current app already passes them. Each completed row needs web/native
@@ -35,16 +34,17 @@ new visual implementations or settle the remaining feature cuts below.
 | Native feasibility | Validate session/data, resume import/files, and application-browser filling in 1.6a–c. Resolve import strategy D10 in 1.6b, ahead of the full native port. |
 | Discover, read, save, apply, Library, You/settings, companies, resume, answers | Preserve the behaviors below. No proposed cuts. |
 | Onboarding | Explicit redesign in 4.7; preserve preference validation, migration, and completion semantics. |
-| Tailoring | Full current behavior inventoried for reference. D7 still leans toward a placeholder; full editor/export is not an approved cut yet. |
-| Native admin | D9 leans toward opening the web admin; native duplication is not yet decided. |
-| Offline web | Existing cached reading is inventoried. The plan's push-only service worker removes precaching; cold offline launch and offline fonts must be explicitly retained or cut. An offline banner alone is not parity. |
-| Web Apple sign-in | New behavior in plan 3.2. Current web adapter returns `appleAvailable: false`; only native exposes Apple sign-in. |
+| Tailoring | Owner accepted the placeholder and explicitly tabled tailoring indefinitely on 2026-10-10. Full behavior stays inventoried for later. |
+| Native admin | Web link-out accepted and implemented in 6.11. |
+| Offline web | Owner accepted cutting cold offline web/font support in the 2026-10-10 5.1 review. Native read-cache persistence remains separate. |
+| Web Apple sign-in | Redirect flow implemented locally in closeout; actual Services ID/credentials and owner browser verification remain required. |
 | Public SSR, job metadata, sitemap, typed feed filters in URL | Planned additions; not existing Svelte behavior. |
 | Native role filters / applied toggle / Undo variants | Existing platform differences below; decide whether to unify when porting each slice. |
 
 ## Route coverage
 
-All 19 entries in [route-config.ts](../packages/client/src/route-config.ts), plus
+All 19 entries in the frozen `packages/client/src/route-config.ts`
+(`git show svelte-final:packages/client/src/route-config.ts`), plus
 the public About page, have requirements below. Each route also inherits the
 cross-cutting requirements. “Client” describes the planned page rendering;
 public SSR must not include personal saved/applied state.
@@ -398,13 +398,17 @@ tests do not substitute for interaction tests in React or on a device.
 | `packages/client/tests/application-autofill.test.ts`; `tests/apply.test.ts`, `apply-plan.test.ts`, `apply-answers.test.ts`, `outreach.test.ts`, `auth.test.ts`, `apple-oauth.test.ts` | Feature/API behavior. Add UI/device evidence for answer rollback, prep, browser bridge, return prompt, mail handoff, logout/delete, and token races. |
 
 For material implementation chunks run `bun run check`, `bun test`,
-`bun run build:frontend`, and `bun run build:ios` while those apps exist,
-plus the new app's checks/build and relevant Playwright cases. After 3.4,
-update the root commands to the replacement targets rather than retaining
-references to deleted apps. Native gestures, push, Apple login, file handoff,
-and autofill also require device verification.
+`bun run build`, and `bun run test:e2e`. Native changes also use
+`bun --filter @pinkslip/native export:ios` and the native WebKit suite.
+Native gestures, push, Apple login, file handoff and autofill require device
+verification too.
 
-## Implementation findings to carry into the next chunks
+## Foundation audit findings, 2026-10-09
+
+These findings describe the frozen Svelte/foundation snapshot. References to
+"currently" below mean that snapshot; they are not a list of remaining faults
+in the present React/Expo implementation. The Progress section records later
+resolution and the checks still outstanding.
 
 1. **Public SSR needs an API contract.** `worker/auth.ts` currently allows
    anonymous GETs only for bootstrap/me/preferences/logo; a job GET returns
@@ -474,3 +478,21 @@ for Phase 6, even where the web half is done. Proposed cuts and decisions
 (offline web, web Apple sign-in, the filter-failure model, search launch) are
 decided by the owner the same day: offline web cut, web Apple sign-in
 deferred to Phase 6, the URL filter model kept, search indexing on.
+
+Integration closeout on 2026-10-10 ([port-closeout.md](port-closeout.md)):
+
+| Area | Current status |
+| --- | --- |
+| Public SSR and shared transport | The Hono public projection, instance-scoped clients and request-scoped Query caches are implemented. Native transport contracts are framework-neutral. Original audit findings 1–2 are resolved in source. |
+| Cutover and DOM adapters | Svelte/Capacitor were removed in 3.4. DOM form scripts stay in the application WebView; native file/Keychain/push adapters own their platforms. Missing-text PDF import now has a temporary local PDF.js WebView and the existing OCR API. |
+| Native autofill/session/import | Local regression and WebKit fixture checks pass. Admin autofill activation requires API deployment. Real ATS, retained attachment, scanned OCR service, signed-account persistence and gestures still need the owner's phone checks. |
+| Website Apple sign-in | The chosen redirect flow is implemented and tested locally. Services ID/key setup, deployment and real browser consent/account continuity are outstanding. |
+| Push and links | Owner confirms delayed notification delivery and app opening. Actual job destinations and cold/warm links remain open; the live AASA job path still needs deployment. |
+| Accepted cuts | Tailoring stays a placeholder until explicit owner resumption, native Admin links to web, offline web is cut. Website Apple setup is now an activation prerequisite. |
+
+The local closeout passed root checks, 870 unit tests, web build, native export
+and seven native WebKit tests. Full web-suite results and exact owner flows
+are recorded in the closeout report. Historical web-only ticks stay valid;
+native rows stay open where fixture evidence does not establish full signed
+device parity. This document is no longer a claim that the port has not started,
+and it is not a claim that every phone integration is verified.

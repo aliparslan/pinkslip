@@ -870,8 +870,16 @@ are separate from local implementation proof. Scope and testing flows:
 
 ### Phase 7: Cleanup
 
-Final CLAUDE.md update. Optionally rename `apps/webapp` → `apps/web` (the Svelte
-code was already deleted in 3.4).
+✅ Local documentation cleanup completed 2026-10-10: updated the ignored local
+`CLAUDE.md`, the plan, parity progress, release recovery record and integration
+audit. The frozen inventory and historical findings remain labeled as such;
+signed-device checks remain open. Added owner runbooks for website Apple setup
+and external TestFlight distribution. `apps/webapp` was not renamed: this
+optional change adds no product behavior and would churn paths during closeout.
+See [port-closeout.md](port-closeout.md) for validation and numbered owner flows,
+and [testflight-external-testing.md](testflight-external-testing.md) for the
+terminal and App Store Connect release steps. No production actions were taken
+by this documentation chunk.
 
 ---
 
