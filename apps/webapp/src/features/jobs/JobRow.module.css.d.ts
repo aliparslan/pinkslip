@@ -8,7 +8,6 @@ declare const styles: {
   readonly "location": string;
   readonly "meta": string;
   readonly "new": string;
-  readonly "reason": string;
   readonly "root": string;
   readonly "salary": string;
   readonly "sub": string;

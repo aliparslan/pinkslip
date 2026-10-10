@@ -2,20 +2,19 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import {
-  ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CaretDown, CaretUp, CheckCircle, ClockCounterClockwise,
+  ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise,
   DotsThree, EyeSlash, Flag, MapPin, Money, Prohibit, ShareNetwork, Sparkle, ThumbsDown, type IconProps,
 } from "@phosphor-icons/react";
 import type { Job } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { formatJobLocation, normalizeSalaryText } from "@pinkslip/core/job-format";
 import { jobOriginalTimingLabel, jobTimingLabel } from "@pinkslip/core/job-timing";
-import { roleLabel } from "@pinkslip/domain/search-profile";
 import {
   useBlockJob, useHideCompany, useHideJob, useJob, useMarkApplied, useMarkViewed, usePublicJob, useSaveJob,
   useUnmarkApplied, useUnsaveJob,
 } from "@pinkslip/data";
 import {
-  AlertDialog, Badge, Button, Heading, IconButton, Menu, MenuItem, MenuSeparator, Skeleton, Text, toast,
+  AlertDialog, Badge, Button, Heading, Menu, MenuItem, MenuSeparator, Skeleton, Text, toast,
   UNDO_TOAST_DURATION,
 } from "../../kit";
 import { CompanyLogo } from "../jobs/CompanyLogo";
@@ -39,18 +38,6 @@ type DetailJob = AnyJob & Partial<Job>;
 const SavedBookmark = forwardRef<SVGSVGElement, IconProps>((props, ref) => <BookmarkSimple ref={ref} {...props} weight="fill" />);
 SavedBookmark.displayName = "SavedBookmark";
 
-function quickFacts(job: DetailJob, salary: string | null): string[] {
-  const facts: string[] = [];
-  if (job.match_fact) facts.push(job.match_fact);
-  const specialty = job.specialties?.[0];
-  if (specialty) facts.push(`${roleLabel(specialty)} role`);
-  if (job.sponsorship_available === true) facts.push("Sponsorship available");
-  if (!salary) facts.push("Salary not listed");
-  if (job.evergreen) facts.push("Evergreen listing");
-  if (!job.posted_at) facts.push("Post date unavailable");
-  return [...new Set(facts)].slice(0, 4);
-}
-
 async function share(job: DetailJob) {
   const url = `${window.location.origin}/jobs/${encodeURIComponent(job.id)}`;
   const data = { title: `${job.title} · ${job.company_name}`, text: `${job.title} at ${job.company_name}`, url };
@@ -68,7 +55,7 @@ async function share(job: DetailJob) {
 
 /**
  * `JobDetail.svelte` for the web, with its actions in one place (D17): the
- * company and title, location, salary and dates, quick facts, the posting,
+ * company and title, location, salary and dates, the posting,
  * and one action bar (Apply, Save, and a menu with everything else) pinned
  * to the bottom. Anyone can read it: the server renders the public listing,
  * and a session adds saved/applied state and the match reason.
@@ -143,7 +130,8 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   const { previous, next } = useNeighbours(job.id);
   const track = useTrack();
 
-  // j/k step through the list beside the job, as in mail and feed readers.
+  // j/k step through the list beside the job, as in mail and feed readers
+  // (keyboard only; the owner dropped the on-screen arrows).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -161,7 +149,6 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   const salary = normalizeSalaryText(job.salary?.trim() ? job.salary : null);
   const location = formatJobLocation(job.location);
   const original = jobOriginalTimingLabel(job);
-  const facts = quickFacts(job, salary);
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
     [job.description, job.title, job.company_name]);
   const saved = Boolean(job.saved);
@@ -196,11 +183,6 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   };
 
   return <article className={styles.root} aria-labelledby="job-title">
-    {(previous || next) && <div className={styles.stepper} role="group" aria-label="Jobs in the list">
-      <IconButton icon={CaretUp} label="Previous job (K)" tooltip size="sm" disabled={!previous} onClick={() => previous && navigateTo(previous)} />
-      <IconButton icon={CaretDown} label="Next job (J)" tooltip size="sm" disabled={!next} onClick={() => next && navigateTo(next)} />
-    </div>}
-
     <header className={styles.identity}>
       <CompanyLogo name={job.company_name} domain={job.company_domain} size={44} />
       <div className={styles.heading}>
@@ -219,11 +201,6 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
       {salary && <li><Money size={15} aria-hidden /><span>{salary}</span></li>}
       {original && <li><ClockCounterClockwise size={15} aria-hidden /><span suppressHydrationWarning>{original}</span></li>}
     </ul>
-
-    {facts.length > 0 && <section className={styles.facts} aria-labelledby="quick-facts">
-      <h2 id="quick-facts">Quick facts</h2>
-      <ul>{facts.map((fact) => <li key={fact}>{fact}</li>)}</ul>
-    </section>}
 
     <section className={styles.about} aria-labelledby="about-role" aria-busy={pendingDescription || !full || undefined}>
       <Heading level={2} variant="section" id="about-role">About the role</Heading>

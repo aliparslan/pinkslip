@@ -122,26 +122,6 @@
   text-overflow: ellipsis;
 }
 
-.reason {
-  margin-block-start: var(--space-1);
-  overflow: hidden;
-  color: var(--color-ink-4);
-  font-size: var(--fs-2xs);
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reason::before {
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  margin-inline-end: var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--color-ink-4);
-  content: "";
-  vertical-align: middle;
-}
 
 .accessory {
   position: absolute;

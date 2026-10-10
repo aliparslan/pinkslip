@@ -7,14 +7,12 @@ declare const styles: {
   readonly "companyLine": string;
   readonly "description": string;
   readonly "descriptionSkeleton": string;
-  readonly "facts": string;
   readonly "heading": string;
   readonly "identity": string;
   readonly "meta": string;
   readonly "missing": string;
   readonly "original": string;
   readonly "root": string;
-  readonly "stepper": string;
   readonly "textButton": string;
 };
 

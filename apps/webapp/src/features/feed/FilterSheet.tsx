@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { CAREER_STAGE_OPTIONS, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
-import { Button, Field, Input, Menu, MenuCheckboxItem, MultiToggleGroup, Sheet, Stack, Switch, Text, ToggleGroup } from "../../kit";
+import { Button, Field, Input, Menu, MenuCheckboxItem, MultiToggleGroup, Sheet, Stack, Switch, Text } from "../../kit";
 import {
   locationLabels, locationSummary, locations as chosenLocations, selectedStages, type FeedLocation, type FeedSearch,
 } from "./criteria";
@@ -11,6 +11,8 @@ interface Draft {
   min: string;
   max: string;
   stages: CareerStage[];
+  /** Not offered in the sheet for now (owner, 2026-10-10); a `listing=`
+   * link still applies and Apply keeps it. Reset clears it. */
   listing: "any" | "evergreen";
   saved: boolean;
 }
@@ -107,12 +109,6 @@ export function FilterSheet({ open, onOpenChange, search, available, metros, onA
           options={CAREER_STAGE_OPTIONS.filter((option) => available.includes(option.id))
             .map((option) => ({ value: option.id, label: option.label }))} />
       </Stack>}
-
-      <Stack gap="2">
-        <Text size="sm" weight="medium" tone="ink-2">Listing type</Text>
-        <ToggleGroup label="Listing type" variant="segmented" value={draft.listing} onValueChange={(listing) => set({ listing })}
-          options={[{ value: "any", label: "All" }, { value: "evergreen", label: "Evergreen only" }]} />
-      </Stack>
 
       <div className={styles.toggleRow}>
         <Text>Saved jobs only</Text>

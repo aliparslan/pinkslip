@@ -143,7 +143,7 @@ test.describe("job page", () => {
     await expect(prompt).toBeVisible();
     await prompt.getByRole("button", { name: "Yes, I applied" }).click();
     await expect.poll(() => writes.some((write) => write.path === "/jobs/job-a" && JSON.stringify(write.body).includes('"applied":true'))).toBe(true);
-    await expect(page.getByRole("button", { name: "Applied" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Applied", exact: true })).toBeDisabled();
   });
 
   test("the menu holds the rest: not interested leaves the job", async ({ page }) => {

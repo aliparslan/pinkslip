@@ -19,7 +19,6 @@ export function demoJobs(count: number, now = Date.now()): JobRowJob[] {
     first_seen_at: new Date(now - (index * 7 + 2) * 60 * 60 * 1000).toISOString(),
     evergreen: index % 11 === 5,
     source_type: index % 2 === 0 ? "greenhouse" : "lever",
-    match_fact: index % 4 === 1 ? null : "Matches your frontend and early-career preferences",
     saved: index % 5 === 2,
   }));
 }

@@ -8,6 +8,23 @@
     animation: none;
   }
 
+  /* The page's box jumps to its new size instead of stretching between a
+     long list and a short job, which squashed both snapshots mid-slide.
+     Each snapshot keeps its own size, pinned to the top. */
+  ::view-transition-group(page) {
+    animation: none;
+  }
+
+  ::view-transition-image-pair(page) {
+    overflow: clip;
+  }
+
+  ::view-transition-old(page),
+  ::view-transition-new(page) {
+    block-size: auto;
+    inset-block-start: 0;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     :root:active-view-transition-type(deeper)::view-transition-new(page) {
       animation: page-forward var(--duration-standard) var(--ease-standard) both;

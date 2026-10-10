@@ -6,12 +6,6 @@
   gap: var(--space-5);
 }
 
-.stepper {
-  display: flex;
-  gap: var(--space-1);
-  justify-content: flex-end;
-  margin-block-end: calc(-1 * var(--space-3));
-}
 
 .identity {
   display: grid;
@@ -56,47 +50,6 @@
   color: var(--color-ink-3);
 }
 
-/* `.job-match-panel`. */
-.facts {
-  padding: var(--space-4);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-elev);
-}
-
-.facts h2 {
-  margin: 0 0 var(--space-2);
-  color: var(--color-ink-2);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.facts ul {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.facts li {
-  position: relative;
-  padding-inline-start: var(--space-4);
-  color: var(--color-ink-2);
-  font-size: var(--fs-sm);
-  line-height: 1.4;
-}
-
-.facts li::before {
-  position: absolute;
-  inset-block-start: 0.55em;
-  inset-inline-start: 0;
-  width: 5px;
-  height: 5px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  content: "";
-}
 
 .about {
   display: flex;

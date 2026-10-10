@@ -24,7 +24,7 @@ test("focusing into the list mounts every row for keyboard and screen readers", 
   await expect(page.getByRole("list", { name: "Jobs" }).getByRole("listitem")).toHaveCount(300);
 });
 
-test("a row shows its company, timing, title, location, salary and reason", async ({ page }) => {
+test("a row shows its company, timing, title, location and salary", async ({ page }) => {
   const first = page.locator('[data-job-id="demo-1"]');
   await expect(first).toHaveAttribute("href", "/jobs/demo-1");
   await expect(first).toContainText("Acme Corporation");
@@ -32,7 +32,7 @@ test("a row shows its company, timing, title, location, salary and reason", asyn
   await expect(first).toContainText("Frontend Engineer");
   await expect(first).toContainText("Chicago, IL");
   await expect(first).toContainText("$120K–$145K");
-  await expect(first).toContainText("Matches your frontend");
+  await expect(first).not.toContainText("Matches your");
   await expect(first.getByRole("img", { name: "New job" })).toBeVisible();
 
   // A read job is dimmed and loses the new dot.

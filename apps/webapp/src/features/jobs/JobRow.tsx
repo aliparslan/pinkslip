@@ -11,10 +11,10 @@ import { extractSalaryFromHtml } from "./job-content";
 import styles from "./JobRow.module.css";
 
 /** What a row needs. Public catalog summaries fit, and personal feed jobs add
- * the match reason, source type and saved state. */
+ * the source type and saved state. */
 export type JobRowJob = Pick<Job, "id" | "title" | "company_name" | "company_domain" | "location" | "salary"
   | "posted_at" | "first_seen_at" | "evergreen">
-  & Partial<Pick<Job, "description" | "source_type" | "match_fact" | "saved" | "applied" | "applied_at">>;
+  & Partial<Pick<Job, "description" | "source_type" | "saved" | "applied" | "applied_at">>;
 
 export type JobOrigin = "library-saved" | "library-applied";
 
@@ -49,7 +49,8 @@ export interface JobRowProps {
 const exitMs = 160;
 
 /** `JobRow.svelte` for the web: logo, company and timing, title, location and
- * salary, the match reason, and an actions menu. Read rows are dimmed; a fresh
+ * salary, and an actions menu. No match reason: the owner removed it from
+ * the app before the port. Read rows are dimmed; a fresh
  * unread job gets the pink "new" dot. The iOS swipe actions belong to the
  * native app (Phase 6). */
 export function JobRow({ job, viewed = false, selected, contextLabel, from, onOpen, actions = {} }: JobRowProps) {
@@ -104,7 +105,6 @@ export function JobRow({ job, viewed = false, selected, contextLabel, from, onOp
           {location && salary && <span className={styles.dot} aria-hidden>·</span>}
           {salary && <span className={styles.salary}>{salary}</span>}
         </span>}
-        {job.match_fact && <span className={styles.reason}>{job.match_fact}</span>}
       </span>
     </Link>
     {hasMenu && <div className={styles.accessory}>
