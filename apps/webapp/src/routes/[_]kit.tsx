@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowSquareOut, BookmarksSimple, Bell, BookmarkSimple, Buildings, CaretRight, CheckCircle, DotsThree, DotsThreeVertical, EyeSlash,
-  MagnifyingGlass, PaperPlaneTilt, Trash, X,
+  MagnifyingGlass, PaperPlaneTilt, Trash, WifiSlash, X,
 } from "@phosphor-icons/react";
 import {
   Alert, AlertDialog, Badge, Button, Checkbox, Dialog, Disclosure, EmptyState, Field, Fieldset, Form, Heading, Icon, IconButton,
@@ -12,6 +12,7 @@ import {
 } from "../kit";
 import styles from "../styles/Kit.module.css";
 import { LinkButton } from "../features/navigation/LinkButton";
+import { InlineFailure, PageFailure, PageLoading } from "../features/states/LoadStates";
 
 /** Development-only catalog of every kit component and state. Phase 2.4
  * screenshots this page in each theme and width. */
@@ -164,6 +165,11 @@ function Kit() {
       <Surface variant="list">
         <EmptyState compact title="No matches" message="Try fewer filters." />
       </Surface>
+      <InlineFailure onRetry={() => toast.success("Retrying (demo)")} />
+      <Surface variant="card">
+        <PageFailure onRetry={() => toast.success("Retrying (demo)")} />
+      </Surface>
+      <Surface variant="card"><PageLoading /></Surface>
       <Text size="sm" tone="ink-3">Page-level states: open /does-not-exist (404) or /_kit-error (route error with retry).</Text>
     </Section>
 
@@ -246,6 +252,7 @@ function Inputs() {
     <Alert tone="error">Couldn't save your changes. Try again.</Alert>
     <Alert tone="success">Resume uploaded.</Alert>
     <Alert tone="warning">Your session expires soon.</Alert>
+    <Alert tone="warning" size="compact" icon={WifiSlash}>You're offline. Changes and new results return when you're back online.</Alert>
   </Section>;
 }
 

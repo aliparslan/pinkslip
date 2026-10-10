@@ -5,7 +5,8 @@ import {
   type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import { useSession } from "@pinkslip/data";
-import { Button, Heading, Icon, Inline, Separator, Stack, Surface, Text } from "../kit";
+import { Heading, Icon, Separator, Stack, Surface, Text } from "../kit";
+import { InlineFailure } from "../features/states/LoadStates";
 import { pages, pageHead, youGroups, type SectionPath } from "../features/navigation/pages";
 import styles from "../styles/You.module.css";
 
@@ -34,14 +35,11 @@ function You() {
   return <Stack gap="6">
     <Stack gap="2">
       <Heading level={1} variant="root">You</Heading>
-      {session.isPending
-        ? <Text tone="ink-3">Loading your account…</Text>
-        : session.isError
-          ? <Inline gap="3" wrap>
-            <Text tone="bad">Your account couldn't be loaded.</Text>
-            <Button variant="secondary" size="compact" onClick={() => void session.refetch()}>Try again</Button>
-          </Inline>
-          : <Text tone="ink-3">{session.data?.state === "authenticated" ? "You're signed in." : "Browsing as a guest."}</Text>}
+      {/* The session gate only renders this page once the session loaded, so
+          an error here is a failed refresh; the last state stays below it. */}
+      {session.isError && <InlineFailure title="Couldn't refresh your account"
+        onRetry={() => void session.refetch()} retrying={session.isFetching} />}
+      <Text tone="ink-3">{session.data?.state === "authenticated" ? "You're signed in." : "Browsing as a guest."}</Text>
     </Stack>
     {youGroups.map((group) => <Stack key={group.label} as="section" gap="2">
       <Text size="xs" weight="semibold" tone="ink-4">{group.label}</Text>

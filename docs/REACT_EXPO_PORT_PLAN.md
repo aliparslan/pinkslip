@@ -644,11 +644,11 @@ Screens are placeholders at this stage.
 - Apple sign-in (web) and the email sign-in result.
 - The admin guard and sign-out.
 
-**3.3 Shared states** · S · page-level states ✅ implemented locally (2026-10-09): kit `EmptyState`; `features/states/PageStates.tsx` with the 404 page (root `notFoundComponent`), a missing-job 404 (`/jobs/$jobId` `notFoundComponent`) and the route error page (router `defaultErrorComponent` plus root `errorComponent`, with "Try again" that resets and invalidates); dev-only `/_kit-error` to exercise it; `e2e/states.pw.ts`. Remaining: inline failures, pending UI, the offline banner
+**3.3 Shared states** · S · page-level states ✅ implemented locally (2026-10-09): kit `EmptyState`; `features/states/PageStates.tsx` with the 404 page (root `notFoundComponent`), a missing-job 404 (`/jobs/$jobId` `notFoundComponent`) and the route error page (router `defaultErrorComponent` plus root `errorComponent`, with "Try again" that resets and invalidates); dev-only `/_kit-error` to exercise it; `e2e/states.pw.ts`. Rest ✅ (2026-10-10): `Alert` takes an icon, title, action and a compact size; `features/states/LoadStates.tsx` has `PageLoading` (also the router's `defaultPendingComponent`), `PageFailure` and `InlineFailure`; an offline strip on every page follows Query's `onlineManager` (Query pauses requests offline and refetches on reconnect, so there's no retry button); the session gate blocks only the first session load, so a failed background refresh keeps the page and You shows an inline failure. The toast viewport and empty states came with 2.3
 - A route error boundary (page-level and inline failures).
 - Pending UI, empty states, an offline banner, and the toast viewport.
 
-**3.4 Replace the Svelte site** · M
+**3.4 Replace the Svelte site** · M · partly done in the working tree (2026-10-10): assets, fonts, token references and two core candidates moved out of the Svelte directories; the `/sw.js` kill switch is tested. Deletion, scripts, Worker config, docs and the deploy wait for the owner; exact steps in [port-chunk-3.4.md](port-chunk-3.4.md)
 - Outright replacement remains at this shell/placeholder milestone, as
   reaffirmed by the owner. Feature screens follow in Phase 4.
 - Port the Playwright harness (`api-mocks`, axe) to `apps/webapp/e2e` before

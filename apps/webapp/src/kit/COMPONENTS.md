@@ -90,6 +90,18 @@ Design consistency fixes applied after the port, and open questions, are in
   `features/states/PageStates.tsx` for the 404, missing-job and route-error
   pages.
 
+- **Alert rows and load states (3.3)** — Owner: Web port. `Alert` gained an
+  optional `icon`, `title` and one trailing `action` (a grid row, which wraps
+  the action under the copy at 360px and below), reproducing
+  `InlineFailure.svelte`, and `size="compact"` for the one-line
+  `.feed-stale-notice` strip. Compositions in `features/states/LoadStates.tsx`:
+  `PageLoading` (`.page-loading`, also the router's default pending
+  component), `PageFailure` (`PageFailure.svelte` on `EmptyState`) and
+  `InlineFailure`; `features/states/OfflineBanner.tsx` shows the compact
+  warning strip on every page while TanStack Query's `onlineManager` reports
+  offline. The strip has no retry button because Query refetches on reconnect.
+  The current feed's text-style "Refresh" button inside the strip waits for 4.2.
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

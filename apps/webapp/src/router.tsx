@@ -3,6 +3,7 @@ import { DataProvider, createAppQueryClient } from "@pinkslip/data";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
 import { RouteErrorPage } from "./features/states/PageStates";
+import { PageLoading } from "./features/states/LoadStates";
 import { createWebApiClient } from "./platform/api";
 import type { RouterContext } from "./platform/router-context";
 
@@ -28,6 +29,9 @@ export function getRouter() {
     },
     // Each route's own boundary, so a failing page keeps the app frame.
     defaultErrorComponent: RouteErrorPage,
+    // Shown only when a route's loader takes over a second (the router's
+    // default `pendingMs`), then kept briefly so it doesn't flash.
+    defaultPendingComponent: () => <PageLoading />,
     Wrap: ({ children }) => <DataProvider api={api}>{children}</DataProvider>,
   });
   // Dehydrates server-loaded query data into the page and hydrates it in the

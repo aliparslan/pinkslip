@@ -1,0 +1,12 @@
+/* `.page-loading`: tall enough that the page doesn't jump when content
+   replaces the spinner. */
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 40dvh;
+  color: var(--color-ink-3);
+}
+
+.offline {
+  margin-block-end: var(--space-4);
+}

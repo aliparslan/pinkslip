@@ -4,6 +4,7 @@ import { BookmarksSimple, Briefcase, CaretLeft, UserCircle, type Icon as Phospho
 import { IconButtonAnchor, Text } from "../../kit";
 import { adminPages, pages, youGroups, type SectionPath } from "../navigation/pages";
 import { backTarget, jobRoot } from "../navigation/back-target";
+import { OfflineBanner } from "../states/OfflineBanner";
 import { BrandMark } from "./BrandMark";
 import styles from "./Shell.module.css";
 
@@ -102,6 +103,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {admin && <nav aria-label="Admin navigation" className={styles.phoneSections}>
         <SectionLinks paths={adminPages} pathname={location.pathname} />
       </nav>}
+      <OfflineBanner />
       {children}
       </div>
     </main>
