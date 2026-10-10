@@ -127,6 +127,22 @@ describe("public job projection", () => {
     }
   });
 
+  it("lists every public job page for the sitemap, and nothing else", async () => {
+    const { request, sqlite } = fixture();
+    for (const id of ["closed", "senior"]) {
+      sqlite.run(`INSERT INTO jobs SELECT ?, external_id, company_id, title, url, location, department,
+        salary, posted_at, first_seen_at, evergreen, closed_at, description FROM jobs WHERE id = 'open'`, [id]);
+    }
+    sqlite.run("UPDATE jobs SET closed_at = datetime('now') WHERE id = 'closed'");
+    sqlite.run("UPDATE job_features SET seniority = 'senior', min_years = 8 WHERE job_id = 'senior'");
+    const response = await request("/public/sitemap");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toBeNull();
+    const body = await response.json() as { jobs: { id: string; lastmod: string }[] };
+    expect(body.jobs.map((job) => job.id)).toEqual(["open"]);
+    expect(Object.keys(body.jobs[0]!).sort()).toEqual(["id", "lastmod"]);
+  });
+
   it("bounds the public preview and does not accept private feed filters", async () => {
     const { request, sqlite } = fixture();
     for (let i = 0; i < 35; i++) sqlite.run(`INSERT INTO jobs SELECT ?, external_id, company_id, title,

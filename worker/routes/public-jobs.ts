@@ -9,6 +9,9 @@ import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../../shared/sea
 
 const publicJobs = new Hono<{ Bindings: Env }>();
 
+/** Rows the sitemap reads before eligibility filtering. */
+const SITEMAP_SCAN_LIMIT = 2000;
+
 // Anonymous reads never run session resolution, user matching, content
 // backfills, or other writes. Ingestion owns catalog eligibility.
 const fields = `
@@ -83,6 +86,19 @@ publicJobs.get("/jobs/:id", async (c) => {
   `).bind(id).first<SummaryRow>();
   if (!row || !eligible(row)) return c.json({ error: "Job not found" }, 404);
   return c.json({ ...summary(row), description: row.description } satisfies PublicJob);
+});
+
+/** Every public job page, newest first, for the web Worker's sitemap. The
+ * same eligibility as the pages themselves, so the sitemap never lists a
+ * URL that would 404. */
+publicJobs.get("/sitemap", async (c) => {
+  const { results } = await c.env.DB.prepare(`
+    SELECT ${fields} ${fromPublished}
+    ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.id DESC
+    LIMIT ${SITEMAP_SCAN_LIMIT}
+  `).all<SummaryRow>();
+  const jobs = results.filter(eligible).map((row) => ({ id: row.id, lastmod: row.posted_at ?? row.first_seen_at }));
+  return c.json({ jobs }, 200, { "cache-control": "public, max-age=3600" });
 });
 
 // Unknown paths and writes stop here, before the session-creating middleware.
