@@ -411,11 +411,12 @@ auth.post("/email/start", async (c) => {
   const rawToken = randomOpaqueToken(32);
   const tokenHash = await sha256Hex(rawToken);
 
+  const tokenId = crypto.randomUUID();
   await c.env.DB.prepare(
     `INSERT INTO email_login_tokens (id, email, token_hash, expires_at, redirect_uri, request_ip, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
-    crypto.randomUUID(),
+    tokenId,
     email,
     tokenHash,
     expiresAt,
@@ -427,12 +428,18 @@ auth.post("/email/start", async (c) => {
   const verifyUrl = new URL("/auth/email/verify", c.req.url);
   verifyUrl.searchParams.set("token", rawToken);
 
-  await sendMagicLinkEmail(c.env, {
-    to: email,
-    verifyUrl: verifyUrl.toString(),
-  }).catch((error) => {
-    throw error;
-  });
+  try {
+    await sendMagicLinkEmail(c.env, {
+      to: email,
+      verifyUrl: verifyUrl.toString(),
+    });
+  } catch (error) {
+    // An unsent link mustn't count toward the rate limit: otherwise the
+    // retry is silently "rate limited" and reports success with no email.
+    await c.env.DB.prepare("DELETE FROM email_login_tokens WHERE id = ?").bind(tokenId).run();
+    console.error("Sign-in email failed to send:", error instanceof Error ? `${error.name}: ${error.message}` : error);
+    return c.json({ error: "We couldn't send the email. Try again in a minute.", code: "email_unavailable" }, 503);
+  }
 
   return c.json({ ok: true, expires_at: expiresAt });
 });
