@@ -1,0 +1,15 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* intentional: the Svelte .tag is a fixed 22px pill with 7px padding */
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-sunken);
+  color: var(--color-ink-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}

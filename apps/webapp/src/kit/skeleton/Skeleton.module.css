@@ -1,0 +1,13 @@
+.root {
+  display: block;
+  width: var(--skeleton-width);
+  height: var(--skeleton-height);
+  border-radius: var(--radius-xs);
+  background: var(--color-line);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}

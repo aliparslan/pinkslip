@@ -18,6 +18,8 @@
     "capture:references": "bun e2e/capture-references.ts"
   },
   "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "@phosphor-icons/react": "2.1.10",
     "@pinkslip/core": "workspace:*",
     "@pinkslip/data": "workspace:*",
     "@pinkslip/domain": "workspace:*",

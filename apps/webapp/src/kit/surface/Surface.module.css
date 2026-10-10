@@ -1,0 +1,27 @@
+.root {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elev);
+  list-style: none;
+}
+
+.root[data-variant="list"] {
+  overflow: hidden;
+}
+
+.root[data-variant="card"] {
+  /* intentional: the Svelte .content-card uses 18px, between space-4 and -5 */
+  padding: 18px;
+}
+
+/* Phones use edge-to-edge grouped lists (Svelte app.css, max-width 540px). */
+@media (max-width: 33.75rem) {
+  .root[data-bleed] {
+    width: calc(100% + var(--screen-gutter) + var(--screen-gutter));
+    margin-inline: calc(0px - var(--screen-gutter));
+    border-inline: 0;
+    border-radius: 0;
+  }
+}

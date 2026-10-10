@@ -1,0 +1,16 @@
+.root {
+  flex-shrink: 0;
+  opacity: 0;
+  animation:
+    spin 1s linear infinite,
+    reveal var(--duration-instant) var(--ease-standard) 280ms both;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

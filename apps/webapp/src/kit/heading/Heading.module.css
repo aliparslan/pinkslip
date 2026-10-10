@@ -1,0 +1,50 @@
+/* Values match `.h-display*`, `.section-title`, `.screen-large-title` and the
+   root header title in the Svelte app. */
+.root {
+  margin: 0;
+  color: var(--color-ink);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.root[data-variant="root"] {
+  font-family: var(--font-heading);
+  font-size: var(--fs-root-title);
+  line-height: var(--leading-root-title);
+  letter-spacing: var(--tracking-root-title);
+}
+
+.root[data-variant="screen"] {
+  font-family: var(--font-heading);
+  font-size: var(--fs-4xl);
+  line-height: var(--leading-screen-title);
+  letter-spacing: var(--tracking-screen-title);
+  overflow-wrap: anywhere;
+}
+
+.root[data-variant^="display-"] {
+  font-family: var(--font-display);
+  line-height: 1.05;
+}
+
+.root[data-variant="display-lg"] {
+  font-size: var(--fs-4xl);
+  letter-spacing: -0.022em;
+}
+
+.root[data-variant="display-md"] {
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.015em;
+}
+
+.root[data-variant="display-sm"] {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.01em;
+}
+
+.root[data-variant="section"] {
+  color: var(--color-ink-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  letter-spacing: -0.01em;
+}

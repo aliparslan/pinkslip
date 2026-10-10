@@ -1,0 +1,37 @@
+/* Mirrors the Svelte app's text roles: section labels and eyebrows are
+   `size="xs" weight="semibold" tone="ink-4"`, field labels are
+   `size="sm" weight="medium" tone="ink-2"`. */
+.root {
+  margin: 0;
+  font-family: var(--font-sans);
+  line-height: var(--leading-body);
+  text-wrap: pretty;
+}
+
+.root[data-size="2xs"] { font-size: var(--fs-2xs); }
+.root[data-size="xs"] { font-size: var(--fs-xs); }
+.root[data-size="sm"] { font-size: var(--fs-sm); }
+.root[data-size="md"] { font-size: var(--fs-md); }
+.root[data-size="lg"] { font-size: var(--fs-lg); }
+
+.root[data-tone="ink"] { color: var(--color-ink); }
+.root[data-tone="ink-2"] { color: var(--color-ink-2); }
+.root[data-tone="ink-3"] { color: var(--color-ink-3); }
+.root[data-tone="ink-4"] { color: var(--color-ink-4); }
+.root[data-tone="accent"] { color: var(--color-accent); }
+.root[data-tone="good"] { color: var(--color-good); }
+.root[data-tone="warn"] { color: var(--color-warn); }
+.root[data-tone="bad"] { color: var(--color-bad); }
+
+.root[data-weight="regular"] { font-weight: 400; }
+.root[data-weight="medium"] { font-weight: 500; }
+.root[data-weight="semibold"] { font-weight: 600; }
+
+.root[data-truncate] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root[data-tabular] { font-variant-numeric: tabular-nums; }

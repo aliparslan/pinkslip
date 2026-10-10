@@ -1,0 +1,17 @@
+/* Development-only kit catalog page. */
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.narrow {
+  max-width: 16rem;
+}
+
+.row {
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-4);
+}
