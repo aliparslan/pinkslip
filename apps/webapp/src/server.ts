@@ -1,5 +1,5 @@
 import handler from "@tanstack/react-start/server-entry";
-import { isApiOwnedPath, legacyRedirect, withNoIndex } from "./server/routing";
+import { isApiOwnedPath, legacyRedirect, withNoIndex, withPageSecurity } from "./server/routing";
 
 export default {
   async fetch(request, env) {
@@ -7,9 +7,9 @@ export default {
     if (redirect) return withNoIndex(redirect);
     // Preserve the original URL, cookies, body, status, and Set-Cookie headers.
     // The Hono Worker remains the only authentication and application API owner.
-    const response = isApiOwnedPath(new URL(request.url).pathname)
-      ? await env.API.fetch(request)
-      : await handler.fetch(request);
-    return withNoIndex(response);
+    if (isApiOwnedPath(new URL(request.url).pathname)) {
+      return withNoIndex(await env.API.fetch(request));
+    }
+    return withPageSecurity(await handler.fetch(request));
   },
 } satisfies ExportedHandler<WebBindings>;

@@ -18,6 +18,14 @@ function fixture() {
     );
     CREATE TABLE job_review_queue (job_id TEXT, state TEXT, admin_note TEXT);
     CREATE TABLE job_aliases (alias_id TEXT, job_id TEXT);
+    CREATE TABLE job_features (
+      job_id TEXT PRIMARY KEY, seniority TEXT NOT NULL, min_years INTEGER,
+      requires_security_clearance INTEGER
+    );
+    -- Every fixture job starts as an eligible new-grad role; tests override.
+    CREATE TRIGGER default_features AFTER INSERT ON jobs BEGIN
+      INSERT INTO job_features VALUES (NEW.id, 'new_grad', NULL, 0);
+    END;
     INSERT INTO companies VALUES ('company', 'Acme', 'example.com', 1), ('disabled', 'Hidden', 'hidden.example', 0);
     INSERT INTO jobs VALUES (
       'open', 'company', 'Frontend Engineer', 'https://example.com/job', 'Chicago',
@@ -89,6 +97,25 @@ describe("public job projection", () => {
     const detail = await (await request("/public/jobs/old-id")).json();
     expect(detail).toMatchObject({ id: "open", description: "<p>Build interfaces.</p>" });
     expect(detail).not.toHaveProperty("admin_note");
+  });
+
+  it("keeps roles the app never lists out of both list and detail", async () => {
+    const { request, sqlite } = fixture();
+    for (const id of ["senior", "senior-short", "clearance", "abroad", "no-description"]) {
+      sqlite.run(`INSERT INTO jobs SELECT ?, company_id, title, url, location, department,
+        salary, posted_at, first_seen_at, evergreen, closed_at, description FROM jobs WHERE id = 'open'`, [id]);
+    }
+    sqlite.run("UPDATE job_features SET seniority = 'senior', min_years = 8 WHERE job_id = 'senior'");
+    // A senior title that asks for few years is still an early-career catalog role.
+    sqlite.run("UPDATE job_features SET seniority = 'senior', min_years = 2 WHERE job_id = 'senior-short'");
+    sqlite.run("UPDATE job_features SET requires_security_clearance = 1 WHERE job_id = 'clearance'");
+    sqlite.run("UPDATE jobs SET location = 'London, United Kingdom' WHERE id = 'abroad'");
+    sqlite.run("UPDATE jobs SET description = '  ' WHERE id = 'no-description'");
+    const body = await (await request("/public/jobs")).json() as { jobs: { id: string }[] };
+    expect(body.jobs.map((j) => j.id).sort()).toEqual(["open", "senior-short"]);
+    for (const id of ["senior", "clearance", "abroad", "no-description"]) {
+      expect((await request(`/public/jobs/${id}`)).status).toBe(404);
+    }
   });
 
   it("bounds the public preview and does not accept private feed filters", async () => {

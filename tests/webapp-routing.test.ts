@@ -1,13 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { isApiOwnedPath, legacyRedirect, withNoIndex } from "../apps/webapp/src/server/routing";
+import { isApiOwnedPath, legacyRedirect, withNoIndex, withPageSecurity } from "../apps/webapp/src/server/routing";
 
 describe("React web Worker routing", () => {
-  it("forwards the complete API and Worker-owned callbacks/legal routes", () => {
+  it("forwards the complete API and Worker-owned callback routes", () => {
     for (const path of ["/api", "/api/v2/jobs", "/api/v1/jobs", "/auth/email/verify",
-      "/apple-app-site-association", "/.well-known/apple-app-site-association", "/privacy", "/support", "/legal.css"]) {
+      "/apple-app-site-association", "/.well-known/apple-app-site-association"]) {
       expect(isApiOwnedPath(path)).toBe(true);
     }
-    for (const path of ["/", "/jobs/123", "/you", "/apiary", "/supporting", "/auth/email/verify/extra"]) {
+    // Legal pages render in the React app with the product's own styles.
+    for (const path of ["/", "/jobs/123", "/you", "/privacy", "/support", "/legal.css", "/apiary", "/supporting", "/auth/email/verify/extra"]) {
       expect(isApiOwnedPath(path)).toBe(false);
     }
   });
@@ -34,5 +35,15 @@ describe("React web Worker routing", () => {
     expect(result.headers.get("Cache-Control")).toBe("private, no-store");
     expect(result.headers.getSetCookie()).toEqual(["psid=a; HttpOnly", "psaccess=b; HttpOnly"]);
     expect(await result.text()).toBe("body");
+  });
+
+  it("adds the page security policy to Start responses without replacing a page's own CSP", () => {
+    const page = withPageSecurity(new Response("<html></html>", { headers: { "Content-Type": "text/html" } }));
+    expect(page.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(page.headers.get("Permissions-Policy")).toBe("camera=(), microphone=(), geolocation=(), payment=()");
+    expect(page.headers.get("Content-Security-Policy")).toBe("frame-ancestors 'none'");
+    expect(page.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    const own = withPageSecurity(new Response("", { headers: { "Content-Security-Policy": "default-src 'self'" } }));
+    expect(own.headers.get("Content-Security-Policy")).toBe("default-src 'self'");
   });
 });
