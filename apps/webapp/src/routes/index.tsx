@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { publicJobsQueryOptions } from "@pinkslip/data";
 import { Heading } from "../kit";
+import { JobList } from "../features/jobs/JobList";
 import styles from "../styles/Jobs.module.css";
 import { pages, pageHead } from "../features/navigation/pages";
 
@@ -22,14 +23,6 @@ function Jobs() {
     <p className={styles.intro}>Early-career opportunities, straight from company career pages.</p>
     {jobs.length === 0
       ? <p>No openings to show right now. Check back soon.</p>
-      : <ul className={styles.list}>{jobs.map((job) =>
-        <li key={job.id}>
-          <Link to="/jobs/$jobId" params={{ jobId: job.id }} className={styles.job}>
-            <span className={styles.company}>{job.company_name}</span>
-            <span className={styles.title}>{job.title}</span>
-            <span className={styles.meta}>{job.location}</span>
-          </Link>
-        </li>
-      )}</ul>}
+      : <div className={styles.list}><JobList jobs={jobs} /></div>}
   </section>;
 }

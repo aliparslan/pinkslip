@@ -102,6 +102,17 @@ Design consistency fixes applied after the port, and open questions, are in
   offline. The strip has no retry button because Query refetches on reconnect.
   The current feed's text-style "Refresh" button inside the strip waits for 4.2.
 
+- **Job row and list (4.1)** — Owner: Web port. Files: `features/jobs/`.
+  `CompanyLogo` is `CompanyLogo.svelte` (sizes 24/32/44 with concentric radii;
+  real logos on a white `--color-logo-tile` in both modes, initials on the
+  sunken tile). `JobRow` is the web `JobRow.svelte`: company and timing with
+  the fresh-unread "new" dot, title, location and salary, match reason, and a
+  `Menu` of the actions its owner wires (Save, Mark as read/unread, Hide,
+  admin Block). Read rows step down the ink ramp rather than fading, for
+  contrast. `JobList` is `VirtualJobList.svelte` on TanStack Virtual's window
+  virtualizer; the server render and a focused list render every row. Demos:
+  `/_kit` (Job rows) and `/_kit-list`.
+
 - **Foundation route compositions** — Owner: Web port. Files: `routes/__root.tsx`,
   `routes/index.tsx`, `routes/jobs.$jobId.tsx`, and `routes/you.tsx`.
   These minimal pages prove public SSR, client-only account reads, routing,

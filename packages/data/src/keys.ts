@@ -16,6 +16,7 @@ export const queryKeys = {
     job: (id: string) => ["personal", "job", id] as const,
     saved: () => ["personal", "library", "saved"] as const,
     applied: () => ["personal", "library", "applied"] as const,
+    viewed: () => ["personal", "viewed"] as const,
   },
   session: () => ["session"] as const,
 } as const;

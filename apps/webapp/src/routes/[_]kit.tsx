@@ -13,6 +13,8 @@ import {
 import styles from "../styles/Kit.module.css";
 import { LinkButton } from "../features/navigation/LinkButton";
 import { InlineFailure, PageFailure, PageLoading } from "../features/states/LoadStates";
+import { JobList } from "../features/jobs/JobList";
+import { demoJobs } from "../features/jobs/demo-jobs";
 
 /** Development-only catalog of every kit component and state. Phase 2.4
  * screenshots this page in each theme and width. */
@@ -156,6 +158,17 @@ function Kit() {
     <Hints />
     <Feedback />
     <Disclosures />
+
+    <Section title="Job rows">
+      <div className={styles.bleed}>
+        <JobList jobs={demoJobs(4)} viewed={new Set(["demo-3"])} label="Demo jobs" actions={{
+          onSave: () => toast.success("Job saved"),
+          onToggleRead: () => undefined,
+          onHide: () => toast.success("Job hidden (demo)"),
+        }} />
+      </div>
+      <Text size="sm" tone="ink-3">300 virtualized rows: /_kit-list.</Text>
+    </Section>
 
     <Section title="Empty and failure states">
       <Surface variant="card">

@@ -4,10 +4,14 @@ import { publicJobQueryOptions } from "@pinkslip/data";
 import { JobNotFoundPage } from "../features/states/PageStates";
 import styles from "../styles/Jobs.module.css";
 import { pages } from "../features/navigation/pages";
+import type { JobOrigin } from "../features/jobs/JobRow";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   ssr: true,
   staticData: { page: pages["/jobs/$jobId"] },
+  // Library rows add their tab so Back returns there (features/navigation/back-target.ts).
+  validateSearch: (search: Record<string, unknown>): { from?: JobOrigin } =>
+    search.from === "library-saved" || search.from === "library-applied" ? { from: search.from } : {},
   loader: async ({ context, params }) => {
     const job = await context.queryClient.ensureQueryData(publicJobQueryOptions(context.api, params.jobId));
     if (!job) throw notFound();

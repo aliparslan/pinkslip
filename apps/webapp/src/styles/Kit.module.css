@@ -15,3 +15,8 @@
   min-height: var(--tap-min);
   padding: var(--space-3) var(--space-4);
 }
+
+/* Job rows carry their own inset; bleed by one gutter like the feed. */
+.bleed {
+  margin-inline: calc(-1 * var(--screen-gutter));
+}

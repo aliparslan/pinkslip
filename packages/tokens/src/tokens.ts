@@ -23,6 +23,7 @@ export const intentionalDivergences: Record<string, string> = {
   "--radius-xl": "20px at every width; Svelte jumped from 14px to 20px below 900px",
   "--color-accent-fill": "new: filled controls use the pastel pink in both modes with dark text (9.1:1)",
   "--color-accent-ink": "dark text on the pastel fill in both modes; Svelte used white on a deep magenta in light mode",
+  "--color-logo-tile": "new: company logos sit on white in both modes; Svelte put them on the sunken surface, near-black in dark mode",
 };
 
 /** Breakpoints are emitted as media queries, never as custom properties. */
@@ -140,6 +141,9 @@ export const dark = {
   "--color-accent": "oklch(0.78 0.153 350)",
   "--color-accent-fill": "oklch(0.78 0.153 350)",
   "--color-accent-ink": "oklch(0.16 0.01 350)",
+  // Company logos are drawn for light backgrounds, so they sit on white in
+  // every mode (CompanyLogo).
+  "--color-logo-tile": "oklch(1 0 0)",
   "--color-accent-soft": "oklch(0.255 0.055 350)",
   "--color-accent-soft-ink": "oklch(0.86 0.089 350)",
   "--color-selection-bg": "oklch(0.91 0.004 285)",

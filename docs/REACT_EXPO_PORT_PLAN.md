@@ -679,7 +679,7 @@ production once it's done.
 
 | # | Slice | Covers | Size |
 |---|---|---|---|
-| 4.1 | Job row and list | `JobRow` (1.25k lines today) split into parts (logo, meta, timing, badges, quick actions); TanStack Virtual list | L |
+| 4.1 | Job row and list | `JobRow` (1.25k lines today) split into parts (logo, meta, timing, badges, quick actions); TanStack Virtual list. ✅ 2026-10-10: `features/jobs/{CompanyLogo,JobRow,JobList}`, data hooks for viewed state, hide with undo and admin block (`packages/data/src/interactions.ts`); the Jobs page lists the public catalog with them; `/_kit-list` (300 fixtures) and `e2e/jobs.pw.ts`. The iOS swipe actions move to 6.4. Read rows step down the ink ramp instead of 50% opacity (AA). Logos: white tile in both modes (`--color-logo-tile`), proxy readable behind the access code, misses cached | L |
 | 4.2 | Feed `/` | Search, filter chips, career-stage filter, filters typed in the URL, viewed state, new-since markers, empty states. Public SSR content for the homepage (title, description, canonical, readable product copy) | L |
 | 4.3 | Job detail `/jobs/:jobId` | **Anonymous public SSR.** Public projection from Hono; personal interaction queries on the client. Description-block renderer, company header, save/apply/share/external actions, the "back from applying" prompt, next/previous navigation | L |
 | 4.4 | Library | Saved and applied, status changes, optimistic updates | M |

@@ -1,4 +1,5 @@
 export * from "./cache";
+export * from "./interactions";
 export * from "./jobs";
 export * from "./keys";
 export * from "./library";

@@ -78,6 +78,7 @@
     --color-accent: oklch(0.78 0.153 350);
     --color-accent-fill: oklch(0.78 0.153 350);
     --color-accent-ink: oklch(0.16 0.01 350);
+    --color-logo-tile: oklch(1 0 0);
     --color-accent-soft: oklch(0.255 0.055 350);
     --color-accent-soft-ink: oklch(0.86 0.089 350);
     --color-selection-bg: oklch(0.91 0.004 285);

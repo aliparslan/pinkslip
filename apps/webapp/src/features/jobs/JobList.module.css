@@ -1,0 +1,17 @@
+.root {
+  position: relative;
+  min-width: 0;
+  contain: layout style;
+}
+
+/* Virtualized: the list keeps the full height of every row, and the mounted
+   rows move down to where the first one belongs. */
+.root[data-virtual] {
+  height: var(--list-height);
+}
+
+.root[data-virtual] > .window {
+  position: absolute;
+  inset: 0 0 auto;
+  transform: translateY(var(--window-offset, 0));
+}

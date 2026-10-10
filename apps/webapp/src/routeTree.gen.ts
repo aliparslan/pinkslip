@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KitRouteImport } from './routes/[_]kit'
 import { Route as KitErrorRouteImport } from './routes/[_]kit-error'
+import { Route as KitListRouteImport } from './routes/[_]kit-list'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CompaniesRouteImport } from './routes/companies'
@@ -58,6 +59,11 @@ const KitRoute = KitRouteImport.update({
 const KitErrorRoute = KitErrorRouteImport.update({
   id: '/_kit-error',
   path: '/_kit-error',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitListRoute = KitListRouteImport.update({
+  id: '/_kit-list',
+  path: '/_kit-list',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
+  '/_kit-list': typeof KitListRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/companies': typeof CompaniesRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
+  '/_kit-list': typeof KitListRoute
   '/about': typeof AboutRoute
   '/companies': typeof CompaniesRoute
   '/privacy': typeof PrivacyRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_kit': typeof KitRoute
   '/_kit-error': typeof KitErrorRoute
+  '/_kit-list': typeof KitListRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/companies': typeof CompaniesRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_kit'
     | '/_kit-error'
+    | '/_kit-list'
     | '/about'
     | '/admin'
     | '/companies'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_kit'
     | '/_kit-error'
+    | '/_kit-list'
     | '/about'
     | '/companies'
     | '/privacy'
@@ -407,6 +418,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_kit'
     | '/_kit-error'
+    | '/_kit-list'
     | '/about'
     | '/admin'
     | '/companies'
@@ -445,6 +457,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KitRoute: typeof KitRoute
   KitErrorRoute: typeof KitErrorRoute
+  KitListRoute: typeof KitListRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   CompaniesRoute: typeof CompaniesRoute
@@ -482,6 +495,13 @@ declare module '@tanstack/react-router' {
       path: '/_kit-error'
       fullPath: '/_kit-error'
       preLoaderRoute: typeof KitErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_kit-list': {
+      id: '/_kit-list'
+      path: '/_kit-list'
+      fullPath: '/_kit-list'
+      preLoaderRoute: typeof KitListRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -776,6 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KitRoute: KitRoute,
   KitErrorRoute: KitErrorRoute,
+  KitListRoute: KitListRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   CompaniesRoute: CompaniesRoute,

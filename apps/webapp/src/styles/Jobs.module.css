@@ -1,7 +1,6 @@
 .intro, .meta { color: var(--color-ink-3); }
-.list { margin: var(--space-6) 0; padding: 0; list-style: none; }
-.job { display: flex; flex-direction: column; gap: var(--space-1); padding-block: var(--space-4); border-block-end: 1px solid var(--color-line); text-decoration: none; }
-.job:hover { background: var(--color-bg-elev); }
+/* Rows carry their own inset, so the list bleeds by one gutter and each
+   row's logo lines up with the heading (the current feed's full-width rows). */
+.list { margin: var(--space-6) calc(-1 * var(--screen-gutter)); }
 .company { color: var(--color-ink-2); font-size: var(--fs-sm); }
-.title { font-weight: 500; }
 .meta { font-size: var(--fs-sm); }

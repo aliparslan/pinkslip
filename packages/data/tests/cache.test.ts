@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Job } from "@pinkslip/core/api";
-import { setJobApplied, setJobSaved } from "../src/cache";
+import { removeJobFromLists, setJobApplied, setJobSaved, setJobViewed } from "../src/cache";
 import { queryKeys } from "../src/keys";
 import { createAppQueryClient } from "../src/query-client";
 import { makeJob } from "./job-fixture";
@@ -72,5 +72,35 @@ describe("optimistic job cache updates", () => {
 
     rollback();
     expect(collection(client, queryKeys.personal.applied())).toEqual([job.id]);
+  });
+});
+
+describe("hide, block and read state", () => {
+  test("removing a job drops it from every discovery list and restores its place", () => {
+    const client = createAppQueryClient();
+    const jobs = ["a", "b", "c"].map((id) => makeJob({ id }));
+    client.setQueryData(queryKeys.personal.jobs({ limit: "20" }), { jobs, meta: { total: 3 } });
+    client.setQueryData(queryKeys.personal.jobs({ q: "eng" }), { jobs: [jobs[1]], meta: { total: 1 } });
+
+    const restore = removeJobFromLists(client, "b");
+    expect(collection(client, queryKeys.personal.jobs({ limit: "20" }))).toEqual(["a", "c"]);
+    expect(collection(client, queryKeys.personal.jobs({ q: "eng" }))).toEqual([]);
+
+    restore();
+    expect(collection(client, queryKeys.personal.jobs({ limit: "20" }))).toEqual(["a", "b", "c"]);
+    expect(collection(client, queryKeys.personal.jobs({ q: "eng" }))).toEqual(["b"]);
+  });
+
+  test("read state toggles in the viewed set and rolls back", () => {
+    const client = createAppQueryClient();
+    client.setQueryData(queryKeys.personal.viewed(), ["a"]);
+
+    const rollback = setJobViewed(client, "b", true);
+    expect(client.getQueryData<string[]>(queryKeys.personal.viewed())).toEqual(["a", "b"]);
+    setJobViewed(client, "a", false);
+    expect(client.getQueryData<string[]>(queryKeys.personal.viewed())).toEqual(["b"]);
+
+    rollback();
+    expect(client.getQueryData<string[]>(queryKeys.personal.viewed())).toEqual(["a"]);
   });
 });

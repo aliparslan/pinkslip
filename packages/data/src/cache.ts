@@ -69,3 +69,21 @@ export function setJobApplied(queryClient: QueryClient, job: Job, applied: boole
     applied ? jobs.filter((entry) => entry.id !== job.id) : jobs);
   return restoreAll(queryClient, snapshots);
 }
+
+/** Optimistically drop a job from every discovery list (hide, admin block)
+ * and return the rollback, which puts it back where it was. */
+export function removeJobFromLists(queryClient: QueryClient, id: string): Restore {
+  const snapshots = [snapshot(queryClient, queryKeys.personal.jobsRoot)];
+  updateCollections(queryClient, queryKeys.personal.jobsRoot, (jobs) => jobs.filter((entry) => entry.id !== id));
+  return restoreAll(queryClient, snapshots);
+}
+
+/** Optimistically add or remove a job id from the viewed set; returns the rollback. */
+export function setJobViewed(queryClient: QueryClient, id: string, viewed: boolean): Restore {
+  const previous = queryClient.getQueryData<string[]>(queryKeys.personal.viewed());
+  queryClient.setQueryData<string[]>(queryKeys.personal.viewed(), (ids = []) => {
+    const without = ids.filter((entry) => entry !== id);
+    return viewed ? [...without, id] : without;
+  });
+  return () => queryClient.setQueryData(queryKeys.personal.viewed(), previous);
+}
