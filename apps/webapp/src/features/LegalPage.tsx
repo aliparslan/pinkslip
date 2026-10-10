@@ -1,4 +1,5 @@
 import type { LegalPage as LegalContent } from "@pinkslip/domain/legal";
+import { publicHead } from "./navigation/seo";
 import styles from "../styles/Legal.module.css";
 
 /** Privacy and support pages in the app's own type and colors. The body is
@@ -15,11 +16,5 @@ export function LegalPage({ page }: { page: LegalContent }) {
 }
 
 export function legalHead(page: LegalContent) {
-  return {
-    meta: [
-      { title: `${page.title} · Pinkslip` },
-      { name: "description", content: page.description },
-    ],
-    links: [{ rel: "canonical", href: `https://pinkslip.work${page.path}` }],
-  };
+  return publicHead({ title: `${page.title} · Pinkslip`, shareTitle: page.title, description: page.description, path: page.path });
 }

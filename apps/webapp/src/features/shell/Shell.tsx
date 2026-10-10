@@ -24,7 +24,7 @@ const destinations: Destination[] = [
 
 function SectionLinks({ paths, pathname }: { paths: readonly SectionPath[]; pathname: string }) {
   return <ul className={styles.sections}>
-    {paths.map((to) => <li key={to}><Link to={to}
+    {paths.map((to) => <li key={to}><Link to={to} activeOptions={{ exact: true }}
       className={styles.sectionLink} aria-current={pathname.replace(/\/$/, "") === to ? "page" : undefined}
     >{pages[to].title}</Link></li>)}
   </ul>;

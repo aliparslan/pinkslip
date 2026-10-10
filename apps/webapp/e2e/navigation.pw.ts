@@ -2,32 +2,32 @@ import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { installApiMocks } from "./api-mocks";
 
-const placeholders = [
+const routes = [
   ["/library/saved", "Library", "Library · Saved"],
   ["/library/applied", "Library", "Library · Applied"],
   ["/you/preferences", "Job preferences"], ["/you/alerts", "Alerts"],
   ["/you/companies", "Companies"], ["/you/resume", "Resume"],
   ["/you/tailoring", "Tailoring"], ["/you/answers", "Application answers"],
   ["/you/account", "Account"], ["/you/feedback", "Help and feedback"],
-  ["/admin", "Manage", "Admin · Manage"], ["/admin/inbox", "Inbox", "Admin · Inbox"],
+  ["/admin", "Product health", "Admin · Manage"], ["/admin/inbox", "Inbox", "Admin · Inbox"],
   ["/admin/sources", "Sources", "Admin · Sources"], ["/admin/runs", "Runs", "Admin · Runs"],
   ["/admin/jev", "Jev", "Admin · Jev"], ["/tailor/fixture", "Tailor resume"],
-  ["/about", "About Pinkslip"],
+  ["/about", "Early-career jobs, straight from the source", "About"],
 ] as const;
 
-test("every planned placeholder has a direct route, title and one main heading", async ({ page, request }) => {
+test("every screen has a direct route, title and one main heading", async ({ page, request }) => {
   // Built screens load their data from the (mocked) API.
   await installApiMocks(page);
-  // Admin placeholders are a 404 for non-admins (3.2), so browse as an admin.
+  // Admin screens are a 404 for non-admins (3.2), so browse as an admin.
   await page.route("**/api/v2/me", (route) => route.fulfill({
     status: 200, contentType: "application/json",
     body: JSON.stringify({ user: { id: "a1", name: "Admin", role: "admin", created_at: "2026-01-01" }, session: { state: "authenticated" }, account: null, is_admin: true }),
   }));
-  for (const [path, heading, title] of placeholders) {
+  for (const [path, heading, title] of routes) {
     const html = await request.get(path);
     expect(html.status(), path).toBe(200);
-    // The public About placeholder renders on the server; personal page bodies don't.
-    expect((await html.text()).includes("This page is coming soon."), path).toBe(path === "/about");
+    // Public About renders on the server; personal page bodies don't.
+    expect((await html.text()).includes("straight from the source"), path).toBe(path === "/about");
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
     await expect(page).toHaveTitle(`${title ?? heading} · Pinkslip`);
@@ -69,9 +69,9 @@ test("legacy hash migration preserves both queries and replaces the history entr
 test("ordinary anchors and unsafe hash targets are not migrated", async ({ page }) => {
   await page.goto("/about#main");
   await expect(page).toHaveURL("/about#main");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("About Pinkslip");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Early-career jobs, straight from the source");
   await page.goto("/about#//example.com");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("About Pinkslip");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Early-career jobs, straight from the source");
   await expect(page).toHaveURL("/about#//example.com");
 });
 

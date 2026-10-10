@@ -1,0 +1,150 @@
+/* Company rows (`CompanyRow.svelte`): logo, name (linked to the careers
+   page), trailing actions. Admin rows add a source line under the name. */
+.item {
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+}
+
+.copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-weight: 500;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.name:hover {
+  text-decoration: underline;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.request {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.request:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+}
+
+/* Admin sources. */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.summary strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.attention strong {
+  color: var(--color-bad);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+@media (min-width: 700px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 12rem)) 1fr;
+  }
+}
+
+.count {
+  grid-column: 1 / -1;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+@media (min-width: 700px) {
+  .count {
+    grid-column: auto;
+    justify-self: end;
+    padding-block-end: var(--space-2);
+  }
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  color: var(--color-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.slug {
+  overflow: hidden;
+  max-width: 14rem;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+  color: var(--color-bad);
+  font-size: var(--fs-sm);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}

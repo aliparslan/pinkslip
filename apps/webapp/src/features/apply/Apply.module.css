@@ -1,0 +1,71 @@
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 8rem;
+}
+
+/* Outreach: the email steps, then the composer. */
+.steps {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-ink-3);
+}
+
+.step[data-current] {
+  color: var(--color-ink);
+}
+
+.done {
+  color: var(--color-good);
+}
+
+.dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  margin-inline: var(--space-1);
+  border: 1.5px solid currentcolor;
+  border-radius: var(--radius-full);
+}
+
+.composerActions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.composerActions:has(> :nth-child(3)) {
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: center;
+}
+
+.textButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.textButton:disabled {
+  color: var(--color-ink-4);
+  cursor: default;
+}

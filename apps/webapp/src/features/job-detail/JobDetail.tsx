@@ -3,20 +3,22 @@ import { useQueryClient } from "@tanstack/react-query";
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import {
   ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise,
-  DotsThree, EyeSlash, Flag, MapPin, Money, Prohibit, ShareNetwork, Sparkle, ThumbsDown, type IconProps,
+  DotsThree, EnvelopeSimple, EyeSlash, Flag, MapPin, Money, Prohibit, ShareNetwork, Sparkle, ThumbsDown, type IconProps,
 } from "@phosphor-icons/react";
 import type { Job } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { formatJobLocation, normalizeSalaryText } from "@pinkslip/core/job-format";
 import { jobOriginalTimingLabel, jobTimingLabel } from "@pinkslip/core/job-timing";
 import {
-  useBlockJob, useHideCompany, useHideJob, useJob, useMarkApplied, useMarkViewed, usePublicJob, useSaveJob,
+  useBlockJob, useHideCompany, useHideJob, useJob, useMarkApplied, useMarkViewed, usePublicJob, useSaveJob, useSession,
   useUnmarkApplied, useUnsaveJob,
 } from "@pinkslip/data";
 import {
   AlertDialog, Badge, Button, Heading, Menu, MenuItem, MenuSeparator, Skeleton, Text, toast,
   UNDO_TOAST_DURATION,
 } from "../../kit";
+import { ApplicationPrepSheet } from "../apply/ApplicationPrepSheet";
+import { OutreachDialog } from "../apply/OutreachDialog";
 import { CompanyLogo } from "../jobs/CompanyLogo";
 import { cachedJob, type AnyJob } from "../jobs/cached-job";
 import { usePromoteVisitor, useSessionAccess } from "../jobs/useJobActions";
@@ -64,6 +66,7 @@ export function JobDetail() {
   const { jobId } = useParams({ strict: false }) as { jobId: string };
   const search = useSearch({ strict: false });
   const from = ("from" in search ? search.from : undefined) as JobOrigin | undefined;
+  const outreachThread = ("outreach" in search ? search.outreach : undefined) as string | undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const access = useSessionAccess();
@@ -100,7 +103,7 @@ export function JobDetail() {
       void navigate(root === "/" ? { to: "/", search: rememberedFeedSearch(), replace: true } : { to: root, replace: true });
     }}
     navigateTo={(id) => void navigate({ to: "/jobs/$jobId", params: { jobId: id }, search: from ? { from } : {}, resetScroll: false })}
-    access={access} promote={promote} />;
+    access={access} promote={promote} outreachThread={outreachThread} />;
 }
 
 interface JobViewProps {
@@ -114,9 +117,11 @@ interface JobViewProps {
   navigateTo: (id: string) => void;
   access: ReturnType<typeof useSessionAccess>;
   promote: () => void;
+  /** The recruiter email a follow-up reminder links to. */
+  outreachThread?: string;
 }
 
-function JobView({ job, from, full, pendingDescription, onRetryDescription, leave, navigateTo, access, promote }: JobViewProps) {
+function JobView({ job, from, full, pendingDescription, onRetryDescription, leave, navigateTo, access, promote, outreachThread }: JobViewProps) {
   const navigate = useNavigate();
   const save = useSaveJob();
   const unsave = useUnsaveJob();
@@ -129,6 +134,14 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
   const [confirmBlock, setConfirmBlock] = useState(false);
   const { previous, next } = useNeighbours(job.id);
   const track = useTrack();
+  const features = useSession().data?.me?.features;
+  const autoApply = access.personal && Boolean(features?.auto_apply_enabled);
+  const outreach = access.personal && Boolean(features?.outreach_enabled);
+  const [preparing, setPreparing] = useState(false);
+  // A follow-up reminder links here with ?outreach=<thread>.
+  const requestedThread = outreach ? outreachThread ?? null : null;
+  const [emailing, setEmailing] = useState(requestedThread !== null);
+  useEffect(() => { if (requestedThread) setEmailing(true); }, [requestedThread]);
 
   // j/k step through the list beside the job, as in mail and feed readers
   // (keyboard only; the owner dropped the on-screen arrows).
@@ -182,6 +195,12 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
     }, () => toast.error("Couldn't hide this company. Try again."));
   };
 
+  const apply = (url: string | null) => {
+    if (access.personal) track("apply_clicked", { type: "job", id: job.id, properties: autoApply ? { source: "prep" } : undefined });
+    // Only a session can record an application, so visitors aren't asked.
+    openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: url ?? job.url }, access.personal);
+  };
+
   return <article className={styles.root} aria-labelledby="job-title">
     <header className={styles.identity}>
       <CompanyLogo name={job.company_name} domain={job.company_domain} size={44} />
@@ -228,11 +247,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
           ? <Button variant="secondary" icon={CheckCircle} disabled>Applied</Button>
           : <Button variant="primary" icon={ArrowSquareOut} disabled={closed || !job.url}
             aria-describedby={closed || !job.url ? "application-status" : undefined}
-            onClick={() => {
-              if (access.personal) track("apply_clicked", { type: "job", id: job.id });
-              // Only a session can record an application, so visitors aren't asked.
-              openApplication({ id: job.id, title: job.title, company_name: job.company_name, url: job.url }, access.personal);
-            }}>
+            onClick={() => (autoApply ? setPreparing(true) : apply(null))}>
             {closed ? "Listing closed" : job.url ? "Apply" : "Link unavailable"}
           </Button>}
         {access.canRead && <Button variant="secondary" icon={saved ? SavedBookmark : BookmarkSimple} aria-pressed={saved} onClick={toggleSave}
@@ -244,6 +259,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
             ? <MenuItem icon={ArrowCounterClockwise} onSelect={() => setApplied(false)}>I didn't apply</MenuItem>
             : <MenuItem icon={CheckCircle} onSelect={() => setApplied(true)}>I applied</MenuItem>)}
           {access.personal && !applied && <MenuItem icon={ThumbsDown} onSelect={notInterested}>Not interested</MenuItem>}
+          {outreach && <MenuItem icon={EnvelopeSimple} onSelect={() => setEmailing(true)}>Email recruiter</MenuItem>}
           {access.personal && <MenuItem icon={Sparkle} onSelect={() => void navigate({ to: "/tailor/$jobId", params: { jobId: job.id }, search: from ? { from } : {} })}>Tailor resume</MenuItem>}
           <MenuItem icon={ShareNetwork} onSelect={() => void share(job)}>Share</MenuItem>
           {access.personal && job.company_id && <MenuItem icon={EyeSlash} onSelect={hideTheCompany}>Hide {job.company_name}</MenuItem>}
@@ -256,6 +272,8 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
       </div>
     </div>
 
+    {autoApply && <ApplicationPrepSheet jobId={job.id} companyName={job.company_name} open={preparing} onOpenChange={setPreparing} onOpenApplication={apply} />}
+    {outreach && <OutreachDialog jobId={job.id} companyName={job.company_name} threadId={requestedThread} open={emailing} onOpenChange={setEmailing} />}
     <ReportDialog jobId={job.id} open={reporting} onOpenChange={setReporting} onSent={promote} />
     <AlertDialog open={confirmBlock} onOpenChange={setConfirmBlock} title="Block this job?"
       description={`This permanently removes ${job.title} at ${job.company_name} for everyone.`}

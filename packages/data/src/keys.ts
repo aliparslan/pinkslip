@@ -22,6 +22,10 @@ export const queryKeys = {
     push: () => ["personal", "push"] as const,
     resume: () => ["personal", "resume"] as const,
     answers: () => ["personal", "answers"] as const,
+    companies: () => ["personal", "companies"] as const,
+    prepared: (jobId: string) => ["personal", "prepared", jobId] as const,
+    outreach: (jobId: string, threadId: string | null) => ["personal", "outreach", jobId, threadId] as const,
+    admin: (part: "metrics" | "feedback" | "reports" | "reviews" | "runs" | "latency" | "jev") => ["personal", "admin", part] as const,
   },
   session: () => ["session"] as const,
 } as const;

@@ -3,6 +3,8 @@ import { publicJobQueryOptions } from "@pinkslip/data";
 import { JobDetail } from "../features/job-detail/JobDetail";
 import type { JobOrigin } from "../features/jobs/JobRow";
 import { pages } from "../features/navigation/pages";
+import { publicHead } from "../features/navigation/seo";
+import { jobPostingJsonLd } from "../features/job-detail/structured-data";
 
 function summary(html: string | null | undefined): string | undefined {
   const text = html?.replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
@@ -13,8 +15,11 @@ export const Route = createFileRoute("/_split/jobs/$jobId")({
   ssr: true,
   staticData: { page: pages["/jobs/$jobId"] },
   // Library rows add their tab so Back returns there (features/navigation/back-target.ts).
-  validateSearch: (search: Record<string, unknown>): { from?: JobOrigin } =>
-    search.from === "library-saved" || search.from === "library-applied" ? { from: search.from } : {},
+  // A follow-up reminder adds `outreach=<thread>` to open that email.
+  validateSearch: (search: Record<string, unknown>): { from?: JobOrigin; outreach?: string } => ({
+    ...(search.from === "library-saved" || search.from === "library-applied" ? { from: search.from } : {}),
+    ...(typeof search.outreach === "string" && search.outreach ? { outreach: search.outreach } : {}),
+  }),
   loader: async ({ context, params }) => {
     const options = publicJobQueryOptions(context.api, params.jobId);
     // In the browser the page opens at once from the list's copy of the job
@@ -31,16 +36,15 @@ export const Route = createFileRoute("/_split/jobs/$jobId")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "Job · Pinkslip" }] };
-    const description = summary(loaderData.description) ?? `${loaderData.title} at ${loaderData.company_name}.`;
-    return {
-      meta: [
-        { title: `${loaderData.title} at ${loaderData.company_name} · Pinkslip` },
-        { name: "description", content: description },
-        { property: "og:title", content: `${loaderData.title} at ${loaderData.company_name}` },
-        { property: "og:description", content: description },
-      ],
-      links: [{ rel: "canonical", href: `https://pinkslip.work/jobs/${encodeURIComponent(params.jobId)}` }],
-    };
+    const name = `${loaderData.title} at ${loaderData.company_name}`;
+    return publicHead({
+      title: `${name} · Pinkslip`,
+      shareTitle: name,
+      description: summary(loaderData.description) ?? `${name}.`,
+      path: `/jobs/${encodeURIComponent(params.jobId)}`,
+      type: "article",
+      structuredData: jobPostingJsonLd(loaderData) ?? undefined,
+    });
   },
   component: JobDetail,
   notFoundComponent: JobDetail,

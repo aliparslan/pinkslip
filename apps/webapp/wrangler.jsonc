@@ -13,6 +13,8 @@
     { "pattern": "pinkslip.alip.dev", "custom_domain": true }
   ],
   "services": [{ "binding": "API", "service": "pinkslip" }],
+  // "on" lets search engines index the public pages (src/server/routing.ts).
+  "vars": { "SEARCH_INDEXING": "off" },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 },
