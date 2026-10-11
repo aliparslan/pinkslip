@@ -33,7 +33,8 @@ shared semantic tokens; domain actions belong in features.
     finger's speed. A row can be caught mid-animation, and the side with no
     action resists.
   - Toasts: enter on `--ease-out` and can be swiped down to dismiss (a gesture
-    root inside the overlay, sized to the stack only).
+    root inside the overlay, sized to the stack only). The action (Undo) is
+    Gesture Handler's `Pressable`, so a quick tap isn't swallowed by the swipe.
   - Disclosure: the caret turns instead of swapping.
   - Motion values come from `kit/motion.ts`.
 - **Filled Menu sizing correction** — the existing `fill` prop now measures

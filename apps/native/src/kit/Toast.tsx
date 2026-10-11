@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet as RNStyleSheet, View } from "react-native";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { AccessibilityInfo, StyleSheet as RNStyleSheet, View } from "react-native";
+import { Gesture, GestureDetector, GestureHandlerRootView, Pressable as GesturePressable } from "react-native-gesture-handler";
 import Animated, { FadeInDown, FadeOutDown, interpolate, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FullWindowOverlay } from "react-native-screens";
@@ -107,10 +107,12 @@ function ToastCard({ item }: { item: ShownToast }) {
     <Animated.View style={[styles.toast, drag]} accessibilityLiveRegion="polite">
       <View style={[styles.dot, styles.tone(item.tone ?? "info")]} />
       <View style={styles.message}><Text size="sm" tone="ink">{item.message}</Text></View>
-      {item.action ? <Pressable accessibilityRole="button" hitSlop={8}
+      {/* The gesture system's own Pressable, so a quick tap on the action
+          isn't swallowed by the swipe-down gesture around it. */}
+      {item.action ? <GesturePressable accessibilityRole="button" hitSlop={8}
         onPress={() => { dismiss(item.id); void item.action?.run(); }}>
         <Text size="sm" weight="semibold" tone="accent">{item.action.label}</Text>
-      </Pressable> : null}
+      </GesturePressable> : null}
     </Animated.View>
   </GestureDetector>;
 }
