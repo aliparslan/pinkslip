@@ -82,9 +82,41 @@ after applying, Tracker, and You. Both keep the wireframe layouts exactly.
 **Logos:** company logos are brand-coloured initials standing in for the real
 images.
 
+## Owner pick: Take A (2026-10-11)
+
+### Several locations on the job page
+
+These are drawn on the Take A page: "A · Job page, several locations" and
+"A · All locations sheet".
+
+- **The ticket grid is the same for every job:**
+  - Level | Pay
+  - Location, as a full-width row
+  - Visa sponsorship | Experience
+  - The stub, with the posting date, the deadline and the source
+- **With one place,** the location row shows just that place.
+- **With several places:**
+  - The label gets a count ("Locations · 6").
+  - The place that matches your saved search comes first, at full size, with
+    a check.
+  - The rest go on a quieter line: "San Francisco, Seattle, Austin and
+    3 more", with a chevron.
+  - Tapping that line opens a sheet with every place. Matches come first and
+    are marked "Your search"; the rest follow in the posting's order.
+- **The deadline moved into the stub** ("Posted Oct 9 · Rolling deadline · via
+  Greenhouse"). Dates read as the ticket's stub, and the grid stays even.
+- **The applied stamp** sits in the location row's empty half, so it covers no
+  facts.
+
+**For the build:**
+- **Search-matched place first in rows:** `formatRowLocation` in
+  `packages/core/src/job-format.ts` today shows the posting's first place
+  ("New York +5"). The feed row should show the place that matches the search
+  first, as the ticket does.
+- **The full list:** `jobLocationParts` already returns every place for the
+  sheet.
+
 ## Next
 
-- **You:** pick a take, or mix them. For example, A's ground with B's ticket
-  and stamp.
-- **Then:** dark mode for the chosen take, then the iOS tokens and kit, then
-  the screens.
+- **Dark mode** for Take A.
+- **Then** the iOS tokens and kit, then the screens.
