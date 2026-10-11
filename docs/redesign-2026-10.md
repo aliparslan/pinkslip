@@ -43,6 +43,33 @@ start of the redesign, so it ends in options and decisions, not a plan.
      recruiting season.
    - All three are options below, with alternatives.
 
+## Decisions (2026-10-11)
+
+The owner's answers to section 11:
+
+- **Assessment:** agreed on grid and layout, typography, and ease of use.
+- **Navigation:** Jobs · Tracker · You for now.
+- **Apply button:** one button whose state carries every automation level.
+- **Look:** A's structure with B's moments.
+  - Differ visibly from Simplify, the direct competitor.
+  - Do everything it does, better.
+- **Pricing:** usage-based, a free and a Pro tier.
+  - The goal is to cover costs, not to profit.
+  - Details later.
+- **Fonts:** Klim for now (trial files), including iOS. The App Store build
+  needs the app licence before Klim ships in it.
+- **Career stages:** Internships, New grad, Early career (1–3 years),
+  Mid-career (3–5 years).
+  - Senior titles may appear, placed by their stated minimum, since many ask
+    for about two years.
+  - Built in this round (B5 below).
+- **Email tracking:** forwarded emails first. No Gmail connection yet.
+- **Recruiter contacts:** the owner will source them; no LinkedIn scraping.
+- **Auto-apply:** low volume.
+- **Sequence:** as proposed in section 12.
+  - After the design is consolidated, work continues in the iOS app first.
+  - Mobile web and desktop follow with their own designs.
+
 ## 1. What's working (keep)
 
 - **The chrome is Apple's:**
@@ -61,14 +88,14 @@ start of the redesign, so it ends in options and decisions, not a plan.
 
 These are worth fixing whatever the redesign does.
 
-| # | Where | What | Severity |
+| # | Where | What | Status |
 | --- | --- | --- | --- |
-| B1 | Onboarding, Filters, Preferences (iOS, light mode) | Selected chips draw dark text on the dark `control-selected-bg`, so the labels are unreadable. The chip passes `tone="ink"` where it should use `control-selected-ink`. It has been there since the scaffold (`f0b2470`) | High |
-| B2 | Jobs (iOS) | During launch and pull to refresh, the large title "Jobs" sits on top of the search field | Medium |
-| B3 | Jobs (iOS) | Two spinners at launch: the refresh control and the list's own | Low |
-| B4 | Rows and job page (data) | Locations and salaries arrive unnormalized: "US, WA, BELLEVUE", "US, WA, Seattle", "144K–194K" with no currency, "$185K–$278K," with a trailing comma | Medium |
-| B5 | Guest feed (data) | Senior titles lead the feed: "Sr Software Engineer, Merchant Intel 2" on iOS, and 4 of the first 6 web rows. The "Early / mid-career (1–5 years)" stage lets them through | High (trust) |
-| B6 | Roblox job page (data) | The salary ($182,170–$227,370) is in the description but missing from the row and the facts | Low |
+| B1 | Onboarding, Filters, Preferences (iOS, light mode) | Selected chips draw dark text on the dark `control-selected-bg`, so the labels are unreadable. The chip passes `tone="ink"` where it should use `control-selected-ink`. It has been there since the scaffold (`f0b2470`) | Fixed: chips use the selected ink |
+| B2 | Jobs (iOS) | During launch and pull to refresh, the large title "Jobs" sits on top of the search field | Fixed: the refresh control spins only for a pull (`usePullToRefresh`), never for background refetches |
+| B3 | Jobs (iOS) | Two spinners at launch: the refresh control and the list's own | Fixed with B2 |
+| B4 | Rows and job page (data) | Locations and salaries arrive unnormalized: "US, WA, BELLEVUE", "US, WA, Seattle", "144K–194K" with no currency, "$185K–$278K," with a trailing comma | Fixed in the shared formatter, so existing data reads right on both platforms |
+| B5 | Guest feed (data) | Senior titles lead the feed: "Sr Software Engineer, Merchant Intel 2" on iOS, and 4 of the first 6 web rows. The "Early / mid-career (1–5 years)" stage lets them through | Resolved by decision: senior titles stay when they ask for five years or fewer, and the stage splits into Early career (1–3) and Mid-career (3–5). Needs a backend deploy |
+| B6 | Roblox job page (data) | The salary ($182,170–$227,370) is in the description but missing from the row and the facts | Fixed for new postings: the extractor unescapes Greenhouse's escaped markup. Older ones fill in as they're replaced, or with a backfill |
 
 ## 3. Assessment
 
