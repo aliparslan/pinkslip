@@ -60,7 +60,7 @@ describe("career-stage feed query", () => {
 
   it("gives stages precedence while retaining legacy YOE behavior when absent", () => {
     expect(buildStageExperienceFilter(["internship", "new_grad"], 2, 3)).toEqual({
-      conditions: ["jf.seniority IN (?, ?)"],
+      conditions: ["(jf.seniority IN (?, ?))"],
       bindings: ["internship", "new_grad"],
     });
     expect(buildStageExperienceFilter(undefined, 1, 3)).toEqual({
@@ -92,7 +92,9 @@ describe("career-stage feed query", () => {
     const select = (filter: ReturnType<typeof buildStageExperienceFilter>) => db.query<{ job_id: string }, any[]>(`SELECT jf.job_id FROM job_features jf JOIN user_job_matches us ON us.job_id = jf.job_id WHERE ${filter.conditions.join(" AND ")} ORDER BY jf.job_id`).all(...filter.bindings).map(row => row.job_id);
     expect(select(buildStageExperienceFilter(undefined, null, 3))).toEqual([]);
     expect(select(buildStageExperienceFilter(undefined, 5, 5))).toEqual(["degree-route", "senior-five"]);
-    expect(select(buildStageExperienceFilter(["early_career"], null, null))).toEqual(["degree-route", "mid-four", "senior-five"]);
+    expect(select(buildStageExperienceFilter(["early_career"], null, null))).toEqual(["degree-route"]);
+    expect(select(buildStageExperienceFilter(["mid_career"], null, null))).toEqual(["mid-four", "senior-five"]);
+    expect(select(buildStageExperienceFilter(["early_career", "mid_career"], null, null))).toEqual(["degree-route", "mid-four", "senior-five"]);
     db.close();
   });
 

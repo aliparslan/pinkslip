@@ -68,7 +68,7 @@ describe("search profile", () => {
       CAREER_STAGE_OPTIONS.map((option) => option.id)
     );
     expect(profile.onboarding_version).toBe(0);
-    expect(effectiveTargetStages(profile)).toEqual(["new_grad", "early_career"]);
+    expect(effectiveTargetStages(profile)).toEqual(["new_grad", "early_career", "mid_career"]);
     expect(profile.excluded_titles).toEqual(["sales"]);
   });
 
@@ -85,7 +85,15 @@ describe("search profile", () => {
       "internship",
       "new_grad",
       "early_career",
+      "mid_career",
     ]);
+  });
+
+  test("keeps the three-to-five-year roles of a saved early-career choice when the stage splits (v7)", () => {
+    expect(normalizeSearchProfile({ version: 6, target_levels: ["new_grad", "early_career"] }).target_levels)
+      .toEqual(["new_grad", "early_career", "mid_career"]);
+    expect(normalizeSearchProfile({ version: 6, target_levels: ["internship"] }).target_levels).toEqual(["internship"]);
+    expect(normalizeSearchProfile({ version: 7, target_levels: ["early_career"] }).target_levels).toEqual(["early_career"]);
   });
 
   test("migrates every pre-v4 profile to all stages and gates internships until onboarding v3", () => {
@@ -101,14 +109,15 @@ describe("search profile", () => {
       "internship",
       "new_grad",
       "early_career",
+      "mid_career",
     ]);
     expect(migrated.roles).toEqual(["backend"]);
     expect(migrated.location_ids).toEqual(["new_york"]);
-    expect(effectiveTargetStages(migrated)).toEqual(["new_grad", "early_career"]);
+    expect(effectiveTargetStages(migrated)).toEqual(["new_grad", "early_career", "mid_career"]);
     expect(effectiveTargetStages(normalizeSearchProfile({
       ...migrated,
       target_levels: ["internship"],
-    }))).toEqual(["new_grad", "early_career"]);
+    }))).toEqual(["new_grad", "early_career", "mid_career"]);
 
     const confirmed = normalizeSearchProfile({
       ...migrated,

@@ -252,14 +252,19 @@ export function buildStageExperienceFilter(
   maxYoe: number | null
 ): { conditions: string[]; bindings: Array<string | number> } {
   if (stageFilter !== undefined) {
-    const stages: string[] = [...stageFilter];
-    if (stageFilter.includes("early_career")) stages.push("mid_level", "senior");
-    return {
-      conditions: [
-        `jf.seniority IN (${stages.map(() => "?").join(", ")})`,
-      ],
-      bindings: stages,
-    };
+    // The same stage rules as catalogCareerStages: early career is up to three
+    // years, mid-career three to five, and levelled titles count by their
+    // stated minimum.
+    const direct = stageFilter.filter((stage) => stage === "internship" || stage === "new_grad");
+    const clauses: string[] = [];
+    if (direct.length > 0) clauses.push(`jf.seniority IN (${direct.map(() => "?").join(", ")})`);
+    if (stageFilter.includes("early_career")) {
+      clauses.push("(jf.seniority = 'early_career' OR (jf.seniority IN ('mid_level', 'senior') AND jf.min_years <= 3))");
+    }
+    if (stageFilter.includes("mid_career")) {
+      clauses.push("(jf.seniority IN ('early_career', 'mid_level', 'senior') AND jf.min_years BETWEEN 3 AND 5)");
+    }
+    return { conditions: [`(${clauses.join(" OR ")})`], bindings: direct };
   }
 
   const conditions: string[] = [];

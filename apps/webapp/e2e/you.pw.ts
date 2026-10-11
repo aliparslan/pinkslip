@@ -32,10 +32,11 @@ test("preferences autosave a moment after a change and can reset", async ({ page
   await page.getByRole("button", { name: "Internships" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(1);
   const saved = writes.filter((write) => write.path === "/preferences").at(-1)?.body as { search_profile: { target_levels: string[] } };
-  expect(saved.search_profile.target_levels).toEqual(["new_grad", "early_career"]);
+  expect(saved.search_profile.target_levels).toEqual(["new_grad", "early_career", "mid_career"]);
 
   // Career stage keeps at least one.
   await page.getByRole("button", { name: "New grad" }).click();
+  await page.getByRole("button", { name: /Mid-career/ }).click();
   await page.getByRole("button", { name: /Early/ }).click();
   await expect(page.getByRole("button", { name: /Early/ })).toHaveAttribute("aria-pressed", "true");
 
@@ -61,7 +62,7 @@ test("quiet autosave still exposes a failed write and Retry preserves the change
   await page.getByRole("button", { name: /Retry saving/ }).click();
   await expect(page.getByText("Not saved", { exact: true })).toHaveCount(0);
   await expect.poll(() => writes.filter((write) => write.path === "/preferences").at(-1)?.body)
-    .toMatchObject({ search_profile: { target_levels: ["new_grad", "early_career"] } });
+    .toMatchObject({ search_profile: { target_levels: ["new_grad", "early_career", "mid_career"] } });
   await page.reload();
   await expect(page.getByRole("button", { name: "Internships" })).toHaveAttribute("aria-pressed", "false");
 });
@@ -155,6 +156,6 @@ test("the feed offers setup until it's done; finishing saves the search and retu
   const last = writes.filter((write) => write.path === "/preferences").at(-1)?.body as { search_profile: Record<string, unknown> };
   expect(last.search_profile.onboarding_version).toBe(3);
   expect(last.search_profile.onboarding_completed_at).toEqual(expect.any(String));
-  expect(last.search_profile.target_levels).toEqual(["new_grad", "early_career"]);
+  expect(last.search_profile.target_levels).toEqual(["new_grad", "early_career", "mid_career"]);
   await expect(page.getByRole("link", { name: "Set up" })).toHaveCount(0);
 });

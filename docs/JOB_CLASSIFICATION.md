@@ -151,6 +151,25 @@ up to five years. Feed matching and notification delivery share the same policy
 and cached qualification facts. Jev remains a disabled comparison path in the
 production configuration; this expansion adds no model calls.
 
+## Early-career and mid-career stages (profile v7)
+
+Profile v7 splits the former "Early / mid-career (1–5 years)" stage in two:
+- Early career is up to three years.
+- Mid-career is three to five years.
+- A role asking for exactly three years belongs to both.
+
+`catalogCareerStages` places senior and mid-level titles by their stated
+minimum, so a senior role asking for two years is early career. Without a
+stated minimum, those titles stay out, as before.
+
+Saved profiles older than v7 that chose early career gain mid-career, so no
+one's feed narrows. The stage comes from the existing `seniority` and
+`min_years`, so there's no migration, classifier change or matcher-version
+bump: migrated profiles match the same jobs as before.
+
+The feed accepts `mid_career` in `stages` only after the backend deploy, so the
+backend ships before clients that offer the new stage.
+
 ## Startup sources
 
 Investor boards such as a16z, Accel, Sequoia and Techstars are discovery sources.

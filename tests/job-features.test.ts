@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import {
+  catalogCareerStages,
   classifyJob,
   classifyReviewReasons,
   hasPotentiallyEligibleSeniority,
@@ -878,5 +879,27 @@ describe("classifyJob", () => {
     )).requires_advanced_degree).toBe(false);
     expect(classifyJob(listing("Data Scientist - PhD")).requires_advanced_degree)
       .toBe(true);
+  });
+});
+
+describe("catalogCareerStages", () => {
+  it("splits early career (up to three years) from mid-career (three to five)", () => {
+    expect(catalogCareerStages({ seniority: "early_career", min_years: null })).toEqual(["early_career"]);
+    expect(catalogCareerStages({ seniority: "early_career", min_years: 2 })).toEqual(["early_career"]);
+    expect(catalogCareerStages({ seniority: "early_career", min_years: 3 })).toEqual(["early_career", "mid_career"]);
+    expect(catalogCareerStages({ seniority: "mid_level", min_years: 4 })).toEqual(["mid_career"]);
+  });
+
+  it("places senior titles by their stated minimum", () => {
+    expect(catalogCareerStages({ seniority: "senior", min_years: 2 })).toEqual(["early_career"]);
+    expect(catalogCareerStages({ seniority: "senior", min_years: 5 })).toEqual(["mid_career"]);
+    expect(catalogCareerStages({ seniority: "senior", min_years: null })).toEqual([]);
+    expect(catalogCareerStages({ seniority: "senior", min_years: 6 })).toEqual([]);
+  });
+
+  it("keeps internships and new-grad roles in their own stages", () => {
+    expect(catalogCareerStages({ seniority: "internship", min_years: 0 })).toEqual(["internship"]);
+    expect(catalogCareerStages({ seniority: "new_grad", min_years: null })).toEqual(["new_grad"]);
+    expect(catalogCareerStages({ seniority: "staff_plus", min_years: 2 })).toEqual([]);
   });
 });

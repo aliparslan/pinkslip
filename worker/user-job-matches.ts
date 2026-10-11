@@ -8,7 +8,7 @@ import {
 import type { JobListing } from "./adapters/types";
 import {
   classifyJob,
-  catalogCareerStage,
+  catalogCareerStages,
   ensureJobFeatures,
   ensureJobFeaturesForIds,
   JOB_CLASSIFIER_VERSION,
@@ -114,9 +114,9 @@ export function evaluateJobForProfile(
   const normalizedTitle = listing.title.toLowerCase();
   const legacyTitleMatch = features.specialties.length === 0
     && profileRoleKeywords(profile).some((keyword) => normalizedTitle.includes(keyword.toLowerCase()));
-  const careerStage = catalogCareerStage(features);
-  const stageDisqualified = careerStage === null
-    || !effectiveTargetStages(profile).includes(careerStage);
+  const careerStages = catalogCareerStages(features);
+  const targetStages = effectiveTargetStages(profile);
+  const stageDisqualified = !careerStages.some((stage) => targetStages.includes(stage));
 
   // A stated requirement above the ceiling is the only hard experience signal.
   // A posting that states nothing is NOT excluded — see ELIGIBLE_SENIORITIES.
@@ -133,7 +133,7 @@ export function evaluateJobForProfile(
       : profile.highest_education !== "doctorate"
   );
   const doctoralInternship = features.qualification_requirements?.doctoral_internship_eligibility;
-  const doctoralInternshipDisqualified = careerStage === "internship" && profile.doctoral_student
+  const doctoralInternshipDisqualified = careerStages.includes("internship") && profile.doctoral_student
     && doctoralInternship !== "doctoral_only" && doctoralInternship !== "doctoral_eligible";
   const securityClearanceDisqualified = features.requires_security_clearance;
 

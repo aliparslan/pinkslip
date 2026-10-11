@@ -1,4 +1,4 @@
-export const SEARCH_PROFILE_VERSION = 6 as const;
+export const SEARCH_PROFILE_VERSION = 7 as const;
 export const ONBOARDING_VERSION = 3 as const;
 
 export const ROLE_OPTIONS = [
@@ -130,9 +130,16 @@ export const CAREER_STAGE_OPTIONS = [
   },
   {
     id: "early_career",
-    label: "Early / mid-career (1–5 years)",
-    detail: "Professional roles asking for one to five years",
+    label: "Early career (1–3 years)",
+    detail: "Professional roles asking for up to three years",
     minYears: 1,
+    maxYears: 3,
+  },
+  {
+    id: "mid_career",
+    label: "Mid-career (3–5 years)",
+    detail: "Professional roles asking for three to five years",
+    minYears: 3,
     maxYears: 5,
   },
 ] as const;
@@ -152,9 +159,11 @@ export type StretchTolerance = "strict" | "balanced" | "ambitious";
 export const MAX_YEARS_EXPERIENCE = 5;
 
 /** Seniorities kept in the feed after the current classifier has run. */
+// Mid-career is a stage, not a classifier seniority: it's read from the
+// stated years of early-career, mid-level and senior roles.
 export const ELIGIBLE_SENIORITIES = CAREER_STAGE_OPTIONS.map(
   (option) => option.id
-) as CareerStage[];
+).filter((id) => id !== "mid_career") as CareerStage[];
 
 export type EligibleSeniority = (typeof ELIGIBLE_SENIORITIES)[number];
 
@@ -299,11 +308,15 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
   const requestedStages = stringList(input.target_levels, CAREER_STAGE_OPTIONS.length)
     .filter((level): level is CareerStage => CAREER_STAGE_IDS.has(level));
   // v4 intentionally resets the former six-level preference to the complete
-  // three-stage catalog. Existing users confirm that migrated selection in
+  // stage catalog. Existing users confirm that migrated selection in
   // onboarding v3 before internship matches or alerts are allowed through.
+  // v7 split the former "Early / mid-career (1–5 years)" stage in two, so a
+  // saved early-career choice keeps the three-to-five-year roles it covered.
   const targetStages = sourceVersion < 4
     ? CAREER_STAGE_OPTIONS.map((option) => option.id)
-    : requestedStages;
+    : sourceVersion < 7 && requestedStages.includes("early_career") && !requestedStages.includes("mid_career")
+      ? CAREER_STAGE_OPTIONS.map((option) => option.id).filter((id) => requestedStages.includes(id) || id === "mid_career")
+      : requestedStages;
   const legacyRemote = input.remote === true;
   const workModes = stringList(input.work_modes, 3).filter((mode): mode is WorkMode => WORK_MODES.has(mode));
   const locationIds = stringList(input.location_ids, LOCATION_OPTIONS.length)
@@ -399,7 +412,7 @@ export function effectiveTargetStages(profile: SearchProfile): CareerStage[] {
   ) {
     return [...profile.target_levels];
   }
-  return ["new_grad", "early_career"];
+  return ["new_grad", "early_career", "mid_career"];
 }
 
 export function roleLabel(roleId: RoleId): string {

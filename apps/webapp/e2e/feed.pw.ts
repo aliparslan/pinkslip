@@ -41,7 +41,7 @@ test.describe("feed", () => {
     const last = () => requests.at(-1)?.searchParams;
     await expect.poll(() => last()?.get("min_salary")).toBe("120000");
     expect(last()?.get("saved")).toBe("true");
-    expect(last()?.get("stages")).toBe("new_grad,early_career");
+    expect(last()?.get("stages")).toBe("new_grad,early_career,mid_career");
     // The profile's metros are preselected, as in the current app.
     expect(last()?.get("locations")).toContain("chicago");
     await expect(page.getByRole("button", { name: "Filters, 4 active" })).toBeVisible();

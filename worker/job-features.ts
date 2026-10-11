@@ -778,12 +778,27 @@ export function hasPotentiallyEligibleSeniority(title: string): boolean {
   return isEligibleSeniority(seniority) || seniority === "mid_level" || seniority === "senior";
 }
 
+/**
+ * The career stages a job belongs to. Early career is up to three years and
+ * mid-career three to five, so a role asking for exactly three is both.
+ * Senior and mid-level titles count by their stated minimum (many senior
+ * roles ask for two years); without one they stay out of the catalog.
+ */
+export function catalogCareerStages(features: Pick<JobFeatures, "seniority" | "min_years">): CareerStage[] {
+  const min = features.min_years;
+  if (min !== null && min > MAX_YEARS_EXPERIENCE) return [];
+  if (features.seniority === "internship" || features.seniority === "new_grad") return [features.seniority];
+  const levelled = features.seniority === "mid_level" || features.seniority === "senior";
+  if (levelled ? min === null : features.seniority !== "early_career") return [];
+  if (min === null || min < 3) return ["early_career"];
+  if (min === 3) return ["early_career", "mid_career"];
+  // A junior or associate title asking for four or five years keeps its
+  // early-career label; a levelled role at that minimum is mid-career.
+  return levelled ? ["mid_career"] : ["early_career", "mid_career"];
+}
+
 export function catalogCareerStage(features: Pick<JobFeatures, "seniority" | "min_years">): CareerStage | null {
-  if (features.min_years !== null && features.min_years > MAX_YEARS_EXPERIENCE) return null;
-  if (isEligibleSeniority(features.seniority)) return features.seniority as CareerStage;
-  if ((features.seniority === "mid_level" || features.seniority === "senior")
-    && features.min_years !== null && features.min_years <= MAX_YEARS_EXPERIENCE) return "early_career";
-  return null;
+  return catalogCareerStages(features)[0] ?? null;
 }
 
 function doctorateRequirement(title: string, description: string | null, required: boolean): "none" | "completed" | "enrolled" {

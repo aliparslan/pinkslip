@@ -13,6 +13,7 @@ describe("career-stage feed filtering", () => {
       "internship",
       "new_grad",
       "early_career",
+      "mid_career",
     ]);
     expect(orderedCareerStages(["early_career", "internship"])).toEqual([
       "internship",
