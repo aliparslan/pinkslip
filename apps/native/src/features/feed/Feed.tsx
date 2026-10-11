@@ -7,7 +7,7 @@ import { ArrowClockwise, Funnel, MagnifyingGlass, WarningCircle } from "phosphor
 import { useEffect, useMemo } from "react";
 import { RefreshControl, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, Inline, Skeleton, Spinner, Text, toast } from "../../kit";
+import { Button, EmptyState, Inline, Skeleton, Spinner, Text, toast, usePullToRefresh } from "../../kit";
 import { JobRow } from "../jobs/JobRow";
 import { RowSeparator } from "../jobs/RowSeparator";
 import { useJobActions, type RowJob } from "../jobs/useJobActions";
@@ -62,6 +62,7 @@ export function Feed() {
     router.push({ pathname: "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } });
   };
   const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
+  const pull = usePullToRefresh(refresh);
   const loadMore = () => {
     if (!feed.hasNextPage || feed.isFetchingNextPage) return;
     void feed.fetchNextPage().then((result) => {
@@ -94,7 +95,7 @@ export function Feed() {
     renderItem={({ item }) => <JobRow job={item} viewed={viewed.data?.has(item.id)} onPress={open} actions={actions} />}
     ItemSeparatorComponent={RowSeparator}
     onEndReached={loadMore} onEndReachedThreshold={0.6}
-    refreshControl={<RefreshControl refreshing={feed.isRefetching && !feed.isFetchingNextPage} onRefresh={() => void refresh()} tintColor={theme.colors["ink-3"]} />}
+    refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.colors["ink-3"]} />}
     ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
       {feed.hasNextPage ? <Spinner label="Loading more jobs" /> : <Text size="sm" tone="ink-4">You're all caught up. Go touch grass.</Text>}
     </View> : null}

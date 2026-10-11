@@ -6,7 +6,7 @@ import { BookmarkSimple, CheckCircle, WarningCircle } from "phosphor-react-nativ
 import { useMemo, useState } from "react";
 import { RefreshControl, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, SegmentedControl, Spinner } from "../../kit";
+import { Button, EmptyState, SegmentedControl, Spinner, usePullToRefresh } from "../../kit";
 import { JobRow } from "../jobs/JobRow";
 import { RowSeparator } from "../jobs/RowSeparator";
 import { useJobActions, type RowJob } from "../jobs/useJobActions";
@@ -28,6 +28,7 @@ export function Library({ initialView }: { initialView: LibraryView }) {
     onOpen(job);
     router.push({ pathname: "/(tabs)/(library)/jobs/[jobId]", params: { jobId: job.id } });
   };
+  const pull = usePullToRefresh(() => active.refetch());
   const count = (list: typeof saved) => (list.data ? ` ${list.data.length}` : "");
 
   const header = <View style={styles.header}>
@@ -40,7 +41,7 @@ export function Library({ initialView }: { initialView: LibraryView }) {
     renderItem={({ item }) => <JobRow job={item} onPress={open} actions={actions}
       contextLabel={view === "applied" ? (item.applied_at ? `Applied ${timeAgo(item.applied_at)}` : "Applied") : undefined} />}
     ItemSeparatorComponent={RowSeparator}
-    refreshControl={<RefreshControl refreshing={active.isRefetching} onRefresh={() => void active.refetch()} tintColor={theme.colors["ink-3"]} />}
+    refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.colors["ink-3"]} />}
     ListEmptyComponent={active.isPending ? <View style={styles.loading}><Spinner label="Loading your jobs" /></View>
       : active.isError ? <EmptyState icon={WarningCircle} title="Your library didn't load" message="Check your connection and try again."
         actions={<Button pending={active.isFetching} onPress={() => void active.refetch()}>Try again</Button>} />
