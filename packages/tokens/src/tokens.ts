@@ -24,6 +24,7 @@ export const intentionalDivergences: Record<string, string> = {
   "--color-accent-fill": "new: filled controls use the pastel pink in both modes with dark text (9.1:1)",
   "--color-accent-ink": "dark text on the pastel fill in both modes; Svelte used white on a deep magenta in light mode",
   "--color-logo-tile": "new: company logos sit on white in both modes; Svelte put them on the sunken surface, near-black in dark mode",
+  "--ease-out": "new: a strong ease-out for presses and things that enter (Emil Kowalski's curve); the iOS kit's Reanimated motion reads it",
 };
 
 /** Breakpoints are emitted as media queries, never as custom properties. */
@@ -100,6 +101,7 @@ export const base = {
   "--duration-fast": "180ms",
   "--duration-standard": "220ms",
   "--ease-standard": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+  "--ease-out": "cubic-bezier(0.23, 1, 0.32, 1)",
 
   // Layering
   "--z-navigation": "20",

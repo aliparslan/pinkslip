@@ -23,6 +23,16 @@
   padding: var(--space-3) var(--space-4);
   color: inherit;
   text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Pressed: the row lights up once the touch is clearly a tap (the short
+   delay keeps rows from flashing as a scroll starts, as iOS lists do), and
+   fades back on release. */
+.link:active {
+  background: var(--color-bg-elev);
+  transition-duration: 0ms;
+  transition-delay: calc(var(--duration-instant) / 2);
 }
 
 .link[data-has-menu] {

@@ -12,6 +12,8 @@
   background: transparent;
   color: var(--color-ink-3);
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition-property: background-color, color, transform;
   transition-duration: var(--duration-instant);
   transition-timing-function: var(--ease-standard);

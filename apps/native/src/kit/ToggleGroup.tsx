@@ -1,14 +1,15 @@
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
+import { PressableScale } from "./PressableScale";
 import { Text } from "./Text";
 
 export interface ToggleOption<Value extends string> { value: Value; label: string; disabled?: boolean }
 
 function Chip({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [styles.chip, selected && styles.selected, pressed && styles.pressed]}>
+  return <PressableScale accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
+    contentStyle={[styles.chip, selected && styles.selected]}>
     <Text size="sm" weight="medium" tone={selected ? "ink" : "ink-2"}>{label}</Text>
-  </Pressable>;
+  </PressableScale>;
 }
 
 /** Single-choice chips; pressing the chosen one again clears it when
@@ -55,5 +56,4 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors["control-bg"],
   },
   selected: { backgroundColor: theme.colors["control-selected-bg"], borderColor: theme.colors["control-selected-border"] },
-  pressed: { opacity: 0.7 },
 }));

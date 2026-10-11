@@ -14,9 +14,20 @@
     border: 0 solid;
   }
 
+  /* Phones: no grey flash over tapped controls (each control draws its own
+     pressed state) and no text inflation in landscape. */
   html {
     line-height: 1.5;
     tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Controls never double-tap-zoom, so a quick second tap on a chip is a
+     second tap, not a zoom. */
+  :where(a, button, [role="button"], summary, label, input, select, textarea) {
+    touch-action: manipulation;
   }
 
   h1,

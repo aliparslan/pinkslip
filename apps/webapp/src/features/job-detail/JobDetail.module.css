@@ -114,8 +114,10 @@
   text-decoration: none;
 }
 
-.original:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .original:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Pinned to the bottom of the page (above the phone tab bar) or of the

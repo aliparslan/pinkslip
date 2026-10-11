@@ -7,9 +7,10 @@ import { router } from "expo-router";
 import { BellRinging, CaretLeft, Check, UploadSimple, WarningCircle } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInLeft, FadeInRight, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Button, EmptyState, Heading, IconButton, Spinner, Stack, Text, toast } from "../../kit";
+import { durations, easeOut } from "../../kit/motion";
 import { haptics } from "../../platform/haptics";
 import { devicePushStatus, enableDevicePush, type DevicePushStatus } from "../../platform/push";
 import { MetroField, RoleField, StageField, WorkFields } from "../preferences/ProfileFields";
@@ -38,7 +39,14 @@ function Steps({ initial }: { initial: Profile }) {
   const save = useUpdatePreferences();
   const updatePush = useUpdatePushSettings();
   const saveResume = useSaveResume();
-  const [step, setStep] = useState(1);
+  const [step, setStepTo] = useState(1);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const setStep = (next: number) => { setDirection(next > step ? 1 : -1); setStepTo(next); };
+  const reduced = useReducedMotion();
+  const progress = useSharedValue(1);
+  useEffect(() => { progress.value = withTiming(step, { duration: durations.standard, easing: easeOut }); }, [step, progress]);
+  // Each step comes in from the side you're heading; Reduce Motion fades.
+  const enter = reduced ? FadeIn.duration(durations.fast) : (direction > 0 ? FadeInRight : FadeInLeft).duration(durations.standard).easing(easeOut);
   const [profile, setProfile] = useState(initial);
   const [push, setPush] = useState<DevicePushStatus | "error" | null>(null);
   const [enabling, setEnabling] = useState(false);
@@ -114,12 +122,12 @@ function Steps({ initial }: { initial: Profile }) {
     <View style={styles.header}>
       <View style={styles.back}>{step > 1 && <IconButton icon={CaretLeft} label="Back" onPress={() => setStep(step - 1)} />}</View>
       <View style={styles.progress} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: STEPS, now: step, text: `Step ${step} of ${STEPS}` }}>
-        {Array.from({ length: STEPS }, (_, index) => <View key={index} style={[styles.segment, index < step && styles.segmentOn]} />)}
+        {Array.from({ length: STEPS }, (_, index) => <Segment key={index} index={index} progress={progress} />)}
       </View>
       <View style={styles.back} />
     </View>
     <ScrollView ref={scroll} contentContainerStyle={styles.body} keyboardDismissMode="interactive">
-      <Animated.View key={step} entering={FadeIn.duration(220)}>
+      <Animated.View key={step} entering={enter}>
         <Stack gap="6">
           <Heading variant="display-lg">{titles[step - 1]}</Heading>
           {step === 1 && <><StageField profile={profile} onChange={change} /><RoleField profile={profile} onChange={change} /></>}
@@ -149,14 +157,20 @@ function Steps({ initial }: { initial: Profile }) {
   </View>;
 }
 
+/** One progress segment; its fill follows the step. */
+function Segment({ index, progress }: { index: number; progress: SharedValue<number> }) {
+  const fill = useAnimatedStyle(() => ({ width: `${Math.min(Math.max(progress.value - index, 0), 1) * 100}%` }));
+  return <View style={styles.segment}><Animated.View style={[styles.segmentFill, fill]} /></View>;
+}
+
 const styles = StyleSheet.create((theme, rt) => ({
   root: { flex: 1, backgroundColor: theme.colors.bg, paddingTop: rt.insets.top },
   center: { flex: 1, justifyContent: "center", backgroundColor: theme.colors.bg },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: theme.space["2"], height: 56 },
   back: { width: 44 },
   progress: { flex: 1, flexDirection: "row", gap: theme.space["1"], paddingHorizontal: theme.space["2"] },
-  segment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: theme.colors["control-bg"] },
-  segmentOn: { backgroundColor: theme.colors.accent },
+  segment: { flex: 1, height: 4, borderRadius: 2, overflow: "hidden", backgroundColor: theme.colors["control-bg"] },
+  segmentFill: { position: "absolute", top: 0, bottom: 0, left: 0, borderRadius: 2, backgroundColor: theme.colors.accent },
   body: { padding: theme.gutter, paddingTop: theme.space["4"], paddingBottom: theme.space["10"] },
   done: { flexDirection: "row", alignItems: "center", gap: theme.space["2"] },
   footer: { gap: theme.space["2"], paddingHorizontal: theme.gutter, paddingTop: theme.space["3"], paddingBottom: rt.insets.bottom + theme.space["2"] },

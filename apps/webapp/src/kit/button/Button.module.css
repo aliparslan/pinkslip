@@ -25,6 +25,7 @@
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
   transition-property: background-color, border-color, color, opacity, transform;
   transition-duration: var(--duration-instant);
   transition-timing-function: var(--ease-standard);

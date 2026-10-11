@@ -13,6 +13,13 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.row:active {
+  background: var(--color-bg-sunken);
+  transition-duration: 0ms;
+  transition-delay: calc(var(--duration-instant) / 2);
 }
 
 .row:focus-visible {

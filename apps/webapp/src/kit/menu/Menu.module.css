@@ -44,6 +44,7 @@
   cursor: pointer;
   outline: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .item[data-highlighted] {

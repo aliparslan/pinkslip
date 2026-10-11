@@ -1,5 +1,5 @@
 import type { Icon as PhosphorIcon } from "phosphor-react-native";
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Text as RNText, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -8,6 +8,7 @@ import Animated, {
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
+import { durations, easeOut, resist, settleSpring } from "./motion";
 
 export interface SwipeAction {
   label: string;
@@ -19,7 +20,6 @@ export interface SwipeAction {
   run: () => void;
 }
 
-const spring = { damping: 26, stiffness: 320, mass: 0.9 };
 /** The revealed strip never gets narrower than this, so the label fits. */
 const MIN_WIDTH = 76;
 /** How far to drag before letting go runs the action. */
@@ -32,8 +32,10 @@ const commitDistance = (width: number) => {
  * One full-swipe action per side, as Mail's full swipe works: drag the row
  * and the action shows behind it in grey; past the commit point it fills
  * with its colour and taps a haptic, and letting go runs it. Short of the
- * point it springs back, and a fast flick commits too. Vertical drags stay
- * with the list, so it lives inside FlashList and keeps the native header.
+ * point it springs back, and a fast flick commits too. Releases keep the
+ * finger's speed, and a row still moving can be caught where it is. Vertical
+ * drags stay with the list, so it lives inside FlashList and keeps the
+ * native header.
  */
 export function SwipeRow({ id, leading, trailing, children }: {
   /** Resets the row when a recycled cell shows a different item. */
@@ -43,6 +45,7 @@ export function SwipeRow({ id, leading, trailing, children }: {
   children: ReactNode;
 }) {
   const x = useSharedValue(0);
+  const start = useSharedValue(0);
   const width = useSharedValue(390);
   const armed = useSharedValue(false);
   const hasLeading = Boolean(leading);
@@ -55,17 +58,23 @@ export function SwipeRow({ id, leading, trailing, children }: {
     armed.value = false;
   }, [id, x, armed]);
 
-  const commit = (side: "leading" | "trailing") => (side === "leading" ? leading : trailing)?.run();
+  // The gesture is built once per shape of row; the actions it runs are read
+  // when it commits, so a re-render mid-drag doesn't reattach it.
+  const actions = useRef({ leading, trailing });
+  useEffect(() => { actions.current = { leading, trailing }; });
+  const commit = useCallback((side: "leading" | "trailing") => actions.current[side]?.run(), []);
 
-  const pan = Gesture.Pan()
+  const pan = useMemo(() => Gesture.Pan()
     .enabled(hasLeading || hasTrailing)
     .activeOffsetX([-14, 14])
     .failOffsetY([-10, 10])
+    // Picks the row up where it is, even mid-animation.
+    .onStart(() => { start.value = x.value; })
     .onUpdate((event) => {
-      const raw = event.translationX;
+      const raw = start.value + event.translationX;
       const allowed = raw > 0 ? hasLeading : hasTrailing;
-      // A side without an action gives a little and stops.
-      const next = allowed ? raw : Math.sign(raw) * Math.min(Math.abs(raw) * 0.12, 14);
+      // A side without an action gives a little, with rising resistance.
+      const next = allowed ? raw : resist(raw, width.value);
       x.value = next;
       const past = allowed && Math.abs(next) >= commitDistance(width.value);
       if (past !== armed.value) {
@@ -81,22 +90,26 @@ export function SwipeRow({ id, leading, trailing, children }: {
       const flick = Math.abs(event.velocityX) > 1000 && Math.sign(event.velocityX) === Math.sign(value) && Math.abs(value) > 40;
       const go = success && allowed && (armed.value || flick);
       armed.value = false;
+      const velocity = event.velocityX;
       if (!go) {
-        x.value = withSpring(0, spring);
+        x.value = withSpring(0, { ...settleSpring, velocity });
         return;
       }
       if (side === "leading" ? leadingRemoves : trailingRemoves) {
-        // Slide away, then let the list drop the row. Come back after a
-        // moment in case it stays (a failure puts it back).
-        x.value = withTiming(Math.sign(value) * width.value, { duration: 180 }, () => {
+        // Slide away on a fast ease-out (a spring's long settle would hold
+        // the empty strip on screen), then let the list drop the row. Come
+        // back after a moment in case it stays (a failure puts it back).
+        // Caught on the way out, it doesn't run.
+        x.value = withTiming(Math.sign(value) * width.value, { duration: durations.fast, easing: easeOut }, (finished) => {
+          if (!finished) return;
           scheduleOnRN(commit, side);
           x.value = withDelay(700, withTiming(0, { duration: 0 }));
         });
       } else {
-        x.value = withSpring(0, spring);
+        x.value = withSpring(0, { ...settleSpring, velocity });
         scheduleOnRN(commit, side);
       }
-    });
+    }), [hasLeading, hasTrailing, leadingRemoves, trailingRemoves, commit, x, start, width, armed]);
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 

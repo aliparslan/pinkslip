@@ -6,6 +6,7 @@ import { SessionEffects } from "../features/session/SessionEffects";
 import { SessionGate } from "../features/session/SessionGate";
 import { ApplicationReturnPrompt } from "../features/job-detail/ApplicationReturnPrompt";
 import { PushEffects } from "../features/alerts/PushEffects";
+import { chromeColor, ThemeEffects } from "../features/theme/theme";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
 import themeCss from "@pinkslip/tokens/tokens.css?url";
@@ -18,9 +19,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // `viewport-fit=cover` lets the page reach under the notch and home
+      // indicator; the `--safe-*` tokens pad content back out of them.
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Pinkslip" },
-      { name: "theme-color", content: "#0e0e10" },
     ],
     links: [
       ...[themeCss, fontsCss, resetCss, baseCss, navigationCss].map((href) => ({ rel: "stylesheet", href })),
@@ -40,9 +42,17 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function Root() {
   return <html lang="en" suppressHydrationWarning>
-    <head><script src="/theme.js" /><HeadContent /></head>
+    <head>
+      <script src="/theme.js" />
+      <HeadContent />
+      {/* One browser-chrome colour per scheme. Written here because the head
+          manager keeps a single tag per name; ThemeEffects repaints both when
+          a mode is chosen in Appearance. */}
+      <meta name="theme-color" media="(prefers-color-scheme: dark)" content={chromeColor.dark} />
+      <meta name="theme-color" media="(prefers-color-scheme: light)" content={chromeColor.light} />
+    </head>
     <body>
-      <TooltipProvider><ToastProvider><NavigationEffects /><SessionEffects /><PushEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
+      <TooltipProvider><ToastProvider><NavigationEffects /><ThemeEffects /><SessionEffects /><PushEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
       <Scripts />
     </body>
   </html>;

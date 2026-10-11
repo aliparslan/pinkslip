@@ -363,6 +363,7 @@ export const duration = {
 
 export const ease = {
   standard: [0.2, 0.7, 0.2, 1],
+  out: [0.23, 1, 0.32, 1],
 } as const;
 
 export const zIndex = {

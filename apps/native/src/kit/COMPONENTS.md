@@ -25,6 +25,17 @@ shared semantic tokens; domain actions belong in features.
   rows. Every action is also in the long-press menu and the row's
   accessibility actions. Demo: development-only `/you/kit-swipes` (Kit →
   Swipes).
+- **Craft pass (2026-10-10, `docs/craft-pass-2026-10-10.md`):**
+  - `PressableScale` / `usePressScale`: Button and the chips scale to 97% on
+    press, and the Checkbox box to 92%. The timing is 140ms `--ease-out` on
+    the UI thread, replacing the opacity dims.
+  - SwipeRow: a short release settles on a spring that starts from the
+    finger's speed. A row can be caught mid-animation, and the side with no
+    action resists.
+  - Toasts: enter on `--ease-out` and can be swiped down to dismiss (a gesture
+    root inside the overlay, sized to the stack only).
+  - Disclosure: the caret turns instead of swapping.
+  - Motion values come from `kit/motion.ts`.
 - **Filled Menu sizing correction** — the existing `fill` prop now measures
   its container and constrains the nested SwiftUI menu trigger. This preserves
   wrapping in JobRow and Select; the native menu actions remain unchanged.

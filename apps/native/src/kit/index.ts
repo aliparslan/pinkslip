@@ -21,3 +21,4 @@ export { Sheet } from "./Sheet";
 export { Disclosure } from "./Disclosure";
 export { SaveStatus } from "./SaveStatus";
 export { SwipeRow, type SwipeAction } from "./SwipeRow";
+export { PressableScale, usePressScale, type PressableScaleProps } from "./PressableScale";

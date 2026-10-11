@@ -54,6 +54,7 @@
     --duration-fast: 180ms;
     --duration-standard: 220ms;
     --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --z-navigation: 20;
     --z-overlay: 40;
     --z-toast: 60;

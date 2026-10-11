@@ -28,8 +28,10 @@
   white-space: nowrap;
 }
 
-a.name:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  a.name:hover {
+    text-decoration: underline;
+  }
 }
 
 .actions {

@@ -23,6 +23,15 @@
   color: var(--color-ink-2);
   text-decoration: none;
   list-style: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Pressed, after the same short delay as job rows so a scroll doesn't
+   flash the row it starts on. */
+.row:not([data-static]):active {
+  background: var(--color-bg-sunken);
+  transition-duration: 0ms;
+  transition-delay: calc(var(--duration-instant) / 2);
 }
 
 .copy {

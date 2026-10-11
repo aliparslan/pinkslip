@@ -70,10 +70,17 @@
   text-decoration: none;
 }
 
-.sectionLink:hover,
-.sectionLink[aria-current="page"] {
+.sectionLink[aria-current="page"],
+.sectionLink:active {
   color: var(--color-ink);
   background: var(--color-bg-elev);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sectionLink:hover {
+    color: var(--color-ink);
+    background: var(--color-bg-elev);
+  }
 }
 
 .skip {
@@ -125,9 +132,18 @@
   font-size: var(--fs-3xs);
   font-weight: 500;
   text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   transition:
     color var(--duration-instant) var(--ease-standard),
-    background var(--duration-instant) var(--ease-standard);
+    background var(--duration-instant) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
+}
+
+/* Tabs answer the press, barely: they're tapped all day. */
+.destination:active {
+  transform: scale(0.96);
 }
 
 .destination[data-active] {
@@ -193,9 +209,11 @@
     color: var(--color-ink-2);
   }
 
-  .destination:hover {
-    background: var(--color-bg-elev);
-    color: var(--color-ink);
+  @media (hover: hover) and (pointer: fine) {
+    .destination:hover {
+      background: var(--color-bg-elev);
+      color: var(--color-ink);
+    }
   }
 
   .destination[data-active] {

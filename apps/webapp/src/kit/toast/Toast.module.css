@@ -86,6 +86,8 @@
   border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .action {
