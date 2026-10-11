@@ -18,8 +18,8 @@ page "Lo-fi · Jobs · Tracker · You".
 
 | Frame | What it settles |
 | --- | --- |
-| **Jobs** | The shared row: the company with a trailing age, a semibold title, then level, place and pay. A small unread dot sits in the gutter. Rows already in your pipeline show a stage mark (Saved, Applied) beside the age. Quick refinements sit under the search field, and Edit search is the top-right button. The list is grouped into "New today" and "Earlier this week" with counts |
-| **Job page** | The header sits on the 16pt edge: logo, company, title, and the posting date and source. Next comes a facts panel: level, pay, location, visa sponsorship, experience and deadline. Then a "Fits your search" line, then the description. Save and Apply are pinned to the bottom |
+| **Jobs** | The shared row: the company with a trailing age, a semibold title, then level, place and pay. A small unread dot sits in the gutter, centred on the logo. Rows already in your pipeline show a stage mark (Saved, Applied) beside the age. Quick refinements sit under the search field, and Edit search is the top-right button. The list is grouped into "New today" and "Earlier this week" with counts |
+| **Job page** | The header puts company and title beside the logo, centred on it (owner, 2026-10-11). Next comes a facts panel: level, pay, location, visa sponsorship, experience and deadline, with the posting date and source as its footer. Then a "Fits your search" line, then the description. Save and Apply are pinned to the bottom |
 | **Apply button states** | One button through all seven states: Apply; Apply for me (Pro, with "Apply myself" in its menu); Queued; Applying with progress; Needs you; Applied; and Interview · View in Tracker on later visits |
 | **Tracker** | Needs you at the top, then the batch card (only while a batch runs), Applications · Outreach, and applications grouped by stage. The stage glyphs fill up as an application advances |
 | **You** | The identity card, then grouped lists with values on the right: Profile, Search, Automation, Notifications and email, App, Admin (admins only) and Sign out. The version line sits at the bottom |
@@ -46,6 +46,15 @@ page "Lo-fi · Jobs · Tracker · You".
 8. **Delete account** isn't on the You screen itself. It would sit behind the
    identity card with the account details, which Apple requires to be
    reachable.
+
+## Owner feedback (2026-10-11)
+
+- Happy overall. Liked the Apply button direction, Tracker and You.
+- **Job page header:** company and title sit beside the logo. Done. The
+  posting date moved into the facts panel's footer. A title that wraps to two
+  lines wraps in the narrower column beside the logo.
+- **Unread dot:** keep it for now and judge it in practice. It's now centred
+  on the logo.
 
 ## Next
 
