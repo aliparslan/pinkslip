@@ -46,3 +46,10 @@ describe("salary helpers", () => {
     ).toBe("$170,000 – $215,000/year");
   });
 });
+
+describe("extractSalaryFromHtml with escaped markup", () => {
+  it("reads a Greenhouse pay range whose markup arrives escaped", () => {
+    const content = "&lt;div class=&quot;title&quot;&gt;Annual Salary Range&lt;/div&gt;&lt;div class=&quot;pay-range&quot;&gt;&lt;span&gt;$182,170&lt;/span&gt;&lt;span class=&quot;divider&quot;&gt;&amp;mdash;&lt;/span&gt;&lt;span&gt;$227,370 USD&lt;/span&gt;&lt;/div&gt;";
+    expect(extractSalaryFromHtml(content)).toBe("$182,170 – $227,370");
+  });
+});

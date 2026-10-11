@@ -28,10 +28,15 @@ function parseSalaryMagnitude(token: string): number {
 
 function normalizeHtmlText(html: string): string {
   return html
+    // Greenhouse sends its markup escaped once ("&lt;span&gt;"); unescape it
+    // so the tags strip out instead of splitting a range in two.
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, "\"")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
-    .replace(/&ndash;|&mdash;/gi, " – ")
+    .replace(/&ndash;|&mdash;|&#821[12];/gi, " – ")
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, "\"")
     .replace(/\s+/g, " ")
