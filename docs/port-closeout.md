@@ -63,10 +63,11 @@ new feature compositions are documented in Quarantine.
 The owner confirmed the earlier TestFlight build works on their iPhone and
 native Apple sign-in succeeds. The delayed push test arrived and tapping it
 opened the app. That establishes delivery and opening, not a real alert's job
-destination. The force-close/sign-in persistence question is still unanswered.
+destination. On 2026-10-11 the owner confirmed they stay signed in after
+force-quitting the app.
 
 Real ATS filling and PDF attachment, draggable Fill-sheet dismissal,
-scanned-PDF picker → OCR service → review/retention, signed-account persistence,
+scanned-PDF picker → OCR service → review/retention,
 cold/warm email/job links and job alert destinations remain phone checks.
 Website Apple consent and account continuity require the owner's portal setup
 and browser verification. Native swipes and VoiceOver remain the separate
