@@ -96,13 +96,24 @@ These are drawn on the Take A page: "A · Job page, several locations" and
   - The stub, with the posting date, the deadline and the source
 - **With one place,** the location row shows just that place.
 - **With several places:**
-  - The label gets a count ("Locations · 6").
+  - The label just says "Locations", with no count. The "and 3 more" line
+    already says there are others (owner, 2026-10-11).
   - The place that matches your saved search comes first, at full size, with
     a check.
   - The rest go on a quieter line: "San Francisco, Seattle, Austin and
     3 more", with a chevron.
   - Tapping that line opens a sheet with every place. Matches come first and
     are marked "Your search"; the rest follow in the posting's order.
+- **Pay that varies by place:**
+  - The pay cell shows the band for the place that matches your search, and
+    its label says so: "Pay in New York".
+  - The sheet becomes "Locations and pay", with each place's band on the
+    right. A place with no listed band says "Not listed".
+  - If no place matches your search, the label reads "Pay" and the value
+    spans the lowest to the highest band.
+  - The feed row shows the same band as the ticket.
+  - The extractor stores one salary text per posting today, so per-place
+    bands need backend work: parse zone or city bands from the posting.
 - **The deadline moved into the stub** ("Posted Oct 9 · Rolling deadline · via
   Greenhouse"). Dates read as the ticket's stub, and the grid stays even.
 - **The applied stamp** sits in the location row's empty half, so it covers no
