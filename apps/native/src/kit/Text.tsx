@@ -3,7 +3,7 @@ import { Text as RNText, type TextProps as RNTextProps } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
 export type TextSize = "2xs" | "xs" | "sm" | "md" | "lg";
-export type TextTone = "ink" | "ink-2" | "ink-3" | "ink-4" | "accent" | "good" | "warn" | "bad";
+export type TextTone = "ink" | "ink-2" | "ink-3" | "ink-4" | "accent" | "good" | "warn" | "bad" | "control-selected-ink";
 export type TextWeight = "regular" | "medium" | "semibold";
 
 export interface TextProps extends Pick<RNTextProps, "accessibilityRole" | "selectable" | "onPress" | "testID"> {

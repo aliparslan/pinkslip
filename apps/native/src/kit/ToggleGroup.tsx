@@ -8,7 +8,7 @@ export interface ToggleOption<Value extends string> { value: Value; label: strin
 function Chip({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
   return <PressableScale accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
     contentStyle={[styles.chip, selected && styles.selected]}>
-    <Text size="sm" weight="medium" tone={selected ? "ink" : "ink-2"}>{label}</Text>
+    <Text size="sm" weight="medium" tone={selected ? "control-selected-ink" : "ink-2"}>{label}</Text>
   </PressableScale>;
 }
 
