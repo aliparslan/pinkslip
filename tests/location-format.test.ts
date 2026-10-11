@@ -44,3 +44,15 @@ describe("isDuplicateLeadingJobHeading", () => {
     expect(isDuplicateLeadingJobHeading("Qualifications", context)).toBe(false);
   });
 });
+
+describe("formatJobLocation with feed quirks", () => {
+  it("puts country-first locations in city, state order", () => {
+    expect(formatJobLocation("US, WA, Seattle")).toBe("Seattle, WA");
+  });
+
+  it("title-cases shouting city names but keeps short codes", () => {
+    expect(formatJobLocation("US, WA, BELLEVUE")).toBe("Bellevue, WA");
+    expect(formatJobLocation("SAN FRANCISCO, CA")).toBe("San Francisco, CA");
+    expect(formatJobLocation("NYC")).toBe("NYC");
+  });
+});

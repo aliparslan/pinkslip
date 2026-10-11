@@ -17,8 +17,19 @@ const LOCATION_ABBREVIATIONS: Record<string, string> = {
   Washington: "WA",
 };
 
+// "BELLEVUE" or "SAN FRANCISCO" from feeds that shout; short codes such as
+// "NYC" or "WA" stay as they are.
+function titleCaseShouting(value: string): string {
+  if (!/^[A-Z][A-Z .'-]{3,}$/.test(value)) return value;
+  return value.toLowerCase().replace(/(^|[\s.'-])([a-z])/g, (_match, gap: string, letter: string) => gap + letter.toUpperCase());
+}
+
 function normalizeLocationPart(value: string): string {
-  let part = normalizeText(value)
+  let part = normalizeText(value);
+  // Country first ("US, WA, Seattle"), as Amazon writes it.
+  const countryFirst = part.match(/^(?:US|USA),\s*([A-Za-z]{2}),\s*(.+)$/);
+  if (countryFirst) part = `${countryFirst[2]}, ${countryFirst[1].toUpperCase()}`;
+  part = part.split(/\s*,\s*/).map(titleCaseShouting).join(", ")
     .replace(/\s*\((?:US|USA|United States)\)\s*$/i, "")
     .replace(/\s+-\s+(?:US|USA|United States)\s*$/i, "")
     .replace(/,?\s+(?:US|USA|United States(?: of America)?)\s*$/i, "")
@@ -68,28 +79,44 @@ export function formatJobLocation(location: string | null | undefined): string |
   return `${unique[0]} +${unique.length - 1}`;
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", GBP: "£", EUR: "€", JPY: "¥" };
+
+/* Some feeds put the currency after the range ("144,000 - 194,000 USD");
+   move it in front of each amount so every row reads "$144K–194K". */
+function currencyFirst(salary: string): string {
+  return salary.replace(
+    /([$£€¥]\s*)?(\d(?:[\d,]*\d)?(?:\.\d+)?\s*[kK]?)\s*(-|–|—|to)\s*([$£€¥]\s*)?(\d(?:[\d,]*\d)?(?:\.\d+)?\s*[kK]?)\s*\b(USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\b/gi,
+    (match: string, before: string | undefined, low: string, dash: string, after: string | undefined, high: string, code: string) => {
+      if (before || after) return match;
+      const unit = CURRENCY_SYMBOLS[code.toUpperCase()] ?? `${code.toUpperCase()} `;
+      return `${unit}${low} ${dash} ${unit}${high}`;
+    },
+  );
+}
+
 /* ATS feeds disagree on range punctuation ("$114,000 - $184,000",
    "$114,000—$184,000", "120K to 150K"); normalize every range to a bare
    en dash so adjacent feed rows always match. */
 export function normalizeSalaryText(salary: string | null | undefined): string | null {
   if (!salary) return null;
-  const cleaned = salary
+  const cleaned = currencyFirst(salary
     .replace(/\s+/g, " ")
-    .trim();
+    .trim());
   if (!cleaned) return null;
 
   // Compensation feeds also emit non-salary benefits such as "Offers Equity"
   // and "Offers Commission" in the salary slot. Display only an actual
   // numeric amount/range; descriptive compensation belongs in the listing.
   const currency = "(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\\s*)?(?:[$£€¥]\\s*)?";
-  const amount = "\\d[\\d,]*(?:\\.\\d+)?\\s*[kK]?";
+  // Digits may carry thousands commas but never end on one ("$278,000,").
+  const amount = "\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?\\s*[kK]?";
   const period = "(?:\\s*(?:/|per\\s+)(?:yr|year|annually|annual|hr|hour|hourly))?";
   const range = new RegExp(`${currency}${amount}\\s*(?:-|–|—|to)\\s*${currency}${amount}${period}`, "i");
   const single = new RegExp(`(?:(?:USD|CAD|GBP|EUR|AUD|SGD|CHF|JPY|NZD)\\s*)?(?:[$£€¥]\\s*)${amount}${period}`, "i");
   const numeric = cleaned.match(range)?.[0] ?? cleaned.match(single)?.[0] ?? null;
   if (!numeric) return null;
 
-  const values = numeric.match(/\d[\d,]*(?:\.\d+)?\s*[kK]?/g) ?? [];
+  const values = numeric.match(/\d(?:[\d,]*\d)?(?:\.\d+)?\s*[kK]?/g) ?? [];
   const plausible = values.some((token) => {
     const inThousands = /[kK]\b/.test(token);
     const value = Number.parseFloat(token.replace(/,/g, "").replace(/[kK]\b/, ""));

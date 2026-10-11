@@ -48,3 +48,16 @@ describe("normalizeSalaryText", () => {
     expect(normalizeSalaryText("  ")).toBeNull();
   });
 });
+
+describe("salary feed quirks", () => {
+  it("moves a trailing currency code in front of each amount", () => {
+    expect(normalizeSalaryText("144,000 - 194,000 USD annually")).toBe("$144,000–$194,000");
+    expect(formatCompactSalaryText("144,000 - 194,000 USD")).toBe("$144K–$194K");
+    expect(normalizeSalaryText("$182,170 - $227,370 USD")).toBe("$182,170–$227,370");
+  });
+
+  it("drops a trailing comma after the last amount", () => {
+    expect(normalizeSalaryText("$185,000 - $278,000,")).toBe("$185,000–$278,000");
+    expect(formatCompactSalaryText("$185,000 - $278,000, plus equity")).toBe("$185K–$278K");
+  });
+});
