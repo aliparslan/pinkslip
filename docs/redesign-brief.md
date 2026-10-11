@@ -1,14 +1,12 @@
-# Redesign brief (draft, 2026-10-11)
+# Redesign brief (2026-10-11)
 
-Drafted by the agent from the decisions in
-[redesign-2026-10.md](redesign-2026-10.md). Lines marked **Owner** need your
-answer. Everything else is a proposal: cut or change freely.
+Drafted from the decisions in [redesign-2026-10.md](redesign-2026-10.md) and
+approved by the owner on 2026-10-11. The owner will refine it as the designs
+take shape.
 
 ## Feeling
 
-**Owner:** pick three to five words, or replace them.
-
-Proposed: calm, quick, on your side, quietly playful, trustworthy.
+Helpful, useful, convenient, beautiful, intuitive.
 
 ## Who it's for and the moment they use it
 
@@ -27,8 +25,6 @@ step obvious.
 ## Love
 
 Each reference is listed with why it's here.
-
-**Owner:** keep, cut, or add your own. Screenshots are best.
 
 | Reference | Why |
 | --- | --- |
