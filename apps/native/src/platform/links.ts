@@ -22,5 +22,8 @@ export function appPathFor(input: string): string | null {
   if (path === "/" || path === "") return "/";
   if (/^\/library(?:\/(?:saved|applied))?\/?$/.test(path)) return path.includes("applied") || url.searchParams.get("view") === "applied" ? "/library?view=applied" : "/library";
   if (path === "/you" || path.startsWith("/you/")) return path;
+  // Admin alerts link to the web admin; the app has its own.
+  const admin = /^\/admin(\/(?:inbox|runs|sources|jev))?\/?$/.exec(path);
+  if (admin) return `/you/admin${admin[1] ?? ""}`;
   return null;
 }

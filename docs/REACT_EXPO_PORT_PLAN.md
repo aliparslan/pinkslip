@@ -839,6 +839,7 @@ Owner testing for the native integration chunk:
    on the right. Stop before submitting a real application.
 
 **6.11 Admin** · S · needs D9 · admin links out to the web. ✅ 2026-10-10: You → Admin workspace opens pinkslip.work/admin in Safari
+  2026-10-11: the owner wants to stay in the app, so You → Admin now opens native screens (Inbox, Product health, Runs, Sources, Jev) built on the shared data hooks; admin alerts open them too. The web admin is unchanged.
 
 **6.12 Tailoring** · per D7. ✅ 2026-10-10: the coming-soon page on You → Tailoring and the job's Tailor resume
 
@@ -921,7 +922,7 @@ by this documentation chunk.
 | D6 | iOS between the web cutover and Expo | Keep Capacitor + Svelte frozen / rewrap Capacitor around the new web app | ✅ **Neither** (decided 2026-10-09; no users yet). Capacitor is deleted in 3.4, and iOS gets no updates until the Expo app ships | 3.4 |
 | D7 | Tailoring | Placeholder (keeps the coming-soon signal) / full port (2.6k-line page) | **Placeholder indefinitely**; owner tabled tailoring for much later on 2026-10-10. Resume only on explicit owner instruction | 4.15 / 6.12 |
 | D8 | Native styling | Own kit on Unistyles / plain StyleSheet / Expo UI only | **Own kit on Unistyles**, with Expo UI's SwiftUI controls for menus and pickers | 6.2 |
-| D9 | Admin on iOS | Link out to web / build natively | **Link out** | 6.11 |
+| D9 | Admin on iOS | Link out to web / build natively | **Native** (owner, 2026-10-11; was link out) | 6.11 |
 | D10 | Resume import on iOS | Server-side / hidden WebView | ✅ **Resolved**: server-side parse for text PDFs, then a local hidden PDF.js WebView for image-only PDFs before `/resume-import/ocr`. Implemented 2026-10-10 with first-three-page/dimension/pixel bounds and WebKit fixture proof. Full signed-device OCR/import/attachment check remains open. Import needs sign-in (6.3) | 1.6b / 6.9 |
 | D11 | Sign-in across the Capacitor → Expo update | One-tap re-sign-in / hand the token over via Keychain | ✅ **Moot**: no users to carry over | — |
 | D12 | Shared boundaries | Share all code below UI / share rules and contracts with app adapters | ✅ **Rules/contracts and applicable Query hooks shared; platform execution app-owned** (2026-10-09) | 1.4–1.6 |

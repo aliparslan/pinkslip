@@ -62,3 +62,10 @@ test("universal links and app links map only supported trusted URLs", () => {
   expect(appPathFor("/library?view=applied")).toBe("/library?view=applied");
   for (const url of ["https://evil.example/jobs/abc", "ftp://pinkslip.work/jobs/abc", "javascript:alert(1)", "/library-evil"]) expect(appPathFor(url)).toBeNull();
 });
+
+test("admin alert links open the in-app admin", () => {
+  expect(appPathFor("/admin")).toBe("/you/admin");
+  expect(appPathFor("/admin/runs")).toBe("/you/admin/runs");
+  expect(appPathFor("https://pinkslip.work/admin/inbox")).toBe("/you/admin/inbox");
+  expect(appPathFor("/admin/unknown")).toBeNull();
+});

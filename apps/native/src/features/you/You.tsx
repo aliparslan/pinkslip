@@ -5,15 +5,22 @@ import { router, type Href } from "expo-router";
 import {
   Bell, Buildings, ChatCircleDots, ClipboardText, FileText, SlidersHorizontal, Sparkle, UserCircle, Wrench,
 } from "phosphor-react-native";
-import { Linking } from "react-native";
+import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text } from "../../kit";
-import { WEB_URL } from "../../platform/session";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../theme/appearance";
 import { useDevicePush } from "../alerts/Alerts";
 
+/** The version and, after an over-the-air update, which update is running:
+ * "Pinkslip 1.3.1 · update 01a12c". */
+function appVersionLine() {
+  const version = `Pinkslip ${Constants.expoConfig?.version ?? ""}`.trim();
+  return Updates.isEnabled && !Updates.isEmbeddedLaunch && Updates.updateId ? `${version} · update ${Updates.updateId.slice(0, 6)}` : version;
+}
+
 /** `Profile.svelte`'s overview: grouped rows, each with a one-line summary of
- * where that setting stands, plus Appearance. Admin opens the web workspace
- * (D9). Support and Privacy stay off for now (owner). */
+ * where that setting stands, plus Appearance. Admin opens the in-app admin
+ * workspace. Support and Privacy stay off for now (owner). */
 export function You() {
   const session = useSession();
   const me = session.data?.me;
@@ -30,8 +37,8 @@ export function You() {
   const go = (href: Href) => () => router.push(href);
 
   return <Screen>
-    {me?.is_admin && <ListSection label="Admin">
-      <ListRow title="Admin workspace" detail="Opens on the web" icon={Wrench} onPress={() => void Linking.openURL(`${WEB_URL}/admin`)} />
+    {me?.is_admin && <ListSection>
+      <ListRow title="Admin" icon={Wrench} onPress={go("/you/admin")} />
     </ListSection>}
     <ListSection label="Search">
       <ListRow title="Job preferences" icon={SlidersHorizontal} onPress={go("/you/preferences")}
@@ -54,5 +61,6 @@ export function You() {
       <ListRow title="Account" icon={UserCircle} detail={signedIn ? (me?.account?.email ?? "Signed in") : "Guest · sign in to sync"} onPress={go("/you/account")} />
     </ListSection>
     {__DEV__ && <ListSection label="Development"><ListRow title="Kit" icon={Wrench} onPress={go("/you/kit")} /></ListSection>}
+    <Text size="xs" tone="ink-4" align="center" selectable>{appVersionLine()}</Text>
   </Screen>;
 }
