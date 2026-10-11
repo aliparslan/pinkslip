@@ -51,8 +51,9 @@ The owner's answers to section 11:
 - **Navigation:** Jobs · Tracker · You for now.
 - **Apply button:** one button whose state carries every automation level.
 - **Look:** A's structure with B's moments.
-  - Differ visibly from Simplify, the direct competitor.
-  - Do everything it does, better.
+  - Original work: do everything the direct competitor (Simplify) does,
+    better.
+  - Never look at its designs, so nothing is copied by accident.
 - **Pricing:** usage-based, a free and a Pro tier.
   - The goal is to cover costs, not to profit.
   - Details later.
