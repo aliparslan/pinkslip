@@ -14,6 +14,13 @@ Two Workers deploy independently:
 Deploy from a clean checkout of `main`. Roll back either Worker with
 `wrangler rollback`.
 
+iOS ships two ways:
+- A push to `main` builds a new binary through Xcode Cloud.
+- `bun run update` in `apps/native` sends JavaScript and asset changes over
+  the air to installed builds with the same native fingerprint.
+
+See "Over-the-air updates" in `apps/native/README.md`.
+
 The web app registers no service worker. `/sw.js` is a kill switch for the
 retired Svelte site's worker: it deletes every cache, unregisters itself and
 reloads open pages. Keep it until no installed copies of the old app remain.

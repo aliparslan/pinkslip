@@ -31,6 +31,32 @@ app (`dev.alip.pinkslip`), so it ships as an update.
   run `bun test tests/native-release.test.ts` from the repository root. This
   check also runs in Xcode Cloud before the archive.
 
+Prebuild also rewrites `ios/Pinkslip.xcodeproj/project.pbxproj` and
+`ios/Pinkslip/Info.plist` (it drops the privacy-manifest reference and the
+CocoaPods wiring until `pod install`). When a change only needs
+`Supporting/Expo.plist`, as over-the-air updates did, restore those two files
+as well and let `pod install` link the new pods.
+
+## Over-the-air updates
+
+JavaScript and asset changes reach installed builds without Xcode Cloud,
+through EAS Update (project `@lipster/pinkslip`, channel `production`).
+
+- Publish from a clean, committed `main`, with the same go-ahead as a deploy:
+  `bun run update --message "What changed"` in `apps/native`.
+- Installed apps download the update on launch and switch to it on the next
+  launch.
+- An update only reaches builds with the same native fingerprint
+  (`runtimeVersion` policy `fingerprint`).
+  - Native changes alter the fingerprint: a new native module, native config
+    in `app.json`, edits in `ios/`, an SDK upgrade.
+  - Those need a pushed build, and updates published afterwards reach only
+    that build.
+  - `bun run fingerprint` prints the current value. Each build embeds its own
+    in `EXUpdates.bundle/fingerprint`.
+- To undo an update, republish the previous one from the EAS dashboard or
+  with `eas update:republish`.
+
 The release version is **1.3.1**. Apple requires a separate build number;
 Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
 does not display that number. See [the recovery notes](../../docs/native-1.3-recovery.md)

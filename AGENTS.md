@@ -40,8 +40,9 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
   licences. Keep the glyph check passing.
 - Hono stays the only API. Start server functions don't become a second API.
 - Don't name things "next" (domains, scripts, branches).
-- Don't push, deploy, or run remote migrations without the owner's go-ahead
-  for that change. Never add AI co-author trailers to commits.
+- Don't push, deploy, publish an over-the-air update (`bun run update` in
+  `apps/native`), or run remote migrations without the owner's go-ahead for
+  that change. Never add AI co-author trailers to commits.
 
 ### Web kit (Phase 2, done)
 
