@@ -56,13 +56,35 @@ page "Lo-fi · Jobs · Tracker · You".
 - **Unread dot:** keep it for now and judge it in practice. It's now centred
   on the logo.
 
+## Visual pass: two takes (2026-10-11)
+
+These are on the pages "Take A · Quiet" and "Take B · More paper" in the same
+Paper file. Each take has five frames: Jobs, the job page, the job page just
+after applying, Tracker, and You. Both keep the wireframe layouts exactly.
+
+| | Take A · Quiet | Take B · More paper |
+| --- | --- | --- |
+| **Ground** | White, with warm stone for grouped screens and the ticket | Warm form paper (#F5F0E6), with a lighter sheet for grouped cards |
+| **Text** | Near-black and warm greys from today's light tokens | Carbon-brown inks |
+| **Type** | Founders Grotesk for the big titles, job titles and logo initials. Untitled Sans for everything else | The same, plus Founders Grotesk Mono in caps for section labels, ages, dates, ticket labels and the version line, and a mono line above each big title (date, counts, plan) |
+| **Facts panel** | A stone ticket with notches and a dashed tear line above a stub that holds the posting date | A pale pink slip. Labels are mono caps and values are Founders Grotesk, so the numbers read at a glance |
+| **Applied stamp** | A single-line pink stamp | A double-ruled stamp with a mono date |
+| **Pink** | The Apply fill, needs-you dots and labels, the badge, and the stamp. A selected chip uses pale pink | The same |
+
+**What both takes leave out:**
+- **Dark mode.** It comes after you pick a take.
+- **Empty states** and the Live Activity.
+
+**Font caveats:** these come from Klim's trial files.
+- **Missing characters:** $, ·, – and / fall back to the system font.
+- **No semibold Untitled Sans:** titles use Medium until the real licence.
+
+**Logos:** company logos are brand-coloured initials standing in for the real
+images.
+
 ## Next
 
-- **You:** comment directly in Paper or tell me what to change.
-- **Then the visual pass on these frames:** A's native structure with B's
-  moments.
-  - Klim display titles.
-  - Mono metadata.
-  - The facts panel as a paper ticket.
-  - The stamp when you apply.
-- **After that:** tokens and the iOS kit.
+- **You:** pick a take, or mix them. For example, A's ground with B's ticket
+  and stamp.
+- **Then:** dark mode for the chosen take, then the iOS tokens and kit, then
+  the screens.
