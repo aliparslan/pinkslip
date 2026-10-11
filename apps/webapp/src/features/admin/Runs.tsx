@@ -1,47 +1,12 @@
 import { useState } from "react";
+import { formatDuration, formatMinutes, parseRunIssues, type RunIssue } from "@pinkslip/core/admin-format";
 import type { FetchRun } from "@pinkslip/core/api";
 import { MANUAL_SWEEP_BATCHES, useRefreshAllSources, useRunLatency, useRuns } from "@pinkslip/data";
 import { Badge, Button, Disclosure, Heading, Separator, Stack, Surface, Text, toast } from "../../kit";
-import { friendlyPollError } from "../companies/Sources";
 import { InlineFailure, PageLoading } from "../states/LoadStates";
 import styles from "./Admin.module.css";
 
-interface RunIssue { companyName?: string; error: string }
-
-export function formatDuration(ms: number | null): string {
-  const value = ms ?? 0;
-  if (value < 1000) return `${value} ms`;
-  if (value < 60_000) return `${Math.round(value / 100) / 10} sec`;
-  return `${Math.floor(value / 60_000)} min ${Math.round((value % 60_000) / 1000)} sec`;
-}
-
-export function formatMinutes(value: number | null): string {
-  if (value === null) return "—";
-  if (value < 1) return "under 1 min";
-  if (value < 60) return `${Math.round(value)} min`;
-  const hours = Math.floor(value / 60);
-  const minutes = Math.round(value % 60);
-  return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
-}
-
 const runDate = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-
-/** A run's `errors_json`: a list of {companyName, error}, or a bare string. */
-export function parseRunIssues(value: string | null): RunIssue[] {
-  if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [{ error: friendlyPollError(value) }];
-    return parsed
-      .filter((issue): issue is Record<string, unknown> => Boolean(issue) && typeof issue === "object")
-      .map((issue) => ({
-        companyName: typeof issue.companyName === "string" ? issue.companyName : undefined,
-        error: typeof issue.error === "string" ? friendlyPollError(issue.error) : "Unknown source error",
-      }));
-  } catch {
-    return [{ error: friendlyPollError(value) }];
-  }
-}
 
 function Issue({ issue }: { issue: RunIssue }) {
   return <div className={styles.issue}>

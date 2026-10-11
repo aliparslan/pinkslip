@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowSquareOut } from "@phosphor-icons/react";
-import type { ClassificationCall, ClassificationDisagreement, ClassificationVerdict } from "@pinkslip/core/api";
+import { describeCall, readableCode as readable } from "@pinkslip/core/admin-format";
+import type { ClassificationDisagreement, ClassificationVerdict } from "@pinkslip/core/api";
 import { useClassificationReport, useClassificationVerdict } from "@pinkslip/data";
 import { Button, Disclosure, Heading, Separator, Stack, Surface, Tabs, Text, toast } from "../../kit";
 import { InlineFailure, PageLoading } from "../states/LoadStates";
@@ -12,24 +13,6 @@ const VERDICTS: { id: ClassificationVerdict; label: string }[] = [
   { id: "neither", label: "Both wrong" },
   { id: "unclear", label: "Not sure" },
 ];
-
-const REASONS: Record<string, string> = {
-  location: "outside the US",
-  management: "management role",
-  no_technical_signal: "not a technical role",
-  non_technical_function: "not a technical role",
-  other_engineering_discipline: "non-software engineering",
-  seniority: "too senior",
-  clearance: "needs a clearance",
-};
-
-const readable = (value: string) => value.replaceAll("_", " ");
-
-export function describeCall(call: ClassificationCall): string {
-  if (call.decision === "include") return "Include";
-  if (call.decision === "unsure") return "Unsure";
-  return call.reason ? `Exclude · ${REASONS[call.reason] ?? readable(call.reason)}` : "Exclude";
-}
 
 type View = "open" | "reviewed";
 

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { DotsThreeVertical, PencilSimple, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
+import {
+  friendlyPollError, matchesSourceStatus as matchesStatus, SOURCE_STATUSES as STATUSES, sourceNeedsAttention as needsAttention, type SourceStatus as Status,
+} from "@pinkslip/core/admin-format";
 import type { Company } from "@pinkslip/core/api";
 import {
   COMPANY_SOURCE_TYPES, companySourceInput, companySourceLabel, isPollableCompanySourceType,
@@ -16,30 +19,6 @@ import { CompanyLogo } from "../jobs/CompanyLogo";
 import { PageFailure, PageLoading } from "../states/LoadStates";
 import { COMPANY_PAGE_SIZE, CompanyName, matchesQuery } from "./Companies";
 import styles from "./Companies.module.css";
-
-type Status = "active" | "attention" | "disabled" | "all";
-const STATUSES: { value: Status; label: string }[] = [
-  { value: "active", label: "Active" },
-  { value: "attention", label: "Needs attention" },
-  { value: "disabled", label: "Disabled" },
-  { value: "all", label: "Any status" },
-];
-
-const needsAttention = (company: Company) => company.last_poll_status === "error" || Boolean(company.quarantined_at);
-
-function matchesStatus(company: Company, status: Status): boolean {
-  if (status === "active") return Boolean(company.enabled);
-  if (status === "disabled") return !company.enabled;
-  if (status === "attention") return needsAttention(company);
-  return true;
-}
-
-export function friendlyPollError(value: string): string {
-  return value
-    .replace(/Request timed out after (\d+)ms/gi, (_match, ms: string) => `Timed out after ${Math.round(Number(ms) / 1000)} sec`)
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 

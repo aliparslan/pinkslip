@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowSquareOut } from "@phosphor-icons/react";
+import { readableCode as readable, REVIEW_REASONS } from "@pinkslip/core/admin-format";
 import type { ContentReport, FeedbackSubmission, JobReview } from "@pinkslip/core/api";
 import {
   useFeedbackInbox, useJobReviews, useModerateFeedback, useModerateReport, useModerateReview, useRefreshInbox, useReports,
@@ -8,13 +9,6 @@ import { Badge, Button, Heading, Separator, Stack, Surface, Text, Textarea, toas
 import { InlineFailure, PageLoading } from "../states/LoadStates";
 import styles from "./Admin.module.css";
 
-const REVIEW_REASONS: Record<string, string> = {
-  ambiguous_title_level: "Title level is ambiguous",
-  experience_requirement_unparsed: "Experience requirement is unclear",
-  advanced_degree_uncertain: "Doctorate may be required",
-};
-
-const readable = (value: string) => value.replaceAll("_", " ");
 const failed = () => toast.error("Couldn't update that. Try again.");
 
 function Section({ title, count, children }: { title: string; count?: string; children: ReactNode }) {
