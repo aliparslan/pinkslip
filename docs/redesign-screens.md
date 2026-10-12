@@ -39,6 +39,7 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 2, light** (2026-10-11): on "Batch 2 · Tracking".
 - **Batch 1, light** (2026-10-11): on the Paper page "Batch 1 · Core app".
   The decisions below.
 
@@ -85,6 +86,42 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
     Austin") and Edit search. The rest of the week's list shows below it.
 - **Offline:** not drawn. The plan is a one-line banner under the title, with
   the time of the last refresh.
+
+## Batch 2 decisions (tracking)
+
+On the Paper page "Batch 2 · Tracking".
+
+- **The application page:**
+  - The job header, then the stage glyph with "Change".
+  - A Next card: the interview date, Add to Calendar, and the interview
+    guide (guides appear in context).
+  - The timeline runs oldest to newest. Past steps are filled dots and
+    upcoming steps are hollow.
+  - An email-detected step shows the subject line it came from, and "Not
+    right?" to correct it.
+  - Notes, people at the company, and the posting close the page.
+- **Changing the stage:**
+  - A sheet listing Saved, Applied, Assessment, Interview and Offer, then
+    "Ended" with Rejected, Withdrew and No response.
+  - The glyphs fill as the stages advance. Green is only for an offer, and
+    endings are grey.
+- **Email tracking:**
+  - The personal forwarding address, in mono, with Copy and "Set up
+    auto-forward".
+  - A "Recently filed" list. An email that couldn't be matched asks you to
+    choose a job.
+  - An optional switch: "Ask before moving a stage".
+- **Stats:**
+  - Season, 30 days, or all time.
+  - Four big numbers: applied, heard back, interviews, offers.
+  - The flow chart, with "Share as image" and "Export CSV".
+  - Response rate and time to first reply, split by who applied: you,
+    Pinkslip, or after outreach.
+- **The lock screen:**
+  - A Needs-you question answered from the notification. The answer is saved
+    to the answers bank.
+  - An interview-invite notice.
+  - The morning digest.
 
 ## To design, in order
 
