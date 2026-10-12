@@ -197,7 +197,7 @@ function CapsuleUnderlay({ action, side, x, width }: { action: SwipeAction; side
         {action.symbol ? <Icon name={action.symbol} size={20} tone="ink-2" /> : <action.icon size={20} color={theme.ui.color["ink-2"]} />}
       </Animated.View>
       <Animated.View style={[styles.capsule, side === "leading" ? styles.capsuleAnchorLeading : styles.capsuleAnchorTrailing, armed]}>
-        {action.symbol ? <Icon name={action.symbol} size={18} weight="medium" tone="bg" /> : <action.icon size={20} weight="fill" color={theme.ui.color.bg} />}
+        {action.symbol ? <Icon name={action.symbol} size={18} weight="bold" tone="bg" /> : <action.icon size={20} weight="fill" color={theme.ui.color.bg} />}
         <UiText role="subhead" weight="medium" tone="bg" lines={1}>{action.label}</UiText>
       </Animated.View>
     </Animated.View>

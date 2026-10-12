@@ -513,18 +513,22 @@ export const ui = {
     dark: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
       hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
+      pill: "0px 0px 0px 0.5px rgba(255, 255, 255, 0.12), 0px 12px 28px -6px rgba(0, 0, 0, 0.7)",
     },
     light: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
       hole: "inset 0px 2px 2.5px rgba(46, 29, 23, 0.28)",
+      pill: "0px 0px 0px 0.5px rgba(0, 0, 0, 0.08), 0px 2px 4px rgba(64, 50, 42, 0.08), 0px 12px 28px -6px rgba(64, 50, 42, 0.18)",
     },
     contrast: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
       hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
+      pill: "0px 0px 0px 0.5px rgba(255, 255, 255, 0.12), 0px 12px 28px -6px rgba(0, 0, 0, 0.7)",
     },
     lightContrast: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
       hole: "inset 0px 2px 2.5px rgba(46, 29, 23, 0.28)",
+      pill: "0px 0px 0px 0.5px rgba(0, 0, 0, 0.08), 0px 2px 4px rgba(64, 50, 42, 0.08), 0px 12px 28px -6px rgba(64, 50, 42, 0.18)",
     },
   } satisfies Record<ThemeName, Record<UiShadowToken, string>>,
   type: {

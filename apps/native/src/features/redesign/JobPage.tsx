@@ -73,7 +73,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
           icon: { type: "sfSymbol", name: "ellipsis" },
           menu: {
             items: menu.filter((item) => item.label !== "Share").map((item) => ({
-              type: "action" as const, label: item.label, icon: { type: "sfSymbol" as const, name: item.icon as never }, destructive: item.destructive, onPress: item.run,
+              type: "action" as const, label: item.label, destructive: item.destructive, onPress: item.run,
             })),
           },
         },

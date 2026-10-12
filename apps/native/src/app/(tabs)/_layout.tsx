@@ -1,16 +1,34 @@
-import { usePathname } from "expo-router";
+import { Tabs } from "expo-router/js-tabs";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useUnistyles } from "react-native-unistyles";
 import { useRedesign } from "../../features/redesign/flag";
+import { TabBar, useTabBarSpace } from "../../ui";
 
-/** The system tab bar: Jobs, Library, You, each with its own stack. The
- * redesigned job page pins Save and Apply where the tab bar sits, so the bar
- * steps aside there. */
+/** Jobs, Search, Tracker (Library for now) and You, each with its own stack.
+ * The redesign draws its own floating tab bar; today's screens keep the
+ * system one. */
 export default function TabsLayout() {
+  return useRedesign() ? <PillTabs /> : <SystemTabs />;
+}
+
+/** Our tab bar (Paper "Tab bar · Oct 12", option C). It floats over the
+ * content: redesigned screens leave room under their lists, and today's
+ * screens (Library, You) get the room as padding. */
+function PillTabs() {
+  const space = useTabBarSpace();
+  const padded = { sceneStyle: { paddingBottom: space } };
+  return <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: "none" }}>
+    <Tabs.Screen name="(jobs)" />
+    <Tabs.Screen name="(search)" />
+    <Tabs.Screen name="(library)" options={padded} />
+    <Tabs.Screen name="(you)" options={padded} />
+  </Tabs>;
+}
+
+/** The system tab bar: Jobs, Library, You. */
+function SystemTabs() {
   const { theme } = useUnistyles();
-  const redesign = useRedesign();
-  const onJobPage = /^\/jobs\/[^/]+$/.test(usePathname());
-  return <NativeTabs tintColor={redesign ? theme.ui.color.ink : theme.colors.accent} hidden={redesign && onJobPage}>
+  return <NativeTabs tintColor={theme.colors.accent}>
     <NativeTabs.Trigger name="(jobs)">
       <NativeTabs.Trigger.Icon sf={{ default: "briefcase", selected: "briefcase.fill" }} />
       <NativeTabs.Trigger.Label>Jobs</NativeTabs.Trigger.Label>
@@ -19,8 +37,7 @@ export default function TabsLayout() {
       <NativeTabs.Trigger.Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
       <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
     </NativeTabs.Trigger>
-    {/* iOS 26 sets the search tab apart and puts its field in the tab bar. */}
-    <NativeTabs.Trigger name="(search)" role="search" hidden={!redesign}>
+    <NativeTabs.Trigger name="(search)" hidden>
       <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
     </NativeTabs.Trigger>
     <NativeTabs.Trigger name="(you)">

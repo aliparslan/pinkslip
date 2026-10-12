@@ -3,12 +3,12 @@ import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
-import { Link } from "expo-router";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { Link, useScrollToTop } from "expo-router";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { SwipeRow, toast, usePullToRefresh } from "../../kit";
-import { Button, Chip, Icon, JobRow, SectionHeader, Text } from "../../ui";
+import { Button, Chip, Icon, JobRow, SectionHeader, Text, useTabBarSpace } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -38,6 +38,10 @@ export interface JobsFeedProps {
  */
 export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps = {}) {
   const { theme } = useUnistyles();
+  const tabSpace = useTabBarSpace();
+  // Tapping the current tab again scrolls back to the top.
+  const list = useRef(null);
+  useScrollToTop(list);
   const criteria = useFeedCriteria();
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
@@ -106,8 +110,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
   }
 
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
-  return <FlashList data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+  return <FlashList ref={list} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
+    contentContainerStyle={{ paddingBottom: tabSpace }}
     renderItem={({ item }) => item.kind === "section"
       ? <SectionHeader title={item.title} trailing={item.count === undefined ? undefined : String(item.count)} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
@@ -141,7 +146,7 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
       </Link.Trigger>
       <Link.Preview />
       <Link.Menu>
-        {menu.map((item) => <Link.MenuAction key={item.id} icon={item.icon} destructive={item.destructive} onPress={item.onSelect}>{item.title}</Link.MenuAction>)}
+        {menu.map((item) => <Link.MenuAction key={item.id} destructive={item.destructive} onPress={item.onSelect}>{item.title}</Link.MenuAction>)}
       </Link.Menu>
     </Link>
   </SwipeRow>;

@@ -356,6 +356,8 @@ export const uiDark = {
   // A punched hole shows the page behind the card, shaded under its top edge
   // (owner, 2026-10-12, after trying see-through and black holes).
   "--ui-shadow-hole": "inset 0px 2px 2.5px oklch(0 0 0 / 0.6)",
+  // The floating tab bar: a hairline ring so the pill holds its edge on graphite.
+  "--ui-shadow-pill": "0px 0px 0px 0.5px oklch(1 0 0 / 0.12), 0px 12px 28px -6px oklch(0 0 0 / 0.7)",
 } as const;
 
 export const uiLight = {
@@ -384,6 +386,7 @@ export const uiLight = {
   "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
   "--ui-shadow-card": "0px 1px 1px oklch(0.33 0.025 50 / 0.06), 0px 10px 18px -12px oklch(0.33 0.025 50 / 0.28)",
   "--ui-shadow-hole": "inset 0px 2px 2.5px oklch(0.25 0.03 40 / 0.28)",
+  "--ui-shadow-pill": "0px 0px 0px 0.5px oklch(0 0 0 / 0.08), 0px 2px 4px oklch(0.33 0.025 50 / 0.08), 0px 12px 28px -6px oklch(0.33 0.025 50 / 0.18)",
 } as const;
 
 /** Increased contrast on dark: brighter secondary ink and lines. */

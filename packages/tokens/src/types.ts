@@ -18,5 +18,5 @@ export type FontFamilyToken = "heading" | "display" | "sans" | "mono";
 export type LeadingToken = "body" | "root-title" | "screen-title";
 export type TrackingToken = "root-title" | "screen-title";
 export type UiColorToken = "bg" | "bg-grouped" | "screen-grouped" | "bg-elev" | "ink" | "ink-2" | "ink-3" | "ink-4" | "separator" | "fill" | "accent" | "accent-fill" | "accent-ink" | "accent-soft" | "accent-soft-ink" | "badge-ink" | "good" | "bad" | "glass" | "pill" | "bar" | "seg-on" | "track" | "scrim" | "logo-tile" | "image-outline" | "grain";
-export type UiShadowToken = "card" | "hole";
+export type UiShadowToken = "card" | "hole" | "pill";
 export type UiTypeRole = "largeTitle" | "title1" | "title2" | "body" | "longText" | "subhead" | "footnote" | "tab";

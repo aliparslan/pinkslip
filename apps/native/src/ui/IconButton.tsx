@@ -12,7 +12,7 @@ export interface IconButtonProps {
 /** A 44pt round button on the grey fill (back, share, more, filters). */
 export function IconButton({ icon, label, onPress }: IconButtonProps) {
   return <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress} scale={0.92} contentStyle={styles.root}>
-    <Icon name={icon} size={20} weight="medium" />
+    <Icon name={icon} size={20} />
   </PressableScale>;
 }
 

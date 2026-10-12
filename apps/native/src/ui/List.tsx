@@ -71,8 +71,8 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
       {detail ? <Text role="subhead" tone="ink-3">{detail}</Text> : null}
     </View>
     {value ? <Text tone="ink-2">{value}</Text> : null}
-    {accessory === "chevron" ? <Icon name="disclosure" size={14} weight="semibold" tone="ink-3" /> : null}
-    {accessory === "check" && selected ? <Icon name="done" size={17} weight="semibold" /> : null}
+    {accessory === "chevron" ? <Icon name="disclosure" size={14} weight="bold" tone="ink-3" /> : null}
+    {accessory === "check" && selected ? <Icon name="done" size={17} weight="bold" /> : null}
     {accessory === "radio" ? <Radio selected={selected} /> : null}
   </>;
   if (!onPress) return <View style={styles.row}>{content}</View>;
@@ -84,7 +84,7 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
 export function Radio({ selected }: { selected: boolean }) {
   const { theme } = useUnistyles();
   return <View style={[styles.radio, selected ? styles.radioOn : styles.radioOff]}>
-    {selected ? <Icon name="done" size={12} weight="semibold" tone="bg" /> : null}
+    {selected ? <Icon name="done" size={12} weight="bold" tone="bg" /> : null}
   </View>;
 }
 
