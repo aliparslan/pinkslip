@@ -1,6 +1,9 @@
+import { useEffect, useRef } from "react";
 import { View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Path } from "react-native-svg";
+import { Grain } from "./Grain";
 import { Text } from "./Text";
 
 export interface Allowance {
@@ -45,6 +48,7 @@ export function PunchCard({ title, note, allowances, backdrop = "screen-grouped"
   const { theme } = useUnistyles();
   const stacked = allowances.some((a) => layoutOf(a) === "holes" && (a.limit ?? 0) > INLINE_MAX);
   return <View style={styles.card}>
+    <Grain radius={theme.ui.radius.md} />
     <View style={styles.header}>
       <Text role="title2">{title}</Text>
       {note ? <Text role="subhead" tone="ink-3">{note}</Text> : null}
@@ -93,7 +97,8 @@ function AllowanceRow({ allowance, stacked, backdrop }: { allowance: Allowance; 
   </View>;
 }
 
-/** Rows of ten, in groups of five. Punched holes show the colour behind the card. */
+/** Rows of ten, in groups of five. Punched holes go through the card to the
+ * colour behind it; the rest are printed pink spots waiting for the punch. */
 function Holes({ limit, used, over, backdrop }: { limit: number; used: number; over: number; backdrop: Backdrop }) {
   const rows: number[][] = [];
   for (let start = 0; start < limit; start += 10) {
@@ -110,9 +115,18 @@ function Holes({ limit, used, over, backdrop }: { limit: number; used: number; o
 
 function Hole({ punched, backdrop }: { punched: boolean; backdrop: Backdrop }) {
   const { theme } = useUnistyles();
+  // A spot punched while the card is on screen gives a small press, as a
+  // punch would; holes already punched when it appears stay still.
+  const scale = useSharedValue(1);
+  const was = useRef(punched);
+  useEffect(() => {
+    if (punched && !was.current) scale.value = withSequence(withTiming(0.82, { duration: 90 }), withSpring(1, { damping: 12, stiffness: 320 }));
+    was.current = punched;
+  }, [punched, scale]);
+  const press = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return punched
-    ? <View style={[styles.hole, styles.punched, { backgroundColor: theme.ui.color[backdrop] }]} />
-    : <View style={[styles.hole, styles.open]} />;
+    ? <Animated.View style={[styles.hole, styles.punched, { backgroundColor: theme.ui.color[backdrop] }, press]} />
+    : <Animated.View style={[styles.hole, styles.open, press]} />;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -135,7 +149,7 @@ const styles = StyleSheet.create((theme) => ({
   group: { flexDirection: "row", gap: theme.ui.space["2"] },
   hole: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full },
   punched: { boxShadow: theme.ui.shadow.hole },
-  open: { borderWidth: 1.5, borderColor: theme.ui.color.accent, opacity: 0.4 },
+  open: { borderWidth: 1.5, borderColor: theme.ui.color["accent-fill"], backgroundColor: theme.ui.color["accent-soft"] },
   track: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.track, overflow: "hidden" },
   fillBar: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.ink },
 }));

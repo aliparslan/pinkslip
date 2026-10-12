@@ -1,4 +1,4 @@
-import { ArrowLeft, BookmarkSimple, DotsThree, Export, SlidersHorizontal } from "phosphor-react-native";
+import { ArrowLeft, BookmarkSimple, DotsThree, Export, EyeSlash, SlidersHorizontal } from "phosphor-react-native";
 import { router } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
@@ -6,6 +6,7 @@ import { StyleSheet } from "react-native-unistyles";
 import {
   Badge, Button, Chip, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket,
 } from "../../ui";
+import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 
 const facts = [
@@ -20,6 +21,7 @@ export function RedesignGallery() {
   const [plan, setPlan] = useState("monthly");
   const redesign = useRedesign();
   const [torn, setTorn] = useState(false);
+  const [punches, setPunches] = useState(3);
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Jobs and the job page. Dev builds only.">
@@ -70,7 +72,11 @@ export function RedesignGallery() {
     <Section title="Job rows" flush>
       <View>
         <SectionHeader title="New today" trailing="12" />
-        <JobRow title="Software Engineer, New Grad" company="Stripe" facts="Remote · $145–175K" age="2h" unread logo={{ name: "Stripe", color: "#635BFF" }} />
+        <SwipeRow id="demo" appearance="capsule"
+          leading={{ label: "Save", icon: BookmarkSimple, tone: "accent", run: () => toast.show({ message: "Saved (demo)" }) }}
+          trailing={{ label: "Hide", icon: EyeSlash, tone: "bad", run: () => toast.show({ message: "Hidden (demo)" }) }}>
+          <JobRow title="Software Engineer, New Grad" company="Stripe" facts="Remote · $145–175K" age="2h" unread logo={{ name: "Stripe", color: "#635BFF" }} />
+        </SwipeRow>
         <JobRow title="Product Designer, New Grad" company="Ramp" facts="New York · $130–160K" age="5h" unread logo={{ name: "Ramp", color: "#E8F45C" }} />
         <JobRow title="Software Engineer Intern, Summer 2027" company="Duolingo" facts="Pittsburgh · $52/hr" stage="saved" logo={{ name: "Duolingo", color: "#58CC02" }} />
         <SectionHeader title="Earlier this week" trailing="48" />
@@ -89,9 +95,10 @@ export function RedesignGallery() {
     <View style={styles.grouped}>
       <Section title="Punch card">
         <PunchCard title="This week" note="Resets Monday" allowances={[
-          { label: "Applied for you", used: 3, limit: 5 },
+          { label: "Applied for you", used: punches, limit: 5 },
           { label: "Emails sent for you", used: 1, limit: 5 },
         ]} />
+        <Button size="small" onPress={() => setPunches(punches >= 5 ? 0 : punches + 1)}>{punches >= 5 ? "Reset" : "Punch one"}</Button>
         <PunchCard title="This week" note="Resets Monday" allowances={[
           { label: "Applied for you", used: 10, limit: 15 },
           { label: "Emails sent for you", used: 4, limit: 5 },

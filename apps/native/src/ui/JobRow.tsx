@@ -26,8 +26,9 @@ export interface JobRowProps {
 
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
-/** The two-line job row: title and age, then company and facts. At least 64pt,
- * with the text on the 60 line and the separator starting there. */
+/** The two-line job row: title and age, then company and facts, each one line
+ * so every row is the same 64pt. The logo is exactly the two lines' height and
+ * the unread dot sits on its centre; text and separator start on the 68 line. */
 export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
   const trailing = stage ? stageLabels[stage] : age;
@@ -40,7 +41,7 @@ export function JobRow({ title, company, facts, age, stage, unread, logo, onPres
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={[styles.line, styles.first]}>
-        <Text weight="medium" flex>{title}</Text>
+        <Text role="subhead" weight="medium" lines={1} flex>{title}</Text>
         {stage ? <View style={styles.stage}>
           <StageIcon stage={stage} color={theme.ui.color["ink-3"]} />
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
@@ -66,25 +67,26 @@ function StageIcon({ stage, color }: { stage: JobStage; color: string }) {
   </Svg>;
 }
 
-// The dot and the logo line up with the title's first line and the two-line
-// block, so their offsets come from the type, not from hand-set spacing.
-const PAD = 10;
-const LINE_GAP = 1;
+// The two lines are the logo's height, and the row's padding makes up the
+// rest of 64, so the dot, the logo and the text block share one centre line.
+const DOT = 8;
 
 const styles = StyleSheet.create((theme) => {
-  const title = theme.ui.type.body.line;
-  const block = title + LINE_GAP + theme.ui.type.subhead.line;
+  const block = theme.ui.type.subhead.line * 2;
+  const pad = (theme.ui.size.jobRow - block) / 2;
   return {
-    row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
+    // At least 64: larger Dynamic Type sizes grow the row instead of clipping it.
+    row: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
-    gutter: { width: theme.ui.size.gutter, alignItems: "center", paddingTop: PAD + (title - 8) / 2 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.ui.color.ink },
-    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter, paddingTop: PAD + (block - theme.ui.size.logo) / 2 },
+    gutter: { width: theme.ui.size.gutter, alignItems: "center" },
+    dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
+    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter },
     text: {
       flex: 1,
       minWidth: 0,
-      gap: LINE_GAP,
-      paddingVertical: PAD,
+      alignSelf: "stretch",
+      justifyContent: "center",
+      paddingVertical: pad,
       paddingRight: theme.ui.space["4"],
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.ui.color.separator,

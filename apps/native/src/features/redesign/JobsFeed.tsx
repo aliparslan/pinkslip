@@ -132,7 +132,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
  * the preview (a native context menu, so no extra view per row). */
 function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
   const { leading, trailing, menu } = rowActions(job, actions, viewed);
-  return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
+  return <SwipeRow id={job.id} leading={leading} trailing={trailing} appearance="capsule">
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
         <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}

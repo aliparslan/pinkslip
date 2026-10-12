@@ -1,9 +1,10 @@
 import { Fragment, useState } from "react";
 import { CaretRight, CheckCircle } from "phosphor-react-native";
-import { ImageBackground, Pressable, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import Animated, { Easing, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Path } from "react-native-svg";
+import { Grain } from "./Grain";
 import { Text } from "./Text";
 
 export interface TicketFact {
@@ -34,11 +35,12 @@ export interface TicketProps {
  * punched along its perforation. */
 export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProps) {
   const { theme } = useUnistyles();
+  const radius = theme.ui.radius.lg;
   const [width, setWidth] = useState(0);
   const holeColor = theme.ui.color[backdrop];
   const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
   return <View style={[styles.ticket, torn && styles.tornTicket, torn && styles.tornSpace]} onLayout={onLayout}>
-    <Grain torn={torn} />
+    <Grain radius={radius} flatBottom={torn} />
     {rows.map((row, index) => <View key={index} style={[styles.row, index > 0 && styles.ruled]}>
       {row.map((fact) => <Fact key={fact.label} fact={fact} />)}
     </View>)}
@@ -99,15 +101,6 @@ function tearOff() {
 
 /** The tile's average alpha, for the sliver of torn paper the tile can't reach. */
 const GRAIN_ALPHA = 0.16;
-
-/** The paper texture: a small tile repeated and tinted by mode. */
-function Grain({ torn }: { torn: boolean }) {
-  const { theme } = useUnistyles();
-  return <View style={[styles.grain, torn && styles.tornTicket]} pointerEvents="none">
-    <ImageBackground source={require("../../assets/grain.png")} resizeMode="repeat" style={styles.fill}
-      imageStyle={{ tintColor: theme.ui.color.grain }} />
-  </View>;
-}
 
 const DOT_SPACING = 6;
 const DOT = 1.5;
@@ -176,8 +169,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   tornTicket: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   tornSpace: { marginBottom: TEAR_STRIP },
-  grain: { ...StyleSheet.absoluteFillObject, borderRadius: theme.ui.radius.lg, borderCurve: "continuous", overflow: "hidden" },
-  fill: { flex: 1 },
   row: { flexDirection: "row", gap: theme.ui.space["4"], paddingVertical: theme.ui.space["3"] },
   /** A printed rule, a full point as in the design, so it reads over the grain. */
   ruled: { borderTopWidth: 1, borderTopColor: theme.ui.color.separator },

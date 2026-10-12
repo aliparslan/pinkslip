@@ -8,6 +8,7 @@ import Animated, {
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
+import { Text as UiText } from "../ui/Text";
 import { durations, easeOut, resist, settleSpring } from "./motion";
 
 export interface SwipeAction {
@@ -37,9 +38,12 @@ const commitDistance = (width: number) => {
  * drags stay with the list, so it lives inside FlashList and keeps the
  * native header.
  */
-export function SwipeRow({ id, leading, trailing, children }: {
+export function SwipeRow({ id, leading, trailing, appearance = "slab", children }: {
   /** Resets the row when a recycled cell shows a different item. */
   id: string;
+  /** `capsule` is the redesign's: the page stays put and a capsule grows from
+   * the row's edge, grey while dragging and ink once letting go will act. */
+  appearance?: "slab" | "capsule";
   leading?: SwipeAction | null;
   trailing?: SwipeAction | null;
   children: ReactNode;
@@ -113,9 +117,10 @@ export function SwipeRow({ id, leading, trailing, children }: {
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
-  return <View style={styles.root} onLayout={(event) => { width.value = event.nativeEvent.layout.width; }}>
-    {leading && <Underlay action={leading} side="leading" x={x} width={width} />}
-    {trailing && <Underlay action={trailing} side="trailing" x={x} width={width} />}
+  const Behind = appearance === "capsule" ? CapsuleUnderlay : Underlay;
+  return <View style={[styles.root, appearance === "capsule" && styles.capsuleRoot]} onLayout={(event) => { width.value = event.nativeEvent.layout.width; }}>
+    {leading && <Behind action={leading} side="leading" x={x} width={width} />}
+    {trailing && <Behind action={trailing} side="trailing" x={x} width={width} />}
     <GestureDetector gesture={pan}>
       <Animated.View style={rowStyle}>{children}</Animated.View>
     </GestureDetector>
@@ -155,8 +160,63 @@ function Underlay({ action, side, x, width }: { action: SwipeAction; side: "lead
   </Animated.View>;
 }
 
+/** Gap between the capsule and the row's moving edge. */
+const CAPSULE_GAP = 12;
+
+/** The redesign's underlay: the page colour stays, and beside the row's edge
+ * a 44pt grey circle with the icon grows into an ink capsule with the label
+ * once letting go will act. */
+function CapsuleUnderlay({ action, side, x, width }: { action: SwipeAction; side: "leading" | "trailing"; x: SharedValue<number>; width: SharedValue<number> }) {
+  const { theme } = useUnistyles();
+  const sign = side === "leading" ? 1 : -1;
+  // The strip is exactly the gap the row has opened; the capsule keeps to its inner end.
+  const strip = useAnimatedStyle(() => ({ width: Math.max(0, x.value * sign) }));
+  const shown = useAnimatedStyle(() => {
+    const distance = x.value * sign;
+    return {
+      opacity: interpolate(distance, [12, 44], [0, 1], "clamp"),
+      transform: [{ scale: interpolate(distance, [12, 56], [0.6, 1], "clamp") }],
+    };
+  });
+  const armed = useAnimatedStyle(() => {
+    const on = x.value * sign >= commitDistance(width.value);
+    return {
+      opacity: withTiming(on ? 1 : 0, { duration: 140 }),
+      transform: [{ scale: withTiming(on ? 1 : 0.92, { duration: 140 }) }],
+    };
+  });
+  const idle = useAnimatedStyle(() => ({
+    opacity: withTiming(x.value * sign >= commitDistance(width.value) ? 0 : 1, { duration: 140 }),
+  }));
+  return <Animated.View pointerEvents="none" style={[styles.capsuleStrip, side === "leading" ? styles.stripLeading : styles.stripTrailing, strip]}>
+    <Animated.View style={[side === "leading" ? styles.capsuleLeading : styles.capsuleTrailing, shown]}>
+      <Animated.View style={[styles.circle, idle]}>
+        <action.icon size={20} color={theme.ui.color["ink-2"]} />
+      </Animated.View>
+      <Animated.View style={[styles.capsule, side === "leading" ? styles.capsuleAnchorLeading : styles.capsuleAnchorTrailing, armed]}>
+        <action.icon size={20} weight="fill" color={theme.ui.color.bg} />
+        <UiText role="subhead" weight="medium" tone="bg" lines={1}>{action.label}</UiText>
+      </Animated.View>
+    </Animated.View>
+  </Animated.View>;
+}
+
 const styles = StyleSheet.create((theme) => ({
   root: { overflow: "hidden" },
+  capsuleRoot: { backgroundColor: theme.ui.color.bg },
+  capsuleStrip: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
+  capsuleLeading: { position: "absolute", right: CAPSULE_GAP },
+  capsuleTrailing: { position: "absolute", left: CAPSULE_GAP },
+  circle: {
+    width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, borderRadius: theme.ui.radius.full,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill,
+  },
+  capsule: {
+    position: "absolute", top: 0, height: theme.ui.size.iconButton, flexDirection: "row", alignItems: "center",
+    gap: 6, paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.ink,
+  },
+  capsuleAnchorLeading: { right: 0 },
+  capsuleAnchorTrailing: { left: 0 },
   idle: { backgroundColor: theme.colors["control-bg"] },
   // The strip grows with the drag; the icon keeps to its inner end, by the row.
   strip: { position: "absolute", top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: theme.space["5"] },

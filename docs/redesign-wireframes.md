@@ -398,7 +398,20 @@ size setting.
 - **Pay is always shorthand** ("$147–210K"): amounts written without commas
   now compact like the rest (0dd4044).
 
+### Decided (owner, 2026-10-12)
+
+- **Job rows are A · Compact**, and every row is one line each: long titles
+  end in "…" and the job page shows them in full. The logo is 40, a quarter
+  radius (10), exactly the two 20pt lines; the dot sits on the logo's centre;
+  text and separators start on the 68 line.
+- **Swipes are A · Capsule:** the page stays put, a grey circle grows from
+  the row's edge and turns into an ink capsule with the label once letting go
+  will act. One action per side.
+- **The punch card got more physical:** the card has the ticket's grain,
+  punched holes have a deeper shade at the top and a lit lower rim, and the
+  spots still to use are printed pink (soft fill, pink ring). A spot punched
+  on screen presses in. Paper still shows the earlier, quieter version.
+
 ## Next
 
-- **Decide the rows, swipes and icons above**, then Tracker (replacing
-  Library), then You.
+- **Decide the icon set**, then Tracker (replacing Library), then You.

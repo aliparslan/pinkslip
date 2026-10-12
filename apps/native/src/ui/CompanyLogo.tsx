@@ -13,7 +13,8 @@ export interface CompanyLogoProps {
 }
 
 /** Logos sit on a white tile in both modes with a faint outline, so a dark
- * logo keeps its edge on graphite. 32pt in rows (8 radius), 48 on a page (12). */
+ * logo keeps its edge on graphite. 40pt in rows, 48 on a page; the corner is a
+ * quarter of the size (10 and 12). */
 export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps) {
   styles.useVariants({ size });
   // A logo that fails to load falls back to the letter.
@@ -24,7 +25,7 @@ export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps
     </View>;
   }
   return <View style={[styles.tile, color ? { backgroundColor: color } : styles.blank]} accessibilityElementsHidden>
-    <Text role={size === "page" ? "title2" : "subhead"} tone={color ? "bg" : "ink-2"}>{name.trim().charAt(0).toUpperCase()}</Text>
+    <Text role={size === "page" ? "title2" : "body"} tone={color ? "bg" : "ink-2"}>{name.trim().charAt(0).toUpperCase()}</Text>
   </View>;
 }
 
@@ -36,8 +37,8 @@ const styles = StyleSheet.create((theme) => ({
     borderCurve: "continuous",
     variants: {
       size: {
-        row: { width: theme.ui.size.logo, height: theme.ui.size.logo, borderRadius: theme.ui.radius.sm },
-        page: { width: theme.ui.size.logoLarge, height: theme.ui.size.logoLarge, borderRadius: theme.ui.radius.md },
+        row: { width: theme.ui.size.logo, height: theme.ui.size.logo, borderRadius: theme.ui.size.logo / 4 },
+        page: { width: theme.ui.size.logoLarge, height: theme.ui.size.logoLarge, borderRadius: theme.ui.size.logoLarge / 4 },
       },
     },
   },

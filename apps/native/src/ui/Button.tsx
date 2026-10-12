@@ -41,8 +41,10 @@ export function Button({ variant = "secondary", size = "large", icon: Glyph, pen
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // No flexGrow: in a column it stretched the capsule down the whole screen.
+  // A full-width button fills across through `full`, which stretches the press
+  // area, and the capsule inside follows it.
   root: {
-    flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

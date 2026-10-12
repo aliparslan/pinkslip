@@ -512,19 +512,19 @@ export const ui = {
   shadow: {
     dark: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
-      hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.75), inset 0px -1px 0px rgba(255, 255, 255, 0.1)",
     },
     light: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
-      hole: "inset 0px 2px 2.5px rgba(46, 29, 23, 0.28)",
+      hole: "inset 0px 3px 3px rgba(46, 29, 23, 0.42), inset 0px -1px 0px rgba(255, 255, 255, 0.95)",
     },
     contrast: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
-      hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.75), inset 0px -1px 0px rgba(255, 255, 255, 0.1)",
     },
     lightContrast: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
-      hole: "inset 0px 2px 2.5px rgba(46, 29, 23, 0.28)",
+      hole: "inset 0px 3px 3px rgba(46, 29, 23, 0.42), inset 0px -1px 0px rgba(255, 255, 255, 0.95)",
     },
   } satisfies Record<ThemeName, Record<UiShadowToken, string>>,
   type: {
@@ -595,13 +595,13 @@ export const ui = {
   },
   size: {
     gutter: 16,
-    keyline: 60,
+    keyline: 68,
     jobRow: 64,
     listRow: 44,
     button: 50,
     chip: 32,
     iconButton: 44,
-    logo: 32,
+    logo: 40,
     logoLarge: 48,
     hole: 24,
   },
