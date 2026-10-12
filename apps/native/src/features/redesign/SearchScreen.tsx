@@ -83,7 +83,7 @@ function Companies({ query }: { query: string }) {
         <Text weight="medium" lines={1}>{company.name}</Text>
         <Text role="subhead" tone="ink-2" lines={1}>{hostOf(company.website)}</Text>
       </View>
-      <Icon name="disclosure" size={13} weight="bold" tone="ink-4" />
+      <Icon name="disclosure" size={13} tone="ink-4" />
     </Pressable>)}
   </View>;
 }

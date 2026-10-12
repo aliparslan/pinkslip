@@ -6,7 +6,7 @@ import { Text } from "./Text";
  * need you are plain grey text, not a badge. */
 export function Badge({ count }: { count: number }) {
   return <View style={styles.root} accessibilityLabel={`${count} waiting`}>
-    <Text role="footnote" weight="medium" tone="badge-ink">{count > 99 ? "99+" : count}</Text>
+    <Text role="footnote" weight="medium" tone="accent-ink">{count > 99 ? "99+" : count}</Text>
   </View>;
 }
 

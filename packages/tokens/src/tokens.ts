@@ -329,21 +329,18 @@ export const uiDark = {
   "--ui-ink-4": "oklch(0.5 0.006 285)",
   "--ui-separator": "oklch(0.29 0.006 285)",
   "--ui-fill": "oklch(0.26 0.006 285)",
-  // Pink is for "do this" and "needs you" only. `accent` is text, dots and
-  // icons; filled pink is always `accent-fill` with dark `accent-ink` on top.
-  "--ui-accent": "oklch(0.78 0.153 350)",
-  "--ui-accent-fill": "oklch(0.78 0.153 350)",
-  "--ui-accent-ink": "oklch(0.16 0.01 350)",
+  // Pink is for "do this" and "needs you" only. Filled pink is `accent-fill`
+  // (#EE5FAC) with white `accent-ink` on top (owner, 2026-10-12; 3.06:1,
+  // enough for bold and large text). `accent` is pink text, outlines and
+  // dots: the fill pink on dark, a deeper pink on light so text passes 4.5:1.
+  "--ui-accent": "oklch(0.69 0.193 350)",
+  "--ui-accent-fill": "oklch(0.69 0.193 350)",
+  "--ui-accent-ink": "oklch(1 0 0)",
   "--ui-accent-soft": "oklch(0.3 0.07 350)",
-  "--ui-accent-soft-ink": "oklch(0.88 0.075 350)",
-  "--ui-badge-ink": "oklch(0.16 0.01 350)",
   "--ui-good": "oklch(0.73 0.14 150)",
   "--ui-bad": "oklch(0.72 0.17 25)",
-  "--ui-glass": "oklch(0.3 0.008 285 / 0.88)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
-  "--ui-bar": "oklch(0.235 0.006 285 / 0.94)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
-  "--ui-track": "oklch(1 0 0 / 0.14)",
   "--ui-scrim": "oklch(0 0 0 / 0.55)",
   // Company logos are drawn for white, so the tile stays white in both modes;
   // the outline keeps a dark logo's edge on graphite.
@@ -373,14 +370,10 @@ export const uiLight = {
   "--ui-fill": "oklch(0.945 0.002 80)",
   "--ui-accent": "oklch(0.57 0.205 350)",
   "--ui-accent-soft": "oklch(0.935 0.038 350)",
-  "--ui-accent-soft-ink": "oklch(0.42 0.15 350)",
   "--ui-good": "oklch(0.48 0.132 150)",
   "--ui-bad": "oklch(0.5 0.18 25)",
-  "--ui-glass": "oklch(0.985 0.002 285 / 0.86)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
-  "--ui-bar": "oklch(1 0 0 / 0.94)",
   "--ui-seg-on": "oklch(1 0 0)",
-  "--ui-track": "oklch(0 0 0 / 0.08)",
   "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",
   "--ui-image-outline": "oklch(0 0 0 / 0.1)",
   "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
@@ -389,8 +382,11 @@ export const uiLight = {
   "--ui-shadow-pill": "0px 0px 0px 0.5px oklch(0 0 0 / 0.08), 0px 2px 4px oklch(0.33 0.025 50 / 0.08), 0px 12px 28px -6px oklch(0.33 0.025 50 / 0.18)",
 } as const;
 
-/** Increased contrast on dark: brighter secondary ink and lines. */
+/** Increased contrast on dark: brighter secondary ink and lines, and the
+ * deeper pink under white text so it passes 4.5:1 (what Apple asks for the
+ * App Store's Sufficient Contrast label). */
 export const uiContrast = {
+  "--ui-accent-fill": "oklch(0.57 0.205 350)",
   "--ui-ink-2": "oklch(0.88 0.005 285)",
   "--ui-ink-3": "oklch(0.76 0.006 285)",
   "--ui-ink-4": "oklch(0.62 0.006 285)",
@@ -399,6 +395,7 @@ export const uiContrast = {
 
 /** Increased contrast on light, applied after `uiLight`. */
 export const uiContrastLight = {
+  "--ui-accent-fill": "oklch(0.57 0.205 350)",
   "--ui-ink-2": "oklch(0.3 0.006 285)",
   "--ui-ink-3": "oklch(0.42 0.006 285)",
   "--ui-ink-4": "oklch(0.68 0.004 285)",
@@ -444,4 +441,33 @@ export const uiSize = {
   logo: 40,
   logoLarge: 48,
   hole: 24,
+} as const;
+
+/**
+ * Motion, chosen in the Motion lab (owner, 2026-10-12; the Paper page
+ * "Motion and icons · Oct 12" is the spec). Sheets move like Vaul's drawer:
+ * one curve, quick off the mark with a long soft landing, for opening,
+ * closing, resizing and settling. The tab bar's oval glides on a spring
+ * given as Apple's two numbers: response in seconds and damping, where 1
+ * never overshoots (WWDC 2018, "Designing Fluid Interfaces"). Durations are
+ * milliseconds; curves are cubic Béziers.
+ */
+export const uiMotion = {
+  sheet: {
+    open: { duration: 500, curve: [0.32, 0.72, 0, 1] },
+    close: { duration: 500, curve: [0.32, 0.72, 0, 1] },
+    resize: { duration: 500, curve: [0.32, 0.72, 0, 1] },
+    settle: { duration: 500, curve: [0.32, 0.72, 0, 1] },
+    stepIn: { duration: 300, curve: [0.32, 0.72, 0, 1] },
+    stepOut: { duration: 180, curve: [0.32, 0.72, 0, 1] },
+    /** How far a step slides as it arrives or leaves, in points. */
+    stepSlide: 20,
+    /** Let go past this share of the sheet's height, or flick down faster
+     * than this many points a second, and it closes (Vaul's rule). */
+    closeShare: 0.25,
+    closeSpeed: 400,
+  },
+  tab: {
+    glide: { response: 0.4, damping: 1 },
+  },
 } as const;

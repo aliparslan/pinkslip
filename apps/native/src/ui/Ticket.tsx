@@ -54,7 +54,7 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg", onStubPress 
       {onStubPress
         ? <Pressable onPress={onStubPress} accessibilityRole="button" style={({ pressed }) => [styles.stub, styles.stubRow, pressed && styles.pressed]}>
           <Text role="footnote" tone="ink-3" flex>{stub}</Text>
-          <Icon name="disclosure" size={12} weight="bold" tone="ink-4" />
+          <Icon name="disclosure" size={12} tone="ink-4" />
         </Pressable>
         : <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>}
     </Animated.View> : null}
@@ -78,11 +78,11 @@ function Fact({ fact }: { fact: TicketFact }) {
       <Text weight="medium" accessibilityLabel={fact.matched ? `${fact.value}, matches your search` : undefined}>{fact.value}</Text>
     </View>
     {fact.matched ? <Icon name="matches" size={16} tone="ink-3" /> : null}
-    {fact.action ? <View style={styles.push}><Icon name="disclosure" size={12} weight="bold" tone="ink-4" /></View> : null}
+    {fact.action ? <View style={styles.push}><Icon name="disclosure" size={12} tone="ink-4" /></View> : null}
   </View>;
   const detail = fact.detail ? <View style={styles.detail}>
     <Text role="subhead" tone="ink-2" flex>{fact.detail}</Text>
-    {fact.onPress ? <Icon name="disclosure" size={13} weight="bold" tone="ink-3" /> : null}
+    {fact.onPress ? <Icon name="disclosure" size={13} tone="ink-3" /> : null}
   </View> : null;
   if (fact.action) {
     return <Pressable onPress={fact.action} accessibilityRole="button" accessibilityLabel={`${fact.label}: ${fact.value}. Change`}

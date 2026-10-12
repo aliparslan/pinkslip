@@ -52,6 +52,7 @@ export function RedesignGallery() {
       </View>
       <View style={styles.row}>
         <Button size="small">Small</Button>
+        <Button size="small" variant="outline">Follow</Button>
         <Button size="small" pending>Saving</Button>
         <Button size="small" disabled>Disabled</Button>
       </View>

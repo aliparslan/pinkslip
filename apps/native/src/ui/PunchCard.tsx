@@ -150,6 +150,6 @@ const styles = StyleSheet.create((theme) => ({
   hole: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full },
   punched: { boxShadow: theme.ui.shadow.hole },
   open: { borderWidth: 1.5, borderColor: theme.ui.color.accent, opacity: 0.4 },
-  track: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.track, overflow: "hidden" },
+  track: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill, overflow: "hidden" },
   fillBar: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.ink },
 }));

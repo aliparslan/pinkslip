@@ -594,6 +594,68 @@ All in the redesign build only (development and the owner's phone build).
 - **Job page top bar** (9d329a5): back, and share with ⋯ in one pill, in
   our icons; the ⋯ menu is the system's, text only.
 
+## Icons, pink and motion (owner, 2026-10-12)
+
+The Paper page "Motion and icons · Oct 12" holds the comparisons.
+
+- **Icon weight, decided:** one stroke for every line icon, 1.75pt at any
+  size. Filled marks stay filled. Before this, strokes ran from 1.1pt (a
+  12pt chevron) to 1.5pt (a tab icon), beside Untitled Sans stems of 1.4pt
+  (Regular) and 2.2pt (Medium). The iOS Icon takes the heaviest Phosphor
+  weight that's no thicker than 1.75pt at the size it's drawn, then adds an
+  outline stroke for the rest.
+- **You is the person icon** (Phosphor User), never initials, on iOS and the
+  web.
+- **White text on the pink, still open.** These are measured, not judged
+  by eye:
+  - **Today's pink, `oklch(78% 0.153 350)`:** white text on it is 2.2:1,
+    APCA Lc 46. Ink text on it is 9.1:1.
+  - **About 68% lightness:** white first reaches 3:1, which is where
+    Airbnb, Lyft, X and Venmo put white on their brand colors.
+  - **About 59% lightness:** white reaches 4.5:1.
+  - **The App Store label:** Apple's "Sufficient Contrast" label asks for
+    4.5:1 on text up to 17pt. The label is optional. An app can also
+    qualify by switching to stronger colors when Increase Contrast is on.
+  - **Brands that pair black text with a light bright color:** Robinhood
+    puts black on its green (2.3:1 with white).
+  - The owner is choosing in the Pink lab artifact
+    (https://claude.ai/artifact/9MUgCfLE1YLEiBbuybUA74).
+- **Motion, being tuned:** Paper can't animate. It drops CSS animation and
+  has no duration or easing token types, so the Paper page is a storyboard
+  spec. The owner is tuning the values in the Motion lab artifact
+  (https://claude.ai/artifact/PFVndsQWKHNHfGYocjtFhK); once chosen, they
+  belong in `packages/tokens` for iOS and the web. Sources:
+  - **Apple, WWDC 2018 "Designing Fluid Interfaces":** start at 100% damping.
+    Use 80% only when a swipe carried momentum. Throws land where their
+    velocity projects.
+  - **Apple, WWDC 2023 "Animate with springs":** smooth, snappy and bouncy
+    presets.
+  - **Vaul:** 500ms on cubic-bezier(0.32, 0.72, 0, 1). Closes past 25% of
+    the drawer's height or on a flick faster than 400pt/s.
+  - **Emil Kowalski, "Great Animations":** usually under 300ms, ease-out.
+  - The first sheet bounced because its spring was at 84% damping, close to
+    Apple's swipe value but wrong for a tap.
+
+## In-app browser (owner, 2026-10-12)
+
+The Paper page "In-app browser · Oct 12".
+
+- **Every Apply opens the posting in our browser,** with or without assisted
+  fill, so tracking works the same way for everyone.
+- **Top bar:** close; the site with a lock under "Apply at …"; a ⋯ menu
+  with Open in Safari, Copy link, Share and Reload.
+- **Knowing you applied:**
+  - When we see the job board's confirmation page, a toast says "Applied
+    to Stripe. It's in Tracker", with Undo.
+  - Otherwise, closing the browser asks "Did you apply?".
+- **Still open:** whether the browser shows an "I applied" button (B) or
+  nothing (A); and whether the fill bar keeps its ⌃ ⌄ arrows or "2 need
+  you" jumps to the next blank. Web back and forward were dropped.
+- **Only applications are read** (the owner sees no other work for now; my
+  recommendation). Careers sites, event sign-ups and guides can open in the
+  same browser without being read. Event sign-ups are the
+  likeliest to gain from it later (marking you registered).
+
 ## Next
 
 - **Tracker** (replacing Library), then You. Tracker stages need an API to

@@ -5,11 +5,11 @@ import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
 import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, MAX_YEARS_EXPERIENCE, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
 import { router, type Href } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
-import { Button, Choice, Choices, ChoiceSwitch, ListGroup, ListItem, Sheet, SheetHeader, SheetStep, Text, Ticket, useSheet } from "../../ui";
+import { Button, Choice, Choices, ChoiceSwitch, ListGroup, ListItem, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, Ticket, useSheet } from "../../ui";
 import {
   experienceSummary, needsSponsorship, rolesSummary, stageName, stageTicket, toggled, wantsRemote, whereSummary, withRemote,
 } from "./search-draft";
@@ -27,10 +27,11 @@ const stageDetail: Record<CareerStage, string> = {
  * Your search (Paper "Filters A"), the one saved search behind the feed and
  * alerts, drawn on the same ticket as a job page: tap a box to change it and
  * the sheet steps into that choice, then Done steps back. Save writes the
- * search; closing drops the changes.
+ * search; closing drops the changes. It opens over Jobs, which stays in
+ * view behind it.
  */
-export function EditSearch() {
-  return <Sheet onClosed={() => router.back()}><YourSearch /></Sheet>;
+export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
+  return <SheetModal open={open} onClosed={onClosed}><YourSearch /></SheetModal>;
 }
 
 function YourSearch() {
@@ -81,9 +82,9 @@ function YourSearch() {
   }
 
   const done = <Button fullWidth onPress={back}>Done</Button>;
-  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step}>
+  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step} inner>
     <SheetHeader title={title} onBack={back} />
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>{body}</ScrollView>
+    <SheetScroll style={styles.scroll} contentContainerStyle={styles.scrollBody}>{body}</SheetScroll>
     {done}
   </SheetStep>;
 
@@ -152,7 +153,7 @@ function YourSearch() {
     </>);
   }
 
-  return <SheetStep id="more">
+  return <SheetStep id="more" inner>
     <SheetHeader title="Alerts and companies" onBack={back} />
     <MoreRows />
     {done}

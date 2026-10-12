@@ -78,7 +78,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
           {job.company_id
             ? <Pressable onPress={openCompany} accessibilityRole="link" hitSlop={6} style={({ pressed }) => [styles.company, pressed && styles.pressed]}>
               <Text role="subhead" weight="medium" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>
-              <Icon name="disclosure" size={11} weight="bold" tone="ink-3" />
+              <Icon name="disclosure" size={11} tone="ink-3" />
             </Pressable>
             : <Text role="subhead" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>}
           <Text role="title2" accessibilityRole="header">{plainText(job.title)}</Text>
@@ -140,7 +140,7 @@ function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] })
     <View style={styles.pill}>
       <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
       <Menu title="" items={menu.map((item, index) => ({ id: String(index), title: item.label, destructive: item.destructive, onSelect: item.run }))}>
-        <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} weight="bold" /></View>
+        <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
       </Menu>
     </View>
   </View>;

@@ -1,33 +1,65 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
-import { Modal, Pressable, View, useWindowDimensions } from "react-native";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { Modal, Pressable, View, useWindowDimensions, type LayoutChangeEvent, type ScrollViewProps } from "react-native";
+import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
+import Animated, {
+  LayoutAnimationConfig, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon } from "./Icon";
+import { motion, timing } from "./motion";
 import { Text } from "./Text";
 
-/** Settles without a bounce: the sheet arrives, it doesn't wobble. */
-const SPRING = { damping: 30, stiffness: 320, mass: 1 };
-const RESIZE = LinearTransition.springify().damping(30).stiffness(320);
-/** A drag this far, or a flick this fast, closes the sheet. */
-const DISMISS_DISTANCE = 110;
-const DISMISS_VELOCITY = 900;
+/** Vaul's drawer motion, from the tokens: one curve, quick off the mark with
+ * a long soft landing, for opening, closing, resizing and settling back. */
+const OPEN = timing(motion.sheet.open);
+const CLOSE = timing(motion.sheet.close);
+const RESIZE = timing(motion.sheet.resize);
+const SETTLE = timing(motion.sheet.settle);
+const STEP_IN = timing(motion.sheet.stepIn);
+const STEP_OUT = timing(motion.sheet.stepOut);
+const SLIDE = motion.sheet.stepSlide;
+/** Let go past this share of the sheet's height, or flick down faster than
+ * this, and it closes. */
+const CLOSE_SHARE = motion.sheet.closeShare;
+const CLOSE_SPEED = motion.sheet.closeSpeed;
 /** The gap between the sheet and the screen's edges. */
 const INSET = 8;
 
-const SheetContext = createContext<{ close: () => void } | null>(null);
+/** Dragging up stretches less the further you pull (Apple's rubber band). */
+function rubberBand(distance: number, dimension: number) {
+  "worklet";
+  const constant = 0.55;
+  return (distance * dimension * constant) / (dimension + constant * Math.abs(distance));
+}
 
-/** Closes the sheet it's inside: slides it away, then leaves the route. */
-export function useSheet() {
+interface SheetContextValue {
+  close: () => void;
+  drag: PanGesture;
+  /** How far the step's list is scrolled; the sheet only follows a drag down from the top. */
+  scrollY: SharedValue<number>;
+  /** How many lists the sheet holds; with one, a drag up scrolls instead of nudging the sheet. */
+  lists: SharedValue<number>;
+  offset: SharedValue<number>;
+}
+
+const SheetContext = createContext<SheetContextValue | null>(null);
+
+function useSheetContext() {
   const sheet = useContext(SheetContext);
-  if (!sheet) throw new Error("useSheet() outside a Sheet");
+  if (!sheet) throw new Error("Sheet parts used outside a Sheet");
   return sheet;
 }
 
+/** Closes the sheet it's inside: slides it away, then runs onClosed. */
+export function useSheet() {
+  return { close: useSheetContext().close };
+}
+
 export interface SheetProps {
-  /** Runs once the sheet has slid away (go back from the route here). */
+  /** Runs once the sheet has slid away. */
   onClosed: () => void;
   children: ReactNode;
 }
@@ -36,48 +68,82 @@ export interface SheetProps {
  * Pinkslip's own sheet, in place of the system's: it floats 8pt in from the
  * screen's edges with 40pt corners, sizes to what it holds, and changes
  * height in place when its content changes, so one sheet can step through a
- * choice and back (Paper "Filters and Apply · Oct 12"). Drag its top down or
- * tap the page behind it to close.
+ * choice and back (Paper "Filters and Apply · Oct 12"). Drag or flick it
+ * down from anywhere, or tap the page behind it, to close.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const offset = useSharedValue(height);
   const shade = useSharedValue(0);
+  const cardHeight = useSharedValue(height);
+  const scrollY = useSharedValue(0);
+  const lists = useSharedValue(0);
+  const anchor = useSharedValue(0);
+  const opened = useRef(false);
 
-  useEffect(() => {
-    offset.value = withSpring(0, SPRING);
-    shade.value = withTiming(1, { duration: 220 });
-  }, [offset, shade]);
+  // The card follows its content's height: set at first, so it slides in
+  // with the whole trip on screen, then eased from step to step.
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const contentHeight = event.nativeEvent.layout.height;
+    if (opened.current) {
+      cardHeight.value = withTiming(contentHeight, RESIZE);
+      return;
+    }
+    opened.current = true;
+    cardHeight.value = contentHeight;
+    offset.value = contentHeight + INSET;
+    offset.value = withTiming(0, OPEN);
+    shade.value = withTiming(1, OPEN);
+  }, [cardHeight, offset, shade]);
 
   const close = useCallback(() => {
-    shade.value = withTiming(0, { duration: 200 });
-    offset.value = withTiming(height, { duration: 240, easing: Easing.in(Easing.cubic) }, (done) => {
+    shade.value = withTiming(0, CLOSE);
+    offset.value = withTiming(cardHeight.value + INSET + 24, CLOSE, (done) => {
       if (done) scheduleOnRN(onClosed);
     });
-  }, [height, offset, shade, onClosed]);
+  }, [cardHeight, offset, shade, onClosed]);
 
-  const drag = useMemo(() => Gesture.Pan().activeOffsetY([-8, 8]).onUpdate((event) => {
-    // Down follows the finger; up resists, so the sheet only nudges.
-    offset.value = event.translationY > 0 ? event.translationY : event.translationY / 6;
+  const drag = useMemo(() => Gesture.Pan().activeOffsetY([-10, 10]).onStart(() => {
+    anchor.value = 0;
+  }).onUpdate((event) => {
+    // While the list is scrolled, the drag scrolls it back; the sheet follows from the top.
+    if (scrollY.value > 0.5) {
+      anchor.value = event.translationY;
+      return;
+    }
+    const travel = event.translationY - anchor.value;
+    // Down follows the finger; up stretches like a rubber band (or the list scrolls).
+    offset.value = travel > 0 ? travel : lists.value > 0 ? 0 : -rubberBand(-travel, cardHeight.value);
+    shade.value = 1 - Math.min(Math.max(offset.value, 0) / cardHeight.value, 1);
   }).onEnd((event) => {
-    if (event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY) scheduleOnRN(close);
-    else offset.value = withSpring(0, SPRING);
-  }), [offset, close]);
+    if (offset.value > CLOSE_SHARE * cardHeight.value || (offset.value > 0 && event.velocityY > CLOSE_SPEED)) {
+      scheduleOnRN(close);
+    } else {
+      offset.value = withTiming(0, SETTLE);
+      shade.value = withTiming(1, SETTLE);
+    }
+  }), [anchor, scrollY, lists, offset, shade, cardHeight, close]);
 
-  const card = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+  const card = useAnimatedStyle(() => ({ height: cardHeight.value, transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close }), [close]);
+  const value = useMemo(() => ({ close, drag, scrollY, lists, offset }), [close, drag, scrollY, lists, offset]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
       <Animated.View style={[styles.scrim, scrim]}>
         <Pressable style={styles.fill} onPress={close} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
-      <Animated.View layout={RESIZE} style={[styles.card, { maxHeight: height - insets.top - INSET }, card]} accessibilityViewIsModal>
-        <GestureDetector gesture={drag}><View style={styles.handle} /></GestureDetector>
-        {children}
-      </Animated.View>
+      <GestureDetector gesture={drag}>
+        <Animated.View style={[styles.card, card]} accessibilityViewIsModal>
+          {/* Sized by its content alone, so the card can ease to it. */}
+          <View onLayout={onLayout} style={[styles.content, { maxHeight: height - insets.top - INSET }]}>
+            <View style={styles.top} />
+            {/* The first step is simply there; later steps slide in. */}
+            <LayoutAnimationConfig skipEntering>{children}</LayoutAnimationConfig>
+          </View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   </SheetContext.Provider>;
 }
@@ -86,8 +152,8 @@ export interface SheetModalProps extends SheetProps {
   open: boolean;
 }
 
-/** A Sheet over everything on screen, the navigation bar included, for a
- * sheet that isn't a route of its own (the Apply sheets on the job page). */
+/** A Sheet over everything on screen, the tab bar included. The page you
+ * were on stays in view behind it. */
 export function SheetModal({ open, onClosed, children }: SheetModalProps) {
   if (!open) return null;
   return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed}>
@@ -98,16 +164,80 @@ export function SheetModal({ open, onClosed, children }: SheetModalProps) {
 }
 
 export interface SheetStepProps {
-  /** Changes when the step does, so the old content fades out and the new fades in. */
+  /** Changes when the step does, so the old content leaves and the new arrives. */
   id: string;
+  /** A step opened from the first one: it comes in from the right and goes
+   * back out to the right, like a page pushed inside the sheet. */
+  inner?: boolean;
   children: ReactNode;
 }
 
+/** A step arrives sliding in from one side as it fades in... */
+function arriving(from: 1 | -1) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { opacity: 0, transform: [{ translateX: from * SLIDE }] },
+      animations: { opacity: withTiming(1, STEP_IN), transform: [{ translateX: withTiming(0, STEP_IN) }] },
+    };
+  };
+}
+
+/** ...and leaves sliding out to the same side, a little quicker. */
+function leaving(to: 1 | -1) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { opacity: 1, transform: [{ translateX: 0 }] },
+      animations: { opacity: withTiming(0, STEP_OUT), transform: [{ translateX: withTiming(to * SLIDE, STEP_OUT) }] },
+    };
+  };
+}
+
+// Inner steps come and go on the right; the first step on the left.
+const STEP = {
+  inner: { entering: arriving(1), exiting: leaving(1) },
+  first: { entering: arriving(-1), exiting: leaving(-1) },
+};
+
 /** One step of a sheet. The sheet resizes around it as it changes. */
-export function SheetStep({ id, children }: SheetStepProps) {
-  return <Animated.View key={id} entering={FadeIn.duration(180).delay(60)} exiting={FadeOut.duration(120)} style={styles.step}>
+export function SheetStep({ id, inner = false, children }: SheetStepProps) {
+  const { entering, exiting } = inner ? STEP.inner : STEP.first;
+  return <Animated.View key={id} entering={entering} exiting={exiting} style={styles.step}>
     {children}
   </Animated.View>;
+}
+
+/**
+ * A list inside a step that scrolls when the step is taller than the
+ * screen allows. Dragging down from its top moves the sheet instead, so
+ * it closes the way a short sheet does.
+ */
+export function SheetScroll({ children, ...props }: Pick<ScrollViewProps, "children" | "contentContainerStyle" | "style">) {
+  const { drag, scrollY, lists, offset } = useSheetContext();
+  const ref = useAnimatedRef<Animated.ScrollView>();
+  const native = useMemo(() => Gesture.Native().simultaneousWithExternalGesture(drag), [drag]);
+  useEffect(() => {
+    lists.value += 1;
+    return () => {
+      lists.value -= 1;
+      scrollY.value = 0;
+    };
+  }, [lists, scrollY]);
+  const onScroll = useAnimatedScrollHandler((event) => {
+    // While the sheet is pulled down the list holds still at its top.
+    if (offset.value > 0) {
+      scrollTo(ref, 0, 0, false);
+      scrollY.value = 0;
+    } else {
+      scrollY.value = event.contentOffset.y;
+    }
+  });
+  return <GestureDetector gesture={native}>
+    <Animated.ScrollView ref={ref} {...props} onScroll={onScroll} scrollEventThrottle={16} bounces={false} showsVerticalScrollIndicator={false}>
+      {children}
+    </Animated.ScrollView>
+  </GestureDetector>;
 }
 
 export interface SheetHeaderProps {
@@ -139,7 +269,7 @@ export function SheetHeader({ title, onBack }: SheetHeaderProps) {
 function RoundButton({ icon, label, onPress }: { icon: "close" | "back"; label: string; onPress: () => void }) {
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={6}
     style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
-    <Icon name={icon} size={16} weight="bold" tone="ink-2" />
+    <Icon name={icon} size={16} tone="ink-2" />
   </Pressable>;
 }
 
@@ -157,8 +287,9 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color["bg-elev"],
     boxShadow: theme.ui.shadow.pill,
   },
-  /** A strip along the top edge to drag by; the content scrolls below it. */
-  handle: { height: 24 },
+  content: { position: "absolute", top: 0, left: 0, right: 0 },
+  /** Room above the first line, which is also where a drag usually starts. */
+  top: { height: 24 },
   step: { flexShrink: 1, gap: theme.ui.space["5"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["5"] },
   header: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   stepHeader: { gap: theme.ui.space["3"] },

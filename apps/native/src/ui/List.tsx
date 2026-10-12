@@ -71,8 +71,8 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
       {detail ? <Text role="subhead" tone="ink-3">{detail}</Text> : null}
     </View>
     {value ? <Text tone="ink-2">{value}</Text> : null}
-    {accessory === "chevron" ? <Icon name="disclosure" size={14} weight="bold" tone="ink-3" /> : null}
-    {accessory === "check" && selected ? <Icon name="done" size={17} weight="bold" /> : null}
+    {accessory === "chevron" ? <Icon name="disclosure" size={14} tone="ink-3" /> : null}
+    {accessory === "check" && selected ? <Icon name="done" size={17} tone="accent" /> : null}
     {accessory === "radio" ? <Radio selected={selected} /> : null}
   </>;
   if (!onPress) return <View style={styles.row}>{content}</View>;
@@ -84,7 +84,7 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
 export function Radio({ selected }: { selected: boolean }) {
   const { theme } = useUnistyles();
   return <View style={[styles.radio, selected ? styles.radioOn : styles.radioOff]}>
-    {selected ? <Icon name="done" size={12} weight="bold" tone="bg" /> : null}
+    {selected ? <Icon name="done" size={12} tone="accent-ink" /> : null}
   </View>;
 }
 
@@ -125,8 +125,9 @@ const styles = StyleSheet.create((theme) => ({
   text: { flex: 1, minWidth: 0 },
   inline: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
   radio: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full, alignItems: "center", justifyContent: "center" },
-  radioOn: { backgroundColor: theme.ui.color.ink },
-  radioOff: { borderWidth: 1.5, borderColor: theme.ui.color["ink-4"] },
+  // A check or switch changes a setting, so "on" is pink (docs/design-system.md).
+  radioOn: { backgroundColor: theme.ui.color["accent-fill"] },
+  radioOff: { borderWidth: 1.75, borderColor: theme.ui.color["ink-4"] },
   section: {
     flexDirection: "row",
     alignItems: "baseline",

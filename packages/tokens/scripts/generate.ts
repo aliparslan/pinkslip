@@ -21,6 +21,7 @@ import {
   uiContrastLight,
   uiDark,
   uiLight,
+  uiMotion,
   uiRadius,
   uiSize,
   uiSpace,
@@ -216,6 +217,7 @@ function renderUi(): string {
     `${indent(1)}space: ${tsValue(uiSpace as unknown as NativeValue, 1)},`,
     `${indent(1)}radius: ${tsValue(uiRadius, 1)},`,
     `${indent(1)}size: ${tsValue(uiSize, 1)},`,
+    `${indent(1)}motion: ${tsValue(uiMotion as unknown as NativeValue, 1)},`,
     `} as const;`,
   ].join("\n");
 }

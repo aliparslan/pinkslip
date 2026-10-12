@@ -74,14 +74,14 @@ function PrepRow({ label, value, onPress }: { label: string; value: string; onPr
       <Text role="footnote" tone="ink-3">{label}</Text>
       <Text weight="medium" lines={1}>{value}</Text>
     </View>
-    <Icon name="disclosure" size={12} weight="bold" tone="ink-4" />
+    <Icon name="disclosure" size={12} tone="ink-4" />
   </Pressable>;
 }
 
 function CloseButton() {
   const { close } = useSheet();
   return <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close" hitSlop={6} style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-    <Icon name="close" size={16} weight="bold" tone="ink-2" />
+    <Icon name="close" size={16} tone="ink-2" />
   </Pressable>;
 }
 

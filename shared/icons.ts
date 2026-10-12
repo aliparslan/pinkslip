@@ -14,7 +14,7 @@ export const ICONS = {
   jobs: "Briefcase",
   search: "MagnifyingGlass",
   tracker: "Path",
-  you: "UserCircle",
+  you: "User",
   editSearch: "SlidersHorizontal",
   notifications: "Bell",
   back: "CaretLeft",

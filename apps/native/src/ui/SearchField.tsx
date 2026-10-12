@@ -25,7 +25,7 @@ export const SearchField = forwardRef<TextInput, SearchFieldProps>(function Sear
       selectionColor={theme.ui.color.accent} accessibilityRole="search"
       style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
     {value ? <Pressable onPress={() => onChangeText("")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.clear}>
-      <Icon name="close" size={10} weight="bold" tone="bg" />
+      <Icon name="close" size={10} tone="bg" />
     </Pressable> : null}
   </View>;
 });

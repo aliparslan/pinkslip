@@ -6,7 +6,7 @@ import { faces, useUiFontsLoaded } from "./fonts";
 
 export type TextRole = UiTypeRole;
 /** `ink-4` is missing on purpose: it's for strokes and disabled marks, never text. */
-export type TextTone = "ink" | "ink-2" | "ink-3" | "accent" | "accent-ink" | "badge-ink" | "good" | "bad" | "bg";
+export type TextTone = "ink" | "ink-2" | "ink-3" | "accent" | "accent-ink" | "good" | "bad" | "bg";
 export type TextWeight = "regular" | "medium";
 
 export interface TextProps extends Pick<RNTextProps, "accessibilityRole" | "accessibilityLabel" | "selectable" | "onPress" | "testID"> {

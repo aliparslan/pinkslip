@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Icon, IconButton, SearchField, Text } from "../../ui";
+import { EditSearchSheet } from "./EditSearch";
 import { JobsFeed } from "./JobsFeed";
 import { rememberSearch } from "./recent-searches";
 
@@ -25,6 +26,7 @@ export function useDebounced(value: string, ms = SEARCH_DEBOUNCE_MS) {
 export function JobsScreen() {
   const [text, setText] = useState("");
   const query = useDebounced(text.trim());
+  const [editing, setEditing] = useState(false);
   return <>
     <Stack.Screen options={{ headerShown: false }} />
     <JobsFeed query={query || undefined} chips onClearQuery={() => setText("")}
@@ -32,10 +34,11 @@ export function JobsScreen() {
         <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
         <View style={styles.row}>
           <SearchField value={text} onChangeText={setText} placeholder="Search jobs and companies" onSubmit={() => rememberSearch(text)} />
-          <IconButton icon="editSearch" label="Your search" onPress={() => router.push("/edit-search")} />
+          <IconButton icon="editSearch" label="Your search" onPress={() => setEditing(true)} />
         </View>
       </View>}
       after={query ? <SearchEverything query={query} /> : null} />
+    <EditSearchSheet open={editing} onClosed={() => setEditing(false)} />
   </>;
 }
 
@@ -51,7 +54,7 @@ function SearchEverything({ query }: { query: string }) {
       <Text role="subhead" weight="medium" lines={1}>Search everything for “{query}”</Text>
       <Text role="subhead" tone="ink-2">Companies and every open job</Text>
     </View>
-    <Icon name="disclosure" size={13} weight="bold" tone="ink-4" />
+    <Icon name="disclosure" size={13} tone="ink-4" />
   </Pressable>;
 }
 
