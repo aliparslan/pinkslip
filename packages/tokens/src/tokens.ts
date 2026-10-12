@@ -425,21 +425,20 @@ export const uiSpace = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 }
 export const uiRadius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
 
 /**
- * Fixed sizes. A job row is three 20pt lines (84 with its padding) beside a
- * 48pt logo. As in Messages, the unread dot has its own 28pt slot at the left
- * edge and the logo follows it, so row text and separators start on the 88
- * line. Buttons are Apple's 50.
+ * Fixed sizes. A job row is three 20pt lines (84 with its padding); as in
+ * Gmail, the 40pt logo is the height of the first two and sits on the 16
+ * margin, so row text and separators start on the 68 line. Buttons are
+ * Apple's 50.
  */
 export const uiSize = {
   gutter: 16,
-  unreadSlot: 28,
-  keyline: 88,
+  keyline: 68,
   jobRow: 84,
   listRow: 44,
   button: 50,
   chip: 32,
   iconButton: 44,
-  logo: 48,
+  logo: 40,
   logoLarge: 48,
   hole: 24,
 } as const;

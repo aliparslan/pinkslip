@@ -1,5 +1,4 @@
 import { feedParams, type FeedSearch } from "@pinkslip/core/feed-criteria";
-import { isFreshJobTiming } from "@pinkslip/core/job-timing";
 import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
@@ -136,7 +135,7 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
       <Link.Trigger>
         <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
-          unread={!viewed && isFreshJobTiming(job)}
+          unread={!viewed}
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
           actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />
       </Link.Trigger>

@@ -16,7 +16,7 @@ export interface JobRowProps {
   age?: string;
   /** Where the job is in your pipeline, beside the company. */
   stage?: JobStage;
-  /** New, and you haven't opened it. */
+  /** You haven't opened it yet. */
   unread?: boolean;
   logo: Omit<CompanyLogoProps, "size">;
   onPress?: () => void;
@@ -28,25 +28,28 @@ export interface JobRowProps {
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
 /**
- * The three-line job row, as Messages lays out a conversation: the unread dot
- * in its own slot at the left edge, the logo, then the title and age, the
- * company and its stage, and the facts. Each line is one line long, so every
- * row is the same 84pt; text and separators start on the 88 line.
+ * The three-line job row, read the way Gmail marks mail: until you open a
+ * job its title is Medium and a dot follows the age; once opened, the title
+ * is Regular and the dot goes. The logo is the height of the first two lines,
+ * on the 16 margin. Each line is one line long, so every row is the same
+ * 84pt; text and separators start on the 68 line.
  */
 export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
-  const label = [unread ? "New" : null, title, company, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
+  const label = [unread ? "Unread" : null, title, company, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
   // Never flattened: a link's native preview trigger needs exactly one child view.
   return <Pressable collapsable={false} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-    <View style={styles.unread}>{unread ? <View style={styles.dot} /> : null}</View>
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={styles.line}>
-        <Text role="subhead" weight="medium" lines={1} flex>{title}</Text>
-        {age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
+        <Text role="subhead" weight={unread ? "medium" : "regular"} lines={1} flex>{title}</Text>
+        {age || unread ? <View style={styles.age}>
+          {age ? <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{age}</Text> : null}
+          {unread ? <View style={styles.dot} /> : null}
+        </View> : null}
       </View>
       <View style={styles.line}>
         <Text role="subhead" lines={1} flex>{company}</Text>
@@ -70,17 +73,19 @@ function StageIcon({ stage, color }: { stage: JobStage; color: string }) {
   </Svg>;
 }
 
-const DOT = 10;
+const DOT = 8;
 
 const styles = StyleSheet.create((theme) => {
   const block = theme.ui.type.subhead.line * 3;
   return {
     // At least 84: larger Dynamic Type sizes grow the row instead of clipping it.
-    row: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
+    row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
-    unread: { width: theme.ui.size.unreadSlot, alignItems: "center" },
-    dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
-    logo: { width: theme.ui.size.keyline - theme.ui.size.unreadSlot },
+    // Centred on the digits' height rather than the line box, which sits a point higher.
+    dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 2, backgroundColor: theme.ui.color.ink },
+    // Level with the first line: the logo spans lines one and two.
+    logo: { width: theme.ui.size.keyline, paddingLeft: theme.ui.size.gutter, paddingTop: (theme.ui.size.jobRow - block) / 2 },
+    age: { flexDirection: "row", alignItems: "center", gap: 6 },
     text: {
       flex: 1,
       minWidth: 0,
