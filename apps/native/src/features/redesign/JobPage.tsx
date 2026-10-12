@@ -6,10 +6,10 @@ import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Sheet, toast } from "../../kit";
-import { Button, CompanyLogo, Icon, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
+import { Menu, Sheet, toast } from "../../kit";
+import { Button, CompanyLogo, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
-import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
+import { useDetailJob, useJobPageActions, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
 import { logoUri } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
 import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, ticketRows, ticketStub } from "./job-facts";
@@ -67,25 +67,9 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   }, [pendingDescription, blocks.length]);
 
   return <View style={styles.fill}>
-    <Stack.Screen options={{
-      title: "",
-      headerTintColor: theme.ui.color.ink,
-      unstable_headerRightItems: () => [
-        { type: "button", label: "Share", icon: { type: "sfSymbol", name: "square.and.arrow.up" }, onPress: share },
-        {
-          type: "menu",
-          label: "More job actions",
-          icon: { type: "sfSymbol", name: "ellipsis" },
-          menu: {
-            items: menu.filter((item) => item.label !== "Share").map((item) => ({
-              type: "action" as const, label: item.label, destructive: item.destructive, onPress: item.run,
-            })),
-          },
-        },
-      ],
-    }} />
-    <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.fill}
-      contentContainerStyle={[styles.body, { paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
+    <Stack.Screen options={{ headerShown: false }} />
+    <ScrollView style={styles.fill}
+      contentContainerStyle={[styles.body, { paddingTop: insets.top + TOP_BAR + theme.ui.space["2"], paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
       <View style={styles.identity}>
         <Pressable onPress={openCompany} disabled={!job.company_id} accessibilityLabel={`${plainText(job.company_name)}, company page`}>
           <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
@@ -119,6 +103,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
         </View>
       </Animated.View>
     </ScrollView>
+    <TopBar onShare={share} menu={menu.filter((item) => item.label !== "Share")} />
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       {applied
         ? <Button icon="done" fullWidth>{appliedLabel(job)}</Button>
@@ -144,9 +129,31 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
 
 /** The pinned bar's height above the home indicator: a 50pt button and 12 above it. */
 const BAR = 50 + 12;
+const TOP_BAR = 44;
+
+/** Back on the left; share and the ⋯ menu in one pill on the right (Paper
+ * "Job page"), drawn with our icons. The menu is the system's, text only. */
+function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] }) {
+  const insets = useSafeAreaInsets();
+  return <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
+    <IconButton icon="back" label="Back" onPress={() => router.back()} />
+    <View style={styles.pill}>
+      <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
+      <Menu title="" items={menu.map((item, index) => ({ id: String(index), title: item.label, destructive: item.destructive, onSelect: item.run }))}>
+        <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} weight="bold" /></View>
+      </Menu>
+    </View>
+  </View>;
+}
 
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
+  top: {
+    position: "absolute", top: 0, left: 0, right: 0,
+    flexDirection: "row", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter,
+  },
+  pill: { flexDirection: "row", borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill },
+  slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
   missing: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"] },
   body: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"] },
