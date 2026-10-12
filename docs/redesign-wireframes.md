@@ -194,6 +194,55 @@ but only in chosen places.
     and a displacement filter) or baked textures.
   - Dark mode for these objects is still open.
 
+## The consistency pass (owner, 2026-10-11)
+
+Applied across Take A and every batch page in Paper.
+
+- **Job rows are two lines:**
+  - Line one is the title, with the age on the right.
+  - Line two is the company in dark ink, then "· level · place · pay" in
+    grey. Places are short ("New York", not "New York, NY") and pay is
+    compact ("$145–175K").
+  - Long titles wrap instead of being cut off. Line two ends in "…" when it
+    doesn't fit.
+  - **Stage goes where the age goes.** A job you've saved or applied to
+    shows "◌ Saved" or "◔ Applied" in the age slot, at the same size. The
+    left edge holds only the unread dot.
+  - Roughly 6 to 7 rows fit on the Jobs screen, and 8 to 9 once you scroll
+    and the header collapses (drawn on the "Job row density" page).
+- **Selected chips are dark:** an ink fill with white text. Pale pink is no
+  longer an "on" colour anywhere: the selected price on the Plan page is
+  dark too. Pink now means only "do this" or "needs you".
+- **One button pink.** Filled pink elements (buttons, the Tracker badge) all
+  use the lighter pink with dark text. The deeper pink is only for text,
+  dots and stamp ink. "Import contacts" and the badge were fixed to match.
+- **The badge** uses Untitled Sans Medium 13, and sits just off the icon's
+  top-right corner.
+- **The Tracker tab icon is a stack of tickets.**
+- **The type scale** follows Apple's text styles, so it scales with the
+  iPhone text-size setting:
+  - Founders Grotesk for display: 34 (large title), 28, 22.
+  - Untitled Sans for text: 17 (body), 15, 13.
+  - 10 for tab labels.
+  - Off-scale sizes were snapped (24 to 22, 26 to 28, 20 to 22, 12 and
+    11 to 13, 14 to 15). Logo initials, system mock-ups (lock screen,
+    notifications) and employer web pages inside the in-app browser are
+    exempt.
+  - Items on the same line share a size. Use colour, weight or an icon to
+    tell them apart, not size.
+- **Wording is for intern to about 5 years in.**
+  - No class, campus, semester, student, school or "season".
+  - "Season" became "3 months", "Shared by a student" became "Shared by the
+    community", and "School" became "Education".
+  - Example events and people are hiring nights and technical recruiters,
+    not career fairs and university recruiters.
+  - Example jobs mix levels, such as "Software Engineer II" and "0–2 yrs".
+- **Paper objects in the screens:**
+  - The welcome screen uses the carbon-copy mark.
+  - Every stamp is the inked one.
+  - Every ticket has grain, punched perforation and a slight lift.
+  - The Plan page uses the punch card.
+
 ## Next
 
 - **The iOS tokens and kit** for Take A, in light and dark.
