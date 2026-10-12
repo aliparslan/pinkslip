@@ -447,6 +447,42 @@ size setting.
     at a page, so it needs a count endpoint) and minimum pay (the saved
     search has no pay field). Both are small, additive backend changes.
 
+## Paper first, our own sheets (owner, 2026-10-12)
+
+- **The built Edit search is rejected.** It followed the old filters and
+  Preferences structure and reads as an iOS settings list. From now on every
+  screen is designed in Paper first and the app is built to it, never the
+  other way round.
+- **Sheets are ours, not iOS's.** The owner is happy to replace the stock
+  sheet everywhere, as Family and Instagram do. The new sheet floats 8pt in
+  from the screen edges with 40pt corners, sizes to its content and changes
+  size in place between steps. It has a round close button top right and no
+  grabber.
+- **Proposals on the Paper page "Filters and Apply · Oct 12"** (sheet:
+  `docs/port-design/redesign-kit/filters-apply-2026-10-12.png`):
+  - **Filters A · your search as a ticket:** the saved search drawn on the
+    job page's ticket grid (stage | pay from, roles, where, visa |
+    experience). Alerts and hidden companies sit on the stub. Tapping a box
+    turns the sheet into that choice with round checks (the onboarding
+    style), and Done goes back.
+  - **Filters B · one page of chips:** every choice inline with no
+    drill-downs. The sheet is nearly full height and scrolls under a pinned
+    Save.
+  - **Apply 1 · Tap Apply:** "Apply at Stripe · Opens on Greenhouse". Your
+    resume, email, LinkedIn and saved answers sit on a ticket with copy and
+    share buttons, then Open application and "I already applied".
+  - **Apply 2 · Back from the posting:** replaces today's system alert with
+    "Did you apply?" over a small ticket for the job. Yes tears the stub off
+    into Tracker (the existing motion); Not yet closes.
+  - **Jobs · search beside the filter button:** the search field and the
+    filter button share a row under the title, with the three-line rows we
+    settled on. This would retire the iOS 26 search tab.
+- **Selected chips:** the owner finds black too harsh. The page compares
+  black, pale pink, outline, raised slip, check and pink fill in light and
+  dark (`docs/port-design/redesign-kit/chip-options-2026-10-12.png`). The
+  owner suggested pink fill with black text; it is drawn in Filters B as
+  well, where it sits next to the pink Save button.
+
 ## Next
 
 - **Tracker** (replacing Library), then You. Tracker stages need an API to
