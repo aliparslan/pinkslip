@@ -483,6 +483,20 @@ size setting.
   owner suggested pink fill with black text; it is drawn in Filters B as
   well, where it sits next to the pink Save button.
 
+### Decided after review (owner, 2026-10-12)
+
+- **Selected chips are pale pink with black (ink) text,** as on the Filters B
+  sheet. In dark mode the text is the light ink. Pink fill wasn't picked.
+- **No match count** ("About 48 new jobs a week") on the filter sheets. It
+  had no source (the feed API doesn't count matches), so it's gone.
+- **Apply sheet rows are things you can change, not copy:** resume, email,
+  LinkedIn and answers each open to be changed (a chevron, no copy or share
+  buttons).
+- **"Did you apply?" has no ticket:** the person just came from the posting
+  and the job page is right behind the sheet. It's the title, one line,
+  "Yes, I applied" and "Not yet"; Yes tears the job page's stub into Tracker.
+- Sheet: `docs/port-design/redesign-kit/filters-apply-2026-10-12-r2.png`.
+
 ## Next
 
 - **Tracker** (replacing Library), then You. Tracker stages need an API to
