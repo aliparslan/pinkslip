@@ -39,6 +39,7 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 5, light** (2026-10-11): on "Batch 5 · Events and writing".
 - **Batch 4, light** (2026-10-11): on "Batch 4 · Outreach".
 - **Batch 3, light** (2026-10-11): on "Batch 3 · Auto-apply".
 - **Batch 2, light** (2026-10-11): on "Batch 2 · Tracking".
@@ -200,6 +201,36 @@ On the Paper page "Batch 4 · Outreach".
   - Timing: 3 days, then a week.
   - Up to 5 emails a day, to people at jobs you apply to.
   - Emails go out on weekday mornings in the recipient's time zone.
+
+## Batch 5 decisions (events and writing)
+
+On the Paper page "Batch 5 · Events and writing".
+
+- **Events:**
+  - The large title, with a "+" to share an event.
+  - Filter chips: For you, Online, Near me, Companies I follow.
+  - Rows grouped by week, each with a date block, host, title, and time in
+    your time zone.
+  - Events you registered for say so. Community events say "Shared by a
+    student".
+- **The event page:**
+  - It reuses the job page and its ticket: date, time, where, who it's for,
+    and length. The stub holds the host and when registration closes.
+  - The bar holds Remind me and Register, which opens the host's page.
+  - Add to Calendar moves into the ⋯ menu, and appears after you register.
+- **Sharing an event:**
+  - Paste a link and the details fill in.
+  - Every event is checked before it shows up, through the admin review
+    queue.
+- **What's new:**
+  - Updates and Guides segments.
+  - Each post shows a date, a Founders title and one line.
+- **The release sheet:** shown once after a big release. The mark, a title,
+  three features, and Continue.
+- **A guide:**
+  - A reading page: a read-time line, a big title, short steps.
+  - A button at the end opens the composer. Guides appear in context, so
+    this one also opens from the composer.
 
 ## To design, in order
 
