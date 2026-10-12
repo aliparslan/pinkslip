@@ -5,6 +5,7 @@ import { StyleSheet } from "react-native-unistyles";
 import {
   Badge, Button, Chip, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket,
 } from "../../ui";
+import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -16,7 +17,15 @@ const facts = [
 export function RedesignGallery() {
   const [chip, setChip] = useState("Remote");
   const [plan, setPlan] = useState("monthly");
+  const redesign = useRedesign();
+  const [torn, setTorn] = useState(false);
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <Section title="Screens" flush>
+      <ListGroup footer="Jobs and the job page. Dev builds only.">
+        <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
+      </ListGroup>
+    </Section>
+
     <Section title="Type">
       <Text role="largeTitle">Jobs</Text>
       <Text role="title1">Pro</Text>
@@ -69,7 +78,8 @@ export function RedesignGallery() {
     </Section>
 
     <Section title="Ticket">
-      <Ticket rows={facts} stub="Posted Oct 9 · Rolling deadline · via Greenhouse" />
+      <Ticket rows={facts} stub="Posted Oct 9 · Rolling deadline · via Greenhouse" torn={torn} />
+      <Button size="small" onPress={() => setTorn(!torn)}>{torn ? "Reset" : "Tear the stub"}</Button>
       <Text role="footnote" tone="ink-3">After Apply</Text>
       <Ticket rows={facts} torn />
     </Section>

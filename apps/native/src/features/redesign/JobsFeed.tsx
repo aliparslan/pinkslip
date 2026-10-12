@@ -1,0 +1,173 @@
+import { feedParams, type FeedSearch } from "@pinkslip/core/feed-criteria";
+import { isFreshJobTiming } from "@pinkslip/core/job-timing";
+import { timeAgo } from "@pinkslip/core/utils";
+import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
+import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
+import { FlashList } from "@shopify/flash-list";
+import { router } from "expo-router";
+import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { Menu, SwipeRow, toast, usePullToRefresh } from "../../kit";
+import { Button, Chip, JobRow, SectionHeader, Text } from "../../ui";
+import { useFeedCriteria } from "../feed/Feed";
+import { setFeedSearch } from "../feed/feed-search";
+import { logoUri } from "../jobs/CompanyLogo";
+import { rowActions } from "../jobs/row-actions";
+import { useTrack } from "../jobs/track";
+import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
+import { feedSections, rowAge, rowFacts } from "./job-facts";
+
+// The poller runs every 15 minutes; past two hours it's clearly behind.
+const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+
+type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
+
+/**
+ * Jobs, redesigned (Take A): the feed grouped into "New today" and "Earlier
+ * this week", two-line rows, and quick filters under the search field. Rows
+ * keep today's full swipes and long-press menu.
+ */
+export function JobsFeed() {
+  const { theme } = useUnistyles();
+  const { search, preferences, available, defaults } = useFeedCriteria();
+  const params = useMemo(() => feedParams(search, available, defaults), [search, available, defaults]);
+  const feed = useFeed(params, preferences.isSuccess);
+  const stats = useStats();
+  const viewed = useViewedJobs();
+  const { actions, onOpen } = useJobActions("feed");
+  const track = useTrack();
+
+  const jobs = useMemo(() => feed.data?.pages.flatMap((page) => page.jobs) ?? [], [feed.data]);
+  const items = useMemo(() => {
+    const sections = feedSections(jobs);
+    return sections.flatMap<Item>((section, index) => [
+      // The last section is still filling while more pages are left, so it has no count yet.
+      { kind: "section", key: `section-${section.title}`, title: section.title,
+        count: index === sections.length - 1 && feed.hasNextPage ? undefined : section.jobs.length },
+      ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
+    ]);
+  }, [jobs, feed.hasNextPage]);
+
+  // One "displayed" event per fresh first page, as the web sends.
+  const firstPageAt = feed.data?.pages.length === 1 ? feed.dataUpdatedAt : 0;
+  const firstPageCount = feed.data?.pages[0]?.jobs.length ?? 0;
+  useEffect(() => {
+    if (firstPageAt && firstPageCount > 0) track("job_displayed", { type: "feed", properties: { count: firstPageCount } });
+  }, [firstPageAt, firstPageCount, track]);
+
+  useEffect(() => {
+    if (feed.isRefetchError) toast.error("Couldn't refresh jobs.", { dedupeKey: "feed-refresh" });
+  }, [feed.isRefetchError]);
+
+  const open = (job: RowJob) => {
+    onOpen(job);
+    router.push({ pathname: "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } });
+  };
+  const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
+  const pull = usePullToRefresh(refresh);
+  const loadMore = () => {
+    if (!feed.hasNextPage || feed.isFetchingNextPage) return;
+    void feed.fetchNextPage().then((result) => {
+      if (result.isFetchNextPageError) toast.error("Couldn't load more jobs.", { dedupeKey: "feed-more", action: { label: "Retry", run: () => void feed.fetchNextPage() } });
+    });
+  };
+
+  const lastPolled = stats.data?.lastPolled;
+  const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
+  const header = <View>
+    <QuickFilters search={search} stages={available} />
+    {stale && lastPolled ? <View style={styles.stale}>
+      <WarningCircle size={16} color={theme.ui.color["ink-3"]} />
+      <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
+    </View> : null}
+  </View>;
+
+  if (feed.isPending) {
+    return <ScrollView style={styles.fill} contentInsetAdjustmentBehavior="automatic">
+      {header}
+      <View style={styles.loading}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
+    </ScrollView>;
+  }
+  if (feed.isError && !feed.data) {
+    return <ScrollView style={styles.fill} contentInsetAdjustmentBehavior="automatic">
+      {header}
+      <Empty title="Jobs didn't load" message="Check your connection and try again."
+        action={<Button size="small" pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} />
+    </ScrollView>;
+  }
+
+  const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
+  return <FlashList data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+    contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
+    renderItem={({ item }) => item.kind === "section"
+      ? <SectionHeader title={item.title} trailing={item.count === undefined ? undefined : String(item.count)} />
+      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} onPress={open} />}
+    onEndReached={loadMore} onEndReachedThreshold={0.6}
+    refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
+    ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
+      {feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
+    </View> : null}
+    ListEmptyComponent={search.q
+      ? <Empty title="No matches" message="Try a different company, title or city."
+        action={<Button size="small" onPress={() => setFeedSearch({ ...search, q: undefined })}>Clear search</Button>} />
+      : <Empty title={refined ? "Nothing matches these filters" : "No jobs right now"}
+        message={refined ? undefined : "New roles show up here as they're posted."}
+        action={refined
+          ? <Button size="small" onPress={() => setFeedSearch({})}>Clear filters</Button>
+          : <Button size="small" icon={ArrowClockwise} pending={feed.isRefetching} onPress={() => void refresh()}>Refresh</Button>} />} />;
+}
+
+function FeedRow({ job, viewed, actions, onPress }: { job: RowJob; viewed: boolean; actions: JobActions; onPress: (job: RowJob) => void }) {
+  const { leading, trailing, menu } = rowActions(job, actions, viewed);
+  return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
+    <Menu items={menu} openOn="longPress" fill>
+      <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}
+        stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
+        unread={!viewed && isFreshJobTiming(job)}
+        logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
+        actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))}
+        onPress={() => onPress(job)} />
+    </Menu>
+  </SwipeRow>;
+}
+
+const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
+
+/** One tap each: Remote, $100K+, and a chip per stage when the search covers
+ * more than one. Everything else is in Edit search. */
+function QuickFilters({ search, stages }: { search: FeedSearch; stages: readonly string[] }) {
+  const toggle = (key: "loc" | "min" | "stage", value: string | number) => {
+    const next: FeedSearch = { ...search };
+    if (next[key] === value) delete next[key];
+    else Object.assign(next, { [key]: value });
+    setFeedSearch(next);
+  };
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+    <Chip label="Remote" selected={search.loc === "remote"} onPress={() => toggle("loc", "remote")} />
+    <Chip label="$100K+" selected={search.min === 100} onPress={() => toggle("min", 100)} />
+    {stages.length > 1 ? stages.map((stage) =>
+      <Chip key={stage} label={stageLabel(stage)} selected={search.stage === stage} onPress={() => toggle("stage", stage)} />) : null}
+  </ScrollView>;
+}
+
+function Empty({ title, message, action }: { title: string; message?: string; action?: ReactNode }) {
+  return <View style={styles.empty}>
+    <Text role="title2" align="center">{title}</Text>
+    {message ? <Text role="subhead" tone="ink-2" align="center">{message}</Text> : null}
+    {action}
+  </View>;
+}
+
+const styles = StyleSheet.create((theme) => ({
+  fill: { flex: 1, backgroundColor: theme.ui.color.bg },
+  chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["2"] },
+  stale: {
+    flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"],
+    marginHorizontal: theme.ui.size.gutter, marginTop: theme.ui.space["2"],
+  },
+  loading: { paddingVertical: theme.ui.space["10"] },
+  footer: { alignItems: "center", paddingTop: theme.ui.space["8"], paddingBottom: theme.ui.space["10"] },
+  empty: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"], paddingVertical: theme.ui.space["10"] },
+}));

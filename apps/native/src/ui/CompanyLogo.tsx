@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Image, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Text } from "./Text";
@@ -15,9 +16,11 @@ export interface CompanyLogoProps {
  * logo keeps its edge on graphite. 32pt in rows (8 radius), 48 on a page (12). */
 export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps) {
   styles.useVariants({ size });
-  if (uri) {
+  // A logo that fails to load falls back to the letter.
+  const [failed, setFailed] = useState<string | null>(null);
+  if (uri && failed !== uri) {
     return <View style={[styles.tile, styles.white]} accessibilityElementsHidden>
-      <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+      <Image source={{ uri }} style={styles.image} resizeMode="contain" onError={() => setFailed(uri)} />
     </View>;
   }
   return <View style={[styles.tile, color ? { backgroundColor: color } : styles.blank]} accessibilityElementsHidden>

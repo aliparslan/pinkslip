@@ -1,5 +1,7 @@
 import { Fragment, useState } from "react";
-import { ImageBackground, View, type LayoutChangeEvent } from "react-native";
+import { CaretRight, CheckCircle } from "phosphor-react-native";
+import { ImageBackground, Pressable, View, type LayoutChangeEvent } from "react-native";
+import Animated, { Easing, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Text } from "./Text";
@@ -7,6 +9,12 @@ import { Text } from "./Text";
 export interface TicketFact {
   label: string;
   value: string;
+  /** A check after the value: it matches your saved search. */
+  matched?: boolean;
+  /** A quieter line under the value ("Seattle, Austin and 3 more"). */
+  detail?: string;
+  /** Makes the detail line a button with a chevron (the full list of places). */
+  onPress?: () => void;
 }
 
 export type TicketBackdrop = "bg" | "screen-grouped" | "bg-elev";
@@ -32,15 +40,12 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProp
   return <View style={[styles.ticket, torn && styles.tornTicket, torn && styles.tornSpace]} onLayout={onLayout}>
     <Grain torn={torn} />
     {rows.map((row, index) => <View key={index} style={[styles.row, index > 0 && styles.ruled]}>
-      {row.map((fact) => <View key={fact.label} style={styles.fact}>
-        <Text role="footnote" tone="ink-3">{fact.label}</Text>
-        <Text weight="medium">{fact.value}</Text>
-      </View>)}
+      {row.map((fact) => <Fact key={fact.label} fact={fact} />)}
     </View>)}
-    {stub && !torn ? <Fragment>
+    {stub && !torn ? <Animated.View exiting={tearOff}>
       <Perforation width={width} color={holeColor} />
       <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>
-    </Fragment> : null}
+    </Animated.View> : null}
     {torn && width > 0 ? <Fragment>
       <View style={styles.tear} pointerEvents="none">
         <Svg width={width} height={TEAR_STRIP}>
@@ -52,6 +57,44 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProp
       <View style={[styles.halfNotch, styles.notchRight, { backgroundColor: holeColor }]} pointerEvents="none" />
     </Fragment> : null}
   </View>;
+}
+
+function Fact({ fact }: { fact: TicketFact }) {
+  const { theme } = useUnistyles();
+  const value = <View style={styles.value}>
+    <View style={styles.shrink}>
+      <Text weight="medium" accessibilityLabel={fact.matched ? `${fact.value}, matches your search` : undefined}>{fact.value}</Text>
+    </View>
+    {fact.matched ? <CheckCircle size={16} color={theme.ui.color["ink-3"]} /> : null}
+  </View>;
+  const detail = fact.detail ? <View style={styles.detail}>
+    <Text role="subhead" tone="ink-2" flex>{fact.detail}</Text>
+    {fact.onPress ? <CaretRight size={14} weight="bold" color={theme.ui.color["ink-3"]} /> : null}
+  </View> : null;
+  return <View style={styles.fact}>
+    <Text role="footnote" tone="ink-3">{fact.label}</Text>
+    {value}
+    {detail && fact.onPress
+      ? <Pressable accessibilityRole="button" accessibilityLabel={`${fact.detail}, show all`} onPress={fact.onPress}
+        style={({ pressed }) => pressed && styles.pressed}>{detail}</Pressable>
+      : detail}
+  </View>;
+}
+
+const TEAR_MS = 360;
+
+/** The stub tearing off on Apply: it drops and tips as it goes, falling
+ * faster as it leaves (gravity, so ease-in), and fades on the way. */
+function tearOff() {
+  "worklet";
+  const fall = { duration: TEAR_MS, easing: Easing.in(Easing.quad) };
+  return {
+    initialValues: { opacity: 1, transform: [{ translateY: 0 }, { rotate: "0deg" }] },
+    animations: {
+      opacity: withTiming(0, { duration: TEAR_MS, easing: Easing.in(Easing.cubic) }),
+      transform: [{ translateY: withTiming(56, fall) }, { rotate: withTiming("-4deg", fall) }],
+    },
+  };
 }
 
 /** The tile's average alpha, for the sliver of torn paper the tile can't reach. */
@@ -139,6 +182,10 @@ const styles = StyleSheet.create((theme) => ({
   /** A printed rule, a full point as in the design, so it reads over the grain. */
   ruled: { borderTopWidth: 1, borderTopColor: theme.ui.color.separator },
   fact: { flex: 1, gap: 2 },
+  value: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
+  detail: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  pressed: { opacity: 0.5 },
+  shrink: { flexShrink: 1 },
   perforation: { height: DOT * 2, marginHorizontal: -theme.ui.space["4"], flexDirection: "row", alignItems: "center" },
   notch: { position: "absolute", top: DOT - NOTCH / 2, width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
   /** The top half of a side notch, down to the tear. */

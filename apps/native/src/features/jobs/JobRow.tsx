@@ -1,10 +1,10 @@
 import { formatCompactSalaryText, formatJobLocation } from "@pinkslip/core/job-format";
 import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
-import { ArrowCounterClockwise, BookmarkSimple, CheckCircle, EyeSlash, X } from "phosphor-react-native";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu, SwipeRow, Text, type MenuItem, type SwipeAction } from "../../kit";
+import { Menu, SwipeRow, Text } from "../../kit";
 import { CompanyLogo } from "./CompanyLogo";
+import { rowActions } from "./row-actions";
 import type { JobActions, RowJob } from "./useJobActions";
 
 export interface JobRowProps {
@@ -27,35 +27,13 @@ export function JobRow({ job, viewed = false, contextLabel, onPress, actions }: 
   const location = formatJobLocation(job.location);
   const salary = formatCompactSalaryText(job.salary?.trim() ? job.salary : null);
   const fresh = !contextLabel && !viewed && isFreshJobTiming(job);
-  const saved = Boolean(job.saved);
-  const applied = Boolean(job.applied);
-  const { save, unsave, markApplied, unmarkApplied, toggleRead, hide, block } = actions;
-
-  // The feed's right swipe toggles Save; Library's moves a saved job to applied.
-  const leading: SwipeAction | null = save && !saved ? { label: "Save", icon: BookmarkSimple, tone: "accent", run: () => save(job) }
-    : save && unsave && saved ? { label: "Unsave", icon: BookmarkSimple, tone: "neutral", run: () => unsave(job) }
-    : markApplied && !applied ? { label: "Applied", icon: CheckCircle, tone: "accent", removes: true, run: () => markApplied(job) } : null;
-  const trailing: SwipeAction | null = hide ? { label: "Hide", icon: EyeSlash, tone: "bad", removes: true, run: () => hide(job) }
-    : unsave && saved ? { label: "Remove", icon: X, tone: "bad", removes: true, run: () => unsave(job) }
-    : unmarkApplied && applied ? { label: "Didn't apply", icon: ArrowCounterClockwise, tone: "neutral", removes: true, run: () => unmarkApplied(job) } : null;
-
-  const menu: (MenuItem | false | undefined)[] = [
-    save && !saved && { id: "save", title: "Save", icon: "bookmark", onSelect: () => save(job) },
-    unsave && saved && { id: "unsave", title: "Remove from saved", icon: "bookmark.slash", onSelect: () => unsave(job) },
-    markApplied && !applied && { id: "applied", title: "Mark as applied", icon: "checkmark.circle", onSelect: () => markApplied(job) },
-    unmarkApplied && applied && { id: "unapplied", title: "I didn't apply", icon: "arrow.uturn.backward", onSelect: () => unmarkApplied(job) },
-    toggleRead && { id: "read", title: viewed ? "Mark as unread" : "Mark as read", icon: viewed ? "envelope.badge" : "envelope.open", onSelect: () => toggleRead(job, !viewed) },
-    hide && { id: "hide", title: "Hide", icon: "eye.slash", onSelect: () => hide(job) },
-    block && { id: "block", title: "Block for everyone", icon: "nosign", destructive: true, onSelect: () => block(job) },
-  ];
-
-  const a11yActions = menu.filter((item): item is MenuItem => Boolean(item));
+  const { leading, trailing, menu } = rowActions(job, actions, viewed);
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Menu items={menu} openOn="longPress" fill>
       <Pressable onPress={() => onPress(job)} style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         accessibilityRole="button" accessibilityLabel={`${job.title} at ${job.company_name}${fresh ? ", new" : ""}`}
-        accessibilityActions={a11yActions.map((action) => ({ name: action.id, label: action.title }))}
-        onAccessibilityAction={(event) => a11yActions.find((action) => action.id === event.nativeEvent.actionName)?.onSelect()}>
+        accessibilityActions={menu.map((action) => ({ name: action.id, label: action.title }))}
+        onAccessibilityAction={(event) => menu.find((action) => action.id === event.nativeEvent.actionName)?.onSelect()}>
         <CompanyLogo name={job.company_name} domain={job.company_domain} size={24} />
         <View style={styles.body}>
           <View style={styles.meta}>

@@ -20,17 +20,21 @@ export interface JobRowProps {
   logo: Omit<CompanyLogoProps, "size">;
   onPress?: () => void;
   onLongPress?: () => void;
+  /** The row's menu again, for VoiceOver's actions rotor. */
+  actions?: { id: string; label: string; run: () => void }[];
 }
 
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
 /** The two-line job row: title and age, then company and facts. At least 64pt,
  * with the text on the 60 line and the separator starting there. */
-export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
   const trailing = stage ? stageLabels[stage] : age;
   const label = [unread ? "New" : null, title, company, facts, trailing].filter(Boolean).join(", ");
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
+    accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
+    onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
     <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View>
     <View style={styles.logo}><CompanyLogo {...logo} /></View>

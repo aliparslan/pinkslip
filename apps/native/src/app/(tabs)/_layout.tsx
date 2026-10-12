@@ -1,10 +1,16 @@
+import { usePathname } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useUnistyles } from "react-native-unistyles";
+import { useRedesign } from "../../features/redesign/flag";
 
-/** The system tab bar: Jobs, Library, You, each with its own stack. */
+/** The system tab bar: Jobs, Library, You, each with its own stack. The
+ * redesigned job page pins Save and Apply where the tab bar sits, so the bar
+ * steps aside there. */
 export default function TabsLayout() {
   const { theme } = useUnistyles();
-  return <NativeTabs tintColor={theme.colors.accent}>
+  const redesign = useRedesign();
+  const onJobPage = /^\/jobs\/[^/]+$/.test(usePathname());
+  return <NativeTabs tintColor={redesign ? theme.ui.color.ink : theme.colors.accent} hidden={redesign && onJobPage}>
     <NativeTabs.Trigger name="(jobs)">
       <NativeTabs.Trigger.Icon sf={{ default: "briefcase", selected: "briefcase.fill" }} />
       <NativeTabs.Trigger.Label>Jobs</NativeTabs.Trigger.Label>

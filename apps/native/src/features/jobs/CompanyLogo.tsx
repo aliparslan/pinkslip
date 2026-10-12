@@ -9,6 +9,12 @@ function hostname(domain: string | null | undefined): string | null {
   return host || null;
 }
 
+/** The API's logo proxy for a company's site, or null without one. */
+export function logoUri(domain: string | null | undefined): string | null {
+  const host = hostname(domain);
+  return host ? `${API_URL}/logo?domain=${encodeURIComponent(host)}` : null;
+}
+
 /** The company's logo on a white tile (both modes), through the API's logo
  * proxy; initials when there's none. The image carries its own white
  * background so the two clip as one layer, with no light fringe at the
@@ -25,7 +31,7 @@ export function CompanyLogo({ name, domain, size = 24 }: { name: string; domain?
   return <View style={[styles.tile, { width: size, height: size, borderRadius: radius }, !showImage && styles.blank]}
     accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
     {showImage
-      ? <Image source={{ uri: `${API_URL}/logo?domain=${encodeURIComponent(host)}` }} style={[styles.image, { width: size, height: size, borderRadius: radius }]} onError={() => setFailed(host)} />
+      ? <Image source={{ uri: logoUri(host)! }} style={[styles.image, { width: size, height: size, borderRadius: radius }]} onError={() => setFailed(host)} />
       : <Text style={[styles.mark, { fontSize: size * 0.4 }]}>{companyMark(name || "?")}</Text>}
     {outlined && <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.outline, { borderRadius: radius }]} />}
   </View>;
