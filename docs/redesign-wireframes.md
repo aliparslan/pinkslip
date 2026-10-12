@@ -564,6 +564,36 @@ On the Paper page "Search and companies · Oct 12" (sheet:
   Its rows drop the logo and company name, since every row is the same
   company.
 
+## Built from Paper (2026-10-12)
+
+All in the redesign build only (development and the owner's phone build).
+
+- **Tab bar C** (7440604, 227a6b6): our own floating pill of Liquid Glass
+  (expo-glass-effect; solid paper before iOS 26), icons only, the selected
+  tab in an oval with its Fill icon, You as your initials. Tapping the
+  current tab scrolls to the top. Screens that aren't redesigned yet
+  (Library, You) end above it.
+- **Phosphor everywhere** (7440604): `shared/icons.ts` names Phosphor only,
+  and the iOS Icon draws it; long-press menus are text only. Tracker is Path.
+- **Your search** (e7f2170): our sheet (`ui/Sheet.tsx`: floats 8pt in, 40pt
+  corners, resizes between steps, drag down or tap outside to close) with
+  the search on a ticket. Each box steps into its choice; Pay from says
+  "Soon" until the saved search has a pay floor.
+- **Search** (0201d78): Jobs has its own header with the field beside the
+  filter button; typing narrows the feed and ends with "Search everything".
+  The Search tab has its own field at the top, recent searches, matching
+  companies (one row per company) and every open job.
+- **Company page** (0201d78): opened from "Stripe ›" on the job page or a
+  Search result. Follow says "Soon"; Careers site opens the website; Jobs
+  merges every job source the company has, "Fits your search" first.
+  People and Events say they're coming.
+- **Apply** (417d9dc): without assisted fill, Apply opens the posting and
+  "Did you apply?" asks on return in our sheet. With it, "Apply at …"
+  shows what the form will be filled with, each row opening where it's
+  changed.
+- **Job page top bar** (9d329a5): back, and share with ⋯ in one pill, in
+  our icons; the ⋯ menu is the system's, text only.
+
 ## Next
 
 - **Tracker** (replacing Library), then You. Tracker stages need an API to
