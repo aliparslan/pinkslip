@@ -351,11 +351,15 @@ export const uiDark = {
   "--ui-image-outline": "oklch(1 0 0 / 0.14)",
   // The ticket's paper grain and the punch card's punched holes. Grain lifts
   // graphite slightly, as in the Paper renders (about +9 on the paper).
-  "--ui-grain": "oklch(0.9 0.01 70 / 0.3)",
+  "--ui-grain": "oklch(0.9 0.01 70 / 0.2)",
   "--ui-shadow-card": "0px 1px 1px oklch(0 0 0 / 0.5), 0px 10px 18px -12px oklch(0 0 0 / 0.7)",
-  // A punched hole: the card's edge shades the top inside, and the far wall
-  // catches a little light along the bottom.
-  "--ui-shadow-hole": "inset 0px 3px 3px oklch(0 0 0 / 0.75), inset 0px -1px 0px oklch(1 0 0 / 0.1)",
+  // A punched hole looks through the card to the surface below, which the
+  // card shades: darkest under the top edge, lifting toward the bottom, with
+  // the cut's lower lip catching a little light.
+  "--ui-hole-top": "oklch(0 0 0)",
+  "--ui-hole-mid": "oklch(0.155 0.004 286)",
+  "--ui-hole-bottom": "oklch(0.263 0.011 286)",
+  "--ui-shadow-hole": "inset 0px 3px 3px oklch(0 0 0 / 1), 0px 1px 0px oklch(1 0 0 / 0.1)",
 } as const;
 
 export const uiLight = {
@@ -383,7 +387,10 @@ export const uiLight = {
   "--ui-image-outline": "oklch(0 0 0 / 0.1)",
   "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
   "--ui-shadow-card": "0px 1px 1px oklch(0.33 0.025 50 / 0.06), 0px 10px 18px -12px oklch(0.33 0.025 50 / 0.28)",
-  "--ui-shadow-hole": "inset 0px 3px 3px oklch(0.25 0.03 40 / 0.42), inset 0px -1px 0px oklch(1 0 0 / 0.95)",
+  "--ui-hole-top": "oklch(0.669 0.014 75)",
+  "--ui-hole-mid": "oklch(0.807 0.011 77)",
+  "--ui-hole-bottom": "oklch(0.881 0.009 78)",
+  "--ui-shadow-hole": "inset 0px 3px 3px oklch(0.25 0.03 40 / 0.5), inset 0px -1px 1px oklch(1 0 0 / 0.55)",
 } as const;
 
 /** Increased contrast on dark: brighter secondary ink and lines. */
@@ -426,12 +433,14 @@ export const uiRadius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
 
 /**
  * Fixed sizes. A job row is two 20pt lines with a 40pt logo exactly their
- * height, so row text starts on the 68 line (16 gutter + 40 logo + 12), and
- * separators are inset to it. Buttons are Apple's 50.
+ * height. As in Mail, the unread dot sits inside the 16 margin and the logo
+ * follows it: 16 margin + 16 dot slot + 40 logo + 12 puts row text and
+ * separators on the 84 line. Buttons are Apple's 50.
  */
 export const uiSize = {
   gutter: 16,
-  keyline: 68,
+  unreadSlot: 16,
+  keyline: 84,
   jobRow: 64,
   listRow: 44,
   button: 50,

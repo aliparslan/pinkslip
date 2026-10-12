@@ -19,7 +19,7 @@ export interface PunchCardProps {
   /** "Resets Monday", "Resets at midnight", "No limit on Pro". */
   note?: string;
   allowances: Allowance[];
-  /** The colour behind the card, which shows through the punched holes and the cut corner. */
+  /** The colour behind the card, which shows through the cut corner. */
   backdrop?: "screen-grouped" | "bg";
 }
 
@@ -53,7 +53,7 @@ export function PunchCard({ title, note, allowances, backdrop = "screen-grouped"
       <Text role="title2">{title}</Text>
       {note ? <Text role="subhead" tone="ink-3">{note}</Text> : null}
     </View>
-    {allowances.map((allowance) => <AllowanceRow key={allowance.label} allowance={allowance} stacked={stacked} backdrop={backdrop} />)}
+    {allowances.map((allowance) => <AllowanceRow key={allowance.label} allowance={allowance} stacked={stacked} />)}
     <Svg width={CORNER} height={CORNER} style={styles.corner} pointerEvents="none">
       <Path d={`M0 0H${CORNER}V${CORNER}Z`} fill={theme.ui.color[backdrop]} />
     </Svg>
@@ -62,9 +62,7 @@ export function PunchCard({ title, note, allowances, backdrop = "screen-grouped"
 
 const CORNER = 24;
 
-type Backdrop = NonNullable<PunchCardProps["backdrop"]>;
-
-function AllowanceRow({ allowance, stacked, backdrop }: { allowance: Allowance; stacked: boolean; backdrop: Backdrop }) {
+function AllowanceRow({ allowance, stacked }: { allowance: Allowance; stacked: boolean }) {
   const layout = layoutOf(allowance);
   const { label, used, limit } = allowance;
   const over = limit !== null && used > limit ? used - limit : 0;
@@ -81,7 +79,7 @@ function AllowanceRow({ allowance, stacked, backdrop }: { allowance: Allowance; 
       <View style={styles.track}><View style={[styles.fillBar, { width: `${Math.min(100, (used / (limit as number)) * 100)}%` }]} /></View>
     </View>;
   }
-  const holes = <Holes limit={limit as number} used={used} over={over} backdrop={backdrop} />;
+  const holes = <Holes limit={limit as number} used={used} over={over} />;
   if (!stacked) {
     return <View style={styles.inline} accessible accessibilityLabel={a11y}>
       <View style={styles.labels}>
@@ -97,9 +95,9 @@ function AllowanceRow({ allowance, stacked, backdrop }: { allowance: Allowance; 
   </View>;
 }
 
-/** Rows of ten, in groups of five. Punched holes go through the card to the
- * colour behind it; the rest are printed pink spots waiting for the punch. */
-function Holes({ limit, used, over, backdrop }: { limit: number; used: number; over: number; backdrop: Backdrop }) {
+/** Rows of ten, in groups of five. Punched holes look through the card to the
+ * shaded surface below it; the rest are pink rings waiting for the punch. */
+function Holes({ limit, used, over }: { limit: number; used: number; over: number }) {
   const rows: number[][] = [];
   for (let start = 0; start < limit; start += 10) {
     rows.push(Array.from({ length: Math.min(10, limit - start) }, (_, i) => start + i));
@@ -107,14 +105,16 @@ function Holes({ limit, used, over, backdrop }: { limit: number; used: number; o
   return <View style={styles.rows}>
     {rows.map((row, r) => <View key={r} style={styles.holeRow}>
       {[row.slice(0, 5), row.slice(5)].filter((group) => group.length > 0).map((group, g) =>
-        <View key={g} style={styles.group}>{group.map((i) => <Hole key={i} punched={i < used} backdrop={backdrop} />)}</View>)}
+        <View key={g} style={styles.group}>{group.map((i) => <Hole key={i} punched={i < used} />)}</View>)}
       {over > 0 && r === rows.length - 1 ? <Text role="subhead" tone="ink-2">+{over}</Text> : null}
     </View>)}
   </View>;
 }
 
-function Hole({ punched, backdrop }: { punched: boolean; backdrop: Backdrop }) {
+function Hole({ punched }: { punched: boolean }) {
   const { theme } = useUnistyles();
+  // Passed inline: Unistyles' stylesheet drops the experimental gradient.
+  const depth = { experimental_backgroundImage: `linear-gradient(180deg, ${theme.ui.color["hole-top"]} 0%, ${theme.ui.color["hole-mid"]} 60%, ${theme.ui.color["hole-bottom"]} 100%)` };
   // A spot punched while the card is on screen gives a small press, as a
   // punch would; holes already punched when it appears stay still.
   const scale = useSharedValue(1);
@@ -125,7 +125,7 @@ function Hole({ punched, backdrop }: { punched: boolean; backdrop: Backdrop }) {
   }, [punched, scale]);
   const press = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return punched
-    ? <Animated.View style={[styles.hole, styles.punched, { backgroundColor: theme.ui.color[backdrop] }, press]} />
+    ? <Animated.View style={[styles.hole, styles.punched, depth, press]} />
     : <Animated.View style={[styles.hole, styles.open, press]} />;
 }
 
@@ -148,8 +148,8 @@ const styles = StyleSheet.create((theme) => ({
   holeRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["4"] },
   group: { flexDirection: "row", gap: theme.ui.space["2"] },
   hole: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full },
-  punched: { boxShadow: theme.ui.shadow.hole },
-  open: { borderWidth: 1.5, borderColor: theme.ui.color["accent-fill"], backgroundColor: theme.ui.color["accent-soft"] },
+  punched: { overflow: "hidden", boxShadow: theme.ui.shadow.hole },
+  open: { borderWidth: 1.5, borderColor: theme.ui.color.accent, opacity: 0.4 },
   track: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.track, overflow: "hidden" },
   fillBar: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.ink },
 }));

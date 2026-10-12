@@ -1,14 +1,13 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { usePreferences } from "@pinkslip/data";
 import { Stack } from "expo-router";
-import { ArrowCounterClockwise, BookmarkSimple, Check, CheckCircle } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet, toast } from "../../kit";
-import { Button, CompanyLogo, ListGroup, ListItem, Text, Ticket } from "../../ui";
+import { Button, CompanyLogo, Icon, ListGroup, ListItem, Text, Ticket } from "../../ui";
 import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { logoUri } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
@@ -94,7 +93,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       </View>
       <Animated.View layout={LinearTransition.duration(240)} style={styles.after}>
         {fits.length > 0 ? <View style={styles.fits}>
-          <CheckCircle size={18} color={theme.ui.color["ink-3"]} />
+          <Icon name="matches" size={18} tone="ink-3" />
           <Text role="subhead" tone="ink-2" flex>Fits your search: {fits.join(", ")}</Text>
         </View> : null}
         <View style={styles.about}>
@@ -103,16 +102,16 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
             : blocks.length > 0 ? <Description blocks={blocks} />
             : <View style={styles.noPosting}>
               <Text role="subhead" tone="ink-2">The full posting didn't come through. The original may still have it.</Text>
-              <Button size="small" icon={ArrowCounterClockwise} onPress={onRetryDescription}>Try again</Button>
+              <Button size="small" icon="refresh" onPress={onRetryDescription}>Try again</Button>
             </View>}
         </View>
       </Animated.View>
     </ScrollView>
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       {applied
-        ? <Button icon={Check} fullWidth>{appliedLabel(job)}</Button>
+        ? <Button icon="done" fullWidth>{appliedLabel(job)}</Button>
         : <>
-          <Button icon={BookmarkSimple} accessibilityLabel={saved ? "Saved. Tap to remove" : "Save job"} onPress={toggleSave}>{saved ? "Saved" : "Save"}</Button>
+          <Button icon={saved ? "saved" : "save"} accessibilityLabel={saved ? "Saved. Tap to remove" : "Save job"} onPress={toggleSave}>{saved ? "Saved" : "Save"}</Button>
           <View style={styles.primary}>
             <Button variant="primary" fullWidth disabled={closed || !job.url} onPress={apply}>{closed ? "Listing closed" : "Apply"}</Button>
           </View>

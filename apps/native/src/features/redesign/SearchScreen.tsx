@@ -1,9 +1,8 @@
 import { Stack } from "expo-router";
-import { MagnifyingGlass } from "phosphor-react-native";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces, Text, useUiFontsLoaded } from "../../ui";
+import { faces, Icon, Text, useUiFontsLoaded } from "../../ui";
 import { JobsFeed } from "./JobsFeed";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -39,7 +38,7 @@ export function SearchScreen() {
     {query
       ? <JobsFeed query={query} tab="(search)" onClearQuery={() => setQuery("")} />
       : <View style={styles.idle}>
-        <MagnifyingGlass size={28} color={theme.ui.color["ink-3"]} />
+        <Icon name="search" size={28} tone="ink-3" />
         <Text role="subhead" tone="ink-2" align="center">Titles, companies or cities</Text>
       </View>}
   </>;

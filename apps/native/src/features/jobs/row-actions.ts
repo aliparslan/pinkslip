@@ -10,12 +10,12 @@ export function rowActions(job: RowJob, actions: JobActions, viewed: boolean) {
   const applied = Boolean(job.applied);
   const { save, unsave, markApplied, unmarkApplied, toggleRead, hide, block } = actions;
 
-  const leading: SwipeAction | null = save && !saved ? { label: "Save", icon: BookmarkSimple, tone: "accent", run: () => save(job) }
-    : save && unsave && saved ? { label: "Unsave", icon: BookmarkSimple, tone: "neutral", run: () => unsave(job) }
-    : markApplied && !applied ? { label: "Applied", icon: CheckCircle, tone: "accent", removes: true, run: () => markApplied(job) } : null;
-  const trailing: SwipeAction | null = hide ? { label: "Hide", icon: EyeSlash, tone: "bad", removes: true, run: () => hide(job) }
-    : unsave && saved ? { label: "Remove", icon: X, tone: "bad", removes: true, run: () => unsave(job) }
-    : unmarkApplied && applied ? { label: "Didn't apply", icon: ArrowCounterClockwise, tone: "neutral", removes: true, run: () => unmarkApplied(job) } : null;
+  const leading: SwipeAction | null = save && !saved ? { label: "Save", icon: BookmarkSimple, symbol: "save", tone: "accent", run: () => save(job) }
+    : save && unsave && saved ? { label: "Unsave", icon: BookmarkSimple, symbol: "saved", tone: "neutral", run: () => unsave(job) }
+    : markApplied && !applied ? { label: "Applied", icon: CheckCircle, symbol: "applied", tone: "accent", removes: true, run: () => markApplied(job) } : null;
+  const trailing: SwipeAction | null = hide ? { label: "Hide", icon: EyeSlash, symbol: "hide", tone: "bad", removes: true, run: () => hide(job) }
+    : unsave && saved ? { label: "Remove", icon: X, symbol: "remove", tone: "bad", removes: true, run: () => unsave(job) }
+    : unmarkApplied && applied ? { label: "Didn't apply", icon: ArrowCounterClockwise, symbol: "undo", tone: "neutral", removes: true, run: () => unmarkApplied(job) } : null;
 
   const items: (MenuItem | false | undefined)[] = [
     save && !saved && { id: "save", title: "Save", icon: "bookmark", onSelect: () => save(job) },

@@ -402,16 +402,29 @@ size setting.
 
 - **Job rows are A · Compact**, and every row is one line each: long titles
   end in "…" and the job page shows them in full. The logo is 40, a quarter
-  radius (10), exactly the two 20pt lines; the dot sits on the logo's centre;
-  text and separators start on the 68 line.
+  radius (10), exactly the two 20pt lines. As in Mail, the unread dot starts on
+  the 16 margin (level with the logo's centre) and the logo follows it, so
+  nothing crosses the margin: text and separators start on the 84 line.
 - **Swipes are A · Capsule:** the page stays put, a grey circle grows from
   the row's edge and turns into an ink capsule with the label once letting go
   will act. One action per side.
-- **The punch card got more physical:** the card has the ticket's grain,
-  punched holes have a deeper shade at the top and a lit lower rim, and the
-  spots still to use are printed pink (soft fill, pink ring). A spot punched
-  on screen presses in. Paper still shows the earlier, quieter version.
+- **The punch card got more physical:** the card has the ticket's paper
+  texture, and a punched hole looks through to the shaded surface below
+  (option C of four studies: darkest under the top edge, lifting toward the
+  bottom; in dark mode a faint lit lower lip). The spots still to use stay
+  pink outlines. A spot punched on screen presses in. Paper still shows the
+  earlier, quieter holes.
+- **Paper texture:** the per-pixel noise read as static (it was also drawn
+  at a third of the screen's resolution). `apps/native/scripts/paper-textures.py`
+  makes seamless 256pt tiles from three layers of real paper (pulp clouds,
+  fibres, a faint tooth) at full resolution. Cotton is the default; stock and
+  recycled are in the kit to compare. Sheet:
+  `docs/port-design/redesign-kit/paper-textures-2026-10-12.png`.
+- **Icons:** SF Symbols on iOS and Phosphor Regular on the web, both from one
+  table of ideas in `shared/icons.ts` (iOS fails to compile on a symbol that
+  doesn't exist; a test checks the web names). Saved jobs use the bookmark;
+  the stage ring is only for application stages.
 
 ## Next
 
-- **Decide the icon set**, then Tracker (replacing Library), then You.
+- **Tracker** (replacing Library), then You.

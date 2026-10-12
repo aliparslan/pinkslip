@@ -2624,7 +2624,7 @@ DEPENDENCIES:
   - "ExpoRouter (from `../../../node_modules/.bun/expo-router@57.0.25+5facbb76c1f60e01/node_modules/expo-router/ios`)"
   - "ExpoSecureStore (from `../../../node_modules/.bun/expo-secure-store@57.0.4+b2864a0bdc6dca62/node_modules/expo-secure-store/ios`)"
   - "ExpoSharing (from `../../../node_modules/.bun/expo-sharing@57.0.22+b2864a0bdc6dca62/node_modules/expo-sharing/ios`)"
-  - "ExpoSymbols (from `../../../node_modules/.bun/expo-symbols@57.0.3+d3c5653a7452c3c2/node_modules/expo-symbols/ios`)"
+  - "ExpoSymbols (from `../../../node_modules/.bun/expo-symbols@57.0.3+4780997d8684ef60/node_modules/expo-symbols/ios`)"
   - "ExpoSystemUI (from `../../../node_modules/.bun/expo-system-ui@57.0.4+b2864a0bdc6dca62/node_modules/expo-system-ui/ios`)"
   - "ExpoUI (from `../../../node_modules/.bun/@expo+ui@57.0.22+b2864a0bdc6dca62/node_modules/@expo/ui/ios`)"
   - "ExpoWebBrowser (from `../../../node_modules/.bun/expo-web-browser@57.0.3+b2864a0bdc6dca62/node_modules/expo-web-browser/ios`)"
@@ -2790,7 +2790,7 @@ EXTERNAL SOURCES:
   ExpoSharing:
     :path: "../../../node_modules/.bun/expo-sharing@57.0.22+b2864a0bdc6dca62/node_modules/expo-sharing/ios"
   ExpoSymbols:
-    :path: "../../../node_modules/.bun/expo-symbols@57.0.3+d3c5653a7452c3c2/node_modules/expo-symbols/ios"
+    :path: "../../../node_modules/.bun/expo-symbols@57.0.3+4780997d8684ef60/node_modules/expo-symbols/ios"
   ExpoSystemUI:
     :path: "../../../node_modules/.bun/expo-system-ui@57.0.4+b2864a0bdc6dca62/node_modules/expo-system-ui/ios"
   ExpoUI:

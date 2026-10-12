@@ -5,12 +5,11 @@ import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
 import { Link } from "expo-router";
-import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { SwipeRow, toast, usePullToRefresh } from "../../kit";
-import { Button, Chip, JobRow, SectionHeader, Text } from "../../ui";
+import { Button, Chip, Icon, JobRow, SectionHeader, Text } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -88,7 +87,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
   const header = <View>
     {searching ? null : <QuickFilters search={search} stages={available} />}
     {stale && lastPolled ? <View style={styles.stale}>
-      <WarningCircle size={16} color={theme.ui.color["ink-3"]} />
+      <Icon name="warning" size={16} tone="ink-3" />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
     </View> : null}
   </View>;
@@ -125,7 +124,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
         message={refined ? undefined : "New roles show up here as they're posted."}
         action={refined
           ? <Button size="small" onPress={() => setFeedSearch({})}>Clear filters</Button>
-          : <Button size="small" icon={ArrowClockwise} pending={feed.isRefetching} onPress={() => void refresh()}>Refresh</Button>} />} />;
+          : <Button size="small" icon="refresh" pending={feed.isRefetching} onPress={() => void refresh()}>Refresh</Button>} />} />;
 }
 
 /** A row opens its job; long-press peeks at it with the row's actions under

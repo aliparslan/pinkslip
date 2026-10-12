@@ -1,12 +1,35 @@
+import { useSyncExternalStore } from "react";
 import { ImageBackground, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
-/** The paper texture of the ticket and the punch card: a small tile repeated
- * and tinted by mode, clipped to the paper's corners. */
+/** Seamless paper textures from scripts/paper-textures.py; `noise` is the first, per-pixel grain. */
+const textures = {
+  stock: require("../../assets/paper-stock.png"),
+  cotton: require("../../assets/paper-cotton.png"),
+  recycled: require("../../assets/paper-recycled.png"),
+  noise: require("../../assets/grain.png"),
+} as const;
+
+export type PaperTexture = keyof typeof textures;
+
+// The texture is chosen in the redesign kit while the options are compared.
+let texture: PaperTexture = "cotton";
+const listeners = new Set<() => void>();
+export function setPaperTexture(next: PaperTexture) {
+  texture = next;
+  for (const listener of listeners) listener();
+}
+export function usePaperTexture(): PaperTexture {
+  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => texture);
+}
+
+/** The paper texture of the ticket and the punch card: a tile repeated and
+ * tinted by mode, clipped to the paper's corners. */
 export function Grain({ radius, flatBottom = false }: { radius: number; flatBottom?: boolean }) {
   const { theme } = useUnistyles();
+  const current = usePaperTexture();
   return <View pointerEvents="none" style={[styles.grain, { borderRadius: radius }, flatBottom && styles.flatBottom]}>
-    <ImageBackground source={require("../../assets/grain.png")} resizeMode="repeat" style={styles.fill}
+    <ImageBackground source={textures[current]} resizeMode="repeat" style={styles.fill}
       imageStyle={{ tintColor: theme.ui.color.grain }} />
   </View>;
 }

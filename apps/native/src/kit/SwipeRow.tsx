@@ -8,12 +8,15 @@ import Animated, {
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
+import { Icon, type IconName } from "../ui/Icon";
 import { Text as UiText } from "../ui/Text";
 import { durations, easeOut, resist, settleSpring } from "./motion";
 
 export interface SwipeAction {
   label: string;
   icon: PhosphorIcon;
+  /** The same idea from the shared icon table, for the redesign's capsule. */
+  symbol?: IconName;
   /** accent: pink (save, applied); bad: red (hide, remove); neutral: grey. */
   tone: "accent" | "bad" | "neutral";
   /** The row leaves the list, so it slides away instead of springing back. */
@@ -191,10 +194,10 @@ function CapsuleUnderlay({ action, side, x, width }: { action: SwipeAction; side
   return <Animated.View pointerEvents="none" style={[styles.capsuleStrip, side === "leading" ? styles.stripLeading : styles.stripTrailing, strip]}>
     <Animated.View style={[side === "leading" ? styles.capsuleLeading : styles.capsuleTrailing, shown]}>
       <Animated.View style={[styles.circle, idle]}>
-        <action.icon size={20} color={theme.ui.color["ink-2"]} />
+        {action.symbol ? <Icon name={action.symbol} size={20} tone="ink-2" /> : <action.icon size={20} color={theme.ui.color["ink-2"]} />}
       </Animated.View>
       <Animated.View style={[styles.capsule, side === "leading" ? styles.capsuleAnchorLeading : styles.capsuleAnchorTrailing, armed]}>
-        <action.icon size={20} weight="fill" color={theme.ui.color.bg} />
+        {action.symbol ? <Icon name={action.symbol} size={18} weight="medium" tone="bg" /> : <action.icon size={20} weight="fill" color={theme.ui.color.bg} />}
         <UiText role="subhead" weight="medium" tone="bg" lines={1}>{action.label}</UiText>
       </Animated.View>
     </Animated.View>

@@ -1,7 +1,7 @@
-import { CaretRight, Check } from "phosphor-react-native";
 import { Children, Fragment, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 /** The slot for a row's leading icon, so titles line up down the card. */
@@ -58,8 +58,8 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
       {detail ? <Text role="subhead" tone="ink-3">{detail}</Text> : null}
     </View>
     {value ? <Text tone="ink-2">{value}</Text> : null}
-    {accessory === "chevron" ? <CaretRight size={16} weight="bold" color={theme.ui.color["ink-3"]} /> : null}
-    {accessory === "check" && selected ? <Check size={18} weight="bold" color={theme.ui.color.ink} /> : null}
+    {accessory === "chevron" ? <Icon name="disclosure" size={14} weight="semibold" tone="ink-3" /> : null}
+    {accessory === "check" && selected ? <Icon name="done" size={17} weight="semibold" /> : null}
     {accessory === "radio" ? <Radio selected={selected} /> : null}
   </>;
   if (!onPress) return <View style={styles.row}>{content}</View>;
@@ -71,7 +71,7 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
 export function Radio({ selected }: { selected: boolean }) {
   const { theme } = useUnistyles();
   return <View style={[styles.radio, selected ? styles.radioOn : styles.radioOff]}>
-    {selected ? <Check size={14} weight="bold" color={theme.ui.color.bg} /> : null}
+    {selected ? <Icon name="done" size={12} weight="semibold" tone="bg" /> : null}
   </View>;
 }
 

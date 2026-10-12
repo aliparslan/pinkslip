@@ -2,6 +2,7 @@ import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Path } from "react-native-svg";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export type JobStage = "saved" | "applied";
@@ -27,8 +28,9 @@ export interface JobRowProps {
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
 /** The two-line job row: title and age, then company and facts, each one line
- * so every row is the same 64pt. The logo is exactly the two lines' height and
- * the unread dot sits on its centre; text and separator start on the 68 line. */
+ * so every row is the same 64pt. The unread dot starts on the 16 margin, level
+ * with the logo's centre, and the logo (exactly the two lines' height) follows
+ * it, so nothing crosses the margin; text and separator start on the 84 line. */
 export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
   const trailing = stage ? stageLabels[stage] : age;
@@ -55,15 +57,13 @@ export function JobRow({ title, company, facts, age, stage, unread, logo, onPres
   </Pressable>;
 }
 
-/** Saved is a dashed ring; applied is a ring with its first quarter filled. */
+/** Saved is the bookmark (saving isn't a stage); applied is the stage ring
+ * with its first quarter filled, the ring that fills as an application advances. */
 function StageIcon({ stage, color }: { stage: JobStage; color: string }) {
+  if (stage === "saved") return <Icon name="saved" size={13} tone="ink-3" />;
   return <Svg width={14} height={14} viewBox="0 0 14 14">
-    {stage === "saved"
-      ? <Circle cx={7} cy={7} r={5.5} fill="none" stroke={color} strokeWidth={1.5} strokeDasharray="2.2 2" />
-      : <>
-        <Circle cx={7} cy={7} r={5.5} fill="none" stroke={color} strokeWidth={1.5} />
-        <Path d="M7 7V3.2A3.8 3.8 0 0 1 10.8 7Z" fill={color} />
-      </>}
+    <Circle cx={7} cy={7} r={5.5} fill="none" stroke={color} strokeWidth={1.5} />
+    <Path d="M7 7V3.2A3.8 3.8 0 0 1 10.8 7Z" fill={color} />
   </Svg>;
 }
 
@@ -78,9 +78,9 @@ const styles = StyleSheet.create((theme) => {
     // At least 64: larger Dynamic Type sizes grow the row instead of clipping it.
     row: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
-    gutter: { width: theme.ui.size.gutter, alignItems: "center" },
+    gutter: { width: theme.ui.size.gutter + theme.ui.size.unreadSlot, paddingLeft: theme.ui.size.gutter },
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
-    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter },
+    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter - theme.ui.size.unreadSlot },
     text: {
       flex: 1,
       minWidth: 0,

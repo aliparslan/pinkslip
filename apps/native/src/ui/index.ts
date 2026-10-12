@@ -5,6 +5,7 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from ".
 export { Chip, type ChipProps } from "./Chip";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";
+export { Icon, type IconName, type IconProps } from "./Icon";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";

@@ -1,8 +1,8 @@
-import type { Icon as PhosphorIcon } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { ActivityIndicator } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PressableScale } from "../kit/PressableScale";
+import { Icon, type IconName } from "./Icon";
 import { Text, type TextTone } from "./Text";
 
 export type ButtonVariant = "primary" | "secondary" | "plain";
@@ -12,7 +12,7 @@ export interface ButtonProps {
   /** One pink button per screen: `primary` is the thing to do. */
   variant?: ButtonVariant;
   size?: ButtonSize;
-  icon?: PhosphorIcon;
+  icon?: IconName;
   pending?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -25,7 +25,7 @@ const tones: Record<ButtonVariant, TextTone> = { primary: "accent-ink", secondar
 
 /** A capsule: `primary` is the pastel pink with dark text, `secondary` the grey
  * fill, `plain` a text button (Not now). Large is Apple's 50; small is 36. */
-export function Button({ variant = "secondary", size = "large", icon: Glyph, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
+export function Button({ variant = "secondary", size = "large", icon, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
   const { theme } = useUnistyles();
   styles.useVariants({ variant, size });
   const tone = tones[variant];
@@ -35,7 +35,7 @@ export function Button({ variant = "secondary", size = "large", icon: Glyph, pen
     accessibilityState={{ disabled: inactive, busy: pending }} disabled={inactive} onPress={onPress}
     style={fullWidth ? styles.full : styles.hug} contentStyle={[styles.root, disabled && styles.disabled]}>
     {pending ? <ActivityIndicator size="small" color={color} />
-      : Glyph ? <Glyph size={size === "large" ? 18 : 16} weight="bold" color={color} /> : null}
+      : icon ? <Icon name={icon} size={size === "large" ? 18 : 16} weight="medium" tone={tone} /> : null}
     <Text role={size === "large" ? "body" : "subhead"} weight="medium" tone={tone} lines={1}>{children}</Text>
   </PressableScale>;
 }

@@ -1,10 +1,10 @@
 import { Fragment, useState } from "react";
-import { CaretRight, CheckCircle } from "phosphor-react-native";
 import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import Animated, { Easing, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Grain } from "./Grain";
+import { Icon } from "./Icon";
 import { Text } from "./Text";
 
 export interface TicketFact {
@@ -67,11 +67,11 @@ function Fact({ fact }: { fact: TicketFact }) {
     <View style={styles.shrink}>
       <Text weight="medium" accessibilityLabel={fact.matched ? `${fact.value}, matches your search` : undefined}>{fact.value}</Text>
     </View>
-    {fact.matched ? <CheckCircle size={16} color={theme.ui.color["ink-3"]} /> : null}
+    {fact.matched ? <Icon name="matches" size={16} tone="ink-3" /> : null}
   </View>;
   const detail = fact.detail ? <View style={styles.detail}>
     <Text role="subhead" tone="ink-2" flex>{fact.detail}</Text>
-    {fact.onPress ? <CaretRight size={14} weight="bold" color={theme.ui.color["ink-3"]} /> : null}
+    {fact.onPress ? <Icon name="disclosure" size={13} weight="semibold" tone="ink-3" /> : null}
   </View> : null;
   return <View style={styles.fact}>
     <Text role="footnote" tone="ink-3">{fact.label}</Text>

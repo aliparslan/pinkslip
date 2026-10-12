@@ -1,4 +1,4 @@
-import { ArrowLeft, BookmarkSimple, DotsThree, Export, EyeSlash, SlidersHorizontal } from "phosphor-react-native";
+import { BookmarkSimple, EyeSlash } from "phosphor-react-native";
 import { router } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
@@ -8,6 +8,7 @@ import {
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
+import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -22,6 +23,7 @@ export function RedesignGallery() {
   const redesign = useRedesign();
   const [torn, setTorn] = useState(false);
   const [punches, setPunches] = useState(3);
+  const texture = usePaperTexture();
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Jobs and the job page. Dev builds only.">
@@ -45,7 +47,7 @@ export function RedesignGallery() {
     <Section title="Buttons">
       <Button variant="primary" fullWidth>Apply</Button>
       <View style={styles.row}>
-        <Button icon={BookmarkSimple}>Save</Button>
+        <Button icon="save">Save</Button>
         <Button variant="plain">Not now</Button>
       </View>
       <View style={styles.row}>
@@ -54,10 +56,10 @@ export function RedesignGallery() {
         <Button size="small" disabled>Disabled</Button>
       </View>
       <View style={styles.row}>
-        <IconButton icon={ArrowLeft} label="Back" />
-        <IconButton icon={Export} label="Share" />
-        <IconButton icon={DotsThree} label="More" />
-        <IconButton icon={SlidersHorizontal} label="Edit search" />
+        <IconButton icon="back" label="Back" />
+        <IconButton icon="share" label="Share" />
+        <IconButton icon="more" label="More" />
+        <IconButton icon="editSearch" label="Edit search" />
         <Badge count={2} />
       </View>
     </Section>
@@ -73,8 +75,8 @@ export function RedesignGallery() {
       <View>
         <SectionHeader title="New today" trailing="12" />
         <SwipeRow id="demo" appearance="capsule"
-          leading={{ label: "Save", icon: BookmarkSimple, tone: "accent", run: () => toast.show({ message: "Saved (demo)" }) }}
-          trailing={{ label: "Hide", icon: EyeSlash, tone: "bad", run: () => toast.show({ message: "Hidden (demo)" }) }}>
+          leading={{ label: "Save", icon: BookmarkSimple, symbol: "save", tone: "accent", run: () => toast.show({ message: "Saved (demo)" }) }}
+          trailing={{ label: "Hide", icon: EyeSlash, symbol: "hide", tone: "bad", run: () => toast.show({ message: "Hidden (demo)" }) }}>
           <JobRow title="Software Engineer, New Grad" company="Stripe" facts="Remote · $145–175K" age="2h" unread logo={{ name: "Stripe", color: "#635BFF" }} />
         </SwipeRow>
         <JobRow title="Product Designer, New Grad" company="Ramp" facts="New York · $130–160K" age="5h" unread logo={{ name: "Ramp", color: "#E8F45C" }} />
@@ -83,6 +85,13 @@ export function RedesignGallery() {
         <JobRow title="Software Engineer" company="Notion" facts="New grad · New York · $140–170K" age="3d" logo={{ name: "Notion" }} />
         <JobRow title="Data Analyst I" company="Datadog" facts="New grad · Boston · $95–120K" stage="applied" logo={{ name: "Datadog", color: "#632CA6" }} />
       </View>
+    </Section>
+
+    <Section title="Paper" flush>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        {(["stock", "cotton", "recycled", "noise"] as PaperTexture[]).map((name) =>
+          <Chip key={name} label={name} selected={texture === name} onPress={() => setPaperTexture(name)} />)}
+      </ScrollView>
     </Section>
 
     <Section title="Ticket">

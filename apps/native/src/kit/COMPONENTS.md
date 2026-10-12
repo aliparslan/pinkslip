@@ -21,6 +21,9 @@ for screens that haven't moved yet. Gallery: You → Kit → Redesign kit.
   (Saved, Applied) takes the age's place. Facts leave out the level when the
   title already says it (decided 2026-10-12; the rule belongs to the screen).
 - **CompanyLogo:** white tile with a faint outline in both modes.
+- **Icon:** an SF Symbol named from the shared table (`shared/icons.ts`);
+  `tone` and `weight` match the text beside it. Buttons, icon buttons, lists
+  and the swipe capsule take table names, not Phosphor components.
 - **Ticket:** grain (a baked tile, tuned to the Paper renders' tone), card
   shadow, 1pt printed rules, a punched perforation with half-notches on both
   edges, and a stub. `torn` shows the edge left after Apply: half-holes at the
