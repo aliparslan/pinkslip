@@ -532,6 +532,10 @@ size setting.
     torn top edge, and the selected tab gets a punched hole under it.
   - With our own bar the Search tab's field moves to the top of the screen
     (iOS 26 only puts it at the bottom for the system bar).
+- **The selected tab sits in an oval, and the pill is glass** (owner,
+  2026-10-12, after Instagram): real Liquid Glass on iOS 26 (expo-glass-effect,
+  already linked by expo-router), solid paper before it, and no white fade,
+  so rows show through as they pass under it.
 - **Picked (owner, 2026-10-12): C · Floating paper pill.** "There's really
   just one new icon, and users will know to go there." The Search tab with
   this bar is drawn on the same page.
