@@ -1,39 +1,23 @@
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { hasNoLocationPreference, NO_ROLE_PREFERENCE, roleChips, type Profile } from "@pinkslip/core/profile-fields";
-import { CAREER_STAGE_OPTIONS, ROLE_OPTIONS, type WorkMode } from "@pinkslip/domain/search-profile";
-import { useSyncExternalStore } from "react";
+import { CAREER_STAGE_OPTIONS, ROLE_OPTIONS, type CareerStage, type WorkMode } from "@pinkslip/domain/search-profile";
 
 /**
- * The search being edited in the Edit search sheet. The sheet and its pickers
- * are separate screens, so they share the draft here; Save writes it to the
- * saved search, Cancel drops it.
+ * Your search as the Your search sheet shows it (Paper "Filters A"): each box
+ * of the ticket summarised in a few words, and the small rules for changing
+ * it.
  */
-let draft: Profile | null = null;
-const listeners = new Set<() => void>();
-const emit = () => { for (const listener of listeners) listener(); };
-
-export function startDraft(profile: Profile) {
-  draft = profile;
-  emit();
-}
-
-export function changeDraft(patch: Partial<Profile>) {
-  if (!draft) return;
-  draft = { ...draft, ...patch };
-  emit();
-}
-
-export function endDraft() {
-  draft = null;
-  emit();
-}
-
-export function useDraft(): Profile | null {
-  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => draft);
-}
 
 /** "New grad, Early career": the stage names without their year ranges. */
 export const stageName = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
+
+/** The stage names for half a ticket: "New grad, Early". */
+const stageShort: Record<CareerStage, string> = {
+  internship: "Interns",
+  new_grad: "New grad",
+  early_career: "Early",
+  mid_career: "Mid",
+};
 
 /** At most two names, then "+N". */
 function few(names: string[]): string {
@@ -42,6 +26,14 @@ function few(names: string[]): string {
 
 export function stageSummary(profile: Profile): string {
   return few(CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id)).map((option) => stageName(option.id)));
+}
+
+/** The career stages for the ticket's half-width box: every stage is
+ * "Any", two fit by name, more show the first and a count. */
+export function stageTicket(profile: Profile): string {
+  const names = CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id)).map((option) => stageShort[option.id]);
+  if (names.length === CAREER_STAGE_OPTIONS.length) return "Any";
+  return names.length <= 2 ? names.join(", ") : `${names[0]} +${names.length - 1}`;
 }
 
 export function rolesSummary(profile: Profile): string {
@@ -61,6 +53,16 @@ export function citiesSummary(profile: Profile): string {
   return few(profile.location_ids.map((id) => locationLabels[id]));
 }
 
+/** Remote and the cities together: "Remote (US), NYC, SF Bay Area". */
+export function whereSummary(profile: Profile): string {
+  const remote = wantsRemote(profile);
+  const onlyRemote = remote && profile.work_modes.length === 1;
+  if (onlyRemote) return "Remote (US)";
+  if (hasNoLocationPreference(profile)) return "Anywhere in the US";
+  const cities = profile.location_ids.map((id) => locationLabels[id]);
+  return few(remote ? ["Remote (US)", ...cities] : cities);
+}
+
 export const wantsRemote = (profile: Profile) => profile.work_modes.includes("remote");
 
 /** Remote on or off. A search always keeps at least one way of working, so
@@ -72,3 +74,9 @@ export function withRemote(profile: Profile, remote: boolean): Partial<Profile> 
 }
 
 export const needsSponsorship = (profile: Profile) => profile.work_authorization === "sponsorship";
+
+/** Adds or removes one value, never leaving the list empty (null: refused). */
+export function toggled<T>(list: readonly T[], value: T): T[] | null {
+  const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+  return next.length > 0 ? next : null;
+}

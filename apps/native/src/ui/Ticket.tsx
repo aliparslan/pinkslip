@@ -16,6 +16,9 @@ export interface TicketFact {
   detail?: string;
   /** Makes the detail line a button with a chevron (the full list of places). */
   onPress?: () => void;
+  /** Makes the whole fact a button, with a chevron after its value (your
+   * search as a ticket: tap a box to change it). */
+  action?: () => void;
 }
 
 export type TicketBackdrop = "bg" | "screen-grouped" | "bg-elev";
@@ -29,11 +32,13 @@ export interface TicketProps {
   torn?: boolean;
   /** The colour behind the ticket, which shows through the holes and notches. */
   backdrop?: TicketBackdrop;
+  /** Makes the stub a button with a chevron. */
+  onStubPress?: () => void;
 }
 
 /** The job's facts as a printed ticket: faint grain, a slight lift, and a stub
  * punched along its perforation. */
-export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProps) {
+export function Ticket({ rows, stub, torn = false, backdrop = "bg", onStubPress }: TicketProps) {
   const { theme } = useUnistyles();
   const radius = theme.ui.radius.lg;
   const [width, setWidth] = useState(0);
@@ -46,7 +51,12 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProp
     </View>)}
     {stub && !torn ? <Animated.View exiting={tearOff}>
       <Perforation width={width} color={holeColor} />
-      <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>
+      {onStubPress
+        ? <Pressable onPress={onStubPress} accessibilityRole="button" style={({ pressed }) => [styles.stub, styles.stubRow, pressed && styles.pressed]}>
+          <Text role="footnote" tone="ink-3" flex>{stub}</Text>
+          <Icon name="disclosure" size={12} weight="bold" tone="ink-4" />
+        </Pressable>
+        : <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>}
     </Animated.View> : null}
     {torn && width > 0 ? <Fragment>
       <View style={styles.tear} pointerEvents="none">
@@ -68,11 +78,19 @@ function Fact({ fact }: { fact: TicketFact }) {
       <Text weight="medium" accessibilityLabel={fact.matched ? `${fact.value}, matches your search` : undefined}>{fact.value}</Text>
     </View>
     {fact.matched ? <Icon name="matches" size={16} tone="ink-3" /> : null}
+    {fact.action ? <View style={styles.push}><Icon name="disclosure" size={12} weight="bold" tone="ink-4" /></View> : null}
   </View>;
   const detail = fact.detail ? <View style={styles.detail}>
     <Text role="subhead" tone="ink-2" flex>{fact.detail}</Text>
     {fact.onPress ? <Icon name="disclosure" size={13} weight="bold" tone="ink-3" /> : null}
   </View> : null;
+  if (fact.action) {
+    return <Pressable onPress={fact.action} accessibilityRole="button" accessibilityLabel={`${fact.label}: ${fact.value}. Change`}
+      style={({ pressed }) => [styles.fact, pressed && styles.pressed]}>
+      <Text role="footnote" tone="ink-3">{fact.label}</Text>
+      {value}
+    </Pressable>;
+  }
   return <View style={styles.fact}>
     <Text role="footnote" tone="ink-3">{fact.label}</Text>
     {value}
@@ -184,5 +202,7 @@ const styles = StyleSheet.create((theme) => ({
   notchLeft: { left: -NOTCH / 2 },
   notchRight: { right: -NOTCH / 2 },
   stub: { paddingVertical: theme.ui.space["3"] },
+  stubRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  push: { marginLeft: "auto", paddingLeft: theme.ui.space["1"] },
   tear: { position: "absolute", left: 0, right: 0, bottom: -TEAR_STRIP, height: TEAR_STRIP },
 }));

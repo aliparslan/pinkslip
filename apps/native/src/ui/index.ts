@@ -3,6 +3,7 @@
 export { Badge } from "./Badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./Button";
 export { Chip, type ChipProps } from "./Chip";
+export { Choice, Choices, ChoiceSwitch, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";
 export { Icon, type IconName, type IconProps } from "./Icon";
@@ -10,6 +11,7 @@ export { IconButton, type IconButtonProps } from "./IconButton";
 export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
+export { Sheet, SheetHeader, SheetStep, useSheet, type SheetHeaderProps, type SheetProps, type SheetStepProps } from "./Sheet";
 export { TabBar, useTabBarSpace } from "./TabBar";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { Ticket, tornEdge, type TicketBackdrop, type TicketFact, type TicketProps } from "./Ticket";
