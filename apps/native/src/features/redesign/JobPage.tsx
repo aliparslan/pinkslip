@@ -19,7 +19,7 @@ import { appliedLabel, fitsYourSearch, orderedPlaces, ticketRows, ticketStub } f
  * at the bottom. Applying tears the ticket's stub off. */
 export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThread?: string }) {
   const { theme } = useUnistyles();
-  const { job, status, full, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
+  const { job, status, full, failed, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
   if (!job) {
     return <View style={styles.center}>
       <Stack.Screen options={{ title: "" }} />
@@ -31,11 +31,12 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
         </View>}
     </View>;
   }
-  return <JobView job={job} full={full} pendingDescription={pendingDescription} onRetryDescription={retryDescription} outreachThread={outreachThread} />;
+  return <JobView job={job} full={full || failed} pendingDescription={pendingDescription} onRetryDescription={retryDescription} outreachThread={outreachThread} />;
 }
 
 function JobView({ job, full, pendingDescription, onRetryDescription, outreachThread }: {
   job: DetailJob;
+  /** The full posting loaded, or failed to: either way, stop the spinner. */
   full: boolean;
   pendingDescription: boolean;
   onRetryDescription: () => void;

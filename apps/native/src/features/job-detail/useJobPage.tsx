@@ -48,6 +48,8 @@ export function useDetailJob(jobId: string) {
     status,
     /** The full posting has loaded, not just the row it was opened from. */
     full: Boolean(personal.data ?? publicJob.data),
+    /** Neither copy of the full posting came back, so stop waiting for it. */
+    failed: !personal.data && !publicJob.data && personal.isError && !publicJob.isPending,
     pendingDescription: Boolean(personal.data?.content_pending && !personal.data.description && personal.isFetching),
     retryDescription: () => void personal.refetch(),
     retry: () => { void personal.refetch(); void publicJob.refetch(); },
