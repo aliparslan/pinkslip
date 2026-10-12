@@ -268,6 +268,55 @@ after the consistency pass). They're made the same way as before: point the
 - **Still open for the build:** very dark logo tiles (Plaid's) lose their
   edge on graphite and need the image outline in dark mode.
 
+## Revisions in review (2026-10-12)
+
+On the Paper page "Revisions · Oct 12". These are options and proposed rules,
+waiting for the owner's pick.
+
+- **Level in job rows:**
+  - Proposed: line 2 drops the level when the title already says it, so place
+    and pay stop getting cut off.
+  - A short word list counts as saying it: intern, co-op, new grad,
+    graduate, junior.
+  - Vague titles keep the level: "Software Engineer", "Associate Product
+    Manager", "Software Engineer I", "Backend Engineer II".
+  - A row with no listed pay leaves pay out. It never says "Pay not listed".
+- **The applied mark, five options:**
+  - A: torn stub.
+  - B: a one-line date stamp on the stub.
+  - C: a postmark straddling the perforation.
+  - D: a check-shaped conductor's punch.
+  - E: a blind embossed seal.
+  - The current stamp sits on the facts like a sticker, and its inked date
+    reads as "2023" at real size.
+  - Lean: A. It's the end state of the stub tear that's already decided, and
+    it needs no ink texture.
+- **The punch card at any limit:**
+  - Up to 5, the holes sit beside the label.
+  - Above 5, they move under the label in rows of ten, split into fives.
+  - A limit that isn't a multiple of five ends with a short group.
+  - A card holds 30 at most. Over 30 it shows a number and a bar, and with no
+    limit just the count.
+  - If one allowance on a card stacks, they all stack, so the holes line up.
+  - Over the limit after a downgrade, the holes are all punched with "+3"
+    after them.
+  - A daily limit says "Today" and "Resets at midnight".
+- **The Plan page, two options:**
+  - A: plan rows with a radio, the iOS paywall pattern.
+  - B: a Free and Pro table with a segmented period control.
+  - Both pin the trial button and its price line to the bottom.
+  - The free line moves under the punch card as a section footer.
+  - Pro's "30 a day" is a placeholder.
+- **The alerts step:**
+  - Redrawn as a lock screen: real iOS notification styling, the system
+    font, the app icon, and a stack.
+  - The second board is the iOS prompt that follows "Turn on alerts".
+  - iOS shows that prompt only once, so "Not now" doesn't trigger it, and the
+    app can ask again later.
+- **Contact import is admin only.** It loads recruiter contacts into
+  Pinkslip's shared list, which company pages show as "from Pinkslip's list".
+  Users can't import their own contacts yet.
+
 ## Next
 
 - **The iOS tokens and kit** for Take A, in light and dark.
