@@ -1,13 +1,17 @@
-import { describe, it, expect } from "bun:test";
+import { afterEach, describe, it, expect, spyOn } from "bun:test";
+import { readdirSync } from "node:fs";
 import {
   companyPollOutcome,
   diffJobs,
+  EMPTY_SNAPSHOT_SETTLE_MS,
   fetchPollingSnapshot,
+  isSettledEmptySnapshot,
   isTrustworthyJobSnapshot,
   mergeListingContent,
   NEW_JOB_HYDRATION_CHECKPOINT_SIZE,
   NEW_JOB_HYDRATION_LIMIT_PER_COMPANY,
   nextQuarantineState,
+  pollCompany,
   NOTIFICATION_CRON_SCHEDULE,
   NOTIFICATION_MATCH_CHECKPOINT_SIZE,
   processNotificationMatchBacklog,
@@ -750,5 +754,83 @@ describe("companyPollOutcome", () => {
       "2026-10-05T12:00:00.000Z"
     );
     expect(repeated.newlyQuarantined).toBeNull();
+  });
+});
+
+describe("isSettledEmptySnapshot", () => {
+  const since = "2026-10-01T00:00:00.000Z";
+  const after = (ms: number) => new Date(Date.parse(since) + ms).toISOString();
+
+  it("believes an empty board only after it has stayed empty for a day", () => {
+    expect(isSettledEmptySnapshot(null, after(EMPTY_SNAPSHOT_SETTLE_MS))).toBe(false);
+    expect(isSettledEmptySnapshot(since, after(EMPTY_SNAPSHOT_SETTLE_MS - 1))).toBe(false);
+    expect(isSettledEmptySnapshot(since, after(EMPTY_SNAPSHOT_SETTLE_MS))).toBe(true);
+  });
+});
+
+describe("pollCompany with an empty board", () => {
+  let fetchSpy: ReturnType<typeof spyOn> | null = null;
+  afterEach(() => fetchSpy?.mockRestore());
+
+  function stubGreenhouse(jobs: unknown[]) {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () =>
+      new Response(JSON.stringify({ jobs }), { headers: { "content-type": "application/json" } })
+    ) as unknown as typeof fetch);
+  }
+
+  async function setup(emptySince: string | null) {
+    const { sqlite, db } = sqliteD1();
+    const dir = new URL("../migrations/", import.meta.url).pathname;
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
+      sqlite.run(await Bun.file(`${dir}${file}`).text());
+    }
+    sqlite.query(
+      `INSERT INTO companies (id, name, ats_type, source_type, ats_slug, empty_snapshot_since)
+       VALUES ('acme', 'Acme', 'greenhouse', 'greenhouse', 'acme-empty-test', ?)`
+    ).run(emptySince);
+    sqlite.run(
+      `INSERT INTO jobs (id, company_id, external_id, title, url, location)
+       VALUES ('j1', 'acme', '101', 'Software Engineer', 'https://example.com/101', 'Remote')`
+    );
+    const row = () => sqlite.query("SELECT * FROM companies WHERE id = 'acme'").get() as CompanyRow;
+    const job = () => sqlite.query("SELECT missed_polls, closed_at FROM jobs WHERE id = 'j1'").get() as {
+      missed_polls: number; closed_at: string | null;
+    };
+    return { db, row, job };
+  }
+
+  it("keeps erroring, and remembers when, until the board has been empty for a day", async () => {
+    const { db, row, job } = await setup(null);
+    stubGreenhouse([]);
+
+    await expect(pollCompany(row(), db)).rejects.toThrow("empty snapshot while 1 jobs are still open");
+    const since = row().empty_snapshot_since;
+    expect(since).toBeString();
+    await expect(pollCompany(row(), db)).rejects.toThrow("empty snapshot");
+    expect(row().empty_snapshot_since).toBe(since);
+    expect(job()).toEqual({ missed_polls: 0, closed_at: null });
+  });
+
+  it("closes the jobs through the usual misses once the empty board has settled", async () => {
+    const dayAgo = new Date(Date.now() - EMPTY_SNAPSHOT_SETTLE_MS - 60_000).toISOString();
+    const { db, row, job } = await setup(dayAgo);
+    stubGreenhouse([]);
+
+    await pollCompany(row(), db);
+    expect(job()).toMatchObject({ missed_polls: 1, closed_at: null });
+    await pollCompany(row(), db);
+    expect(job().closed_at).toBeString();
+  });
+
+  it("forgets the empty streak as soon as the board lists anything", async () => {
+    const { db, row, job } = await setup("2026-10-01T00:00:00.000Z");
+    stubGreenhouse([{
+      id: 101, title: "Software Engineer", absolute_url: "https://example.com/101",
+      location: { name: "Remote" }, updated_at: new Date().toISOString(), content: "", departments: [],
+    }]);
+
+    await pollCompany(row(), db);
+    expect(row().empty_snapshot_since).toBeNull();
+    expect(job()).toEqual({ missed_polls: 0, closed_at: null });
   });
 });

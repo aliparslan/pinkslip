@@ -110,6 +110,11 @@ export interface CompanyRow {
   poll_tier?: number | null;
   /** Set while a queued poll for this source is in flight. */
   poll_claimed_at?: string | null;
+  /**
+   * When the board first answered empty while Pinkslip still had open jobs for
+   * it. Cleared by any non-empty snapshot; see EMPTY_SNAPSHOT_SETTLE_MS.
+   */
+  empty_snapshot_since?: string | null;
 }
 
 export interface JobRow {

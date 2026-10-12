@@ -100,6 +100,22 @@ export const QUARANTINE_AFTER_FAILURES = 3;
 export const QUARANTINE_RETRY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * How long a board must keep answering with an empty, well-formed snapshot
+ * before Pinkslip believes it. One empty response can be upstream maintenance;
+ * a full day of them (the quarantine retry spans it) is a company that stopped
+ * hiring, and its jobs must close rather than leave the source erroring forever.
+ */
+export const EMPTY_SNAPSHOT_SETTLE_MS = 24 * 60 * 60 * 1000;
+
+export function isSettledEmptySnapshot(
+  emptySnapshotSince: string | null | undefined,
+  now: string
+): boolean {
+  if (!emptySnapshotSince) return false;
+  return Date.parse(now) - Date.parse(emptySnapshotSince) >= EMPTY_SNAPSHOT_SETTLE_MS;
+}
+
+/**
  * `quarantined_at` records when the source *first* entered quarantine and is
  * deliberately preserved across subsequent failures — it is the "broken since"
  * timestamp an admin needs, so it must not be overwritten on every retry.
@@ -848,16 +864,31 @@ export async function pollCompany(
   // jobs than we currently have open, treat it as incomplete and do NOT close the
   // missing ones (a partial page would otherwise wipe valid jobs from every
   // feed). Absent jobs are only closed after CLOSE_AFTER_MISSES consecutive
-  // misses so one bad page can't nuke the board.
-  const responseLooksComplete = pollingSnapshot.complete && isTrustworthyJobSnapshot(
-    fetchedSnapshot.length,
-    openExistingCount
-  );
-  if (pollingSnapshot.complete && fetchedSnapshot.length === 0 && openExistingCount > 0) {
+  // misses so one bad page can't nuke the board. An empty board is only believed
+  // once it has stayed empty for EMPTY_SNAPSHOT_SETTLE_MS.
+  const emptyWhileOpen = pollingSnapshot.complete
+    && fetchedSnapshot.length === 0
+    && openExistingCount > 0;
+  const settledEmpty = emptyWhileOpen
+    && isSettledEmptySnapshot(company.empty_snapshot_since, now);
+  if (emptyWhileOpen && !settledEmpty) {
+    if (!company.empty_snapshot_since) {
+      await db.prepare("UPDATE companies SET empty_snapshot_since = ? WHERE id = ?")
+        .bind(now, company.id)
+        .run();
+    }
     throw new Error(
       `Source returned an empty snapshot while ${openExistingCount} jobs are still open`
     );
   }
+  if (fetchedSnapshot.length > 0 && company.empty_snapshot_since) {
+    await db.prepare("UPDATE companies SET empty_snapshot_since = NULL WHERE id = ?")
+      .bind(company.id)
+      .run();
+  }
+  const responseLooksComplete = pollingSnapshot.complete && (
+    settledEmpty || isTrustworthyJobSnapshot(fetchedSnapshot.length, openExistingCount)
+  );
 
   // The eligibility filter above drops anything past the freshness window, so
   // `fetched` cannot answer "is this still on the board?" for an aged posting.
