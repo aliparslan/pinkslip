@@ -136,7 +136,7 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
       <Link.Trigger>
         <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
-          unread={!viewed && isFreshJobTiming(job)}
+          unread={!viewed && isFreshJobTiming(job)} seen={viewed}
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
           actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />
       </Link.Trigger>

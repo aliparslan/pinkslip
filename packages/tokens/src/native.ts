@@ -420,9 +420,7 @@ export const ui = {
       "logo-tile": "#ffffff",
       "image-outline": "rgba(255, 255, 255, 0.14)",
       grain: "rgba(226, 221, 215, 0.2)",
-      "hole-top": "#000000",
-      "hole-mid": "#0c0c0e",
-      "hole-bottom": "#24242a",
+      hole: "#060608",
     },
     light: {
       bg: "#ffffff",
@@ -452,9 +450,7 @@ export const ui = {
       "logo-tile": "#ffffff",
       "image-outline": "rgba(0, 0, 0, 0.1)",
       grain: "rgba(77, 56, 39, 0.26)",
-      "hole-top": "#9a948c",
-      "hole-mid": "#c4bfb8",
-      "hole-bottom": "#dbd7d1",
+      hole: "#242426",
     },
     contrast: {
       bg: "#0e0e10",
@@ -484,9 +480,7 @@ export const ui = {
       "logo-tile": "#ffffff",
       "image-outline": "rgba(255, 255, 255, 0.14)",
       grain: "rgba(226, 221, 215, 0.2)",
-      "hole-top": "#000000",
-      "hole-mid": "#0c0c0e",
-      "hole-bottom": "#24242a",
+      hole: "#060608",
     },
     lightContrast: {
       bg: "#ffffff",
@@ -516,27 +510,25 @@ export const ui = {
       "logo-tile": "#ffffff",
       "image-outline": "rgba(0, 0, 0, 0.1)",
       grain: "rgba(77, 56, 39, 0.26)",
-      "hole-top": "#9a948c",
-      "hole-mid": "#c4bfb8",
-      "hole-bottom": "#dbd7d1",
+      hole: "#242426",
     },
   } satisfies Record<ThemeName, Record<UiColorToken, string>>,
   shadow: {
     dark: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
-      hole: "inset 0px 3px 3px #000000, 0px 1px 0px rgba(255, 255, 255, 0.1)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.75), inset 0px -1px 0px rgba(255, 255, 255, 0.1)",
     },
     light: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
-      hole: "inset 0px 3px 3px rgba(46, 29, 23, 0.5), inset 0px -1px 1px rgba(255, 255, 255, 0.55)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.85), inset 0px -1px 0px rgba(255, 255, 255, 0.22)",
     },
     contrast: {
       card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
-      hole: "inset 0px 3px 3px #000000, 0px 1px 0px rgba(255, 255, 255, 0.1)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.75), inset 0px -1px 0px rgba(255, 255, 255, 0.1)",
     },
     lightContrast: {
       card: "0px 1px 1px rgba(64, 50, 42, 0.06), 0px 10px 18px -12px rgba(64, 50, 42, 0.28)",
-      hole: "inset 0px 3px 3px rgba(46, 29, 23, 0.5), inset 0px -1px 1px rgba(255, 255, 255, 0.55)",
+      hole: "inset 0px 3px 3px rgba(0, 0, 0, 0.85), inset 0px -1px 0px rgba(255, 255, 255, 0.22)",
     },
   } satisfies Record<ThemeName, Record<UiShadowToken, string>>,
   type: {

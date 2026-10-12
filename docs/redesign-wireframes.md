@@ -409,11 +409,11 @@ size setting.
   the row's edge and turns into an ink capsule with the label once letting go
   will act. One action per side.
 - **The punch card got more physical:** the card has the ticket's paper
-  texture, and a punched hole looks through to the shaded surface below
-  (option C of four studies: darkest under the top edge, lifting toward the
-  bottom; in dark mode a faint lit lower lip). The spots still to use stay
-  pink outlines. A spot punched on screen presses in. Paper still shows the
-  earlier, quieter holes.
+  texture, and punched holes are dark all the way through (owner,
+  2026-10-12, after trying four lighter "see-through" studies): near-black in
+  dark mode, charcoal on white so the shade under the top edge still shows,
+  with a thin lit lower edge. The spots still to use stay pink outlines. A
+  spot punched on screen presses in. Paper still shows the earlier holes.
 - **Paper texture:** the per-pixel noise read as static (it was also drawn
   at a third of the screen's resolution). `apps/native/scripts/paper-textures.py`
   makes seamless 256pt tiles from three layers of real paper (pulp clouds,

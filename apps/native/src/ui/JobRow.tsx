@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -18,6 +19,8 @@ export interface JobRowProps {
   age?: string;
   stage?: JobStage;
   unread?: boolean;
+  /** You've opened this job before. */
+  seen?: boolean;
   logo: Omit<CompanyLogoProps, "size">;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -27,31 +30,47 @@ export interface JobRowProps {
 
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
+/** `dot`: Mail's dot for new jobs you haven't opened. `quiet`: no dot; jobs
+ * you've opened step back to regular weight and lighter ink. Chosen in the
+ * redesign kit while the two are compared. */
+export type UnreadStyle = "dot" | "quiet";
+let unreadStyle: UnreadStyle = "quiet";
+const listeners = new Set<() => void>();
+export function setUnreadStyle(next: UnreadStyle) {
+  unreadStyle = next;
+  for (const listener of listeners) listener();
+}
+export function useUnreadStyle(): UnreadStyle {
+  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => unreadStyle);
+}
+
 /** The two-line job row: title and age, then company and facts, each one line
  * so every row is the same 64pt. The unread dot starts on the 16 margin, level
  * with the logo's centre, and the logo (exactly the two lines' height) follows
  * it, so nothing crosses the margin; text and separator start on the 84 line. */
-export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread, seen = false, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
+  const quiet = useUnreadStyle() === "quiet";
+  const dim = quiet && seen;
   const trailing = stage ? stageLabels[stage] : age;
   const label = [unread ? "New" : null, title, company, facts, trailing].filter(Boolean).join(", ");
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-    <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View>
+    {quiet ? <View style={styles.margin} /> : <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View>}
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={[styles.line, styles.first]}>
-        <Text role="subhead" weight="medium" lines={1} flex>{title}</Text>
+        <Text role="subhead" weight={dim ? "regular" : "medium"} tone={dim ? "ink-2" : "ink"} lines={1} flex>{title}</Text>
         {stage ? <View style={styles.stage}>
           <StageIcon stage={stage} color={theme.ui.color["ink-3"]} />
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
         </View> : age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
       </View>
       <View style={styles.line}>
-        <Text role="subhead">{company}</Text>
-        {facts ? <Text role="subhead" tone="ink-2" lines={1} flex>· {facts}</Text> : null}
+        <Text role="subhead" tone={dim ? "ink-2" : "ink"}>{company}</Text>
+        {facts ? <Text role="subhead" tone={dim ? "ink-3" : "ink-2"} lines={1} flex>· {facts}</Text> : null}
       </View>
     </View>
   </Pressable>;
@@ -79,6 +98,7 @@ const styles = StyleSheet.create((theme) => {
     row: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
     gutter: { width: theme.ui.size.gutter + theme.ui.size.unreadSlot, paddingLeft: theme.ui.size.gutter },
+    margin: { width: theme.ui.size.gutter },
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
     logo: { width: theme.ui.size.keyline - theme.ui.size.gutter - theme.ui.size.unreadSlot },
     text: {

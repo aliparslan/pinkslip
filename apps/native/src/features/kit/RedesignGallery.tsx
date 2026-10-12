@@ -9,6 +9,7 @@ import {
 import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
+import { setUnreadStyle, useUnreadStyle, type UnreadStyle } from "../../ui/JobRow";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -24,6 +25,7 @@ export function RedesignGallery() {
   const [torn, setTorn] = useState(false);
   const [punches, setPunches] = useState(3);
   const texture = usePaperTexture();
+  const unreadStyle = useUnreadStyle();
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Jobs and the job page. Dev builds only.">
@@ -85,6 +87,13 @@ export function RedesignGallery() {
         <JobRow title="Software Engineer" company="Notion" facts="New grad · New York · $140–170K" age="3d" logo={{ name: "Notion" }} />
         <JobRow title="Data Analyst I" company="Datadog" facts="New grad · Boston · $95–120K" stage="applied" logo={{ name: "Datadog", color: "#632CA6" }} />
       </View>
+    </Section>
+
+    <Section title="Unread" flush>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        {(["dot", "quiet"] as UnreadStyle[]).map((name) =>
+          <Chip key={name} label={name} selected={unreadStyle === name} onPress={() => setUnreadStyle(name)} />)}
+      </ScrollView>
     </Section>
 
     <Section title="Paper" flush>
