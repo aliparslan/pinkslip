@@ -159,6 +159,41 @@ Paper file, and it follows today's graphite dark tokens:
   so very dark logos such as Plaid's lose their edge on graphite. Use today's
   image outline on the logo tile in dark mode.
 
+## Paper objects (owner, 2026-10-11)
+
+Drawn on the Paper page "Paper objects". The owner wanted more skeuomorphism,
+but only in chosen places.
+
+- **The rule:** one paper object per screen at most. Buttons, lists and
+  controls stay flat and native.
+- **In:**
+  - **The mark: carbon copy.** A pink form and its paler copy, with printed
+    rules, a perforated stub line, a folded corner and soft shadows. This is
+    the app-icon treatment. The icon rail, tab and favicon keep today's flat
+    two-slip shape so it reads at 16px. It can also serve as the brief for the
+    commissioned logo.
+  - **The stamp:** real ink, with patchy coverage, roughened edges and a
+    slight tilt. It sits in the location row's empty half and covers no
+    facts.
+  - **The ticket:** faint paper grain, the perforation drawn as punched holes
+    (the screen colour showing through), and a slight lift off the page.
+  - **The stub tear:** on Apply, the stamp comes down, the stub tears along
+    the holes and drops into the Tracker tab, and the tab's count goes up by
+    one. Each step gets a haptic.
+  - **The punch card:** the Plan page's weekly allowance is a card with
+    5 holes, punched as they're used, and a cut corner. "2 left" stays as
+    text.
+- **Tabled:** the receipt share image for Stats and the offer envelope with
+  a green wax seal. Both are drawn for later.
+- **Paperclip: not now.** If it comes back, it's a drawn object, only where
+  something is literally attached (the resume on what you sent). It's never
+  an icon or a control, and never on the app icon.
+- **For the build:**
+  - The ink and grain use fractal noise and displacement. react-native-svg
+    doesn't support those filters, so they need Skia (which has noise shaders
+    and a displacement filter) or baked textures.
+  - Dark mode for these objects is still open.
+
 ## Next
 
 - **The iOS tokens and kit** for Take A, in light and dark.
