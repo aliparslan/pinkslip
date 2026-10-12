@@ -485,6 +485,10 @@ size setting.
 
 ### Decided after review (owner, 2026-10-12)
 
+- **Filters A is picked:** your search as a ticket, each box opening its
+  choice inside the same sheet. The Paper frames now sit over the Jobs
+  screen with bar C.
+
 - **Selected chips stay black** (ink fill, white text). The owner tried pale
   pink with black text and pink fill, then kept black. The Paper frames are
   back to black.
@@ -525,6 +529,9 @@ size setting.
     torn top edge, and the selected tab gets a punched hole under it.
   - With our own bar the Search tab's field moves to the top of the screen
     (iOS 26 only puts it at the bottom for the system bar).
+- **Picked (owner, 2026-10-12): C · Floating paper pill.** "There's really
+  just one new icon, and users will know to go there." The Search tab with
+  this bar is drawn on the same page.
 - Research: Mobbin screens of Instagram, Threads, Airbnb, Public, Fresha,
   Waymo, Opal, Cash App, Savee and Oura; Instagram tested reorganising its
   bar around Reels and messages in late 2025.
