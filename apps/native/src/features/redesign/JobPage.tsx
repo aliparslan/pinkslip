@@ -1,8 +1,8 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { usePreferences } from "@pinkslip/data";
-import { Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -45,6 +45,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const insets = useSafeAreaInsets();
   const profile = usePreferences().data?.search_profile;
   const { saved, applied, closed, toggleSave, apply, share, menu, sheets } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent });
+  const tab = useSegments()[1] ?? "(jobs)";
+  const openCompany = () => {
+    if (job.company_id) router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId: job.company_id } });
+  };
   const [placesOpen, setPlacesOpen] = useState(false);
 
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
@@ -82,9 +86,16 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.fill}
       contentContainerStyle={[styles.body, { paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
       <View style={styles.identity}>
-        <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
+        <Pressable onPress={openCompany} disabled={!job.company_id} accessibilityLabel={`${plainText(job.company_name)}, company page`}>
+          <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
+        </Pressable>
         <View style={styles.heading}>
-          <Text role="subhead" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>
+          {job.company_id
+            ? <Pressable onPress={openCompany} accessibilityRole="link" hitSlop={6} style={({ pressed }) => [styles.company, pressed && styles.pressed]}>
+              <Text role="subhead" weight="medium" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>
+              <Icon name="disclosure" size={11} weight="bold" tone="ink-3" />
+            </Pressable>
+            : <Text role="subhead" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>}
           <Text role="title2" accessibilityRole="header">{plainText(job.title)}</Text>
         </View>
       </View>
@@ -135,6 +146,8 @@ const styles = StyleSheet.create((theme) => ({
   missing: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"] },
   body: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"] },
   identity: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
+  company: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"], alignSelf: "flex-start" },
+  pressed: { opacity: 0.5 },
   heading: { flex: 1, gap: 2 },
   ticket: { marginTop: theme.ui.space["6"] },
   after: { gap: theme.ui.space["6"], marginTop: theme.ui.space["6"] },

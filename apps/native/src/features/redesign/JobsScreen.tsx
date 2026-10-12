@@ -1,30 +1,68 @@
 import { router, Stack } from "expo-router";
-import { useUnistyles } from "react-native-unistyles";
-import { faces, useUiFontsLoaded } from "../../ui";
+import { useEffect, useState } from "react";
+import { Pressable, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
+import { Icon, IconButton, SearchField, Text } from "../../ui";
 import { JobsFeed } from "./JobsFeed";
+import { rememberSearch } from "./recent-searches";
 
-/** The Jobs tab, redesigned: a large "Jobs" in Founders Grotesk and Edit
- * search (your saved search, as a sheet) at the top right. Searching is its
- * own tab. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+/** Waits for typing to pause before searching. */
+export function useDebounced(value: string, ms = SEARCH_DEBOUNCE_MS) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
+/** The Jobs tab (Paper "Tab bar · Oct 12", option C): "Jobs" in Founders,
+ * then the search field beside Your search, then the quick filters. Typing
+ * narrows the feed you're looking at, filters and all; the list ends with a
+ * way to search everything in the Search tab. */
 export function JobsScreen() {
-  const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
+  const [text, setText] = useState("");
+  const query = useDebounced(text.trim());
   return <>
-    <Stack.Screen options={{
-      title: "Jobs",
-      headerLargeTitle: true,
-      headerTintColor: theme.ui.color.ink,
-      headerLargeTitleStyle: { color: theme.ui.color.ink, fontFamily: fonts ? faces.display : undefined },
-      headerTitleStyle: { color: theme.ui.color.ink, fontFamily: fonts ? faces.textMedium : undefined },
-      contentStyle: { backgroundColor: theme.ui.color.bg },
-      unstable_headerRightItems: () => [{
-        type: "button",
-        label: "Edit search",
-        icon: { type: "sfSymbol", name: "slider.horizontal.3" },
-        accessibilityLabel: "Edit search",
-        onPress: () => router.push("/edit-search"),
-      }],
-    }} />
-    <JobsFeed />
+    <Stack.Screen options={{ headerShown: false }} />
+    <JobsFeed query={query || undefined} chips onClearQuery={() => setText("")}
+      top={<View style={styles.header}>
+        <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+        <View style={styles.row}>
+          <SearchField value={text} onChangeText={setText} placeholder="Search jobs and companies" onSubmit={() => rememberSearch(text)} />
+          <IconButton icon="editSearch" label="Your search" onPress={() => router.push("/edit-search")} />
+        </View>
+      </View>}
+      after={query ? <SearchEverything query={query} /> : null} />
   </>;
 }
+
+/** The way out of the feed: the same words across every job, company and event. */
+function SearchEverything({ query }: { query: string }) {
+  const open = () => {
+    rememberSearch(query);
+    router.navigate({ pathname: "/(tabs)/(search)/search", params: { q: query } });
+  };
+  return <Pressable onPress={open} accessibilityRole="button" style={({ pressed }) => [styles.everything, pressed && styles.pressed]}>
+    <View style={styles.circle}><Icon name="search" size={18} tone="ink-2" /></View>
+    <View style={styles.text}>
+      <Text role="subhead" weight="medium" lines={1}>Search everything for “{query}”</Text>
+      <Text role="subhead" tone="ink-2">Companies and every open job</Text>
+    </View>
+    <Icon name="disclosure" size={13} weight="bold" tone="ink-4" />
+  </Pressable>;
+}
+
+const styles = StyleSheet.create((theme) => ({
+  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"] },
+  row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  everything: {
+    flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"],
+    paddingHorizontal: theme.ui.size.gutter, paddingVertical: theme.ui.space["3"],
+  },
+  circle: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
+  text: { flex: 1 },
+  pressed: { opacity: 0.6 },
+}));

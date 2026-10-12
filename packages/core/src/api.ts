@@ -540,6 +540,8 @@ export type CareerStageQuery =
   | `${CareerStage},${CareerStage},${CareerStage}`;
 
 export interface JobsListParams {
+  /** One company's open jobs (the company page). */
+  company_id?: string;
   limit?: string;
   offset?: string;
   q?: string;

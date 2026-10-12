@@ -1,8 +1,8 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
-  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
-  GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, PathIcon, Prohibit, SignOut,
+  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  CaretLeft, CaretRight, ChatText, ClockCounterClockwise, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
+  GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, PathIcon, Plus, Prohibit, SignOut,
   SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
   type Icon as PhosphorIcon,
 } from "phosphor-react-native";
@@ -12,9 +12,9 @@ import type { TextTone } from "./Text";
 // Every Phosphor name the shared table uses needs its component here: a
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
-  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
-  GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Prohibit, SignOut,
+  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  CaretLeft, CaretRight, ChatText, ClockCounterClockwise, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
+  GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Plus, Prohibit, SignOut,
   SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
   // The package exports this one as PathIcon (Path would clash with SVG's).
   Path: PathIcon,

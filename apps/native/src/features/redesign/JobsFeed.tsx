@@ -23,20 +23,31 @@ const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
 
 export interface JobsFeedProps {
-  /** Search results: this text over the feed's filters, without the quick filters. */
+  /** Search results: this text over the feed's filters. */
   query?: string;
   /** The tab whose stack the job page opens on. */
   tab?: "(jobs)" | "(search)";
   onClearQuery?: () => void;
+  /** Scrolls with the list, above the quick filters (the Jobs title and
+   * search field). The list stays mounted while results load, so a field
+   * here keeps its keyboard. */
+  top?: ReactNode;
+  /** The quick filters: on by default, off while searching unless asked. */
+  chips?: boolean;
+  /** Under the last row (Jobs: "Search everything for …"). */
+  after?: ReactNode;
+  /** "feed" searches inside your saved search and filters; "all" searches
+   * every open job (the Search tab). */
+  scope?: "feed" | "all";
 }
 
 /**
  * Jobs, redesigned (Take A): the feed grouped into "New today" and "Earlier
- * this week", two-line rows, and quick filters at the top. The Search tab
+ * this week", three-line rows, and quick filters at the top. The Search tab
  * shows the same list for its query. Rows keep today's full swipes and
  * long-press menu.
  */
-export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps = {}) {
+export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, after, scope = "feed" }: JobsFeedProps = {}) {
   const { theme } = useUnistyles();
   const tabSpace = useTabBarSpace();
   // Tapping the current tab again scrolls back to the top.
@@ -45,9 +56,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
   const criteria = useFeedCriteria();
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
-  // Jobs has no search field of its own, so only the Search tab's text narrows by query.
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
-  const params = useMemo(() => feedParams(search, available, defaults), [search, available, defaults]);
+  const params = useMemo(() => (scope === "all" ? { q: search.q } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
   const feed = useFeed(params, preferences.isSuccess);
   const stats = useStats();
   const viewed = useViewedJobs();
@@ -88,29 +98,16 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
   const lastPolled = stats.data?.lastPolled;
   const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
   const header = <View>
-    {searching ? null : <QuickFilters search={search} stages={available} />}
+    {top}
+    {(chips ?? !searching) ? <QuickFilters search={search} stages={available} /> : null}
     {stale && lastPolled ? <View style={styles.stale}>
       <Icon name="warning" size={16} tone="ink-3" />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
     </View> : null}
   </View>;
 
-  if (feed.isPending) {
-    return <ScrollView style={styles.fill} contentInsetAdjustmentBehavior="automatic">
-      {header}
-      <View style={styles.loading}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
-    </ScrollView>;
-  }
-  if (feed.isError && !feed.data) {
-    return <ScrollView style={styles.fill} contentInsetAdjustmentBehavior="automatic">
-      {header}
-      <Empty title="Jobs didn't load" message="Check your connection and try again."
-        action={<Button size="small" pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} />
-    </ScrollView>;
-  }
-
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
-  return <FlashList ref={list} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+  return <FlashList ref={list} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     renderItem={({ item }) => item.kind === "section"
@@ -118,10 +115,18 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps 
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6}
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
-    ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
-      {feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
-    </View> : null}
-    ListEmptyComponent={search.q
+    ListFooterComponent={jobs.length > 0 ? <>
+      {after}
+      <View style={styles.footer}>
+        {feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
+      </View>
+    </> : null}
+    ListEmptyComponent={feed.isPending
+      ? <View style={styles.loading}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
+      : feed.isError && !feed.data
+      ? <Empty title="Jobs didn't load" message="Check your connection and try again."
+        action={<Button size="small" pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} />
+      : search.q
       ? <Empty title="No matches" message="Try a different company, title or city."
         action={<Button size="small" onPress={() => (onClearQuery ? onClearQuery() : setFeedSearch({ ...search, q: undefined }))}>Clear search</Button>} />
       : <Empty title={refined ? "Nothing matches these filters" : "No jobs right now"}

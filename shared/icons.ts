@@ -22,6 +22,9 @@ export const ICONS = {
   more: "DotsThree",
   share: "Export",
   disclosure: "CaretRight",
+  recent: "ClockCounterClockwise",
+  add: "Plus",
+  website: "ArrowUpRight",
 
   // A job and what you do with it
   save: "BookmarkSimple",
