@@ -435,6 +435,20 @@ size setting.
   doesn't exist; a test checks the web names). Saved jobs use the bookmark;
   the stage ring is only for application stages.
 
+- **Edit search is built** (2026-10-12): the Jobs tab's top-right button
+  opens "Your search" as a page sheet with its own stack, matching the Paper
+  frame "6 · Edit search". It edits the one saved search (it replaces the
+  old filter sheet and Preferences): career stage, roles and experience open
+  pickers inside the sheet; Remote and visa sponsorship are switches; hidden
+  companies and alerts open their screens under You. Save is the pink
+  prominent button, enabled once something changes; Cancel drops the draft.
+  The quick chips on Jobs stay as one-tap refinements on top of it.
+  - Not yet: the live match count in the header (the feed API stops counting
+    at a page, so it needs a count endpoint) and minimum pay (the saved
+    search has no pay field). Both are small, additive backend changes.
+
 ## Next
 
-- **Tracker** (replacing Library), then You.
+- **Tracker** (replacing Library), then You. Tracker stages need an API to
+  move an application between stages (the applications table already has
+  Applied, Screen, Interview, Offer, Rejected and Ghosted).

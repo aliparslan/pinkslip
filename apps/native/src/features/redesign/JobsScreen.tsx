@@ -1,19 +1,14 @@
-import { Stack } from "expo-router";
-import { useState } from "react";
+import { router, Stack } from "expo-router";
 import { useUnistyles } from "react-native-unistyles";
 import { faces, useUiFontsLoaded } from "../../ui";
-import { useFeedCriteria } from "../feed/Feed";
-import { FilterSheet } from "../feed/FilterSheet";
 import { JobsFeed } from "./JobsFeed";
 
 /** The Jobs tab, redesigned: a large "Jobs" in Founders Grotesk and Edit
- * search at the top right with a count when it narrows. Searching is its own
- * tab. */
+ * search (your saved search, as a sheet) at the top right. Searching is its
+ * own tab. */
 export function JobsScreen() {
   const { theme } = useUnistyles();
   const fonts = useUiFontsLoaded();
-  const { filters } = useFeedCriteria();
-  const [editing, setEditing] = useState(false);
   return <>
     <Stack.Screen options={{
       title: "Jobs",
@@ -26,12 +21,10 @@ export function JobsScreen() {
         type: "button",
         label: "Edit search",
         icon: { type: "sfSymbol", name: "slider.horizontal.3" },
-        badge: filters > 0 ? { value: String(filters), style: { backgroundColor: theme.ui.color["accent-fill"], color: theme.ui.color["badge-ink"] } } : undefined,
-        accessibilityLabel: filters > 0 ? `Edit search, ${filters} active` : "Edit search",
-        onPress: () => setEditing(true),
+        accessibilityLabel: "Edit search",
+        onPress: () => router.push("/edit-search"),
       }],
     }} />
     <JobsFeed />
-    <FilterSheet open={editing} onOpenChange={setEditing} />
   </>;
 }

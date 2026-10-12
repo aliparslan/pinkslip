@@ -1,5 +1,5 @@
 import { Children, Fragment, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
@@ -33,7 +33,7 @@ export function ListGroup({ header, footer, inset = "gutter", children }: ListGr
   </View>;
 }
 
-export type ListAccessory = "chevron" | "check" | "radio" | "none";
+export type ListAccessory = "chevron" | "check" | "radio" | "switch" | "none";
 
 export interface ListItemProps {
   title: string;
@@ -46,11 +46,24 @@ export interface ListItemProps {
   accessory?: ListAccessory;
   selected?: boolean;
   onPress?: () => void;
+  /** With `accessory="switch"`: the switch flips `selected`. */
+  onToggle?: (value: boolean) => void;
 }
 
 /** A list row: at least 44pt, title on the left, value and accessory on the right. */
-export function ListItem({ title, detail, inline, value, leading, accessory = "none", selected = false, onPress }: ListItemProps) {
+export function ListItem({ title, detail, inline, value, leading, accessory = "none", selected = false, onPress, onToggle }: ListItemProps) {
   const { theme } = useUnistyles();
+  if (accessory === "switch") {
+    return <View style={styles.row}>
+      {leading ? <View style={styles.leading}>{leading}</View> : null}
+      <View style={styles.text}>
+        <Text>{title}</Text>
+        {detail ? <Text role="subhead" tone="ink-3">{detail}</Text> : null}
+      </View>
+      {/* The system switch, tinted with the pink fill as in the design. */}
+      <Switch value={selected} onValueChange={onToggle} trackColor={{ true: theme.ui.color["accent-fill"] }} accessibilityLabel={title} />
+    </View>;
+  }
   const content = <>
     {leading ? <View style={styles.leading}>{leading}</View> : null}
     <View style={[styles.text, inline && styles.inline]}>
