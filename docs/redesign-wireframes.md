@@ -485,8 +485,9 @@ size setting.
 
 ### Decided after review (owner, 2026-10-12)
 
-- **Selected chips are pale pink with black (ink) text,** as on the Filters B
-  sheet. In dark mode the text is the light ink. Pink fill wasn't picked.
+- **Selected chips stay black** (ink fill, white text). The owner tried pale
+  pink with black text and pink fill, then kept black. The Paper frames are
+  back to black.
 - **No match count** ("About 48 new jobs a week") on the filter sheets. It
   had no source (the feed API doesn't count matches), so it's gone.
 - **Apply sheet rows are things you can change, not copy:** resume, email,
