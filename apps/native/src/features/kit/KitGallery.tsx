@@ -28,6 +28,7 @@ export function KitGallery() {
     </Section>
     <Section title="Actions">
       <Button onPress={() => router.push("/you/kit-swipes")}>Swipes</Button>
+      <Button onPress={() => router.push("/you/kit-redesign")}>Redesign kit</Button>
       <Button variant="primary" icon={Briefcase}>Apply</Button>
       <Button icon={BookmarkSimple}>Save</Button>
       <Button variant="danger" icon={Trash}>Delete</Button>

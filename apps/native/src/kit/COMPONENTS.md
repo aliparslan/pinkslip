@@ -1,5 +1,35 @@
 # Native component catalog
 
+## Redesign kit (`src/ui`, 2026-10-12)
+
+The October 2026 redesign (docs/redesign-wireframes.md, "The system"), built
+from the `ui` tokens only. New and rebuilt screens use it; `src/kit` stays
+for screens that haven't moved yet. Gallery: You → Kit → Redesign kit.
+
+- **Text:** roles on Apple's text styles (largeTitle 34/41, title1 28/34,
+  title2 22/28, body 17/22, longText 17/24, subhead 15/20, footnote 13/18).
+  Founders Grotesk for display, Untitled Sans 400/500 for text. No `ink-4`
+  tone: it's for strokes.
+- **Button:** capsules. `primary` is the one pink thing on a screen (pastel
+  fill, dark text); `secondary` grey; `plain` for Not now. Large is 50.
+- **Chip:** 32pt; selected is an ink fill, never pink.
+- **IconButton:** 44pt round on the grey fill. **Badge:** pink count for
+  things that need you.
+- **ListGroup / ListItem / Radio / SectionHeader:** inset grouped cards
+  (12 radius, 16 margins), rows at least 44pt, separators inset to the text.
+- **JobRow:** two lines, at least 64pt, text on the 60 line. The stage
+  (Saved, Applied) takes the age's place. Facts leave out the level when the
+  title already says it (decided 2026-10-12; the rule belongs to the screen).
+- **CompanyLogo:** white tile with a faint outline in both modes.
+- **Ticket:** grain (a baked tile, tuned to the Paper renders' tone), card
+  shadow, 1pt printed rules, a punched perforation with half-notches on both
+  edges, and a stub. `torn` shows the edge left after Apply: half-holes at the
+  perforation's positions and quarter notches, drawn as real paper below the
+  body so the shadow follows the tear.
+- **PunchCard:** holes beside the label up to 5, rows of ten split into fives
+  above that, at most 30, then a number and bar; no limit shows the count;
+  over the limit shows "+N".
+
 ## Stable UI
 
 Native components await the owner's visual review. Use the existing kit and

@@ -10,6 +10,13 @@ app (`dev.alip.pinkslip`), so it ships as an update.
 - `src/app/`: routes. `(tabs)` holds the Jobs, Library and You stacks;
   `(jobs,library)/jobs/[jobId]` is shared, so a job opens inside whichever tab
   you're in.
+- `src/ui/`: the October 2026 redesign kit (docs/redesign-wireframes.md):
+  Text on Apple's text styles, capsule buttons, chips, grouped lists, the
+  two-line job row, the ticket with its stub and torn edge, and the punch
+  card. It reads only `theme.ui` (the redesign tokens) and the Klim faces in
+  `assets/fonts` (trial cuts until the app licence is bought). Screens move
+  here from `src/kit` one at a time. Dev-only gallery: You → Kit → Redesign
+  kit.
 - `src/kit/`: the native kit (D8). Same semantic names and props as the web kit
   where the behavior matches; menus and segmented controls are the system's
   (Expo UI). Dev-only gallery: You → Kit.

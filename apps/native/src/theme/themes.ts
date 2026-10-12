@@ -1,7 +1,9 @@
-import { color, fontSize, layout, radius, shadow, sizing, space } from "@pinkslip/tokens/native";
+import { color, fontSize, layout, radius, shadow, sizing, space, ui } from "@pinkslip/tokens/native";
 
 /** One theme per token mode. Everything except colors and shadows is shared,
- * so components read sizes from the theme too and stay in one vocabulary. */
+ * so components read sizes from the theme too and stay in one vocabulary.
+ * `ui` is the October 2026 redesign; `src/ui` reads only that, and screens
+ * move to it one at a time. */
 function theme(mode: keyof typeof color) {
   return {
     mode,
@@ -12,6 +14,14 @@ function theme(mode: keyof typeof color) {
     fontSize,
     sizing,
     gutter: layout["screen-gutter"],
+    ui: {
+      color: ui.color[mode],
+      shadow: ui.shadow[mode],
+      type: ui.type,
+      space: ui.space,
+      radius: ui.radius,
+      size: ui.size,
+    },
   } as const;
 }
 

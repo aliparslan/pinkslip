@@ -26,4 +26,11 @@ font whose sha256 changes switches automatically to full-coverage mode and must
 contain every character in `REQUIRED_PUNCTUATION`. Run
 `bun scripts/check-glyphs.ts --strict` against the bought files before launch.
 
-Do not add a second palette or a hand-edited generated file.
+Do not add a second palette or a hand-edited generated file. The one
+exception is the October 2026 redesign: `uiDark`, `uiLight`, `uiContrast`,
+`uiContrastLight`, `uiType`, `uiSpace`, `uiRadius` and `uiSize` in
+`src/tokens.ts`. The generator emits them as `ui` in `src/native.ts` only, so
+the live web is unchanged. iOS screens move to them one at a time through
+`apps/native/src/ui`; the port palette retires on iOS when the last screen has
+moved, and the web adopts the redesign with its own design later. Colours
+must sit inside sRGB, as everywhere else in this file.

@@ -11,10 +11,12 @@ import { persistOptions } from "../../platform/persistence";
 import { notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
+import { loadUiFonts } from "../../ui/fonts";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
 watchAppearance();
+void loadUiFonts();
 
 /** Session, data, persisted cache and app-wide effects. The splash stays up
  * until the bearer session is ready (a Keychain read, or a guest mint on

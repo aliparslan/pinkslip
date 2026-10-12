@@ -191,7 +191,9 @@ but only in chosen places.
   - The ink and grain use fractal noise and displacement. react-native-svg
     doesn't support those filters, so they need Skia (which has noise shaders
     and a displacement filter) or baked textures.
-  - Dark mode for these objects is still open.
+  - Built (2026-10-12): the iOS grain is a baked 128pt tile, tinted by mode
+    and matched to the Paper renders' paper tone (light 236, dark 34 on the
+    0–255 scale). Dark grain lifts the graphite slightly, as in the renders.
 
 ## The consistency pass (owner, 2026-10-11)
 
@@ -266,8 +268,8 @@ after the consistency pass). They're made the same way as before: point the
 - **Selected chips and prices** invert to a light fill with dark text.
 - **Still open for the build:** very dark logo tiles (Plaid's) lose their
   edge on graphite and need the image outline in dark mode.
-- **Shadows in dark:** the ticket and card shadows use a warm brown that reads
-  as a faint glow on dark. In the build, dark mode uses black shadows.
+- **Shadows use two tokens,** contact and lift: warm brown in light, black in
+  dark (fixed 2026-10-12, so the ticket no longer glows on dark).
 - **Dark renders refreshed (2026-10-12)** after the revisions and the audit.
 
 ## Revisions decided (owner, 2026-10-12)

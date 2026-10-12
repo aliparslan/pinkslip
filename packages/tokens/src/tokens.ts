@@ -303,3 +303,138 @@ export const singleGroups = {
 } as const;
 
 export type CssTokenName = keyof typeof base | keyof typeof dark;
+
+// ---------------------------------------------------------------------------
+// The October 2026 redesign (Take A in docs/redesign-wireframes.md)
+
+/**
+ * The redesign's palette, iOS first. The generator emits it as `ui` in
+ * `native.ts` and never into `tokens.css`, so the live web keeps the port
+ * design until it gets its own redesign. Native screens move to it one at a
+ * time through `apps/native/src/ui`; when the last one has moved, the port
+ * palette above retires on iOS. Modes cascade like the port set: `uiLight`,
+ * `uiContrast` and `uiContrastLight` override `uiDark`.
+ *
+ * `ink-4` is for strokes and disabled marks only, never text. Shadows are
+ * warm in light and black in dark, so a raised card never glows on graphite.
+ */
+export const uiDark = {
+  "--ui-bg": "oklch(0.165 0.005 285)",
+  "--ui-bg-grouped": "oklch(0.215 0.006 285)",
+  "--ui-screen-grouped": "oklch(0.125 0.004 285)",
+  "--ui-bg-elev": "oklch(0.205 0.006 285)",
+  "--ui-ink": "oklch(0.965 0.003 285)",
+  "--ui-ink-2": "oklch(0.82 0.005 285)",
+  "--ui-ink-3": "oklch(0.68 0.006 285)",
+  "--ui-ink-4": "oklch(0.5 0.006 285)",
+  "--ui-separator": "oklch(0.29 0.006 285)",
+  "--ui-fill": "oklch(0.26 0.006 285)",
+  // Pink is for "do this" and "needs you" only. `accent` is text, dots and
+  // icons; filled pink is always `accent-fill` with dark `accent-ink` on top.
+  "--ui-accent": "oklch(0.78 0.153 350)",
+  "--ui-accent-fill": "oklch(0.78 0.153 350)",
+  "--ui-accent-ink": "oklch(0.16 0.01 350)",
+  "--ui-accent-soft": "oklch(0.3 0.07 350)",
+  "--ui-accent-soft-ink": "oklch(0.88 0.075 350)",
+  "--ui-badge-ink": "oklch(0.16 0.01 350)",
+  "--ui-good": "oklch(0.73 0.14 150)",
+  "--ui-bad": "oklch(0.72 0.17 25)",
+  "--ui-glass": "oklch(0.3 0.008 285 / 0.88)",
+  "--ui-pill": "oklch(1 0 0 / 0.12)",
+  "--ui-bar": "oklch(0.235 0.006 285 / 0.94)",
+  "--ui-seg-on": "oklch(0.38 0.006 285)",
+  "--ui-track": "oklch(1 0 0 / 0.14)",
+  "--ui-scrim": "oklch(0 0 0 / 0.55)",
+  // Company logos are drawn for white, so the tile stays white in both modes;
+  // the outline keeps a dark logo's edge on graphite.
+  "--ui-logo-tile": "oklch(1 0 0)",
+  "--ui-image-outline": "oklch(1 0 0 / 0.14)",
+  // The ticket's paper grain and the punch card's punched holes. Grain lifts
+  // graphite slightly, as in the Paper renders (about +9 on the paper).
+  "--ui-grain": "oklch(0.9 0.01 70 / 0.3)",
+  "--ui-shadow-card": "0px 1px 1px oklch(0 0 0 / 0.5), 0px 10px 18px -12px oklch(0 0 0 / 0.7)",
+  "--ui-shadow-hole": "inset 0px 2px 2.5px oklch(0 0 0 / 0.6)",
+} as const;
+
+export const uiLight = {
+  "--ui-bg": "oklch(1 0 0)",
+  "--ui-bg-grouped": "oklch(0.962 0.003 80)",
+  "--ui-screen-grouped": "oklch(0.962 0.003 80)",
+  "--ui-bg-elev": "oklch(1 0 0)",
+  "--ui-ink": "oklch(0.18 0.006 285)",
+  "--ui-ink-2": "oklch(0.4 0.006 285)",
+  "--ui-ink-3": "oklch(0.53 0.006 285)",
+  "--ui-ink-4": "oklch(0.78 0.004 285)",
+  "--ui-separator": "oklch(0.905 0.003 80)",
+  "--ui-fill": "oklch(0.945 0.002 80)",
+  "--ui-accent": "oklch(0.57 0.205 350)",
+  "--ui-accent-soft": "oklch(0.935 0.038 350)",
+  "--ui-accent-soft-ink": "oklch(0.42 0.15 350)",
+  "--ui-good": "oklch(0.48 0.132 150)",
+  "--ui-bad": "oklch(0.5 0.18 25)",
+  "--ui-glass": "oklch(0.985 0.002 285 / 0.86)",
+  "--ui-pill": "oklch(0 0 0 / 0.06)",
+  "--ui-bar": "oklch(1 0 0 / 0.94)",
+  "--ui-seg-on": "oklch(1 0 0)",
+  "--ui-track": "oklch(0 0 0 / 0.08)",
+  "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",
+  "--ui-image-outline": "oklch(0 0 0 / 0.1)",
+  "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
+  "--ui-shadow-card": "0px 1px 1px oklch(0.33 0.025 50 / 0.06), 0px 10px 18px -12px oklch(0.33 0.025 50 / 0.28)",
+  "--ui-shadow-hole": "inset 0px 2px 2.5px oklch(0.25 0.03 40 / 0.28)",
+} as const;
+
+/** Increased contrast on dark: brighter secondary ink and lines. */
+export const uiContrast = {
+  "--ui-ink-2": "oklch(0.88 0.005 285)",
+  "--ui-ink-3": "oklch(0.76 0.006 285)",
+  "--ui-ink-4": "oklch(0.62 0.006 285)",
+  "--ui-separator": "oklch(0.38 0.006 285)",
+} as const;
+
+/** Increased contrast on light, applied after `uiLight`. */
+export const uiContrastLight = {
+  "--ui-ink-2": "oklch(0.3 0.006 285)",
+  "--ui-ink-3": "oklch(0.42 0.006 285)",
+  "--ui-ink-4": "oklch(0.68 0.004 285)",
+  "--ui-separator": "oklch(0.82 0.003 80)",
+} as const;
+
+/**
+ * Type follows Apple's text styles, so it can scale with the iPhone's text
+ * size. `display` is Founders Grotesk Semibold, `text` is Untitled Sans and
+ * `system` is the iOS font (tab labels). Sizes and line heights are points.
+ */
+export const uiType = {
+  largeTitle: { face: "display", size: 34, line: 41, tracking: -0.34 },
+  title1: { face: "display", size: 28, line: 34, tracking: -0.28 },
+  title2: { face: "display", size: 22, line: 28, tracking: 0 },
+  body: { face: "text", size: 17, line: 22, tracking: 0 },
+  longText: { face: "text", size: 17, line: 24, tracking: 0 },
+  subhead: { face: "text", size: 15, line: 20, tracking: 0 },
+  footnote: { face: "text", size: 13, line: 18, tracking: 0 },
+  tab: { face: "system", size: 10, line: 12, tracking: 0 },
+} as const;
+
+/** The 4pt grid. Rhythm: 4–8 inside an item, 12–16 in a group, 24–32 between sections. */
+export const uiSpace = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 } as const;
+
+/** Logos and small controls, cards and grouped lists, the ticket and sheets, capsules. */
+export const uiRadius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
+
+/**
+ * Fixed sizes. Row text starts on the 60 line (16 gutter + 44 logo slot), and
+ * separators are inset to it. Buttons are Apple's 50.
+ */
+export const uiSize = {
+  gutter: 16,
+  keyline: 60,
+  jobRow: 64,
+  listRow: 44,
+  button: 50,
+  chip: 32,
+  iconButton: 44,
+  logo: 32,
+  logoLarge: 48,
+  hole: 24,
+} as const;
