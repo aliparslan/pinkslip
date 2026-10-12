@@ -39,6 +39,7 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 3, light** (2026-10-11): on "Batch 3 · Auto-apply".
 - **Batch 2, light** (2026-10-11): on "Batch 2 · Tracking".
 - **Batch 1, light** (2026-10-11): on the Paper page "Batch 1 · Core app".
   The decisions below.
@@ -122,6 +123,49 @@ On the Paper page "Batch 2 · Tracking".
     to the answers bank.
   - An interview-invite notice.
   - The morning digest.
+
+## Batch 3 decisions (auto-apply)
+
+On the Paper page "Batch 3 · Auto-apply".
+
+- **Level 1, assisted fill:**
+  - The form opens straight away in the in-app browser.
+  - Fields Pinkslip filled are tinted pale pink.
+  - Blanks that need you get a pink outline.
+  - A native bar at the bottom shows "15 of 17 filled · 2 need you", with
+    up and down arrows to jump between blanks, and Done.
+- **Level 2, select mode:**
+  - Jobs gets selection circles, and the title becomes "3 selected".
+  - Jobs you've already applied to are dimmed.
+  - The bar holds "Save all" and "Apply to 3".
+- **Level 2, the review sheet:**
+  - Each job's readiness: Ready, or what it still needs (in pink).
+  - Questions asked by every job are answered once.
+  - Legal questions are always yours. Start stays off ("Answer 2 to
+    start") until they're answered.
+- **Level 2, the Live Activity:**
+  - On the lock screen: the current company, "2/3", a segmented progress
+    bar, and an Answer button when something needs you.
+  - In the Dynamic Island, compact: the mark and "2/3". Expanded: the
+    question, with Skip and Answer.
+- **Level 3, settings:**
+  - Off, Ask first or Automatic.
+  - Rules, written as one sentence that starts "Only jobs that":
+    - match strongly
+    - are at companies you follow
+    - were posted within 3 days
+    - need only answers we have
+  - A daily limit.
+  - "Pause for a week".
+- **Level 3, the Ask first list:** "4 for today", all pre-selected, sent with
+  one tap ("Send 4"). There's also "Not today".
+- **Level 3, the receipt:** "What we sent" splits what was filled from your
+  profile from what you answered, and lets you withdraw.
+- **The Today tab:**
+  - A summary of yesterday: applied, replies, interviews, new jobs.
+  - Needs you, which includes follow-ups that are due.
+  - The batch card, then New for you.
+  - A four-item tab bar: Today, Jobs, Tracker, You.
 
 ## To design, in order
 
