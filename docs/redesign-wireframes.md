@@ -243,6 +243,31 @@ Applied across Take A and every batch page in Paper.
   - Every ticket has grain, punched perforation and a slight lift.
   - The Plan page uses the punch card.
 
+## Dark mode for the batches (2026-10-12)
+
+Every batch screen and the core Take A screens are rendered in dark, as
+images, on the Paper pages "Batches · Dark" and "Take A · Dark" (refreshed
+after the consistency pass). They're made the same way as before: point the
+`--color-*` aliases at `--ad-*`, export, then point them back.
+
+- **Paper objects in dark:**
+  - The ticket turns graphite and keeps its grain, punched holes and lift.
+    The holes show the screen colour, so they stay holes.
+  - The stamp ink follows the accent colour, so it turns pastel pink on dark.
+  - The punch card's punched holes are the darker screen colour, and the
+    unpunched rings are a faint pink.
+  - The carbon-copy mark stays pink.
+- **Fixed for dark:**
+  - The job page's ⋯ menu and the notification mock-ups (onboarding alerts
+    and the lock screen) now use the glass colour and ink tokens, not fixed
+    light values.
+  - The alerts illustration's panel follows the palette.
+- **Stays light on purpose:** the employer's web page inside the in-app
+  browser, because career sites don't follow the app's appearance.
+- **Selected chips and prices** invert to a light fill with dark text.
+- **Still open for the build:** very dark logo tiles (Plaid's) lose their
+  edge on graphite and need the image outline in dark mode.
+
 ## Next
 
 - **The iOS tokens and kit** for Take A, in light and dark.
