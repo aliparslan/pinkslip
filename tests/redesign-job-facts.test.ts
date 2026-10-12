@@ -41,6 +41,7 @@ describe("level and experience", () => {
 
   test("a row's line two is level, place, pay", () => {
     expect(rowFacts(job({ match_fact: "Early-career role" }))).toBe("1–3 yrs · New York · $145–175K");
+    expect(rowFacts(job({ salary: "$147000 - $210000" }))).toBe("New York · $147–210K");
   });
 });
 
@@ -71,7 +72,8 @@ describe("the ticket", () => {
 describe("fits your search", () => {
   test("names the stage, place and role the profile asked for", () => {
     expect(fitsYourSearch(job({ match_fact: "New-grad role", specialties: ["software_engineering"] }), profile))
-      .toEqual(["new grad", "New York", "SWE"]);
+      .toEqual(["new grad", "NYC", "SWE"]);
+    expect(fitsYourSearch(job({ location: "Mountain View, CA" }), { ...profile, location_ids: ["sf_bay"] })).toEqual(["SF Bay Area"]);
     expect(fitsYourSearch(job({ location: "Remote - USA" }), profile)).toEqual(["remote"]);
     expect(fitsYourSearch(job(), undefined)).toEqual([]);
   });

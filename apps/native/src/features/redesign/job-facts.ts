@@ -1,4 +1,5 @@
 import type { Job } from "@pinkslip/core/api";
+import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts } from "@pinkslip/core/job-format";
 import { compactJobAge } from "@pinkslip/core/job-timing";
 import { companySourceLabel, isCompanySourceType } from "@pinkslip/domain/company-sources";
@@ -155,7 +156,7 @@ export function fitsYourSearch(job: FactsJob, profile: SearchProfile | undefined
   const place = (job.location ?? "").toLowerCase();
   if (profile.work_modes.includes("remote") && place.includes("remote")) reasons.push("remote");
   const metro = LOCATION_OPTIONS.find((option) => profile.location_ids.includes(option.id) && option.aliases.some((alias) => place.includes(alias)));
-  if (metro) reasons.push(metro.label.split(/,| \//)[0]);
+  if (metro) reasons.push(locationLabels[metro.id]);
   const roles = ROLE_OPTIONS.filter((role) => profile.roles.includes(role.id) && job.specialties?.includes(role.id));
   for (const role of roles.slice(0, 2)) reasons.push(role.label);
   if (profile.work_authorization === "sponsorship" && job.sponsorship_available === true) reasons.push("sponsors visas");

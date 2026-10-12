@@ -137,7 +137,8 @@ export function formatCompactSalaryText(salary: string | null | undefined): stri
   // When an ATS supplies multiple geographic bands, keep the primary band in
   // the row; the full source value remains visible on the detail page.
   const primaryBand = normalized.split(/\s+[·•|]\s+/)[0] ?? normalized;
-  return primaryBand.replace(/([$£€¥])?(\d{1,3}(?:,\d{3})+)(?:\.\d+)?/g, (_match: string, currency: string | undefined, amount: string) => {
+  // Feeds write thousands with commas ("$147,000") or without ("$147000").
+  return primaryBand.replace(/([$£€¥])?(\d{1,3}(?:,\d{3})+|\d{5,7})(?:\.\d+)?/g, (_match: string, currency: string | undefined, amount: string) => {
     const thousands = Math.round(Number(amount.replace(/,/g, "")) / 1000);
     return `${currency ?? ""}${thousands}K`;
   });

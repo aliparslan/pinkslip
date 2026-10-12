@@ -4,16 +4,15 @@ import { useUnistyles } from "react-native-unistyles";
 import { faces, useUiFontsLoaded } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { FilterSheet } from "../feed/FilterSheet";
-import { useSearchBar } from "../feed/useSearchBar";
 import { JobsFeed } from "./JobsFeed";
 
-/** The Jobs tab, redesigned: a large "Jobs" in Founders Grotesk, the search
- * field, and Edit search at the top right with a count when it narrows. */
+/** The Jobs tab, redesigned: a large "Jobs" in Founders Grotesk and Edit
+ * search at the top right with a count when it narrows. Searching is its own
+ * tab. */
 export function JobsScreen() {
   const { theme } = useUnistyles();
   const fonts = useUiFontsLoaded();
   const { filters } = useFeedCriteria();
-  const searchBar = useSearchBar();
   const [editing, setEditing] = useState(false);
   return <>
     <Stack.Screen options={{
@@ -23,7 +22,6 @@ export function JobsScreen() {
       headerLargeTitleStyle: { color: theme.ui.color.ink, fontFamily: fonts ? faces.display : undefined },
       headerTitleStyle: { color: theme.ui.color.ink, fontFamily: fonts ? faces.textMedium : undefined },
       contentStyle: { backgroundColor: theme.ui.color.bg },
-      headerSearchBarOptions: { placeholder: "Jobs or companies", hideWhenScrolling: false, ...searchBar },
       unstable_headerRightItems: () => [{
         type: "button",
         label: "Edit search",

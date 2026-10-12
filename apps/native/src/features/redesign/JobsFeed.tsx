@@ -4,12 +4,12 @@ import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
-import { router } from "expo-router";
+import { Link } from "expo-router";
 import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Menu, SwipeRow, toast, usePullToRefresh } from "../../kit";
+import { SwipeRow, toast, usePullToRefresh } from "../../kit";
 import { Button, Chip, JobRow, SectionHeader, Text } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
@@ -24,14 +24,27 @@ const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
 
+export interface JobsFeedProps {
+  /** Search results: this text over the feed's filters, without the quick filters. */
+  query?: string;
+  /** The tab whose stack the job page opens on. */
+  tab?: "(jobs)" | "(search)";
+  onClearQuery?: () => void;
+}
+
 /**
  * Jobs, redesigned (Take A): the feed grouped into "New today" and "Earlier
- * this week", two-line rows, and quick filters under the search field. Rows
- * keep today's full swipes and long-press menu.
+ * this week", two-line rows, and quick filters at the top. The Search tab
+ * shows the same list for its query. Rows keep today's full swipes and
+ * long-press menu.
  */
-export function JobsFeed() {
+export function JobsFeed({ query, tab = "(jobs)", onClearQuery }: JobsFeedProps = {}) {
   const { theme } = useUnistyles();
-  const { search, preferences, available, defaults } = useFeedCriteria();
+  const criteria = useFeedCriteria();
+  const { preferences, available, defaults } = criteria;
+  const searching = query !== undefined;
+  // Jobs has no search field of its own, so only the Search tab's text narrows by query.
+  const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
   const params = useMemo(() => feedParams(search, available, defaults), [search, available, defaults]);
   const feed = useFeed(params, preferences.isSuccess);
   const stats = useStats();
@@ -61,10 +74,6 @@ export function JobsFeed() {
     if (feed.isRefetchError) toast.error("Couldn't refresh jobs.", { dedupeKey: "feed-refresh" });
   }, [feed.isRefetchError]);
 
-  const open = (job: RowJob) => {
-    onOpen(job);
-    router.push({ pathname: "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } });
-  };
   const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
   const pull = usePullToRefresh(refresh);
   const loadMore = () => {
@@ -77,7 +86,7 @@ export function JobsFeed() {
   const lastPolled = stats.data?.lastPolled;
   const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
   const header = <View>
-    <QuickFilters search={search} stages={available} />
+    {searching ? null : <QuickFilters search={search} stages={available} />}
     {stale && lastPolled ? <View style={styles.stale}>
       <WarningCircle size={16} color={theme.ui.color["ink-3"]} />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
@@ -103,7 +112,7 @@ export function JobsFeed() {
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     renderItem={({ item }) => item.kind === "section"
       ? <SectionHeader title={item.title} trailing={item.count === undefined ? undefined : String(item.count)} />
-      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} onPress={open} />}
+      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6}
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
     ListFooterComponent={jobs.length > 0 ? <View style={styles.footer}>
@@ -111,7 +120,7 @@ export function JobsFeed() {
     </View> : null}
     ListEmptyComponent={search.q
       ? <Empty title="No matches" message="Try a different company, title or city."
-        action={<Button size="small" onPress={() => setFeedSearch({ ...search, q: undefined })}>Clear search</Button>} />
+        action={<Button size="small" onPress={() => (onClearQuery ? onClearQuery() : setFeedSearch({ ...search, q: undefined }))}>Clear search</Button>} />
       : <Empty title={refined ? "Nothing matches these filters" : "No jobs right now"}
         message={refined ? undefined : "New roles show up here as they're posted."}
         action={refined
@@ -119,17 +128,24 @@ export function JobsFeed() {
           : <Button size="small" icon={ArrowClockwise} pending={feed.isRefetching} onPress={() => void refresh()}>Refresh</Button>} />} />;
 }
 
-function FeedRow({ job, viewed, actions, onPress }: { job: RowJob; viewed: boolean; actions: JobActions; onPress: (job: RowJob) => void }) {
+/** A row opens its job; long-press peeks at it with the row's actions under
+ * the preview (a native context menu, so no extra view per row). */
+function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
   const { leading, trailing, menu } = rowActions(job, actions, viewed);
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
-    <Menu items={menu} openOn="longPress" fill>
-      <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}
-        stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
-        unread={!viewed && isFreshJobTiming(job)}
-        logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
-        actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))}
-        onPress={() => onPress(job)} />
-    </Menu>
+    <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
+      <Link.Trigger>
+        <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}
+          stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
+          unread={!viewed && isFreshJobTiming(job)}
+          logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
+          actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />
+      </Link.Trigger>
+      <Link.Preview />
+      <Link.Menu>
+        {menu.map((item) => <Link.MenuAction key={item.id} icon={item.icon} destructive={item.destructive} onPress={item.onSelect}>{item.title}</Link.MenuAction>)}
+      </Link.Menu>
+    </Link>
   </SwipeRow>;
 }
 
