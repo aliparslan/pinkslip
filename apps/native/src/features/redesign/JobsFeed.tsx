@@ -16,7 +16,7 @@ import { logoUri } from "../jobs/CompanyLogo";
 import { rowActions } from "../jobs/row-actions";
 import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
-import { feedSections, rowAge, rowFacts } from "./job-facts";
+import { feedSections, plainText, rowAge, rowFacts } from "./job-facts";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
 const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -134,7 +134,7 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
   return <SwipeRow id={job.id} leading={leading} trailing={trailing} appearance="capsule">
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
-        <JobRow title={job.title} company={job.company_name} facts={rowFacts(job)} age={rowAge(job)}
+        <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
           unread={!viewed && isFreshJobTiming(job)} seen={viewed}
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}

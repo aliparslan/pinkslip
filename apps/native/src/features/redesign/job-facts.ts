@@ -1,5 +1,6 @@
 import type { Job } from "@pinkslip/core/api";
 import { locationLabels } from "@pinkslip/core/feed-criteria";
+import { decodeEntities } from "@pinkslip/core/job-description";
 import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts } from "@pinkslip/core/job-format";
 import { compactJobAge } from "@pinkslip/core/job-timing";
 import { companySourceLabel, isCompanySourceType } from "@pinkslip/domain/company-sources";
@@ -8,6 +9,9 @@ import { LOCATION_OPTIONS, ROLE_OPTIONS, type SearchProfile } from "@pinkslip/do
 /** What the redesigned screens read from a job (a feed row or the full posting). */
 export type FactsJob = Pick<Job, "title" | "location" | "salary" | "posted_at" | "first_seen_at"> &
   Partial<Pick<Job, "match_fact" | "sponsorship_available" | "source_type" | "specialties" | "applied_at">>;
+
+/** Some feeds send titles and names with HTML entities ("K&amp;I"). */
+export const plainText = (text: string) => decodeEntities(text).trim();
 
 type Stage = "internship" | "new_grad" | "early_career" | "mid_career";
 

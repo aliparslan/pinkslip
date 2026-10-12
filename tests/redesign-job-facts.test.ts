@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
-  appliedLabel, feedSections, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
+  appliedLabel, feedSections, plainText, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
 } from "../apps/native/src/features/redesign/job-facts";
 
 const job = (patch: Partial<FactsJob> = {}): FactsJob => ({
@@ -66,6 +66,13 @@ describe("the ticket", () => {
   test("the applied label carries the date when known", () => {
     expect(appliedLabel(job({ applied_at: "2026-10-10T15:00:00Z" }))).toMatch(/^Applied Oct \d+$/);
     expect(appliedLabel(job())).toBe("Applied");
+  });
+});
+
+describe("plain text", () => {
+  test("decodes the entities some feeds send", () => {
+    expect(plainText("Senior Software Engineer, K&amp;I")).toBe("Senior Software Engineer, K&I");
+    expect(plainText("AT&amp;T ")).toBe("AT&T");
   });
 });
 

@@ -11,7 +11,7 @@ import { Button, CompanyLogo, Icon, ListGroup, ListItem, Text, Ticket } from "..
 import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { logoUri } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
-import { appliedLabel, fitsYourSearch, orderedPlaces, ticketRows, ticketStub } from "./job-facts";
+import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, ticketRows, ticketStub } from "./job-facts";
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
@@ -84,8 +84,8 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       <View style={styles.identity}>
         <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
         <View style={styles.heading}>
-          <Text role="subhead" tone="ink-2">{job.company_name}{closed ? " · Closed" : ""}</Text>
-          <Text role="title2" accessibilityRole="header">{job.title}</Text>
+          <Text role="subhead" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>
+          <Text role="title2" accessibilityRole="header">{plainText(job.title)}</Text>
         </View>
       </View>
       <View style={styles.ticket}>

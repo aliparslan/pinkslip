@@ -402,28 +402,25 @@ size setting.
 
 - **Job rows are A · Compact**, and every row is one line each: long titles
   end in "…" and the job page shows them in full. The logo is 40, a quarter
-  radius (10), exactly the two 20pt lines. As in Mail, the unread dot starts on
-  the 16 margin (level with the logo's centre) and the logo follows it, so
-  nothing crosses the margin: text and separators start on the 84 line.
-  - In review, switchable in the redesign kit (sheet:
-    `docs/port-design/redesign-kit/unread-options-2026-10-12.png`): the dot;
-    quiet (no mark, opened jobs step back to regular weight and lighter ink);
-    a badge on the logo's top-right corner; a dot beside the age. All but the
-    dot keep the logo on the 16 margin.
+  radius (10), exactly the two 20pt lines.
+  - **New jobs are marked by a dot beside the age** ("• 2h"), for now
+    (owner, 2026-10-12), so the logo stays on the 16 margin and text on the
+    68 line. The dot, quiet and logo-badge options stay switchable in the
+    redesign kit (sheet:
+    `docs/port-design/redesign-kit/unread-options-2026-10-12.png`).
 - **Swipes are A · Capsule:** the page stays put, a grey circle grows from
   the row's edge and turns into an ink capsule with the label once letting go
   will act. One action per side.
-- **The punch card got more physical:** the card has the ticket's paper
-  texture, and a punched hole looks through to the shaded surface below
-  (option C of four studies: darkest under the top edge, lifting toward the
-  bottom; a faint lit lower lip in dark mode). Solid black was tried and
-  dropped as too harsh (owner, 2026-10-12). The spots still to use stay pink
-  outlines. A spot punched on screen presses in.
+- **Punch card holes are the original style** (owner, 2026-10-12, after
+  trying see-through and solid black): a punched hole shows the page behind
+  the card, shaded under its top edge, and the spots still to use are faint
+  pink rings. The card has the ticket's paper texture, and a spot punched on
+  screen presses in.
 - **Paper texture:** the per-pixel noise read as static (it was also drawn
   at a third of the screen's resolution). `apps/native/scripts/paper-textures.py`
   makes seamless 256pt tiles from three layers of real paper (pulp clouds,
-  fibres, a faint tooth) at full resolution. Cotton is the default; stock and
-  recycled are in the kit to compare. Sheet:
+  fibres, a faint tooth) at full resolution. Cotton is chosen (owner,
+  2026-10-12); stock and recycled stay in the kit for reference. Sheet:
   `docs/port-design/redesign-kit/paper-textures-2026-10-12.png`.
 - **Icons:** SF Symbols on iOS and Phosphor Regular on the web, both from one
   table of ideas in `shared/icons.ts` (iOS fails to compile on a symbol that

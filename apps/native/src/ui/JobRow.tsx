@@ -36,7 +36,7 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
  * lighter ink. `badge`: a dot on the logo's corner. `age`: a dot beside the
  * age. All but `dot` keep the logo on the 16 margin. */
 export type UnreadStyle = "dot" | "quiet" | "badge" | "age";
-let unreadStyle: UnreadStyle = "dot";
+let unreadStyle: UnreadStyle = "age";
 const listeners = new Set<() => void>();
 export function setUnreadStyle(next: UnreadStyle) {
   unreadStyle = next;
@@ -47,9 +47,9 @@ export function useUnreadStyle(): UnreadStyle {
 }
 
 /** The two-line job row: title and age, then company and facts, each one line
- * so every row is the same 64pt. The unread dot starts on the 16 margin, level
- * with the logo's centre, and the logo (exactly the two lines' height) follows
- * it, so nothing crosses the margin; text and separator start on the 84 line. */
+ * so every row is the same 64pt. The logo is exactly the two lines' height,
+ * on the 16 margin; text and separator start on the 68 line. A new job you
+ * haven't opened gets a dot beside its age. */
 export function JobRow({ title, company, facts, age, stage, unread, seen = false, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
   const style = useUnreadStyle();
@@ -117,7 +117,7 @@ const styles = StyleSheet.create((theme) => {
     age: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
     ageDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: theme.ui.color.ink },
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
-    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter - theme.ui.size.unreadSlot },
+    logo: { width: theme.ui.size.keyline - theme.ui.size.gutter },
     text: {
       flex: 1,
       minWidth: 0,
