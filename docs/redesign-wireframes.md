@@ -127,7 +127,35 @@ These are drawn on the Take A page: "A · Job page, several locations" and
 - **The full list:** `jobLocationParts` already returns every place for the
   sheet.
 
+## Take A in dark mode (2026-10-11)
+
+These are on the page "Take A · Dark", as images of the seven Take A frames
+rendered with the dark palette. The palette is the `--ad-*` tokens in the
+Paper file, and it follows today's graphite dark tokens:
+
+| Role | Dark value |
+| --- | --- |
+| Screen | `oklch(0.165 0.005 285)` |
+| Ticket, queue card | `oklch(0.215 0.006 285)`, a step above the screen |
+| Grouped cards, sheets | `oklch(0.205 0.006 285)` |
+| Grouped screen (You) | `oklch(0.125 0.004 285)`, darker than its cards, as on iOS |
+| Ink ramp | 0.965 / 0.82 / 0.68 / 0.50 |
+| Lines | 0.29 |
+| Pink ink | The pastel `oklch(0.78 0.153 350)`. Deep pink doesn't read on graphite |
+| Selected chip | `oklch(0.30 0.07 350)` with pale pink text |
+| Badge | Pastel with dark text, not white |
+
+- **How it's built:** Take A's colours all go through `--color-*` aliases.
+  Pointing those at `--ad-*` turns the whole page dark, including the icons,
+  and pointing them back at `--a-*` restores light. The status bar, tab bar,
+  bottom bar, segmented control and scrim now use tokens too, so they flip
+  with the rest.
+- **Open item for the build:** the brand-colour logo tiles have no outline,
+  so very dark logos such as Plaid's lose their edge on graphite. Use today's
+  image outline on the logo tile in dark mode.
+
 ## Next
 
-- **Dark mode** for Take A.
-- **Then** the iOS tokens and kit, then the screens.
+- **The iOS tokens and kit** for Take A, in light and dark.
+- **Then the screens:** Jobs and the job page first, then Tracker (replacing
+  Library), then You.
