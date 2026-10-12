@@ -8,6 +8,9 @@ const listeners = new Set<() => void>();
  * EXPO_PUBLIC_REDESIGN=1. TestFlight and App Store builds never set it. */
 const AVAILABLE = __DEV__ || process.env.EXPO_PUBLIC_REDESIGN === "1";
 
+/** The redesign kit (options being compared) opens wherever the redesign can. */
+export const redesignKitAvailable = AVAILABLE;
+
 /** The October 2026 redesign (docs/redesign-wireframes.md) replaces screens as
  * they're built. Where it's available it's on by default and the redesign kit
  * screen can switch back; other builds keep today's screens until it ships. */

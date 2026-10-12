@@ -28,7 +28,7 @@ export function RedesignGallery() {
   const unreadStyle = useUnreadStyle();
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
-      <ListGroup footer="Jobs and the job page. Dev builds only.">
+      <ListGroup footer="Dev builds and the owner's phone build only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
       </ListGroup>
@@ -91,7 +91,7 @@ export function RedesignGallery() {
 
     <Section title="Unread" flush>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {(["dot", "quiet"] as UnreadStyle[]).map((name) =>
+        {(["dot", "quiet", "badge", "age"] as UnreadStyle[]).map((name) =>
           <Chip key={name} label={name} selected={unreadStyle === name} onPress={() => setUnreadStyle(name)} />)}
       </ScrollView>
     </Section>

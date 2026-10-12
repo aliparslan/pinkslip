@@ -30,11 +30,13 @@ export interface JobRowProps {
 
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
-/** `dot`: Mail's dot for new jobs you haven't opened. `quiet`: no dot; jobs
- * you've opened step back to regular weight and lighter ink. Chosen in the
- * redesign kit while the two are compared. */
-export type UnreadStyle = "dot" | "quiet";
-let unreadStyle: UnreadStyle = "quiet";
+/** How a new job you haven't opened is marked, while the options are
+ * compared in the redesign kit. `dot`: Mail's dot in a gutter before the logo.
+ * `quiet`: no mark; jobs you've opened step back to regular weight and
+ * lighter ink. `badge`: a dot on the logo's corner. `age`: a dot beside the
+ * age. All but `dot` keep the logo on the 16 margin. */
+export type UnreadStyle = "dot" | "quiet" | "badge" | "age";
+let unreadStyle: UnreadStyle = "dot";
 const listeners = new Set<() => void>();
 export function setUnreadStyle(next: UnreadStyle) {
   unreadStyle = next;
@@ -50,23 +52,31 @@ export function useUnreadStyle(): UnreadStyle {
  * it, so nothing crosses the margin; text and separator start on the 84 line. */
 export function JobRow({ title, company, facts, age, stage, unread, seen = false, logo, onPress, onLongPress, actions }: JobRowProps) {
   const { theme } = useUnistyles();
-  const quiet = useUnreadStyle() === "quiet";
-  const dim = quiet && seen;
+  const style = useUnreadStyle();
+  const dim = style === "quiet" && seen;
   const trailing = stage ? stageLabels[stage] : age;
   const label = [unread ? "New" : null, title, company, facts, trailing].filter(Boolean).join(", ");
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
+  // Never flattened: a link's native preview trigger needs exactly one child view.
+  return <Pressable collapsable={false} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-    {quiet ? <View style={styles.margin} /> : <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View>}
-    <View style={styles.logo}><CompanyLogo {...logo} /></View>
+    {style === "dot" ? <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View> : <View style={styles.margin} />}
+    <View style={styles.logo}>
+      <CompanyLogo {...logo} />
+      {style === "badge" && unread ? <View style={styles.badge} /> : null}
+    </View>
     <View style={styles.text}>
       <View style={[styles.line, styles.first]}>
         <Text role="subhead" weight={dim ? "regular" : "medium"} tone={dim ? "ink-2" : "ink"} lines={1} flex>{title}</Text>
         {stage ? <View style={styles.stage}>
           <StageIcon stage={stage} color={theme.ui.color["ink-3"]} />
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
-        </View> : age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
+        </View> : age ? <View style={styles.age}>
+          {/* Text first, so the row's baseline comes from it; row-reverse puts the dot before it. */}
+          <Text role="subhead" tone={style === "age" && unread ? "ink" : "ink-3"}>{age}</Text>
+          {style === "age" && unread ? <View style={styles.ageDot} /> : null}
+        </View> : null}
       </View>
       <View style={styles.line}>
         <Text role="subhead" tone={dim ? "ink-2" : "ink"}>{company}</Text>
@@ -99,6 +109,13 @@ const styles = StyleSheet.create((theme) => {
     pressed: { backgroundColor: theme.ui.color.fill },
     gutter: { width: theme.ui.size.gutter + theme.ui.size.unreadSlot, paddingLeft: theme.ui.size.gutter },
     margin: { width: theme.ui.size.gutter },
+    // Like an app icon's badge: on the logo's top-right corner, ringed in the page colour.
+    badge: {
+      position: "absolute", top: -4, right: 8, width: 14, height: 14, borderRadius: 7,
+      borderWidth: 2.5, borderColor: theme.ui.color.bg, backgroundColor: theme.ui.color.ink,
+    },
+    age: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
+    ageDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: theme.ui.color.ink },
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: theme.ui.color.ink },
     logo: { width: theme.ui.size.keyline - theme.ui.size.gutter - theme.ui.size.unreadSlot },
     text: {

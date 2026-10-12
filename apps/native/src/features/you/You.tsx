@@ -8,6 +8,7 @@ import {
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text } from "../../kit";
+import { redesignKitAvailable } from "../redesign/flag";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../theme/appearance";
 import { useDevicePush } from "../alerts/Alerts";
 
@@ -61,6 +62,7 @@ export function You() {
       <ListRow title="Account" icon={UserCircle} detail={signedIn ? (me?.account?.email ?? "Signed in") : "Guest · sign in to sync"} onPress={go("/you/account")} />
     </ListSection>
     {__DEV__ && <ListSection label="Development"><ListRow title="Kit" icon={Wrench} onPress={go("/you/kit")} /></ListSection>}
+    {!__DEV__ && redesignKitAvailable && <ListSection label="Redesign"><ListRow title="Redesign kit" icon={Wrench} onPress={go("/you/kit-redesign")} /></ListSection>}
     <Text size="xs" tone="ink-4" align="center" selectable>{appVersionLine()}</Text>
   </Screen>;
 }

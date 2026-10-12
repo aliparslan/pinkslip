@@ -95,8 +95,8 @@ function AllowanceRow({ allowance, stacked }: { allowance: Allowance; stacked: b
   </View>;
 }
 
-/** Rows of ten, in groups of five. Punched holes are dark all the way through;
- * the rest are pink rings waiting for the punch. */
+/** Rows of ten, in groups of five. Punched holes look through the card to the
+ * shaded surface below it; the rest are pink rings waiting for the punch. */
 function Holes({ limit, used, over }: { limit: number; used: number; over: number }) {
   const rows: number[][] = [];
   for (let start = 0; start < limit; start += 10) {
@@ -112,6 +112,9 @@ function Holes({ limit, used, over }: { limit: number; used: number; over: numbe
 }
 
 function Hole({ punched }: { punched: boolean }) {
+  const { theme } = useUnistyles();
+  // Passed inline: Unistyles' stylesheet drops the experimental gradient.
+  const depth = { experimental_backgroundImage: `linear-gradient(180deg, ${theme.ui.color["hole-top"]} 0%, ${theme.ui.color["hole-mid"]} 60%, ${theme.ui.color["hole-bottom"]} 100%)` };
   // A spot punched while the card is on screen gives a small press, as a
   // punch would; holes already punched when it appears stay still.
   const scale = useSharedValue(1);
@@ -122,7 +125,7 @@ function Hole({ punched }: { punched: boolean }) {
   }, [punched, scale]);
   const press = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return punched
-    ? <Animated.View style={[styles.hole, styles.punched, press]} />
+    ? <Animated.View style={[styles.hole, styles.punched, depth, press]} />
     : <Animated.View style={[styles.hole, styles.open, press]} />;
 }
 
@@ -145,7 +148,7 @@ const styles = StyleSheet.create((theme) => ({
   holeRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["4"] },
   group: { flexDirection: "row", gap: theme.ui.space["2"] },
   hole: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full },
-  punched: { backgroundColor: theme.ui.color.hole, boxShadow: theme.ui.shadow.hole },
+  punched: { overflow: "hidden", boxShadow: theme.ui.shadow.hole },
   open: { borderWidth: 1.5, borderColor: theme.ui.color.accent, opacity: 0.4 },
   track: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.track, overflow: "hidden" },
   fillBar: { height: 6, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.ink },
