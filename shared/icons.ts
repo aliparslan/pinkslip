@@ -13,7 +13,7 @@ export const ICONS = {
   // The tab bar and the navigation bar
   jobs: "Briefcase",
   search: "MagnifyingGlass",
-  tracker: "Ticket",
+  tracker: "CardsThree",
   you: "UserCircle",
   editSearch: "SlidersHorizontal",
   notifications: "Bell",

@@ -514,6 +514,9 @@ size setting.
   already a dependency of both apps (`@phosphor-icons/react`,
   `phosphor-react-native`). Where iOS draws for us (long-press menus), use
   text only rather than mixing in SF Symbols.
+- **Tracker's icon is CardsThree** (a stack of slips: where the torn stub
+  lands), replacing Ticket, which the owner didn't love. Kanban was the
+  runner-up. Options: `docs/port-design/redesign-kit/tracker-icons-2026-10-12.png`.
 - **Counts in chips and segments** are a separate, lighter number with a
   6pt gap ("Jobs  12", the number in ink-3).
 - **The tab bar becomes ours**, like Instagram's. Options on the Paper page

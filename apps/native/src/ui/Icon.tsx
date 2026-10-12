@@ -1,9 +1,9 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
+  CardsThree, CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
   GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Prohibit, SignOut,
-  SlidersHorizontal, Sparkle, ThumbsDown, Ticket, UserCircle, UsersThree, WarningCircle, X,
+  SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
   type Icon as PhosphorIcon,
 } from "phosphor-react-native";
 import { useUnistyles } from "react-native-unistyles";
@@ -13,9 +13,9 @@ import type { TextTone } from "./Text";
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
+  CardsThree, CaretLeft, CaretRight, ChatText, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
   GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Prohibit, SignOut,
-  SlidersHorizontal, Sparkle, ThumbsDown, Ticket, UserCircle, UsersThree, WarningCircle, X,
+  SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
 };
 
 export type { IconName };
