@@ -39,6 +39,7 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 4, light** (2026-10-11): on "Batch 4 · Outreach".
 - **Batch 3, light** (2026-10-11): on "Batch 3 · Auto-apply".
 - **Batch 2, light** (2026-10-11): on "Batch 2 · Tracking".
 - **Batch 1, light** (2026-10-11): on the Paper page "Batch 1 · Core app".
@@ -166,6 +167,39 @@ On the Paper page "Batch 3 · Auto-apply".
   - Needs you, which includes follow-ups that are due.
   - The batch card, then New for you.
   - A four-item tab bar: Today, Jobs, Tracker, You.
+
+## Batch 4 decisions (outreach)
+
+On the Paper page "Batch 4 · Outreach".
+
+- **The company page:**
+  - Logo, name and one line of facts.
+  - Following (or Follow) and Careers site.
+  - Segments for Jobs, People and Events, with counts.
+  - Each person shows their role, whether the email has been checked, and
+    where the contact came from ("from Pinkslip's list").
+  - "Write to …" is pinned to the bottom.
+  - A separate person page isn't needed yet. The row and the conversation
+    page cover it.
+- **The composer:**
+  - A page sheet with To and Subject, then template chips: Just applied,
+    Asking about roles, After an event, Referral.
+  - Personalized words are highlighted in pale pink.
+  - A follow-up plan ("Oct 14, then Oct 21", set to remind you) and Send
+    from (Mail app or Gmail).
+- **Tracker's Outreach side:** Follow-up due (pink), Waiting and Replied. Each
+  row shows company, person and the next step.
+- **The conversation page:**
+  - A due card ("Review and send", "Skip").
+  - A log of what you wrote and the planned follow-ups.
+  - Follow-ups stop as soon as the person replies.
+- **Outreach settings:**
+  - Send from Gmail (sending only) or the Mail app. Pinkslip never reads
+    the inbox, and replies arrive through the forwarding address.
+  - Follow-ups: remind me or send for me.
+  - Timing: 3 days, then a week.
+  - Up to 5 emails a day, to people at jobs you apply to.
+  - Emails go out on weekday mornings in the recipient's time zone.
 
 ## To design, in order
 
