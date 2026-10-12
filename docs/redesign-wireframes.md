@@ -501,6 +501,34 @@ size setting.
   straight away and "Did you apply?" asks on return. The sheet with the
   changeable rows is only for people whose form Pinkslip fills.
 
+## Our own tab bar, one icon set (owner, 2026-10-12)
+
+- **One icon set everywhere: Phosphor**, on iOS and the web. This replaces
+  the SF Symbols / Phosphor split decided earlier the same day; the brand
+  should look the same on every surface. Regular for resting icons, Fill
+  for the selected tab, Bold where a heavier mark is needed. Phosphor is
+  already a dependency of both apps (`@phosphor-icons/react`,
+  `phosphor-react-native`). Where iOS draws for us (long-press menus), use
+  text only rather than mixing in SF Symbols.
+- **Counts in chips and segments** are a separate, lighter number with a
+  6pt gap ("Jobs  12", the number in ink-3).
+- **The tab bar becomes ours**, like Instagram's. Options on the Paper page
+  "Tab bar · Oct 12" (sheet `docs/port-design/redesign-kit/tab-bars-2026-10-12.png`,
+  close-up `tab-bars-closeup-2026-10-12.png`), all with Jobs, Search,
+  Tracker and You (your photo or initials):
+  - **A · Flat, icons only** (Instagram, Threads): a plain white bar with a
+    hairline; outline icons, the selected one filled.
+  - **B · Flat, with labels** (Airbnb): the same bar with 11pt labels.
+  - **C · Floating paper pill** (Cash App, Savee, Oura): a small centred
+    capsule; the selected icon sits on a soft circle.
+  - **D · Ticket stub bar:** the bar is the ticket's stone paper with a
+    torn top edge, and the selected tab gets a punched hole under it.
+  - With our own bar the Search tab's field moves to the top of the screen
+    (iOS 26 only puts it at the bottom for the system bar).
+- Research: Mobbin screens of Instagram, Threads, Airbnb, Public, Fresha,
+  Waymo, Opal, Cash App, Savee and Oura; Instagram tested reorganising its
+  bar around Reels and messages in late 2025.
+
 ## Search and companies (owner, 2026-10-12)
 
 On the Paper page "Search and companies · Oct 12" (sheet:
