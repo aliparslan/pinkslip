@@ -35,6 +35,10 @@ Sizes are relative: S is a session, M a few, L a week or more of sessions.
   ([apple-web-sign-in-setup.md](apple-web-sign-in-setup.md)).
 - [ ] Optional: a one-off salary backfill for older Greenhouse postings
   (writes to the live database).
+- [ ] Deploy the backend (`bun run deploy:backend`) to apply the source
+  catalog repair and the empty-board fix (migrations 0087 and 0088,
+  [source-health-2026-10-12.md](source-health-2026-10-12.md)). Afterwards the
+  admin Sources count of sources that "need attention" should fall.
 
 ## 1. Redesign foundations, iOS first · L
 

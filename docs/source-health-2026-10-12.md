@@ -3,6 +3,12 @@
 The admin Sources screen reports 57 sources that "need attention". This audit
 checks whether they can be fixed.
 
+**Status:** the owner approved every fix (2026-10-12). Migration
+`0087_source_catalog_repair.sql` repairs the catalog. Migration
+`0088_empty_snapshot_since.sql`, together with the poller change, fixes the
+empty-board errors (option 1 in section 7). Both apply with the next
+`bun run deploy:backend`. See "What was applied" at the end.
+
 ## How this was checked, and its limits
 
 - This session can't read production. Starting a session on the live site was
@@ -263,11 +269,56 @@ Other empty boards: At-Bay (greenhouse `atbay`), Beacons (ashby `beacons`), Conf
 careers site rate-limited the check. IBM completed its acquisition of
 Confluent on 2026-03-17, so its jobs have probably moved to IBM's site.
 
-## Applying the fixes
+## What was applied
 
-The fixes would ship as one migration in the style of
-`0052_source_catalog_refresh.sql`. Each `UPDATE` matches on name *and* the old
-slug, so a row already fixed in the admin isn't touched, and it clears
-`quarantined_at`, `poll_failure_count`, `last_poll_status` and
-`last_poll_error`, so fixed sources rejoin the normal cadence on the next
-tick. Running it against production needs the owner's go-ahead.
+**Migration 0087** re-points 78 sources and retires 52:
+
+- **Re-pointed (78):** the 69 moved boards, except Whatnot; the 7 live but
+  empty boards; and Aleph Alpha, Fireflies and Tinybird from section 3. Their
+  identity is confirmed and a healthy source can pick up US roles later.
+  Postmark becomes **ActiveCampaign** and Hasura becomes **PromptQL**, with
+  their websites. Re-pointed sources are enabled, leave quarantine, and take
+  their new type's default poll tier (YC is tier 2).
+- **Retired (52):** sections 4 to 6, plus:
+  - Better Stack (its only lead is a dormant 2024 Gem board whose owner
+    couldn't be confirmed);
+  - Greenhouse Whatnot, a duplicate of the existing YC source `whatnot`,
+    which has 151 jobs.
+
+  Retired sources are disabled, not deleted, so saved and applied jobs keep
+  their company. They leave "need attention", and their last error is kept as
+  the reason.
+- **Eight Sleep** was also a YC source, listing 13 of the 37 jobs on its
+  Ashby board. The Ashby row becomes the one source, and the YC row is
+  disabled.
+- **Jobs on the dead boards are closed.** None of those boards can list
+  them, and the poller could never close them because every poll failed. When
+  a board only changed its slug, hosted job links are rewritten to the new
+  slug, so a job the next poll finds under the same ID reopens with a working
+  link.
+- **Guards.** Rows match on name, source and the dead slug, so anything
+  already fixed in the admin is left alone. If a new board already exists as
+  another source, that row is retired instead of re-pointed, and the unique
+  indexes are never violated.
+
+Checked by rebuilding the catalog from all 88 migrations and polling every
+enabled source with the adapters: 1,062 enabled, **0 failing**, 92 empty (the
+next section). `tests/source-catalog-repair-migration.test.ts` covers the
+guards.
+
+**Alerts.** As with migration 0052, a re-pointed source's first polls import
+its whole board. Jobs posted in the last 30 days that match someone's profile
+will alert. Those are real openings Pinkslip missed while the source was
+broken, but expect a one-off batch of alerts after the deploy.
+
+**Empty boards (option 1).** `companies.empty_snapshot_since` records when a
+board first answered empty while jobs were still open. The poller keeps
+treating that as an error until the board has stayed empty for
+`EMPTY_SNAPSHOT_SETTLE_MS` (24 hours). It then trusts the empty board, so the
+open jobs close through the normal two-miss path and the source leaves
+quarantine. Any non-empty snapshot clears the timestamp. Only adapters that
+return a complete snapshot (Greenhouse, Ashby, Lever, YC and similar) use
+this path. The reference-manifest adapters (Meta, Uber) keep their own guard.
+Migration 0088 backfills the timestamp for sources already stuck on this
+error, so they recover at their next daily retry. Tests are in
+`tests/poller.test.ts`.
