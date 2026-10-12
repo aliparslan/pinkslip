@@ -497,6 +497,30 @@ size setting.
   and the job page is right behind the sheet. It's the title, one line,
   "Yes, I applied" and "Not yet"; Yes tears the job page's stub into Tracker.
 - Sheet: `docs/port-design/redesign-kit/filters-apply-2026-10-12-r2.png`.
+- **Apply without assisted fill skips the sheet:** Apply opens the posting
+  straight away and "Did you apply?" asks on return. The sheet with the
+  changeable rows is only for people whose form Pinkslip fills.
+
+## Search and companies (owner, 2026-10-12)
+
+On the Paper page "Search and companies · Oct 12" (sheet:
+`docs/port-design/redesign-kit/search-companies-2026-10-12.png`).
+
+- **Two searches.** Jobs gets a search field beside the filter button: it
+  narrows the feed you're looking at, chips still apply, and it covers all
+  open jobs, not only your saved search. The Search tab stays (iOS 26's
+  separate button by the tab bar) for jobs, companies and events together.
+  Jobs results end with "Search everything for …", which opens the Search
+  tab with the same words.
+- **Search tab before typing:** recent searches, companies you follow and
+  coming events. Typing gives the scoped results (All, Jobs, Companies,
+  Events) with the company first, then three-line job rows, then events.
+  The field sits at the bottom, as iOS 26 draws it.
+- **Job page → company page:** the company name above the title shows a
+  chevron ("Stripe ›") and, with the logo, opens the company page. The
+  company page opens on Jobs: "Fits your search" first, then "Other roles".
+  Its rows drop the logo and company name, since every row is the same
+  company.
 
 ## Next
 
