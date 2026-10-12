@@ -39,6 +39,53 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 1, light** (2026-10-11): on the Paper page "Batch 1 · Core app".
+  The decisions below.
+
+## Batch 1 decisions
+
+- **Onboarding:**
+  - Five steps: welcome, career stage, roles and places, resume, alerts.
+  - Continue sits in the same place on every step, and the bar at the top
+    shows progress.
+  - The welcome has the two-slips mark, one sentence, and a preview of real
+    rows with an Applied stamp. No wordmark.
+  - Career stage allows several choices, each with a short definition.
+  - Roles are six chips at most. Cities open a picker, and Remote and visa
+    sponsorship are switches.
+  - On the resume and alert steps, the main button is the action ("Import
+    PDF", "Turn on alerts"), with Skip or Not now under it.
+- **Edit search:**
+  - A page sheet, headed by the live match count ("48 a week") and one line
+    saying the search drives the feed, alerts and auto-apply.
+  - Grouped rows with values on the right.
+- **Full job page:**
+  - Requirements follow About the role.
+  - Benefits, About the company and Equal opportunity are collapsed.
+  - The company card closes the page: Follow, open roles, people, events.
+- **The ⋯ menu:** I applied, Not for me, Hide all of a company's jobs, Open
+  original posting, then Report a problem, set apart.
+- **Search:**
+  - One field for jobs, companies and events.
+  - Scope chips with counts.
+  - A company result comes first, with Follow.
+- **Notifications:**
+  - Grouped by new jobs, your applications, and outreach and events.
+  - Quiet hours sit apart.
+  - Needs you is the only time-sensitive alert.
+- **Answers:**
+  - Common questions are filled in for you.
+  - Work authorization, sponsorship and demographic questions are always
+    asked on the form, never answered for you. This follows the existing
+    rule against answering legal and status questions automatically.
+- **Empty states:**
+  - **An empty Tracker:** the paper-slips drawing, one line, Browse jobs,
+    and "Track one from an email".
+  - **No new jobs today:** a card with one concrete suggestion ("Add
+    Austin") and Edit search. The rest of the week's list shows below it.
+- **Offline:** not drawn. The plan is a one-line banner under the title, with
+  the time of the last refresh.
+
 ## To design, in order
 
 Each batch is drawn in light first, with dark added at the end of the batch.

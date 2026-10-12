@@ -127,6 +127,11 @@ These are drawn on the Take A page: "A · Job page, several locations" and
 - **The full list:** `jobLocationParts` already returns every place for the
   sheet.
 
+## Tracker order (owner, 2026-10-11)
+
+From the top: the Applications · Outreach switch, the "Applying to" card for
+work in progress, Needs you, then the stages.
+
 ## Take A in dark mode (2026-10-11)
 
 These are on the page "Take A · Dark", as images of the seven Take A frames
