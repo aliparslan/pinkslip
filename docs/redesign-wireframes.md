@@ -400,19 +400,22 @@ size setting.
 
 ### Decided (owner, 2026-10-12)
 
-- **Job rows are three lines, read the way Gmail marks mail** (owner,
-  2026-10-12, after trying two-line rows with the dot inside the margin, a
-  quiet read state, a badge on the logo, a dot by the age and a Messages-style
-  dot at the left edge). Until you open a job its title is Medium and a dot
-  follows the age ("2h •"); once opened, the title is Regular, the age grey
-  and the dot gone. This applies to every job you haven't opened, not only
-  the last 48 hours. The 40pt logo is the height of the first two lines, on
-  the 16 margin (quarter radius, 10). Line one is the title, cut off with
-  "…", and the age; line two the company and its stage (Saved, Applied);
-  line three level, place and pay. Every row is 84pt; text and separators
+- **Job rows are three lines, laid out and read the way Gmail shows mail**
+  (owner, 2026-10-12, after trying two-line rows with the dot inside the
+  margin, a quiet read state, a badge on the logo, a dot by the age and a
+  Messages-style dot at the left edge). Line one is the company and the age;
+  line two the title, cut off with "…"; line three level, place and pay,
+  with the stage (Saved, Applied) at the end where Gmail puts the star.
+  Until you open a job the company and title are Medium and a pink dot
+  follows the age ("2h •"); once opened they're Regular, the age grey and
+  the dot gone. This applies to every job you haven't opened, not only the
+  last 48 hours. The 40pt logo is the height of the first two lines, on the
+  16 margin (quarter radius, 10). Every row is 84pt; text and separators
   start on the 68 line. The Paper pages still show the two-line rows.
   - Bold here is Medium (500): the licensed family has no Semibold, and
     Bold (700) is outside the type rules.
+  - The dot is pink by the owner's call, a deliberate exception to "pink is
+    for acting or needs you" (wireframe call 1 had it grey).
 - **Swipes are A · Capsule:** the page stays put, a grey circle grows from
   the row's edge and turns into an ink capsule with the label once letting go
   will act. One action per side.
