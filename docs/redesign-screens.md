@@ -39,6 +39,8 @@ is the checklist. [ROADMAP.md](ROADMAP.md) has the phases, and
 - The several-locations ticket, and the locations-and-pay sheet.
 - Dark versions of all of the above.
 
+- **Batch 7, light** (2026-10-11): on "Batch 7 · Admin".
+- **Batch 6, light** (2026-10-11): on "Batch 6 · Pricing".
 - **Batch 5, light** (2026-10-11): on "Batch 5 · Events and writing".
 - **Batch 4, light** (2026-10-11): on "Batch 4 · Outreach".
 - **Batch 3, light** (2026-10-11): on "Batch 3 · Auto-apply".
@@ -231,6 +233,64 @@ On the Paper page "Batch 5 · Events and writing".
   - A reading page: a read-time line, a big title, short steps.
   - A button at the end opens the composer. Guides appear in context, so
     this one also opens from the composer.
+
+## Batch 6 decisions (pricing)
+
+On the Paper page "Batch 6 · Pricing".
+
+- **The prices are placeholders.** They are the lean from
+  [redesign-2026-10.md](redesign-2026-10.md): one Pro plan at $9.99 a week,
+  $24.99 a month or $59.99 a season (3 months). The model isn't decided yet.
+- **The Plan page:**
+  - First, this week's usage: "Applied for you 3 of 5" and "Emails sent for
+    you 1 of 5", each with a meter.
+  - One line says what stays free: jobs, alerts, the tracker and filling
+    forms yourself.
+  - Then the Pro card: four things it adds, the three billing periods (the
+    selected one in pale pink), and "Try Pro free for 7 days".
+- **The paywall at the moment of intent:**
+  - It appears only when an action goes past the free allowance. Here that's
+    selecting 3 jobs after the week's 5 are used.
+  - It's a sheet over the screen you were on, so the selection survives.
+  - The title says what happened: "You've used this week's 5". One line
+    gives the reason to upgrade.
+  - "Apply to these 3 myself" is always there as a way out, and the price
+    sits in the footer.
+
+## Batch 7 decisions (admin)
+
+On the Paper page "Batch 7 · Admin". Admin is reached from You, and only
+admins see it.
+
+- **Admin home:** a grouped list.
+  - To review: Inbox, Shared events and Jev comparisons. Counts are pink
+    only when something is waiting on the admin.
+  - Pipeline: Runs (the last run's age), Sources (how many need a look) and
+    Product health.
+  - Import contacts, with the total.
+- **Inbox:**
+  - One screen with three tabs: flagged jobs, reports and feedback, each
+    with a count.
+  - A flagged job uses the job-row header. Under it, why it was flagged,
+    one reason per line ("Rules and Jev disagree on level"). Then Posting,
+    Hide and Show.
+- **Shared events:**
+  - Tabs for New, Approved and Declined.
+  - Each event has a date block, title, time and place, and when it was
+    shared. Then Link, Decline and Approve.
+  - A likely duplicate says "Looks like one already listed", and Link
+    becomes Compare.
+  - The date label is grey: pink stays for act and needs-you.
+- **Contact import:**
+  - The file card (name, row count, Change), then Source and Columns.
+  - "Need a look" comes first: each row names the problem in pink (no
+    email, already a contact, company not found) and has one fix (Skip,
+    Merge, Fix).
+  - Then the ready rows, collapsed after two.
+  - The bar says exactly what will happen: "Import 39 contacts".
+- **Runs, Sources, Jev and Product health** keep the current admin screens'
+  content. They take on Take A's grouped lists and type when they're built,
+  without a separate drawing.
 
 ## To design, in order
 
