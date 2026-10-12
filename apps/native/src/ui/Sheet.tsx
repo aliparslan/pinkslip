@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
-import { Pressable, View, useWindowDimensions } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Modal, Pressable, View, useWindowDimensions } from "react-native";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -80,6 +80,21 @@ export function Sheet({ onClosed, children }: SheetProps) {
       </Animated.View>
     </View>
   </SheetContext.Provider>;
+}
+
+export interface SheetModalProps extends SheetProps {
+  open: boolean;
+}
+
+/** A Sheet over everything on screen, the navigation bar included, for a
+ * sheet that isn't a route of its own (the Apply sheets on the job page). */
+export function SheetModal({ open, onClosed, children }: SheetModalProps) {
+  if (!open) return null;
+  return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed}>
+    <GestureHandlerRootView style={styles.fill}>
+      <Sheet onClosed={onClosed}>{children}</Sheet>
+    </GestureHandlerRootView>
+  </Modal>;
 }
 
 export interface SheetStepProps {

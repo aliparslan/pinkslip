@@ -69,7 +69,15 @@ export interface JobMenuItem {
  * application browser with auto-apply), the More menu, and the sheets those
  * open. Render `sheets` once on the page.
  */
-export function useJobPageActions(job: DetailJob, { outreachThread, controlsColor }: { outreachThread?: string; controlsColor: string }) {
+export interface JobPageActionOptions {
+  outreachThread?: string;
+  controlsColor: string;
+  /** The redesign asks "Did you apply?" and prepares an assisted
+   * application in its own sheets; today's page uses the system alert. */
+  ownSheets?: boolean;
+}
+
+export function useJobPageActions(job: DetailJob, { outreachThread, controlsColor, ownSheets = false }: JobPageActionOptions) {
   const group = useTabGroup();
   const session = useSession().data;
   const features = session?.me?.features;
@@ -88,6 +96,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const api = useApi();
   const [applying, setApplying] = useState<ApplicationRequest | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [emailing, setEmailing] = useState(Boolean(outreachThread && outreach));
   useEffect(() => { if (outreachThread && outreach) setEmailing(true); }, [outreachThread, outreach]);
 
@@ -112,6 +122,10 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     track("apply_clicked", { type: "job", id: job.id, properties: autoApply ? { source: "prep" } : {} });
     await WebBrowser.openBrowserAsync(job.url, { presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor });
     if (applied) return;
+    if (ownSheets) {
+      setAsking(true);
+      return;
+    }
     Alert.alert("Did you apply?", `${job.title} at ${job.company_name}`, [
       { text: "Not yet", style: "cancel" },
       { text: "Yes, I applied", onPress: () => setApplied(true) },
@@ -171,7 +185,17 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     applied,
     closed,
     toggleSave,
-    apply: () => (autoApply ? void startAutoApply() : void openApplication()),
+    apply: () => (autoApply ? (ownSheets ? setPreparing(true) : void startAutoApply()) : void openApplication()),
+    /** The Apply sheets (with `ownSheets`): "Did you apply?" after the
+     * posting closes, and the assisted application's preparation. */
+    applyFlow: {
+      asking,
+      endAsking: () => setAsking(false),
+      preparing,
+      endPreparing: () => setPreparing(false),
+      confirmApplied: () => setApplied(true),
+      openAssisted: () => void startAutoApply(),
+    },
     share: () => void shareJob(job),
     menu,
     sheets,

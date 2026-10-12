@@ -12,7 +12,7 @@ export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { SearchField, type SearchFieldProps } from "./SearchField";
-export { Sheet, SheetHeader, SheetStep, useSheet, type SheetHeaderProps, type SheetProps, type SheetStepProps } from "./Sheet";
+export { Sheet, SheetHeader, SheetModal, SheetStep, useSheet, type SheetHeaderProps, type SheetModalProps, type SheetProps, type SheetStepProps } from "./Sheet";
 export { TabBar, useTabBarSpace } from "./TabBar";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { Ticket, tornEdge, type TicketBackdrop, type TicketFact, type TicketProps } from "./Ticket";

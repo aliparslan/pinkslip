@@ -7,7 +7,8 @@ import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet, toast } from "../../kit";
-import { Button, CompanyLogo, Icon, ListGroup, ListItem, Text, Ticket } from "../../ui";
+import { Button, CompanyLogo, Icon, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
+import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { logoUri } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
@@ -44,7 +45,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const profile = usePreferences().data?.search_profile;
-  const { saved, applied, closed, toggleSave, apply, share, menu, sheets } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent });
+  const { saved, applied, closed, toggleSave, apply, share, menu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
   const tab = useSegments()[1] ?? "(jobs)";
   const openCompany = () => {
     if (job.company_id) router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId: job.company_id } });
@@ -129,6 +130,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
         </>}
     </View>
     {sheets}
+    <SheetModal open={applyFlow.asking} onClosed={applyFlow.endAsking}><DidYouApply onYes={applyFlow.confirmApplied} /></SheetModal>
+    <SheetModal open={applyFlow.preparing} onClosed={applyFlow.endPreparing}>
+      <ApplyPrep job={job} onOpen={applyFlow.openAssisted} onAlreadyApplied={applyFlow.confirmApplied} />
+    </SheetModal>
     <Sheet open={placesOpen} onOpenChange={setPlacesOpen} title="Locations">
       <ListGroup>
         {places.map((entry) => <ListItem key={entry.place} title={entry.place} value={entry.matched ? "Your search" : undefined} />)}
