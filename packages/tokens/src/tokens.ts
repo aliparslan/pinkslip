@@ -425,21 +425,21 @@ export const uiSpace = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40 }
 export const uiRadius = { sm: 8, md: 12, lg: 16, full: 999 } as const;
 
 /**
- * Fixed sizes. A job row is two 20pt lines with a 40pt logo exactly their
- * height: 16 margin + 40 logo + 12 puts row text and separators on the 68
- * line. (The kit's Mail-style dot option adds a 16pt slot before the logo.)
- * Buttons are Apple's 50.
+ * Fixed sizes. A job row is three 20pt lines (84 with its padding) beside a
+ * 48pt logo. As in Messages, the unread dot has its own 28pt slot at the left
+ * edge and the logo follows it, so row text and separators start on the 88
+ * line. Buttons are Apple's 50.
  */
 export const uiSize = {
   gutter: 16,
-  unreadSlot: 16,
-  keyline: 68,
-  jobRow: 64,
+  unreadSlot: 28,
+  keyline: 88,
+  jobRow: 84,
   listRow: 44,
   button: 50,
   chip: 32,
   iconButton: 44,
-  logo: 40,
+  logo: 48,
   logoLarge: 48,
   hole: 24,
 } as const;

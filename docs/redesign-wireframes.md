@@ -400,14 +400,14 @@ size setting.
 
 ### Decided (owner, 2026-10-12)
 
-- **Job rows are A · Compact**, and every row is one line each: long titles
-  end in "…" and the job page shows them in full. The logo is 40, a quarter
-  radius (10), exactly the two 20pt lines.
-  - **New jobs are marked by a dot beside the age** ("• 2h"), for now
-    (owner, 2026-10-12), so the logo stays on the 16 margin and text on the
-    68 line. The dot, quiet and logo-badge options stay switchable in the
-    redesign kit (sheet:
-    `docs/port-design/redesign-kit/unread-options-2026-10-12.png`).
+- **Job rows are three lines** (owner, 2026-10-12, after trying two-line
+  Compact rows with the dot inside the margin, a quiet read state, a badge
+  on the logo and a dot by the age): as Messages lays out a conversation,
+  the unread dot has its own 28pt slot at the left edge and a 48pt logo
+  (quarter radius, 12) follows it. Line one is the title, cut off with "…",
+  and the age; line two the company and its stage (Saved, Applied); line
+  three level, place and pay. Every row is 84pt; text and separators start
+  on the 88 line. The Paper pages still show the two-line rows.
 - **Swipes are A · Capsule:** the page stays put, a grey circle grows from
   the row's edge and turns into an ink capsule with the label once letting go
   will act. One action per side.
