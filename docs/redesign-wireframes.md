@@ -526,7 +526,7 @@ size setting.
   - **A · Flat, icons only** (Instagram, Threads): a plain white bar with a
     hairline; outline icons, the selected one filled.
   - **B · Flat, with labels** (Airbnb): the same bar with 11pt labels.
-  - **C · Floating paper pill** (Cash App, Savee, Oura): a small centred
+  - **C · Floating pill** (Cash App, Savee, Oura): a small centred
     capsule; the selected icon sits on a soft circle.
   - **D · Ticket stub bar:** the bar is the ticket's stone paper with a
     torn top edge, and the selected tab gets a punched hole under it.
@@ -536,7 +536,7 @@ size setting.
   2026-10-12, after Instagram): real Liquid Glass on iOS 26 (expo-glass-effect,
   already linked by expo-router), solid paper before it, and no white fade,
   so rows show through as they pass under it.
-- **Picked (owner, 2026-10-12): C · Floating paper pill.** "There's really
+- **Picked (owner, 2026-10-12): C · Floating pill.** "There's really
   just one new icon, and users will know to go there." The Search tab with
   this bar is drawn on the same page.
 - Research: Mobbin screens of Instagram, Threads, Airbnb, Public, Fresha,
