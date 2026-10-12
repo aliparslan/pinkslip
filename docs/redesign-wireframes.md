@@ -116,8 +116,8 @@ These are drawn on the Take A page: "A · Job page, several locations" and
     bands need backend work: parse zone or city bands from the posting.
 - **The deadline moved into the stub** ("Posted Oct 9 · Rolling deadline · via
   Greenhouse"). Dates read as the ticket's stub, and the grid stays even.
-- **The applied stamp** sits in the location row's empty half, so it covers no
-  facts.
+- **The applied mark** is the torn stub (2026-10-12): after Apply, the ticket
+  keeps a torn edge where the stub was. It covers no facts.
 
 **For the build:**
 - **Search-matched place first in rows:** `formatRowLocation` in
@@ -172,14 +172,13 @@ but only in chosen places.
     the app-icon treatment. The icon rail, tab and favicon keep today's flat
     two-slip shape so it reads at 16px. It can also serve as the brief for the
     commissioned logo.
-  - **The stamp:** real ink, with patchy coverage, roughened edges and a
-    slight tilt. It sits in the location row's empty half and covers no
-    facts.
+  - **The stamp:** replaced by the torn stub on 2026-10-12 (see "Revisions
+    decided").
   - **The ticket:** faint paper grain, the perforation drawn as punched holes
     (the screen colour showing through), and a slight lift off the page.
-  - **The stub tear:** on Apply, the stamp comes down, the stub tears along
-    the holes and drops into the Tracker tab, and the tab's count goes up by
-    one. Each step gets a haptic.
+  - **The stub tear:** on Apply, the stub tears along the holes and drops
+    into the Tracker tab, and the tab's count goes up by one. Each step gets
+    a haptic.
   - **The punch card:** the Plan page's weekly allowance is a card with
     5 holes, punched as they're used, and a cut corner. "2 left" stays as
     text.
@@ -239,7 +238,7 @@ Applied across Take A and every batch page in Paper.
   - Example jobs mix levels, such as "Software Engineer II" and "0–2 yrs".
 - **Paper objects in the screens:**
   - The welcome screen uses the carbon-copy mark.
-  - Every stamp is the inked one.
+  - The applied mark is the torn stub (2026-10-12).
   - Every ticket has grain, punched perforation and a slight lift.
   - The Plan page uses the punch card.
 
@@ -267,30 +266,31 @@ after the consistency pass). They're made the same way as before: point the
 - **Selected chips and prices** invert to a light fill with dark text.
 - **Still open for the build:** very dark logo tiles (Plaid's) lose their
   edge on graphite and need the image outline in dark mode.
+- **Shadows in dark:** the ticket and card shadows use a warm brown that reads
+  as a faint glow on dark. In the build, dark mode uses black shadows.
+- **Dark renders refreshed (2026-10-12)** after the revisions and the audit.
 
-## Revisions in review (2026-10-12)
+## Revisions decided (owner, 2026-10-12)
 
-On the Paper page "Revisions · Oct 12". These are options and proposed rules,
-waiting for the owner's pick.
+Options are on the Paper page "Revisions · Oct 12". The picks are applied
+across Take A and every batch page.
 
-- **Level in job rows:**
-  - Proposed: line 2 drops the level when the title already says it, so place
-    and pay stop getting cut off.
+- **Level in job rows:** line 2 drops the level when the title already says
+  it, so place and pay stop getting cut off.
   - A short word list counts as saying it: intern, co-op, new grad,
     graduate, junior.
   - Vague titles keep the level: "Software Engineer", "Associate Product
     Manager", "Software Engineer I", "Backend Engineer II".
   - A row with no listed pay leaves pay out. It never says "Pay not listed".
-- **The applied mark, five options:**
-  - A: torn stub.
-  - B: a one-line date stamp on the stub.
-  - C: a postmark straddling the perforation.
-  - D: a check-shaped conductor's punch.
-  - E: a blind embossed seal.
-  - The current stamp sits on the facts like a sticker, and its inked date
-    reads as "2023" at real size.
-  - Lean: A. It's the end state of the stub tear that's already decided, and
-    it needs no ink texture.
+- **The applied mark is the torn stub** (option A of five).
+  - On Apply, the stub tears off along the punched holes and drops into the
+    Tracker tab. The job page keeps the torn edge, and the button below
+    reads "Applied Oct 10".
+  - The inked stamp is gone from the job page, the welcome screen and the
+    stub-tear board. It needs no ink texture, so the build only needs noise
+    for the paper grain.
+  - The rejected options (date stamp, postmark, punched check, embossed
+    seal) stay on the revisions page for reference.
 - **The punch card at any limit:**
   - Up to 5, the holes sit beside the label.
   - Above 5, they move under the label in rows of ten, split into fives.
@@ -301,21 +301,77 @@ waiting for the owner's pick.
   - Over the limit after a downgrade, the holes are all punched with "+3"
     after them.
   - A daily limit says "Today" and "Resets at midnight".
-- **The Plan page, two options:**
-  - A: plan rows with a radio, the iOS paywall pattern.
-  - B: a Free and Pro table with a segmented period control.
-  - Both pin the trial button and its price line to the bottom.
-  - The free line moves under the punch card as a section footer.
-  - Pro's "30 a day" is a placeholder.
-- **The alerts step:**
-  - Redrawn as a lock screen: real iOS notification styling, the system
-    font, the app icon, and a stack.
+- **The Plan page uses plan rows** (option A).
+  - The punch card, then "Jobs, alerts and the Tracker are always free." as
+    a section footer.
+  - "Pro" with four features, then weekly, monthly and 3-month rows with a
+    radio and the weekly equivalent.
+  - The trial button and its price line are pinned to the bottom.
+  - The Free and Pro table (option B) stays on the revisions page.
+- **The alerts step is a real lock screen:** iOS notification styling, the
+  system font, the app icon and a stack.
   - The second board is the iOS prompt that follows "Turn on alerts".
   - iOS shows that prompt only once, so "Not now" doesn't trigger it, and the
     app can ask again later.
+  - The lock-screen notifications board got the same treatment.
+- **Untitled Sans stays** for text (compared with Founders Grotesk Text, SF
+  Pro and National 2 on the Paper page "Type pairings").
 - **Contact import is admin only.** It loads recruiter contacts into
   Pinkslip's shared list, which company pages show as "from Pinkslip's list".
   Users can't import their own contacts yet.
+
+## The system: type and layout (owner, 2026-10-12)
+
+The rules every screen follows, and what the iOS tokens and kit encode.
+
+**Type** follows Apple's text styles, so it can scale with the iPhone's text
+size setting.
+
+| Style | Size / line height | Face |
+| --- | --- | --- |
+| Large title | 34 / 41 | Founders Grotesk Semibold |
+| Title 1 | 28 / 34 | Founders Grotesk Semibold |
+| Title 2 | 22 / 28 | Founders Grotesk Semibold |
+| Body | 17 / 22 | Untitled Sans 400, or 500 for row titles and emphasis |
+| Long text | 17 / 24 | Untitled Sans 400, for job descriptions and emails |
+| Subhead | 15 / 20 | Untitled Sans |
+| Footnote | 13 / 18 | Untitled Sans |
+| Tab label | 10 / 12 | System font |
+
+- Items on the same line share a size.
+- Hierarchy comes from the four ink shades and the weight, not extra sizes.
+- Exempt: logo initials, system mock-ups (status bar, lock screen,
+  notifications, iOS prompts) and employer web pages in the in-app browser.
+
+**Layout** has no column grid: iPhone screens are one column. The system is a
+4pt unit plus fixed alignment lines.
+
+- **Spacing** is a multiple of 4: 4, 8, 12, 16, 20, 24, 32, 40.
+- **Rhythm:** 4 to 8 inside an item, 12 to 16 between items in a group, 24 to
+  32 between sections.
+- **Side margins** are 16. Grouped lists and cards are inset 16.
+- **The 60 line:** row text starts 60 from the edge, after the 16 gutter and
+  the 44 logo slot. Separators are inset to it.
+- **Fixed sizes:** job row 64, list row 44 or more, large button 50 (Apple's
+  size), chip 32, icon button 44, punch hole 24.
+- **Corner radius:** 8 for logos and small controls, 12 for cards and grouped
+  lists, 16 for the ticket and sheets, fully round for buttons and chips.
+- **Capsule padding:** 16 on each side for buttons and chips.
+- **Derived, not hand-set:** the unread dot and logo align to the title's
+  first line, and list rows centre their content in a minimum height. In
+  code these are computed, so a 10 or 11 inside a row is not a spacing
+  value.
+- **System chrome follows iOS:** the status bar, home indicator and safe areas
+  come from the system.
+
+**Audit (2026-10-12):**
+- Large titles were 36 and are now 34/41.
+- Title line heights moved to Apple's: 22/28 and 28/34.
+- Email and composer text is 17/24.
+- Off-grid spacing was snapped: 18 to 16, 14 to 16 (or 12 between an icon
+  and its label), 10, 7 and 6 to 8. Holes and radios went from 22 to 24.
+- Labels inside fixed-height controls (chips and logo tiles) keep their line
+  height, since the control centres them.
 
 ## Next
 
