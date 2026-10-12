@@ -1,4 +1,5 @@
 import { ArrowLeft, BookmarkSimple, DotsThree, Export, SlidersHorizontal } from "phosphor-react-native";
+import { router } from "expo-router";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -23,6 +24,7 @@ export function RedesignGallery() {
     <Section title="Screens" flush>
       <ListGroup footer="Jobs and the job page. Dev builds only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
+        <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
       </ListGroup>
     </Section>
 

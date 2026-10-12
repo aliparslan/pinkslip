@@ -375,8 +375,30 @@ size setting.
 - Labels inside fixed-height controls (chips and logo tiles) keep their line
   height, since the control centres them.
 
+## In review (owner, 2026-10-12)
+
+- **Search moved to iOS 26's search tab.** Jobs keeps its title, quick filters
+  and Edit search. The owner expects many people to look for search on Jobs,
+  so this is on trial.
+- **Job rows** (Paper page "Job rows · Oct 12"): the owner found titles too
+  heavy and the unread dot out of line. Options:
+  - Today: 17 medium, wrapping titles, a 32 logo and the dot on the title line.
+  - A · Compact: 15 medium on one line, a 40 logo that exactly spans the two
+    text lines, and the dot centred on the logo. Fixed 64pt rows, 7 visible.
+  - B · Calm: 17 regular, titles wrap to two lines, a 42 logo spanning the
+    first two lines, and the dot centred on the logo.
+- **Swipe actions** (Paper page "Swipe actions · Oct 12"): today's full pink
+  and red slabs use the old kit. Options are A · Capsule, B · Just the mark
+  and C · Soft slab. Open question: Mail-style two actions per side, where a
+  full swipe runs the outer one.
+- **Icons:** the dev screen You → Kit → Redesign kit → Icon sets shows every
+  concept in SF Symbols and Phosphor Regular, Bold, Duotone and Fill, with
+  the stage ring beside the stages. Sheet in
+  `docs/port-design/redesign-kit/icon-sets-2026-10-12.png`.
+- **Pay is always shorthand** ("$147–210K"): amounts written without commas
+  now compact like the rest (0dd4044).
+
 ## Next
 
-- **The iOS tokens and kit** for Take A, in light and dark.
-- **Then the screens:** Jobs and the job page first, then Tracker (replacing
+- **Decide the rows, swipes and icons above**, then Tracker (replacing
   Library), then You.
