@@ -29,6 +29,7 @@ export function RedesignGallery() {
       <ListGroup footer="Dev builds and the owner's phone build only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
+        <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
       </ListGroup>
     </Section>
 
