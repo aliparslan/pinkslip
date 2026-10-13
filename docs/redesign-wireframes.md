@@ -666,6 +666,42 @@ From the owner's phone review of `66d63d6`:
   button and badges). It reads deeper on near-black. Lightening it for dark
   mode would put white text under 3:1, so it stays.
 
+## Sheet steps, grab bar and Tracker (owner, 2026-10-13)
+
+- **Research for the sheet steps:**
+  - Apple's sheet guidelines say to include a grabber on a sheet you can
+    drag. They also say people "expect to swipe vertically to dismiss a
+    sheet instead of tapping a dismiss button".
+  - Back "isn't intended to dismiss a sheet". Avoid showing Cancel, Done and
+    Back together.
+  - Ask before throwing away unsaved changes on a swipe.
+  - Family's trays change height on purpose between steps. A public
+    recreation (cult/ui's Family Drawer) resizes in 270ms on a sharp
+    ease-out. It swaps content with a fade and a 96% scale over 150–270ms,
+    with no slide.
+  - Every version we'd tried resized over 400–500ms on the drawer curve,
+    which lingers.
+- **Decided:**
+  - Steps change the Family way.
+  - A grab bar replaces the ×.
+  - On a step inside a sheet, Back sits at the bottom, left of Done. Both
+    return to the menu, since picks apply as you tap.
+  - Swiping away with unsaved changes asks first. The owner wants our own
+    step, not the system action sheet. Proposed on Paper "Filters and
+    Apply": "Save your changes?" with Save search, Discard changes and
+    Back to keep editing.
+- **Tracker:**
+  - The finished state, assuming every backend feature exists, is drawn
+    with fake data on Paper "Tracker · Oct 12".
+  - Applications run: batch card, Needs you, then Offer, Interview, Screen,
+    Applied, Saved and Closed.
+  - Outreach runs Follow-up due, Waiting, Replied.
+  - How to filter or organize the list (for example, to see only Saved) is
+    being discussed.
+- **Today:** still planned for later, once background applying ships. It's
+  already drawn as "28 · Today tab" on Batch 3. When it arrives, Needs you
+  and the batch card move there.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".

@@ -9,7 +9,7 @@ import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
-import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet } from "../../ui";
 import {
   experienceSummary, needsSponsorship, rolesSummary, stageName, stageSummary, toggled, wantsRemote, whereSummary, withRemote,
 } from "./search-draft";
@@ -25,8 +25,8 @@ const stageDetail: Record<CareerStage, string> = {
 
 /**
  * Your search (Paper "Filters · Your search as a plain menu"), the one saved
- * search behind the feed and alerts: tap a row and that choice slides in,
- * then Done goes back. Save writes the search; closing drops the
+ * search behind the feed and alerts: tap a row and the sheet changes to that
+ * choice, then Back or Done returns to the menu. Save writes the search; closing drops the
  * changes. It opens over Jobs, which stays in view behind it.
  */
 export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
@@ -81,9 +81,14 @@ function YourSearch() {
     </SheetStep>;
   }
 
-  const done = <Button fullWidth onPress={back}>Done</Button>;
-  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step} inner>
-    <SheetHeader title={title} onBack={back} />
+  // Picks apply as you tap, so Back and Done both return to the menu; Back
+  // sits where a thumb finds it (owner, 2026-10-13).
+  const done = <View style={styles.actions}>
+    <SheetBack onPress={back} />
+    <View style={styles.flex}><Button fullWidth onPress={back}>Done</Button></View>
+  </View>;
+  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step}>
+    <SheetHeader title={title} />
     <SheetScroll style={styles.scroll} contentContainerStyle={styles.scrollBody}>{body}</SheetScroll>
     {done}
   </SheetStep>;
@@ -187,4 +192,6 @@ const styles = StyleSheet.create((theme) => ({
   scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
   scrollBody: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
   menu: { gap: theme.ui.space["3"] },
+  actions: { flexDirection: "row", gap: theme.ui.space["3"] },
+  flex: { flex: 1 },
 }));

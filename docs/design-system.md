@@ -139,9 +139,10 @@ on one line share a size.
   card shadow only for paper objects); things that float (`bg-elev` with
   the pill shadow: sheets, the tab bar, toasts).
 - **Our own sheets:** float 8 in from the edges with 40 corners and size to
-  each step. A choice opened from the first step pushes in from the right,
-  the standard navigation pattern, as the sheet eases to its height; long
-  lists scroll. They replace the system sheet everywhere.
+  each step. A grab bar sits on top instead of a close button; swipe down or
+  tap behind to close. A step opened from the first one has a round Back
+  button at the bottom, left of its Done. Long lists scroll. They replace
+  the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
   flat gray card (`fill`, 12 corners), with no lift and no grain. Menu rows
   are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
@@ -189,9 +190,10 @@ the storyboard spec. These were chosen in the Motion lab
 
 - **Sheets** move like Vaul's drawer: 500ms on cubic-bezier(0.32, 0.72, 0,
   1) for opening, closing and settling.
-  - A choice pushes in from the right over 400ms on the same curve while
-    the first step slides out to the left, and the top edge eases to the
-    new height over the same 400ms; back reverses it (owner, 2026-10-12).
+  - Between steps, like Family's trays (owner, 2026-10-13): the height
+    changes in 270ms on cubic-bezier(0.25, 1, 0.5, 1); the old step fades
+    out in 150ms as the new one fades in and grows from 96% over 270ms,
+    both standing on the bottom edge. Nothing slides.
   - A list hands a downward drag to the sheet only if it was already at its
     top when the drag began, so scrolling back up never closes the sheet.
   - They close past a quarter of their height, or on a flick faster than
@@ -269,6 +271,13 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13**
+  - Sheets: a grab bar replaces the close button; Back moves to the bottom,
+    left of Done; steps change like Family's trays (quick resize, content
+    fading in place). Researched: Apple's sheet guidelines and Family's
+    trays (docs/redesign-wireframes.md).
+  - Proposed, not built: our own "Save your changes?" step when a sheet with
+    unsaved changes is swiped away.
 - **2026-10-12, evening**
   - Decided (owner): Your search is a plain menu, not the ticket; sheets
     hold plain menus. The "Alerts and companies" step is gone; Alerts and
