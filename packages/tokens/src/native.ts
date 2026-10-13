@@ -615,7 +615,6 @@ export const ui = {
         duration: 180,
         curve: [0.32, 0.72, 0, 1],
       },
-      stepSlide: 20,
       closeShare: 0.25,
       closeSpeed: 400,
     },

@@ -636,6 +636,31 @@ The Paper page "Motion and icons · Oct 12" holds the comparisons.
   - The first sheet bounced because its spring was at 84% damping, close to
     Apple's swipe value but wrong for a tap.
 
+## Filter as a plain menu, tab bar spacing and drag (owner, 2026-10-12)
+
+From the owner's phone review of `66d63d6`:
+
+- **Your search is a plain menu,** not the ticket (Paper "Filters and Apply":
+  "Your search as a plain menu", its dark version, and "a step as a plain
+  menu"). The owner found the raised ticket odd in a sheet, especially in
+  dark mode. Rows are on a flat gray card: Career stage, Pay from (Soon),
+  Roles, Where, Visa sponsorship and Experience asked. Below them, Alerts
+  and Hidden companies open their screens under You. The choice steps use
+  the same flat card. The textured ticket stays special to the job page.
+- **No "Alerts and companies" step.** Claude had added it, with a "These
+  live under You" note, while building; it was never in Paper.
+- **Steps cross-fade in place.** The sheet used to slide each step 20pt
+  sideways while the content rode its top edge about 320pt up or down
+  (measured from a recording); the owner saw it move back and forth.
+- **Tab bar:** the selected icon stays an outline, in pink (the filled You
+  icon looked off). Icons 56 apart (option A over 52) with the same 64 × 46
+  oval. Press and slide: the oval follows the finger, the icon under it
+  turns pink with a tick, and letting go opens that tab. Claude couldn't
+  check Instagram's newest app, so the drag follows the iOS 26 tab bar.
+- **Dark-mode pink:** measured identical to light (#EE5FAC on the Apply
+  button and badges). It reads deeper on near-black. Lightening it for dark
+  mode would put white text under 3:1, so it stays.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".

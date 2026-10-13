@@ -9,12 +9,12 @@ import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
-import { Button, Choice, Choices, ChoiceSwitch, ListGroup, ListItem, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, Ticket, useSheet } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet } from "../../ui";
 import {
-  experienceSummary, needsSponsorship, rolesSummary, stageName, stageTicket, toggled, wantsRemote, whereSummary, withRemote,
+  experienceSummary, needsSponsorship, rolesSummary, stageName, stageSummary, toggled, wantsRemote, whereSummary, withRemote,
 } from "./search-draft";
 
-type Step = "search" | "stage" | "roles" | "where" | "visa" | "experience" | "more";
+type Step = "search" | "stage" | "roles" | "where" | "visa" | "experience";
 
 const stageDetail: Record<CareerStage, string> = {
   internship: "Summer, fall and co-op roles",
@@ -24,11 +24,10 @@ const stageDetail: Record<CareerStage, string> = {
 };
 
 /**
- * Your search (Paper "Filters A"), the one saved search behind the feed and
- * alerts, drawn on the same ticket as a job page: tap a box to change it and
- * the sheet steps into that choice, then Done steps back. Save writes the
- * search; closing drops the changes. It opens over Jobs, which stays in
- * view behind it.
+ * Your search (Paper "Filters · Your search as a plain menu"), the one saved
+ * search behind the feed and alerts: tap a row and the sheet steps into that
+ * choice, then Done steps back. Save writes the search; closing drops the
+ * changes. It opens over Jobs, which stays in view behind it.
  */
 export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
   return <SheetModal open={open} onClosed={onClosed}><YourSearch /></SheetModal>;
@@ -76,13 +75,13 @@ function YourSearch() {
   if (step === "search") {
     return <SheetStep id="search">
       <SheetHeader title="Your search" />
-      <SearchTicket draft={draft} open={setStep} />
+      <SearchMenu draft={draft} open={setStep} />
       <Button variant="primary" fullWidth disabled={!changed} pending={update.isPending} onPress={() => void save()}>Save search</Button>
     </SheetStep>;
   }
 
   const done = <Button fullWidth onPress={back}>Done</Button>;
-  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step} inner>
+  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step}>
     <SheetHeader title={title} onBack={back} />
     <SheetScroll style={styles.scroll} contentContainerStyle={styles.scrollBody}>{body}</SheetScroll>
     {done}
@@ -136,58 +135,26 @@ function YourSearch() {
     </Choices>);
   }
 
-  if (step === "experience") {
-    const options: { value: number | null; label: string }[] = [
-      { value: null, label: "Up to my experience" },
-      ...Array.from({ length: MAX_YEARS_EXPERIENCE + 1 }, (_, years) => ({
-        value: years, label: years === 0 ? "No experience" : `Up to ${years} ${years === 1 ? "year" : "years"}`,
-      })),
-    ];
-    return choices("Experience asked", <>
-      <Choices>
-        {options.map((option) => <Choice key={String(option.value)} title={option.label} selected={draft.max_required_years === option.value}
-          onPress={() => change({ max_required_years: option.value })} />)}
-      </Choices>
-      <Choices><ChoiceSwitch title="Include jobs that don't say" value={draft.include_unspecified_experience}
-        onChange={(include_unspecified_experience) => change({ include_unspecified_experience })} /></Choices>
-    </>);
-  }
-
-  return <SheetStep id="more" inner>
-    <SheetHeader title="Alerts and companies" onBack={back} />
-    <MoreRows />
-    {done}
-  </SheetStep>;
+  // The last step: experience asked.
+  const options: { value: number | null; label: string }[] = [
+    { value: null, label: "Up to my experience" },
+    ...Array.from({ length: MAX_YEARS_EXPERIENCE + 1 }, (_, years) => ({
+      value: years, label: years === 0 ? "No experience" : `Up to ${years} ${years === 1 ? "year" : "years"}`,
+    })),
+  ];
+  return choices("Experience asked", <>
+    <Choices>
+      {options.map((option) => <Choice key={String(option.value)} title={option.label} selected={draft.max_required_years === option.value}
+        onPress={() => change({ max_required_years: option.value })} />)}
+    </Choices>
+    <Choices><ChoiceSwitch title="Include jobs that don't say" value={draft.include_unspecified_experience}
+      onChange={(include_unspecified_experience) => change({ include_unspecified_experience })} /></Choices>
+  </>);
 }
 
-/** The search on the job page's ticket grid: stage and pay, roles, where,
- * visa and experience, with alerts and hidden companies on the stub. */
-function SearchTicket({ draft, open }: { draft: Profile; open: (step: Step) => void }) {
-  const push = usePushSettings();
-  const companies = useCompanies();
-  const hidden = companies.data?.filter((company) => company.blocked).length;
-  const stub = [
-    push.data === undefined ? null : push.data.enabled ? "Alerts on" : "Alerts off",
-    hidden === undefined ? null : hidden === 0 ? "No hidden companies" : `${hidden} ${hidden === 1 ? "company" : "companies"} hidden`,
-  ].filter(Boolean).join(" · ");
-  return <Ticket backdrop="bg-elev" stub={stub || "Alerts and hidden companies"} onStubPress={() => open("more")} rows={[
-    [
-      { label: "Career stage", value: stageTicket(draft), action: () => open("stage") },
-      // The saved search has no pay floor yet; the box holds its place.
-      { label: "Pay from", value: "Soon" },
-    ],
-    [{ label: "Roles", value: rolesSummary(draft), action: () => open("roles") }],
-    [{ label: "Where", value: whereSummary(draft), action: () => open("where") }],
-    [
-      { label: "Visa sponsorship", value: needsSponsorship(draft) ? "Needed" : "Not needed", action: () => open("visa") },
-      { label: "Experience asked", value: experienceSummary(draft), action: () => open("experience") },
-    ],
-  ]} />;
-}
-
-/** Alerts and hidden companies live under You; these close the sheet and
- * open them there. */
-function MoreRows() {
+/** Stage and pay, roles, where, visa and experience; then alerts and hidden
+ * companies, which close the sheet and open their screens under You. */
+function SearchMenu({ draft, open }: { draft: Profile; open: (step: Step) => void }) {
   const sheet = useSheet();
   const push = usePushSettings();
   const companies = useCompanies();
@@ -196,12 +163,20 @@ function MoreRows() {
     sheet.close();
     setTimeout(() => router.push(href), 320);
   };
-  return <View style={styles.more}>
-    <ListGroup>
-      <ListItem title="Alerts" value={push.data === undefined ? undefined : push.data.enabled ? "On" : "Off"} accessory="chevron" onPress={() => leaveTo("/you/alerts")} />
-      <ListItem title="Hidden companies" value={hidden === undefined ? undefined : String(hidden)} accessory="chevron" onPress={() => leaveTo("/you/companies")} />
-    </ListGroup>
-    <Text role="footnote" tone="ink-3">These live under You.</Text>
+  return <View style={styles.menu}>
+    <Choices>
+      <ChoiceLink title="Career stage" value={stageSummary(draft)} onPress={() => open("stage")} />
+      {/* The saved search has no pay floor yet; the row holds its place. */}
+      <ChoiceLink title="Pay from" value="Soon" />
+      <ChoiceLink title="Roles" value={rolesSummary(draft)} onPress={() => open("roles")} />
+      <ChoiceLink title="Where" value={whereSummary(draft)} onPress={() => open("where")} />
+      <ChoiceLink title="Visa sponsorship" value={needsSponsorship(draft) ? "Needed" : "Not needed"} onPress={() => open("visa")} />
+      <ChoiceLink title="Experience asked" value={experienceSummary(draft)} onPress={() => open("experience")} />
+    </Choices>
+    <Choices>
+      <ChoiceLink title="Alerts" value={push.data === undefined ? undefined : push.data.enabled ? "On" : "Off"} onPress={() => leaveTo("/you/alerts")} />
+      <ChoiceLink title="Hidden companies" value={hidden === undefined ? undefined : String(hidden)} onPress={() => leaveTo("/you/companies")} />
+    </Choices>
   </View>;
 }
 
@@ -209,5 +184,5 @@ const styles = StyleSheet.create((theme) => ({
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
   scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
   scrollBody: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
-  more: { gap: theme.ui.space["2"], marginHorizontal: -theme.ui.space["4"] },
+  menu: { gap: theme.ui.space["3"] },
 }));

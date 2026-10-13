@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon } from "./Icon";
-import { motion, timing } from "./motion";
+import { motion, rubberBand, timing } from "./motion";
 import { Text } from "./Text";
 
 /** Vaul's drawer motion, from the tokens: one curve, quick off the mark with
@@ -20,20 +20,14 @@ const RESIZE = timing(motion.sheet.resize);
 const SETTLE = timing(motion.sheet.settle);
 const STEP_IN = timing(motion.sheet.stepIn);
 const STEP_OUT = timing(motion.sheet.stepOut);
-const SLIDE = motion.sheet.stepSlide;
 /** Let go past this share of the sheet's height, or flick down faster than
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
 const CLOSE_SPEED = motion.sheet.closeSpeed;
 /** The gap between the sheet and the screen's edges. */
 const INSET = 8;
-
-/** Dragging up stretches less the further you pull (Apple's rubber band). */
-function rubberBand(distance: number, dimension: number) {
-  "worklet";
-  const constant = 0.55;
-  return (distance * dimension * constant) / (dimension + constant * Math.abs(distance));
-}
+/** Room above a step's first line, which is also where a drag usually starts. */
+const TOP = 24;
 
 interface SheetContextValue {
   close: () => void;
@@ -43,6 +37,10 @@ interface SheetContextValue {
   /** How many lists the sheet holds; with one, a drag up scrolls instead of nudging the sheet. */
   lists: SharedValue<number>;
   offset: SharedValue<number>;
+  /** A step reports its height here, and the card eases to it. */
+  measure: (height: number) => void;
+  /** The tallest a step can be: the screen below the status bar. */
+  maxHeight: number;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -68,8 +66,11 @@ export interface SheetProps {
  * Pinkslip's own sheet, in place of the system's: it floats 8pt in from the
  * screen's edges with 40pt corners, sizes to what it holds, and changes
  * height in place when its content changes, so one sheet can step through a
- * choice and back (Paper "Filters and Apply · Oct 12"). Drag or flick it
- * down from anywhere, or tap the page behind it, to close.
+ * choice and back (Paper "Filters and Apply · Oct 12"). Steps stand on the
+ * card's bottom edge and cross-fade where they are, so only the top edge
+ * moves. Drag or flick it down from anywhere, or tap the page behind it, to
+ * close. What a sheet holds is a plain menu (Choices); paper objects stay on
+ * their pages.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
   const { height } = useWindowDimensions();
@@ -81,11 +82,11 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const lists = useSharedValue(0);
   const anchor = useSharedValue(0);
   const opened = useRef(false);
+  const maxHeight = height - insets.top - INSET;
 
-  // The card follows its content's height: set at first, so it slides in
+  // The card follows its step's height: set at first, so it slides in
   // with the whole trip on screen, then eased from step to step.
-  const onLayout = useCallback((event: LayoutChangeEvent) => {
-    const contentHeight = event.nativeEvent.layout.height;
+  const measure = useCallback((contentHeight: number) => {
     if (opened.current) {
       cardHeight.value = withTiming(contentHeight, RESIZE);
       return;
@@ -127,7 +128,8 @@ export function Sheet({ onClosed, children }: SheetProps) {
 
   const card = useAnimatedStyle(() => ({ height: cardHeight.value, transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, drag, scrollY, lists, offset }), [close, drag, scrollY, lists, offset]);
+  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, maxHeight }),
+    [close, drag, scrollY, lists, offset, measure, maxHeight]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -136,10 +138,10 @@ export function Sheet({ onClosed, children }: SheetProps) {
       </Animated.View>
       <GestureDetector gesture={drag}>
         <Animated.View style={[styles.card, card]} accessibilityViewIsModal>
-          {/* Sized by its content alone, so the card can ease to it. */}
-          <View onLayout={onLayout} style={[styles.content, { maxHeight: height - insets.top - INSET }]}>
-            <View style={styles.top} />
-            {/* The first step is simply there; later steps slide in. */}
+          {/* A full-height stage pinned to the card's bottom edge, so a step
+              (and one fading out) holds still while the card resizes. */}
+          <View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }]}>
+            {/* The first step is simply there; later ones fade in. */}
             <LayoutAnimationConfig skipEntering>{children}</LayoutAnimationConfig>
           </View>
         </Animated.View>
@@ -166,44 +168,27 @@ export function SheetModal({ open, onClosed, children }: SheetModalProps) {
 export interface SheetStepProps {
   /** Changes when the step does, so the old content leaves and the new arrives. */
   id: string;
-  /** A step opened from the first one: it comes in from the right and goes
-   * back out to the right, like a page pushed inside the sheet. */
-  inner?: boolean;
   children: ReactNode;
 }
 
-/** A step arrives sliding in from one side as it fades in... */
-function arriving(from: 1 | -1) {
-  return () => {
-    "worklet";
-    return {
-      initialValues: { opacity: 0, transform: [{ translateX: from * SLIDE }] },
-      animations: { opacity: withTiming(1, STEP_IN), transform: [{ translateX: withTiming(0, STEP_IN) }] },
-    };
-  };
+/** A step fades in where it stands... */
+function arriving() {
+  "worklet";
+  return { initialValues: { opacity: 0 }, animations: { opacity: withTiming(1, STEP_IN) } };
 }
 
-/** ...and leaves sliding out to the same side, a little quicker. */
-function leaving(to: 1 | -1) {
-  return () => {
-    "worklet";
-    return {
-      initialValues: { opacity: 1, transform: [{ translateX: 0 }] },
-      animations: { opacity: withTiming(0, STEP_OUT), transform: [{ translateX: withTiming(to * SLIDE, STEP_OUT) }] },
-    };
-  };
+/** ...and the one it replaces fades out, a little quicker, in place. */
+function leaving() {
+  "worklet";
+  return { initialValues: { opacity: 1 }, animations: { opacity: withTiming(0, STEP_OUT) } };
 }
 
-// Inner steps come and go on the right; the first step on the left.
-const STEP = {
-  inner: { entering: arriving(1), exiting: leaving(1) },
-  first: { entering: arriving(-1), exiting: leaving(-1) },
-};
-
-/** One step of a sheet. The sheet resizes around it as it changes. */
-export function SheetStep({ id, inner = false, children }: SheetStepProps) {
-  const { entering, exiting } = inner ? STEP.inner : STEP.first;
-  return <Animated.View key={id} entering={entering} exiting={exiting} style={styles.step}>
+/** One step of a sheet, standing on its bottom edge. The sheet resizes
+ * around it as it changes. */
+export function SheetStep({ id, children }: SheetStepProps) {
+  const { measure, maxHeight } = useSheetContext();
+  const onLayout = (event: LayoutChangeEvent) => measure(event.nativeEvent.layout.height);
+  return <Animated.View key={id} entering={arriving} exiting={leaving} onLayout={onLayout} style={[styles.step, { maxHeight }]}>
     {children}
   </Animated.View>;
 }
@@ -287,10 +272,17 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color["bg-elev"],
     boxShadow: theme.ui.shadow.pill,
   },
-  content: { position: "absolute", top: 0, left: 0, right: 0 },
-  /** Room above the first line, which is also where a drag usually starts. */
-  top: { height: 24 },
-  step: { flexShrink: 1, gap: theme.ui.space["5"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["5"] },
+  stage: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  step: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    gap: theme.ui.space["5"],
+    paddingTop: TOP,
+    paddingHorizontal: theme.ui.space["5"],
+    paddingBottom: theme.ui.space["5"],
+  },
   header: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   stepHeader: { gap: theme.ui.space["3"] },
   buttons: { flexDirection: "row", justifyContent: "space-between" },

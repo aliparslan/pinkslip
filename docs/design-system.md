@@ -141,6 +141,11 @@ on one line share a size.
 - **Our own sheets:** float 8 in from the edges with 40 corners, size to
   their content, and step between choices inside one sheet. They replace
   the system sheet everywhere.
+- **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
+  flat gray card (`fill`, 12 corners), with no lift and no grain. Menu rows
+  are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
+  objects (the ticket, the punch card) stay on their pages; a raised card
+  on a sheet loses its edge in dark mode.
 - **Corner radius:** 8 for logos and small controls, 12 for cards and lists,
   16 for the ticket, 40 for sheets, fully round for buttons, chips and
   fields.
@@ -165,11 +170,14 @@ on one line share a size.
 - **One set everywhere:** Phosphor, on iOS and the web
   (`shared/icons.ts`). System menus are text only.
 - **One stroke:** 1.75pt for every line icon at any size (owner,
-  2026-10-12). Filled icons for the selected tab and saved marks only.
+  2026-10-12). Filled icons for saved marks only.
 - **Sizes:** 24 in the tab bar, 20 in icon buttons, 16 in round 36 buttons
   and on button labels, 12–14 for chevrons and checks.
-- **Color:** `ink-2` at rest, `ink` when selected or primary, white on pink,
-  `ink-4` for chevrons.
+- **Color:** `ink-2` at rest, `ink` when primary, white on pink, `ink-4`
+  for chevrons.
+- **The selected tab** keeps its outline icon, in pink (`accent`), on the
+  gray oval (owner, 2026-10-12). Tab icons sit 56 apart; the 64 × 46 oval
+  is wider than that.
 
 ## Motion
 
@@ -178,12 +186,17 @@ the storyboard spec. These were chosen in the Motion lab
 (https://claude.ai/artifact/PFVndsQWKHNHfGYocjtFhK).
 
 - **Sheets** move like Vaul's drawer: 500ms on cubic-bezier(0.32, 0.72, 0,
-  1) for opening, closing, resizing and settling. Steps slide 20pt (300ms
-  in, 180ms out).
+  1) for opening, closing, resizing and settling.
+  - Steps stand on the sheet's bottom edge and cross-fade where they are
+    (300ms in, 180ms out), so only the top edge moves. No sliding (owner,
+    2026-10-12).
   - They close past a quarter of their height, or on a flick faster than
     400pt/s.
   - Dragging up stretches like a rubber band.
 - **The tab oval** glides on Apple's spring: response 0.4s, damping 1.
+  - Press and slide along the bar: the oval follows the finger, and the icon
+    under it turns pink with a selection tick. Let go and it settles on the
+    nearest tab (or where a flick was heading) and opens it.
 - **Nothing overshoots.** Bounce is only for a throw that carried momentum,
   as Apple does.
 - **Presses** dim to 60%.
@@ -192,7 +205,7 @@ the storyboard spec. These were chosen in the Motion lab
 
 | Object | Means | Where |
 | --- | --- | --- |
-| Grained ticket with perforated stub | A job's (or your search's) facts | Job page, Your search |
+| Grained ticket with perforated stub | A job's facts | Job page |
 | Torn stub | You applied | Job page after applying, the flight into Tracker |
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
 | Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, small marks |
@@ -252,6 +265,13 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-12, evening**
+  - Decided (owner): Your search is a plain menu, not the ticket; sheets
+    hold plain menus. The "Alerts and companies" step is gone; Alerts and
+    Hidden companies are menu rows that open their screens under You.
+  - Steps cross-fade in place instead of sliding.
+  - The selected tab is a pink outline icon; icons 56 apart; the bar can be
+    dragged.
 - **2026-10-12, later**
   - Decided (owner): pink checks and switches, gray disabled buttons, and
     an outline button for repeated pink actions.

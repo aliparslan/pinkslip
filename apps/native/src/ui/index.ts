@@ -3,7 +3,7 @@
 export { Badge } from "./Badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./Button";
 export { Chip, type ChipProps } from "./Chip";
-export { Choice, Choices, ChoiceSwitch, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
+export { Choice, ChoiceLink, Choices, ChoiceSwitch, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";
 export { Icon, type IconName, type IconProps } from "./Icon";

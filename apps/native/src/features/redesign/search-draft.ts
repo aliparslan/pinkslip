@@ -24,13 +24,9 @@ function few(names: string[]): string {
   return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 }
 
+/** The career stages for a menu row: every stage is "Any", two fit by
+ * short name, more show the first and a count. */
 export function stageSummary(profile: Profile): string {
-  return few(CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id)).map((option) => stageName(option.id)));
-}
-
-/** The career stages for the ticket's half-width box: every stage is
- * "Any", two fit by name, more show the first and a count. */
-export function stageTicket(profile: Profile): string {
   const names = CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id)).map((option) => stageShort[option.id]);
   if (names.length === CAREER_STAGE_OPTIONS.length) return "Any";
   return names.length <= 2 ? names.join(", ") : `${names[0]} +${names.length - 1}`;

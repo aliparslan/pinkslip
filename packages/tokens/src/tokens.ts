@@ -458,10 +458,10 @@ export const uiMotion = {
     close: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     resize: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     settle: { duration: 500, curve: [0.32, 0.72, 0, 1] },
+    /** Steps cross-fade in place, the new one in as the old one goes out
+     * (owner, 2026-10-12: no sliding). */
     stepIn: { duration: 300, curve: [0.32, 0.72, 0, 1] },
     stepOut: { duration: 180, curve: [0.32, 0.72, 0, 1] },
-    /** How far a step slides as it arrives or leaves, in points. */
-    stepSlide: 20,
     /** Let go past this share of the sheet's height, or flick down faster
      * than this many points a second, and it closes (Vaul's rule). */
     closeShare: 0.25,

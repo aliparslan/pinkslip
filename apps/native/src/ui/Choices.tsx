@@ -1,17 +1,16 @@
 import { Children, Fragment, type ReactNode } from "react";
 import { Pressable, Switch, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Grain } from "./Grain";
+import { Icon } from "./Icon";
 import { Radio } from "./List";
 import { Text } from "./Text";
 
-/** A paper card of choices (the ticket's stock: grain, a slight lift),
- * with a printed rule between rows. */
+/** A sheet's plain menu (Paper "Filters · plain menu", owner 2026-10-12): a
+ * flat gray card, no lift or grain, with a rule between rows. Paper objects
+ * stay on pages; inside a sheet everything is a menu. */
 export function Choices({ children }: { children: ReactNode }) {
-  const { theme } = useUnistyles();
   const rows = Children.toArray(children);
   return <View style={styles.card}>
-    <Grain radius={theme.ui.radius.lg} />
     {rows.map((row, index) => <Fragment key={index}>
       {index > 0 ? <View style={styles.rule} /> : null}
       {row}
@@ -41,6 +40,27 @@ export function Choice({ title, detail, selected, onPress, multiple = false }: C
   </Pressable>;
 }
 
+export interface ChoiceLinkProps {
+  title: string;
+  /** The current value, before the chevron ("SWE, Frontend +2", "Off"). */
+  value?: string;
+  /** Without it the row is a placeholder: its value and no chevron ("Soon"). */
+  onPress?: () => void;
+}
+
+/** A menu row that opens something: its value, then a chevron. */
+export function ChoiceLink({ title, value, onPress }: ChoiceLinkProps) {
+  const content = <>
+    <Text>{title}</Text>
+    <Text tone="ink-3" align="right" lines={1} flex>{value}</Text>
+    {onPress ? <Icon name="disclosure" size={12} tone="ink-4" /> : null}
+  </>;
+  if (!onPress) return <View style={[styles.row, styles.link]}>{content}</View>;
+  return <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.row, styles.link, pressed && styles.pressed]}>
+    {content}
+  </Pressable>;
+}
+
 export interface ChoiceSwitchProps {
   title: string;
   value: boolean;
@@ -59,13 +79,14 @@ export function ChoiceSwitch({ title, value, onChange }: ChoiceSwitchProps) {
 const styles = StyleSheet.create((theme) => ({
   card: {
     paddingHorizontal: theme.ui.space["4"],
-    borderRadius: theme.ui.radius.lg,
+    borderRadius: theme.ui.radius.md,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color["bg-grouped"],
-    boxShadow: theme.ui.shadow.card,
+    backgroundColor: theme.ui.color.fill,
   },
   rule: { height: 1, backgroundColor: theme.ui.color.separator },
   row: { minHeight: theme.ui.size.listRow + 12, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"] },
+  /** A menu row is 50 tall, as drawn. */
+  link: { minHeight: 50, gap: theme.ui.space["2"], paddingVertical: 0 },
   text: { flex: 1, gap: 2 },
   pressed: { opacity: 0.6 },
 }));
