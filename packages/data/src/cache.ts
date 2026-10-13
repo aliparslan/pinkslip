@@ -65,20 +65,24 @@ export function setJobSaved(queryClient: QueryClient, id: string, saved: boolean
 }
 
 /** Optimistically mark applied/unapplied: discovery lists drop applied jobs,
- * and the applied list gains or loses the entry. */
+ * and the applied list gains or loses the entry. Saved is the first stage of
+ * an application, so an applied job also leaves the saved list; undoing it
+ * may put it back there, which the server decides. */
 export function setJobApplied(queryClient: QueryClient, job: Job, applied: boolean): Restore {
   const snapshots = [
     snapshot(queryClient, queryKeys.personal.job(job.id)),
     snapshot(queryClient, queryKeys.personal.applied()),
+    snapshot(queryClient, queryKeys.personal.saved()),
     snapshot(queryClient, queryKeys.personal.jobsRoot),
   ];
   const patch = applied
-    ? { applied: true as const, dismissed: 1 }
+    ? { applied: true as const, saved: false as const, dismissed: 1 }
     : { applied: false as const, dismissed: 0 };
   queryClient.setQueryData<Job>(queryKeys.personal.job(job.id), (previous) =>
     previous ? { ...previous, ...job, ...patch } : { ...job, ...patch });
   updateCollections(queryClient, queryKeys.personal.applied(), (jobs) =>
     applied ? upsert(jobs, { ...job, ...patch }) : jobs.filter((entry) => entry.id !== job.id));
+  if (applied) updateCollections(queryClient, queryKeys.personal.saved(), (jobs) => jobs.filter((entry) => entry.id !== job.id));
   updateCollections(queryClient, queryKeys.personal.jobsRoot, (jobs) =>
     applied ? jobs.filter((entry) => entry.id !== job.id) : jobs);
   return restoreAll(queryClient, snapshots);

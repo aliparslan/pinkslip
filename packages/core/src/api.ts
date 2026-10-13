@@ -11,6 +11,7 @@ import type {
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
+import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
@@ -31,6 +32,7 @@ export type {
   PreparedApplicationField,
 } from "@pinkslip/domain/application-form";
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
+export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
 /** Web passes a File; native passes expo-file-system's `File`, which is a Blob.
@@ -261,6 +263,8 @@ export interface Job {
   saved?: boolean | number;
   applied?: boolean | number;
   applied_at?: string;
+  /** The job's application stage for this user; null when it isn't tracked. */
+  application_stage?: ApplicationStage | null;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
 }
@@ -858,6 +862,23 @@ function createEndpoints(context: ClientContext) {
   },
   appliedJobs: {
     list: () => request<{ jobs: Job[] }>("/jobs/applied/list"),
+  },
+  applications: {
+    list: (stage?: ApplicationStage) =>
+      request<{ applications: Application[] }>(`/applications${stage ? `?stage=${stage}` : ""}`),
+    get: (id: string) => request<ApplicationDetail>(`/applications/${id}`),
+    /** Tracks a job at a stage, creating its application if needed. */
+    track: (jobId: string, stage: ApplicationStage) =>
+      request<ApplicationDetail>("/applications", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId, stage }),
+      }),
+    update: (id: string, changes: { stage?: ApplicationStage; notes?: string }) =>
+      request<ApplicationDetail>(`/applications/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(changes),
+      }),
+    remove: (id: string) => request<void>(`/applications/${id}`, { method: "DELETE" }),
   },
   profile: {
     get: () =>

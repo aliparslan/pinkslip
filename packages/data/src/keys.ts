@@ -1,4 +1,4 @@
-import type { JobsListParams } from "@pinkslip/core/api";
+import type { ApplicationStage, JobsListParams } from "@pinkslip/core/api";
 
 /**
  * Public catalog keys never carry owner state. All personal keys live under one
@@ -16,6 +16,9 @@ export const queryKeys = {
     job: (id: string) => ["personal", "job", id] as const,
     saved: () => ["personal", "library", "saved"] as const,
     applied: () => ["personal", "library", "applied"] as const,
+    applicationsRoot: ["personal", "applications"] as const,
+    applications: (stage?: ApplicationStage) => ["personal", "applications", "list", stage ?? null] as const,
+    application: (id: string) => ["personal", "applications", "detail", id] as const,
     viewed: () => ["personal", "viewed"] as const,
     stats: () => ["personal", "stats"] as const,
     preferences: () => ["personal", "preferences"] as const,

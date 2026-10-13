@@ -37,6 +37,7 @@ export function useSaveJob() {
     onSuccess: (job) => setJobSaved(queryClient, job.id, true, job),
     onSettled: (_job, _error, id) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.job(id) });
     },
   });
@@ -55,6 +56,7 @@ export function useUnsaveJob() {
     onSuccess: (job) => setJobSaved(queryClient, job.id, false, job),
     onSettled: (_job, _error, id) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.job(id) });
     },
   });
@@ -73,6 +75,8 @@ export function useMarkApplied() {
     onSuccess: (job) => setJobApplied(queryClient, job, true),
     onSettled: (_job, _error, job) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applied() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.job(job.id) });
     },
@@ -92,6 +96,8 @@ export function useUnmarkApplied() {
     onSuccess: (job) => setJobApplied(queryClient, job, false),
     onSettled: (_job, _error, job) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applied() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobsRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.job(job.id) });
     },
