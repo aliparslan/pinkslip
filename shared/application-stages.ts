@@ -11,13 +11,13 @@ export const APPLICATION_STAGES = [
   "offer",
   "rejected",
   "withdrawn",
-  "no_response",
+  "ghosted",
 ] as const;
 
 export type ApplicationStage = (typeof APPLICATION_STAGES)[number];
 
 /** Endings close an application; the rest move forward in order. */
-export const ENDING_APPLICATION_STAGES: readonly ApplicationStage[] = ["rejected", "withdrawn", "no_response"];
+export const ENDING_APPLICATION_STAGES: readonly ApplicationStage[] = ["rejected", "withdrawn", "ghosted"];
 
 export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
   saved: "Saved",
@@ -27,7 +27,7 @@ export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
   offer: "Offer",
   rejected: "Rejected",
   withdrawn: "Withdrawn",
-  no_response: "No response",
+  ghosted: "Ghosted",
 };
 
 /** Who recorded a step. Email detection and automation report here later. */

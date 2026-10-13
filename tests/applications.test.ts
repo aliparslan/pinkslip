@@ -30,12 +30,12 @@ afterEach(() => {
 describe("application stages", () => {
   it("knows the pipeline, its endings and what counts as applied", () => {
     expect(APPLICATION_STAGES).toEqual([
-      "saved", "applied", "assessment", "interview", "offer", "rejected", "withdrawn", "no_response",
+      "saved", "applied", "assessment", "interview", "offer", "rejected", "withdrawn", "ghosted",
     ]);
     expect(isApplicationStage("interview")).toBe(true);
     expect(isApplicationStage("Applied")).toBe(false);
     expect(hasApplied("saved")).toBe(false);
-    expect(hasApplied("no_response")).toBe(true);
+    expect(hasApplied("ghosted")).toBe(true);
     expect(isEndingStage("withdrawn")).toBe(true);
     expect(isEndingStage("offer")).toBe(false);
   });
@@ -115,7 +115,7 @@ describe("application stages migration", () => {
     ).all();
     expect(rows).toEqual([
       { job_id: "applied", stage: "applied", notes: "", applied_at: "2026-09-04T00:00:00.000Z", stage_changed_at: "2026-09-04T00:00:00.000Z" },
-      { job_id: "ghosted", stage: "no_response", notes: "", applied_at: "2026-09-06T00:00:00.000Z", stage_changed_at: "2026-09-20T00:00:00.000Z" },
+      { job_id: "ghosted", stage: "ghosted", notes: "", applied_at: "2026-09-06T00:00:00.000Z", stage_changed_at: "2026-09-20T00:00:00.000Z" },
       { job_id: "only-saved", stage: "saved", notes: "", applied_at: null, stage_changed_at: "2026-09-01T00:00:00.000Z" },
       { job_id: "saved-then-applied", stage: "applied", notes: "", applied_at: "2026-09-03T00:00:00.000Z", stage_changed_at: "2026-09-03T00:00:00.000Z" },
       { job_id: "screen", stage: "assessment", notes: "Call recruiter", applied_at: "2026-09-05T00:00:00.000Z", stage_changed_at: "2026-09-07T00:00:00.000Z" },
@@ -245,7 +245,7 @@ describe("applications API", () => {
     expect((await call("/applications", { method: "POST", body: JSON.stringify({ job_id: "job-a", stage: "Applied" }) })).status).toBe(400);
     expect((await call("/applications", { method: "POST", body: JSON.stringify({ stage: "saved" }) })).status).toBe(400);
     expect((await call("/applications", { method: "POST", body: JSON.stringify({ job_id: "missing", stage: "saved" }) })).status).toBe(404);
-    expect((await call("/applications?stage=ghosted")).status).toBe(400);
+    expect((await call("/applications?stage=no_response")).status).toBe(400);
 
     const id = (await call("/applications", { method: "POST", body: JSON.stringify({ job_id: "job-a", stage: "applied" }) })).body.id;
     expect((await call(`/applications/${id}`, { method: "PATCH", body: "{}" })).status).toBe(400);

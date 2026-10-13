@@ -19,7 +19,7 @@ applied flags.
 Stages (`shared/application-stages.ts`), in order:
 
 - Saved → Applied → Assessment → Interview → Offer.
-- Endings: Rejected, Withdrawn, No response.
+- Endings: Rejected, Withdrawn, Ghosted.
 - Every stage after Saved counts as applied.
 
 `applications`, one row per user and job:
@@ -73,7 +73,7 @@ show that immediately. Older builds catch up on their next refetch.
 - Rebuilds `applications`, because the old CHECK only allowed the early
   pipeline's stages. Mapping: Applied → applied, Screen → assessment,
   Interview → interview, Offer → offer, Rejected → rejected, Ghosted →
-  no_response. The unused `next` text moves to notes.
+  ghosted. The unused `next` text moves to notes.
 - Every saved job not yet applied to becomes a Saved application.
 - Builds a starting timeline: when each job was saved (if before applying),
   when it was applied to, and the early pipeline's last stage change.

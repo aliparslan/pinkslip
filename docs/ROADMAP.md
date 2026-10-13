@@ -82,7 +82,7 @@ Everything later reports into this, and none of it costs money per use.
 
 - **Applications with stages:**
   - Saved → Applied → Assessment → Interview → Offer.
-  - Endings: Rejected, Withdrawn, No response.
+  - Endings: Rejected, Withdrawn, Ghosted.
   - A timeline per application, plus notes.
   - **Backend done (2026-10-13)**, see
     [application-stages.md](application-stages.md). Owner decisions:

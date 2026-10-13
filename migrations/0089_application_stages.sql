@@ -1,7 +1,7 @@
 -- Applications with stages. Saved is now the first stage of an application
 -- instead of a separate list, so a tracked job has exactly one record and
 -- appears in one place: Saved → Applied → Assessment → Interview → Offer,
--- ending in Rejected, Withdrawn or No response. Each change is kept in
+-- ending in Rejected, Withdrawn or Ghosted. Each change is kept in
 -- application_events, the application's timeline.
 --
 -- The old CHECK only allowed the early pipeline's stages, so the table is
@@ -17,7 +17,7 @@ CREATE TABLE applications_staged (
   url TEXT NOT NULL DEFAULT '',
   stage TEXT NOT NULL CHECK (stage IN (
     'saved', 'applied', 'assessment', 'interview', 'offer',
-    'rejected', 'withdrawn', 'no_response'
+    'rejected', 'withdrawn', 'ghosted'
   )),
   notes TEXT NOT NULL DEFAULT '',
   applied_at TEXT,
@@ -39,7 +39,7 @@ SELECT
     WHEN 'Interview' THEN 'interview'
     WHEN 'Offer' THEN 'offer'
     WHEN 'Rejected' THEN 'rejected'
-    WHEN 'Ghosted' THEN 'no_response'
+    WHEN 'Ghosted' THEN 'ghosted'
     ELSE 'applied'
   END,
   next,
@@ -77,7 +77,7 @@ CREATE TABLE application_events (
   -- The stage the application entered.
   stage TEXT NOT NULL CHECK (stage IN (
     'saved', 'applied', 'assessment', 'interview', 'offer',
-    'rejected', 'withdrawn', 'no_response'
+    'rejected', 'withdrawn', 'ghosted'
   )),
   -- Who recorded it: 'user' today; email detection and automation later.
   source TEXT NOT NULL DEFAULT 'user',
