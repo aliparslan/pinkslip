@@ -26,13 +26,16 @@ const PILL = OVAL.height + PAD * 2;
 /** iOS 26 draws real Liquid Glass; earlier versions get solid paper. */
 const GLASS = isLiquidGlassAvailable();
 
-/** The tabs in the bar, in order; routes the bar doesn't know stay hidden. */
+/** The tabs the bar knows (their order is the layout's: Jobs, Tracker,
+ * Search, You); routes it doesn't know stay hidden. */
 const TABS: Record<string, { icon: IconName; label: string }> = {
   "(jobs)": { icon: "jobs", label: "Jobs" },
-  "(search)": { icon: "search", label: "Search" },
   "(library)": { icon: "tracker", label: "Tracker" },
+  "(search)": { icon: "search", label: "Search" },
   "(you)": { icon: "you", label: "You" },
 };
+/** The lit icon's stroke, a touch heavier than the 1.75 at rest (owner, 2026-10-12). */
+const LIT_STROKE = 2;
 
 /** The pill's distance from the bottom edge: just above the home indicator. */
 function pillBottom(insetBottom: number) {
@@ -161,8 +164,11 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
           const tab = TABS[route.name]!;
           return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab" accessibilityLabel={tab.label}
             accessibilityState={{ selected: index === selected }} style={styles.slot}>
-            {/* Always the outline icon; the lit one is pink (owner, 2026-10-12). */}
-            <Icon name={tab.icon} size={24} tone={index === lit ? "accent" : "ink-2"} />
+            {/* The outline icon; lit, it's pink and a touch heavier, and Tracker's
+                end dot fills in (owner, 2026-10-12). */}
+            {index === lit
+              ? <Icon name={tab.icon} size={24} tone="accent" stroke={LIT_STROKE} weight={tab.icon === "tracker" ? "fill" : "line"} />
+              : <Icon name={tab.icon} size={24} tone="ink-2" />}
           </Pressable>;
         })}
       </GlassView>

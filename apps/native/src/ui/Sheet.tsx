@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Modal, Pressable, View, useWindowDimensions, type LayoutChangeEvent, type ScrollViewProps } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
 import Animated, {
@@ -18,8 +18,7 @@ const OPEN = timing(motion.sheet.open);
 const CLOSE = timing(motion.sheet.close);
 const RESIZE = timing(motion.sheet.resize);
 const SETTLE = timing(motion.sheet.settle);
-const STEP_IN = timing(motion.sheet.stepIn);
-const STEP_OUT = timing(motion.sheet.stepOut);
+const PUSH = timing(motion.sheet.push);
 /** Let go past this share of the sheet's height, or flick down faster than
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
@@ -37,10 +36,14 @@ interface SheetContextValue {
   /** How many lists the sheet holds; with one, a drag up scrolls instead of nudging the sheet. */
   lists: SharedValue<number>;
   offset: SharedValue<number>;
-  /** A step reports its height here, and the card eases to it. */
+  /** The first step reports its height here, and the card eases to it. */
   measure: (height: number) => void;
   /** The tallest a step can be: the screen below the status bar. */
   maxHeight: number;
+  /** The card's height, which a step opened from the first one fills. */
+  height: number;
+  /** The card's width: how far a step slides. */
+  width: number;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -64,16 +67,16 @@ export interface SheetProps {
 
 /**
  * Pinkslip's own sheet, in place of the system's: it floats 8pt in from the
- * screen's edges with 40pt corners, sizes to what it holds, and changes
- * height in place when its content changes, so one sheet can step through a
- * choice and back (Paper "Filters and Apply · Oct 12"). Steps stand on the
- * card's bottom edge and cross-fade where they are, so only the top edge
- * moves. Drag or flick it down from anywhere, or tap the page behind it, to
- * close. What a sheet holds is a plain menu (Choices); paper objects stay on
- * their pages.
+ * screen's edges with 40pt corners and sizes to its first step (Paper
+ * "Filters and Apply · Oct 12"). A choice opened from that step slides in
+ * from the right at the same height, the way a page pushes in a navigation
+ * stack, and scrolls if it needs more room; back slides it away (owner,
+ * 2026-10-12: no resizing between steps). Drag or flick it down from
+ * anywhere, or tap the page behind it, to close. What a sheet holds is a
+ * plain menu (Choices); paper objects stay on their pages.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const offset = useSharedValue(height);
   const shade = useSharedValue(0);
@@ -83,10 +86,12 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const anchor = useSharedValue(0);
   const opened = useRef(false);
   const maxHeight = height - insets.top - INSET;
+  const [rootHeight, setRootHeight] = useState(0);
 
-  // The card follows its step's height: set at first, so it slides in
-  // with the whole trip on screen, then eased from step to step.
+  // The card follows its first step's height: set at first, so it slides in
+  // with the whole trip on screen, then eased if that step's content changes.
   const measure = useCallback((contentHeight: number) => {
+    setRootHeight(contentHeight);
     if (opened.current) {
       cardHeight.value = withTiming(contentHeight, RESIZE);
       return;
@@ -128,8 +133,9 @@ export function Sheet({ onClosed, children }: SheetProps) {
 
   const card = useAnimatedStyle(() => ({ height: cardHeight.value, transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, maxHeight }),
-    [close, drag, scrollY, lists, offset, measure, maxHeight]);
+  const cardWidth = width - INSET * 2;
+  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, maxHeight, height: rootHeight, width: cardWidth }),
+    [close, drag, scrollY, lists, offset, measure, maxHeight, rootHeight, cardWidth]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -138,10 +144,10 @@ export function Sheet({ onClosed, children }: SheetProps) {
       </Animated.View>
       <GestureDetector gesture={drag}>
         <Animated.View style={[styles.card, card]} accessibilityViewIsModal>
-          {/* A full-height stage pinned to the card's bottom edge, so a step
-              (and one fading out) holds still while the card resizes. */}
+          {/* A full-height stage pinned to the card's bottom edge, so steps
+              (and one sliding away) stand still if the card resizes. */}
           <View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }]}>
-            {/* The first step is simply there; later ones fade in. */}
+            {/* The first step is simply there; later ones slide in. */}
             <LayoutAnimationConfig skipEntering>{children}</LayoutAnimationConfig>
           </View>
         </Animated.View>
@@ -168,27 +174,48 @@ export function SheetModal({ open, onClosed, children }: SheetModalProps) {
 export interface SheetStepProps {
   /** Changes when the step does, so the old content leaves and the new arrives. */
   id: string;
+  /** A step opened from the first one: it slides in from the right at the
+   * sheet's height and back out to the right. The first step slides away to
+   * the left meanwhile, and back in. */
+  inner?: boolean;
   children: ReactNode;
 }
 
-/** A step fades in where it stands... */
-function arriving() {
-  "worklet";
-  return { initialValues: { opacity: 0 }, animations: { opacity: withTiming(1, STEP_IN) } };
+/** A step slides in from one side, the whole width of the sheet... */
+function arriving(from: 1 | -1, width: number) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { transform: [{ translateX: from * width }] },
+      animations: { transform: [{ translateX: withTiming(0, PUSH) }] },
+    };
+  };
 }
 
-/** ...and the one it replaces fades out, a little quicker, in place. */
-function leaving() {
-  "worklet";
-  return { initialValues: { opacity: 1 }, animations: { opacity: withTiming(0, STEP_OUT) } };
+/** ...as the one it replaces slides out the other side, on the same curve. */
+function leaving(to: 1 | -1, width: number) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { transform: [{ translateX: 0 }] },
+      animations: { transform: [{ translateX: withTiming(to * width, PUSH) }] },
+    };
+  };
 }
 
-/** One step of a sheet, standing on its bottom edge. The sheet resizes
- * around it as it changes. */
-export function SheetStep({ id, children }: SheetStepProps) {
-  const { measure, maxHeight } = useSheetContext();
+/** One step of a sheet. The first step stands on the sheet's bottom edge and
+ * sets its height; an inner step fills that height. */
+export function SheetStep({ id, inner = false, children }: SheetStepProps) {
+  const { measure, maxHeight, height, width } = useSheetContext();
+  const side = inner ? 1 : -1;
+  const slide = useMemo(() => ({ entering: arriving(side, width), exiting: leaving(side, width) }), [side, width]);
+  if (inner) {
+    return <Animated.View key={id} entering={slide.entering} exiting={slide.exiting} style={[styles.step, { height }]}>
+      {children}
+    </Animated.View>;
+  }
   const onLayout = (event: LayoutChangeEvent) => measure(event.nativeEvent.layout.height);
-  return <Animated.View key={id} entering={arriving} exiting={leaving} onLayout={onLayout} style={[styles.step, { maxHeight }]}>
+  return <Animated.View key={id} entering={slide.entering} exiting={slide.exiting} onLayout={onLayout} style={[styles.step, { maxHeight }]}>
     {children}
   </Animated.View>;
 }

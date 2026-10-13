@@ -3,7 +3,7 @@ import {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, ChatText, ClockCounterClockwise, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
   GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, PathIcon, Plus, Prohibit, SignOut,
-  SlidersHorizontal, Sparkle, ThumbsDown, User, UsersThree, WarningCircle, X,
+  SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
 } from "phosphor-react-native";
 import type { ComponentType } from "react";
@@ -17,7 +17,7 @@ const components: Record<PhosphorName, PhosphorIcon> = {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, ChatText, ClockCounterClockwise, Check, CheckCircle, CurrencyCircleDollar, DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag,
   GearSix, GlobeHemisphereWest, IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Plus, Prohibit, SignOut,
-  SlidersHorizontal, Sparkle, ThumbsDown, User, UsersThree, WarningCircle, X,
+  SlidersHorizontal, Sparkle, ThumbsDown, UserCircle, UsersThree, WarningCircle, X,
   // The package exports this one as PathIcon (Path would clash with SVG's).
   Path: PathIcon,
 };
@@ -40,8 +40,11 @@ export interface IconProps {
   /** Points; the icon is drawn inside a square this size. */
   size?: number;
   tone?: TextTone | "ink-4";
-  /** Line at rest; fill for a selected tab or a saved mark. */
+  /** Line at rest; fill for a saved mark (and the selected Tracker tab's dot). */
   weight?: "line" | "fill";
+  /** The stroke in points, when it isn't ICON_STROKE: the selected tab's is a
+   * touch heavier. A filled icon takes it too, for its lines. */
+  stroke?: number;
 }
 
 /**
@@ -50,14 +53,17 @@ export interface IconProps {
  * thicker than ICON_STROKE at this size, then an outline stroke makes up the
  * rest, so every icon reads at the same weight.
  */
-export function Icon({ name, size = 20, tone = "ink", weight = "line" }: IconProps) {
+export function Icon({ name, size = 20, tone = "ink", weight = "line", stroke }: IconProps) {
   const { theme } = useUnistyles();
   const Glyph = components[ICONS[name]] as Glyph;
   const color = theme.ui.color[tone];
-  if (weight === "fill") return <Glyph size={size} weight="fill" color={color} />;
-  const [base, perPoint] = LINE_WEIGHTS.find(([, perPoint]) => size * perPoint <= ICON_STROKE) ?? LINE_WEIGHTS[3];
   // The stroke straddles the outline, so it adds its whole width; the viewBox is 256 wide.
-  const extra = (ICON_STROKE - size * perPoint) * (256 / size);
-  return <Glyph size={size} weight={base} color={color}
-    {...extra > 0.5 ? { stroke: color, strokeWidth: extra, strokeLinejoin: "round" as const } : null} />;
+  const outline = (extra: number) => extra > 0.5 ? { stroke: color, strokeWidth: extra, strokeLinejoin: "round" as const } : null;
+  if (weight === "fill") {
+    // Phosphor's filled glyphs draw their lines at the regular weight.
+    return <Glyph size={size} weight="fill" color={color} {...stroke ? outline((stroke - size * (16 / 256)) * (256 / size)) : null} />;
+  }
+  const target = stroke ?? ICON_STROKE;
+  const [base, perPoint] = LINE_WEIGHTS.find(([, perPoint]) => size * perPoint <= target) ?? LINE_WEIGHTS[3];
+  return <Glyph size={size} weight={base} color={color} {...outline((target - size * perPoint) * (256 / size))} />;
 }

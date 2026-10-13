@@ -25,8 +25,8 @@ const stageDetail: Record<CareerStage, string> = {
 
 /**
  * Your search (Paper "Filters · Your search as a plain menu"), the one saved
- * search behind the feed and alerts: tap a row and the sheet steps into that
- * choice, then Done steps back. Save writes the search; closing drops the
+ * search behind the feed and alerts: tap a row and that choice pushes in at
+ * the same height, then Done goes back. Save writes the search; closing drops the
  * changes. It opens over Jobs, which stays in view behind it.
  */
 export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
@@ -48,7 +48,8 @@ function YourSearch() {
   }, [saved, draft]);
 
   if (!draft) {
-    return <SheetStep id="loading">
+    // The same step as the loaded search, so it grows in place rather than sliding.
+    return <SheetStep id="search">
       <SheetHeader title="Your search" />
       <View style={styles.loading}>
         {preferences.isError
@@ -81,7 +82,7 @@ function YourSearch() {
   }
 
   const done = <Button fullWidth onPress={back}>Done</Button>;
-  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step}>
+  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step} inner>
     <SheetHeader title={title} onBack={back} />
     <SheetScroll style={styles.scroll} contentContainerStyle={styles.scrollBody}>{body}</SheetScroll>
     {done}
@@ -182,7 +183,8 @@ function SearchMenu({ draft, open }: { draft: Profile; open: (step: Step) => voi
 
 const styles = StyleSheet.create((theme) => ({
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
-  scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
+  /** The choices take the room between the header and Done, and scroll. */
+  scroll: { flex: 1, marginHorizontal: -theme.ui.space["5"] },
   scrollBody: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
   menu: { gap: theme.ui.space["3"] },
 }));

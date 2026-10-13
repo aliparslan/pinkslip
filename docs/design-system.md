@@ -138,9 +138,10 @@ on one line share a size.
 - **Three heights:** the screen (`bg`); cards on it (`bg-grouped`, with the
   card shadow only for paper objects); things that float (`bg-elev` with
   the pill shadow: sheets, the tab bar, toasts).
-- **Our own sheets:** float 8 in from the edges with 40 corners, size to
-  their content, and step between choices inside one sheet. They replace
-  the system sheet everywhere.
+- **Our own sheets:** float 8 in from the edges with 40 corners and size to
+  their first step. A choice opened from it pushes in at the same height,
+  the standard navigation pattern, and scrolls if it needs more room. They
+  replace the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
   flat gray card (`fill`, 12 corners), with no lift and no grain. Menu rows
   are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
@@ -175,9 +176,10 @@ on one line share a size.
   and on button labels, 12–14 for chevrons and checks.
 - **Color:** `ink-2` at rest, `ink` when primary, white on pink, `ink-4`
   for chevrons.
-- **The selected tab** keeps its outline icon, in pink (`accent`), on the
-  gray oval (owner, 2026-10-12). Tab icons sit 56 apart; the 64 × 46 oval
-  is wider than that.
+- **The selected tab** keeps its outline icon, in pink (`accent`) at a 2pt
+  stroke, on the gray oval; Tracker's end dot fills in (owner, 2026-10-12).
+  The tabs are Jobs, Tracker, Search and You (the user circle), 56 apart;
+  the 64 × 46 oval is wider than that.
 
 ## Motion
 
@@ -187,9 +189,9 @@ the storyboard spec. These were chosen in the Motion lab
 
 - **Sheets** move like Vaul's drawer: 500ms on cubic-bezier(0.32, 0.72, 0,
   1) for opening, closing, resizing and settling.
-  - Steps stand on the sheet's bottom edge and cross-fade where they are
-    (300ms in, 180ms out), so only the top edge moves. No sliding (owner,
-    2026-10-12).
+  - A choice pushes in from the right over 400ms on the same curve while
+    the first step slides out to the left; back reverses it. The sheet
+    doesn't resize between steps (owner, 2026-10-12).
   - They close past a quarter of their height, or on a flick faster than
     400pt/s.
   - Dragging up stretches like a rubber band.
@@ -272,6 +274,9 @@ cut so that each remaining one has a job.
   - Steps cross-fade in place instead of sliding.
   - The selected tab is a pink outline icon; icons 56 apart; the bar can be
     dragged.
+  - Then: choices push in at the sheet's height (no resizing); tabs go Jobs,
+    Tracker, Search, You; You is the user circle; the lit icon is 2pt with
+    Tracker's dot filled.
 - **2026-10-12, later**
   - Decided (owner): pink checks and switches, gray disabled buttons, and
     an outline button for repeated pink actions.

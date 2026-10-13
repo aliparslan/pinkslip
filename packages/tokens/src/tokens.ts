@@ -458,10 +458,11 @@ export const uiMotion = {
     close: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     resize: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     settle: { duration: 500, curve: [0.32, 0.72, 0, 1] },
-    /** Steps cross-fade in place, the new one in as the old one goes out
-     * (owner, 2026-10-12: no sliding). */
-    stepIn: { duration: 300, curve: [0.32, 0.72, 0, 1] },
-    stepOut: { duration: 180, curve: [0.32, 0.72, 0, 1] },
+    /** A choice opened from the first step pushes in from the right at the
+     * same height, and back slides it away; the first step slides the other
+     * way, on the same curve (owner, 2026-10-12: a standard pattern, no
+     * resizing; the curve is the one Ionic uses for iOS page pushes). */
+    push: { duration: 400, curve: [0.32, 0.72, 0, 1] },
     /** Let go past this share of the sheet's height, or flick down faster
      * than this many points a second, and it closes (Vaul's rule). */
     closeShare: 0.25,

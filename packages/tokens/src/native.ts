@@ -607,12 +607,8 @@ export const ui = {
         duration: 500,
         curve: [0.32, 0.72, 0, 1],
       },
-      stepIn: {
-        duration: 300,
-        curve: [0.32, 0.72, 0, 1],
-      },
-      stepOut: {
-        duration: 180,
+      push: {
+        duration: 400,
         curve: [0.32, 0.72, 0, 1],
       },
       closeShare: 0.25,
