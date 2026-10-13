@@ -138,11 +138,11 @@ on one line share a size.
 - **Three heights:** the screen (`bg`); cards on it (`bg-grouped`, with the
   card shadow only for paper objects); things that float (`bg-elev` with
   the pill shadow: sheets, the tab bar, toasts).
-- **Our own sheets:** float 8 in from the edges with 40 corners and size to
-  each step. A grab bar sits on top instead of a close button; swipe down or
-  tap behind to close. A step opened from the first one has a round Back
-  button at the bottom, left of its Done. Long lists scroll. They replace
-  the system sheet everywhere.
+- **Our own sheets:** float 8 in from the edges with 40 corners. Each step
+  is its own card at its own height. A grab bar sits on top instead of a
+  close button; swipe down or tap behind to close. A step opened from the
+  first one has a round Back button at the bottom, left of its Done. Long
+  lists scroll. They replace the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
   flat gray card (`fill`, 12 corners), with no lift and no grain. Menu rows
   are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
@@ -190,10 +190,13 @@ the storyboard spec. These were chosen in the Motion lab
 
 - **Sheets** move like Vaul's drawer: 500ms on cubic-bezier(0.32, 0.72, 0,
   1) for opening, closing and settling.
-  - Between steps, like Family's trays (owner, 2026-10-13): the height
-    changes in 270ms on cubic-bezier(0.25, 1, 0.5, 1); the old step fades
-    out in 150ms as the new one fades in and grows from 96% over 270ms,
-    both standing on the bottom edge. Nothing slides.
+  - Between steps, each step is its own card (owner, 2026-10-13, picked in
+    the Sheet transitions lab): a step opened from the menu slides in from
+    the right at its own height as the menu slides off to the left, both
+    in 400ms on the same curve; Back reverses it.
+  - A step whose content changes (the menu loading in) eases to its new
+    height in 270ms on cubic-bezier(0.25, 1, 0.5, 1), standing on its
+    bottom edge.
   - A list hands a downward drag to the sheet only if it was already at its
     top when the drag began, so scrolling back up never closes the sheet.
   - They close past a quarter of their height, or on a flick faster than
@@ -271,6 +274,10 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, later**
+  - Decided (owner): each step of a sheet is its own card and slides in at
+    its own height, from the Sheet transitions lab (You → Kit → Redesign kit).
+    The cross-fade and its tokens are gone.
 - **2026-10-13**
   - Sheets: a grab bar replaces the close button; Back moves to the bottom,
     left of Done; steps change like Family's trays (quick resize, content

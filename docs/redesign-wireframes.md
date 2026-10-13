@@ -701,6 +701,12 @@ From the owner's phone review of `66d63d6`:
 - **Today:** still planned for later, once background applying ships. It's
   already drawn as "28 · Today tab" on Batch 3. When it arrives, Needs you
   and the batch card move there.
+- **Then the cross-fade didn't land either.** A lab in the redesign kit
+  (You → Kit → Redesign kit → Sheet transitions) put five versions side by
+  side: each step its own card, a second sheet on top, push and resize,
+  push at one height, and the cross-fade. The owner picked each step its
+  own card: the step slides in from the right at its own height as the
+  menu slides off left, 400ms on the drawer curve.
 
 ## In-app browser (owner, 2026-10-12)
 

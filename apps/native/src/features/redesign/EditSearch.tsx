@@ -87,7 +87,7 @@ function YourSearch() {
     <SheetBack onPress={back} />
     <View style={styles.flex}><Button fullWidth onPress={back}>Done</Button></View>
   </View>;
-  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step}>
+  const choices = (title: string, body: React.ReactNode) => <SheetStep id={step} inner>
     <SheetHeader title={title} />
     <SheetScroll style={styles.scroll} contentContainerStyle={styles.scrollBody}>{body}</SheetScroll>
     {done}

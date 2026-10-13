@@ -447,25 +447,24 @@ export const uiSize = {
  * Motion, chosen in the Motion lab (owner, 2026-10-12; the Paper page
  * "Motion and icons · Oct 12" is the spec). Sheets open, close and settle
  * like Vaul's drawer: one curve, quick off the mark with a long soft
- * landing; between steps they move like Family's trays. The tab bar's oval
- * glides on a spring
- * given as Apple's two numbers: response in seconds and damping, where 1
- * never overshoots (WWDC 2018, "Designing Fluid Interfaces"). Durations are
- * milliseconds; curves are cubic Béziers.
+ * landing; between steps each step is its own card and slides. The tab
+ * bar's oval glides on a spring given as Apple's two numbers: response in
+ * seconds and damping, where 1 never overshoots (WWDC 2018, "Designing
+ * Fluid Interfaces"). Durations are milliseconds; curves are cubic Béziers.
  */
 export const uiMotion = {
   sheet: {
     open: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     close: { duration: 500, curve: [0.32, 0.72, 0, 1] },
     settle: { duration: 500, curve: [0.32, 0.72, 0, 1] },
-    /** Between steps the sheet behaves like Family's trays (owner,
-     * 2026-10-13): the height changes quickly on a sharp ease-out, and the
-     * content swaps in place, the old step fading out as the new one fades
-     * in and grows from 96%. Nothing slides. */
+    /** Between steps each step is its own card (owner, 2026-10-13, from
+     * the Sheet transitions lab): the new one slides in from the side at
+     * its own size as the old one slides out the other way, on the drawer
+     * curve in 400ms, as Ionic pushes iOS pages. */
+    push: { duration: 400, curve: [0.32, 0.72, 0, 1] },
+    /** A step whose content changes (a list loading in) eases to its new
+     * height, standing on its bottom edge. */
     resize: { duration: 270, curve: [0.25, 1, 0.5, 1] },
-    stepIn: { duration: 270, curve: [0.26, 0.08, 0.25, 1] },
-    stepOut: { duration: 150, curve: [0.26, 0.08, 0.25, 1] },
-    stepScale: 0.96,
     /** Let go past this share of the sheet's height, or flick down faster
      * than this many points a second, and it closes (Vaul's rule). */
     closeShare: 0.25,

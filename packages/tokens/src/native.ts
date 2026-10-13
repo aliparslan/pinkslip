@@ -603,19 +603,14 @@ export const ui = {
         duration: 500,
         curve: [0.32, 0.72, 0, 1],
       },
+      push: {
+        duration: 400,
+        curve: [0.32, 0.72, 0, 1],
+      },
       resize: {
         duration: 270,
         curve: [0.25, 1, 0.5, 1],
       },
-      stepIn: {
-        duration: 270,
-        curve: [0.26, 0.08, 0.25, 1],
-      },
-      stepOut: {
-        duration: 150,
-        curve: [0.26, 0.08, 0.25, 1],
-      },
-      stepScale: 0.96,
       closeShare: 0.25,
       closeSpeed: 400,
     },

@@ -17,11 +17,11 @@ import { Text } from "./Text";
 const OPEN = timing(motion.sheet.open);
 const CLOSE = timing(motion.sheet.close);
 const SETTLE = timing(motion.sheet.settle);
-/** Between steps, Family's trays: a quick resize, and the content swaps in place. */
+/** Between steps each step is its own card: the new one slides in at its
+ * own size as the old one slides out the other way. */
+const PUSH = timing(motion.sheet.push);
+/** A step whose content changes (a list loading in) eases to its new height. */
 const RESIZE = timing(motion.sheet.resize);
-const STEP_IN = timing(motion.sheet.stepIn);
-const STEP_OUT = timing(motion.sheet.stepOut);
-const STEP_SCALE = motion.sheet.stepScale;
 /** Let go past this share of the sheet's height, or flick down faster than
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
@@ -40,12 +40,14 @@ interface SheetContextValue {
   /** How many lists the sheet holds; with one, a drag up scrolls instead of nudging the sheet. */
   lists: SharedValue<number>;
   offset: SharedValue<number>;
-  /** Each step reports its height here, and the card eases to it. */
+  /** Each step reports its height here: the first opens the sheet. */
   measure: (height: number) => void;
-  /** Set once the sheet has laid out: the step it opened with doesn't fade in. */
+  /** Set once the sheet has laid out: the step it opened with doesn't slide in. */
   opened: RefObject<boolean>;
   /** The tallest a step can be: the screen below the status bar. */
   maxHeight: number;
+  /** How far a step slides: the width of the screen. */
+  width: number;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -70,18 +72,19 @@ export interface SheetProps {
 /**
  * Pinkslip's own sheet, in place of the system's: it floats 8pt in from the
  * screen's edges with 40pt corners, sizes to each step, and wears a grab bar
- * instead of a close button (Paper "Filters and Apply"). Between steps it
- * moves like Family's trays: the height changes quickly and the content
- * swaps in place. Drag or flick it down to close, or tap the page behind it;
- * a list only hands the drag to the sheet when it was already at its top.
- * What a sheet holds is a plain menu (Choices); paper objects stay on their
- * pages.
+ * instead of a close button (Paper "Filters and Apply"). Each step is its
+ * own card: one opened from the menu slides in from the right at its own
+ * size while the menu slides off to the left, and Back reverses it. Drag or
+ * flick it down to close, or tap the page behind it; a list only hands the
+ * drag to the sheet when it was already at its top. What a sheet holds is a
+ * plain menu (Choices); paper objects stay on their pages.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const offset = useSharedValue(height);
   const shade = useSharedValue(0);
+  /** The height of the step in front, which sets how far a drag has to go. */
   const cardHeight = useSharedValue(height);
   const scrollY = useSharedValue(0);
   const lists = useSharedValue(0);
@@ -90,15 +93,11 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const opened = useRef(false);
   const maxHeight = height - insets.top - INSET;
 
-  // The card follows its step's height: set at first, so it slides in with
-  // the whole trip on screen, then eased from step to step.
+  // The first step to lay out opens the sheet, rising its own height.
   const measure = useCallback((contentHeight: number) => {
-    if (opened.current) {
-      cardHeight.value = withTiming(contentHeight, RESIZE);
-      return;
-    }
-    opened.current = true;
     cardHeight.value = contentHeight;
+    if (opened.current) return;
+    opened.current = true;
     offset.value = contentHeight + INSET;
     offset.value = withTiming(0, OPEN);
     shade.value = withTiming(1, OPEN);
@@ -136,10 +135,10 @@ export function Sheet({ onClosed, children }: SheetProps) {
     }
   }), [anchor, fromTop, scrollY, lists, offset, shade, cardHeight, close]);
 
-  const card = useAnimatedStyle(() => ({ height: cardHeight.value, transform: [{ translateY: offset.value }] }));
+  const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, opened, maxHeight }),
-    [close, drag, scrollY, lists, offset, measure, maxHeight]);
+  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, opened, maxHeight, width }),
+    [close, drag, scrollY, lists, offset, measure, maxHeight, width]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -147,14 +146,12 @@ export function Sheet({ onClosed, children }: SheetProps) {
         <Pressable style={styles.fill} onPress={close} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <GestureDetector gesture={drag}>
-        <Animated.View style={[styles.card, card]} accessibilityViewIsModal onAccessibilityEscape={close}>
-          {/* A full-height stage pinned to the card's bottom edge, so steps
-              (and one fading out) stand still while the card resizes. */}
-          <View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }]}>
-            {children}
-          </View>
-          {/* Drag it down to close; VoiceOver can close it from here. */}
-          <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={close} />
+        {/* The steps stand on the bottom edge of a stage as tall as a step
+            can be; it rises, drags and closes as one, and taps around the
+            card reach the page behind. */}
+        <Animated.View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }, lift]}
+          accessibilityViewIsModal onAccessibilityEscape={close}>
+          {children}
         </Animated.View>
       </GestureDetector>
     </View>
@@ -177,39 +174,65 @@ export function SheetModal({ open, onClosed, children }: SheetModalProps) {
 }
 
 export interface SheetStepProps {
-  /** Changes when the step does, so the old content leaves and the new arrives. */
+  /** Changes when the step does, so the old card leaves and the new arrives. */
   id: string;
+  /** Opened from the menu: it slides in from the right and back out that
+   * way, while the menu slides off to the left and back. */
+  inner?: boolean;
   children: ReactNode;
 }
 
-/** A step fades in where it stands, growing from 96%... */
-function arriving() {
-  "worklet";
-  return {
-    initialValues: { opacity: 0, transform: [{ scale: STEP_SCALE }] },
-    animations: { opacity: withTiming(1, STEP_IN), transform: [{ scale: withTiming(1, STEP_IN) }] },
+/** A step slides in from one side... */
+function arriving(from: 1 | -1, width: number) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { transform: [{ translateX: from * width }] },
+      animations: { transform: [{ translateX: withTiming(0, PUSH) }] },
+    };
   };
 }
 
-/** ...as the one it replaces fades out, a little quicker, shrinking back. */
-function leaving() {
-  "worklet";
-  return {
-    initialValues: { opacity: 1, transform: [{ scale: 1 }] },
-    animations: { opacity: withTiming(0, STEP_OUT), transform: [{ scale: withTiming(STEP_SCALE, STEP_OUT) }] },
+/** ...as the one it replaces slides out the other. */
+function leaving(to: 1 | -1, width: number) {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { transform: [{ translateX: 0 }] },
+      animations: { transform: [{ translateX: withTiming(to * width, PUSH) }] },
+    };
   };
 }
 
-/** One step of a sheet, standing on its bottom edge and setting the sheet's
- * height. */
-export function SheetStep({ id, children }: SheetStepProps) {
-  const { measure, opened, maxHeight } = useSheetContext();
-  // The step the sheet opens with rises with it; only later steps fade in.
+/** One step of a sheet: its own card, standing on the bottom edge at the
+ * height of what it holds. */
+export function SheetStep({ id, inner = false, children }: SheetStepProps) {
+  return <StepCard key={id} inner={inner}>{children}</StepCard>;
+}
+
+function StepCard({ inner, children }: { inner: boolean; children: ReactNode }) {
+  const { close, measure, opened, maxHeight, width } = useSheetContext();
+  // The step the sheet opens with rises with it; only later steps slide in.
   const [initial] = useState(() => !opened.current);
-  const onLayout = (event: LayoutChangeEvent) => measure(event.nativeEvent.layout.height);
-  return <Animated.View key={id} entering={initial ? undefined : arriving} exiting={leaving} onLayout={onLayout}
-    style={[styles.step, { maxHeight }]}>
-    {children}
+  const height = useSharedValue(0);
+  const sized = useRef(false);
+  // Its first height is set at once; later ones (a list loading in) ease.
+  const onLayout = (event: LayoutChangeEvent) => {
+    const next = event.nativeEvent.layout.height;
+    height.value = sized.current ? withTiming(next, RESIZE) : next;
+    sized.current = true;
+    measure(next);
+  };
+  const side = inner ? 1 : -1;
+  const card = useAnimatedStyle(() => ({ height: height.value }));
+  return <Animated.View entering={initial ? undefined : arriving(side, width)} exiting={leaving(side, width)}
+    style={[styles.card, card]}>
+    {/* The content stands on the card's bottom edge, so it holds still while the card grows. */}
+    <View onLayout={onLayout} style={[styles.step, { maxHeight }]}>
+      {children}
+    </View>
+    {/* Drag it down to close; VoiceOver can close it from here. */}
+    <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={close} />
   </Animated.View>;
 }
 
@@ -266,18 +289,18 @@ export function SheetBack({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1 },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.ui.color.scrim },
+  stage: { position: "absolute", left: INSET, right: INSET, bottom: INSET },
   card: {
     position: "absolute",
-    left: INSET,
-    right: INSET,
-    bottom: INSET,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: 40,
     borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: theme.ui.color["bg-elev"],
     boxShadow: theme.ui.shadow.pill,
   },
-  stage: { position: "absolute", left: 0, right: 0, bottom: 0 },
   step: {
     position: "absolute",
     left: 0,
@@ -287,8 +310,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingTop: TOP,
     paddingHorizontal: theme.ui.space["5"],
     paddingBottom: theme.ui.space["5"],
-    // Grows from its bottom edge, so the buttons hold their place.
-    transformOrigin: "bottom",
   },
   grabber: {
     position: "absolute",

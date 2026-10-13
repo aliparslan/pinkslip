@@ -9,17 +9,18 @@ import { motion, timing } from "../../ui/motion";
 
 /**
  * Dev-only: the filter sheet's step change in several ways, side by side,
- * with made-up choices, so the owner can feel them before one goes into
- * ui/Sheet (2026-10-13). Nothing here saves; tap behind a sheet to close it.
+ * with made-up choices. The owner picked "Each step its own card" for
+ * ui/Sheet (2026-10-13); the others stay to compare against. Nothing here
+ * saves; tap behind a sheet to close it.
  */
 type Variant = "cards" | "stack" | "pushResize" | "push" | "fade";
 
 const VARIANTS: { id: Variant; title: string; detail: string }[] = [
-  { id: "cards", title: "Each step its own card", detail: "The new step slides in at its own size" },
+  { id: "cards", title: "Each step its own card", detail: "What the app does now" },
   { id: "stack", title: "Second sheet on top", detail: "The menu shrinks back and the step rises over it" },
   { id: "pushResize", title: "Push and resize", detail: "One sheet that changes height as the step slides in" },
   { id: "push", title: "Push, same height", detail: "The iOS standard: the sheet keeps the menu's height" },
-  { id: "fade", title: "Cross-fade", detail: "What's on your phone now" },
+  { id: "fade", title: "Cross-fade", detail: "Family's trays, the one before" },
 ];
 
 type Step = "menu" | "stage" | "roles" | "visa";
@@ -39,10 +40,12 @@ const INSET = 8;
 const OPEN = timing(motion.sheet.open);
 const CLOSE = timing(motion.sheet.close);
 const RESIZE = timing(motion.sheet.resize);
-const FADE_IN = timing(motion.sheet.stepIn);
-const FADE_OUT = timing(motion.sheet.stepOut);
-/** The pushes run 400ms on the drawer curve, as Ionic does for iOS pages. */
-const PUSH = { duration: 400, easing: Easing.bezier(0.32, 0.72, 0, 1) };
+const PUSH = timing(motion.sheet.push);
+/** Family's cross-fade, which the sheet used before: in over 270ms growing
+ * from 96%, out over 150ms. */
+const FADE_IN = { duration: 270, easing: Easing.bezier(0.26, 0.08, 0.25, 1) };
+const FADE_OUT = { duration: 150, easing: Easing.bezier(0.26, 0.08, 0.25, 1) };
+const FADE_SCALE = 0.96;
 
 export function SheetLab() {
   const [open, setOpen] = useState<Variant | null>(null);
@@ -251,7 +254,7 @@ function falling(distance: number) {
 function fadingIn() {
   "worklet";
   return {
-    initialValues: { opacity: 0, transform: [{ scale: motion.sheet.stepScale }] },
+    initialValues: { opacity: 0, transform: [{ scale: FADE_SCALE }] },
     animations: { opacity: withTiming(1, FADE_IN), transform: [{ scale: withTiming(1, FADE_IN) }] },
   };
 }
@@ -260,7 +263,7 @@ function fadingOut() {
   "worklet";
   return {
     initialValues: { opacity: 1, transform: [{ scale: 1 }] },
-    animations: { opacity: withTiming(0, FADE_OUT), transform: [{ scale: withTiming(motion.sheet.stepScale, FADE_OUT) }] },
+    animations: { opacity: withTiming(0, FADE_OUT), transform: [{ scale: withTiming(FADE_SCALE, FADE_OUT) }] },
   };
 }
 
