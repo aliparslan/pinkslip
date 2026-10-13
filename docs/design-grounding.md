@@ -37,10 +37,13 @@ spec.
    - Jobs: what's new.
    - The job page: the ticket's facts.
    - Tracker: what needs me.
-   - Today: did anything happen. Four big numbers answer it: 6 applied,
-     2 replies, 1 interview, 12 new jobs.
-2. **One line carries each row, in Founders.** It's the job title, the
-   person, or the thing to do; the other lines stay quiet.
+   - Today: did anything happen. The first draft answered with four big
+     numbers; the owner dropped that block on 2026-10-13. The rows answer
+     it now.
+2. **One line carries each row, in Untitled Medium 17,** measured in
+   Paper. It's the job title, the person, or the thing to do; the other
+   lines stay quiet. Founders is kept for titles, date tiles and logo
+   initials.
 3. **The thing to do is the headline, as a verb:** "Answer 2 questions to
    finish", "Pick an interview time", "Follow up with Maya Chen".
 4. **Restraint:**
@@ -87,3 +90,10 @@ spec.
 6. **For anything about feel** (motion, gestures), build something
    playable first.
 7. **Fewer words,** on screens and in messages.
+8. **Draw from the kit, not the bar pages.** The bar pages are from Oct 11;
+   the system was decided on Oct 12 and lives in `tokens.ts` and
+   `apps/native/src/ui`. Clone the row, section header, chips, card and tab
+   bar from the Paper "System" page. Go through "Before drawing" in
+   [design-system.md](design-system.md), and audit every artboard against
+   it after drawing. On Oct 13 the Tracker and Today drafts used the old
+   60-line row with a 32 logo and a 17 headline, and the owner caught it.

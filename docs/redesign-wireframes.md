@@ -694,7 +694,7 @@ From the owner's phone review of `66d63d6`:
   - The finished state, assuming every backend feature exists, is drawn
     with fake data on Paper "Tracker · Oct 12".
   - Applications run: batch card, Needs you, then Offer, Interview, Screen,
-    Applied, Saved and Closed.
+    Applied, Saved and Closed (superseded by the kit page below).
   - Outreach runs Follow-up due, Waiting, Replied.
   - How to filter or organize the list (for example, to see only Saved) is
     being discussed.
@@ -707,6 +707,54 @@ From the owner's phone review of `66d63d6`:
   push at one height, and the cross-fade. The owner picked each step its
   own card: the step slides in from the right at its own height as the
   menu slides off left, 400ms on the drawer curve.
+
+## Today and Tracker on the kit (owner, 2026-10-13)
+
+The Paper page "Today and Tracker · Oct 13 · on the kit"; every part comes
+from the Parts board on the System page. The first drafts ("Tracker · Oct 13
+· Now and pipeline") used the Oct 11 row and stay as an archive.
+
+- **The moment.** Today: a few minutes in the morning; "did anything
+  happen, and what do I owe?" Tracker: "where does everything stand?"
+- **Decided:**
+  - Four tabs: Today, Jobs, Tracker, You.
+  - Today owns now: the batch card first while a batch runs, the numbers
+    card (Since yesterday), Needs you, What changed, Coming up. The Today
+    tab's badge is the Needs-you count. A quiet day says "Nothing new since
+    yesterday." and keeps Coming up.
+  - Tracker owns everything: Applications and Outreach segments, then chips
+    that filter the applications: All, Saved, Applied, Assessment,
+    Interviewing, Offer, Closed, in the order an application moves. All
+    shows every group with its first rows; a chip shows that stage alone,
+    grouped by time (Overnight, This week, Earlier), so hundreds of
+    applications never make one long list.
+  - Needs you is on Today only. Tracker has no Needs-you chip.
+  - One row everywhere, the 84 kit row; a verb on line two is Medium.
+  - Section counts sit after the label; the stage ring is drawn at 1.75;
+    Saved is the bookmark.
+  - The Coming up date tile shows the month over the day (40×48,
+    Founders), the Events page's two-line tile, with the weekday on line
+    one and the time trailing.
+- **Calls to veto:**
+  - The count tile ("6 applied overnight", "9 new jobs") sits in the logo
+    slot in Untitled Medium 17; it could take the date tile's Founders 22.
+  - The quiet Today keeps one "In Jobs" row pointing at the new jobs.
+  - A stage chip's view groups by time; by company is the alternative.
+  - Stage headers lead with their ring; Saved leads with the bookmark.
+- **Next for the kit:** the count after the label, the ring at 1.75, the
+  date tile, chips on Tracker, the Today tab.
+- **Then, the feel (owner, 2026-10-13, late):** the kit drafts were right
+  in structure but flat: every row weighed the same, pink was everywhere,
+  and two grey boxes sat on top. "1b · Today · busy · Untitled headline"
+  fixes that and was liked "a lot":
+  - Line two of each Today row is the headline, Untitled Medium 17. A
+    Founders version (1c) read smaller and heavier, so it was dropped.
+  - Rows grow past 84 when they need to.
+  - Pink only for Needs you. Pause is ink; What changed has no dots.
+  - Auto-apply's results show two stacked logos, not a "6" tile.
+  - The date tile is a 40 square, like the logos.
+  - The Since-yesterday numbers card is off; options for it and for the
+    Applying card are being drawn.
 
 ## In-app browser (owner, 2026-10-12)
 
@@ -730,6 +778,6 @@ The Paper page "In-app browser · Oct 12".
 
 ## Next
 
-- **Tracker** (replacing Library), then You. Tracker stages need an API to
+- **Tracker and Today** from the kit page above, then You. Tracker stages need an API to
   move an application between stages (the applications table already has
   Applied, Screen, Interview, Offer, Rejected and Ghosted).

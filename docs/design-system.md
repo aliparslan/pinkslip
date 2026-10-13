@@ -219,6 +219,64 @@ the storyboard spec. These were chosen in the Motion lab
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
 | Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, small marks |
 
+## Before drawing (check every time)
+
+The values are in `packages/tokens/src/tokens.ts` (`uiType`, `uiSpace`,
+`uiSize`, `uiRadius`) and the parts in `apps/native/src/ui`. Older Paper
+pages are not the spec. Clone parts from the Paper "System" page; when a
+part isn't there yet, draw it from the kit's values and add it to that page.
+
+- **The row** (`JobRow.tsx`): three lines, at least 84 tall, growing with
+  its content. The 40 logo (radius 10) sits on the 16 margin; text and
+  separators start on the 68 line. Nothing sits in the left gutter.
+  - **On Jobs** the lines are all Subhead (15/20). Company and title are
+    Medium until opened, then Regular; the facts line is `ink-2`; the age is
+    `ink-3` (`ink` while unread). One 8pt pink dot follows the age.
+  - **On Today** (owner, 2026-10-13) line two is the headline: Body 17/22
+    Medium `ink`, the thing to do or the news ("Reply to the offer",
+    "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
+    and the age is `ink-3`. Nothing is bold for being new. Only Needs-you
+    rows carry the pink dot. Tracker gets the same row once it's drawn.
+  - **Several companies in one row** (auto-apply's results): two logos
+    stacked in the 40 slot, the second 12 down and right with a 2pt ring in
+    the page colour. Never a number in the logo slot.
+- **Section header** (`SectionHeader`): Footnote Medium `ink-2`, then the
+  count in Footnote `ink-3` after a 6 gap, the way chips and segments carry
+  theirs (owner, 2026-10-13; the kit still puts the count on the right, so
+  the kit follows). Pink only for Needs you. 16 above, 4 below. A stage
+  header may lead with its ring.
+- **Stage marks:** Saved is the bookmark, since saving isn't a stage. The
+  ring fills as a stage advances and is drawn at the 1.75 stroke like every
+  line icon (owner, 2026-10-13; `JobRow.tsx` still draws it at 1.5, so the
+  kit follows). Offer is `good`; endings are grey.
+- **Date tile** (Coming up rows): 40 square, radius 10, `fill`, in the logo
+  slot, so it matches the logos (owner, 2026-10-13). The month in caps
+  (Founders Semibold 11/12, 0.08em, `ink-3`) over the day (Founders
+  Semibold 20/20, `ink`). Like logo initials, it's exempt from the type
+  scale. The weekday goes on line one of the row and the time trails it.
+- **Needs you lives on Today only.** Tracker has no Needs-you chip or
+  section; the Today tab's badge carries the count.
+- **Tracker order:** chips and groups run Saved, Applied, Assessment,
+  Interviewing, Offer, Closed, the way an application moves (owner,
+  2026-10-13; closest-to-an-offer first had put Saved near the bottom).
+- **Large title:** 8 under the 44 nav row on every tab, so titles line up
+  across tabs. A date eyebrow sits inside the nav row, not above the title.
+- **Cards:** radius 12 (`bg-grouped`). Only the ticket is 16.
+- **Tappable words inside rows and cards** (Pause, Change, See all,
+  All 142) are `ink` Medium; pink stays for Needs you (owner, 2026-10-13).
+  Chevrons are `ink-4`.
+- **Badge** (`Badge.tsx`): 20 tall, Footnote Medium, white on pink.
+- **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side; a count is `ink-3`
+  after a 6 gap.
+- **Progress:** the segmented bar from the Live Activity, one segment per
+  job.
+- **Spacing:** only 4, 8, 12, 16, 20, 24, 32, 40. 24–32 between sections.
+- **Emphasis** comes from the four inks and Medium, and from the one
+  headline line a row has.
+
+After drawing, screenshot each artboard and check it against this list
+before showing it.
+
 ## A new feature, step by step
 
 1. **Name the view's one job.** That's its only pink button, if any.
@@ -274,6 +332,25 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, late**
+  - Decided (owner): Today rows have one headline line (Untitled Medium 17;
+    Founders tried and dropped, since it reads smaller); rows grow past 84
+    when they need to; the date tile is square to match the logos; pink is
+    for Needs you only, so Pause and other tappable words are ink; no dots
+    on What changed. The Since-yesterday numbers card is off Today while
+    its options are explored.
+- **2026-10-13, night**
+  - Decided (owner): Needs you lives on Today only, so Tracker loses its
+    Needs-you chip; Tracker chips and groups run Saved → Closed in the
+    order an application moves; the Coming up date tile shows the month
+    over the day (40×48, Founders), the two-line tile from the Events page.
+- **2026-10-13, evening**
+  - Decided (owner): section counts sit after the label with a 6 gap; the
+    stage ring is drawn at the 1.75 stroke; Saved is the bookmark. The
+    Parts board on the Paper System page holds every part to clone.
+  - Added "Before drawing": the checklist every Paper round goes through,
+    after the Tracker and Today drafts used the old 60-line row, a 32 logo
+    and a 17 headline. The kit is the spec; older Paper pages set the feel.
 - **2026-10-13, later**
   - Decided (owner): each step of a sheet is its own card and slides in at
     its own height, from the Sheet transitions lab (You → Kit → Redesign kit).
