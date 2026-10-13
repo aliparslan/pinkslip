@@ -4,7 +4,7 @@ Step 3 of the sequence in [redesign-2026-10.md](redesign-2026-10.md), built
 against the approved [brief](redesign-brief.md).
 
 **Paper file:** [Pinkslip · Redesign wireframes](https://app.paper.design/file/01M4PHGHP6STZ6E2GH8TBPYZD5),
-page "Lo-fi · Jobs · Tracker · You".
+page "Archive · Lo-fi · Jobs · Tracker · You".
 
 **Scope:** structure, grid and grouping only, so judge layout, not looks.
 - Greyscale. Pink appears only where the rule says it can: act, or needs
@@ -58,7 +58,7 @@ page "Lo-fi · Jobs · Tracker · You".
 
 ## Visual pass: two takes (2026-10-11)
 
-These are on the pages "Take A · Quiet" and "Take B · More paper" in the same
+These are on the pages "Take A · Quiet" and "Archive · Take B" in the same
 Paper file. Each take has five frames: Jobs, the job page, the job page just
 after applying, Tracker, and You. Both keep the wireframe layouts exactly.
 
@@ -210,7 +210,7 @@ Applied across Take A and every batch page in Paper.
     shows "◌ Saved" or "◔ Applied" in the age slot, at the same size. The
     left edge holds only the unread dot.
   - Roughly 6 to 7 rows fit on the Jobs screen, and 8 to 9 once you scroll
-    and the header collapses (drawn on the "Job row density" page).
+    and the header collapses (drawn on the "Archive · Job row density" page).
 - **Selected chips are dark:** an ink fill with white text. Pale pink is no
   longer an "on" colour anywhere: the selected price on the Plan page is
   dark too. Pink now means only "do this" or "needs you".
@@ -317,7 +317,7 @@ across Take A and every batch page.
     app can ask again later.
   - The lock-screen notifications board got the same treatment.
 - **Untitled Sans stays** for text (compared with Founders Grotesk Text, SF
-  Pro and National 2 on the Paper page "Type pairings").
+  Pro and National 2 on the Paper page "Archive · Type pairings").
 - **Contact import is admin only.** It loads recruiter contacts into
   Pinkslip's shared list, which company pages show as "from Pinkslip's list".
   Users can't import their own contacts yet.
@@ -380,14 +380,14 @@ size setting.
 - **Search moved to iOS 26's search tab.** Jobs keeps its title, quick filters
   and Edit search. The owner expects many people to look for search on Jobs,
   so this is on trial.
-- **Job rows** (Paper page "Job rows · Oct 12"): the owner found titles too
+- **Job rows** (Paper page "Archive · Job rows · Oct 12"): the owner found titles too
   heavy and the unread dot out of line. Options:
   - Today: 17 medium, wrapping titles, a 32 logo and the dot on the title line.
   - A · Compact: 15 medium on one line, a 40 logo that exactly spans the two
     text lines, and the dot centred on the logo. Fixed 64pt rows, 7 visible.
   - B · Calm: 17 regular, titles wrap to two lines, a 42 logo spanning the
     first two lines, and the dot centred on the logo.
-- **Swipe actions** (Paper page "Swipe actions · Oct 12"): today's full pink
+- **Swipe actions** (Paper page "Archive · Swipe actions · Oct 12"): today's full pink
   and red slabs use the old kit. Options are A · Capsule, B · Just the mark
   and C · Soft slab. Open question: Mail-style two actions per side, where a
   full swipe runs the outer one.

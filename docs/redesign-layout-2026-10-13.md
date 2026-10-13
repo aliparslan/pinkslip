@@ -1,5 +1,10 @@
 # Where everything lives: a step back (2026-10-13)
 
+> **Reopened the same day.** The owner felt the designs had lost their way.
+> The next round starts from the user's moment, per
+> [design-grounding.md](design-grounding.md), not from this list of
+> options. The by-phase drafts were deleted from Paper.
+
 The owner asked to reassess the overall layout before going further on
 Tracker. Tracker has to hold:
 - applications and outreach;
