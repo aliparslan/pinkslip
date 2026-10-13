@@ -23,7 +23,7 @@ Sizes are relative: S is a session, M a few, L a week or more of sessions.
 
 ## Open owner items (any time)
 
-- [ ] The brief: feeling words and references ([redesign-brief.md](redesign-brief.md)).
+- [x] The brief: feeling words and references ([redesign-brief.md](redesign-brief.md)). Approved 2026-10-11.
 - [ ] Install the next TestFlight build: the first that can receive
   over-the-air updates.
 - [ ] Remaining phone checks:
@@ -39,6 +39,10 @@ Sizes are relative: S is a session, M a few, L a week or more of sessions.
   catalog repair and the empty-board fix (migrations 0087 and 0088,
   [source-health-2026-10-12.md](source-health-2026-10-12.md)). Afterwards the
   admin Sources count of sources that "need attention" should fall.
+- [ ] Deploy the backend (`bun run deploy:backend`) to apply application
+  stages (migration 0089, [application-stages.md](application-stages.md)),
+  then ship the web and an over-the-air update so applied jobs leave the
+  Saved list straight away (`packages/data` cache change).
 
 ## 1. Redesign foundations, iOS first · L
 
@@ -80,6 +84,11 @@ Everything later reports into this, and none of it costs money per use.
   - Saved → Applied → Assessment → Interview → Offer.
   - Endings: Rejected, Withdrawn, No response.
   - A timeline per application, plus notes.
+  - **Backend done (2026-10-13)**, see
+    [application-stages.md](application-stages.md). Owner decisions:
+    - Saved is the first stage: one application per job, in one place.
+    - Backend only for now; Tracker's screens come with the redesign.
+    - Pinkslip jobs only, no hand-entered applications.
 - **One activity stream** feeds:
   - notifications
   - the daily digest
