@@ -756,6 +756,42 @@ from the Parts board on the System page. The first drafts ("Tracker · Oct 13
   - The Since-yesterday numbers card is off; options for it and for the
     Applying card are being drawn.
 
+## Applying for you and the weekly slip (owner, 2026-10-13, late)
+
+On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
+
+- **Applying for you:**
+  - **Picked:** A3, the queue as logos. Today shows A3; every other tab shows A4, a slim live bar above the tab bar (C3); both open one sheet with Now, Up next and Applied (C2).
+  - **A batch longer than the strip** (C1): done ones fold into "✓ 5" on the left, the rest into "+3" on the right, and the current one keeps its ring.
+  - **Sheet rows:** every row has a time on the right: when it will go, or when it went. "5 more" lines up with the row text.
+- **The summary:**
+  - The daily numbers card is off.
+  - **A weekly paper object on Mondays is liked:** the carbon-copy slip (D1), and the time card (D3). The receipt is out ("Pinkslip isn't a grocery store"), and so is the monospace (Founders Grotesk Mono, from the receipt).
+  - Variations to pick from:
+    - E1 · While you were out
+    - E2 · Triplicate form
+    - E3 · Memo
+    - E4 · One big number with a carbon ghost
+    - T1 · Classic time card, days down the side
+    - T2 · Punched holes
+    - T3 · Clock stamps
+    - T4 · In the rack
+- **Research and inspiration:**
+  - **The pink "While You Were Out" pad:** pink stock so a message stands out on a desk, an Urgent box, and checkboxes such as "Wants to see you".
+  - **NCR carbonless sets:** the triplicate is white, canary, then pink, so the pink copy is the last one, the one you keep.
+  - **Time cards:** they run seven days, with paired in and out columns and a total.
+  - **Flighty's Passport:** shows stats as an official document.
+  - **Wallet and airline passes:** small caps labels over big values.
+  - **pushr and Alta:** show the week as day pills or columns.
+  - Sources:
+    - [Quill message pads](https://www.quill.com/quill-while-you-were-out-pads/cbs/010858.html)
+    - [4over4 NCR forms](https://4over4.com/printing/Carbonless-Forms)
+    - [Carbonless copy paper](https://en.wikipedia.org/wiki/Carbonless_copy_paper)
+    - Mobbin: [Flighty passport](https://mobbin.com/screens/5ae29fe8-e962-43a0-a716-79153607252e), [pushr week](https://mobbin.com/screens/bd1913f9-cb73-4126-9c41-fb92dfe61b97), [Apple Wallet pass](https://mobbin.com/screens/fe3800b2-59af-4229-9412-115dcb51c881)
+- **Calls to veto:**
+  - These slips put pink paper on Today once a week, an exception to "pink only for Needs you" for the brand's own object.
+  - The time-card stamps use a violet ink that isn't a token.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
