@@ -142,12 +142,15 @@ describe("website Apple sign-in", () => {
     current.sqlite.run("INSERT INTO auth_identities(id, user_id, provider, provider_subject) VALUES ('native-identity', 'account', 'apple', 'apple-person')");
     current.sqlite.run("INSERT INTO companies(id, name, ats_type, ats_slug) VALUES ('fixture-company', 'Fixture', 'greenhouse', 'fixture')");
     current.sqlite.run("INSERT INTO jobs(id, company_id, external_id, title, url) VALUES ('saved-job', 'fixture-company', 'fixture', 'Engineer', 'https://example.test/job')");
-    current.sqlite.run("INSERT INTO saved_jobs(user_id, job_id) VALUES ('guest', 'saved-job')");
+    current.sqlite.run(`INSERT INTO applications(id, user_id, job_id, company_name, title, url, stage, stage_changed_at, created_at, updated_at)
+      VALUES ('guest-application', 'guest', 'saved-job', 'Fixture', 'Engineer', 'https://example.test/job', 'saved', '2026-10-01', '2026-10-01', '2026-10-01')`);
+    current.sqlite.run("INSERT INTO application_events(id, application_id, stage, occurred_at) VALUES ('saved-event', 'guest-application', 'saved', '2026-10-01')");
     const { cookie, state, nonce } = await flow(current);
     const token = await jwt({ nonce });
     mockApple(token);
     expect((await current.callback(cookie, new URLSearchParams({ state, code: "code", id_token: token }))).headers.get("location")).toBe("/you/account?apple=success");
-    expect(current.sqlite.query("SELECT user_id FROM saved_jobs WHERE job_id = 'saved-job'").all()).toEqual([{ user_id: "account" }]);
+    expect(current.sqlite.query("SELECT user_id, stage FROM applications WHERE job_id = 'saved-job'").all()).toEqual([{ user_id: "account", stage: "saved" }]);
+    expect(current.sqlite.query("SELECT application_id FROM application_events").all()).toEqual([{ application_id: "guest-application" }]);
     expect(current.sqlite.query("SELECT role FROM users WHERE id = 'account'").get()).toEqual({ role: "admin" });
     expect(current.sqlite.query("SELECT * FROM users WHERE id = 'guest'").get()).toBeNull();
   });

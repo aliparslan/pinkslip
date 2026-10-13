@@ -12,6 +12,7 @@ import {
 } from "./auth";
 import jobRoutes from "./routes/jobs";
 import publicJobRoutes from "./routes/public-jobs";
+import applicationRoutes from "./routes/applications";
 import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
 import pushRoutes from "./routes/push";
@@ -319,6 +320,7 @@ app.route("/api/v2/interactions", interactionRoutes);
 app.route("/api/v2/metrics", metricRoutes);
 app.route("/api/v2/outreach", outreachRoutes);
 app.route("/api/v2/apply", applyRoutes);
+app.route("/api/v2/applications", applicationRoutes);
 app.route("/api/v2/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
   completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))

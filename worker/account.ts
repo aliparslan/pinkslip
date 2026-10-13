@@ -6,6 +6,7 @@ import type {
 } from "./types";
 import { createEmptyResumeProfile, normalizeResumeProfile } from "../shared/resume-profile";
 import { deleteUserArtifactObjects } from "./tailor/artifact-storage";
+import { mergeApplicationConflicts } from "./applications";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -287,12 +288,6 @@ export async function mergeGuestDataIntoAccount(
 
   await db.batch([
     db.prepare(
-      `INSERT OR IGNORE INTO saved_jobs (user_id, job_id, saved_at)
-       SELECT ?, job_id, saved_at
-       FROM saved_jobs
-       WHERE user_id = ?`
-    ).bind(targetUserId, sourceUserId),
-    db.prepare(
       `INSERT OR IGNORE INTO dismissed_jobs (user_id, job_id, dismissed_at)
        SELECT ?, job_id, dismissed_at
        FROM dismissed_jobs
@@ -346,49 +341,7 @@ export async function mergeGuestDataIntoAccount(
     "UPDATE notification_candidates SET user_id = ? WHERE user_id = ?"
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
 
-  const conflictingJobIds = await db.prepare(
-    `SELECT a.job_id
-     FROM applications a
-     JOIN applications b
-       ON a.job_id IS NOT NULL
-      AND a.job_id = b.job_id
-     WHERE a.user_id = ? AND b.user_id = ?`
-  ).bind(sourceUserId, targetUserId).all<{ job_id: string }>();
-
-  for (const row of conflictingJobIds.results ?? []) {
-    const guest = await db.prepare(
-      `SELECT * FROM applications
-       WHERE user_id = ? AND job_id = ?
-       ORDER BY datetime(updated_at) DESC
-       LIMIT 1`
-    ).bind(sourceUserId, row.job_id).first<any>();
-    const account = await db.prepare(
-      `SELECT * FROM applications
-       WHERE user_id = ? AND job_id = ?
-       ORDER BY datetime(updated_at) DESC
-       LIMIT 1`
-    ).bind(targetUserId, row.job_id).first<any>();
-
-    if (guest && account && guest.updated_at > account.updated_at) {
-      await db.prepare(
-        `UPDATE applications
-         SET company_name = ?, title = ?, stage = ?, next = ?, url = ?, updated_at = ?
-         WHERE id = ?`
-      ).bind(
-        guest.company_name,
-        guest.title,
-        guest.stage,
-        guest.next,
-        guest.url,
-        guest.updated_at,
-        account.id
-      ).run();
-    }
-
-    await db.prepare(
-      "DELETE FROM applications WHERE user_id = ? AND job_id = ?"
-    ).bind(sourceUserId, row.job_id).run();
-  }
+  await mergeApplicationConflicts(db, sourceUserId, targetUserId);
 
   await mergePushSubscriptions(db, sourceUserId, targetUserId);
 
@@ -431,7 +384,7 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM tailorings WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_preferences WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_profiles WHERE user_id = ?").bind(userId),
-    db.prepare("DELETE FROM saved_jobs WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM application_events WHERE application_id IN (SELECT id FROM applications WHERE user_id = ?)").bind(userId),
     db.prepare("DELETE FROM dismissed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM viewed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM applications WHERE user_id = ?").bind(userId),

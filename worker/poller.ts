@@ -1531,7 +1531,6 @@ export async function runPollCycle(
        WHERE j.closed_at IS NOT NULL
          AND j.closed_at < ?
          AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id)
-         AND NOT EXISTS (SELECT 1 FROM saved_jobs s WHERE s.job_id = j.id)
        ORDER BY j.closed_at ASC
        LIMIT ?
      )`

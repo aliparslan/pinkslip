@@ -24,6 +24,13 @@ import {
 } from "../../shared/search-profile";
 import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
 import { resolveJobId } from "../job-identity";
+import { hasApplied, type ApplicationStage } from "../../shared/application-stages";
+import {
+  legacyMarkApplied,
+  legacySaveJob,
+  legacyUnmarkApplied,
+  legacyUnsaveJob,
+} from "../applications";
 
 /**
  * Source timestamps arrive with mixed UTC representations and offsets, so the
@@ -74,20 +81,16 @@ const JOB_LIST_FIELDS = `
   NULL AS description,
   j.salary,
   j.closed_at,
-  CAST(
-    EXISTS(
-      SELECT 1
-      FROM saved_jobs s
-      WHERE s.user_id = ? AND s.job_id = j.id
-    ) AS INTEGER
-  ) AS saved,
-  CAST(
-    EXISTS(
-      SELECT 1
-      FROM applications a
-      WHERE a.user_id = ? AND a.job_id = j.id
-    ) AS INTEGER
-  ) AS applied,
+  (
+    SELECT a.stage
+    FROM applications a
+    WHERE a.user_id = ? AND a.job_id = j.id
+  ) AS application_stage,
+  (
+    SELECT a.applied_at
+    FROM applications a
+    WHERE a.user_id = ? AND a.job_id = j.id
+  ) AS applied_at,
   c.name AS company_name,
   c.website AS company_domain,
   COALESCE(c.source_type, c.ats_type) AS source_type
@@ -117,20 +120,16 @@ const JOB_DETAIL_FIELDS = `
   j.description,
   j.salary,
   j.closed_at,
-  CAST(
-    EXISTS(
-      SELECT 1
-      FROM saved_jobs s
-      WHERE s.user_id = ? AND s.job_id = j.id
-    ) AS INTEGER
-  ) AS saved,
-  CAST(
-    EXISTS(
-      SELECT 1
-      FROM applications a
-      WHERE a.user_id = ? AND a.job_id = j.id
-    ) AS INTEGER
-  ) AS applied,
+  (
+    SELECT a.stage
+    FROM applications a
+    WHERE a.user_id = ? AND a.job_id = j.id
+  ) AS application_stage,
+  (
+    SELECT a.applied_at
+    FROM applications a
+    WHERE a.user_id = ? AND a.job_id = j.id
+  ) AS applied_at,
   c.name AS company_name,
   c.website AS company_domain,
   COALESCE(c.source_type, c.ats_type) AS source_type
@@ -139,9 +138,8 @@ const JOB_DETAIL_FIELDS = `
 type JobListRow = JobRow & {
   company_name: string;
   company_domain: string;
-  saved: number;
-  applied: number;
-  applied_at?: string;
+  application_stage: ApplicationStage | null;
+  applied_at: string | null;
   match_fact: string;
   specialties_json: string;
   sponsorship_available: number | null;
@@ -164,9 +162,14 @@ function serializeJob(row: JobListRow) {
   } catch {
     specialties = [];
   }
-  const { specialties_json: _, ...job } = row;
+  const { specialties_json: _, applied_at, ...job } = row;
+  const stage = row.application_stage;
   return {
     ...job,
+    // Saved is the first stage of an application; every later stage is applied.
+    saved: stage === "saved" ? 1 : 0,
+    applied: stage !== null && hasApplied(stage) ? 1 : 0,
+    ...(applied_at ? { applied_at } : {}),
     specialties,
     sponsorship_available: row.sponsorship_available === null
       ? null
@@ -487,8 +490,8 @@ jobs.get("/", async (c) => {
     conditions.push(
       `EXISTS (
         SELECT 1
-        FROM saved_jobs s
-        WHERE s.user_id = ? AND s.job_id = j.id
+        FROM applications a
+        WHERE a.user_id = ? AND a.job_id = j.id AND a.stage = 'saved'
       )`
     );
     bindings.push(userId);
@@ -680,13 +683,9 @@ jobs.patch("/:id", async (c) => {
 
   if (body.saved !== undefined) {
     if (body.saved) {
-      await c.env.DB.prepare(
-        `INSERT OR IGNORE INTO saved_jobs (user_id, job_id) VALUES (?, ?)`
-      ).bind(userId, id).run();
+      await legacySaveJob(c.env.DB, userId, id);
     } else {
-      await c.env.DB.prepare(
-        `DELETE FROM saved_jobs WHERE user_id = ? AND job_id = ?`
-      ).bind(userId, id).run();
+      await legacyUnsaveJob(c.env.DB, userId, id);
     }
     await recordProductEvent(c.env.DB, {
       userId,
@@ -699,30 +698,9 @@ jobs.patch("/:id", async (c) => {
 
   if (body.applied !== undefined) {
     if (body.applied) {
-      const now = new Date().toISOString();
-      await c.env.DB.prepare(
-        `INSERT OR IGNORE INTO applications (
-           id, job_id, company_name, title, stage, next, url, created_at, updated_at, user_id
-         )
-         SELECT ?, j.id, c.name, j.title, 'Applied', '', COALESCE(j.url, ''), ?, ?, ?
-         FROM jobs j
-         JOIN companies c ON c.id = j.company_id
-         WHERE j.id = ?`
-      ).bind(crypto.randomUUID(), now, now, userId, id).run();
-      await c.env.DB.prepare(
-        `UPDATE applications
-         SET company_name = (SELECT c.name FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?),
-             title = (SELECT title FROM jobs WHERE id = ?),
-             stage = 'Applied',
-             next = '',
-             url = COALESCE((SELECT url FROM jobs WHERE id = ?), ''),
-             updated_at = ?
-         WHERE user_id = ? AND job_id = ?`
-      ).bind(id, id, id, now, userId, id).run();
+      await legacyMarkApplied(c.env.DB, userId, id);
     } else {
-      await c.env.DB.prepare(
-        `DELETE FROM applications WHERE user_id = ? AND job_id = ?`
-      ).bind(userId, id).run();
+      await legacyUnmarkApplied(c.env.DB, userId, id);
     }
     await recordProductEvent(c.env.DB, {
       userId,
@@ -773,7 +751,16 @@ jobs.delete("/:id/block", requireAdmin, async (c) => {
     .bind(crypto.randomUUID(), job.company_id, job.external_id, job.title, new Date().toISOString())
     .run();
 
-  await c.env.DB.prepare("DELETE FROM jobs WHERE id = ?").bind(id).run();
+  // Saved applications went with the job when saved jobs were their own table;
+  // applications past Saved keep their history, detached from the job.
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `DELETE FROM application_events
+       WHERE application_id IN (SELECT id FROM applications WHERE job_id = ? AND stage = 'saved')`
+    ).bind(id),
+    c.env.DB.prepare("DELETE FROM applications WHERE job_id = ? AND stage = 'saved'").bind(id),
+    c.env.DB.prepare("DELETE FROM jobs WHERE id = ?").bind(id),
+  ]);
 
   return c.body(null, 204);
 });
@@ -786,7 +773,7 @@ jobs.get("/saved/list", async (c) => {
      FROM jobs j
      JOIN companies c ON j.company_id = c.id
      JOIN job_features jf ON jf.job_id = j.id
-     JOIN saved_jobs s ON s.job_id = j.id AND s.user_id = ?
+     JOIN applications a ON a.job_id = j.id AND a.user_id = ? AND a.stage = 'saved'
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
      WHERE j.closed_at IS NULL
        AND NOT EXISTS (
@@ -799,20 +786,20 @@ jobs.get("/saved/list", async (c) => {
   return c.json({ jobs: (result.results ?? []).map(serializeJob) });
 });
 
-// Intentionally ignores the legacy pipeline stages; an application is simply
-// present or not.
+// Every application past Saved, whatever its stage. Tracker reads stages from
+// /applications.
 jobs.get("/applied/list", async (c) => {
   const userId = c.get("userId");
   await ensureUserJobMatches(c.env.DB, userId);
   const result = await c.env.DB.prepare(
-    `SELECT ${JOB_LIST_FIELDS}, a.created_at AS applied_at
+    `SELECT ${JOB_LIST_FIELDS}
      FROM applications a
      JOIN jobs j ON j.id = a.job_id
      JOIN companies c ON j.company_id = c.id
      JOIN job_features jf ON jf.job_id = j.id
      LEFT JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
-     WHERE a.user_id = ?
-     ORDER BY datetime(a.created_at) DESC, a.id DESC`
+     WHERE a.user_id = ? AND a.stage != 'saved'
+     ORDER BY julianday(a.applied_at) DESC, a.id DESC`
   ).bind(userId, userId, userId, userId, userId).all<JobListRow>();
 
   return c.json({ jobs: (result.results ?? []).map(serializeJob) });

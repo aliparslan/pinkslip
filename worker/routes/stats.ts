@@ -69,13 +69,14 @@ stats.get("/", async (c) => {
          )`
     ).bind(userId).first<{ count: number }>(),
     c.env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND job_id IS NOT NULL"
+      "SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND job_id IS NOT NULL AND stage != 'saved'"
     ).bind(userId).first<{ count: number }>().catch(() => ({ count: 0 })),
     c.env.DB.prepare(
       `SELECT COUNT(*) AS count
-       FROM saved_jobs s
-       JOIN jobs j ON j.id = s.job_id
-       WHERE s.user_id = ?
+       FROM applications a
+       JOIN jobs j ON j.id = a.job_id
+       WHERE a.user_id = ?
+         AND a.stage = 'saved'
          AND j.closed_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM user_blocked_companies ubc
