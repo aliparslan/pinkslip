@@ -25,8 +25,8 @@ const stageDetail: Record<CareerStage, string> = {
 
 /**
  * Your search (Paper "Filters · Your search as a plain menu"), the one saved
- * search behind the feed and alerts: tap a row and that choice pushes in at
- * the same height, then Done goes back. Save writes the search; closing drops the
+ * search behind the feed and alerts: tap a row and that choice slides in,
+ * then Done goes back. Save writes the search; closing drops the
  * changes. It opens over Jobs, which stays in view behind it.
  */
 export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
@@ -183,8 +183,8 @@ function SearchMenu({ draft, open }: { draft: Profile; open: (step: Step) => voi
 
 const styles = StyleSheet.create((theme) => ({
   loading: { minHeight: 160, alignItems: "center", justifyContent: "center" },
-  /** The choices take the room between the header and Done, and scroll. */
-  scroll: { flex: 1, marginHorizontal: -theme.ui.space["5"] },
+  /** The choices size the step, and scroll when it reaches the screen's height. */
+  scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
   scrollBody: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
   menu: { gap: theme.ui.space["3"] },
 }));

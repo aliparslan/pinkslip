@@ -600,7 +600,7 @@ export const ui = {
         curve: [0.32, 0.72, 0, 1],
       },
       resize: {
-        duration: 500,
+        duration: 400,
         curve: [0.32, 0.72, 0, 1],
       },
       settle: {

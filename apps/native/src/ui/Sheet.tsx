@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Modal, Pressable, View, useWindowDimensions, type LayoutChangeEvent, type ScrollViewProps } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
 import Animated, {
-  LayoutAnimationConfig, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
+  scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,12 +36,12 @@ interface SheetContextValue {
   /** How many lists the sheet holds; with one, a drag up scrolls instead of nudging the sheet. */
   lists: SharedValue<number>;
   offset: SharedValue<number>;
-  /** The first step reports its height here, and the card eases to it. */
+  /** Each step reports its height here, and the card eases to it. */
   measure: (height: number) => void;
+  /** Set once the sheet has laid out: the step it opened with doesn't slide in. */
+  opened: RefObject<boolean>;
   /** The tallest a step can be: the screen below the status bar. */
   maxHeight: number;
-  /** The card's height, which a step opened from the first one fills. */
-  height: number;
   /** The card's width: how far a step slides. */
   width: number;
 }
@@ -67,13 +67,13 @@ export interface SheetProps {
 
 /**
  * Pinkslip's own sheet, in place of the system's: it floats 8pt in from the
- * screen's edges with 40pt corners and sizes to its first step (Paper
- * "Filters and Apply · Oct 12"). A choice opened from that step slides in
- * from the right at the same height, the way a page pushes in a navigation
- * stack, and scrolls if it needs more room; back slides it away (owner,
- * 2026-10-12: no resizing between steps). Drag or flick it down from
- * anywhere, or tap the page behind it, to close. What a sheet holds is a
- * plain menu (Choices); paper objects stay on their pages.
+ * screen's edges with 40pt corners and sizes to each step (Paper "Filters
+ * and Apply · Oct 12"). A choice opened from the first step slides in from
+ * the right, the way a page pushes in a navigation stack, as the sheet's top
+ * edge eases to the new height; back slides it away. Drag or flick it down
+ * to close, or tap the page behind it; a list only hands the drag to the
+ * sheet when it was already at its top. What a sheet holds is a plain menu
+ * (Choices); paper objects stay on their pages.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
   const { height, width } = useWindowDimensions();
@@ -84,14 +84,13 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const scrollY = useSharedValue(0);
   const lists = useSharedValue(0);
   const anchor = useSharedValue(0);
+  const fromTop = useSharedValue(true);
   const opened = useRef(false);
   const maxHeight = height - insets.top - INSET;
-  const [rootHeight, setRootHeight] = useState(0);
 
-  // The card follows its first step's height: set at first, so it slides in
-  // with the whole trip on screen, then eased if that step's content changes.
+  // The card follows its step's height: set at first, so it slides in with
+  // the whole trip on screen, then eased from step to step.
   const measure = useCallback((contentHeight: number) => {
-    setRootHeight(contentHeight);
     if (opened.current) {
       cardHeight.value = withTiming(contentHeight, RESIZE);
       return;
@@ -112,8 +111,12 @@ export function Sheet({ onClosed, children }: SheetProps) {
 
   const drag = useMemo(() => Gesture.Pan().activeOffsetY([-10, 10]).onStart(() => {
     anchor.value = 0;
+    // A swipe that starts down a list only scrolls it, even once it reaches
+    // the top; the sheet waits for the next one (as iOS and Vaul do).
+    fromTop.value = scrollY.value <= 0.5;
   }).onUpdate((event) => {
-    // While the list is scrolled, the drag scrolls it back; the sheet follows from the top.
+    if (!fromTop.value) return;
+    // Scrolled back down within this drag: the sheet follows again from the top.
     if (scrollY.value > 0.5) {
       anchor.value = event.translationY;
       return;
@@ -129,13 +132,13 @@ export function Sheet({ onClosed, children }: SheetProps) {
       offset.value = withTiming(0, SETTLE);
       shade.value = withTiming(1, SETTLE);
     }
-  }), [anchor, scrollY, lists, offset, shade, cardHeight, close]);
+  }), [anchor, fromTop, scrollY, lists, offset, shade, cardHeight, close]);
 
   const card = useAnimatedStyle(() => ({ height: cardHeight.value, transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
   const cardWidth = width - INSET * 2;
-  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, maxHeight, height: rootHeight, width: cardWidth }),
-    [close, drag, scrollY, lists, offset, measure, maxHeight, rootHeight, cardWidth]);
+  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, opened, maxHeight, width: cardWidth }),
+    [close, drag, scrollY, lists, offset, measure, maxHeight, cardWidth]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -147,8 +150,7 @@ export function Sheet({ onClosed, children }: SheetProps) {
           {/* A full-height stage pinned to the card's bottom edge, so steps
               (and one sliding away) stand still if the card resizes. */}
           <View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }]}>
-            {/* The first step is simply there; later ones slide in. */}
-            <LayoutAnimationConfig skipEntering>{children}</LayoutAnimationConfig>
+            {children}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -174,9 +176,9 @@ export function SheetModal({ open, onClosed, children }: SheetModalProps) {
 export interface SheetStepProps {
   /** Changes when the step does, so the old content leaves and the new arrives. */
   id: string;
-  /** A step opened from the first one: it slides in from the right at the
-   * sheet's height and back out to the right. The first step slides away to
-   * the left meanwhile, and back in. */
+  /** A step opened from the first one: it slides in from the right and back
+   * out to the right. The first step slides away to the left meanwhile, and
+   * back in. */
   inner?: boolean;
   children: ReactNode;
 }
@@ -203,19 +205,17 @@ function leaving(to: 1 | -1, width: number) {
   };
 }
 
-/** One step of a sheet. The first step stands on the sheet's bottom edge and
- * sets its height; an inner step fills that height. */
+/** One step of a sheet, standing on its bottom edge and setting the sheet's
+ * height. */
 export function SheetStep({ id, inner = false, children }: SheetStepProps) {
-  const { measure, maxHeight, height, width } = useSheetContext();
+  const { measure, opened, maxHeight, width } = useSheetContext();
+  // The step the sheet opens with rises with it; only later steps slide in.
+  const [initial] = useState(() => !opened.current);
   const side = inner ? 1 : -1;
   const slide = useMemo(() => ({ entering: arriving(side, width), exiting: leaving(side, width) }), [side, width]);
-  if (inner) {
-    return <Animated.View key={id} entering={slide.entering} exiting={slide.exiting} style={[styles.step, { height }]}>
-      {children}
-    </Animated.View>;
-  }
   const onLayout = (event: LayoutChangeEvent) => measure(event.nativeEvent.layout.height);
-  return <Animated.View key={id} entering={slide.entering} exiting={slide.exiting} onLayout={onLayout} style={[styles.step, { maxHeight }]}>
+  return <Animated.View key={id} entering={initial ? undefined : slide.entering} exiting={slide.exiting} onLayout={onLayout}
+    style={[styles.step, { maxHeight }]}>
     {children}
   </Animated.View>;
 }

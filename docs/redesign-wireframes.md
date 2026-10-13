@@ -658,8 +658,9 @@ From the owner's phone review of `66d63d6`:
   turns pink with a tick, and letting go opens that tab. Claude couldn't
   check Instagram's newest app, so the drag follows the iOS 26 tab bar.
 - **After trying `1adfb11`:** the sheet's height morph between steps felt
-  odd, so choices now push in at the sheet's height, the standard pattern,
-  and scroll. Tabs go Jobs, Tracker, Search, You; You is the user circle;
+  odd. A fixed-height push (`d1c01de`) wasn't it either; the owner wanted
+  each step at its own size with the conventional slide, so choices push in
+  from the right while the sheet eases to their height, both over 400ms. Tabs go Jobs, Tracker, Search, You; You is the user circle;
   the lit icon's stroke is 2pt (1.75 at rest) and Tracker's end dot fills.
 - **Dark-mode pink:** measured identical to light (#EE5FAC on the Apply
   button and badges). It reads deeper on near-black. Lightening it for dark
