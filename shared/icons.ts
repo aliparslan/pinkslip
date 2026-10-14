@@ -43,6 +43,7 @@ export const ICONS = {
   block: "Prohibit",
   tailor: "Sparkle",
   refresh: "ArrowClockwise",
+  copy: "Copy",
   warning: "WarningCircle",
 
   // Email and people

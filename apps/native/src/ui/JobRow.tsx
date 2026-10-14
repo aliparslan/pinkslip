@@ -19,8 +19,11 @@ export interface JobRowProps {
   unread?: boolean;
   /** Tracker's row (TR2b): the company is the one dark line, in Body Medium,
    * with the title and facts in ink-2 and a quiet time. Nothing changes for
-   * being new. */
-  headline?: "company";
+   * being new. Today's row (`news`) makes line two the headline, the thing
+   * that happened or to do, in Body Medium; lines one and three are ink-2. */
+  headline?: "company" | "news";
+  /** Waiting on you (Today's Needs you): the pink dot, on any row. */
+  needsYou?: boolean;
   logo: Omit<CompanyLogoProps, "size">;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -39,10 +42,12 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
  * long, so every row is the same 84pt; text and separators start on the 68
  * line. Tracker's row makes the company the headline instead.
  */
-export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, logo, onPress, onLongPress, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, onPress, onLongPress, actions }: JobRowProps) {
   const tracker = headline === "company";
-  const unread = newToYou && !tracker;
-  const label = [unread ? "Unread" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
+  const news = headline === "news";
+  const unread = newToYou && !tracker && !news;
+  const dot = unread || needsYou;
+  const label = [unread ? "Unread" : null, needsYou ? "Needs you" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
   return <Pressable collapsable={false} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
@@ -52,13 +57,13 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={styles.line}>
-        <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} lines={1} flex>{company}</Text>
-        {age || unread ? <View style={styles.age}>
+        <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
+        {age || dot ? <View style={styles.age}>
           {age ? <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{age}</Text> : null}
-          {unread ? <View style={styles.dot} /> : null}
+          {dot ? <View style={styles.dot} /> : null}
         </View> : null}
       </View>
-      <Text role="subhead" weight={weight} tone={tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
+      <Text role={news ? "body" : "subhead"} weight={news ? "medium" : weight} tone={tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
       <View style={styles.line}>
         <Text role="subhead" tone="ink-2" lines={1} flex>{facts ?? ""}</Text>
         {stage ? <View style={styles.stage}>
