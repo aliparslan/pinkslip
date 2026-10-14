@@ -248,7 +248,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     Medium `ink`, the thing to do or the news ("Reply to the offer",
     "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
     and the age is `ink-3`. Nothing is bold for being new. Only Needs-you
-    rows carry the pink dot.
+    rows carry the pink dot. Built as `JobRow headline="news"` with
+    `needsYou` for the dot (first used by Job emails, 2026-10-14).
   - **On Tracker** (owner, 2026-10-13, TR2b) line one is the headline: the
     company in Body 17/22 Medium `ink`, since the stage headers already say
     where it stands and most titles read "Software Engineer, New Grad".
@@ -297,6 +298,18 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   email steps add "· EMAIL" and the foot offers "Not right?". The Mono is
   the trial cut for now; the owner buys it with the other Klim licences
   before release (2026-10-14).
+- **Copy field** (`CopyField.tsx`, Paper "Parts · Copy field", owner
+  2026-10-14): a value to paste somewhere else, on the `fill` at the sheet
+  group radius. Copy is the two squares (Phosphor Copy) in a 36 round
+  button on `bg`, 10 in from the field's edges; after a tap it's a check
+  for 1.5s, with a light tap. `line` (an address, Founders 17) and `code`
+  (Gmail's code, Founders 40) put it right of the value, centred; `block`
+  (a filter, Footnote `ink-2`) puts it in the top right corner. Tapping the
+  value copies too. A row that copies (the status page's address) shows a
+  16 copy mark after its value instead (`ListItem trailing`).
+- **Lists on a white page** (`ListGroup surface="fill"`): the gray card,
+  radius 12, as Paper draws settings on white pages; the white `elevated`
+  card stays for grouped screens.
 - **Date tile** (`DateTile.tsx`; Coming up rows, an application's Next row;
   `EmptyDateTile` is the dashed one for a date not set yet): 40 square, radius 10, `fill`, in the logo
   slot, so it matches the logos (owner, 2026-10-13). The month in caps
@@ -382,6 +395,13 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-14**
+  - Decided (owner): copy is an icon, the two squares, never the word
+    ("Parts · Copy field"); the filter's sits in its top right corner.
+    Built as `CopyField`. Also built for email tracking: `JobRow
+    headline="news"` with `needsYou` (Today's row), `ListGroup
+    surface="fill"`, `ListItem trailing`.
+  - Decided (owner): the stub's stamps use Founders Grotesk Mono (trial cut
+    until the licence is bought).
   - Decided (owner): the application page's Change stage is gray, not pink.
   - Decided (owner): stage marks take color only where something's
     happening (Assessment amber, Interviewing blue, Offer green); marks are

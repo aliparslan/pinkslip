@@ -5,6 +5,7 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from ".
 export { Chip, type ChipProps } from "./Chip";
 export { Choice, ChoiceLink, Choices, ChoiceSwitch, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
+export { CopyField, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";

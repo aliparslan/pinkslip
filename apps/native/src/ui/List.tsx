@@ -14,16 +14,19 @@ export interface ListGroupProps {
   footer?: string;
   /** Where separators start: 16 for plain rows, or under the title when rows lead with an icon. */
   inset?: "gutter" | "leading";
+  /** `elevated`, the white card, on a grouped screen; `fill`, a gray card,
+   * on a white page (Paper "Email tracking · Oct 14"). */
+  surface?: "elevated" | "fill";
   children: ReactNode;
 }
 
 /** An inset grouped list: a 12pt card on the grouped background, 16 from the
  * screen edges, with hairlines between rows. */
-export function ListGroup({ header, footer, inset = "gutter", children }: ListGroupProps) {
+export function ListGroup({ header, footer, inset = "gutter", surface = "elevated", children }: ListGroupProps) {
   const rows = Children.toArray(children);
   return <View style={styles.group}>
     {header ? <View style={styles.header}><Text role="footnote" weight="medium" tone="ink-2">{header}</Text></View> : null}
-    <View style={styles.card}>
+    <View style={[styles.card, surface === "fill" && styles.fill]}>
       {rows.map((row, index) => <Fragment key={index}>
         {index > 0 ? <View style={[styles.separator, inset === "leading" ? styles.leadingInset : styles.gutter]} /> : null}
         {row}
@@ -48,10 +51,12 @@ export interface ListItemProps {
   onPress?: () => void;
   /** With `accessory="switch"`: the switch flips `selected`. */
   onToggle?: (value: boolean) => void;
+  /** A small mark after the value, in place of an accessory (copy). */
+  trailing?: ReactNode;
 }
 
 /** A list row: at least 44pt, title on the left, value and accessory on the right. */
-export function ListItem({ title, detail, inline, value, leading, accessory = "none", selected = false, onPress, onToggle }: ListItemProps) {
+export function ListItem({ title, detail, inline, value, leading, accessory = "none", selected = false, onPress, onToggle, trailing }: ListItemProps) {
   const { theme } = useUnistyles();
   if (accessory === "switch") {
     return <View style={styles.row}>
@@ -70,7 +75,8 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
       <Text weight={accessory === "radio" ? "medium" : "regular"}>{title}</Text>
       {detail ? <Text role="subhead" tone="ink-3">{detail}</Text> : null}
     </View>
-    {value ? <Text tone="ink-2">{value}</Text> : null}
+    {value ? <Text tone="ink-2" lines={1}>{value}</Text> : null}
+    {trailing}
     {accessory === "chevron" ? <Icon name="disclosure" size={14} tone="ink-3" /> : null}
     {accessory === "check" && selected ? <Icon name="done" size={17} tone="accent" /> : null}
     {accessory === "radio" ? <Radio selected={selected} /> : null}
@@ -122,6 +128,7 @@ const styles = StyleSheet.create((theme) => ({
   header: { paddingHorizontal: theme.ui.space["4"] },
   footer: { paddingHorizontal: theme.ui.space["4"] },
   card: { borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-elev"], overflow: "hidden" },
+  fill: { backgroundColor: theme.ui.color["bg-grouped"] },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: theme.ui.color.separator },
   gutter: { marginLeft: theme.ui.space["4"] },
   leadingInset: { marginLeft: theme.ui.space["4"] + LEADING + theme.ui.space["3"] },
