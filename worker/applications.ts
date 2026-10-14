@@ -95,7 +95,7 @@ export async function getApplicationDetail(
   const row = await findApplication(db, userId, id);
   if (!row) return null;
   const events = await db.prepare(
-    `SELECT id, stage, source, occurred_at
+    `SELECT id, stage, source, occurred_at, inbound_email_id
      FROM application_events
      WHERE application_id = ?
      ORDER BY julianday(occurred_at) ASC, rowid ASC`
@@ -108,12 +108,13 @@ function recordEvent(
   applicationId: string,
   stage: ApplicationStage,
   source: ApplicationEventSource,
-  now: string
+  now: string,
+  inboundEmailId: string | null = null
 ): D1PreparedStatement {
   return db.prepare(
-    `INSERT INTO application_events (id, application_id, stage, source, occurred_at)
-     VALUES (?, ?, ?, ?, ?)`
-  ).bind(crypto.randomUUID(), applicationId, stage, source, now);
+    `INSERT INTO application_events (id, application_id, stage, source, occurred_at, inbound_email_id)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).bind(crypto.randomUUID(), applicationId, stage, source, now, inboundEmailId);
 }
 
 /** Creates the job's application at `stage`, or returns null when the job is
@@ -124,7 +125,8 @@ async function createApplication(
   jobId: string,
   stage: ApplicationStage,
   source: ApplicationEventSource,
-  now: string
+  now: string,
+  inboundEmailId: string | null = null
 ): Promise<string | null> {
   const id = crypto.randomUUID();
   const inserted = await db.prepare(
@@ -138,7 +140,7 @@ async function createApplication(
      WHERE j.id = ?`
   ).bind(id, userId, stage, hasApplied(stage) ? now : null, now, now, now, jobId).run();
   if (!inserted.meta.changes) return null;
-  await recordEvent(db, id, stage, source, now).run();
+  await recordEvent(db, id, stage, source, now, inboundEmailId).run();
   return id;
 }
 
@@ -147,7 +149,8 @@ async function moveToStage(
   application: Pick<ApplicationRow, "id" | "stage">,
   stage: ApplicationStage,
   source: ApplicationEventSource,
-  now: string
+  now: string,
+  inboundEmailId: string | null = null
 ): Promise<void> {
   if (application.stage === stage) return;
   await db.batch([
@@ -157,13 +160,72 @@ async function moveToStage(
            applied_at = CASE WHEN ? = 'saved' THEN NULL ELSE COALESCE(applied_at, ?) END
        WHERE id = ?`
     ).bind(stage, now, now, stage, now, application.id),
-    recordEvent(db, application.id, stage, source, now),
+    recordEvent(db, application.id, stage, source, now, inboundEmailId),
   ]);
+}
+
+/** Records a step an email reported. Callers decide it moves forward. */
+export async function recordEmailStep(
+  db: D1Database,
+  application: Pick<ApplicationRow, "id" | "stage">,
+  stage: ApplicationStage,
+  inboundEmailId: string,
+  now: string
+): Promise<void> {
+  await moveToStage(db, application, stage, "email", now, inboundEmailId);
+}
+
+/** Starts tracking a catalog job because an email reported a step for it. */
+export async function createApplicationFromEmail(
+  db: D1Database,
+  userId: string,
+  jobId: string,
+  stage: ApplicationStage,
+  inboundEmailId: string,
+  now: string
+): Promise<string | null> {
+  return createApplication(db, userId, jobId, stage, "email", now, inboundEmailId);
+}
+
+/**
+ * "Not right?": removes the steps an email recorded and puts the application
+ * back where its remaining timeline leaves it. An application the email
+ * created, with nothing else on its timeline, is removed.
+ */
+export async function undoEmailSteps(
+  db: D1Database,
+  applicationId: string,
+  inboundEmailId: string
+): Promise<"restored" | "removed"> {
+  await db.prepare("DELETE FROM application_events WHERE application_id = ? AND inbound_email_id = ?")
+    .bind(applicationId, inboundEmailId)
+    .run();
+  const remaining = await db.prepare(
+    `SELECT stage, occurred_at FROM application_events
+     WHERE application_id = ?
+     ORDER BY julianday(occurred_at) ASC, rowid ASC`
+  ).bind(applicationId).all<{ stage: ApplicationStage; occurred_at: string }>();
+  const events = remaining.results ?? [];
+  const last = events.at(-1);
+  if (!last) {
+    await deleteApplication(db, applicationId);
+    return "removed";
+  }
+  const appliedAt = hasApplied(last.stage)
+    ? events.find((event) => hasApplied(event.stage))?.occurred_at ?? last.occurred_at
+    : null;
+  await db.prepare(
+    `UPDATE applications
+     SET stage = ?, stage_changed_at = ?, applied_at = ?, updated_at = ?
+     WHERE id = ?`
+  ).bind(last.stage, last.occurred_at, appliedAt, new Date().toISOString(), applicationId).run();
+  return "restored";
 }
 
 export async function deleteApplication(db: D1Database, id: string): Promise<void> {
   await db.batch([
     db.prepare("DELETE FROM application_events WHERE application_id = ?").bind(id),
+    db.prepare("UPDATE inbound_emails SET application_id = NULL WHERE application_id = ?").bind(id),
     db.prepare("DELETE FROM applications WHERE id = ?").bind(id),
   ]);
 }

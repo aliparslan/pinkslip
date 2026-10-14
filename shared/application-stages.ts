@@ -30,8 +30,9 @@ export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
   ghosted: "Ghosted",
 };
 
-/** Who recorded a step. Email detection and automation report here later. */
-export type ApplicationEventSource = "user";
+/** Who recorded a step: the user, or an email they forwarded. Automation
+ * reports here later. */
+export type ApplicationEventSource = "user" | "email";
 
 export const APPLICATION_NOTES_MAX_LENGTH = 10_000;
 
@@ -54,6 +55,8 @@ export interface ApplicationEvent {
   stage: ApplicationStage;
   source: ApplicationEventSource;
   occurred_at: string;
+  /** The email behind an email-detected step, for "Not right?". */
+  inbound_email_id: string | null;
 }
 
 export interface Application {

@@ -1,3 +1,4 @@
+import { expireNeedsChoice } from "./email/process";
 import type {
   ATSAdapter,
   JobContent,
@@ -1548,6 +1549,7 @@ export async function runPollCycle(
     db.prepare(
       "DELETE FROM tailor_usage WHERE datetime(created_at) < datetime('now', '-30 days')"
     ).run().catch(() => undefined),
+    expireNeedsChoice(db).catch(() => undefined),
   ]);
   await db.batch([
     db.prepare(

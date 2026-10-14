@@ -385,6 +385,8 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM user_preferences WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_profiles WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM application_events WHERE application_id IN (SELECT id FROM applications WHERE user_id = ?)").bind(userId),
+    db.prepare("DELETE FROM inbound_emails WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM email_inboxes WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM dismissed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM viewed_jobs WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM applications WHERE user_id = ?").bind(userId),

@@ -35,7 +35,8 @@
     "db:seed:demo:remote": "wrangler d1 execute pinkslip --remote --file=seeds/demo_jobs.sql"
   },
   "dependencies": {
-    "hono": "^4.13.5"
+    "hono": "^4.13.5",
+    "postal-mime": "2.7.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260828.1",

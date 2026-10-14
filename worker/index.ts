@@ -13,6 +13,8 @@ import {
 import jobRoutes from "./routes/jobs";
 import publicJobRoutes from "./routes/public-jobs";
 import applicationRoutes from "./routes/applications";
+import inboxRoutes from "./routes/inbox";
+import { handleInboundEmail } from "./email/handler";
 import companyRoutes from "./routes/companies";
 import preferenceRoutes from "./routes/preferences";
 import pushRoutes from "./routes/push";
@@ -321,6 +323,7 @@ app.route("/api/v2/metrics", metricRoutes);
 app.route("/api/v2/outreach", outreachRoutes);
 app.route("/api/v2/apply", applyRoutes);
 app.route("/api/v2/applications", applicationRoutes);
+app.route("/api/v2/inbox", inboxRoutes);
 app.route("/api/v2/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
   completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))
@@ -456,6 +459,16 @@ export default {
         throw err;
       })
     );
+  },
+  /** Mail forwarded to inbox+<tag>@pinkslip.work (docs/email-tracking.md).
+   * Failures are logged and the message dropped: throwing would bounce it back
+   * to the user's mail provider, which can disable their forwarding. */
+  async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
+    try {
+      await handleInboundEmail(message, env);
+    } catch (error) {
+      console.error("Inbound email failed:", error instanceof Error ? error.message : String(error));
+    }
   },
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
     switch (batch.queue) {
