@@ -63,6 +63,13 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
     in `EXUpdates.bundle/fingerprint`.
 - To undo an update, republish the previous one from the EAS dashboard or
   with `eas update:republish`.
+- **The owner's phone** runs builds made with `EXPO_PUBLIC_REDESIGN=1`,
+  which switch themselves to the `owner` channel on launch
+  (`src/platform/updates-channel.ts`). Publish the redesign kit to it with
+  `bun run update:owner --message "What changed"`; it never reaches
+  TestFlight, which stays on `production`. The switch needs one phone build
+  that has it (2026-10-14), and updates only reach builds with the same
+  fingerprint, as above.
 
 The release version is **1.3.2**. Bump the patch (1.3.2, 1.3.3, …) with
 every push that changes the app, in `app.json`, both `MARKETING_VERSION`
