@@ -2,7 +2,11 @@
  * Tries recruiter sourcing on one company and prints what it finds. Nothing
  * is saved. See docs/recruiter-contacts-sourcing.md.
  *
- *   bun scripts/contacts/try-company.ts Stripe stripe.com
+ *   bun scripts/contacts/try-company.ts Stripe stripe.com [--csv review.csv]
+ *
+ * --csv appends every person found, kept or left out, with the evidence for
+ * each and empty label columns, so the file doubles as a review sheet. Keep
+ * it outside the repository: it holds real people's details.
  *
  * Reads SERPER_API_KEY from the environment or the repository's .dev.vars.
  * One run uses about five Serper credits. Searching for an address
@@ -11,7 +15,7 @@
  * checked yet, so treat every address as unconfirmed.
  */
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -96,7 +100,10 @@ function fail(message: string): never {
   return process.exit(1) as never;
 }
 
-const [company = fail("Usage: bun scripts/contacts/try-company.ts <Company name> [website]"), website] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const csvFlag = args.indexOf("--csv");
+const csvPath = csvFlag >= 0 ? args.splice(csvFlag, 2)[1] ?? fail("--csv needs a file path") : null;
+const [company = fail("Usage: bun scripts/contacts/try-company.ts <Company name> [website] [--csv file]"), website] = args;
 const site = websiteDomain(website ?? `${company.toLowerCase().replace(/[^a-z0-9]+/g, "")}.com`)
   ?? fail(`Couldn't read a domain from ${website}`);
 
@@ -134,7 +141,12 @@ interface Row {
   match: string;
   rank: number;
   reason: string | null;
+  /** What says they work there: their current employer line, Google's
+   * Experience line, or only their self-written headline. */
+  employerEvidence: "current employer" | "experience line" | "headline only" | "none";
 }
+
+const isThisCompany = (name: string | null) => name !== null && matchCompany({ headline: "", snippet: "", experience: name }, company) === "current";
 
 const rows: Row[] = [...people.values()].map((person) => {
   const { kind, weak } = classifyRecruiter(person);
@@ -146,7 +158,11 @@ const rows: Row[] = [...people.values()].map((person) => {
     : match === "none" ? (person.employer ? `works at ${person.employer}` : "company not confirmed")
     : !basedInUs(person) ? `based outside the US (${person.location})`
     : null;
-  return { person, kind, weak, match, rank, reason };
+  const employerEvidence = isThisCompany(person.employer) ? "current employer"
+    : isThisCompany(person.experience) ? "experience line"
+    : match === "headline" ? "headline only"
+    : "none";
+  return { person, kind, weak, match, rank, reason, employerEvidence };
 });
 
 const kept = rows.filter((row) => row.reason === null)
@@ -199,3 +215,59 @@ if (pattern) {
 }
 if (roleAddresses.length) console.log(`  Shared inboxes seen: ${roleAddresses.map((local) => `${local}@${domain}`).join(", ")}`);
 console.log("\nNothing was checked or saved. Addresses are unconfirmed guesses.\n");
+
+/** How far to trust the guessed address, from the pattern's support and the
+ * name. A {first} format is risky at any size: a common first name's
+ * address usually belongs to whoever joined first. */
+function emailConfidence(row: Row): string {
+  if (!pattern) return "no pattern found";
+  if (guesses(row).length === 0) return "no guess: the format needs a last name";
+  const notes: string[] = [];
+  if (pattern.template === "{first}") notes.push("risky: first-name addresses often belong to someone else");
+  else if (pattern.votes === pattern.total && pattern.total >= 3) notes.push("format likely");
+  else if (pattern.votes / pattern.total >= 0.75) notes.push("format probable");
+  else notes.push("format uncertain");
+  const name = row.person.name;
+  if (name && name.lasts.length > 1 && /\{l(?:ast)?\}/.test(pattern.template)) notes.push("last name has variants");
+  if (name && name.firsts.length > 1) notes.push("goes by a nickname");
+  return notes.join("; ");
+}
+
+const byEvidence = (group: Row[]) => {
+  const counts = new Map<string, number>();
+  for (const row of group) counts.set(row.employerEvidence, (counts.get(row.employerEvidence) ?? 0) + 1);
+  return [...counts].map(([evidence, count]) => `${count} by ${evidence}`).join(", ");
+};
+console.log(`Evidence for the ${kept.length} kept: ${byEvidence(kept)}; ${kept.filter((row) => row.weak).length} classified from the snippet only.`);
+
+if (csvPath) {
+  const columns = [
+    "company", "status", "reason", "name", "kind", "kind_from", "current_title", "current_employer", "employer_evidence",
+    "location", "headline", "profile_url", "email_guess", "email_confidence",
+    "label_works_there_now", "label_actual_role", "label_notes",
+  ];
+  const cell = (value: string | null | undefined) => {
+    const text = value ?? "";
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const lines = [...kept, ...leftOut].map((row) => [
+    company,
+    row.reason === null ? "kept" : "left out",
+    row.reason,
+    row.person.name?.display ?? row.person.rawName,
+    row.kind.replace("_", "-"),
+    row.weak ? "snippet" : row.person.role ? "current title" : "headline",
+    row.person.role,
+    row.person.employer,
+    row.employerEvidence,
+    row.person.location,
+    row.person.headline,
+    row.person.profileUrl,
+    guesses(row)[0] ?? "",
+    row.reason === null ? emailConfidence(row) : "",
+    "", "", "",
+  ].map(cell).join(","));
+  if (!existsSync(csvPath)) writeFileSync(csvPath, `${columns.join(",")}\n`);
+  appendFileSync(csvPath, `${lines.join("\n")}\n`);
+  console.log(`Added ${lines.length} rows to ${csvPath}`);
+}
