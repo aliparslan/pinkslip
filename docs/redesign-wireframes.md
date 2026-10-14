@@ -904,6 +904,29 @@ status, Shop), no job apps.
 - Needs the server change (`stage_date`, migration 0091) deployed before
   dates save in production.
 
+## You (owner, 2026-10-14)
+
+Paper page "You · Oct 14". Five takes on the tab (A plain, B your name
+first, C what's-working tiles, D your slip, E the punch card first), then
+every page under it.
+
+- **The tab is B:** your name and email on top (it opens Account), then
+  Your search, Email tracking, Alerts; Resume, Answers, Tailoring (coming
+  soon); Auto-apply and Outreach (soon, as in Take A); Plan, Appearance,
+  Help and feedback; Admin and Kit for admins; the version line. Hidden
+  companies stays in Your search, which links it.
+- **Pages picked:** Resume A, sections as rows (the page-preview B waits
+  until after release). Answers B, what's missing first (how the missing
+  ones are shown gets another pass). Appearance A, three choices. Help and
+  feedback, Tailoring and Hidden companies as drawn. Account as drawn.
+- **Alerts:** B, how often with a preview. "Once a day" takes a time you
+  pick. Both need server work: alerts are only on or off today.
+- **In review (round 2):** icons for the rows (B1 line, B2 color tiles,
+  B3 soft tiles), Appearance as the iPhone's menu from its row instead of
+  a page, Plan cleaned up, the copy icon (Phosphor's three, or our own
+  softer squares), and Alerts' "Application changes" wording.
+- **Invite code:** drawn with onboarding, later.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
