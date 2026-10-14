@@ -48,7 +48,7 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 | **Which application?** with several picked: one email files to each | Built and deployed (24171c2): `assign` takes `application_ids`, and `undo` takes the page's `application_id` so "Not right?" undoes only that application. No migration: the email lists under the first pick, and the steps it records link the rest |
 | **Job emails**, the history page | Exists: `GET /inbox/emails` (sender, subject, detected step, status, company, application) |
 | **Job emails this month** on the status page | Done in the app: it counts `GET /inbox/emails` by date |
-| **Email me these steps** (setup on a computer) | Built, not deployed: `POST /inbox/steps-email` with the provider and what Gmail forwards; it mails the steps and the address to the account's email |
+| **Email me these steps** (setup on a computer) | Built and deployed (version 36df7baa): `POST /inbox/steps-email` with the provider and what Gmail forwards; it mails the steps and the address to the account's email |
 | Which email the user applies with (Gmail, Outlook, iCloud, school) | Can stay in the app; a profile field only if it should follow the user across devices |
 | Tracker's nudge dismissed ("Not now") | Can stay in the app |
 | Profile, resume, search preferences, alerts, hidden companies | Exist (today's screens use them) |
@@ -61,6 +61,5 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 
 ## To deploy
 
-`POST /inbox/steps-email` ("Email me these steps"). No migration. Deploy it
-with or before the app build that has the setup sheet; until then the
-button says the steps couldn't be sent.
+Nothing waiting: "Email me these steps" went out on 2026-10-14 (version
+36df7baa).
