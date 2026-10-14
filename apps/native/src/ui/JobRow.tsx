@@ -1,8 +1,7 @@
 import { Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import Svg, { Circle, Path } from "react-native-svg";
+import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
-import { Icon } from "./Icon";
+import { StageMark } from "./StageMark";
 import { Text } from "./Text";
 
 export type JobStage = "saved" | "applied";
@@ -18,6 +17,10 @@ export interface JobRowProps {
   stage?: JobStage;
   /** You haven't opened it yet. */
   unread?: boolean;
+  /** Tracker's row (TR2b): the company is the one dark line, in Body Medium,
+   * with the title and facts in ink-2 and a quiet time. Nothing changes for
+   * being new. */
+  headline?: "company";
   logo: Omit<CompanyLogoProps, "size">;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -34,10 +37,11 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
  * follows the age; once opened they're Regular and the dot goes. The logo is
  * the height of the first two lines, on the 16 margin. Each line is one line
  * long, so every row is the same 84pt; text and separators start on the 68
- * line.
+ * line. Tracker's row makes the company the headline instead.
  */
-export function JobRow({ title, company, facts, age, stage, unread, logo, onPress, onLongPress, actions }: JobRowProps) {
-  const { theme } = useUnistyles();
+export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, logo, onPress, onLongPress, actions }: JobRowProps) {
+  const tracker = headline === "company";
+  const unread = newToYou && !tracker;
   const label = [unread ? "Unread" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
@@ -48,32 +52,22 @@ export function JobRow({ title, company, facts, age, stage, unread, logo, onPres
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={styles.line}>
-        <Text role="subhead" weight={weight} lines={1} flex>{company}</Text>
+        <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} lines={1} flex>{company}</Text>
         {age || unread ? <View style={styles.age}>
           {age ? <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{age}</Text> : null}
           {unread ? <View style={styles.dot} /> : null}
         </View> : null}
       </View>
-      <Text role="subhead" weight={weight} lines={1}>{title}</Text>
+      <Text role="subhead" weight={weight} tone={tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
       <View style={styles.line}>
         <Text role="subhead" tone="ink-2" lines={1} flex>{facts ?? ""}</Text>
         {stage ? <View style={styles.stage}>
-          <StageIcon stage={stage} color={theme.ui.color["ink-3"]} />
+          <StageMark stage={stage} tone="ink-3" />
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
         </View> : null}
       </View>
     </View>
   </Pressable>;
-}
-
-/** Saved is the bookmark (saving isn't a stage); applied is the stage ring
- * with its first quarter filled, the ring that fills as an application advances. */
-function StageIcon({ stage, color }: { stage: JobStage; color: string }) {
-  if (stage === "saved") return <Icon name="saved" size={13} tone="ink-3" />;
-  return <Svg width={14} height={14} viewBox="0 0 14 14">
-    <Circle cx={7} cy={7} r={5.5} fill="none" stroke={color} strokeWidth={1.5} />
-    <Path d="M7 7V3.2A3.8 3.8 0 0 1 10.8 7Z" fill={color} />
-  </Svg>;
 }
 
 const DOT = 8;

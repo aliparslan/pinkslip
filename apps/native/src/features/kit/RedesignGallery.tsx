@@ -30,6 +30,7 @@ export function RedesignGallery() {
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
+        <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
       </ListGroup>
     </Section>
 
@@ -75,7 +76,7 @@ export function RedesignGallery() {
 
     <Section title="Job rows" flush>
       <View>
-        <SectionHeader title="New today" trailing="12" />
+        <SectionHeader title="New today" count="12" />
         <SwipeRow id="demo" appearance="capsule"
           leading={{ label: "Save", icon: BookmarkSimple, symbol: "save", tone: "accent", run: () => toast.show({ message: "Saved (demo)" }) }}
           trailing={{ label: "Hide", icon: EyeSlash, symbol: "hide", tone: "bad", run: () => toast.show({ message: "Hidden (demo)" }) }}>
@@ -83,7 +84,7 @@ export function RedesignGallery() {
         </SwipeRow>
         <JobRow title="Product Designer, New Grad" company="Ramp" facts="New York · $130–160K" age="5h" unread logo={{ name: "Ramp", color: "#E8F45C" }} />
         <JobRow title="Software Engineer Intern, Summer 2027" company="Duolingo" facts="Pittsburgh · $52/hr" stage="saved" logo={{ name: "Duolingo", color: "#58CC02" }} />
-        <SectionHeader title="Earlier this week" trailing="48" />
+        <SectionHeader title="Earlier this week" count="48" />
         <JobRow title="Software Engineer" company="Notion" facts="New grad · New York · $140–170K" age="3d" logo={{ name: "Notion" }} />
         <JobRow title="Data Analyst I" company="Datadog" facts="New grad · Boston · $95–120K" stage="applied" logo={{ name: "Datadog", color: "#632CA6" }} />
       </View>

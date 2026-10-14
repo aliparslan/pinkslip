@@ -25,6 +25,7 @@ export const ICONS = {
   recent: "ClockCounterClockwise",
   add: "Plus",
   website: "ArrowUpRight",
+  stats: "ChartBar",
 
   // A job and what you do with it
   save: "BookmarkSimple",

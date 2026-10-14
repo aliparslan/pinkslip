@@ -5,10 +5,10 @@ import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
 import { Link, useScrollToTop } from "expo-router";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { SwipeRow, toast, usePullToRefresh } from "../../kit";
-import { Button, Chip, Icon, JobRow, SectionHeader, Text, useTabBarSpace } from "../../ui";
+import { Chip, EmptyState, Icon, JobRow, SectionHeader, Text, useTabBarSpace } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -49,6 +49,7 @@ export interface JobsFeedProps {
  */
 export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, after, scope = "feed" }: JobsFeedProps = {}) {
   const { theme } = useUnistyles();
+  const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
   // Tapping the current tab again scrolls back to the top.
   const list = useRef(null);
@@ -111,7 +112,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     renderItem={({ item }) => item.kind === "section"
-      ? <SectionHeader title={item.title} trailing={item.count === undefined ? undefined : String(item.count)} />
+      ? <SectionHeader title={item.title} count={item.count} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6}
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
@@ -121,19 +122,20 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
         {feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
       </View>
     </> : null}
-    ListEmptyComponent={feed.isPending
-      ? <View style={styles.loading}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
-      : feed.isError && !feed.data
-      ? <Empty title="Jobs didn't load" message="Check your connection and try again."
-        action={<Button size="small" pending={feed.isFetching} onPress={() => void feed.refetch()}>Try again</Button>} />
-      : search.q
-      ? <Empty title="No matches" message="Try a different company, title or city."
-        action={<Button size="small" onPress={() => (onClearQuery ? onClearQuery() : setFeedSearch({ ...search, q: undefined }))}>Clear search</Button>} />
-      : <Empty title={refined ? "Nothing matches these filters" : "No jobs right now"}
-        message={refined ? undefined : "New roles show up here as they're posted."}
-        action={refined
-          ? <Button size="small" onPress={() => setFeedSearch({})}>Clear filters</Button>
-          : <Button size="small" icon="refresh" pending={feed.isRefetching} onPress={() => void refresh()}>Refresh</Button>} />} />;
+    ListEmptyComponent={<View style={[styles.empty, { minHeight: height * 0.5 }]}>
+      {feed.isPending ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
+        : feed.isError && !feed.data
+        ? <EmptyState title="Jobs didn't load" message="Check your connection and try again."
+          action={{ label: "Try again", variant: "secondary", pending: feed.isFetching, onPress: () => void feed.refetch() }} />
+        : search.q
+        ? <EmptyState title="No matches" message="Try a different company, title or city."
+          action={{ label: "Clear search", variant: "secondary", onPress: () => (onClearQuery ? onClearQuery() : setFeedSearch({ ...search, q: undefined })) }} />
+        : <EmptyState title={refined ? "Nothing matches these filters" : "No jobs right now"}
+          message={refined ? undefined : "New roles show up here as they're posted."}
+          action={refined
+            ? { label: "Clear filters", variant: "secondary", onPress: () => setFeedSearch({}) }
+            : { label: "Refresh", variant: "secondary", icon: "refresh", pending: feed.isRefetching, onPress: () => void refresh() }} />}
+    </View>} />;
 }
 
 /** A row opens its job; long-press peeks at it with the row's actions under
@@ -176,14 +178,6 @@ function QuickFilters({ search, stages }: { search: FeedSearch; stages: readonly
   </ScrollView>;
 }
 
-function Empty({ title, message, action }: { title: string; message?: string; action?: ReactNode }) {
-  return <View style={styles.empty}>
-    <Text role="title2" align="center">{title}</Text>
-    {message ? <Text role="subhead" tone="ink-2" align="center">{message}</Text> : null}
-    {action}
-  </View>;
-}
-
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
   chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["2"] },
@@ -191,7 +185,7 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"],
     marginHorizontal: theme.ui.size.gutter, marginTop: theme.ui.space["2"],
   },
-  loading: { paddingVertical: theme.ui.space["10"] },
   footer: { alignItems: "center", paddingTop: theme.ui.space["8"], paddingBottom: theme.ui.space["10"] },
-  empty: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"], paddingVertical: theme.ui.space["10"] },
+  // Centred in the room under the header, not tucked under it.
+  empty: { justifyContent: "center" },
 }));

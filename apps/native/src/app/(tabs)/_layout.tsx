@@ -4,7 +4,7 @@ import { useUnistyles } from "react-native-unistyles";
 import { useRedesign } from "../../features/redesign/flag";
 import { TabBar, useTabBarSpace } from "../../ui";
 
-/** Jobs, Tracker (Library for now), Search and You, each with its own stack.
+/** Jobs, Tracker (Library on the system tab bar), Search and You, each with its own stack.
  * The redesign draws its own floating tab bar; today's screens keep the
  * system one. */
 export default function TabsLayout() {
@@ -12,14 +12,14 @@ export default function TabsLayout() {
 }
 
 /** Our tab bar (Paper "Tab bar · Oct 12", option C). It floats over the
- * content: redesigned screens leave room under their lists, and today's
- * screens (Library, You) get the room as padding. */
+ * content: redesigned screens (Jobs, Tracker, Search) leave room under their
+ * lists, and today's You gets the room as padding. */
 function PillTabs() {
   const space = useTabBarSpace();
   const padded = { sceneStyle: { paddingBottom: space } };
   return <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(jobs)" />
-    <Tabs.Screen name="(library)" options={padded} />
+    <Tabs.Screen name="(library)" />
     <Tabs.Screen name="(search)" />
     <Tabs.Screen name="(you)" options={padded} />
   </Tabs>;

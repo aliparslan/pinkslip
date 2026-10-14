@@ -114,9 +114,9 @@ else is decided.
 
 - **Four inks, no other text colors.** `ink`, `ink-2`, `ink-3` for text;
   `ink-4` only for strokes.
-- **Pink text** is for needs-you labels ("2 need you") and short tappable
-  words inside rows or sentences (Change, Undo, See all). Never for
-  headings or body copy.
+- **Pink text** is for needs-you labels ("2 need you"). Tappable words
+  inside rows or sentences (Change, Undo, Pause) are ink (owner,
+  2026-10-13). Never for headings or body copy.
 - **Type** follows Apple's text styles so it scales with the iPhone's text
   size:
 
@@ -242,9 +242,14 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     company in Body 17/22 Medium `ink`, since the stage headers already say
     where it stands and most titles read "Software Engineer, New Grad".
     The role and the latest news are Subhead Regular `ink-2`. The time is
-    Subhead `ink-3` on the company's baseline: hours under a day, then the
-    date, as on Jobs. No dots, and nothing changes for being new; Today
-    carries the news.
+    Subhead `ink-3` on the company's baseline: minutes or hours within a
+    day, then the date ("Oct 11"). No dots, and nothing changes for being
+    new; Today carries the news. Built as `JobRow headline="company"`.
+  - **Tracker's line three, today** (TR2c): the location; past Applied,
+    the location and when you applied ("New York · applied Oct 2"); an
+    ending says only how it ended (Rejected, Withdrawn, No reply). The goal
+    is the next thing that happens, from email and auto-apply (Paper
+    "Tracker · the goal").
   - **One headline line at most:** Body 17 Medium `ink`; everything else in
     the row is Subhead 15, and times are `ink-3`.
   - **Several companies in one row** (auto-apply's results): two logos
@@ -252,13 +257,18 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     the page colour. Never a number in the logo slot.
 - **Section header** (`SectionHeader`): Footnote Medium `ink-2`, then the
   count in Footnote `ink-3` after a 6 gap, the way chips and segments carry
-  theirs (owner, 2026-10-13; the kit still puts the count on the right, so
-  the kit follows). Pink only for Needs you. 16 above, 4 below. A stage
-  header may lead with its ring.
-- **Stage marks:** Saved is the bookmark, since saving isn't a stage. The
-  ring fills as a stage advances and is drawn at the 1.75 stroke like every
-  line icon (owner, 2026-10-13; `JobRow.tsx` still draws it at 1.5, so the
-  kit follows). Offer is `good`; endings are grey.
+  theirs (owner, 2026-10-13). Pink only for Needs you. 16 above, 4 below.
+  Tracker's stage headers lead with the stage mark and open their stage,
+  with a chevron after the count ("Applied 142 ›"); All shows each stage's
+  latest three (owner, 2026-10-13: a "See all" row looked strange).
+- **Stage marks** (`StageMark.tsx`): Saved is the bookmark, since saving
+  isn't a stage. The ring fills as a stage advances and is drawn at the
+  1.75 stroke like every line icon. Offer is `good`; endings are grey.
+- **Empty and error states** (`EmptyState.tsx`, Paper "Parts · Empty
+  state"): Title 2, one Body line in `ink-2`, the button under it on the
+  same centre line, all centred in the room under the header. The slips
+  show only when a list is empty, not when it failed to load; a retry is
+  the grey button.
 - **Date tile** (Coming up rows): 40 square, radius 10, `fill`, in the logo
   slot, so it matches the logos (owner, 2026-10-13). The month in caps
   (Founders Semibold 11/12, 0.08em, `ink-3`) over the day (Founders
@@ -341,6 +351,14 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, Tracker built**
+  - Decided (owner): no "See all" row; a stage's header opens it. Stats
+    stays as a button and says it's coming soon. The goal for line three is
+    kept on Paper as "Tracker · the goal".
+  - Built: Tracker from TR2c (`TrackerScreen.tsx`), `StageMark`,
+    `EmptyState`, chip counts, and section counts after the label (Jobs
+    too). Stats is Phosphor ChartBar, in Paper and code. Long-press a row to
+    move it to another stage or remove it (a system menu, text only).
 - **2026-10-13, past midnight**
   - Decided (owner): Tracker rows are TR2b, the company as the headline
     with the role and news in `ink-2` and a quiet `ink-3` time. TR2 had the

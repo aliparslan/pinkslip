@@ -90,18 +90,31 @@ export function Radio({ selected }: { selected: boolean }) {
 
 export interface SectionHeaderProps {
   title: string;
-  /** A count or "See all" on the right. */
-  trailing?: string;
+  /** How many, right after the label in ink-3. */
+  count?: string | number;
   /** Pink only when something is waiting on you. */
   needsYou?: boolean;
+  /** A mark before the label: Tracker's stage ring. */
+  leading?: ReactNode;
+  /** Makes the header the way into its group, with a chevron after the
+   * count ("Applied 142 ›"). */
+  onPress?: () => void;
 }
 
-/** The label above a run of plain rows (New today, Earlier this week). */
-export function SectionHeader({ title, trailing, needsYou }: SectionHeaderProps) {
-  return <View style={styles.section} accessibilityRole="header">
-    <Text role="footnote" weight="medium" tone={needsYou ? "accent" : "ink-2"}>{title}</Text>
-    {trailing ? <Text role="footnote" tone="ink-3">{trailing}</Text> : null}
-  </View>;
+/** The label above a run of plain rows (New today, Earlier this week), with
+ * its count after it the way chips carry theirs. */
+export function SectionHeader({ title, count, needsYou, leading, onPress }: SectionHeaderProps) {
+  const content = <>
+    {leading}
+    <View style={styles.sectionLabel}>
+      <Text role="footnote" weight="medium" tone={needsYou ? "accent" : "ink-2"}>{title}</Text>
+      {count !== undefined ? <Text role="footnote" tone="ink-3">{String(count)}</Text> : null}
+      {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={11} tone="ink-3" /></View> : null}
+    </View>
+  </>;
+  if (!onPress) return <View style={styles.section} accessibilityRole="header">{content}</View>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={count === undefined ? title : `${title}, ${count}`}
+    style={({ pressed }) => [styles.section, pressed && styles.sectionPressed]}>{content}</Pressable>;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -130,10 +143,14 @@ const styles = StyleSheet.create((theme) => ({
   radioOff: { borderWidth: 1.75, borderColor: theme.ui.color["ink-4"] },
   section: {
     flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: theme.ui.space["2"],
     paddingHorizontal: theme.ui.space["4"],
     paddingTop: theme.ui.space["4"],
     paddingBottom: theme.ui.space["1"],
   },
+  sectionLabel: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  // Tucked toward the count, centred on the text rather than its baseline.
+  sectionChevron: { alignSelf: "center", marginLeft: -2 },
+  sectionPressed: { opacity: 0.6 },
 }));

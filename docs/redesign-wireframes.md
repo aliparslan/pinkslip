@@ -710,7 +710,7 @@ From the owner's phone review of `66d63d6`:
 
 ## Today and Tracker on the kit (owner, 2026-10-13)
 
-The Paper page "Today and Tracker · Oct 13 · on the kit"; every part comes
+The Paper page "Today and Tracker · Oct 13" (superseded boards moved to "Archive · Today and Tracker explorations · Oct 13"); every part comes
 from the Parts board on the System page. The first drafts ("Tracker · Oct 13
 · Now and pipeline") used the Oct 11 row and stay as an archive.
 
@@ -758,7 +758,7 @@ from the Parts board on the System page. The first drafts ("Tracker · Oct 13
 
 ## Applying for you and the weekly slip (owner, 2026-10-13, late)
 
-On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
+On Paper "Today and Tracker · Oct 13" (superseded boards moved to "Archive · Today and Tracker explorations · Oct 13"), rows A to T.
 
 - **Applying for you:**
   - **Picked:** A3, the queue as logos. Today shows A3; every other tab shows A4, a slim live bar above the tab bar (C3); both open one sheet with Now, Up next and Applied (C2).
@@ -819,6 +819,25 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
   - **Picked: A4b** (owner, 2026-10-13). Light and floating, the bar fills from the left as the batch goes, and there's a round pause button.
   - **Its mark is the robot** (owner, 2026-10-13): a company logo in a pill looked wrong, so the badge holds auto-apply's own icon. Tried: paper plane, pen nib, signature, stamp, the slips, the robot ("A4b · auto-apply icon options").
 - **The weekly report is tabled.** People hear about interviews by email, not from the app, so a recap should lead with what only Pinkslip knows (auto-apply's work, which applications went quiet, follow-ups due). Back to it later.
+
+## Tracker, built (owner, 2026-10-13)
+
+- **Built from "Tracker · what we build now (TR2c)":** chips for All and
+  each stage that has applications, then each stage's latest three under a
+  header that opens it. A stage on its own splits into This week and
+  Earlier. Rows open the job; long-press moves one to another stage or
+  removes it. Stats opens a sheet that says it's coming soon.
+- **"See all" was dropped** (owner: "it looks really strange"). The stage
+  header is the way in.
+- **Line three's goal** is the next thing that happens, from email and
+  auto-apply ("Closes Fri · $140–170K", "Due Oct 15 · about 60 min",
+  "Interview Oct 16 · from an email", "Offer · reply by Oct 20"). It stays
+  on Paper as "Tracker · the goal". Pay could come first: job listings
+  already have it.
+- **Needs the applications backend deployed.** Production doesn't serve
+  `/applications` yet (worker 602a03d and migration 0089 are on main, not
+  deployed), so Tracker shows "Tracker didn't load" there. The redesign
+  kit's "Tracker with sample data" shows it full.
 
 ## In-app browser (owner, 2026-10-12)
 
