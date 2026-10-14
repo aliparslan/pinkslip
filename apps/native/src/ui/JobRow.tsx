@@ -1,7 +1,9 @@
+import { useContext } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 import { StageMark } from "./StageMark";
+import { SwipingContext } from "./SwipeRow";
 import { Text } from "./Text";
 
 export type JobStage = "saved" | "applied";
@@ -50,10 +52,14 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
   const label = [unread ? "Unread" : null, needsYou ? "Needs you" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
-  return <Pressable collapsable={false} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} onLongPress={onLongPress}
+  const swiping = useContext(SwipingContext);
+  // The highlight waits 150ms, as iOS lists do, and a row being swiped
+  // neither highlights nor opens.
+  return <Pressable collapsable={false} unstable_pressDelay={150} accessibilityRole="button" accessibilityLabel={label}
+    onPress={swiping ? undefined : onPress} onLongPress={swiping ? undefined : onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
-    style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    style={({ pressed }) => [styles.row, pressed && !swiping && styles.pressed]}>
     <View style={styles.logo}><CompanyLogo {...logo} /></View>
     <View style={styles.text}>
       <View style={styles.line}>

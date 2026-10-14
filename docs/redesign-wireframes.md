@@ -1025,7 +1025,8 @@ The owner likes S2 with two circles on at least one side, wants the green
 toned to our scheme, and wants Read or unread and Save among two to four
 actions. Drawn as S4: right is Save (outer, all the way) and Read; left is
 Hide (outer) and Applied, in the meaning colors (pink, the tiles' blue and
-green, graphite).
+green, graphite). **Picked and built (owner):** S4; all the way
+still runs the outer action. No collapsing title (owner).
 
 ## In-app browser (owner, 2026-10-12)
 

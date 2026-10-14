@@ -23,4 +23,5 @@ export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { TabBar, useTabBarSpace } from "./TabBar";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
+export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";
 export { Stub, Ticket, tornEdge, type StubProps, type StubStamp, type TicketBackdrop, type TicketFact, type TicketProps } from "./Ticket";

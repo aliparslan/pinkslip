@@ -66,3 +66,23 @@ swipe is learned. Proposals are drawn on Paper "Swipe actions · Oct 14".
 - Drive arming from a shared value, so animations start only when it
   changes.
 - Collapse the row's height before the list drops it.
+
+## Built (S4, owner 2026-10-14)
+
+`SwipeRow` in `apps/native/src/ui/SwipeRow.tsx`, used by the Jobs feed.
+Right is Save (or Unsave), all the way, then Read or Unread; left is Hide,
+all the way, then Applied (or Not applied). A short swipe stays open on the
+circles to tap; a tap on the row closes it; one row is open at a time and
+scrolling closes it. All the way is a little past the circles (the larger
+of 42% of the width and the circles plus 56pt).
+
+Checked on the simulator by recording: the capsule shows its whole label;
+the outer circle widens into the capsule while the other folds away, so one
+shape changes; settles ease out with no overshoot; Hide slides the row away
+and folds its height, so the rows below rise instead of jumping. The row's
+highlight waits 150ms and is skipped while a row is being swiped.
+
+Left open: the toast's Undo didn't respond to the simulator's injected tap
+(the toast lives in its own overlay window), so a job hidden in testing is
+still hidden on the simulator's guest account. The toast is being redesigned
+next.
