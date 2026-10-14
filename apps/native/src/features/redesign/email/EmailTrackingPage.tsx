@@ -90,7 +90,7 @@ function Status({ state, inbox, emails, provider, onOpenEmails, onSetUp }: {
     <Stat value={emails ? String(jobEmailsThisMonth(emails)) : "–"} label="job emails this month" />
     {since ? <Stat value={since} label="since the last email" /> : null}
     <View style={styles.spacer} />
-    <Icon name="disclosure" size={14} tone="ink-3" />
+    <Icon name="disclosure" size={12} tone="ink-4" />
   </Pressable>;
 }
 

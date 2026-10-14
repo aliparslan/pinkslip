@@ -58,6 +58,7 @@ else is decided.
 | Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
+| Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app` (and `tile-find-ink`, `tile-apply-ink`) | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro (icon in `accent`), gray is the app (icon in `ink-3`) | Text, anything outside settings rows |
 | Stage colors | `stage-assessment` (amber), `stage-interview` (blue) | Those stages' marks | Text, fills, anything else |
 | Bad | `bad` | Errors and destructive text | Fills |
 | Dim | `scrim` | Behind a sheet | |
@@ -112,10 +113,11 @@ else is decided.
     checks is what looked off.
   - Ink switches don't work in dark mode: the track is near-white and iOS's
     knob is white, so the knob disappears.
-- **Segmented controls:** the chosen segment is a raised `seg-on` thumb on a
-  gray track. The track is 40 tall and the thumb sits 4 inside it, so the
-  thumb is 32, a chip's height (owner, 2026-10-13: 2 inside looked cramped
-  and was off the 4 scale).
+- **Segmented controls** (`Segmented`): the chosen segment is a raised
+  `seg-on` thumb on a gray track. The track is 40 tall and the thumb sits 4
+  inside it, so the thumb is 32, a chip's height (owner, 2026-10-13: 2
+  inside looked cramped and was off the 4 scale). A segment can carry its
+  count, as chips do (the company page's Jobs).
 - **Tab bar:** the selected tab sits in a soft oval with its filled icon.
 
 ## Text
@@ -189,6 +191,11 @@ on one line share a size.
   and on button labels, 12–14 for chevrons and checks.
 - **Color:** `ink-2` at rest, `ink` when primary, white on pink, `ink-4`
   for chevrons.
+- **Settings tiles** (`IconTile`, owner 2026-10-14, Paper "You · Oct 14"
+  B4): an 18 icon on a 28 tile, radius 7, faint and a step lighter than the
+  gray card. The tile's color is the row's meaning, never decoration, and
+  rows of one meaning share a card. Copy is our own mark (two squares, the
+  same 2.5 corner), drawn in `Icon.tsx` rather than Phosphor's Copy.
 - **The selected tab** keeps its outline icon, in pink (`accent`) at a 2pt
   stroke, on the gray oval; Tracker's end dot fills in (owner, 2026-10-12).
   The tabs are Jobs, Tracker, Search and You (the user circle), 56 apart;
@@ -300,7 +307,7 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   before release (2026-10-14).
 - **Copy field** (`CopyField.tsx`, Paper "Parts · Copy field", owner
   2026-10-14): a value to paste somewhere else, on the `fill` at the sheet
-  group radius. Copy is the two squares (Phosphor Copy) in a 36 round
+  group radius. Copy is our two soft squares (copy D) in a 36 round
   button on `bg`, 10 in from the field's edges; after a tap it's a check
   for 1.5s, with a light tap. `line` (an address, Founders 17) and `code`
   (Gmail's code, Founders 40) put it right of the value, centred; `block`
@@ -309,7 +316,13 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   16 copy mark after its value instead (`ListItem trailing`).
 - **Lists on a white page** (`ListGroup surface="fill"`): the gray card,
   radius 12, as Paper draws settings on white pages; the white `elevated`
-  card stays for grouped screens.
+  card stays for grouped screens. These are settings, drawn like the
+  sheet's menu rows (Paper "You · Oct 14"): rows 50 tall, values `ink-3`,
+  12 chevrons in `ink-4`, details in Footnote, radio titles Regular, lines
+  inset 16 on both sides, and the card's label on its left edge 4 above
+  it. A row whose value opens the iPhone's menu in place (Appearance) ends
+  in the up-and-down caret (`accessory="pick"`); a row that deletes is
+  `destructive` red.
 - **Date tile** (`DateTile.tsx`; Coming up rows, an application's Next row;
   `EmptyDateTile` is the dashed one for a date not set yet): 40 square, radius 10, `fill`, in the logo
   slot, so it matches the logos (owner, 2026-10-13). The month in caps
@@ -395,6 +408,15 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-14**
+  - Built You as picked (B with the B4 tiles): `IconTile` and the six tile
+    colors in `tokens.ts`; settings rows on `ListGroup surface="fill"` (50
+    tall, quieter values and chevrons, `pick`, `destructive`); `Segmented`
+    in the kit (the company page moved to it, now 40 with the 4 inset);
+    `Choice value` for a price before the check; the system menu's check
+    (`Menu` items take `checked`); copy D replaces Phosphor Copy. Icons
+    added to `shared/icons.ts`: plan (Ticket), appearance (CircleHalf), help
+    (ChatCircleDots), admin and soon (Wrench), kit (Swatches), pick
+    (CaretUpDown); answers is now ClipboardText and autoApply the Robot.
   - Decided (owner): copy is an icon, the two squares, never the word
     ("Parts · Copy field"); the filter's sits in its top right corner.
     Built as `CopyField`. Also built for email tracking: `JobRow
