@@ -4,17 +4,20 @@ import {
   applyTemplate,
   cleanPersonName,
   deriveTemplates,
+  formatClaim,
   isRoleAddress,
+  mailDomainsInText,
   likelyTemplate,
   patternEvidence,
 } from "@worker/outreach/sourcing/email-pattern";
 import {
+  basedInUs,
   classifyRecruiter,
   earlyCareerQuery,
   matchCompany,
   parseLinkedInResult,
 } from "@worker/outreach/sourcing/linkedin-search";
-import { lookupMx, mailProvider, websiteDomain } from "@worker/outreach/sourcing/mail-domain";
+import { chooseMailDomain, lookupMx, mailProvider, websiteDomain } from "@worker/outreach/sourcing/mail-domain";
 
 // Every name here is made up.
 
@@ -43,8 +46,19 @@ describe("cleanPersonName", () => {
     expect(cleanPersonName("Marisol Garcia Lopezz")?.lasts).toEqual(["lopezz", "garcialopezz", "garcia"]);
   });
 
-  it("gives up on an abbreviated last name or a single word", () => {
-    expect(cleanPersonName("Jordan T.")).toBeNull();
+  it("keeps a last initial, enough for first-name addresses", () => {
+    const name = cleanPersonName("Jordan T.")!;
+    expect(name).toMatchObject({ firsts: ["jordan"], lasts: [], lastInitial: "t" });
+    expect(applyTemplate("{first}", name)).toBe("jordan");
+    expect(applyTemplate("{first}{l}", name)).toBe("jordant");
+    expect(applyTemplate("{first}.{last}", name)).toBeNull();
+  });
+
+  it("reads an aside as a nickname or a former last name", () => {
+    expect(cleanPersonName("Emberly (Quist) Fakeman")).toMatchObject({ firsts: ["emberly"], lasts: ["fakeman", "quist"] });
+  });
+
+  it("gives up on a single word", () => {
     expect(cleanPersonName("Recruiting")).toBeNull();
   });
 });
@@ -107,6 +121,36 @@ describe("pattern evidence", () => {
   });
 });
 
+describe("email format pages", () => {
+  const claim = (snippet: string, source = "formats.example") => formatClaim(snippet, source);
+
+  it("reads the format a snippet leads with, and its share", () => {
+    expect(claim("Acme uses 14 email formats: 1. first@acme.example (31.1%). The most common Acme email format is [first]"))
+      .toEqual({ template: "{first}", share: 31.1, source: "formats.example" });
+    expect(claim("Acme's most common email format is FLast@acme.example (58%). Also First@ (26%), FirstLast@ (10%).")?.template)
+      .toBe("{f}{last}");
+    expect(claim("The most common email format for Acme is {first}. According to our statistics...")?.template).toBe("{first}");
+    expect(claim("Acme uses [first].[last] (ex. jane.doe@acme.example) for 80% of addresses")?.template).toBe("{first}.{last}");
+    expect(claim("Acme emails follow first initial + last name, e.g. [first_initial][last]@acme.example")?.template).toBe("{f}{last}");
+  });
+
+  it("reads formats shown with stock names or in plain words", () => {
+    expect(claim("The most used email format in Acme is John.Smith@acme.example in 81% of the time")?.template).toBe("{first}.{last}");
+    expect(claim("Acme's most common email format is jane.doe@acme.example, used by 88.8% of employees.")?.template).toBe("{first}.{last}");
+    expect(claim("The most common format is (ex. jdoe@acme.example), being used by 48.4%")?.template).toBe("{f}{last}");
+    expect(claim("Acme most commonly uses the first.last email format (e.g. jane.doe@acme.example).")?.template).toBe("{first}.{last}");
+  });
+
+  it("ignores sites that give every company the same answer", () => {
+    expect(claim("The most common email format for Acme is {first}.", "mailmo.io")).toBeNull();
+  });
+
+  it("finds nothing in an unrelated snippet", () => {
+    expect(claim("Change the email address associated with an Acme account in Personal details.")).toBeNull();
+    expect(claim("Send customer emails from the dashboard, first and last steps.")).toBeNull();
+  });
+});
+
 describe("LinkedIn search results", () => {
   it("builds one query naming the early-career titles and the company", () => {
     const query = earlyCareerQuery("Acme");
@@ -144,6 +188,14 @@ describe("LinkedIn search results", () => {
     expect(kind("Recruiting Intern at Acme")).toEqual({ kind: "intern", weak: false });
     expect(kind("Software Engineering Intern at Acme")).toEqual({ kind: "other", weak: false });
     expect(kind("Acme", "Campus Recruiter at Acme · Experience: Acme")).toEqual({ kind: "early_career", weak: true });
+    expect(kind("Emerging Talent")).toEqual({ kind: "early_career", weak: false });
+    expect(kind("GTM Recruiter @ Acme")).toEqual({ kind: "recruiter", weak: false });
+  });
+
+  it("prefers the current role to a vaguer headline, but early-career work from either", () => {
+    expect(classifyRecruiter({ headline: "Talent Acquisition at Acme", role: "Recruitment Coordinator", snippet: "" }).kind).toBe("coordinator");
+    expect(classifyRecruiter({ headline: "University Recruiting | Scaling Teams", role: "Talent Acquisition Recruiter", snippet: "" }).kind).toBe("early_career");
+    expect(classifyRecruiter({ headline: "Acme", role: "Account Executive", snippet: "Recruiter" })).toEqual({ kind: "other", weak: false });
   });
 
   it("confirms the person is at the company now", () => {
@@ -157,6 +209,27 @@ describe("LinkedIn search results", () => {
     expect(at("University Recruiter at Globex", "Globex")).toBe("none");
     // A different company whose name merely contains this one.
     expect(at("Recruiter at Acmeworks", null)).toBe("none");
+    // "Ex-" about another employer, in another clause.
+    expect(at("University Recruiter @Acme | Ex- Globex", null, "University Recruiter @Acme | Ex- Globex · Campus hiring")).toBe("headline");
+  });
+
+  it("trusts the subtitle's current employer most", () => {
+    expect(matchCompany({ headline: "Recruiting @ Globex", snippet: "", experience: null, employer: "Acme" }, "Acme")).toBe("current");
+    expect(matchCompany({ headline: "Recruiting @ Acme", snippet: "", experience: null, employer: "Globex" }, "Acme")).toBe("former");
+  });
+
+  it("reads location, role and employer from the subtitle", () => {
+    const person = parseLinkedInResult({
+      title: "Avery Testerson - Recruiting @ Acme",
+      link: "https://www.linkedin.com/in/avery",
+      subtitle: "Dublin, County Dublin, Ireland · EMEA University Recruitment · Acme",
+    })!;
+    expect(person).toMatchObject({ location: "Dublin, County Dublin, Ireland", role: "EMEA University Recruitment", employer: "Acme" });
+    expect(basedInUs(person)).toBe(false);
+    expect(basedInUs({ location: "Austin, Texas Metropolitan Area" })).toBe(true);
+    expect(basedInUs({ location: null })).toBe(true);
+    expect(parseLinkedInResult({ title: "A B - Acme", link: "https://www.linkedin.com/in/ab", subtitle: "New York, New York, United States · Acme" }))
+      .toMatchObject({ role: null, employer: "Acme" });
   });
 });
 
@@ -172,6 +245,22 @@ describe("mail domain", () => {
     expect(mailProvider(["acme-example.mail.protection.outlook.com"])).toBe("microsoft");
     expect(mailProvider(["mx0a-001.pphosted.com"])).toBe("gateway");
     expect(mailProvider(["mx.acme.example"])).toBe("other");
+  });
+
+  it("collects the company's mail domains named on format pages", () => {
+    const text = "Acme uses [first_initial][last] (ex. jdoe@getacme.example). Contact sales@formats.example. Also First@getacme.example";
+    expect(mailDomainsInText(text, ["acme"])).toEqual(["getacme.example"]);
+  });
+
+  it("switches to the domain the format pages show when the website's takes no mail", async () => {
+    const mx: Record<string, string[]> = { "getacme.example": ["aspmx.l.google.com"], "acme.example": ["mx.acme.example"] };
+    const lookup = async (domain: string) => mx[domain] ?? [];
+    expect(await chooseMailDomain("acme.so", ["getacme.example"], lookup))
+      .toEqual({ domain: "getacme.example", exchanges: ["aspmx.l.google.com"], source: "format pages" });
+    expect(await chooseMailDomain("acme.example", ["acme.example"], lookup))
+      .toEqual({ domain: "acme.example", exchanges: ["mx.acme.example"], source: "website" });
+    expect(await chooseMailDomain("acme.example", [], lookup)).toMatchObject({ domain: "acme.example", source: "website" });
+    expect(await chooseMailDomain("acme.so", [], lookup)).toEqual({ domain: "acme.so", exchanges: [], source: "website" });
   });
 
   it("reads MX records over DNS-over-HTTPS, best first", async () => {

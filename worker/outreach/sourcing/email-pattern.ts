@@ -8,8 +8,11 @@ export interface PersonName {
   /** Lowercase ASCII letters only. A nickname comes second. */
   firsts: string[];
   /** The final last-name word first, then the whole multi-word or
-   * hyphenated last name, then its other parts. */
+   * hyphenated last name, then its other parts. Empty when only an initial
+   * is shown ("Jordan T."). */
   lasts: string[];
+  /** The last initial when that's all that is shown. */
+  lastInitial?: string;
 }
 
 const HONORIFICS = new Set(["dr", "mr", "mrs", "ms", "mx", "prof"]);
@@ -23,13 +26,14 @@ function ascii(value: string): string {
   return value.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z]/g, "");
 }
 
-/** Null when there's no usable first and last name, e.g. "Jane D." */
+/** Null when there's no usable name. "Jordan T." keeps the initial, which
+ * is enough for {first} and {first}{l} addresses. */
 export function cleanPersonName(raw: string): PersonName | null {
   let text = raw.normalize("NFKC");
-  const nicknames: string[] = [];
-  // "Katherine (Kate) Doe" or "Katherine "Kate" Doe"; pronouns go the same way.
+  const asides: string[] = [];
+  // "Katherine (Kate) Doe", "Emily (Mincin) Pfluger"; pronouns go the same way.
   text = text.replace(/[("“”]([^()"“”]{1,30})[)"“”]/g, (_, inner: string) => {
-    if (/^\p{L}{2,}$/u.test(inner.trim())) nicknames.push(inner.trim());
+    if (/^\p{L}{2,}$/u.test(inner.trim())) asides.push(inner.trim());
     return " ";
   });
   // Credentials and taglines follow a comma or a bar: "Jane Doe, SHRM-CP".
@@ -51,14 +55,24 @@ export function cleanPersonName(raw: string): PersonName | null {
   // Middle initials ("Jane A. Doe") don't appear in addresses.
   const lastWords = rest.filter((word, index) => index === rest.length - 1 || ascii(word).length > 1);
   const lastWord = lastWords.at(-1) ?? "";
-  if (ascii(lastWord).length < 2 || ascii(firstWord ?? "").length < 1) return null;
-  const firsts = unique([ascii(firstWord ?? ""), ...nicknames.map(ascii)]);
+  if (ascii(firstWord ?? "").length < 2) return null;
+  if (ascii(lastWord).length === 1 && lastWords.length === 1) {
+    return { display: words.join(" "), firsts: [ascii(firstWord ?? "")], lasts: [], lastInitial: ascii(lastWord) };
+  }
+  if (ascii(lastWord).length < 2) return null;
+  // An aside sharing the first name's initial is a nickname (Kate for
+  // Katherine); any other is a maiden or former last name.
+  const first = ascii(firstWord ?? "");
+  const nicknames = asides.map(ascii).filter((aside) => aside[0] === first[0]);
+  const formerLasts = asides.map(ascii).filter((aside) => aside[0] !== first[0]);
+  const firsts = unique([first, ...nicknames]);
   // "Jane Marie Doe" and "Maria Garcia Lopez" read the same, so the final
   // word leads and the other readings follow for evidence to settle.
   const lasts = unique([
     ascii(lastWord),
     ascii(lastWords.join("")),
     ...lastWords.flatMap((word) => word.split(/[-’']/)).map(ascii),
+    ...formerLasts,
   ].filter((part) => part.length >= 2));
   return { display: words.join(" "), firsts, lasts };
 }
@@ -80,14 +94,17 @@ export const COMMON_TEMPLATES = [
   "{last}{f}",
 ] as const;
 
-export function applyTemplate(template: string, name: PersonName): string {
+/** Null when the template needs a last name that isn't known. */
+export function applyTemplate(template: string, name: PersonName): string | null {
   const first = name.firsts[0] ?? "";
   const last = name.lasts[0] ?? "";
+  if (template.includes("{last}") && !last) return null;
+  if (template.includes("{l}") && !last && !name.lastInitial) return null;
   return template
     .replaceAll("{first}", first)
     .replaceAll("{last}", last)
     .replaceAll("{f}", first.slice(0, 1))
-    .replaceAll("{l}", last.slice(0, 1));
+    .replaceAll("{l}", last.slice(0, 1) || (name.lastInitial ?? ""));
 }
 
 const SEPARATORS = [".", "_", "-"];
@@ -177,8 +194,86 @@ export function patternEvidence(text: string, domain: string): PatternEvidence[]
   return evidence;
 }
 
+export interface FormatClaim {
+  template: string;
+  /** The share the page claims for this format, e.g. 31.1 for "(31.1%)". */
+  share: number | null;
+  source: string;
+}
+
+const FORMAT_WORDS: Array<[RegExp, string]> = [
+  [/first[\s_-]?initial|firstinitial/gi, "f"],
+  [/last[\s_-]?initial|lastinitial/gi, "l"],
+  [/first[\s_-]?name/gi, "first"],
+  [/last[\s_-]?name|surname/gi, "last"],
+];
+const PART = "(?:first|last|f|l)";
+const BRACKETED = `[\\[{]${PART}[\\]}]`;
+const FORMAT_PATTERNS = [
+  // "first@acme.com", "FLast@acme.com", "First.Last@"
+  /(?<![a-z0-9.])((?:[[{]?(?:first|last|f|l)[\]}]?[._-]?){1,3})@/gi,
+  // "[first].[last]", "{f}{last}"
+  new RegExp(`((?:${BRACKETED}[._-]?){1,3})`, "gi"),
+  // "the first.last email format"
+  /(?<![a-z0-9.@])((?:first|last)(?:[._-]?(?:first|last|f|l)){0,2}|[fl][._-]?(?:first|last))(?=\s+(?:email\s+)?(?:format|pattern|convention))/gi,
+];
+const PLACEHOLDER: PersonName = { display: "First Last", firsts: ["first"], lasts: ["last"] };
+// Format pages illustrate with stock names: "ex. jane.doe@acme.com".
+const STOCK_NAMES: PersonName[] = [
+  { display: "Jane Doe", firsts: ["jane"], lasts: ["doe"] },
+  { display: "John Doe", firsts: ["john"], lasts: ["doe"] },
+  { display: "John Smith", firsts: ["john"], lasts: ["smith"] },
+  { display: "Jane Smith", firsts: ["jane"], lasts: ["smith"] },
+];
+const STOCK_EXAMPLE = /(?<![a-z0-9.])((?:jane|john|j)[._-]?(?:doe|smith|d|s)?|(?:doe|smith)[._-]?(?:jane|john|j)?)@/gi;
+
+/** Sites whose answer was the same for every company tried ("{first}, 98%"
+ * for Stripe and Datadog alike), so their claims are noise. */
+export const IGNORED_FORMAT_SOURCES = new Set(["mailmo.io"]);
+
+/** The format an "Acme email format" page's snippet leads with, as a
+ * template: "The most common format is FLast@acme.com (58%)" → {f}{last}. */
+export function formatClaim(text: string, source: string): FormatClaim | null {
+  if (IGNORED_FORMAT_SOURCES.has(source)) return null;
+  let normalized = text;
+  for (const [pattern, replacement] of FORMAT_WORDS) normalized = normalized.replace(pattern, replacement);
+  const candidates: Array<{ index: number; raw: string; names: PersonName[] }> = [];
+  for (const pattern of FORMAT_PATTERNS) {
+    for (const match of normalized.matchAll(pattern)) {
+      if (match[1]) candidates.push({ index: match.index ?? 0, raw: match[1], names: [PLACEHOLDER] });
+    }
+  }
+  for (const match of normalized.matchAll(STOCK_EXAMPLE)) {
+    if (match[1]) candidates.push({ index: match.index ?? 0, raw: match[1], names: STOCK_NAMES });
+  }
+  candidates.sort((a, b) => a.index - b.index);
+  for (const candidate of candidates) {
+    const local = candidate.raw.replace(/[[\]{}]/g, "").replace(/[._-]$/, "").toLowerCase();
+    const template = candidate.names.map((name) => deriveTemplates(name, local)[0]).find(Boolean);
+    if (!template) continue;
+    const after = normalized.slice(candidate.index + candidate.raw.length, candidate.index + candidate.raw.length + 40);
+    const share = /\(?\s*(\d{1,3}(?:\.\d+)?)\s*%/.exec(after)?.[1];
+    return { template, share: share ? Number(share) : null, source };
+  }
+  return null;
+}
+
+/** Mail domains named in some text ("ex. jdoe@makenotion.com"), most
+ * mentioned first. Only domains that look like the company's count. */
+export function mailDomainsInText(text: string, companyLabels: string[]): string[] {
+  const labels = companyLabels.map((label) => label.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((label) => label.length >= 3);
+  const counts = new Map<string, number>();
+  for (const match of text.matchAll(/@([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})\b/gi)) {
+    const domain = (match[1] ?? "").toLowerCase();
+    const compact = domain.replace(/[^a-z0-9]/g, "");
+    if (!labels.some((label) => compact.includes(label))) continue;
+    counts.set(domain, (counts.get(domain) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1]).map(([domain]) => domain);
+}
+
 /** The template most of the evidence agrees on, with how many agree. */
-export function likelyTemplate(evidence: PatternEvidence[]): { template: string; votes: number; total: number } | null {
+export function likelyTemplate(evidence: Array<{ template: string }>): { template: string; votes: number; total: number } | null {
   if (evidence.length === 0) return null;
   const votes = new Map<string, number>();
   for (const item of evidence) votes.set(item.template, (votes.get(item.template) ?? 0) + 1);

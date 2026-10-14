@@ -50,3 +50,35 @@ export async function lookupMx(domain: string, fetcher: typeof fetch = fetch): P
     .sort((a, b) => a.priority - b.priority)
     .map((exchange) => exchange.host);
 }
+
+export interface MailDomain {
+  domain: string;
+  exchanges: string[];
+  /** Where the domain came from: the catalog's website, or addresses that
+   * "email format" pages show (notion.so's mail is at makenotion.com). */
+  source: "website" | "format pages";
+}
+
+/** The domain the company's people have addresses at. Another domain the
+ * format pages show wins when it receives mail and the website's domain
+ * isn't among those shown. */
+export async function chooseMailDomain(
+  website: string,
+  shown: string[],
+  lookup: (domain: string) => Promise<string[]> = lookupMx,
+): Promise<MailDomain> {
+  const safeLookup = (domain: string) => lookup(domain).catch(() => [] as string[]);
+  if (shown.length > 0 && !shown.includes(website)) {
+    for (const domain of shown) {
+      const exchanges = await safeLookup(domain);
+      if (exchanges.length) return { domain, exchanges, source: "format pages" };
+    }
+  }
+  const exchanges = await safeLookup(website);
+  if (exchanges.length || shown.length === 0) return { domain: website, exchanges, source: "website" };
+  for (const domain of shown) {
+    const other = await safeLookup(domain);
+    if (other.length) return { domain, exchanges: other, source: "format pages" };
+  }
+  return { domain: website, exchanges: [], source: "website" };
+}
