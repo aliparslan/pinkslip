@@ -79,7 +79,8 @@ else is decided.
 | Primary | Pink fill, white label | The one action the view exists for. One per screen or sheet | Apply, Save search, Continue, Open application |
 | Secondary | Gray fill, ink label | Every other action that deserves a button | Save, Not yet, Done, Careers site |
 | Outline | No fill, pink edge and pink label | A pink action that repeats down a list or sits inside a card, where filled pink would shout | Follow on company rows, Answer in a needs-you card, Approve in admin lists |
-| Text | No container, `ink-2` label | Quiet ways out | Not now, Skip, I already applied |
+| Text | No container, `ink-2` label (`plain`) | Quiet ways out | Not now, Skip, I already applied |
+| Text, ink | No container, `ink` label (`text`) | The other answer under a primary, when it's a real choice | Discard changes |
 | Icon | Round gray, 36 or 44, `ink-2` icon | Close, back, share, more, the filter button | |
 | Destructive | Text button in `bad` | Remove, Withdraw. Confirm in a sheet if it can't be undone | |
 | Disabled | Gray fill, `ink-3` label | Any button that can't be used yet | Save search before anything changed |
@@ -331,6 +332,14 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, late night**
+  - Decided (owner): auto-apply's mark is the robot (Phosphor Robot) in
+    the live bar's round white badge, in place of a company logo.
+    "Save your changes?" is D3: Save search on top, Discard changes under
+    it as ink text, no back button. Swiping the question away or tapping
+    behind it goes back to the edits.
+  - Built: the step, `useSheetGuard` in the kit, and the `text` button. The
+    Paper "System" page has the Text, ink row.
 - **2026-10-13, night**
   - Decided (owner): the in-app browser has no permanent "I applied"
     button; a strip ("Did that go through? · I applied") shows only when a

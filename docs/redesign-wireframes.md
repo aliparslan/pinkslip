@@ -797,7 +797,9 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
 - **The weekly report is a popup, not a card on Today:**
   - It shows on Monday's first open and is swiped away (W1, with E1 inside).
   - Which design goes in it is still open: E1 to E4 or T1 to T4.
-- **"Save your changes?" is approved** (Paper "Filters and Apply · Oct 12"): our own step when an edited search is swiped away. Not built yet.
+- **"Save your changes?" is approved** (Paper "Filters and Apply · Oct 12"): our own step when an edited search is swiped away.
+  - The first drawing was off-axis: a round back button pushed Save right while Discard stayed centered, it offered three ways out, and red sat under pink. Redrawn as D2 (two equal buttons) and D3 (stacked).
+  - **Picked: D3** (owner, 2026-10-13): Save search, then Discard changes in ink, no back. Swiping the question away or tapping behind it returns to the edits. Built.
 - **Push soon.** TestFlight builds never set EXPO_PUBLIC_REDESIGN, so testers keep today's app. The bundled Klim trial fonts ship in the binary either way.
 - **Proposed and drawn, waiting on the owner:**
   - **C1b:** A3 without the "Applying for you" line, in two sizes (17 for the headline, 15 for the rest).
@@ -813,7 +815,8 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
   - A4a · a dark island, like the Live Activity
   - A4b · light and floating
   - A4c · a ticket with a stub
-  - **Picked: A4b** (owner, 2026-10-13). Light and floating, the bar fills from the left as the batch goes, the logo has no ring, and there's a round pause button.
+  - **Picked: A4b** (owner, 2026-10-13). Light and floating, the bar fills from the left as the batch goes, and there's a round pause button.
+  - **Its mark is the robot** (owner, 2026-10-13): a company logo in a pill looked wrong, so the badge holds auto-apply's own icon. Tried: paper plane, pen nib, signature, stamp, the slips, the robot ("A4b · auto-apply icon options").
 - **The weekly report is tabled.** People hear about interviews by email, not from the app, so a recap should lead with what only Pinkslip knows (auto-apply's work, which applications went quiet, follow-ups due). Back to it later.
 
 ## In-app browser (owner, 2026-10-12)

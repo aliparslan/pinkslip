@@ -34,6 +34,9 @@ const TOP = 24;
 
 interface SheetContextValue {
   close: () => void;
+  /** Set while a step has something to lose: a swipe or a tap behind the
+   * sheet runs it instead of closing. */
+  guard: RefObject<(() => void) | null>;
   drag: PanGesture;
   /** How far the step's list is scrolled; the sheet only follows a drag down from the top. */
   scrollY: SharedValue<number>;
@@ -48,6 +51,8 @@ interface SheetContextValue {
   maxHeight: number;
   /** How far a step slides: the width of the screen. */
   width: number;
+  /** Closes unless a step's guard asks first. */
+  dismiss: () => void;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -63,6 +68,24 @@ export function useSheet() {
   return { close: useSheetContext().close };
 }
 
+/** While `active`, swiping the sheet away or tapping behind it runs
+ * `onBlocked` (say, to ask about unsaved changes) and the sheet settles back.
+ * `close()` from useSheet always closes. */
+export function useSheetGuard(active: boolean, onBlocked: () => void) {
+  const { guard } = useSheetContext();
+  const latest = useRef(onBlocked);
+  useEffect(() => {
+    latest.current = onBlocked;
+  });
+  useEffect(() => {
+    if (!active) return;
+    guard.current = () => latest.current();
+    return () => {
+      guard.current = null;
+    };
+  }, [active, guard]);
+}
+
 export interface SheetProps {
   /** Runs once the sheet has slid away. */
   onClosed: () => void;
@@ -76,8 +99,9 @@ export interface SheetProps {
  * own card: one opened from the menu slides in from the right at its own
  * size while the menu slides off to the left, and Back reverses it. Drag or
  * flick it down to close, or tap the page behind it; a list only hands the
- * drag to the sheet when it was already at its top. What a sheet holds is a
- * plain menu (Choices); paper objects stay on their pages.
+ * drag to the sheet when it was already at its top. A step with unsaved
+ * changes can ask first (useSheetGuard). What a sheet holds is a plain menu
+ * (Choices); paper objects stay on their pages.
  */
 export function Sheet({ onClosed, children }: SheetProps) {
   const { height, width } = useWindowDimensions();
@@ -91,6 +115,7 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const anchor = useSharedValue(0);
   const fromTop = useSharedValue(true);
   const opened = useRef(false);
+  const guard = useRef<(() => void) | null>(null);
   const maxHeight = height - insets.top - INSET;
 
   // The first step to lay out opens the sheet, rising its own height.
@@ -110,6 +135,19 @@ export function Sheet({ onClosed, children }: SheetProps) {
     });
   }, [cardHeight, offset, shade, onClosed]);
 
+  // A swipe, a tap behind or VoiceOver's escape: a guarded step gets asked
+  // instead, and the sheet settles back where it was.
+  const dismiss = useCallback(() => {
+    const blocked = guard.current;
+    if (!blocked) {
+      close();
+      return;
+    }
+    offset.value = withTiming(0, SETTLE);
+    shade.value = withTiming(1, SETTLE);
+    blocked();
+  }, [close, offset, shade]);
+
   const drag = useMemo(() => Gesture.Pan().activeOffsetY([-10, 10]).onStart(() => {
     anchor.value = 0;
     // A swipe that starts down a list only scrolls it, even once it reaches
@@ -128,29 +166,29 @@ export function Sheet({ onClosed, children }: SheetProps) {
     shade.value = 1 - Math.min(Math.max(offset.value, 0) / cardHeight.value, 1);
   }).onEnd((event) => {
     if (offset.value > CLOSE_SHARE * cardHeight.value || (offset.value > 0 && event.velocityY > CLOSE_SPEED)) {
-      scheduleOnRN(close);
+      scheduleOnRN(dismiss);
     } else {
       offset.value = withTiming(0, SETTLE);
       shade.value = withTiming(1, SETTLE);
     }
-  }), [anchor, fromTop, scrollY, lists, offset, shade, cardHeight, close]);
+  }), [anchor, fromTop, scrollY, lists, offset, shade, cardHeight, dismiss]);
 
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, drag, scrollY, lists, offset, measure, opened, maxHeight, width }),
-    [close, drag, scrollY, lists, offset, measure, maxHeight, width]);
+  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width }),
+    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
       <Animated.View style={[styles.scrim, scrim]}>
-        <Pressable style={styles.fill} onPress={close} accessibilityRole="button" accessibilityLabel="Close" />
+        <Pressable style={styles.fill} onPress={dismiss} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <GestureDetector gesture={drag}>
         {/* The steps stand on the bottom edge of a stage as tall as a step
             can be; it rises, drags and closes as one, and taps around the
             card reach the page behind. */}
         <Animated.View pointerEvents="box-none" style={[styles.stage, { height: maxHeight }, lift]}
-          accessibilityViewIsModal onAccessibilityEscape={close}>
+          accessibilityViewIsModal onAccessibilityEscape={dismiss}>
           {children}
         </Animated.View>
       </GestureDetector>
@@ -211,7 +249,7 @@ export function SheetStep({ id, inner = false, children }: SheetStepProps) {
 }
 
 function StepCard({ inner, children }: { inner: boolean; children: ReactNode }) {
-  const { close, measure, opened, maxHeight, width } = useSheetContext();
+  const { dismiss, measure, opened, maxHeight, width } = useSheetContext();
   // The step the sheet opens with rises with it; only later steps slide in.
   const [initial] = useState(() => !opened.current);
   const height = useSharedValue(0);
@@ -232,7 +270,7 @@ function StepCard({ inner, children }: { inner: boolean; children: ReactNode }) 
       {children}
     </View>
     {/* Drag it down to close; VoiceOver can close it from here. */}
-    <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={close} />
+    <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={dismiss} />
   </Animated.View>;
 }
 

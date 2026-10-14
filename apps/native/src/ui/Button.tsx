@@ -5,7 +5,7 @@ import { PressableScale } from "../kit/PressableScale";
 import { Icon, type IconName } from "./Icon";
 import { Text, type TextTone } from "./Text";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "plain";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "plain" | "text";
 export type ButtonSize = "large" | "small";
 
 export interface ButtonProps {
@@ -21,15 +21,16 @@ export interface ButtonProps {
   children: ReactNode;
 }
 
-const tones: Record<ButtonVariant, TextTone> = { primary: "accent-ink", secondary: "ink", outline: "accent", plain: "ink-2" };
+const tones: Record<ButtonVariant, TextTone> = { primary: "accent-ink", secondary: "ink", outline: "accent", plain: "ink-2", text: "ink" };
 
 /**
  * A capsule (docs/design-system.md, "Buttons"): `primary` is the pink with
  * white text, the one action a view exists for; `secondary` the gray fill
  * for everything else; `outline` a pink edge and label, for a pink action
- * that repeats down a list or sits in a card; `plain` a text button (Not
- * now). A disabled button turns gray, never faded pink. Large is Apple's
- * 50; small is 36.
+ * that repeats down a list or sits in a card; `plain` the quiet way out in
+ * ink-2 (Not now); `text` a tappable word in ink, like the other answer
+ * under a primary (Discard changes). A disabled button turns gray, never
+ * faded pink. Large is Apple's 50; small is 36.
  */
 export function Button({ variant = "secondary", size = "large", icon, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
   const { theme } = useUnistyles();
@@ -39,7 +40,7 @@ export function Button({ variant = "secondary", size = "large", icon, pending, d
   const inactive = disabled || pending;
   return <PressableScale accessibilityRole="button" accessibilityLabel={accessibilityLabel}
     accessibilityState={{ disabled: inactive, busy: pending }} disabled={inactive} onPress={onPress}
-    style={fullWidth ? styles.full : styles.hug} contentStyle={[styles.root, disabled && variant !== "plain" && styles.disabled]}>
+    style={fullWidth ? styles.full : styles.hug} contentStyle={[styles.root, disabled && variant !== "plain" && variant !== "text" && styles.disabled]}>
     {pending ? <ActivityIndicator size="small" color={color} />
       : icon ? <Icon name={icon} size={size === "large" ? 18 : 16} tone={tone} /> : null}
     <Text role={size === "large" ? "body" : "subhead"} weight="medium" tone={tone} lines={1}>{children}</Text>
@@ -62,6 +63,7 @@ const styles = StyleSheet.create((theme) => ({
         secondary: { backgroundColor: theme.ui.color.fill },
         outline: { borderWidth: 1.5, borderColor: theme.ui.color.accent },
         plain: {},
+        text: {},
       },
       size: {
         large: { minHeight: theme.ui.size.button, paddingHorizontal: theme.ui.space["6"] },

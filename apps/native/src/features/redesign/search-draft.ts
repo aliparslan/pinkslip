@@ -76,3 +76,26 @@ export function toggled<T>(list: readonly T[], value: T): T[] | null {
   const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   return next.length > 0 ? next : null;
 }
+
+const sameSet = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((item) => b.includes(item));
+
+/** The menu rows whose choices differ from the saved search, in menu order.
+ * Order alone isn't a change: tapping a city off and on again saves nothing. */
+export function changedRows(saved: Profile, draft: Profile): string[] {
+  const rows: [string, boolean][] = [
+    ["Career stage", !sameSet(saved.target_levels, draft.target_levels)],
+    ["Roles", !sameSet(roleChips(saved), roleChips(draft))],
+    ["Where", !sameSet(saved.location_ids, draft.location_ids) || saved.relocation_willing !== draft.relocation_willing
+      || !sameSet(saved.work_modes, draft.work_modes)],
+    ["Visa sponsorship", needsSponsorship(saved) !== needsSponsorship(draft)],
+    ["Experience asked", saved.max_required_years !== draft.max_required_years
+      || saved.include_unspecified_experience !== draft.include_unspecified_experience],
+  ];
+  return rows.filter(([, differs]) => differs).map(([title]) => title);
+}
+
+/** "Roles and Where changed." for Save your changes. */
+export function changedSentence(rows: string[]): string {
+  if (rows.length <= 1) return `${rows[0] ?? "Your search"} changed.`;
+  return `${rows.slice(0, -1).join(", ")} and ${rows[rows.length - 1]} changed.`;
+}

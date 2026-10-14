@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
-  citiesSummary, experienceSummary, rolesSummary, stageSummary, toggled, whereSummary, withRemote,
+  changedRows, changedSentence, citiesSummary, experienceSummary, rolesSummary, stageSummary, toggled, whereSummary, withRemote,
 } from "../apps/native/src/features/redesign/search-draft";
 
 const profile = (patch: Partial<SearchProfile> = {}): SearchProfile => ({ ...DEFAULT_SEARCH_PROFILE, ...patch });
@@ -49,5 +49,24 @@ describe("Remote", () => {
     expect(withRemote(profile({ work_modes: ["remote"] }), false)).toEqual({ work_modes: ["onsite", "hybrid"] });
     expect(withRemote(profile({ work_modes: ["remote", "hybrid"] }), false)).toEqual({ work_modes: ["hybrid"] });
     expect(withRemote(profile({ work_modes: ["onsite"] }), true)).toEqual({ work_modes: ["remote", "onsite"] });
+  });
+});
+
+describe("Save your changes", () => {
+  test("names the rows that changed, in menu order", () => {
+    const saved = profile({ location_ids: ["new_york"], relocation_willing: false });
+    const draft = { ...saved, max_required_years: 2, location_ids: ["new_york", "sf_bay"] as SearchProfile["location_ids"] };
+    expect(changedRows(saved, draft)).toEqual(["Where", "Experience asked"]);
+    expect(changedSentence(changedRows(saved, draft))).toBe("Where and Experience asked changed.");
+  });
+
+  test("order alone isn't a change", () => {
+    const saved = profile({ location_ids: ["new_york", "sf_bay"], relocation_willing: false });
+    expect(changedRows(saved, { ...saved, location_ids: ["sf_bay", "new_york"] })).toEqual([]);
+  });
+
+  test("one row, three rows", () => {
+    expect(changedSentence(["Roles"])).toBe("Roles changed.");
+    expect(changedSentence(["Career stage", "Roles", "Where"])).toBe("Career stage, Roles and Where changed.");
   });
 });

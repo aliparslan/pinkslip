@@ -9,12 +9,14 @@ import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
-import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, useSheetGuard } from "../../ui";
 import {
-  experienceSummary, needsSponsorship, rolesSummary, stageName, stageSummary, toggled, wantsRemote, whereSummary, withRemote,
+  changedRows, changedSentence, experienceSummary, needsSponsorship, rolesSummary, stageName, stageSummary, toggled, wantsRemote, whereSummary,
+  withRemote,
 } from "./search-draft";
 
-type Step = "search" | "stage" | "roles" | "where" | "visa" | "experience";
+type Choosing = "search" | "stage" | "roles" | "where" | "visa" | "experience";
+type Step = Choosing | "discard";
 
 const stageDetail: Record<CareerStage, string> = {
   internship: "Summer, fall and co-op roles",
@@ -26,8 +28,10 @@ const stageDetail: Record<CareerStage, string> = {
 /**
  * Your search (Paper "Filters · Your search as a plain menu"), the one saved
  * search behind the feed and alerts: tap a row and the sheet changes to that
- * choice, then Back or Done returns to the menu. Save writes the search; closing drops the
- * changes. It opens over Jobs, which stays in view behind it.
+ * choice, then Back or Done returns to the menu. Save writes the search.
+ * Swiping it away with changes asks first (Paper "Save your changes? · D3
+ * stacked (picked)"); swiping the question away goes back to the changes.
+ * It opens over Jobs, which stays in view behind it.
  */
 export function EditSearchSheet({ open, onClosed }: { open: boolean; onClosed: () => void }) {
   return <SheetModal open={open} onClosed={onClosed}><YourSearch /></SheetModal>;
@@ -42,10 +46,21 @@ function YourSearch() {
   const saved = preferences.data?.search_profile;
   const [draft, setDraft] = useState<Profile | null>(null);
   const [step, setStep] = useState<Step>("search");
+  const [returnTo, setReturnTo] = useState<Choosing>("search");
 
   useEffect(() => {
     if (saved && !draft) setDraft(normalizeSearchProfile(saved));
   }, [saved, draft]);
+
+  const changes = saved && draft ? changedRows(normalizeSearchProfile(saved), draft) : [];
+  useSheetGuard(changes.length > 0, () => {
+    if (step === "discard") {
+      setStep(returnTo);
+      return;
+    }
+    setReturnTo(step);
+    setStep("discard");
+  });
 
   if (!draft) {
     // The same step as the loaded search, so it grows in place rather than sliding.
@@ -60,7 +75,7 @@ function YourSearch() {
   }
 
   const change = (patch: Partial<Profile>) => setDraft((current) => (current ? { ...current, ...patch } : current));
-  const changed = Boolean(saved && JSON.stringify(draft) !== JSON.stringify(normalizeSearchProfile(saved)));
+  const changed = changes.length > 0;
   const back = () => setStep("search");
   const save = async () => {
     try {
@@ -78,6 +93,19 @@ function YourSearch() {
       <SheetHeader title="Your search" />
       <SearchMenu draft={draft} open={setStep} />
       <Button variant="primary" fullWidth disabled={!changed} pending={update.isPending} onPress={() => void save()}>Save search</Button>
+    </SheetStep>;
+  }
+
+  // Discard sits under Save as a word, not a red button: the question already
+  // says what's at stake. It slides the way the step it came from left.
+  if (step === "discard") {
+    return <SheetStep id="discard" inner={returnTo === "search"}>
+      <SheetHeader title="Save your changes?" />
+      <Text tone="ink-2">{changedSentence(changes)}</Text>
+      <View style={styles.answers}>
+        <Button variant="primary" fullWidth pending={update.isPending} onPress={() => void save()}>Save search</Button>
+        <Button variant="text" fullWidth onPress={sheet.close}>Discard changes</Button>
+      </View>
     </SheetStep>;
   }
 
@@ -160,7 +188,7 @@ function YourSearch() {
 
 /** Stage and pay, roles, where, visa and experience; then alerts and hidden
  * companies, which close the sheet and open their screens under You. */
-function SearchMenu({ draft, open }: { draft: Profile; open: (step: Step) => void }) {
+function SearchMenu({ draft, open }: { draft: Profile; open: (step: Choosing) => void }) {
   const sheet = useSheet();
   const push = usePushSettings();
   const companies = useCompanies();
@@ -192,6 +220,7 @@ const styles = StyleSheet.create((theme) => ({
   scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
   scrollBody: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
   menu: { gap: theme.ui.space["3"] },
+  answers: { gap: theme.ui.space["2"] },
   actions: { flexDirection: "row", gap: theme.ui.space["3"] },
   flex: { flex: 1 },
 }));
