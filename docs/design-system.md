@@ -319,6 +319,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
+- **Tab bar on scroll** (owner, 2026-10-14): scrolling a list down shrinks
+  the pill to 84% towards the bottom edge; scrolling up, reaching the top,
+  touching the bar or changing tabs brings it back, on the tab bar's
+  no-bounce spring. Lists under the bar spread `useTabBarScroll()`.
 - **Toast** (`ui/Toast.tsx`, Paper "Toast · Oct 14" T1, owner 2026-10-14):
   a 48 capsule in the tab bar's glass, hugging its words, 12 above whatever
   is pinned at the bottom (the tab bar, a page's bar, the keyboard). It

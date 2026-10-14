@@ -1,10 +1,10 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { usePathname } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, { makeMutable, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
@@ -37,6 +37,45 @@ const TABS: Record<string, { icon: IconName; label: string }> = {
 };
 /** The lit icon's stroke, a touch heavier than the 1.75 at rest (owner, 2026-10-12). */
 const LIT_STROKE = 2;
+
+/** 0 is the full bar; 1 is the smaller one it becomes while you scroll down
+ * (owner, 2026-10-14, as iOS 26 tucks its tab bar away). */
+const compact = makeMutable(0);
+/** The bar at its smallest, shrinking towards the bottom edge. */
+const COMPACT_SCALE = 0.84;
+/** How far a list must move in one direction before the bar follows it. */
+const SCROLL_SLOP = 6;
+/** Near the top of a list the bar is always full. */
+const TOP_ZONE = 24;
+
+function setCompact(next: boolean) {
+  const target = next ? 1 : 0;
+  if (compact.value === target) return;
+  compact.value = withSpring(target, GLIDE);
+}
+
+/** Spread onto a list under the tab bar (`{...useTabBarScroll()}`): scrolling
+ * down shrinks the bar, scrolling up or reaching the top brings it back. */
+export function useTabBarScroll() {
+  const last = useRef(0);
+  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const y = contentOffset.y + Math.max(0, contentInsetTop(event));
+    const moved = y - last.current;
+    last.current = y;
+    // The bounce past the end isn't a change of direction.
+    if (contentOffset.y + layoutMeasurement.height > contentSize.height) return;
+    if (y <= TOP_ZONE) setCompact(false);
+    else if (moved > SCROLL_SLOP) setCompact(true);
+    else if (moved < -SCROLL_SLOP) setCompact(false);
+  }, []);
+  return { onScroll, scrollEventThrottle: 16 };
+}
+
+/** Lists that adjust for the status bar start at minus its height. */
+function contentInsetTop(event: NativeSyntheticEvent<NativeScrollEvent>) {
+  return event.nativeEvent.contentInset?.top ?? 0;
+}
 
 /** The pill's distance from the bottom edge: just above the home indicator. */
 function pillBottom(insetBottom: number) {
@@ -82,6 +121,8 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   useEffect(() => {
     if (selected < 0) return;
     current.value = selected;
+    // A new tab starts with the full bar.
+    setCompact(false);
     // In place on the first frame; after that it glides.
     x.value = placed.current ? withSpring(slotX(selected), GLIDE) : slotX(selected);
     placed.current = true;
@@ -119,7 +160,10 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       "worklet";
       return Math.min(Math.max(Math.round(at / PITCH), 0), count - 1);
     };
-    return Gesture.Pan().activeOffsetX([-8, 8]).onStart((event) => {
+    return Gesture.Pan().activeOffsetX([-8, 8]).onBegin(() => {
+      // A finger on the small bar brings the full one back.
+      compact.value = withSpring(0, GLIDE);
+    }).onStart((event) => {
       finger.value = along(event.x);
       offset.value = x.value - finger.value;
       offset.value = withSpring(0, GLIDE);
@@ -156,26 +200,29 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   const oval = useAnimatedStyle(() => ({
     transform: [{ translateX: dragging.value ? finger.value + offset.value : x.value }],
   }));
+  const size = useAnimatedStyle(() => ({ transform: [{ scale: 1 - (1 - COMPACT_SCALE) * compact.value }] }));
   if (onJobPage) return null;
 
   const lit = hover ?? selected;
   const bottom = pillBottom(insets.bottom);
   return <View pointerEvents="box-none" style={[styles.bar, { paddingBottom: bottom }]}>
     <GestureDetector gesture={drag}>
-      <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
-        {selected >= 0 ? <Animated.View pointerEvents="none" style={[styles.oval, oval]} /> : null}
-        {tabs.map((route, index) => {
-          const tab = TABS[route.name]!;
-          return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab" accessibilityLabel={tab.label}
-            accessibilityState={{ selected: index === selected }} style={styles.slot}>
-            {/* The outline icon; lit, it's pink and a touch heavier, and Tracker's
-                end dot fills in (owner, 2026-10-12). */}
-            {index === lit
-              ? <Icon name={tab.icon} size={24} tone="accent" stroke={LIT_STROKE} weight={tab.icon === "tracker" ? "fill" : "line"} />
-              : <Icon name={tab.icon} size={24} tone="ink-2" />}
-          </Pressable>;
-        })}
-      </GlassView>
+      <Animated.View style={[styles.shrink, size]}>
+        <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
+          {selected >= 0 ? <Animated.View pointerEvents="none" style={[styles.oval, oval]} /> : null}
+          {tabs.map((route, index) => {
+            const tab = TABS[route.name]!;
+            return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab" accessibilityLabel={tab.label}
+              accessibilityState={{ selected: index === selected }} style={styles.slot}>
+              {/* The outline icon; lit, it's pink and a touch heavier, and Tracker's
+                  end dot fills in (owner, 2026-10-12). */}
+              {index === lit
+                ? <Icon name={tab.icon} size={24} tone="accent" stroke={LIT_STROKE} weight={tab.icon === "tracker" ? "fill" : "line"} />
+                : <Icon name={tab.icon} size={24} tone="ink-2" />}
+            </Pressable>;
+          })}
+        </GlassView>
+      </Animated.View>
     </GestureDetector>
   </View>;
 }
@@ -188,6 +235,8 @@ function slotX(index: number) {
 
 const styles = StyleSheet.create((theme) => ({
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "flex-end" },
+  // It shrinks towards the bottom edge, staying on the home indicator.
+  shrink: { transformOrigin: "bottom" },
   pill: { flexDirection: "row", paddingVertical: PAD, paddingHorizontal: PAD_X, borderRadius: PILL / 2 },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
   slot: { width: PITCH, height: OVAL.height, alignItems: "center", justifyContent: "center" },

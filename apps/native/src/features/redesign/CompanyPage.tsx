@@ -6,7 +6,7 @@ import { Link, Stack, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, Icon, SectionHeader, Segmented, Text, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, Icon, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { fitsYourSearch, plainText, rowAge, rowFacts } from "./job-facts";
 
@@ -21,6 +21,7 @@ type Segment = "jobs" | "people" | "events";
 export function CompanyPage({ companyId }: { companyId: string }) {
   const { theme } = useUnistyles();
   const tabSpace = useTabBarSpace();
+  const tabBarScroll = useTabBarScroll();
   const companies = useCompanies();
   const company = companies.data?.find((item) => item.id === companyId);
   const feed = useCompanyJobs(companyId, company?.name);
@@ -29,7 +30,7 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
 
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabSpace }}>
+  return <ScrollView {...tabBarScroll} style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabSpace }}>
     <Stack.Screen options={{ title: "", headerTintColor: theme.ui.color.ink }} />
     <View style={styles.header}>
       <View style={styles.identity}>

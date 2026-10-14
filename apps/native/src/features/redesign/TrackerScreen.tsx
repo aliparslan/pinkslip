@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
 import {
-  Chip, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarSpace, type StageGroup,
+  Chip, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarScroll, useTabBarSpace, type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -42,6 +42,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
+  const tabBarScroll = useTabBarScroll();
   const list = useRef<FlashListRef<Item>>(null);
   useScrollToTop(list);
   const chips = useRef<ScrollView>(null);
@@ -105,7 +106,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 
   return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <FlashList ref={list} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+    <FlashList ref={list} {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
       renderItem={({ item }) => item.kind === "stage"
