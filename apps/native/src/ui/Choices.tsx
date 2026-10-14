@@ -3,14 +3,17 @@ import { Pressable, Switch, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Icon } from "./Icon";
 import { Radio } from "./List";
+import { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
 import { Text } from "./Text";
 
 /** A sheet's plain menu (Paper "Filters · plain menu", owner 2026-10-12): a
  * flat gray card, no lift or grain, with a rule between rows. Paper objects
- * stay on pages; inside a sheet everything is a menu. */
-export function Choices({ children }: { children: ReactNode }) {
+ * stay on pages; inside a sheet everything is a menu. Its corners run
+ * parallel to the sheet's; `last` when nothing follows it, so its bottom
+ * corners follow the sheet's bottom. */
+export function Choices({ last = false, children }: { last?: boolean; children: ReactNode }) {
   const rows = Children.toArray(children);
-  return <View style={styles.card}>
+  return <View style={[styles.card, last && styles.last]}>
     {rows.map((row, index) => <Fragment key={index}>
       {index > 0 ? <View style={styles.rule} /> : null}
       {row}
@@ -79,10 +82,11 @@ export function ChoiceSwitch({ title, value, onChange }: ChoiceSwitchProps) {
 const styles = StyleSheet.create((theme) => ({
   card: {
     paddingHorizontal: theme.ui.space["4"],
-    borderRadius: theme.ui.radius.md,
+    borderRadius: SHEET_GROUP_RADIUS,
     borderCurve: "continuous",
     backgroundColor: theme.ui.color.fill,
   },
+  last: { borderBottomLeftRadius: SHEET_GROUP_BOTTOM_RADIUS, borderBottomRightRadius: SHEET_GROUP_BOTTOM_RADIUS },
   rule: { height: 1, backgroundColor: theme.ui.color.separator },
   row: { minHeight: theme.ui.size.listRow + 12, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"] },
   /** A menu row is 50 tall, as drawn. */

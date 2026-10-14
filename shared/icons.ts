@@ -30,6 +30,7 @@ export const ICONS = {
   // A job and what you do with it
   save: "BookmarkSimple",
   saved: "BookmarkSimple",
+  ghosted: "Ghost",
   apply: "ArrowSquareOut",
   applied: "CheckCircle",
   done: "Check",

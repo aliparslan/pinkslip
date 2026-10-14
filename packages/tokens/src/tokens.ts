@@ -338,6 +338,11 @@ export const uiDark = {
   "--ui-accent-ink": "oklch(1 0 0)",
   "--ui-accent-soft": "oklch(0.3 0.07 350)",
   "--ui-good": "oklch(0.73 0.14 150)",
+  // Stage marks take color only where something's happening (owner,
+  // 2026-10-14): Assessment amber, Interviewing blue, Offer `good`. Marks
+  // only, never text or fills.
+  "--ui-stage-assessment": "oklch(0.78 0.14 70)",
+  "--ui-stage-interview": "oklch(0.7 0.13 250)",
   "--ui-bad": "oklch(0.72 0.17 25)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
@@ -371,6 +376,8 @@ export const uiLight = {
   "--ui-accent": "oklch(0.57 0.205 350)",
   "--ui-accent-soft": "oklch(0.935 0.038 350)",
   "--ui-good": "oklch(0.48 0.132 150)",
+  "--ui-stage-assessment": "oklch(0.68 0.15 65)",
+  "--ui-stage-interview": "oklch(0.58 0.14 250)",
   "--ui-bad": "oklch(0.5 0.18 25)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",

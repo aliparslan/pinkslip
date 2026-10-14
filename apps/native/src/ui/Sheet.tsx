@@ -10,7 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon } from "./Icon";
 import { motion, rubberBand, timing } from "./motion";
-import { concentricRadius } from "./screen-corners";
+import { SHEET_BOTTOM_RADIUS, SHEET_INSET, SHEET_PADDING, SHEET_RADIUS } from "./sheet-geometry";
 import { Text } from "./Text";
 
 /** Vaul's drawer motion, from the tokens: one curve, quick off the mark with
@@ -27,11 +27,6 @@ const RESIZE = timing(motion.sheet.resize);
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
 const CLOSE_SPEED = motion.sheet.closeSpeed;
-/** The gap between the sheet and the screen's edges. */
-const INSET = 8;
-const RADIUS = 40;
-/** The bottom corners run parallel to the screen's own, 8 in from them. */
-const BOTTOM_RADIUS = concentricRadius(INSET, RADIUS);
 /** Room above a step's first line, under the grab bar, which is also where a
  * drag usually starts. */
 const TOP = 24;
@@ -120,21 +115,21 @@ export function Sheet({ onClosed, children }: SheetProps) {
   const fromTop = useSharedValue(true);
   const opened = useRef(false);
   const guard = useRef<(() => void) | null>(null);
-  const maxHeight = height - insets.top - INSET;
+  const maxHeight = height - insets.top - SHEET_INSET;
 
   // The first step to lay out opens the sheet, rising its own height.
   const measure = useCallback((contentHeight: number) => {
     cardHeight.value = contentHeight;
     if (opened.current) return;
     opened.current = true;
-    offset.value = contentHeight + INSET;
+    offset.value = contentHeight + SHEET_INSET;
     offset.value = withTiming(0, OPEN);
     shade.value = withTiming(1, OPEN);
   }, [cardHeight, offset, shade]);
 
   const close = useCallback(() => {
     shade.value = withTiming(0, CLOSE);
-    offset.value = withTiming(cardHeight.value + INSET + 24, CLOSE, (done) => {
+    offset.value = withTiming(cardHeight.value + SHEET_INSET + 24, CLOSE, (done) => {
       if (done) scheduleOnRN(onClosed);
     });
   }, [cardHeight, offset, shade, onClosed]);
@@ -331,15 +326,15 @@ export function SheetBack({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1 },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.ui.color.scrim },
-  stage: { position: "absolute", left: INSET, right: INSET, bottom: INSET },
+  stage: { position: "absolute", left: SHEET_INSET, right: SHEET_INSET, bottom: SHEET_INSET },
   card: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: RADIUS,
-    borderBottomLeftRadius: BOTTOM_RADIUS,
-    borderBottomRightRadius: BOTTOM_RADIUS,
+    borderRadius: SHEET_RADIUS,
+    borderBottomLeftRadius: SHEET_BOTTOM_RADIUS,
+    borderBottomRightRadius: SHEET_BOTTOM_RADIUS,
     borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: theme.ui.color["bg-elev"],
@@ -352,8 +347,8 @@ const styles = StyleSheet.create((theme) => ({
     bottom: 0,
     gap: theme.ui.space["5"],
     paddingTop: TOP,
-    paddingHorizontal: theme.ui.space["5"],
-    paddingBottom: theme.ui.space["5"],
+    paddingHorizontal: SHEET_PADDING,
+    paddingBottom: SHEET_PADDING,
   },
   grabber: {
     position: "absolute",

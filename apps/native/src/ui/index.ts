@@ -14,7 +14,7 @@ export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type Lis
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { SearchField, type SearchFieldProps } from "./SearchField";
 export { Sheet, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet, useSheetGuard, type SheetHeaderProps, type SheetModalProps, type SheetProps, type SheetStepProps } from "./Sheet";
-export type { StageGroup } from "./stage-group";
+export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { TabBar, useTabBarSpace } from "./TabBar";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";

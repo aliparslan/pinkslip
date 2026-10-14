@@ -34,7 +34,7 @@ describe("Tracker rows", () => {
     expect(trackerFacts(application({ stage: "saved", applied_at: null }), now)).toBe("New York");
     expect(trackerFacts(application({ stage: "applied" }), now)).toBe("New York");
     expect(trackerFacts(application({ stage: "interview" }), now)).toBe("New York · applied Oct 2");
-    expect(trackerFacts(application({ stage: "ghosted" }), now)).toBe("No reply");
+    expect(trackerFacts(application({ stage: "ghosted" }), now)).toBe("Ghosted");
     expect(trackerFacts(application({ stage: "rejected" }), now)).toBe("Rejected");
     expect(trackerFacts(application({ stage: "offer", job: null }), now)).toBe("applied Oct 2");
   });

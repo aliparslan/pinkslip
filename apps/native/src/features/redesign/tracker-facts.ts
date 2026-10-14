@@ -28,7 +28,7 @@ export function groupOf(stage: ApplicationStage): StageGroup {
 }
 
 /** What each ending says on line three. */
-const endings: Partial<Record<ApplicationStage, string>> = { rejected: "Rejected", withdrawn: "Withdrawn", ghosted: "No reply" };
+const endings: Partial<Record<ApplicationStage, string>> = { rejected: "Rejected", withdrawn: "Withdrawn", ghosted: "Ghosted" };
 
 /** The stages a row's menu can move it to, with the words it uses. */
 export const MOVE_TO: readonly { stage: ApplicationStage; label: string }[] = [
@@ -39,7 +39,7 @@ export const MOVE_TO: readonly { stage: ApplicationStage; label: string }[] = [
   { stage: "offer", label: "Offer" },
   { stage: "rejected", label: "Rejected" },
   { stage: "withdrawn", label: "Withdrawn" },
-  { stage: "ghosted", label: "No reply" },
+  { stage: "ghosted", label: "Ghosted" },
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
