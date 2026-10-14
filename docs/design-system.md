@@ -291,10 +291,12 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   the grey button.
 - **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
   torn-off stub on an application's page. Its top is the tear's other half;
-  each step is a rubber stamp (Founders Semibold caps, 1.5 border, radius 6,
-  each at its own angle), the newest in `ink` and older ones `ink-3`; email
-  steps add "· EMAIL" and the foot offers "Not right?". Paper drew the stamps
-  in Founders Grotesk Mono, which the app doesn't bundle.
+  each step is a rubber stamp (Founders Grotesk Mono caps: the step in
+  Medium 13/16, the date in Regular 11/14, both 0.06em; 1.5 border, radius
+  6, each at its own angle), the newest in `ink` and older ones `ink-3`;
+  email steps add "· EMAIL" and the foot offers "Not right?". The Mono is
+  the trial cut for now; the owner buys it with the other Klim licences
+  before release (2026-10-14).
 - **Date tile** (`DateTile.tsx`; Coming up rows, an application's Next row;
   `EmptyDateTile` is the dashed one for a date not set yet): 40 square, radius 10, `fill`, in the logo
   slot, so it matches the logos (owner, 2026-10-13). The month in caps
