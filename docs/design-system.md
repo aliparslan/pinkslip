@@ -237,7 +237,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     Medium `ink`, the thing to do or the news ("Reply to the offer",
     "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
     and the age is `ink-3`. Nothing is bold for being new. Only Needs-you
-    rows carry the pink dot. Tracker gets the same row once it's drawn.
+    rows carry the pink dot.
+  - **On Tracker** (owner, 2026-10-13, TR2b) line one is the headline: the
+    company in Body 17/22 Medium `ink`, since the stage headers already say
+    where it stands and most titles read "Software Engineer, New Grad".
+    The role and the latest news are Subhead Regular `ink-2`. The time is
+    Subhead `ink-3` on the company's baseline: hours under a day, then the
+    date, as on Jobs. No dots, and nothing changes for being new; Today
+    carries the news.
+  - **One headline line at most:** Body 17 Medium `ink`; everything else in
+    the row is Subhead 15, and times are `ink-3`.
   - **Several companies in one row** (auto-apply's results): two logos
     stacked in the 40 slot, the second 12 down and right with a 2pt ring in
     the page colour. Never a number in the logo slot.
@@ -332,6 +341,11 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, past midnight**
+  - Decided (owner): Tracker rows are TR2b, the company as the headline
+    with the role and news in `ink-2` and a quiet `ink-3` time. TR2 had the
+    time at 17, black dots and three time formats. The Paper "Parts" board's
+    Row part now shows the Jobs, Today and Tracker rows as decided.
 - **2026-10-13, late night**
   - Decided (owner): auto-apply's mark is the robot (Phosphor Robot) in
     the live bar's round white badge, in place of a company logo.

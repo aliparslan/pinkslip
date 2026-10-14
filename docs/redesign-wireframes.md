@@ -803,7 +803,8 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
 - **Push soon.** TestFlight builds never set EXPO_PUBLIC_REDESIGN, so testers keep today's app. The bundled Klim trial fonts ship in the binary either way.
 - **Proposed and drawn, waiting on the owner:**
   - **C1b:** A3 without the "Applying for you" line, in two sizes (17 for the headline, 15 for the rest).
-  - **TR1 and TR2:** Tracker in the new feel. Outreach becomes the first chip after All, set apart by a divider. TR1 makes the job title the headline; TR2 makes the company the headline, because most titles read "Software Engineer, New Grad". TR2 is recommended.
+  - **TR1 and TR2:** Tracker in the new feel. TR1 makes the job title the headline; TR2 makes the company the headline, because most titles read "Software Engineer, New Grad". Outreach came out of both once it was decided not to be a place.
+  - **Picked: TR2b** (owner, 2026-10-13). TR2 with the type made deliberate: the time drops from 17 to Subhead `ink-3` on the company's baseline, one time format (hours, then the date), no dots, and the role in `ink-2`, so the company is the only dark line. "Tracker row · four ways" holds the other headlines (title, Jobs row, status).
 
 ## Where things live, decided (owner, 2026-10-13, night)
 
