@@ -1,6 +1,14 @@
 import { Hono } from "hono";
-import { INBOUND_EMAIL_STATUSES, type InboundEmailStatus } from "../../shared/email-tracking";
-import { requireAuthenticated } from "../auth";
+import {
+  FORWARDING_PROVIDERS,
+  forwardingProviderNames,
+  forwardingSteps,
+  INBOUND_EMAIL_STATUSES,
+  type ForwardingProvider,
+  type InboundEmailStatus,
+} from "../../shared/email-tracking";
+import { getPrimaryIdentity, requireAuthenticated } from "../auth";
+import { sendForwardingStepsEmail } from "../email";
 import {
   assignInboundEmail,
   dismissInboundEmail,
@@ -20,6 +28,24 @@ inbox.use("*", requireAuthenticated);
 inbox.get("/", async (c) => c.json(await getOrCreateInbox(c.env.DB, c.get("userId"))));
 
 inbox.post("/rotate", async (c) => c.json(await rotateInbox(c.env.DB, c.get("userId"))));
+
+/** "Email me these steps": the setup steps, sent to the account's email. */
+inbox.post("/steps-email", async (c) => {
+  const body = await c.req.json<{ provider?: unknown; scope?: unknown }>().catch(() => ({}) as { provider?: unknown; scope?: unknown });
+  if (!(FORWARDING_PROVIDERS as readonly unknown[]).includes(body.provider)) return c.json({ error: "Unknown provider" }, 400);
+  if (body.scope !== undefined && body.scope !== "everything" && body.scope !== "job") return c.json({ error: "Unknown scope" }, 400);
+  const provider = body.provider as ForwardingProvider;
+  const identity = await getPrimaryIdentity(c.env.DB, c.get("userId"));
+  if (!identity?.email) return c.json({ error: "This account has no email address" }, 409);
+  const { address } = await getOrCreateInbox(c.env.DB, c.get("userId"));
+  await sendForwardingStepsEmail(c.env, {
+    to: identity.email,
+    address,
+    providerName: forwardingProviderNames[provider],
+    steps: forwardingSteps(provider, body.scope === "job" ? "job" : "everything", address),
+  });
+  return c.json({ ok: true, to: identity.email });
+});
 
 inbox.get("/emails", async (c) => {
   const status = c.req.query("status");

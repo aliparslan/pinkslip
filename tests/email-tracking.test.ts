@@ -54,7 +54,12 @@ async function setup() {
     sqlite.run(`INSERT INTO jobs (id, company_id, external_id, title, url, location)
       VALUES ('${id}', 'zephyr', '${externalId}', '${title}', 'https://boards.greenhouse.io/zephyrlabs-test/jobs/${externalId}', 'New York, NY')`);
   }
-  const env = { DB: db } as Env;
+  const sent: { to: string; subject: string; text?: string }[] = [];
+  const env = {
+    DB: db,
+    EMAIL: { send: async (message: { to: string; subject: string; text?: string }) => { sent.push(message); } },
+    EMAIL_FROM_ADDRESS: "hello@pinkslip.work",
+  } as unknown as Env;
   const inbox = await getOrCreateInbox(db, "u1");
   const send = (raw: string, to = inbox.address) => handleInboundEmail(message(to, raw), env);
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -74,7 +79,7 @@ async function setup() {
   };
   const applications = () => sqlite.query("SELECT job_id, stage FROM applications WHERE user_id = 'u1' ORDER BY job_id").all();
   const records = () => sqlite.query("SELECT detected_stage, status FROM inbound_emails ORDER BY created_at, rowid").all();
-  return { sqlite, db, inbox, send, call, applications, records };
+  return { sqlite, db, inbox, send, call, applications, records, sent };
 }
 
 const greenhouse = (subject: string, body: string, messageId: string) => mime({
@@ -105,6 +110,25 @@ describe("inbox address", () => {
     const rotated = await call("/inbox/rotate", { method: "POST" });
     expect(rotated.body.address).not.toBe(first.body.address);
     expect((await call("/inbox", { state: "guest" })).status).toBe(401);
+  });
+});
+
+describe("setup steps by email", () => {
+  it("sends the provider's steps and the address to the account's email", async () => {
+    const { sqlite, inbox, call, sent } = await setup();
+    const post = (body: unknown) => call("/inbox/steps-email", { method: "POST", body: JSON.stringify(body) });
+    expect((await post({ provider: "gmail" })).status).toBe(409);
+    sqlite.run(`INSERT INTO auth_identities (id, user_id, provider, provider_subject, email, email_verified, created_at, last_used_at)
+      VALUES ('i1', 'u1', 'apple', 'sub-1', 'alex@icloud.com', 1, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')`);
+    expect((await post({ provider: "fax" })).status).toBe(400);
+    expect((await post({ provider: "gmail", scope: "some" })).status).toBe(400);
+    const response = await post({ provider: "gmail", scope: "job" });
+    expect(response).toEqual({ status: 200, body: { ok: true, to: "alex@icloud.com" } });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: "alex@icloud.com", subject: "Set up email tracking" });
+    expect(sent[0]!.text).toContain(inbox.address);
+    expect(sent[0]!.text).toContain("Create filter");
+    expect((await call("/inbox/steps-email", { method: "POST", body: JSON.stringify({ provider: "icloud" }), state: "guest" })).status).toBe(401);
   });
 });
 

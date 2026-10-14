@@ -1,4 +1,4 @@
-import type { InboundEmailStatus } from "@pinkslip/core/api";
+import type { ForwardingProvider, ForwardingScope, InboundEmailStatus } from "@pinkslip/core/api";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
@@ -6,9 +6,11 @@ import { useApi } from "./provider";
 /* Email tracking (docs/email-tracking.md): the user's forwarding address and
    the emails it detected. Answers change applications, so those refresh too. */
 
-export function useInbox() {
+/** `poll` refetches every few seconds: setup waits on Gmail's code this way.
+ * Guests have no inbox, so callers that guests reach pass `enabled`. */
+export function useInbox({ poll = false, enabled = true }: { poll?: boolean; enabled?: boolean } = {}) {
   const api = useApi();
-  return useQuery({ queryKey: queryKeys.personal.inbox(), queryFn: () => api.inbox.get() });
+  return useQuery({ queryKey: queryKeys.personal.inbox(), queryFn: () => api.inbox.get(), refetchInterval: poll ? 4000 : false, enabled });
 }
 
 export function useInboxEmails(status?: InboundEmailStatus) {
@@ -25,6 +27,14 @@ export function useRotateInbox() {
   return useMutation({
     mutationFn: () => api.inbox.rotate(),
     onSuccess: (inbox) => queryClient.setQueryData(queryKeys.personal.inbox(), inbox),
+  });
+}
+
+/** "Email me these steps". */
+export function useSendForwardingSteps() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: ({ provider, scope }: { provider: ForwardingProvider; scope?: ForwardingScope }) => api.inbox.stepsEmail(provider, scope),
   });
 }
 
