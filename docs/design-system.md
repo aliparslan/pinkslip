@@ -346,11 +346,16 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **App icon:** the carbon-copy mark was chosen on 2026-10-11 but never
-  made into an icon file; the app still ships the old two-slip icon.
+- None right now. The app icon is the carbon-copy mark (see the changelog).
 
 ## Changelog
 
+- **2026-10-13, app icon**
+  - Built (owner go-ahead): the app icon is the carbon-copy mark (Paper "The
+    mark", A), as a full-bleed 1024 square on its warm white (Paper "App icon
+    · 1024 · carbon copy (A)"); iOS rounds the corners. It needs a native
+    build, not an over-the-air update. Dark and tinted versions aren't drawn
+    yet, so iOS tints the light one.
 - **2026-10-13, Tracker built**
   - Decided (owner): no "See all" row; a stage's header opens it. Stats
     stays as a button and says it's coming soon. The goal for line three is
