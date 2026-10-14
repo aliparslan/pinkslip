@@ -100,17 +100,18 @@ rest could follow it.
     - empty, error and offline states;
     - loading.
 
-## Decisions that block some of these
+## Decided (owner, 2026-10-14)
 
-- **Outreach:** where contacts come from (your own lists, a licensed source,
-  or both).
-- **Auto-apply:** which rules ship first, and whether Ask first ships before
-  Automatic.
-- **Events:** curated sources, and whether they ship before release.
-- **The weekly report:** tabled on Oct 13. It stays out unless the owner
-  brings it back.
-- **The web app:** whether `apps/webapp` gets the redesign before release.
-  The plan says desktop and web get a board for Tracker.
+- **The web app** waits until after the iOS release.
+- **Recruiter contacts** come from the owner's own curated list and
+  automated process (backend code from Oct 13), so Outreach can be drawn
+  now.
+- **Auto-apply ships as Ask first.** Every screen is drawn anyway, ready for
+  when the backend is.
+- **Events are in this release as "coming soon"**, but they're drawn in
+  full.
+- **The weekly report** stays tabled.
+- **Next round:** onboarding and sign-in, talked through before drawing.
 
 ## Staying as it is
 
