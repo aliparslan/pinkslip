@@ -64,8 +64,10 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
 - To undo an update, republish the previous one from the EAS dashboard or
   with `eas update:republish`.
 
-The release version is **1.3.1**. Apple requires a separate build number;
-Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
+The release version is **1.3.2**. Bump the patch (1.3.2, 1.3.3, …) with
+every push that changes the app, in `app.json`, both `MARKETING_VERSION`
+entries and `Info.plist` (owner, 2026-10-14). Apple requires a separate build
+number; Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
 does not display that number. See [the recovery notes](../../docs/native-1.3-recovery.md)
 for the launch diagnosis and local verification flows.
 
