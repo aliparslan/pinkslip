@@ -58,6 +58,7 @@ else is decided.
 | Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
+| Stage colors | `stage-assessment` (amber), `stage-interview` (blue) | Those stages' marks | Text, fills, anything else |
 | Bad | `bad` | Errors and destructive text | Fills |
 | Dim | `scrim` | Behind a sheet | |
 
@@ -153,7 +154,10 @@ on one line share a size.
   on a sheet loses its edge in dark mode.
 - **Corner radius:** 8 for logos and small controls, 12 for cards and lists,
   16 for the ticket, 40 for sheets, fully round for buttons, chips and
-  fields.
+  fields. Groups inside a sheet are concentric with it: the sheet's 40 less
+  its 20 padding is 20, and the last group's bottom corners follow the
+  sheet's bottom (`concentricRadius`, about 27 on current iPhones). Groups
+  on a plain page stay 12 (owner, 2026-10-14).
 - **Layout:** one column, 4pt spacing (4, 8, 12, 16, 20, 24, 32, 40), 16
   side margins. Rhythm is 4–8 inside an item, 12–16 between items, 24–32
   between sections. Job rows are three 20pt lines (84 tall) with the 40
@@ -249,7 +253,7 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     new; Today carries the news. Built as `JobRow headline="company"`.
   - **Tracker's line three, today** (TR2c): the location; past Applied,
     the location and when you applied ("New York · applied Oct 2"); an
-    ending says only how it ended (Rejected, Withdrawn, No reply). The goal
+    ending says only how it ended (Rejected, Withdrawn, Ghosted). The goal
     is the next thing that happens, from email and auto-apply (Paper
     "Tracker · the goal").
   - **One headline line at most:** Body 17 Medium `ink`; everything else in
@@ -265,7 +269,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   latest three (owner, 2026-10-13: a "See all" row looked strange).
 - **Stage marks** (`StageMark.tsx`): Saved is the bookmark, since saving
   isn't a stage. The ring fills as a stage advances and is drawn at the
-  1.75 stroke like every line icon. Offer is `good`; endings are grey.
+  1.75 stroke like every line icon, 14 beside small text and 20 in a sheet
+  (beside the 24 check).
+  - **Color only where something's happening** (owner, 2026-10-14):
+    Assessment amber, Interviewing blue, Offer `good`. Saved, Applied and
+    the endings are grey, so most rows stay calm. Color is on the mark only,
+    never text or fills; pink stays the one "needs you" color. Linear colors
+    every state; ours did that and the violet fought the pink check.
+  - **Endings each have their own mark,** grey: Rejected is the ring with
+    an ✕, Withdrawn the ring with an arrow back, Ghosted (was "No reply")
+    Phosphor's ghost. Tracker's Closed group keeps the ring with a dash.
 - **Empty and error states** (`EmptyState.tsx`, Paper "Parts · Empty
   state"): Title 2, one Body line in `ink-2`, the button under it on the
   same centre line, all centred in the room under the header. The slips
@@ -354,6 +367,12 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-14**
+  - Decided (owner): stage marks take color only where something's
+    happening (Assessment amber, Interviewing blue, Offer green); marks are
+    20 in a sheet; Rejected, Withdrawn and Ghosted (was No reply) each get
+    their own grey mark. Groups inside a sheet are concentric with it.
+    Paper "System" updated (stage rings, and a new "Sheet with groups").
 - **2026-10-13, late night (3)**
   - Decided (owner): segmented controls are 40 tall with the thumb 4 inside
     (32, like a chip). Paper "System" updated; the redesign kit has no
