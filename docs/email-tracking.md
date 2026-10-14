@@ -86,15 +86,36 @@ mail" or a keyword filter. The server handles both the same way.
 
 ## Owner setup (Cloudflare dashboard)
 
-1. Email → Email Routing on `pinkslip.work`: enable it (this adds the MX
-   records).
-2. Settings → turn on **subaddressing**.
-3. Routing rules → `inbox@pinkslip.work` → **Send to a Worker** → `pinkslip`
-   (the API Worker).
-4. Deploy the backend.
+Cloudflare moves these menus around. On current accounts Email Routing sits
+under Compute → Email Service; on older ones it's under the domain's Email
+tab.
+
+1. Turn on Email Routing for `pinkslip.work`. This replaces the domain's MX
+   records. (Done 2026-10-14.)
+2. Email Routing → **Settings** → turn on **Subaddressing**.
+3. Push and deploy the backend. Cloudflare only offers a Worker as a
+   destination once it is deployed with an `email` handler.
+4. Email Routing → **Routing rules** → **Create address**:
+   - Custom address: `inbox`
+   - Action: **Send to a Worker**
+   - Worker: `pinkslip`
 5. Send a test to `inbox+<your tag>@pinkslip.work`. One third-party report
    says plus-addressed mail can be dropped with some catch-all settings, so
    check the Email Routing activity log.
+
+## Providers
+
+The address works with any provider that can forward automatically.
+
+- **Gmail:** Settings → Forwarding (a confirmation code comes back through
+  the inbox API), or a filter that forwards.
+- **Outlook.com (personal):** Settings → Mail → Forwarding, or a rule that
+  forwards or redirects. No confirmation step.
+- **Microsoft 365 work and school accounts:** external auto-forwarding is
+  blocked by default (bounce code 5.7.520) unless the school's IT allows it.
+- **Outlook rules set to "forward as an attachment"** aren't read. Use
+  forward or redirect.
+- **iCloud:** forwarding in iCloud Mail settings on the web.
 
 ## Cost
 
