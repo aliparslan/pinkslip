@@ -314,6 +314,12 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   (a filter, Footnote `ink-2`) puts it in the top right corner. Tapping the
   value copies too. A row that copies (the status page's address) shows a
   16 copy mark after its value instead (`ListItem trailing`).
+- **Page actions are pinned** (owner, 2026-10-14): a page's action
+  button (Add experience, Send) sits in a bar pinned to the bottom, `bg`
+  with a hairline above and the home indicator's room below, as the job
+  page's Apply does. The tab bar steps aside on those pages.
+- **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
+  date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Lists on a white page** (`ListGroup surface="fill"`): the gray card,
   radius 12, as Paper draws settings on white pages; the white `elevated`
   card stays for grouped screens. These are settings, drawn like the
