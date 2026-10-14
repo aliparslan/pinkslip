@@ -146,8 +146,12 @@ Everything later reports into this, and none of it costs money per use.
 
 - **Company pages:** Jobs · People · Events, and Follow. Following drives
   alerts, events and quotas.
-- **Contacts** come from the owner's lists, imported through admin. Each
-  shows its source and whether its email is verified.
+- **Contacts** come from Pinkslip's own list of early-career recruiters,
+  found through LinkedIn search results with email addresses worked out by
+  each company's pattern (`docs/recruiter-contacts-sourcing.md`). It's under
+  evaluation: the owner labels results in admin → Recruiters before any
+  reach users. Each contact shows its source and whether its email is
+  verified.
 - **Composer:**
   - templates, with the personalized words highlighted
   - follow-ups at 3 and then about 5 business days

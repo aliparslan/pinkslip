@@ -127,7 +127,7 @@ bun scripts/contacts/try-company.ts Stripe stripe.com
 ```
 
 It reads `SERPER_API_KEY` from the environment or the root `.dev.vars`, and
-uses about five credits. It prints:
+uses four credits. It prints:
 
 - the company's mail provider
 - early-career and other recruiters, with their profile links and email
@@ -135,8 +135,47 @@ uses about five credits. It prints:
 - the people it left out, and why
 - the email pattern it learned, and any shared inboxes
 
-Nothing is checked or saved. The parsing lives in `worker/outreach/sourcing/`
-so the scheduled job can reuse it.
+Nothing is checked or saved. The pipeline lives in
+`worker/outreach/sourcing/source-company.ts`, shared by the script, the
+admin review and, later, the scheduled job.
+
+## Reviewing on the phone (admin → Recruiters)
+
+The owner labels results in the iOS app instead of a spreadsheet.
+
+- **Search 5 more companies.** The Worker sources five catalog companies
+  at random, using the `SERPER_API_KEY` Worker secret: four credits each,
+  about 20 seconds in all.
+  - Only enabled companies with a website that haven't been searched are
+    picked, and a website is searched once even if the company is listed
+    twice.
+  - Results go into `recruiter_sourcing` (one row per company) and
+    `recruiter_candidates` (everyone found, kept or left out); see
+    migration 0092.
+  - Nothing there reaches users. Outreach still reads only
+    `company_contacts`.
+- **Two questions per person, one tap each:** "Works there now?" (yes, no,
+  not sure) and "Their role" (early-career, other recruiter, not a
+  recruiter). Open in LinkedIn uses the LinkedIn app, where the owner is
+  signed in.
+- **Three lists:**
+  - **Kept:** what the rules would use.
+  - **Left out:** only the reasons worth a second look ("company not
+    confirmed", "not a recruiter", "no usable name"), to catch people
+    wrongly dropped.
+  - **Done.**
+- **The score at the top,** from the labels:
+  - kept people who work there now
+  - kept people whose kind matches the label
+  - early-career people who really are
+  - left-out people who should have been kept
+
+  Labels survive later searches of the same company.
+
+API: `GET /api/v2/recruiters`, `POST /api/v2/recruiters/run` with
+`{ count }` (1–10), and `PUT /api/v2/recruiters/candidates/:id` with
+`{ works_there, actual_role }`, either of which may be null to clear it.
+Admins only.
 
 ### First try: Stripe, Datadog, Notion (2026-10-14)
 
@@ -265,7 +304,8 @@ the new source runs where users can't see it, admins review where it's
 unsure, and it earns autonomy one category at a time. Here the second
 opinion is the email checker and independent evidence, not a model.
 
-**Stage 1: an evaluation script. Users see nothing.**
+**Stage 1: evaluation. Users see nothing.** It runs from the admin app
+(see "Reviewing on the phone" above), not a script and a spreadsheet.
 
 - **Sample:** 50 catalog companies. Use job count as a stand-in for size
   and take a mix of large, mid-size and startups. Deliberately include
