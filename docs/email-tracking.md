@@ -24,9 +24,9 @@ later and reuses everything here except how mail arrives.
   application?" with the candidates. Unanswered prompts expire after 30 days.
 - **Signed-in accounts only.** Guests have no inbox.
 
-Open: whether onboarding recommends Gmail's "forward a copy of all incoming
-mail" or a keyword filter. The server handles both the same way. Proposed in
-the screens round: offer both, Everything first.
+- **What to forward** (owner, 2026-10-14): setup offers both, Everything
+  first (Gmail's "forward a copy of all incoming mail"), then Only job mail
+  (a filter we write). The server handles both the same way.
 
 ## Screens (owner picks, 2026-10-14)
 
@@ -46,6 +46,10 @@ Paper page "Email tracking · Oct 14"; the board names start with the option.
 - **After it's on:** 4B, a quiet status: job emails this month, time since
   the last email, the address, how to set it up, Replace address. What
   emails change shows on each application (EMAIL stamps) and in Today.
+  The numbers card has a chevron and opens **Job emails**, the history
+  (4A's list, owner 2026-10-14): Today-style rows, newest first, under
+  "This month 14". Each row opens its application; one waiting on "Which
+  application?" carries the pink dot and opens that sheet.
 - **Replace address** asks first: "Replace your address? The old one stops
   working right away. You'll forward to the new one." The new address is
   random again (a chosen one could be guessed, and anyone who knows it can
