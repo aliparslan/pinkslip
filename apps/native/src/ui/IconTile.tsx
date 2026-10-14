@@ -16,9 +16,8 @@ export interface IconTileProps {
 export function IconTile({ icon, meaning }: IconTileProps) {
   const { theme } = useUnistyles();
   const color = theme.ui.color;
-  const ink = meaning === "find" ? color["tile-find-ink"] : meaning === "apply" ? color["tile-apply-ink"] : undefined;
   return <View style={[styles.tile, { backgroundColor: color[`tile-${meaning}`] }]}>
-    <Icon name={icon} size={18} color={ink} tone={meaning === "pro" ? "accent" : "ink-3"} />
+    <Icon name={icon} size={18} color={color[`tile-${meaning}-ink`]} />
   </View>;
 }
 
