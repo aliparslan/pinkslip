@@ -107,7 +107,9 @@ else is decided.
   - Ink switches don't work in dark mode: the track is near-white and iOS's
     knob is white, so the knob disappears.
 - **Segmented controls:** the chosen segment is a raised `seg-on` thumb on a
-  gray track.
+  gray track. The track is 40 tall and the thumb sits 4 inside it, so the
+  thumb is 32, a chip's height (owner, 2026-10-13: 2 inside looked cramped
+  and was off the 4 scale).
 - **Tab bar:** the selected tab sits in a soft oval with its filled icon.
 
 ## Text
@@ -346,10 +348,21 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- None right now. The app icon is the carbon-copy mark (see the changelog).
+- **The application page:** five ideas on Paper "Application page · ideas ·
+  Oct 13". The owner likes C (your stub, stamped with each step) and is
+  deciding.
 
 ## Changelog
 
+- **2026-10-13, late night (3)**
+  - Decided (owner): segmented controls are 40 tall with the thumb 4 inside
+    (32, like a chip). Paper "System" updated; the redesign kit has no
+    segmented control in code yet.
+  - Decided (owner): outreach belongs to the company. An application page
+    shows "You reached out" (the person, when, whether they replied) for
+    contact with anyone at that company from about two weeks before you
+    applied, through the application's life; it isn't a stamp. Tapping the
+    person opens their page: the emails, then your applications there.
 - **2026-10-13, late night (2)**
   - Decided (owner): the application page keeps the job page's ticket,
     torn, rather than a pink carbon copy (Paper "Application · alternative"

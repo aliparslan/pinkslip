@@ -856,6 +856,27 @@ added, so the two feel like one place.
 - **The ticket stays** (owner): a pink carbon copy was drawn as the
   alternative and set aside.
 
+### Five ideas (2026-10-13, night)
+
+On "Application page · ideas · Oct 13", each drawing the same application.
+Researched trip and delivery tracking (Flighty, Blue Apron, Ro, Delta's bag
+status, Shop), no job apps.
+- A · the job page plus what happened (above); B · the countdown (days to
+  the next step, or since you applied); C · your stub (the stub that tore
+  off, stamped with each step); D · the thread (newest first, each step's
+  source); E · two sides (Application and Posting under a segmented control).
+- **The owner likes C** and is deciding. Drawn for it: just applied (one
+  stamp, "15 days, no reply yet"), and the Next step sheet over it.
+- **Outreach, decided (owner):** company-scoped, not per role, because cold
+  emails rarely name one. "You reached out" sits under the stub for contact
+  with anyone at the company from about two weeks before applying through
+  the application's life; every open application there shows it. Not a
+  stamp. A due follow-up goes to Today. Tapping the person opens their page:
+  the emails (sent, scheduled, the last one only if no reply), then your
+  applications at that company, and "They replied" in the bar.
+- **Proposed:** the Next step sheet's "Follow up" becomes "Hear back by"
+  (a date the company gave), since outreach owns follow-ups.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
