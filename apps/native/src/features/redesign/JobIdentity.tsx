@@ -17,7 +17,7 @@ export interface JobIdentityProps {
 /** The top of a job's page and an application's: the logo, the company (a
  * link to its page) and the title. */
 export function JobIdentity({ companyName, companyDomain, companyId, title, closed = false }: JobIdentityProps) {
-  const tab = useSegments()[1] ?? "(jobs)";
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const company = `${plainText(companyName)}${closed ? " · Closed" : ""}`;
   const openCompany = () => {
     if (companyId) router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId } });

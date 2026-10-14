@@ -106,7 +106,7 @@ export function ApplicationView({ application, job, about, actions }: {
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
-  const tab = useSegments()[1] ?? "(library)";
+  const tab = (useSegments() as readonly string[])[1] ?? "(library)";
   const [sheet, setSheet] = useState<SheetStart | null>(null);
   const stamps = stubStamps(application);
   const latest = stamps.at(-1);
