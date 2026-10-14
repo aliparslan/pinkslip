@@ -963,6 +963,31 @@ every page under it.
     keep when a company was hidden.
   - The disabled Send is gray, as the kit's buttons are, not faded pink.
 
+## Resume and Answers editors (round 1, 2026-10-14)
+
+Paper page "Resume and Answers editors · Oct 14". What's behind Resume A's
+rows and Answers B's, drawn from the kit's settings rows.
+
+- **Resume:** Experience as rows with company logos (R1a) or as a settings
+  card (R1b); a job's page with labels above each value (R2a) or on the
+  left (R2b), dates as white chips that open an inline month wheel (R3),
+  "I work here now" in place of an end date, and bullets as their own rows
+  with "Add a line"; Contact (R4) and a school (R5, the degree a menu, a
+  second major added in place) in the same form; Skills as chips under
+  each group (R6); importing a PDF ends on "Use this resume?" with what was
+  found (R7). Projects follow the job page; certifications and awards
+  follow Skills. Entries sort by date, so there's no reordering.
+- **Answers:** each answer opens a sheet titled with its row: a choice
+  saves on tap (A1), a choice can carry a follow-up (A2, hybrid's days), a
+  month is the wheel with Save (A3), a typed answer shows how often forms
+  ask (A4), and a question one company asked keeps its wording and who
+  asked (A5). Take B (A6) answers in place inside the card instead. A new
+  group, "From your applications", holds answers given on one form.
+  "Forget this answer" or "Leave it to me each time" sit under each sheet.
+- **Dark tiles:** the owner found the dark settings tiles too bright.
+  "Dark tiles · options" on the You page: now, D1 (icons a step down), D2
+  (quieter tiles and icons), D3 (light mode mirrored, the faintest).
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
