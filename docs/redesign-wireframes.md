@@ -921,16 +921,24 @@ every page under it.
   feedback, Tailoring and Hidden companies as drawn. Account as drawn.
 - **Alerts:** B, how often with a preview. "Once a day" takes a time you
   pick. Both need server work: alerts are only on or off today.
-- **Row icons (owner):** B3, soft tinted tiles, one shade per section:
-  blue for your search and email, green for what you apply with, amber for
-  what's coming, violet for the app, gray for admin.
+- **Row icons (owner):** soft tiles, fainter, colored by meaning (B4):
+  blue finds jobs (Your search, Email tracking, Alerts), green is what you
+  apply with (Resume, Answers, Tailoring), pink is Pro (Plan, Auto-apply,
+  Outreach, now one group, as X and Structured group what's paid), gray is
+  the app and admin. Tiles are lighter than the gray card so they read.
 - **Copy icon (owner):** D, our own: two squares with soft corners of the
   same radius, at the 1.75 stroke. Replaces Phosphor Copy in `CopyField`.
 - **Alerts' time:** ink on a white chip; pink on gray was too faint.
-- **In review (round 3):** Plan A–D (A cleaned up, B Free and Pro side by
-  side, C numbers first with Pro in a sheet, D Pro as the ticket) and E,
-  the page once you're on Pro. Appearance as the iPhone's menu from its
-  row, and "Application changes", still to confirm.
+- **Plan (owner):** C, numbers first: what's left this week fills from the
+  left and empties from the right; Pro is a pink card whose See Pro opens
+  the billing sheet (the same sheet serves the paywall when an allowance
+  runs out). E is the page once you're on Pro. Soft or bold pink card: in
+  review.
+- **Appearance (owner):** the iPhone's menu opens from its row; no page.
+- **Alerts (owner):** "Application changes", "When an email moves one to a
+  new stage".
+- **Email tracking copy (owner):** the steps written for Outlook, iCloud and
+  school mail, and the waiting states, stand for now.
 - **Invite code:** drawn with onboarding, later.
 
 ## In-app browser (owner, 2026-10-12)
