@@ -138,6 +138,56 @@ uses about five credits. It prints:
 Nothing is checked or saved. The parsing lives in `worker/outreach/sourcing/`
 so the scheduled job can reuse it.
 
+### First try: Stripe, Datadog, Notion (2026-10-14)
+
+Four Serper credits per company: two pages of early-career results, one
+page of recruiters, and one "email format" search.
+
+| | Stripe | Datadog | Notion |
+|---|---|---|---|
+| Early-career recruiters kept | 5 | 6 | 1 |
+| Other recruiters kept | 12 | 9 | 7 |
+| Left out | 10 | 13 | 20 |
+| Mail domain | stripe.com | datadoghq.com | makenotion.com, learned from format pages (notion.so takes no mail) |
+| Pattern | {first}, 6 of 7 sources | {first}.{last}, 6 of 6 | {f}{last} vs {first}, a tie |
+
+What it showed:
+
+- **Serper's free plan:**
+  - It refuses address searches (`"@stripe.com"`) and more than 10
+    results per request. Format pages replace the address search, and a
+    second page replaces `num: 20`.
+  - Results vary between identical searches, so repeated runs find more
+    people.
+- **The subtitle is the best signal.** For LinkedIn profiles, Serper returns
+  "location · current role · current employer". Spot-checking the
+  left-outs found them correctly excluded:
+  - people who had moved to another company
+  - recruiters outside the US
+  - non-recruiters
+  - matches for "Notion" the software
+
+  Before the subtitle was used, "Recruiter @ Stripe | Ex-Flipkart" was
+  wrongly read as having left Stripe.
+- **Format pages agree when the answer is clear** (Datadog) and disagree
+  when it isn't (Notion).
+  - Pages state the format in several ways, all of which are parsed:
+    `first@`, `[first_initial][last]`, stock examples like
+    `John.Smith@`, and plain words like "the first.last email format".
+  - One site (mailmo.io) answers "{first}, 98%" for every company, so it's
+    ignored.
+- **First-name formats are a trap at large companies.** RocketReach says
+  Stripe uses 14 formats, with {first} for about 31% of addresses. A common
+  first name's address (emily@, amy@) most likely belongs to an earlier
+  employee. An email checker would call it valid, and a bounce would never
+  reveal the mistake. Guesses in a {first} format need special handling
+  before any are trusted: the secondary format, a lookup service, or only
+  rare first names.
+- **Recall gaps:**
+  - Titles cut off by Google ("Campus Recruiting at …") with no subtitle.
+  - Names shown with only a last initial ("Jordan T.") are kept with the
+    initial, which is enough for {first} and {first}{l} formats.
+
 ## What a search result gives
 
 Serper returns a title, link and snippet for each result.
