@@ -192,8 +192,16 @@ export function unwrapForward(email: EmailContent): EmailContent {
   const marker = email.text.match(
     /(-{5,}\s*Forwarded message\s*-{5,}|Begin forwarded message:|_{10,}|-{5,}\s*Original Message\s*-{5,})/i
   );
-  if (!marker || marker.index === undefined) return email;
-  const after = email.text.slice(marker.index + marker[0].length);
+  let after: string;
+  if (marker?.index !== undefined) {
+    after = email.text.slice(marker.index + marker[0].length);
+  } else {
+    // Outlook's HTML forwards draw the separator as a rule, so there's no
+    // text marker: find the header block itself.
+    const block = email.text.search(/^[ \t]*\*?From\*?:[^\n]*@[^\n]*\n(?:[^\n]*\n){0,5}?[ \t]*\*?(Sent|Date|Subject)\*?:/im);
+    if (block < 0) return email;
+    after = email.text.slice(block);
+  }
   const lines = after.split(/\r?\n/);
   const header: Record<string, string> = {};
   let bodyStart = 0;

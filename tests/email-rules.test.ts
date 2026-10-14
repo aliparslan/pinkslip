@@ -112,6 +112,18 @@ describe("manual forwards", () => {
     expect(unwrapped.text.trim()).toBe("Hi Alex, thanks for applying.");
   });
 
+  it("unwraps Outlook's forwards, with or without a separator line", () => {
+    const outlookBlock = "From: Airbnb Careers <careers@airbnb.com>\nSent: Monday, October 12, 2026 3:04 PM\n"
+      + "To: Alex <alex@outlook.com>\nSubject: Thank you for applying\n\nHi Alex, thanks for applying.";
+    for (const text of [`Sharing this\n\n________________________________\n${outlookBlock}`, `Sharing this\n\n${outlookBlock}`]) {
+      const unwrapped = unwrapForward(email({ from: { name: "Alex", address: "alex@outlook.com" }, subject: "FW: Thank you for applying", text }));
+      expect(unwrapped.from).toEqual({ name: "Airbnb Careers", address: "careers@airbnb.com" });
+      expect(unwrapped.subject).toBe("Thank you for applying");
+      expect(unwrapped.date).toBe("Monday, October 12, 2026 3:04 PM");
+      expect(unwrapped.text.trim()).toBe("Hi Alex, thanks for applying.");
+    }
+  });
+
   it("unwraps Apple Mail's forward and leaves ordinary mail alone", () => {
     expect(unwrapForward(email({
       subject: "Fwd: Interview",
