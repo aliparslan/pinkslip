@@ -43,11 +43,13 @@ export function AccountView({ name, email, provider, actions }: AccountViewProps
         : "Account deleted. You can keep browsing as a guest.", { duration: 8000 }), () => toast.error("Couldn't delete your account. Try again.")),
     },
   ]);
+  const signedIn = provider === "apple" ? "Signed in with Apple" : provider === "email" ? "Signed in with an email link" : undefined;
   return <YouPage title="Account">
     <ListGroup surface="fill">
       <ListItem title="Name" value={name || "Add"} accessory="chevron" onPress={rename} />
-      {email ? <ListItem title="Email" value={email} /> : null}
-      {provider ? <ListItem title="Signed in with" value={provider === "apple" ? "Apple" : "Email link"} /> : null}
+      {/* The address is the row, whole however long, with how you sign in
+          under it (owner, 2026-10-14, Paper "Account · a long email" E3). */}
+      {email ? <ListItem title={email} detail={signedIn} /> : signedIn ? <ListItem title={signedIn} /> : null}
     </ListGroup>
     <ListGroup surface="fill">
       <ListItem title="Log out" onPress={logOut} />

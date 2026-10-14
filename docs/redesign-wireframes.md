@@ -1066,3 +1066,13 @@ didn't work; the calls to cut are in `docs/toast-review-2026-10-14.md`.
 **Picked and built (owner):** T1, with the countdown ring around Undo at
 2pt in the first light gray (`ink-3`); the owner tried a darker one and
 went back.
+
+### Account's long email and the Appearance menu (2026-10-14)
+
+- **E3 (owner):** a long address was cut off as a value; now the address
+  is the row, whole, with "Signed in with Apple" under it (Paper "Account ·
+  a long email"). The "Signed in with" row is gone.
+- **Appearance:** iOS 26 grows a menu out of its trigger, so the whole row
+  vanished when it opened. The trigger is now a clear layer over the row's
+  right side showing only the value, so the value goes into the menu, the
+  menu opens by it, and the tile and title stay.

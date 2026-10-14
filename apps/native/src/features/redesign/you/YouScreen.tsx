@@ -72,11 +72,23 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <ListItem leading={<IconTile icon="send" meaning="pro" />} title="Outreach" value="Soon" />
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
-      <Menu fill title="" items={(["system", "light", "dark"] as const).map((option) => ({
-        id: option, title: appearanceLabels[option], checked: appearance === option, onSelect: () => onAppearance(option),
-      }))}>
-        <ListItem leading={<IconTile icon="appearance" meaning="app" />} title="Appearance" value={appearanceLabels[appearance]} accessory="pick" />
-      </Menu>
+      <View>
+        <ListItem leading={<IconTile icon="appearance" meaning="app" />} title="Appearance" />
+        {/* The menu grows out of what it's opened from and centers on it, so
+            its trigger is a clear layer over the row's right side that shows
+            only the value: the value goes into the menu, which opens by it,
+            and the row stays put. */}
+        <View style={styles.menuLayer}>
+          <Menu fill title="" items={(["system", "light", "dark"] as const).map((option) => ({
+            id: option, title: appearanceLabels[option], checked: appearance === option, onSelect: () => onAppearance(option),
+          }))}>
+            <View style={styles.menuValue} accessibilityRole="button" accessibilityLabel={`Appearance, ${appearanceLabels[appearance]}`}>
+              <Text tone="ink-3" lines={1}>{appearanceLabels[appearance]}</Text>
+              <Icon name="pick" size={12} tone="ink-4" />
+            </View>
+          </Menu>
+        </View>
+      </View>
       <ListItem leading={<IconTile icon="help" meaning="app" />} title="Help and feedback" accessory="chevron" onPress={() => open("help")} />
     </ListGroup>
     {show.admin || show.kit ? <ListGroup surface="fill" inset="leading">
@@ -155,6 +167,16 @@ export function YouScreen() {
 }
 
 const styles = StyleSheet.create((theme) => ({
+  menuLayer: { position: "absolute", top: 0, right: 0, bottom: 0, left: "35%" },
+  // Lines up with a row's value: 50 tall, 16 in from the card's edge.
+  menuValue: {
+    height: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: theme.ui.space["3"],
+    paddingHorizontal: theme.ui.space["4"],
+  },
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
   content: { gap: theme.ui.space["6"], paddingBottom: theme.ui.space["8"] },
   // Large titles sit 8 under the 44 nav row on every tab.
