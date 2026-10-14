@@ -1,6 +1,6 @@
 import type {
-  ApiClient, ClassificationDisagreement, ClassificationDisagreements, ClassificationVerdict, ContentReport,
-  FeedbackSubmission, JobReview,
+  ActualRole, ApiClient, ClassificationDisagreement, ClassificationDisagreements, ClassificationVerdict, ContentReport,
+  FeedbackSubmission, JobReview, RecruiterCandidate, RecruiterReview, WorksThere,
 } from "@pinkslip/core/api";
 import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
@@ -166,5 +166,51 @@ export function useClassificationVerdict() {
         ...report,
         disagreements: report.disagreements?.map((row) => (row.cache_key === cacheKey ? { ...row, review } : row)),
       }),
+  });
+}
+
+export function useRecruiterReview() {
+  const api = useApi();
+  return useQuery(queryOptions({ queryKey: queryKeys.personal.admin("recruiters"), queryFn: () => api.recruiters.review() }));
+}
+
+/** Sources a few more catalog companies, then reloads the review. */
+export function useRunRecruiterSourcing() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (count: number) => api.recruiters.run(count),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.personal.admin("recruiters") }),
+  });
+}
+
+/** Saves either label on one person, shown at once and rolled back if the
+ * save fails. */
+export function useRecruiterLabel() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const key = queryKeys.personal.admin("recruiters");
+  const patch = (id: string, update: (row: RecruiterCandidate) => RecruiterCandidate) =>
+    queryClient.setQueryData<RecruiterReview>(key, (review) => review && {
+      ...review,
+      candidates: review.candidates?.map((row) => (row.id === id ? update(row) : row)),
+    });
+  return useMutation({
+    mutationFn: ({ id, labels }: { id: string; labels: { works_there?: WorksThere | null; actual_role?: ActualRole | null } }) =>
+      api.recruiters.label(id, labels),
+    onMutate: async ({ id, labels }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<RecruiterReview>(key);
+      patch(id, (row) => ({ ...row, ...labels }));
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSuccess: (row) => {
+      patch(row.id, () => row);
+      // The score is computed on the server.
+      void queryClient.invalidateQueries({ queryKey: key });
+    },
   });
 }

@@ -2,7 +2,7 @@ import { useSession } from "@pinkslip/data";
 import * as WebBrowser from "expo-web-browser";
 import { ArrowSquareOut, LockSimple, WarningCircle } from "phosphor-react-native";
 import type { ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { Linking, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Button, EmptyState, Inline, Spinner, Stack, Text } from "../../kit";
 
@@ -45,11 +45,14 @@ export function Actions({ children }: { children: ReactNode }) {
 }
 
 /** Opens an outside page in the in-app browser sheet, so admin work stays in
- * the app. */
-export function LinkOut({ label, href }: { label: string; href: string }) {
+ * the app. `app` hands the link to the system instead, so a LinkedIn profile
+ * opens in the LinkedIn app, where the admin is signed in. */
+export function LinkOut({ label, href, app }: { label: string; href: string; app?: boolean }) {
   const { theme } = useUnistyles();
   return <Pressable accessibilityRole="link" accessibilityLabel={label} hitSlop={8} style={styles.link}
-    onPress={() => void WebBrowser.openBrowserAsync(href, { presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.colors.accent })}>
+    onPress={() => void (app
+      ? Linking.openURL(href)
+      : WebBrowser.openBrowserAsync(href, { presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.colors.accent }))}>
     <ArrowSquareOut size={15} color={theme.colors.accent} />
     <Text size="sm" tone="accent">{label}</Text>
   </Pressable>;
