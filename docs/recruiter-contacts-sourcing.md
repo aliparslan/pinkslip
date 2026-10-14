@@ -190,6 +190,63 @@ companies is picked up on the next run, with no per-company setup.
 Each run has a budget (for example 100 companies a day), so a large batch
 drains over a few days without a cost spike.
 
+## Evaluation, then review, then autonomy
+
+This follows the job-classification model (`docs/JOB_CLASSIFICATION.md`):
+the new source runs where users can't see it, admins review where it's
+unsure, and it earns autonomy one category at a time. Here the second
+opinion is the email checker and independent evidence, not a model.
+
+**Stage 1: an evaluation script. Users see nothing.**
+
+- **Sample:** 50 catalog companies. Use job count as a stand-in for size
+  and take a mix of large, mid-size and startups. Deliberately include
+  names that collide (Ramp, Notion) and websites that aren't `.com`.
+- **Output, one row per person:**
+  - company, name, headline and profile link
+  - type: early-career recruiter, technical recruiter, other recruiter,
+    or not a recruiter
+  - how sure the company match is
+  - the email, its status, and where the pattern came from
+- **The owner labels about 100 rows once (roughly an hour):** at this
+  company now? Early-career recruiter? Email can't be judged by eye, so
+  it's measured automatically:
+  - checker results
+  - whether the pattern agrees with independent evidence (forwarded mail
+    and job descriptions)
+- **Proposed bars** (the owner sets the final ones). Among rows the rules
+  would approve:
+  - at least 90% still work there
+  - at least 90% are early-career recruiters
+  - at least 90% of checkable addresses are valid
+
+  Coverage and cost per contact are reported alongside.
+- **Fix, then re-test on a fresh 50**, not the labelled ones, so the rules
+  aren't tuned to the sample.
+- Real people's data stays out of git. Labels live in D1 or a file outside
+  the repository, and parser tests use made-up names.
+
+**Stage 2: the scheduled job, with review.** It covers the whole catalog.
+Each contact gets a tier from rules:
+
+- **Auto:** a clear early-career title, an unambiguous company match and a
+  checked email. Goes live.
+- **Review:** anything else, such as a vague headline, a name collision, an
+  inferred address, or a pattern conflict. Goes to an admin queue with
+  approve and reject, built like the Jev review page on web and iOS.
+- **Drop:** clearly not a recruiter, or not at the company.
+
+Approval rates are counted per reason. A reason approved every time over
+enough reviews (say 30 out of 30) moves to auto; one mostly rejected moves
+to drop. The queue shrinks as rules earn trust.
+
+**Stage 3: autonomous.** Admins see only exceptions:
+
+- pattern conflicts
+- companies that ended with no mail domain or no people
+- a bounce alarm: if more than about 5% of outreach to the list bounces in
+  a week, auto-approval pauses and admins get a push (`notifyAdmins`)
+
 ## Keeping it clean
 
 - **Email status per contact:** checked, inferred (by pattern, not
