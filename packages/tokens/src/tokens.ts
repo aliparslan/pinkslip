@@ -344,6 +344,16 @@ export const uiDark = {
   "--ui-stage-assessment": "oklch(0.78 0.14 70)",
   "--ui-stage-interview": "oklch(0.7 0.13 250)",
   "--ui-bad": "oklch(0.72 0.17 25)",
+  // Settings rows lead with a soft tile colored by what the row is for
+  // (owner, 2026-10-14, Paper "You · Oct 14" B4): blue finds jobs, green is
+  // what you apply with, pink is Pro (its icon takes `accent`), gray is the
+  // app (its icon takes `ink-3`). Faint, a step off the card, never text.
+  "--ui-tile-find": "oklch(0.27 0.035 260)",
+  "--ui-tile-find-ink": "oklch(0.74 0.11 259)",
+  "--ui-tile-apply": "oklch(0.27 0.03 155)",
+  "--ui-tile-apply-ink": "oklch(0.74 0.1 153)",
+  "--ui-tile-pro": "oklch(0.28 0.045 350)",
+  "--ui-tile-app": "oklch(0.27 0.004 285)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
   "--ui-scrim": "oklch(0 0 0 / 0.55)",
@@ -379,6 +389,12 @@ export const uiLight = {
   "--ui-stage-assessment": "oklch(0.68 0.15 65)",
   "--ui-stage-interview": "oklch(0.58 0.14 250)",
   "--ui-bad": "oklch(0.5 0.18 25)",
+  "--ui-tile-find": "oklch(0.979 0.009 265)",
+  "--ui-tile-find-ink": "oklch(0.56 0.141 259)",
+  "--ui-tile-apply": "oklch(0.976 0.008 157)",
+  "--ui-tile-apply-ink": "oklch(0.57 0.111 153)",
+  "--ui-tile-pro": "oklch(0.976 0.012 351)",
+  "--ui-tile-app": "oklch(0.985 0 0)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",

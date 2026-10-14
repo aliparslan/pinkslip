@@ -43,6 +43,7 @@ export const ICONS = {
   block: "Prohibit",
   tailor: "Sparkle",
   refresh: "ArrowClockwise",
+  // Drawn as our own two soft squares on iOS (owner, 2026-10-14); see Icon.tsx.
   copy: "Copy",
   warning: "WarningCircle",
 
@@ -60,10 +61,19 @@ export const ICONS = {
   visa: "GlobeHemisphereWest",
   deadline: "CalendarBlank",
   resume: "FileText",
-  answers: "ChatText",
-  autoApply: "Lightning",
+  answers: "ClipboardText",
+  autoApply: "Robot",
   settings: "GearSix",
   signOut: "SignOut",
+  plan: "Ticket",
+  appearance: "CircleHalf",
+  help: "ChatCircleDots",
+  admin: "Wrench",
+  /** A feature on the way (Tailoring): the wrench is a roadmap signal. */
+  soon: "Wrench",
+  kit: "Swatches",
+  /** A row whose value opens a menu in place (Appearance). */
+  pick: "CaretUpDown",
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -31,10 +31,12 @@ export interface ChoiceProps {
   multiple?: boolean;
   /** A mark before the title, in a 24 slot (a stage's ring). */
   leading?: ReactNode;
+  /** What it costs or holds, before the check ("$24.99"). */
+  value?: string;
 }
 
 /** A row to pick: title on the left, the round check on the right. */
-export function Choice({ title, detail, selected, onPress, multiple = false, leading }: ChoiceProps) {
+export function Choice({ title, detail, selected, onPress, multiple = false, leading, value }: ChoiceProps) {
   return <Pressable onPress={onPress} accessibilityRole={multiple ? "checkbox" : "radio"} accessibilityState={{ checked: selected }}
     accessibilityLabel={title} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
     {leading ? <View style={styles.leading}>{leading}</View> : null}
@@ -42,6 +44,7 @@ export function Choice({ title, detail, selected, onPress, multiple = false, lea
       <Text weight="medium">{title}</Text>
       {detail ? <Text role="footnote" tone="ink-3">{detail}</Text> : null}
     </View>
+    {value ? <Text>{value}</Text> : null}
     <Radio selected={selected} />
   </Pressable>;
 }

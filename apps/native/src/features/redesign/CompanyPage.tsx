@@ -6,7 +6,7 @@ import { Link, Stack, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, Icon, SectionHeader, Text, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, Icon, SectionHeader, Segmented, Text, useTabBarSpace } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { fitsYourSearch, plainText, rowAge, rowFacts } from "./job-facts";
 
@@ -45,7 +45,9 @@ export function CompanyPage({ companyId }: { companyId: string }) {
           <Button fullWidth disabled={!website} onPress={() => website && void WebBrowser.openBrowserAsync(website, { controlsColor: theme.ui.color.accent })}>Careers site</Button>
         </View>
       </View>
-      <Segments value={segment} onChange={setSegment} jobs={feed.isSuccess ? jobs.length : undefined} />
+      <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People" }, { value: "events", label: "Events" },
+      ]} /></View>
     </View>
     {segment !== "jobs"
       ? <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">{segment === "people" ? "Recruiters here are coming soon." : "Events are coming soon."}</Text></View>
@@ -70,17 +72,6 @@ function useCompanyJobs(companyId: string, name: string | undefined) {
   const jobs = useMemo(() => results.flatMap((result) => result.data?.jobs ?? [])
     .sort((a, b) => (b.posted_at ?? b.first_seen_at).localeCompare(a.posted_at ?? a.first_seen_at)), [results]);
   return { jobs, isPending: results.some((result) => result.isPending), isSuccess: results.every((result) => result.isSuccess) };
-}
-
-function Segments({ value, onChange, jobs }: { value: Segment; onChange: (next: Segment) => void; jobs?: number }) {
-  const items: { id: Segment; label: string; count?: number }[] = [{ id: "jobs", label: "Jobs", count: jobs }, { id: "people", label: "People" }, { id: "events", label: "Events" }];
-  return <View style={styles.segments} accessibilityRole="tablist">
-    {items.map((item) => <Pressable key={item.id} onPress={() => onChange(item.id)} accessibilityRole="tab" accessibilityState={{ selected: value === item.id }}
-      style={[styles.segment, value === item.id && styles.segmentOn]}>
-      <Text role="subhead" weight="medium" tone={value === item.id ? "ink" : "ink-2"}>{item.label}</Text>
-      {item.count !== undefined ? <Text role="subhead" tone="ink-3">{item.count}</Text> : null}
-    </Pressable>)}
-  </View>;
 }
 
 function CompanyJobs({ jobs }: { jobs: Job[] }) {
@@ -133,9 +124,7 @@ const styles = StyleSheet.create((theme) => ({
   name: { flex: 1, gap: 2 },
   buttons: { flexDirection: "row", gap: theme.ui.space["2"] },
   half: { flex: 1 },
-  segments: { flexDirection: "row", height: 36, padding: 2, borderRadius: 18, backgroundColor: theme.ui.color.fill, marginTop: theme.ui.space["1"] },
-  segment: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", borderRadius: 16 },
-  segmentOn: { backgroundColor: theme.ui.color["seg-on"], boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.1)" },
+  segments: { marginTop: theme.ui.space["1"] },
   soon: { paddingHorizontal: theme.ui.space["8"], paddingVertical: theme.ui.space["10"], alignItems: "center" },
   row: { paddingLeft: theme.ui.size.gutter },
   rowText: {

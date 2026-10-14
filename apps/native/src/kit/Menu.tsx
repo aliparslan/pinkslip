@@ -11,6 +11,8 @@ export interface MenuItem {
   icon?: SFSymbol;
   destructive?: boolean;
   disabled?: boolean;
+  /** The current one of a set (Appearance's Automatic), with the system check. */
+  checked?: boolean;
   onSelect: () => void;
 }
 
@@ -27,7 +29,7 @@ export function Menu({ items, title, openOn = "press", fill, children }: {
   const [width, setWidth] = useState(0);
   const actions = items.filter((item): item is MenuItem => Boolean(item));
   const trigger = <MenuView title={title} shouldOpenOnLongPress={openOn === "longPress"} style={fill ? { width } : undefined}
-    actions={actions.map((item) => ({ id: item.id, title: item.title, image: item.icon, attributes: { destructive: item.destructive, disabled: item.disabled } }))}
+    actions={actions.map((item) => ({ id: item.id, title: item.title, image: item.icon, state: item.checked ? "on" : undefined, attributes: { destructive: item.destructive, disabled: item.disabled } }))}
     onPressAction={({ nativeEvent }) => actions.find((item) => item.id === nativeEvent.event)?.onSelect()}>
     {fill ? <View style={{ width }}>{children}</View> : children}
   </MenuView>;
