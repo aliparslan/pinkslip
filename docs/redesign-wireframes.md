@@ -984,9 +984,37 @@ rows and Answers B's, drawn from the kit's settings rows.
   asked (A5). Take B (A6) answers in place inside the card instead. A new
   group, "From your applications", holds answers given on one form.
   "Forget this answer" or "Leave it to me each time" sit under each sheet.
+- **Picks (owner, second pass):** R1a (rows with logos), now with a
+  chevron on each row; R2a, labels above, where an empty field shows its
+  label in place and the label shrinks up once you type (R2c); the month
+  wheel (R3); Contact (R4); the school page (R5), titled "School". A role's
+  page is titled "Role" (it covers clubs as well as jobs). No reordering
+  and no hint about it: entries keep date order. Lines between fields stay.
+- **Page actions are pinned** (owner): Add experience, Add a group, and
+  Help's Send sit in a bar pinned to the bottom, white with a line above, as
+  the job page's Apply does; the tab bar steps aside on those pages.
+- **Add chips:** dashed, matching the empty date tile: 1.5 stroke in
+  `ink-4`, 5 on and 4 off, round ends. Paper's default 1pt dash read as
+  dots.
+- **Answers (owner):** simple answers open the iPhone's menu from the row,
+  as Appearance does (A7): relocation Yes, No, Ask me each time; days in
+  an office Remote only, Hybrid up to 1–4, In the office, Any of these;
+  pronouns with Other… and Prefer not to say. Dates open the inline wheel.
+  Salary and written answers keep the sheet; salary picks "a year" or "an
+  hour". "Answer for me" waits for the apply flow (it needs the job, and
+  it costs per answer). A1–A3 and A6 are kept, marked replaced.
 - **Dark tiles:** the owner found the dark settings tiles too bright.
   "Dark tiles · options" on the You page: now, D1 (icons a step down), D2
   (quieter tiles and icons), D3 (light mode mirrored, the faintest).
+
+## Swipe actions on Jobs (round 1, 2026-10-14)
+
+The owner found swiping rows "really wonky"; the recording and its causes
+are in [swipe-actions-review-2026-10-14.md](swipe-actions-review-2026-10-14.md).
+Paper "Swipe actions · Oct 14" has three takes, all colored: S1 the gap
+fills with the action's color (Mail), S2 today's capsule fixed and colored,
+S3 two buttons a side that stay open (Save and Applied right, More and
+Hide left). Save is pink, Hide graphite, Applied green.
 
 ## In-app browser (owner, 2026-10-12)
 
