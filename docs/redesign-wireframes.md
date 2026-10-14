@@ -815,9 +815,10 @@ The Paper page "In-app browser · Oct 12".
   - When we see the job board's confirmation page, a toast says "Applied
     to Stripe. It's in Tracker", with Undo.
   - Otherwise, closing the browser asks "Did you apply?".
-- **Still open:** whether the browser shows an "I applied" button (B) or
-  nothing (A); and whether the fill bar keeps its ⌃ ⌄ arrows or "2 need
-  you" jumps to the next blank. Web back and forward were dropped.
+- **Decided (owner, 2026-10-13):** no permanent "I applied" button. A
+  strip, "Did that go through? · I applied", shows only when a submit
+  couldn't be confirmed. The fill bar keeps its arrows, and "2 need you"
+  also jumps to the next blank. Web back and forward were dropped.
 - **Only applications are read** (the owner sees no other work for now; my
   recommendation). Careers sites, event sign-ups and guides can open in the
   same browser without being read. Event sign-ups are the

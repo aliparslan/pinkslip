@@ -326,12 +326,17 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **In-app browser:**
-  - an "I applied" button (B) or nothing (A);
-  - the fill bar's ⌃ ⌄ arrows, or "2 need you" jumping to the next blank.
+- **What lives in Today, Tracker and Outreach** (2026-10-13): under
+  discussion; see docs/redesign-wireframes.md.
 
 ## Changelog
 
+- **2026-10-13, night**
+  - Decided (owner): the in-app browser has no permanent "I applied"
+    button; a strip ("Did that go through? · I applied") shows only when a
+    submit couldn't be confirmed. The fill bar keeps its arrows, and
+    "2 need you" also jumps to the next blank. The weekly report is a
+    Monday popup you swipe away. "Save your changes?" is approved.
 - **2026-10-13, late**
   - Decided (owner): Today rows have one headline line (Untitled Medium 17;
     Founders tried and dropped, since it reads smaller); rows grow past 84
