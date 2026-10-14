@@ -2,13 +2,16 @@ import * as Font from "expo-font";
 import { useSyncExternalStore } from "react";
 
 /** The Klim faces the redesign uses: Founders Grotesk Semibold for display,
- * Untitled Sans for text. They are the trial cuts for now (about 67
- * characters), so iOS draws missing punctuation in the system font. Buy the
- * app licence before an App Store build ships them. */
+ * Untitled Sans for text and Founders Grotesk Mono for the stub's stamps.
+ * They are the trial cuts for now (about 67 characters), so iOS draws
+ * missing punctuation in the system font. Buy the app licence before an App
+ * Store build ships them. */
 export const faces = {
   display: "FoundersGrotesk-Semibold",
   text: "UntitledSans-Regular",
   textMedium: "UntitledSans-Medium",
+  stamp: "FoundersGroteskMono-Medium",
+  stampDetail: "FoundersGroteskMono-Regular",
 } as const;
 
 let loaded = false;
@@ -21,6 +24,8 @@ export function loadUiFonts(): Promise<void> {
     [faces.display]: require("../../assets/fonts/FoundersGrotesk-Semibold.otf"),
     [faces.text]: require("../../assets/fonts/UntitledSans-Regular.otf"),
     [faces.textMedium]: require("../../assets/fonts/UntitledSans-Medium.otf"),
+    [faces.stamp]: require("../../assets/fonts/FoundersGroteskMono-Medium.otf"),
+    [faces.stampDetail]: require("../../assets/fonts/FoundersGroteskMono-Regular.otf"),
   }).then(() => {
     loaded = true;
     for (const listener of listeners) listener();
