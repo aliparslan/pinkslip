@@ -12,7 +12,7 @@ import type {
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
-import type { InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
+import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 import type { ActualRole, RecruiterCandidate, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
@@ -35,7 +35,7 @@ export type {
 } from "@pinkslip/domain/application-form";
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
-export type { DetectedStage, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
+export type { DetectedStage, ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 export type {
   ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterKind, RecruiterReview, RecruiterReviewScore, RecruiterRun, WorksThere,
 } from "@pinkslip/domain/recruiter-review";
@@ -893,6 +893,9 @@ function createEndpoints(context: ClientContext) {
   inbox: {
     get: () => request<Inbox>("/inbox"),
     rotate: () => request<Inbox>("/inbox/rotate", { method: "POST" }),
+    /** "Email me these steps": sends setup's steps to the account's email. */
+    stepsEmail: (provider: ForwardingProvider, scope?: ForwardingScope) =>
+      request<{ ok: true; to: string }>("/inbox/steps-email", { method: "POST", body: JSON.stringify({ provider, scope }) }),
     emails: (status?: InboundEmailStatus) =>
       request<{ emails: InboundEmail[] }>(`/inbox/emails${status ? `?status=${status}` : ""}`),
     assign: (emailId: string, applicationIds: string[]) =>

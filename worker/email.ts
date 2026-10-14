@@ -93,3 +93,51 @@ export async function sendMagicLinkEmail(
     html,
   });
 }
+
+/** "Email me these steps": setting up forwarding happens on a computer, so
+ * the steps go to the account's own inbox. */
+export async function sendForwardingStepsEmail(
+  env: Env,
+  args: { to: string; address: string; providerName: string; steps: string[] }
+) {
+  if (!env.EMAIL) throw new Error("Email sending is not configured");
+  const fromEmail = env.EMAIL_FROM_ADDRESS?.trim();
+  if (!fromEmail) throw new Error("EMAIL_FROM_ADDRESS is not configured");
+  const fromName = env.EMAIL_FROM_NAME?.trim() || "Pinkslip";
+
+  const text = [
+    `Forward your job email from ${args.providerName} to Pinkslip, and Tracker moves your applications along when companies write.`,
+    "",
+    ...args.steps.map((step, index) => `${index + 1}. ${step}`),
+    "",
+    `Your address: ${args.address}`,
+    "",
+    "Only job mail gets opened, and no email is kept.",
+    "",
+    "— Pinkslip",
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:24px 0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:14px;border:1px solid #ececec;">
+        <tr><td style="padding:28px 28px 4px;font-size:20px;font-weight:600;color:#111;">Set up email tracking</td></tr>
+        <tr><td style="padding:8px 28px 4px;color:#444;font-size:15px;line-height:1.5;">Forward your job email from ${escapeHtml(args.providerName)} to Pinkslip, and Tracker moves your applications along when companies write.</td></tr>
+        <tr><td style="padding:8px 28px;"><ol style="margin:0;padding-left:20px;color:#222;font-size:15px;line-height:1.55;">${args.steps.map((step) => `<li style="margin:0 0 8px;">${escapeHtml(step)}</li>`).join("")}</ol></td></tr>
+        <tr><td style="padding:4px 28px 8px;"><div style="background:#f4f4f2;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:600;color:#111;word-break:break-all;">${escapeHtml(args.address)}</div></td></tr>
+        <tr><td style="padding:8px 28px 28px;color:#777;font-size:13px;line-height:1.5;">Only job mail gets opened, and no email is kept.</td></tr>
+      </table>
+    </td></tr></table>
+  </body>
+</html>`;
+
+  await env.EMAIL.send({
+    to: args.to,
+    from: { email: fromEmail, name: fromName },
+    replyTo: { email: fromEmail, name: fromName },
+    subject: "Set up email tracking",
+    text,
+    html,
+  });
+}
