@@ -877,7 +877,8 @@ function createEndpoints(context: ClientContext) {
         method: "POST",
         body: JSON.stringify({ job_id: jobId, stage }),
       }),
-    update: (id: string, changes: { stage?: ApplicationStage; notes?: string }) =>
+    /** A `stage_date` sent with a new `stage` is that stage's; null clears it. */
+    update: (id: string, changes: { stage?: ApplicationStage; stage_date?: string | null; notes?: string }) =>
       request<ApplicationDetail>(`/applications/${id}`, {
         method: "PATCH",
         body: JSON.stringify(changes),

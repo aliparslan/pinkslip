@@ -11,7 +11,7 @@ export function trackerSample(now = Date.now()): Application[] {
     return {
       id: `${company}-${stage}`, job_id: `sample-${company}`, company_name: company, title, url: `https://${domain}`, stage, notes: "",
       applied_at: appliedDaysAgo === null ? null : at(appliedDaysAgo * 24 * HOUR),
-      stage_changed_at: at(hoursAgo * HOUR), created_at: at(30 * 24 * HOUR), updated_at: at(hoursAgo * HOUR),
+      stage_changed_at: at(hoursAgo * HOUR), stage_date: null, created_at: at(30 * 24 * HOUR), updated_at: at(hoursAgo * HOUR),
       job: { location, closed_at: null, company_domain: domain },
     };
   };

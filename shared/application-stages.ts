@@ -49,6 +49,32 @@ export function isEndingStage(stage: ApplicationStage): boolean {
   return ENDING_APPLICATION_STAGES.includes(stage);
 }
 
+/** Stages with a date of their own: when you'll hear back, when the
+ * assessment is due, when the interview is, when to answer the offer. */
+export const DATED_APPLICATION_STAGES: readonly ApplicationStage[] = ["applied", "assessment", "interview", "offer"];
+
+export function takesStageDate(stage: ApplicationStage): boolean {
+  return DATED_APPLICATION_STAGES.includes(stage);
+}
+
+const CALENDAR_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** A stage date as stored: a real calendar day stays "YYYY-MM-DD"; anything
+ * with a time becomes an ISO instant. Null when it's neither. */
+export function normalizeStageDate(value: string): string | null {
+  const day = CALENDAR_DAY.exec(value);
+  if (day) {
+    const [, year, month, date] = day.map(Number);
+    const parsed = new Date(Date.UTC(year!, month! - 1, date!));
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month! - 1 && parsed.getUTCDate() === date
+      ? value
+      : null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return null;
+  const millis = Date.parse(value);
+  return Number.isNaN(millis) ? null : new Date(millis).toISOString();
+}
+
 export interface ApplicationEvent {
   id: string;
   /** The stage the application entered. */
@@ -57,6 +83,8 @@ export interface ApplicationEvent {
   occurred_at: string;
   /** The email behind an email-detected step, for "Not right?". */
   inbound_email_id: string | null;
+  /** That email's subject, so the step can say which email it was. */
+  email_subject: string | null;
 }
 
 export interface Application {
@@ -71,6 +99,10 @@ export interface Application {
   /** When it first reached Applied or later; null while Saved. */
   applied_at: string | null;
   stage_changed_at: string;
+  /** The date that goes with the stage (see DATED_APPLICATION_STAGES): a
+   * calendar day ("2026-10-15") or an ISO instant when the time is known.
+   * Null when there isn't one; changing the stage clears it. */
+  stage_date: string | null;
   created_at: string;
   updated_at: string;
   job: {

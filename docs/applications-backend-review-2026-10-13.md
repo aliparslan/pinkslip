@@ -55,7 +55,7 @@ for Tracker's goal third line. It's on main but not deployed.
 
 | Need | Today | What it takes |
 | --- | --- | --- |
-| Dates for what's next: an interview's time, an assessment's deadline, an offer's reply-by (Today's Coming up, Tracker's goal line) | Not stored | A dated step per application (kind, when, note), set by hand first and by email later |
+| Dates for what's next: an interview's time, an assessment's deadline, an offer's reply-by (Today's Coming up, Tracker's goal line) | Built 2026-10-14, not deployed: `stage_date` (migration 0091), one per application, owned by its stage (Applied, Assessment, Interview, Offer) and cleared when the stage changes; `PATCH` sets it | Email can fill it later |
 | Who did it: email detection, auto-apply ("Applied by Pinkslip") | `source` is only `user` | New sources; additive |
 | Tracking a job found elsewhere ("Track one from an email") | `POST` needs a Pinkslip job | Applications with no job: company, title, link |
 | Fixing when something happened ("I applied on the 2nd") | Steps are stamped now | Let `PATCH` set a step's date |
@@ -67,3 +67,6 @@ for Tracker's goal third line. It's on main but not deployed.
 The application page can ship on what exists (stage, timeline, notes,
 remove). Dated steps are the first addition worth making, because Today and
 Tracker's goal line both need them.
+
+Also added 2026-10-14: email-detected timeline steps carry the email's
+subject (`email_subject`), for the stub's "Not right?".

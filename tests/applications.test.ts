@@ -52,7 +52,7 @@ describe("application stages", () => {
       side({ stage: "applied", applied_at: "2026-10-03", stage_changed_at: "2026-10-03", notes: "Referral from Sam" }),
     )).toEqual({
       stage: "applied", notes: "Referral from Sam", applied_at: "2026-10-03",
-      stage_changed_at: "2026-10-03", created_at: "2026-10-01", updated_at: "2026-10-09",
+      stage_changed_at: "2026-10-03", stage_date: null, created_at: "2026-10-01", updated_at: "2026-10-09",
     });
     // Between two applied copies, the later change wins and notes combine.
     expect(mergedApplicationFields(
@@ -238,6 +238,45 @@ describe("applications API", () => {
     expect((await call(`/applications/${id}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/applications/${id}`)).status).toBe(404);
     expect(events("job-a")).toEqual([]);
+  });
+
+  it("keeps one date with the stage, and clears it when the stage changes", async () => {
+    const { sqlite, call } = await setup();
+    const id = (await call("/applications", { method: "POST", body: JSON.stringify({ job_id: "job-a", stage: "applied" }) })).body.id as string;
+    const patch = (body: object) => call(`/applications/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+    // Moving to Interviewing with its time; the time is stored as an instant.
+    const invited = await patch({ stage: "interview", stage_date: "2026-10-15T11:00:00-04:00" });
+    expect(invited.body).toMatchObject({ stage: "interview", stage_date: "2026-10-15T15:00:00.000Z" });
+    // A second round: same stage, a new date, no new step.
+    expect((await patch({ stage: "interview", stage_date: "2026-10-22" })).body.stage_date).toBe("2026-10-22");
+    expect((await call("/applications")).body.applications[0].stage_date).toBe("2026-10-22");
+    expect(sqlite.query("SELECT COUNT(*) AS n FROM application_events WHERE application_id = ?").get(id)).toEqual({ n: 2 });
+
+    // A new stage starts without one; null clears one.
+    expect((await patch({ stage: "offer" })).body.stage_date).toBeNull();
+    expect((await patch({ stage_date: "2026-10-30" })).body.stage_date).toBe("2026-10-30");
+    expect((await patch({ stage_date: null })).body.stage_date).toBeNull();
+
+    // Saved and the endings have no date; dates must be real.
+    expect((await patch({ stage: "rejected", stage_date: "2026-10-30" })).status).toBe(400);
+    expect((await patch({ stage_date: "2026-02-30" })).status).toBe(400);
+    expect((await patch({ stage_date: "next Thursday" })).status).toBe(400);
+    expect((await patch({ stage_date: 20261030 })).status).toBe(400);
+    expect((await patch({ stage: "rejected" })).body).toMatchObject({ stage: "rejected", stage_date: null });
+  });
+
+  it("names the email behind a step it recorded", async () => {
+    const { sqlite, call } = await setup();
+    const id = (await call("/applications", { method: "POST", body: JSON.stringify({ job_id: "job-a", stage: "applied" }) })).body.id as string;
+    sqlite.run(`INSERT INTO inbound_emails (id, user_id, message_hash, received_at, subject, detected_stage, status, application_id, created_at)
+      VALUES ('mail', 'u1', 'hash', '2026-10-12T09:00:00Z', 'Next steps with Acme', 'interview', 'applied', '${id}', '2026-10-12T09:00:00Z')`);
+    sqlite.run(`INSERT INTO application_events (id, application_id, stage, source, occurred_at, inbound_email_id)
+      VALUES ('by-email', '${id}', 'interview', 'email', '2026-10-12T09:00:00Z', 'mail')`);
+
+    const subjects = Object.fromEntries((await call(`/applications/${id}`)).body.events
+      .map((event: { source: string; email_subject: string | null }) => [event.source, event.email_subject]));
+    expect(subjects).toEqual({ user: null, email: "Next steps with Acme" });
   });
 
   it("rejects bad input and other users' applications", async () => {

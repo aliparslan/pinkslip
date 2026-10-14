@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import {
   APPLICATION_NOTES_MAX_LENGTH,
   isApplicationStage,
+  normalizeStageDate,
   type ApplicationStage,
 } from "../../shared/application-stages";
 import {
@@ -48,22 +49,36 @@ applications.get("/:id", async (c) => {
   return detail ? c.json(detail) : c.json({ error: "Not found" }, 404);
 });
 
+/** Changes the stage, its date or the notes. A `stage_date` sent with a new
+ * `stage` is the new stage's; `stage_date: null` clears it. */
 applications.patch("/:id", async (c) => {
-  const body = await c.req.json<{ stage?: unknown; notes?: unknown }>().catch(() => ({}) as { stage?: unknown; notes?: unknown });
-  if (body.stage === undefined && body.notes === undefined) {
+  type Body = { stage?: unknown; stage_date?: unknown; notes?: unknown };
+  const body = await c.req.json<Body>().catch(() => ({}) as Body);
+  if (body.stage === undefined && body.stage_date === undefined && body.notes === undefined) {
     return c.json({ error: "No fields to update" }, 400);
   }
   if (body.stage !== undefined && !isApplicationStage(body.stage)) {
     return c.json({ error: "Unknown stage" }, 400);
+  }
+  const stageDate = typeof body.stage_date === "string" ? normalizeStageDate(body.stage_date) ?? false
+    : body.stage_date === null || body.stage_date === undefined ? body.stage_date
+    : false;
+  if (stageDate === false) {
+    return c.json({ error: "stage_date must be a day (YYYY-MM-DD), a date and time, or null" }, 400);
   }
   if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > APPLICATION_NOTES_MAX_LENGTH)) {
     return c.json({ error: `Notes must be text of at most ${APPLICATION_NOTES_MAX_LENGTH} characters` }, 400);
   }
   const result = await updateApplication(c.env.DB, c.get("userId"), c.req.param("id"), {
     stage: body.stage as ApplicationStage | undefined,
+    stage_date: stageDate,
     notes: body.notes as string | undefined,
   });
-  if (!result) return c.json({ error: "Not found" }, 404);
+  if ("error" in result) {
+    return result.error === "not_found"
+      ? c.json({ error: "Not found" }, 404)
+      : c.json({ error: "Only Applied, Assessment, Interview and Offer take a date" }, 400);
+  }
   if (result.detail.stage !== result.previousStage) {
     await recordStageChange(c, result.detail.id, result.detail.stage);
   }

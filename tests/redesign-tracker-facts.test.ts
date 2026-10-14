@@ -14,6 +14,7 @@ const application = (patch: Partial<Application> = {}): Application => ({
   notes: "",
   applied_at: "2026-10-02T15:00:00Z",
   stage_changed_at: "2026-10-13T12:00:00Z",
+  stage_date: null,
   created_at: "2026-10-01T15:00:00Z",
   updated_at: "2026-10-13T12:00:00Z",
   job: { location: "New York, NY", closed_at: null, company_domain: "linear.app" },

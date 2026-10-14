@@ -53,7 +53,7 @@ export function useUpdateApplication() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...changes }: { id: string; stage?: ApplicationStage; notes?: string }) =>
+    mutationFn: ({ id, ...changes }: { id: string; stage?: ApplicationStage; stage_date?: string | null; notes?: string }) =>
       api.applications.update(id, changes),
     onSuccess: (detail) => storeDetail(queryClient, detail),
     onSettled: (detail) => refreshAfterChange(queryClient, detail?.job_id ?? null),

@@ -1,5 +1,6 @@
 import {
   hasApplied,
+  takesStageDate,
   type Application,
   type ApplicationDetail,
   type ApplicationEvent,
@@ -24,6 +25,7 @@ interface ApplicationRow {
   notes: string;
   applied_at: string | null;
   stage_changed_at: string;
+  stage_date: string | null;
   created_at: string;
   updated_at: string;
   job_location: string | null;
@@ -33,7 +35,7 @@ interface ApplicationRow {
 
 const APPLICATION_FIELDS = `
   a.id, a.user_id, a.job_id, a.company_name, a.title, a.url, a.stage, a.notes,
-  a.applied_at, a.stage_changed_at, a.created_at, a.updated_at,
+  a.applied_at, a.stage_changed_at, a.stage_date, a.created_at, a.updated_at,
   j.location AS job_location, j.closed_at AS job_closed_at, c.website AS company_domain
 `;
 
@@ -66,6 +68,7 @@ function serialize(row: ApplicationRow): Application {
     notes: row.notes,
     applied_at: row.applied_at === null ? null : isoTimestamp(row.applied_at),
     stage_changed_at: isoTimestamp(row.stage_changed_at),
+    stage_date: row.stage_date,
     created_at: isoTimestamp(row.created_at),
     updated_at: isoTimestamp(row.updated_at),
     job: row.job_id && row.job_location !== null
@@ -107,10 +110,11 @@ export async function getApplicationDetail(
   const row = await findApplication(db, userId, id);
   if (!row) return null;
   const events = await db.prepare(
-    `SELECT id, stage, source, occurred_at, inbound_email_id
-     FROM application_events
-     WHERE application_id = ?
-     ORDER BY julianday(occurred_at) ASC, rowid ASC`
+    `SELECT e.id, e.stage, e.source, e.occurred_at, e.inbound_email_id, ie.subject AS email_subject
+     FROM application_events e
+     LEFT JOIN inbound_emails ie ON ie.id = e.inbound_email_id
+     WHERE e.application_id = ?
+     ORDER BY julianday(e.occurred_at) ASC, e.rowid ASC`
   ).bind(id).all<ApplicationEvent>();
   return {
     ...serialize(row),
@@ -159,6 +163,7 @@ async function createApplication(
   return id;
 }
 
+/** A new stage starts without a date; the old one's no longer applies. */
 async function moveToStage(
   db: D1Database,
   application: Pick<ApplicationRow, "id" | "stage">,
@@ -171,7 +176,7 @@ async function moveToStage(
   await db.batch([
     db.prepare(
       `UPDATE applications
-       SET stage = ?, stage_changed_at = ?, updated_at = ?,
+       SET stage = ?, stage_changed_at = ?, updated_at = ?, stage_date = NULL,
            applied_at = CASE WHEN ? = 'saved' THEN NULL ELSE COALESCE(applied_at, ?) END
        WHERE id = ?`
     ).bind(stage, now, now, stage, now, application.id),
@@ -231,9 +236,10 @@ export async function undoEmailSteps(
     : null;
   await db.prepare(
     `UPDATE applications
-     SET stage = ?, stage_changed_at = ?, applied_at = ?, updated_at = ?
+     SET stage_date = CASE WHEN stage = ? THEN stage_date ELSE NULL END,
+         stage = ?, stage_changed_at = ?, applied_at = ?, updated_at = ?
      WHERE id = ?`
-  ).bind(last.stage, last.occurred_at, appliedAt, new Date().toISOString(), applicationId).run();
+  ).bind(last.stage, last.stage, last.occurred_at, appliedAt, new Date().toISOString(), applicationId).run();
   return "restored";
 }
 
@@ -265,24 +271,37 @@ export async function trackJob(
   return created ? getApplicationDetail(db, userId, created.id) : null;
 }
 
+export type ApplicationUpdate =
+  | { detail: ApplicationDetail; previousStage: ApplicationStage }
+  | { error: "not_found" | "stage_takes_no_date" };
+
+/** Changes the stage, then its date (a stage_date with a new stage is that
+ * stage's date), then the notes. */
 export async function updateApplication(
   db: D1Database,
   userId: string,
   id: string,
-  changes: { stage?: ApplicationStage; notes?: string },
+  changes: { stage?: ApplicationStage; stage_date?: string | null; notes?: string },
   source: ApplicationEventSource = "user"
-): Promise<{ detail: ApplicationDetail; previousStage: ApplicationStage } | null> {
+): Promise<ApplicationUpdate> {
   const existing = await findApplication(db, userId, id);
-  if (!existing) return null;
+  if (!existing) return { error: "not_found" };
+  const stage = changes.stage ?? existing.stage;
+  if (changes.stage_date && !takesStageDate(stage)) return { error: "stage_takes_no_date" };
   const now = new Date().toISOString();
   if (changes.stage !== undefined) await moveToStage(db, existing, changes.stage, source, now);
+  if (changes.stage_date !== undefined) {
+    await db.prepare("UPDATE applications SET stage_date = ?, updated_at = ? WHERE id = ?")
+      .bind(changes.stage_date, now, id)
+      .run();
+  }
   if (changes.notes !== undefined && changes.notes !== existing.notes) {
     await db.prepare("UPDATE applications SET notes = ?, updated_at = ? WHERE id = ?")
       .bind(changes.notes, now, id)
       .run();
   }
   const detail = await getApplicationDetail(db, userId, id);
-  return detail ? { detail, previousStage: existing.stage } : null;
+  return detail ? { detail, previousStage: existing.stage } : { error: "not_found" };
 }
 
 /** `saved: true`: starts tracking at Saved. An application further along is
@@ -340,7 +359,7 @@ export async function legacyUnmarkApplied(db: D1Database, userId: string, jobId:
       .bind(existing.id, saved.saved_at),
     db.prepare(
       `UPDATE applications
-       SET stage = 'saved', applied_at = NULL, stage_changed_at = ?, updated_at = ?
+       SET stage = 'saved', applied_at = NULL, stage_date = NULL, stage_changed_at = ?, updated_at = ?
        WHERE id = ?`
     ).bind(saved.saved_at, now, existing.id),
   ]);
@@ -349,7 +368,7 @@ export async function legacyUnmarkApplied(db: D1Database, userId: string, jobId:
 type MergeSide = Pick<
   ApplicationRow,
   "id" | "stage" | "notes" | "applied_at" | "stage_changed_at" | "created_at" | "updated_at"
->;
+> & { stage_date?: string | null };
 
 const byTime = (a: string, b: string) => toMillis(a) - toMillis(b);
 const earliest = (...values: (string | null)[]) =>
@@ -371,6 +390,7 @@ export function mergedApplicationFields(guest: MergeSide, account: MergeSide) {
     notes: notes.join("\n\n"),
     applied_at: hasApplied(winner.stage) ? earliest(guest.applied_at, account.applied_at) : null,
     stage_changed_at: winner.stage_changed_at,
+    stage_date: winner.stage_date ?? null,
     created_at: earliest(guest.created_at, account.created_at)!,
     updated_at: latest(guest.updated_at, account.updated_at),
   };
@@ -402,13 +422,14 @@ export async function mergeApplicationConflicts(
       db.prepare("DELETE FROM applications WHERE id = ?").bind(guest.id),
       db.prepare(
         `UPDATE applications
-         SET stage = ?, notes = ?, applied_at = ?, stage_changed_at = ?, created_at = ?, updated_at = ?
+         SET stage = ?, notes = ?, applied_at = ?, stage_changed_at = ?, stage_date = ?, created_at = ?, updated_at = ?
          WHERE id = ?`
       ).bind(
         merged.stage,
         merged.notes,
         merged.applied_at,
         merged.stage_changed_at,
+        merged.stage_date,
         merged.created_at,
         merged.updated_at,
         account.id
