@@ -888,8 +888,9 @@ status, Shop), no job apps.
 - `ApplicationPage.tsx`, at `applications/[applicationId]` in the Tracker
   tab. Tracker rows past Saved open it; Saved rows open the job page.
 - The stub (`Stub`), the Next row (`DateTile`) or "Add the … date", About
-  the role, and one Change stage button. The tab bar steps aside, as on the
-  job page.
+  the role, and one Change stage button, gray (owner: the pink fill was too
+  much for a page you come back to check). The tab bar steps aside, as on
+  the job page.
 - Change stage: the stages with their 20pt marks; Applied, Saved and the
   endings move and close; Assessment, Interviewing and Offer move, then ask
   for their date (iOS's own calendar; a time for an interview only), Save or

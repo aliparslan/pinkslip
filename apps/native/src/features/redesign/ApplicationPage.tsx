@@ -159,7 +159,7 @@ export function ApplicationView({ application, job, about, actions }: {
     </ScrollView>
     <TopBar onShare={share} menu={menu} />
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
-      <Button variant="primary" fullWidth onPress={() => setSheet("stages")}>Change stage</Button>
+      <Button variant="secondary" fullWidth onPress={() => setSheet("stages")}>Change stage</Button>
     </View>
     <SheetModal open={sheet !== null} onClosed={() => setSheet(null)}>
       {sheet ? <StageSheet application={application} start={sheet} actions={actions} /> : null}

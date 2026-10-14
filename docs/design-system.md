@@ -86,6 +86,11 @@ else is decided.
 | Destructive | Text button in `bad` | Remove, Withdraw. Confirm in a sheet if it can't be undone | |
 | Disabled | Gray fill, `ink-3` label | Any button that can't be used yet | Save search before anything changed |
 
+- **A page you come back to check has no pink button** (owner,
+  2026-10-14). The application page's Change stage is gray: changing the
+  stage is occasional bookkeeping, and pink on every visit would shout.
+  Pink returns when the page needs you (a later round: "How did it go?"
+  after an interview's date).
 - **No black buttons.** Ink fill means a chip is on, so an ink button would
   read as a filter, and a second loud color would compete with pink.
 - **Never fade pink to show disabled.** White on a faded pink is
@@ -375,6 +380,7 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-14**
+  - Decided (owner): the application page's Change stage is gray, not pink.
   - Decided (owner): stage marks take color only where something's
     happening (Assessment amber, Interviewing blue, Offer green); marks are
     20 in a sheet; Rejected, Withdrawn and Ghosted (was No reply) each get
