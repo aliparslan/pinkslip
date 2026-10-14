@@ -44,18 +44,18 @@ else is decided.
 | Role | Token (`ui.color`) | Use for | Never for |
 | --- | --- | --- | --- |
 | Screen | `bg` | The page behind everything | Cards |
-| Card | `bg-grouped` | Cards, the ticket, choice lists, the toast's card | The page |
+| Card | `bg-grouped` | Cards, the ticket, choice lists | The page |
 | Grouped screen | `screen-grouped` | A settings-style page whose cards are white | Ordinary screens |
-| Floating | `bg-elev` | Sheets, the tab bar, toasts, menus | Inline content |
+| Floating | `bg-elev` | Sheets, the tab bar, toasts (both glass on iOS 26), menus | Inline content |
 | Control | `fill` | Gray buttons, fields, chips (off), icon buttons | Cards |
 | Rule | `separator` | Lines between rows and inside the ticket | Borders around cards |
 | Text | `ink` | Titles, values, row titles, chips that are on | |
 | Secondary text | `ink-2` | Facts, descriptions, sheet body copy, icons at rest | Titles |
 | Tertiary text | `ink-3` | Labels, captions, times, counts, placeholders | Anything to act on |
 | Strokes | `ink-4` | Empty radios, chevrons, disabled marks | Text, ever |
-| Pink | `accent-fill` | The primary button, checks and switches that are on, badges, the toast's mark | Text, chips |
+| Pink | `accent-fill` | The primary button, checks and switches that are on, badges | Text, chips |
 | On pink | `accent-ink` | Text and icons on pink (white) | Anything else |
-| Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons | Headings, body |
+| Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons, a done toast's check | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
 | Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app`, each with its `-ink` | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro, gray is the app. Dark mode is D2, quieter (owner, 2026-10-14) | Text, anything outside settings rows |
@@ -319,6 +319,17 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
+- **Toast** (`ui/Toast.tsx`, Paper "Toast · Oct 14" T1, owner 2026-10-14):
+  a 48 capsule in the tab bar's glass, hugging its words, 12 above whatever
+  is pinned at the bottom (the tab bar, a page's bar, the keyboard). It
+  leads with the action's icon in `ink-2`, a pink check, or the `bad` mark;
+  Undo (the U-turn arrow) and Try again are 32 round icons on `pill`, with a
+  2pt `ink-3` ring running down the time left. Three stack, 8 and 16 behind
+  at 95% and 90%; tap to spread, swipe one down or aside to clear it; the
+  clock stops while it's touched or spread. It says only what the screen
+  can't: something left the screen, it happened elsewhere, or it didn't
+  work. Liquid Glass can't fade with a parent, so the glass materializes
+  and dissolves on its own.
 - **Swipe actions** (`SwipeRow`, Paper "Swipe actions · Oct 14" S4): up
   to two 44 circles a side, tinted by meaning (the ink at 14%), with
   Footnote labels under them; a short swipe stays open on them, all the way

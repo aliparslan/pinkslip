@@ -76,7 +76,7 @@ function AnswerBank() {
     const index = bank.findIndex((candidate) => candidate.key === answer.key);
     if (editing === answer.key) setEditing(null);
     clear(answer.key);
-    toast.show({ message: "Answer deleted", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => save(answer.key, answer.value, answer.label, index) } });
+    toast.show({ message: "Answer deleted", icon: "remove", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => save(answer.key, answer.value, answer.label, index) } });
   };
 
   return <Screen>

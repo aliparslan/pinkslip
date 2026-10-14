@@ -1063,4 +1063,6 @@ three-deep stack like Sonner and Base UI (recommended); T2 drops from under the
 Dynamic Island; T3 Undo in the folded row. Undo and Try again are 32 round
 icons. Toasts only for what left the screen, what happened elsewhere and what
 didn't work; the calls to cut are in `docs/toast-review-2026-10-14.md`.
-Awaiting the owner's pick.
+**Picked and built (owner):** T1, with the countdown ring around Undo at
+2pt in the first light gray (`ink-3`); the owner tried a darker one and
+went back.

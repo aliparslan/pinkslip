@@ -27,7 +27,7 @@ export function Account() {
     restart ? "This starts a fresh guest profile. Your current saved jobs and preferences won't come with you." : "You'll be signed out on this iPhone. Your account stays saved.", [
       { text: "Cancel", style: "cancel" },
       { text: restart ? "Start over" : "Log out", style: restart ? "destructive" : "default", onPress: () => signOut.mutate(undefined, {
-        onSuccess: () => { clearResumeFile(); toast.success(restart ? "Started over" : "Signed out"); router.replace(restart ? "/welcome" : "/"); },
+        onSuccess: () => { clearResumeFile(); router.replace(restart ? "/welcome" : "/"); },
         onError: () => toast.error("Couldn't sign out. Try again."),
       }) },
     ]);

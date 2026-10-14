@@ -106,8 +106,8 @@ function Composer({ jobId, threadId, thread, onClose }: { jobId: string; threadI
         {thread.status === "draft"
           ? <Text tone="accent" onPress={busy ? undefined : () => action.mutate({ kind: "discard", threadId: thread.id }, { onSuccess: onClose, onError: failed })}>Discard</Text>
           : <>
-            <Text tone="accent" onPress={busy ? undefined : () => action.mutate({ kind: "replied", threadId: thread.id }, { onSuccess: () => toast.success("Follow-ups stopped"), onError: failed })}>They replied</Text>
-            <Text tone="accent" onPress={busy ? undefined : () => action.mutate({ kind: "stop", threadId: thread.id }, { onSuccess: () => toast.success("Follow-ups stopped"), onError: failed })}>Stop follow-ups</Text>
+            <Text tone="accent" onPress={busy ? undefined : () => action.mutate({ kind: "replied", threadId: thread.id }, { onError: failed })}>They replied</Text>
+            <Text tone="accent" onPress={busy ? undefined : () => action.mutate({ kind: "stop", threadId: thread.id }, { onError: failed })}>Stop follow-ups</Text>
           </>}
       </View>
     </> : <Text tone="ink-2">{CLOSED[thread.status] ?? ""}</Text>}

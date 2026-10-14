@@ -79,7 +79,6 @@ export function AccountPage() {
     logOut: async () => {
       await signOut.mutateAsync();
       clearResumeFile();
-      toast.success("Signed out");
       router.replace("/");
     },
     deleteAccount: async () => {

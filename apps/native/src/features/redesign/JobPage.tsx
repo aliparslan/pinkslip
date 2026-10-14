@@ -1,13 +1,13 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { usePreferences } from "@pinkslip/data";
-import { router, Stack } from "expo-router";
+import { router, Stack, useIsFocused } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Menu, Sheet, toast } from "../../kit";
-import { Button, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
+import { Menu, Sheet } from "../../kit";
+import { Button, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket, useToastLift } from "../../ui";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
 import { Description } from "./Description";
@@ -44,6 +44,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
+  usePinnedBarToastLift();
   const profile = usePreferences().data?.search_profile;
   const { saved, applied, closed, toggleSave, apply, share, menu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
   const [placesOpen, setPlacesOpen] = useState(false);
@@ -55,10 +56,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     fact.detail ? { ...fact, onPress: () => setPlacesOpen(true) } : fact)), [job, profile]);
   const fits = fitsYourSearch(job, profile);
 
-  // Announce when a pending posting arrives, or stops trying.
+  // Tell VoiceOver when a pending posting arrives, or stops trying; the page shows it.
   const wasPending = useRef(pendingDescription);
   useEffect(() => {
-    if (wasPending.current && !pendingDescription) toast.show({ message: blocks.length > 0 ? "The full posting loaded." : "The full posting isn't available yet.", dedupeKey: "posting" });
+    if (wasPending.current && !pendingDescription) AccessibilityInfo.announceForAccessibility(blocks.length > 0 ? "The full posting loaded." : "The full posting isn't available yet.");
     wasPending.current = pendingDescription;
   }, [pendingDescription, blocks.length]);
 
@@ -113,6 +114,13 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
 /** The pinned bar's height above the home indicator: a 50pt button and 12 above it. */
 export const BAR = 50 + 12;
 export const TOP_BAR = 44;
+
+/** While the page shows, toasts sit 12 above its pinned bar. */
+export function usePinnedBarToastLift() {
+  const { theme } = useUnistyles();
+  const insets = useSafeAreaInsets();
+  useToastLift(useIsFocused() ? Math.max(insets.bottom, theme.ui.space["4"]) + BAR : null);
+}
 
 /** Back on the left; share and the ⋯ menu in one pill on the right (Paper
  * "Job page"), drawn with our icons. The menu is the system's, text only. */

@@ -46,35 +46,30 @@ export function useJobActions(context: JobListContext) {
 
   const saveJob = (job: RowJob) => {
     haptics.tap();
-    save.mutate(job.id, {
-      onSuccess: () => toast.success("Job saved"),
-      onError: () => toast.error("Couldn't save that job. Try again."),
-    });
+    // The bookmark fills (and a swipe's capsule says Save), so no toast.
+    save.mutate(job.id, { onError: () => toast.error("Couldn't save that job. Try again.") });
   };
 
   const actions: JobActions = {
     save: context === "feed" ? saveJob : undefined,
     // In Library the row leaves, so it gets Undo; in the feed it stays.
     unsave: context === "saved" ? (job) => unsave.mutate(job.id, {
-      onSuccess: () => toast.show({ message: "Removed from saved", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => saveJob(job) } }),
+      onSuccess: () => toast.show({ message: "Removed from Saved", icon: "saved", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => saveJob(job) } }),
       onError: () => toast.error("Couldn't update your saved jobs. Try again."),
     }) : context === "feed" ? (job) => {
       haptics.tap();
-      unsave.mutate(job.id, {
-        onSuccess: () => toast.show({ message: "Removed from saved" }),
-        onError: () => toast.error("Couldn't update your saved jobs. Try again."),
-      });
+      unsave.mutate(job.id, { onError: () => toast.error("Couldn't update your saved jobs. Try again.") });
     } : undefined,
     markApplied: context === "saved" ? (job) => markApplied.mutate(job, {
       onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); },
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),
     }) : context === "feed" ? (job) => markApplied.mutate(job, {
-      // The row stays in Jobs with its Applied mark.
-      onSuccess: () => { haptics.success(); toast.show({ message: "Marked as applied", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => unmarkApplied.mutate(job) } }); },
+      // The row stays in Jobs with its Applied mark, and a swipe takes it back.
+      onSuccess: () => haptics.success(),
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),
     }) : undefined,
     unmarkApplied: context === "applied" ? (job) => unmarkApplied.mutate(job, {
-      onSuccess: () => toast.show({ message: "Moved back to your feed", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => markApplied.mutate(job) } }),
+      onSuccess: () => toast.show({ message: "Moved back to Jobs", icon: "jobs", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => markApplied.mutate(job) } }),
       onError: () => toast.error("Couldn't update that job. Try again."),
     }) : context === "feed" ? (job) => unmarkApplied.mutate(job, {
       onError: () => toast.error("Couldn't update that job. Try again."),
@@ -84,7 +79,7 @@ export function useJobActions(context: JobListContext) {
     }) : undefined,
     hide: context === "feed" ? (job) => {
       hideJob(job.id).then((hidden) => toast.show({
-        message: "Job hidden", duration: UNDO_TOAST_DURATION,
+        message: "Job hidden", icon: "hide", duration: UNDO_TOAST_DURATION,
         action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that job back."); }) },
       }), () => toast.error("Couldn't hide that job. Try again."));
     } : undefined,
