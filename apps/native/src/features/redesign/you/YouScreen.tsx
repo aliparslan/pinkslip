@@ -55,6 +55,11 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <Text role="largeTitle" accessibilityRole="header">You</Text>
     </View>
     <PersonCard person={person} onPress={() => open("account")} />
+    {/* Admin and Kit come first for the people who have them (owner, 2026-10-14). */}
+    {show.admin || show.kit ? <ListGroup surface="fill" inset="leading">
+      {show.admin ? <ListItem leading={<IconTile icon="admin" meaning="app" />} title="Admin" accessory="chevron" onPress={() => open("admin")} /> : null}
+      {show.kit ? <ListItem leading={<IconTile icon="kit" meaning="app" />} title="Kit" accessory="chevron" onPress={() => open("kit")} /> : null}
+    </ListGroup> : null}
     <ListGroup surface="fill" inset="leading">
       <ListItem leading={<IconTile icon="editSearch" meaning="find" />} title="Your search" value={values.search} accessory="chevron" onPress={() => open("search")} />
       {show.email ? <ListItem leading={<IconTile icon="email" meaning="find" />} title="Email tracking" value={values.email} accessory="chevron" onPress={() => open("email")} /> : null}
@@ -92,10 +97,6 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       </View>
       <ListItem leading={<IconTile icon="help" meaning="app" />} title="Help and feedback" accessory="chevron" onPress={() => open("help")} />
     </ListGroup>
-    {show.admin || show.kit ? <ListGroup surface="fill" inset="leading">
-      {show.admin ? <ListItem leading={<IconTile icon="admin" meaning="app" />} title="Admin" accessory="chevron" onPress={() => open("admin")} /> : null}
-      {show.kit ? <ListItem leading={<IconTile icon="kit" meaning="app" />} title="Kit" accessory="chevron" onPress={() => open("kit")} /> : null}
-    </ListGroup> : null}
     <View style={styles.version}><Text role="footnote" tone="ink-3" align="center" selectable>{appVersionLine()}</Text></View>
   </ScrollView>;
 }

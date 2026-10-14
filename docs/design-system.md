@@ -319,6 +319,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
+- **Tab labels, L2 (owner trying it, 2026-10-14):** the lit tab widens into
+  its oval with its name beside the icon (Subhead Medium, `accent`, 8 after
+  the icon, 18 before the edge); the others stay 56 icons. Tabs grow and
+  shrink on the tab spring; small, the name goes and the lit tab is the 64
+  oval.
 - **Tab bar on scroll** (owner, 2026-10-14): scrolling a list down shrinks
   the pill to 84% towards the bottom edge; scrolling up, reaching the top,
   touching the bar or changing tabs brings it back, on the tab bar's
