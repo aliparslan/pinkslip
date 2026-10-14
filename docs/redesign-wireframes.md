@@ -1084,7 +1084,7 @@ went back.
   touch on the bar or a new tab bring it back.
 - **Labels (Paper "Tab bar labels · Oct 14"):** L1 put a label under every
   icon; L2 has only the lit tab say its name beside its icon, in pink, in a
-  wider oval. The owner is trying L2 on the phone. Small, the bar drops the
+  wider oval. The owner tried L2 on the phone and picked it. Small, the bar drops the
   name and keeps the 64 oval.
 - **You:** Admin and Kit moved to the top, under the person card (owner).
   They stay gray: the tile colors say what a row is for, and these rows are
