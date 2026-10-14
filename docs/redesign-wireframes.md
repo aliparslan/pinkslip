@@ -792,6 +792,17 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
   - These slips put pink paper on Today once a week, an exception to "pink only for Needs you" for the brand's own object.
   - The time-card stamps use a violet ink that isn't a token.
 
+## Decisions, 2026-10-13 (night)
+
+- **The weekly report is a popup, not a card on Today:**
+  - It shows on Monday's first open and is swiped away (W1, with E1 inside).
+  - Which design goes in it is still open: E1 to E4 or T1 to T4.
+- **"Save your changes?" is approved** (Paper "Filters and Apply · Oct 12"): our own step when an edited search is swiped away. Not built yet.
+- **Push soon.** TestFlight builds never set EXPO_PUBLIC_REDESIGN, so testers keep today's app. The bundled Klim trial fonts ship in the binary either way.
+- **Proposed and drawn, waiting on the owner:**
+  - **C1b:** A3 without the "Applying for you" line, in two sizes (17 for the headline, 15 for the rest).
+  - **TR1 and TR2:** Tracker in the new feel. Outreach becomes the first chip after All, set apart by a divider. TR1 makes the job title the headline; TR2 makes the company the headline, because most titles read "Software Engineer, New Grad". TR2 is recommended.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
