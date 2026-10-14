@@ -39,6 +39,11 @@ Sizes are relative: S is a session, M a few, L a week or more of sessions.
   catalog repair and the empty-board fix (migrations 0087 and 0088,
   [source-health-2026-10-12.md](source-health-2026-10-12.md)). Afterwards the
   admin Sources count of sources that "need attention" should fall.
+- [ ] Email tracking setup in Cloudflare ([email-tracking.md](email-tracking.md)):
+  - Turn on Email Routing for pinkslip.work.
+  - Turn on subaddressing.
+  - Route `inbox@pinkslip.work` to the `pinkslip` Worker.
+  - Then deploy the backend (migration 0090).
 - [ ] Deploy the backend (`bun run deploy:backend`) to apply application
   stages (migration 0089, [application-stages.md](application-stages.md)),
   then ship the web and an over-the-air update so applied jobs leave the
@@ -101,6 +106,16 @@ Everything later reports into this, and none of it costs money per use.
   - ATS emails (Greenhouse, Lever, Ashby, Workday) are recognized
     automatically, with a one-tap "Not right? Change".
   - No Gmail connection.
+  - **Backend done (2026-10-14)**, see [email-tracking.md](email-tracking.md).
+    Owner decisions:
+    - One address, `inbox+<tag>@pinkslip.work`.
+    - Automatic forwarding only.
+    - Bodies read in memory, never stored.
+    - Rules, not AI.
+    - Ambiguous emails ask "Which application?".
+  - Open: onboarding recommends forward-everything or a keyword filter.
+  - Later: a Gmail connection, for setup without a computer and past mail.
+    It needs Google's verification and a yearly security review.
 - **Stats:**
   - a funnel, response rate and time to first reply
   - the Sankey flow, shareable as an image
