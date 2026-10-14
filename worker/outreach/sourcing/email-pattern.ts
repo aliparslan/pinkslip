@@ -77,6 +77,22 @@ export function cleanPersonName(raw: string): PersonName | null {
   return { display: words.join(" "), firsts, lasts };
 }
 
+/** "Samantha A." with the profile link /in/samantha-arbetter (or
+ * /in/samanthaarbetter) is Samantha Arbetter: the link's next word starts
+ * with the shown initial. */
+export function completeNameFromSlug(name: PersonName, slug: string): PersonName {
+  if (!name.lastInitial) return name;
+  const first = name.firsts[0] ?? "";
+  const words = slug.toLowerCase().split(/[-_]/).map((word) => ascii(word));
+  let last: string | undefined;
+  if (words[0] === first && words[1]?.startsWith(name.lastInitial)) last = words[1];
+  else if (words.length === 1 && words[0]?.startsWith(first + name.lastInitial)) last = words[0].slice(first.length);
+  last = last?.replace(/\d+$/, "");
+  if (!last || last.length < 2 || /\d/.test(last)) return name;
+  const { lastInitial: _initial, ...rest } = name;
+  return { ...rest, display: `${name.display.replace(/\s+\p{L}\.?$/u, "")} ${last[0]!.toUpperCase()}${last.slice(1)}`, lasts: [last] };
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }

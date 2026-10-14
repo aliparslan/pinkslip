@@ -3,6 +3,7 @@ import {
   addressesAt,
   applyTemplate,
   cleanPersonName,
+  completeNameFromSlug,
   deriveTemplates,
   formatClaim,
   isRoleAddress,
@@ -52,6 +53,15 @@ describe("cleanPersonName", () => {
     expect(applyTemplate("{first}", name)).toBe("jordan");
     expect(applyTemplate("{first}{l}", name)).toBe("jordant");
     expect(applyTemplate("{first}.{last}", name)).toBeNull();
+  });
+
+  it("completes a last initial from the profile link", () => {
+    const shown = cleanPersonName("Jordan T.")!;
+    expect(completeNameFromSlug(shown, "jordan-testwell")).toMatchObject({ display: "Jordan Testwell", lasts: ["testwell"] });
+    expect(completeNameFromSlug(shown, "jordantestwell42")).toMatchObject({ lasts: ["testwell"] });
+    expect(completeNameFromSlug(shown, "jordan-t-203b251b6").lastInitial).toBe("t");
+    expect(completeNameFromSlug(shown, "jt-recruits").lastInitial).toBe("t");
+    expect(completeNameFromSlug(shown, "jordan-smith").lastInitial).toBe("t");
   });
 
   it("reads an aside as a nickname or a former last name", () => {

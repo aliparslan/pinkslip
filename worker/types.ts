@@ -58,6 +58,8 @@ export interface Env {
   OUTREACH_TEST_RECIPIENT?: string;
   /** Testing only: "2,5" makes follow-ups come due 2 and 5 minutes after the email before. */
   OUTREACH_FOLLOW_UP_MINUTES?: string;
+  /** Serper (Google results) for recruiter sourcing; admin runs only. */
+  SERPER_API_KEY?: string;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */
