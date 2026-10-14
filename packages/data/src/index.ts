@@ -5,6 +5,7 @@ export * from "./apply";
 export * from "./autosave";
 export * from "./cache";
 export * from "./companies";
+export * from "./inbox";
 export * from "./interactions";
 export * from "./jobs";
 export * from "./keys";

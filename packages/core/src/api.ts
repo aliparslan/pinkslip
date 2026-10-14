@@ -12,6 +12,7 @@ import type {
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
+import type { InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
@@ -33,6 +34,7 @@ export type {
 } from "@pinkslip/domain/application-form";
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
+export type { DetectedStage, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
 /** Web passes a File; native passes expo-file-system's `File`, which is a Blob.
@@ -881,6 +883,20 @@ function createEndpoints(context: ClientContext) {
         body: JSON.stringify(changes),
       }),
     remove: (id: string) => request<void>(`/applications/${id}`, { method: "DELETE" }),
+  },
+  /** Email tracking: the forwarding address and what forwarded mail reported. */
+  inbox: {
+    get: () => request<Inbox>("/inbox"),
+    rotate: () => request<Inbox>("/inbox/rotate", { method: "POST" }),
+    emails: (status?: InboundEmailStatus) =>
+      request<{ emails: InboundEmail[] }>(`/inbox/emails${status ? `?status=${status}` : ""}`),
+    assign: (emailId: string, applicationId: string) =>
+      request<{ ok: true }>(`/inbox/emails/${emailId}/assign`, {
+        method: "POST",
+        body: JSON.stringify({ application_id: applicationId }),
+      }),
+    dismiss: (emailId: string) => request<{ ok: true }>(`/inbox/emails/${emailId}/dismiss`, { method: "POST" }),
+    undo: (emailId: string) => request<{ ok: true }>(`/inbox/emails/${emailId}/undo`, { method: "POST" }),
   },
   profile: {
     get: () =>
