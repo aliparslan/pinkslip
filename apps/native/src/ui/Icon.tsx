@@ -2,7 +2,7 @@ import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons"
 import {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
@@ -17,7 +17,7 @@ import type { TextTone } from "./Text";
 const components: Record<PhosphorName, PhosphorIcon> = {
   ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,
   // The package exports this one as PathIcon (Path would clash with SVG's).

@@ -68,9 +68,15 @@ export function useJobActions(context: JobListContext) {
     markApplied: context === "saved" ? (job) => markApplied.mutate(job, {
       onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); },
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),
+    }) : context === "feed" ? (job) => markApplied.mutate(job, {
+      // The row stays in Jobs with its Applied mark.
+      onSuccess: () => { haptics.success(); toast.show({ message: "Marked as applied", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => unmarkApplied.mutate(job) } }); },
+      onError: () => toast.error("Couldn't mark that job as applied. Try again."),
     }) : undefined,
     unmarkApplied: context === "applied" ? (job) => unmarkApplied.mutate(job, {
       onSuccess: () => toast.show({ message: "Moved back to your feed", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => markApplied.mutate(job) } }),
+      onError: () => toast.error("Couldn't update that job. Try again."),
+    }) : context === "feed" ? (job) => unmarkApplied.mutate(job, {
       onError: () => toast.error("Couldn't update that job. Try again."),
     }) : undefined,
     toggleRead: context === "feed" ? (job, viewed) => setViewed.mutate({ id: job.id, viewed }, {

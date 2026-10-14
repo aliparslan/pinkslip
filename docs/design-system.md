@@ -319,6 +319,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
+- **Swipe actions** (`SwipeRow`, Paper "Swipe actions · Oct 14" S4): up
+  to two 44 circles a side, tinted by meaning (the ink at 14%), with
+  Footnote labels under them; a short swipe stays open on them, all the way
+  widens the outer circle into its filled capsule and runs it. Settles ease
+  out (never a spring that overshoots); a row that leaves folds its height.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Lists on a white page** (`ListGroup surface="fill"`): the gray card,

@@ -7,8 +7,8 @@ import { Link, useScrollToTop } from "expo-router";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { SwipeRow, toast, usePullToRefresh } from "../../kit";
-import { Chip, EmptyState, Icon, JobRow, SectionHeader, Text, useTabBarSpace } from "../../ui";
+import { toast, usePullToRefresh } from "../../kit";
+import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, SectionHeader, SwipeRow, Text, useTabBarSpace, type SwipeAction } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -114,7 +114,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     renderItem={({ item }) => item.kind === "section"
       ? <SectionHeader title={item.title} count={item.count} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
-    onEndReached={loadMore} onEndReachedThreshold={0.6}
+    onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
     ListFooterComponent={jobs.length > 0 ? <>
       {after}
@@ -141,8 +141,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). */
 function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
-  const { leading, trailing, menu } = rowActions(job, actions, viewed);
-  return <SwipeRow id={job.id} leading={leading} trailing={trailing} appearance="capsule">
+  const { menu } = rowActions(job, actions, viewed);
+  const { leading, trailing } = swipeActions(job, actions, viewed);
+  return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
         <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job)} age={rowAge(job)}
@@ -157,6 +158,25 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
       </Link.Menu>
     </Link>
   </SwipeRow>;
+}
+
+/** The swipes (Paper "Swipe actions · Oct 14", S4, owner 2026-10-14):
+ * right is Save, all the way, then Read or Unread; left is Hide, all the
+ * way, then Applied. Everything else is in the long-press menu. */
+function swipeActions(job: RowJob, actions: JobActions, viewed: boolean): { leading: SwipeAction[]; trailing: SwipeAction[] } {
+  const leading: SwipeAction[] = [];
+  const trailing: SwipeAction[] = [];
+  if (job.saved && actions.unsave) leading.push({ id: "unsave", label: "Unsave", icon: "saved", tone: "neutral", run: () => actions.unsave?.(job) });
+  else if (!job.saved && actions.save) leading.push({ id: "save", label: "Save", icon: "save", tone: "accent", run: () => actions.save?.(job) });
+  if (actions.toggleRead) {
+    leading.push(viewed
+      ? { id: "unread", label: "Unread", icon: "unread", tone: "find", run: () => actions.toggleRead?.(job, false) }
+      : { id: "read", label: "Read", icon: "read", tone: "find", run: () => actions.toggleRead?.(job, true) });
+  }
+  if (actions.hide) trailing.push({ id: "hide", label: "Hide", icon: "hide", tone: "neutral", removes: true, run: () => actions.hide?.(job) });
+  if (job.applied && actions.unmarkApplied) trailing.push({ id: "unapplied", label: "Not applied", icon: "undo", tone: "neutral", run: () => actions.unmarkApplied?.(job) });
+  else if (!job.applied && actions.markApplied) trailing.push({ id: "applied", label: "Applied", icon: "applied", tone: "apply", run: () => actions.markApplied?.(job) });
+  return { leading, trailing };
 }
 
 const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;

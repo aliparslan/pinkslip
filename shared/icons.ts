@@ -49,6 +49,9 @@ export const ICONS = {
 
   // Email and people
   email: "EnvelopeSimple",
+  /** Swipe a job to mark it read, or unread again (the closed envelope). */
+  read: "EnvelopeSimpleOpen",
+  unread: "EnvelopeSimple",
   send: "PaperPlaneTilt",
   followUp: "ArrowBendUpLeft",
   recruiter: "IdentificationBadge",
