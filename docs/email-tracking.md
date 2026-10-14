@@ -57,6 +57,19 @@ Paper page "Email tracking · Oct 14"; the board names start with the option.
 - **Which application?** 5A, a sheet from Today's Needs you. Pick any
   number of the candidates, then Save, or None of these.
 
+Built 2026-10-14 in `apps/native/src/features/redesign/email/`: the setup
+sheet (`SetupSheet.tsx`), the status page and Job emails (`/you/email`,
+`/you/email-history`), "Which application?" (from Job emails until Today is
+built) and Tracker's nudge. You's row lives in today's You screen until You
+is redesigned, and opens the status page, which offers Set it up while
+tracking is off. The phone remembers the provider, what Gmail forwards,
+that the address was added (so the status says "Waiting for the first
+email") and a dismissed nudge. Gmail's code is checked every 4 seconds
+while the setup sheet is open. The redesign kit has every screen on sample
+data. Steps written beyond the drawn Gmail ones (Outlook, iCloud, school,
+"Waiting for Gmail's code", "Waiting for the first email") are listed for
+the owner to check.
+
 ## Flow
 
 1. The user's mail provider forwards to `inbox+<tag>@pinkslip.work`.
@@ -109,6 +122,7 @@ Paper page "Email tracking · Oct 14"; the board names start with the option.
 |---|---|
 | `GET /api/v2/inbox` | The user's address (created on first use), forwarding status and last email |
 | `POST /api/v2/inbox/rotate` | Issues a new tag; the old address stops working |
+| `POST /api/v2/inbox/steps-email` | "Email me these steps": the provider's steps (`provider`, and for Gmail `scope`: `everything` or `job`) and the address, to the account's email |
 | `GET /api/v2/inbox/emails?status=` | Detected emails, newest first ("Needs you" uses `needs_choice`) |
 | `POST /api/v2/inbox/emails/:id/assign` | Answers "Which application?" with `application_ids` (one or more; `application_id` still works). The email lists under the first; each one it moves gets its own step |
 | `POST /api/v2/inbox/emails/:id/dismiss` | "Not one of these" |
