@@ -839,6 +839,23 @@ On Paper "Today and Tracker · Oct 13" (superseded boards moved to "Archive · T
   deployed), so Tracker shows "Tracker didn't load" there. The redesign
   kit's "Tracker with sample data" shows it full.
 
+## The application page (owner, 2026-10-13, late)
+
+On "Today and Tracker · Oct 13": the page is the job page with what happened
+added, so the two feel like one place.
+- **With a next step:** the header, the ticket torn (you've applied), "Next"
+  as a Coming up row (the date tile, "Thursday · 11:00 AM", "Interview"),
+  then the timeline (each stage with its mark and date, the current one in
+  Medium), then the posting. The bar is Next step and Change stage.
+- **Nothing scheduled:** no Next section.
+- **Change stage:** the stages with their marks, endings in their own group;
+  tapping one moves it and closes the sheet.
+- **Next step:** what (Interview, Assessment due, Reply to an offer by,
+  Follow up), the date and time, Save; Remove next step when editing.
+- No notes. Tapping a Tracker row opens this page.
+- **The ticket stays** (owner): a pink carbon copy was drawn as the
+  alternative and set aside.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".

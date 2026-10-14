@@ -350,6 +350,16 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-13, late night (2)**
+  - Decided (owner): the application page keeps the job page's ticket,
+    torn, rather than a pink carbon copy (Paper "Application · alternative"
+    is kept for reference). The app icon gets a dark version, chosen by the
+    phone's theme, and both icons give the mark more room: it's drawn at
+    80% of the canvas, centred on its visual middle, so iOS's rounded
+    corners and glass edge don't crowd it.
+  - Logos filling the tile (Paper "Logos · square ones fill the tile") is
+    wanted but waits: telling a full-square logo from a circle needs the
+    server to read each favicon's edges.
 - **2026-10-13, app icon**
   - Built (owner go-ahead): the app icon is the carbon-copy mark (Paper "The
     mark", A), as a full-bleed 1024 square on its warm white (Paper "App icon

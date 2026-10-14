@@ -21,7 +21,11 @@
           "remote-notification"
         ]
       },
-      "appleTeamId": "KV876H8952"
+      "appleTeamId": "KV876H8952",
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png"
+      }
     },
     "plugins": [
       [
