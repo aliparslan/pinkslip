@@ -874,8 +874,14 @@ status, Shop), no job apps.
   stamp. A due follow-up goes to Today. Tapping the person opens their page:
   the emails (sent, scheduled, the last one only if no reply), then your
   applications at that company, and "They replied" in the bar.
-- **Proposed:** the Next step sheet's "Follow up" becomes "Hear back by"
-  (a date the company gave), since outreach owns follow-ups.
+- **Next step and Change stage are one button** (owner, 2026-10-14): the
+  two asked for the same news twice. The bar is Change stage alone. Applied
+  and endings move and close; Assessment, Interviewing and Offer slide on to
+  their date ("When's the interview?", the calendar and a time, Save or
+  Skip). The date shows as the Next row under the stub; tap it to change or
+  clear it. A dated stage without one shows "Add the interview date". Drawn
+  as "C · 1" to "C · 4". The backend needs one date per application, kept
+  with its stage and cleared when the stage changes.
 
 ## In-app browser (owner, 2026-10-12)
 
