@@ -326,8 +326,7 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **What lives in Today, Tracker and Outreach** (2026-10-13): under
-  discussion; see docs/redesign-wireframes.md.
+- **Applying for you:** which A4 (dark island, light, or ticket).
 
 ## Changelog
 

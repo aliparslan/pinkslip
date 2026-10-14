@@ -803,6 +803,18 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
   - **C1b:** A3 without the "Applying for you" line, in two sizes (17 for the headline, 15 for the rest).
   - **TR1 and TR2:** Tracker in the new feel. Outreach becomes the first chip after All, set apart by a divider. TR1 makes the job title the headline; TR2 makes the company the headline, because most titles read "Software Engineer, New Grad". TR2 is recommended.
 
+## Where things live, decided (owner, 2026-10-13, night)
+
+- **Tabs: Today · Jobs · Tracker · You.**
+  - **Today** is the one-minute answer: Needs you, What changed, Coming up.
+  - **Tracker** is the record: applications by stage, with no Outreach chip.
+  - **Outreach is actions, not a place:** follow-ups due and replies show up in Today, and the people you've contacted show up on each company and application page.
+- **Applying for you is A4 everywhere,** Today included: one slim live bar, which opens the queue sheet (C2). A3's logo strip is dropped as too busy. Variations to pick from:
+  - A4a · a dark island, like the Live Activity
+  - A4b · light and floating
+  - A4c · a ticket with a stub
+- **The weekly report is tabled.** People hear about interviews by email, not from the app, so a recap should lead with what only Pinkslip knows (auto-apply's work, which applications went quiet, follow-ups due). Back to it later.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".
