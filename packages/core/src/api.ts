@@ -895,13 +895,17 @@ function createEndpoints(context: ClientContext) {
     rotate: () => request<Inbox>("/inbox/rotate", { method: "POST" }),
     emails: (status?: InboundEmailStatus) =>
       request<{ emails: InboundEmail[] }>(`/inbox/emails${status ? `?status=${status}` : ""}`),
-    assign: (emailId: string, applicationId: string) =>
+    assign: (emailId: string, applicationIds: string[]) =>
       request<{ ok: true }>(`/inbox/emails/${emailId}/assign`, {
         method: "POST",
-        body: JSON.stringify({ application_id: applicationId }),
+        body: JSON.stringify({ application_ids: applicationIds }),
       }),
     dismiss: (emailId: string) => request<{ ok: true }>(`/inbox/emails/${emailId}/dismiss`, { method: "POST" }),
-    undo: (emailId: string) => request<{ ok: true }>(`/inbox/emails/${emailId}/undo`, { method: "POST" }),
+    /** With an application, only that application's step is undone. */
+    undo: (emailId: string, applicationId?: string) => request<{ ok: true }>(`/inbox/emails/${emailId}/undo`, {
+      method: "POST",
+      body: JSON.stringify(applicationId ? { application_id: applicationId } : {}),
+    }),
   },
   profile: {
     get: () =>

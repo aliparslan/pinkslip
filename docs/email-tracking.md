@@ -55,9 +55,7 @@ Paper page "Email tracking · Oct 14"; the board names start with the option.
   random again (a chosen one could be guessed, and anyone who knows it can
   send updates into your Tracker), and the old one isn't kept.
 - **Which application?** 5A, a sheet from Today's Needs you. Pick any
-  number of the candidates, then Save, or None of these. Needs the server
-  to accept several applications per email (see
-  [redesign-backend-needs.md](redesign-backend-needs.md)).
+  number of the candidates, then Save, or None of these.
 
 ## Flow
 
@@ -112,9 +110,9 @@ Paper page "Email tracking · Oct 14"; the board names start with the option.
 | `GET /api/v2/inbox` | The user's address (created on first use), forwarding status and last email |
 | `POST /api/v2/inbox/rotate` | Issues a new tag; the old address stops working |
 | `GET /api/v2/inbox/emails?status=` | Detected emails, newest first ("Needs you" uses `needs_choice`) |
-| `POST /api/v2/inbox/emails/:id/assign` | Answers "Which application?" |
+| `POST /api/v2/inbox/emails/:id/assign` | Answers "Which application?" with `application_ids` (one or more; `application_id` still works). The email lists under the first; each one it moves gets its own step |
 | `POST /api/v2/inbox/emails/:id/dismiss` | "Not one of these" |
-| `POST /api/v2/inbox/emails/:id/undo` | "Not right?": removes the step it recorded and restores the previous stage |
+| `POST /api/v2/inbox/emails/:id/undo` | "Not right?": removes the steps it recorded and restores the previous stages. With `application_id`, only that application's (the page it was tapped on); the email counts as undone once none are left |
 
 ## Owner setup (Cloudflare dashboard)
 

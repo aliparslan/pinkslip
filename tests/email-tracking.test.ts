@@ -167,6 +167,31 @@ describe("forwarded email", () => {
     expect((await call(`/inbox/emails/${pending[0].id}/assign`, { method: "POST", body: JSON.stringify({ application_id: chosen }) })).status).toBe(409);
   });
 
+  it("files one email to several applications, and undoes them one at a time", async () => {
+    const { db, sqlite, send, call, applications, records } = await setup();
+    await trackJob(db, "u1", "z2", "applied");
+    await trackJob(db, "u1", "z3", "applied");
+    await send(greenhouse("Your application to Zephyr Labs", "Unfortunately, we will not be moving forward with your application.", "reject-2"));
+    const [pending] = (await call("/inbox/emails?status=needs_choice")).body.emails;
+    const ids = pending.candidates.map((candidate: { id: string }) => candidate.id);
+    const assign = (body: unknown) => call(`/inbox/emails/${pending.id}/assign`, { method: "POST", body: JSON.stringify(body) });
+    expect((await assign({ application_ids: [] })).status).toBe(400);
+    expect((await assign({ application_ids: [ids[0], "nope"] })).status).toBe(400);
+    expect((await assign({ application_ids: ids })).status).toBe(200);
+    expect(applications()).toEqual([{ job_id: "z2", stage: "rejected" }, { job_id: "z3", stage: "rejected" }]);
+
+    const idFor = (jobId: string) => (sqlite.query("SELECT id FROM applications WHERE job_id = ?").get(jobId) as { id: string }).id;
+    const undo = (applicationId: string) =>
+      call(`/inbox/emails/${pending.id}/undo`, { method: "POST", body: JSON.stringify({ application_id: applicationId }) });
+    expect((await undo(idFor("z3"))).status).toBe(200);
+    expect(applications()).toEqual([{ job_id: "z2", stage: "rejected" }, { job_id: "z3", stage: "applied" }]);
+    expect(records().at(-1)).toMatchObject({ status: "assigned" });
+    expect((await undo(idFor("z3"))).status).toBe(409);
+    expect((await undo(idFor("z2"))).status).toBe(200);
+    expect(applications()).toEqual([{ job_id: "z2", stage: "applied" }, { job_id: "z3", stage: "applied" }]);
+    expect(records().at(-1)).toMatchObject({ status: "undone" });
+  });
+
   it("undoes an email's step, and removes an application the email started", async () => {
     const { db, send, call, applications } = await setup();
     await legacySaveJob(db, "u1", "z2");

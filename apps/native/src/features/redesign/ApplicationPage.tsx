@@ -70,7 +70,7 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
       await update.mutateAsync({ id: application.id, stage_date: stageDate }).catch(failed("Couldn't save the date. Try again."));
     },
     undoEmail: async (emailId) => {
-      await undo.mutateAsync(emailId).catch(failed("Couldn't undo it. Try again."));
+      await undo.mutateAsync({ emailId, applicationId: application.id }).catch(failed("Couldn't undo it. Try again."));
       const after = await query.refetch();
       if (!after.data) router.back();
     },

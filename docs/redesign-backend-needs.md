@@ -45,7 +45,7 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 | Need | Status |
 | --- | --- |
 | The forwarding address, Gmail's confirmation code and whether mail arrives | Exists: `GET /inbox`, `POST /inbox/rotate` |
-| **Which application?** with several picked: one email files to each | Missing. `POST /inbox/emails/:id/assign` takes one `application_id` and `inbound_emails` holds one. Take `application_ids`, link the email to each, and make "Not right?" on one application undo only that application's step |
+| **Which application?** with several picked: one email files to each | Built, not deployed: `assign` takes `application_ids`, and `undo` takes the page's `application_id` so "Not right?" undoes only that application. No migration: the email lists under the first pick, and the steps it records link the rest |
 | **Job emails**, the history page | Exists: `GET /inbox/emails` (sender, subject, detected step, status, company, application) |
 | **Job emails this month** on the status page | Missing: a count on `GET /inbox` (or the app counts `GET /inbox/emails` by date) |
 | **Email me these steps** (setup on a computer) | Missing: send the steps to the account's email; the alerts mailer (`send_email` binding) can carry it |
@@ -61,4 +61,6 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 
 ## To deploy
 
-Nothing waiting: migration 0091 and its worker went out on 2026-10-14.
+The multi-pick "Which application?" worker change. No migration. The app's
+"Not right?" sends its application, which the deployed worker ignores, so
+either order works.

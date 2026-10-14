@@ -35,12 +35,12 @@ function refreshAfterAnswer(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applied() });
 }
 
-/** "Which application?": the user's answer. */
+/** "Which application?": the user's answer, one application or several. */
 export function useAssignInboundEmail() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ emailId, applicationId }: { emailId: string; applicationId: string }) => api.inbox.assign(emailId, applicationId),
+    mutationFn: ({ emailId, applicationIds }: { emailId: string; applicationIds: string[] }) => api.inbox.assign(emailId, applicationIds),
     onSettled: () => refreshAfterAnswer(queryClient),
   });
 }
@@ -55,12 +55,13 @@ export function useDismissInboundEmail() {
   });
 }
 
-/** "Not right?": removes the step an email recorded. */
+/** "Not right?": removes the step an email recorded, on one application
+ * when it's given. */
 export function useUndoInboundEmail() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (emailId: string) => api.inbox.undo(emailId),
+    mutationFn: ({ emailId, applicationId }: { emailId: string; applicationId?: string }) => api.inbox.undo(emailId, applicationId),
     onSettled: () => refreshAfterAnswer(queryClient),
   });
 }

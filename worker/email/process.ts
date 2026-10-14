@@ -306,28 +306,36 @@ async function findInboundEmail(db: D1Database, userId: string, id: string) {
 
 export type InboundEmailAction = { ok: true } | { ok: false; status: 404 | 409 | 400; error: string };
 
-/** Answers "Which application?" with one of the candidates. */
+/** Answers "Which application?" with one or more of the candidates: the
+ * email files to each, moving any it moves forward. */
 export async function assignInboundEmail(
   db: D1Database,
   userId: string,
   id: string,
-  applicationId: string
+  applicationIds: string[]
 ): Promise<InboundEmailAction> {
   const email = await findInboundEmail(db, userId, id);
   if (!email) return { ok: false, status: 404, error: "Not found" };
   if (email.status !== "needs_choice") return { ok: false, status: 409, error: "This email has already been sorted" };
-  if (!(JSON.parse(email.candidate_application_ids) as string[]).includes(applicationId)) {
-    return { ok: false, status: 400, error: "Choose one of the suggested applications" };
+  const chosen = [...new Set(applicationIds)];
+  const candidates = JSON.parse(email.candidate_application_ids) as string[];
+  if (chosen.length === 0 || chosen.some((applicationId) => !candidates.includes(applicationId))) {
+    return { ok: false, status: 400, error: "Choose from the suggested applications" };
   }
-  const application = await db.prepare("SELECT id, stage FROM applications WHERE user_id = ? AND id = ?")
-    .bind(userId, applicationId)
-    .first<{ id: string; stage: ApplicationStage }>();
-  if (!application) return { ok: false, status: 400, error: "That application no longer exists" };
+  const found = await db.prepare(
+    `SELECT id, stage FROM applications WHERE user_id = ? AND id IN (${chosen.map(() => "?").join(", ")})`
+  ).bind(userId, ...chosen).all<{ id: string; stage: ApplicationStage }>();
+  const applications = chosen.flatMap((applicationId) => (found.results ?? []).filter((row) => row.id === applicationId));
+  if (applications.length !== chosen.length) return { ok: false, status: 400, error: "That application no longer exists" };
+  // The email lists under the first; the rest are linked by the steps it records.
   await db.prepare(
     "UPDATE inbound_emails SET status = 'assigned', application_id = ?, candidate_application_ids = '[]' WHERE id = ?"
-  ).bind(applicationId, id).run();
-  if (emailMovesStage(application.stage, email.detected_stage)) {
-    await recordEmailStep(db, application, email.detected_stage, id, new Date().toISOString());
+  ).bind(chosen[0], id).run();
+  const now = new Date().toISOString();
+  for (const application of applications) {
+    if (emailMovesStage(application.stage, email.detected_stage)) {
+      await recordEmailStep(db, application, email.detected_stage, id, now);
+    }
   }
   return { ok: true };
 }
@@ -341,15 +349,34 @@ export async function dismissInboundEmail(db: D1Database, userId: string, id: st
   return { ok: true };
 }
 
-/** "Not right?": removes the step this email recorded. */
-export async function undoInboundEmail(db: D1Database, userId: string, id: string): Promise<InboundEmailAction> {
+/** "Not right?": removes the steps this email recorded, on one application
+ * (the page it was tapped on) or on every application it changed. */
+export async function undoInboundEmail(
+  db: D1Database,
+  userId: string,
+  id: string,
+  applicationId?: string
+): Promise<InboundEmailAction> {
   const email = await findInboundEmail(db, userId, id);
   if (!email) return { ok: false, status: 404, error: "Not found" };
   if (!["applied", "created", "assigned"].includes(email.status)) {
     return { ok: false, status: 409, error: "This email didn't change an application" };
   }
-  if (email.application_id) await undoEmailSteps(db, email.application_id, id);
-  await db.prepare("UPDATE inbound_emails SET status = 'undone' WHERE id = ?").bind(id).run();
+  const changed = await db.prepare(
+    "SELECT DISTINCT application_id FROM application_events WHERE inbound_email_id = ?"
+  ).bind(id).all<{ application_id: string }>();
+  const linked = (changed.results ?? []).map((row) => row.application_id);
+  if (applicationId !== undefined && !linked.includes(applicationId)) {
+    return { ok: false, status: 409, error: "This email didn't change that application" };
+  }
+  const undoing = applicationId === undefined ? linked : [applicationId];
+  for (const target of undoing) await undoEmailSteps(db, target, id);
+  const remaining = linked.filter((target) => !undoing.includes(target));
+  if (remaining.length === 0) {
+    await db.prepare("UPDATE inbound_emails SET status = 'undone' WHERE id = ?").bind(id).run();
+  } else if (!remaining.includes(email.application_id ?? "")) {
+    await db.prepare("UPDATE inbound_emails SET application_id = ? WHERE id = ?").bind(remaining[0], id).run();
+  }
   return { ok: true };
 }
 
