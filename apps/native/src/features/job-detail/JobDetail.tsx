@@ -4,9 +4,9 @@ import { jobOriginalTimingLabel, jobTimingLabel } from "@pinkslip/core/job-timin
 import { Stack } from "expo-router";
 import { ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise, MapPin, Money, WarningCircle } from "phosphor-react-native";
 import { useEffect, useMemo, useRef } from "react";
-import { ScrollView, View } from "react-native";
+import { AccessibilityInfo, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Badge, Button, EmptyState, Heading, Skeleton, Spinner, Text, toast } from "../../kit";
+import { Badge, Button, EmptyState, Heading, Skeleton, Spinner, Text } from "../../kit";
 import { CompanyLogo } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
 import { useDetailJob, useJobPageActions, type DetailJob } from "./useJobPage";
@@ -45,10 +45,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const salary = normalizeSalaryText(job.salary?.trim() ? job.salary : null);
   const location = formatJobLocation(job.location);
   const original = jobOriginalTimingLabel(job);
-  // Announce when a pending posting arrives, or stops trying.
+  // Tell VoiceOver when a pending posting arrives, or stops trying; the page shows it.
   const wasPending = useRef(pendingDescription);
   useEffect(() => {
-    if (wasPending.current && !pendingDescription) toast.show({ message: blocks.length > 0 ? "The full posting loaded." : "The full posting isn't available yet.", dedupeKey: "posting" });
+    if (wasPending.current && !pendingDescription) AccessibilityInfo.announceForAccessibility(blocks.length > 0 ? "The full posting loaded." : "The full posting isn't available yet.");
     wasPending.current = pendingDescription;
   }, [pendingDescription, blocks.length]);
 

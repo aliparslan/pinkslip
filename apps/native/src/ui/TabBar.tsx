@@ -11,6 +11,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
+import { useToastLift } from "./Toast";
 
 /** Icons sit 56 apart (Paper "C · Closer icons, pink outline, drag"). The
  * oval under the selected one is wider than that, so it's an oval, not a
@@ -61,6 +62,8 @@ export function useTabBarSpace() {
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname());
+  // Toasts sit 12 above the pill; the job page's own bar takes over there.
+  useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
   const tabs = state.routes.filter((route) => TABS[route.name]);
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
   const count = tabs.length;

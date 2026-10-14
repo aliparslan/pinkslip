@@ -107,7 +107,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const asJob = job as Job;
 
   const setApplied = (value: boolean) => (value ? markApplied : unmarkApplied).mutate(asJob, {
-    onSuccess: () => { if (value) haptics.success(); toast.success(value ? "Added to applied jobs" : "Removed from applied jobs"); },
+    // The page's button says where it stands, so no toast.
+    onSuccess: () => { if (value) haptics.success(); },
     onError: () => toast.error("Couldn't update this job. Try again."),
   });
   const toggleSave = () => {
@@ -145,13 +146,13 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const leave = () => { if (router.canGoBack()) router.back(); };
   const notInterested = () => hideJob(job.id).then((hidden) => {
     leave();
-    toast.show({ message: "Job hidden", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that job back."); }) } });
+    toast.show({ message: "Job hidden", icon: "hide", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that job back."); }) } });
   }, () => toast.error("Couldn't hide this job. Try again."));
   const hideTheCompany = () => {
     if (!job.company_id) return;
     hideCompany(job.company_id).then((hidden) => {
       leave();
-      toast.show({ message: `${job.company_name} hidden`, duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that company back."); }) } });
+      toast.show({ message: `${job.company_name} hidden`, icon: "hide", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that company back."); }) } });
     }, () => toast.error("Couldn't hide this company. Try again."));
   };
   const confirmBlock = () => Alert.alert("Block this job?", `This permanently removes ${job.title} at ${job.company_name} for everyone.`, [

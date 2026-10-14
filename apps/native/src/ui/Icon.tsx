@@ -1,6 +1,6 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
-  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
@@ -15,7 +15,7 @@ import type { TextTone } from "./Text";
 // Every Phosphor name the shared table uses needs its component here: a
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
-  ArrowBendUpLeft, ArrowClockwise, ArrowCounterClockwise, ArrowSquareOut, ArrowUpRight, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,

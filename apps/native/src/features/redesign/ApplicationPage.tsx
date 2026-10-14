@@ -20,7 +20,7 @@ import {
   stageDateValue, stubStamps, type Stamp,
 } from "./application-facts";
 import { Description } from "./Description";
-import { BAR, TOP_BAR, TopBar } from "./JobPage";
+import { BAR, TOP_BAR, TopBar, usePinnedBarToastLift } from "./JobPage";
 import { JobIdentity } from "./JobIdentity";
 import { ticketStub } from "./job-facts";
 import { MOVE_TO } from "./tracker-facts";
@@ -106,6 +106,7 @@ export function ApplicationView({ application, job, about, actions }: {
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
+  usePinnedBarToastLift();
   const tab = (useSegments() as readonly string[])[1] ?? "(library)";
   const [sheet, setSheet] = useState<SheetStart | null>(null);
   const stamps = stubStamps(application);

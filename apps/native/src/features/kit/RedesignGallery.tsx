@@ -76,6 +76,27 @@ export function RedesignGallery() {
       </View>
     </Section>
 
+    <Section title="Toast">
+      {/* Samples only: nothing here changes your data. */}
+      <View style={styles.row}>
+        <Button size="small" onPress={() => toast.show({ message: "Job hidden", icon: "hide", action: { label: "Undo", run: () => { toast.success("Back in Jobs (sample)"); } } })}>Undo</Button>
+        <Button size="small" onPress={() => toast.success("Test notification sent")}>Done</Button>
+        <Button size="small" onPress={() => toast.error("Couldn't refresh jobs", { action: { label: "Try again", run: () => undefined } })}>Couldn't</Button>
+      </View>
+      <View style={styles.row}>
+        <Button size="small" onPress={() => {
+          toast.loading("Checking Ramp's careers page…", { dedupeKey: "sample-check" });
+          setTimeout(() => toast.success("Ramp fixed · 4 new jobs", { dedupeKey: "sample-check" }), 2500);
+        }}>Working</Button>
+        <Button size="small" onPress={() => {
+          toast.show({ message: "Ramp hidden", duration: 20_000, icon: "hide", action: { label: "Undo", run: () => undefined } });
+          setTimeout(() => toast.show({ message: "Removed from Saved", duration: 20_000, icon: "saved", action: { label: "Undo", run: () => undefined } }), 350);
+          setTimeout(() => toast.show({ message: "Notion hidden", duration: 20_000, icon: "hide", action: { label: "Undo", run: () => undefined } }), 700);
+        }}>Three at once</Button>
+        {/* The stack's samples stay 20 seconds, long enough to spread and swipe them. */}
+      </View>
+    </Section>
+
     <Section title="Chips" flush>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         {["Remote", "Sponsors visas", "$100K+", "Posted this week"].map((label) =>

@@ -43,8 +43,8 @@ When the screen already shows the change, there's no toast.
 | `redesign/you/AccountPage.tsx` | "Signed out" | The screen turns into the guest one |
 | `redesign/JobPage.tsx`, `job-detail/JobDetail.tsx` | "The full posting loaded." | It's on screen; "isn't available yet" belongs inline on the page |
 
-The feed's "Marked as applied" keeps its Undo, because the row leaves the
-feed. Admin toasts stay as they are. Errors stay, but are shortened to
+The feed's "Marked as applied" goes too: the row stays with its Applied
+mark, and a swipe takes it back. Admin toasts stay as they are. Errors stay, but are shortened to
 "Couldn't …", with Try again where it can retry.
 
 ## The options (Paper)
@@ -97,3 +97,26 @@ Taken from Sonner and Base UI, for any direction:
 On the simulator, `simctl`'s injected taps didn't reach the toast's Undo. The
 toast is in its own overlay window. Check Undo on a device before calling the
 new one done.
+
+## Built (T1, owner 2026-10-14)
+
+`apps/native/src/ui/Toast.tsx`; `kit/Toast.tsx` re-exports it, so today's
+screens use it too and every `toast.*` call works unchanged. New:
+`toast.loading`, an `icon` for the leading mark, and `useToastLift` for
+pinned bars (the tab bar, the job and application pages register theirs).
+The cuts above are made; the posting-loaded notice is now a VoiceOver
+announcement only.
+
+Two things found on the simulator:
+- **Liquid Glass and opacity.** Fading any parent of a `GlassView` left the
+  glass undrawn. The toast fades only its words, and the glass
+  materializes and dissolves through `glassEffectStyle` (`regular` ↔
+  `none`, animated), so a dismissed toast leaves first and is dropped
+  250ms later.
+- **The spread stack's touches.** A tap-away backdrop mounted on demand
+  landed above the toasts and took their touches; it now stays mounted
+  under the lane and only takes touches while the stack is spread.
+
+Undo now responds to taps on the simulator (it didn't with the old toast),
+spreading, swiping one away and tapping away all work. Still to check on a
+device: VoiceOver reading and the Undo button, and the keyboard lift.

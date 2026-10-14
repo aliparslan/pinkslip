@@ -66,7 +66,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
     update((draft) => ({ ...draft, [section]: draft[section].filter((entry) => entry.id !== id) }));
     setEdit(null);
     if (!removed || !hasResumeContent(removed)) return;
-    toast.show({ message: `${label} removed`, duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => update((draft) => {
+    toast.show({ message: `${label} removed`, icon: "remove", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => update((draft) => {
       const items = [...draft[section]] as typeof draft[typeof section];
       items.splice(index, 0, removed as never);
       return { ...draft, [section]: items };
@@ -95,7 +95,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
   const clearAll = () => Alert.alert("Clear your resume?", "This removes every section. Resumes you've already tailored stay.", [
     { text: "Cancel", style: "cancel" },
     { text: "Clear resume", style: "destructive", onPress: () => save.mutate(createEmptyResumeProfile(), {
-      onSuccess: (saved) => { setProfile(normalizeResumeProfile(saved.data)); clearResumeFile(); toast.success("Resume cleared"); },
+      onSuccess: (saved) => { setProfile(normalizeResumeProfile(saved.data)); clearResumeFile(); },
       onError: () => toast.error("Couldn't clear your resume. Try again."),
     }) },
   ]);
@@ -150,7 +150,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
           const accepted = pending;
           setProfile(applyImport(profile, accepted.profile, normalizeResumeProfile));
           setPending(null);
-          void keepResumeFile(accepted.sourceFile).then(() => toast.success("Resume imported"), () => {
+          void keepResumeFile(accepted.sourceFile).then(() => undefined, () => {
             clearResumeFile();
             toast.error("Resume imported, but the PDF couldn't be kept for applications. Import it again.");
           });

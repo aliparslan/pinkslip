@@ -38,7 +38,8 @@ export const ICONS = {
   hide: "EyeSlash",
   remove: "X",
   notInterested: "ThumbsDown",
-  undo: "ArrowCounterClockwise",
+  /** The iOS undo arrow (Paper "Toast · Oct 14"). */
+  undo: "ArrowUUpLeft",
   report: "Flag",
   block: "Prohibit",
   tailor: "Sparkle",
