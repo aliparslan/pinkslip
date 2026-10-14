@@ -921,10 +921,16 @@ every page under it.
   feedback, Tailoring and Hidden companies as drawn. Account as drawn.
 - **Alerts:** B, how often with a preview. "Once a day" takes a time you
   pick. Both need server work: alerts are only on or off today.
-- **In review (round 2):** icons for the rows (B1 line, B2 color tiles,
-  B3 soft tiles), Appearance as the iPhone's menu from its row instead of
-  a page, Plan cleaned up, the copy icon (Phosphor's three, or our own
-  softer squares), and Alerts' "Application changes" wording.
+- **Row icons (owner):** B3, soft tinted tiles, one shade per section:
+  blue for your search and email, green for what you apply with, amber for
+  what's coming, violet for the app, gray for admin.
+- **Copy icon (owner):** D, our own: two squares with soft corners of the
+  same radius, at the 1.75 stroke. Replaces Phosphor Copy in `CopyField`.
+- **Alerts' time:** ink on a white chip; pink on gray was too faint.
+- **In review (round 3):** Plan A–D (A cleaned up, B Free and Pro side by
+  side, C numbers first with Pro in a sheet, D Pro as the ticket) and E,
+  the page once you're on Pro. Appearance as the iPhone's menu from its
+  row, and "Application changes", still to confirm.
 - **Invite code:** drawn with onboarding, later.
 
 ## In-app browser (owner, 2026-10-12)
