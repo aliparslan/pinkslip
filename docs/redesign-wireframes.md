@@ -1054,3 +1054,13 @@ The Paper page "In-app browser · Oct 12".
 - **Tracker and Today** from the kit page above, then You. Tracker stages need an API to
   move an application between stages (the applications table already has
   Applied, Screen, Interview, Offer, Rejected and Ghosted).
+
+### Toast round (2026-10-14)
+
+The owner asked to redo the toast; the old kit's doesn't fit the system.
+Paper "Toast · Oct 14": T1 a capsule over the tab bar in its glass, with a
+three-deep stack like Sonner and Base UI (recommended); T2 drops from under the
+Dynamic Island; T3 Undo in the folded row. Undo and Try again are 32 round
+icons. Toasts only for what left the screen, what happened elsewhere and what
+didn't work; the calls to cut are in `docs/toast-review-2026-10-14.md`.
+Awaiting the owner's pick.
