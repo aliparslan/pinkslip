@@ -3,12 +3,12 @@ import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
 import { usePreferences, usePushSettings, useResumeProfile, useSession } from "@pinkslip/data";
 import { router, type Href } from "expo-router";
 import {
-  Bell, Buildings, ChatCircleDots, ClipboardText, FileText, SlidersHorizontal, Sparkle, UserCircle, Wrench,
+  Bell, Buildings, ChatCircleDots, ClipboardText, EnvelopeSimple, FileText, SlidersHorizontal, Sparkle, UserCircle, Wrench,
 } from "phosphor-react-native";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text } from "../../kit";
-import { redesignKitAvailable } from "../redesign/flag";
+import { redesignKitAvailable, useRedesign } from "../redesign/flag";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../theme/appearance";
 import { useDevicePush } from "../alerts/Alerts";
 
@@ -30,6 +30,7 @@ export function You() {
   const resume = useResumeProfile();
   const { status: device } = useDevicePush();
   const appearance = useAppearancePreference();
+  const redesign = useRedesign();
   const signedIn = session.data?.state === "authenticated";
   const resumeData = resume.data?.data;
   const resumeReady = Boolean(resumeData?.contact.name || resumeData?.experience.length || resumeData?.education.length || resumeData?.projects.length);
@@ -45,6 +46,8 @@ export function You() {
       <ListRow title="Job preferences" icon={SlidersHorizontal} onPress={go("/you/preferences")}
         detail={preferences.data ? profileSummary(normalizeSearchProfile(preferences.data.search_profile)) : undefined} />
       <ListRow title="Job alerts" icon={Bell} detail={alerts} onPress={go("/you/alerts")} />
+      {/* Email tracking's home until You is redesigned (owner, 2026-10-14). */}
+      {redesign && signedIn && <ListRow title="Email tracking" icon={EnvelopeSimple} onPress={go("/you/email")} />}
       <ListRow title="Companies" icon={Buildings} detail="Hidden companies and requests" onPress={go("/you/companies")} />
     </ListSection>
     <ListSection label="Materials">

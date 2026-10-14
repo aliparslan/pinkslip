@@ -1,5 +1,5 @@
 import type { Application, ApplicationStage } from "@pinkslip/core/api";
-import { useApplications, useRemoveApplication, useUpdateApplication } from "@pinkslip/data";
+import { useApplications, useInbox, useRemoveApplication, useSession, useUpdateApplication } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack, useScrollToTop } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +10,12 @@ import { toast, usePullToRefresh } from "../../kit";
 import {
   Chip, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarSpace, type StageGroup,
 } from "../../ui";
+import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
+import { trackingState } from "./email/email-facts";
+import { dismissNudge, useEmailTrackingPrefs } from "./email/email-prefs";
+import { EmailSetupSheet, LiveEmailSetupSheet } from "./email/SetupSheet";
+import { TrackerNudge } from "./email/TrackerNudge";
 import {
   byWeek, companyName, groupApplications, jobTitle, MOVE_TO, STAGE_GROUPS, stageGroupLabels, trackerAge, trackerFacts,
 } from "./tracker-facts";
@@ -49,6 +54,12 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
     chips.current?.scrollTo({ x: Math.max(0, (chipX.current.get(view) ?? 0) - theme.ui.size.gutter), animated: true });
   }, [view, insets.top, theme.ui.size.gutter]);
   const [stats, setStats] = useState(false);
+  const [setup, setSetup] = useState(false);
+  const [sampleNudge, setSampleNudge] = useState(true);
+  const signedIn = useSession().data?.state === "authenticated";
+  const inbox = useInbox({ enabled: !sample && signedIn });
+  const prefs = useEmailTrackingPrefs();
+  const sampleTracking = useSampleEmailTracking("off");
   const applications = useApplications();
   const pull = usePullToRefresh(() => applications.refetch());
 
@@ -73,6 +84,10 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   }, [groups, view]);
 
   const present = STAGE_GROUPS.filter((group) => (groups.get(group)?.length ?? 0) > 0);
+  // Offered until email tracking is set up or put away (Paper 1B).
+  const nudge = view === "all" && (data?.length ?? 0) > 0 && (sample
+    ? sampleNudge
+    : inbox.data !== undefined && trackingState(inbox.data, prefs.started) === "off" && !prefs.nudgeDismissed);
   const header = <View>
     <View style={styles.header}>
       <View style={styles.nav}><IconButton icon="stats" label="Stats" onPress={() => setStats(true)} /></View>
@@ -85,6 +100,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
             selected={view === option} onPress={() => setView(view === option ? "all" : option)} />
         </View>)}
     </ScrollView> : null}
+    {nudge ? <TrackerNudge onSetUp={() => setSetup(true)} onDismiss={() => sample ? setSampleNudge(false) : dismissNudge()} /> : null}
   </View>;
 
   return <>
@@ -107,6 +123,9 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
           : <EmptyState slips title="Nothing here yet" message="Jobs you save or apply to show up here."
             action={{ label: "Browse jobs", onPress: () => router.navigate("/") }} />}
       </View>} />
+    {sample
+      ? <EmailSetupSheet open={setup} onClosed={() => setSetup(false)} inbox={sampleTracking.inbox} prefs={sampleTracking.prefs} actions={sampleTracking.actions} />
+      : <LiveEmailSetupSheet open={setup} onClosed={() => setSetup(false)} />}
     <SheetModal open={stats} onClosed={() => setStats(false)}>
       <SheetStep id="stats">
         <SheetHeader title="Stats" />
