@@ -11,6 +11,7 @@
     "resume-renderer": "bun scripts/build-resume-renderer.ts",
     "test:autofill": "playwright test -c playwright.config.ts",
     "update": "bunx eas-cli@24.12.1 update --channel production --environment production --platform ios --non-interactive",
+    "update:owner": "EXPO_PUBLIC_REDESIGN=1 bunx eas-cli@24.12.1 update --channel owner --environment production --platform ios --non-interactive",
     "fingerprint": "expo-updates fingerprint:generate --platform ios"
   },
   "dependencies": {

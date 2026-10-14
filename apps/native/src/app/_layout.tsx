@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useUnistyles } from "react-native-unistyles";
 import { AppProviders } from "../features/shell/AppProviders";
 import { stackOptions } from "../features/shell/stack-options";
+import "../platform/updates-channel";
 
 export default function RootLayout() {
   const { theme } = useUnistyles();
