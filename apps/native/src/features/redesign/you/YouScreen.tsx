@@ -10,7 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
-import { faces, Icon, IconTile, ListGroup, ListItem, Text } from "../../../ui";
+import { faces, Icon, IconTile, ListGroup, ListItem, Text, useTabBarScroll } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { EditSearchSheet } from "../EditSearch";
 import { trackingState, trackingStateLabels } from "../email/email-facts";
@@ -47,7 +47,8 @@ export function appVersionLine() {
  * it's for. Appearance opens the iPhone's menu from its row. */
 export function YouView({ person, values, appearance, onAppearance, show, open }: YouViewProps) {
   const insets = useSafeAreaInsets();
-  return <ScrollView style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top }]}>
+  const tabBarScroll = useTabBarScroll();
+  return <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top }]}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.header}>
       <View style={styles.nav} />

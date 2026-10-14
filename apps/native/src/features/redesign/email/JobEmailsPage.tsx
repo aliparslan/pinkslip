@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, Choice, Choices, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet,
+  Button, Choice, Choices, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet, useTabBarScroll,
 } from "../../../ui";
 import { plainText } from "../job-facts";
 import { groupOf, stageGroupLabels } from "../tracker-facts";
@@ -42,6 +42,7 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
+  const tabBarScroll = useTabBarScroll();
   const [asking, setAsking] = useState<InboundEmail | null>(null);
   const items = useMemo<Item[]>(() => {
     const now = new Date();
@@ -63,7 +64,7 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
 
   return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <FlashList data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+    <FlashList {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
       style={styles.fill} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       ListHeaderComponent={header}
       renderItem={({ item }) => item.kind === "section"

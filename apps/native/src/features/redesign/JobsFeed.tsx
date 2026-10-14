@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
-import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, SectionHeader, SwipeRow, Text, useTabBarSpace, type SwipeAction } from "../../ui";
+import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace, type SwipeAction } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -51,6 +51,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { theme } = useUnistyles();
   const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
+  const tabBarScroll = useTabBarScroll();
   // Tapping the current tab again scrolls back to the top.
   const list = useRef(null);
   useScrollToTop(list);
@@ -108,7 +109,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   </View>;
 
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
-  return <FlashList ref={list} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+  return <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     renderItem={({ item }) => item.kind === "section"

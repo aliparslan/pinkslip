@@ -3,12 +3,13 @@ import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Icon, IconButton, Text } from "../../../ui";
+import { Icon, IconButton, Text, useTabBarScroll } from "../../../ui";
 
 /** A page under You (Paper "You · Oct 14"): Back, the title right under it,
  * then the page's cards 24 apart on white. */
 export function YouPage({ title, children, scroll = true }: { title: string; children: ReactNode; scroll?: boolean }) {
   const insets = useSafeAreaInsets();
+  const tabBarScroll = useTabBarScroll();
   const top = <>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.nav}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
@@ -17,7 +18,7 @@ export function YouPage({ title, children, scroll = true }: { title: string; chi
   if (!scroll) {
     return <View style={[styles.fill, styles.content, { paddingTop: insets.top }]}>{top}{children}</View>;
   }
-  return <ScrollView style={styles.fill} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
+  return <ScrollView {...tabBarScroll} style={styles.fill} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
     contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 32 }]}>
     {top}
     {children}
