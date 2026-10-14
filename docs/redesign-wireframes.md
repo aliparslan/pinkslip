@@ -1076,3 +1076,16 @@ went back.
   vanished when it opened. The trigger is now a clear layer over the row's
   right side showing only the value, so the value goes into the menu, the
   menu opens by it, and the tile and title stay.
+
+### Tab bar: shrinking and labels (2026-10-14)
+
+- **Shrinks on scroll (owner, built):** scrolling a list down shrinks the
+  pill to 84% towards the bottom edge; scrolling up, the top of the list, a
+  touch on the bar or a new tab bring it back.
+- **Labels (Paper "Tab bar labels · Oct 14"):** L1 put a label under every
+  icon; L2 has only the lit tab say its name beside its icon, in pink, in a
+  wider oval. The owner is trying L2 on the phone. Small, the bar drops the
+  name and keeps the 64 oval.
+- **You:** Admin and Kit moved to the top, under the person card (owner).
+  They stay gray: the tile colors say what a row is for, and these rows are
+  behind the scenes.
