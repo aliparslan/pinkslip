@@ -10,6 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon } from "./Icon";
 import { motion, rubberBand, timing } from "./motion";
+import { concentricRadius } from "./screen-corners";
 import { Text } from "./Text";
 
 /** Vaul's drawer motion, from the tokens: one curve, quick off the mark with
@@ -28,6 +29,9 @@ const CLOSE_SHARE = motion.sheet.closeShare;
 const CLOSE_SPEED = motion.sheet.closeSpeed;
 /** The gap between the sheet and the screen's edges. */
 const INSET = 8;
+const RADIUS = 40;
+/** The bottom corners run parallel to the screen's own, 8 in from them. */
+const BOTTOM_RADIUS = concentricRadius(INSET, RADIUS);
 /** Room above a step's first line, under the grab bar, which is also where a
  * drag usually starts. */
 const TOP = 24;
@@ -333,7 +337,9 @@ const styles = StyleSheet.create((theme) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 40,
+    borderRadius: RADIUS,
+    borderBottomLeftRadius: BOTTOM_RADIUS,
+    borderBottomRightRadius: BOTTOM_RADIUS,
     borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: theme.ui.color["bg-elev"],
