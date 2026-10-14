@@ -99,7 +99,7 @@ function CompanyJobs({ jobs }: { jobs: Job[] }) {
 
 /** A job row without the logo or company: title and age, then the facts. */
 function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
-  const tab = useSegments()[1] ?? "(jobs)";
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const weight = unread ? "medium" : "regular";
   const stage = job.applied ? "Applied" : job.saved ? "Saved" : null;
   return <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild>
