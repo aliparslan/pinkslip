@@ -284,7 +284,14 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   same centre line, all centred in the room under the header. The slips
   show only when a list is empty, not when it failed to load; a retry is
   the grey button.
-- **Date tile** (Coming up rows): 40 square, radius 10, `fill`, in the logo
+- **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
+  torn-off stub on an application's page. Its top is the tear's other half;
+  each step is a rubber stamp (Founders Semibold caps, 1.5 border, radius 6,
+  each at its own angle), the newest in `ink` and older ones `ink-3`; email
+  steps add "· EMAIL" and the foot offers "Not right?". Paper drew the stamps
+  in Founders Grotesk Mono, which the app doesn't bundle.
+- **Date tile** (`DateTile.tsx`; Coming up rows, an application's Next row;
+  `EmptyDateTile` is the dashed one for a date not set yet): 40 square, radius 10, `fill`, in the logo
   slot, so it matches the logos (owner, 2026-10-13). The month in caps
   (Founders Semibold 11/12, 0.08em, `ink-3`) over the day (Founders
   Semibold 20/20, `ink`). Like logo initials, it's exempt from the type

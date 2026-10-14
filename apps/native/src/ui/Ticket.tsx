@@ -1,8 +1,9 @@
-import { Fragment, useState } from "react";
-import { Pressable, View, type LayoutChangeEvent } from "react-native";
+import { Fragment, useState, type ReactNode } from "react";
+import { Text as RNText, Pressable, View, type LayoutChangeEvent } from "react-native";
 import Animated, { Easing, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Line, Path } from "react-native-svg";
+import { faces } from "./fonts";
 import { Grain } from "./Grain";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
@@ -80,6 +81,82 @@ function Fact({ fact }: { fact: TicketFact }) {
       ? <Pressable accessibilityRole="button" accessibilityLabel={`${fact.detail}, show all`} onPress={fact.onPress}
         style={({ pressed }) => pressed && styles.pressed}>{detail}</Pressable>
       : detail}
+  </View>;
+}
+
+export interface StubStamp {
+  key: string;
+  /** "INTERVIEWING". */
+  label: string;
+  /** "OCT 12 · EMAIL". */
+  detail: string;
+}
+
+export interface StubProps {
+  /** Oldest first; the last is the freshest ink. */
+  stamps: StubStamp[];
+  /** Beside a lone stamp: how long it's been ("15 days", "no reply yet"). */
+  aside?: ReactNode;
+  /** The ticket's old stub line: posted, source. */
+  foot?: string;
+  /** A tappable word at the foot's end ("Not right?"). */
+  action?: { label: string; onPress: () => void };
+  backdrop?: TicketBackdrop;
+}
+
+/** Each stamp lands at its own angle, as a hand would put it down. */
+const STAMP_ANGLES = [-3, 2, -1.5, 2.5, -2, 1.5];
+
+/**
+ * Your stub (Paper "C · Your stub"): the part of the ticket that tore off when
+ * you applied and went to Tracker. It carries the application's history as
+ * rubber stamps, one per step, the newest in full ink. Its top is the other
+ * half of the ticket's tear: the holes' lower halves and the notches'.
+ */
+export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps) {
+  const { theme } = useUnistyles();
+  const [width, setWidth] = useState(0);
+  const holeColor = theme.ui.color[backdrop];
+  const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
+  return <View style={stubStyles.stub} onLayout={onLayout}>
+    <Grain radius={theme.ui.radius.lg} flatTop />
+    {width > 0 ? <Fragment>
+      <View style={stubStyles.tear} pointerEvents="none">
+        <Svg width={width} height={TEAR_STRIP} style={stubStyles.flip}>
+          <Path d={tornEdge(width)} fill={theme.ui.color["bg-grouped"]} />
+          <Path d={tornEdge(width)} fill={theme.ui.color.grain} opacity={GRAIN_ALPHA} />
+        </Svg>
+      </View>
+      <View style={[stubStyles.halfNotch, styles.notchLeft, { backgroundColor: holeColor }]} pointerEvents="none" />
+      <View style={[stubStyles.halfNotch, styles.notchRight, { backgroundColor: holeColor }]} pointerEvents="none" />
+    </Fragment> : null}
+    <View style={stubStyles.stamps}>
+      {stamps.map((stamp, index) => <RubberStamp key={stamp.key} stamp={stamp} fresh={index === stamps.length - 1}
+        angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} />)}
+      {aside ? <View style={stubStyles.aside}>{aside}</View> : null}
+    </View>
+    {foot || action ? <View style={stubStyles.foot}>
+      {width > 0 ? <Svg width={width - 2 * theme.ui.space["4"]} height={1} style={stubStyles.rule}>
+        <Line x1={0} y1={0.5} x2={width} y2={0.5} stroke={theme.ui.color["ink-4"]} strokeWidth={1} strokeDasharray="3 3" />
+      </Svg> : null}
+      <View style={stubStyles.footRow}>
+        <Text role="footnote" tone="ink-3" flex>{foot ?? ""}</Text>
+        {action ? <Pressable onPress={action.onPress} accessibilityRole="button" hitSlop={10}
+          style={({ pressed }) => pressed && styles.pressed}>
+          <Text role="footnote" weight="medium" tone="ink-2">{action.label}</Text>
+        </Pressable> : null}
+      </View>
+    </View> : null}
+  </View>;
+}
+
+function RubberStamp({ stamp, fresh, angle }: { stamp: StubStamp; fresh: boolean; angle: number }) {
+  const { theme } = useUnistyles();
+  const color = theme.ui.color[fresh ? "ink" : "ink-3"];
+  return <View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
+    style={[stubStyles.stamp, { borderColor: color, transform: [{ rotate: `${angle}deg` }] }]}>
+    <RNText style={[stubStyles.stampLabel, { color }]} maxFontSizeMultiplier={1.4}>{stamp.label}</RNText>
+    <RNText style={[stubStyles.stampDetail, { color }]} maxFontSizeMultiplier={1.4}>{stamp.detail}</RNText>
   </View>;
 }
 
@@ -185,4 +262,33 @@ const styles = StyleSheet.create((theme) => ({
   notchRight: { right: -NOTCH / 2 },
   stub: { paddingVertical: theme.ui.space["3"] },
   tear: { position: "absolute", left: 0, right: 0, bottom: -TEAR_STRIP, height: TEAR_STRIP },
+}));
+
+const stubStyles = StyleSheet.create((theme) => ({
+  stub: {
+    marginTop: TEAR_STRIP,
+    paddingHorizontal: theme.ui.space["4"],
+    paddingTop: theme.ui.space["5"],
+    paddingBottom: theme.ui.space["3"],
+    gap: theme.ui.space["4"],
+    borderRadius: theme.ui.radius.lg,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderCurve: "continuous",
+    backgroundColor: theme.ui.color["bg-grouped"],
+    boxShadow: theme.ui.shadow.card,
+  },
+  /** The ticket's tear, upside down: the paper above the stub's body. */
+  tear: { position: "absolute", left: 0, right: 0, top: -TEAR_STRIP, height: TEAR_STRIP },
+  flip: { transform: [{ scaleY: -1 }] },
+  /** The lower half of a side notch, up to the tear. */
+  halfNotch: { position: "absolute", top: -TEAR, width: NOTCH, height: NOTCH / 2, borderBottomLeftRadius: NOTCH / 2, borderBottomRightRadius: NOTCH / 2 },
+  stamps: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 10, rowGap: theme.ui.space["3"] },
+  stamp: { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1.5, borderRadius: 6, gap: 1 },
+  stampLabel: { fontFamily: faces.display, fontSize: 13, lineHeight: 16, letterSpacing: 0.8 },
+  stampDetail: { fontFamily: faces.display, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
+  aside: { paddingLeft: theme.ui.space["1"] },
+  foot: { gap: theme.ui.space["3"] },
+  rule: { alignSelf: "stretch" },
+  footRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
 }));

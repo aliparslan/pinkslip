@@ -29,12 +29,15 @@ export interface ChoiceProps {
   onPress: () => void;
   /** One of several (a radio) or one of a set you can mix (a checkbox). */
   multiple?: boolean;
+  /** A mark before the title, in a 24 slot (a stage's ring). */
+  leading?: ReactNode;
 }
 
 /** A row to pick: title on the left, the round check on the right. */
-export function Choice({ title, detail, selected, onPress, multiple = false }: ChoiceProps) {
+export function Choice({ title, detail, selected, onPress, multiple = false, leading }: ChoiceProps) {
   return <Pressable onPress={onPress} accessibilityRole={multiple ? "checkbox" : "radio"} accessibilityState={{ checked: selected }}
-    style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    accessibilityLabel={title} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    {leading ? <View style={styles.leading}>{leading}</View> : null}
     <View style={styles.text}>
       <Text weight="medium">{title}</Text>
       {detail ? <Text role="footnote" tone="ink-3">{detail}</Text> : null}
@@ -92,5 +95,6 @@ const styles = StyleSheet.create((theme) => ({
   /** A menu row is 50 tall, as drawn. */
   link: { minHeight: 50, gap: theme.ui.space["2"], paddingVertical: 0 },
   text: { flex: 1, gap: 2 },
+  leading: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.6 },
 }));

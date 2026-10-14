@@ -124,15 +124,19 @@ function TrackerRow({ application, sample }: { application: Application; sample:
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
     facts={trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
     logo={{ name: application.company_name, uri: logoUri(application.job?.company_domain) }} />;
-  // A job that left the catalog has no page to open, and samples have none.
-  if (!application.job_id || sample) return row;
+  // Samples have no pages to open, and a saved job that left the catalog has none either.
+  if (sample || (!application.job_id && application.stage === "saved")) return row;
   const move = (stage: ApplicationStage) => update.mutate({ id: application.id, stage }, {
     onError: () => toast.error("Couldn't move it. Try again."),
   });
   const forget = () => remove.mutate({ id: application.id, jobId: application.job_id }, {
     onError: () => toast.error("Couldn't remove it. Try again."),
   });
-  return <Link href={{ pathname: "/(tabs)/(library)/jobs/[jobId]", params: { jobId: application.job_id } }} asChild>
+  // Past Saved a row opens the application; a saved job has no stub yet.
+  const href = application.stage === "saved" && application.job_id
+    ? { pathname: "/(tabs)/(library)/jobs/[jobId]" as const, params: { jobId: application.job_id } }
+    : { pathname: "/(tabs)/(library)/applications/[applicationId]" as const, params: { applicationId: application.id } };
+  return <Link href={href} asChild>
     <Link.Trigger>{row}</Link.Trigger>
     <Link.Preview />
     <Link.Menu>

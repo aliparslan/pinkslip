@@ -883,6 +883,26 @@ status, Shop), no job apps.
   as "C · 1" to "C · 4". The backend needs one date per application, kept
   with its stage and cleared when the stage changes.
 
+### The application page, built (2026-10-14)
+
+- `ApplicationPage.tsx`, at `applications/[applicationId]` in the Tracker
+  tab. Tracker rows past Saved open it; Saved rows open the job page.
+- The stub (`Stub`), the Next row (`DateTile`) or "Add the … date", About
+  the role, and one Change stage button. The tab bar steps aside, as on the
+  job page.
+- Change stage: the stages with their 20pt marks; Applied, Saved and the
+  endings move and close; Assessment, Interviewing and Offer move, then ask
+  for their date (iOS's own calendar; a time for an interview only), Save or
+  Skip. The Next row reopens it, with Remove date.
+- "Not right?" asks "Back to Applied?" with the email's subject, then undoes
+  the email's step.
+- ⋯: Add a hear-back date (Applied), Open the posting, Remove from Tracker.
+- Samples for the kit at `applications/sample-interview`, `sample-applied`
+  and `sample-no-date` (You → Kit → Redesign kit), so the simulator's
+  signed-in account is never touched.
+- Needs the server change (`stage_date`, migration 0091) deployed before
+  dates save in production.
+
 ## In-app browser (owner, 2026-10-12)
 
 The Paper page "In-app browser · Oct 12".

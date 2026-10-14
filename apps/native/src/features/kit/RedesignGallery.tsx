@@ -31,6 +31,7 @@ export function RedesignGallery() {
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
+        <ListItem title="Application page with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-interview" } })} />
       </ListGroup>
     </Section>
 

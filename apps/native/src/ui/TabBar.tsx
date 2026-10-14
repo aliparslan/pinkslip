@@ -55,11 +55,12 @@ export function useTabBarSpace() {
  * tab to tab, its icon in pink. Press and slide along the bar and the oval
  * follows your finger, ticking as it passes each tab; let go and it settles
  * on the nearest one (or where a flick was heading) and opens it. The job
- * page has its own pinned Save and Apply, so the bar steps aside there.
+ * page and an application's have their own pinned buttons, so the bar steps
+ * aside there.
  */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const onJobPage = /^\/jobs\/[^/]+$/.test(usePathname());
+  const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname());
   const tabs = state.routes.filter((route) => TABS[route.name]);
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
   const count = tabs.length;

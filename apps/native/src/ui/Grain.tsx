@@ -25,10 +25,10 @@ export function usePaperTexture(): PaperTexture {
 
 /** The paper texture of the ticket and the punch card: a tile repeated and
  * tinted by mode, clipped to the paper's corners. */
-export function Grain({ radius, flatBottom = false }: { radius: number; flatBottom?: boolean }) {
+export function Grain({ radius, flatBottom = false, flatTop = false }: { radius: number; flatBottom?: boolean; flatTop?: boolean }) {
   const { theme } = useUnistyles();
   const current = usePaperTexture();
-  return <View pointerEvents="none" style={[styles.grain, { borderRadius: radius }, flatBottom && styles.flatBottom]}>
+  return <View pointerEvents="none" style={[styles.grain, { borderRadius: radius }, flatBottom && styles.flatBottom, flatTop && styles.flatTop]}>
     <ImageBackground source={textures[current]} resizeMode="repeat" style={styles.fill}
       imageStyle={{ tintColor: theme.ui.color.grain }} />
   </View>;
@@ -37,5 +37,6 @@ export function Grain({ radius, flatBottom = false }: { radius: number; flatBott
 const styles = StyleSheet.create({
   grain: { ...StyleSheet.absoluteFillObject, borderCurve: "continuous", overflow: "hidden" },
   flatBottom: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  flatTop: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   fill: { flex: 1 },
 });

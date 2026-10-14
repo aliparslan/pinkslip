@@ -1,17 +1,17 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { usePreferences } from "@pinkslip/data";
-import { router, Stack, useSegments } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu, Sheet, toast } from "../../kit";
-import { Button, CompanyLogo, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
+import { Button, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket } from "../../ui";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
-import { logoUri } from "../jobs/CompanyLogo";
 import { Description } from "./Description";
+import { JobIdentity } from "./JobIdentity";
 import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, ticketRows, ticketStub } from "./job-facts";
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
@@ -46,10 +46,6 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const insets = useSafeAreaInsets();
   const profile = usePreferences().data?.search_profile;
   const { saved, applied, closed, toggleSave, apply, share, menu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
-  const tab = useSegments()[1] ?? "(jobs)";
-  const openCompany = () => {
-    if (job.company_id) router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId: job.company_id } });
-  };
   const [placesOpen, setPlacesOpen] = useState(false);
 
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
@@ -70,20 +66,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     <Stack.Screen options={{ headerShown: false }} />
     <ScrollView style={styles.fill}
       contentContainerStyle={[styles.body, { paddingTop: insets.top + TOP_BAR + theme.ui.space["2"], paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
-      <View style={styles.identity}>
-        <Pressable onPress={openCompany} disabled={!job.company_id} accessibilityLabel={`${plainText(job.company_name)}, company page`}>
-          <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
-        </Pressable>
-        <View style={styles.heading}>
-          {job.company_id
-            ? <Pressable onPress={openCompany} accessibilityRole="link" hitSlop={6} style={({ pressed }) => [styles.company, pressed && styles.pressed]}>
-              <Text role="subhead" weight="medium" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>
-              <Icon name="disclosure" size={11} tone="ink-3" />
-            </Pressable>
-            : <Text role="subhead" tone="ink-2">{plainText(job.company_name)}{closed ? " · Closed" : ""}</Text>}
-          <Text role="title2" accessibilityRole="header">{plainText(job.title)}</Text>
-        </View>
-      </View>
+      <JobIdentity companyName={job.company_name} companyDomain={job.company_domain} companyId={job.company_id} title={job.title} closed={closed} />
       <View style={styles.ticket}>
         <Ticket rows={rows} stub={ticketStub(job)} torn={applied} />
       </View>
@@ -128,12 +111,12 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
 }
 
 /** The pinned bar's height above the home indicator: a 50pt button and 12 above it. */
-const BAR = 50 + 12;
-const TOP_BAR = 44;
+export const BAR = 50 + 12;
+export const TOP_BAR = 44;
 
 /** Back on the left; share and the ⋯ menu in one pill on the right (Paper
  * "Job page"), drawn with our icons. The menu is the system's, text only. */
-function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] }) {
+export function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] }) {
   const insets = useSafeAreaInsets();
   return <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
     <IconButton icon="back" label="Back" onPress={() => router.back()} />
@@ -157,10 +140,6 @@ const styles = StyleSheet.create((theme) => ({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
   missing: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"] },
   body: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"] },
-  identity: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
-  company: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"], alignSelf: "flex-start" },
-  pressed: { opacity: 0.5 },
-  heading: { flex: 1, gap: 2 },
   ticket: { marginTop: theme.ui.space["6"] },
   after: { gap: theme.ui.space["6"], marginTop: theme.ui.space["6"] },
   fits: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["2"] },
