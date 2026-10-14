@@ -46,6 +46,7 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 | --- | --- |
 | The forwarding address, Gmail's confirmation code and whether mail arrives | Exists: `GET /inbox`, `POST /inbox/rotate` |
 | **Which application?** with several picked: one email files to each | Missing. `POST /inbox/emails/:id/assign` takes one `application_id` and `inbound_emails` holds one. Take `application_ids`, link the email to each, and make "Not right?" on one application undo only that application's step |
+| **Job emails**, the history page | Exists: `GET /inbox/emails` (sender, subject, detected step, status, company, application) |
 | **Job emails this month** on the status page | Missing: a count on `GET /inbox` (or the app counts `GET /inbox/emails` by date) |
 | **Email me these steps** (setup on a computer) | Missing: send the steps to the account's email; the alerts mailer (`send_email` binding) can carry it |
 | Which email the user applies with (Gmail, Outlook, iCloud, school) | Can stay in the app; a profile field only if it should follow the user across devices |
