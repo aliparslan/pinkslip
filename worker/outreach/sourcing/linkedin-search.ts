@@ -1,5 +1,6 @@
+import type { RecruiterKind } from "../../../shared/recruiter-review";
 import { isUsJobLocation } from "../../us-jobs";
-import { cleanPersonName, type PersonName } from "./email-pattern";
+import { cleanPersonName, completeNameFromSlug, type PersonName } from "./email-pattern";
 
 /* Reading LinkedIn profiles from search-engine results ("X-ray search"), so
  * Pinkslip never visits LinkedIn itself. See docs/recruiter-contacts-sourcing.md. */
@@ -76,7 +77,7 @@ export function parseLinkedInResult(result: SearchResult): LinkedInPerson | null
     profileUrl: `https://www.linkedin.com/in/${encodeURIComponent(slug)}`,
     slug,
     rawName: rawName.trim(),
-    name: cleanPersonName(rawName),
+    name: completeName(cleanPersonName(rawName), slug),
     headline: rest.join(" - ").trim(),
     snippet,
     experience,
@@ -86,19 +87,17 @@ export function parseLinkedInResult(result: SearchResult): LinkedInPerson | null
   };
 }
 
+function completeName(name: PersonName | null, slug: string): PersonName | null {
+  return name ? completeNameFromSlug(name, slug) : null;
+}
+
 /** Pinkslip's jobs are in the US, so are the recruiters it contacts. An
  * unknown location isn't evidence against. */
 export function basedInUs(person: Pick<LinkedInPerson, "location">): boolean {
   return isUsJobLocation(person.location ?? "");
 }
 
-export type RecruiterKind =
-  | "early_career"
-  | "technical"
-  | "recruiter"
-  | "coordinator"
-  | "intern"
-  | "other";
+export type { RecruiterKind };
 
 /** Best first. Interns and non-recruiters aren't contacted. */
 export const RECRUITER_KIND_RANK: Record<RecruiterKind, number> = {
