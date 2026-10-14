@@ -1003,9 +1003,14 @@ rows and Answers B's, drawn from the kit's settings rows.
   Salary and written answers keep the sheet; salary picks "a year" or "an
   hour". "Answer for me" waits for the apply flow (it needs the job, and
   it costs per answer). A1–A3 and A6 are kept, marked replaced.
-- **Dark tiles:** the owner found the dark settings tiles too bright.
-  "Dark tiles · options" on the You page: now, D1 (icons a step down), D2
-  (quieter tiles and icons), D3 (light mode mirrored, the faintest).
+- **Dark tiles (owner):** D2, quieter tiles and icons ("Dark tiles ·
+  options" on the You page), after the first ones read too bright.
+- **Pinned bars (owner):** no line above the bar unless the page's content
+  scrolls under it.
+- **Collapsing title:** drawn on "T · The title collapses as you scroll":
+  scrolled, the big title slides under the bar and returns small beside
+  Back, and rows fade under the bar. Explained to the owner; not yet
+  picked.
 
 ## Swipe actions on Jobs (round 1, 2026-10-14)
 
@@ -1015,6 +1020,12 @@ Paper "Swipe actions · Oct 14" has three takes, all colored: S1 the gap
 fills with the action's color (Mail), S2 today's capsule fixed and colored,
 S3 two buttons a side that stay open (Save and Applied right, More and
 Hide left). Save is pink, Hide graphite, Applied green.
+
+The owner likes S2 with two circles on at least one side, wants the green
+toned to our scheme, and wants Read or unread and Save among two to four
+actions. Drawn as S4: right is Save (outer, all the way) and Read; left is
+Hide (outer) and Applied, in the meaning colors (pink, the tiles' blue and
+green, graphite).
 
 ## In-app browser (owner, 2026-10-12)
 

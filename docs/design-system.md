@@ -58,7 +58,7 @@ else is decided.
 | Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
-| Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app` (and `tile-find-ink`, `tile-apply-ink`) | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro (icon in `accent`), gray is the app (icon in `ink-3`) | Text, anything outside settings rows |
+| Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app`, each with its `-ink` | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro, gray is the app. Dark mode is D2, quieter (owner, 2026-10-14) | Text, anything outside settings rows |
 | Stage colors | `stage-assessment` (amber), `stage-interview` (blue) | Those stages' marks | Text, fills, anything else |
 | Bad | `bad` | Errors and destructive text | Fills |
 | Dim | `scrim` | Behind a sheet | |
@@ -315,9 +315,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   value copies too. A row that copies (the status page's address) shows a
   16 copy mark after its value instead (`ListItem trailing`).
 - **Page actions are pinned** (owner, 2026-10-14): a page's action
-  button (Add experience, Send) sits in a bar pinned to the bottom, `bg`
-  with a hairline above and the home indicator's room below, as the job
-  page's Apply does. The tab bar steps aside on those pages.
+  button (Add experience, Send) sits in a bar pinned to the bottom, on
+  `bg` with the home indicator's room below, as the job page's Apply does.
+  The line above it shows only once content scrolls under the bar (owner:
+  not on a page that fits). The tab bar steps aside on those pages.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Lists on a white page** (`ListGroup surface="fill"`): the gray card,

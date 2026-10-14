@@ -346,14 +346,17 @@ export const uiDark = {
   "--ui-bad": "oklch(0.72 0.17 25)",
   // Settings rows lead with a soft tile colored by what the row is for
   // (owner, 2026-10-14, Paper "You · Oct 14" B4): blue finds jobs, green is
-  // what you apply with, pink is Pro (its icon takes `accent`), gray is the
-  // app (its icon takes `ink-3`). Faint, a step off the card, never text.
-  "--ui-tile-find": "oklch(0.27 0.035 260)",
-  "--ui-tile-find-ink": "oklch(0.74 0.11 259)",
-  "--ui-tile-apply": "oklch(0.27 0.03 155)",
-  "--ui-tile-apply-ink": "oklch(0.74 0.1 153)",
-  "--ui-tile-pro": "oklch(0.28 0.045 350)",
-  "--ui-tile-app": "oklch(0.27 0.004 285)",
+  // what you apply with, pink is Pro, gray is the app. Faint, a step off the
+  // card, never text. Dark is D2 ("Dark tiles · options"): quieter tiles
+  // and icons, after the first ones read too bright.
+  "--ui-tile-find": "oklch(0.245 0.02 260)",
+  "--ui-tile-find-ink": "oklch(0.6 0.08 259)",
+  "--ui-tile-apply": "oklch(0.245 0.018 155)",
+  "--ui-tile-apply-ink": "oklch(0.6 0.07 153)",
+  "--ui-tile-pro": "oklch(0.25 0.025 350)",
+  "--ui-tile-pro-ink": "oklch(0.58 0.13 350)",
+  "--ui-tile-app": "oklch(0.245 0.003 285)",
+  "--ui-tile-app-ink": "oklch(0.58 0.006 285)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
   "--ui-scrim": "oklch(0 0 0 / 0.55)",
@@ -394,7 +397,9 @@ export const uiLight = {
   "--ui-tile-apply": "oklch(0.976 0.008 157)",
   "--ui-tile-apply-ink": "oklch(0.57 0.111 153)",
   "--ui-tile-pro": "oklch(0.976 0.012 351)",
+  "--ui-tile-pro-ink": "oklch(0.57 0.205 350)",
   "--ui-tile-app": "oklch(0.985 0 0)",
+  "--ui-tile-app-ink": "oklch(0.53 0.006 285)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",
