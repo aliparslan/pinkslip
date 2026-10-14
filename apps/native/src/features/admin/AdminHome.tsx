@@ -1,10 +1,10 @@
 import { sourceNeedsAttention } from "@pinkslip/core/admin-format";
 import { timeAgo } from "@pinkslip/core/utils";
 import {
-  useClassificationReport, useCompanies, useFeedbackInbox, useJobReviews, useProductMetrics, useReports, useRuns,
+  useClassificationReport, useCompanies, useFeedbackInbox, useJobReviews, useProductMetrics, useRecruiterReview, useReports, useRuns,
 } from "@pinkslip/data";
 import { router, type Href } from "expo-router";
-import { ArrowsClockwise, Buildings, ChartBar, Scales, Tray } from "phosphor-react-native";
+import { ArrowsClockwise, Buildings, ChartBar, IdentificationBadge, Scales, Tray } from "phosphor-react-native";
 import { ListRow, ListSection, Screen, usePullToRefresh } from "../../kit";
 
 /** The admin workspace's front page: one row per tool, each with where it
@@ -17,8 +17,10 @@ export function AdminHome() {
   const runs = useRuns();
   const companies = useCompanies();
   const jev = useClassificationReport();
+  const recruiters = useRecruiterReview();
   const pull = usePullToRefresh(() => Promise.all([
     metrics.refetch(), feedback.refetch(), reports.refetch(), reviews.refetch(), runs.refetch(), companies.refetch(), jev.refetch(),
+    recruiters.refetch(),
   ]));
 
   const open = feedback.data && reports.data && reviews.data
@@ -28,6 +30,9 @@ export function AdminHome() {
   const sources = companies.data;
   const attention = sources?.filter(sourceNeedsAttention).length ?? 0;
   const toReview = jev.data?.available ? (jev.data.disagreements ?? []).filter((row) => !row.review).length : undefined;
+  const toLabel = recruiters.data?.available
+    ? (recruiters.data.candidates ?? []).filter((row) => row.left_out_reason === null && (row.works_there === null || row.actual_role === null)).length
+    : undefined;
   const go = (href: Href) => () => router.push(href);
 
   return <Screen refreshing={pull.refreshing} onRefresh={pull.onRefresh}>
@@ -44,6 +49,10 @@ export function AdminHome() {
         detail={sources ? `${sources.filter((company) => company.enabled).length} active${attention ? ` · ${attention} need attention` : ""}` : undefined} />
       <ListRow title="Jev" icon={Scales} onPress={go("/you/admin/jev")}
         detail={toReview === undefined ? undefined : toReview === 0 ? "Nothing to review" : `${toReview} to review`} />
+    </ListSection>
+    <ListSection label="Outreach">
+      <ListRow title="Recruiters" icon={IdentificationBadge} onPress={go("/you/admin/recruiters")}
+        detail={toLabel === undefined ? undefined : toLabel === 0 ? "Nothing to label" : `${toLabel} to label`} />
     </ListSection>
   </Screen>;
 }

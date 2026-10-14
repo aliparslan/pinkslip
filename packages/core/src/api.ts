@@ -13,6 +13,7 @@ import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-qualit
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
+import type { ActualRole, RecruiterCandidate, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
@@ -35,6 +36,9 @@ export type {
 export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
 export type { DetectedStage, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
+export type {
+  ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterKind, RecruiterReview, RecruiterReviewScore, RecruiterRun, WorksThere,
+} from "@pinkslip/domain/recruiter-review";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
 /** Web passes a File; native passes expo-file-system's `File`, which is a Blob.
@@ -1031,6 +1035,14 @@ function createEndpoints(context: ClientContext) {
       ),
     clearReview: (cacheKey: string) =>
       request<void>(`/metrics/classification/reviews/${encodeURIComponent(cacheKey)}`, { method: "DELETE" }),
+  },
+  recruiters: {
+    review: () => request<RecruiterReview>("/recruiters"),
+    /** Sources a few more catalog companies; about 3 seconds each. */
+    run: (count: number) =>
+      request<{ runs: RecruiterRun[] }>("/recruiters/run", { method: "POST", body: JSON.stringify({ count }) }, 120_000),
+    label: (id: string, labels: { works_there?: WorksThere | null; actual_role?: ActualRole | null }) =>
+      request<RecruiterCandidate>(`/recruiters/candidates/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(labels) }),
   },
   ops: {
     refreshAll: (limit?: number) =>
