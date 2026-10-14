@@ -70,7 +70,7 @@ export function SamplePlanPage({ state }: { state: "free" | "pro" }) {
 /** Account signed in, as Jordan. Nothing changes. */
 export function SampleAccountPage() {
   const [name, setName] = useState("Jordan Lee");
-  return <AccountView name={name} email="jordan@utexas.edu" provider="apple" actions={{
+  return <AccountView name={name} email="jordan.alexander.lee27@my.utexas.edu" provider="apple" actions={{
     rename: async (next) => setName(next),
     logOut: async () => {
       await wait(400);
