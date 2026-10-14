@@ -120,6 +120,76 @@ Free "find the email from a LinkedIn link" sites give only a few lookups a
 month and block automation. Learning the pattern and checking it does the
 same job automatically.
 
+## What a search result gives
+
+Serper returns a title, link and snippet for each result.
+
+- **Title:** usually the name plus the LinkedIn headline or current company.
+- **Snippet:** often adds the location or current experience.
+- **Profile link:** a stable ID, so a person is never imported twice and
+  can be found again on a refresh.
+
+The headline is self-written. "University Recruiter at Stripe" is easy to
+classify; "Talent @ Stripe | We're hiring!" is vague; and it can name an
+old employer. Rules rank people by title, as `contactRank` already does.
+How regular the formats are will show in the evaluation run.
+
+Email lookup sites that take a LinkedIn link (Prospeo and Snov, roughly
+$0.01–0.04 per email found on paid plans) are a fallback for companies
+whose mail server accepts every address or whose pattern is unknown. Their
+free tiers are a few dozen lookups a month and block scripts, so they can't
+do bulk. Their terms on showing results to users still apply.
+
+## Keeping it current
+
+General US turnover is about 22% a year, roughly 5% a quarter. Recruiting
+teams are often the first cut in layoffs, so expect more.
+
+- **Signals, as they happen (free):**
+  - A bounce, or an auto-reply saying "no longer with," arriving through
+    the forwarding inbox marks the contact gone.
+  - A reply confirms the contact.
+- **Check the address before use:** when a user opens outreach and the
+  address was last checked over 30 days ago, check it again. It costs a
+  fraction of a cent. A mailbox is usually shut down when someone leaves,
+  so this catches most departures when they matter. It can't help with
+  catch-all domains.
+- **Search again every quarter**, spread over the quarter rather than all
+  at once. Also do a full pass in late July, before fall new-grad and
+  intern recruiting opens.
+- **Don't drop people on one miss.** Search results lag, so only drop
+  someone after a bounce, a failed check, or two searches in a row that
+  don't find them.
+
+## Adding companies
+
+The pipeline works per company and keeps its state, so a new batch of
+companies is picked up on the next run, with no per-company setup.
+
+1. **Email domain.** Start from the website and confirm it receives mail
+   (an MX lookup over DNS-over-HTTPS). If it doesn't, learn the real
+   domain from evidence:
+   - addresses in the company's own job descriptions (for example
+     "accommodations@…")
+   - senders in the forwarding inbox
+   - search snippets
+2. **The name LinkedIn uses.** If results show a different name (Meta and
+   Facebook, Block and Square), learn it as an alias.
+3. **People:** title queries, classified by rules.
+4. **Pattern, derived rather than chosen from a fixed list.** Given any
+   known name and address pair, work out the template (first, last,
+   initials, separator). An unusual format is learned like a common one.
+   - Evidence: inbox senders (only the pattern is kept), job descriptions,
+     search snippets, checker probes.
+   - The most evidence wins. Conflicts are flagged.
+5. **Check** each address. Catch-all domains get "inferred".
+6. **Status.** Every company ends with a status (done, no mail domain, no
+   people found, pattern unknown, catch-all), so a company the pipeline
+   couldn't handle shows up instead of quietly having no contacts.
+
+Each run has a budget (for example 100 companies a day), so a large batch
+drains over a few days without a cost spike.
+
 ## Keeping it clean
 
 - **Email status per contact:** checked, inferred (by pattern, not
