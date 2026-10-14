@@ -120,6 +120,24 @@ Free "find the email from a LinkedIn link" sites give only a few lookups a
 month and block automation. Learning the pattern and checking it does the
 same job automatically.
 
+## Trying one company
+
+```sh
+bun scripts/contacts/try-company.ts Stripe stripe.com
+```
+
+It reads `SERPER_API_KEY` from the environment or the root `.dev.vars`, and
+uses about five credits. It prints:
+
+- the company's mail provider
+- early-career and other recruiters, with their profile links and email
+  guesses
+- the people it left out, and why
+- the email pattern it learned, and any shared inboxes
+
+Nothing is checked or saved. The parsing lives in `worker/outreach/sourcing/`
+so the scheduled job can reuse it.
+
 ## What a search result gives
 
 Serper returns a title, link and snippet for each result.
