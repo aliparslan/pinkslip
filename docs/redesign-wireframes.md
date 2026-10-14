@@ -813,6 +813,7 @@ On Paper "Today and Tracker · Oct 13 · on the kit", rows A to T.
   - A4a · a dark island, like the Live Activity
   - A4b · light and floating
   - A4c · a ticket with a stub
+  - **Picked: A4b** (owner, 2026-10-13). Light and floating, the bar fills from the left as the batch goes, the logo has no ring, and there's a round pause button.
 - **The weekly report is tabled.** People hear about interviews by email, not from the app, so a recap should lead with what only Pinkslip knows (auto-apply's work, which applications went quiet, follow-ups due). Back to it later.
 
 ## In-app browser (owner, 2026-10-12)

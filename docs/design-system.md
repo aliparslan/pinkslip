@@ -326,7 +326,8 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **Applying for you:** which A4 (dark island, light, or ticket).
+- **App icon:** the carbon-copy mark was chosen on 2026-10-11 but never
+  made into an icon file; the app still ships the old two-slip icon.
 
 ## Changelog
 
