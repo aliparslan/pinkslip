@@ -25,7 +25,35 @@ later and reuses everything here except how mail arrives.
 - **Signed-in accounts only.** Guests have no inbox.
 
 Open: whether onboarding recommends Gmail's "forward a copy of all incoming
-mail" or a keyword filter. The server handles both the same way.
+mail" or a keyword filter. The server handles both the same way. Proposed in
+the screens round: offer both, Everything first.
+
+## Screens (owner picks, 2026-10-14)
+
+Paper page "Email tracking · Oct 14"; the board names start with the option.
+
+- **Where it's offered:** 1A, a row in You (its permanent home), and 1B, a
+  nudge in Tracker with an outline "Set it up" until it's set up or
+  dismissed. Not on every application's stub (1C).
+- **Setting it up:** 2B, a guided sheet: which email you apply with, then
+  the address with "I added it" and "Email me these steps", then Gmail's
+  code, shown by itself when it arrives. The one-page version (2A) can
+  become the "How to set it up" reference.
+- **Copy** is an icon (two overlapping squares) in a 36pt round button on
+  the field: right of a one-line value (the address, Gmail's code), in the
+  top-right corner of a long one (the filter). The address row on the status
+  page has it too.
+- **After it's on:** 4B, a quiet status: job emails this month, time since
+  the last email, the address, how to set it up, Replace address. What
+  emails change shows on each application (EMAIL stamps) and in Today.
+- **Replace address** asks first: "Replace your address? The old one stops
+  working right away. You'll forward to the new one." The new address is
+  random again (a chosen one could be guessed, and anyone who knows it can
+  send updates into your Tracker), and the old one isn't kept.
+- **Which application?** 5A, a sheet from Today's Needs you. Pick any
+  number of the candidates, then Save, or None of these. Needs the server
+  to accept several applications per email (see
+  [redesign-backend-needs.md](redesign-backend-needs.md)).
 
 ## Flow
 
