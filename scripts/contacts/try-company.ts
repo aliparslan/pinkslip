@@ -5,23 +5,31 @@
  *   bun scripts/contacts/try-company.ts Stripe stripe.com
  *
  * Reads SERPER_API_KEY from the environment or the repository's .dev.vars.
- * One run uses about five Serper credits. Emails are pattern guesses: nothing
- * is checked yet, so treat every address as unconfirmed.
+ * One run uses about five Serper credits. Searching for an address
+ * ("@acme.com") isn't allowed on Serper's free plan, so the pattern comes from
+ * "email format" pages' snippets. Emails are pattern guesses: nothing is
+ * checked yet, so treat every address as unconfirmed.
  */
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   applyTemplate,
   COMMON_TEMPLATES,
   addressesAt,
+  formatClaim,
   isRoleAddress,
   likelyTemplate,
+  mailDomainsInText,
   patternEvidence,
 } from "../../worker/outreach/sourcing/email-pattern";
 import {
-  addressQuery,
+  basedInUs,
   classifyRecruiter,
+  companyKey,
   earlyCareerQuery,
+  formatQuery,
   matchCompany,
   parseLinkedInResult,
   recruiterQuery,
@@ -29,7 +37,7 @@ import {
   type LinkedInPerson,
   type SearchResult,
 } from "../../worker/outreach/sourcing/linkedin-search";
-import { lookupMx, mailProvider, websiteDomain } from "../../worker/outreach/sourcing/mail-domain";
+import { chooseMailDomain, mailProvider, websiteDomain } from "../../worker/outreach/sourcing/mail-domain";
 
 function serperKey(): string {
   if (process.env.SERPER_API_KEY) return process.env.SERPER_API_KEY;
@@ -51,15 +59,35 @@ interface SerperResponse {
 
 let creditsUsed = 0;
 
-async function search(key: string, q: string, num: number): Promise<SearchResult[]> {
+// Raw responses are kept a day outside the repository, so re-running after a
+// rule change costs no credits.
+const CACHE_DIR = join(tmpdir(), "pinkslip-sourcing-cache");
+const CACHE_MS = 24 * 60 * 60 * 1000;
+let cachedSearches = 0;
+
+// Serper's free plan refuses more than 10 results a request, so a second
+// page is a second request.
+async function search(key: string, q: string, page = 1): Promise<SearchResult[]> {
+  const request = JSON.stringify({ q, num: 10, page, gl: "us", hl: "en" });
+  const file = join(CACHE_DIR, `${createHash("sha256").update(request).digest("hex").slice(0, 24)}.json`);
+  try {
+    if (Date.now() - statSync(file).mtimeMs < CACHE_MS) {
+      cachedSearches++;
+      return (JSON.parse(readFileSync(file, "utf8")) as SerperResponse).organic ?? [];
+    }
+  } catch {
+    // Not cached yet.
+  }
   const response = await fetch("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ q, num, gl: "us", hl: "en" }),
+    body: request,
   });
   if (!response.ok) throw new Error(`Serper ${response.status}: ${await response.text()}`);
   const body = await response.json() as SerperResponse;
   creditsUsed += body.credits ?? 1;
+  mkdirSync(CACHE_DIR, { recursive: true });
+  writeFileSync(file, JSON.stringify(body));
   return body.organic ?? [];
 }
 
@@ -69,16 +97,17 @@ function fail(message: string): never {
 }
 
 const [company = fail("Usage: bun scripts/contacts/try-company.ts <Company name> [website]"), website] = process.argv.slice(2);
-const domain = websiteDomain(website ?? `${company.toLowerCase().replace(/[^a-z0-9]+/g, "")}.com`)
+const site = websiteDomain(website ?? `${company.toLowerCase().replace(/[^a-z0-9]+/g, "")}.com`)
   ?? fail(`Couldn't read a domain from ${website}`);
 
 const key = serperKey();
-const [exchanges, earlyResults, recruiterResults, addressResults] = await Promise.all([
-  lookupMx(domain).catch(() => [] as string[]),
-  search(key, earlyCareerQuery(company), 20),
-  search(key, recruiterQuery(company), 20),
-  search(key, addressQuery(domain), 10),
+const [earlyFirst, earlySecond, recruiterResults, formatResults] = await Promise.all([
+  search(key, earlyCareerQuery(company)),
+  search(key, earlyCareerQuery(company), 2),
+  search(key, recruiterQuery(company)),
+  search(key, formatQuery(company)),
 ]);
+const earlyResults = [...earlyFirst, ...earlySecond];
 
 const people = new Map<string, LinkedInPerson>();
 for (const result of [...earlyResults, ...recruiterResults]) {
@@ -86,11 +115,17 @@ for (const result of [...earlyResults, ...recruiterResults]) {
   if (person && !people.has(person.slug)) people.set(person.slug, person);
 }
 
-const addressText = addressResults.map((result) => `${result.title} ${result.snippet ?? ""}`).join("\n");
+const formatText = formatResults.map((result) => `${result.title} ${result.snippet ?? ""}`).join("\n");
+const mail = await chooseMailDomain(site, mailDomainsInText(formatText, [companyKey(company), site.split(".")[0] ?? ""]));
+const domain = mail.domain;
+const exchanges = mail.exchanges;
+const claims = formatResults
+  .map((result) => formatClaim(`${result.title} ${result.snippet ?? ""}`, new URL(result.link).hostname.replace(/^www\./, "")))
+  .filter((claim) => claim !== null);
 const peopleText = [...people.values()].map((person) => `${person.rawName} ${person.snippet}`).join("\n");
-const evidence = [...patternEvidence(addressText, domain), ...patternEvidence(peopleText, domain)];
-const pattern = likelyTemplate(evidence);
-const roleAddresses = addressesAt(addressText, domain).filter(isRoleAddress);
+const evidence = patternEvidence(peopleText, domain);
+const pattern = likelyTemplate([...claims, ...evidence]);
+const roleAddresses = addressesAt(`${formatText}\n${peopleText}`, domain).filter(isRoleAddress);
 
 interface Row {
   person: LinkedInPerson;
@@ -105,10 +140,11 @@ const rows: Row[] = [...people.values()].map((person) => {
   const { kind, weak } = classifyRecruiter(person);
   const match = matchCompany(person, company);
   const rank = RECRUITER_KIND_RANK[kind];
-  const reason = !person.name ? "no usable last name"
+  const reason = !person.name ? "no usable name"
     : rank >= 9 ? (kind === "intern" ? "recruiting intern" : "not a recruiter")
-    : match === "former" ? "left the company"
-    : match === "none" ? "company not confirmed"
+    : match === "former" ? `left the company${person.employer ? ` (now at ${person.employer})` : ""}`
+    : match === "none" ? (person.employer ? `works at ${person.employer}` : "company not confirmed")
+    : !basedInUs(person) ? `based outside the US (${person.location})`
     : null;
   return { person, kind, weak, match, rank, reason };
 });
@@ -120,14 +156,17 @@ const leftOut = rows.filter((row) => row.reason !== null);
 const guesses = (row: Row): string[] => {
   if (!row.person.name) return [];
   const templates = pattern ? [pattern.template] : COMMON_TEMPLATES.slice(0, 3);
-  return templates.map((template) => `${applyTemplate(template, row.person.name!)}@${domain}`);
+  return templates.flatMap((template) => {
+    const local = applyTemplate(template, row.person.name!);
+    return local ? [`${local}@${domain}`] : [];
+  });
 };
 
 const clip = (text: string, length: number) => text.length > length ? `${text.slice(0, length - 1)}…` : text;
 
-console.log(`\n${company} · ${domain}`);
-console.log(`Mail: ${exchanges.length ? `${mailProvider(exchanges)} (${exchanges[0]})` : "no MX records, so this domain takes no mail"}`);
-console.log(`Search results: ${earlyResults.length} early-career, ${recruiterResults.length} recruiter, ${addressResults.length} address · ${creditsUsed} credits\n`);
+console.log(`\n${company} · ${site}`);
+console.log(`Mail: ${exchanges.length ? `${domain}${mail.source === "format pages" ? " (learned from format pages)" : ""}, ${mailProvider(exchanges)} (${exchanges[0]})` : `${domain} has no MX records, so it takes no mail`}`);
+console.log(`Search results: ${earlyResults.length} early-career, ${recruiterResults.length} recruiter, ${formatResults.length} email format · ${creditsUsed} credits${cachedSearches ? `, ${cachedSearches} searches from cache` : ""}\n`);
 
 const early = kept.filter((row) => row.kind === "early_career");
 const others = kept.filter((row) => row.kind !== "early_career");
@@ -138,8 +177,9 @@ for (const [label, group] of [["Early-career recruiters", early], ["Other recrui
       .filter(Boolean).join(", ");
     console.log(`  ${row.person.name!.display}  [${flags}]`);
     console.log(`    ${clip(row.weak ? row.person.snippet : row.person.headline, 90)}`);
+    if (row.person.role || row.person.location) console.log(`    ${[row.person.role, row.person.location].filter(Boolean).join(" · ")}`);
     console.log(`    ${row.person.profileUrl}`);
-    console.log(`    ${guesses(row).join("  or  ")}`);
+    console.log(`    ${guesses(row).join("  or  ") || "no guess: the pattern needs a last name"}`);
   }
   console.log("");
 }
@@ -151,10 +191,11 @@ for (const row of leftOut) {
 
 console.log("\nEmail pattern");
 if (pattern) {
-  console.log(`  ${pattern.template}@${domain}, from ${pattern.votes} of ${pattern.total} addresses found in search results:`);
+  console.log(`  ${pattern.template}@${domain}: ${pattern.votes} of ${pattern.total} sources agree`);
+  for (const claim of claims) console.log(`    ${claim.source}: ${claim.template}${claim.share === null ? "" : ` (${claim.share}%)`}`);
   for (const item of evidence) console.log(`    ${item.name} → ${item.localPart}@${domain} (${item.template})`);
 } else {
-  console.log(`  No personal addresses at ${domain} in search results, so the guesses above are the three most common formats.`);
+  console.log(`  No format found for ${domain}, so the guesses above are the three most common formats.`);
 }
 if (roleAddresses.length) console.log(`  Shared inboxes seen: ${roleAddresses.map((local) => `${local}@${domain}`).join(", ")}`);
 console.log("\nNothing was checked or saved. Addresses are unconfirmed guesses.\n");
