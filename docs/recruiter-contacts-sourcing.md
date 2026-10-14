@@ -66,14 +66,65 @@ and grows with users. However, it reuses one user's correspondence for
 everyone, so it needs explicit opt-in and a privacy-policy change. Not for
 now.
 
-Not considered: scraping LinkedIn. Its terms forbid it, and LinkedIn won its
-case against hiQ on those terms in 2022. Looking people up by hand in
-LinkedIn while curating is fine.
+### 4. LinkedIn, read through a search engine (owner's preference)
+
+The owner wants LinkedIn as the source and won't do this by hand. There are
+two ways to read LinkedIn in bulk:
+
+- **Scraping LinkedIn directly** doesn't work well.
+  - Firecrawl blocks LinkedIn and other social sites.
+  - Logged-out profiles hit a sign-in wall after a few requests, and
+    logged-in scraping needs bot accounts.
+  - LinkedIn sued Proxycurl in January 2025 over hundreds of thousands of
+    fake accounts, and Proxycurl shut down that July.
+- **Searching LinkedIn through a search engine** ("X-ray search," a
+  standard recruiter technique) gets the same fields without touching
+  LinkedIn.
+  - A query like `site:linkedin.com/in "university recruiter" "Stripe"`
+    returns results titled "Name – Title – Company | LinkedIn": the
+    name, current title, company and profile link.
+  - About one query per company covers the catalog, so roughly
+    1,000–2,000 queries.
+  - Serper (Google results) gives 2,500 free queries, then $50 for
+    50,000. Brave's API is about $5 per 1,000, after its free plan ended.
+    Google's own Custom Search API is closed to new customers.
+  - Weak points: search results lag when people change jobs, and short
+    company names collide ("Ramp", "Notion"). The CSV review catches
+    both.
+
+## Working out emails without a lookup service
+
+The owner's idea: learn each company's address pattern, then apply it to
+the names found.
+
+1. **Learn the pattern for each domain**, from these sources:
+   - **The forwarding inbox.** A human email from `jane.doe@stripe.com`
+     shows Stripe uses first.last. Keeping only "stripe.com: first.last"
+     stores nobody's data.
+   - **Search results** that show addresses at the domain.
+   - **A checker.** Test the usual candidates (first.last, flast, first,
+     f.last, firstl, first_last) for one person. The first that's
+     accepted gives the domain's pattern.
+2. **Apply it** to everyone found at that company.
+3. **Check** each address with a bulk checker. Checking it ourselves isn't
+   practical: it needs outbound port 25, which Cloudflare Workers and most
+   clouds and home connections block. MillionVerifier is about $37 per
+   10,000 checks.
+4. **Catch-all domains** accept any address, so they can't be checked.
+   Use the learned pattern (or the most common one) and mark the address
+   "inferred".
+5. **Bounces** that come back through the forwarding inbox mark the
+   address bad and lower confidence in that domain's pattern.
+
+Free "find the email from a LinkedIn link" sites give only a few lookups a
+month and block automation. Learning the pattern and checking it does the
+same job automatically.
 
 ## Keeping it clean
 
-- **Email status per contact:** checked, catch-all (the domain accepts
-  every address, so it can't be checked), unchecked, or bounced.
+- **Email status per contact:** checked, inferred (by pattern, not
+  checked), catch-all (the domain accepts every address, so it can't be
+  checked), or bounced.
 - **Bounces:** a failed send returns to the user's own mailbox. Users who
   forward everything also forward the bounce, so the inbox can mark that
   contact bounced for everyone.
@@ -102,8 +153,11 @@ LinkedIn while curating is fine.
    email status), matched to companies by website domain, with a report of
    rows it couldn't match. It writes to local D1, or to remote D1 with the
    owner's go-ahead. The admin web tool waits for Phase 6.
-3. For route 1, a lookup script. It walks the catalog's domains with the
-   early-career titles and writes a CSV, so the owner reviews the list
-   before importing it.
+3. A finder script for route 1 or 4. It walks the catalog's companies with
+   the early-career titles, works out emails by pattern, and writes a CSV,
+   so the owner reviews the list before importing it. An evaluation run on
+   25–50 companies comes first: people found per company, how many
+   addresses check out, and a spot check of whether they really work
+   there.
 4. Bounce and reply feedback through the inbox.
 5. Then remove `OUTREACH_TEST_RECIPIENT` and set `OUTREACH = "on"`.
