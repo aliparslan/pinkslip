@@ -8,7 +8,7 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 
 | Need | Status |
 | --- | --- |
-| A date with the stage (interview time, assessment due, offer reply-by, hear back by) | Built (0e7a363): `stage_date`, migration 0091, set through `PATCH /applications/:id`. Not deployed |
+| A date with the stage (interview time, assessment due, offer reply-by, hear back by) | Built and deployed (0e7a363): `stage_date`, migration 0091, set through `PATCH /applications/:id` |
 | Which email made a step, for the stub's EMAIL stamp and "Not right?" | Built: events carry `source`, `inbound_email_id` and `email_subject` |
 | Undoing an email's step | Exists: `POST /inbox/emails/:id/undo` |
 
@@ -45,6 +45,11 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 | Need | Status |
 | --- | --- |
 | The forwarding address, Gmail's confirmation code and whether mail arrives | Exists: `GET /inbox`, `POST /inbox/rotate` |
+| **Which application?** with several picked: one email files to each | Missing. `POST /inbox/emails/:id/assign` takes one `application_id` and `inbound_emails` holds one. Take `application_ids`, link the email to each, and make "Not right?" on one application undo only that application's step |
+| **Job emails this month** on the status page | Missing: a count on `GET /inbox` (or the app counts `GET /inbox/emails` by date) |
+| **Email me these steps** (setup on a computer) | Missing: send the steps to the account's email; the alerts mailer (`send_email` binding) can carry it |
+| Which email the user applies with (Gmail, Outlook, iCloud, school) | Can stay in the app; a profile field only if it should follow the user across devices |
+| Tracker's nudge dismissed ("Not now") | Can stay in the app |
 | Profile, resume, search preferences, alerts, hidden companies | Exist (today's screens use them) |
 
 ## Anywhere
@@ -55,5 +60,4 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 
 ## To deploy
 
-Migration 0091 and the worker change that uses it (0e7a363). Migrate first:
-the new worker reads the column, while the old one ignores it.
+Nothing waiting: migration 0091 and its worker went out on 2026-10-14.
