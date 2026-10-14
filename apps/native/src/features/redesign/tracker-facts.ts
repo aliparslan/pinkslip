@@ -79,7 +79,7 @@ export const jobTitle = (application: Application) => plainText(application.titl
 export function groupApplications(applications: readonly Application[]): Map<StageGroup, Application[]> {
   const groups = new Map<StageGroup, Application[]>(STAGE_GROUPS.map((group) => [group, []]));
   for (const application of applications) groups.get(groupOf(application.stage))?.push(application);
-  for (const list of groups.values()) list.sort((a, b) => b.stage_changed_at.localeCompare(a.stage_changed_at));
+  for (const list of groups.values()) list.sort((a, b) => Date.parse(b.stage_changed_at) - Date.parse(a.stage_changed_at));
   return groups;
 }
 

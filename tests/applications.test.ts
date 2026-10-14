@@ -256,4 +256,22 @@ describe("applications API", () => {
     expect((await call(`/applications/${id}`, { method: "DELETE", user: "u2" })).status).toBe(404);
     expect((await call("/applications", { user: "u2" })).body.applications).toEqual([]);
   });
+
+  it("sends ISO timestamps for rows stored the SQLite way", async () => {
+    const { sqlite, call } = await setup();
+    sqlite.run(`INSERT INTO applications (id, user_id, job_id, company_name, title, url, stage, notes,
+      applied_at, stage_changed_at, created_at, updated_at)
+      VALUES ('old', 'u1', 'job-b', 'Acme', 'Software Engineer', '', 'applied', '',
+      '2026-09-30 14:05:00', '2026-09-30 14:05:00', '2026-09-28 09:00:00', '2026-09-30 14:05:00')`);
+    sqlite.run("INSERT INTO application_events (id, application_id, stage, source, occurred_at) VALUES ('e1', 'old', 'applied', 'user', '2026-09-30 14:05:00')");
+
+    const [listed] = (await call("/applications")).body.applications;
+    expect(listed).toMatchObject({
+      applied_at: "2026-09-30T14:05:00.000Z",
+      stage_changed_at: "2026-09-30T14:05:00.000Z",
+      created_at: "2026-09-28T09:00:00.000Z",
+      job: { location: "New York, NY", closed_at: null, company_domain: "acme.com" },
+    });
+    expect((await call("/applications/old")).body.events[0].occurred_at).toBe("2026-09-30T14:05:00.000Z");
+  });
 });

@@ -43,6 +43,18 @@ const APPLICATION_JOINS = `
   LEFT JOIN companies c ON c.id = j.company_id
 `;
 
+/** Timestamps arrive as ISO strings from the API and as SQLite's
+ * "YYYY-MM-DD HH:MM:SS" (UTC) from older rows (saved jobs, the first
+ * applications), which some JavaScript engines can't parse. */
+const toMillis = (value: string) =>
+  Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value);
+
+/** Every timestamp leaves as ISO 8601, whichever way it was stored. */
+export function isoTimestamp(value: string): string {
+  const millis = toMillis(value);
+  return Number.isNaN(millis) ? value : new Date(millis).toISOString();
+}
+
 function serialize(row: ApplicationRow): Application {
   return {
     id: row.id,
@@ -52,10 +64,10 @@ function serialize(row: ApplicationRow): Application {
     url: row.url,
     stage: row.stage,
     notes: row.notes,
-    applied_at: row.applied_at,
-    stage_changed_at: row.stage_changed_at,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    applied_at: row.applied_at === null ? null : isoTimestamp(row.applied_at),
+    stage_changed_at: isoTimestamp(row.stage_changed_at),
+    created_at: isoTimestamp(row.created_at),
+    updated_at: isoTimestamp(row.updated_at),
     job: row.job_id && row.job_location !== null
       ? { location: row.job_location, closed_at: row.job_closed_at, company_domain: row.company_domain ?? "" }
       : null,
@@ -100,7 +112,10 @@ export async function getApplicationDetail(
      WHERE application_id = ?
      ORDER BY julianday(occurred_at) ASC, rowid ASC`
   ).bind(id).all<ApplicationEvent>();
-  return { ...serialize(row), events: events.results ?? [] };
+  return {
+    ...serialize(row),
+    events: (events.results ?? []).map((event) => ({ ...event, occurred_at: isoTimestamp(event.occurred_at) })),
+  };
 }
 
 function recordEvent(
@@ -336,10 +351,6 @@ type MergeSide = Pick<
   "id" | "stage" | "notes" | "applied_at" | "stage_changed_at" | "created_at" | "updated_at"
 >;
 
-/** Timestamps arrive as ISO strings from the API and as SQLite's
- * "YYYY-MM-DD HH:MM:SS" (UTC) from older rows. */
-const toMillis = (value: string) =>
-  Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value);
 const byTime = (a: string, b: string) => toMillis(a) - toMillis(b);
 const earliest = (...values: (string | null)[]) =>
   values.filter((value): value is string => value !== null).sort(byTime)[0] ?? null;
