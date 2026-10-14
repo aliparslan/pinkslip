@@ -932,14 +932,36 @@ every page under it.
 - **Plan (owner):** C, numbers first: what's left this week fills from the
   left and empties from the right; Pro is a pink card whose See Pro opens
   the billing sheet (the same sheet serves the paywall when an allowance
-  runs out). E is the page once you're on Pro. Soft or bold pink card: in
-  review.
+  runs out). E is the page once you're on Pro. The Pro card is the soft
+  one (pale pink, pink "Pro"), for now: the owner expects to rebuild Plan
+  later and wants Plan A and B (Free and Pro side by side) kept to come
+  back to.
 - **Appearance (owner):** the iPhone's menu opens from its row; no page.
 - **Alerts (owner):** "Application changes", "When an email moves one to a
   new stage".
 - **Email tracking copy (owner):** the steps written for Outlook, iCloud and
   school mail, and the waiting states, stand for now.
 - **Invite code:** drawn with onboarding, later.
+- **Built (2026-10-14):** You (B4) with the Appearance menu, Account,
+  Alerts, Help and feedback, Hidden companies, Tailoring, and Plan C, its
+  Pro sheet and E, in `features/redesign/you`. Samples in the redesign kit:
+  You, Account signed in, Alerts with every option, Hidden companies, Plan
+  Free and Pro. Liberties, for the owner to veto:
+  - Plan, Auto-apply and Outreach say Soon on the live tab, since Pro
+    isn't sold; Plan C and E open from the kit's You sample.
+  - Alerts shows only what the server does today (as they post, or off).
+    Once a day at a time and Application changes appear when it sends by
+    kind and on a schedule; the kit sample has them. The preview follows
+    the choice ("3 new jobs · now" as they post) and hides when off.
+  - Resume and Answers still open today's screens: Resume A's sections and
+    Answers B's editors aren't drawn yet.
+  - A guest's name card reads Guest · Sign in to sync and opens today's
+    sign-in page; Account for guests isn't drawn yet.
+  - Account changes the name in the iPhone's prompt; Help's Request a
+    company asks for the name the same way.
+  - Hidden companies shows no "Hidden Oct 9" line: the server doesn't
+    keep when a company was hidden.
+  - The disabled Send is gray, as the kit's buttons are, not faded pink.
 
 ## In-app browser (owner, 2026-10-12)
 

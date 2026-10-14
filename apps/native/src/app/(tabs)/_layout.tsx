@@ -13,10 +13,12 @@ export default function TabsLayout() {
 
 /** Our tab bar (Paper "Tab bar · Oct 12", option C). It floats over the
  * content: redesigned screens (Jobs, Tracker, Search) leave room under their
- * lists, and today's You gets the room as padding. */
+ * lists; the You stack, which still has some of today's screens, gets the room as padding. */
 function PillTabs() {
+  const { theme } = useUnistyles();
   const space = useTabBarSpace();
-  const padded = { sceneStyle: { paddingBottom: space } };
+  // The room under the pill is the page's white, so it reads as page.
+  const padded = { sceneStyle: { paddingBottom: space, backgroundColor: theme.ui.color.bg } };
   return <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />
