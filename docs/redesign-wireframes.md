@@ -1225,6 +1225,20 @@ Scope and decisions: `apply-flow-scope-2026-10-14.md`.
     bar, in ink on the Lock Screen and white in the island (rings too).
   - Section headers in sheets line up with the rows' content, 16 in. This
     awaits the owner's word before the kit rule changes.
+- **Board 5, Needs you:** only the job with a question waits; the rest
+  keep going.
+  - 5.1: one notification per question, above the Live Activity.
+  - 5.2: the question sheet, with the saved answer and Answer for me
+    above the keyboard, and "Send to Notion".
+  - 5.3: the queue with Needs you on top, in pink.
+  - 5.4: left unanswered, it waits in Today's Needs you.
+- **Board 6, after: proof it went through:**
+  - 6.1: the stub stamps APPLIED once the board or its email confirms it.
+    Its foot reads "Sent by Pinkslip" and links to What we sent. Change
+    stage is gray.
+  - 6.2: until then the stamp is SENT, dashed, "Waiting for Ramp".
+  - 6.3: What we sent: proof first (the thank-you page, the email), then
+    the resume and every answer.
 - **Bot mark (owner, 2026-10-14): B2**, drawn by us, replaces Phosphor
   Robot (Paper "Bot icon · options"). Phosphor stays; Lucide was ruled out
   as overused.
