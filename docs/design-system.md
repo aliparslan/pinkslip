@@ -360,8 +360,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   card stays for grouped screens. These are settings, drawn like the
   sheet's menu rows (Paper "You · Oct 14"): rows 50 tall, values `ink-3`,
   12 chevrons in `ink-4`, details in Footnote, radio titles Regular, lines
-  inset 16 on both sides, and the card's label on its left edge 4 above
-  it. A row whose value opens the iPhone's menu in place (Appearance) ends
+  inset 16 on both sides, and the card's label 4 above it, lined up with
+  the rows' content 16 in (owner, 2026-10-14; it sat on the card's edge
+  before, and `ListGroup`'s `headerOnEdge` still does until the build). A row whose value opens the iPhone's menu in place (Appearance) ends
   in the up-and-down caret (`accessory="pick"`); a row that deletes is
   `destructive` red.
 - **Date tile** (`DateTile.tsx`; Coming up rows, an application's Next row;
@@ -449,6 +450,9 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-14**
+  - Decided (owner): a group's label lines up with its rows' content, 16
+    in, not the card's edge (Paper "Apply flow · Oct 14"). Still to build
+    in `ListGroup`.
   - Decided (owner): the bot mark B2 replaces Phosphor Robot everywhere it
     means "Pinkslip does it for you" (Paper "Bot icon · options"; Part ·
     Bot mark on the System page). Still to build: draw it in `Icon.tsx`
