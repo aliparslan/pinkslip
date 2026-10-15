@@ -196,6 +196,15 @@ on one line share a size.
   gray card. The tile's color is the row's meaning, never decoration, and
   rows of one meaning share a card. Copy is our own mark (two squares, the
   same 2.5 corner), drawn in `Icon.tsx` rather than Phosphor's Copy.
+- **The bot mark** (owner, 2026-10-14, Paper "Bot icon · options" B2, and
+  the System page's Parts): our own icon for "Pinkslip does it for you", on
+  Apply for me, Answer for me, the live bar and the Auto-apply row. It's an
+  antenna with a ball, a round head and two pill eyes, drawn on Phosphor's
+  256 grid at the 1.75pt line. It replaces Phosphor Robot, whose mouth and
+  eyes filled in below 20.
+- **Staying with Phosphor** (owner, 2026-10-14): Lucide was ruled out as
+  overused. When Phosphor's glyph doesn't hold up at our sizes, we draw our
+  own on its grid rather than switch packs.
 - **The selected tab** keeps its outline icon, in pink (`accent`) at a 2pt
   stroke, on the gray oval; Tracker's end dot fills in (owner, 2026-10-12).
   The tabs are Jobs, Tracker, Search and You (the user circle), 56 apart;
@@ -440,6 +449,11 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-14**
+  - Decided (owner): the bot mark B2 replaces Phosphor Robot everywhere it
+    means "Pinkslip does it for you" (Paper "Bot icon · options"; Part ·
+    Bot mark on the System page). Still to build: draw it in `Icon.tsx`
+    as copy D is, and point `autoApply` at it. Phosphor stays the set;
+    Lucide was ruled out as overused.
   - Built You as picked (B with the B4 tiles): `IconTile` and the six tile
     colors in `tokens.ts`; settings rows on `ListGroup surface="fill"` (50
     tall, quieter values and chevrons, `pick`, `destructive`); `Segmented`
