@@ -10,6 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
+import { setSurfaceChoice, surfaceChoices, useSurfaceChoice } from "../../../theme/surface-lab";
 import { faces, Icon, IconTile, ListGroup, ListItem, Text, useTabBarScroll } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { EditSearchSheet } from "../EditSearch";
@@ -59,6 +60,7 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
     {show.admin || show.kit ? <ListGroup surface="fill" inset="leading">
       {show.admin ? <ListItem leading={<IconTile icon="admin" meaning="app" />} title="Admin" accessory="chevron" onPress={() => open("admin")} /> : null}
       {show.kit ? <ListItem leading={<IconTile icon="kit" meaning="app" />} title="Kit" accessory="chevron" onPress={() => open("kit")} /> : null}
+      {show.kit ? <SurfaceRow /> : null}
     </ListGroup> : null}
     <ListGroup surface="fill" inset="leading">
       <ListItem leading={<IconTile icon="editSearch" meaning="find" />} title="Your search" value={values.search} accessory="chevron" onPress={() => open("search")} />
@@ -99,6 +101,26 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
     </ListGroup>
     <View style={styles.version}><Text role="footnote" tone="ink-3" align="center" selectable>{appVersionLine()}</Text></View>
   </ScrollView>;
+}
+
+/** The owner's page-color lab (theme/surface-lab.ts): the iPhone's menu from
+ * the row, as Appearance does. Light mode only. */
+function SurfaceRow() {
+  const choice = useSurfaceChoice();
+  const title = surfaceChoices.find((option) => option.id === choice)?.title ?? "";
+  return <View>
+    <ListItem leading={<IconTile icon="appearance" meaning="app" />} title="Page color" />
+    <View style={styles.menuLayer}>
+      <Menu fill title="" items={surfaceChoices.map((option) => ({
+        id: option.id, title: option.title, checked: choice === option.id, onSelect: () => setSurfaceChoice(option.id),
+      }))}>
+        <View style={styles.menuValue} accessibilityRole="button" accessibilityLabel={`Page color, ${title}`}>
+          <Text tone="ink-3" lines={1}>{title}</Text>
+          <Icon name="pick" size={12} tone="ink-4" />
+        </View>
+      </Menu>
+    </View>
+  </View>;
 }
 
 /** Your name and email on a gray card; it opens Account. */
