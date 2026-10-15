@@ -11,10 +11,14 @@ import { persistOptions } from "../../platform/persistence";
 import { notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
+import { applySurfaceLab } from "../../theme/surface-lab";
 import { loadUiFonts } from "../../ui/fonts";
+import { redesignKitAvailable } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
+// The owner's page-color lab only exists where the redesign kit does.
+if (redesignKitAvailable) applySurfaceLab();
 watchAppearance();
 void loadUiFonts();
 
