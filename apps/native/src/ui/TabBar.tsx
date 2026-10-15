@@ -1,7 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { usePathname } from "expo-router";
+import { usePathname, useScrollToTop } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Pressable, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { makeMutable, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
@@ -60,10 +60,34 @@ function setCompact(next: boolean) {
   compact.value = withSpring(target, GLIDE);
 }
 
+/** A list a tab can send back to its top (a FlashList). */
+interface TopScrollable {
+  scrollToOffset: (params: { offset: number; animated?: boolean }) => void;
+  getNativeScrollRef: () => { getNativeScrollRef: () => { measureInWindow: (callback: (x: number, y: number) => void) => void } | null } | null;
+}
+
 /** Spread onto a list under the tab bar (`{...useTabBarScroll()}`): scrolling
- * down shrinks the bar, scrolling up or reaching the top brings it back. */
-export function useTabBarScroll() {
+ * down shrinks the bar, scrolling up or reaching the top brings it back.
+ * Given the list, tapping the tab you're on scrolls it back to the top, and
+ * the list may be scrolled above zero (`scrollToOverflowEnabled`): React
+ * Native otherwise stops a scroll at zero, short of the status bar's inset. */
+export function useTabBarScroll(list?: RefObject<TopScrollable | null>) {
   const last = useRef(0);
+  const insets = useSafeAreaInsets();
+  const statusBar = useRef(insets.top);
+  statusBar.current = insets.top;
+  // The router's own scroll to the top goes to zero, which tucks the large
+  // title under the clock: iOS insets a list by however much of the status
+  // bar it sits under, and its scroll events don't report that inset, so
+  // it's measured.
+  const top = useRef({
+    scrollToTop: () => {
+      const target = list?.current;
+      target?.getNativeScrollRef()?.getNativeScrollRef()?.measureInWindow((_x, y) =>
+        target.scrollToOffset({ offset: -Math.max(0, statusBar.current - y), animated: true }));
+    },
+  });
+  useScrollToTop(top);
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const y = contentOffset.y + Math.max(0, contentInsetTop(event));
@@ -75,7 +99,7 @@ export function useTabBarScroll() {
     else if (moved > SCROLL_SLOP) setCompact(true);
     else if (moved < -SCROLL_SLOP) setCompact(false);
   }, []);
-  return { onScroll, scrollEventThrottle: 16 };
+  return list ? { onScroll, scrollEventThrottle: 16, scrollToOverflowEnabled: true } : { onScroll, scrollEventThrottle: 16 };
 }
 
 /** Lists that adjust for the status bar start at minus its height. */
