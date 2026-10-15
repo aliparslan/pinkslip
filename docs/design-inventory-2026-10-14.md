@@ -51,6 +51,8 @@ as designs: the kit is the spec.
   Select on Jobs (3.4) ships later.
 - **Errors** (Oct 15, Paper "Errors · Oct 15"): every error screen and
   state, rules in design-system.md.
+- **Auto-apply settings** (Oct 15, A, Paper "Auto-apply settings · Oct
+  15").
 - **Tracker's Stats sheet:** coming-soon only.
 
 Built since the last count: Mist and Sheets A, the tab bar without names,
@@ -66,24 +68,21 @@ chips that keep their width, the 2pt sheet Back.
 
 ## Not designed in the kit yet (updated 2026-10-15)
 
-The first four block a release; the rest could follow it.
+The first three block a release; the rest could follow it.
 
-1. **Auto-apply settings:** the mode (Off, Ask first, Automatic) and the
-   rules (match strength, companies, daily cap, freshness), where the
-   limits live. The You row says Soon today. Everything else of
-   auto-apply is drawn in the Apply flow.
-2. **Outreach:** the People segment on a company page and a person's row;
+1. **Outreach:** the People segment on a company page and a person's row;
    the composer with template chips and highlighted filled-in words; the
    follow-up plan and the thread; the daily quota (Pro).
-   `OutreachSheet.tsx` is the old kit.
-3. **Report a listing** (`ReportSheet.tsx`, old kit).
-4. **Sign-in, revisited** (parked above).
-5. **Pro moments:** what a Free person sees at a Pro feature (auto-apply,
+   `OutreachSheet.tsx` is the old kit. Also Follow on a company page, and
+   whether Alerts and auto-apply can stick to followed companies.
+2. **Report a listing** (`ReportSheet.tsx`, old kit).
+3. **Sign-in, revisited** (parked above).
+4. **Pro moments:** what a Free person sees at a Pro feature (auto-apply,
    outreach, the quota). The billing sheet is done.
-6. **Events,** drawn in full though they ship as coming soon: the row, the
+5. **Events,** drawn in full though they ship as coming soon: the row, the
    company page's Events segment, Register, Add to Calendar, Remind me.
-7. **What's new and guides.**
-8. **Passes:** dark mode and loading. Empty states exist; errors are done.
+6. **What's new and guides.**
+7. **Passes:** dark mode and loading. Empty states exist; errors are done.
 
 Admin stays in the old kit.
 
