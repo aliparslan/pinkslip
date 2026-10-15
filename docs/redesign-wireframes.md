@@ -1237,8 +1237,14 @@ Scope and decisions: `apply-flow-scope-2026-10-14.md`.
     Its foot reads "Sent by Pinkslip" and links to What we sent. Change
     stage is gray.
   - 6.2: until then the stamp is SENT, dashed, "Waiting for Ramp".
-  - 6.3: What we sent: proof first (the thank-you page, the email), then
-    the resume and every answer.
+  - 6.3: What we sent, a plain receipt on the page (redrawn after the
+    Mobbin research, 2026-10-15): proof first as a short timeline (sent,
+    the thank-you page, the email), the resume as a file row, then each
+    answer with its question small above it.
+- **On Mist (2026-10-15):** the boards follow the surface decision. Groups
+  on a page are white cards (Ask first, the review); sheets are white with
+  see-through groups (the queue, a job's preview, the answer); chips that
+  are off are outlined.
 - **Bot mark (owner, 2026-10-14): B2**, drawn by us, replaces Phosphor
   Robot (Paper "Bot icon · options"). Phosphor stays; Lucide was ruled out
   as overused.
