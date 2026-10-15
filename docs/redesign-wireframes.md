@@ -756,6 +756,24 @@ from the Parts board on the System page. The first drafts ("Tracker · Oct 13
   - The Since-yesterday numbers card is off; options for it and for the
     Applying card are being drawn.
 
+## Today on the current kit (owner, 2026-10-15)
+
+Paper "Today · Oct 15": 1b brought onto Mist, the five-tab bar, the Ask
+first card and the live bar.
+- **T1, a morning with something to send:** Ask first is the only box,
+  then Needs you, What changed and Coming up as plain rows with one
+  headline each.
+- **T2, while it sends:** the card gives way to the live bar above the tab
+  bar.
+- **T3, a quiet day:** "Nothing new since yesterday." in one line (a second
+  reassuring line was too much), then "12 new jobs today", then Coming up.
+- **T4, the first day:** the kit's empty state (Browse jobs, Track one
+  from an email).
+- **T5, five tabs:** with Tracker lit the bar is 354 wide, so it fits 375
+  with about 10 a side (24 a side on iPhone 17).
+- **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
+  holds only dated steps from applications, interviews and assessments.
+
 ## Applying for you and the weekly slip (owner, 2026-10-13, late)
 
 On Paper "Today and Tracker · Oct 13" (superseded boards moved to "Archive · Today and Tracker explorations · Oct 13"), rows A to T.
