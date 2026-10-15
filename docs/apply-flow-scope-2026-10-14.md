@@ -140,7 +140,21 @@ own round.
 2. **Selecting jobs on Jobs ("Apply to 8") is drawn, and ships later.** It
    uses the same review sheet as Ask first.
 3. **Assisted fill is for everyone.** "Apply for me" is Pro.
-4. **The guardrails show in the review sheet:**
-   - the cap per company;
-   - legal and status questions never answered;
-   - the daily cap.
+4. ~~The guardrails show in the review sheet.~~ Reversed the same day, below.
+
+## Changed after the first draw (owner, 2026-10-14)
+
+- **No guardrails on the review.** They haven't earned a place on a screen
+  seen every day. The limits live in auto-apply settings under You, in plain
+  words ("Up to 10 applications a day"; never guessing on visa or
+  work-status questions). The per-company rule was too strict as "one a
+  month"; settle it in that round.
+- **The review is a page, not a sheet.** It opens from Today's Ask first
+  card, with Apply pinned at the bottom.
+- **Every piece of information earns its place:**
+  - No subtext under "Apply to 9".
+  - Only jobs that need something carry a label ("1 to answer", "Wants a
+    portfolio"). The rest collapse into "6 more".
+- **Ask first lives in Today for good.** Today starts nearly bare and fills
+  out; nothing moves to Jobs or Tracker in the meantime.
+- **Today is designed right after the Apply flow.**
