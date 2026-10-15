@@ -1113,3 +1113,30 @@ not students.
 - **Sign in:** one sheet (Welcome back / Save it for later) with the three
   buttons; email, then make a password or enter yours; the code step; one
   ask for alerts after the first sign-in, with a preview notification.
+
+## Onboarding, round 2 (2026-10-14)
+
+Paper "Onboarding · round 2 · Oct 14". The owner didn't love round 1, then
+set the brief: sell what Pinkslip does for someone's life, not its features.
+"2,431 new jobs this week" read as intimidating. The owner's own story is
+the pitch: they stopped checking every other board, check one app, apply as
+jobs appear, and get on with their day. Every direction keeps the questions
+to three taps (level, role, where) on one kit sheet, with no counts.
+
+- **N1 · Close the other tabs:** a wall of the companies hiring. Each answer
+  quietly dims the ones that don't fit, and the last screen is your
+  companies, lit ("You're set").
+- **N2 · A Tuesday morning:** the welcome is a lock screen with three
+  Pinkslip notifications (a job posted now, a recruiter's reply, a nudge to
+  follow up) under "Job hunting, in the background." The questions slide up
+  over it. The last screen asks for notifications, the step that makes the
+  picture real.
+- **N3 · A second job:** dark, told in two beats. First a pile of
+  spreadsheets, tabs, auto-reply emails and sticky notes ("Job hunting is a
+  second job."), which folds into one glowing pink slip ("Let's make it a
+  small one."). After the questions comes "Off your plate.", four
+  struck-through chores.
+- **Welcome lines** L1–L7, all about the after. Any line fits any direction.
+- The live-preview and swipe-to-teach ideas were dropped as feature-led.
+- The audit moved the sheet chips to the kit's 32 Chip and the titles to
+  Large Title 34. Gaps are on the 4/8/12/16/24 grid.
