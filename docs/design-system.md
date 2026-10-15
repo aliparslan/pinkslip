@@ -109,8 +109,9 @@ else is decided.
 
 - **Chips filter what you see,** so they are ink. Off is outlined: clear
   inside, a 1pt `outline` ring, ink text (owner, 2026-10-15). On is ink fill
-  with white text. A count sits after a small gap in a
-  lighter weight.
+  with white text. The label is Regular either way, so a chip doesn't
+  change width when it's picked (owner, 2026-10-15). A count sits after a
+  small gap in `ink-3`.
 - **Checks, radios and switches change a setting,** so they are pink. A
   check or radio that's on is a pink circle with a white
   check; one that's off is a 1.75pt `ink-4` ring. A switch that's on has a
@@ -482,6 +483,8 @@ cut so that each remaining one has a job.
     rows, and gray cards on a white page (they read as sunken).
   - Decided and built (owner): the tab bar loses its names (L2 is undone);
     the lit tab is the 64 oval with its pink icon.
+  - Decided and built (owner): a picked chip's label stays Regular, so the
+    chip keeps its width.
   - Decided and built (owner, Paper "Sheets · three ways" A): sheets are
     Mist with white groups and fields, new `sheet` and `sheet-group` tokens
     (dark keeps its values). `Sheet`, `Choices`, `CopyField` (its button

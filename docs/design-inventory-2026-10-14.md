@@ -100,6 +100,12 @@ rest could follow it.
     - empty, error and offline states;
     - loading.
 
+**Error screens and states get their own round** (owner, 2026-10-15),
+right after sign-in rather than as a last pass: whole-screen errors
+(offline, the server down, a job that's gone, a broken link), errors on a
+field, an action that failed (the toast), and anything that asks before
+retrying. Sign-in's own errors are drawn with sign-in.
+
 ## Decided (owner, 2026-10-14)
 
 - **The web app** waits until after the iOS release.

@@ -13,12 +13,14 @@ export interface ChipProps {
 /** A 32pt capsule for filters, with an optional count after the label.
  * Selected is an ink fill with the background colour as text; pink never
  * means "on". Unselected is outlined, clear inside with a 1pt ring (owner,
- * 2026-10-15), so it reads the same on the page, on a card and in a sheet. */
+ * 2026-10-15), so it reads the same on the page, on a card and in a sheet.
+ * The label stays Regular either way, so a chip keeps its width (owner,
+ * 2026-10-15). */
 export function Chip({ label, count, selected = false, onPress }: ChipProps) {
   styles.useVariants({ selected });
   return <PressableScale accessibilityRole="button" accessibilityLabel={count === undefined ? undefined : `${label}, ${count}`}
     accessibilityState={{ selected }} onPress={onPress} contentStyle={styles.root}>
-    <Text role="subhead" weight={selected ? "medium" : "regular"} tone={selected ? "bg" : "ink"} lines={1}>{label}</Text>
+    <Text role="subhead" tone={selected ? "bg" : "ink"} lines={1}>{label}</Text>
     {count === undefined ? null : <Text role="subhead" tone={selected ? "bg" : "ink-3"} lines={1}>{String(count)}</Text>}
   </PressableScale>;
 }
