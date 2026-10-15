@@ -765,12 +765,12 @@ first card and the live bar.
   headline each.
 - **T2, while it sends:** the card gives way to the live bar above the tab
   bar.
-- **T3, a quiet day:** "Nothing new since yesterday." in one line (a second
-  reassuring line was too much), then "12 new jobs today", then Coming up.
+- **T3, a quiet day:** no statement at all (owner: "Nothing new" was too
+  bold and not needed); "12 new jobs today", then Coming up.
 - **T4, the first day:** the kit's empty state (Browse jobs, Track one
   from an email).
-- **T5, five tabs:** with Tracker lit the bar is 354 wide, so it fits 375
-  with about 10 a side (24 a side on iPhone 17).
+- **The tab bar has no names** (owner, same day): the lit tab is the 64
+  oval with its pink icon, so five tabs are 298 wide and fit any iPhone.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 

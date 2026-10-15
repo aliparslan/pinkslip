@@ -11,7 +11,6 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { Icon, type IconName } from "./Icon";
 import { motion, spring } from "./motion";
-import { Text } from "./Text";
 import { useToastLift } from "./Toast";
 
 /** A tab is a 56 slot with its 24 icon in the middle (Paper "C · Closer
@@ -19,13 +18,10 @@ import { useToastLift } from "./Toast";
 const PITCH = 56;
 const ICON = 24;
 const ICON_INSET = (PITCH - ICON) / 2;
-/** The tab you're on says its name beside its icon (owner, 2026-10-14, L2
- * on "Tab bar labels · Oct 14"): 8 after the icon, 18 before the edge. */
-const LABEL_GAP = 8;
-const LABEL_END = 18;
 const SLOT_HEIGHT = 46;
-/** Small, the lit tab is the 64 oval it was before labels. */
-const COMPACT_LIT = 64;
+/** The tab you're on is a 64 oval around its icon, with no name (owner,
+ * 2026-10-15: the names from "Tab bar labels · Oct 14" went). */
+const LIT = 64;
 const PAD = 5;
 /** The lit tab grows and shrinks on Apple's no-bounce spring (tokens). */
 const GLIDE = spring(motion.tab.glide);
@@ -34,7 +30,8 @@ const PILL = SLOT_HEIGHT + PAD * 2;
 const GLASS = isLiquidGlassAvailable();
 
 /** The tabs the bar knows (their order is the layout's: Jobs, Tracker,
- * Search, You); routes it doesn't know stay hidden. */
+ * Search, You); routes it doesn't know stay hidden. The name is for
+ * VoiceOver only. */
 const TABS: Record<string, { icon: IconName; label: string }> = {
   "(jobs)": { icon: "jobs", label: "Jobs" },
   "(library)": { icon: "tracker", label: "Tracker" },
@@ -118,19 +115,18 @@ export function useTabBarSpace() {
   return pillBottom(insets.bottom) + PILL + 12;
 }
 
-/** How wide a tab is: 56, or with its name beside the icon while it's lit. */
-function slotWidth(lit: boolean, labelWidth: number) {
+/** How wide a tab is: 56, or the 64 oval while it's lit. */
+function slotWidth(lit: boolean) {
   "worklet";
-  return lit ? ICON_INSET + ICON + LABEL_GAP + labelWidth + LABEL_END : PITCH;
+  return lit ? LIT : PITCH;
 }
 
 /**
- * Pinkslip's own tab bar (Paper "Tab bar · Oct 12" C, with L2 from "Tab bar
- * labels · Oct 14"): a small floating pill of glass. The tab you're on grows
- * into a soft oval holding its icon and name in pink; the others are icons.
- * Press and slide along the bar to light each tab in turn, ticking as you
- * pass; let go to open it. Scrolling a list down shrinks the bar and drops
- * the name. The job page and an application's have their own pinned
+ * Pinkslip's own tab bar (Paper "Tab bar · Oct 12" C): a small floating pill
+ * of glass. The tab you're on grows into a soft oval around its pink icon;
+ * the others are icons. Press and slide along the bar to light each tab in
+ * turn, ticking as you pass; let go to open it. Scrolling a list down
+ * shrinks the bar. The job page and an application's have their own pinned
  * buttons, so the bar steps aside there.
  */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
@@ -142,8 +138,6 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
   const [hover, setHover] = useState<number | null>(null);
   const hovered = useSharedValue(-1);
-  // Each name is measured once, off to the side, so a tab knows how far to grow.
-  const [labelWidths, setLabelWidths] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // A new tab starts with the full bar.
@@ -164,7 +158,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   latest.current = { open, setHover };
 
   // Where each tab starts along the pill as it rests now, for the drag.
-  const widths = tabs.map((route, index) => slotWidth(index === selected, labelWidths[route.name] ?? 0));
+  const widths = tabs.map((_route, index) => slotWidth(index === selected));
   const drag = useMemo(() => {
     const showHover = (index: number | null) => latest.current.setHover(index);
     const release = (index: number) => {
@@ -212,18 +206,12 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   const lit = hover ?? selected;
   const bottom = pillBottom(insets.bottom);
   return <View pointerEvents="box-none" style={[styles.bar, { paddingBottom: bottom }]}>
-    <View pointerEvents="none" style={styles.measure} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {tabs.map((route) => <View key={route.key} style={styles.measured} onLayout={({ nativeEvent }) => {
-        const width = Math.ceil(nativeEvent.layout.width);
-        setLabelWidths((current) => current[route.name] === width ? current : { ...current, [route.name]: width });
-      }}><Text role="subhead" weight="medium">{TABS[route.name]!.label}</Text></View>)}
-    </View>
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.shrink, size]}>
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
           {tabs.map((route, index) => {
             const tab = TABS[route.name]!;
-            return <TabSlot key={route.key} icon={tab.icon} label={tab.label} labelWidth={labelWidths[route.name] ?? 0}
+            return <TabSlot key={route.key} icon={tab.icon} label={tab.label}
               selected={index === selected} lit={index === lit} onPress={() => open(index, true)} />;
           })}
         </GlassView>
@@ -232,33 +220,20 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   </View>;
 }
 
-/** One tab. Lit, it widens into the oval and its name slides out from under
- * the edge; small, it keeps only the oval. */
-function TabSlot({ icon, label, labelWidth, selected, lit, onPress }: {
+/** One tab. Lit, it widens into the oval with its icon in the middle. */
+function TabSlot({ icon, label, selected, lit, onPress }: {
   icon: IconName;
   label: string;
-  labelWidth: number;
   selected: boolean;
   lit: boolean;
   onPress: () => void;
 }) {
   const on = useSharedValue(selected ? 1 : 0);
-  const words = useSharedValue(labelWidth);
   useEffect(() => { on.value = withSpring(selected ? 1 : 0, GLIDE); }, [selected, on]);
-  useEffect(() => { words.value = labelWidth; }, [labelWidth, words]);
 
-  const box = useAnimatedStyle(() => {
-    const full = slotWidth(true, words.value) - PITCH;
-    const small = COMPACT_LIT - PITCH;
-    const grow = full + (small - full) * compact.value;
-    return { width: PITCH + grow * on.value };
-  });
+  const box = useAnimatedStyle(() => ({ width: PITCH + (LIT - PITCH) * on.value }));
   const oval = useAnimatedStyle(() => ({ opacity: on.value }));
-  const name = useAnimatedStyle(() => ({ opacity: on.value * (1 - compact.value) }));
-  // Small, the icon sits in the middle of the 64 oval.
-  const mark = useAnimatedStyle(() => ({
-    transform: [{ translateX: ((COMPACT_LIT - PITCH) / 2) * on.value * compact.value }],
-  }));
+  const mark = useAnimatedStyle(() => ({ transform: [{ translateX: ((LIT - PITCH) / 2) * on.value }] }));
 
   return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected }}>
     <Animated.View style={[styles.slot, box]}>
@@ -270,18 +245,12 @@ function TabSlot({ icon, label, labelWidth, selected, lit, onPress }: {
           ? <Icon name={icon} size={ICON} tone="accent" stroke={LIT_STROKE} weight={icon === "tracker" ? "fill" : "line"} />
           : <Icon name={icon} size={ICON} tone="ink-2" />}
       </Animated.View>
-      <Animated.View pointerEvents="none" style={[styles.label, { width: labelWidth }, name]}>
-        <Text role="subhead" weight="medium" tone="accent" lines={1}>{label}</Text>
-      </Animated.View>
     </Animated.View>
   </Pressable>;
 }
 
 const styles = StyleSheet.create((theme) => ({
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "flex-end" },
-  // Off to the side and invisible, where the names are measured.
-  measure: { position: "absolute", left: -1000, top: 0, width: 400, alignItems: "flex-start", opacity: 0 },
-  measured: { alignSelf: "flex-start" },
   // It shrinks towards the bottom edge, staying on the home indicator.
   shrink: { transformOrigin: "bottom" },
   pill: { flexDirection: "row", padding: PAD, borderRadius: PILL / 2 },
@@ -289,5 +258,4 @@ const styles = StyleSheet.create((theme) => ({
   slot: { height: SLOT_HEIGHT, overflow: "hidden", borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous" },
   oval: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: theme.ui.color.pill },
   icon: { position: "absolute", left: ICON_INSET, top: (SLOT_HEIGHT - ICON) / 2 },
-  label: { position: "absolute", left: ICON_INSET + ICON + LABEL_GAP, top: 0, bottom: 0, justifyContent: "center" },
 }));
