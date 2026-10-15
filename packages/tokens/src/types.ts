@@ -17,6 +17,6 @@ export type ZIndexToken = "navigation" | "overlay" | "toast";
 export type FontFamilyToken = "heading" | "display" | "sans" | "mono";
 export type LeadingToken = "body" | "root-title" | "screen-title";
 export type TrackingToken = "root-title" | "screen-title";
-export type UiColorToken = "bg" | "bg-grouped" | "screen-grouped" | "bg-elev" | "ink" | "ink-2" | "ink-3" | "ink-4" | "separator" | "fill" | "accent" | "accent-fill" | "accent-ink" | "accent-soft" | "good" | "stage-assessment" | "stage-interview" | "bad" | "tile-find" | "tile-find-ink" | "tile-apply" | "tile-apply-ink" | "tile-pro" | "tile-pro-ink" | "tile-app" | "tile-app-ink" | "pill" | "seg-on" | "scrim" | "logo-tile" | "image-outline" | "grain";
+export type UiColorToken = "bg" | "bg-grouped" | "screen-grouped" | "bg-elev" | "ink" | "ink-2" | "ink-3" | "ink-4" | "separator" | "fill" | "accent" | "accent-fill" | "accent-ink" | "accent-soft" | "good" | "stage-assessment" | "stage-interview" | "bad" | "tile-find" | "tile-find-ink" | "tile-apply" | "tile-apply-ink" | "tile-pro" | "tile-pro-ink" | "tile-app" | "tile-app-ink" | "pill" | "seg-on" | "outline" | "paper" | "scrim" | "logo-tile" | "image-outline" | "grain";
 export type UiShadowToken = "card" | "hole" | "pill";
 export type UiTypeRole = "largeTitle" | "title1" | "title2" | "body" | "longText" | "subhead" | "footnote" | "tab";

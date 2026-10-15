@@ -52,7 +52,7 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProp
     {torn && width > 0 ? <Fragment>
       <View style={styles.tear} pointerEvents="none">
         <Svg width={width} height={TEAR_STRIP}>
-          <Path d={tornEdge(width)} fill={theme.ui.color["bg-grouped"]} />
+          <Path d={tornEdge(width)} fill={theme.ui.color.paper} />
           <Path d={tornEdge(width)} fill={theme.ui.color.grain} opacity={GRAIN_ALPHA} />
         </Svg>
       </View>
@@ -123,7 +123,7 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
     {width > 0 ? <Fragment>
       <View style={stubStyles.tear} pointerEvents="none">
         <Svg width={width} height={TEAR_STRIP} style={stubStyles.flip}>
-          <Path d={tornEdge(width)} fill={theme.ui.color["bg-grouped"]} />
+          <Path d={tornEdge(width)} fill={theme.ui.color.paper} />
           <Path d={tornEdge(width)} fill={theme.ui.color.grain} opacity={GRAIN_ALPHA} />
         </Svg>
       </View>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.ui.space["4"],
     borderRadius: theme.ui.radius.lg,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color["bg-grouped"],
+    backgroundColor: theme.ui.color.paper,
     boxShadow: theme.ui.shadow.card,
   },
   tornTicket: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
@@ -275,7 +275,7 @@ const stubStyles = StyleSheet.create((theme) => ({
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color["bg-grouped"],
+    backgroundColor: theme.ui.color.paper,
     boxShadow: theme.ui.shadow.card,
   },
   /** The ticket's tear, upside down: the paper above the stub's body. */

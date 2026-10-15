@@ -157,6 +157,30 @@ an all-off-white screen soon reads as white. Keep some true white in view
 - White is only for what floats: the tab bar, sheets, toasts, and the one
   box per screen with a soft shadow.
 
+## Decided: Mist, white cards, outlined chips (same day)
+
+The owner rejected C's warmth ("don't go pink warm"), preferred B's
+settings, and asked to see the choices on the phone. An owner-only lab in
+You switched the light page between Snow #FBFBFB, Mist #F8F8F9, Cloud
+#F5F5F6, Apple gray #F2F2F7 and Paper #FAF9F5 over the air. The owner then
+picked:
+
+- **The page is Mist, #F8F8F9**, neutral with a trace of cool. Rows and
+  feeds sit on it; nothing is drawn behind a job row.
+- **Settings cards and sheets are white,** B's settings, one step lighter
+  than the page.
+- **Controls use a see-through fill** (ink at 5.5%), so a button reads the
+  same on the page, a card and a sheet. Search stays the one darker well.
+- **Chips that are off are outlined:** clear inside with a 1pt ring
+  (`outline`, ink at 16%; 30% with Increase Contrast). Filled gray chips
+  would sit on a gray page as one more gray block.
+- **The ticket and stub keep their own `paper`** (#F3F2F0) so they stay
+  objects rather than white cards.
+- On Mist, `ink-3` measures 5.06:1 and pink text 4.79:1, so both pass.
+
+Built in `tokens.ts`, `Chip.tsx` and `Ticket.tsx`; the lab is removed.
+`design-system.md` records the rule.
+
 Sources:
 - [W3C Understanding 1.4.11 Non-text Contrast](https://www.w3.org/WAI/WCAG21/Understanding/non-text-contrast)
 - [Apple UIKit UI element colors](https://developer.apple.com/documentation/uikit/ui-element-colors)
