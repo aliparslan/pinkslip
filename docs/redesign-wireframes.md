@@ -794,6 +794,8 @@ the page you were on; Apple and Google finish in the system's own sheets.
   ring red, then clear), an expired code (gray digits, Send a new code),
   Apple or Google not finishing, and offline. Nothing typed is lost.
 - Text buttons are `ink` Medium (round 1 had them pink).
+- **Parked (owner, same day):** it needs work, and the owner will come back
+  to it; it isn't the most important thing. Don't build it yet.
 
 ## Applying for you and the weekly slip (owner, 2026-10-13, late)
 
