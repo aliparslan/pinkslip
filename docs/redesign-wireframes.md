@@ -1215,9 +1215,12 @@ Scope and decisions: `apply-flow-scope-2026-10-14.md`.
     guardrails, and only jobs that need something are labeled.
   - 3.3: one job's "what we'll send".
   - 3.4: select on Jobs, which ships later.
-- **Board 4, while it runs (in progress):**
+- **Board 4, while it runs:**
   - 4.1: the live bar above the tab bar.
   - 4.2: the queue (Now, Up next, Sent with Confirmed or Sent).
+  - 4.3: the bar's states (sending, paused, needs you with Answer, done).
+  - 4.4: the Lock Screen Live Activity, with a segment per job and Pause.
+  - 4.5: the Dynamic Island (compact, minimal, expanded).
   - Section headers in sheets line up with the rows' content, 16 in. This
     awaits the owner's word before the kit rule changes.
 - **Bot mark (owner, 2026-10-14): B2**, drawn by us, replaces Phosphor
