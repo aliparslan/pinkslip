@@ -774,6 +774,30 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Auto-apply settings (owner, 2026-10-15)
+
+Paper "Auto-apply settings · Oct 15". Opened from the Auto-apply row in
+You (it says Soon today). Drawn for Pro; what Free sees comes with the Pro
+moments round.
+- **Picked: A, settings rows**, the established pattern, like Alerts:
+  - **Mode:** Ask first (with its time chip, 8:00 AM, "Pick from a list
+    each morning."), Automatic (grey, "Sends as jobs post. Coming soon."),
+    Off.
+  - **Which jobs:** Matches (Strong only), Posted in the last (3 days),
+    A day (Up to 10), At one company (3 a month), each opening the iPhone's
+    menu in place; then Hidden companies.
+  - **What it sends:** Resume and Answers, then one Footnote: it never
+    answers visa or work-status questions, and a job waits for you when it
+    doesn't know an answer.
+  - **Pause** asks how long (a day, a week, two weeks) and resumes by
+    itself; Off stays off. While paused, a card leads the page ("Paused
+    until Wed, Oct 22 · No lists until then") with a grey Resume.
+- **B, one sentence you edit in place,** is kept as an option, not built.
+- **Following a company** isn't built (the company page says "Follow ·
+  Soon"), so there's no "only companies I follow" rule yet. The owner
+  wants Alerts to offer "only companies I follow" too; both are decided in
+  the Outreach round, with Follow itself.
+
 ## Errors (owner, 2026-10-15)
 
 Paper "Errors · Oct 15", from [the research](errors-research-2026-10-15.md).
