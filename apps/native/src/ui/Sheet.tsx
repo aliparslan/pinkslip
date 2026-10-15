@@ -337,7 +337,9 @@ const styles = StyleSheet.create((theme) => ({
     borderBottomRightRadius: SHEET_BOTTOM_RADIUS,
     borderCurve: "continuous",
     overflow: "hidden",
-    backgroundColor: theme.ui.color["bg-elev"],
+    // The page's Mist in light, so groups in it sit white on gray as cards
+    // do on a page (owner, 2026-10-15, Paper "Sheets · three ways" A).
+    backgroundColor: theme.ui.color.sheet,
     boxShadow: theme.ui.shadow.pill,
   },
   step: {

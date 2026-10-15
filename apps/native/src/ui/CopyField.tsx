@@ -64,14 +64,14 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.ui.radius.full,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.ui.color.bg,
+    backgroundColor: theme.ui.color.fill,
   },
   field: {
     flexDirection: "row",
     gap: theme.ui.space["3"],
     borderRadius: SHEET_GROUP_RADIUS,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color.fill,
+    backgroundColor: theme.ui.color["sheet-group"],
   },
   // The button sits 10 in from the field's edges, centred on a one-line value.
   line: { alignItems: "center", minHeight: 56, paddingLeft: theme.ui.space["4"], paddingRight: 10, paddingVertical: 10 },

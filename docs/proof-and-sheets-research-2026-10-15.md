@@ -138,6 +138,13 @@ has a field and a menu, and the queue.
 - **W3 · A quiet log.** Small grey dots and times, with only the latest step
   in ink.
 
+## Decided (owner, same day)
+
+- **Sheets: A.** A sheet is Mist and its groups and fields are white, the
+  same rule as the page. Built with the `sheet` and `sheet-group` tokens.
+- **What we sent: W3**, the quiet log. W2 was set aside because What we
+  sent is opened from the stub, so it would show the same stub again.
+
 Sources:
 - [Maersk design system: Timeline](https://designsystem.maersk.com/components/timeline/)
 - [UX Movement: why you shouldn't use solid or underlined text fields](https://uxmovement.com/forms/why-you-shouldnt-use-solid-or-underlined-text-fields)

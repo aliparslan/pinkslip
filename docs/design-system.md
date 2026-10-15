@@ -48,8 +48,10 @@ else is decided.
 | Card | `bg-grouped` | White cards of settings, choice lists | The page, paper objects |
 | Paper | `paper` | The ticket and the application stub | Anything else |
 | Grouped screen | `screen-grouped` | A settings-style page whose cards are white (Mist, like `bg`) | Ordinary screens |
-| Floating | `bg-elev` | Sheets, the tab bar, toasts (both glass on iOS 26), menus | Inline content |
-| Control | `fill` | Gray buttons, fields, icon buttons, groups inside a sheet; see-through | Cards on the page |
+| Floating | `bg-elev` | The tab bar, toasts (both glass on iOS 26), menus | Inline content |
+| Sheet | `sheet` | A sheet's own surface: Mist in light, like the page | Anything inside it |
+| Sheet group | `sheet-group` | Groups and fields inside a sheet: white in light | The page |
+| Control | `fill` | Gray buttons, search, icon buttons; see-through | Groups, fields |
 | Outline | `outline` | The 1pt ring of a chip that's off | Card borders |
 | Rule | `separator` | Lines between rows and inside the ticket | Borders around cards |
 | Text | `ink` | Titles, values, row titles, chips that are on | |
@@ -152,8 +154,13 @@ on one line share a size.
 
 - **Three heights:** the screen (`bg`, Mist); white cards on it
   (`bg-grouped`; the card shadow only for paper objects); things that float
-  (`bg-elev` with the pill shadow: sheets, the tab bar, toasts). Higher is
-  lighter, so nothing sits on the page darker than it except a control.
+  (`bg-elev` with the pill shadow: the tab bar, toasts). Higher is lighter,
+  so nothing sits on the page darker than it except a control.
+- **White sits on gray, in sheets too** (owner, 2026-10-15, Paper "Sheets ·
+  three ways" A): a sheet is Mist (`sheet`) and its groups and fields are
+  white (`sheet-group`), as Apple's grouped sheets are. Gray groups on a
+  white sheet read as wells, the opposite of the page. Dark keeps a lighter
+  group on a darker sheet. Research: `proof-and-sheets-research-2026-10-15.md`.
 - **Rows and feeds sit on the page** (owner, 2026-10-15, after trying five
   page colors on the phone): job rows, Tracker and Today's lists have no
   card. White cards are for settings, as on You. Search is the one darker
@@ -164,7 +171,7 @@ on one line share a size.
   first one has a round Back button at the bottom, left of its Done. Long
   lists scroll. They replace the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
-  flat gray card (`fill`, 12 corners), with no lift and no grain. Menu rows
+  flat white card (`sheet-group`), with no lift and no grain. Menu rows
   are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
   objects (the ticket, the punch card) stay on their pages; a raised card
   on a sheet loses its edge in dark mode.
@@ -323,9 +330,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   the trial cut for now; the owner buys it with the other Klim licences
   before release (2026-10-14).
 - **Copy field** (`CopyField.tsx`, Paper "Parts · Copy field", owner
-  2026-10-14): a value to paste somewhere else, on the `fill` at the sheet
-  group radius. Copy is our two soft squares (copy D) in a 36 round
-  button on `bg`, 10 in from the field's edges; after a tap it's a check
+  2026-10-14): a value to paste somewhere else, white (`sheet-group`) at
+  the sheet group radius. Copy is our two soft squares (copy D) in a 36
+  round button on `fill`, 10 in from the field's edges; after a tap it's a check
   for 1.5s, with a light tap. `line` (an address, Founders 17) and `code`
   (Gmail's code, Founders 40) put it right of the value, centred; `block`
   (a filter, Footnote `ink-2`) puts it in the top right corner. Tapping the
@@ -365,7 +372,7 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Settings cards** (`ListGroup surface="fill"`, which now draws
   `bg-grouped`): a white card, radius 12, on the Mist page; inside a sheet
-  the group is the see-through `fill`. These are settings, drawn like the
+  the group is `sheet-group`, white on the sheet's Mist. These are settings, drawn like the
   sheet's menu rows (Paper "You · Oct 14"): rows 50 tall, values `ink-3`,
   12 chevrons in `ink-4`, details in Footnote, radio titles Regular, lines
   inset 16 on both sides, and the card's label 4 above it, lined up with
@@ -475,6 +482,15 @@ cut so that each remaining one has a job.
     removed.
   - Rejected: a warm page (read pink and cheap), a gray page with white job
     rows, and gray cards on a white page (they read as sunken).
+  - Decided and built (owner, Paper "Sheets · three ways" A): sheets are
+    Mist with white groups and fields, new `sheet` and `sheet-group` tokens
+    (dark keeps its values). `Sheet`, `Choices`, `CopyField` (its button
+    now gray) and the date step use them. Paper has the same tokens, and
+    the Apply flow sheets and System parts follow.
+  - Decided (owner, Paper "What we sent · three takes" W3): proof is a
+    quiet log, newest first, small grey dots and only the latest step in
+    ink. No ticks: a finished record doesn't need them, and black fill
+    means "on".
   - Paper follows: its tokens are Mist (see "Token audit"), and the Apply
     flow boards are redrawn with white cards on the page, white sheets with
     see-through groups, and outlined chips.
