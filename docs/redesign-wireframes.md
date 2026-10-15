@@ -774,6 +774,37 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Loading (owner, 2026-10-15)
+
+Paper "Loading · Oct 15", approved; research in
+`loading-research-2026-10-15.md`.
+- **Nothing for the first second.** After that, a screen's own parts show
+  at once and only what's still coming is a grey (`fill`) placeholder in
+  its real shape, pulsing softly; still under Reduce Motion.
+- **Lists** (L1): title, search and chips are real; six placeholder rows
+  (the 40 logo square and three bars of varied length).
+- **A job page opening** (L2): what the row knew shows at once (logo,
+  company, title, level, pay, location, "Fits your search"); visa,
+  experience and the description are bars; Save and Apply work.
+- **A long job** (L3): a sheet that says what it's doing ("Reading
+  Jordan_Lee.pdf · Finding your experience and skills."), a bar in `ink`
+  that fills by real steps, and Cancel. Never a time estimate (owner).
+- Buttons doing work keep their own spinner; nothing blocks the screen.
+
+## What's new (owner, 2026-10-15)
+
+Paper "What's new · Oct 15", approved.
+- **Once, after a big release,** for people who had the app before it: a
+  sheet titled "New in 1.4", up to three items in one white group (the
+  You page's 28 tiles, a Body Medium title, one Subhead line saying what
+  it does for you), then a grey "Got it". Items don't link anywhere.
+- **Found again in You:** a "What's new" row (value: the version) under
+  Help and feedback, opening a page of releases, newest first: a small
+  header ("1.4 · Nov 2026") over a white card of items.
+- The row's icon is a gift (Phosphor Gift at build); the sparkle is
+  Tailoring's.
+- Guides shown in context are left out for now.
+
 ## Report a job (owner, 2026-10-15)
 
 Paper "Report · Oct 15", approved. Replaces `ReportSheet.tsx` (a reason
