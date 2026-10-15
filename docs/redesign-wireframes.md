@@ -1197,3 +1197,29 @@ The owner asked for real research before more drawing; it's in
   - The icons are Phosphor Regular at 28.
   - The owner rejected the filled tiles as Bootstrap-looking.
   - Parked as good enough for now; revisit later.
+
+## Apply flow (Paper "Apply flow · Oct 14")
+
+Scope and decisions: `apply-flow-scope-2026-10-14.md`.
+
+- **Board 1, the Apply button's states:** Apply, Apply for me (Pro, with
+  "Apply myself" in its menu), Queued, Applying (the button fills as the
+  form does), Answer 2 questions to finish, Sent · waiting, Applied, and
+  Interviewing · View in Tracker.
+- **Board 2, the in-app browser and fill bar:** filling, two need you,
+  answering with saved answers, all filled, confirmed (T1 toast), and
+  "Did that go through?".
+- **Board 3, Ask first:**
+  - 3.1: Today, with the Ask first card.
+  - 3.2: the review is a page, not a sheet. There's no subtext and no
+    guardrails, and only jobs that need something are labeled.
+  - 3.3: one job's "what we'll send".
+  - 3.4: select on Jobs, which ships later.
+- **Board 4, while it runs (in progress):**
+  - 4.1: the live bar above the tab bar.
+  - 4.2: the queue (Now, Up next, Sent with Confirmed or Sent).
+  - Section headers in sheets line up with the rows' content, 16 in. This
+    awaits the owner's word before the kit rule changes.
+- **Bot mark (owner, 2026-10-14): B2**, drawn by us, replaces Phosphor
+  Robot (Paper "Bot icon · options"). Phosphor stays; Lucide was ruled out
+  as overused.
