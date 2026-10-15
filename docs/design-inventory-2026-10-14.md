@@ -41,74 +41,51 @@ as designs: the kit is the spec.
 
 - **Resume editors:** R1a to R7.
 - **Answers:** A4, A5, A7.
-- **Pinned page actions.**
-- **Help's pinned Send button.**
-- **Today** (1b): Needs you, What changed, Coming up. It waits on the
-  backend activity feed.
-- **Applying for you:** the A4b live bar and the queue sheet (C2).
+- **Pinned page actions,** and Help's pinned Send button.
+- **Today** (Oct 15, on the kit: T1–T4, at release T1r and T3r). It waits
+  on the backend activity feed.
+- **The Apply flow, boards 1–6** (Oct 14–15): the Apply button's states,
+  the in-app browser and fill bar, Ask first (the Today card, the review
+  page, one job's preview), while it runs (the live bar, the queue, the
+  Live Activity and Dynamic Island), Needs you, and What we sent (W3).
+  Select on Jobs (3.4) ships later.
+- **Errors** (Oct 15, Paper "Errors · Oct 15"): every error screen and
+  state, rules in design-system.md.
 - **Tracker's Stats sheet:** coming-soon only.
 
-## Not designed in the kit yet
+Built since the last count: Mist and Sheets A, the tab bar without names,
+chips that keep their width, the 2pt sheet Back.
 
-Listed in the order I'd draw them. The first five block a release; the
-rest could follow it.
+## Parked by the owner
 
-1. **Onboarding and sign-in.**
-   - Welcome, guest browsing, and the invite code.
-   - Sign in with Apple or an email link, plus the link-check screen.
-   - The first search, and the resume step (skippable).
-   - Today, `welcome.tsx` and `auth/email/verify.tsx` are the old screens.
-   - Decided earlier: accounts need an invite, guests can browse, the
-     resume step is skippable, and it's for interns, new grads and early
-     career.
-2. **The Apply flow, end to end.**
-   - **The Apply button's states on the job page:** Apply for me, Queued,
-     Applying, Needs you, Applied, View in Tracker (plan §6).
-   - **The in-app browser and its fill bar.** It was decided on Oct 12 but
-     drawn before the kit, and `ApplicationBrowser.tsx` is still the old
-     kit.
-   - **Select mode on Jobs** ("Apply to 8"), and the review sheet before a
-     batch starts.
-   - **The Live Activity** while a batch runs.
-3. **Auto-apply settings.**
-   - The mode (Off, Ask first, Automatic) and the rules: match strength,
-     companies, daily cap, freshness.
-   - The "Ask first" daily list.
-   - "Applied by Pinkslip", with a snapshot of what was sent, on the
-     application page.
-   - Today the You row says Soon.
-4. **Outreach.**
-   - The People segment on a company page, and a person's row.
-   - The composer, with template chips and highlighted filled-in words.
-   - The follow-up plan, and the thread view. `OutreachSheet.tsx` is the
-     old kit.
-   - The daily quota setting (Pro).
-5. **The old-kit sheets left on redesigned screens.**
-   - Report listing (`ReportSheet.tsx`).
-   - The email recruiter sheet (part of 4).
-6. **Pro moments.** What a Free person sees when they reach a Pro feature
-   (auto-apply, outreach, the daily quota). The billing sheet is done.
-7. **Events.** The row (date block, host logo, time, virtual or in person),
-   the company page's Events segment, and Register, Add to Calendar and
-   Remind me.
-8. **What's new and guides.** A one-time sheet after big releases, a What's
-   new page in You, and guides shown in context.
-9. **Admin.** Seven owner-only screens in the old kit (sources, runs, jobs
-   queue, recruiters, inbox, health, home).
-10. **Passes over everything:**
-    - dark mode;
-    - empty, error and offline states;
-    - loading.
+- **Sign-in** (Oct 15, Paper "Sign in · Oct 15", with errors E1–E9): it
+  needs work and the owner will come back to it.
+- **Onboarding page two** (Oct 14, P2-C): "good enough for now". Its lines
+  ("We find every job", "Let us take it from here") break the Oct 15 rule
+  of no "we" or "us", so they need rewording when it's revisited.
 
-**Error screens and states get their own round** (owner, 2026-10-15),
-right after sign-in rather than as a last pass: whole-screen errors
-(offline, the server down, a job that's gone, a broken link), errors on a
-field, an action that failed (the toast), and anything that asks before
-retrying. Sign-in's own errors are drawn with sign-in.
+## Not designed in the kit yet (updated 2026-10-15)
 
-Sign-in was drawn on Oct 15 (Paper "Sign in · Oct 15") and parked: the
-owner will revisit it. The error round was drawn and approved the same day
-(Paper "Errors · Oct 15"; see redesign-wireframes.md), not built yet.
+The first four block a release; the rest could follow it.
+
+1. **Auto-apply settings:** the mode (Off, Ask first, Automatic) and the
+   rules (match strength, companies, daily cap, freshness), where the
+   limits live. The You row says Soon today. Everything else of
+   auto-apply is drawn in the Apply flow.
+2. **Outreach:** the People segment on a company page and a person's row;
+   the composer with template chips and highlighted filled-in words; the
+   follow-up plan and the thread; the daily quota (Pro).
+   `OutreachSheet.tsx` is the old kit.
+3. **Report a listing** (`ReportSheet.tsx`, old kit).
+4. **Sign-in, revisited** (parked above).
+5. **Pro moments:** what a Free person sees at a Pro feature (auto-apply,
+   outreach, the quota). The billing sheet is done.
+6. **Events,** drawn in full though they ship as coming soon: the row, the
+   company page's Events segment, Register, Add to Calendar, Remind me.
+7. **What's new and guides.**
+8. **Passes:** dark mode and loading. Empty states exist; errors are done.
+
+Admin stays in the old kit.
 
 ## Decided (owner, 2026-10-14)
 
