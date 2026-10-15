@@ -1,7 +1,7 @@
 import type { Application, ApplicationStage } from "@pinkslip/core/api";
 import { useApplications, useInbox, useRemoveApplication, useSession, useUpdateApplication } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { Link, router, Stack, useScrollToTop } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,15 +42,18 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
-  const tabBarScroll = useTabBarScroll();
   const list = useRef<FlashListRef<Item>>(null);
-  useScrollToTop(list);
+  const tabBarScroll = useTabBarScroll(list);
   const chips = useRef<ScrollView>(null);
   const chipX = useRef(new Map<TrackerView, number>());
   const [view, setView] = useState<TrackerView>(initialView);
   // A new view starts at the top, with its chip in sight. The list's top
   // sits under the status bar's inset, so the top is that far above zero.
+  // The first view is already there: iOS sets that inset itself.
+  const shown = useRef(view);
   useEffect(() => {
+    if (shown.current === view) return;
+    shown.current = view;
     list.current?.scrollToOffset({ offset: -insets.top, animated: false });
     chips.current?.scrollTo({ x: Math.max(0, (chipX.current.get(view) ?? 0) - theme.ui.size.gutter), animated: true });
   }, [view, insets.top, theme.ui.size.gutter]);

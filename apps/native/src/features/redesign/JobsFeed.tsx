@@ -3,7 +3,7 @@ import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
-import { Link, useScrollToTop } from "expo-router";
+import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -51,10 +51,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { theme } = useUnistyles();
   const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
-  const tabBarScroll = useTabBarScroll();
   // Tapping the current tab again scrolls back to the top.
   const list = useRef(null);
-  useScrollToTop(list);
+  const tabBarScroll = useTabBarScroll(list);
   const criteria = useFeedCriteria();
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
