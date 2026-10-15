@@ -1186,3 +1186,14 @@ The owner asked for real research before more drawing; it's in
   - "Find my jobs" slides it away to the feed and the questions.
   - Paper board "A · the flow with Off your plate"; the lab is version 3.
   - Liberty for the owner's veto: a 40/24 tile here, not the kit's 28/18 settings tile.
+- **Page two, P2-C (2026-10-14):** after owner feedback it reads "From here, we've got it." with "Let's go" (alternative: "I'm ready").
+  - Six we/you lines, in the meaning colors with no tiles; Pro marked:
+    1. We find every job.
+    2. You see them first.
+    3. We apply for you (Pro, "You say yes, we send it").
+    4. We track every application.
+    5. We remind you to follow up.
+    6. We write the cold emails (Pro).
+  - The icons are Phosphor Regular at 28.
+  - The owner rejected the filled tiles as Bootstrap-looking.
+  - Parked as good enough for now; revisit later.
