@@ -445,6 +445,13 @@ cut so that each remaining one has a job.
   - `--spacing-keyline` is 68. 20 and 40 joined the spacing scale.
   - The type tokens follow Apple's names: `--text-large-title`,
     `--text-title-1` (new, 28) and `--text-title-2`.
+- **Mist in Paper (2026-10-15):** the light tokens match `tokens.ts`:
+  `--a-bg` Mist #F8F8F9, `--a-grouped` white, `--color-screen-grouped` the
+  page, and see-through `--a-fill` and `--a-line`. `--color-paper` and
+  `--color-outline` (with `--ad-outline`) were added. Every ticket and stub
+  ("Facts", "Facts · torn", "Your stub") was moved onto `--color-paper`.
+  The three surface comparison boards on "Apply flow · Oct 14" keep their
+  old colors as literals, so they still show what was compared.
 - **Not part of this audit:** the web's older palette (`packages/tokens`
   `base`/`dark`/`light`, the `--color-*` CSS the live web uses) stays until
   the web's own redesign.
@@ -468,6 +475,9 @@ cut so that each remaining one has a job.
     removed.
   - Rejected: a warm page (read pink and cheap), a gray page with white job
     rows, and gray cards on a white page (they read as sunken).
+  - Paper follows: its tokens are Mist (see "Token audit"), and the Apply
+    flow boards are redrawn with white cards on the page, white sheets with
+    see-through groups, and outlined chips.
 
 - **2026-10-14**
   - Decided (owner): a group's label lines up with its rows' content, 16
