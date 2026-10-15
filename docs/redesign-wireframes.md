@@ -1089,3 +1089,27 @@ went back.
 - **You:** Admin and Kit moved to the top, under the person card (owner).
   They stay gray: the tile colors say what a row is for, and these rows are
   behind the scenes.
+
+## Onboarding and sign-in, round 1 (2026-10-14)
+
+Paper "Onboarding · Oct 14". Owner calls before drawing: jobs first (no
+account to browse), no invite code, ask only level, role and location;
+sign-in is Apple, Google, and email with a password (iPhone's strong
+password) plus a six-digit code for signing in without one or resetting it.
+No magic link, no LinkedIn. The audience is new grads through mid-career,
+not students.
+
+- **Welcome lines** W1–W7; my pick W2, "Less searching. More interviews."
+- **O2 · One question at a time:** welcome with the pink slip, then level
+  (list with checks), role (chips), where (Remote switch, city chips, the
+  dashed Another city chip), a payoff where the slip is stamped "142
+  MATCHES", then Jobs with a Keep this search card.
+- **O1 · Straight in:** no welcome; the app opens on today's jobs with one
+  sheet (Level, Role, Where as menu rows, each its own step), then an
+  inline alerts card; saving a job asks for an account.
+- **O3 · Fill in the slip:** the welcome is a pink slip with one sentence
+  and three blanks ("I'm after ___ jobs in ___ ___"); a blank opens its
+  sheet; the full slip is stamped and opens Jobs.
+- **Sign in:** one sheet (Welcome back / Save it for later) with the three
+  buttons; email, then make a password or enter yours; the code step; one
+  ask for alerts after the first sign-in, with a preview notification.
