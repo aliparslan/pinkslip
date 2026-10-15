@@ -54,6 +54,8 @@ as designs: the kit is the spec.
 - **Auto-apply settings** (Oct 15, A, Paper "Auto-apply settings · Oct
   15").
 - **Report a job** (Oct 15, Paper "Report · Oct 15").
+- **Loading** (Oct 15, Paper "Loading · Oct 15").
+- **What's new** (Oct 15, Paper "What's new · Oct 15").
 - **Tracker's Stats sheet:** coming-soon only.
 
 Built since the last count: Mist and Sheets A, the tab bar without names,
@@ -81,8 +83,7 @@ The first two block a release; the rest could follow it.
    outreach, the quota). The billing sheet is done.
 4. **Events,** drawn in full though they ship as coming soon: the row, the
    company page's Events segment, Register, Add to Calendar, Remind me.
-5. **What's new and guides.**
-6. **Passes:** dark mode and loading. Empty states exist; errors are done.
+5. **Dark mode pass.** Empty states, errors and loading are done.
 
 Admin stays in the old kit.
 
