@@ -364,6 +364,10 @@ export const uiDark = {
   "--ui-outline": "oklch(1 0 0 / 0.18)",
   // The ticket and the application stub keep their own paper.
   "--ui-paper": "oklch(0.215 0.006 285)",
+  // A sheet and what's grouped in it (owner, 2026-10-15, Sheets A): the
+  // group is lighter than the sheet, as a card is lighter than the page.
+  "--ui-sheet": "oklch(0.205 0.006 285)",
+  "--ui-sheet-group": "oklch(0.26 0.006 285)",
   "--ui-scrim": "oklch(0 0 0 / 0.55)",
   // Company logos are drawn for white, so the tile stays white in both modes;
   // the outline keeps a dark logo's edge on graphite.
@@ -415,6 +419,9 @@ export const uiLight = {
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",
   "--ui-paper": "oklch(0.962 0.003 80)",
+  // A sheet is Mist like the page, and its groups and fields are white.
+  "--ui-sheet": "oklch(0.979 0.001 285)",
+  "--ui-sheet-group": "oklch(1 0 0)",
   "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",
   "--ui-image-outline": "oklch(0 0 0 / 0.1)",
   "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",

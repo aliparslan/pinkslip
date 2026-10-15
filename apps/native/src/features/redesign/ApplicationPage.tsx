@@ -324,7 +324,7 @@ const styles = StyleSheet.create((theme) => ({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.ui.color.separator,
   },
-  calendar: { borderRadius: SHEET_GROUP_RADIUS, borderCurve: "continuous", backgroundColor: theme.ui.color.fill, paddingHorizontal: theme.ui.space["2"] },
+  calendar: { borderRadius: SHEET_GROUP_RADIUS, borderCurve: "continuous", backgroundColor: theme.ui.color["sheet-group"], paddingHorizontal: theme.ui.space["2"] },
   host: { alignSelf: "stretch" },
   time: {
     flexDirection: "row",
@@ -334,7 +334,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingRight: theme.ui.space["2"],
     borderRadius: SHEET_GROUP_RADIUS,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color.fill,
+    backgroundColor: theme.ui.color["sheet-group"],
   },
   answers: { gap: theme.ui.space["2"] },
 }));

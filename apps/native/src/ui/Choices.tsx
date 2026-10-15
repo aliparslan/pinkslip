@@ -7,7 +7,8 @@ import { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry"
 import { Text } from "./Text";
 
 /** A sheet's plain menu (Paper "Filters · plain menu", owner 2026-10-12): a
- * flat gray card, no lift or grain, with a rule between rows. Paper objects
+ * flat card, white on the sheet's Mist in light (Sheets A, 2026-10-15), no
+ * lift or grain, with a rule between rows. Paper objects
  * stay on pages; inside a sheet everything is a menu. Its corners run
  * parallel to the sheet's; `last` when nothing follows it, so its bottom
  * corners follow the sheet's bottom. */
@@ -90,7 +91,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.ui.space["4"],
     borderRadius: SHEET_GROUP_RADIUS,
     borderCurve: "continuous",
-    backgroundColor: theme.ui.color.fill,
+    backgroundColor: theme.ui.color["sheet-group"],
   },
   last: { borderBottomLeftRadius: SHEET_GROUP_BOTTOM_RADIUS, borderBottomRightRadius: SHEET_GROUP_BOTTOM_RADIUS },
   rule: { height: 1, backgroundColor: theme.ui.color.separator },
