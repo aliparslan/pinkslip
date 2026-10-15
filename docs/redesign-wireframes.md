@@ -1172,3 +1172,17 @@ The owner asked for real research before more drawing; it's in
   two-slip mark everywhere.
 - **Picked (owner, 2026-10-14): A · Lights on.** "This is the direction to go in for sure."
   - Still to do: the speed and smoothness of the motion, which pieces of mess get thrown, and a better tagline.
+- **Picked (owner, 2026-10-14):** tagline T4, "You've done enough job hunting." with the button "Let us take it from here".
+  - The seven-card mess: spreadsheet, 38 tabs, follow-up sticky, blank cold email, "Why do you want to work here?", a post 30+ days old with 200+ applicants, and "47 applied · 2 replies" last.
+  - Next: an "Off your plate" list after the tap, where each thrown card becomes the help that replaces it.
+- **Page two (owner, 2026-10-14):** the owner wants a full page, not a sheet. It reads "Here's what we'll take off your plate." with six items. Each has a 40 tile (blue finds, green applies, pink Pro), a title and one short line:
+  1. Every job in one feed.
+  2. New jobs first.
+  3. Applications track themselves.
+  4. Answers you type once.
+  5. A nudge to follow up.
+  6. Recruiter emails, written (Pro).
+  - The items land straight and calm, as a mirror of the mess.
+  - "Find my jobs" slides it away to the feed and the questions.
+  - Paper board "A · the flow with Off your plate"; the lab is version 3.
+  - Liberty for the owner's veto: a 40/24 tile here, not the kit's 28/18 settings tile.
