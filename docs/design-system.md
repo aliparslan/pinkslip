@@ -343,11 +343,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
-- **Tab labels, L2 (owner, 2026-10-14, picked after trying it):** the lit tab widens into
-  its oval with its name beside the icon (Subhead Medium, `accent`, 8 after
-  the icon, 18 before the edge); the others stay 56 icons. Tabs grow and
-  shrink on the tab spring; small, the name goes and the lit tab is the 64
-  oval.
+- **No tab names** (owner, 2026-10-15, after living with L2): the lit tab
+  is a 64 oval around its pink icon; the others stay 56 icons. The oval
+  grows and shrinks on the tab spring. Names are for VoiceOver only.
 - **Tab bar on scroll** (owner, 2026-10-14): scrolling a list down shrinks
   the pill to 84% towards the bottom edge; scrolling up, reaching the top,
   touching the bar or changing tabs brings it back, on the tab bar's
@@ -482,6 +480,8 @@ cut so that each remaining one has a job.
     removed.
   - Rejected: a warm page (read pink and cheap), a gray page with white job
     rows, and gray cards on a white page (they read as sunken).
+  - Decided and built (owner): the tab bar loses its names (L2 is undone);
+    the lit tab is the 64 oval with its pink icon.
   - Decided and built (owner, Paper "Sheets · three ways" A): sheets are
     Mist with white groups and fields, new `sheet` and `sheet-group` tokens
     (dark keeps its values). `Sheet`, `Choices`, `CopyField` (its button
