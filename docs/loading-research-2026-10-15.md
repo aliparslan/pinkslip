@@ -24,5 +24,7 @@ recommends. It isn't, quite.
 
 **For us:** placeholders in the real row and page shapes, which people
 already know; a soft, slow pulse (owner's call, taste rather than proof),
-still under Reduce Motion; nothing for the first second; words and a bar
-for long jobs.
+still under Reduce Motion; nothing for the first second; long jobs say
+what they're doing with a moving bar, and never promise a time (owner:
+resume import is near-instant today and may take longer once it reads
+resumes semantically, so no "about 20 seconds").
