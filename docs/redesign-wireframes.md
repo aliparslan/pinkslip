@@ -1140,3 +1140,33 @@ to three taps (level, role, where) on one kit sheet, with no counts.
 - The live-preview and swipe-to-teach ideas were dropped as feature-led.
 - The audit moved the sheet chips to the kit's 32 Chip and the titles to
   Large Title 34. Gaps are on the 4/8/12/16/24 grid.
+
+## Onboarding, round 3 (2026-10-14)
+
+The owner asked for real research before more drawing; it's in
+`docs/onboarding-research-2026-10-14.md`. Paper "Onboarding · round 3 · Oct 14":
+
+- **R3 · A second job, made small** (seven frames, timing notes under each).
+  - The hook: the job-hunt mess lands card by card, with a spreadsheet, 14
+    tabs, a sticky note, an auto-reply, a password error, a stale posting
+    and 47 applied for 2 replies. It sits under "Job hunting is a second
+    job.", and the button is the punchline, "Let's make it a small one".
+  - **The owner loves the hook.** It's one screen where round 2 had two.
+  - Everything after it (the logo slip with stamps, then a "Making it small"
+    list) fell apart.
+- **After the tap · two ways**, replacing everything after the tap, without
+  the logo:
+  - **A · Lights on.** The cards fly off and the app opens from the button.
+    Level, role and where sit in a sheet over the real feed, which fills in
+    as you answer.
+  - **B · The slip as a form.** The mess squares up into a full-size pink
+    slip ("Your job hunt", No. 0412) with Level, Role and Where fields.
+    Each answer is stamped in with room to spare, then you pull the stub to
+    tear it off into Jobs.
+  - Both end on the Jobs tab with nothing to fill in. The account,
+    notifications and Pro are asked later, in context.
+- **The playable version:** the "Onboarding Motion Lab" artifact plays the
+  hook and the first after-tap version (the one the owner said fell apart).
+  It gets updated once the owner picks A or B.
+- Logo: the carbon-copy mark (Paper "The mark", A) replaces the old
+  two-slip mark everywhere.
