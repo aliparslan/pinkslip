@@ -322,6 +322,35 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   same centre line, all centred in the room under the header. The slips
   show only when a list is empty, not when it failed to load; a retry is
   the grey button.
+  - **Errors** (owner, 2026-10-15, Paper "Errors · Oct 15" and "Part ·
+    Errors"): only a screen with nothing on it becomes an error screen; the
+    title says what happened (offline, Pinkslip down, the thing is gone).
+    A retry is grey, a way somewhere else is pink. Offline with no data
+    has no button: it loads when the connection is back.
+  - **Rare ones get a stamped slip** (a job that closed shows its own
+    ticket stamped CLOSED; a broken link, Pinkslip down and a version too
+    old get a blank slip): `paper`, radius 16, 16 padding, tilted a few
+    degrees; the stamp is Founders Mono 18/22 over 12/16, a 2pt `ink`
+    border, radius 8, at 88%. One dry line at most. Common errors, fields
+    and toasts stay plain.
+  - **With things already on screen, keep them** and say only what failed,
+    where: offline is a small Offline pill (`fill`, 28 tall, Footnote
+    Medium `ink-2`) beside the large title; a failed refresh is the error
+    toast; a failed next page is "Couldn't load more" (`ink-3`) and "Try
+    again" (`ink` Medium) at the list's end; a sheet that didn't load says
+    so in the sheet with a grey Try again. Never a toast and an error screen
+    for the same problem.
+  - **A one-tap action that fails** (Save, hide, move) undoes itself and
+    the toast says "Couldn't …" with Try again. Offline, those taps just
+    work and sync later, silently. Typed text is never lost: a send that
+    fails keeps the words and puts one `bad` Footnote line above the button.
+  - **A field in a card that's wrong:** its label turns `bad`, one `bad`
+    Footnote line goes under the value inside the row, and the fix follows
+    in `ink` Medium when there is one ("Use …/in/jordanlee"). A standalone
+    field keeps the sign-in ring.
+  - **Words:** what happened, then the fix. Never "we" or "us" (Pinkslip is
+    one person), "invalid", "sorry", "please", "oops" or codes. Reassure
+    when things might look lost ("Your applications are safe").
 - **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
   torn-off stub on an application's page. Its top is the tear's other half;
   each step is a rubber stamp (Founders Grotesk Mono caps: the step in
@@ -471,6 +500,9 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-15**
+  - Decided (owner, Paper "Errors · Oct 15"): error screens and states,
+    recorded under "Empty and error states" above, with "Part · Errors" on
+    the System page. The owner struck the "we/us" voice. Not built yet.
   - Decided and built (owner, after an on-phone lab of five page colors):
     the light page is Mist, #F8F8F9 (`bg` and `screen-grouped`); settings
     cards and sheets are white; `fill` and `separator` are see-through ink;

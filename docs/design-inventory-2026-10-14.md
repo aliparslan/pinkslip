@@ -107,7 +107,8 @@ field, an action that failed (the toast), and anything that asks before
 retrying. Sign-in's own errors are drawn with sign-in.
 
 Sign-in was drawn on Oct 15 (Paper "Sign in · Oct 15") and parked: the
-owner will revisit it.
+owner will revisit it. The error round was drawn and approved the same day
+(Paper "Errors · Oct 15"; see redesign-wireframes.md), not built yet.
 
 ## Decided (owner, 2026-10-14)
 
