@@ -1170,3 +1170,5 @@ The owner asked for real research before more drawing; it's in
   It gets updated once the owner picks A or B.
 - Logo: the carbon-copy mark (Paper "The mark", A) replaces the old
   two-slip mark everywhere.
+- **Picked (owner, 2026-10-14): A · Lights on.** "This is the direction to go in for sure."
+  - Still to do: the speed and smoothness of the motion, which pieces of mess get thrown, and a better tagline.
