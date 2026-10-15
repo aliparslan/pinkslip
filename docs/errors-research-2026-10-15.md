@@ -121,9 +121,9 @@ own (grep `EmptyState` and `toast.error` in `apps/native/src`).
 
 ## For us
 
-1. **One question first: is it them, us, or gone?** Each has its own
-   words: your connection ("You're offline"), our side ("We're having a
-   moment"), or the thing itself ("This job closed").
+1. **One question first: is it their connection, Pinkslip, or gone?**
+   Each has its own words: "You're offline", "Pinkslip is down for a
+   bit", "This job closed".
 2. **Keep what we have.** A list that loaded once stays on screen
    offline; only a screen with nothing to show becomes an error screen.
    Never show a toast and an error screen for the same thing.
@@ -134,11 +134,19 @@ own (grep `EmptyState` and `toast.error` in `apps/native/src`).
    failed in the toast, with Try again; a step that must happen first
    (sign in again, update, Settings) as a card or sheet with its one
    button.
-5. **Words:** what happened, then the fix, one line each. "We" when it's
-   ours, never "invalid", no "sorry", "please", "oops" or codes.
+5. **Words:** what happened, then the fix, one line each. Never "invalid",
+   no "sorry", "please", "oops" or codes. (The draft said "we" when it's
+   ours; the owner overruled it, below.)
 6. **Play only where it's rare:** a whole-screen error can carry one paper
    object with a rubber stamp (the stub's stamps), and a dry line. Offline
    gets the calm line, not a joke. Fields and toasts stay plain.
+
+## Decided (owner, same day)
+
+- **The round is approved** as drawn on Paper "Errors · Oct 15".
+- **No "we" or "us".** Pinkslip is one person, so the app doesn't talk
+  like a team: "That's on us", "We couldn't…" and "WE'RE ON IT" are gone.
+  Say what happened, or name Pinkslip ("Pinkslip is down for a bit").
 
 Sources:
 - [NN/g: Error-Message Guidelines](https://www.nngroup.com/articles/error-message-guidelines/)

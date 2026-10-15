@@ -774,6 +774,27 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Errors (owner, 2026-10-15)
+
+Paper "Errors · Oct 15", from [the research](errors-research-2026-10-15.md).
+Approved; rules in design-system.md under "Empty and error states".
+- **1 · Nothing to show:** W1 Jobs offline (no button), W2 Tracker didn't
+  load (grey Try again, "Your applications are safe"), W3 a closed job (its
+  ticket stamped CLOSED, "More jobs at Mercury"), W4 a broken link (RETURN
+  TO SENDER, "Go to Jobs"), W5 Pinkslip down at launch (BACK SOON / ON IT).
+- **2 · Something on screen:** P1 the Offline pill, P2 the refresh toast,
+  P3 "Couldn't load more · Try again" at the list's end (today it's a
+  toast), P4 a sheet that didn't load.
+- **3 · Didn't go through:** A1 Save undoes and toasts, A2 a message that
+  didn't send keeps its words, F1 a wrong link in a card with the fix, F2
+  a PDF that couldn't be read (Choose another file, Fill it in myself).
+- **4 · First:** K1 "Sign in again" with the sign-in buttons, K2 alerts off
+  in Settings as one card above the rows, K3 a version too old (NEW
+  EDITION, Update).
+- **Owner:** no "we" or "us" anywhere. The email setup sheet still says
+  "What should Gmail send us?" and "A Gmail filter we write for you"; fix
+  those when this is built.
+
 ## Sign in on the kit (2026-10-15)
 
 Paper "Sign in · Oct 15". Asked when it matters, in sheets (Sheets A) over
