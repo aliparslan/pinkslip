@@ -774,6 +774,20 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Report a job (owner, 2026-10-15)
+
+Paper "Report · Oct 15", approved. Replaces `ReportSheet.tsx` (a reason
+dropdown and a details form).
+- From the job page's ••• menu, a sheet: "What's wrong with it?", then one
+  white group of choices: It's closed, The details are wrong, It's listed
+  twice, The apply link doesn't work, Something else (the existing report
+  types). Send is grey until one is picked.
+- Picking one shows a note field under the group, asking what fits the
+  reason ("Which details?"); the note is optional. Send turns pink.
+- Sent: the sheet closes and the toast says "Report sent".
+- **"It's closed" also takes the job out of your Jobs**, as hiding it does
+  (owner).
+
 ## Auto-apply settings (owner, 2026-10-15)
 
 Paper "Auto-apply settings · Oct 15". Opened from the Auto-apply row in
