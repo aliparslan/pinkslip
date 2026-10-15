@@ -359,6 +359,11 @@ export const uiDark = {
   "--ui-tile-app-ink": "oklch(0.58 0.006 285)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
+  // An outlined pill's line (owner, 2026-10-15): pills are clear with this
+  // ring, so they read the same on the page, on cards and in sheets.
+  "--ui-outline": "oklch(1 0 0 / 0.18)",
+  // The ticket and the application stub keep their own paper.
+  "--ui-paper": "oklch(0.215 0.006 285)",
   "--ui-scrim": "oklch(0 0 0 / 0.55)",
   // Company logos are drawn for white, so the tile stays white in both modes;
   // the outline keeps a dark logo's edge on graphite.
@@ -376,16 +381,22 @@ export const uiDark = {
 } as const;
 
 export const uiLight = {
-  "--ui-bg": "oklch(1 0 0)",
-  "--ui-bg-grouped": "oklch(0.962 0.003 80)",
-  "--ui-screen-grouped": "oklch(0.962 0.003 80)",
+  // One page color everywhere, Mist (owner, 2026-10-15, after trying White,
+  // Snow, Cloud, Apple gray and Paper on the phone;
+  // docs/surfaces-research-2026-10-15.md). Rows sit on it; white is for what
+  // is grouped or floats: settings cards, sheets, the tab bar, toasts.
+  "--ui-bg": "oklch(0.979 0.001 285)",
+  "--ui-bg-grouped": "oklch(1 0 0)",
+  "--ui-screen-grouped": "oklch(0.979 0.001 285)",
   "--ui-bg-elev": "oklch(1 0 0)",
   "--ui-ink": "oklch(0.18 0.006 285)",
   "--ui-ink-2": "oklch(0.4 0.006 285)",
   "--ui-ink-3": "oklch(0.53 0.006 285)",
   "--ui-ink-4": "oklch(0.78 0.004 285)",
-  "--ui-separator": "oklch(0.905 0.003 80)",
-  "--ui-fill": "oklch(0.945 0.002 80)",
+  "--ui-separator": "oklch(0.18 0.006 285 / 0.1)",
+  // See-through, as Apple's fills are, so a field or round button reads on
+  // the Mist page and on a white card or sheet alike.
+  "--ui-fill": "oklch(0.18 0.006 285 / 0.055)",
   "--ui-accent": "oklch(0.57 0.205 350)",
   "--ui-accent-soft": "oklch(0.935 0.038 350)",
   "--ui-good": "oklch(0.48 0.132 150)",
@@ -402,6 +413,8 @@ export const uiLight = {
   "--ui-tile-app-ink": "oklch(0.53 0.006 285)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
+  "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",
+  "--ui-paper": "oklch(0.962 0.003 80)",
   "--ui-scrim": "oklch(0.18 0.006 285 / 0.32)",
   "--ui-image-outline": "oklch(0 0 0 / 0.1)",
   "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
@@ -419,6 +432,7 @@ export const uiContrast = {
   "--ui-ink-3": "oklch(0.76 0.006 285)",
   "--ui-ink-4": "oklch(0.62 0.006 285)",
   "--ui-separator": "oklch(0.38 0.006 285)",
+  "--ui-outline": "oklch(1 0 0 / 0.3)",
 } as const;
 
 /** Increased contrast on light, applied after `uiLight`. */
@@ -427,7 +441,8 @@ export const uiContrastLight = {
   "--ui-ink-2": "oklch(0.3 0.006 285)",
   "--ui-ink-3": "oklch(0.42 0.006 285)",
   "--ui-ink-4": "oklch(0.68 0.004 285)",
-  "--ui-separator": "oklch(0.82 0.003 80)",
+  "--ui-separator": "oklch(0.18 0.006 285 / 0.2)",
+  "--ui-outline": "oklch(0.18 0.006 285 / 0.3)",
 } as const;
 
 /**

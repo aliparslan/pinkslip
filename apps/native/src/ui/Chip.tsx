@@ -12,7 +12,8 @@ export interface ChipProps {
 
 /** A 32pt capsule for filters, with an optional count after the label.
  * Selected is an ink fill with the background colour as text; pink never
- * means "on". */
+ * means "on". Unselected is outlined, clear inside with a 1pt ring (owner,
+ * 2026-10-15), so it reads the same on the page, on a card and in a sheet. */
 export function Chip({ label, count, selected = false, onPress }: ChipProps) {
   styles.useVariants({ selected });
   return <PressableScale accessibilityRole="button" accessibilityLabel={count === undefined ? undefined : `${label}, ${count}`}
@@ -30,10 +31,11 @@ const styles = StyleSheet.create((theme) => ({
     gap: 6,
     paddingHorizontal: theme.ui.space["4"],
     borderRadius: theme.ui.radius.full,
+    borderWidth: 1,
     variants: {
       selected: {
-        true: { backgroundColor: theme.ui.color.ink },
-        false: { backgroundColor: theme.ui.color.fill },
+        true: { backgroundColor: theme.ui.color.ink, borderColor: theme.ui.color.ink },
+        false: { backgroundColor: "transparent", borderColor: theme.ui.color.outline },
       },
     },
   },

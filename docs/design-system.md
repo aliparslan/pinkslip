@@ -29,8 +29,9 @@ else is decided.
    heading.
 2. **Ink is content.** Text, and chips you switch on to filter what you
    see.
-3. **Gray is the quiet default.** Secondary buttons, fields, unselected
-   chips, icon buttons.
+3. **Gray is the quiet default.** Secondary buttons, fields and icon
+   buttons, in a see-through gray that works on the page, a card and a
+   sheet alike. Chips that are off are outlined.
 4. **One pink button per view.** A screen or sheet has at most one filled
    pink action: the thing it exists for.
 5. **Paper for objects with meaning.** The ticket, the torn stub and the
@@ -43,11 +44,13 @@ else is decided.
 
 | Role | Token (`ui.color`) | Use for | Never for |
 | --- | --- | --- | --- |
-| Screen | `bg` | The page behind everything | Cards |
-| Card | `bg-grouped` | Cards, the ticket, choice lists | The page |
-| Grouped screen | `screen-grouped` | A settings-style page whose cards are white | Ordinary screens |
+| Screen | `bg` | The page behind everything: Mist, #F8F8F9, in light mode | Cards |
+| Card | `bg-grouped` | White cards of settings, choice lists | The page, paper objects |
+| Paper | `paper` | The ticket and the application stub | Anything else |
+| Grouped screen | `screen-grouped` | A settings-style page whose cards are white (Mist, like `bg`) | Ordinary screens |
 | Floating | `bg-elev` | Sheets, the tab bar, toasts (both glass on iOS 26), menus | Inline content |
-| Control | `fill` | Gray buttons, fields, chips (off), icon buttons | Cards |
+| Control | `fill` | Gray buttons, fields, icon buttons, groups inside a sheet; see-through | Cards on the page |
+| Outline | `outline` | The 1pt ring of a chip that's off | Card borders |
 | Rule | `separator` | Lines between rows and inside the ticket | Borders around cards |
 | Text | `ink` | Titles, values, row titles, chips that are on | |
 | Secondary text | `ink-2` | Facts, descriptions, sheet body copy, icons at rest | Titles |
@@ -102,8 +105,9 @@ else is decided.
 
 ## Selection
 
-- **Chips filter what you see,** so they are ink. Off is gray fill with ink
-  text; on is ink fill with white text. A count sits after a small gap in a
+- **Chips filter what you see,** so they are ink. Off is outlined: clear
+  inside, a 1pt `outline` ring, ink text (owner, 2026-10-15). On is ink fill
+  with white text. A count sits after a small gap in a
   lighter weight.
 - **Checks, radios and switches change a setting,** so they are pink. A
   check or radio that's on is a pink circle with a white
@@ -146,9 +150,14 @@ on one line share a size.
 
 ## Surfaces, depth and shape
 
-- **Three heights:** the screen (`bg`); cards on it (`bg-grouped`, with the
-  card shadow only for paper objects); things that float (`bg-elev` with
-  the pill shadow: sheets, the tab bar, toasts).
+- **Three heights:** the screen (`bg`, Mist); white cards on it
+  (`bg-grouped`; the card shadow only for paper objects); things that float
+  (`bg-elev` with the pill shadow: sheets, the tab bar, toasts). Higher is
+  lighter, so nothing sits on the page darker than it except a control.
+- **Rows and feeds sit on the page** (owner, 2026-10-15, after trying five
+  page colors on the phone): job rows, Tracker and Today's lists have no
+  card. White cards are for settings, as on You. Search is the one darker
+  well. Research and contrast numbers: `surfaces-research-2026-10-15.md`.
 - **Our own sheets:** float 8 in from the edges with 40 corners. Each step
   is its own card at its own height. A grab bar sits on top instead of a
   close button; swipe down or tap behind to close. A step opened from the
@@ -192,8 +201,7 @@ on one line share a size.
 - **Color:** `ink-2` at rest, `ink` when primary, white on pink, `ink-4`
   for chevrons.
 - **Settings tiles** (`IconTile`, owner 2026-10-14, Paper "You · Oct 14"
-  B4): an 18 icon on a 28 tile, radius 7, faint and a step lighter than the
-  gray card. The tile's color is the row's meaning, never decoration, and
+  B4): an 18 icon on a 28 tile, radius 7, a faint tint on the white card. The tile's color is the row's meaning, never decoration, and
   rows of one meaning share a card. Copy is our own mark (two squares, the
   same 2.5 corner), drawn in `Icon.tsx` rather than Phosphor's Copy.
 - **The bot mark** (owner, 2026-10-14, Paper "Bot icon · options" B2, and
@@ -355,9 +363,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   out (never a spring that overshoots); a row that leaves folds its height.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
-- **Lists on a white page** (`ListGroup surface="fill"`): the gray card,
-  radius 12, as Paper draws settings on white pages; the white `elevated`
-  card stays for grouped screens. These are settings, drawn like the
+- **Settings cards** (`ListGroup surface="fill"`, which now draws
+  `bg-grouped`): a white card, radius 12, on the Mist page; inside a sheet
+  the group is the see-through `fill`. These are settings, drawn like the
   sheet's menu rows (Paper "You · Oct 14"): rows 50 tall, values `ink-3`,
   12 chevrons in `ink-4`, details in Footnote, radio titles Regular, lines
   inset 16 on both sides, and the card's label 4 above it, lined up with
@@ -378,15 +386,15 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   2026-10-13; closest-to-an-offer first had put Saved near the bottom).
 - **Large title:** 8 under the 44 nav row on every tab, so titles line up
   across tabs. A date eyebrow sits inside the nav row, not above the title.
-- **Cards:** radius 12 (`bg-grouped`). Only the ticket is 16.
+- **Cards:** radius 12 (`bg-grouped`). Only the ticket is 16, on `paper`.
 - **Tappable words inside rows and cards** (Pause, Change, See all,
   All 142) are `ink` Medium; pink stays for Needs you (owner, 2026-10-13).
   Chevrons are `ink-4`.
 - **Badge** (`Badge.tsx`): 20 tall, Footnote Medium, white on pink.
-- **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side; a count is `ink-3`
-  after a 6 gap.
-- **Progress:** the segmented bar from the Live Activity, one segment per
-  job.
+- **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side, outlined when
+  off; a count is `ink-3` after a 6 gap.
+- **Progress:** one solid bar, as on the Live Activity (owner, 2026-10-14:
+  no segments, no green beside the pink).
 - **Spacing:** only 4, 8, 12, 16, 20, 24, 32, 40. 24–32 between sections.
 - **Emphasis** comes from the four inks and Medium, and from the one
   headline line a row has.
@@ -448,6 +456,18 @@ cut so that each remaining one has a job.
   deciding.
 
 ## Changelog
+
+- **2026-10-15**
+  - Decided and built (owner, after an on-phone lab of five page colors):
+    the light page is Mist, #F8F8F9 (`bg` and `screen-grouped`); settings
+    cards and sheets are white; `fill` and `separator` are see-through ink;
+    chips that are off are outlined (new `outline` token); the ticket and
+    stub keep their own `paper` (new token). Dark mode only gains
+    `outline` and `paper`. Paper "System": new Part · Surfaces, outlined
+    chips, and the settings rows on Mist. The page color lab in You is
+    removed.
+  - Rejected: a warm page (read pink and cheap), a gray page with white job
+    rows, and gray cards on a white page (they read as sunken).
 
 - **2026-10-14**
   - Decided (owner): a group's label lines up with its rows' content, 16
