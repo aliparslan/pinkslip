@@ -106,6 +106,9 @@ right after sign-in rather than as a last pass: whole-screen errors
 field, an action that failed (the toast), and anything that asks before
 retrying. Sign-in's own errors are drawn with sign-in.
 
+Sign-in was drawn on Oct 15 (Paper "Sign in · Oct 15") and parked: the
+owner will revisit it.
+
 ## Decided (owner, 2026-10-14)
 
 - **The web app** waits until after the iOS release.
