@@ -774,6 +774,27 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Sign in on the kit (2026-10-15)
+
+Paper "Sign in · Oct 15". Asked when it matters, in sheets (Sheets A) over
+the page you were on; Apple and Google finish in the system's own sheets.
+- **S1, the ask:** the title says why ("Save your jobs"; "Welcome back"
+  from "I have an account"). Apple is black, Google white with a 1pt
+  outline (their brand rules), email gray. One line of terms.
+- **S2, email;** then **S3a, new** (the iPhone's strong password, the yellow
+  field, Create account, "Email me a code instead") or **S3b, back** (your
+  password, Sign in, "Forgot it? Email me a code").
+- **S4, the code:** six white boxes that send on the last digit; Back and
+  "Send it again" share the bottom row.
+- **S5, one alerts ask** after the first sign-in only: a sample
+  notification, Turn on alerts, Not now. **S6:** back on the job, saved.
+- **Errors** ("Sign in · when it goes wrong"): not an email, the email uses
+  Apple (a note and the Apple button), wrong password, too many tries (a
+  code instead), a password under 8 characters, a wrong code (all six boxes
+  ring red, then clear), an expired code (gray digits, Send a new code),
+  Apple or Google not finishing, and offline. Nothing typed is lost.
+- Text buttons are `ink` Medium (round 1 had them pink).
+
 ## Applying for you and the weekly slip (owner, 2026-10-13, late)
 
 On Paper "Today and Tracker · Oct 13" (superseded boards moved to "Archive · Today and Tracker explorations · Oct 13"), rows A to T.

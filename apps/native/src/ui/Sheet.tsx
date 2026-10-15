@@ -315,11 +315,13 @@ export function SheetHeader({ title }: SheetHeaderProps) {
 }
 
 /** Back from a step inside the sheet: a round button at the bottom, to the
- * left of the step's Done (owner, 2026-10-13). */
+ * left of the step's Done (owner, 2026-10-13). Its chevron is 2pt, as the lit
+ * tab's icon is, so it holds its own beside a Medium label (owner,
+ * 2026-10-15). */
 export function SheetBack({ onPress }: { onPress: () => void }) {
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Back"
     style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-    <Icon name="back" size={20} tone="ink" />
+    <Icon name="back" size={20} tone="ink" stroke={2} />
   </Pressable>;
 }
 

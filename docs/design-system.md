@@ -485,6 +485,12 @@ cut so that each remaining one has a job.
     the lit tab is the 64 oval with its pink icon.
   - Decided and built (owner): a picked chip's label stays Regular, so the
     chip keeps its width.
+  - Decided and built (owner): a sheet's round Back has a 2pt chevron, as
+    the lit tab's icon does; at 1.75 it looked light beside a Medium label.
+  - Drawn for sign-in (Paper "Sign in · Oct 15"), the rule for a field
+    that's wrong: a 1.5pt `bad` ring on the field, then one Footnote line
+    in `bad`, 8 below and 16 in. The way out sits right there (send a code,
+    Continue with Apple). `--color-bad` was added to Paper.
   - Decided and built (owner, Paper "Sheets · three ways" A): sheets are
     Mist with white groups and fields, new `sheet` and `sheet-group` tokens
     (dark keeps its values). `Sheet`, `Choices`, `CopyField` (its button
