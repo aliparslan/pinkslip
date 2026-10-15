@@ -89,3 +89,17 @@ the pick.
   sent (6.3 becomes v2), and You.
 - **Docs:** `design-system.md` ("Surfaces, depth and shape", "Lists on a
   white page") and the System page Parts.
+
+## The owner's counter: a gray page with white cards (same day)
+
+The owner leaned towards Apple's Settings look everywhere, citing "higher
+things are lighter".
+- That rule holds. Apple's grouped style (white cards on a light gray page)
+  and its dark mode (lighter cards on black) both follow it.
+- Our gray cards on white broke it: they read as sunken.
+- Both systems are now drawn on the same five screens (Jobs, Today, Apply to
+  9, What we sent, You), on Paper "Two systems · white page or gray page":
+  - **A:** a white page with plain rows.
+  - **B:** a gray page with white cards. Here the search field, chips and
+    round buttons turn white, or they vanish into the page.
+- The owner picks.
