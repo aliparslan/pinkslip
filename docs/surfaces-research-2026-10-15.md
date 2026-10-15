@@ -103,3 +103,64 @@ things are lighter".
   - **B:** a gray page with white cards. Here the search field, chips and
     round buttons turn white, or they vanish into the page.
 - The owner picks.
+
+## C: one light warm gray page (owner's idea, same day)
+
+The owner disliked B's white job rows on a darker page and asked about a
+lighter gray as the one background, rows included, and whether that breaks
+contrast standards. This research was done on the web, not Mobbin.
+
+**Contrast standards don't forbid it.**
+- WCAG 1.4.11 asks for 3:1 only on what identifies a control or a graphic
+  you need. It says it "does not require that controls have a visual
+  boundary".
+- A page or card color has no minimum. Text still needs 4.5:1 (1.4.3).
+
+**Measured on our tokens (contrast against the page):**
+
+| Token | White | 0.982 warm (C) | 0.962 (today's gray) |
+| --- | --- | --- | --- |
+| `ink` | 18.8 | 18.0 | 16.9 |
+| `ink-2` | 9.2 | 8.8 | 8.3 |
+| `ink-3` | 5.3 | 5.1 | 4.7 |
+| `accent` (pink text) | 5.0 | 4.8 | **4.48 (just fails)** |
+| `separator` | 1.33 | 1.27 | 1.19 |
+| `fill` (controls) | 1.17 | 1.12 | 1.05 |
+
+- A lighter page helps the pink text.
+- Controls need a see-through fill (`ink` at about 5.5%), which is how
+  Apple's system fills work. That keeps them visible on the page and on
+  white sheets alike.
+
+**What the systems do:**
+- Apple has both:
+  - `systemBackground` (white) with `secondarySystemBackground` (gray)
+    "layered on top";
+  - `systemGroupedBackground` (#F2F2F7) with white "content layered on
+    top".
+- In light mode, depth comes mostly from shadow, and tone groups things.
+  "Lighter is higher" is strictest in dark mode (Apple, Material,
+  Atlassian).
+- Material 3 separated tone from elevation. Its light-theme surface
+  containers sit a few tone steps apart.
+- Refactoring UI-style guidance: lighter than the page reads as raised, and
+  darker reads as a well. That's why our gray cards looked sunken.
+
+**Off-white:** designers commonly prefer it to #FFFFFF for glare. One W3C
+contributor noted that the eye adapts to the brightest thing in view, so
+an all-off-white screen soon reads as white. Keep some true white in view
+(the tab bar, sheets, the one box) so the page still reads as warm paper.
+
+**C, drawn on the board:**
+- The page is `oklch(0.982 0.004 80)`, and rows sit on it.
+- Controls use the see-through fill.
+- White is only for what floats: the tab bar, sheets, toasts, and the one
+  box per screen with a soft shadow.
+
+Sources:
+- [W3C Understanding 1.4.11 Non-text Contrast](https://www.w3.org/WAI/WCAG21/Understanding/non-text-contrast)
+- [Apple UIKit UI element colors](https://developer.apple.com/documentation/uikit/ui-element-colors)
+- [Flutter CupertinoColors (iOS values)](https://api.flutter.dev/flutter/cupertino/CupertinoColors-class.html)
+- [Material 3: tone-based surfaces](https://m3.material.io/blog/tone-based-surface-color-m3)
+- [Atlassian elevation](https://atlassian.design/foundations/elevation)
+- [W3C css-color-6 thread on off-white adaptation](https://lists.w3.org/Archives/Public/public-css-archive/2023Nov/0123.html)
