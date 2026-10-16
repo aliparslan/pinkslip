@@ -1,4 +1,6 @@
 import type { Application, ApplicationStage, InboundEmail } from "@pinkslip/core/api";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
+import { outreachSample } from "./outreach-sample";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -6,7 +8,7 @@ const HOUR = 60 * 60 * 1000;
  * answer, an interview with no date, an email that matched two
  * applications, news from email and a closed posting, then two dated steps.
  * Times are relative to now, so it reads the same any day. */
-export function todaySample(now = Date.now()): { applications: Application[]; emails: InboundEmail[] } {
+export function todaySample(now = Date.now()): { applications: Application[]; emails: InboundEmail[]; threads: OutreachThread[] } {
   const at = (ms: number) => new Date(now - ms).toISOString();
   const day = (days: number) => {
     const date = new Date(now + days * 24 * HOUR);
@@ -42,5 +44,5 @@ export function todaySample(now = Date.now()): { applications: Application[]; em
       { id: "Stripe-applied-2", title: "Data Engineer, New Grad", stage: "applied" },
     ]),
   ];
-  return { applications, emails };
+  return { applications, emails, threads: outreachSample(now) };
 }

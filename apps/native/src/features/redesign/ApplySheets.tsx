@@ -15,7 +15,7 @@ import { plainText } from "./job-facts";
  */
 export function DidYouApply({ onYes }: { onYes: () => void }) {
   const { close } = useSheet();
-  return <SheetStep id="asked">
+  return <SheetStep id="asked" grabber={false}>
     <View style={styles.header}>
       <View style={styles.title}>
         <Text role="title1" accessibilityRole="header">Did you apply?</Text>
@@ -45,7 +45,7 @@ export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; o
     close();
     setTimeout(() => router.push(href), 320);
   };
-  return <SheetStep id="prep">
+  return <SheetStep id="prep" grabber={false}>
     <View style={styles.prepTop}>
       <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} size="page" />
       <CloseButton />

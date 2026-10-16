@@ -1,7 +1,7 @@
 import type { Job } from "@pinkslip/core/api";
 import {
   useApi, useBlockJob, useHideCompany, useHideJob, useJob, useMarkApplied, useMarkViewed, usePublicJob, useSaveJob, useSession,
-  useUnmarkApplied, useUnsaveJob,
+  useStartOutreach, useUnmarkApplied, useUnsaveJob,
 } from "@pinkslip/data";
 import { useQueryClient } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
@@ -99,8 +99,27 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const [reporting, setReporting] = useState(false);
   const [asking, setAsking] = useState(false);
   const [preparing, setPreparing] = useState(false);
-  const [emailing, setEmailing] = useState(Boolean(outreachThread && outreach));
-  useEffect(() => { if (outreachThread && outreach) setEmailing(true); }, [outreachThread, outreach]);
+  const [emailing, setEmailing] = useState(Boolean(outreachThread && outreach && !ownSheets));
+  const startOutreach = useStartOutreach();
+  // The redesign writes to a person from their page (Paper O2): a reminder's
+  // link opens that page, and "Email recruiter" starts the thread there.
+  const openPerson = (threadId: string) => router.push({ pathname: `/(tabs)/${group}/people/[threadId]` as "/(tabs)/(jobs)/people/[threadId]", params: { threadId } });
+  useEffect(() => {
+    if (!outreachThread || !outreach) return;
+    if (ownSheets) openPerson(outreachThread);
+    else setEmailing(true);
+    // A reminder's link opens it once.
+  }, [outreachThread, outreach]);
+  const emailRecruiter = () => {
+    if (!ownSheets) {
+      setEmailing(true);
+      return;
+    }
+    startOutreach.mutate(job.id, {
+      onSuccess: (thread) => openPerson(thread.id),
+      onError: () => toast.error("Couldn't find someone to write to. Try again."),
+    });
+  };
 
   const saved = Boolean(job.saved);
   const applied = Boolean(job.applied);
@@ -169,7 +188,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const menu = [
     applied ? { label: "I didn't apply", icon: "arrow.uturn.backward", run: () => setApplied(false) } : { label: "I applied", icon: "checkmark.circle", run: () => setApplied(true) },
     !applied && { label: "Not interested", icon: "hand.thumbsdown", run: notInterested },
-    outreach && { label: "Email recruiter", icon: "envelope", run: () => setEmailing(true) },
+    outreach && { label: "Email recruiter", icon: "envelope", run: emailRecruiter },
     { label: "Tailor resume", icon: "sparkles", run: () => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
     { label: "Share", icon: "square.and.arrow.up", run: () => void shareJob(job) },
     job.company_id && { label: `Hide ${job.company_name}`, icon: "eye.slash", run: hideTheCompany },
@@ -183,7 +202,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     {ownSheets
       ? <ReportJobSheet jobId={job.id} open={reporting} onClosed={() => setReporting(false)} onReportedClosed={hideQuietly} />
       : <ReportSheet jobId={job.id} open={reporting} onOpenChange={setReporting} />}
-    {outreach && <OutreachSheet jobId={job.id} companyName={job.company_name} threadId={outreachThread ?? null} open={emailing} onOpenChange={setEmailing} />}
+    {outreach && !ownSheets && <OutreachSheet jobId={job.id} companyName={job.company_name} threadId={outreachThread ?? null} open={emailing} onOpenChange={setEmailing} />}
   </>;
 
   return {

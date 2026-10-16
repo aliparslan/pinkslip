@@ -1,6 +1,7 @@
 import type { Application, InboundEmail } from "@pinkslip/core/api";
 import { feedParams } from "@pinkslip/core/feed-criteria";
-import { useApplications, useAssignInboundEmail, useDismissInboundEmail, useFeed, useInboxEmails, useSession } from "@pinkslip/data";
+import { useApplications, useAssignInboundEmail, useDismissInboundEmail, useFeed, useInboxEmails, useOutreachThreads, useSession } from "@pinkslip/data";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { router, Stack } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
@@ -22,15 +23,18 @@ export function useTodayNeedsYou(): number {
 export interface TodaySample {
   applications: Application[];
   emails: InboundEmail[];
+  threads?: OutreachThread[];
 }
 
 function useTodayPlan(sample?: TodaySample) {
-  const signedIn = useSession().data?.state === "authenticated";
+  const session = useSession().data;
+  const signedIn = session?.state === "authenticated";
   const applications = useApplications();
   const emails = useInboxEmails(undefined, { enabled: signedIn && !sample });
+  const threads = useOutreachThreads(signedIn && !sample && Boolean(session?.me?.features?.outreach_enabled));
   const plan = useMemo<TodayPlan>(() => sample
-    ? planToday(sample.applications, sample.emails)
-    : planToday(applications.data ?? [], emails.data ?? []), [sample, applications.data, emails.data]);
+    ? planToday(sample.applications, sample.emails, new Date(), sample.threads)
+    : planToday(applications.data ?? [], emails.data ?? [], new Date(), threads.data ?? []), [sample, applications.data, emails.data, threads.data]);
   return { plan, applications, emails };
 }
 
@@ -76,6 +80,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
 
   const open = (target: TodayTarget) => {
     if (target.kind === "email") setAsking(target.email);
+    else if (target.kind === "person") router.push({ pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: target.id } });
     // Samples have no pages to open.
     else if (sample) return;
     else if (target.kind === "job") router.push({ pathname: "/(tabs)/(today)/jobs/[jobId]", params: { jobId: target.id } });

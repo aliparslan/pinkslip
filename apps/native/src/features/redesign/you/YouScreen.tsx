@@ -20,7 +20,7 @@ import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
 
 /** The rows that open something. "search" opens the Your search sheet. */
-export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "tailoring" | "plan" | "help" | "whatsNew" | "admin" | "kit";
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "help" | "whatsNew" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
@@ -30,7 +30,7 @@ export interface YouViewProps {
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
-  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean };
+  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean };
   open: (destination: YouDestination) => void;
 }
 
@@ -70,7 +70,9 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <ListItem leading={<IconTile icon="resume" meaning="apply" />} title="Resume" value={values.resume} accessory="chevron" onPress={() => open("resume")} />
       {show.answers ? <ListItem leading={<IconTile icon="answers" meaning="apply" />} title="Answers" value={values.answers} accessory="chevron" onPress={() => open("answers")} /> : null}
       {/* Outreach is what you apply with, and writing yourself is free (owner, 2026-10-15, Q5). */}
-      <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" value="Soon" />
+      {show.outreach
+        ? <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" accessory="chevron" onPress={() => open("outreach")} />
+        : <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" value="Soon" />}
       <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Coming soon" accessory="chevron" onPress={() => open("tailoring")} />
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
@@ -150,7 +152,7 @@ export function YouScreen() {
   const go = (href: Href) => router.push(href);
   const destinations: Record<Exclude<YouDestination, "search">, Href> = {
     account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
-    tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", whatsNew: "/you/whats-new", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
+    outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", whatsNew: "/you/whats-new", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
   return <>
     <YouView
@@ -166,7 +168,7 @@ export function YouScreen() {
       appearance={appearance}
       onAppearance={setAppearancePreference}
       // Pro isn't sold yet, so Plan says Soon like the two it pays for.
-      show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable }}
+      show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable, outreach: signedIn && Boolean(me?.features?.outreach_enabled) }}
       open={(destination) => destination === "search" ? setSearching(true) : go(destinations[destination])} />
     <EditSearchSheet open={searching} onClosed={() => setSearching(false)} />
   </>;

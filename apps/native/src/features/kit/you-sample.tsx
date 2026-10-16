@@ -24,7 +24,7 @@ export function SampleYouScreen() {
     account: { pathname: "/you/account", params: { sample: "on" } },
   };
   const live: Partial<Record<YouDestination, Href>> = {
-    resume: "/you/resume", answers: "/you/answers", tailoring: "/you/tailoring", help: "/you/feedback", whatsNew: "/you/whats-new",
+    resume: "/you/resume", answers: "/you/answers", outreach: "/you/outreach", tailoring: "/you/tailoring", help: "/you/feedback", whatsNew: "/you/whats-new",
     admin: "/you/admin", kit: "/you/kit-redesign",
   };
   return <YouView
@@ -32,7 +32,7 @@ export function SampleYouScreen() {
     values={{ search: "New grad +1", email: "On", alerts: "On", resume: "Jordan_Lee.pdf", answers: "12", plan: "Free", whatsNew: "1.4" }}
     appearance={appearance}
     onAppearance={setAppearancePreference}
-    show={{ email: true, answers: true, plan: true, admin: true, kit: true }}
+    show={{ email: true, answers: true, plan: true, admin: true, kit: true, outreach: true }}
     open={(destination) => {
       const href = samples[destination] ?? live[destination];
       if (href) router.push(href);

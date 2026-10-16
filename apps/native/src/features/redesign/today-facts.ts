@@ -1,8 +1,10 @@
 import type { Application } from "@pinkslip/core/api";
 import { isEndingStage } from "@pinkslip/domain/application-stages";
 import type { DetectedStage, InboundEmail } from "@pinkslip/domain/email-tracking";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { nextRowFacts, stageDateValue, type NextRowFacts } from "./application-facts";
 import { plainText } from "./job-facts";
+import { firstSentAt, nextFollowUp } from "./outreach/outreach-facts";
 import { companyName, jobTitle, shortDate, trackerAge } from "./tracker-facts";
 
 /**
@@ -16,7 +18,8 @@ import { companyName, jobTitle, shortDate, trackerAge } from "./tracker-facts";
 export type TodayTarget =
   | { kind: "application"; id: string }
   | { kind: "job"; id: string }
-  | { kind: "email"; email: InboundEmail };
+  | { kind: "email"; email: InboundEmail }
+  | { kind: "person"; id: string };
 
 export interface TodayItem {
   key: string;
@@ -176,8 +179,36 @@ function comingUp(applications: readonly Application[], now: Date): TodayItem[] 
   return rows.sort((a, b) => a.at - b.at);
 }
 
-export function planToday(applications: readonly Application[], emails: readonly InboundEmail[], now = new Date()): TodayPlan {
-  const waiting = needsYou(applications, emails, now);
+/** O6: a follow-up that's due needs you; a planned one is coming up. */
+function followUps(threads: readonly OutreachThread[], now: Date): { due: TodayItem[]; planned: TodayItem[] } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const due: TodayItem[] = [];
+  const planned: TodayItem[] = [];
+  for (const thread of threads) {
+    const next = nextFollowUp(thread);
+    if (!next?.due_at) continue;
+    const at = Date.parse(next.due_at);
+    const base = { headline: `Follow up with ${thread.contact.name}`, logo: { name: thread.company_name }, target: { kind: "person" as const, id: thread.id } };
+    if (at <= now.getTime()) {
+      const sent = firstSentAt(thread);
+      due.push({ ...base, key: `follow-${thread.id}`, company: plainText(thread.company_name), at, trailing: trackerAge(next.due_at, now),
+        facts: [sent ? `No reply since ${shortDate(sent, now)}` : null, "the note is ready"].filter(Boolean).join(" · ") });
+    } else if (at < today + (AHEAD_DAYS + 1) * DAY_MS) {
+      const facts = nextRowFacts(next.due_at, now);
+      planned.push({ ...base, key: `planned-${thread.id}`, company: facts.when, at, trailing: facts.time ?? "All day",
+        date: { month: facts.month, day: facts.day }, facts: [plainText(thread.company_name), thread.job_title].filter(Boolean).join(" · ") });
+    }
+  }
+  return { due, planned };
+}
+
+export function planToday(applications: readonly Application[], emails: readonly InboundEmail[], now = new Date(), threads: readonly OutreachThread[] = []): TodayPlan {
+  const outreach = followUps(threads, now);
+  const waiting = [...needsYou(applications, emails, now), ...outreach.due].sort((a, b) => b.at - a.at);
   const skip = new Set(waiting.flatMap((item) => item.target.kind === "application" ? [item.target.id] : []));
-  return { needsYou: waiting, changed: changed(applications, emails, now, skip), comingUp: comingUp(applications, now) };
+  return {
+    needsYou: waiting,
+    changed: changed(applications, emails, now, skip),
+    comingUp: [...comingUp(applications, now), ...outreach.planned].sort((a, b) => a.at - b.at),
+  };
 }
