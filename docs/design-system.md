@@ -222,7 +222,12 @@ on one line share a size.
 ## Icons
 
 - **One set everywhere:** Phosphor, on iOS and the web
-  (`shared/icons.ts`). System menus are text only.
+  (`shared/icons.ts`). iOS's own menus carry them too (owner, 2026-10-16,
+  Paper "Menus · Oct 16"): template images in the app's asset catalog
+  (`ios/Pinkslip/Images.xcassets/menu-*`, drawn at the kit's line), so iOS
+  tints them like its own. A long-press menu has an icon on every item; the
+  job page's ⋯ puts Save and Hide as icons alone across the top. A new menu
+  icon needs a native build.
 - **The line is proportional to the icon** (owner, 2026-10-15, replacing
   "1.75pt at any size"): 1.75pt at 24, which is 7.3% of the icon. So 1.46
   at 20, 1.31 at 18, 1.17 at 16, 1.02 at 14 and 0.88 at 12. The lit tab is
@@ -578,6 +583,17 @@ cut so that each remaining one has a job.
   - Sheets rise with the keyboard. A sheet step can drop its grab bar for a
     close button (Q7). A page's pinned action rises with the keyboard too,
     and the tab bar steps aside for it.
+  - Later (owner's review): the tab oval glides and follows the finger
+    again; a toast drags one way only; the queue has a grab bar; a paused
+    bar shows play. Menus carry Phosphor icons (`ui/GlyphMenu.tsx`, Paper
+    "Menus · Oct 16"). Admin moves to this kit (Paper "Admin · Oct 16"):
+    Home is Needs you with verbs, the Inbox is three swipeable lists with
+    one entry per page, Jev is one comparison at a time, Runs, Sources and
+    Product health lead with numbers. Kit additions for it: `ListItem
+    headline` (a Medium verb over an `ink-2` line), `ListGroup` `count`
+    and `needsYou`, `JobRow` `factsBad` and `quiet`, and a top-bar
+    `action` on You's pages. The owner wants fewer numbers and more
+    visuals in Admin later, once the chart libraries are looked at.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

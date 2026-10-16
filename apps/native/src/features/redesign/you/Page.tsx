@@ -14,7 +14,14 @@ const BAR = 62;
  * Send) is `bar`: pinned to the bottom on the page's Mist, the tab bar
  * stepping aside, with a line above only once content scrolls under it
  * (owner, 2026-10-14). */
-export function YouPage({ title, children, scroll = true, bar }: { title: string; children: ReactNode; scroll?: boolean; bar?: ReactNode }) {
+export function YouPage({ title, children, scroll = true, bar, action }: {
+  title: string;
+  children: ReactNode;
+  scroll?: boolean;
+  bar?: ReactNode;
+  /** On the right of the back button: a round icon button or a quiet count (Admin's refresh, +, "1 of 12"). */
+  action?: ReactNode;
+}) {
   const insets = useSafeAreaInsets();
   const tabBarScroll = useTabBarScroll();
   const focused = useIsFocused();
@@ -30,8 +37,8 @@ export function YouPage({ title, children, scroll = true, bar }: { title: string
   const under = box.content > box.frame;
   const top = <>
     <Stack.Screen options={{ headerShown: false }} />
-    <View style={styles.nav}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
-    <View style={styles.title}><Text role="title1" accessibilityRole="header">{title}</Text></View>
+    <View style={[styles.nav, action ? styles.navRow : null]}><IconButton icon="back" label="Back" onPress={() => router.back()} />{action}</View>
+    {title ? <View style={styles.title}><Text role="title1" accessibilityRole="header">{title}</Text></View> : null}
   </>;
   if (!scroll) {
     return <View style={[styles.fill, styles.content, { paddingTop: insets.top }]}>{top}{children}</View>;
@@ -70,6 +77,7 @@ const styles = StyleSheet.create((theme) => ({
   content: { gap: theme.ui.space["6"] },
   // The title sits right under Back, as on Email tracking.
   nav: { paddingHorizontal: theme.ui.size.gutter, height: 44, justifyContent: "center", marginBottom: -theme.ui.space["4"] },
+  navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { paddingHorizontal: theme.ui.size.gutter },
   soon: { alignItems: "center", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.space["8"], paddingTop: 150 },
   wrench: { marginBottom: theme.ui.space["2"] },
