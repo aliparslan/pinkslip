@@ -90,11 +90,18 @@ function Slips() {
 
 /** Buying Pro (Plan C2): the three ways to pay, Get Pro, then Restore. The
  * same sheet is the paywall when a weekly allowance runs out. */
-export function ProSheet({ open, onClosed, onBuy, onRestore }: { open: boolean; onClosed: () => void; onBuy: PlanFreeViewProps["onBuy"]; onRestore: PlanFreeViewProps["onRestore"] }) {
-  return <SheetModal open={open} onClosed={onClosed}><ProChoices onBuy={onBuy} onRestore={onRestore} /></SheetModal>;
+export function ProSheet({ open, onClosed, onBuy, onRestore, why }: {
+  open: boolean;
+  onClosed: () => void;
+  onBuy: PlanFreeViewProps["onBuy"];
+  onRestore: PlanFreeViewProps["onRestore"];
+  /** From a Pro moment (M4): its first line says why it opened. */
+  why?: string;
+}) {
+  return <SheetModal open={open} onClosed={onClosed}><ProChoices onBuy={onBuy} onRestore={onRestore} why={why} /></SheetModal>;
 }
 
-function ProChoices({ onBuy, onRestore }: Pick<PlanFreeViewProps, "onBuy" | "onRestore">) {
+function ProChoices({ onBuy, onRestore, why }: Pick<PlanFreeViewProps, "onBuy" | "onRestore"> & { why?: string }) {
   const sheet = useSheet();
   const [picked, setPicked] = useState("monthly");
   const [busy, setBusy] = useState<"buy" | "restore" | null>(null);
@@ -105,7 +112,7 @@ function ProChoices({ onBuy, onRestore }: Pick<PlanFreeViewProps, "onBuy" | "onR
   return <SheetStep id="pro">
     <View style={styles.sheetLead}>
       <SheetHeader title="Pro" />
-      <Text tone="ink-2">No weekly limits, follow-ups sent for you, and full stats.</Text>
+      <Text tone="ink-2">{why ?? "No weekly limits, follow-ups sent for you, and full stats."}</Text>
     </View>
     <Choices>
       {proOptions.map((option) => <Choice key={option.id} title={option.title} detail={option.weekly} value={option.price}
