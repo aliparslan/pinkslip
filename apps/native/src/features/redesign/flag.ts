@@ -4,18 +4,16 @@ import { storage } from "../../platform/storage";
 const KEY = "redesign";
 const listeners = new Set<() => void>();
 
-/** Development builds, and a release build made for the owner's phone with
- * EXPO_PUBLIC_REDESIGN=1. TestFlight and App Store builds never set it. */
-const AVAILABLE = __DEV__ || process.env.EXPO_PUBLIC_REDESIGN === "1";
+/** The redesign kit (samples and options being compared) and the owner's
+ * update channel: development builds, and updates published for the owner's
+ * phone with EXPO_PUBLIC_REDESIGN=1. TestFlight's own updates never set it. */
+export const redesignKitAvailable = __DEV__ || process.env.EXPO_PUBLIC_REDESIGN === "1";
 
-/** The redesign kit (options being compared) opens wherever the redesign can. */
-export const redesignKitAvailable = AVAILABLE;
-
-/** The October 2026 redesign (docs/redesign-wireframes.md) replaces screens as
- * they're built. Where it's available it's on by default and the redesign kit
- * screen can switch back; other builds keep today's screens until it ships. */
+/** The October 2026 redesign (docs/redesign-wireframes.md) is on for every
+ * TestFlight tester (owner, 2026-10-16: let them play with it and send
+ * feedback, unfinished parts and all). Only the kit can switch back. */
 export function redesignEnabled(): boolean {
-  return AVAILABLE && storage.getString(KEY) !== "off";
+  return storage.getString(KEY) !== "off";
 }
 
 export function setRedesignEnabled(enabled: boolean) {
