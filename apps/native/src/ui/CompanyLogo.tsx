@@ -9,7 +9,9 @@ export interface CompanyLogoProps {
   uri?: string | null;
   /** The brand colour behind the letter when there's no image. */
   color?: string;
-  size?: "row" | "page";
+  /** 40 in rows, 48 on a page; 32 in a card's list (the review), 28 two
+   * to a slot (stacked). */
+  size?: "row" | "page" | "card" | "stack";
 }
 
 /** Logos sit on a white tile in both modes with a faint outline, so a dark
@@ -25,7 +27,7 @@ export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps
     </View>;
   }
   return <View style={[styles.tile, color ? { backgroundColor: color } : styles.blank]} accessibilityElementsHidden>
-    <Text role={size === "page" ? "title2" : "body"} tone={color ? "bg" : "ink-2"}>{name.trim().charAt(0).toUpperCase()}</Text>
+    <Text role={size === "page" ? "title2" : size === "row" ? "body" : "footnote"} weight={size === "stack" ? "medium" : "regular"} tone={color ? "bg" : "ink-2"}>{name.trim().charAt(0).toUpperCase()}</Text>
   </View>;
 }
 
@@ -39,6 +41,8 @@ const styles = StyleSheet.create((theme) => ({
       size: {
         row: { width: theme.ui.size.logo, height: theme.ui.size.logo, borderRadius: theme.ui.size.logo / 4 },
         page: { width: theme.ui.size.logoLarge, height: theme.ui.size.logoLarge, borderRadius: theme.ui.size.logoLarge / 4 },
+        card: { width: 32, height: 32, borderRadius: 8 },
+        stack: { width: 28, height: 28, borderRadius: 7 },
       },
     },
   },

@@ -13,6 +13,8 @@ import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
 import { WhichApplicationSheet } from "./email/JobEmailsPage";
 import { feedSections } from "./job-facts";
+import { ASK_SAMPLE, AskFirstCard } from "./apply-flow/AskFirst";
+import { LiveBar, type Run } from "./apply-flow/WhileItRuns";
 import { planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
 
 /** The Today tab's badge: how many things need you. */
@@ -24,6 +26,9 @@ export interface TodaySample {
   applications: Application[];
   emails: InboundEmail[];
   threads?: OutreachThread[];
+  /** Ask first's card (3.1), or the live bar while it sends (4.1): sample only
+   * until auto-apply's queue is on the backend. */
+  flow?: "ask" | "sending";
 }
 
 function useTodayPlan(sample?: TodaySample) {
@@ -74,6 +79,9 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const newToday = useNewToday();
   const [asking, setAsking] = useState<InboundEmail | null>(null);
   const [setup, setSetup] = useState(false);
+  const [run, setRun] = useState<Run>(() => ({
+    now: ASK_SAMPLE[1]!, next: ASK_SAMPLE.slice(2, 8), sent: [{ job: ASK_SAMPLE[0]!, confirmed: true }, { job: ASK_SAMPLE[5]!, confirmed: false }], done: 3, total: 9,
+  }));
   const assign = useAssignInboundEmail();
   const dismiss = useDismissInboundEmail();
   const pull = usePullToRefresh(() => Promise.all([applications.refetch(), emails.refetch()]));
@@ -109,6 +117,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
         secondary={{ label: "Track one from an email", onPress: () => setSetup(true) }} />
     </View>
     : <>
+      {sample?.flow === "ask" ? <View style={styles.askFirst}><AskFirstCard jobs={ASK_SAMPLE} onReview={() => router.push("/you/kit-review")} /></View> : null}
       {quiet && newToday ? <NewJobsRow count={newToday} /> : null}
       {sections.map((section, index) => <View key={section.title}>
         <SectionHeader title={section.title} count={section.items.length} needsYou={section.needsYou} first={index === 0 && !(quiet && newToday)} />
@@ -135,6 +144,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
       dismiss: async (emailId) => { await dismiss.mutateAsync(emailId); },
     }} />
     <LiveEmailSetupSheet open={setup} onClosed={() => setSetup(false)} />
+    {sample?.flow === "sending" ? <LiveBar roomGiven run={run} onPause={() => setRun((current) => ({ ...current, paused: !current.paused }))} /> : null}
   </>;
 }
 
@@ -160,6 +170,7 @@ const styles = StyleSheet.create((theme) => ({
   header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   nav: { height: theme.ui.size.iconButton, justifyContent: "flex-end" },
   center: { justifyContent: "center" },
+  askFirst: { marginTop: theme.ui.space["2"], marginBottom: theme.ui.space["2"] },
   flex: { flex: 1 },
   newJobs: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, marginTop: theme.ui.space["2"] },
   newJobsTile: {

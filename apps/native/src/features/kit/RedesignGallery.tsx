@@ -35,6 +35,13 @@ export function RedesignGallery() {
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />
+        <ListItem title="Today, Ask first's list" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "ask" } })} />
+        <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />
+        <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
+        <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
+        <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />
+        <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />
+        <ListItem title="People: Dana, before writing" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: "sample-dana" } })} />
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
         <ListItem title="Application page with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-interview" } })} />
         <ListItem title="Email tracking, on" accessory="chevron" onPress={() => router.push({ pathname: "/you/email", params: { sample: "on" } })} />
