@@ -774,6 +774,71 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Outreach (owner, 2026-10-15)
+
+Paper "Outreach · Oct 15", approved after three rounds of notes. Research:
+`outreach-research-2026-10-15.md`.
+
+**The flow (board "Outreach · round 1"):**
+- **O1, a company's People:** a segment beside Jobs and Events. Rows are
+  two lines: name (Body Medium) and title (Subhead `ink-2`), with a round
+  40 avatar of initials, since people aren't logos. Someone you've written
+  to shows a 14 paper plane and the date, trailing. Nothing says
+  "verified": Pinkslip only lists people it trusts, and an address that
+  bounces is a rare error on the thread.
+- **O2, a person is a page:** who they are ("University Recruiter ·
+  Stripe", the name in Title 2), a card with Email (tap to copy, the copy
+  mark) and LinkedIn, then "Applied at Stripe" with that application's
+  row. The pinned button is "Write to Dana". No source, no "Hires for".
+- **O3, Write:** the iPhone's mail sheet opens over Pinkslip, filled in:
+  To, Subject, the short draft and the resume attached. The draft is the
+  "I applied" one (about 70 words, the role named, one small ask). If the
+  phone has no Mail account, the default mail app opens filled in,
+  without the attachment.
+- **O4, back in Pinkslip:** "Did you send it?" is the "Did you apply?"
+  sheet word for word in shape: title, one line ("Pinkslip will remind
+  you to follow up."), close button, "Yes, I sent it" pink and "Not yet"
+  gray. The mail sheet reports sending on its own, so it only asks after
+  the mail-app route.
+- **O5, after sending:** the emails sit at the top of the person's page:
+  Sent with its time, then Follow-up and Last follow-up with their dates.
+  No helper lines.
+- **O6, Today:** a follow-up that's due is a Needs you row ("Follow up
+  with Marcus Ito", "No reply since Oct 12 · the note is ready"); a
+  planned one is a Coming up row.
+- **O7, Tracker:** no Outreach section. The application's row says it on
+  line three ("Emailed Dana Whitfield · follow-up Oct 20").
+- **Follow-ups:** two at most, 3 then 5 business days later, at 9 AM in
+  the recipient's time zone (what the backend already does). They stop
+  when a reply is seen.
+- **Later, kept on the board:** Pinkslip's own composer (a full-height
+  sheet: template chips, To, From, a one-line Subject that scrolls
+  sideways, the draft with filled-in words on a light gray `fill`
+  highlight, the resume, and a Follow-ups row) and its menu (Remind me,
+  Send them for me · Pro, Don't follow up). It comes with Pro's "Send
+  them for me" and a connected Gmail or Outlook (Google's review for
+  send-only access first).
+
+**Setup (board "Outreach · the rest"):**
+- **O8, You:** a Following row under Your search; Outreach opens.
+- **O9, Outreach:** Send from ("Your mail app" until Gmail connects) and
+  Signature; then Follow-ups: Remind me, Send them for me (Pro), Off.
+- **O10, Following:** the followed companies as rows, each with what's new
+  this week.
+- **O11, Alerts:** two groups. New jobs (As they post, Once a day, Off,
+  then "Only companies I follow"), then Application updates and Send a
+  test. No detail lines.
+- **O12, Auto-apply:** "Companies: Ones I follow" under Which jobs.
+- **O13, no one listed:** "No one listed yet" and "People at Mercury show
+  up here as Pinkslip finds them." Follow shows as gray "✓ Following" once
+  tapped.
+
+**Plan:** writing and sending yourself is free, with no weekly cap. Pro is
+only what sends on its own: Send them for me, and later emails written
+when you apply. The contact list isn't paywalled; guests see names and
+titles and sign in to write, addresses load one person at a time, and a
+quiet per-account daily limit (about 40) stops scraping.
+
 ## Dark mode (owner, 2026-10-15)
 
 Paper "Dark mode · Oct 15", approved: the current designs under the dark
