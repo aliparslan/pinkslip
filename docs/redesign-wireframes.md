@@ -960,6 +960,28 @@ dropdown and a details form).
 - **"It's closed" also takes the job out of your Jobs**, as hiding it does
   (owner).
 
+## The build (2026-10-16)
+
+Built from the Approved page after the audit; see the inventory's "Built on
+2026-10-16" for what is live and what runs on samples. Liberties taken,
+for the owner to veto:
+- **The app opens on Today** (the first tab). "/" is still Jobs for links.
+- **Today at release reads from what the app already has:** Needs you is an
+  offer to answer, an interview with no date, an email that matched two
+  applications, and a follow-up that's due; What changed is email tracking's
+  steps and saved postings that closed, over the last three days; Coming up
+  is dated steps and planned follow-ups for two weeks.
+- **Report's note folds the other reasons away while you type,** so the
+  sheet fits above the keyboard; tap the picked reason to bring them back.
+- **Earliest start** in Answers is a menu (Now, In two weeks, In a month,
+  After graduation, Ask me each time) rather than a date.
+- **Outreach settings** (signature, follow-ups) are kept on the phone until
+  the account holds them; Off stops a thread's follow-ups once it's sent.
+- **A company's People** lists those you've written to until Pinkslip lists
+  everyone it finds; otherwise "No one listed yet".
+- **The written answer's footnote** says when it was saved; which company
+  asked and how often it was used aren't known yet.
+
 ## Audit fixes (owner, 2026-10-15, late)
 
 From [the design audit](design-audit-2026-10-15.md); the owner agreed with

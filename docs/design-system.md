@@ -206,7 +206,8 @@ on one line share a size.
   logo on the 16 margin. Row text and separators start on the 68 line.
 - **Fixed sizes:** button 50 (36 small: Follow, Show, See Pro), list row
   44 or more, chip 32, icon button 44, badge 20, logo 40 in rows and 48 in
-  every page header (job, company, event, person), punch hole 24.
+  every page header (job, company, event, person), 32 in a card's list (the
+  review), 28 two to a slot (stacked), punch hole 24.
 
 ## Status, badges and dots
 
@@ -566,6 +567,16 @@ cut so that each remaining one has a job.
 
 ## Changelog
 
+- **2026-10-16**
+  - Built (see `redesign-wireframes.md`, "The build"): the kit's form parts
+    (`ui/Form.tsx`: a white field group, labels that sit in place until you
+    type, the month wheel in place, bullet rows, a red row in its own card),
+    the stamped slip (`ui/StampedSlip.tsx`), placeholder rows
+    (`ui/RowPlaceholders.tsx`), the bot mark and the wider caret in
+    `Icon.tsx`, proportional icon lines, 20pt icons on 50 buttons.
+  - Sheets rise with the keyboard. A sheet step can drop its grab bar for a
+    close button (Q7). A page's pinned action rises with the keyboard too,
+    and the tab bar steps aside for it.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

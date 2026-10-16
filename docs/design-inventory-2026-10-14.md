@@ -40,6 +40,26 @@ icons and stroke weight, interaction patterns, and each screen's person and
 intent. Findings go in one doc with the fix; fixes are drawn in Paper
 before they're built. Then the backend.
 
+## Built on 2026-10-16
+
+The build after the audit, on the owner's phone as owner-channel updates
+(nothing pushed). Live where the backend already supports it; the rest runs
+on sample data from You → Kit → Redesign kit until its backend exists.
+
+- **Live:** Today (the first tab, with the Needs-you badge), the audit's kit
+  changes, Report a job, What's new, error and offline states, loading
+  placeholders, the Resume and Answers editors, pinned page actions,
+  Outreach (a person's page, Write, "Did you send it?", follow-ups on Today
+  and Tracker, Outreach settings, People from your threads).
+- **On samples:** Ask first (Today's card, the review, a job's preview), the
+  live bar and queue, What Pinkslip sent, Auto-apply settings and paused,
+  the Pro sheet from a moment, Events (a company's list and an event page).
+- **Not built yet:** the in-app browser's redraw and fill bar (board 2), the
+  Apply button's auto-apply states and its split menu (board 1, M2), the
+  stub's APPLIED/SENT proof (6.1, 6.2), the Live Activity and Dynamic
+  Island (a native build), Following and the follow-only rules (backend),
+  the Search tab as iOS 26 draws it.
+
 ## Designed and built
 
 - **Jobs:**
