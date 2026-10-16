@@ -392,3 +392,26 @@ Filled in as the owner and Claude go through each part.
 4. **Guest data comes along on sign-in,** as today.
 5. **Deleting an account removes every sign-in method.**
 
+### Following and events (owner, 2026-10-16)
+
+Following:
+
+1. **Follow** is the outline button on a company's page; a Following list
+   in You sits next to Hidden companies.
+2. **Following only widens:** jobs at a followed company that fit your level
+   reach you even when the role or place is outside your search.
+3. **N20 rides with new-job alerts,** marked "Following" in the push and the
+   feed. No separate kind.
+4. **No automatic follows.**
+5. **Auto-apply's "Ones I follow"** reads the same list.
+6. **Later:** "Only companies I follow" as an option for alerts too.
+
+Events:
+
+1. **Added in Admin** to start: paste a link and Pinkslip fills in the
+   company, title, date, time and place to check. No scraping.
+2. **Shown** on the company's page for everyone, and in Today's Coming up
+   for followed companies or events you asked to be reminded of.
+3. **Remind me (N19)** is a push the day before; Sign up opens their page.
+4. **Past events leave** the company page the day after.
+
