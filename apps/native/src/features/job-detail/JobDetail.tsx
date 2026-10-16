@@ -97,7 +97,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
           : pendingDescription ? <Text tone="ink-2">Pulling the full posting now. This usually lands in a second or two.</Text>
           : blocks.length > 0 ? <Description blocks={blocks} />
           : <View style={styles.missing}>
-            <Text tone="ink-2">We couldn't pull the full job description yet. The original posting may still have it.</Text>
+            <Text tone="ink-2">The full description didn't come through. The original posting may still have it.</Text>
             <Button size="compact" icon={ArrowCounterClockwise} onPress={onRetryDescription}>Try again</Button>
           </View>}
       </View>

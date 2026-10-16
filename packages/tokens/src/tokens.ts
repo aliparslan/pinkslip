@@ -395,7 +395,9 @@ export const uiLight = {
   "--ui-bg-elev": "oklch(1 0 0)",
   "--ui-ink": "oklch(0.18 0.006 285)",
   "--ui-ink-2": "oklch(0.4 0.006 285)",
-  "--ui-ink-3": "oklch(0.53 0.006 285)",
+  // 0.51, not 0.53, so captions clear 4.5:1 on the gray fill, the pink tint
+  // and paper too (owner, 2026-10-15; docs/design-audit-2026-10-15.md).
+  "--ui-ink-3": "oklch(0.51 0.006 285)",
   "--ui-ink-4": "oklch(0.78 0.004 285)",
   "--ui-separator": "oklch(0.18 0.006 285 / 0.1)",
   // See-through, as Apple's fills are, so a field or round button reads on
@@ -404,7 +406,8 @@ export const uiLight = {
   "--ui-accent": "oklch(0.57 0.205 350)",
   "--ui-accent-soft": "oklch(0.935 0.038 350)",
   "--ui-good": "oklch(0.48 0.132 150)",
-  "--ui-stage-assessment": "oklch(0.68 0.15 65)",
+  // 0.65 so the amber mark clears 3:1 on white (owner, 2026-10-15).
+  "--ui-stage-assessment": "oklch(0.65 0.145 64)",
   "--ui-stage-interview": "oklch(0.58 0.14 250)",
   "--ui-bad": "oklch(0.5 0.18 25)",
   "--ui-tile-find": "oklch(0.979 0.009 265)",
@@ -414,7 +417,7 @@ export const uiLight = {
   "--ui-tile-pro": "oklch(0.976 0.012 351)",
   "--ui-tile-pro-ink": "oklch(0.57 0.205 350)",
   "--ui-tile-app": "oklch(0.985 0 0)",
-  "--ui-tile-app-ink": "oklch(0.53 0.006 285)",
+  "--ui-tile-app-ink": "oklch(0.51 0.006 285)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",

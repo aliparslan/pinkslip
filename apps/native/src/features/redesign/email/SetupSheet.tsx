@@ -71,7 +71,7 @@ function SetupSteps({ start, inbox, prefs, actions }: { start: SetupStart; inbox
       <SheetHeader title="Where do companies email you?" />
       <Choices>
         {FORWARDING_PROVIDERS.map((option) => <Choice key={option} title={forwardingProviderNames[option]}
-          detail={option === "school" ? "Many block forwarding. We'll check." : undefined}
+          detail={option === "school" ? "Many block forwarding. Pinkslip checks first." : undefined}
           selected={provider === option} onPress={() => setProvider(option)} />)}
       </Choices>
       <Button variant="primary" fullWidth onPress={() => {
@@ -83,11 +83,11 @@ function SetupSteps({ start, inbox, prefs, actions }: { start: SetupStart; inbox
 
   if (step === "scope") {
     return <SheetStep id="scope" inner>
-      <SheetHeader title="What should Gmail send us?" />
+      <SheetHeader title="What should Gmail forward?" />
       <Choices>
-        <Choice title="Everything" detail="Simplest. We open only job mail and drop the rest unread."
+        <Choice title="Everything" detail="Simplest. Pinkslip opens only job mail and drops the rest unread."
           selected={scope === "everything"} onPress={() => setScope("everything")} />
-        <Choice title="Only job mail" detail="A Gmail filter we write for you. A few emails may slip past it."
+        <Choice title="Only job mail" detail="A Gmail filter Pinkslip writes for you. A few emails may slip past it."
           selected={scope === "job"} onPress={() => setScope("job")} />
       </Choices>
       <Button variant="primary" fullWidth onPress={() => {
