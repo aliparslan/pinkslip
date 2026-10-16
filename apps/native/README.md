@@ -71,7 +71,7 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   that has it (2026-10-14), and updates only reach builds with the same
   fingerprint, as above.
 
-The release version is **1.3.4**. Bump the patch (1.3.2, 1.3.3, …) with
+The release version is **1.3.5**. Bump the patch (1.3.2, 1.3.3, …) with
 every push that changes the app, in `app.json`, both `MARKETING_VERSION`
 entries and `Info.plist` (owner, 2026-10-14). Apple requires a separate build
 number; Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
