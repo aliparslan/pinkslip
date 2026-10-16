@@ -219,6 +219,9 @@ export interface SheetStepProps {
   /** Opened from the menu: it slides in from the right and back out that
    * way, while the menu slides off to the left and back. */
   inner?: boolean;
+  /** A sheet with its own header and close button has no grab bar (owner,
+   * 2026-10-15, audit Q7): "Did you apply?", Apply at, the queue. */
+  grabber?: boolean;
   children: ReactNode;
 }
 
@@ -246,11 +249,11 @@ function leaving(to: 1 | -1, width: number) {
 
 /** One step of a sheet: its own card, standing on the bottom edge at the
  * height of what it holds. */
-export function SheetStep({ id, inner = false, children }: SheetStepProps) {
-  return <StepCard key={id} inner={inner}>{children}</StepCard>;
+export function SheetStep({ id, inner = false, grabber = true, children }: SheetStepProps) {
+  return <StepCard key={id} inner={inner} grabber={grabber}>{children}</StepCard>;
 }
 
-function StepCard({ inner, children }: { inner: boolean; children: ReactNode }) {
+function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boolean; children: ReactNode }) {
   const { dismiss, measure, opened, maxHeight, width } = useSheetContext();
   // The step the sheet opens with rises with it; only later steps slide in.
   const [initial] = useState(() => !opened.current);
@@ -272,7 +275,7 @@ function StepCard({ inner, children }: { inner: boolean; children: ReactNode }) 
       {children}
     </View>
     {/* Drag it down to close; VoiceOver can close it from here. */}
-    <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={dismiss} />
+    {grabber ? <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={dismiss} /> : null}
   </Animated.View>;
 }
 

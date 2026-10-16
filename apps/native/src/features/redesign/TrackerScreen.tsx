@@ -1,5 +1,6 @@
 import type { Application, ApplicationStage } from "@pinkslip/core/api";
-import { useApplications, useInbox, useRemoveApplication, useSession, useUpdateApplication } from "@pinkslip/data";
+import { useApplications, useInbox, useOutreachThreads, useRemoveApplication, useSession, useUpdateApplication } from "@pinkslip/data";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import { trackingState } from "./email/email-facts";
 import { dismissNudge, useEmailTrackingPrefs } from "./email/email-prefs";
 import { EmailSetupSheet, LiveEmailSetupSheet } from "./email/SetupSheet";
 import { TrackerNudge } from "./email/TrackerNudge";
+import { trackerOutreachLine } from "./outreach/outreach-facts";
 import {
   byWeek, companyName, groupApplications, jobTitle, MOVE_TO, STAGE_GROUPS, stageGroupLabels, trackerAge, trackerFacts,
 } from "./tracker-facts";
@@ -60,7 +62,11 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const [stats, setStats] = useState(false);
   const [setup, setSetup] = useState(false);
   const [sampleNudge, setSampleNudge] = useState(true);
-  const signedIn = useSession().data?.state === "authenticated";
+  const session = useSession().data;
+  const signedIn = session?.state === "authenticated";
+  // Who you emailed at a company shows on its application's row (O7).
+  const threads = useOutreachThreads(signedIn && !sample && Boolean(session?.me?.features?.outreach_enabled));
+  const byJob = useMemo(() => new Map((threads.data ?? []).filter((thread) => thread.job_id).map((thread) => [thread.job_id!, thread])), [threads.data]);
   const inbox = useInbox({ enabled: !sample && signedIn });
   const prefs = useEmailTrackingPrefs();
   const sampleTracking = useSampleEmailTracking("off");
@@ -117,7 +123,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
           onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-        : <TrackerRow application={item.application} sample={Boolean(sample)} />}
+        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} />}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
       ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.6 }]}>
         {applications.isError
@@ -140,11 +146,12 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 
 /** A row opens its job; long-press moves it to another stage or removes it
  * (a native menu, text only). */
-function TrackerRow({ application, sample }: { application: Application; sample: boolean }) {
+function TrackerRow({ application, sample, thread }: { application: Application; sample: boolean; thread?: OutreachThread }) {
   const update = useUpdateApplication();
   const remove = useRemoveApplication();
+  const outreach = thread && application.stage !== "saved" ? trackerOutreachLine(thread) : null;
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
-    facts={trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
+    facts={outreach ?? trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
     logo={{ name: application.company_name, uri: logoUri(application.job?.company_domain) }} />;
   // Samples have no pages to open, and a saved job that left the catalog has none either.
   if (sample || (!application.job_id && application.stage === "saved")) return row;

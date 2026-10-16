@@ -1,12 +1,16 @@
-import { useApi, useCompanies, usePreferences, useViewedJobs } from "@pinkslip/data";
+import { useApi, useCompanies, useOutreachThreads, usePreferences, useSession, useViewedJobs } from "@pinkslip/data";
+import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { useQueries } from "@tanstack/react-query";
 import type { Job } from "@pinkslip/core/api";
 import * as WebBrowser from "expo-web-browser";
-import { Link, Stack, useSegments } from "expo-router";
+import { Link, router, Stack, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, Icon, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, EmptyState, faces, Icon, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Text as RNText } from "react-native";
+import { firstSentAt, initials } from "./outreach/outreach-facts";
+import { shortDate } from "./tracker-facts";
 import { logoUri } from "../jobs/CompanyLogo";
 import { fitsYourSearch, plainText, rowAge, rowFacts } from "./job-facts";
 
@@ -27,6 +31,10 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const feed = useCompanyJobs(companyId, company?.name);
   const jobs = feed.jobs;
   const [segment, setSegment] = useState<Segment>("jobs");
+  // People: those you've written to here, until Pinkslip lists everyone it
+  // finds (O1, O13).
+  const session = useSession().data;
+  const threads = useOutreachThreads(session?.state === "authenticated" && Boolean(session.me?.features?.outreach_enabled));
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
 
@@ -47,14 +55,44 @@ export function CompanyPage({ companyId }: { companyId: string }) {
         </View>
       </View>
       <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
-        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People" }, { value: "events", label: "Events" },
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people(threads.data, name).length || undefined }, { value: "events", label: "Events" },
       ]} /></View>
     </View>
-    {segment !== "jobs"
-      ? <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">{segment === "people" ? "Recruiters here are coming soon." : "Events are coming soon."}</Text></View>
+    {segment === "people"
+      ? <People threads={people(threads.data, name)} company={plainText(name)} />
+      : segment === "events"
+      ? <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">Events are coming soon.</Text></View>
       : feed.isPending ? <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
       : <CompanyJobs jobs={jobs} />}
   </ScrollView>;
+}
+
+function people(threads: OutreachThread[] | undefined, company: string): OutreachThread[] {
+  const key = company.trim().toLowerCase();
+  return (threads ?? []).filter((thread) => thread.company_name.trim().toLowerCase() === key);
+}
+
+/** O1: a round avatar of initials, the name and title; someone you've
+ * written to shows the paper plane and the date. O13 when there's no one. */
+function People({ threads, company }: { threads: OutreachThread[]; company: string }) {
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
+  if (threads.length === 0) {
+    return <EmptyState title="No one listed yet" message={`People at ${company} show up here as Pinkslip finds them.`} />;
+  }
+  return <View>{threads.map((thread) => {
+    const sent = firstSentAt(thread);
+    return <Pressable key={thread.id} accessibilityRole="button" style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+      onPress={() => router.push({ pathname: `/(tabs)/${tab}/people/[threadId]` as "/(tabs)/(jobs)/people/[threadId]", params: { threadId: thread.id } })}>
+      <View style={styles.avatar}><RNText style={styles.initials} maxFontSizeMultiplier={1.3}>{initials(thread.contact.name)}</RNText></View>
+      <View style={styles.personText}>
+        <View style={styles.line}>
+          <Text weight="medium" lines={1} flex>{thread.contact.name}</Text>
+          {sent ? <View style={styles.age}><Icon name="send" size={14} tone="ink-3" /><Text role="subhead" tone="ink-3">{shortDate(sent)}</Text></View> : null}
+        </View>
+        <Text role="subhead" tone="ink-2" lines={1}>{thread.contact.title}</Text>
+      </View>
+    </Pressable>;
+  })}</View>;
 }
 
 /** Every open job at the company, across all its job sources (a company
@@ -137,4 +175,11 @@ const styles = StyleSheet.create((theme) => ({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.ui.color.accent },
   stage: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
   pressed: { backgroundColor: theme.ui.color.fill },
+  person: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingLeft: theme.ui.size.gutter },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
+  initials: { fontFamily: faces.display, fontSize: 15, lineHeight: 18, color: theme.ui.color["ink-2"] },
+  personText: {
+    flex: 1, gap: 2, paddingVertical: theme.ui.space["3"], paddingRight: theme.ui.size.gutter,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ui.color.separator,
+  },
 }));

@@ -76,3 +76,55 @@ export function useOutreachAction(jobId: string, threadId: string | null) {
     },
   });
 }
+
+/** Every recruiter thread you've started, for Today's follow-ups, Tracker's
+ * rows and a company's people. */
+export function useOutreachThreads(enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personal.outreachAll(),
+    queryFn: async () => (await api.outreach.list()).threads,
+    enabled,
+  });
+}
+
+/** One thread, by id: a person's page. */
+export function useOutreachThreadById(threadId: string, enabled = true) {
+  const api = useApi();
+  return useQuery({ queryKey: queryKeys.personal.outreachById(threadId), queryFn: () => api.outreach.get(threadId), enabled });
+}
+
+/** Starts the thread for a job, or finds the one already there. */
+export function useStartOutreach() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { threads } = await api.outreach.list(jobId);
+      return threads[0] ?? api.outreach.start(jobId);
+    },
+    onSuccess: (thread) => {
+      queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+    },
+  });
+}
+
+/** Sent, replied, stop the follow-ups: by thread, for a person's page. */
+export function useOutreachUpdate() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: Exclude<OutreachAction, { kind: "edit" } | { kind: "discard" }>): Promise<OutreachThread> => {
+      switch (action.kind) {
+        case "sent": return api.outreach.markSent(action.messageId, action.timeZone);
+        case "replied": return api.outreach.markReplied(action.threadId);
+        case "stop": return api.outreach.stop(action.threadId);
+      }
+    },
+    onSuccess: (thread) => {
+      queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+    },
+  });
+}
