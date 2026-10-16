@@ -1,6 +1,6 @@
 import { useApi } from "@pinkslip/data";
 import { useEffect, useRef } from "react";
-import { pickAndImportResume } from "./import";
+import { pickAndImportResume, type ImportStep } from "./import";
 import { useResumeRenderer } from "./ResumeOcrProvider";
 
 /** Leaving Resume or onboarding cancels its renderer and discards late parse
@@ -14,10 +14,11 @@ export function useImportResume() {
     mounted.current = true;
     return () => { mounted.current = false; for (const request of requests.current) request.abort(); requests.current.clear(); };
   }, []);
-  return async () => {
+  return async (onProgress?: (step: ImportStep) => void, cancel?: AbortSignal) => {
     const request = new AbortController();
+    cancel?.addEventListener("abort", () => request.abort());
     requests.current.add(request);
-    try { return await pickAndImportResume(api, (uri) => render(uri, request.signal), () => mounted.current && !request.signal.aborted); }
+    try { return await pickAndImportResume(api, (uri) => render(uri, request.signal), () => mounted.current && !request.signal.aborted, onProgress); }
     finally { requests.current.delete(request); }
   };
 }

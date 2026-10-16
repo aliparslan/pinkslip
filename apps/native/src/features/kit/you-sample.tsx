@@ -2,7 +2,10 @@ import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { toast } from "../../kit";
 import { setAppearancePreference, useAppearancePreference } from "../../theme/appearance";
+import type { ApplicationAnswerValue, SavedApplicationAnswer } from "@pinkslip/core/api";
+import type { WorkAuthorization } from "@pinkslip/domain/search-profile";
 import { AccountView } from "../redesign/you/AccountPage";
+import { AnswersView } from "../redesign/you/AnswersPage";
 import { AlertsView, type NewJobAlerts } from "../redesign/you/AlertsPage";
 import { HiddenCompaniesView, type HiddenCompany } from "../redesign/you/HiddenCompaniesPage";
 import { PlanFreeView, PlanProView } from "../redesign/you/PlanPage";
@@ -93,5 +96,29 @@ export function SampleHiddenCompaniesPage() {
   return <HiddenCompaniesView companies={companies} onShow={async (company) => {
     await wait(500);
     setCompanies((current) => current.filter((item) => item.id !== company.id));
+  }} />;
+}
+
+/** Answers as drawn (A7): a few answered, two not, and two from forms.
+ * Nothing is saved. */
+export function SampleAnswersPage() {
+  const now = new Date().toISOString();
+  const [answers, setAnswers] = useState<SavedApplicationAnswer[]>([
+    { key: "graduation", label: "Graduation", value: "May 2025", updated_at: now },
+    { key: "start_date", label: "Earliest start", value: "Immediately", updated_at: now },
+    { key: "relocation", label: "Open to relocation", value: "yes", updated_at: now },
+    { key: "office_days", label: "Days in an office", value: "3", updated_at: now },
+    { key: "q:why-ramp", label: "Why do you want to work at Ramp?", value: "I spent last summer on Ramp's card-spend export and loved how close engineers sit to finance teams. I want to keep building tools people use every day.", updated_at: "2026-10-02T15:00:00Z" },
+    { key: "q:mercury", label: "Have you used Mercury before?", value: "no", updated_at: "2026-10-04T15:00:00Z" },
+  ]);
+  const [sponsorship, setSponsorship] = useState<WorkAuthorization>("authorized");
+  const save = async (key: string, value: ApplicationAnswerValue, label?: string) => setAnswers((current) => {
+    const existing = current.find((answer) => answer.key === key);
+    return existing ? current.map((answer) => answer.key === key ? { ...answer, value } : answer) : [...current, { key, label: label ?? key, value, updated_at: new Date().toISOString() }];
+  });
+  return <AnswersView answers={answers} sponsorship={sponsorship} actions={{
+    save,
+    clear: async (key) => setAnswers((current) => current.filter((answer) => answer.key !== key)),
+    setSponsorship: async (choice) => setSponsorship(choice),
   }} />;
 }
