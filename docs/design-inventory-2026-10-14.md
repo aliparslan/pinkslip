@@ -56,6 +56,7 @@ as designs: the kit is the spec.
 - **Report a job** (Oct 15, Paper "Report · Oct 15").
 - **Loading** (Oct 15, Paper "Loading · Oct 15").
 - **What's new** (Oct 15, Paper "What's new · Oct 15").
+- **Pro moments** (Oct 15, Paper "Pro moments · Oct 15").
 - **Tracker's Stats sheet:** coming-soon only.
 
 Built since the last count: Mist and Sheets A, the tab bar without names,
@@ -79,11 +80,9 @@ The first two block a release; the rest could follow it.
    `OutreachSheet.tsx` is the old kit. Also Follow on a company page, and
    whether Alerts and auto-apply can stick to followed companies.
 2. **Sign-in, revisited** (parked above).
-3. **Pro moments:** what a Free person sees at a Pro feature (auto-apply,
-   outreach, the quota). The billing sheet is done.
-4. **Events,** drawn in full though they ship as coming soon: the row, the
+3. **Events,** drawn in full though they ship as coming soon: the row, the
    company page's Events segment, Register, Add to Calendar, Remind me.
-5. **Dark mode pass.** Empty states, errors and loading are done.
+4. **Dark mode pass.** Empty states, errors and loading are done.
 
 Admin stays in the old kit.
 
