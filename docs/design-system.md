@@ -504,6 +504,13 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-15**
+  - Decided (owner, Paper "Dark mode · Oct 15"): the main screens, sheets
+    and states checked in dark with the `uiDark` values. One change, for
+    the build: in dark, paper objects get a 1pt `separator` edge in place
+    of the drop shadow, and the same dark grain as light mode (the light
+    grain read as TV static). The stamp turns light ink. Tab icons on
+    some older boards were drawn at 1.5pt; the rule stays 1.75, and 2
+    when lit.
   - Paper "System" gains Part · Buttons (primary, secondary, outline,
     disabled, plain, text), drawn from `Button.tsx`; the outline kind was
     in the kit but not on the page. Follow on a company page is outline
