@@ -332,3 +332,25 @@ Filled in as the owner and Claude go through each part.
 6. **Backfilled** from existing timelines and emails, so Today isn't empty
    on day one.
 
+### Application dates and gaps (owner, 2026-10-16)
+
+1. **Interview:** the evening before at 6 pm ("Interview with Stripe
+   tomorrow at 11:00") and an hour before when the time is known
+   (time-sensitive); with only a day, 8 am that morning.
+2. **Assessment due:** 9 am the day before, and the morning it's due if the
+   stage hasn't moved.
+3. **Offer reply-by:** 3 days before and the morning before.
+4. **No word yet:** the morning after the hear-back date passes ("No word
+   from Stripe yet": Still waiting, Ghosted, Add a date); without a date,
+   once at 3 weeks after applying and once at 6, then never. The buttons
+   need the native build's categories; until then the push opens the
+   application.
+5. **Time zone** comes from the phone; every reminder uses it.
+6. **Any step's date can be fixed** from the application page, email steps
+   included.
+7. **Applications without a Pinkslip job:** company, title, optional link,
+   stage; from "Track one from an email" or a new "Add an application"; a
+   catalog company is matched for the logo.
+8. **Pay and the company's domain are kept on the application** (Tracker's
+   pay, logos after a job is deleted).
+
