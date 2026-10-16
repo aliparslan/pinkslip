@@ -29,6 +29,10 @@ export interface JobRowProps {
   logo?: Omit<CompanyLogoProps, "size">;
   /** In the logo's slot instead: Coming up's date tile. */
   leading?: ReactNode;
+  /** Line three in red: something's wrong (Admin's failing source). */
+  factsBad?: boolean;
+  /** Everything in `ink-3` and the logo faded: switched off (Admin's sources). */
+  quiet?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   /** The row's menu again, for VoiceOver's actions rotor. */
@@ -46,7 +50,7 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
  * long, so every row is the same 84pt; text and separators start on the 68
  * line. Tracker's row makes the company the headline instead.
  */
-export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, onPress, onLongPress, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, actions }: JobRowProps) {
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
@@ -62,18 +66,18 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && !swiping && styles.pressed]}>
-    <View style={styles.logo}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
+    <View style={[styles.logo, quiet && styles.faded]}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
     <View style={styles.text}>
       <View style={styles.line}>
-        <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
+        <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={quiet ? "ink-3" : news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
         {age || dot ? <View style={styles.age}>
           {age ? <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{age}</Text> : null}
           {dot ? <View style={styles.dot} /> : null}
         </View> : null}
       </View>
-      <Text role={news ? "body" : "subhead"} weight={news ? "medium" : weight} tone={tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
+      <Text role={news ? "body" : "subhead"} weight={news ? "medium" : weight} tone={quiet ? "ink-3" : tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
       <View style={styles.line}>
-        <Text role="subhead" tone="ink-2" lines={1} flex>{facts ?? ""}</Text>
+        <Text role="subhead" tone={factsBad ? "bad" : quiet ? "ink-3" : "ink-2"} lines={1} flex>{facts ?? ""}</Text>
         {stage ? <View style={styles.stage}>
           <StageMark stage={stage} tone="ink-3" />
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
@@ -96,6 +100,7 @@ const styles = StyleSheet.create((theme) => {
     // Level with the first line: the logo spans lines one and two.
     logo: { width: theme.ui.size.keyline, paddingLeft: theme.ui.size.gutter, paddingTop: (theme.ui.size.jobRow - block) / 2 },
     age: { flexDirection: "row", alignItems: "center", gap: 6 },
+    faded: { opacity: 0.5 },
     text: {
       flex: 1,
       minWidth: 0,

@@ -148,7 +148,7 @@ function SourceFields({ atsType, slug, onAtsType, onSlug, legacy }: {
   </>;
 }
 
-function AddSourceForm({ onDone }: { onDone: () => void }) {
+export function AddSourceForm({ onDone }: { onDone: () => void }) {
   const create = useCreateCompany();
   const verification = useVerification();
   const [name, setName] = useState("");
@@ -174,7 +174,7 @@ function AddSourceForm({ onDone }: { onDone: () => void }) {
   </Stack>;
 }
 
-function EditSourceForm({ company, onDone }: { company: Company; onDone: () => void }) {
+export function EditSourceForm({ company, onDone }: { company: Company; onDone: () => void }) {
   const update = useUpdateCompany();
   const poll = usePollCompany();
   const verification = useVerification();
