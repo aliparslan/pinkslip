@@ -774,6 +774,29 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Pro moments (owner, 2026-10-15)
+
+Paper "Pro moments · Oct 15", approved. Free has Plan C's weekly
+allowances (applied for you, emails sent for you, reset Monday); a Pro
+moment is what happens when one runs out mid-task. Never a wall, never in
+onboarding, no countdowns, no free trial (the allowance is the taste).
+- **M1, Ask first with 3 left:** the review reads "Apply to 3" with the
+  top three checked (swap allowed, no fourth); under the list, "Free sends
+  3 a week. Yours reset Monday." in `ink-3`, then "Send all 9 with Pro" as
+  `ink` Medium text.
+- **M2, none left on a job page:** the main button is "Apply" (yourself);
+  its menu keeps "Apply for me", marked "None left this week · Pro", which
+  opens the Pro sheet.
+- **M3, Auto-apply on Free:** Ask first works; Automatic reads "Pro.
+  Coming soon."; the count row is "How many · 3 a week on Free"; under the
+  rules, "2 left this week. They reset Monday." and "No weekly limit with
+  Pro".
+- **M4, the Pro sheet from a moment:** Plan's sheet, its first line saying
+  why ("Send the other 6 strong matches today, and every one after, with
+  no weekly limit."), then the plans, Get Pro, Restore purchases.
+- The Pro offer is always `ink` text, never a pink button; pink stays on
+  what's free to do now. Outreach's moment is drawn with Outreach.
+
 ## Loading (owner, 2026-10-15)
 
 Paper "Loading · Oct 15", approved; research in
