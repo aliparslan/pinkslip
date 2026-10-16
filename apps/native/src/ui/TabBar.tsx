@@ -11,20 +11,21 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { Badge } from "./Badge";
 import { Icon, type IconName } from "./Icon";
-import { motion, spring } from "./motion";
+import { motion, project, rubberBand, spring } from "./motion";
 import { useToastLift } from "./Toast";
 
 /** A tab is a 56 slot with its 24 icon in the middle (Paper "C · Closer
  * icons, pink outline, drag"). */
 const PITCH = 56;
 const ICON = 24;
-const ICON_INSET = (PITCH - ICON) / 2;
 const SLOT_HEIGHT = 46;
 /** The tab you're on is a 64 oval around its icon, with no name (owner,
  * 2026-10-15: the names from "Tab bar labels · Oct 14" went). */
 const LIT = 64;
 const PAD = 5;
-/** The lit tab grows and shrinks on Apple's no-bounce spring (tokens). */
+/** Room at each end of the pill for the oval to sit under the end icons. */
+const PAD_X = PAD + (LIT - PITCH) / 2;
+/** The oval glides to the tab you pick on Apple's no-bounce spring (tokens). */
 const GLIDE = spring(motion.tab.glide);
 const PILL = SLOT_HEIGHT + PAD * 2;
 /** iOS 26 draws real Liquid Glass; earlier versions get solid paper. */
@@ -140,19 +141,14 @@ export function useTabBarSpace() {
   return pillBottom(insets.bottom) + PILL + 12;
 }
 
-/** How wide a tab is: 56, or the 64 oval while it's lit. */
-function slotWidth(lit: boolean) {
-  "worklet";
-  return lit ? LIT : PITCH;
-}
-
 /**
  * Pinkslip's own tab bar (Paper "Tab bar · Oct 12" C): a small floating pill
- * of glass. The tab you're on grows into a soft oval around its pink icon;
- * the others are icons. Press and slide along the bar to light each tab in
- * turn, ticking as you pass; let go to open it. Scrolling a list down
- * shrinks the bar. The job page and an application's have their own pinned
- * buttons, so the bar steps aside there.
+ * of glass. The tab you're on sits in a soft oval that glides from tab to
+ * tab, its icon in pink. Press and slide along the bar and the oval follows
+ * your finger, ticking as it passes each tab; let go and it settles on the
+ * nearest one (or where a flick was heading) and opens it. Scrolling a list
+ * down shrinks the bar. The job page and an application's have their own
+ * pinned buttons, so the bar steps aside there.
  */
 export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   /** A pink count on a tab, by route: Today's is what needs you. */
@@ -165,13 +161,28 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
   const tabs = state.routes.filter((route) => TABS[route.name]);
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
-  const [hover, setHover] = useState<number | null>(null);
-  const hovered = useSharedValue(-1);
+  const count = tabs.length;
 
+  // At rest the oval is at `x`. While dragging it's under the finger, plus an
+  // offset that eases to nothing, so it slides over rather than jumping.
+  const x = useSharedValue(slotX(Math.max(selected, 0)));
+  const dragging = useSharedValue(false);
+  const finger = useSharedValue(0);
+  const offset = useSharedValue(0);
+  const current = useSharedValue(Math.max(selected, 0));
+  const hovered = useSharedValue(-1);
+  const [hover, setHover] = useState<number | null>(null);
+
+  const placed = useRef(false);
   useEffect(() => {
+    if (selected < 0) return;
+    current.value = selected;
     // A new tab starts with the full bar.
-    if (selected >= 0) setCompact(false);
-  }, [selected]);
+    setCompact(false);
+    // In place on the first frame; after that it glides.
+    x.value = placed.current ? withSpring(slotX(selected), GLIDE) : slotX(selected);
+    placed.current = true;
+  }, [selected, x, current]);
 
   const open = (index: number, feedback: boolean) => {
     const route = tabs[index];
@@ -182,53 +193,69 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
       navigation.navigate(route.name, route.params);
     }
   };
-  // The drag is rebuilt as tabs change; it reaches today's handlers through here.
+  // The drag is built once per tab count; it reaches today's tabs through here.
   const latest = useRef({ open, setHover });
   latest.current = { open, setHover };
 
-  // Where each tab starts along the pill as it rests now, for the drag.
-  const widths = tabs.map((_route, index) => slotWidth(index === selected));
   const drag = useMemo(() => {
     const showHover = (index: number | null) => latest.current.setHover(index);
     const release = (index: number) => {
       latest.current.setHover(null);
       latest.current.open(index, false);
     };
-    const nearest = (x: number) => {
+    /** The oval's x for a finger at `eventX` on the pill, stretching past the ends. */
+    const along = (eventX: number) => {
       "worklet";
-      let start = PAD;
-      for (let index = 0; index < widths.length; index += 1) {
-        const end = start + widths[index]!;
-        if (x < end) return index;
-        start = end;
-      }
-      return widths.length - 1;
+      const raw = eventX - PAD_X - PITCH / 2;
+      const max = (count - 1) * PITCH;
+      if (raw < 0) return -rubberBand(-raw, PITCH);
+      if (raw > max) return max + rubberBand(raw - max, PITCH);
+      return raw;
+    };
+    const nearest = (at: number) => {
+      "worklet";
+      return Math.min(Math.max(Math.round(at / PITCH), 0), count - 1);
     };
     return Gesture.Pan().activeOffsetX([-8, 8]).onBegin(() => {
       // A finger on the small bar brings the full one back.
       compact.value = withSpring(0, GLIDE);
     }).onStart((event) => {
-      hovered.value = nearest(event.x);
+      finger.value = along(event.x);
+      offset.value = x.value - finger.value;
+      offset.value = withSpring(0, GLIDE);
+      dragging.value = true;
+      hovered.value = nearest(x.value);
       scheduleOnRN(showHover, hovered.value);
     }).onUpdate((event) => {
-      const index = nearest(event.x);
+      finger.value = along(event.x);
+      const index = nearest(finger.value + offset.value);
       if (index !== hovered.value) {
         hovered.value = index;
         scheduleOnRN(showHover, index);
         scheduleOnRN(haptics.tick);
       }
     }).onEnd((event) => {
-      scheduleOnRN(release, nearest(event.x));
+      const at = finger.value + offset.value;
+      const index = nearest(at + project(event.velocityX));
+      dragging.value = false;
+      x.value = at;
+      x.value = withSpring(slotX(index), { ...GLIDE, velocity: event.velocityX });
       hovered.value = -1;
+      scheduleOnRN(release, index);
     }).onFinalize(() => {
-      // Cancelled mid-drag (a call, the app leaving): nothing changes.
-      if (hovered.value === -1) return;
+      // Cancelled mid-drag (a call, the app leaving): back to where it was.
+      if (!dragging.value) return;
+      x.value = finger.value + offset.value;
+      dragging.value = false;
+      x.value = withSpring(slotX(current.value), GLIDE);
       hovered.value = -1;
       scheduleOnRN(showHover, null);
     });
-    // Rebuilt when a tab's width changes; `widths` is read through its key.
-  }, [widths.join(","), hovered]);
+  }, [count, x, dragging, finger, offset, current, hovered]);
 
+  const oval = useAnimatedStyle(() => ({
+    transform: [{ translateX: dragging.value ? finger.value + offset.value : x.value }],
+  }));
   const size = useAnimatedStyle(() => ({ transform: [{ scale: 1 - (1 - COMPACT_SCALE) * compact.value }] }));
   if (onJobPage) return null;
 
@@ -238,10 +265,23 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.shrink, size]}>
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
+          {selected >= 0 ? <Animated.View pointerEvents="none" style={[styles.oval, oval]} /> : null}
           {tabs.map((route, index) => {
             const tab = TABS[route.name]!;
-            return <TabSlot key={route.key} icon={tab.icon} label={tab.label} badge={badges?.[route.name]}
-              selected={index === selected} lit={index === lit} onPress={() => open(index, true)} />;
+            const badge = badges?.[route.name];
+            return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab"
+              accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
+              accessibilityState={{ selected: index === selected }} style={styles.slot}>
+              <View>
+                {/* The outline icon; lit, it's pink and a touch heavier, and
+                    Tracker's end dot fills in (owner, 2026-10-12). */}
+                {index === lit
+                  ? <Icon name={tab.icon} size={ICON} tone="accent" lit weight={tab.icon === "tracker" ? "fill" : "line"} />
+                  : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
+                {/* The count rides on the icon's top right (System, the tab bar part). */}
+                {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
+              </View>
+            </Pressable>;
           })}
         </GlassView>
       </Animated.View>
@@ -249,47 +289,22 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   </View>;
 }
 
-/** One tab. Lit, it widens into the oval with its icon in the middle. */
-function TabSlot({ icon, label, badge, selected, lit, onPress }: {
-  icon: IconName;
-  label: string;
-  badge?: number;
-  selected: boolean;
-  lit: boolean;
-  onPress: () => void;
-}) {
-  const on = useSharedValue(selected ? 1 : 0);
-  useEffect(() => { on.value = withSpring(selected ? 1 : 0, GLIDE); }, [selected, on]);
-
-  const box = useAnimatedStyle(() => ({ width: PITCH + (LIT - PITCH) * on.value }));
-  const oval = useAnimatedStyle(() => ({ opacity: on.value }));
-  const mark = useAnimatedStyle(() => ({ transform: [{ translateX: ((LIT - PITCH) / 2) * on.value }] }));
-
-  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={badge ? `${label}, ${badge} need you` : label} accessibilityState={{ selected }}>
-    <Animated.View style={[styles.slot, box]}>
-      <Animated.View pointerEvents="none" style={[styles.oval, oval]} />
-      {/* The outline icon; lit, it's pink and a touch heavier, and Tracker's
-          end dot fills in (owner, 2026-10-12). */}
-      <Animated.View style={[styles.icon, mark]}>
-        {lit
-          ? <Icon name={icon} size={ICON} tone="accent" lit weight={icon === "tracker" ? "fill" : "line"} />
-          : <Icon name={icon} size={ICON} tone="ink-2" />}
-        {/* The count rides on the icon's top right (System, the tab bar part). */}
-        {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
-      </Animated.View>
-    </Animated.View>
-  </Pressable>;
+/** Where the oval sits under the tab at this index. */
+function slotX(index: number) {
+  "worklet";
+  return index * PITCH;
 }
 
 const styles = StyleSheet.create((theme) => ({
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "flex-end" },
   // It shrinks towards the bottom edge, staying on the home indicator.
   shrink: { transformOrigin: "bottom" },
-  pill: { flexDirection: "row", padding: PAD, borderRadius: PILL / 2 },
+  pill: { flexDirection: "row", paddingVertical: PAD, paddingHorizontal: PAD_X, borderRadius: PILL / 2 },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
-  // Not clipped, so a badge can sit over the icon's corner; the oval rounds itself.
-  slot: { height: SLOT_HEIGHT },
-  oval: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color.pill },
-  icon: { position: "absolute", left: ICON_INSET, top: (SLOT_HEIGHT - ICON) / 2 },
+  slot: { width: PITCH, height: SLOT_HEIGHT, alignItems: "center", justifyContent: "center" },
+  oval: {
+    position: "absolute", top: PAD, left: PAD, width: LIT, height: SLOT_HEIGHT,
+    borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color.pill,
+  },
   badge: { position: "absolute", left: 10, top: -8 },
 }));

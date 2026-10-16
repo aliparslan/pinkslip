@@ -71,13 +71,9 @@ function QueueSheet({ open, run, onClosed, onPause }: { open: boolean; run: Run;
 function Queue({ run, onPause }: { run: Run; onPause: () => void }) {
   const sheet = useSheet();
   const shownNext = run.next.slice(0, 2);
-  return <SheetStep id="queue" grabber={false}>
-    <View style={styles.queueTop}>
-      <View style={styles.flex}><SheetHeader title="Applying for you" /></View>
-      <Pressable onPress={sheet.close} accessibilityRole="button" accessibilityLabel="Close" hitSlop={6} style={styles.close}>
-        <Icon name="close" size={16} tone="ink-2" />
-      </Pressable>
-    </View>
+  // A glance you swipe away, so a grab bar rather than the close button (owner, 2026-10-16).
+  return <SheetStep id="queue">
+    <SheetHeader title="Applying for you" />
     <Section label="Now">
       <QueueRow job={run.now} trailing={<Text role="subhead" tone="ink-3">{run.paused ? "Paused" : "Applying"}</Text>} />
     </Section>
@@ -186,8 +182,6 @@ const styles = StyleSheet.create((theme) => ({
   pause: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
   pauseBars: { flexDirection: "row", gap: 3 },
   pauseBar: { width: 3, height: 11, borderRadius: 1.5, backgroundColor: theme.ui.color.ink },
-  queueTop: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["3"] },
-  close: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
   section: { gap: theme.ui.space["1"] },
   sectionLabel: { flexDirection: "row", alignItems: "baseline", gap: 6, paddingHorizontal: theme.ui.space["4"] },
   group: { paddingHorizontal: theme.ui.space["4"], borderRadius: SHEET_GROUP_RADIUS, borderCurve: "continuous", backgroundColor: theme.ui.color["sheet-group"] },
