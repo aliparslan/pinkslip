@@ -21,6 +21,25 @@ drawn from:
 Oct 10–11 batches (Batch 1–7 on Paper) came before the kit and don't count
 as designs: the kit is the spec.
 
+## Where the approved screens are (2026-10-15)
+
+Every approved screen now lives on the Paper page **"Approved · build
+these"**, one copy each, in sections: Today, Jobs, Job page and applying,
+Search, companies and events, Outreach, Tracker and applications, You,
+Resume and Answers, Email tracking, Errors, loading and small moments,
+Dark mode. They were moved, not copied, so nothing drifts. Round pages keep
+the takes that weren't picked; Search and companies, Errors, Loading,
+Report, Dark mode and Outreach are now empty. Screens drawn before the Oct
+15 kit changes (Mist page, outlined chips, no tab names, 1.75 icons) still
+show the older look; the kit wins, and the audit below catches each one.
+
+**Next, before any building (owner, 2026-10-15):** a full audit of every
+approved screen against the kit, measured, not eyeballed: gaps and padding,
+corner radii, button and row sizes, the grid, colors and contrast ratios,
+icons and stroke weight, interaction patterns, and each screen's person and
+intent. Findings go in one doc with the fix; fixes are drawn in Paper
+before they're built. Then the backend.
+
 ## Designed and built
 
 - **Jobs:**

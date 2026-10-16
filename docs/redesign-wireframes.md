@@ -848,6 +848,8 @@ values in `tokens.ts` (`uiDark`), with one change for the paper objects
   with a failed save, an event page.
 - **D2, sheets and states:** Report a job, the Pro sheet over the review,
   the stamped "This job closed" slip, loading placeholders, a field error.
+- **D3, Outreach** (same day): People, a person's page, "Did you send
+  it?", the thread, Outreach settings, no one listed.
 - A graphite page. Sheets sit a step lighter over the black scrim, and
   their groups a step lighter again.
 - Pink stays the fill pink with white labels. Settings tiles are the
