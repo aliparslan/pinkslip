@@ -437,6 +437,25 @@ part isn't there yet, draw it from the kit's values and add it to that page.
 - **Spacing:** only 4, 8, 12, 16, 20, 24, 32, 40. 24–32 between sections.
 - **Emphasis** comes from the four inks and Medium, and from the one
   headline line a row has.
+- **Copy, don't redraw** (owner, 2026-10-15): before drawing anything,
+  find the approved screen or part that does the same job (the Paper
+  "Approved" page, then the System page) and clone it. Draw new only when
+  nothing does, and add it here. When one copy changes, change the others.
+- **"Did you …?" after leaving the app** (`DidYouApply`, Paper "Apply 2";
+  "Did you send it?" on Outreach): a sheet with the question in Title 1,
+  one Subhead `ink-2` line, the 36 close button, then the pink yes ("Yes,
+  I applied") and the gray secondary "Not yet", 8 apart. No grab bar.
+- **A Pro-only choice on Free** (owner, 2026-10-15): "Pro" in `ink-3`
+  takes the place of the radio or check, on the row's line; nothing
+  under the title.
+- **A value with no chevron keeps the chevron's 12 space** (owner,
+  2026-10-15), so values line up down a card (Auto-apply's "Soon", "How
+  many"). `ListItem` doesn't yet; fix it at the build.
+- **Settings pages:** two groups where possible, and no detail lines
+  under row titles; if a row needs one, reword its title (owner,
+  2026-10-15, on Alerts).
+- **People** (Outreach): a round 40 avatar of initials (Founders 15
+  `ink-2` on `fill`), where companies have square logos.
 
 After drawing, screenshot each artboard and check it against this list
 before showing it.
@@ -504,6 +523,11 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-15**
+  - Decided (owner, Paper "Outreach · Oct 15"): Outreach, recorded in
+    `redesign-wireframes.md`. New rules above: copy, don't redraw; the
+    "Did you …?" sheet; Pro in place of the radio; the chevron's space;
+    two groups and no detail lines on settings pages; round people
+    avatars.
   - Decided (owner, Paper "Dark mode · Oct 15"): the main screens, sheets
     and states checked in dark with the `uiDark` values. One change, for
     the build: in dark, paper objects get a 1pt `separator` edge in place

@@ -73,3 +73,12 @@ Sources:
 - [Martal: cold email statistics](https://www.martal.ca/cold-emailing-statistics)
 - [Yale SOM: email templates for recruiters](https://cdo.som.yale.edu/blog/2025/08/26/10-email-templates-for-every-situation-youll-face-with-a-recruiter/)
 - [The Muse: how to email a recruiter](https://www.themuse.com/advice/how-to-email-a-recruiter)
+
+## Decided (owner, same day)
+
+The round is approved; the screens and rules are in
+`redesign-wireframes.md` ("Outreach"). In short: People and a person's
+page, no "verified" anywhere, writing through the iPhone's mail sheet with
+"Did you send it?" on return, follow-ups planned at send, conversations on
+the person's page (not a Tracker section), sending yourself is free, and
+Pinkslip's own composer waits for Pro's "Send them for me".

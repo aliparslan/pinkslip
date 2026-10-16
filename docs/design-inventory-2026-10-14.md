@@ -60,6 +60,11 @@ as designs: the kit is the spec.
 - **Events** (Oct 15, Paper "Events · Oct 15"): the company page's Events
   segment, the event page, Coming up once signed up. They ship as coming
   soon.
+- **Outreach** (Oct 15, Paper "Outreach · Oct 15"): People, a person's
+  page, writing through the iPhone's mail sheet, "Did you send it?", the
+  thread, Today and Tracker, Outreach settings, Following, the
+  follow-only rule in Alerts and Auto-apply, no one listed. Pinkslip's
+  own composer is drawn for later (Pro's Send them for me).
 - **Dark mode** (Oct 15, Paper "Dark mode · Oct 15"): the main screens,
   sheets and states. Paper objects' dark grain and edge change in tokens
   at build.
@@ -78,14 +83,7 @@ chips that keep their width, the 2pt sheet Back.
 
 ## Not designed in the kit yet (updated 2026-10-15)
 
-Both block a release.
-
-1. **Outreach:** the People segment on a company page and a person's row;
-   the composer with template chips and highlighted filled-in words; the
-   follow-up plan and the thread; the daily quota (Pro).
-   `OutreachSheet.tsx` is the old kit. Also Follow on a company page, and
-   whether Alerts and auto-apply can stick to followed companies.
-2. **Sign-in, revisited** (parked above; the owner will come back to it
+1. **Sign-in, revisited** (parked above; the owner will come back to it
    much later).
 
 Admin stays in the old kit.
