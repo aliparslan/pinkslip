@@ -15,6 +15,7 @@ import { ApplicationBrowser, type ApplicationRequest } from "../apply/Applicatio
 import { OutreachSheet } from "../apply/OutreachSheet";
 import { cachedJob, type AnyJob } from "../jobs/cached-job";
 import { useTrack } from "../jobs/track";
+import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { ReportSheet } from "./ReportSheet";
 
 export type DetailJob = AnyJob & Partial<Job>;
@@ -148,6 +149,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     leave();
     toast.show({ message: "Job hidden", icon: "hide", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that job back."); }) } });
   }, () => toast.error("Couldn't hide this job. Try again."));
+  // Reported closed: out of your Jobs without a second toast over "Report sent".
+  const hideQuietly = () => { hideJob(job.id).then(leave, () => undefined); };
   const hideTheCompany = () => {
     if (!job.company_id) return;
     hideCompany(job.company_id).then((hidden) => {
@@ -177,7 +180,9 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const sheets: ReactNode = <>
     {autoApply && <ApplicationBrowser request={applying} onClose={() => setApplying(null)}
       onSubmitted={() => markApplied.mutate(asJob, { onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); } })} />}
-    <ReportSheet jobId={job.id} open={reporting} onOpenChange={setReporting} />
+    {ownSheets
+      ? <ReportJobSheet jobId={job.id} open={reporting} onClosed={() => setReporting(false)} onReportedClosed={hideQuietly} />
+      : <ReportSheet jobId={job.id} open={reporting} onOpenChange={setReporting} />}
     {outreach && <OutreachSheet jobId={job.id} companyName={job.company_name} threadId={outreachThread ?? null} open={emailing} onOpenChange={setEmailing} />}
   </>;
 

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Modal, Pressable, View, useWindowDimensions, type LayoutChangeEvent, type ScrollViewProps } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
 import Animated, {
-  scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
+  scrollTo, useAnimatedKeyboard, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -172,7 +172,10 @@ export function Sheet({ onClosed, children }: SheetProps) {
     }
   }), [anchor, fromTop, scrollY, lists, offset, shade, cardHeight, dismiss]);
 
-  const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+  // A step with a field (Report's note) rises with the keyboard, standing
+  // the same 8 above it as above the screen's edge.
+  const keyboard = useAnimatedKeyboard();
+  const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value - keyboard.height.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
   const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width }),
     [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width]);

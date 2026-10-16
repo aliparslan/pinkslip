@@ -4,18 +4,20 @@ import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
 import { Link } from "expo-router";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
-import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace, type SwipeAction } from "../../ui";
+import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace, type SwipeAction } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
 import { rowActions } from "../jobs/row-actions";
 import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
+import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { feedSections, plainText, rowAge, rowFacts } from "./job-facts";
+import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
 const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -30,8 +32,9 @@ export interface JobsFeedProps {
   onClearQuery?: () => void;
   /** Scrolls with the list, above the quick filters (the Jobs title and
    * search field). The list stays mounted while results load, so a field
-   * here keeps its keyboard. */
-  top?: ReactNode;
+   * here keeps its keyboard. Given a function, it's told when the feed is
+   * offline with jobs still on screen, for the Offline pill. */
+  top?: ReactNode | ((offline: boolean) => ReactNode);
   /** The quick filters: on by default, off while searching unless asked. */
   chips?: boolean;
   /** Under the last row (Jobs: "Search everything for …"). */
@@ -83,23 +86,30 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     if (firstPageAt && firstPageCount > 0) track("job_displayed", { type: "feed", properties: { count: firstPageCount } });
   }, [firstPageAt, firstPageCount, track]);
 
+  // Offline with jobs on screen, the Offline pill says so (P1); a refresh
+  // that failed online is the toast (P2). Never both.
+  const offline = feed.isRefetchError && isOffline(feed.error);
   useEffect(() => {
-    if (feed.isRefetchError) toast.error("Couldn't refresh jobs.", { dedupeKey: "feed-refresh" });
-  }, [feed.isRefetchError]);
+    if (feed.isRefetchError && !isOffline(feed.error)) toast.error("Couldn't refresh jobs.", { dedupeKey: "feed-refresh" });
+  }, [feed.isRefetchError, feed.error]);
+  // Nothing loaded and no connection (W1): no button; it loads once you're back.
+  const emptyOffline = feed.isError && !feed.data && isOffline(feed.error);
+  useRetryWhileOffline(emptyOffline || offline, () => void feed.refetch());
+  const [moreFailed, setMoreFailed] = useState(false);
 
   const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
   const pull = usePullToRefresh(refresh);
   const loadMore = () => {
     if (!feed.hasNextPage || feed.isFetchingNextPage) return;
-    void feed.fetchNextPage().then((result) => {
-      if (result.isFetchNextPageError) toast.error("Couldn't load more jobs.", { dedupeKey: "feed-more", action: { label: "Retry", run: () => void feed.fetchNextPage() } });
-    });
+    setMoreFailed(false);
+    // The next page failing says so at the list's end (P3), not in a toast.
+    void feed.fetchNextPage().then((result) => setMoreFailed(result.isFetchNextPageError));
   };
 
   const lastPolled = stats.data?.lastPolled;
   const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
   const header = <View>
-    {top}
+    {typeof top === "function" ? top(offline) : top}
     {(chips ?? !searching) ? <QuickFilters search={search} stages={available} /> : null}
     {stale && lastPolled ? <View style={styles.stale}>
       <Icon name="warning" size={16} tone="ink-3" />
@@ -119,11 +129,13 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     ListFooterComponent={jobs.length > 0 ? <>
       {after}
       <View style={styles.footer}>
-        {feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
+        {moreFailed ? <LoadMoreFailed onRetry={loadMore} />
+          : feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
       </View>
     </> : null}
-    ListEmptyComponent={<View style={[styles.empty, { minHeight: height * 0.5 }]}>
-      {feed.isPending ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
+    ListEmptyComponent={feed.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
+      {emptyOffline
+        ? <EmptyState title="You're offline" message="Jobs will be here when you're back." />
         : feed.isError && !feed.data
         ? <EmptyState title="Jobs didn't load" message="Check your connection and try again."
           action={{ label: "Try again", variant: "secondary", pending: feed.isFetching, onPress: () => void feed.refetch() }} />
@@ -179,6 +191,8 @@ function swipeActions(job: RowJob, actions: JobActions, viewed: boolean): { lead
   return { leading, trailing };
 }
 
+/** Internships last, as Your search lists them. */
+const stageRank = (id: string) => { const rank = (STAGES_IN_ORDER as readonly string[]).indexOf(id); return rank < 0 ? STAGES_IN_ORDER.length : rank; };
 const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
 
 /** One tap each: Remote, $100K+, and a chip per stage when the search covers
@@ -193,7 +207,7 @@ function QuickFilters({ search, stages }: { search: FeedSearch; stages: readonly
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
     <Chip label="Remote" selected={search.loc === "remote"} onPress={() => toggle("loc", "remote")} />
     <Chip label="$100K+" selected={search.min === 100} onPress={() => toggle("min", 100)} />
-    {stages.length > 1 ? stages.map((stage) =>
+    {stages.length > 1 ? [...stages].sort((a, b) => stageRank(a) - stageRank(b)).map((stage) =>
       <Chip key={stage} label={stageLabel(stage)} selected={search.stage === stage} onPress={() => toggle("stage", stage)} />) : null}
   </ScrollView>;
 }

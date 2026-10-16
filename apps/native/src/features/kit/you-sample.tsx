@@ -21,12 +21,12 @@ export function SampleYouScreen() {
     account: { pathname: "/you/account", params: { sample: "on" } },
   };
   const live: Partial<Record<YouDestination, Href>> = {
-    resume: "/you/resume", answers: "/you/answers", tailoring: "/you/tailoring", help: "/you/feedback",
+    resume: "/you/resume", answers: "/you/answers", tailoring: "/you/tailoring", help: "/you/feedback", whatsNew: "/you/whats-new",
     admin: "/you/admin", kit: "/you/kit-redesign",
   };
   return <YouView
-    person={{ name: "Jordan Lee", email: "jordan@utexas.edu" }}
-    values={{ search: "Interns, New grad", email: "On", alerts: "On", resume: "Jordan_Lee.pdf", answers: "12", plan: "Free" }}
+    person={{ name: "Jordan Lee", email: "jordan@lee.dev" }}
+    values={{ search: "New grad +1", email: "On", alerts: "On", resume: "Jordan_Lee.pdf", answers: "12", plan: "Free", whatsNew: "1.4" }}
     appearance={appearance}
     onAppearance={setAppearancePreference}
     show={{ email: true, answers: true, plan: true, admin: true, kit: true }}
@@ -70,7 +70,7 @@ export function SamplePlanPage({ state }: { state: "free" | "pro" }) {
 /** Account signed in, as Jordan. Nothing changes. */
 export function SampleAccountPage() {
   const [name, setName] = useState("Jordan Lee");
-  return <AccountView name={name} email="jordan.alexander.lee27@my.utexas.edu" provider="apple" actions={{
+  return <AccountView name={name} email="jordan.alexander.lee.27@icloud.com" provider="apple" actions={{
     rename: async (next) => setName(next),
     logOut: async () => {
       await wait(400);

@@ -12,6 +12,8 @@ import { notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
+import { LaunchFailure } from "../redesign/errors";
+import { redesignEnabled } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
@@ -24,16 +26,19 @@ void loadUiFonts();
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => createAppQueryClient());
   const [api, setApi] = useState<ApiClient | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
   const start = () => {
-    setFailed(false);
-    initializeSession().then(setApi, () => setFailed(true)).finally(() => void SplashScreen.hideAsync());
+    setFailure(null);
+    initializeSession().then(setApi, (error: unknown) => setFailure({ error })).finally(() => void SplashScreen.hideAsync());
   };
   useEffect(start, []);
+  // From the failure screen: it stays up while the next try runs.
+  const retry = () => { initializeSession().then(setApi, (error: unknown) => setFailure({ error })); };
 
   if (!api) {
-    return failed ? <View style={styles.center}>
+    if (failure && redesignEnabled()) return <LaunchFailure error={failure.error} onRetry={retry} />;
+    return failure ? <View style={styles.center}>
       <EmptyState title="Couldn't reach Pinkslip" message="Check your connection and try again."
         actions={<Button variant="primary" onPress={start}>Try again</Button>} />
     </View> : null;

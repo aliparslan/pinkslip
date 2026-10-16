@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
 import { useRedesign } from "../../features/redesign/flag";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
+import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { TabBar, useTabBarSpace } from "../../ui";
 
 /** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
@@ -29,13 +30,16 @@ function PillTabs() {
   }, []);
   // The room under the pill is the page's white, so it reads as page.
   const padded = { sceneStyle: { paddingBottom: space, backgroundColor: theme.ui.color.bg } };
-  return <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
+  return <>
+  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(today)" />
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />
     <Tabs.Screen name="(search)" />
     <Tabs.Screen name="(you)" options={padded} />
-  </Tabs>;
+  </Tabs>
+  <WhatsNewOnLaunch />
+  </>;
 }
 
 /** The system tab bar: Jobs, Library, You. */

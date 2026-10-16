@@ -16,16 +16,17 @@ import { EditSearchSheet } from "../EditSearch";
 import { trackingState, trackingStateLabels } from "../email/email-facts";
 import { useEmailTrackingPrefs } from "../email/email-prefs";
 import { redesignKitAvailable } from "../flag";
+import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
 
 /** The rows that open something. "search" opens the Your search sheet. */
-export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "tailoring" | "plan" | "help" | "admin" | "kit";
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "tailoring" | "plan" | "help" | "whatsNew" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
   person: { name: string; email: string | null } | null;
   /** Each row's current value; undefined while it loads. */
-  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan", string>>;
+  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan" | "whatsNew", string>>;
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
@@ -97,6 +98,7 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
         </View>
       </View>
       <ListItem leading={<IconTile icon="help" meaning="app" />} title="Help and feedback" accessory="chevron" onPress={() => open("help")} />
+      <ListItem leading={<IconTile icon="whatsNew" meaning="app" />} title="What's new" value={values.whatsNew} accessory="chevron" onPress={() => open("whatsNew")} />
     </ListGroup>
     <View style={styles.version}><Text role="footnote" tone="ink-3" align="center" selectable>{appVersionLine()}</Text></View>
   </ScrollView>;
@@ -148,7 +150,7 @@ export function YouScreen() {
   const go = (href: Href) => router.push(href);
   const destinations: Record<Exclude<YouDestination, "search">, Href> = {
     account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
-    tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
+    tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", whatsNew: "/you/whats-new", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
   return <>
     <YouView
@@ -159,6 +161,7 @@ export function YouScreen() {
         alerts: push.data === undefined || device === null ? undefined : push.data.enabled ? (device === "denied" ? "Blocked" : "On") : "Off",
         resume: file?.name ?? (resume.data ? (resumeReady ? "Ready" : "Add") : undefined),
         answers: answers.data ? String(answers.data.length) : undefined,
+        whatsNew: latestReleaseVersion(),
       }}
       appearance={appearance}
       onAppearance={setAppearancePreference}

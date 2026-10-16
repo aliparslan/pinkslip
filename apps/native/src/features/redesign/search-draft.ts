@@ -11,6 +11,10 @@ import { CAREER_STAGE_OPTIONS, ROLE_OPTIONS, type CareerStage, type WorkMode } f
 /** "New grad, Early career": the stage names without their year ranges. */
 export const stageName = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
 
+/** The stages in the order they're offered: Internships last, since most
+ * people here are past them (owner, 2026-10-15, audit Q10). */
+export const STAGES_IN_ORDER: readonly CareerStage[] = ["new_grad", "early_career", "mid_career", "internship"];
+
 /** The stage names for half a ticket: "New grad, Early". */
 const stageShort: Record<CareerStage, string> = {
   internship: "Interns",
@@ -24,12 +28,13 @@ function few(names: string[]): string {
   return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 }
 
-/** The career stages for a menu row: every stage is "Any", two fit by
- * short name, more show the first and a count. */
+/** The career stages for a menu row: every stage is "Any", one is its
+ * short name, more show the first and a count ("New grad +1"), so the value
+ * never wraps (owner, 2026-10-15). */
 export function stageSummary(profile: Profile): string {
-  const names = CAREER_STAGE_OPTIONS.filter((option) => profile.target_levels.includes(option.id)).map((option) => stageShort[option.id]);
+  const names = STAGES_IN_ORDER.filter((id) => profile.target_levels.includes(id)).map((id) => stageShort[id]);
   if (names.length === CAREER_STAGE_OPTIONS.length) return "Any";
-  return names.length <= 2 ? names.join(", ") : `${names[0]} +${names.length - 1}`;
+  return names.length <= 1 ? names.join("") : `${names[0]} +${names.length - 1}`;
 }
 
 export function rolesSummary(profile: Profile): string {
