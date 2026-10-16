@@ -182,8 +182,9 @@ on one line share a size.
 - **Our own sheets:** float 8 in from the edges with 40 corners. Each step
   is its own card at its own height. A grab bar sits on top; swipe down or
   tap behind to close. A sheet with its own header (a logo, a person, a
-  question that came back to you: "Did you apply?", Apply at, the queue)
-  has the 36 close button instead, and no grab bar (owner, 2026-10-15). A step opened from the
+  question that came back to you: "Did you apply?", Apply at) has the 36
+  close button instead, and no grab bar (owner, 2026-10-15). The queue is a
+  glance you swipe away, so it has the grab bar (owner, 2026-10-16). A step opened from the
   first one has a round Back button at the bottom, left of its Done. Long
   lists scroll. They replace the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a

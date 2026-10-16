@@ -278,6 +278,8 @@ function ToastView({ item, running, index, spread, stacked, frontWidth, onWidth,
   const surface = useSharedValue(0);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
+  /** The one way a drag moves the toast, picked as it starts: sideways or down. */
+  const sideways = useSharedValue(false);
   const pressed = useSharedValue(0);
 
   useEffect(() => {
@@ -323,18 +325,19 @@ function ToastView({ item, running, index, spread, stacked, frontWidth, onWidth,
     const width = Math.max(ownWidth, 120);
     const swipe = Gesture.Pan().enabled(!behind).activeOffsetX([-12, 12]).activeOffsetY([-8, 8])
       .onBegin(() => { scheduleOnRN(hold, "touch"); })
+      .onStart((event) => { sideways.value = Math.abs(event.translationX) > Math.abs(event.translationY); })
       .onUpdate((event) => {
-        dragX.value = event.translationX;
-        dragY.value = event.translationY > 0 ? event.translationY : -rubberBand(-event.translationY, HEIGHT);
+        // It moves one way only (owner, 2026-10-16: it wandered too freely).
+        if (sideways.value) dragX.value = event.translationX;
+        else dragY.value = event.translationY > 0 ? event.translationY : -rubberBand(-event.translationY, HEIGHT);
       })
       .onEnd((event) => {
-        const sideways = Math.abs(dragX.value) > Math.abs(dragY.value);
         // A flick is enough; the toast keeps the finger's speed as it goes.
-        if (sideways && (Math.abs(dragX.value) > 80 || Math.abs(event.velocityX) > 600)) {
+        if (sideways.value && (Math.abs(dragX.value) > 80 || Math.abs(event.velocityX) > 600)) {
           const to = Math.sign(dragX.value || event.velocityX) * (screen / 2 + width / 2);
           dragX.value = withTiming(to, { duration: travel(to - dragX.value, event.velocityX), easing: Easing.out(Easing.quad) },
             (finished) => { if (finished) scheduleOnRN(dismiss, id); });
-        } else if (!sideways && (dragY.value > 24 || event.velocityY > 500)) {
+        } else if (!sideways.value && (dragY.value > 24 || event.velocityY > 500)) {
           const to = HEIGHT + GAP * 4;
           dragY.value = withTiming(to, { duration: travel(to - dragY.value, event.velocityY), easing: Easing.out(Easing.quad) },
             (finished) => { if (finished) scheduleOnRN(dismiss, id); });
