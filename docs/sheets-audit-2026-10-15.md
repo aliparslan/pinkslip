@@ -66,3 +66,14 @@ Nothing to decide; the redesign's builds remove these:
 - `auth/email/verify` (a form sheet) and `welcome` (a full-screen modal),
   until sign-in and onboarding are revisited.
 - Admin's Sources sheet: admin stays in the old kit.
+
+## Decided (owner, same day)
+
+- **Everything stays as it is for now.** The owner will come back to this
+  personally. The side-by-side drawings are on Paper "Sheets or pages ·
+  Oct 15" (each candidate now, and as a page).
+- **Your search stays a sheet:** it's what Jobs' filter button opens, and a
+  filter that pushes a page makes no sense. (Answering the owner: yes, Your
+  search and the Jobs filter are the same thing; the chips are the quick,
+  temporary tweaks.)
+
