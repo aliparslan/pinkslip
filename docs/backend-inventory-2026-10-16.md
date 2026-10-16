@@ -311,3 +311,24 @@ Filled in as the owner and Claude go through each part.
    time-sensitive kinds (interview, offer, a reply) don't count toward it.
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
+
+### Activity stream and Today (owner, 2026-10-16)
+
+1. **Its own table**, written when something happens: a stage moves (you,
+   an email, later auto-apply), an email needs a choice, a date is added or
+   changes, a reminder comes due, a follow-up comes due, a reply, a saved
+   job closes.
+2. **New-job alerts keep their own matcher;** the stream records each alert
+   sent ("5 new jobs"), so digests and the log stay whole.
+3. **Today in one request** (`GET /today`) with the app's rules: Needs you
+   (offers and interviews without a time, emails needing a choice,
+   follow-ups due), What changed (the last 3 days), Coming up (dated steps
+   in the next 2 weeks).
+4. **Seen is per person, on the server:** opening Today marks it seen on
+   every device. The app icon's badge counts only Needs you.
+5. **Needs you clears itself** when it's resolved (the stage moves, a date
+   is added, the follow-up is sent or stopped, the email is filed). No
+   manual dismiss for now, except emails, which already have one.
+6. **Backfilled** from existing timelines and emails, so Today isn't empty
+   on day one.
+
