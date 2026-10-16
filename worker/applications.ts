@@ -343,20 +343,22 @@ export async function legacyUnmarkApplied(db: D1Database, userId: string, jobId:
   const existing = await findApplicationForJob(db, userId, jobId);
   if (!existing || existing.stage === "saved") return;
   const saved = await db.prepare(
-    `SELECT occurred_at AS saved_at
+    `SELECT id, occurred_at AS saved_at
      FROM application_events
      WHERE application_id = ? AND stage = 'saved'
      ORDER BY julianday(occurred_at) DESC
      LIMIT 1`
-  ).bind(existing.id).first<{ saved_at: string | null }>();
+  ).bind(existing.id).first<{ id: string; saved_at: string | null }>();
   if (!saved?.saved_at) {
     await deleteApplication(db, existing.id);
     return;
   }
   const now = new Date().toISOString();
   await db.batch([
-    db.prepare("DELETE FROM application_events WHERE application_id = ? AND julianday(occurred_at) > julianday(?)")
-      .bind(existing.id, saved.saved_at),
+    // Every step since the save, the save itself kept: a step recorded in the
+    // same millisecond as the save goes too.
+    db.prepare("DELETE FROM application_events WHERE application_id = ? AND id <> ? AND julianday(occurred_at) >= julianday(?)")
+      .bind(existing.id, saved.id, saved.saved_at),
     db.prepare(
       `UPDATE applications
        SET stage = 'saved', applied_at = NULL, stage_date = NULL, stage_changed_at = ?, updated_at = ?
