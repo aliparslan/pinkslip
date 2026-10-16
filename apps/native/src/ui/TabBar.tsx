@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
+import { Badge } from "./Badge";
 import { Icon, type IconName } from "./Icon";
 import { motion, spring } from "./motion";
 import { useToastLift } from "./Toast";
@@ -29,17 +30,16 @@ const PILL = SLOT_HEIGHT + PAD * 2;
 /** iOS 26 draws real Liquid Glass; earlier versions get solid paper. */
 const GLASS = isLiquidGlassAvailable();
 
-/** The tabs the bar knows (their order is the layout's: Jobs, Tracker,
- * Search, You); routes it doesn't know stay hidden. The name is for
+/** The tabs the bar knows (their order is the layout's: Today, Jobs,
+ * Tracker, Search, You); routes it doesn't know stay hidden. The name is for
  * VoiceOver only. */
 const TABS: Record<string, { icon: IconName; label: string }> = {
+  "(today)": { icon: "today", label: "Today" },
   "(jobs)": { icon: "jobs", label: "Jobs" },
   "(library)": { icon: "tracker", label: "Tracker" },
   "(search)": { icon: "search", label: "Search" },
   "(you)": { icon: "you", label: "You" },
 };
-/** The lit icon's stroke, a touch heavier than the 1.75 at rest (owner, 2026-10-12). */
-const LIT_STROKE = 2;
 
 /** 0 is the full bar; 1 is the smaller one it becomes while you scroll down
  * (owner, 2026-10-14, as iOS 26 tucks its tab bar away). */
@@ -129,7 +129,10 @@ function slotWidth(lit: boolean) {
  * shrinks the bar. The job page and an application's have their own pinned
  * buttons, so the bar steps aside there.
  */
-export function TabBar({ state, navigation }: BottomTabBarProps) {
+export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
+  /** A pink count on a tab, by route: Today's is what needs you. */
+  badges?: Record<string, number>;
+}) {
   const insets = useSafeAreaInsets();
   const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname());
   // Toasts sit 12 above the pill; the job page's own bar takes over there.
@@ -211,7 +214,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
           {tabs.map((route, index) => {
             const tab = TABS[route.name]!;
-            return <TabSlot key={route.key} icon={tab.icon} label={tab.label}
+            return <TabSlot key={route.key} icon={tab.icon} label={tab.label} badge={badges?.[route.name]}
               selected={index === selected} lit={index === lit} onPress={() => open(index, true)} />;
           })}
         </GlassView>
@@ -221,9 +224,10 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 /** One tab. Lit, it widens into the oval with its icon in the middle. */
-function TabSlot({ icon, label, selected, lit, onPress }: {
+function TabSlot({ icon, label, badge, selected, lit, onPress }: {
   icon: IconName;
   label: string;
+  badge?: number;
   selected: boolean;
   lit: boolean;
   onPress: () => void;
@@ -235,15 +239,17 @@ function TabSlot({ icon, label, selected, lit, onPress }: {
   const oval = useAnimatedStyle(() => ({ opacity: on.value }));
   const mark = useAnimatedStyle(() => ({ transform: [{ translateX: ((LIT - PITCH) / 2) * on.value }] }));
 
-  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected }}>
+  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={badge ? `${label}, ${badge} need you` : label} accessibilityState={{ selected }}>
     <Animated.View style={[styles.slot, box]}>
       <Animated.View pointerEvents="none" style={[styles.oval, oval]} />
       {/* The outline icon; lit, it's pink and a touch heavier, and Tracker's
           end dot fills in (owner, 2026-10-12). */}
       <Animated.View style={[styles.icon, mark]}>
         {lit
-          ? <Icon name={icon} size={ICON} tone="accent" stroke={LIT_STROKE} weight={icon === "tracker" ? "fill" : "line"} />
+          ? <Icon name={icon} size={ICON} tone="accent" lit weight={icon === "tracker" ? "fill" : "line"} />
           : <Icon name={icon} size={ICON} tone="ink-2" />}
+        {/* The count rides on the icon's top right (System, the tab bar part). */}
+        {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
       </Animated.View>
     </Animated.View>
   </Pressable>;
@@ -255,7 +261,9 @@ const styles = StyleSheet.create((theme) => ({
   shrink: { transformOrigin: "bottom" },
   pill: { flexDirection: "row", padding: PAD, borderRadius: PILL / 2 },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
-  slot: { height: SLOT_HEIGHT, overflow: "hidden", borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous" },
-  oval: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: theme.ui.color.pill },
+  // Not clipped, so a badge can sit over the icon's corner; the oval rounds itself.
+  slot: { height: SLOT_HEIGHT },
+  oval: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color.pill },
   icon: { position: "absolute", left: ICON_INSET, top: (SLOT_HEIGHT - ICON) / 2 },
+  badge: { position: "absolute", left: 10, top: -8 },
 }));

@@ -72,7 +72,7 @@ function Fact({ fact }: { fact: TicketFact }) {
   </View>;
   const detail = fact.detail ? <View style={styles.detail}>
     <Text role="subhead" tone="ink-2" flex>{fact.detail}</Text>
-    {fact.onPress ? <Icon name="disclosure" size={13} tone="ink-3" /> : null}
+    {fact.onPress ? <Icon name="disclosure" size={12} tone="ink-4" /> : null}
   </View> : null;
   return <View style={styles.fact}>
     <Text role="footnote" tone="ink-3">{fact.label}</Text>

@@ -2,8 +2,8 @@ import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Text } from "./Text";
 
-/** A count that needs you: the pastel pink with dark text. Counts that don't
- * need you are plain grey text, not a badge. */
+/** A count that needs you: white on the pink fill, 20 tall. Counts that
+ * don't need you are plain grey text, not a badge. */
 export function Badge({ count }: { count: number }) {
   return <View style={styles.root} accessibilityLabel={`${count} waiting`}>
     <Text role="footnote" weight="medium" tone="accent-ink">{count > 99 ? "99+" : count}</Text>

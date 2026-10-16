@@ -373,10 +373,11 @@ export const uiDark = {
   // the outline keeps a dark logo's edge on graphite.
   "--ui-logo-tile": "oklch(1 0 0)",
   "--ui-image-outline": "oklch(1 0 0 / 0.14)",
-  // The ticket's paper grain and the punch card's punched holes. Grain lifts
-  // graphite slightly, as in the Paper renders (about +9 on the paper).
-  "--ui-grain": "oklch(0.9 0.01 70 / 0.2)",
-  "--ui-shadow-card": "0px 1px 1px oklch(0 0 0 / 0.5), 0px 10px 18px -12px oklch(0 0 0 / 0.7)",
+  // Paper in dark keeps light mode's dark grain and stands on a 1pt
+  // separator edge instead of a black drop shadow (owner, 2026-10-15, Paper
+  // "Dark mode · Oct 15": the light grain looked like TV static).
+  "--ui-grain": "oklch(0.36 0.04 60 / 0.26)",
+  "--ui-shadow-card": "0px 0px 0px 1px oklch(0.29 0.006 285)",
   // A punched hole shows the page behind the card, shaded under its top edge
   // (owner, 2026-10-12, after trying see-through and black holes).
   "--ui-shadow-hole": "inset 0px 2px 2.5px oklch(0 0 0 / 0.6)",

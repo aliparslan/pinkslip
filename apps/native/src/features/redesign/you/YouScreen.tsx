@@ -68,6 +68,8 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
     <ListGroup surface="fill" inset="leading">
       <ListItem leading={<IconTile icon="resume" meaning="apply" />} title="Resume" value={values.resume} accessory="chevron" onPress={() => open("resume")} />
       {show.answers ? <ListItem leading={<IconTile icon="answers" meaning="apply" />} title="Answers" value={values.answers} accessory="chevron" onPress={() => open("answers")} /> : null}
+      {/* Outreach is what you apply with, and writing yourself is free (owner, 2026-10-15, Q5). */}
+      <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" value="Soon" />
       <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Coming soon" accessory="chevron" onPress={() => open("tailoring")} />
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
@@ -75,7 +77,6 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
         ? <ListItem leading={<IconTile icon="plan" meaning="pro" />} title="Plan" value={values.plan} accessory="chevron" onPress={() => open("plan")} />
         : <ListItem leading={<IconTile icon="plan" meaning="pro" />} title="Plan" value="Soon" />}
       <ListItem leading={<IconTile icon="autoApply" meaning="pro" />} title="Auto-apply" value="Soon" />
-      <ListItem leading={<IconTile icon="send" meaning="pro" />} title="Outreach" value="Soon" />
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
       <View>

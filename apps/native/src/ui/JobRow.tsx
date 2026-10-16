@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
@@ -26,7 +26,9 @@ export interface JobRowProps {
   headline?: "company" | "news";
   /** Waiting on you (Today's Needs you): the pink dot, on any row. */
   needsYou?: boolean;
-  logo: Omit<CompanyLogoProps, "size">;
+  logo?: Omit<CompanyLogoProps, "size">;
+  /** In the logo's slot instead: Coming up's date tile. */
+  leading?: ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
   /** The row's menu again, for VoiceOver's actions rotor. */
@@ -44,7 +46,7 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
  * long, so every row is the same 84pt; text and separators start on the 68
  * line. Tracker's row makes the company the headline instead.
  */
-export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, onPress, onLongPress, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, onPress, onLongPress, actions }: JobRowProps) {
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
@@ -60,7 +62,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, pressed && !swiping && styles.pressed]}>
-    <View style={styles.logo}><CompanyLogo {...logo} /></View>
+    <View style={styles.logo}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
     <View style={styles.text}>
       <View style={styles.line}>
         <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>

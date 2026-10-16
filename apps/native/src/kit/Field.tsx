@@ -17,7 +17,7 @@ export type InputProps = TextInputProps & { invalid?: boolean };
 
 export const Input = forwardRef<TextInput, InputProps>(function Input({ invalid, style, ...props }, ref) {
   const { theme } = useUnistyles();
-  return <TextInput ref={ref} placeholderTextColor={theme.colors["ink-4"]} selectionColor={theme.colors.accent}
+  return <TextInput ref={ref} placeholderTextColor={theme.colors["ink-3"]} selectionColor={theme.colors.accent}
     keyboardAppearance={theme.mode === "light" || theme.mode === "lightContrast" ? "light" : "dark"} maxFontSizeMultiplier={1.8}
     {...props} style={[styles.input, invalid && styles.invalid, style]} />;
 });

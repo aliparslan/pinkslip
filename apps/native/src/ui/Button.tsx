@@ -42,7 +42,7 @@ export function Button({ variant = "secondary", size = "large", icon, pending, d
     accessibilityState={{ disabled: inactive, busy: pending }} disabled={inactive} onPress={onPress}
     style={fullWidth ? styles.full : styles.hug} contentStyle={[styles.root, disabled && variant !== "plain" && variant !== "text" && styles.disabled]}>
     {pending ? <ActivityIndicator size="small" color={color} />
-      : icon ? <Icon name={icon} size={size === "large" ? 18 : 16} tone={tone} /> : null}
+      : icon ? <Icon name={icon} size={size === "large" ? 20 : 16} tone={tone} /> : null}
     <Text role={size === "large" ? "body" : "subhead"} weight="medium" tone={tone} lines={1}>{children}</Text>
   </PressableScale>;
 }

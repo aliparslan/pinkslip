@@ -111,8 +111,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   return <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
-    renderItem={({ item }) => item.kind === "section"
-      ? <SectionHeader title={item.title} count={item.count} />
+    renderItem={({ item, index }) => item.kind === "section"
+      ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}

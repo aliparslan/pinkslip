@@ -33,7 +33,7 @@ export function JobsScreen() {
       top={<View style={styles.header}>
         <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
         <View style={styles.row}>
-          <SearchField value={text} onChangeText={setText} placeholder="Search jobs and companies" onSubmit={() => rememberSearch(text)} />
+          <SearchField value={text} onChangeText={setText} placeholder="Search these jobs" onSubmit={() => rememberSearch(text)} />
           <IconButton icon="editSearch" label="Your search" onPress={() => setEditing(true)} />
         </View>
       </View>}
@@ -54,7 +54,7 @@ function SearchEverything({ query }: { query: string }) {
       <Text role="subhead" weight="medium" lines={1}>Search everything for “{query}”</Text>
       <Text role="subhead" tone="ink-2">Companies and every open job</Text>
     </View>
-    <Icon name="disclosure" size={13} tone="ink-4" />
+    <Icon name="disclosure" size={12} tone="ink-4" />
   </Pressable>;
 }
 

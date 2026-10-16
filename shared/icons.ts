@@ -11,6 +11,7 @@
  */
 export const ICONS = {
   // The tab bar and the navigation bar
+  today: "Sun",
   jobs: "Briefcase",
   search: "MagnifyingGlass",
   tracker: "Path",
@@ -66,12 +67,14 @@ export const ICONS = {
   deadline: "CalendarBlank",
   resume: "FileText",
   answers: "ClipboardText",
+  /** Drawn as Pinkslip's own bot mark on iOS (B2, owner 2026-10-14); see Icon.tsx. */
   autoApply: "Robot",
   settings: "GearSix",
   signOut: "SignOut",
   plan: "Ticket",
   appearance: "CircleHalf",
   help: "ChatCircleDots",
+  whatsNew: "Gift",
   admin: "Wrench",
   /** A feature on the way (Tailoring): the wrench is a roadmap signal. */
   soon: "Wrench",

@@ -1,6 +1,6 @@
 import Svg, { Circle, Path } from "react-native-svg";
 import { useUnistyles } from "react-native-unistyles";
-import { Icon, ICON_STROKE } from "./Icon";
+import { Icon, LINE } from "./Icon";
 import type { StageMarkKind } from "./stage-group";
 import type { TextTone } from "./Text";
 
@@ -48,8 +48,8 @@ export function StageMark({ stage, size = 14, tone = "ink-2" }: StageMarkProps) 
     : stage === "interview" ? theme.ui.color["stage-interview"]
     : stage === "offer" ? theme.ui.color.good
     : theme.ui.color[ending ? "ink-3" : tone];
-  // The stroke stays ICON_STROKE points at any size.
-  const stroke = ICON_STROKE * (14 / size);
+  // The line is proportional, as every icon's is: the same on the 14 box at any size.
+  const stroke = 14 * LINE;
   const fill = fills[stage];
   const line = lines[stage];
   return <Svg width={size} height={size} viewBox="0 0 14 14">

@@ -30,6 +30,7 @@ export function RedesignGallery() {
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
+        <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
         <ListItem title="Application page with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-interview" } })} />
         <ListItem title="Email tracking, on" accessory="chevron" onPress={() => router.push({ pathname: "/you/email", params: { sample: "on" } })} />
