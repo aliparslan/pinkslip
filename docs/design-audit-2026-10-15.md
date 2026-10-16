@@ -3,8 +3,55 @@
 The owner asked for every gap, corner radius, button size, layout, grid,
 padding, margin, color, contrast ratio, icon, interaction pattern, person and
 intent to be checked, with nothing assumed to be fine because it was approved
-before. This is that audit. Nothing here has been changed yet: fixes are
-drawn in Paper after the owner decides, then built.
+before. This is that audit. The owner has since agreed with it; what was
+decided and fixed is below, and the rest of the file is the audit as it was
+written.
+
+## Decided (owner, 2026-10-15)
+
+The owner agreed with the whole report and left the open calls to me, with
+these answers of their own:
+
+| | Decision | Where it's done |
+| --- | --- | --- |
+| Q1 | Five tabs, 56 apart: Today, Jobs, Tracker, Search, You. The Search tab finds jobs and companies (so companies need nothing in settings); Jobs' field reads "Search these jobs" and only narrows the feed | Every Approved tab bar; System tab bar part; doc |
+| Q2 | Keep the pink. The bar for the pink button's white label is 3:1, as Robinhood's buttons are | Doc |
+| Q3 | Tab icons stay without names for now | No change |
+| Q4 | The ticket's paper stays as it is; revisit later. Options drawn on "Audit fixes · Oct 15" | Doc notes the exception |
+| Q5 | Outreach moves to the green group in You; Plan shows one allowance, "2 left of 3"; See Pro is 36 | Approved page |
+| Q6 | Auto-apply: two groups (the mode with its time and Pause; Which jobs), What it sends dropped, one footnote, Automatic shows only "Pro". Before and after on "Audit fixes · Oct 15" | Approved page (O12, A2) |
+| Q7 | A sheet with its own header has the 36 close button; every other sheet has the grab bar | Doc |
+| Q8 | 24 above a header after a list, 16 when first, 4 below; counts after the label everywhere | Approved page; doc |
+| Q9 | Skills are tags, filled, a part of their own | Doc |
+| Q10 | One Jordan Lee, jordan@lee.dev, New grad +1; Internships last | Approved page; System settings rows |
+| Q11 | A7 stays; Answers B is retired to "Retired from Approved" on the fixes page, and A7 loses its detail lines | Approved page |
+| Q12 | Selection on the left in a select mode, on the right in a review list | Doc |
+
+**Icons.** The owner asked for a line proportional to the icon's size, not
+1.75 everywhere: 7.3% of the icon (1.75 at 24), 8.3% when lit (2 at 24).
+Every icon on the Approved page (about 1,100 paths) and the System page was
+re-stroked to it, and every robot is the B2 bot mark now (four were still
+Phosphor's Robot). `Icon.tsx` still draws 1.75 at any size: that's for the
+build.
+
+**The up-and-down caret** got a wider gap between its chevrons (owner).
+
+**Fixed in Paper:** the "we" copy, section 2's out-of-date screens, every
+rule break in section 3, the sample person, Paper's tokens (`good`, `scrim`,
+`ink-3`, amber, stage and tile colors) and the placeholder caption.
+
+**Tokens:** `ink-3` (light) 0.53 to 0.51, Assessment amber to 0.65 (chroma
+0.145 to stay in sRGB). The "we" strings in code are rewritten.
+
+**For the build** (not done; the code still differs):
+- `Icon.tsx`: the proportional line; `Button.tsx`: 20 icons on 50 buttons;
+- chevrons: 12 `ink-4` in rows, 11 `ink-3` after words (section 8);
+- `ListItem`'s chevron space, section header spacing (Q8), the tab bar's
+  five tabs, the Jobs field, `Badge.tsx`'s comment, the old `kit/Field.tsx`
+  placeholders;
+- the quarter-side radius in `CompanyLogo` and `IconTile`; 48 header logos;
+- the Search tab: Paper draws iOS 26's search tab (the bar folds to a
+  circle beside a bottom field); the code has the field at the top.
 
 ## How it was done
 

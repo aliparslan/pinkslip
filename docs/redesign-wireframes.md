@@ -960,7 +960,28 @@ dropdown and a details form).
 - **"It's closed" also takes the job out of your Jobs**, as hiding it does
   (owner).
 
+## Audit fixes (owner, 2026-10-15, late)
+
+From [the design audit](design-audit-2026-10-15.md); the owner agreed with
+the report. Paper "Audit fixes · Oct 15" holds the comparisons.
+- **Auto-apply, after (Q6):** two groups. The first is the mode with its
+  time, and Pause as a row; the second is Which jobs. What it sends is
+  gone (Resume and Answers are rows in You already), one footnote stays,
+  and Automatic shows only "Pro". The before and after are side by side
+  on the fixes page; O12 and A2 on the Approved page are the after.
+- **Outreach in You (Q5)** moves to the green group, what you apply with.
+  Plan on Free shows one allowance ("2 left of 3"); See Pro is 36.
+- **Answers (Q11):** A7 stays and loses its detail lines; Answers B moved
+  to "Retired from Approved".
+- **Tabs (Q1):** five on every Approved screen, Today, Jobs, Tracker,
+  Search, You, 56 apart. Jobs' field reads "Search these jobs".
+- **The ticket's paper (Q4):** options were drawn; the owner keeps today's
+  for now.
+- **Sample person (Q10):** Jordan Lee, jordan@lee.dev, New grad +1.
+
 ## Auto-apply settings (owner, 2026-10-15)
+
+*Q6 above changes the groups; the rest stands.*
 
 Paper "Auto-apply settings · Oct 15". Opened from the Auto-apply row in
 You (it says Soon today). Drawn for Pro; what Free sees comes with the Pro

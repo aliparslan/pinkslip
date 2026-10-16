@@ -78,6 +78,10 @@ else is decided.
 - **Increase Contrast.** With it on, fills use the deeper pink, so white
   text passes 4.5:1. That is what Apple's App Store "Sufficient Contrast"
   label checks.
+- **The bar is 3:1 for the pink button's label** (owner, 2026-10-15, after
+  the audit measured it): the pink stays, as Robinhood's and Airbnb's
+  brand buttons do. Text on the page still aims for 4.5:1, which `ink-3`
+  reaches everywhere at L 0.51 (it was 0.53).
 
 ## Buttons
 
@@ -125,7 +129,14 @@ else is decided.
   inside it, so the thumb is 32, a chip's height (owner, 2026-10-13: 2
   inside looked cramped and was off the 4 scale). A segment can carry its
   count, as chips do (the company page's Jobs).
-- **Tab bar:** the selected tab sits in a soft oval with its filled icon.
+- **Tab bar:** the selected tab sits in a soft oval with its outline icon
+  in pink (see Icons).
+- **Which side the selection circle sits** (owner, 2026-10-15): on the
+  left in a select mode over a list (Jobs' select, as Mail does); on the
+  right in a review list you're trimming before it goes (Apply to 9).
+- **Tags aren't chips** (owner, 2026-10-15): skills and other labels you
+  can't tap to filter are tags, filled `fill` with `ink-2` text, so a
+  filled capsule never means "a chip that's off".
 
 ## Text
 
@@ -156,7 +167,9 @@ on one line share a size.
 - **Three heights:** the screen (`bg`, Mist); white cards on it
   (`bg-grouped`; the card shadow only for paper objects); things that float
   (`bg-elev` with the pill shadow: the tab bar, toasts). Higher is lighter,
-  so nothing sits on the page darker than it except a control.
+  so nothing sits on the page darker than it except a control and the paper
+  objects: `paper` is a touch darker than Mist and its shadow lifts it
+  (owner, 2026-10-15: kept as it is for now, to revisit).
 - **White sits on gray, in sheets too** (owner, 2026-10-15, Paper "Sheets ·
   three ways" A): a sheet is Mist (`sheet`) and its groups and fields are
   white (`sheet-group`), as Apple's grouped sheets are. Gray groups on a
@@ -167,8 +180,10 @@ on one line share a size.
   card. White cards are for settings, as on You. Search is the one darker
   well. Research and contrast numbers: `surfaces-research-2026-10-15.md`.
 - **Our own sheets:** float 8 in from the edges with 40 corners. Each step
-  is its own card at its own height. A grab bar sits on top instead of a
-  close button; swipe down or tap behind to close. A step opened from the
+  is its own card at its own height. A grab bar sits on top; swipe down or
+  tap behind to close. A sheet with its own header (a logo, a person, a
+  question that came back to you: "Did you apply?", Apply at, the queue)
+  has the 36 close button instead, and no grab bar (owner, 2026-10-15). A step opened from the
   first one has a round Back button at the bottom, left of its Done. Long
   lists scroll. They replace the system sheet everywhere.
 - **What a sheet holds is a plain menu** (owner, 2026-10-12): rows in a
@@ -176,7 +191,10 @@ on one line share a size.
   are 50 tall: the label, then the value in `ink-3`, then a chevron. Paper
   objects (the ticket, the punch card) stay on their pages; a raised card
   on a sheet loses its edge in dark mode.
-- **Corner radius:** 8 for logos and small controls, 12 for cards and lists,
+- **Squares round at a quarter of their side** (owner, 2026-10-15): a 28
+  tile at 7, a 40 logo or date tile at 10, a 48 logo at 12, a 56 logo at
+  14. `CompanyLogo` and `IconTile` compute it at the build.
+- **Corner radius:** 8 for small controls, 12 for cards and lists,
   16 for the ticket, 40 for sheets, fully round for buttons, chips and
   fields. Groups inside a sheet are concentric with it: the sheet's 40 less
   its 20 padding is 20, and the last group's bottom corners follow the
@@ -186,14 +204,15 @@ on one line share a size.
   side margins. Rhythm is 4–8 inside an item, 12–16 between items, 24–32
   between sections. Job rows are three 20pt lines (84 tall) with the 40
   logo on the 16 margin. Row text and separators start on the 68 line.
-- **Fixed sizes:** button 50, list row 44 or more, chip 32, icon button 44,
-  logo 40 (48 on a page), punch hole 24.
+- **Fixed sizes:** button 50 (36 small: Follow, Show, See Pro), list row
+  44 or more, chip 32, icon button 44, badge 20, logo 40 in rows and 48 in
+  every page header (job, company, event, person), punch hole 24.
 
 ## Status, badges and dots
 
-- **Unread:** a 7pt pink dot after the time.
-- **Counts that need you:** a pink badge with a white number (the Tracker
-  tab).
+- **Unread:** an 8pt pink dot after the time.
+- **Counts that need you:** a pink badge with a white number (the Today
+  tab), 20 tall.
 - **Stages:** the ring that fills as an application advances. Green only for
   Offer; endings are gray.
 - **Applied:** the torn stub (a paper object), not a checkmark.
@@ -202,10 +221,21 @@ on one line share a size.
 
 - **One set everywhere:** Phosphor, on iOS and the web
   (`shared/icons.ts`). System menus are text only.
-- **One stroke:** 1.75pt for every line icon at any size (owner,
-  2026-10-12). Filled icons for saved marks only.
-- **Sizes:** 24 in the tab bar, 20 in icon buttons, 16 in round 36 buttons
-  and on button labels, 12–14 for chevrons and checks.
+- **The line is proportional to the icon** (owner, 2026-10-15, replacing
+  "1.75pt at any size"): 1.75pt at 24, which is 7.3% of the icon. So 1.46
+  at 20, 1.31 at 18, 1.17 at 16, 1.02 at 14 and 0.88 at 12. The lit tab is
+  2pt at 24 (8.3%), and small checks on pink use that ratio too, so they
+  hold up on the colour. In Paper, a Phosphor outline on its 256 grid gets
+  a 2.67 stroke in its own colour (5.33 when lit); a centre-line path gets
+  18.67 on a 256 box, or 7.3% of whatever its box is. Filled icons for
+  saved marks only.
+- **Sizes:** 24 in the tab bar, 20 in icon buttons and on 50 buttons'
+  labels, 16 in round 36 buttons and on 36 buttons' labels, 18 on a
+  settings tile.
+- **Chevrons:** 12 in `ink-4` at the end of a row; 11 in `ink-3` only
+  where a chevron follows words ("Applied 142 ›"). The up-and-down caret
+  for a value that opens the iPhone's menu is two 12 chevrons with a gap
+  between them (owner, 2026-10-15: they had sat too close).
 - **Color:** `ink-2` at rest, `ink` when primary, white on pink, `ink-4`
   for chevrons.
 - **Settings tiles** (`IconTile`, owner 2026-10-14, Paper "You · Oct 14"
@@ -216,15 +246,19 @@ on one line share a size.
   the System page's Parts): our own icon for "Pinkslip does it for you", on
   Apply for me, Answer for me, the live bar and the Auto-apply row. It's an
   antenna with a ball, a round head and two pill eyes, drawn on Phosphor's
-  256 grid at the 1.75pt line. It replaces Phosphor Robot, whose mouth and
-  eyes filled in below 20.
+  256 grid at the kit's line. It replaces Phosphor Robot, whose mouth and
+  eyes filled in below 20. Every robot on the Approved page is this mark
+  now (2026-10-15: four still showed Phosphor's).
 - **Staying with Phosphor** (owner, 2026-10-14): Lucide was ruled out as
   overused. When Phosphor's glyph doesn't hold up at our sizes, we draw our
   own on its grid rather than switch packs.
 - **The selected tab** keeps its outline icon, in pink (`accent`) at a 2pt
   stroke, on the gray oval; Tracker's end dot fills in (owner, 2026-10-12).
-  The tabs are Jobs, Tracker, Search and You (the user circle), 56 apart;
-  the 64 × 46 oval is wider than that.
+  The tabs are Today, Jobs, Tracker, Search and You (the user circle), 56
+  apart; the 64 × 46 oval is wider than that (owner, 2026-10-15).
+- **Search** (2026-10-15): the Search tab finds jobs and companies, so
+  companies need no search of their own in settings. Jobs' field says
+  "Search these jobs" and only narrows your feed.
 
 ## Motion
 
@@ -301,13 +335,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     the page colour. Never a number in the logo slot.
 - **Section header** (`SectionHeader`): Footnote Medium `ink-2`, then the
   count in Footnote `ink-3` after a 6 gap, the way chips and segments carry
-  theirs (owner, 2026-10-13). Pink only for Needs you. 16 above, 4 below.
+  theirs (owner, 2026-10-13), on every screen; never at the far right.
+  Pink only for Needs you. 24 above a header that follows a list, 16 when
+  it's the first thing under the title or chips, 4 below (owner,
+  2026-10-15).
   Tracker's stage headers lead with the stage mark and open their stage,
   with a chevron after the count ("Applied 142 ›"); All shows each stage's
   latest three (owner, 2026-10-13: a "See all" row looked strange).
 - **Stage marks** (`StageMark.tsx`): Saved is the bookmark, since saving
   isn't a stage. The ring fills as a stage advances and is drawn at the
-  1.75 stroke like every line icon, 14 beside small text and 20 in a sheet
+  kit's line like every icon, 14 beside small text and 20 in a sheet
   (beside the 24 check).
   - **Color only where something's happening** (owner, 2026-10-14):
     Assessment amber, Interviewing blue, Offer `good`. Saved, Applied and
@@ -456,6 +493,13 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   2026-10-15, on Alerts).
 - **People** (Outreach): a round 40 avatar of initials (Founders 15
   `ink-2` on `fill`), where companies have square logos.
+- **The sample person** (owner, 2026-10-15): one Jordan Lee everywhere, a
+  recent grad with a personal address (jordan@lee.dev), searching New grad
+  and Early career ("New grad +1"). No school email, no "Interns" search.
+  Career stages list Internships last. These screens become the App Store
+  screenshots.
+- **Times:** within a day, "9h"; after that, "Oct 12". Future events keep
+  their clock time.
 
 After drawing, screenshot each artboard and check it against this list
 before showing it.
@@ -523,6 +567,23 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-15**
+  - The measured audit (`design-audit-2026-10-15.md`) is settled. The
+    owner agreed with the report and decided Q1 to Q12; its "Decided"
+    section lists each answer. Written into this file: the 3:1 bar for the
+    pink button; the proportional icon line (Paper's ~1,100 icons and the
+    System page re-stroked to it); five tabs with Search finding companies
+    too; the close-or-grab-bar rule for sheets; header spacing and counts;
+    tags; which side a selection circle sits; the quarter-side radius;
+    48 header logos; the sample person; times. The eight contradictions it
+    found are fixed (the unread dot is 8, Today carries the badge, button
+    icons are 20 on 50 buttons, logos follow the quarter rule, the tab list
+    has Today, the selected tab is outline, and chevrons are 12 or 11).
+  - Tokens: `ink-3` (light) 0.53 to 0.51, and Assessment amber 0.68 to
+    0.65 so its mark clears 3:1. Paper's tokens match, with `good`,
+    `scrim`, the stage and tile colors added.
+  - The up-and-down caret gets a wider gap between its chevrons (owner).
+  - The ticket's paper stays a touch darker than the page for now (owner:
+    revisit later).
   - Decided (owner, Paper "Outreach · Oct 15"): Outreach, recorded in
     `redesign-wireframes.md`. New rules above: copy, don't redraw; the
     "Did you …?" sheet; Pro in place of the radio; the chevron's space;
