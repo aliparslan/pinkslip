@@ -82,9 +82,9 @@ function CompanyJobs({ jobs }: { jobs: Job[] }) {
   const others = jobs.filter((job) => !fitting.includes(job));
   if (jobs.length === 0) return <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">No open jobs here right now.</Text></View>;
   return <View>
-    {fitting.length > 0 ? <SectionHeader title="Fits your search" count={fitting.length} /> : null}
+    {fitting.length > 0 ? <SectionHeader title="Fits your search" count={fitting.length} first /> : null}
     {fitting.map((job) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} />)}
-    {others.length > 0 ? <SectionHeader title={fitting.length > 0 ? "Other roles" : "Open roles"} count={others.length} /> : null}
+    {others.length > 0 ? <SectionHeader title={fitting.length > 0 ? "Other roles" : "Open roles"} count={others.length} first={fitting.length === 0} /> : null}
     {others.map((job) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} />)}
   </View>;
 }

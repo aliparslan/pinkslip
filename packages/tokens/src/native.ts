@@ -428,7 +428,7 @@ export const ui = {
       scrim: "rgba(0, 0, 0, 0.55)",
       "logo-tile": "#ffffff",
       "image-outline": "rgba(255, 255, 255, 0.14)",
-      grain: "rgba(226, 221, 215, 0.2)",
+      grain: "rgba(77, 56, 39, 0.26)",
     },
     light: {
       bg: "#f8f8f9",
@@ -504,7 +504,7 @@ export const ui = {
       scrim: "rgba(0, 0, 0, 0.55)",
       "logo-tile": "#ffffff",
       "image-outline": "rgba(255, 255, 255, 0.14)",
-      grain: "rgba(226, 221, 215, 0.2)",
+      grain: "rgba(77, 56, 39, 0.26)",
     },
     lightContrast: {
       bg: "#f8f8f9",
@@ -547,7 +547,7 @@ export const ui = {
   } satisfies Record<ThemeName, Record<UiColorToken, string>>,
   shadow: {
     dark: {
-      card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
+      card: "0px 0px 0px 1px #2b2b2e",
       hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
       pill: "0px 0px 0px 0.5px rgba(255, 255, 255, 0.12), 0px 12px 28px -6px rgba(0, 0, 0, 0.7)",
     },
@@ -557,7 +557,7 @@ export const ui = {
       pill: "0px 0px 0px 0.5px rgba(0, 0, 0, 0.08), 0px 2px 4px rgba(64, 50, 42, 0.08), 0px 12px 28px -6px rgba(64, 50, 42, 0.18)",
     },
     contrast: {
-      card: "0px 1px 1px rgba(0, 0, 0, 0.5), 0px 10px 18px -12px rgba(0, 0, 0, 0.7)",
+      card: "0px 0px 0px 1px #2b2b2e",
       hole: "inset 0px 2px 2.5px rgba(0, 0, 0, 0.6)",
       pill: "0px 0px 0px 0.5px rgba(255, 255, 255, 0.12), 0px 12px 28px -6px rgba(0, 0, 0, 0.7)",
     },

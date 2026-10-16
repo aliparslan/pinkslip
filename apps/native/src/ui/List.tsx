@@ -89,7 +89,10 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
     </View>
     {value ? <Text tone={settings ? "ink-3" : "ink-2"} lines={1}>{value}</Text> : null}
     {trailing}
-    {accessory === "chevron" ? <Icon name="disclosure" size={settings ? 12 : 14} tone={settings ? "ink-4" : "ink-3"} /> : null}
+    {/* A value without a chevron keeps the chevron's room, so values line up
+        down a card (owner, 2026-10-15). */}
+    {value && !trailing && accessory === "none" ? <View style={styles.chevronRoom} /> : null}
+    {accessory === "chevron" ? <Icon name="disclosure" size={12} tone="ink-4" /> : null}
     {accessory === "pick" ? <Icon name="pick" size={12} tone="ink-4" /> : null}
     {accessory === "check" && selected ? <Icon name="done" size={17} tone="accent" /> : null}
     {accessory === "radio" ? <Radio selected={selected} /> : null}
@@ -103,7 +106,7 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
 export function Radio({ selected }: { selected: boolean }) {
   const { theme } = useUnistyles();
   return <View style={[styles.radio, selected ? styles.radioOn : styles.radioOff]}>
-    {selected ? <Icon name="done" size={12} tone="accent-ink" /> : null}
+    {selected ? <Icon name="done" size={12} tone="accent-ink" lit /> : null}
   </View>;
 }
 
@@ -118,11 +121,14 @@ export interface SectionHeaderProps {
   /** Makes the header the way into its group, with a chevron after the
    * count ("Applied 142 ›"). */
   onPress?: () => void;
+  /** The first thing under the title or chips: 16 above it. After a list
+   * it's 24 (owner, 2026-10-15). */
+  first?: boolean;
 }
 
 /** The label above a run of plain rows (New today, Earlier this week), with
  * its count after it the way chips carry theirs. */
-export function SectionHeader({ title, count, needsYou, leading, onPress }: SectionHeaderProps) {
+export function SectionHeader({ title, count, needsYou, leading, onPress, first }: SectionHeaderProps) {
   const content = <>
     {leading}
     <View style={styles.sectionLabel}>
@@ -131,9 +137,9 @@ export function SectionHeader({ title, count, needsYou, leading, onPress }: Sect
       {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={11} tone="ink-3" /></View> : null}
     </View>
   </>;
-  if (!onPress) return <View style={styles.section} accessibilityRole="header">{content}</View>;
+  if (!onPress) return <View style={[styles.section, first && styles.sectionFirst]} accessibilityRole="header">{content}</View>;
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={count === undefined ? title : `${title}, ${count}`}
-    style={({ pressed }) => [styles.section, pressed && styles.sectionPressed]}>{content}</Pressable>;
+    style={({ pressed }) => [styles.section, first && styles.sectionFirst, pressed && styles.sectionPressed]}>{content}</Pressable>;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -161,6 +167,7 @@ const styles = StyleSheet.create((theme) => ({
   tall: { minHeight: 50 },
   pressed: { backgroundColor: theme.ui.color.fill },
   leading: { width: LEADING, alignItems: "center" },
+  chevronRoom: { width: 12 },
   text: { flex: 1, minWidth: 0 },
   inline: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
   radio: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full, alignItems: "center", justifyContent: "center" },
@@ -172,9 +179,10 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.ui.space["2"],
     paddingHorizontal: theme.ui.space["4"],
-    paddingTop: theme.ui.space["4"],
+    paddingTop: theme.ui.space["6"],
     paddingBottom: theme.ui.space["1"],
   },
+  sectionFirst: { paddingTop: theme.ui.space["4"] },
   sectionLabel: { flexDirection: "row", alignItems: "baseline", gap: 6 },
   // Tucked toward the count, centred on the text rather than its baseline.
   sectionChevron: { alignSelf: "center", marginLeft: -2 },

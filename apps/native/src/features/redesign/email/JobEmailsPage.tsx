@@ -67,8 +67,8 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
     <FlashList {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
       style={styles.fill} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       ListHeaderComponent={header}
-      renderItem={({ item }) => item.kind === "section"
-        ? <SectionHeader title={item.title} count={item.count} />
+      renderItem={({ item, index }) => item.kind === "section"
+        ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
         : <EmailRow email={item.email} onPress={() => {
           if (item.email.status === "needs_choice") setAsking(item.email);
           else if (item.email.application_id) actions.openApplication(item.email.application_id);

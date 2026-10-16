@@ -13,11 +13,12 @@ export function useInbox({ poll = false, enabled = true }: { poll?: boolean; ena
   return useQuery({ queryKey: queryKeys.personal.inbox(), queryFn: () => api.inbox.get(), refetchInterval: poll ? 4000 : false, enabled });
 }
 
-export function useInboxEmails(status?: InboundEmailStatus) {
+export function useInboxEmails(status?: InboundEmailStatus, { enabled = true }: { enabled?: boolean } = {}) {
   const api = useApi();
   return useQuery({
     queryKey: queryKeys.personal.inboxEmails(status),
     queryFn: async () => (await api.inbox.emails(status)).emails,
+    enabled,
   });
 }
 

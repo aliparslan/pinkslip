@@ -112,11 +112,11 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
     <FlashList ref={list} {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
-      renderItem={({ item }) => item.kind === "stage"
+      renderItem={({ item, index }) => item.kind === "stage"
         ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} />}
-          onPress={() => setView(item.group)} />
+          onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
-        ? <SectionHeader title={item.title} count={item.count} />
+        ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
         : <TrackerRow application={item.application} sample={Boolean(sample)} />}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
       ListEmptyComponent={sample ? null : <View style={[styles.empty, { minHeight: height * 0.6 }]}>
