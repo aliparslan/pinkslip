@@ -111,9 +111,9 @@ or change.
 
 - **Kinds and settings per kind:** which are on, and how often, per user.
   One row per user and kind replaces the two copies of on/off.
-- **The user's time zone:** for "once a day at 8:00", the morning list,
-  reminders and quiet hours. Nothing stores it yet.
-- **Quiet hours:** nothing but time-sensitive kinds overnight.
+- **The user's time zone:** for "once a day at 8:00", the morning list and
+  reminders. Nothing stores it yet.
+- **No quiet hours for now** (owner, 2026-10-16).
 - **A scheduler for timed sends:** reminders from dates, digests at a time.
   The every-minute tick can carry it, as follow-up reminders already do.
 - **Grouping and limits:** batch new jobs, collapse repeats, cap a day's
@@ -145,13 +145,9 @@ To check before building on it (status **Check**):
 - The matching pass once ran out of memory (comments in `worker/index.ts`);
   check it keeps up at today's volume.
 
-### To decide
+### Decided
 
-1. Which of N1 to N20 to have, and their defaults.
-2. Whether the redesign's Activity stream (§2) is where every notification
-   starts, so Today, the badge, pushes and the digest all agree.
-3. Quiet-hours window and the daily cap for passive kinds.
-4. Which kinds can also come by email.
+See "Decisions" at the end (notifications, 2026-10-16).
 
 ## 2. Activity stream and Today
 
@@ -231,7 +227,7 @@ Activity, the digest and each application's timeline.
 | Resume import (parse, OCR) | **Works** |
 | The resume editor's draft | **Check** where it saves |
 | Answers bank (Answers page, apply) | **Works** |
-| Time zone and quiet hours | **Missing** (see §1) |
+| Time zone | **Missing** (see §1) |
 
 ## 8. Outreach
 
@@ -281,7 +277,7 @@ Activity, the digest and each application's timeline.
 Each part ends with a short spec here, then the building session takes it.
 
 1. **Notifications foundation:** kinds and per-kind settings, time zone,
-   quiet hours, the scheduler, deep links, the log. Fix and check what's
+   the scheduler, deep links, the log. Fix and check what's
    live (§1 "Fix what we have"). Then N2, N3, N4 and N9, which need only
    what exists.
 2. **The Activity stream and Today** (§2): What changed, last-seen, the
@@ -298,4 +294,20 @@ Each part ends with a short spec here, then the building session takes it.
 
 ## Decisions
 
-(Filled in as the owner and Claude go through each part.)
+Filled in as the owner and Claude go through each part.
+
+### Notifications (owner, 2026-10-16)
+
+1. **First set:** N1 and N2 (new jobs, as they post or once a day), N3 (an
+   application moved), N4 (which application?), N5 to N8 (interview,
+   assessment, offer and hear-back reminders from the application's date),
+   N9 (a saved job closed) and N10 (follow-ups). N11 (they replied) follows
+   once replies are detected. N16 (the day in one line) exists but is off
+   by default. The rest wait for their features (auto-apply, following,
+   events, the weekly recap).
+2. **One source:** every notification starts from the Activity stream
+   (§2), so Today, the app icon's badge, pushes and any digest agree.
+3. **No quiet hours** for now. At most three passive pushes a day; the
+   time-sensitive kinds (interview, offer, a reply) don't count toward it.
+4. **Email** only for the weekly recap and "Forwarding stopped"; everything
+   else is push.
