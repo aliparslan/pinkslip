@@ -2,7 +2,8 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Children, Fragment, useState } from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native-unistyles";
+import Svg, { Path } from "react-native-svg";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
   Button, CompanyLogo, Icon, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, useSheet, useTabBarSpace,
 } from "../../../ui";
@@ -57,8 +58,15 @@ export function LiveBar({ run, onPause, roomGiven = false }: {
   </>;
 }
 
+/** Pause's two bars, or once paused the play triangle (Paper 4.3), both
+ * filled in ink so they weigh the same. */
 function PauseMark({ paused }: { paused: boolean }) {
-  if (paused) return <Icon name="refresh" size={14} />;
+  const { theme } = useUnistyles();
+  if (paused) {
+    return <Svg width={14} height={14} viewBox="0 0 14 14" accessible={false}>
+      <Path d="M4 2.2v9.6a.8.8 0 0 0 1.2.7l7.6-4.8a.8.8 0 0 0 0-1.4L5.2 1.5A.8.8 0 0 0 4 2.2z" fill={theme.ui.color.ink} />
+    </Svg>;
+  }
   return <View style={styles.pauseBars}><View style={styles.pauseBar} /><View style={styles.pauseBar} /></View>;
 }
 
