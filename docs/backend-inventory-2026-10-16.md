@@ -349,8 +349,46 @@ Filled in as the owner and Claude go through each part.
 6. **Any step's date can be fixed** from the application page, email steps
    included.
 7. **Applications without a Pinkslip job:** company, title, optional link,
-   stage; from "Track one from an email" or a new "Add an application"; a
-   catalog company is matched for the logo.
+   stage; from a new "Add an application" (and later, maybe, from an email:
+   see email tracking #4); a catalog company is matched for the logo.
 8. **Pay and the company's domain are kept on the application** (Tracker's
    pay, logos after a job is deleted).
+
+### Email tracking (owner, 2026-10-16)
+
+1. **Prove it first.** The owner checks Cloudflare's subaddressing and the
+   `inbox` route ([email-tracking.md](email-tracking.md), "Owner setup") and
+   forwards a few real job emails. A test set of real-shaped emails
+   (confirmations, rejections, interview invites, assessments, across the
+   common ATSs and schedulers) measures detection before anyone relies on it.
+2. **Rules first, AI only as the fallback** for an email that passed the
+   hiring check but the rules can't place, within the AI budget. Mail is
+   never sent to AI otherwise.
+3. **Dates from emails:** a clearly stated interview time or assessment
+   deadline sets the application's date, shown as "from the email". When
+   it's unclear, Today's existing "Add the interview date" row covers it.
+4. **Not a priority: tracking an application from one email.** Kept as a
+   note. Most confirmations don't link the posting, and the owner wants
+   nothing that asks the user (no "which role?" prompt). If it's ever
+   built, it creates an application only when the email names the company
+   and role clearly, and drops it otherwise.
+5. **Forwarding stopped (N18):** one nudge after 3 weeks without any mail,
+   only for people who forward everything; a job-only filter is often quiet.
+6. **They replied (N11):** mail from the person in an open outreach thread
+   marks it replied, stops its follow-ups and sends "Marcus replied"
+   (time-sensitive).
+7. **No email bodies are stored,** as today.
+
+### Accounts (owner, 2026-10-16)
+
+1. **Google sign-in** in the system's sign-in sheet (no new SDK, ships over
+   the air), on the web too.
+2. **Email and password:** passwords stored as one-way hashes; "Forgot
+   password?" emails a code; sign-in by code stays as the fallback, so
+   accounts made with links keep working.
+3. **One person, one account:** Google or a password on an email that's
+   already on an account joins it once the email is verified. Apple's
+   "Hide my email" addresses stay separate unless linked.
+4. **Guest data comes along on sign-in,** as today.
+5. **Deleting an account removes every sign-in method.**
 
