@@ -139,7 +139,7 @@ function Steps({ initial }: { initial: Profile }) {
             {resume.state === "error" && <Text tone="bad">{resume.message}</Text>}
           </>}
           {step === 4 && <>
-            <Text tone="ink-2">We'll send an alert when a new posting fits your search.</Text>
+            <Text tone="ink-2">Pinkslip sends an alert when a new posting fits your search.</Text>
             {push === "enabled" ? <View style={styles.done}><Check size={18} weight="bold" color={theme.colors.good} /><Text tone="good">Alerts are on for this iPhone</Text></View>
               : push === "denied" || push === "unsupported" ? <Text tone="warn">Alerts are off for Pinkslip in Settings. You can turn them on later in You.</Text>
               : <Button fullWidth icon={BellRinging} pending={enabling} onPress={() => void turnOnAlerts()}>Turn on alerts</Button>}

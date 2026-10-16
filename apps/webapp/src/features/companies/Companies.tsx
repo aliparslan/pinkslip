@@ -100,7 +100,7 @@ export function Companies() {
             <button type="button" className={styles.request} onClick={() => setRequesting(candidate)}>
               <span className={styles.copy}>
                 <Text as="span" weight="medium">Request “{candidate}”</Text>
-                <Text as="span" size="sm" tone="ink-3">Not seeing it? We'll look into adding it.</Text>
+                <Text as="span" size="sm" tone="ink-3">Not seeing it? Pinkslip will look into adding it.</Text>
               </span>
               <Plus size={17} weight="bold" aria-hidden />
             </button>

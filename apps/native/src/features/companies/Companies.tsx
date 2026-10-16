@@ -62,7 +62,7 @@ export function Companies() {
             </>}
         </View>}
         ListFooterComponent={offerRequest ? <Pressable accessibilityRole="button" onPress={() => setRequesting(candidate)} style={styles.request}>
-          <View style={styles.name}><Text weight="medium" tone="accent">Request "{candidate}"</Text><Text size="sm" tone="ink-3">Not seeing it? We'll look into adding it.</Text></View>
+          <View style={styles.name}><Text weight="medium" tone="accent">Request "{candidate}"</Text><Text size="sm" tone="ink-3">Not seeing it? Pinkslip will look into adding it.</Text></View>
           <Plus size={18} weight="bold" color={theme.colors.accent} />
         </Pressable> : null}
         ListEmptyComponent={offerRequest ? null : <EmptyState icon={view === "hidden" ? EyeSlash : Buildings}
