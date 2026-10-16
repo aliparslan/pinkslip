@@ -774,6 +774,34 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Dark mode (owner, 2026-10-15)
+
+Paper "Dark mode · Oct 15", approved: the current designs under the dark
+values in `tokens.ts` (`uiDark`), with one change for the paper objects
+(below).
+- **D1, the main screens:** Jobs offline, Today at release, You, a job page
+  with a failed save, an event page.
+- **D2, sheets and states:** Report a job, the Pro sheet over the review,
+  the stamped "This job closed" slip, loading placeholders, a field error.
+- A graphite page. Sheets sit a step lighter over the black scrim, and
+  their groups a step lighter again.
+- Pink stays the fill pink with white labels. Settings tiles are the
+  quieter D2 set, and logos stay on white tiles.
+- The ticket and the slip keep their own paper, edged with a 1pt
+  `separator` line instead of the drop shadow, with the same dark grain
+  as in light mode. The stamp turns light ink, and perforations are the
+  page color.
+- **The app changes to match at build** (owner, same day). Today's dark
+  tokens give paper a light grain (`grain`, white at 20%) and a black drop
+  shadow (`shadow-card`). Drawn that way, the owner said the paper "looks
+  like TV static". Set the dark `grain` to the light mode's and
+  `shadow-card` to the edge, then check it on the phone.
+- The tab bar and the toast are dark glass with the pill's hairline ring.
+- Found on the way: some Paper boards drew tab icons at Phosphor's plain
+  1.5pt. The app (`TabBar.tsx`) and the System page draw 1.75, and 2 when
+  lit. The dark boards are fixed; the light boards they came from still
+  draw the thinner icons.
+
 ## Events (owner, 2026-10-15)
 
 Paper "Events · Oct 15". Drawn in full; this release ships them as coming

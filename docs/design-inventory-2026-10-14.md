@@ -57,6 +57,12 @@ as designs: the kit is the spec.
 - **Loading** (Oct 15, Paper "Loading · Oct 15").
 - **What's new** (Oct 15, Paper "What's new · Oct 15").
 - **Pro moments** (Oct 15, Paper "Pro moments · Oct 15").
+- **Events** (Oct 15, Paper "Events · Oct 15"): the company page's Events
+  segment, the event page, Coming up once signed up. They ship as coming
+  soon.
+- **Dark mode** (Oct 15, Paper "Dark mode · Oct 15"): the main screens,
+  sheets and states. Paper objects' dark grain and edge change in tokens
+  at build.
 - **Tracker's Stats sheet:** coming-soon only.
 
 Built since the last count: Mist and Sheets A, the tab bar without names,
@@ -72,17 +78,15 @@ chips that keep their width, the 2pt sheet Back.
 
 ## Not designed in the kit yet (updated 2026-10-15)
 
-The first two block a release; the rest could follow it.
+Both block a release.
 
 1. **Outreach:** the People segment on a company page and a person's row;
    the composer with template chips and highlighted filled-in words; the
    follow-up plan and the thread; the daily quota (Pro).
    `OutreachSheet.tsx` is the old kit. Also Follow on a company page, and
    whether Alerts and auto-apply can stick to followed companies.
-2. **Sign-in, revisited** (parked above).
-3. **Events,** drawn in full though they ship as coming soon: the row, the
-   company page's Events segment, Register, Add to Calendar, Remind me.
-4. **Dark mode pass.** Empty states, errors and loading are done.
+2. **Sign-in, revisited** (parked above; the owner will come back to it
+   much later).
 
 Admin stays in the old kit.
 
