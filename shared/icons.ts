@@ -2,8 +2,8 @@
  * One idea, one icon, on every platform: Phosphor on iOS and the web, so the
  * brand looks the same everywhere (owner, 2026-10-12). Resting icons are
  * Regular, a selected tab is Fill, and Bold is for small marks that need
- * weight. Where iOS draws for us (long-press menus), items are text only
- * rather than mixing in another icon style.
+ * weight. iOS's own menus use the same Phosphor icons, from the app's asset
+ * catalog (owner, 2026-10-16), rather than mixing in another icon style.
  *
  * Application stages are drawn as Pinkslip's own ring (it fills as an
  * application advances), not as icons; saved jobs use the bookmark, since
@@ -77,6 +77,10 @@ export const ICONS = {
   help: "ChatCircleDots",
   whatsNew: "Gift",
   admin: "Wrench",
+  /** Admin's tools (Paper "Admin · Oct 16"). */
+  flagged: "Funnel",
+  jev: "Scales",
+  runs: "ArrowsClockwise",
   /** A feature on the way (Tailoring): the wrench is a roadmap signal. */
   soon: "Wrench",
   kit: "Swatches",

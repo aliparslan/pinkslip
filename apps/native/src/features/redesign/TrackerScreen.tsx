@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
 import {
-  Chip, EmptyState, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarScroll, useTabBarSpace, type StageGroup,
+  Chip, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarScroll, useTabBarSpace,
+  type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -173,7 +174,9 @@ function TrackerRow({ application, sample, thread }: { application: Application;
         {MOVE_TO.map((option) => <Link.MenuAction key={option.stage} isOn={application.stage === option.stage}
           onPress={() => { if (application.stage !== option.stage) move(option.stage); }}>{option.label}</Link.MenuAction>)}
       </Link.Menu>
-      <Link.MenuAction destructive onPress={forget}>Remove from Tracker</Link.MenuAction>
+      <Link.Menu inline title="">
+        {glyphMenuAction({ id: "remove", title: "Remove from Tracker", glyph: "remove", destructive: true, onSelect: forget })}
+      </Link.Menu>
     </Link.Menu>
   </Link>;
 }

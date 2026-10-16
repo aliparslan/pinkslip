@@ -1,9 +1,9 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
-  ArrowBendUpLeft, ArrowClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
-  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
+  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
 } from "phosphor-react-native";
@@ -15,10 +15,10 @@ import type { TextTone } from "./Text";
 // Every Phosphor name the shared table uses needs its component here: a
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
-  ArrowBendUpLeft, ArrowClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
   CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
-  PaperPlaneTilt, Plus, Prohibit, Robot, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
+  PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,
   // The package exports this one as PathIcon (Path would clash with SVG's).
   Path: PathIcon,

@@ -6,11 +6,11 @@ import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } fro
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Menu, Sheet } from "../../kit";
-import { Button, CompanyLogo, EmptyState, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift } from "../../ui";
+import { Sheet } from "../../kit";
+import { Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift, type GlyphMenuSpec } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
-import { useDetailJob, useJobPageActions, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
+import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
 import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
@@ -51,7 +51,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const insets = useSafeAreaInsets();
   usePinnedBarToastLift();
   const profile = usePreferences().data?.search_profile;
-  const { saved, applied, closed, toggleSave, apply, share, menu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
+  const { saved, applied, closed, toggleSave, apply, share, glyphMenu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
   const [placesOpen, setPlacesOpen] = useState(false);
 
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
@@ -92,7 +92,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
         </View>
       </Animated.View>
     </ScrollView>
-    <TopBar onShare={share} menu={menu.filter((item) => item.label !== "Share")} />
+    <TopBar onShare={share} menu={glyphMenu} />
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       {applied
         ? <Button icon="done" fullWidth>{appliedLabel(job)}</Button>
@@ -176,16 +176,17 @@ function BrokenLink({ jobId }: { jobId: string }) {
 }
 
 /** Back on the left; share and the ⋯ menu in one pill on the right (Paper
- * "Job page"), drawn with our icons. The menu is the system's, text only. */
-export function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] }) {
+ * "Job page"), drawn with our icons. The menu is the system's, with our
+ * icons too (Paper "Menus · Oct 16" M2). */
+export function TopBar({ onShare, menu }: { onShare: () => void; menu: GlyphMenuSpec }) {
   const insets = useSafeAreaInsets();
   return <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
     <IconButton icon="back" label="Back" onPress={() => router.back()} />
     <View style={styles.pill}>
       <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
-      <Menu title="" items={menu.map((item, index) => ({ id: String(index), title: item.label, destructive: item.destructive, onSelect: item.run }))}>
+      <GlyphMenu {...menu}>
         <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
-      </Menu>
+      </GlyphMenu>
     </View>
   </View>;
 }

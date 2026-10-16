@@ -12,9 +12,9 @@ import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import {
   Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text, useSheet,
-  type StubStamp,
+  type GlyphMenuItem, type GlyphMenuSpec, type StubStamp,
 } from "../../ui";
-import { useDetailJob, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
+import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";
 import {
   addStageDateLabels, asksForDate, daysSinceApplied, nextRowFacts, stageDateHasTime, stageDatePrompts, stageDateTitles, stageDateToSend,
   stageDateValue, stubStamps, type Stamp,
@@ -128,11 +128,13 @@ export function ApplicationView({ application, job, about, actions }: {
     { text: "Remove", style: "destructive", onPress: () => void actions.remove().catch(() => undefined) },
   ]);
   const share = () => void Share.share({ message: `${application.company_name}: ${application.title}`, url: application.url || undefined });
-  const menu: JobMenuItem[] = [
-    application.stage === "applied" && !application.stage_date ? { label: "Add a hear-back date", run: () => setSheet("date") } : null,
-    application.job_id ? { label: "Open the posting", run: () => router.push({ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(library)/jobs/[jobId]", params: { jobId: application.job_id! } }) } : null,
-    { label: "Remove from Tracker", destructive: true, run: confirmRemove },
-  ].filter((item): item is JobMenuItem => item !== null);
+  const menu: GlyphMenuSpec = {
+    items: [
+      application.stage === "applied" && !application.stage_date ? { id: "date", title: "Add a hear-back date", glyph: "date", onSelect: () => setSheet("date") } : null,
+      application.job_id ? { id: "open", title: "Open the posting", glyph: "open", onSelect: () => router.push({ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(library)/jobs/[jobId]", params: { jobId: application.job_id! } }) } : null,
+    ].filter((item): item is GlyphMenuItem => item !== null),
+    last: [{ id: "remove", title: "Remove from Tracker", glyph: "remove", destructive: true, onSelect: confirmRemove }],
+  };
 
   const stubStampsShown: StubStamp[] = stamps.map((stamp, index) => ({
     key: `${stamp.stage}-${index}`, label: stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,

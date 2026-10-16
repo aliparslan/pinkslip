@@ -9,6 +9,7 @@ import { router, usePathname } from "expo-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../kit";
+import type { GlyphMenuItem, GlyphMenuSpec } from "../../ui";
 import { haptics } from "../../platform/haptics";
 import { shareJob } from "../../platform/share";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
@@ -196,6 +197,26 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     admin && { label: "Block for everyone", icon: "nosign", destructive: true, run: confirmBlock },
   ].filter((item): item is JobMenuItem => Boolean(item));
 
+  // The redesigned page's ⋯ (Paper "Menus · Oct 16" M2): Save and Hide as
+  // icons across the top (Hide was "Not interested"), the rest with words,
+  // Block on its own. Share is beside ⋯ already, so it isn't here.
+  const glyphMenu: GlyphMenuSpec = {
+    top: [
+      { id: "save", title: saved ? "Saved" : "Save", glyph: saved ? "saved" : "save", onSelect: toggleSave },
+      !applied && { id: "hide", title: "Hide", glyph: "hide", onSelect: () => void notInterested() },
+    ].filter((item): item is GlyphMenuItem => Boolean(item)),
+    items: [
+      applied
+        ? { id: "unapply", title: "I didn't apply", glyph: "undo", onSelect: () => setApplied(false) }
+        : { id: "apply", title: "I applied", glyph: "applied", onSelect: () => setApplied(true) },
+      outreach && { id: "email", title: "Email recruiter", glyph: "email", onSelect: emailRecruiter },
+      { id: "tailor", title: "Tailor resume", glyph: "tailor", onSelect: () => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
+      job.company_id && { id: "company", title: `Hide ${job.company_name}`, glyph: "company", onSelect: hideTheCompany },
+      { id: "report", title: "Report listing", glyph: "report", onSelect: () => setReporting(true) },
+    ].filter((item): item is GlyphMenuItem => Boolean(item)),
+    last: admin ? [{ id: "block", title: "Block for everyone", glyph: "block", destructive: true, onSelect: confirmBlock }] : [],
+  };
+
   const sheets: ReactNode = <>
     {autoApply && <ApplicationBrowser request={applying} onClose={() => setApplying(null)}
       onSubmitted={() => markApplied.mutate(asJob, { onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); } })} />}
@@ -223,6 +244,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     },
     share: () => void shareJob(job),
     menu,
+    glyphMenu,
     sheets,
   };
 }

@@ -7,8 +7,11 @@ import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast, usePullToRefresh } from "../../kit";
-import { Chip, closeOpenSwipeRow, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace, type SwipeAction } from "../../ui";
+import { toast, usePullToRefresh, type MenuItem } from "../../kit";
+import {
+  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace,
+  type GlyphMenuItem, type MenuGlyph, type SwipeAction,
+} from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -166,10 +169,21 @@ function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: b
       </Link.Trigger>
       <Link.Preview />
       <Link.Menu>
-        {menu.map((item) => <Link.MenuAction key={item.id} destructive={item.destructive} onPress={item.onSelect}>{item.title}</Link.MenuAction>)}
+        {menu.filter((item) => !item.destructive).map((item) => glyphMenuAction(glyphItem(item)))}
+        {menu.some((item) => item.destructive) ? <Link.Menu inline title="">
+          {menu.filter((item) => item.destructive).map((item) => glyphMenuAction(glyphItem(item)))}
+        </Link.Menu> : null}
       </Link.Menu>
     </Link>
   </SwipeRow>;
+}
+
+/** A row's menu item with its icon (Paper "Menus · Oct 16" M1). */
+function glyphItem(item: MenuItem): GlyphMenuItem {
+  const glyph: MenuGlyph = item.id === "save" ? "save" : item.id === "unsave" ? "saved" : item.id === "applied" ? "applied"
+    : item.id === "unapplied" ? "undo" : item.id === "read" ? (item.icon === "envelope.open" ? "read" : "unread")
+    : item.id === "hide" ? "hide" : "block";
+  return { id: item.id, title: item.title, glyph, destructive: item.destructive, onSelect: item.onSelect };
 }
 
 /** The swipes (Paper "Swipe actions · Oct 14", S4, owner 2026-10-14):
