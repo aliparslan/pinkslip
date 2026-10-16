@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
-  Badge, Button, Chip, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket,
+  Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket,
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
@@ -57,7 +57,22 @@ export function RedesignGallery() {
         <ListItem title="Answers with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/answers", params: { sample: "on" } })} />
         <ListItem title="Report a job" accessory="chevron" onPress={() => setReporting(true)} />
         <ListItem title="What's new, after an update" accessory="chevron" onPress={() => setRelease(RELEASES[0] ?? null)} />
+        <ListItem title="Admin with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/admin", params: { sample: "on" } })} />
       </ListGroup>
+      {/* The job page's ⋯ (Paper "Menus · Oct 16" M2) without opening a real job. */}
+      <View style={styles.body}>
+        <GlyphMenu top={[{ id: "save", title: "Save", glyph: "save", onSelect: () => toast.show({ message: "Sample: saved" }) }, { id: "hide", title: "Hide", glyph: "hide", onSelect: () => toast.show({ message: "Sample: hidden" }) }]}
+          items={[
+            { id: "apply", title: "I applied", glyph: "applied", onSelect: () => undefined },
+            { id: "email", title: "Email recruiter", glyph: "email", onSelect: () => undefined },
+            { id: "tailor", title: "Tailor resume", glyph: "tailor", onSelect: () => undefined },
+            { id: "company", title: "Hide Stripe", glyph: "company", onSelect: () => undefined },
+            { id: "report", title: "Report listing", glyph: "report", onSelect: () => undefined },
+          ]}
+          last={[{ id: "block", title: "Block for everyone", glyph: "block", destructive: true, onSelect: () => undefined }]}>
+          <View style={styles.menuTrigger}><Text>The job page's ⋯ menu</Text></View>
+        </GlyphMenu>
+      </View>
       <ReportJobSheet jobId="sample" sample open={reporting} onClosed={() => setReporting(false)} />
       <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
     </Section>
@@ -203,6 +218,7 @@ const styles = StyleSheet.create((theme) => ({
   sectionTitle: { paddingHorizontal: theme.ui.size.gutter },
   body: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   flush: { gap: theme.ui.space["6"] },
+  menuTrigger: { minHeight: 44, justifyContent: "center", paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, backgroundColor: theme.ui.color["bg-grouped"] },
   row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   grouped: { backgroundColor: theme.ui.color["screen-grouped"], marginTop: theme.ui.space["8"], paddingBottom: theme.ui.space["8"] },

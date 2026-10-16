@@ -20,7 +20,7 @@ export function rowActions(job: RowJob, actions: JobActions, viewed: boolean) {
   const items: (MenuItem | false | undefined)[] = [
     save && !saved && { id: "save", title: "Save", icon: "bookmark", onSelect: () => save(job) },
     unsave && saved && { id: "unsave", title: "Remove from saved", icon: "bookmark.slash", onSelect: () => unsave(job) },
-    markApplied && !applied && { id: "applied", title: "Mark as applied", icon: "checkmark.circle", onSelect: () => markApplied(job) },
+    markApplied && !applied && { id: "applied", title: "I applied", icon: "checkmark.circle", onSelect: () => markApplied(job) },
     unmarkApplied && applied && { id: "unapplied", title: "I didn't apply", icon: "arrow.uturn.backward", onSelect: () => unmarkApplied(job) },
     toggleRead && { id: "read", title: viewed ? "Mark as unread" : "Mark as read", icon: viewed ? "envelope.badge" : "envelope.open", onSelect: () => toggleRead(job, !viewed) },
     hide && { id: "hide", title: "Hide", icon: "eye.slash", onSelect: () => hide(job) },
