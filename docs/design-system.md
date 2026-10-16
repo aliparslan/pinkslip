@@ -317,6 +317,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   - **Endings each have their own mark,** grey: Rejected is the ring with
     an ✕, Withdrawn the ring with an arrow back, Ghosted (was "No reply")
     Phosphor's ghost. Tracker's Closed group keeps the ring with a dash.
+- **Sheet or page** (owner, 2026-10-15): a sheet is for a quick choice or
+  form that drops you back where you were (sign in, report, edit search,
+  pick a plan, change stage, What's new). Anything you read, come back to
+  or share is a page (a job, an application, a company, an event).
 - **Empty and error states** (`EmptyState.tsx`, Paper "Parts · Empty
   state"): Title 2, one Body line in `ink-2`, the button under it on the
   same centre line, all centred in the room under the header. The slips
@@ -500,6 +504,13 @@ cut so that each remaining one has a job.
 ## Changelog
 
 - **2026-10-15**
+  - Paper "System" gains Part · Buttons (primary, secondary, outline,
+    disabled, plain, text), drawn from `Button.tsx`; the outline kind was
+    in the kit but not on the page. Follow on a company page is outline
+    (owner: filled pink is too much for something that matters this
+    little). Button icons are 20 at the 1.75 stroke.
+  - Decided (owner): sheet or page, see "Before drawing". An event is a
+    page.
   - Decided (owner, Paper "Errors · Oct 15"): error screens and states,
     recorded under "Empty and error states" above, with "Part · Errors" on
     the System page. The owner struck the "we/us" voice. Not built yet.

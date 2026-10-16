@@ -774,6 +774,29 @@ first card and the live bar.
 - **At release** (T1r, T3r): follow-ups wait for Outreach, so Coming up
   holds only dated steps from applications, interviews and assessments.
 
+## Events (owner, 2026-10-15)
+
+Paper "Events · Oct 15". Drawn in full; this release ships them as coming
+soon.
+- **A company's Events** (E1): the company page's Events segment with a
+  count; rows reuse Coming up's (the date tile, the weekday with the time
+  trailing, the event as the headline, where and how long, or when
+  sign-ups close). Follow is the outline button (owner), with "Following ✓"
+  in gray once tapped.
+- **An event is a page** (E2, owner: more room than a sheet): the job
+  page's layout, the company and the event's name, then the paper ticket
+  with Date, Time, Where, Sign-ups close and For, "Hosted by … · via …";
+  About with a few points; a pinned bar with Remind me (gray, bell) and
+  Sign up (pink, opens their page). Add to Calendar sits in ••• or takes
+  Remind me's place once signed up.
+- **Signed up** (E3): it joins Today's Coming up ("Online · the link shows
+  here that day"). Signing up happens on their site; coming back asks "Did
+  you sign up?", as "Did you apply?" does (not drawn).
+- "Sign up", not "Register". No app-wide events list yet; events from
+  companies you follow come with Follow, in the Outreach round.
+- The first draw put the event in a sheet; it stays on the board, marked
+  replaced.
+
 ## Pro moments (owner, 2026-10-15)
 
 Paper "Pro moments · Oct 15", approved. Free has Plan C's weekly
