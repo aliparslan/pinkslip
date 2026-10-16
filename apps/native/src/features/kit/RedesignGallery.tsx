@@ -8,6 +8,8 @@ import {
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
+import { ReportJobSheet } from "../redesign/ReportJobSheet";
+import { RELEASES, WhatsNewSheet, type Release } from "../redesign/whats-new";
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
 
 const facts = [
@@ -24,6 +26,8 @@ export function RedesignGallery() {
   const [torn, setTorn] = useState(false);
   const [punches, setPunches] = useState(3);
   const texture = usePaperTexture();
+  const [reporting, setReporting] = useState(false);
+  const [release, setRelease] = useState<Release | null>(null);
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
@@ -41,7 +45,11 @@ export function RedesignGallery() {
         <ListItem title="Alerts, every option" accessory="chevron" onPress={() => router.push({ pathname: "/you/alerts", params: { sample: "on" } })} />
         <ListItem title="Plan, Free" accessory="chevron" onPress={() => router.push({ pathname: "/you/plan", params: { sample: "free" } })} />
         <ListItem title="Plan, Pro" accessory="chevron" onPress={() => router.push({ pathname: "/you/plan", params: { sample: "pro" } })} />
+        <ListItem title="Report a job" accessory="chevron" onPress={() => setReporting(true)} />
+        <ListItem title="What's new, after an update" accessory="chevron" onPress={() => setRelease(RELEASES[0] ?? null)} />
       </ListGroup>
+      <ReportJobSheet jobId="sample" sample open={reporting} onClosed={() => setReporting(false)} />
+      <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
     </Section>
 
     <Section title="Type">

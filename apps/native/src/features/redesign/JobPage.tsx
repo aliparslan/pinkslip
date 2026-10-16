@@ -1,18 +1,19 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { usePreferences } from "@pinkslip/data";
-import { router, Stack, useIsFocused } from "expo-router";
+import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu, Sheet } from "../../kit";
-import { Button, Icon, IconButton, ListGroup, ListItem, SheetModal, Text, Ticket, useToastLift } from "../../ui";
+import { Button, CompanyLogo, EmptyState, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift } from "../../ui";
+import { logoUri } from "../jobs/CompanyLogo";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob, type JobMenuItem } from "../job-detail/useJobPage";
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
-import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, ticketRows, ticketStub } from "./job-facts";
+import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
@@ -21,16 +22,20 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
   const { theme } = useUnistyles();
   const { job, status, full, failed, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
   if (!job) {
-    return <View style={styles.center}>
+    if (status === "loading") return <View style={styles.center}>
       <Stack.Screen options={{ title: "" }} />
-      {status === "loading" ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
-        : <View style={styles.missing}>
-          <Text role="title2" align="center">{status === "gone" ? "This job isn't available" : "This job didn't load"}</Text>
-          <Text role="subhead" tone="ink-2" align="center">{status === "gone" ? "It may have closed or been removed." : "Check your connection and try again."}</Text>
-          {status === "error" ? <Button size="small" onPress={retry}>Try again</Button> : null}
-        </View>}
+      <ActivityIndicator color={theme.ui.color["ink-3"]} />
     </View>;
+    // A link to a job that isn't there (W4) is rare enough for its slip; a
+    // job that didn't load is plain, with a grey retry (Paper "Errors · Oct 15").
+    return <ErrorPage>{status === "gone"
+      ? <EmptyState art={<StampedSlip stamp="RETURN TO SENDER" detail="NO SUCH PAGE"><BrokenLink jobId={jobId} /></StampedSlip>}
+        title="This link goes nowhere" message="It may be old, or cut short."
+        action={{ label: "Go to Jobs", onPress: () => router.navigate("/") }} />
+      : <EmptyState title="This job didn't load" message="Check your connection and try again."
+        action={{ label: "Try again", variant: "secondary", onPress: retry }} />}</ErrorPage>;
   }
+  if (job.closed_at) return <ClosedJob job={job} />;
   return <JobView job={job} full={full || failed} pendingDescription={pendingDescription} onRetryDescription={retryDescription} outreachThread={outreachThread} />;
 }
 
@@ -122,6 +127,54 @@ export function usePinnedBarToastLift() {
   useToastLift(useIsFocused() ? Math.max(insets.bottom, theme.ui.space["4"]) + BAR : null);
 }
 
+/** A page with nothing to show: the round Back, then the error centred in the room. */
+function ErrorPage({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return <View style={styles.fill}>
+    <Stack.Screen options={{ headerShown: false }} />
+    <View style={[styles.errorTop, { paddingTop: insets.top }]}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
+    <View style={styles.errorBody}>{children}</View>
+  </View>;
+}
+
+/** W3: the job's own ticket, stamped CLOSED with the day it closed, and the
+ * way on to the company's other jobs. */
+function ClosedJob({ job }: { job: DetailJob }) {
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
+  const company = plainText(job.company_name);
+  const day = new Date(job.closed_at!).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+  const companyId = job.company_id;
+  return <ErrorPage>
+    <EmptyState art={<StampedSlip stamp="CLOSED" detail={day}>
+      <View style={styles.slipJob}>
+        <CompanyLogo name={job.company_name} uri={logoUri(job.company_domain)} />
+        <View style={styles.slipText}>
+          <Text role="subhead" tone="ink-2" lines={1}>{company}</Text>
+          <Text weight="medium" lines={2}>{plainText(job.title)}</Text>
+        </View>
+      </View>
+      <View style={styles.slipRule} />
+      <Text role="footnote" tone="ink-2" lines={1}>{rowFacts(job)}</Text>
+    </StampedSlip>}
+      title="This job closed" message={`${company} stopped taking applications.`}
+      action={companyId
+        ? { label: `More jobs at ${company}`, onPress: () => router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId } }) }
+        : { label: "Go to Jobs", onPress: () => router.navigate("/") }} />
+  </ErrorPage>;
+}
+
+/** W4's slip: a blank posting with the link at its foot. */
+function BrokenLink({ jobId }: { jobId: string }) {
+  return <>
+    <View style={styles.slipLines}>
+      <View style={[styles.slipLine, styles.slipLineTitle]} />
+      <View style={[styles.slipLine, styles.slipLineLong]} />
+    </View>
+    <View style={styles.slipRule} />
+    <Text role="footnote" tone="ink-3" lines={1}>{`pinkslip.alip.dev/jobs/${jobId.slice(0, 4)}…`}</Text>
+  </>;
+}
+
 /** Back on the left; share and the ⋯ menu in one pill on the right (Paper
  * "Job page"), drawn with our icons. The menu is the system's, text only. */
 export function TopBar({ onShare, menu }: { onShare: () => void; menu: JobMenuItem[] }) {
@@ -146,7 +199,16 @@ const styles = StyleSheet.create((theme) => ({
   pill: { flexDirection: "row", borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
-  missing: { alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.space["8"] },
+  errorTop: { paddingHorizontal: theme.ui.size.gutter },
+  // Centred in the room under Back, a little above the middle.
+  errorBody: { flex: 1, justifyContent: "center", paddingBottom: 64 },
+  slipJob: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["3"] },
+  slipText: { flex: 1, gap: 2 },
+  slipRule: { height: 1, marginVertical: theme.ui.space["3"], borderTopWidth: 1, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"] },
+  slipLines: { gap: 10, paddingVertical: 6 },
+  slipLine: { borderRadius: 4 },
+  slipLineTitle: { width: 96, height: 8, backgroundColor: theme.ui.color["ink-4"] },
+  slipLineLong: { width: 160, height: 7, backgroundColor: theme.ui.color.separator },
   body: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"] },
   ticket: { marginTop: theme.ui.space["6"] },
   after: { gap: theme.ui.space["6"], marginTop: theme.ui.space["6"] },

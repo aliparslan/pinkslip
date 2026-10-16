@@ -3,12 +3,12 @@ import { useApplications, useInbox, useRemoveApplication, useSession, useUpdateA
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
 import {
-  Chip, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarScroll, useTabBarSpace, type StageGroup,
+  Chip, EmptyState, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, useTabBarScroll, useTabBarSpace, type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -119,10 +119,9 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
         : <TrackerRow application={item.application} sample={Boolean(sample)} />}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
-      ListEmptyComponent={sample ? null : <View style={[styles.empty, { minHeight: height * 0.6 }]}>
-        {applications.isPending ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
-          : applications.isError
-          ? <EmptyState title="Tracker didn't load" message="Check your connection and try again."
+      ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.6 }]}>
+        {applications.isError
+          ? <EmptyState title="Tracker didn't load" message="Your applications are safe."
             action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />
           : <EmptyState slips title="Nothing here yet" message="Jobs you save or apply to show up here."
             action={{ label: "Browse jobs", onPress: () => router.navigate("/") }} />}

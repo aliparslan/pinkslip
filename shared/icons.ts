@@ -48,6 +48,7 @@ export const ICONS = {
   // Drawn as our own two soft squares on iOS (owner, 2026-10-14); see Icon.tsx.
   copy: "Copy",
   warning: "WarningCircle",
+  offline: "CloudSlash",
 
   // Email and people
   email: "EnvelopeSimple",

@@ -8,8 +8,9 @@ const profile = (patch: Partial<SearchProfile> = {}): SearchProfile => ({ ...DEF
 
 describe("Edit search summaries", () => {
   test("career stages shorten to fit a menu row, and every stage is Any", () => {
-    expect(stageSummary(profile({ target_levels: ["new_grad", "early_career"] }))).toBe("New grad, Early");
-    expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "mid_career"] }))).toBe("Interns +2");
+    expect(stageSummary(profile({ target_levels: ["new_grad"] }))).toBe("New grad");
+    expect(stageSummary(profile({ target_levels: ["new_grad", "early_career"] }))).toBe("New grad +1");
+    expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "mid_career"] }))).toBe("New grad +2");
     expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "early_career", "mid_career"] }))).toBe("Any");
   });
 

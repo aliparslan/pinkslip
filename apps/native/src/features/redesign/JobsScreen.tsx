@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Icon, IconButton, SearchField, Text } from "../../ui";
 import { EditSearchSheet } from "./EditSearch";
+import { OfflinePill } from "./errors";
 import { JobsFeed } from "./JobsFeed";
 import { rememberSearch } from "./recent-searches";
 
@@ -30,8 +31,11 @@ export function JobsScreen() {
   return <>
     <Stack.Screen options={{ headerShown: false }} />
     <JobsFeed query={query || undefined} chips onClearQuery={() => setText("")}
-      top={<View style={styles.header}>
-        <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+      top={(offline) => <View style={styles.header}>
+        <View style={styles.titleRow}>
+          <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+          {offline ? <OfflinePill /> : null}
+        </View>
         <View style={styles.row}>
           <SearchField value={text} onChangeText={setText} placeholder="Search these jobs" onSubmit={() => rememberSearch(text)} />
           <IconButton icon="editSearch" label="Your search" onPress={() => setEditing(true)} />
@@ -61,6 +65,7 @@ function SearchEverything({ query }: { query: string }) {
 const styles = StyleSheet.create((theme) => ({
   header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"] },
   row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   everything: {
     flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"],
     paddingHorizontal: theme.ui.size.gutter, paddingVertical: theme.ui.space["3"],

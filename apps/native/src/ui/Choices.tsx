@@ -34,15 +34,17 @@ export interface ChoiceProps {
   leading?: ReactNode;
   /** What it costs or holds, before the check ("$24.99"). */
   value?: string;
+  /** One line each, 48 tall, Regular until picked (Report's reasons). */
+  plain?: boolean;
 }
 
 /** A row to pick: title on the left, the round check on the right. */
-export function Choice({ title, detail, selected, onPress, multiple = false, leading, value }: ChoiceProps) {
+export function Choice({ title, detail, selected, onPress, multiple = false, leading, value, plain = false }: ChoiceProps) {
   return <Pressable onPress={onPress} accessibilityRole={multiple ? "checkbox" : "radio"} accessibilityState={{ checked: selected }}
-    accessibilityLabel={title} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    accessibilityLabel={title} style={({ pressed }) => [styles.row, plain && styles.plain, pressed && styles.pressed]}>
     {leading ? <View style={styles.leading}>{leading}</View> : null}
     <View style={styles.text}>
-      <Text weight="medium">{title}</Text>
+      <Text weight={plain && !selected ? "regular" : "medium"}>{title}</Text>
       {detail ? <Text role="footnote" tone="ink-3">{detail}</Text> : null}
     </View>
     {value ? <Text>{value}</Text> : null}
@@ -96,6 +98,7 @@ const styles = StyleSheet.create((theme) => ({
   last: { borderBottomLeftRadius: SHEET_GROUP_BOTTOM_RADIUS, borderBottomRightRadius: SHEET_GROUP_BOTTOM_RADIUS },
   rule: { height: 1, backgroundColor: theme.ui.color.separator },
   row: { minHeight: theme.ui.size.listRow + 12, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"] },
+  plain: { minHeight: 48, paddingVertical: theme.ui.space["2"] },
   /** A menu row is 50 tall, as drawn. */
   link: { minHeight: 50, gap: theme.ui.space["2"], paddingVertical: 0 },
   text: { flex: 1, gap: 2 },

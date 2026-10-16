@@ -3,10 +3,10 @@ import { feedParams } from "@pinkslip/core/feed-criteria";
 import { useApplications, useAssignInboundEmail, useDismissInboundEmail, useFeed, useInboxEmails, useSession } from "@pinkslip/data";
 import { router, Stack } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
-import { DateTile, EmptyState, Icon, JobRow, SectionHeader, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
@@ -91,10 +91,10 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   ].filter((section) => section.items.length > 0);
 
   const body = applications.isPending && !sample
-    ? <View style={[styles.center, { minHeight: height * 0.5 }]}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
+    ? <RowPlaceholders />
     : applications.isError && !sample
     ? <View style={[styles.center, { minHeight: height * 0.6 }]}>
-      <EmptyState title="Today didn't load" message="Check your connection and try again."
+      <EmptyState title="Today didn't load" message="Your applications are safe."
         action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />
     </View>
     : nothing

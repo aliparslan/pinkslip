@@ -2,7 +2,7 @@ import { NO_ROLE_PREFERENCE, roleChips, rolesFromChips, visibleRoles, type Profi
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { useApi, useCompanies, usePreferences, usePushSettings, useUpdatePreferences } from "@pinkslip/data";
 import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
-import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, MAX_YEARS_EXPERIENCE, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
+import { LOCATION_OPTIONS, MAX_YEARS_EXPERIENCE, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
 import { router, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -11,7 +11,7 @@ import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, useSheetGuard } from "../../ui";
 import {
-  changedRows, changedSentence, experienceSummary, needsSponsorship, rolesSummary, stageName, stageSummary, toggled, wantsRemote, whereSummary,
+  changedRows, changedSentence, experienceSummary, needsSponsorship, rolesSummary, stageName, STAGES_IN_ORDER, stageSummary, toggled, wantsRemote, whereSummary,
   withRemote,
 } from "./search-draft";
 
@@ -123,9 +123,9 @@ function YourSearch() {
 
   if (step === "stage") {
     return choices("Career stage", <Choices>
-      {CAREER_STAGE_OPTIONS.map((option) => <Choice key={option.id} multiple title={stageName(option.id)} detail={stageDetail[option.id]}
-        selected={draft.target_levels.includes(option.id)}
-        onPress={() => { const next = toggled(draft.target_levels, option.id); if (next) change({ target_levels: next }); }} />)}
+      {STAGES_IN_ORDER.map((id) => <Choice key={id} multiple title={stageName(id)} detail={stageDetail[id]}
+        selected={draft.target_levels.includes(id)}
+        onPress={() => { const next = toggled(draft.target_levels, id); if (next) change({ target_levels: next }); }} />)}
     </Choices>);
   }
 

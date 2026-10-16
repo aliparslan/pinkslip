@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button, type ButtonVariant } from "./Button";
@@ -10,6 +11,8 @@ export interface EmptyStateProps {
   /** The two stacked slips above the title, for a list with nothing in it
    * yet. Leave them off when something went wrong. */
   slips?: boolean;
+  /** In the slips' place: a rare error's stamped slip. */
+  art?: ReactNode;
   /** The one thing to do: pink when it's the way forward (Browse jobs), grey
    * for a retry. */
   action?: { label: string; onPress: () => void; pending?: boolean; variant?: ButtonVariant; icon?: IconName };
@@ -22,9 +25,10 @@ export interface EmptyStateProps {
  * state"): Title 2, one Body line in ink-2, then the button and an optional
  * text button, all on one centre line, 16 apart, 32 in from the edges.
  */
-export function EmptyState({ title, message, slips, action, secondary }: EmptyStateProps) {
+export function EmptyState({ title, message, slips, art, action, secondary }: EmptyStateProps) {
   return <View style={styles.root}>
-    {slips ? <View style={styles.slips} accessible={false}>
+    {art}
+    {slips && !art ? <View style={styles.slips} accessible={false}>
       <View style={[styles.slip, styles.back]} />
       <View style={[styles.slip, styles.front]}>
         <View style={[styles.line, styles.lineTitle]} />
