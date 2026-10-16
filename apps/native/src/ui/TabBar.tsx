@@ -1,7 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { usePathname, useScrollToTop } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Pressable, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { makeMutable, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
@@ -40,6 +40,31 @@ const TABS: Record<string, { icon: IconName; label: string }> = {
   "(search)": { icon: "search", label: "Search" },
   "(you)": { icon: "you", label: "You" },
 };
+
+/** Pages with their own pinned action (Add experience, Send) ask the bar to
+ * step aside while they're in front (owner, 2026-10-14). */
+const asides = new Set<symbol>();
+const asideListeners = new Set<() => void>();
+function setAside(key: symbol, on: boolean) {
+  if (on === asides.has(key)) return;
+  if (on) asides.add(key);
+  else asides.delete(key);
+  for (const listener of asideListeners) listener();
+}
+
+/** While `active`, the tab bar steps aside for this page's pinned bar. */
+export function useTabBarStepsAside(active: boolean) {
+  const [key] = useState(() => Symbol("aside"));
+  useEffect(() => {
+    setAside(key, active);
+    return () => setAside(key, false);
+  }, [key, active]);
+}
+
+/** Whether a page has asked the bar to step aside. */
+export function useTabBarSteppedAside(): boolean {
+  return useSyncExternalStore((listener) => { asideListeners.add(listener); return () => asideListeners.delete(listener); }, () => asides.size > 0);
+}
 
 /** 0 is the full bar; 1 is the smaller one it becomes while you scroll down
  * (owner, 2026-10-14, as iOS 26 tucks its tab bar away). */
@@ -134,7 +159,8 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   badges?: Record<string, number>;
 }) {
   const insets = useSafeAreaInsets();
-  const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname());
+  const steppedAside = useTabBarSteppedAside();
+  const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname()) || steppedAside;
   // Toasts sit 12 above the pill; the job page's own bar takes over there.
   useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
   const tabs = state.routes.filter((route) => TABS[route.name]);

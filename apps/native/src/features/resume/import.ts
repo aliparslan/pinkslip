@@ -18,6 +18,10 @@ export interface ImportedResume {
   isCurrent(): boolean;
 }
 
+/** Where an import is, for a sheet that says what it's doing: reading the
+ * PDF's text, or reading a scan page by page. */
+export type ImportStep = { step: "reading" | "scanning"; name: string };
+
 /** A real PDF starts with "%PDF-". */
 async function looksLikePdf(uri: string): Promise<boolean> {
   try {
@@ -34,16 +38,18 @@ async function looksLikePdf(uri: string): Promise<boolean> {
  * the existing OCR endpoint. The caller retains the PDF for applications
  * after the person accepts the import.
  */
-export async function pickAndImportResume(api: ApiClient, render: (uri: string) => Promise<OcrPage[]>, isActive = () => true): Promise<ImportedResume | null> {
+export async function pickAndImportResume(api: ApiClient, render: (uri: string) => Promise<OcrPage[]>, isActive = () => true, onProgress?: (step: ImportStep) => void): Promise<ImportedResume | null> {
   const token = currentSessionToken();
   const current = () => isActive() && token === currentSessionToken();
   const picked = await pickPdf();
   if (!picked || !current()) return null;
+  onProgress?.({ step: "reading", name: picked.name });
   try {
     if (picked.size > MAX_RESUME_BYTES) throw new ResumeImportFailure("file_too_large");
     if (!(await looksLikePdf(picked.uri))) throw new ResumeImportFailure("invalid_pdf");
     if (!current()) return null;
     const result = await parseWithOcr(() => parseResumeFile(api, picked.uri), async () => {
+      onProgress?.({ step: "scanning", name: picked.name });
       const pages = await render(picked.uri);
       if (!current()) throw new Error("Session changed");
       const files: File[] = [];

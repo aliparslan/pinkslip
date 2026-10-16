@@ -45,6 +45,8 @@ export function RedesignGallery() {
         <ListItem title="Alerts, every option" accessory="chevron" onPress={() => router.push({ pathname: "/you/alerts", params: { sample: "on" } })} />
         <ListItem title="Plan, Free" accessory="chevron" onPress={() => router.push({ pathname: "/you/plan", params: { sample: "free" } })} />
         <ListItem title="Plan, Pro" accessory="chevron" onPress={() => router.push({ pathname: "/you/plan", params: { sample: "pro" } })} />
+        <ListItem title="Resume with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/resume", params: { sample: "on" } })} />
+        <ListItem title="Answers with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/answers", params: { sample: "on" } })} />
         <ListItem title="Report a job" accessory="chevron" onPress={() => setReporting(true)} />
         <ListItem title="What's new, after an update" accessory="chevron" onPress={() => setRelease(RELEASES[0] ?? null)} />
       </ListGroup>

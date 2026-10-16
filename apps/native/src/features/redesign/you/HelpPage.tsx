@@ -53,7 +53,8 @@ export function HelpView({ actions }: HelpViewProps) {
       },
     },
   ], "plain-text");
-  return <YouPage title="Help and feedback">
+  return <YouPage title="Help and feedback"
+    bar={<Button variant="primary" fullWidth disabled={subject.trim().length < 2} pending={sending} onPress={send}>Send</Button>}>
     <View style={styles.slot}>
       <Segmented value={kind} onChange={setKind} segments={[{ value: "idea", label: "An idea" }, { value: "problem", label: "A problem" }]} />
     </View>
@@ -66,9 +67,6 @@ export function HelpView({ actions }: HelpViewProps) {
           placeholder={kind === "idea" ? "What should Pinkslip do?" : "What happened?"} placeholderTextColor={theme.ui.color["ink-3"]}
           style={[styles.details, font]} accessibilityLabel="Details" />
       </View>
-    </View>
-    <View style={styles.slot}>
-      <Button variant="primary" fullWidth disabled={subject.trim().length < 2} pending={sending} onPress={send}>Send</Button>
     </View>
     <ListGroup surface="fill">
       <ListItem title="Request a company" accessory="chevron" onPress={request} />

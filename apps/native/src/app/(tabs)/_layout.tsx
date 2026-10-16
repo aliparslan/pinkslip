@@ -6,7 +6,7 @@ import { useUnistyles } from "react-native-unistyles";
 import { useRedesign } from "../../features/redesign/flag";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
-import { TabBar, useTabBarSpace } from "../../ui";
+import { TabBar, useTabBarSpace, useTabBarSteppedAside } from "../../ui";
 
 /** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
  * Search and You, each with its own stack. The redesign draws its own
@@ -22,6 +22,8 @@ function PillTabs() {
   const { theme } = useUnistyles();
   const space = useTabBarSpace();
   const needsYou = useTodayNeedsYou();
+  // A page with its own pinned bar takes the tab bar's room back.
+  const aside = useTabBarSteppedAside();
   // The app opens on Today, the first tab; "/" is still Jobs for links.
   const pathname = usePathname();
   useEffect(() => {
@@ -29,7 +31,7 @@ function PillTabs() {
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   // The room under the pill is the page's white, so it reads as page.
-  const padded = { sceneStyle: { paddingBottom: space, backgroundColor: theme.ui.color.bg } };
+  const padded = { sceneStyle: { paddingBottom: aside ? 0 : space, backgroundColor: theme.ui.color.bg } };
   return <>
   <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(today)" />
