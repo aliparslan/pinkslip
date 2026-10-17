@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { ArrowClockwise, Briefcase, Compass, WarningCircle } from "@phosphor-icons/react";
 import { Button, EmptyState } from "../../kit";
 import { LinkButton } from "../navigation/LinkButton";
+import { reportError } from "../errors/ErrorEffects";
 
 /** Unknown paths. The server already answers these with a 404 status. */
 export function NotFoundPage() {
@@ -32,6 +33,7 @@ export function RouteErrorPage({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     console.error(error);
+    reportError(error);
   }, [error]);
   return <EmptyState
     level={1}

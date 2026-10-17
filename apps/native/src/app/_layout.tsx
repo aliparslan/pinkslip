@@ -1,13 +1,17 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useUnistyles } from "react-native-unistyles";
 import { AppProviders } from "../features/shell/AppProviders";
 import { stackOptions } from "../features/shell/stack-options";
+import { setErrorRoute } from "../platform/error-reporting";
 import "../platform/updates-channel";
 
 export default function RootLayout() {
   const { theme } = useUnistyles();
+  const pathname = usePathname();
+  useEffect(() => setErrorRoute(pathname), [pathname]);
   const light = theme.mode === "light" || theme.mode === "lightContrast";
   // Navigation reads light or dark from its own theme and forces the header
   // (and its search bar) into that style, so it has to follow ours.

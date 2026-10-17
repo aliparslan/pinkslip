@@ -6,6 +6,7 @@ import { SessionEffects } from "../features/session/SessionEffects";
 import { SessionGate } from "../features/session/SessionGate";
 import { ApplicationReturnPrompt } from "../features/job-detail/ApplicationReturnPrompt";
 import { PushEffects } from "../features/alerts/PushEffects";
+import { ErrorEffects } from "../features/errors/ErrorEffects";
 import { chromeColor, ThemeEffects } from "../features/theme/theme";
 import { ToastProvider, TooltipProvider } from "../kit";
 import type { RouterContext } from "../platform/router-context";
@@ -52,7 +53,7 @@ function Root() {
       <meta name="theme-color" media="(prefers-color-scheme: light)" content={chromeColor.light} />
     </head>
     <body>
-      <TooltipProvider><ToastProvider><NavigationEffects /><ThemeEffects /><SessionEffects /><PushEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
+      <TooltipProvider><ToastProvider><ErrorEffects /><NavigationEffects /><ThemeEffects /><SessionEffects /><PushEffects /><Shell><SessionGate><Outlet /></SessionGate></Shell><ApplicationReturnPrompt /></ToastProvider></TooltipProvider>
       <Scripts />
     </body>
   </html>;
