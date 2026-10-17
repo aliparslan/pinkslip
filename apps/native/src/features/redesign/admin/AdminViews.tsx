@@ -1,19 +1,22 @@
 import { readableCode } from "@pinkslip/core/admin-format";
 import type {
-  ClassificationDisagreement, ClassificationVerdict, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
+  ActualRole, ClassificationDisagreement, ClassificationVerdict, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
+  RecruiterCandidate, WorksThere,
 } from "@pinkslip/core/api";
 import { companySourceLabel } from "@pinkslip/domain/company-sources";
 import { useState } from "react";
 import { ActionSheetIOS, Alert, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  Button, Chip, CompanyLogo, EmptyState, Icon, IconButton, IconTile, JobRow, ListGroup, ListItem, SearchField, SwipeRow, Text, type IconName, type SwipeAction,
+  Button, Chip, CompanyLogo, EmptyState, Icon, IconButton, IconTile, JobRow, ListGroup, ListItem, SearchField, Segmented, SwipeRow, Text, type IconName,
+  type SwipeAction,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { JobIdentity } from "../JobIdentity";
 import { YouPage } from "../you/Page";
 import {
-  ago, callWord, failingSources, flagReasons, jevDifferences, rowAge, runLength, shortDate, sourceProblem, sourceStatus, tierRow, type Health, type NeedsYouRow,
+  ago, callWord, failingSources, flagReasons, jevDifferences, recruiterFacts, rowAge, runLength, shortDate, sourceProblem, sourceStatus, tierRow, type Health,
+  type NeedsYouRow,
 } from "./admin-facts";
 
 /**
@@ -233,6 +236,58 @@ export function JevView({ rows, judged, budget, onJudge }: {
   </YouPage>;
 }
 
+const WORKS_THERE: { value: WorksThere; label: string }[] = [
+  { value: "yes", label: "Yes" }, { value: "no", label: "No" }, { value: "unsure", label: "Not sure" },
+];
+const ROLES: { value: ActualRole; label: string }[] = [
+  { value: "early_career", label: "Early-career" }, { value: "other_recruiter", label: "Other recruiter" }, { value: "not_recruiter", label: "Not a recruiter" },
+];
+
+/** A7, Recruiters (Paper "Admin · Oct 16", note 7: Jev's pattern): one
+ * person at a time, what the search made of them, and the two questions
+ * pinned where Jev's verdicts are. With both answered the next person
+ * comes up. Nothing here reaches users (docs/recruiter-contacts-sourcing.md). */
+export function RecruitersView({ queue, tally, canRun, searching, onSearch, onLabel, onOpenProfile }: {
+  queue: RecruiterCandidate[];
+  tally: string;
+  canRun: boolean;
+  searching: boolean;
+  onSearch: () => void;
+  onLabel: (row: RecruiterCandidate, labels: { works_there?: WorksThere; actual_role?: ActualRole }) => void;
+  onOpenProfile: (row: RecruiterCandidate) => void;
+}) {
+  const row = queue[0];
+  if (!row) {
+    return <YouPage title="Recruiters">
+      <EmptyState title="Nobody to label" message={canRun ? tally : "Set SERPER_API_KEY on the Worker to search."}
+        action={canRun ? { label: searching ? "Searching…" : "Search 5 more companies", onPress: onSearch } : undefined} />
+    </YouPage>;
+  }
+  return <YouPage title="" action={<Text role="subhead" tone="ink-3">{`1 of ${queue.length}`}</Text>}
+    bar={<View style={styles.questions}>
+      <View style={styles.question}>
+        <Text role="footnote" weight="medium" tone="ink-2">Works there now?</Text>
+        <Segmented value={row.works_there} onChange={(value) => onLabel(row, { works_there: value })} segments={WORKS_THERE} />
+      </View>
+      <View style={styles.question}>
+        <Text role="footnote" weight="medium" tone="ink-2">Their role</Text>
+        <Segmented value={row.actual_role} onChange={(value) => onLabel(row, { actual_role: value })} segments={ROLES} />
+      </View>
+    </View>}>
+    <View style={styles.gutter}><JobIdentity companyName={[row.company, row.location].filter(Boolean).join(" · ")} title={row.name} /></View>
+    <ListGroup surface="fill">
+      {/* A long value goes under its label, as on the flagged job's page. */}
+      {recruiterFacts(row).map(([label, value]) => value.length > 18
+        ? <ListItem key={label} title={label} detail={value} />
+        : <ListItem key={label} title={label} value={value} />)}
+    </ListGroup>
+    <ListGroup surface="fill" footer="Turn on private mode in LinkedIn first, or people see that you viewed them.">
+      <ListItem title="Open in LinkedIn" trailing={<Icon name="apply" size={16} tone="ink-3" />} onPress={() => onOpenProfile(row)} />
+    </ListGroup>
+    <View style={styles.gutterText}><Text role="footnote" tone="ink-3">{tally}</Text></View>
+  </YouPage>;
+}
+
 function CompareRow({ label, rules, jev, strong }: { label: string; rules: string; jev: string; strong?: boolean }) {
   return <View style={styles.compareRow}>
     <View style={styles.compareLabel}><Text tone="ink-3" lines={1}>{label}</Text></View>
@@ -392,6 +447,8 @@ const styles = StyleSheet.create((theme) => ({
   runLine: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   dot: { width: 8, height: 8, borderRadius: 4 },
   pair: { flexDirection: "row", gap: theme.ui.space["3"] },
+  questions: { gap: theme.ui.space["3"] },
+  question: { gap: theme.ui.space["2"] },
   verdicts: { gap: theme.ui.space["1"] },
   compare: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
   compareHead: { flexDirection: "row", alignItems: "center", minHeight: 40, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ui.color.separator },

@@ -1,5 +1,8 @@
 import { friendlyPollError, sourceNeedsAttention } from "@pinkslip/core/admin-format";
-import type { ClassificationDisagreement, Company, FeedbackSubmission, ContentReport, FetchRun, JobReview, PollTierLatency } from "@pinkslip/core/api";
+import type {
+  ClassificationDisagreement, Company, FeedbackSubmission, ContentReport, FetchRun, JobReview, PollTierLatency, RecruiterCandidate, RecruiterKind,
+  RecruiterReviewScore,
+} from "@pinkslip/core/api";
 
 /**
  * What Admin says, worked out from its data (owner, 2026-10-16, Paper
@@ -158,4 +161,49 @@ export function flagEvidence(review: JobReview): [string, string][] {
     if (code === "advanced_degree_uncertain") return [label, evidence.requires_advanced_degree ? "Looks required" : "Unclear"];
     return [label, ""];
   });
+}
+
+/** Left-out reasons worth a second look; the rest name their evidence
+ * ("works at Sierra", "based outside the US"). */
+const QUESTIONABLE = new Set(["company not confirmed", "not a recruiter", "no usable name"]);
+
+const labelled = (row: RecruiterCandidate) => row.works_there !== null && row.actual_role !== null;
+
+/** Recruiters (A7, Jev's pattern): who's left to label, one at a time. The
+ * kept people first, then the left-out ones worth a second look. A person
+ * stays until both questions have answers. */
+export function recruiterQueue(candidates: RecruiterCandidate[]): RecruiterCandidate[] {
+  const open = candidates.filter((row) => !labelled(row));
+  return [
+    ...open.filter((row) => row.left_out_reason === null),
+    ...open.filter((row) => row.left_out_reason !== null && QUESTIONABLE.has(row.left_out_reason)),
+  ];
+}
+
+const KIND_WORDS: Record<RecruiterKind, string> = {
+  early_career: "Early-career recruiter",
+  technical: "Technical recruiter",
+  recruiter: "Recruiter",
+  coordinator: "Recruiting coordinator",
+  intern: "Recruiting intern",
+  other: "Not a recruiter",
+};
+
+/** What the search made of a person, as label and value rows. */
+export function recruiterFacts(row: RecruiterCandidate): [string, string][] {
+  const facts: [string, string][] = [["Title", row.current_title ?? row.headline]];
+  facts.push(row.left_out_reason
+    ? ["Left out", row.left_out_reason.replace(/^./, (letter) => letter.toUpperCase())]
+    : ["Kept as", `${KIND_WORDS[row.kind]}${row.kind_from_snippet ? ", from their summary" : ""}`]);
+  if (row.email_guess) facts.push(["Email", row.email_confidence ? `${row.email_guess} · ${row.email_confidence}` : row.email_guess]);
+  return facts;
+}
+
+/** The score as one sentence under the person, as Jev's tally is. */
+export function recruiterTally(score: RecruiterReviewScore | undefined): string {
+  if (!score || score.works_there.labelled === 0) return "Label a few to see how the search is doing.";
+  const of = (right: number, total: number) => `${right} of ${total}`;
+  return `So far: ${of(score.works_there.yes, score.works_there.labelled)} work there now, kind right ${of(score.role.right, score.role.labelled)}, `
+    + `early-career right ${of(score.early_career.right, score.early_career.labelled)}`
+    + (score.left_out_labelled > 0 ? `, ${of(score.wrongly_left_out, score.left_out_labelled)} wrongly left out.` : ".");
 }

@@ -609,6 +609,12 @@ cut so that each remaining one has a job.
     "Sent by Pinkslip · via Greenhouse" and "What it sent ›" (`Stub`
     `action.opens`). Samples only until sends are recorded. The Search
     tab's field moved to the bottom (Search, above).
+  - Admin's Recruiters on this kit (Paper "Admin · Oct 16", note 7, not
+    drawn): Jev's pattern, one person at a time with "1 of N", what the
+    search made of them as label rows, Open in LinkedIn, and the two
+    questions pinned as `Segmented` controls (which now take no answer
+    yet); both answered brings the next person. Home's "Label N
+    recruiters" counts the same queue.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

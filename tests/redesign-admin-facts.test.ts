@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { Company, FetchRun, JobReview, PollTierLatency } from "../packages/core/src/api";
+import type { Company, FetchRun, JobReview, PollTierLatency, RecruiterCandidate } from "../packages/core/src/api";
 import {
-  ago, failingSources, flagEvidence, lastDay, needsYou, runLength, runLine, sourceProblem, sourceStatus, tierRow,
+  ago, failingSources, flagEvidence, lastDay, needsYou, recruiterFacts, recruiterQueue, recruiterTally, runLength, runLine, sourceProblem, sourceStatus, tierRow,
 } from "../apps/native/src/features/redesign/admin/admin-facts";
 
 const now = new Date(2026, 9, 16, 12, 0).getTime();
@@ -74,5 +74,37 @@ describe("admin facts", () => {
     expect(tierRow(tier({}))).toEqual({ label: "Every 5 minutes", value: "7 min", bad: false });
     expect(tierRow(tier({ target_interval_minutes: 120, overdue_sources: 4 }))).toEqual({ label: "Every 2 hours", value: "4 overdue", bad: true });
     expect(runLength(112_000)).toBe("1:52");
+  });
+});
+
+describe("recruiters", () => {
+  const person = (id: string, patch: Partial<RecruiterCandidate> = {}): RecruiterCandidate => ({
+    id, company_id: "stripe", company: "Stripe", profile_url: "", name: id, headline: "Recruiter at Stripe", current_title: "University Recruiter",
+    current_employer: "Stripe", location: null, kind: "early_career", kind_from_snippet: false, employer_evidence: "current employer",
+    left_out_reason: null, email_guess: null, email_confidence: null, works_there: null, actual_role: null, reviewed_at: null, ...patch,
+  });
+
+  test("the queue is the kept, then left-out people worth a second look, until both questions are answered", () => {
+    const queue = recruiterQueue([
+      person("left", { left_out_reason: "company not confirmed" }),
+      person("based abroad", { left_out_reason: "based outside the US" }),
+      person("half", { works_there: "yes" }),
+      person("done", { works_there: "yes", actual_role: "early_career" }),
+      person("kept"),
+    ]);
+    expect(queue.map((row) => row.id)).toEqual(["half", "kept", "left"]);
+  });
+
+  test("facts say how the search read them", () => {
+    expect(recruiterFacts(person("a", { kind: "technical", kind_from_snippet: true, email_guess: "a@stripe.com", email_confidence: "likely" }))).toEqual([
+      ["Title", "University Recruiter"], ["Kept as", "Technical recruiter, from their summary"], ["Email", "a@stripe.com · likely"],
+    ]);
+    expect(recruiterFacts(person("b", { left_out_reason: "not a recruiter" }))[1]).toEqual(["Left out", "Not a recruiter"]);
+  });
+
+  test("the tally is one sentence", () => {
+    expect(recruiterTally(undefined)).toBe("Label a few to see how the search is doing.");
+    expect(recruiterTally({ works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 }, wrongly_left_out: 1, left_out_labelled: 5 }))
+      .toBe("So far: 21 of 24 work there now, kind right 17 of 21, early-career right 6 of 7, 1 of 5 wrongly left out.");
   });
 });

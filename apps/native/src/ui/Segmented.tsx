@@ -3,7 +3,8 @@ import { StyleSheet } from "react-native-unistyles";
 import { Text } from "./Text";
 
 export interface SegmentedProps<T extends string> {
-  value: T;
+  /** Null while nothing is chosen yet (a question not answered). */
+  value: T | null;
   onChange: (next: T) => void;
   segments: ReadonlyArray<{ value: T; label: string; count?: number }>;
 }

@@ -2,22 +2,24 @@ import { readableCode } from "@pinkslip/core/admin-format";
 import type { ClassificationDisagreement, ClassificationVerdict, Company } from "@pinkslip/core/api";
 import {
   MANUAL_SWEEP_BATCHES, useClassificationReport, useClassificationVerdict, useCompanies, useDeleteCompany, useFeedbackInbox, useJobReviews, useModerateFeedback,
-  useModerateReport, useModerateReview, useProductMetrics, useRecruiterReview, useRefreshAllSources, useRefreshInbox, useReports, useRuns, useRunLatency, useToggleCompany,
+  useModerateReport, useModerateReview, useProductMetrics, useRecruiterLabel, useRecruiterReview, useRefreshAllSources, useRefreshInbox, useReports, useRuns,
+  useRunLatency, useRunRecruiterSourcing, useToggleCompany,
 } from "@pinkslip/data";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
 import { Sheet } from "../../../kit";
 import { EmptyState, toast, UNDO_TOAST_DURATION } from "../../../ui";
 import { AddSourceForm, EditSourceForm } from "../../admin/Sources";
 import {
-  SAMPLE_COMPANIES, SAMPLE_FEEDBACK, SAMPLE_JEV, SAMPLE_METRICS, SAMPLE_REPORTS, SAMPLE_REVIEWS, SAMPLE_RUNS, SAMPLE_TIERS,
+  SAMPLE_COMPANIES, SAMPLE_FEEDBACK, SAMPLE_JEV, SAMPLE_METRICS, SAMPLE_RECRUITER_SCORE, SAMPLE_RECRUITERS, SAMPLE_REPORTS, SAMPLE_REVIEWS, SAMPLE_RUNS,
+  SAMPLE_TIERS,
 } from "../../kit/admin-sample";
 import { YouPage } from "../you/Page";
-import { ago, failingSources, flagEvidence, lastDay, needsYou, runLine, shortDate } from "./admin-facts";
+import { ago, failingSources, flagEvidence, lastDay, needsYou, recruiterQueue, recruiterTally, runLine, shortDate } from "./admin-facts";
 import {
-  AdminHomeView, askForNote, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, reportRow, RunsView, SourcesView,
+  AdminHomeView, askForNote, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, RecruitersView, reportRow, RunsView, SourcesView,
   type AdminTool, type InboxRow,
 } from "./AdminViews";
 
@@ -69,7 +71,7 @@ export function AdminHomePage() {
   const reviewList = reviews.data?.pages.flatMap((page) => page.reviews) ?? [];
   const jevRows = jev.data?.available ? jev.data.disagreements ?? [] : [];
   const candidates = recruiters.data?.available ? recruiters.data.candidates ?? [] : [];
-  const toLabel = candidates.filter((row) => row.left_out_reason === null && (row.works_there === null || row.actual_role === null));
+  const toLabel = recruiterQueue(candidates);
   const ready = Boolean(runs.data && companies.data && reviews.data && feedback.data && reports.data);
   const counts = jev.data?.counts;
   const compared = counts ? counts.agree + counts.rules_only + counts.jev_only : 0;
@@ -248,6 +250,46 @@ export function JevPage() {
       if (sample) { setSampleJudged({ ...sampleJudged, [row.cache_key]: id }); return; }
       verdict.mutate({ cacheKey: row.cache_key, verdict: id }, { onError: () => toast.error("Couldn't save that. Try again.") });
     }} />;
+}
+
+/** A7, live and sample. */
+export function RecruitersPage() {
+  const sample = useAdminSample();
+  const review = useRecruiterReview();
+  const label = useRecruiterLabel();
+  const run = useRunRecruiterSourcing();
+  const [sampleRows, setSampleRows] = useState(SAMPLE_RECRUITERS);
+  if (!sample && review.isPending) return <YouPage title="Recruiters">{null}</YouPage>;
+  if (!sample && review.isError) {
+    return <YouPage title="Recruiters">
+      <EmptyState title="Recruiters didn't load" message="Check your connection and try again." action={{ label: "Try again", onPress: () => void review.refetch() }} />
+    </YouPage>;
+  }
+  if (!sample && !review.data?.available) {
+    return <YouPage title="Recruiters"><EmptyState title="Not set up yet" message="Run the latest database migration to review recruiters." /></YouPage>;
+  }
+  const rows = sample ? sampleRows : review.data?.candidates ?? [];
+  const search = () => {
+    if (sample) { sampled("five more companies would be searched")(); return; }
+    run.mutate(5, {
+      onSuccess: ({ runs }) => {
+        const found = runs.reduce((sum, item) => sum + item.kept, 0);
+        const broke = runs.filter((item) => item.error).length;
+        toast.success(runs.length === 0
+          ? "Every company with a website has been searched."
+          : `Found ${found} recruiters at ${runs.length - broke} companies${broke ? `; ${broke} failed` : ""}.`);
+      },
+      onError: () => toast.error("The search didn't finish. Try again."),
+    });
+  };
+  return <RecruitersView queue={recruiterQueue(rows)} tally={recruiterTally(sample ? SAMPLE_RECRUITER_SCORE : review.data?.score)}
+    canRun={sample || Boolean(review.data?.can_run)} searching={run.isPending} onSearch={search}
+    onLabel={(row, labels) => {
+      if (sample) { setSampleRows(rows.map((item) => item.id === row.id ? { ...item, ...labels } : item)); return; }
+      label.mutate({ id: row.id, labels }, { onError: failed });
+    }}
+    // LinkedIn's app, where the owner is signed in.
+    onOpenProfile={(row) => sample ? sampled("LinkedIn would open")() : void Linking.openURL(row.profile_url)} />;
 }
 
 /** A5, live and sample. */

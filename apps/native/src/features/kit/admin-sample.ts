@@ -1,5 +1,6 @@
 import type {
-  ClassificationDisagreement, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
+  ClassificationDisagreement, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics, RecruiterCandidate,
+  RecruiterReviewScore,
 } from "@pinkslip/core/api";
 
 /**
@@ -84,4 +85,22 @@ export const SAMPLE_METRICS: ProductMetrics = {
   push_registrations: 312, profile_adjustments: 38, tailoring_to_application_rate: 0,
   tailoring_quality: { sampleSize: 0, unsupportedClaimRate: 0, onePageRate: 0, deviceFailureRate: 0, ready: false, insufficientSample: true, failedGates: [] } as unknown as ProductMetrics["tailoring_quality"],
   open_reports: 2, open_feedback: 2, events: {},
+};
+
+const person = (id: string, name: string, company: string, title: string, patch: Partial<RecruiterCandidate> = {}): RecruiterCandidate => ({
+  id, company_id: company.toLowerCase(), company, profile_url: `https://www.linkedin.com/in/sample-${id}`, name, headline: `${title} at ${company}`,
+  current_title: title, current_employer: company, location: "San Francisco", kind: "early_career", kind_from_snippet: false,
+  employer_evidence: "current employer", left_out_reason: null, email_guess: null, email_confidence: null, works_there: null, actual_role: null,
+  reviewed_at: null, ...patch,
+});
+
+/** Recruiters (A7): two kept and one left out worth a second look. */
+export const SAMPLE_RECRUITERS: RecruiterCandidate[] = [
+  person("r1", "Dana Kim", "Stripe", "University Recruiter", { email_guess: "dana@stripe.com", email_confidence: "likely" }),
+  person("r2", "Marcus Ortiz", "Stripe", "Technical Recruiter, Payments", { kind: "technical", location: "Seattle", email_guess: "marcus@stripe.com", email_confidence: "likely" }),
+  person("r3", "Priya Shah", "Ramp", "Talent Partner", { kind: "recruiter", kind_from_snippet: true, location: "New York", left_out_reason: "company not confirmed", employer_evidence: "headline only" }),
+];
+
+export const SAMPLE_RECRUITER_SCORE: RecruiterReviewScore = {
+  works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 }, wrongly_left_out: 1, left_out_labelled: 5,
 };
