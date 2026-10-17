@@ -7,6 +7,8 @@ import {
   ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket, type ApplyState,
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
+import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
+import { SAMPLE_FORM_URL } from "../apply/sample-form";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { RELEASES, WhatsNewSheet, type Release } from "../redesign/whats-new";
@@ -28,6 +30,8 @@ export function RedesignGallery() {
   const texture = usePaperTexture();
   const [reporting, setReporting] = useState(false);
   const [release, setRelease] = useState<Release | null>(null);
+  const [browsing, setBrowsing] = useState<ApplicationRequest | null>(null);
+  const sampleApplied = () => toast.show({ message: "Applied to Stripe. It's in Tracker.", icon: "done" });
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
@@ -39,6 +43,8 @@ export function RedesignGallery() {
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />
         <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
         <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
+        <ListItem title="In-app browser, a sample form" accessory="chevron"
+          onPress={() => setBrowsing({ jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true })} />
         <ListItem title="Events, and an event's page" accessory="chevron" onPress={() => router.push("/you/kit-events")} />
         <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />
         <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />
@@ -77,6 +83,8 @@ export function RedesignGallery() {
       </View>
       <ReportJobSheet jobId="sample" sample open={reporting} onClosed={() => setReporting(false)} />
       <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
+      {/* Paper "2 · The in-app browser and fill bar", on a local form. */}
+      <ApplicationBrowser request={browsing} onClose={() => setBrowsing(null)} onSubmitted={sampleApplied} onConfirmApplied={sampleApplied} />
     </Section>
 
     <Section title="Type">

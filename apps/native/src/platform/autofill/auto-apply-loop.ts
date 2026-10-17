@@ -8,7 +8,16 @@ export interface ApplicationBrowserSession {
   /** Runs `body` as an async function in the form page; it returns a string. */
   run(body: string): Promise<string>;
   setStatus(text: string): Promise<void>;
+  /** The same moments as numbers, for the fill bar (Paper "2 · The in-app
+   * browser and fill bar"): how far filling has got, then the form as it
+   * stands, which fields Pinkslip filled and which still need you. */
+  setProgress?(progress: FillProgress): Promise<void>;
 }
+
+export type FillProgress =
+  | { phase: "filling"; done: number; of: number }
+  | { phase: "form"; filled: number; total: number; open: string[]; byPinkslip: string[] }
+  | { phase: "applied" };
 
 interface PageRead { submitted: boolean; controls: FormControl[] }
 type FillOutcome = "filled" | "missing" | "no_match" | "failed";
@@ -54,6 +63,8 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     let formShown = false;
     let watched = new Map<string, string>();
     const learned = new Map<string, string>();
+    /** Fields Pinkslip filled on this page, for the soft pink they're shown in. */
+    let byPinkslip = new Set<string>();
     const resumeFile = resumeForUpload();
     const isCurrent = (expected: number) => !closed && loaded && revision === expected;
     const read = async () => JSON.parse(await within(browser.run(READ_FORM_BODY), 20_000)) as PageRead;
@@ -62,15 +73,26 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     let page = "";
     const tell = (fields: Record<string, unknown>) => void api.apply.report({ host, page, ...fields }).catch(() => undefined);
 
+    const progress = (update: FillProgress) => browser.setProgress?.(update).catch(() => undefined);
+    const tally = (controls: FormControl[]): FillProgress => ({
+      phase: "form",
+      total: controls.length,
+      filled: controls.filter((control) => !isEmpty(control)).length,
+      open: controls.filter((control) => control.required && isEmpty(control)).map((control) => control.ref),
+      byPinkslip: controls.filter((control) => byPinkslip.has(control.ref) && !isEmpty(control)).map((control) => control.ref),
+    });
+
     const fill = async (steps: FillStep[], resume: Awaited<typeof resumeFile>, expected: number) => {
       const outcomes: FillReport["outcomes"] = {};
       const errors: Record<string, string> = {};
-      for (const step of steps) {
+      for (const [index, step] of steps.entries()) {
         if (!isCurrent(expected)) break;
+        await progress({ phase: "filling", done: index, of: steps.length });
         try {
           const request = { steps: [step], resume: step.kind === "file" ? resume : null };
           const report = JSON.parse(await within(browser.run(`return JSON.stringify(await (${FILL_FORM_FUNCTION})(${JSON.stringify(request)}));`), 30_000)) as FillReport;
           Object.assign(outcomes, report.outcomes);
+          for (const [ref, outcome] of Object.entries(report.outcomes)) if (outcome === "filled") byPinkslip.add(ref);
         } catch (error) {
           outcomes[step.ref] = "failed";
           errors[step.ref] = message(error);
@@ -93,6 +115,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     const applied = async (expected: number) => {
       if (!isCurrent(expected) || submitted) return;
       submitted = true;
+      await progress({ phase: "applied" });
       await browser.setStatus("Applied");
       if (isCurrent(expected)) options.onSubmitted?.();
     };
@@ -110,7 +133,13 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
           if (!running && isCurrent(expected)) {
             if (done) { tell({ stage: "submitted", by: "user" }); await applied(expected); }
             else if (!formShown && controls.length > 0) await pass();
-            else if (formShown) { await learnFrom(controls); if (isCurrent(expected)) await showOpen(controls.filter((control) => control.required && isEmpty(control)).length); }
+            else if (formShown) {
+              await learnFrom(controls);
+              if (isCurrent(expected)) {
+                await progress(tally(controls));
+                await showOpen(controls.filter((control) => control.required && isEmpty(control)).length);
+              }
+            }
           }
         } catch {
           // Mid-navigation; the next look will do.
@@ -159,6 +188,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         controls = (await read()).controls;
         if (!isCurrent(expected)) return;
         const open = controls.filter((control) => control.required && isEmpty(control));
+        await progress(tally(controls));
         tell({
           stage: "filled", controls: controls.length, steps: plan.steps.length, needs: plan.needs.length, resume: resume !== null, fill_ms: fillMs,
           outcomes: filled.outcomes, open_required: open.map((control) => `${control.kind}: ${control.label}`),
@@ -185,8 +215,12 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     };
 
     browser.open(options.url, {
-      onNavigating: () => { loaded = false; revision += 1; watched = new Map(); learned.clear(); formShown = false; },
-      onLoaded: (url) => { if (closed) return; loaded = true; revision += 1; page = where(url); watched = new Map(); learned.clear(); formShown = false; void pass(); },
+      onNavigating: () => { loaded = false; revision += 1; watched = new Map(); learned.clear(); byPinkslip = new Set(); formShown = false; },
+      onLoaded: (url) => {
+        if (closed) return;
+        loaded = true; revision += 1; page = where(url); watched = new Map(); learned.clear(); byPinkslip = new Set(); formShown = false;
+        void pass();
+      },
       onRefill: () => void pass(),
       onFinished: () => {
         if (closed) return;

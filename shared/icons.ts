@@ -86,8 +86,12 @@ export const ICONS = {
   kit: "Swatches",
   /** A row whose value opens a menu in place (Appearance). */
   pick: "CaretUpDown",
-  /** A split button's other choices (Apply for me ▾). */
-  split: "CaretDown",
+  /** Down and up: a split button's other choices (Apply for me ▾), and the
+   * fill bar's next and previous blank. */
+  down: "CaretDown",
+  up: "CaretUp",
+  /** A secure page's address (the in-app browser's header). */
+  secure: "Lock",
   /** Sent, waiting for the company to confirm it (the Apply button). */
   waiting: "Clock",
 } as const;

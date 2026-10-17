@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createApiClient } from "../packages/core/src/api";
 import type { ApplyPlan, FormControl } from "../shared/application-form";
-import { runAutoApply, type ApplicationBrowserSession } from "../apps/native/src/platform/autofill/auto-apply-loop";
+import { runAutoApply, type ApplicationBrowserSession, type FillProgress } from "../apps/native/src/platform/autofill/auto-apply-loop";
 import { READ_FORM_BODY, SUBMIT_FORM_BODY } from "../apps/native/src/platform/autofill/scripts.generated";
 
 const email = (): FormControl => ({ ref: "email", kind: "email", label: "Email", required: true, options: [], searchable: false, value: null });
@@ -27,6 +27,7 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
   let cleaned = false;
   let submitStatus = "submitted";
   const statuses: string[] = [];
+  const progress: FillProgress[] = [];
   const learned: unknown[] = [];
   const api = createApiClient({ baseUrl: "https://pinkslip.test/api/v2", fetch: (async (input, init) => {
     const path = String(input);
@@ -37,6 +38,7 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
   const browser: ApplicationBrowserSession = {
     open: async (_url, handlers) => { events = handlers; return () => { cleaned = true; }; },
     setStatus: async (status) => { statuses.push(status); },
+    setProgress: async (update) => { progress.push(update); },
     run: async (body) => {
       if (body === READ_FORM_BODY) { reads += 1; return JSON.stringify({ submitted, controls }); }
       if (body === SUBMIT_FORM_BODY) {
@@ -52,7 +54,7 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
   const result = runAutoApply(api, browser, { jobId: "job-1", url: "https://jobs.test/1", autoSubmit: options.autoSubmit ?? false,
     onSubmitted: () => { submittedCalls += 1; } }, async () => null);
   return {
-    result, statuses, learned,
+    result, statuses, learned, progress,
     load: () => events.onLoaded("https://jobs.test/1"),
     navigating: () => events.onNavigating(),
     refill: () => events.onRefill(),
@@ -67,6 +69,17 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
 }
 
 describe("native application session", () => {
+  test("reports the fill bar's numbers: filling, then the form with what Pinkslip filled", async () => {
+    const flow = harness();
+    try {
+      flow.load();
+      await until(() => flow.statuses.includes("Ready to submit"));
+      expect(flow.progress[0]).toEqual({ phase: "filling", done: 0, of: 1 });
+      expect(flow.progress.find((update) => update.phase === "form")).toEqual({ phase: "form", filled: 1, total: 1, open: [], byPinkslip: ["email"] });
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
   test("fills without submitting when the separate submit gate is off", async () => {
     const flow = harness();
     try {

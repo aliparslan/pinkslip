@@ -627,6 +627,21 @@ cut so that each remaining one has a job.
     the rest wait on auto-apply. Icons `split` (CaretDown) and `waiting`
     (Clock); menus gain `menu-bot` (a native build) and a ticked choice
     (`GlyphMenuItem.on`).
+  - The in-app browser and fill bar (Paper board 2): a page sheet with ✕,
+    "Apply at Stripe" over the lock and the board's host, and ⋯ (Fill
+    again, Open in Safari); a 2pt pink line while a page loads. The fill
+    bar is a glass capsule 16 in from the edges: "Filling the form · 4 of
+    5" with a spinner; "5 of 7 filled" with "2 need you" in pink, arrows
+    to each blank and Done; "All 7 filled · Submit is at the bottom" with
+    a pink Go to Submit that scrolls to the board's button and rings it,
+    never pressing it. On the page, what Pinkslip filled is `accent-soft`
+    and what needs you is ringed in `accent`. While you type, the bar
+    steps aside for iOS's own form bar. The board's confirmation page
+    marks it applied with the toast "Applied to Stripe. It's in Tracker."
+    and Undo; a pressed Submit with no confirmation after 6 seconds asks
+    "Did that go through?" with a pink "I applied"; closing with neither
+    asks "Did you apply?". Not built: 2.3's saved answers above the
+    keyboard. The kit opens it on a local form the real loop fills.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

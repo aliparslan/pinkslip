@@ -132,6 +132,16 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     onSuccess: () => { if (value) haptics.success(); },
     onError: () => toast.error("Couldn't update this job. Try again."),
   });
+  /** The board confirmed it, or you said so (Paper 2.5): the stub tears into
+   * Tracker, and the toast says where it went, with Undo. */
+  const appliedThroughBrowser = () => markApplied.mutate(asJob, {
+    onSuccess: () => {
+      haptics.success();
+      toast.show({ message: `Applied to ${job.company_name}. It's in Tracker.`, icon: "done", duration: UNDO_TOAST_DURATION,
+        action: { label: "Undo", run: () => setApplied(false) } });
+    },
+    onError: () => toast.error("Couldn't mark it applied. Try again."),
+  });
   const toggleSave = () => {
     haptics.tap();
     (saved ? unsave : save).mutate(job.id, { onError: () => toast.error("Couldn't update your saved jobs. Try again.") });
@@ -161,7 +171,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
     const prepared = await api.apply.prepare(job.id).catch(() => null);
     const url = prepared?.apply_url ?? job.url;
-    if (url) setApplying({ jobId: job.id, url, autoSubmit });
+    if (url) setApplying({ jobId: job.id, url, autoSubmit, company: job.company_name });
   };
 
   const leave = () => { if (router.canGoBack()) router.back(); };
@@ -218,8 +228,13 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   };
 
   const sheets: ReactNode = <>
-    {autoApply && <ApplicationBrowser request={applying} onClose={() => setApplying(null)}
-      onSubmitted={() => markApplied.mutate(asJob, { onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); } })} />}
+    {autoApply && <ApplicationBrowser request={applying}
+      onClose={(result) => {
+        setApplying(null);
+        // Closed with no confirmation: ask, as Safari's posting does.
+        if (result === "closed" && !applied && ownSheets) setAsking(true);
+      }}
+      onSubmitted={appliedThroughBrowser} onConfirmApplied={appliedThroughBrowser} />}
     {ownSheets
       ? <ReportJobSheet jobId={job.id} open={reporting} onClosed={() => setReporting(false)} onReportedClosed={hideQuietly} />
       : <ReportSheet jobId={job.id} open={reporting} onOpenChange={setReporting} />}

@@ -115,7 +115,7 @@ export function ApplyButton({ state, saved, onSave, onPress, onApplyMyself }: Ap
           { id: "myself", title: "Apply myself", glyph: "open", onSelect: onApplyMyself },
         ]}>
           <View style={styles.caret} accessible accessibilityRole="button" accessibilityLabel="More ways to apply">
-            <Icon name="split" size={16} tone="accent-ink" />
+            <Icon name="down" size={16} tone="accent-ink" />
           </View>
         </GlyphMenu>
       </> : null}
