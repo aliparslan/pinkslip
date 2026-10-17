@@ -642,6 +642,15 @@ cut so that each remaining one has a job.
     "Did that go through?" with a pink "I applied"; closing with neither
     asks "Did you apply?". Not built: 2.3's saved answers above the
     keyboard. The kit opens it on a local form the real loop fills.
+  - Dark mode, checked on everything built this week (Admin and
+    Recruiters, the menus, the stub's SENT and APPLIED, the Search bar,
+    the Apply states, the browser, the toast, Today's applying bar). Two
+    fixes, both where a light web page sits under our chrome: the page's
+    marks always use the light theme's pinks (the board's page is light
+    whatever the app is), and glass over it, the fill bar's and the
+    toast's, keeps the app's scheme and is tinted `bg-elev` in dark, since
+    Liquid Glass otherwise lightens over a white page under the dark
+    theme's words.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

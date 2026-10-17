@@ -258,7 +258,10 @@ interface ToastViewProps {
 }
 
 function ToastView({ item, running, index, spread, stacked, frontWidth, onWidth, onSpread }: ToastViewProps) {
-  const { theme } = useUnistyles();
+  const { theme, rt } = useUnistyles();
+  const glassScheme = rt.themeName?.startsWith("light") ? "light" : "dark";
+  // Over light content (a board's page) the glass would lighten under the dark theme's words.
+  const glassTint = glassScheme === "dark" ? theme.ui.color["bg-elev"] : undefined;
   const { width: screen } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const [ownWidth, setOwnWidth] = useState(0);
@@ -363,7 +366,8 @@ function ToastView({ item, running, index, spread, stacked, frontWidth, onWidth,
       <Animated.View pointerEvents={behind || leaving ? "none" : "auto"} style={drag}
         accessibilityLiveRegion="polite">
         <Animated.View pointerEvents="none" style={[styles.surface, shape]}>
-          {GLASS ? <GlassView style={styles.glass}
+          {/* The app's scheme, so the words stay readable over a light page in dark mode. */}
+          {GLASS ? <GlassView style={styles.glass} colorScheme={glassScheme} tintColor={glassTint}
             glassEffectStyle={{ style: glass ? "regular" : "none", animate: true, animationDuration: glass ? 0.32 : LEAVE_MS / 1000 }} /> : null}
         </Animated.View>
         <Animated.View style={[styles.content, { maxWidth: screen - theme.ui.size.gutter * 2 }, item.action && styles.withAction, fade]}

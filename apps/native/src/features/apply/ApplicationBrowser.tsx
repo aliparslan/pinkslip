@@ -1,4 +1,5 @@
 import { useApi } from "@pinkslip/data";
+import { ui } from "@pinkslip/tokens/native";
 import * as Crypto from "expo-crypto";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -134,7 +135,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
   const closeCallback = useRef(onClose);
   submittedCallback.current = onSubmitted;
   closeCallback.current = onClose;
-  const marks = { soft: theme.ui.color["accent-soft"], line: theme.ui.color.separator, accent: theme.ui.color.accent };
+  // A board's page is light whatever the app's theme, so its marks are too.
+  const marks = { soft: ui.color.light["accent-soft"], line: ui.color.light.separator, accent: ui.color.light.accent };
 
   const cancelScripts = useCallback((reason: string) => {
     for (const waiting of pending.current.values()) {
@@ -291,7 +293,12 @@ function FillBar({ title, detail, detailTone = "ink-3", children }: {
   detailTone?: "ink-3" | "accent";
   children: ReactNode;
 }) {
-  return <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]} accessibilityLiveRegion="polite">
+  // Liquid Glass lightens over a board's white page; in dark mode it's
+  // tinted with the raised dark so the dark theme's words stay readable.
+  const { theme, rt } = useUnistyles();
+  const dark = !rt.themeName?.startsWith("light");
+  return <GlassView glassEffectStyle="regular" colorScheme={dark ? "dark" : "light"} tintColor={dark ? theme.ui.color["bg-elev"] : undefined}
+    style={[styles.bar, !GLASS && styles.paper]} accessibilityLiveRegion="polite">
     <View style={styles.words}>
       <Text role="subhead" weight="medium" lines={1}>{title}</Text>
       {detail ? <Text role="footnote" weight={detailTone === "accent" ? "medium" : "regular"} tone={detailTone} lines={1}>{detail}</Text> : null}
