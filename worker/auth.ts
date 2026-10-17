@@ -294,7 +294,10 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
     const pathname = new URL(c.req.url).pathname;
     // Apple form-posts across origins: the short-lived encrypted flow cookie
     // authenticates this callback; ordinary SameSite=Lax cookies are absent.
+    // App error reports need no session either: a visitor whose page broke
+    // must not become a guest account just by reporting it.
     if (pathname === "/api/v2/access" || pathname === "/api/v2/health"
+      || (pathname === "/api/v2/errors" && c.req.method === "POST")
       || (pathname === "/api/v2/auth/apple/web/callback" && c.req.method === "POST")) {
       await next();
       return;

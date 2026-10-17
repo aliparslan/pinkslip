@@ -1,5 +1,6 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
+import { matchedRoutes } from "hono/route";
 import type { Env, Variables } from "./types";
 import {
   ACCESS_COOKIE_MAX_AGE,
@@ -30,6 +31,15 @@ import metricRoutes from "./routes/metrics";
 import recruiterRoutes from "./routes/recruiters";
 import outreachRoutes from "./routes/outreach";
 import applyRoutes from "./routes/apply";
+import errorRoutes from "./routes/errors";
+import { alertNewErrors, describeThrown, recordError } from "./errors";
+import {
+  HEALTH_CRON_SCHEDULE,
+  loadHealthState,
+  runHealthChecks,
+  SITE_ORIGIN,
+  type HealthCheckDeps,
+} from "./health-checks";
 import { flagEnabled } from "./feature-flags";
 import { remindDueFollowUps } from "./outreach/reminders";
 import { runClassificationShadow } from "./classification-shadow";
@@ -310,6 +320,9 @@ app.get("/api/v2/logo", async (c) => {
 app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
 
+// Ahead of the tailoring routes, whose "/api/v2/*" middleware would
+// otherwise run for every error report.
+app.route("/api/v2/errors", errorRoutes);
 app.route("/api/v2/jobs", jobRoutes);
 app.route("/api/v2/companies", companyRoutes);
 app.route("/api/v2/preferences", preferenceRoutes);
@@ -386,15 +399,49 @@ app.post("/api/v2/poll", requireAdmin, async (c) => {
   });
 });
 
+/** The checks call this Worker's own API in-process, as the app would. */
+function healthCheckDeps(env: Env, ctx: Parameters<typeof app.fetch>[2]): HealthCheckDeps {
+  return {
+    fetchApi: async (path, init) => app.fetch(new Request(new URL(path, SITE_ORIGIN), init), env, ctx),
+  };
+}
+
+app.get("/api/v2/runs/health", requireAdmin, async (c) =>
+  c.json({ health: await loadHealthState(c.env.DB) })
+);
+/** Runs the 15-minute checks now, alerts included, and returns what they found. */
+app.post("/api/v2/runs/health", requireAdmin, async (c) =>
+  c.json({ health: await runHealthChecks(c.env, healthCheckDeps(c.env, c.executionCtx)) })
+);
+
+/** The handler's pattern ("/api/v2/jobs/:id"), so ids don't split one fault into many. */
+function routePattern(c: Context): string {
+  const handler = matchedRoutes(c).filter((route) => !route.path.endsWith("*")).at(-1);
+  return handler?.path ?? c.req.path;
+}
+
 app.onError((error, c) => {
   const requestId = c.req.header("cf-ray") ?? crypto.randomUUID();
+  const thrown = describeThrown(error);
   console.error("Unhandled request error", {
     requestId,
     method: c.req.method,
     path: c.req.path,
-    message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
+    message: thrown.message,
+    stack: thrown.stack ?? undefined,
   });
+  const recorded = recordError(c.env.DB, {
+    source: "api",
+    ...thrown,
+    route: `${c.req.method} ${routePattern(c)}`,
+    requestId,
+    build: c.req.header("x-pinkslip-build") ?? null,
+  });
+  try {
+    c.executionCtx.waitUntil(recorded);
+  } catch {
+    // No execution context (tests): the write still runs on its own.
+  }
   return c.json(
     {
       error: `Something went wrong while loading ${c.req.header("x-pinkslip-client") === "ios" ? "Pinkslip" : "pinkslip"}. Please try again.`,
@@ -407,21 +454,29 @@ app.onError((error, c) => {
 
 app.notFound((c) => c.json({ error: "Not found", code: "not_found" }, 404));
 
-export type ScheduledCycle = "notifications" | "poll" | "dispatch";
+export type ScheduledCycle = "notifications" | "poll" | "dispatch" | "health";
 
 export function scheduledCycle(cron: string): ScheduledCycle {
   if (cron === SOURCE_DISPATCH_CRON_SCHEDULE) return "dispatch";
+  if (cron === HEALTH_CRON_SCHEDULE) return "health";
   return cron === NOTIFICATION_CRON_SCHEDULE ? "notifications" : "poll";
 }
 
-async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void> {
+async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: ExecutionContext): Promise<void> {
+  if (cycle === "health") {
+    const health = await runHealthChecks(env, healthCheckDeps(env, ctx));
+    console.log(`Health checks: ${health.results.map((result) => `${result.name} ${result.ok ? "ok" : `failed (${result.detail})`}`).join(", ")}`);
+    return;
+  }
   if (cycle === "dispatch") {
     // The watchdog runs even when dispatch fails; that is when it matters most.
-    // Follow-up reminders ride the same every-minute tick so they land on time.
-    const [dispatch, watchdog, reminders] = await Promise.allSettled([
+    // Follow-up reminders ride the same every-minute tick so they land on time,
+    // and new kinds of errors reach admins within a minute.
+    const [dispatch, watchdog, reminders, newErrors] = await Promise.allSettled([
       dispatchDueSources(env),
       runPollingWatchdog(env),
       remindDueFollowUps(env),
+      alertNewErrors(env),
     ]);
     if (reminders.status === "fulfilled" && reminders.value.reminded > 0) {
       console.log(`Follow-up reminders: ${reminders.value.reminded} due, ${reminders.value.delivered} pushes delivered`);
@@ -435,6 +490,7 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env): Promise<void>
     if (dispatch.status === "rejected") throw dispatch.reason;
     if (watchdog.status === "rejected") throw watchdog.reason;
     if (reminders.status === "rejected") throw reminders.reason;
+    if (newErrors.status === "rejected") throw newErrors.reason;
     return;
   }
   if (cycle === "notifications") {
@@ -456,8 +512,9 @@ export default {
     // context, then rethrow so the invocation is recorded as failed.
     const cycle = scheduledCycle(event.cron);
     ctx.waitUntil(
-      runScheduledCycle(cycle, env).catch((err) => {
+      runScheduledCycle(cycle, env, ctx).catch(async (err) => {
         console.error(`${cycle} cycle failed:`, err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
+        await recordError(env.DB, { source: "cron", route: cycle, ...describeThrown(err) });
         throw err;
       })
     );
@@ -470,20 +527,27 @@ export default {
       await handleInboundEmail(message, env);
     } catch (error) {
       console.error("Inbound email failed:", error instanceof Error ? error.message : String(error));
+      await recordError(env.DB, { source: "email", route: "inbound", ...describeThrown(error) });
     }
   },
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
-    switch (batch.queue) {
-      case SOURCE_POLL_PRIORITY_QUEUE_NAME:
-      case SOURCE_POLL_QUEUE_NAME:
-        await handleSourcePollBatch(batch as MessageBatch<SourcePollMessage>, env);
-        return;
-      case NOTIFY_QUEUE_NAME:
-        await handleNotifyBatch(batch as MessageBatch<NotifyMessage>, env);
-        return;
-      default:
-        console.error(`Unhandled queue ${batch.queue}; retrying ${batch.messages.length} message(s)`);
-        batch.retryAll();
+    try {
+      switch (batch.queue) {
+        case SOURCE_POLL_PRIORITY_QUEUE_NAME:
+        case SOURCE_POLL_QUEUE_NAME:
+          await handleSourcePollBatch(batch as MessageBatch<SourcePollMessage>, env);
+          return;
+        case NOTIFY_QUEUE_NAME:
+          await handleNotifyBatch(batch as MessageBatch<NotifyMessage>, env);
+          return;
+        default:
+          console.error(`Unhandled queue ${batch.queue}; retrying ${batch.messages.length} message(s)`);
+          batch.retryAll();
+      }
+    } catch (error) {
+      // Rethrown so the queue retries the batch, as before.
+      await recordError(env.DB, { source: "queue", route: batch.queue, ...describeThrown(error) });
+      throw error;
     }
   },
 };

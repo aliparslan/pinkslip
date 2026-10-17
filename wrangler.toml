@@ -26,7 +26,10 @@ name = "EMAIL"
 binding = "AI"
 
 [triggers]
-crons = ["*/15 * * * *", "2,17,32,47 * * * *", "* * * * *"]
+# Polling, notification matching, the every-minute dispatcher (watchdog,
+# follow-ups, new-error alerts) and the 15-minute health checks
+# (worker/health-checks.ts).
+crons = ["*/15 * * * *", "2,17,32,47 * * * *", "* * * * *", "7,22,37,52 * * * *"]
 
 # ─── Queue-based source polling ───────────────────────────────────────────────
 # The every-minute cron dispatches due sources for the tiers listed in

@@ -268,7 +268,7 @@ Activity, the digest and each application's timeline.
 | Product events (`/interactions/events`) and metrics | **Works** |
 | Admin alerts | **Works** |
 | Charts in Admin (owner: more visuals, fewer numbers) | **Later**, after looking at chart libraries |
-| Error reporting beyond Worker logs | **Missing:** our own errors table and admin push (no new service; see Decisions) |
+| Error reporting beyond Worker logs | **Built** 2026-10-16, not deployed: the errors table and admin push (see "Built") |
 | Production schema drift (source-health found it once) | **Check** |
 | Restore points before risky migrations (D1 Time Travel) | **Works**, as a habit |
 
@@ -279,6 +279,7 @@ owner's check before the next.
 
 1. **Keeping it running** (Decisions: Admin): the errors table and admin
    push, the 15-minute checks. First, so everything after is watched.
+   **Built 2026-10-16, not deployed** (see "Built").
 2. **Notifications foundation** (§1): kinds and per-kind settings, the
    phone's time zone, the scheduler on the every-minute tick, deep links per
    kind, the log, the daily cap for passive kinds. Fix and check what's live
@@ -542,9 +543,65 @@ list.
    sends its JavaScript errors to the API into the same table; a new kind
    sends an admin push, like failing sources do. iPhone crashes come from
    TestFlight and Xcode's Organizer, which Apple already collects.
+   **Built 2026-10-16.**
 2. **A check every 15 minutes** that the feed loads, sign-in works and a
-   push goes out; a failure alerts the owner.
+   push goes out; a failure alerts the owner. **Built 2026-10-16.**
 3. **The notification log** in Product health: sent and opened per kind.
 4. **A weekly check** that production's schema matches the migrations.
 5. **Admin's charts later**, after looking at chart libraries.
 
+## Built
+
+### Step 1: keeping it running (2026-10-16, not deployed)
+
+- **Errors table** (migration 0093, `worker/errors.ts`): one row per source,
+  kind and route, with a count, first and last seen, the latest message and
+  stack, the Cloudflare ray and the app build. The kind is the error's name
+  and message with ids, numbers, emails and links taken out; API routes are
+  Hono patterns (`GET /api/v2/jobs/:id`), app screens have ids turned into
+  `:id`. Emails and links are scrubbed from stored messages too.
+- **What writes to it:** the Worker's `onError`, and also failed crons,
+  queue batches and inbound mail (`source` `cron`, `queue`, `email`). The
+  apps post to `POST /api/v2/errors` (`apps/webapp/src/features/errors`,
+  `apps/native/src/platform/error-reporting.ts`, shared logic in
+  `packages/core/src/error-report.ts`). Admins read `GET /api/v2/errors`.
+- **Admin push:** the every-minute tick claims every kind not yet announced
+  and sends one push for the lot ("New error in the API", or "3 new kinds of
+  errors"), opening Admin.
+- **Health checks** (`worker/health-checks.ts`, cron `7,22,37,52 * * * *`):
+  the feed through `https://pinkslip.work/api/v2/jobs` (the path the site
+  and the iPhone app use), a guest session as the app starts one plus
+  `/me`, then the guest deleted, plus Apple's sign-in keys; and a silent
+  APNs push to the newest admin iPhone. A failure is retried once. The
+  owner hears when checks start failing, when a different set fails, every
+  6 hours while it lasts, and once when they pass again. Admins run them on
+  demand with `POST /api/v2/runs/health` and read the last run with
+  `GET /api/v2/runs/health`.
+
+Liberties for the owner to keep or veto:
+
+1. Failed crons, queues and inbound mail go into the same table, not only
+   API errors: the six-week silent poll failure was a cron.
+2. App reports need no session (a visitor whose page broke doesn't become a
+   guest), so they're bounded: 30 a minute per address, 20 new app kinds an
+   hour, then only known kinds count. Dropped: network failures,
+   cancellations, `ApiError` (the server records its own), extension noise.
+3. Each app sends a kind once per launch, ten at most. A fatal iPhone
+   JavaScript error is kept on the phone and sent on the next launch.
+   Development builds only report to a local Worker.
+4. When push is the failing check, or no admin device took the alert, the
+   health alert also goes by email to admins' verified sign-in emails.
+5. A "Checks pass again" push when everything recovers.
+6. The push check sends a silent push to the owner's phone every 15
+   minutes; nothing shows. Email sign-in isn't checked (it would send a
+   real email each time).
+
+Not in step 1: an Admin screen for errors and check results (needs Paper
+first; pushes open Admin's home until then) and the weekly schema check
+(Decisions: Admin #4).
+
+Before deploying: migration 0093 runs with `CI=1 bun run deploy:backend`;
+the new cron needs no other setup. If the feed check fails with a 403 from
+pinkslip.work, the zone's bot protection is blocking the Worker's request
+and the check should call the API in-process instead. The app reporters
+ship with `bun run deploy:web` and an over-the-air update.

@@ -115,20 +115,24 @@ export function buildApnsBody(payload: NotificationPayload): string {
  * Returns the same PushResult shape as sendPushNotification so callers can
  * treat web and native results uniformly (including 410-style cleanup).
  */
+type ApnsPushType = "alert" | "background";
+
 async function postToApns(
   host: string,
   deviceToken: string,
   body: string,
   jwt: string,
-  bundleId: string
+  bundleId: string,
+  pushType: ApnsPushType
 ): Promise<PushResult> {
   const response = await fetch(`https://${host}/3/device/${deviceToken}`, {
     method: "POST",
     headers: {
       authorization: `bearer ${jwt}`,
       "apns-topic": bundleId,
-      "apns-push-type": "alert",
-      "apns-priority": "10",
+      "apns-push-type": pushType,
+      // Apple requires priority 5 for background pushes.
+      "apns-priority": pushType === "alert" ? "10" : "5",
       "content-type": "application/json",
     },
     body,
@@ -143,13 +147,34 @@ export async function sendApnsNotification(
   payload: NotificationPayload,
   config: ApnsConfig
 ): Promise<PushResult> {
+  return deliverToApns(deviceToken, () => buildApnsBody(payload), config, "alert");
+}
+
+/**
+ * A silent push: nothing shows on the phone, but APNs still has to accept the
+ * provider token and the device token. The 15-minute health check sends one
+ * to an admin's phone to prove pushes go out.
+ */
+export async function sendApnsBackgroundPush(
+  deviceToken: string,
+  config: ApnsConfig
+): Promise<PushResult> {
+  return deliverToApns(deviceToken, () => JSON.stringify({ aps: { "content-available": 1 } }), config, "background");
+}
+
+async function deliverToApns(
+  deviceToken: string,
+  buildBody: () => string,
+  config: ApnsConfig,
+  pushType: ApnsPushType
+): Promise<PushResult> {
   try {
     const jwt = await buildApnsJwt(config);
-    const body = buildApnsBody(payload);
+    const body = buildBody();
     const primary = config.sandbox ? APNS_HOST_SANDBOX : APNS_HOST_PRODUCTION;
     const fallback = config.sandbox ? APNS_HOST_PRODUCTION : APNS_HOST_SANDBOX;
 
-    const result = await postToApns(primary, deviceToken, body, jwt, config.bundleId);
+    const result = await postToApns(primary, deviceToken, body, jwt, config.bundleId, pushType);
 
     // A device token is only valid against the environment that issued it: an
     // `aps-environment: development` build registers a sandbox token, a
@@ -162,7 +187,7 @@ export async function sendApnsNotification(
     // unsubscribe the device when it is wrong), try the other environment before
     // concluding anything. Costs one extra request, and only on failure.
     if (result.status === 400 && apnsReason(result.body) === "BadDeviceToken") {
-      const retried = await postToApns(fallback, deviceToken, body, jwt, config.bundleId);
+      const retried = await postToApns(fallback, deviceToken, body, jwt, config.bundleId, pushType);
       if (retried.ok) return retried;
       // Both environments rejected it — now the token really is bad. Report the
       // second result so the caller sees a reason reflecting a real attempt.
