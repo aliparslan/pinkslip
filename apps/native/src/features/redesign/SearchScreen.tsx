@@ -1,41 +1,40 @@
 import { useCompanies } from "@pinkslip/data";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { CompanyLogo, Icon, SearchField, SectionHeader, Text } from "../../ui";
+import { CompanyLogo, Icon, SectionHeader, Text } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { JobsFeed } from "./JobsFeed";
 import { useDebounced } from "./JobsScreen";
 import { clearRecentSearches, rememberSearch, useRecentSearches } from "./recent-searches";
+import { setSearchText, useSearchText } from "./search-text";
 
 /**
  * The Search tab (Paper "Search and companies · Oct 12", with bar C): one
- * field for everything. Before you type it shows your recent searches; then
+ * field for everything, at the bottom in the tab bar as iOS 26 draws it
+ * (`TabBar`'s search). Before you type it shows your recent searches; then
  * companies that match, and every open job that does, outside your saved
  * search. Jobs' own field narrows the feed instead.
  */
 export function SearchScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
-  const [text, setText] = useState(params.q ?? "");
+  const text = useSearchText();
   // "Search everything" from Jobs arrives with its words.
-  useEffect(() => { if (params.q) setText(params.q); }, [params.q]);
+  useEffect(() => { if (params.q) setSearchText(params.q); }, [params.q]);
   const query = useDebounced(text.trim());
 
   return <View style={[styles.screen, { paddingTop: insets.top }]}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.header}>
       <Text role="largeTitle" accessibilityRole="header">Search</Text>
-      <View style={styles.row}>
-        <SearchField value={text} onChangeText={setText} placeholder="Jobs and companies" onSubmit={() => rememberSearch(text)} />
-      </View>
     </View>
     {query
-      ? <JobsFeed query={query} scope="all" tab="(search)" chips={false} onClearQuery={() => setText("")}
+      ? <JobsFeed query={query} scope="all" tab="(search)" chips={false} onClearQuery={() => setSearchText("")}
         top={<Companies query={query} />} />
-      : <Recent onPick={setText} />}
+      : <Recent onPick={setSearchText} />}
   </View>;
 }
 
@@ -46,7 +45,7 @@ function Recent({ onPick }: { onPick: (text: string) => void }) {
       <Text role="subhead" tone="ink-2" align="center">Search every open job and company, not just your feed.</Text>
     </View>;
   }
-  return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.recent}>
+  return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.recent}>
     <View style={styles.recentHeader}>
       <Text role="footnote" weight="medium" tone="ink-2">Recent</Text>
       <Pressable onPress={clearRecentSearches} hitSlop={8} accessibilityRole="button"><Text role="footnote" tone="ink-3">Clear</Text></Pressable>
@@ -92,8 +91,7 @@ const hostOf = (website: string) => website.replace(/^https?:\/\//, "").replace(
 
 const styles = StyleSheet.create((theme) => ({
   screen: { flex: 1, backgroundColor: theme.ui.color.bg },
-  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
-  row: { flexDirection: "row" },
+  header: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
   idle: { paddingHorizontal: theme.ui.space["8"], paddingTop: theme.ui.space["10"] },
   recent: { paddingBottom: theme.ui.space["10"] },
   recentHeader: {

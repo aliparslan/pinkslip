@@ -4,6 +4,8 @@ import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
 import { useRedesign } from "../../features/redesign/flag";
+import { rememberSearch } from "../../features/redesign/recent-searches";
+import { setSearchText, useSearchText } from "../../features/redesign/search-text";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { TabBar, useTabBarSpace, useTabBarSteppedAside } from "../../ui";
@@ -32,8 +34,11 @@ function PillTabs() {
   }, []);
   // The room under the pill is the page's white, so it reads as page.
   const padded = { sceneStyle: { paddingBottom: aside ? 0 : space, backgroundColor: theme.ui.color.bg } };
+  // The Search tab's field sits in the bar, as iOS 26 draws it.
+  const searchText = useSearchText();
+  const search = { value: searchText, onChangeText: setSearchText, onSubmit: () => rememberSearch(searchText), placeholder: "Jobs and companies" };
   return <>
-  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
+  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} search={search} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(today)" />
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />

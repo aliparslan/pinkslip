@@ -2,14 +2,17 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { usePathname, useScrollToTop } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { Pressable, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { Pressable, TextInput, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { makeMutable, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, {
+  Extrapolation, interpolate, makeMutable, useAnimatedKeyboard, useAnimatedStyle, useSharedValue, withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { Badge } from "./Badge";
+import { faces, useUiFontsLoaded } from "./fonts";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
 import { useToastLift } from "./Toast";
@@ -28,6 +31,8 @@ const PAD_X = PAD + (LIT - PITCH) / 2;
 /** The oval glides to the tab you pick on Apple's no-bounce spring (tokens). */
 const GLIDE = spring(motion.tab.glide);
 const PILL = SLOT_HEIGHT + PAD * 2;
+/** Between the folded circle and the search field (Paper "Search · before typing"). */
+const FIELD_GAP = 10;
 /** iOS 26 draws real Liquid Glass; earlier versions get solid paper. */
 const GLASS = isLiquidGlassAvailable();
 
@@ -81,6 +86,14 @@ function setCompact(next: boolean) {
   const target = next ? 1 : 0;
   if (compact.value === target) return;
   compact.value = withSpring(target, GLIDE);
+}
+
+/** The Search tab's field, which sits in the bar (iOS 26 draws it there). */
+export interface TabBarSearch {
+  value: string;
+  onChangeText: (text: string) => void;
+  onSubmit?: () => void;
+  placeholder: string;
 }
 
 /** A list a tab can send back to its top (a FlashList). */
@@ -150,9 +163,11 @@ export function useTabBarSpace() {
  * down shrinks the bar. The job page and an application's have their own
  * pinned buttons, so the bar steps aside there.
  */
-export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
+export function TabBar({ state, navigation, badges, search }: BottomTabBarProps & {
   /** A pink count on a tab, by route: Today's is what needs you. */
   badges?: Record<string, number>;
+  /** On the Search tab the pill folds into a circle beside this field. */
+  search?: TabBarSearch;
 }) {
   const insets = useSafeAreaInsets();
   const steppedAside = useTabBarSteppedAside();
@@ -162,10 +177,21 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   const tabs = state.routes.filter((route) => TABS[route.name]);
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
   const count = tabs.length;
+  const searching = Boolean(search) && tabs[selected]?.name === "(search)";
+  const searchIndex = Math.max(tabs.findIndex((route) => route.name === "(search)"), 0);
+  // The tab you came from: on Search the pill folds into a circle holding it.
+  const previous = useRef(Math.max(tabs.findIndex((route) => route.name === "(jobs)"), 0));
+  if (selected >= 0 && !searching) previous.current = selected;
+  const back = previous.current;
+  const { theme } = useUnistyles();
+  const fonts = useUiFontsLoaded();
+  const { width: screen } = useWindowDimensions();
+  const keyboard = useAnimatedKeyboard();
+  const bottom = pillBottom(insets.bottom);
 
   // At rest the oval is at `x`. While dragging it's under the finger, plus an
   // offset that eases to nothing, so it slides over rather than jumping.
-  const x = useSharedValue(slotX(Math.max(selected, 0)));
+  const x = useSharedValue(slotX(searching ? back : Math.max(selected, 0)));
   const dragging = useSharedValue(false);
   const finger = useSharedValue(0);
   const offset = useSharedValue(0);
@@ -179,10 +205,25 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     current.value = selected;
     // A new tab starts with the full bar.
     setCompact(false);
+    // On Search the oval stays under the tab you came from and folds away with it.
+    const target = searching ? back : selected;
     // In place on the first frame; after that it glides.
-    x.value = placed.current ? withSpring(slotX(selected), GLIDE) : slotX(selected);
+    x.value = placed.current ? withSpring(slotX(target), GLIDE) : slotX(target);
     placed.current = true;
-  }, [selected, x, current]);
+  }, [selected, searching, back, x, current]);
+
+  // 0 is the pill; 1 is the bar folded for Search, as iOS 26 folds it: the
+  // pill gathers into a circle around the tab you came from while the Search
+  // icon's place opens out into the field. One spring drives both, so it can
+  // turn around halfway. The field is there only while it's needed.
+  const fold = useSharedValue(searching ? 1 : 0);
+  const [fieldShown, setFieldShown] = useState(searching);
+  useEffect(() => {
+    if (searching) setFieldShown(true);
+    fold.value = withSpring(searching ? 1 : 0, GLIDE, (finished) => {
+      if (finished && !searching) scheduleOnRN(setFieldShown, false);
+    });
+  }, [searching, fold]);
 
   const open = (index: number, feedback: boolean) => {
     const route = tabs[index];
@@ -216,7 +257,8 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
       "worklet";
       return Math.min(Math.max(Math.round(at / PITCH), 0), count - 1);
     };
-    return Gesture.Pan().activeOffsetX([-8, 8]).onBegin(() => {
+    // Folded, the circle is a button back, not a bar to slide along.
+    return Gesture.Pan().enabled(!searching).activeOffsetX([-8, 8]).onBegin(() => {
       // A finger on the small bar brings the full one back.
       compact.value = withSpring(0, GLIDE);
     }).onStart((event) => {
@@ -251,42 +293,99 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
       hovered.value = -1;
       scheduleOnRN(showHover, null);
     });
-  }, [count, x, dragging, finger, offset, current, hovered]);
+  }, [count, searching, x, dragging, finger, offset, current, hovered]);
 
-  const oval = useAnimatedStyle(() => ({
-    transform: [{ translateX: dragging.value ? finger.value + offset.value : x.value }],
+  // The fold's two ends. Open, the pill is centred; folded, it's a circle on
+  // the margin and the field fills the rest of the row, 10 after it (Paper).
+  const gutter = theme.ui.size.gutter;
+  const pillWidth = count * PITCH + PAD_X * 2;
+  const pillLeft = (screen - pillWidth) / 2;
+  // How far the icons slide for the tab you came from to end in the circle's middle.
+  const shift = PAD_X + back * PITCH + PITCH / 2 - PILL / 2;
+  const fieldLeft = gutter + PILL + FIELD_GAP;
+  const fieldWidth = screen - fieldLeft - gutter;
+  // The field starts as a circle where the Search icon is, under the pill.
+  const fieldStart = pillLeft + PAD_X + searchIndex * PITCH + (PITCH - PILL) / 2;
+
+  const pillFrame = useAnimatedStyle(() => ({
+    left: pillLeft + (gutter - pillLeft) * fold.value,
+    width: pillWidth + (PILL - pillWidth) * fold.value,
+    // Scrolling down shrinks the full bar only.
+    transform: [{ scale: 1 - (1 - COMPACT_SCALE) * compact.value * (1 - fold.value) }],
   }));
-  const size = useAnimatedStyle(() => ({ transform: [{ scale: 1 - (1 - COMPACT_SCALE) * compact.value }] }));
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: -shift * fold.value }] }));
+  const oval = useAnimatedStyle(() => ({
+    opacity: 1 - fold.value,
+    transform: [{ translateX: (dragging.value ? finger.value + offset.value : x.value) - shift * fold.value }],
+  }));
+  // The glass never fades (iOS draws it blank at part opacity); only what's on it does.
+  const tabsFade = useAnimatedStyle(() => ({ opacity: 1 - fold.value }));
+  const backFade = useAnimatedStyle(() => ({ opacity: fold.value }));
+  const fieldFrame = useAnimatedStyle(() => ({
+    left: fieldStart + (fieldLeft - fieldStart) * fold.value,
+    width: PILL + (fieldWidth - PILL) * fold.value,
+  }));
+  const fieldFade = useAnimatedStyle(() => ({ opacity: interpolate(fold.value, [0.4, 1], [0, 1], Extrapolation.CLAMP) }));
+  // While you type on Search, the bar stands 8 above the keyboard.
+  const lift = useAnimatedStyle(() => ({
+    transform: [{ translateY: fold.value > 0 && keyboard.height.value > 0 ? -(keyboard.height.value + 8 - bottom) : 0 }],
+  }));
   if (onJobPage) return null;
 
-  const lit = hover ?? selected;
-  const bottom = pillBottom(insets.bottom);
-  return <View pointerEvents="box-none" style={[styles.bar, { paddingBottom: bottom }]}>
+  const lit = searching ? back : hover ?? selected;
+  const backTab = TABS[tabs[back]?.name ?? ""];
+  return <Animated.View pointerEvents="box-none" style={[styles.bar, { height: bottom + PILL }, lift]}>
+    {fieldShown && search ? <Animated.View style={[styles.fieldFrame, { bottom }, fieldFrame]}>
+      <GlassView glassEffectStyle="regular" isInteractive style={[styles.field, !GLASS && styles.paper]}>
+        <Animated.View style={[styles.fieldContent, { width: fieldWidth }, fieldFade]}>
+          <Icon name="search" size={18} tone="ink-3" />
+          <TextInput value={search.value} onChangeText={search.onChangeText} onSubmitEditing={search.onSubmit}
+            placeholder={search.placeholder} placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
+            returnKeyType="search" autoCorrect={false} autoCapitalize="none" clearButtonMode="never" accessibilityRole="search"
+            style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
+          {search.value ? <Pressable onPress={() => search.onChangeText("")} hitSlop={10} accessibilityRole="button"
+            accessibilityLabel="Clear search" style={styles.clear}>
+            <Icon name="close" size={10} tone="bg" />
+          </Pressable> : null}
+        </Animated.View>
+      </GlassView>
+    </Animated.View> : null}
     <GestureDetector gesture={drag}>
-      <Animated.View style={[styles.shrink, size]}>
-        <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
+      <Animated.View style={[styles.pillFrame, { bottom }, pillFrame]}>
+        <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]}
+          accessibilityRole={searching ? undefined : "tablist"}>
           {selected >= 0 ? <Animated.View pointerEvents="none" style={[styles.oval, oval]} /> : null}
-          {tabs.map((route, index) => {
-            const tab = TABS[route.name]!;
-            const badge = badges?.[route.name];
-            return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab"
-              accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
-              accessibilityState={{ selected: index === selected }} style={styles.slot}>
-              <View>
-                {/* The outline icon; lit, it's pink and a touch heavier, and
-                    Tracker's end dot fills in (owner, 2026-10-12). */}
-                {index === lit
-                  ? <Icon name={tab.icon} size={ICON} tone="accent" lit weight={tab.icon === "tracker" ? "fill" : "line"} />
-                  : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
-                {/* The count rides on the icon's top right (System, the tab bar part). */}
-                {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
-              </View>
-            </Pressable>;
-          })}
+          <Animated.View style={[styles.tabs, slide]} pointerEvents={searching ? "none" : "auto"}>
+            <Animated.View style={[styles.tabRow, tabsFade]}>
+              {tabs.map((route, index) => {
+                const tab = TABS[route.name]!;
+                const badge = badges?.[route.name];
+                return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab"
+                  accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
+                  accessibilityState={{ selected: index === selected }} style={styles.slot}>
+                  <View>
+                    {/* The outline icon; lit, it's pink and a touch heavier, and
+                        Tracker's end dot fills in (owner, 2026-10-12). */}
+                    {index === lit
+                      ? <Icon name={tab.icon} size={ICON} tone="accent" lit weight={tab.icon === "tracker" ? "fill" : "line"} />
+                      : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
+                    {/* The count rides on the icon's top right (System, the tab bar part). */}
+                    {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
+                  </View>
+                </Pressable>;
+              })}
+            </Animated.View>
+            {/* Folded, the tab you came from in ink: the circle takes you back. */}
+            {backTab ? <Animated.View pointerEvents="none" style={[styles.backIcon, { left: back * PITCH }, backFade]}>
+              <Icon name={backTab.icon} size={ICON} tone="ink" />
+            </Animated.View> : null}
+          </Animated.View>
+          {searching && backTab ? <Pressable onPress={() => open(back, true)} accessibilityRole="button"
+            accessibilityLabel={backTab.label} style={styles.cover} /> : null}
         </GlassView>
       </Animated.View>
     </GestureDetector>
-  </View>;
+  </Animated.View>;
 }
 
 /** Where the oval sits under the tab at this index. */
@@ -296,15 +395,25 @@ function slotX(index: number) {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  bar: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "flex-end" },
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0 },
   // It shrinks towards the bottom edge, staying on the home indicator.
-  shrink: { transformOrigin: "bottom" },
-  pill: { flexDirection: "row", paddingVertical: PAD, paddingHorizontal: PAD_X, borderRadius: PILL / 2 },
+  pillFrame: { position: "absolute", height: PILL, transformOrigin: "bottom" },
+  pill: { flex: 1, borderRadius: PILL / 2, overflow: "hidden" },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
+  // The icons keep their places while the pill folds around them.
+  tabs: { position: "absolute", top: PAD, left: PAD_X, height: SLOT_HEIGHT },
+  tabRow: { flexDirection: "row" },
   slot: { width: PITCH, height: SLOT_HEIGHT, alignItems: "center", justifyContent: "center" },
+  backIcon: { position: "absolute", top: 0, width: PITCH, height: SLOT_HEIGHT, alignItems: "center", justifyContent: "center" },
+  cover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   oval: {
     position: "absolute", top: PAD, left: PAD, width: LIT, height: SLOT_HEIGHT,
     borderRadius: SLOT_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color.pill,
   },
   badge: { position: "absolute", left: 10, top: -8 },
+  fieldFrame: { position: "absolute", height: PILL },
+  field: { flex: 1, borderRadius: PILL / 2, overflow: "hidden" },
+  fieldContent: { height: PILL, flexDirection: "row", alignItems: "center", gap: FIELD_GAP, paddingHorizontal: theme.ui.space["5"] },
+  input: { flex: 1, height: PILL, fontSize: theme.ui.type.body.size, color: theme.ui.color.ink, padding: 0 },
+  clear: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["ink-4"] },
 }));

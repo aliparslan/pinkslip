@@ -266,6 +266,14 @@ on one line share a size.
 - **Search** (2026-10-15): the Search tab finds jobs and companies, so
   companies need no search of their own in settings. Jobs' field says
   "Search these jobs" and only narrows your feed.
+- **The Search tab's field is at the bottom** (2026-10-16, Paper "Search ·
+  before typing", as iOS 26 draws it): on Search the pill folds into a
+  glass circle holding the tab you came from (in `ink`; tap it to go
+  back) and the field opens out of the Search icon's place, 10 after the
+  circle. One spring (`tab.glide`) drives the fold both ways. Circle and
+  field keep the pill's 56 height rather than Paper's older 62, so the
+  bar doesn't change size. The glass itself never fades, only what's on
+  it. While you type, the bar stands 8 above the keyboard.
 
 ## Motion
 
@@ -594,6 +602,13 @@ cut so that each remaining one has a job.
     and `needsYou`, `JobRow` `factsBad` and `quiet`, and a top-bar
     `action` on You's pages. The owner wants fewer numbers and more
     visuals in Admin later, once the chart libraries are looked at.
+  - While the backend session runs: the stub's proof for applications
+    Pinkslip sent (Paper 6.1, 6.2): `StubStamp` `pending` (dashed, `ink-3`)
+    for SENT until the board or the company's email confirms it, then
+    APPLIED with "Confirmed / by Stripe's email, 9:58 AM"; the foot says
+    "Sent by Pinkslip · via Greenhouse" and "What it sent ›" (`Stub`
+    `action.opens`). Samples only until sends are recorded. The Search
+    tab's field moved to the bottom (Search, above).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

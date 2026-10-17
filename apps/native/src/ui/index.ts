@@ -24,6 +24,7 @@ export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { StampedSlip, type StampedSlipProps } from "./StampedSlip";
 export { TabBar, useTabBarScroll, useTabBarSpace, useTabBarSteppedAside, useTabBarStepsAside } from "./TabBar";
+export type { TabBarSearch } from "./TabBar";
 export { toast, ToastHost, UNDO_TOAST_DURATION, useToastLift, type ToastAction, type ToastInput, type ToastTone } from "./Toast";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";

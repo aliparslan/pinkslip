@@ -56,9 +56,13 @@ on sample data from You → Kit → Redesign kit until its backend exists.
   the Pro sheet from a moment, Events (a company's list and an event page).
 - **Not built yet:** the in-app browser's redraw and fill bar (board 2), the
   Apply button's auto-apply states and its split menu (board 1, M2), the
-  stub's APPLIED/SENT proof (6.1, 6.2), the Live Activity and Dynamic
-  Island (a native build), Following and the follow-only rules (backend),
-  the Search tab as iOS 26 draws it.
+  Live Activity and Dynamic Island (a native build), Following and the
+  follow-only rules (backend). On Search, Companies you follow, Coming up
+  and the result scopes (All, Jobs, Companies, Events) wait on following
+  and events.
+- **Built Oct 16:** the stub's APPLIED/SENT proof (6.1, 6.2, on samples
+  until sends are recorded) and the Search tab's bottom field as iOS 26
+  draws it.
 
 ## Designed and built
 
