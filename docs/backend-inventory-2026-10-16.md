@@ -415,3 +415,24 @@ Events:
 3. **Remind me (N19)** is a push the day before; Sign up opens their page.
 4. **Past events leave** the company page the day after.
 
+### Outreach (owner, 2026-10-16)
+
+1. **Contacts in two steps:** shared early-career inboxes first
+   (university@, earlycareers@, campus@); individual recruiters from the
+   sourcing search once its "works there" accuracy on the owner's labels
+   reaches 90% (Admin shows 81% on the sample).
+2. **Only checked emails are shown:** each contact carries its source and a
+   verified mark from an email checker; bounces are dropped; the list is
+   refreshed every quarter.
+3. **Respect for recruiters:** a removal path (a recruiter who asks is
+   suppressed for everyone), and a weekly cap on how many users start a
+   thread with the same person; past it, the app suggests someone else at
+   the company.
+4. **A cap per user:** at most 5 new people a day.
+5. **Opening it:** drop `OUTREACH_TEST_RECIPIENT`, set `OUTREACH = "on"`
+   once the first verified list exists; sending from your own mail stays
+   free.
+6. **Also:** People on a company's page from the threads (by company, not
+   only by job), Gmail and Outlook web compose links, and reply detection
+   (email tracking #6).
+
