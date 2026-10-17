@@ -32,6 +32,7 @@ import recruiterRoutes from "./routes/recruiters";
 import outreachRoutes from "./routes/outreach";
 import applyRoutes from "./routes/apply";
 import errorRoutes from "./routes/errors";
+import notificationRoutes from "./routes/notifications";
 import { alertNewErrors, describeThrown, recordError } from "./errors";
 import {
   HEALTH_CRON_SCHEDULE,
@@ -41,7 +42,7 @@ import {
   type HealthCheckDeps,
 } from "./health-checks";
 import { flagEnabled } from "./feature-flags";
-import { remindDueFollowUps } from "./outreach/reminders";
+import { queueSavedJobClosings, runNotificationScheduler } from "./notification-scheduler";
 import { runClassificationShadow } from "./classification-shadow";
 import {
   NOTIFICATION_CRON_SCHEDULE,
@@ -327,6 +328,7 @@ app.route("/api/v2/jobs", jobRoutes);
 app.route("/api/v2/companies", companyRoutes);
 app.route("/api/v2/preferences", preferenceRoutes);
 app.route("/api/v2/push", pushRoutes);
+app.route("/api/v2/notifications", notificationRoutes);
 app.route("/api/v2/stats", statRoutes);
 app.route("/api/v2/profile", profileRoutes);
 app.route("/api/v2/resume-import", resumeImportRoutes);
@@ -470,16 +472,20 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: Execution
   }
   if (cycle === "dispatch") {
     // The watchdog runs even when dispatch fails; that is when it matters most.
-    // Follow-up reminders ride the same every-minute tick so they land on time,
-    // and new kinds of errors reach admins within a minute.
+    // Scheduled notifications (follow-ups, the daily new-jobs alert, saved
+    // jobs closing) ride the same every-minute tick so they land on time, and
+    // new kinds of errors reach admins within a minute.
     const [dispatch, watchdog, reminders, newErrors] = await Promise.allSettled([
       dispatchDueSources(env),
       runPollingWatchdog(env),
-      remindDueFollowUps(env),
+      runNotificationScheduler(env),
       alertNewErrors(env),
     ]);
-    if (reminders.status === "fulfilled" && reminders.value.reminded > 0) {
-      console.log(`Follow-up reminders: ${reminders.value.reminded} due, ${reminders.value.delivered} pushes delivered`);
+    if (reminders.status === "fulfilled") {
+      const { followUps, digests, delivered } = reminders.value;
+      if (followUps + digests + delivered.sent + delivered.held + delivered.failed > 0) {
+        console.log(`Notifications: ${followUps} follow-ups queued, ${digests} daily alerts, ${delivered.sent} sent, ${delivered.held} held for the daily cap, ${delivered.skipped} skipped, ${delivered.failed} failed`);
+      }
     }
     if (dispatch.status === "fulfilled") {
       const total = dispatch.value.reduce((sum, result) => sum + result.dispatched, 0);
@@ -496,6 +502,8 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: Execution
   if (cycle === "notifications") {
     const result = await runNotificationCycle(env);
     console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
+    const closings = await queueSavedJobClosings(env);
+    if (closings > 0) console.log(`Saved jobs closed: ${closings} notifications queued`);
     await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
     return;
   }

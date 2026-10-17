@@ -1,18 +1,11 @@
+import { DEFAULT_TIME_ZONE, localParts, validTimeZone, zonedTime } from "../local-time";
+
 /** Business days after the previous email: the first follow-up after three,
  * the second about a week after that. */
 export const FOLLOW_UP_BUSINESS_DAYS = [3, 5] as const;
 export const FOLLOW_UP_LOCAL_HOUR = 9;
-export const DEFAULT_OUTREACH_TIME_ZONE = "America/New_York";
-
-export function validTimeZone(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) return DEFAULT_OUTREACH_TIME_ZONE;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return value;
-  } catch {
-    return DEFAULT_OUTREACH_TIME_ZONE;
-  }
-}
+export const DEFAULT_OUTREACH_TIME_ZONE = DEFAULT_TIME_ZONE;
+export { validTimeZone };
 
 /** "2,5" → [2, 5]. Lets a tester see follow-ups come due in minutes instead of days. */
 export function testFollowUpMinutes(value: string | undefined): [number, number] | null {
@@ -20,41 +13,6 @@ export function testFollowUpMinutes(value: string | undefined): [number, number]
   const parts = value.split(",").map((part) => Number(part.trim()));
   if (parts.length !== 2 || parts.some((part) => !Number.isFinite(part) || part <= 0)) return null;
   return [parts[0], parts[1]];
-}
-
-function localParts(instant: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(instant);
-  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
-  return {
-    year: value("year"),
-    month: value("month"),
-    day: value("day"),
-    hour: value("hour"),
-    minute: value("minute"),
-    second: value("second"),
-  };
-}
-
-function offsetMs(instant: Date, timeZone: string): number {
-  const local = localParts(instant, timeZone);
-  const asUtc = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second);
-  return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
-}
-
-function zonedTime(year: number, month: number, day: number, hour: number, timeZone: string): Date {
-  const guess = Date.UTC(year, month - 1, day, hour);
-  const first = guess - offsetMs(new Date(guess), timeZone);
-  // Re-check once so a DST change between the guess and the answer still lands on the hour.
-  return new Date(guess - offsetMs(new Date(first), timeZone));
 }
 
 /** The instant a follow-up comes due: `businessDays` weekdays after the local

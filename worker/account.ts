@@ -326,6 +326,32 @@ export async function mergeGuestDataIntoAccount(
        updated_at = excluded.updated_at
      WHERE datetime(excluded.updated_at) > datetime(user_notification_settings.updated_at)`
   ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
+  // Per-kind settings and the phone's time zone follow the same rule: the
+  // newer choice wins. The notification log moves over, so the daily cap and
+  // "never twice" still hold after signing in.
+  await db.prepare(
+    `INSERT INTO notification_settings (user_id, kind, enabled, mode, daily_time, updated_at)
+     SELECT ?, kind, enabled, mode, daily_time, updated_at
+     FROM notification_settings
+     WHERE user_id = ?
+     ON CONFLICT(user_id, kind) DO UPDATE SET
+       enabled = excluded.enabled,
+       mode = excluded.mode,
+       daily_time = excluded.daily_time,
+       updated_at = excluded.updated_at
+     WHERE datetime(excluded.updated_at) > datetime(notification_settings.updated_at)`
+  ).bind(targetUserId, sourceUserId).run().catch(() => undefined);
+  await db.prepare(
+    `UPDATE users SET time_zone = COALESCE((SELECT time_zone FROM users WHERE id = ?), time_zone)
+     WHERE id = ?`
+  ).bind(sourceUserId, targetUserId).run().catch(() => undefined);
+  await db.prepare(
+    `DELETE FROM notification_log
+     WHERE user_id = ?
+       AND dedupe_key IN (SELECT dedupe_key FROM notification_log WHERE user_id = ?)`
+  ).bind(sourceUserId, targetUserId).run().catch(() => undefined);
+  await db.prepare("UPDATE notification_log SET user_id = ? WHERE user_id = ?")
+    .bind(targetUserId, sourceUserId).run().catch(() => undefined);
 
   await db.prepare(
     `DELETE FROM notification_candidates

@@ -29,6 +29,8 @@ async function outreachDb() {
   sqlite.run(`CREATE TABLE user_profiles (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, created_at TEXT, updated_at TEXT)`);
   sqlite.run(`CREATE TABLE push_subscriptions (id TEXT PRIMARY KEY, user_id TEXT, endpoint TEXT, p256dh TEXT, auth TEXT, created_at TEXT, platform TEXT)`);
   sqlite.run(await Bun.file(new URL("../migrations/0084_outreach.sql", import.meta.url)).text());
+  const notifications = await Bun.file(new URL("../migrations/0094_notifications.sql", import.meta.url)).text();
+  sqlite.exec(notifications.slice(notifications.indexOf("CREATE TABLE notification_log")));
   sqlite.run(`INSERT INTO users (id, name) VALUES ('user-1', 'Ali Arslan'), ('user-2', ''), ('user-3', ''), ('user-4', ''), ('user-5', '')`);
   sqlite.run(`INSERT INTO companies (id, name) VALUES ('stripe', 'Stripe')`);
   sqlite.run(`INSERT INTO jobs (id, company_id, title) VALUES ('job-1', 'stripe', 'Software Engineer, New Grad')`);
@@ -313,9 +315,15 @@ describe("reminders", () => {
     const thread = await startThreadForJob(env, "user-1", "job-1");
     await markMessageSent(env, "user-1", thread.messages[0].id, "America/New_York", new Date("2026-10-08T20:00:00Z"));
 
-    expect(await remindDueFollowUps(env, new Date("2026-10-13T12:59:00Z"))).toEqual({ reminded: 0, delivered: 0 });
-    expect(await remindDueFollowUps(env, new Date("2026-10-13T13:00:00Z"))).toEqual({ reminded: 1, delivered: 0 });
-    expect(await remindDueFollowUps(env, new Date("2026-10-13T13:01:00Z"))).toEqual({ reminded: 0, delivered: 0 });
+    expect(await remindDueFollowUps(env, new Date("2026-10-13T12:59:00Z"))).toEqual({ reminded: 0, queued: 0 });
+    expect(await remindDueFollowUps(env, new Date("2026-10-13T13:00:00Z"))).toEqual({ reminded: 1, queued: 1 });
+    expect(await remindDueFollowUps(env, new Date("2026-10-13T13:01:00Z"))).toEqual({ reminded: 0, queued: 0 });
+    expect(sqlite.query("SELECT kind, title, status, scheduled_for FROM notification_log").all()).toEqual([{
+      kind: "follow_up",
+      title: "Follow up with Stripe",
+      status: "scheduled",
+      scheduled_for: "2026-10-13T13:00:00.000Z",
+    }]);
     expect(sqlite.query("SELECT reminded_at FROM outreach_messages WHERE step = 1").get())
       .toEqual({ reminded_at: "2026-10-13T13:00:00.000Z" });
   });
@@ -326,7 +334,7 @@ describe("reminders", () => {
     const thread = await startThreadForJob(env, "user-1", "job-1");
     await markMessageSent(env, "user-1", thread.messages[0].id, null, new Date("2026-10-08T20:00:00Z"));
     await closeThread(db, "user-1", thread.id, "stopped");
-    expect(await remindDueFollowUps(env, new Date("2026-11-01T00:00:00Z"))).toEqual({ reminded: 0, delivered: 0 });
+    expect(await remindDueFollowUps(env, new Date("2026-11-01T00:00:00Z"))).toEqual({ reminded: 0, queued: 0 });
   });
 
   it("links the reminder to the thread on its job page", () => {

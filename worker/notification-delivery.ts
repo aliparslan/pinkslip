@@ -1,6 +1,12 @@
 import { apnsReason } from "./apns";
 import { recordProductEvent } from "./product-events";
-import { buildNotificationPayload, type NotificationJob } from "./push";
+import { buildDailyDigestPayload, buildNotificationPayload, type NotificationJob, type NotificationPayload } from "./push";
+import {
+  CAPPED_USERS_SQL,
+  passiveWindowStart,
+  recordSentNotification,
+  type DueDigest,
+} from "./notifications";
 import type { Env, PushSubscriptionRow } from "./types";
 import { ensureEligibleJobs } from "./job-scope";
 import {
@@ -106,13 +112,14 @@ export async function createNotificationCandidates(
        JOIN jobs j ON j.id = ujm.job_id
        JOIN user_search_profiles usp ON usp.user_id = ujm.user_id
        LEFT JOIN user_notification_settings uns ON uns.user_id = ujm.user_id
+       LEFT JOIN notification_settings ns ON ns.user_id = ujm.user_id AND ns.kind = 'new_jobs'
        WHERE ujm.job_id IN (${placeholders})
          AND ujm.matcher_version = ?
          AND j.closed_at IS NULL
          AND j.description IS NOT NULL
          AND trim(j.description) != ''
          AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
-         AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
+         AND COALESCE(ns.enabled, uns.enabled, usp.notifications_enabled) = 1
          AND COALESCE(uns.push_enabled, 1) = 1
          AND NOT EXISTS (
            SELECT 1 FROM user_blocked_companies ubc
@@ -166,11 +173,27 @@ export async function createNotificationCandidates(
   return created;
 }
 
+export interface DeliverOptions {
+  /** Once-a-day people whose time has come; without it, only people on "as they post". */
+  digests?: DueDigest[];
+  now?: Date;
+  send?: typeof sendNotificationToSubscription;
+}
+
+/** Jobs a push lists for the app; the title still counts them all. */
+const JOBS_PER_PUSH = 100;
+
 export async function deliverPendingNotifications(
   db: D1Database,
   env: Env,
-  limit = 200
+  limit = 200,
+  options: DeliverOptions = {}
 ) {
+  const now = options.now ?? new Date();
+  const send = options.send ?? sendNotificationToSubscription;
+  const digests = options.digests ?? [];
+  const digestKeys = new Map(digests.map((digest) => [digest.userId, digest.dedupeKey]));
+  if (options.digests && digests.length === 0) return 0;
   await ensureEligibleJobs(db);
   await db.prepare(
     `UPDATE notification_candidates
@@ -227,6 +250,7 @@ export async function deliverPendingNotifications(
       AND ujm.job_id = nc.job_id
       AND ujm.matcher_version = ?
      LEFT JOIN user_notification_settings uns ON uns.user_id = nc.user_id
+     LEFT JOIN notification_settings ns ON ns.user_id = nc.user_id AND ns.kind = 'new_jobs'
      JOIN user_search_profiles usp ON usp.user_id = nc.user_id
      LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
      WHERE nc.status IN ('pending', 'retry')
@@ -236,15 +260,26 @@ export async function deliverPendingNotifications(
        AND jf.classifier_version = ?
        AND (jrq.job_id IS NULL OR jrq.state = 'approved')
        AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
-       AND COALESCE(uns.enabled, usp.notifications_enabled) = 1
+       AND COALESCE(ns.enabled, uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
        AND NOT EXISTS (
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
+       -- Once-a-day people wait for their digest; anyone at the daily cap waits.
+       AND ${options.digests
+         ? `nc.user_id IN (${digests.map(() => "?").join(", ")})`
+         : "COALESCE(ns.mode, 'post') = 'post'"}
+       AND nc.user_id NOT IN (${CAPPED_USERS_SQL})
      ORDER BY nc.created_at ASC
      LIMIT ?`
-  ).bind(MATCHER_VERSION, JOB_CLASSIFIER_VERSION, limit).all<CandidateRow>();
+  ).bind(
+    MATCHER_VERSION,
+    JOB_CLASSIFIER_VERSION,
+    ...digests.map((digest) => digest.userId),
+    passiveWindowStart(now),
+    limit
+  ).all<CandidateRow>();
   const available: CandidateRow[] = [];
   const preferenceMismatches: CandidateRow[] = [];
   for (const candidate of candidates.results ?? []) {
@@ -276,10 +311,12 @@ export async function deliverPendingNotifications(
   for (const row of rows) {
     byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
   }
+  // One push per person per run: the cap counts pushes, so five jobs landing
+  // together are one alert, not five.
   const deliveries: Array<[string, CandidateRow[]]> = [];
   for (const [userId, userCandidates] of byUser) {
-    for (let offset = 0; offset < userCandidates.length; offset += 20) {
-      deliveries.push([userId, userCandidates.slice(offset, offset + 20)]);
+    for (let offset = 0; offset < userCandidates.length; offset += JOBS_PER_PUSH) {
+      deliveries.push([userId, userCandidates.slice(offset, offset + JOBS_PER_PUSH)]);
     }
   }
 
@@ -295,6 +332,23 @@ export async function deliverPendingNotifications(
       await markCandidates(db, userCandidates, "skipped", "No registered push subscription");
       continue;
     }
+
+    const notificationId = crypto.randomUUID();
+    const digestKey = digestKeys.get(userId);
+    if (digestKey) {
+      // Claims the day, so two overlapping ticks can't both send it.
+      const claim = await db.prepare(
+        `INSERT OR IGNORE INTO notification_log (
+           id, user_id, kind, dedupe_key, title, body, url, passive, status, scheduled_for, created_at
+         ) VALUES (?, ?, 'new_jobs', ?, '', '', '/', 1, 'sending', ?, ?)`
+      ).bind(notificationId, userId, digestKey, now.toISOString(), now.toISOString()).run();
+      if ((claim.meta?.changes ?? 0) === 0) {
+        await markCandidates(db, userCandidates, "retry", "Today's digest already went out");
+        continue;
+      }
+    }
+    let delivered: NotificationPayload | null = null;
+    let devicesSent = 0;
 
     await db.batch(userCandidates.flatMap((candidate) =>
       subs.map((sub) =>
@@ -341,10 +395,16 @@ export async function deliverPendingNotifications(
           title: candidate.title,
           jobId: candidate.job_id,
         }));
-      const payload = buildNotificationPayload(jobs);
-      const result = await sendNotificationToSubscription(sub, payload, transports);
+      const payload: NotificationPayload = {
+        ...(digestKey ? buildDailyDigestPayload(jobs) : buildNotificationPayload(jobs)),
+        kind: "new_jobs",
+      };
+      payload.data.notification_id = notificationId;
+      const result = await send(sub, payload, transports);
 
       if (result.ok) {
+        delivered ??= payload;
+        devicesSent += 1;
         await db.batch(claimed.map((delivery) =>
           db.prepare(
             `UPDATE notification_deliveries
@@ -397,6 +457,24 @@ export async function deliverPendingNotifications(
             .run();
         }
       }
+    }
+
+    if (delivered) {
+      await recordSentNotification(db, {
+        id: notificationId,
+        userId,
+        kind: "new_jobs",
+        dedupeKey: digestKey ?? `new_jobs:${notificationId}`,
+        payload: delivered,
+        entityType: "job",
+        entityId: delivered.data.job_ids?.[0] ?? null,
+        devices: devicesSent,
+        sentAt: new Date(),
+      });
+    } else if (digestKey) {
+      await db.prepare(
+        "UPDATE notification_log SET status = 'failed', error = 'No device took it' WHERE id = ?"
+      ).bind(notificationId).run();
     }
 
     for (const candidate of userCandidates) {

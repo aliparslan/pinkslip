@@ -105,9 +105,12 @@ export function buildApnsBody(payload: NotificationPayload): string {
     aps: {
       alert: { title: payload.title, body: payload.body },
       sound: "default",
+      ...(payload.kind ? { "thread-id": payload.kind } : {}),
+      ...(payload.timeSensitive ? { "interruption-level": "time-sensitive" } : {}),
     },
     url: payload.data.url,
     job_ids: payload.data.job_ids ?? [],
+    ...(payload.data.notification_id ? { notification_id: payload.data.notification_id } : {}),
   });
 }
 

@@ -1,6 +1,7 @@
 import { CATALOG_READER_ID } from "../catalog-reader";
 import { Hono } from "hono";
 import { requireAdmin } from "../auth";
+import { notificationMetricsByKind } from "../notifications";
 import type { Env, Variables } from "../types";
 import { ensureEligibleJobs } from "../job-scope";
 import { MATCHER_VERSION } from "../user-job-matches";
@@ -403,6 +404,8 @@ metrics.get("/", async (c) => {
     },
     open_reports: Number(openReports?.count ?? 0),
     open_feedback: Number(openFeedback?.count ?? 0),
+    // The notification log: sent and opened per kind (Decisions: Admin #3).
+    notifications_by_kind: await notificationMetricsByKind(db).catch(() => []),
     events,
   });
 });

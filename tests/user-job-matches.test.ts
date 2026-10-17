@@ -168,6 +168,10 @@ function createMatchingSchema(sqlite: Database) {
     CREATE TABLE user_notification_settings (
       user_id TEXT PRIMARY KEY, enabled INTEGER, push_enabled INTEGER, updated_at TEXT
     );
+    CREATE TABLE notification_settings (
+      user_id TEXT NOT NULL, kind TEXT NOT NULL, enabled INTEGER NOT NULL, mode TEXT,
+      daily_time TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (user_id, kind)
+    );
     CREATE TABLE notification_candidates (
       user_id TEXT, status TEXT, last_error TEXT
     );

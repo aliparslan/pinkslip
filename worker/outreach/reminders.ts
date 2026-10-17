@@ -1,10 +1,7 @@
-import {
-  isDeadPushSubscription,
-  resolveNotificationTransports,
-  sendNotificationToSubscription,
-} from "../notification-transport";
+import { notificationLinks } from "../notification-kinds";
+import { scheduleNotification } from "../notifications";
 import type { NotificationPayload } from "../push";
-import type { Env, PushSubscriptionRow } from "../types";
+import type { Env } from "../types";
 
 interface DueRow {
   message_id: string;
@@ -23,16 +20,14 @@ export function followUpReminderPayload(row: Omit<DueRow, "message_id" | "user_i
     body: row.step === 1
       ? `Your follow-up to ${who} is ready to send.`
       : `Your last follow-up to ${who} is ready to send.`,
-    data: {
-      url: row.job_id
-        ? `/jobs/${row.job_id}?outreach=${row.thread_id}`
-        : "/library/applied",
-    },
+    data: { url: notificationLinks.followUp(row.job_id, row.thread_id) },
   };
 }
 
-/** Pushes one reminder per follow-up that has come due. The user still sends
- * it from their own mail; this only tells them when. */
+/** Queues one reminder per follow-up that has come due; the every-minute
+ * tick sends it right after (worker/notification-scheduler.ts), within the
+ * daily cap. The user still sends the follow-up from their own mail; this
+ * only tells them when. */
 export async function remindDueFollowUps(env: Env, now = new Date(), limit = 100) {
   const due = await env.DB.prepare(
     `SELECT om.id AS message_id, om.thread_id, om.step, ot.user_id, ot.job_id,
@@ -49,36 +44,27 @@ export async function remindDueFollowUps(env: Env, now = new Date(), limit = 100
      LIMIT ?`
   ).bind(now.toISOString(), limit).all<DueRow>();
   const rows = due.results ?? [];
-  if (rows.length === 0) return { reminded: 0, delivered: 0 };
+  if (rows.length === 0) return { reminded: 0, queued: 0 };
 
-  // Claim first, so an overlapping run or a failed push never sends twice.
+  // Claim first, so an overlapping run never queues twice.
   const stamp = now.toISOString();
   await env.DB.batch(rows.map((row) => env.DB.prepare(
     "UPDATE outreach_messages SET reminded_at = ? WHERE id = ? AND reminded_at IS NULL"
   ).bind(stamp, row.message_id)));
 
-  const transports = resolveNotificationTransports(env);
-  let delivered = 0;
+  let queued = 0;
   for (const row of rows) {
-    const subscriptions = await env.DB.prepare(
-      "SELECT * FROM push_subscriptions WHERE user_id = ?"
-    ).bind(row.user_id).all<PushSubscriptionRow>();
     const payload = followUpReminderPayload(row);
-    for (const subscription of subscriptions.results ?? []) {
-      const result = await sendNotificationToSubscription(subscription, payload, transports);
-      if (result.ok) {
-        delivered += 1;
-      } else if (isDeadPushSubscription(subscription, result)) {
-        await env.DB.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(subscription.id).run();
-      } else {
-        console.error("Follow-up reminder push failed", {
-          messageId: row.message_id,
-          platform: subscription.platform,
-          status: result.status,
-          error: result.error,
-        });
-      }
-    }
+    if (await scheduleNotification(env.DB, {
+      userId: row.user_id,
+      kind: "follow_up",
+      dedupeKey: `follow_up:${row.message_id}`,
+      title: payload.title,
+      body: payload.body,
+      url: payload.data.url,
+      entityType: "outreach_message",
+      entityId: row.message_id,
+    }, now)) queued += 1;
   }
-  return { reminded: rows.length, delivered };
+  return { reminded: rows.length, queued };
 }

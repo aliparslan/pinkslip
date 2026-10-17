@@ -284,7 +284,8 @@ owner's check before the next.
    phone's time zone, the scheduler on the every-minute tick, deep links per
    kind, the log, the daily cap for passive kinds. Fix and check what's live
    (§1 "Fix what we have"). Then N2 (once a day) and N9 (a saved job
-   closed), which need only what exists.
+   closed), which need only what exists. **Built 2026-10-16, not deployed**
+   (see "Built").
 3. **The Activity stream and Today** (§2): the table, the backfill,
    `GET /today`, seen per person, the badge from the server. N3 and N4 come
    out of it.
@@ -346,6 +347,7 @@ Made by the owner with Claude on 2026-10-16, part by part.
    (§2), so Today, the app icon's badge, pushes and any digest agree.
 3. **No quiet hours** for now. At most three passive pushes a day; the
    time-sensitive kinds (interview, offer, a reply) don't count toward it.
+   **Built 2026-10-16** (step 2; see "Built" for how the cap counts).
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
 
@@ -547,6 +549,8 @@ list.
 2. **A check every 15 minutes** that the feed loads, sign-in works and a
    push goes out; a failure alerts the owner. **Built 2026-10-16.**
 3. **The notification log** in Product health: sent and opened per kind.
+   **API built 2026-10-16** (`notifications_by_kind` in `GET /metrics`);
+   showing it in Admin waits for Paper.
 4. **A weekly check** that production's schema matches the migrations.
 5. **Admin's charts later**, after looking at chart libraries.
 
@@ -605,3 +609,96 @@ the new cron needs no other setup. If the feed check fails with a 403 from
 pinkslip.work, the zone's bot protection is blocking the Worker's request
 and the check should call the API in-process instead. The app reporters
 ship with `bun run deploy:web` and an over-the-air update.
+
+### Step 2: notifications foundation (2026-10-16, not deployed)
+
+- **Kinds** (`worker/notification-kinds.ts`): every kind in Decisions #1
+  with its default, whether it's time-sensitive and whether it sends yet.
+  Live now: `new_jobs` (N1, N2), `saved_job_closed` (N9), `follow_up` (N10).
+  The rest are listed, off the apps' lists until their steps.
+- **Settings per kind** (migration 0094, `notification_settings`): one row
+  per person and kind; no row means the default. It replaces the two copies
+  of the job-alert switch, which are still written for TestFlight builds
+  (`PUT /push/settings` and the search profile both write the new row).
+  `GET/PATCH /api/v2/notifications` reads and changes them, with the time
+  zone; only live kinds are listed.
+- **Time zone:** `users.time_zone`, sent by the iPhone app on launch.
+  Without one, US Eastern (as outreach already did). The time helpers moved
+  to `worker/local-time.ts`.
+- **The log** (`notification_log`): one row per notification, with its
+  kind, text, link, status, devices, sent and opened. New-job alerts write
+  to it as they go; everything else is scheduled into it. "Never the same
+  thing twice" is a unique key per person (`saved_job_closed:<job>`,
+  `follow_up:<message>`, `new_jobs_daily:<local date>`).
+- **The scheduler** (`worker/notification-scheduler.ts`) runs on the
+  every-minute tick: due follow-ups are queued, once-a-day alerts whose
+  time has come go out, then everything due in the log is sent. Same-kind
+  notifications due together go as one push where the kind groups ("3
+  saved jobs closed"). Failed sends retry twice, five minutes apart; dead
+  tokens are removed.
+- **Deep links per kind** (`notificationLinks`): job, feed, saved,
+  applied, Today, Alerts, a follow-up's thread, an application. The iPhone
+  app now opens `/today` in its Today tab.
+- **The daily cap:** passive pushes (every live kind) are at most three in
+  any 24 hours. Past it, scheduled ones are rescheduled for the moment the
+  oldest of the three leaves the window, and new-job matches wait and go
+  out together then. Time-sensitive pushes skip the cap and carry iOS's
+  `time-sensitive` interruption level (it takes effect once the native
+  build has the entitlement).
+- **N2, once a day:** people on Once a day keep their matches until their
+  time (8:00 until a time can be picked), then get one push: "12 new jobs
+  today" / "Datadog, Ramp, Mercury and 9 more", opening the feed.
+- **N9, a saved job closed:** the notification cron finds saved jobs the
+  poller closed in the last day (enough missed polls, so jobs Pinkslip
+  took out of its own catalog don't count). One push: "Stripe" / "Software
+  Engineer has closed", opening the job's CLOSED page; several: "3 saved
+  jobs closed", opening Saved.
+- **N10, follow-ups:** now queued through the log, so they count, are
+  logged, and respect the kind's switch.
+- **Opens:** pushes carry `notification_id`; `POST /push/opened` takes it
+  (newer apps) or the job ids (older apps, matched to the new-job alert).
+- **Apps:** the iPhone Alerts screen (the approved design) now shows Once
+  a day with its time chip, saves through the new endpoint, and the app
+  sends its time zone and the notification id. Ships with an over-the-air
+  update after the backend deploy.
+
+Liberties for the owner to keep or veto:
+
+1. The cap is a rolling 24 hours, not a calendar day, so held alerts never
+   pile up for midnight.
+2. New jobs as they post go as one push per person per delivery run (the
+   push names up to 50 jobs; the title counts them all), instead of one per
+   20 jobs.
+3. Once a day starts at 8:00 local; there's no time picker yet (needs a
+   Paper round). The once-a-day push also counts toward the cap.
+4. N9 opens the job when one closed (its CLOSED page) and Saved when
+   several did, and only looks back one day, so a deploy doesn't announce
+   old closings.
+5. Without a time zone from the phone, US Eastern.
+
+**Question for the owner:** in production today a person with alerts on
+gets about 20 new-job pushes a day (up to 48; 49 of 57 person-days in the
+last week were over 3). With the cap as decided, their first three pushes
+come within the first hour or so of new jobs, then nothing until 24 hours
+later, when everything waiting comes as one push. Options: keep it as
+decided; space passive pushes at least a few hours apart so the three fall
+across the day; or let "As they post" use the cap and recommend Once a day
+to heavy users.
+
+Checked from "Fix what we have" (production, read-only, 2026-10-16):
+
+- **Web push still sends:** 4 web subscriptions (one is the owner's); 221
+  web deliveries in 30 days, the last on 2026-10-17 02:56 UTC.
+- **Dead phones are pruned:** two tokens removed in the last 30 days (the
+  latest 2026-10-15); no failed deliveries in the last 7.
+- **Matching keeps up:** the backlog is empty; a job reaches a phone 0.2
+  minutes after it's found on average (0.9 at most) over the last week.
+- **Grouped alerts:** five jobs at once say "5 new jobs" with the
+  companies ("Stripe (2), Ramp, Datadog…") and open the first job named.
+  Pushes average 1.6 jobs (14 at most). Opens: 149 of 5,452 jobs sent in
+  30 days (2.7%).
+- **Still for the phone:** a job alert opening its job, and "Send a test"
+  on a fresh install (code reviewed; needs a device).
+
+Not in step 2: showing sent and opened per kind in Admin (Paper first), a
+time picker for Once a day (Paper), the badge (step 3), and N3/N4 (step 3).

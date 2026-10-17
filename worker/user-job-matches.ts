@@ -617,7 +617,8 @@ export async function matchJobsForNotifiableProfiles(
 ) {
   await matchJobsForProfiles(db, jobs, `
      LEFT JOIN user_notification_settings uns ON uns.user_id = usp.user_id
-     WHERE COALESCE(uns.enabled, usp.notifications_enabled) = 1
+     LEFT JOIN notification_settings ns ON ns.user_id = usp.user_id AND ns.kind = 'new_jobs'
+     WHERE COALESCE(ns.enabled, uns.enabled, usp.notifications_enabled) = 1
        AND COALESCE(uns.push_enabled, 1) = 1
        AND EXISTS (SELECT 1 FROM push_subscriptions ps WHERE ps.user_id = usp.user_id)`);
 }

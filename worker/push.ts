@@ -7,7 +7,12 @@ export interface NotificationJob {
 export interface NotificationPayload {
   title: string;
   body: string;
-  data: { url: string; job_ids?: string[] };
+  /** `notification_id` is the notification_log row, so an open can be counted. */
+  data: { url: string; job_ids?: string[]; notification_id?: string };
+  /** Groups a kind's pushes together in Notification Center. */
+  kind?: string;
+  /** Breaks through Focus once the app has the entitlement; ignored before. */
+  timeSensitive?: boolean;
 }
 
 export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {
@@ -36,9 +41,39 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
   return {
     title: `${count} new jobs`,
     body,
-    // A grouped alert should land on a job the alert actually named. The full
-    // ID list is retained for analytics and future multi-job presentation.
-    data: { url: `/jobs/${jobs[0].jobId}`, job_ids: jobs.map((job) => job.jobId) },
+    // A grouped alert should land on a job the alert actually named. The ID
+    // list is retained for analytics and future multi-job presentation,
+    // bounded so the push stays under APNs' 4 KB.
+    data: { url: `/jobs/${jobs[0].jobId}`, job_ids: jobs.slice(0, MAX_PUSH_JOB_IDS).map((job) => job.jobId) },
+  };
+}
+
+/** Job ids a push carries for the open receipt (POST /push/opened takes 50). */
+const MAX_PUSH_JOB_IDS = 50;
+
+/**
+ * New jobs once a day (N2), as the Alerts screen previews it: "12 new jobs
+ * today" / "Datadog, Ramp, Mercury and 9 more". It opens the feed, where they
+ * all are; a single job opens that job.
+ */
+export function buildDailyDigestPayload(jobs: NotificationJob[]): NotificationPayload {
+  const jobIds = jobs.slice(0, MAX_PUSH_JOB_IDS).map((job) => job.jobId);
+  if (jobs.length === 1) {
+    return {
+      title: "1 new job today",
+      body: `${jobs[0].company} · ${jobs[0].title}`,
+      data: { url: `/jobs/${jobs[0].jobId}`, job_ids: jobIds },
+    };
+  }
+  const named = [...new Set(jobs.map((job) => job.company))].slice(0, 3);
+  const rest = jobs.filter((job) => !named.includes(job.company)).length;
+  const body = rest > 0
+    ? `${named.join(", ")} and ${rest} more`
+    : named.length > 1 ? `${named.slice(0, -1).join(", ")} and ${named.at(-1)}` : named[0] ?? "";
+  return {
+    title: `${jobs.length} new jobs today`,
+    body,
+    data: { url: "/", job_ids: jobIds },
   };
 }
 

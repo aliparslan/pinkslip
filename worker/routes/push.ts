@@ -4,8 +4,7 @@ import { sendPushNotification } from "../push";
 import type { NotificationPayload, VapidConfig } from "../push";
 import { resolveApnsConfig, sendApnsNotification } from "../apns";
 import { recordProductEvent } from "../product-events";
-import { MATCHER_VERSION } from "../user-job-matches";
-import { MAX_POSTED_AGE_DAYS } from "../../shared/job-policy";
+import { markNotificationOpened, requeueNewJobCandidates, setNewJobAlerts } from "../notifications";
 import { resolveJobIds } from "../job-identity";
 
 const push = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -13,10 +12,11 @@ const push = new Hono<{ Bindings: Env; Variables: Variables }>();
 push.get("/settings", async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT
-       COALESCE(uns.enabled, usp.notifications_enabled, 0) AS enabled,
+       COALESCE(ns.enabled, uns.enabled, usp.notifications_enabled, 0) AS enabled,
        COALESCE(uns.push_enabled, 1) AS push_enabled,
-       COALESCE(uns.updated_at, usp.updated_at) AS updated_at
+       COALESCE(ns.updated_at, uns.updated_at, usp.updated_at) AS updated_at
      FROM users u
+     LEFT JOIN notification_settings ns ON ns.user_id = u.id AND ns.kind = 'new_jobs'
      LEFT JOIN user_notification_settings uns ON uns.user_id = u.id
      LEFT JOIN user_search_profiles usp ON usp.user_id = u.id
      WHERE u.id = ?`
@@ -33,80 +33,37 @@ push.get("/settings", async (c) => {
   });
 });
 
+/** The job-alert switch for builds before per-kind settings
+ * (GET/PATCH /notifications); it writes the same rows. */
 push.put("/settings", async (c) => {
   const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean }>();
+  const userId = c.get("userId");
   const existing = await c.env.DB.prepare(
-    "SELECT enabled, push_enabled FROM user_notification_settings WHERE user_id = ?"
-  ).bind(c.get("userId")).first<{ enabled: number; push_enabled: number }>();
-  const enabled = body.enabled ?? (existing?.enabled === 1);
+    "SELECT push_enabled FROM user_notification_settings WHERE user_id = ?"
+  ).bind(userId).first<{ push_enabled: number }>();
   const pushEnabled = body.push_enabled ?? (existing?.push_enabled !== 0);
+  const { enabled } = await setNewJobAlerts(c.env.DB, userId, { enabled: body.enabled });
   await c.env.DB.prepare(
-    `INSERT INTO user_notification_settings (user_id, enabled, push_enabled, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET
-       enabled = excluded.enabled,
-       push_enabled = excluded.push_enabled,
-       updated_at = excluded.updated_at`
-  ).bind(
-    c.get("userId"),
-    enabled ? 1 : 0,
-    pushEnabled ? 1 : 0,
-    new Date().toISOString()
-  ).run();
-  await c.env.DB.prepare(
-    "UPDATE user_search_profiles SET notifications_enabled = ?, updated_at = ? WHERE user_id = ?"
-  ).bind(enabled ? 1 : 0, new Date().toISOString(), c.get("userId")).run();
-  await c.env.DB.prepare(
-    `UPDATE notification_candidates
-     SET status = 'skipped', last_error = 'Notification settings changed'
-     WHERE user_id = ?
-       AND status IN ('pending', 'retry')
-       AND (? = 0 OR ? = 0)`
-  ).bind(
-    c.get("userId"),
-    enabled ? 1 : 0,
-    pushEnabled ? 1 : 0
-  ).run();
-  if (enabled && pushEnabled) {
-    await c.env.DB.prepare(
-      `UPDATE notification_candidates
-       SET status = 'retry', attempt_count = 0, last_error = NULL
-       WHERE user_id = ?
-         AND status IN ('failed', 'skipped')
-         AND EXISTS (
-           SELECT 1
-           FROM user_job_matches ujm
-           JOIN jobs j ON j.id = ujm.job_id
-           WHERE ujm.user_id = notification_candidates.user_id
-             AND ujm.job_id = notification_candidates.job_id
-             AND ujm.matcher_version = ?
-             AND j.closed_at IS NULL
-             AND j.description IS NOT NULL
-             AND trim(j.description) != ''
-             AND (j.posted_at IS NULL OR datetime(j.posted_at) > datetime('now', '-${MAX_POSTED_AGE_DAYS + 1} days'))
-         )`
-    ).bind(c.get("userId"), MATCHER_VERSION).run();
-    await c.env.DB.prepare(
-      `UPDATE notification_deliveries
-       SET status = 'retry', attempt_count = 0, last_error = NULL
-       WHERE candidate_id IN (
-         SELECT id FROM notification_candidates
-         WHERE user_id = ? AND status = 'retry'
-       )
-         AND status = 'failed'`
-    ).bind(c.get("userId")).run();
-  }
+    "UPDATE user_notification_settings SET push_enabled = ? WHERE user_id = ?"
+  ).bind(pushEnabled ? 1 : 0, userId).run();
+  await requeueNewJobCandidates(c.env.DB, userId, enabled && pushEnabled);
   return c.json({ enabled, push_enabled: pushEnabled });
 });
 
 push.post("/opened", async (c) => {
-  const body = await c.req.json<{ job_id?: string; job_ids?: string[] }>();
+  const body = await c.req.json<{ job_id?: string; job_ids?: string[]; notification_id?: string }>();
   const requestedJobIds = [...new Set([
     ...(Array.isArray(body.job_ids) ? body.job_ids : []),
     ...(body.job_id ? [body.job_id] : []),
   ].filter((jobId) => typeof jobId === "string" && jobId.length > 0))].slice(0, 50);
-  if (requestedJobIds.length === 0) return c.json({ error: "Missing job id" }, 400);
+  const notificationId = typeof body.notification_id === "string" && body.notification_id.length <= 64
+    ? body.notification_id
+    : null;
+  if (requestedJobIds.length === 0 && !notificationId) return c.json({ error: "Missing job id" }, 400);
   const jobIds = [...new Set(await resolveJobIds(c.env.DB, requestedJobIds))];
+  await markNotificationOpened(c.env.DB, c.get("userId"), { notificationId, jobIds })
+    .catch(() => undefined);
+  if (jobIds.length === 0) return c.body(null, 204);
   const openedAt = new Date().toISOString();
   const updates = await c.env.DB.batch(jobIds.map((jobId) =>
     c.env.DB.prepare(

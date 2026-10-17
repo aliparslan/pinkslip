@@ -89,7 +89,7 @@ const POLL_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
 // A job must be absent from this many consecutive (trustworthy) polls before it
 // is closed, so a single partial/failed ATS response can't remove valid jobs.
-const CLOSE_AFTER_MISSES = 2;
+export const CLOSE_AFTER_MISSES = 2;
 
 /**
  * Consecutive failures before a source is quarantined. Three keeps a transient

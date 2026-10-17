@@ -182,6 +182,15 @@ export async function saveUserPreferenceState(
          enabled = excluded.enabled,
          updated_at = excluded.updated_at`
     ).bind(userId, nextProfile.notifications_enabled ? 1 : 0, new Date().toISOString()).run();
+    // The per-kind row is what alerts read (migration 0094); keep it in step
+    // with the profile's switch, which older app builds still send.
+    await db.prepare(
+      `INSERT INTO notification_settings (user_id, kind, enabled, mode, daily_time, updated_at)
+       VALUES (?, 'new_jobs', ?, 'post', NULL, ?)
+       ON CONFLICT(user_id, kind) DO UPDATE SET
+         enabled = excluded.enabled,
+         updated_at = excluded.updated_at`
+    ).bind(userId, nextProfile.notifications_enabled ? 1 : 0, new Date().toISOString()).run();
   }
 
   if (changed) {
