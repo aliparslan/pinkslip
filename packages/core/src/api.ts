@@ -116,6 +116,29 @@ async function fetchApiFor(context: ClientContext, path: string, options?: Reque
   return response;
 }
 
+/** Per-kind alert settings (GET/PATCH /notifications). Only kinds that send
+ * today are present. */
+export interface NotificationSettings {
+  time_zone: string | null;
+  kinds: {
+    new_jobs: { enabled: boolean; mode: "post" | "daily"; daily_time: string };
+    saved_job_closed?: { enabled: boolean };
+    follow_up?: { enabled: boolean };
+    application_moved?: { enabled: boolean };
+  };
+  passive_per_day: number;
+}
+
+export interface NotificationSettingsChange {
+  time_zone?: string;
+  kinds?: {
+    new_jobs?: { enabled?: boolean; mode?: "post" | "daily"; daily_time?: string };
+    saved_job_closed?: { enabled?: boolean };
+    follow_up?: { enabled?: boolean };
+    application_moved?: { enabled?: boolean };
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -376,6 +399,8 @@ export interface ProductMetrics {
   notification_latency_seconds: number;
   notification_open_rate: number;
   notifications_sent: number;
+  /** Last 30 days, from the notification log; absent before it's deployed. */
+  notifications_by_kind?: { kind: string; sent: number; opened: number }[];
   apply_clicks_within_one_hour: number;
   eligible_job_dismissal_rate: number;
   users_with_enough_matches: number;
@@ -708,11 +733,12 @@ function createEndpoints(context: ClientContext) {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    opened: (jobIds: string | string[]) =>
+    opened: (jobIds: string | string[], notificationId?: string) =>
       request<void>("/push/opened", {
         method: "POST",
         body: JSON.stringify({
           job_ids: Array.isArray(jobIds) ? jobIds : [jobIds],
+          ...(notificationId ? { notification_id: notificationId } : {}),
         }),
       }),
     subscribe: (subscription: { toJSON(): unknown }) =>
@@ -733,6 +759,14 @@ function createEndpoints(context: ClientContext) {
     test: (delay = 0) =>
       request<{ sent: number; total: number }>(`/push/test${delay ? `?delay=${delay}` : ""}`, {
         method: "POST",
+      }),
+  },
+  notifications: {
+    settings: () => request<NotificationSettings>("/notifications"),
+    update: (change: NotificationSettingsChange) =>
+      request<NotificationSettings>("/notifications", {
+        method: "PATCH",
+        body: JSON.stringify(change),
       }),
   },
   auth: {

@@ -57,6 +57,12 @@ function AppEffects({ api }: { api: ApiClient }) {
   const { data: session } = useSession();
   const owner = session?.me?.user?.id;
   useEffect(() => { if (owner) void refreshDevicePush(api); }, [api, owner]);
+  // Reminders and the daily alert go out in the phone's own time zone.
+  useEffect(() => {
+    if (!owner) return;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (zone) void api.notifications.update({ time_zone: zone }).catch(() => undefined);
+  }, [api, owner]);
   useEffect(() => {
     const handled = new Set<string>();
     // A tapped alert opens its job (or the feed) and records the open.
@@ -66,7 +72,9 @@ function AppEffects({ api }: { api: ApiClient }) {
       handled.add(id);
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
       const target = notificationTarget(response);
-      if (target.jobIds.length > 0) void api.push.opened(target.jobIds).catch(() => undefined);
+      if (target.jobIds.length > 0 || target.notificationId) {
+        void api.push.opened(target.jobIds, target.notificationId ?? undefined).catch(() => undefined);
+      }
       const path = target.url ? appPathFor(target.url) : "/";
       if (path) router.push(path as never);
     };

@@ -1,4 +1,4 @@
-import { useApi, usePreferences, usePushSettings, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
+import { useApi, useNotificationSettings, useUpdateNotificationSettings } from "@pinkslip/data";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -74,18 +74,21 @@ function Spinner() {
   return <ActivityIndicator color={theme.ui.color["ink-3"]} />;
 }
 
-/** Alerts on the live account: today the server sends new jobs as they post
- * or not at all, so Once a day and Application changes wait for it. Turning
- * alerts on asks the iPhone first. */
+/** "08:00" → "8:00 AM", as the time chip shows it. */
+export function formatDailyTime(value: string): string {
+  const [hours = 8, minutes = 0] = value.split(":").map(Number);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+/** Alerts on the live account: new jobs as they post, once a day at the
+ * server's time (8:00 until a time can be picked), or off. Turning alerts on
+ * asks the iPhone first. Application changes wait for the server to send them. */
 export function AlertsPage() {
   const api = useApi();
-  const settings = usePushSettings();
-  const preferences = usePreferences();
-  const updateSettings = useUpdatePushSettings();
-  const updatePreferences = useUpdatePreferences();
+  const settings = useNotificationSettings();
+  const update = useUpdateNotificationSettings();
   const { status, setStatus } = useDevicePush();
-  const [on, setOn] = useState<boolean | null>(null);
-  const enabled = on ?? settings.data?.enabled ?? false;
+  const [choice, setChoice] = useState<NewJobAlerts | null>(null);
 
   if (settings.isPending) return <YouPage title="Alerts"><View style={styles.loading}><Spinner /></View></YouPage>;
   if (settings.isError) {
@@ -93,19 +96,25 @@ export function AlertsPage() {
       action={{ label: "Try again", variant: "secondary", onPress: () => void settings.refetch() }} /></YouPage>;
   }
 
-  const save = (next: boolean) => {
-    setOn(next);
-    updateSettings.mutate(next, {
-      onError: () => {
-        setOn(!next);
-        toast.error("Couldn't update alerts. Try again.");
+  const newJobsSetting = settings.data.kinds.new_jobs;
+  const current: NewJobAlerts = newJobsSetting.enabled ? newJobsSetting.mode : "off";
+  const newJobs = choice ?? current;
+
+  const save = (next: NewJobAlerts) => {
+    setChoice(next);
+    update.mutate(
+      { kinds: { new_jobs: next === "off" ? { enabled: false } : { enabled: true, mode: next } } },
+      {
+        onSuccess: () => setChoice(null),
+        onError: () => {
+          setChoice(null);
+          toast.error("Couldn't update alerts. Try again.");
+        },
       },
-    });
-    const profile = preferences.data?.search_profile;
-    if (profile) updatePreferences.mutate({ search_profile: { ...profile, notifications_enabled: next } });
+    );
   };
-  const setNewJobs = async (choice: NewJobAlerts) => {
-    if (choice === "off") return save(false);
+  const setNewJobs = async (next: NewJobAlerts) => {
+    if (next === "off") return save("off");
     if (status === "denied") {
       Alert.alert("Notifications are off", "Turn them on for Pinkslip in Settings, then come back.", [
         { text: "Cancel", style: "cancel" },
@@ -123,19 +132,20 @@ export function AlertsPage() {
         return;
       }
     }
-    save(true);
+    save(next);
   };
-  return <AlertsView newJobs={enabled ? "post" : "off"} blocked={enabled && status === "denied"} actions={{
-    setNewJobs: (choice) => void setNewJobs(choice),
-    sendTest: async () => {
-      try {
-        const result = await api.push.test(0);
-        toast.success(result.sent > 0 ? "Test sent." : "No iPhone got the test.");
-      } catch {
-        toast.error("Couldn't send a test. Try again.");
-      }
-    },
-  }} />;
+  return <AlertsView newJobs={newJobs} dailyAt={formatDailyTime(newJobsSetting.daily_time)}
+    blocked={newJobs !== "off" && status === "denied"} actions={{
+      setNewJobs: (next) => void setNewJobs(next),
+      sendTest: async () => {
+        try {
+          const result = await api.push.test(0);
+          toast.success(result.sent > 0 ? "Test sent." : "No iPhone got the test.");
+        } catch {
+          toast.error("Couldn't send a test. Try again.");
+        }
+      },
+    }} />;
 }
 
 const styles = StyleSheet.create((theme) => ({

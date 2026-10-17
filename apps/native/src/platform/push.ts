@@ -49,12 +49,13 @@ export async function refreshDevicePush(api: ApiClient): Promise<void> {
   if ((await devicePushStatus()) === "enabled") await enableDevicePush(api).catch(() => undefined);
 }
 
-export interface NotificationTarget { url: string | null; jobIds: string[] }
+export interface NotificationTarget { url: string | null; jobIds: string[]; notificationId: string | null }
 
 export function notificationTarget(response: Notifications.NotificationResponse): NotificationTarget {
-  const data = response.notification.request.content.data as { url?: unknown; job_ids?: unknown } | undefined;
+  const data = response.notification.request.content.data as { url?: unknown; job_ids?: unknown; notification_id?: unknown } | undefined;
   return {
     url: typeof data?.url === "string" ? data.url : null,
     jobIds: Array.isArray(data?.job_ids) ? data.job_ids.filter((id): id is string => typeof id === "string") : [],
+    notificationId: typeof data?.notification_id === "string" ? data.notification_id : null,
   };
 }

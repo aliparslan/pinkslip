@@ -1,4 +1,4 @@
-import type { ApiClient, FeedbackSubmission, MeResponse, PreferenceState } from "@pinkslip/core/api";
+import type { ApiClient, FeedbackSubmission, MeResponse, NotificationSettingsChange, PreferenceState } from "@pinkslip/core/api";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
@@ -42,6 +42,33 @@ export function useUpdatePushSettings() {
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.personal.push(), (previous: Awaited<ReturnType<ApiClient["push"]["settings"]>> | undefined) =>
         previous ? { ...previous, ...saved } : previous);
+    },
+  });
+}
+
+/** Alerts per kind: new jobs as they post or once a day, and the other
+ * kinds the server sends today. */
+export const notificationSettingsQueryOptions = (api: ApiClient) =>
+  queryOptions({
+    queryKey: queryKeys.personal.notifications(),
+    queryFn: () => api.notifications.settings(),
+  });
+
+export function useNotificationSettings(enabled = true) {
+  return useQuery({ ...notificationSettingsQueryOptions(useApi()), enabled });
+}
+
+export function useUpdateNotificationSettings() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (change: NotificationSettingsChange) => api.notifications.update(change),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(queryKeys.personal.notifications(), saved);
+      // The job-alert switch is also read through the older settings and the
+      // search profile.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.push() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.preferences() });
     },
   });
 }
