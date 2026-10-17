@@ -17,7 +17,7 @@ import {
 import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";
 import {
   addStageDateLabels, asksForDate, daysSinceApplied, nextRowFacts, stageDateHasTime, stageDatePrompts, stageDateTitles, stageDateToSend,
-  stageDateValue, stubStamps, type Stamp,
+  stageDateValue, sentStub, stubStamps, type SentProof, type Stamp,
 } from "./application-facts";
 import { Description } from "./Description";
 import { BAR, TOP_BAR, TopBar, usePinnedBarToastLift } from "./JobPage";
@@ -97,12 +97,16 @@ function WithJob({ application, jobId, actions }: { application: ApplicationDeta
 
 type SheetStart = "stages" | "date";
 
-export function ApplicationView({ application, job, about, actions }: {
+export function ApplicationView({ application, job, about, actions, sent, onWhatItSent }: {
   application: ApplicationDetail;
   job?: DetailJob;
   /** The posting's description, under "About the role". */
   about?: ReactNode;
   actions: ApplicationActions;
+  /** When Pinkslip sent it: the proof that it arrived. */
+  sent?: SentProof;
+  /** Opens What Pinkslip sent. */
+  onWhatItSent?: () => void;
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
@@ -111,7 +115,8 @@ export function ApplicationView({ application, job, about, actions }: {
   const [sheet, setSheet] = useState<SheetStart | null>(null);
   const stamps = stubStamps(application);
   const latest = stamps.at(-1);
-  const waiting = application.stage === "applied" && stamps.length === 1 && !application.stage_date
+  const proof = sent ? sentStub(application, sent, stamps) : null;
+  const waiting = !proof && application.stage === "applied" && stamps.length === 1 && !application.stage_date
     ? daysSinceApplied(application.applied_at) : null;
 
   const confirmUndo = (stamp: Stamp & { email: NonNullable<Stamp["email"]> }) => {
@@ -137,8 +142,10 @@ export function ApplicationView({ application, job, about, actions }: {
   };
 
   const stubStampsShown: StubStamp[] = stamps.map((stamp, index) => ({
-    key: `${stamp.stage}-${index}`, label: stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,
+    key: `${stamp.stage}-${index}`, label: proof?.waiting ? "SENT" : stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,
+    pending: proof?.waiting,
   }));
+  const aside = proof?.aside ?? (waiting ? { title: waiting, detail: "no reply yet" } : null);
 
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
@@ -147,12 +154,13 @@ export function ApplicationView({ application, job, about, actions }: {
       <JobIdentity companyName={job?.company_name ?? application.company_name} companyDomain={job?.company_domain ?? application.job?.company_domain}
         companyId={job?.company_id} title={job?.title ?? application.title} closed={Boolean(job?.closed_at ?? application.job?.closed_at)} />
       <View style={styles.stub}>
-        <Stub stamps={stubStampsShown} foot={job ? ticketStub(job) : undefined}
-          aside={waiting ? <View>
-            <Text role="subhead" weight="medium" tone="ink-2">{waiting}</Text>
-            <Text role="footnote" tone="ink-3">no reply yet</Text>
+        <Stub stamps={stubStampsShown} foot={proof?.foot ?? (job ? ticketStub(job) : undefined)}
+          aside={aside ? <View>
+            <Text role="subhead" weight="medium" tone="ink-2">{aside.title}</Text>
+            <Text role="footnote" tone="ink-3">{aside.detail}</Text>
           </View> : undefined}
-          action={latest?.email ? { label: "Not right?", onPress: () => confirmUndo(latest as Stamp & { email: NonNullable<Stamp["email"]> }) } : undefined} />
+          action={latest?.email ? { label: "Not right?", onPress: () => confirmUndo(latest as Stamp & { email: NonNullable<Stamp["email"]> }) }
+            : proof && onWhatItSent ? { label: "What it sent", onPress: onWhatItSent, opens: true } : undefined} />
       </View>
       <NextSection application={application} onOpen={() => setSheet("date")} />
       {about ? <View style={styles.about}>

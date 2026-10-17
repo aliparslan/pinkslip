@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplicationDetail, ApplicationEvent } from "../shared/application-stages";
 import {
-  daysSinceApplied, nextRowFacts, stageDateToSend, stageDateValue, stubStamps,
+  daysSinceApplied, nextRowFacts, sentStub, stageDateToSend, stageDateValue, stubStamps,
 } from "../apps/native/src/features/redesign/application-facts";
 
 const event = (stage: ApplicationEvent["stage"], occurred_at: string, email?: { id: string; subject: string }): ApplicationEvent => ({
@@ -65,5 +65,31 @@ describe("the stage's date", () => {
     expect(daysSinceApplied(new Date(2026, 8, 28, 9, 0).toISOString(), now)).toBe("15 days");
     expect(daysSinceApplied(new Date(2026, 9, 12, 8, 0).toISOString(), now)).toBe("1 day");
     expect(daysSinceApplied(new Date(2026, 9, 13, 8, 0).toISOString(), now)).toBeNull();
+  });
+});
+
+describe("an application Pinkslip sent", () => {
+  const sent = detail([event("applied", "2026-10-14T09:52:00")], { company_name: "Ramp", applied_at: "2026-10-14T09:52:00" });
+  const stamps = stubStamps(sent);
+
+  test("waits, dashed, until something confirms it", () => {
+    expect(sentStub(sent, { via: "Ashby", confirmed: null }, stamps)).toEqual({
+      waiting: true,
+      aside: { title: "Waiting for Ramp", detail: "to confirm it arrived" },
+      foot: "Sent by Pinkslip · via Ashby",
+    });
+  });
+
+  test("says what confirmed it, with the day only when it's another day", () => {
+    const sameDay = sentStub(sent, { via: "Ashby", confirmed: { by: "email", at: "2026-10-14T09:58:00" } }, stamps);
+    expect(sameDay.waiting).toBe(false);
+    expect(sameDay.aside).toEqual({ title: "Confirmed", detail: "by Ramp's email, 9:58 AM" });
+    expect(sentStub(sent, { via: "Ashby", confirmed: { by: "board", at: "2026-10-15T08:10:00" } }, stamps).aside?.detail)
+      .toBe("by Ashby, Oct 15, 8:10 AM");
+  });
+
+  test("a later step is proof enough", () => {
+    const later = detail([event("applied", "2026-10-14T09:52:00"), event("interview", "2026-10-20T09:00:00")]);
+    expect(sentStub(later, { via: "Ashby", confirmed: null }, stubStamps(later))).toMatchObject({ waiting: false, aside: null });
   });
 });

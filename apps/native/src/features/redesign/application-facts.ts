@@ -56,6 +56,45 @@ export function stubStamps(application: ApplicationDetail): Stamp[] {
   return stamps;
 }
 
+/**
+ * An application Pinkslip sent (Paper "6 · After: proof it went through").
+ * The backend doesn't record sends yet, so only the kit's samples carry one.
+ */
+export interface SentProof {
+  /** The board it went through: "Greenhouse". */
+  via: string;
+  /** What confirmed it arrived, and when; null while it waits. */
+  confirmed: { by: "email" | "board"; at: string } | null;
+}
+
+/** "9:58 AM" on the day it was sent, "Oct 15, 9:58 AM" after. */
+function confirmedWhen(at: string, sentOn: string | null): string {
+  const when = new Date(at);
+  const time = when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const sameDay = sentOn !== null && new Date(sentOn).toDateString() === when.toDateString();
+  return sameDay ? time : `${when.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`;
+}
+
+/**
+ * The stub of an application Pinkslip sent: APPLIED once the board or the
+ * company's email confirms it, until then a quiet dashed SENT ("No guessing:
+ * it waits for proof"). The aside says which, the foot says Pinkslip sent it.
+ * A later step is proof enough, so only a lone Applied stamp waits.
+ */
+export function sentStub(application: ApplicationDetail, proof: SentProof, stamps: Stamp[]) {
+  const waiting = proof.confirmed === null && stamps.length === 1 && stamps[0]!.stage === "applied";
+  const by = proof.confirmed?.by === "board" ? proof.via : `${application.company_name}'s email`;
+  return {
+    waiting,
+    aside: waiting
+      ? { title: `Waiting for ${application.company_name}`, detail: "to confirm it arrived" }
+      : proof.confirmed && stamps.length === 1
+        ? { title: "Confirmed", detail: `by ${by}, ${confirmedWhen(proof.confirmed.at, application.applied_at)}` }
+        : null,
+    foot: `Sent by Pinkslip · via ${proof.via}`,
+  };
+}
+
 /** The Next row's headline, by the stage the date belongs to. */
 export const stageDateTitles: Partial<Record<ApplicationStage, string>> = {
   applied: "Hear back by",

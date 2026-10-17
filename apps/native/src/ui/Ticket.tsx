@@ -90,6 +90,8 @@ export interface StubStamp {
   label: string;
   /** "OCT 12 · EMAIL". */
   detail: string;
+  /** Sent but not yet confirmed: dashed and quiet however fresh. */
+  pending?: boolean;
 }
 
 export interface StubProps {
@@ -99,8 +101,9 @@ export interface StubProps {
   aside?: ReactNode;
   /** The ticket's old stub line: posted, source. */
   foot?: string;
-  /** A tappable word at the foot's end ("Not right?"). */
-  action?: { label: string; onPress: () => void };
+  /** A tappable word at the foot's end ("Not right?"); `opens` adds a
+   * chevron for one that goes to a page ("What it sent ›"). */
+  action?: { label: string; onPress: () => void; opens?: boolean };
   backdrop?: TicketBackdrop;
 }
 
@@ -143,7 +146,10 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
         <Text role="footnote" tone="ink-3" flex>{foot ?? ""}</Text>
         {action ? <Pressable onPress={action.onPress} accessibilityRole="button" hitSlop={10}
           style={({ pressed }) => pressed && styles.pressed}>
-          <Text role="footnote" weight="medium" tone="ink-2">{action.label}</Text>
+          <View style={stubStyles.action}>
+            <Text role="footnote" weight="medium" tone="ink-2">{action.label}</Text>
+            {action.opens ? <Icon name="disclosure" size={10} tone="ink-3" /> : null}
+          </View>
         </Pressable> : null}
       </View>
     </View> : null}
@@ -152,9 +158,9 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
 
 function RubberStamp({ stamp, fresh, angle }: { stamp: StubStamp; fresh: boolean; angle: number }) {
   const { theme } = useUnistyles();
-  const color = theme.ui.color[fresh ? "ink" : "ink-3"];
+  const color = theme.ui.color[fresh && !stamp.pending ? "ink" : "ink-3"];
   return <View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
-    style={[stubStyles.stamp, { borderColor: color, transform: [{ rotate: `${angle}deg` }] }]}>
+    style={[stubStyles.stamp, stamp.pending && stubStyles.pending, { borderColor: color, transform: [{ rotate: `${angle}deg` }] }]}>
     <RNText style={[stubStyles.stampLabel, { color }]} maxFontSizeMultiplier={1.4}>{stamp.label}</RNText>
     <RNText style={[stubStyles.stampDetail, { color }]} maxFontSizeMultiplier={1.4}>{stamp.detail}</RNText>
   </View>;
@@ -285,10 +291,12 @@ const stubStyles = StyleSheet.create((theme) => ({
   halfNotch: { position: "absolute", top: -TEAR, width: NOTCH, height: NOTCH / 2, borderBottomLeftRadius: NOTCH / 2, borderBottomRightRadius: NOTCH / 2 },
   stamps: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 10, rowGap: theme.ui.space["3"] },
   stamp: { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1.5, borderRadius: 6, gap: 1 },
+  pending: { borderStyle: "dashed" },
   stampLabel: { fontFamily: faces.stamp, fontSize: 13, lineHeight: 16, letterSpacing: 0.78 },
   stampDetail: { fontFamily: faces.stampDetail, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
   aside: { paddingLeft: theme.ui.space["1"] },
   foot: { gap: theme.ui.space["3"] },
   rule: { alignSelf: "stretch" },
   footRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  action: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
 }));

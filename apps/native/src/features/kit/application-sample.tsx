@@ -3,13 +3,21 @@ import { parseJobDescription } from "@pinkslip/core/job-description";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { ApplicationView, type ApplicationActions } from "../redesign/ApplicationPage";
+import type { SentProof } from "../redesign/application-facts";
 import { Description } from "../redesign/Description";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export type SampleState = "interview" | "applied" | "no-date";
+export type SampleState = "interview" | "applied" | "no-date" | "confirmed" | "sent";
 
-const STATES: readonly SampleState[] = ["interview", "applied", "no-date"];
+const STATES: readonly SampleState[] = ["interview", "applied", "no-date", "confirmed", "sent"];
+
+/** Sent by Pinkslip (Paper "6 · After: proof it went through"): Stripe
+ * confirmed by its email, Ramp still waiting. */
+const SENT: Partial<Record<SampleState, { company: string; title: string; domain: string; via: string; confirmed: boolean }>> = {
+  confirmed: { company: "Stripe", title: "Backend Engineer, New Grad", domain: "stripe.com", via: "Greenhouse", confirmed: true },
+  sent: { company: "Ramp", title: "Software Engineer, New Grad", domain: "ramp.com", via: "Ashby", confirmed: false },
+};
 
 /** "sample-interview" and the like: the kit's sample applications. */
 export function sampleState(applicationId: string): SampleState | null {
@@ -28,6 +36,17 @@ export function applicationSample(state: SampleState, now = Date.now()): Applica
     id: `${stage}-${occurred}`, stage, occurred_at: occurred, source: email ? "email" : "user",
     inbound_email_id: email ? `mail-${stage}` : null, email_subject: email ?? null,
   });
+  const sent = SENT[state];
+  if (sent) {
+    const applied = at(2, 9);
+    return {
+      id: `sample-${state}`, job_id: null, company_name: sent.company, title: sent.title, url: `https://${sent.domain}/jobs`,
+      stage: "applied", notes: "", applied_at: applied, stage_changed_at: applied, stage_date: null,
+      created_at: applied, updated_at: applied,
+      job: { location: "San Francisco, CA", closed_at: null, company_domain: sent.domain },
+      events: [event("applied", applied)],
+    };
+  }
   const events = [event("saved", at(17)), event("applied", at(15))];
   if (state !== "applied") events.push(event("interview", at(1, 9), state === "interview" ? undefined : "Next steps with Mercury"));
   const interviewDay = new Date(now + 2 * DAY);
@@ -44,6 +63,14 @@ export function applicationSample(state: SampleState, now = Date.now()): Applica
 
 const ABOUT = "<p>You'll join a product team building the APIs that millions of businesses use to move money, shipping code in your first week.</p>"
   + "<ul><li>Design and ship features end to end</li><li>Pair with engineers across payments and risk</li></ul>";
+
+/** The proof for a sample Pinkslip sent: confirmed six minutes after it went. */
+export function sentSample(state: SampleState, application: ApplicationDetail): SentProof | undefined {
+  const sent = SENT[state];
+  if (!sent) return undefined;
+  const confirmedAt = new Date(new Date(application.applied_at!).getTime() + 6 * 60 * 1000).toISOString();
+  return { via: sent.via, confirmed: sent.confirmed ? { by: "email", at: confirmedAt } : null };
+}
 
 /** The application page on sample data: every change stays on this screen,
  * so the simulator's signed-in account is never touched. */
@@ -63,5 +90,6 @@ export function SampleApplicationPage({ state }: { state: SampleState }) {
     }),
     remove: async () => router.back(),
   };
-  return <ApplicationView application={application} about={<Description blocks={blocks} />} actions={actions} />;
+  return <ApplicationView application={application} about={<Description blocks={blocks} />} actions={actions}
+    sent={sentSample(state, application)} onWhatItSent={() => router.push("/you/kit-sent")} />;
 }
