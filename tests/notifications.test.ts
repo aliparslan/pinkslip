@@ -218,6 +218,21 @@ describe("the scheduler", () => {
     expect((await deliverDueNotifications(harness.env, hours(4), harness.send)).sent).toBe(1);
   });
 
+  it("keeps passive pushes at least 4 hours apart", async () => {
+    const harness = setup();
+    const lastSent = hours(-1).toISOString();
+    harness.sqlite.run(
+      `INSERT INTO notification_log (id, user_id, kind, dedupe_key, title, body, url, passive, status, scheduled_for, created_at, sent_at)
+       VALUES ('earlier', 'u1', 'new_jobs', 'earlier', 't', 'b', '/', 1, 'sent', ?, ?, ?)`,
+      [lastSent, lastSent, lastSent]
+    );
+    await scheduleNotification(harness.db, closed("j1", "Stripe", "Software Engineer"), NOW);
+
+    expect((await deliverDueNotifications(harness.env, NOW, harness.send)).held).toBe(1);
+    expect(harness.log().find((row) => row.kind === "saved_job_closed")).toMatchObject({ scheduled_for: hours(3).toISOString() });
+    expect((await deliverDueNotifications(harness.env, hours(3), harness.send)).sent).toBe(1);
+  });
+
   it("skips kinds the person turned off and people without a device", async () => {
     const harness = setup();
     harness.sqlite.run(`INSERT INTO notification_settings (user_id, kind, enabled, updated_at) VALUES ('u1', 'saved_job_closed', 0, ?)`, [NOW.toISOString()]);
@@ -367,6 +382,19 @@ describe("new-job alerts (N1, N2)", () => {
     await matchedJobs(harness, 2);
     expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(0);
     expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: hours(21.5), send: harness.send })).toBe(2);
+  });
+
+  it("sends what matched since in one push 4 hours after the last", async () => {
+    const harness = setup();
+    await matchedJobs(harness, 2);
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(2);
+    harness.sqlite.run("UPDATE notification_log SET sent_at = ?", [NOW.toISOString()]);
+    harness.sqlite.run("UPDATE notification_candidates SET status = 'pending', sent_at = NULL, attempt_count = 0");
+    harness.sqlite.run("DELETE FROM notification_deliveries");
+
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: hours(2), send: harness.send })).toBe(0);
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: hours(4.1), send: harness.send })).toBe(2);
+    expect(harness.sent).toHaveLength(2);
   });
 
   it("keeps once-a-day people's jobs for their time, then sends one digest", async () => {

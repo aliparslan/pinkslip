@@ -3,7 +3,7 @@ import { recordProductEvent } from "./product-events";
 import { buildDailyDigestPayload, buildNotificationPayload, type NotificationJob, type NotificationPayload } from "./push";
 import {
   CAPPED_USERS_SQL,
-  passiveWindowStart,
+  cappedUsersBindings,
   recordSentNotification,
   type DueDigest,
 } from "./notifications";
@@ -266,7 +266,8 @@ export async function deliverPendingNotifications(
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
-       -- Once-a-day people wait for their digest; anyone at the daily cap waits.
+       -- Once-a-day people wait for their digest; anyone at the daily cap, or
+       -- within 4 hours of their last passive push, waits.
        AND ${options.digests
          ? `nc.user_id IN (${digests.map(() => "?").join(", ")})`
          : "COALESCE(ns.mode, 'post') = 'post'"}
@@ -277,7 +278,7 @@ export async function deliverPendingNotifications(
     MATCHER_VERSION,
     JOB_CLASSIFIER_VERSION,
     ...digests.map((digest) => digest.userId),
-    passiveWindowStart(now),
+    ...cappedUsersBindings(now),
     limit
   ).all<CandidateRow>();
   const available: CandidateRow[] = [];

@@ -14,6 +14,7 @@ import {
   LIVE_KINDS,
   NOTIFICATION_KINDS,
   PASSIVE_PER_DAY,
+  PASSIVE_SPACING_MS,
   PASSIVE_WINDOW_MS,
   type LoggedNotification,
   type NotificationKind,
@@ -313,14 +314,22 @@ export function passiveWindowStart(now: Date): string {
   return new Date(now.getTime() - PASSIVE_WINDOW_MS).toISOString();
 }
 
-/** People at the cap, for SQL that picks who to send to (bind passiveWindowStart). */
+/**
+ * People who can't get a passive push right now: three in the last 24 hours,
+ * or one in the last 4. Bind `cappedUsersBindings(now)`.
+ */
 export const CAPPED_USERS_SQL = `SELECT user_id FROM notification_log
   WHERE passive = 1 AND status = 'sent' AND sent_at > ?
-  GROUP BY user_id HAVING COUNT(*) >= ${PASSIVE_PER_DAY}`;
+  GROUP BY user_id HAVING COUNT(*) >= ${PASSIVE_PER_DAY} OR MAX(sent_at) > ?`;
+
+export function cappedUsersBindings(now: Date): [string, string] {
+  return [passiveWindowStart(now), new Date(now.getTime() - PASSIVE_SPACING_MS).toISOString()];
+}
 
 /**
- * When a person may get their next passive push: null when they're under the
- * cap now, else when the oldest of their last three leaves the 24 hours.
+ * When a person may get their next passive push: null when they can now,
+ * else the later of 4 hours after their last one and the moment the oldest
+ * of their last three leaves the 24 hours.
  */
 export async function passiveCapFreesAt(db: D1Database, userId: string, now: Date): Promise<Date | null> {
   const rows = await db.prepare(
@@ -329,9 +338,12 @@ export async function passiveCapFreesAt(db: D1Database, userId: string, now: Dat
      ORDER BY sent_at DESC
      LIMIT ?`
   ).bind(userId, passiveWindowStart(now), PASSIVE_PER_DAY).all<{ sent_at: string }>();
-  const sent = rows.results ?? [];
-  if (sent.length < PASSIVE_PER_DAY) return null;
-  return new Date(Date.parse(sent.at(-1)!.sent_at) + PASSIVE_WINDOW_MS);
+  const sent = (rows.results ?? []).map((row) => Date.parse(row.sent_at));
+  const waits: number[] = [];
+  if (sent.length > 0) waits.push(sent[0]! + PASSIVE_SPACING_MS);
+  if (sent.length >= PASSIVE_PER_DAY) waits.push(sent.at(-1)! + PASSIVE_WINDOW_MS);
+  const freesAt = Math.max(0, ...waits);
+  return freesAt > now.getTime() ? new Date(freesAt) : null;
 }
 
 export interface UserSendResult {

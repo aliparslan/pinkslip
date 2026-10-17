@@ -56,6 +56,11 @@ export const LIVE_KINDS = (Object.keys(NOTIFICATION_KINDS) as NotificationKind[]
 /** Passive pushes a person gets in any 24 hours (Decisions: Notifications #3). */
 export const PASSIVE_PER_DAY = 3;
 export const PASSIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+/**
+ * Least time between two passive pushes, so the three fall across the day
+ * instead of in the first hour of new jobs (owner, 2026-10-17).
+ */
+export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
 
 /** New jobs once a day, until the person picks a time. */
 export const DEFAULT_DAILY_TIME = "08:00";

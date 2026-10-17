@@ -347,6 +347,7 @@ Made by the owner with Claude on 2026-10-16, part by part.
    (§2), so Today, the app icon's badge, pushes and any digest agree.
 3. **No quiet hours** for now. At most three passive pushes a day; the
    time-sensitive kinds (interview, offer, a reply) don't count toward it.
+   Passive pushes are also at least 4 hours apart (owner, 2026-10-17).
    **Built 2026-10-16** (step 2; see "Built" for how the cap counts).
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
@@ -640,9 +641,9 @@ ship with `bun run deploy:web` and an over-the-air update.
   applied, Today, Alerts, a follow-up's thread, an application. The iPhone
   app now opens `/today` in its Today tab.
 - **The daily cap:** passive pushes (every live kind) are at most three in
-  any 24 hours. Past it, scheduled ones are rescheduled for the moment the
-  oldest of the three leaves the window, and new-job matches wait and go
-  out together then. Time-sensitive pushes skip the cap and carry iOS's
+  any 24 hours and at least 4 hours apart (owner, 2026-10-17), so the three
+  fall across the day. A push that can't go yet is rescheduled for the
+  moment it can, and new-job matches wait and go out together then. Time-sensitive pushes skip the cap and carry iOS's
   `time-sensitive` interruption level (it takes effect once the native
   build has the entitlement).
 - **N2, once a day:** people on Once a day keep their matches until their
@@ -676,14 +677,10 @@ Liberties for the owner to keep or veto:
    old closings.
 5. Without a time zone from the phone, US Eastern.
 
-**Question for the owner:** in production today a person with alerts on
-gets about 20 new-job pushes a day (up to 48; 49 of 57 person-days in the
-last week were over 3). With the cap as decided, their first three pushes
-come within the first hour or so of new jobs, then nothing until 24 hours
-later, when everything waiting comes as one push. Options: keep it as
-decided; space passive pushes at least a few hours apart so the three fall
-across the day; or let "As they post" use the cap and recommend Once a day
-to heavy users.
+**Decided 2026-10-17:** in production a person with alerts on got about
+20 new-job pushes a day (up to 48), so three in 24 hours alone would have
+spent all three in the first hour of new jobs. The owner chose spacing:
+passive pushes at least 4 hours apart as well.
 
 Checked from "Fix what we have" (production, read-only, 2026-10-16):
 
