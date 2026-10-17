@@ -1,4 +1,4 @@
-import { Button, ControlGroup, Host, Image, Label, Menu, RNHostView, Section } from "@expo/ui/swift-ui";
+import { Button, ControlGroup, Host, Image, Label, Menu, RNHostView, Section, Toggle } from "@expo/ui/swift-ui";
 import { accessibilityLabel, controlSize } from "@expo/ui/swift-ui/modifiers";
 import { Icon as RouterIcon, Label as RouterLabel, Link } from "expo-router";
 import * as Updates from "expo-updates";
@@ -18,7 +18,7 @@ export const menuIconsAvailable = Updates.runtimeVersion !== BUILD_WITHOUT_ICONS
  */
 export type MenuGlyph =
   | "save" | "saved" | "applied" | "undo" | "read" | "unread" | "hide" | "block"
-  | "email" | "tailor" | "company" | "report" | "move" | "remove" | "date" | "open" | "share";
+  | "email" | "tailor" | "company" | "report" | "move" | "remove" | "date" | "open" | "share" | "bot";
 
 /** The asset catalog name for a menu icon. */
 export const menuAsset = (glyph: MenuGlyph) => `menu-${glyph}`;
@@ -28,6 +28,8 @@ export interface GlyphMenuItem {
   title: string;
   glyph: MenuGlyph;
   destructive?: boolean;
+  /** A choice: iOS ticks it when on (Apply for me ✓ in the Apply caret). */
+  on?: boolean;
   onSelect: () => void;
 }
 
@@ -44,9 +46,13 @@ export interface GlyphMenuSpec {
  * in a group of its own (Block). The trigger is the children.
  */
 export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpec & { children: ReactNode }) {
-  const button = (item: GlyphMenuItem) => <Button key={item.id} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect}>
-    <Label title={item.title} icon={<Image assetName={menuAsset(item.glyph)} />} />
-  </Button>;
+  const button = (item: GlyphMenuItem) => item.on !== undefined
+    ? <Toggle key={item.id} isOn={item.on} onIsOnChange={() => item.onSelect()}>
+      <Label title={item.title} icon={<Image assetName={menuAsset(item.glyph)} />} />
+    </Toggle>
+    : <Button key={item.id} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect}>
+      <Label title={item.title} icon={<Image assetName={menuAsset(item.glyph)} />} />
+    </Button>;
   if (!menuIconsAvailable) {
     return <Host matchContents ignoreSafeArea="all">
       <Menu label={<RNHostView matchContents><>{children}</></RNHostView>}>

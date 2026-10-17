@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
-  Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket,
+  ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket, type ApplyState,
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
@@ -112,6 +112,12 @@ export function RedesignGallery() {
       </View>
     </Section>
 
+    <Section title="The Apply button, every state">
+      {/* Paper "1 · The Apply button, every state". Tap the first to step
+          through them and watch it morph; the rest stand still. */}
+      <ApplyStates />
+    </Section>
+
     <Section title="Toast">
       {/* Samples only: nothing here changes your data. */}
       <View style={styles.row}>
@@ -204,6 +210,29 @@ export function RedesignGallery() {
       </Section>
     </View>
   </ScrollView>;
+}
+
+const APPLY_STATES: ApplyState[] = [
+  { kind: "apply" },
+  { kind: "applyForMe" },
+  { kind: "queued", ahead: 2 },
+  { kind: "applying", filled: 11, of: 17 },
+  { kind: "needsYou", questions: 2 },
+  { kind: "sent", company: "Stripe" },
+  { kind: "applied", date: "Oct 14" },
+  { kind: "stage", stage: "interview", label: "Interviewing" },
+];
+
+function ApplyStates() {
+  const [step, setStep] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const myself = () => toast.show({ message: "Sample: the posting would open" });
+  return <>
+    <ApplyButton state={APPLY_STATES[step]!} saved={saved} onSave={() => setSaved(!saved)}
+      onPress={() => setStep((step + 1) % APPLY_STATES.length)} onApplyMyself={myself} />
+    <Text role="footnote" tone="ink-3">Tap it to step through the states.</Text>
+    {APPLY_STATES.slice(1).map((state) => <ApplyButton key={state.kind} state={state} saved={false} onSave={() => undefined} onApplyMyself={myself} />)}
+  </>;
 }
 
 function Section({ title, flush, children }: { title: string; flush?: boolean; children: ReactNode }) {

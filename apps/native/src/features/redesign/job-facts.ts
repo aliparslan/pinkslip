@@ -1,4 +1,4 @@
-import type { Job } from "@pinkslip/core/api";
+import type { ApplicationStage, Job } from "@pinkslip/core/api";
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { decodeEntities } from "@pinkslip/core/job-description";
 import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts } from "@pinkslip/core/job-format";
@@ -141,6 +141,25 @@ export function ticketStub(job: FactsJob): string {
 /** "Applied Oct 10", or just "Applied" when the date isn't known. */
 export function appliedLabel(job: FactsJob): string {
   return job.applied_at ? `Applied ${shortDate(job.applied_at)}` : "Applied";
+}
+
+const LATER_STAGES: Partial<Record<ApplicationStage, string>> = {
+  assessment: "Assessment", interview: "Interviewing", offer: "Offer", rejected: "Rejected", withdrawn: "Withdrawn", ghosted: "Ghosted",
+};
+
+/** The Apply button's state from what's known today (Paper "1 · The Apply
+ * button, every state"): Apply, Applied, or on later visits the stage it
+ * reached. The auto-apply states (queued, applying, sent) wait on sends
+ * being recorded. */
+export function applyButtonState(job: FactsJob & { application_stage?: ApplicationStage | null }, applied: boolean, closed: boolean):
+  | { kind: "apply"; closed: boolean }
+  | { kind: "applied"; date: string | null }
+  | { kind: "stage"; stage: ApplicationStage; label: string } {
+  if (!applied) return { kind: "apply", closed };
+  const stage = job.application_stage;
+  const later = stage ? LATER_STAGES[stage] : undefined;
+  if (stage && later) return { kind: "stage", stage, label: later };
+  return { kind: "applied", date: job.applied_at ? shortDate(job.applied_at) : null };
 }
 
 const stageWords: Record<Stage, string> = {

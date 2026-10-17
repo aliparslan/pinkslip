@@ -1,5 +1,6 @@
 import { parseJobDescription } from "@pinkslip/core/job-description";
-import { usePreferences } from "@pinkslip/data";
+import { applicationsQueryOptions, useApi, usePreferences } from "@pinkslip/data";
+import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } from "react-native";
@@ -7,13 +8,16 @@ import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet } from "../../kit";
-import { Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift, type GlyphMenuSpec } from "../../ui";
+import {
+  ApplyButton, Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift,
+  type GlyphMenuSpec,
+} from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
-import { appliedLabel, fitsYourSearch, orderedPlaces, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
+import { applyButtonState, fitsYourSearch, orderedPlaces, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
@@ -53,6 +57,14 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const profile = usePreferences().data?.search_profile;
   const { saved, applied, closed, toggleSave, apply, share, glyphMenu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
   const [placesOpen, setPlacesOpen] = useState(false);
+  const applyState = applyButtonState(job, applied, closed);
+  // Past Applied, the button opens the application, so find it in Tracker's list.
+  const applications = useQuery({ ...applicationsQueryOptions(useApi()), enabled: applyState.kind === "stage" });
+  const applicationId = applications.data?.find((item) => item.job_id === job.id)?.id;
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
+  const openApplication = applicationId
+    ? () => router.push({ pathname: `/(tabs)/${tab}/applications/[applicationId]` as "/(tabs)/(library)/applications/[applicationId]", params: { applicationId } })
+    : undefined;
 
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
     [job.description, job.title, job.company_name]);
@@ -94,14 +106,8 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     </ScrollView>
     <TopBar onShare={share} menu={glyphMenu} />
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
-      {applied
-        ? <Button icon="done" fullWidth>{appliedLabel(job)}</Button>
-        : <>
-          <Button icon={saved ? "saved" : "save"} accessibilityLabel={saved ? "Saved. Tap to remove" : "Save job"} onPress={toggleSave}>{saved ? "Saved" : "Save"}</Button>
-          <View style={styles.primary}>
-            <Button variant="primary" fullWidth disabled={closed || !job.url} onPress={apply}>{closed ? "Listing closed" : "Apply"}</Button>
-          </View>
-        </>}
+      <ApplyButton state={applyState} saved={saved} onSave={toggleSave}
+        onPress={applyState.kind === "apply" ? (job.url ? apply : undefined) : applyState.kind === "stage" ? openApplication : undefined} />
     </View>
     {sheets}
     <SheetModal open={applyFlow.asking} onClosed={applyFlow.endAsking}><DidYouApply onYes={applyFlow.confirmApplied} /></SheetModal>
@@ -222,13 +228,10 @@ const styles = StyleSheet.create((theme) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    flexDirection: "row",
-    gap: theme.ui.space["3"],
     paddingTop: theme.ui.space["3"],
     paddingHorizontal: theme.ui.size.gutter,
     backgroundColor: theme.ui.color.bg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.ui.color.separator,
   },
-  primary: { flex: 1 },
 }));

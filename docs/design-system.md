@@ -615,6 +615,18 @@ cut so that each remaining one has a job.
     questions pinned as `Segmented` controls (which now take no answer
     yet); both answered brings the next person. Home's "Label N
     recruiters" counts the same queue.
+  - The Apply button, every state (Paper board 1): `ui/ApplyButton.tsx`
+    is the job page's one button. Apply, Apply for me (a split capsule;
+    its caret's menu ticks Apply for me and holds Apply myself), Queued,
+    Applying (the capsule fills in `accent-soft` as the form does),
+    Answer N questions, Sent · waiting, Applied, and on later visits the
+    stage with "View in Tracker". Pink only when the move is yours; Save
+    only beside Apply and Apply for me. It morphs between states: the
+    capsule springs to its new width on `tab.glide`, its colour eases,
+    the words cross-fade. Live today: Apply, Applied and the later stage;
+    the rest wait on auto-apply. Icons `split` (CaretDown) and `waiting`
+    (Clock); menus gain `menu-bot` (a native build) and a ticked choice
+    (`GlyphMenuItem.on`).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

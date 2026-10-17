@@ -1,7 +1,7 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
   ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
+  CaretDown, CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,
@@ -16,7 +16,7 @@ import type { TextTone } from "./Text";
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
   ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
-  CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
+  CaretDown, CaretLeft, CaretRight, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, IdentificationBadge, MagnifyingGlass, MapPin,
   PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
   WarningCircle, Wrench, X,

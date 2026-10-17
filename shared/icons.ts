@@ -86,6 +86,10 @@ export const ICONS = {
   kit: "Swatches",
   /** A row whose value opens a menu in place (Appearance). */
   pick: "CaretUpDown",
+  /** A split button's other choices (Apply for me ▾). */
+  split: "CaretDown",
+  /** Sent, waiting for the company to confirm it (the Apply button). */
+  waiting: "Clock",
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
-  appliedLabel, feedSections, plainText, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
+  appliedLabel, applyButtonState, feedSections, plainText, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
 } from "../apps/native/src/features/redesign/job-facts";
 
 const job = (patch: Partial<FactsJob> = {}): FactsJob => ({
@@ -95,5 +95,14 @@ describe("feed sections", () => {
     expect(feedSections([today, tuesday, old], now).map((section) => [section.title, section.jobs.length]))
       .toEqual([["New today", 1], ["Earlier this week", 1], ["Older", 1]]);
     expect(feedSections([tuesday], now).map((section) => section.title)).toEqual(["Earlier this week"]);
+  });
+});
+
+describe("the Apply button's state", () => {
+  test("Apply until you apply, Applied with its day, then the stage it reached", () => {
+    const base = { title: "Software Engineer", location: "Remote", salary: null, posted_at: null, first_seen_at: "2026-10-01T00:00:00Z" };
+    expect(applyButtonState(base, false, true)).toEqual({ kind: "apply", closed: true });
+    expect(applyButtonState({ ...base, applied_at: "2026-10-14T15:00:00", application_stage: "applied" }, true, false)).toEqual({ kind: "applied", date: "Oct 14" });
+    expect(applyButtonState({ ...base, application_stage: "interview" }, true, false)).toEqual({ kind: "stage", stage: "interview", label: "Interviewing" });
   });
 });
