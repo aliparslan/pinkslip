@@ -111,7 +111,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     </View>
     {sheets}
     <SheetModal open={applyFlow.asking} onClosed={applyFlow.endAsking}><DidYouApply onYes={applyFlow.confirmApplied} /></SheetModal>
-    <SheetModal open={applyFlow.preparing} onClosed={applyFlow.endPreparing}>
+    <SheetModal open={applyFlow.preparing} onClosed={applyFlow.endPreparing} onGone={applyFlow.prepGone}>
       <ApplyPrep job={job} onOpen={applyFlow.openAssisted} onAlreadyApplied={applyFlow.confirmApplied} />
     </SheetModal>
     <Sheet open={placesOpen} onOpenChange={setPlacesOpen} title="Locations">

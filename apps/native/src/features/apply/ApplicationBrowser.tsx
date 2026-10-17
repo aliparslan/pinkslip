@@ -109,12 +109,14 @@ const hostOf = (url: string | null) => {
  * showed, the bar asks. Only fill instructions reach the page, never the
  * Pinkslip session.
  */
-export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApplied }: {
+export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApplied, onDismissed }: {
   request: ApplicationRequest | null;
   onClose: (result: AutoApplyResult) => void;
   onSubmitted: () => void;
   /** "I applied" when no confirmation showed. */
   onConfirmApplied?: () => void;
+  /** Once the sheet has left the screen, so another modal can show. */
+  onDismissed?: () => void;
 }) {
   const api = useApi();
   const { theme } = useUnistyles();
@@ -251,7 +253,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     : status ? <FillBar title={status}><BarButton label="Done" onPress={finish} /></FillBar>
     : null;
 
-  return <Modal visible={request !== null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={finish}>
+  return <Modal visible={request !== null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={finish}
+    onDismiss={onDismissed}>
     <View style={styles.root}>
       <View style={styles.top}>
         <IconButton icon="close" label="Close" onPress={finish} />

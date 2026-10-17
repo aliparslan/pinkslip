@@ -6,7 +6,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
 import { router, usePathname } from "expo-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../kit";
 import type { GlyphMenuItem, GlyphMenuSpec } from "../../ui";
@@ -167,12 +167,21 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   /** With auto-apply, the form opens in the application browser, which reads,
    * fills and (when allowed) submits it; a confirmed submission marks the job
    * applied. */
-  const startAutoApply = async () => {
+  const prepareRequest = async (): Promise<ApplicationRequest | null> => {
     track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
     const prepared = await api.apply.prepare(job.id).catch(() => null);
     const url = prepared?.apply_url ?? job.url;
-    if (url) setApplying({ jobId: job.id, url, autoSubmit, company: job.company_name });
+    return url ? { jobId: job.id, url, autoSubmit, company: job.company_name } : null;
   };
+  const startAutoApply = async () => {
+    const request = await prepareRequest();
+    if (request) setApplying(request);
+  };
+  // iOS shows one modal at a time and quietly drops a second: the browser
+  // waits for Apply's sheet to be gone, and "Did you apply?" for the
+  // browser. The form is prepared while the sheet leaves.
+  const afterPrep = useRef<Promise<ApplicationRequest | null> | null>(null);
+  const askAfterBrowser = useRef(false);
 
   const leave = () => { if (router.canGoBack()) router.back(); };
   const notInterested = () => hideJob(job.id).then((hidden) => {
@@ -231,8 +240,13 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     {autoApply && <ApplicationBrowser request={applying}
       onClose={(result) => {
         setApplying(null);
-        // Closed with no confirmation: ask, as Safari's posting does.
-        if (result === "closed" && !applied && ownSheets) setAsking(true);
+        // Closed with no confirmation: ask, as Safari's posting does, once the browser has gone.
+        askAfterBrowser.current = result === "closed" && !applied && ownSheets;
+      }}
+      onDismissed={() => {
+        if (!askAfterBrowser.current) return;
+        askAfterBrowser.current = false;
+        setAsking(true);
       }}
       onSubmitted={appliedThroughBrowser} onConfirmApplied={appliedThroughBrowser} />}
     {ownSheets
@@ -255,7 +269,13 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
       preparing,
       endPreparing: () => setPreparing(false),
       confirmApplied: () => setApplied(true),
-      openAssisted: () => void startAutoApply(),
+      openAssisted: () => { afterPrep.current = prepareRequest(); },
+      /** Apply's sheet has left the screen: the browser can open. */
+      prepGone: () => {
+        const pending = afterPrep.current;
+        afterPrep.current = null;
+        void pending?.then((request) => { if (request) setApplying(request); });
+      },
     },
     share: () => void shareJob(job),
     menu,

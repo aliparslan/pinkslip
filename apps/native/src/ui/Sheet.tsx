@@ -200,11 +200,23 @@ export function Sheet({ onClosed, children }: SheetProps) {
 
 export interface SheetModalProps extends SheetProps {
   open: boolean;
+  /** Once its modal has really left the screen. iOS shows one modal at a
+   * time, so a modal opened after this sheet (the in-app browser after
+   * Apply's sheet) waits for this. */
+  onGone?: () => void;
 }
 
 /** A Sheet over everything on screen, the tab bar included. The page you
  * were on stays in view behind it. */
-export function SheetModal({ open, onClosed, children }: SheetModalProps) {
+export function SheetModal({ open, onClosed, onGone, children }: SheetModalProps) {
+  if (onGone) {
+    // Kept mounted while closing, so iOS can say when its modal is gone.
+    return <Modal transparent visible={open} animationType="none" statusBarTranslucent onRequestClose={onClosed} onDismiss={onGone}>
+      {open ? <GestureHandlerRootView style={styles.fill}>
+        <Sheet onClosed={onClosed}>{children}</Sheet>
+      </GestureHandlerRootView> : null}
+    </Modal>;
+  }
   if (!open) return null;
   return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed}>
     <GestureHandlerRootView style={styles.fill}>

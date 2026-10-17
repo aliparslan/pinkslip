@@ -1,13 +1,15 @@
 import { BookmarkSimple, EyeSlash } from "phosphor-react-native";
 import { router } from "expo-router";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
-  ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, Text, Ticket, type ApplyState,
+  ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, SheetModal, SheetStep, Text, Ticket,
+  useSheet, type ApplyState,
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
+import { DidYouApply } from "../redesign/ApplySheets";
 import { SAMPLE_FORM_URL } from "../apply/sample-form";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
@@ -31,6 +33,12 @@ export function RedesignGallery() {
   const [reporting, setReporting] = useState(false);
   const [release, setRelease] = useState<Release | null>(null);
   const [browsing, setBrowsing] = useState<ApplicationRequest | null>(null);
+  // Apply's sheet, then the browser, then "Did you apply?", in the job page's order.
+  const [preparing, setPreparing] = useState(false);
+  const opening = useRef(false);
+  const [asking, setAsking] = useState(false);
+  const askAfter = useRef(false);
+  const sampleRequest: ApplicationRequest = { jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true };
   const sampleApplied = () => toast.show({ message: "Applied to Stripe. It's in Tracker.", icon: "done" });
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
@@ -43,8 +51,8 @@ export function RedesignGallery() {
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />
         <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
         <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
-        <ListItem title="In-app browser, a sample form" accessory="chevron"
-          onPress={() => setBrowsing({ jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true })} />
+        <ListItem title="In-app browser, a sample form" accessory="chevron" onPress={() => setBrowsing(sampleRequest)} />
+        <ListItem title="Apply's sheet, then the browser" accessory="chevron" onPress={() => setPreparing(true)} />
         <ListItem title="Events, and an event's page" accessory="chevron" onPress={() => router.push("/you/kit-events")} />
         <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />
         <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />
@@ -84,7 +92,14 @@ export function RedesignGallery() {
       <ReportJobSheet jobId="sample" sample open={reporting} onClosed={() => setReporting(false)} />
       <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
       {/* Paper "2 · The in-app browser and fill bar", on a local form. */}
-      <ApplicationBrowser request={browsing} onClose={() => setBrowsing(null)} onSubmitted={sampleApplied} onConfirmApplied={sampleApplied} />
+      <ApplicationBrowser request={browsing} onSubmitted={sampleApplied} onConfirmApplied={sampleApplied}
+        onClose={(result) => { setBrowsing(null); askAfter.current = result === "closed"; }}
+        onDismissed={() => { if (askAfter.current) { askAfter.current = false; setAsking(true); } }} />
+      <SheetModal open={preparing} onClosed={() => setPreparing(false)}
+        onGone={() => { if (opening.current) { opening.current = false; setBrowsing(sampleRequest); } }}>
+        <SamplePrep onOpen={() => { opening.current = true; }} />
+      </SheetModal>
+      <SheetModal open={asking} onClosed={() => setAsking(false)}><DidYouApply onYes={sampleApplied} /></SheetModal>
     </Section>
 
     <Section title="Type">
@@ -218,6 +233,17 @@ export function RedesignGallery() {
       </Section>
     </View>
   </ScrollView>;
+}
+
+/** Apply's sheet on a sample: just its Open application. */
+function SamplePrep({ onOpen }: { onOpen: () => void }) {
+  const { close } = useSheet();
+  return <SheetStep id="prep">
+    <View style={styles.body}>
+      <Text role="title2">Apply at Stripe</Text>
+      <Button variant="primary" fullWidth icon="apply" onPress={() => { close(); onOpen(); }}>Open application</Button>
+    </View>
+  </SheetStep>;
 }
 
 const APPLY_STATES: ApplyState[] = [
