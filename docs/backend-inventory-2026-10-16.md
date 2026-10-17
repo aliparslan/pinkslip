@@ -2,9 +2,10 @@
 
 Everything the backend does or should do, in one place, the way
 [design-inventory-2026-10-14.md](design-inventory-2026-10-14.md) did it for
-the screens. The owner and Claude go through it part by part, decide what
-each part should do, and write the decisions in here. Then a separate
-session builds from it, in the order at the end.
+the screens. The owner and Claude went through it part by part on
+2026-10-16 and wrote the decisions in at the end ("Decisions"). A separate
+session builds from it, in the order below ("Order to build"), following
+"For the building session".
 
 Read with:
 
@@ -165,8 +166,7 @@ Activity, the digest and each application's timeline.
 | Needs you: offer and interview dates, emails needing a choice, follow-ups due | **Partial:** done in the app from three requests |
 | Today's badge count | **Partial:** counted in the app; the server doesn't set the icon badge |
 
-**To decide:** whether the stream is a table of its own or a view over
-`application_events`, outreach messages and inbound emails.
+**Decided:** a table of its own (see Decisions).
 
 ## 3. Applications and Tracker
 
@@ -268,33 +268,69 @@ Activity, the digest and each application's timeline.
 | Product events (`/interactions/events`) and metrics | **Works** |
 | Admin alerts | **Works** |
 | Charts in Admin (owner: more visuals, fewer numbers) | **Later**, after looking at chart libraries |
-| Error reporting beyond Worker logs | **Missing** |
+| Error reporting beyond Worker logs | **Missing:** our own errors table and admin push (no new service; see Decisions) |
 | Production schema drift (source-health found it once) | **Check** |
 | Restore points before risky migrations (D1 Time Travel) | **Works**, as a habit |
 
-## Proposed order
+## Order to build
 
-Each part ends with a short spec here, then the building session takes it.
+Each step is decided (see "Decisions"); build, test, and stop for the
+owner's check before the next.
 
-1. **Notifications foundation:** kinds and per-kind settings, time zone,
-   the scheduler, deep links, the log. Fix and check what's
-   live (§1 "Fix what we have"). Then N2, N3, N4 and N9, which need only
-   what exists.
-2. **The Activity stream and Today** (§2): What changed, last-seen, the
-   badge from the server.
-3. **Application dates as reminders:** N5 to N8 from `stage_date`, plus
-   fixing a step's date and tracking a job from elsewhere (§3).
-4. **Email tracking checked end to end** (§4), then dates from emails,
-   forwarding stopped (N18) and reply detection (N11).
-5. **Accounts:** Google and email with password (§7).
-6. **Following and events** (§6), with N19 and N20.
-7. **Outreach for everyone** (§8), once contacts exist.
-8. **Plans and billing** (§10).
-9. **Auto-apply** (§9), last.
+1. **Keeping it running** (Decisions: Admin): the errors table and admin
+   push, the 15-minute checks. First, so everything after is watched.
+2. **Notifications foundation** (§1): kinds and per-kind settings, the
+   phone's time zone, the scheduler on the every-minute tick, deep links per
+   kind, the log, the daily cap for passive kinds. Fix and check what's live
+   (§1 "Fix what we have"). Then N2 (once a day) and N9 (a saved job
+   closed), which need only what exists.
+3. **The Activity stream and Today** (§2): the table, the backfill,
+   `GET /today`, seen per person, the badge from the server. N3 and N4 come
+   out of it.
+4. **Application dates and gaps** (§3): N5 to N8, fixing a step's date,
+   applications without a Pinkslip job ("Add an application"), pay and the
+   company domain kept on the application.
+5. **Email tracking proven** (§4): the owner's Cloudflare check and test
+   forwards, the test set of real-shaped emails, AI fallback, dates from
+   emails, N18, and reply detection (N11). Tracking from one email is not a
+   priority.
+6. **Accounts** (§7): Google sign-in, email and password.
+7. **Following and events** (§6), with N19 and N20.
+8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
+   removal path, then the flag.
+9. **Plans and billing** (§10): plan and metering first; payments at the App
+   Store release.
+10. **Auto-apply** (§9), last.
+
+## For the building session
+
+- **Read first:** this doc, then `CLAUDE.md` and `AGENTS.md`. The owner's
+  rules there win.
+- **The API stays additive.** TestFlight builds in testers' hands call
+  today's endpoints; never change or remove what they use.
+- **Migrations:** take a D1 restore point (Time Travel) before a risky one;
+  rehearse on a local copy of production when it rebuilds a table.
+- **Deploys, pushes and over-the-air updates only with the owner's go-ahead**
+  for that change: `CI=1 bun run deploy:backend` (run wrangler with
+  `XDG_CONFIG_HOME=$HOME/.config` from this machine). Check
+  `wrangler d1 migrations list pinkslip --remote` and what else in `worker/`
+  changed since the last deploy before deploying.
+- **Commit to `main`, no PRs, never a Co-Authored-By line.** Fetch first;
+  the owner also works on design in another session.
+- **Each step ends with** `bun run check`, `bun test`, numbered flows the
+  owner can try, and the step's decisions marked built here.
+- **Notifications need the phone:** time-sensitive interruption and
+  notification categories (actions like Still waiting, Ghosted) need a
+  native build; ship the server side first and let pushes open the right
+  screen until then.
+- **Owner to-dos along the way:** the Cloudflare email routing check
+  ([email-tracking.md](email-tracking.md)), forwarding a few real job
+  emails, a Google OAuth client for sign-in, an email-verification service
+  account for outreach, and later App Store in-app purchase and Stripe.
 
 ## Decisions
 
-Filled in as the owner and Claude go through each part.
+Made by the owner with Claude on 2026-10-16, part by part.
 
 ### Notifications (owner, 2026-10-16)
 
@@ -435,4 +471,80 @@ Events:
 6. **Also:** People on a company's page from the threads (by company, not
    only by job), Gmail and Outlook web compose links, and reply detection
    (email tracking #6).
+
+Addition (owner, 2026-10-16): **email checks are weekly,** through an
+email-verification service (it runs the SMTP handshake from servers built
+for it and flags catch-all domains; about $30 a month for 2,000 contacts).
+A homemade handshake doesn't work: Workers can't connect on port 25, Google
+Workspace and Microsoft 365 often accept every address at that step, and
+repeated probing gets an address blocklisted. Bounces from outreach emails
+that reach Pinkslip through forwarding mark a contact bad at once. Whether a
+recruiter still does campus hiring still needs the quarterly refresh of the
+list.
+
+### Plans and billing (owner, 2026-10-16)
+
+1. **The plumbing now, payments later:** the server knows each person's
+   plan and meters auto-apply sends, tailoring and AI use. Everyone is Free
+   during TestFlight with generous limits; taking money waits for the App
+   Store release.
+2. **Pro unlocks** "Send as jobs post", more auto-apply sends than Free's 3
+   a week, tailoring when it returns, and later Pinkslip's own outreach
+   composer. Sending outreach from your own mail stays free.
+3. **Paying:** Apple's in-app purchase on iPhone, Stripe on the web; either
+   sets the same Pro status on the server; Apple's renewal and refund
+   notices keep it current.
+4. **Limits show where they bite** (Review's "3 left this week"), not as
+   warnings elsewhere.
+5. **Prices** once there are a few weeks of real usage.
+
+### Auto-apply (owner, 2026-10-16)
+
+1. **Where it runs: both (option C).** The server fills and submits with
+   Cloudflare's headless browser, so a batch keeps going with the phone
+   locked and the Live Activity only reports. Anything blocked (captchas,
+   bot checks) becomes "Finish on your phone" in the in-app browser.
+   Greenhouse and Ashby first, then Lever. Workday stays assisted only.
+2. **Ask first:** each morning at the user's time the server picks matches
+   by their rules; Today's card and the morning push (N12); what they send
+   joins the queue.
+3. **Answers only from the answers bank;** nothing invented; visa and work
+   status never guessed. Anything unknown sends the job to Needs you (N13)
+   instead of sending.
+4. **Proof:** the confirmation page is saved for each send; the company's
+   confirmation email (email tracking) makes it "Confirmed". This feeds the
+   stub's APPLIED and SENT stamps and "What Pinkslip sent".
+5. **Safety:** never the same job twice; hidden companies respected; the
+   per-day and per-company caps; Pause stops at once; everything sent is
+   kept for the user to see.
+6. **Real submissions stay with the owner** until it has applied correctly
+   to the owner's own test applications.
+7. **"Send as jobs post" stays Pro and bounded** by the same caps and strong
+   matches. No "apply to everything" tier: mass applying lowers response
+   rates, recruiters notice it, and heavy automated volume can get Pinkslip
+   blocked on an ATS for everyone. A higher tier, if ever, raises the caps
+   based on interview rates.
+8. **Company-run sites (Google, Apple, Meta, Amazon):** assisted on the
+   phone only. The user signs in once in the in-app browser, which keeps the
+   session (`incognito={false}`); fill scripts for the big ones; Apply stays
+   the user's tap. They show in Ask first as "Finish on your phone";
+   Automatic skips them. Sessions are never kept on the server.
+9. **Greenhouse's emailed confirmation codes:** with forwarding, email
+   tracking reads the code and the server enters it within a couple of
+   minutes; without it, a time-sensitive Needs you push ("Enter the code
+   Greenhouse emailed you"), since codes expire. On the phone the field
+   takes iOS's code autofill.
+
+### Admin and keeping it running (owner, 2026-10-16)
+
+1. **No new service for errors.** The Worker's `onError` writes each error
+   to an errors table (kind, route, count, first and last seen); the app
+   sends its JavaScript errors to the API into the same table; a new kind
+   sends an admin push, like failing sources do. iPhone crashes come from
+   TestFlight and Xcode's Organizer, which Apple already collects.
+2. **A check every 15 minutes** that the feed loads, sign-in works and a
+   push goes out; a failure alerts the owner.
+3. **The notification log** in Product health: sent and opened per kind.
+4. **A weekly check** that production's schema matches the migrations.
+5. **Admin's charts later**, after looking at chart libraries.
 
