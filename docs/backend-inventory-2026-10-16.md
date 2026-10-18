@@ -297,7 +297,7 @@ owner's check before the next.
 5. **Email tracking proven** (§4): the owner's Cloudflare check and test
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
-   priority. **Built 2026-10-18, not deployed** (see "Built").
+   priority. **Built and live 2026-10-18** (see "Built").
 6. **Accounts** (§7): Google sign-in, email and password.
 7. **Following and events** (§6), with N19 and N20.
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
@@ -845,7 +845,11 @@ Not in step 4: the date picker on the application page (Paper first); the
 no-word push (they need the native build's notification categories); pay
 on Tracker rows (no design yet).
 
-### Step 5: email tracking proven (2026-10-18, not deployed)
+### Step 5: email tracking proven (2026-10-18, live 2026-10-18)
+
+**Deployed 2026-10-18:** migration 0097, Worker fdc03049; D1 bookmark
+before: `00004578-0001050e-00005108-f8f560730ddac3a8fe51762c28074611`.
+Health checks passing, no errors after it.
 
 - **Routing works.** Mail reaches the Worker: the owner's inbox has had
   four job emails, all read as receipts (Greenhouse, Lever and two others),
