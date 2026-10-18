@@ -455,7 +455,7 @@ app.onError((error, c) => {
   }
   return c.json(
     {
-      error: `Something went wrong while loading ${c.req.header("x-pinkslip-client") === "ios" ? "Pinkslip" : "pinkslip"}. Please try again.`,
+      error: "Something went wrong while loading Pinkslip. Please try again.",
       code: "internal_error",
       request_id: requestId,
     },

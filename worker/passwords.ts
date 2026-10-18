@@ -3,10 +3,16 @@ import { base64urlDecode, base64urlEncode } from "./crypto";
 /*
  * Passwords are kept only as one-way hashes (Decisions: Accounts #2):
  * PBKDF2-SHA256 with a random salt, through WebCrypto. The iteration count is
- * stored in each hash, so it can rise later without breaking old ones.
+ * stored in each hash, so it can change later without breaking old ones.
  */
 
-export const PASSWORD_ITERATIONS = 600_000;
+/**
+ * Cloudflare Workers' WebCrypto refuses PBKDF2 above 100,000 iterations
+ * ("iteration counts above 100000 are not supported"), so this is the most
+ * it can be here. Bun has no such cap, so a test holds it under the limit.
+ */
+export const WORKERS_PBKDF2_MAX_ITERATIONS = 100_000;
+export const PASSWORD_ITERATIONS = WORKERS_PBKDF2_MAX_ITERATIONS;
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 200;
 
@@ -37,7 +43,8 @@ export async function hashPassword(password: string, iterations = PASSWORD_ITERA
 export async function verifyPassword(password: string, stored: string | null | undefined): Promise<boolean> {
   const [scheme, rounds, salt, expected] = (stored ?? "").split("$");
   const iterations = Number(rounds);
-  if (scheme !== "pbkdf2-sha256" || !Number.isInteger(iterations) || iterations < 1 || !salt || !expected) return false;
+  if (scheme !== "pbkdf2-sha256" || !Number.isInteger(iterations) || iterations < 1
+    || iterations > WORKERS_PBKDF2_MAX_ITERATIONS || !salt || !expected) return false;
   const actual = await derive(password, base64urlDecode(salt), iterations);
   const wanted = base64urlDecode(expected);
   if (actual.length !== wanted.length) return false;

@@ -605,6 +605,8 @@ auth.post("/email/code/verify", async (c) => {
     const problem = passwordProblem(body.password);
     if (problem) return c.json({ error: problem, code: "weak_password" }, 400);
   }
+  // Hashed before the code is used up, so a failure here costs nothing.
+  const passwordHash = typeof body?.password === "string" ? await hashPassword(body.password) : null;
   const now = new Date().toISOString();
   const row = await c.env.DB.prepare(
     `SELECT id, token_hash, attempts FROM email_login_tokens
@@ -624,11 +626,11 @@ auth.post("/email/code/verify", async (c) => {
   if (!consumed.meta.changes) return c.json({ error: "That code expired. Ask for a new one.", code: "expired_code" }, 401);
 
   const nextSession = await signInWithIdentity(c, { provider: "email", providerSubject: email, email, emailVerified: true });
-  if (typeof body?.password === "string") {
+  if (passwordHash) {
     await c.env.DB.prepare(
       `UPDATE auth_identities SET password_hash = ?, password_updated_at = ?
        WHERE user_id = ? AND provider = 'email' AND provider_subject = ?`
-    ).bind(await hashPassword(body.password), now, c.get("userId"), email).run();
+    ).bind(passwordHash, now, c.get("userId"), email).run();
   }
   return c.json({
     ...await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),

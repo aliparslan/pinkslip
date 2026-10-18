@@ -5,7 +5,7 @@ import { createGuestSession } from "@worker/auth";
 import { base64urlEncode } from "@worker/crypto";
 import { _resetGoogleKeyCache } from "@worker/google";
 import worker from "@worker/index";
-import { hashPassword, verifyPassword } from "@worker/passwords";
+import { hashPassword, PASSWORD_ITERATIONS, verifyPassword, WORKERS_PBKDF2_MAX_ITERATIONS } from "@worker/passwords";
 import type { Env } from "@worker/types";
 import { sqliteD1 } from "./sqlite-d1";
 
@@ -51,6 +51,12 @@ async function guest(db: D1Database) {
 }
 
 describe("passwords", () => {
+  it("stay within what Cloudflare Workers' PBKDF2 accepts", () => {
+    // Workers refuse more than 100,000 iterations; Bun doesn't, so only this catches it.
+    expect(PASSWORD_ITERATIONS).toBeLessThanOrEqual(WORKERS_PBKDF2_MAX_ITERATIONS);
+    expect(WORKERS_PBKDF2_MAX_ITERATIONS).toBe(100_000);
+  });
+
   it("are stored as salted one-way hashes and checked exactly", async () => {
     const hash = await hashPassword("correct horse", 1000);
     expect(hash).toMatch(/^pbkdf2-sha256\$1000\$[\w-]+\$[\w-]+$/);
