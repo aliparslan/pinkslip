@@ -291,9 +291,9 @@ owner's check before the next.
    out of it. **Built and live 2026-10-17** (see "Built").
 4. **Application dates and gaps** (§3): N5 to N8, fixing a step's date,
    applications without a Pinkslip job ("Add an application"), pay and the
-   company domain kept on the application. **Built 2026-10-18, not
-   deployed** (see "Built"); the screens for adding one and fixing a date
-   wait for Paper.
+   company domain kept on the application. **Built and live 2026-10-18**
+   (see "Built"); the date picker waits for Paper, and the "Add an
+   application" screen isn't a priority (owner, 2026-10-18).
 5. **Email tracking proven** (§4): the owner's Cloudflare check and test
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
@@ -785,7 +785,12 @@ Liberties for the owner to keep or veto:
 Not in step 3: the "new" mark on Today (Paper), an application page on the
 web, reminders from dates (step 4).
 
-### Step 4: application dates and gaps (2026-10-18, not deployed)
+### Step 4: application dates and gaps (2026-10-18, live 2026-10-18)
+
+**Deployed 2026-10-18:** migration 0096, Worker 94f765af; D1 bookmark
+before: `00004578-0000edaa-00005108-f9ac51e610fecb369a0ab1ff1124af6d`. The
+backfill kept a domain on 380 of 381 applications and pay on 199. The first
+ticks sent two 6-week "no word" nudges (both skipped: no device); no errors.
 
 - **Reminders from dates** (`worker/reminders.ts`, on the every-minute
   tick), in the person's time zone, all opening the application:
@@ -832,7 +837,7 @@ Liberties for the owner to keep or veto:
 5. A hand-added application matches a catalog company only by exact name
    (any case).
 
-Not in step 4: the "Add an application" form and the date picker on the
-application page (Paper first); Still waiting / Ghosted buttons on the
+Not in step 4: the date picker on the application page (Paper first); the
+"Add an application" form (not a priority, owner 2026-10-18); Still waiting / Ghosted buttons on the
 no-word push (they need the native build's notification categories); pay
 on Tracker rows (no design yet).
