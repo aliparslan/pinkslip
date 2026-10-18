@@ -20,6 +20,8 @@ export interface EmailContent {
   text: string;
   /** Every link target in the email. */
   links: string[];
+  /** Calendar invites (.ics) it carried, for an interview's time. */
+  calendar?: string[];
 }
 
 const INBOX_TAG = /^inbox\+([a-z0-9]{6,32})@pinkslip\.work$/i;
@@ -243,13 +245,14 @@ const REJECTED = [
   /\bpursue other candidates\b/, /\bdecided to pursue\b/,
   /\bnot (to )?proceed(ing)? with your (application|candidacy)\b/, /\bwill not be proceeding\b/,
   /\bunable to (move forward|offer you|proceed)\b/, /\bregret to inform\b/,
-  /\bposition has (been|now been) filled\b/, /\bno longer (being )?considered\b/,
+  /\b(position|role|job|opening)( (that )?you applied (for|to))? has (now )?been filled\b/, /\bno longer (being )?considered\b/,
+  /\b(go|going|gone|went) (in|with) a different direction\b/,
   /\b(were|was|have|has) not (been )?selected\b/, /\bnot a (fit|match) at this time\b/,
   /\bdecided not to move forward\b/, /\bwon t be moving forward\b/, /\bwill not be moving forward\b/,
 ];
 const INTERVIEW = [
   /\binvite you to (an |a )?(phone |video |virtual |technical |onsite |on site |final )?(interview|screen|call|conversation|chat)\b/,
-  /\b(schedule|book|set up) (a|an|your) (phone |video |virtual |technical |onsite |on site |final |recruiter |initial |first )?(interview|screen|call|conversation|chat)\b/,
+  /\b(schedule|book|set up|arrange) (a|an|your) (\d{1,3} minute |quick |brief |short )?(phone |video |virtual |technical |onsite |on site |final |recruiter |initial |first |intro |introductory )?(interview|screen|call|conversation|chat)\b/,
   /\binterview (invitation|invite|request|confirmation|scheduled|confirmed)\b/,
   /\byour (upcoming )?interview (is|has been) (scheduled|confirmed)\b/,
   /\bavailability for (an |a |your )?(interview|call|phone screen)\b/,
@@ -292,7 +295,10 @@ function withoutConditionals(text: string): string {
     .join(" ");
 }
 
-export function detectStage(email: Pick<EmailContent, "subject" | "text" | "links">): DetectedStage | null {
+/** A calendar invite whose title is an interview ("Datadog Technical Interview"). */
+const INVITE_TITLE = /\b(interview|phone screen|technical screen|recruiter (call|screen)|onsite|on site|super ?day|final round)\b/;
+
+export function detectStage(email: Pick<EmailContent, "subject" | "text" | "links" | "calendar">): DetectedStage | null {
   const source = `${email.subject}\n${email.text.slice(0, 20_000)}`;
   const everything = ` ${words(source)} `;
   const definite = ` ${withoutConditionals(source)} `;
@@ -301,7 +307,10 @@ export function detectStage(email: Pick<EmailContent, "subject" | "text" | "link
   const linksTo = (domains: string[]) => hosts.some((host) => domains.some((domain) => hostMatches(host, domain)));
   if (any(OFFER, everything)) return "offer";
   if (any(REJECTED, definite)) return "rejected";
-  if (any(INTERVIEW, definite) || linksTo(INTERVIEW_LINK_HOSTS)) return "interview";
+  const inviteTitles = (email.calendar ?? []).map((ics) => ics.match(/^SUMMARY[^:\r\n]*:(.*)$/im)?.[1] ?? "");
+  const interviewInvite = (email.calendar?.length ?? 0) > 0
+    && [email.subject, ...inviteTitles].some((title) => INVITE_TITLE.test(words(title)));
+  if (any(INTERVIEW, definite) || linksTo(INTERVIEW_LINK_HOSTS) || interviewInvite) return "interview";
   if (any(ASSESSMENT, definite) || linksTo(ASSESSMENT_LINK_HOSTS)) return "assessment";
   if (any(APPLIED, everything)) return "applied";
   return null;

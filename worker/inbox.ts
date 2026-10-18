@@ -76,9 +76,11 @@ export async function recordInboxDelivery(db: D1Database, userId: string, now: s
   await db.prepare(
     `UPDATE email_inboxes
      SET last_email_at = ?,
+         first_email_at = COALESCE(first_email_at, ?),
+         email_count = email_count + 1,
          forwarding_confirmed_at = COALESCE(forwarding_confirmed_at, ?),
          forwarding_code = NULL,
          forwarding_link = NULL
      WHERE user_id = ?`
-  ).bind(now, now, userId).run();
+  ).bind(now, now, now, userId).run();
 }

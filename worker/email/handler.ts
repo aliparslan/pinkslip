@@ -1,6 +1,8 @@
 import PostalMime, { addressParser, decodeWords, type Email } from "postal-mime";
 import { activityForEmail, notifyActivity } from "../activity";
 import { findInboxUser, recordForwardingConfirmation, recordInboxDelivery } from "../inbox";
+import { recordRecruiterReply } from "./replies";
+import { readStageWithAi } from "./stage-reader";
 import type { Env } from "../types";
 import { hashMessage, processEmail, trackedCompanies } from "./process";
 import {
@@ -67,7 +69,19 @@ export function toEmailContent(parsed: Email, fallbackFrom: Sender): EmailConten
     date: parsed.date ?? null,
     text,
     links: extractLinks(html, text),
+    calendar: calendarParts(parsed),
   };
+}
+
+/** Calendar invites (scheduling tools attach one), as text, small ones only. */
+function calendarParts(parsed: Email): string[] {
+  return (parsed.attachments ?? [])
+    .filter((attachment) => /calendar/i.test(attachment.mimeType ?? "") || /\.ics$/i.test(attachment.filename ?? ""))
+    .map((attachment) => typeof attachment.content === "string"
+      ? attachment.content
+      : new TextDecoder().decode(attachment.content as ArrayBuffer))
+    .filter((content) => content.length <= 100_000)
+    .slice(0, 3);
 }
 
 export async function handleInboundEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
@@ -87,13 +101,17 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   }
 
   await recordInboxDelivery(env.DB, userId, now);
+  // A reply from someone the user wrote to (N11), decided from the sender
+  // alone. A reply can also be a step (an interview invite), so it goes on.
+  await recordRecruiterReply(env.DB, userId, from.address);
   // Decided from the headers alone: mail that isn't about a job is never parsed.
   if (!shouldOpen({ from, subject }, await trackedCompanies(env.DB, userId))) return;
 
   const parsed = await PostalMime.parse(message.raw);
   const email = unwrapForward(toEmailContent(parsed, from));
   const hash = await hashMessage(parsed.messageId ?? message.headers.get("message-id"), email);
-  const outcome = await processEmail(env.DB, userId, email, hash, now);
+  // Rules first; Jev reads only hiring mail the rules can't place (stage-reader.ts).
+  const outcome = await processEmail(env.DB, userId, email, hash, now, (content) => readStageWithAi(env, content));
   // Notifications start from what the email wrote to the Activity stream:
   // an application it moved (N3) or "which application?" (N4).
   if ("emailId" in outcome) {

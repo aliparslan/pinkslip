@@ -20,6 +20,7 @@ import {
   applicationMovedNotification,
   followUpNotification,
   isNotificationKind,
+  repliedNotification,
   savedJobClosedNotification,
   STAGE_NEWS,
   whichApplicationNotification,
@@ -143,6 +144,13 @@ export async function activityForEmail(db: D1Database, inboundEmailId: string): 
   return rows.results ?? [];
 }
 
+/** The reply a thread's close recorded (closeThread writes it). */
+export async function activityForThreadReply(db: D1Database, threadId: string): Promise<ActivityRow | null> {
+  return db.prepare(
+    `SELECT ${ACTIVITY_FIELDS} FROM activity WHERE thread_id = ? AND kind = 'replied' ORDER BY occurred_at DESC LIMIT 1`
+  ).bind(threadId).first<ActivityRow>();
+}
+
 const NEWS_STAGES = new Set<string>(["assessment", "interview", "offer", "rejected"]);
 
 /**
@@ -224,6 +232,27 @@ export async function notifyActivity(db: D1Database, activity: ActivityRow, now 
         ...followUpNotification(row),
         entityType: "outreach_message",
         entityId: detail.message_id,
+      }, now);
+    }
+    case "replied": {
+      // Only a reply email tracking saw; tapping "They replied" yourself sends nothing.
+      if (activity.source !== "email" || !activity.thread_id) return false;
+      const thread = await db.prepare(
+        `SELECT ot.id, ot.job_id, c.name AS company_name, cc.name AS contact_name, j.title AS job_title
+         FROM outreach_threads ot
+         JOIN companies c ON c.id = ot.company_id
+         JOIN company_contacts cc ON cc.id = ot.contact_id
+         LEFT JOIN jobs j ON j.id = ot.job_id
+         WHERE ot.id = ?`
+      ).bind(activity.thread_id).first<{ id: string; job_id: string | null; company_name: string; contact_name: string; job_title: string | null }>();
+      if (!thread) return false;
+      return scheduleNotification(db, {
+        ...base,
+        kind: "replied",
+        dedupeKey: `replied:${thread.id}`,
+        ...repliedNotification(thread),
+        entityType: "outreach_thread",
+        entityId: thread.id,
       }, now);
     }
     case "reminder_due": {

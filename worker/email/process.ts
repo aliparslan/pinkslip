@@ -1,7 +1,9 @@
 import { ENDING_APPLICATION_STAGES, type ApplicationStage } from "../../shared/application-stages";
 import type { DetectedStage, InboundEmail, InboundEmailStatus } from "../../shared/email-tracking";
 import { recordActivity } from "../activity";
-import { createApplicationFromEmail, recordEmailStep, undoEmailSteps } from "../applications";
+import { createApplicationFromEmail, recordEmailStep, setStageDateFromEmail, undoEmailSteps } from "../applications";
+import { DEFAULT_TIME_ZONE, validTimeZone } from "../local-time";
+import { detectEmailDate } from "./dates";
 import { companyNameHints, matchSpecific, type JobCandidate } from "./match";
 import {
   atsSlugsInLink,
@@ -144,20 +146,23 @@ async function insertRecord(
     applicationId: string | null;
     candidates: string[];
     now: string;
+    detectedBy: "rules" | "ai";
+    detectedDate: string | null;
   }
 ): Promise<string | null> {
   const id = crypto.randomUUID();
   const inserted = await db.prepare(
     `INSERT OR IGNORE INTO inbound_emails (
        id, user_id, message_hash, received_at, sender_name, sender_address, subject, sent_at,
-       detected_stage, company_id, status, application_id, candidate_application_ids, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       detected_stage, company_id, status, application_id, candidate_application_ids, created_at,
+       detected_by, detected_date
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, record.userId, record.hash, record.now,
     record.email.from.name.slice(0, 200), record.email.from.address.slice(0, 320),
     record.email.subject.slice(0, 500), record.email.date,
     record.stage, record.companyId, record.status, record.applicationId,
-    JSON.stringify(record.candidates), record.now
+    JSON.stringify(record.candidates), record.now, record.detectedBy, record.detectedDate
   ).run();
   return inserted.meta.changes ? id : null;
 }
@@ -172,12 +177,23 @@ export async function processEmail(
   userId: string,
   email: EmailContent,
   hash: string,
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
+  /** The AI fallback for hiring mail the rules can't place (stage-reader.ts). */
+  fallback?: (email: EmailContent) => Promise<DetectedStage | null>
 ): Promise<ProcessOutcome> {
-  const stage = detectStage(email);
+  const ruled = detectStage(email);
+  const stage = ruled ?? (fallback ? await fallback(email) : null);
   if (!stage) return { status: "ignored" };
+  const detectedBy = ruled ? "rules" as const : "ai" as const;
+  const zone = stage === "interview" || stage === "assessment"
+    ? validTimeZone((await db.prepare("SELECT time_zone FROM users WHERE id = ?").bind(userId).first<{ time_zone: string | null }>())?.time_zone)
+    : DEFAULT_TIME_ZONE;
+  const detectedDate = detectEmailDate(email, stage, zone)?.value ?? null;
+  const applyDate = async (applicationId: string, emailId: string) => {
+    if (detectedDate) await setStageDateFromEmail(db, applicationId, stage, detectedDate, emailId, now);
+  };
   const record = (status: InboundEmailStatus, companyId: string | null, applicationId: string | null, candidates: string[] = []) =>
-    insertRecord(db, { userId, hash, email, stage, companyId, status, applicationId, candidates, now });
+    insertRecord(db, { userId, hash, email, stage, companyId, status, applicationId, candidates, now, detectedBy, detectedDate });
 
   const applications = await userApplications(db, userId);
 
@@ -191,6 +207,7 @@ export async function processEmail(
       return { status: "unchanged", emailId, applicationId: null };
     }
     await db.prepare("UPDATE inbound_emails SET application_id = ? WHERE id = ?").bind(applicationId, emailId).run();
+    await applyDate(applicationId, emailId);
     return { status: "created", emailId, applicationId };
   };
 
@@ -199,6 +216,8 @@ export async function processEmail(
     const emailId = await record(moves ? "applied" : "unchanged", companyId, application.id);
     if (!emailId) return { status: "duplicate" };
     if (moves) await recordEmailStep(db, application, stage, emailId, now);
+    // A confirmation with the time is worth reading even when the stage is already there.
+    await applyDate(application.id, emailId);
     return { status: moves ? "applied" : "unchanged", emailId, applicationId: application.id };
   };
 
@@ -310,8 +329,8 @@ export async function listInboundEmails(
 
 async function findInboundEmail(db: D1Database, userId: string, id: string) {
   return db.prepare(
-    "SELECT id, status, detected_stage, application_id, candidate_application_ids FROM inbound_emails WHERE user_id = ? AND id = ?"
-  ).bind(userId, id).first<Pick<InboundEmailRow, "id" | "status" | "detected_stage" | "application_id" | "candidate_application_ids">>();
+    "SELECT id, status, detected_stage, application_id, candidate_application_ids, detected_date FROM inbound_emails WHERE user_id = ? AND id = ?"
+  ).bind(userId, id).first<Pick<InboundEmailRow, "id" | "status" | "detected_stage" | "application_id" | "candidate_application_ids"> & { detected_date: string | null }>();
 }
 
 export type InboundEmailAction = { ok: true } | { ok: false; status: 404 | 409 | 400; error: string };
@@ -345,6 +364,9 @@ export async function assignInboundEmail(
   for (const application of applications) {
     if (emailMovesStage(application.stage, email.detected_stage)) {
       await recordEmailStep(db, application, email.detected_stage, id, now);
+    }
+    if (email.detected_date) {
+      await setStageDateFromEmail(db, application.id, email.detected_stage, email.detected_date, id, now);
     }
   }
   return { ok: true };

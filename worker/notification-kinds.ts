@@ -14,6 +14,7 @@ export type NotificationKind =
   | "offer_reply"
   | "no_word"
   | "replied"
+  | "forwarding_stopped"
   | "daily_summary";
 
 interface KindSpec {
@@ -42,8 +43,10 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   assessment_due: { n: "N6", live: true, defaultOn: true, timeSensitive: false },
   offer_reply: { n: "N7", live: true, defaultOn: true, timeSensitive: false },
   no_word: { n: "N8", live: true, defaultOn: true, timeSensitive: false },
-  // Step 5.
-  replied: { n: "N11", live: false, defaultOn: true, timeSensitive: true },
+  // Email tracking sees the reply (worker/email/replies.ts).
+  replied: { n: "N11", live: true, defaultOn: true, timeSensitive: true },
+  // By email, not push (Decisions: Notifications #4; worker/email/forwarding.ts).
+  forwarding_stopped: { n: "N18", live: true, defaultOn: true, timeSensitive: false },
   // Exists but off by default (Decisions: Notifications #1).
   daily_summary: { n: "N16", live: false, defaultOn: false, timeSensitive: false },
 };
@@ -69,7 +72,7 @@ export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
  * once a day), so they neither wait for the cap nor count toward it; the cap
  * keeps everything else from piling on (owner, 2026-10-17).
  */
-export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply"];
+export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped"];
 
 /**
  * Passive kinds with a moment attached go out when they come due, without
@@ -188,5 +191,16 @@ export function whichApplicationNotification(email: { company_name: string | nul
     title: email.company_name || email.sender_name || "A job email",
     body: "Which application is this?",
     url: notificationLinks.today(),
+  };
+}
+
+
+/** N11: the person in an outreach thread wrote back. */
+export function repliedNotification(thread: { id: string; job_id: string | null; company_name: string; contact_name: string; job_title: string | null }) {
+  const who = thread.contact_name.trim().split(/\s+/)[0] || "The recruiter";
+  return {
+    title: `${who} replied`,
+    body: [thread.company_name, thread.job_title].filter(Boolean).join(" · "),
+    url: notificationLinks.followUp(thread.job_id, thread.id),
   };
 }

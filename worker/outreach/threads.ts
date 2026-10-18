@@ -289,6 +289,8 @@ export async function closeThread(
   threadId: string,
   status: "replied" | "stopped",
   now = new Date(),
+  /** "email" when email tracking saw the reply (N11). */
+  source: "user" | "email" = "user",
 ): Promise<OutreachThread> {
   const thread = await loadThread(db, userId, threadId);
   if (!thread) throw new OutreachError("Thread not found", 404, "not_found");
@@ -305,7 +307,7 @@ export async function closeThread(
     await recordActivity(db, {
       userId,
       kind: "replied",
-      source: "user",
+      source,
       jobId: thread.job_id,
       threadId,
       occurredAt: now,

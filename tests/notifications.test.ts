@@ -90,6 +90,8 @@ describe("notification settings", () => {
         assessment_due: { enabled: true },
         offer_reply: { enabled: true },
         no_word: { enabled: true },
+        replied: { enabled: true },
+        forwarding_stopped: { enabled: true },
       },
       passive_per_day: 3,
     });

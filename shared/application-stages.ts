@@ -116,6 +116,8 @@ export interface Application {
   company_domain?: string | null;
   /** The job's pay as it was listed, kept on the application. */
   salary?: string | null;
+  /** "email" when the stage's date came from an email ("from the email"). */
+  stage_date_source?: "email" | null;
 }
 
 /** Limits for an application added by hand. */

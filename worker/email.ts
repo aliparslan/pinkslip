@@ -141,3 +141,42 @@ export async function sendForwardingStepsEmail(
     html,
   });
 }
+
+/** N18, forwarding stopped (Decisions: Email tracking #5): by email, since
+ * the fix happens in the person's mail settings. */
+export async function sendForwardingStoppedEmail(
+  env: Env,
+  args: { to: string; address: string; lastEmailDay: string }
+) {
+  if (!env.EMAIL) throw new Error("Email sending is not configured");
+  const fromEmail = env.EMAIL_FROM_ADDRESS?.trim();
+  if (!fromEmail) throw new Error("EMAIL_FROM_ADDRESS is not configured");
+  const fromName = env.EMAIL_FROM_NAME?.trim() || "Pinkslip";
+  const lead = `Nothing has reached your Pinkslip address since ${args.lastEmailDay}, so Tracker isn't hearing from companies. Forwarding may have been turned off or paused in your mail settings.`;
+  const check = "Open your mail's forwarding settings and check that mail still forwards to this address:";
+
+  const text = [lead, "", check, "", args.address, "", "If you stopped on purpose, you can ignore this; it won't be sent again until mail arrives and stops once more.", "", "— Pinkslip"].join("\n");
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:24px 0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:14px;border:1px solid #ececec;">
+        <tr><td style="padding:28px 28px 4px;font-size:20px;font-weight:600;color:#111;">Your job emails stopped</td></tr>
+        <tr><td style="padding:8px 28px 4px;color:#444;font-size:15px;line-height:1.5;">${escapeHtml(lead)}</td></tr>
+        <tr><td style="padding:8px 28px 4px;color:#444;font-size:15px;line-height:1.5;">${escapeHtml(check)}</td></tr>
+        <tr><td style="padding:4px 28px 8px;"><div style="background:#f4f4f2;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:600;color:#111;word-break:break-all;">${escapeHtml(args.address)}</div></td></tr>
+        <tr><td style="padding:8px 28px 28px;color:#777;font-size:13px;line-height:1.5;">If you stopped on purpose, you can ignore this; it won't be sent again until mail arrives and stops once more.</td></tr>
+      </table>
+    </td></tr></table>
+  </body>
+</html>`;
+
+  await env.EMAIL.send({
+    to: args.to,
+    from: { email: fromEmail, name: fromName },
+    replyTo: { email: fromEmail, name: fromName },
+    subject: "Your job emails stopped reaching Pinkslip",
+    text,
+    html,
+  });
+}

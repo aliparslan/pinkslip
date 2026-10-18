@@ -297,7 +297,7 @@ owner's check before the next.
 5. **Email tracking proven** (§4): the owner's Cloudflare check and test
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
-   priority.
+   priority. **Built 2026-10-18, not deployed** (see "Built").
 6. **Accounts** (§7): Google sign-in, email and password.
 7. **Following and events** (§6), with N19 and N20.
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
@@ -406,6 +406,9 @@ their screens wait for Paper.
    pay, logos after a job is deleted).
 
 ### Email tracking (owner, 2026-10-16)
+
+**Built 2026-10-18** (step 5; see "Built"): #1 the test set, #2 the AI
+fallback, #3 dates, #5 forwarding stopped, #6 replies. #4 stays a note.
 
 1. **Prove it first.** The owner checks Cloudflare's subaddressing and the
    `inbox` route ([email-tracking.md](email-tracking.md), "Owner setup") and
@@ -841,3 +844,54 @@ Not in step 4: the date picker on the application page (Paper first); the
 "Add an application" form (not a priority, owner 2026-10-18); Still waiting / Ghosted buttons on the
 no-word push (they need the native build's notification categories); pay
 on Tracker rows (no design yet).
+
+### Step 5: email tracking proven (2026-10-18, not deployed)
+
+- **Routing works.** Mail reaches the Worker: the owner's inbox has had
+  four job emails, all read as receipts (Greenhouse, Lever and two others),
+  three of them starting applications. Subaddressing and the `inbox`
+  route are on.
+- **The test set** (`tests/fixtures/job-emails.ts`): 39 real-shaped emails
+  across the common tracking systems, schedulers and assessment tools, plus
+  mail that reports no step. The rules read 32 of the first 36 right; after
+  narrow fixes, and three more emails written to check them, 39 of 39.
+  [email-detection-2026-10-18.md](email-detection-2026-10-18.md) has the
+  before, the fixes and what it doesn't prove.
+- **The AI fallback** (`worker/email/stage-reader.ts`): only for hiring
+  mail that passed the header check but that the rules can't place. Jev
+  answers one multiple-choice question from the sender, subject and the
+  first 4,000 characters, within the monthly AI budget and at most 200 calls
+  a day; it needs 70% certainty, and "none" records nothing. Each email
+  notes `detected_by`.
+- **Dates from emails** (`worker/email/dates.ts`): an interview's time from
+  the calendar invite schedulers attach, or a single clearly stated date
+  and time in the text; an assessment's deadline ("complete by Oct 24,
+  11:59 PM PDT", "you have 7 days"). A time without a zone keeps only the
+  day; several dates (pick a time) or none sets nothing. The date becomes
+  the stage's, `stage_date_source: "email"`, never over one the person set,
+  and an email waiting for "Which application?" keeps its date until it's
+  answered. Reminders (step 4) follow automatically.
+- **They replied (N11)** (`worker/email/replies.ts`): mail from the person
+  in an open outreach thread marks it replied, stops its follow-ups and
+  pushes "Marcus replied" (time-sensitive, outside the cap). Nothing of the
+  email is kept.
+- **Forwarding stopped (N18)** (`worker/email/forwarding.ts`): one email,
+  "Your job emails stopped reaching Pinkslip", after 3 weeks of silence
+  from someone who was forwarding everything; again only after mail
+  arrives and stops once more.
+
+Liberties for the owner to keep or veto:
+
+1. "Forwards everything" is read from the mail itself: at least 30 emails at
+   about two a day or more before the silence. Nothing asks the person.
+2. A reply is any mail from the thread's contact address, including after
+   the follow-ups finished.
+3. A time written without a time zone keeps just the day (so the interview's
+   day still clears "Add the interview date") rather than guessing the zone.
+4. Jev sees the sender, subject and up to 4,000 characters of text, never
+   attachments; its daily limit is 200 calls across everyone.
+5. A confirmation with a time sets the date even when the stage is already
+   Interview (the person moved it, then the scheduler wrote).
+
+Not in step 5: showing "from the email" beside a date (a small label; Paper
+first), and bounces marking outreach contacts bad (step 8).

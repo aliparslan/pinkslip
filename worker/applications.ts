@@ -35,13 +35,15 @@ interface ApplicationRow {
   snapshot_domain: string | null;
   snapshot_salary: string | null;
   job_salary: string | null;
+  stage_date_source: string | null;
 }
 
 const APPLICATION_FIELDS = `
   a.id, a.user_id, a.job_id, a.company_name, a.title, a.url, a.stage, a.notes,
   a.applied_at, a.stage_changed_at, a.stage_date, a.created_at, a.updated_at,
   j.location AS job_location, j.closed_at AS job_closed_at, c.website AS company_domain,
-  a.company_domain AS snapshot_domain, a.salary AS snapshot_salary, j.salary AS job_salary
+  a.company_domain AS snapshot_domain, a.salary AS snapshot_salary, j.salary AS job_salary,
+  a.stage_date_source
 `;
 
 const APPLICATION_JOINS = `
@@ -81,6 +83,7 @@ function serialize(row: ApplicationRow): Application {
       : null,
     company_domain: row.company_domain || row.snapshot_domain || null,
     salary: row.job_salary ?? row.snapshot_salary ?? null,
+    stage_date_source: row.stage_date && row.stage_date_source === "email" ? "email" : null,
   };
 }
 
@@ -188,7 +191,7 @@ async function moveToStage(
   await db.batch([
     db.prepare(
       `UPDATE applications
-       SET stage = ?, stage_changed_at = ?, updated_at = ?, stage_date = NULL,
+       SET stage = ?, stage_changed_at = ?, updated_at = ?, stage_date = NULL, stage_date_source = NULL,
            applied_at = CASE WHEN ? = 'saved' THEN NULL ELSE COALESCE(applied_at, ?) END
        WHERE id = ?`
     ).bind(stage, now, now, stage, now, application.id),
@@ -205,6 +208,42 @@ export async function recordEmailStep(
   now: string
 ): Promise<void> {
   await moveToStage(db, application, stage, "email", now, inboundEmailId);
+}
+
+/**
+ * A date an email stated clearly (Decisions: Email tracking #3) becomes the
+ * stage's date, "from the email", unless the person set one themselves.
+ * Only for the stage the email reported, while the application is there.
+ */
+export async function setStageDateFromEmail(
+  db: D1Database,
+  applicationId: string,
+  stage: ApplicationStage,
+  value: string,
+  inboundEmailId: string,
+  now: string
+): Promise<boolean> {
+  const changed = await db.prepare(
+    `UPDATE applications
+     SET stage_date = ?, stage_date_source = 'email', updated_at = ?
+     WHERE id = ? AND stage = ?
+       AND (stage_date IS NULL OR stage_date_source = 'email')
+       AND (stage_date IS NULL OR stage_date != ?)
+     RETURNING user_id, job_id`
+  ).bind(value, now, applicationId, stage, value).first<{ user_id: string | null; job_id: string | null }>();
+  if (!changed?.user_id) return false;
+  await recordActivity(db, {
+    userId: changed.user_id,
+    kind: "date_set",
+    source: "email",
+    applicationId,
+    jobId: changed.job_id,
+    inboundEmailId,
+    stage,
+    detail: { date: value },
+    occurredAt: now,
+  });
+  return true;
 }
 
 /** Starts tracking a catalog job because an email reported a step for it. */
@@ -249,9 +288,10 @@ export async function undoEmailSteps(
   await db.prepare(
     `UPDATE applications
      SET stage_date = CASE WHEN stage = ? THEN stage_date ELSE NULL END,
+         stage_date_source = CASE WHEN stage = ? THEN stage_date_source ELSE NULL END,
          stage = ?, stage_changed_at = ?, applied_at = ?, updated_at = ?
      WHERE id = ?`
-  ).bind(last.stage, last.stage, last.occurred_at, appliedAt, new Date().toISOString(), applicationId).run();
+  ).bind(last.stage, last.stage, last.stage, last.occurred_at, appliedAt, new Date().toISOString(), applicationId).run();
   return "restored";
 }
 
@@ -378,7 +418,8 @@ export async function updateApplication(
   const now = new Date().toISOString();
   if (changes.stage !== undefined) await moveToStage(db, existing, changes.stage, source, now);
   if (changes.stage_date !== undefined) {
-    await db.prepare("UPDATE applications SET stage_date = ?, updated_at = ? WHERE id = ?")
+    // A date the person sets is theirs, even over one an email set.
+    await db.prepare("UPDATE applications SET stage_date = ?, stage_date_source = NULL, updated_at = ? WHERE id = ?")
       .bind(changes.stage_date, now, id)
       .run();
     const previousDate = changes.stage !== undefined && changes.stage !== existing.stage ? null : existing.stage_date;
@@ -463,7 +504,7 @@ export async function legacyUnmarkApplied(db: D1Database, userId: string, jobId:
       .bind(existing.id, saved.id, saved.saved_at),
     db.prepare(
       `UPDATE applications
-       SET stage = 'saved', applied_at = NULL, stage_date = NULL, stage_changed_at = ?, updated_at = ?
+       SET stage = 'saved', applied_at = NULL, stage_date = NULL, stage_date_source = NULL, stage_changed_at = ?, updated_at = ?
        WHERE id = ?`
     ).bind(saved.saved_at, now, existing.id),
   ]);

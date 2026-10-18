@@ -44,6 +44,7 @@ import {
 } from "./health-checks";
 import { flagEnabled } from "./feature-flags";
 import { queueSavedJobClosings, runNotificationScheduler } from "./notification-scheduler";
+import { nudgeStoppedForwarding } from "./email/forwarding";
 import { runClassificationShadow } from "./classification-shadow";
 import {
   NOTIFICATION_CRON_SCHEDULE,
@@ -506,6 +507,8 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: Execution
     console.log(`Notification matching complete: ${result.matchesProcessed} jobs, ${result.notificationsSent} notifications`);
     const closings = await queueSavedJobClosings(env);
     if (closings > 0) console.log(`Saved jobs closed: ${closings} notifications queued`);
+    const nudged = await nudgeStoppedForwarding(env);
+    if (nudged > 0) console.log(`Forwarding stopped: ${nudged} emails sent`);
     await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
     return;
   }
