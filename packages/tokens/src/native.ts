@@ -714,5 +714,45 @@ export const ui = {
       up: 200,
       curve: [0.23, 1, 0.32, 1],
     },
+    onboarding: {
+      land: {
+        spread: 860,
+        from: -560,
+        scale: 1.16,
+        spin: 14,
+        response: 0.42,
+        damping: 0.7,
+      },
+      words: {
+        rise: 14,
+        stagger: 90,
+        response: 0.42,
+        damping: 1,
+      },
+      throw: {
+        duration: 600,
+        gravity: 1400,
+        speed: 1500,
+        stagger: 26,
+        scale: 0.12,
+      },
+      bloom: {
+        response: 0.5,
+        damping: 1,
+        pale: 300,
+        handoff: 0.62,
+      },
+      rows: {
+        duration: 420,
+        curve: [0.23, 1, 0.32, 1],
+        rise: 8,
+        delay: 120,
+        stagger: 60,
+      },
+      leave: {
+        response: 0.42,
+        damping: 1,
+      },
+    },
   },
 } as const;

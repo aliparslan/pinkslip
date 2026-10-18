@@ -324,6 +324,26 @@ the storyboard spec. These were chosen in the Motion lab
   fades to `ink-3` in 200ms. Only steps that arrive while the page is open.
 - **A hole is punched** (`motion.punch`): it sinks to 82% in 90ms and comes
   back in 200ms on the strong ease-out.
+- **Onboarding** (`motion.onboarding`; the Onboarding Motion Lab, owner
+  2026-10-14; Paper "Onboarding · the build · Oct 18"):
+  - The hook's mess lands card by card over 860ms, each gap 0.8 of the one
+    before, like things piling up on a desk. Each card falls from 560pt up,
+    at 116% and turned 14°, on Apple's spring (response 0.42s, damping 0.7:
+    it falls, so it may bounce), with a light tap and a 2pt nudge of the
+    pile as it hits. Then the headline and buttons rise 14pt, 90ms apart,
+    with no bounce.
+  - Leave it to Pinkslip throws the mess off, nearest the button first
+    (26ms apart): each card flies away from the button at about 1500pt/s
+    under 1400pt/s² of gravity, spinning and growing 12% over 600ms. The
+    button grows to fill the screen (response 0.5s, damping 1), paling from
+    pink to the page in 300ms; page two takes over 62% of the way.
+  - Page two's rows rise 8pt and fade in one at a time, 60ms apart, in
+    420ms on the strong ease-out, with a selection tick each; no bounce and
+    nothing turned (owner, 2026-10-18: the lab's drop from above needed
+    refining). I'm ready slides the page off to the left and the questions
+    rise over Jobs as it goes.
+  - Reduce Motion: the cards fade in where they lie and fade away; the rows
+    fade without rising.
 - **Nothing overshoots.** Bounce is only for a throw that carried momentum,
   as Apple does.
 - **Presses** dim to 60%.
@@ -728,6 +748,20 @@ cut so that each remaining one has a job.
     of five): a turned view's own border is stair-stepped on iOS. The
     owner preferred the smooth line to inked specks or a hand-cut wobble,
     as the cleanest and least busy. The error slips' stamps use it too.
+  - Onboarding, the build (Paper "Onboarding · the build · Oct 18"): the
+    hook reads "Job hunting shouldn't be another job." at Title 1 so it
+    stays on two lines, with Leave it to Pinkslip. Page two is "What
+    Pinkslip handles": six rows straight on the page, each the kit's icon
+    at 24 in its meaning's ink (blue finds, green applies, pink Pro), no
+    tile, since the pale tiles vanish on the page (owner: the first icons
+    weren't ours; rows on the page, not in a card). I'm ready replaces
+    Let's go, which says "us". The three questions (career stage, roles,
+    where) are chips, each step with "1 of 3" over its title and Back
+    beside Continue, in a sheet that leaves Jobs bright behind it and can't
+    be swiped away. Chips, not Your search's menu rows: the rows made the
+    sheet cover the feed, and seeing it fill in is the point of the sheet
+    (owner). Each answer is saved a moment after a tap, so the jobs behind
+    change as you pick. The last button is Show my jobs.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

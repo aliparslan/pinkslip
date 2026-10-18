@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { storage } from "../../platform/storage";
+import { appRanBefore, onboardingDue } from "../onboarding/launch";
 import { Button, IconTile, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, useSheet, type IconName, type TileMeaning } from "../../ui";
 import { YouPage } from "./you/Page";
 
@@ -83,9 +84,8 @@ export function WhatsNewOnLaunch() {
   const [release, setRelease] = useState<Release | null>(null);
   useEffect(() => {
     const seen = storage.getString(SEEN);
-    // Anything already stored means the app was used before this launch.
-    const hadAppBefore = storage.getAllKeys().some((key) => key !== SEEN);
-    setRelease(releaseToShow(appVersion(), seen, hadAppBefore));
+    // Onboarding has the launch to itself.
+    setRelease(onboardingDue() ? null : releaseToShow(appVersion(), seen, appRanBefore));
     storage.set(SEEN, bigVersion(appVersion()));
   }, []);
   return <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />;

@@ -3,6 +3,8 @@ import { Tabs } from "expo-router/js-tabs";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
+import { onboardingDue } from "../../features/onboarding/launch";
+import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
 import { useRedesign } from "../../features/redesign/flag";
 import { rememberSearch } from "../../features/redesign/recent-searches";
 import { setSearchText, useSearchText } from "../../features/redesign/search-text";
@@ -26,10 +28,11 @@ function PillTabs() {
   const needsYou = useTodayNeedsYou();
   // A page with its own pinned bar takes the tab bar's room back.
   const aside = useTabBarSteppedAside();
-  // The app opens on Today, the first tab; "/" is still Jobs for links.
+  // The app opens on Today, the first tab; "/" is still Jobs for links. A
+  // new install stays on Jobs, where onboarding ends.
   const pathname = usePathname();
   useEffect(() => {
-    if (pathname === "/") router.navigate("/today");
+    if (pathname === "/" && !onboardingDue()) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   // The room under the pill is the page's white, so it reads as page.
@@ -46,6 +49,7 @@ function PillTabs() {
     <Tabs.Screen name="(you)" options={padded} />
   </Tabs>
   <WhatsNewOnLaunch />
+  <OnboardingOnLaunch />
   </>;
 }
 

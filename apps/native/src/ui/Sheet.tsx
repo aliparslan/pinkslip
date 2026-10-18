@@ -88,6 +88,9 @@ export function useSheetGuard(active: boolean, onBlocked: () => void) {
 export interface SheetProps {
   /** Runs once the sheet has slid away. */
   onClosed: () => void;
+  /** Off, the page behind stays bright: onboarding's questions keep the feed
+   * in view as its jobs arrive. */
+  dim?: boolean;
   children: ReactNode;
 }
 
@@ -102,7 +105,7 @@ export interface SheetProps {
  * changes can ask first (useSheetGuard). What a sheet holds is a plain menu
  * (Choices); paper objects stay on their pages.
  */
-export function Sheet({ onClosed, children }: SheetProps) {
+export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const offset = useSharedValue(height);
@@ -182,7 +185,7 @@ export function Sheet({ onClosed, children }: SheetProps) {
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
-      <Animated.View style={[styles.scrim, scrim]}>
+      <Animated.View style={[styles.scrim, !dim && styles.clear, scrim]}>
         <Pressable style={styles.fill} onPress={dismiss} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <GestureDetector gesture={drag}>
@@ -208,19 +211,19 @@ export interface SheetModalProps extends SheetProps {
 
 /** A Sheet over everything on screen, the tab bar included. The page you
  * were on stays in view behind it. */
-export function SheetModal({ open, onClosed, onGone, children }: SheetModalProps) {
+export function SheetModal({ open, onClosed, onGone, dim, children }: SheetModalProps) {
   if (onGone) {
     // Kept mounted while closing, so iOS can say when its modal is gone.
     return <Modal transparent visible={open} animationType="none" statusBarTranslucent onRequestClose={onClosed} onDismiss={onGone}>
       {open ? <GestureHandlerRootView style={styles.fill}>
-        <Sheet onClosed={onClosed}>{children}</Sheet>
+        <Sheet onClosed={onClosed} dim={dim}>{children}</Sheet>
       </GestureHandlerRootView> : null}
     </Modal>;
   }
   if (!open) return null;
   return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed}>
     <GestureHandlerRootView style={styles.fill}>
-      <Sheet onClosed={onClosed}>{children}</Sheet>
+      <Sheet onClosed={onClosed} dim={dim}>{children}</Sheet>
     </GestureHandlerRootView>
   </Modal>;
 }
@@ -346,6 +349,7 @@ export function SheetBack({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1 },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.ui.color.scrim },
+  clear: { backgroundColor: "transparent" },
   stage: { position: "absolute", left: SHEET_INSET, right: SHEET_INSET, bottom: SHEET_INSET },
   card: {
     position: "absolute",

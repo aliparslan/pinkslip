@@ -553,4 +553,28 @@ export const uiMotion = {
   },
   /** A punch card's hole as it's punched: in and back out, no overshoot. */
   punch: { scale: 0.82, down: 90, up: 200, curve: [0.23, 1, 0.32, 1] },
+  /** Onboarding (the Onboarding Motion Lab, owner 2026-10-14; Paper
+   * "Onboarding · the build · Oct 18"). The mess lands card by card, faster
+   * and faster, each falling, hitting and settling with a little bounce; the
+   * words rise once it has. Leave it to Pinkslip throws the mess off with
+   * momentum, nearest the button first, as the button grows into page two.
+   * Page two's rows rise straight and calm, one at a time, with no bounce
+   * (owner, 2026-10-18: the lab's drop needed refining). */
+  onboarding: {
+    /** The cards land over `spread` ms from `from` points up, larger and
+     * turned, on a spring that overshoots a little as they hit. */
+    land: { spread: 860, from: -560, scale: 1.16, spin: 14, response: 0.42, damping: 0.7 },
+    /** The headline and buttons rise this far, the buttons this much later. */
+    words: { rise: 14, stagger: 90, response: 0.42, damping: 1 },
+    /** Thrown at `speed` points a second under `gravity`, one card every
+     * `stagger` ms, growing by `scale` as they leave. */
+    throw: { duration: 600, gravity: 1400, speed: 1500, stagger: 26, scale: 0.12 },
+    /** The button grows to the screen and pales into page two, which takes
+     * over `handoff` of the way through. */
+    bloom: { response: 0.5, damping: 1, pale: 300, handoff: 0.62 },
+    /** Page two: the title, then each row rising `rise` points. */
+    rows: { duration: 420, curve: [0.23, 1, 0.32, 1], rise: 8, delay: 120, stagger: 60 },
+    /** I'm ready slides page two off to the feed. */
+    leave: { response: 0.42, damping: 1 },
+  },
 } as const;

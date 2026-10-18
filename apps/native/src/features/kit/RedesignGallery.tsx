@@ -9,6 +9,7 @@ import {
 } from "../../ui";
 import { SwipeRow, toast } from "../../kit";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
+import { replayOnboarding } from "../onboarding/launch";
 import { DidYouApply } from "../redesign/ApplySheets";
 import { LIVE_FORM_URL, SAMPLE_FORM_URL } from "../apply/sample-form";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
@@ -44,6 +45,8 @@ export function RedesignGallery() {
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
+        <ListItem title="Onboarding, from the start" accessory="chevron" onPress={() => { replayOnboarding(); router.navigate("/"); }} />
+        <ListItem title="Onboarding, saving to your search" accessory="chevron" onPress={() => { replayOnboarding(true); router.navigate("/"); }} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />

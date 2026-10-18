@@ -3,6 +3,9 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useUnistyles } from "react-native-unistyles";
+// First: whether this phone ran the app before is read ahead of anything
+// this launch stores.
+import "../features/onboarding/launch";
 import { AppProviders } from "../features/shell/AppProviders";
 import { stackOptions } from "../features/shell/stack-options";
 import { setErrorRoute } from "../platform/error-reporting";
