@@ -21,6 +21,8 @@ export function appPathFor(input: string): string | null {
   if (path === "/auth/email/verify") return `/auth/email/verify${url.search}`;
   if (path === "/" || path === "") return "/";
   if (path === "/today") return "/today";
+  const application = /^\/applications\/([^/]+)\/?$/.exec(path);
+  if (application) return `/applications/${application[1]}`;
   if (/^\/library(?:\/(?:saved|applied))?\/?$/.test(path)) return path.includes("applied") || url.searchParams.get("view") === "applied" ? "/library?view=applied" : "/library";
   if (path === "/you" || path.startsWith("/you/")) return path;
   // Admin alerts link to the web admin; the app has its own.

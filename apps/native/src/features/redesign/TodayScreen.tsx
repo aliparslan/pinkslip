@@ -1,9 +1,9 @@
 import type { Application, InboundEmail } from "@pinkslip/core/api";
 import { feedParams } from "@pinkslip/core/feed-criteria";
-import { useApplications, useAssignInboundEmail, useDismissInboundEmail, useFeed, useInboxEmails, useOutreachThreads, useSession } from "@pinkslip/data";
+import { useAssignInboundEmail, useDismissInboundEmail, useFeed, useMarkTodaySeen, useToday } from "@pinkslip/data";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
-import { router, Stack } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { router, Stack, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast, usePullToRefresh } from "../../kit";
@@ -15,11 +15,16 @@ import { WhichApplicationSheet } from "./email/JobEmailsPage";
 import { feedSections } from "./job-facts";
 import { ASK_SAMPLE, AskFirstCard } from "./apply-flow/AskFirst";
 import { LiveBar, type Run } from "./apply-flow/WhileItRuns";
-import { planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
+import { setAppBadge } from "../../platform/push";
+import { planFromToday, planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
 
-/** The Today tab's badge: how many things need you. */
+/** The Today tab's badge: how many things need you. The server counts them
+ * (GET /today), and the app icon shows the same number. */
 export function useTodayNeedsYou(): number {
-  return useTodayPlan().plan.needsYou.length;
+  const today = useToday();
+  const badge = today.data?.badge;
+  useEffect(() => { if (badge !== undefined) setAppBadge(badge); }, [badge]);
+  return badge ?? 0;
 }
 
 export interface TodaySample {
@@ -31,16 +36,13 @@ export interface TodaySample {
   flow?: "ask" | "sending";
 }
 
+/** The live screen reads the server's Today; samples plan from their records. */
 function useTodayPlan(sample?: TodaySample) {
-  const session = useSession().data;
-  const signedIn = session?.state === "authenticated";
-  const applications = useApplications();
-  const emails = useInboxEmails(undefined, { enabled: signedIn && !sample });
-  const threads = useOutreachThreads(signedIn && !sample && Boolean(session?.me?.features?.outreach_enabled));
+  const today = useToday(!sample);
   const plan = useMemo<TodayPlan>(() => sample
     ? planToday(sample.applications, sample.emails, new Date(), sample.threads)
-    : planToday(applications.data ?? [], emails.data ?? [], new Date(), threads.data ?? []), [sample, applications.data, emails.data, threads.data]);
-  return { plan, applications, emails };
+    : today.data ? planFromToday(today.data) : { needsYou: [], changed: [], comingUp: [] }, [sample, today.data]);
+  return { plan, today };
 }
 
 /** How many of your feed's jobs posted today, from the page Jobs already
@@ -66,8 +68,7 @@ function longDate(now: Date): string {
  * and what's coming up, as plain rows with one headline each. A quiet day
  * has no statement, only the new jobs and what's coming. The first day is
  * the empty state. Auto-apply's card and follow-ups come with their
- * features; the backend's activity feed will replace the reading of
- * applications and filed emails here.
+ * features. Opening it marks it seen on every device.
  */
 export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const { theme } = useUnistyles();
@@ -75,7 +76,8 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const tabSpace = useTabBarSpace();
   const list = useRef<ScrollView>(null);
   const tabBarScroll = useTabBarScroll();
-  const { plan, applications, emails } = useTodayPlan(sample);
+  const { plan, today } = useTodayPlan(sample);
+  const markSeen = useMarkTodaySeen();
   const newToday = useNewToday();
   const [asking, setAsking] = useState<InboundEmail | null>(null);
   const [setup, setSetup] = useState(false);
@@ -84,7 +86,10 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   }));
   const assign = useAssignInboundEmail();
   const dismiss = useDismissInboundEmail();
-  const pull = usePullToRefresh(() => Promise.all([applications.refetch(), emails.refetch()]));
+  const pull = usePullToRefresh(() => today.refetch());
+  useFocusEffect(useCallback(() => {
+    if (!sample) markSeen.mutate();
+  }, [sample, markSeen.mutate]));
 
   const open = (target: TodayTarget) => {
     if (target.kind === "email") setAsking(target.email);
@@ -96,19 +101,19 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   };
 
   const quiet = plan.needsYou.length === 0 && plan.changed.length === 0;
-  const nothing = quiet && plan.comingUp.length === 0 && ((sample ? sample.applications : applications.data)?.length ?? 0) === 0;
+  const nothing = quiet && plan.comingUp.length === 0 && (sample ? sample.applications.length : today.data?.tracking ?? 0) === 0;
   const sections: { title: string; items: TodayItem[]; needsYou?: boolean }[] = [
     { title: "Needs you", items: plan.needsYou, needsYou: true },
     { title: "What changed", items: plan.changed },
     { title: "Coming up", items: plan.comingUp },
   ].filter((section) => section.items.length > 0);
 
-  const body = applications.isPending && !sample
+  const body = today.isPending && !sample
     ? <RowPlaceholders />
-    : applications.isError && !sample
+    : today.isError && !sample
     ? <View style={[styles.center, { minHeight: height * 0.6 }]}>
       <EmptyState title="Today didn't load" message="Your applications are safe."
-        action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />
+        action={{ label: "Try again", variant: "secondary", pending: today.isFetching, onPress: () => void today.refetch() }} />
     </View>
     : nothing
     ? <View style={[styles.center, { minHeight: height * 0.6 }]}>

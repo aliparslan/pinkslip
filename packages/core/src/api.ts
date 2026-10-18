@@ -10,6 +10,8 @@ import type {
   PollableCompanySourceType,
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
+import type { TodayResponse } from "@pinkslip/domain/today";
+export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
@@ -760,6 +762,10 @@ function createEndpoints(context: ClientContext) {
       request<{ sent: number; total: number }>(`/push/test${delay ? `?delay=${delay}` : ""}`, {
         method: "POST",
       }),
+  },
+  today: {
+    get: () => request<TodayResponse>("/today"),
+    seen: () => request<{ seen_at: string }>("/today/seen", { method: "POST" }),
   },
   notifications: {
     settings: () => request<NotificationSettings>("/notifications"),

@@ -26,6 +26,7 @@ export const queryKeys = {
     preferences: () => ["personal", "preferences"] as const,
     push: () => ["personal", "push"] as const,
     notifications: () => ["personal", "notifications"] as const,
+    today: () => ["personal", "today"] as const,
     resume: () => ["personal", "resume"] as const,
     answers: () => ["personal", "answers"] as const,
     companies: () => ["personal", "companies"] as const,

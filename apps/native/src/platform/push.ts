@@ -11,6 +11,12 @@ Notifications.setNotificationHandler({
 
 export type DevicePushStatus = "enabled" | "promptable" | "denied" | "unsupported";
 
+/** The app icon's number: what needs you on Today. Pushes carry the same
+ * count from the server; this keeps it right after you act in the app. */
+export function setAppBadge(count: number): void {
+  void Notifications.setBadgeCountAsync(count).catch(() => undefined);
+}
+
 /** A stable id for this install, so re-registering replaces its old token. */
 function installationId(): string {
   let id = storage.getString("installation-id");

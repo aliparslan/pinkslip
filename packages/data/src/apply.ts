@@ -106,6 +106,7 @@ export function useStartOutreach() {
     onSuccess: (thread) => {
       queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
     },
   });
 }
@@ -125,6 +126,7 @@ export function useOutreachUpdate() {
     onSuccess: (thread) => {
       queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
     },
   });
 }

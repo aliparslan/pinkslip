@@ -1,4 +1,4 @@
-import type { Application } from "@pinkslip/core/api";
+import type { Application, TodayEntry, TodayResponse } from "@pinkslip/core/api";
 import { isEndingStage } from "@pinkslip/domain/application-stages";
 import type { DetectedStage, InboundEmail } from "@pinkslip/domain/email-tracking";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
@@ -10,9 +10,10 @@ import { companyName, jobTitle, shortDate, trackerAge } from "./tracker-facts";
 /**
  * Today at release (Paper "Approved", T1r and T3r; docs/redesign-wireframes.md,
  * "Today on the current kit"): what needs you, what changed while you were
- * away, and what's coming up. Built from what the app already loads, the
- * applications and the emails email tracking filed, until the backend has an
- * activity feed. Auto-apply's card and follow-ups come with their features.
+ * away, and what's coming up. The live screen reads the server's Today
+ * (GET /today, planFromToday), which applies these rules; the samples still
+ * plan from applications, emails and threads (planToday). Both lay out rows
+ * with the same builders. Auto-apply's card comes with its feature.
  */
 
 export type TodayTarget =
@@ -71,37 +72,78 @@ function applicationTarget(application: Application): TodayTarget {
     : { kind: "application", id: application.id };
 }
 
+function offerRow(application: Application, now: Date): TodayItem {
+  const by = application.stage_date ? `by ${shortDate(stageDateValue(application.stage_date).toISOString(), now)}` : null;
+  return {
+    key: `offer-${application.id}`, company: companyName(application), logo: logoOf(application), target: applicationTarget(application),
+    at: Date.parse(application.stage_changed_at), trailing: trackerAge(application.stage_changed_at, now),
+    headline: "Reply to the offer", facts: [jobTitle(application), by].filter(Boolean).join(" · "),
+  };
+}
+
+function interviewDateRow(application: Application, now: Date): TodayItem {
+  return {
+    key: `date-${application.id}`, company: companyName(application), logo: logoOf(application), target: applicationTarget(application),
+    at: Date.parse(application.stage_changed_at), trailing: trackerAge(application.stage_changed_at, now),
+    headline: "Add the interview date", facts: jobTitle(application),
+  };
+}
+
+function whichRow(email: InboundEmail, logo: TodayItem["logo"], now: Date): TodayItem {
+  return {
+    key: `email-${email.id}`,
+    company: plainText(email.company_name ?? email.sender_name),
+    headline: "Which application is this?",
+    facts: plainText(email.subject),
+    trailing: trackerAge(email.received_at, now),
+    logo,
+    target: { kind: "email", email },
+    at: Date.parse(email.received_at),
+  };
+}
+
 /** Needs you: an offer to answer, an interview with no date, an email
  * that matched more than one application. Newest first. */
 function needsYou(applications: readonly Application[], emails: readonly InboundEmail[], now: Date): TodayItem[] {
   const rows: TodayItem[] = [];
   for (const application of applications) {
-    const at = Date.parse(application.stage_changed_at);
-    const base = { company: companyName(application), logo: logoOf(application), target: applicationTarget(application), at, trailing: trackerAge(application.stage_changed_at, now) };
-    if (application.stage === "offer") {
-      const by = application.stage_date ? `by ${shortDate(stageDateValue(application.stage_date).toISOString(), now)}` : null;
-      rows.push({ ...base, key: `offer-${application.id}`, headline: "Reply to the offer", facts: [jobTitle(application), by].filter(Boolean).join(" · ") });
-    } else if (application.stage === "interview" && !application.stage_date) {
-      rows.push({ ...base, key: `date-${application.id}`, headline: "Add the interview date", facts: jobTitle(application) });
-    }
+    if (application.stage === "offer") rows.push(offerRow(application, now));
+    else if (application.stage === "interview" && !application.stage_date) rows.push(interviewDateRow(application, now));
   }
   const byId = new Map(applications.map((application) => [application.id, application]));
   for (const email of emails) {
     if (email.status !== "needs_choice") continue;
     // The logo of the company it's from, through the applications it matched.
     const match = email.candidates.map((candidate) => byId.get(candidate.id)).find(Boolean);
-    rows.push({
-      key: `email-${email.id}`,
-      company: plainText(email.company_name ?? email.sender_name),
-      headline: "Which application is this?",
-      facts: plainText(email.subject),
-      trailing: trackerAge(email.received_at, now),
-      logo: match ? logoOf(match) : { name: email.company_name ?? email.sender_name },
-      target: { kind: "email", email },
-      at: Date.parse(email.received_at),
-    });
+    rows.push(whichRow(email, match ? logoOf(match) : { name: email.company_name ?? email.sender_name }, now));
   }
   return rows.sort((a, b) => b.at - a.at);
+}
+
+function emailStepRow(key: string, application: Application, stage: DetectedStage, at: string, now: Date): TodayItem {
+  return {
+    key,
+    company: companyName(application),
+    headline: NEWS[stage],
+    facts: jobTitle(application),
+    trailing: trackerAge(at, now),
+    logo: logoOf(application),
+    target: applicationTarget(application),
+    at: Date.parse(at),
+  };
+}
+
+function closedRow(application: Application, closedAt: string, now: Date): TodayItem {
+  return {
+    key: `closed-${application.id}`,
+    company: companyName(application),
+    headline: "Posting closed",
+    facts: `${jobTitle(application)} · you saved it`,
+    trailing: trackerAge(closedAt, now),
+    logo: logoOf(application),
+    target: applicationTarget(application),
+    at: Date.parse(closedAt),
+  };
 }
 
 /** What changed: steps email tracking filed, and saved postings that closed,
@@ -118,30 +160,12 @@ function changed(applications: readonly Application[], emails: readonly InboundE
     if (at < since || !application || skip.has(application.id) || seen.has(application.id)) continue;
     // One row per application: its latest email.
     seen.add(application.id);
-    rows.push({
-      key: `changed-${email.id}`,
-      company: companyName(application),
-      headline: NEWS[email.detected_stage],
-      facts: jobTitle(application),
-      trailing: trackerAge(email.received_at, now),
-      logo: logoOf(application),
-      target: applicationTarget(application),
-      at,
-    });
+    rows.push(emailStepRow(`changed-${email.id}`, application, email.detected_stage, email.received_at, now));
   }
   for (const application of applications) {
     const closed = application.job?.closed_at;
     if (application.stage !== "saved" || !closed || Date.parse(closed) < since) continue;
-    rows.push({
-      key: `closed-${application.id}`,
-      company: companyName(application),
-      headline: "Posting closed",
-      facts: `${jobTitle(application)} · you saved it`,
-      trailing: trackerAge(closed, now),
-      logo: logoOf(application),
-      target: applicationTarget(application),
-      at: Date.parse(closed),
-    });
+    rows.push(closedRow(application, closed, now));
   }
   return rows.sort((a, b) => b.at - a.at);
 }
@@ -155,6 +179,20 @@ function upcomingHeadline(application: Application): string | null {
   return null;
 }
 
+function upcomingRow(application: Application, headline: string, now: Date): TodayItem {
+  const facts = nextRowFacts(application.stage_date!, now);
+  return {
+    key: `upcoming-${application.id}`,
+    company: facts.when,
+    headline,
+    facts: jobTitle(application),
+    trailing: facts.time ?? "All day",
+    date: { month: facts.month, day: facts.day },
+    target: applicationTarget(application),
+    at: stageDateValue(application.stage_date!).getTime(),
+  };
+}
+
 /** Coming up: dated steps from today through the next two weeks, soonest first. */
 function comingUp(applications: readonly Application[], now: Date): TodayItem[] {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -164,19 +202,27 @@ function comingUp(applications: readonly Application[], now: Date): TodayItem[] 
     const headline = upcomingHeadline(application);
     const at = stageDateValue(application.stage_date).getTime();
     if (!headline || at < today || at >= today + (AHEAD_DAYS + 1) * DAY_MS) continue;
-    const facts = nextRowFacts(application.stage_date, now);
-    rows.push({
-      key: `upcoming-${application.id}`,
-      company: facts.when,
-      headline,
-      facts: jobTitle(application),
-      trailing: facts.time ?? "All day",
-      date: { month: facts.month, day: facts.day },
-      target: applicationTarget(application),
-      at,
-    });
+    rows.push(upcomingRow(application, headline, now));
   }
   return rows.sort((a, b) => a.at - b.at);
+}
+
+function followUpDueRow(thread: OutreachThread, dueAt: string, now: Date): TodayItem {
+  const sent = firstSentAt(thread);
+  return {
+    key: `follow-${thread.id}`, headline: `Follow up with ${thread.contact.name}`, logo: { name: thread.company_name },
+    target: { kind: "person", id: thread.id }, company: plainText(thread.company_name), at: Date.parse(dueAt), trailing: trackerAge(dueAt, now),
+    facts: [sent ? `No reply since ${shortDate(sent, now)}` : null, "the note is ready"].filter(Boolean).join(" · "),
+  };
+}
+
+function plannedRow(thread: OutreachThread, dueAt: string, now: Date): TodayItem {
+  const facts = nextRowFacts(dueAt, now);
+  return {
+    key: `planned-${thread.id}`, headline: `Follow up with ${thread.contact.name}`, logo: { name: thread.company_name },
+    target: { kind: "person", id: thread.id }, company: facts.when, at: Date.parse(dueAt), trailing: facts.time ?? "All day",
+    date: { month: facts.month, day: facts.day }, facts: [plainText(thread.company_name), thread.job_title].filter(Boolean).join(" · "),
+  };
 }
 
 /** O6: a follow-up that's due needs you; a planned one is coming up. */
@@ -188,16 +234,8 @@ function followUps(threads: readonly OutreachThread[], now: Date): { due: TodayI
     const next = nextFollowUp(thread);
     if (!next?.due_at) continue;
     const at = Date.parse(next.due_at);
-    const base = { headline: `Follow up with ${thread.contact.name}`, logo: { name: thread.company_name }, target: { kind: "person" as const, id: thread.id } };
-    if (at <= now.getTime()) {
-      const sent = firstSentAt(thread);
-      due.push({ ...base, key: `follow-${thread.id}`, company: plainText(thread.company_name), at, trailing: trackerAge(next.due_at, now),
-        facts: [sent ? `No reply since ${shortDate(sent, now)}` : null, "the note is ready"].filter(Boolean).join(" · ") });
-    } else if (at < today + (AHEAD_DAYS + 1) * DAY_MS) {
-      const facts = nextRowFacts(next.due_at, now);
-      planned.push({ ...base, key: `planned-${thread.id}`, company: facts.when, at, trailing: facts.time ?? "All day",
-        date: { month: facts.month, day: facts.day }, facts: [plainText(thread.company_name), thread.job_title].filter(Boolean).join(" · ") });
-    }
+    if (at <= now.getTime()) due.push(followUpDueRow(thread, next.due_at, now));
+    else if (at < today + (AHEAD_DAYS + 1) * DAY_MS) planned.push(plannedRow(thread, next.due_at, now));
   }
   return { due, planned };
 }
@@ -211,4 +249,29 @@ export function planToday(applications: readonly Application[], emails: readonly
     changed: changed(applications, emails, now, skip),
     comingUp: [...comingUp(applications, now), ...outreach.planned].sort((a, b) => a.at - b.at),
   };
+}
+
+/** One server entry as its row; null for a kind this build doesn't know yet. */
+function rowFor(entry: TodayEntry, now: Date): TodayItem | null {
+  switch (entry.kind) {
+    case "offer_reply": return offerRow(entry.application, now);
+    case "interview_date": return interviewDateRow(entry.application, now);
+    case "which_application":
+      return whichRow(entry.email, { name: entry.email.company_name ?? entry.email.sender_name, domain: entry.company_domain }, now);
+    case "follow_up_due": return followUpDueRow(entry.thread, entry.at, now);
+    case "email_step": return emailStepRow(entry.key, entry.application, entry.stage, entry.at, now);
+    case "saved_job_closed": return closedRow(entry.application, entry.at, now);
+    case "upcoming_step": {
+      const headline = upcomingHeadline(entry.application);
+      return headline && entry.application.stage_date ? upcomingRow(entry.application, headline, now) : null;
+    }
+    case "upcoming_follow_up": return plannedRow(entry.thread, entry.at, now);
+    default: return null;
+  }
+}
+
+/** The server's Today (GET /today), in the server's order, as rows. */
+export function planFromToday(today: TodayResponse, now = new Date()): TodayPlan {
+  const rows = (entries: TodayEntry[]) => entries.flatMap((entry) => rowFor(entry, now) ?? []);
+  return { needsYou: rows(today.needs_you), changed: rows(today.changed), comingUp: rows(today.coming_up) };
 }

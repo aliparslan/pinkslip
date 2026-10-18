@@ -81,14 +81,15 @@ export function formatDailyTime(value: string): string {
 }
 
 /** Alerts on the live account: new jobs as they post, once a day at the
- * server's time (8:00 until a time can be picked), or off. Turning alerts on
- * asks the iPhone first. Application changes wait for the server to send them. */
+ * server's time (8:00 until a time can be picked), or off, and application
+ * changes (N3). Turning alerts on asks the iPhone first. */
 export function AlertsPage() {
   const api = useApi();
   const settings = useNotificationSettings();
   const update = useUpdateNotificationSettings();
   const { status, setStatus } = useDevicePush();
   const [choice, setChoice] = useState<NewJobAlerts | null>(null);
+  const [changesChoice, setChangesChoice] = useState<boolean | null>(null);
 
   if (settings.isPending) return <YouPage title="Alerts"><View style={styles.loading}><Spinner /></View></YouPage>;
   if (settings.isError) {
@@ -100,6 +101,15 @@ export function AlertsPage() {
   const current: NewJobAlerts = newJobsSetting.enabled ? newJobsSetting.mode : "off";
   const newJobs = choice ?? current;
 
+  // N3: shown once the server sends it (the kind is listed when it's live).
+  const changesSetting = settings.data.kinds.application_moved;
+  const setApplicationChanges = changesSetting ? (on: boolean) => {
+    setChangesChoice(on);
+    update.mutate({ kinds: { application_moved: { enabled: on } } }, {
+      onSettled: () => setChangesChoice(null),
+      onError: () => toast.error("Couldn't update alerts. Try again."),
+    });
+  } : undefined;
   const save = (next: NewJobAlerts) => {
     setChoice(next);
     update.mutate(
@@ -135,8 +145,10 @@ export function AlertsPage() {
     save(next);
   };
   return <AlertsView newJobs={newJobs} dailyAt={formatDailyTime(newJobsSetting.daily_time)}
+    applicationChanges={changesSetting ? changesChoice ?? changesSetting.enabled : undefined}
     blocked={newJobs !== "off" && status === "denied"} actions={{
       setNewJobs: (next) => void setNewJobs(next),
+      setApplicationChanges,
       sendTest: async () => {
         try {
           const result = await api.push.test(0);

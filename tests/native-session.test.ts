@@ -69,3 +69,10 @@ test("admin alert links open the in-app admin", () => {
   expect(appPathFor("https://pinkslip.work/admin/inbox")).toBe("/you/admin/inbox");
   expect(appPathFor("/admin/unknown")).toBeNull();
 });
+
+test("notification links open Today and an application's page", () => {
+  expect(appPathFor("/today")).toBe("/today");
+  expect(appPathFor("/applications/app-123")).toBe("/applications/app-123");
+  expect(appPathFor("https://pinkslip.work/applications/app-123")).toBe("/applications/app-123");
+  expect(appPathFor("/applications/app-123/extra")).toBeNull();
+});

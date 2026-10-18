@@ -30,6 +30,7 @@ import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
 import { Route as AdminJevRouteImport } from './routes/admin.jev'
 import { Route as AdminRunsRouteImport } from './routes/admin.runs'
 import { Route as AdminSourcesRouteImport } from './routes/admin.sources'
+import { Route as ApplicationsApplicationIdRouteImport } from './routes/applications.$applicationId'
 import { Route as MyJobsAppliedRouteImport } from './routes/my-jobs.applied'
 import { Route as MyJobsSavedRouteImport } from './routes/my-jobs.saved'
 import { Route as TailorJobIdRouteImport } from './routes/tailor.$jobId'
@@ -151,6 +152,12 @@ const AdminSourcesRoute = AdminSourcesRouteImport.update({
   path: '/sources',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApplicationsApplicationIdRoute =
+  ApplicationsApplicationIdRouteImport.update({
+    id: '/applications/$applicationId',
+    path: '/applications/$applicationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MyJobsAppliedRoute = MyJobsAppliedRouteImport.update({
   id: '/my-jobs/applied',
   path: '/my-jobs/applied',
@@ -252,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -287,6 +295,7 @@ export interface FileRoutesByTo {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -327,6 +336,7 @@ export interface FileRoutesById {
   '/admin/jev': typeof AdminJevRoute
   '/admin/runs': typeof AdminRunsRoute
   '/admin/sources': typeof AdminSourcesRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
+    | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
+    | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -442,6 +454,7 @@ export interface FileRouteTypes {
     | '/admin/jev'
     | '/admin/runs'
     | '/admin/sources'
+    | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
     | '/tailor/$jobId'
@@ -478,6 +491,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   WelcomeRoute: typeof WelcomeRoute
   YouRoute: typeof YouRouteWithChildren
+  ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
   MyJobsAppliedRoute: typeof MyJobsAppliedRoute
   MyJobsSavedRoute: typeof MyJobsSavedRoute
   TailorJobIdRoute: typeof TailorJobIdRoute
@@ -631,6 +645,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/sources'
       preLoaderRoute: typeof AdminSourcesRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/applications/$applicationId': {
+      id: '/applications/$applicationId'
+      path: '/applications/$applicationId'
+      fullPath: '/applications/$applicationId'
+      preLoaderRoute: typeof ApplicationsApplicationIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/my-jobs/applied': {
       id: '/my-jobs/applied'
@@ -825,6 +846,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   WelcomeRoute: WelcomeRoute,
   YouRoute: YouRouteWithChildren,
+  ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,
   MyJobsAppliedRoute: MyJobsAppliedRoute,
   MyJobsSavedRoute: MyJobsSavedRoute,
   TailorJobIdRoute: TailorJobIdRoute,

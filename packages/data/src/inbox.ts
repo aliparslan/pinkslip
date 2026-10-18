@@ -41,6 +41,7 @@ export function useSendForwardingSteps() {
 
 function refreshAfterAnswer(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.inbox() });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applied() });

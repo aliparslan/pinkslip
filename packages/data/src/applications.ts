@@ -28,6 +28,7 @@ export function useApplication(id: string) {
 
 function refreshAfterChange(queryClient: QueryClient, jobId: string | null) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applicationsRoot });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.saved() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.applied() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.personal.stats() });
@@ -68,4 +69,17 @@ export function useRemoveApplication() {
     onSuccess: (_result, { id }) => queryClient.removeQueries({ queryKey: queryKeys.personal.application(id) }),
     onSettled: (_result, _error, { jobId }) => refreshAfterChange(queryClient, jobId),
   });
+}
+
+/** Today in one request: Needs you, What changed and Coming up, with the
+ * app icon's badge (GET /today). */
+export function useToday(enabled = true) {
+  const api = useApi();
+  return useQuery({ queryKey: queryKeys.personal.today(), queryFn: () => api.today.get(), enabled });
+}
+
+/** Opening Today marks it seen on every device. */
+export function useMarkTodaySeen() {
+  const api = useApi();
+  return useMutation({ mutationFn: () => api.today.seen() });
 }
