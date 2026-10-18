@@ -651,6 +651,20 @@ cut so that each remaining one has a job.
     toast's, keeps the app's scheme and is tinted `bg-elev` in dark, since
     Liquid Glass otherwise lightens over a white page under the dark
     theme's words.
+- **2026-10-17**
+  - The in-app browser on a live Greenhouse form (owner: the pink was too
+    bright and squared, the bar vanished after the first fills, the arrows,
+    ✕ and ⋯ read thin). Fixed: marks go on the box you see, not the element
+    the filler stamped (a dropdown's is a hidden 5pt input, which showed as
+    a pink sliver); filled is the light accent at 7% instead of
+    `accent-soft`; what needs you is an inset 2pt ring (React-Select forces
+    outline off), so both follow the field's corners; a hidden resume
+    input rings its Attach button. The bar steps aside only while iOS's
+    keyboard is really up (filling a dropdown and the arrows focus fields
+    with no keyboard). The browser is a sheet, so ✕, ⋯ (22, ink), the arrows
+    and Go to Submit's caret take the sheet's 2pt line. Greenhouse's
+    reCAPTCHA badge moves above the bar. Apply's sheet names the PDF kept on
+    this iPhone (what gets attached), or "Add your PDF".
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

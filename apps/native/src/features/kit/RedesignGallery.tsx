@@ -10,7 +10,7 @@ import {
 import { SwipeRow, toast } from "../../kit";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
 import { DidYouApply } from "../redesign/ApplySheets";
-import { SAMPLE_FORM_URL } from "../apply/sample-form";
+import { LIVE_FORM_URL, SAMPLE_FORM_URL } from "../apply/sample-form";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { RELEASES, WhatsNewSheet, type Release } from "../redesign/whats-new";
@@ -38,7 +38,7 @@ export function RedesignGallery() {
   const opening = useRef(false);
   const [asking, setAsking] = useState(false);
   const askAfter = useRef(false);
-  const sampleRequest: ApplicationRequest = { jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true };
+  const sampleRequest: ApplicationRequest = { jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true, local: true };
   const sampleApplied = () => toast.show({ message: "Applied to Stripe. It's in Tracker.", icon: "done" });
   return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
     <Section title="Screens" flush>
@@ -52,6 +52,8 @@ export function RedesignGallery() {
         <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
         <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
         <ListItem title="In-app browser, a sample form" accessory="chevron" onPress={() => setBrowsing(sampleRequest)} />
+        <ListItem title="In-app browser, a live Greenhouse form" accessory="chevron"
+          onPress={() => setBrowsing({ jobId: "sample", url: LIVE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true })} />
         <ListItem title="Apply's sheet, then the browser" accessory="chevron" onPress={() => setPreparing(true)} />
         <ListItem title="Events, and an event's page" accessory="chevron" onPress={() => router.push("/you/kit-events")} />
         <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />

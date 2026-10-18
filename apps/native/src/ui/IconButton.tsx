@@ -7,12 +7,14 @@ export interface IconButtonProps {
   /** Read by VoiceOver; there is no visible label. */
   label: string;
   onPress?: () => void;
+  /** A fixed line in points, as in a sheet (2pt), instead of the proportional one. */
+  stroke?: number;
 }
 
 /** A 44pt round button on the grey fill (back, share, more, filters). */
-export function IconButton({ icon, label, onPress }: IconButtonProps) {
+export function IconButton({ icon, label, onPress, stroke }: IconButtonProps) {
   return <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress} scale={0.92} contentStyle={styles.root}>
-    <Icon name={icon} size={20} />
+    <Icon name={icon} size={20} stroke={stroke} />
   </PressableScale>;
 }
 

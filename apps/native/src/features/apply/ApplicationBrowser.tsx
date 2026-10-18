@@ -3,7 +3,7 @@ import { ui } from "@pinkslip/tokens/native";
 import * as Crypto from "expo-crypto";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Linking, Modal, View } from "react-native";
+import { ActivityIndicator, Keyboard, Linking, Modal, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
@@ -11,7 +11,7 @@ import { PressableScale } from "../../kit/PressableScale";
 import { GlyphMenu, Icon, IconButton, Text, type IconName } from "../../ui";
 import { autoApply, type ApplicationBrowserSession, type AutoApplyResult, type FillProgress } from "../../platform/autofill/auto-apply";
 import { runAutoApply } from "../../platform/autofill/auto-apply-loop";
-import { SAMPLE_FORM, sampleApplyApi } from "./sample-form";
+import { SAMPLE_FORM, SAMPLE_RESUME, sampleApplyApi } from "./sample-form";
 
 export interface ApplicationRequest {
   jobId: string;
@@ -19,8 +19,11 @@ export interface ApplicationRequest {
   autoSubmit: boolean;
   /** For the header: "Apply at Stripe". */
   company?: string;
-  /** The kit's sample form, filled by the real loop with a plan made on the phone. */
+  /** The kit: the real loop fills the form with a plan made on the phone
+   * (sample answers, nothing saved). `local` is the built-in sample form;
+   * otherwise it's the live board's form, which is never submitted. */
   sample?: boolean;
+  local?: boolean;
 }
 
 type Events = Parameters<ApplicationBrowserSession["open"]>[1];
@@ -43,19 +46,43 @@ function wrap(id: string, body: string): string {
 /** The element a fill step stamped with this ref. */
 const byRef = (ref: string) => `[...document.querySelectorAll("[data-pinkslip-ref]")].find((el) => el.getAttribute("data-pinkslip-ref") === ${JSON.stringify(ref)})`;
 
-/** What Pinkslip filled in soft pink, what needs you outlined in pink (Paper 2.1, 2.2). */
-function markScript(open: string[], mine: string[], colors: { soft: string; line: string; accent: string }) {
+/**
+ * What Pinkslip filled in a faint pink, what needs you ringed in pink (Paper
+ * 2.1, 2.2). The mark goes on the box you see, not the element the filler
+ * stamped: a dropdown's stamped element is a tiny hidden input inside it
+ * (Greenhouse's React-Select), which showed as a pink sliver. The ring is an
+ * inset shadow, so it follows the box's own corners. Greenhouse's badge for reCAPTCHA moves up
+ * above the fill bar so it stays visible.
+ */
+function markScript(open: string[], mine: string[], colors: { tint: string; accent: string }) {
   return `(() => {
   let style = document.getElementById("pinkslip-marks");
   if (!style) { style = document.createElement("style"); style.id = "pinkslip-marks"; document.head.appendChild(style); }
-  style.textContent = '[data-pinkslip-mark="filled"]{background-color:${colors.soft} !important;border-color:${colors.line} !important}'
-    + '[data-pinkslip-mark="need"]{outline:2px solid ${colors.accent} !important;outline-offset:0 !important}';
+  style.textContent = '[data-pinkslip-mark="filled"]{background-color:${colors.tint} !important}'
+    + '[data-pinkslip-mark="filled"] input,[data-pinkslip-mark="filled"] [class*="value-container"]{background-color:transparent !important}'
+    // An inset ring, not an outline: React-Select forces outline:0 !important.
+    + '[data-pinkslip-mark="need"]{box-shadow:inset 0 0 0 2px ${colors.accent} !important}'
+    + '.grecaptcha-badge{bottom:96px !important}';
+  const shown = (el) => {
+    const box = el.getBoundingClientRect();
+    if (el.tagName === "SELECT" || el.tagName === "TEXTAREA" || (box.width >= 40 && box.height >= 24)) return el;
+    let up = el.parentElement;
+    for (let i = 0; i < 6 && up; i += 1, up = up.parentElement) {
+      const r = up.getBoundingClientRect();
+      if (r.height >= 28 && r.width >= 40) {
+        // A hidden file input: its Attach button is what you see.
+        const button = el.type === "file" ? up.querySelector("button, [role=button], label") : null;
+        return button && button.getBoundingClientRect().height >= 24 ? button : up;
+      }
+    }
+    return el;
+  };
+  for (const el of document.querySelectorAll("[data-pinkslip-mark]")) el.removeAttribute("data-pinkslip-mark");
   const open = new Set(${JSON.stringify(open)}), mine = new Set(${JSON.stringify(mine)});
   for (const el of document.querySelectorAll("[data-pinkslip-ref]")) {
     const ref = el.getAttribute("data-pinkslip-ref");
-    if (open.has(ref)) el.setAttribute("data-pinkslip-mark", "need");
-    else if (mine.has(ref)) el.setAttribute("data-pinkslip-mark", "filled");
-    else el.removeAttribute("data-pinkslip-mark");
+    if (open.has(ref)) shown(el).setAttribute("data-pinkslip-mark", "need");
+    else if (mine.has(ref)) shown(el).setAttribute("data-pinkslip-mark", "filled");
   }
 })(); true;`;
 }
@@ -73,16 +100,9 @@ const showSubmitScript = (accent: string) => `(() => { const b = ${SUBMIT_BUTTON
   b.scrollIntoView({ block: "center", behavior: "smooth" });
   b.style.outline = "3px solid ${accent}"; b.style.outlineOffset = "2px"; setTimeout(() => { b.style.outline = ""; }, 1800); })(); true;`;
 
-/** Tells the app when Submit is pressed, so it can ask if no confirmation
- * follows, and when you're typing in a field, when iOS's own form bar
- * takes the bottom (Paper 2.3: the fill bar steps out of the way). */
+/** Tells the app when Submit is pressed, so it can ask if no confirmation follows. */
 const WATCH_PAGE = `(() => { if (window.__pinkslipWatch) return; window.__pinkslipWatch = true;
-  const send = (event) => window.ReactNativeWebView.postMessage(JSON.stringify({ pinkslipEvent: event }));
-  const tell = () => send("submit");
-  // Typing fields only: a select opens a menu, not the keyboard and its bar.
-  const field = (el) => el && el.matches && el.matches("input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]):not([type=file]), textarea, [contenteditable=true]");
-  document.addEventListener("focusin", (event) => { if (field(event.target)) send("typing"); }, true);
-  document.addEventListener("focusout", () => setTimeout(() => { if (!field(document.activeElement)) send("done-typing"); }, 50), true);
+  const tell = () => window.ReactNativeWebView.postMessage(JSON.stringify({ pinkslipEvent: "submit" }));
   document.addEventListener("submit", tell, true);
   // A form's own Submit counts once the form really submits (after the
   // board's checks pass); a script-driven one counts on the press.
@@ -131,14 +151,24 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
   const [blank, setBlank] = useState(-1);
   const [pressedAt, setPressedAt] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
+  // While iOS's keyboard is up its own form bar takes the bottom (Paper 2.3),
+  // so the fill bar steps aside. Only the real keyboard counts: filling a
+  // dropdown or the arrows focus fields without one.
   const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const shown = Keyboard.addListener("keyboardWillShow", () => setTyping(true));
+    const hidden = Keyboard.addListener("keyboardWillHide", () => setTyping(false));
+    return () => { shown.remove(); hidden.remove(); };
+  }, []);
   const loading = useSharedValue(0);
   const submittedCallback = useRef(onSubmitted);
   const closeCallback = useRef(onClose);
   submittedCallback.current = onSubmitted;
   closeCallback.current = onClose;
-  // A board's page is light whatever the app's theme, so its marks are too.
-  const marks = { soft: ui.color.light["accent-soft"], line: ui.color.light.separator, accent: ui.color.light.accent };
+  // A board's page is light whatever the app's theme, so its marks are too:
+  // the light pink at 7% for what Pinkslip filled (the soft fill read too
+  // bright on the phone), the light accent for what needs you.
+  const marks = { tint: `${ui.color.light.accent}12`, accent: ui.color.light.accent };
 
   const cancelScripts = useCallback((reason: string) => {
     for (const waiting of pending.current.values()) {
@@ -183,7 +213,7 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     setPressedAt(null);
     setAsking(false);
     const options = { ...request, onSubmitted: () => { if (active) submittedCallback.current(); } };
-    const run = request.sample ? runAutoApply(sampleApplyApi, session, options, async () => null) : autoApply(api, session, options);
+    const run = request.sample ? runAutoApply(sampleApplyApi, session, options, async () => SAMPLE_RESUME) : autoApply(api, session, options);
     void run.then((result) => {
       if (active) closeCallback.current(result);
     }, () => {
@@ -216,7 +246,6 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     let data: { pinkslip?: string; pinkslipEvent?: string; ok?: boolean; value?: unknown; error?: string };
     try { data = JSON.parse(event.nativeEvent.data); } catch { return; }
     if (data.pinkslipEvent === "submit") { setPressedAt(Date.now()); return; }
-    if (data.pinkslipEvent === "typing" || data.pinkslipEvent === "done-typing") { setTyping(data.pinkslipEvent === "typing"); return; }
     const waiting = data.pinkslip ? pending.current.get(data.pinkslip) : undefined;
     if (!waiting || !data.pinkslip) return;
     pending.current.delete(data.pinkslip);
@@ -257,7 +286,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     onDismiss={onDismissed}>
     <View style={styles.root}>
       <View style={styles.top}>
-        <IconButton icon="close" label="Close" onPress={finish} />
+        {/* The browser is a sheet, so its controls take the sheet's 2pt line (owner, 2026-10-17: they read thin). */}
+        <IconButton icon="close" label="Close" onPress={finish} stroke={2} />
         <View style={styles.title}>
           <Text role="subhead" weight="medium" lines={1}>{request?.company ? `Apply at ${request.company}` : "Apply"}</Text>
           {hostOf(page) ? <View style={styles.host}>
@@ -267,15 +297,15 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
         </View>
         <GlyphMenu items={[
           { id: "fill", title: "Fill again", glyph: "tailor", onSelect: () => events.current?.onRefill() },
-          ...(page && !request?.sample ? [{ id: "safari", title: "Open in Safari", glyph: "open" as const, onSelect: () => void Linking.openURL(page) }] : []),
+          ...(page && !request?.local ? [{ id: "safari", title: "Open in Safari", glyph: "open" as const, onSelect: () => void Linking.openURL(page) }] : []),
         ]}>
-          <View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={20} tone="ink-2" /></View>
+          <View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} stroke={2} /></View>
         </GlyphMenu>
       </View>
       <View style={styles.track}><Animated.View style={[styles.line, line]} /></View>
-      {url ? <WebView ref={web} source={request?.sample ? { html: SAMPLE_FORM, baseUrl: url } : { uri: url }} style={styles.web} onMessage={onMessage}
+      {url ? <WebView ref={web} source={request?.local ? { html: SAMPLE_FORM, baseUrl: url } : { uri: url }} style={styles.web} onMessage={onMessage}
         injectedJavaScript={WATCH_PAGE} contentInset={{ bottom: 88 }}
-        onLoadStart={() => { events.current?.onNavigating(); cancelScripts("The page changed"); setProgress(null); setTyping(false); }}
+        onLoadStart={() => { events.current?.onNavigating(); cancelScripts("The page changed"); setProgress(null); }}
         onLoadProgress={(event) => { loading.value = withTiming(event.nativeEvent.progress, { duration: 150 }); }}
         onLoadEnd={(event) => {
           if (event.nativeEvent.loading) return;
@@ -313,13 +343,14 @@ function FillBar({ title, detail, detailTone = "ink-3", children }: {
 function BarButton({ label, icon, pink, onPress }: { label: string; icon?: IconName; pink?: boolean; onPress: () => void }) {
   return <PressableScale accessibilityRole="button" onPress={onPress} contentStyle={[styles.barButton, pink && styles.pink]}>
     <Text weight="medium" tone={pink ? "accent-ink" : "ink"}>{label}</Text>
-    {icon ? <Icon name={icon} size={16} tone={pink ? "accent-ink" : "ink"} /> : null}
+    {icon ? <Icon name={icon} size={16} stroke={2} tone={pink ? "accent-ink" : "ink"} /> : null}
   </PressableScale>;
 }
 
 function BarIcon({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return <PressableScale accessibilityRole="button" accessibilityLabel={label} onPress={onPress} contentStyle={styles.barIcon}>
-    <Icon name={icon} size={18} />
+    {/* 2pt, as the sheet's Back caret: the proportional line read thin here (owner, 2026-10-17). */}
+    <Icon name={icon} size={18} stroke={2} />
   </PressableScale>;
 }
 

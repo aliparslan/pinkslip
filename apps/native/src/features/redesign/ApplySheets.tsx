@@ -6,6 +6,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { Button, Choices, CompanyLogo, Icon, SheetStep, Text, useSheet } from "../../ui";
 import type { DetailJob } from "../job-detail/useJobPage";
 import { logoUri } from "../jobs/CompanyLogo";
+import { useLocalResumeFile } from "../../platform/resume-file";
 import { plainText } from "./job-facts";
 
 /**
@@ -38,6 +39,8 @@ export function DidYouApply({ onYes }: { onYes: () => void }) {
 export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; onOpen: () => void; onAlreadyApplied: () => void }) {
   const { close } = useSheet();
   const resume = useResumeProfile().data?.data;
+  // The PDF that gets attached is the one kept on this iPhone, not the saved resume.
+  const pdf = useLocalResumeFile();
   const answers = useAnswers().data;
   const contact = resume?.contact;
   const source = job.source_type && job.source_type !== "custom" && isCompanySourceType(job.source_type) ? companySourceLabel(job.source_type) : null;
@@ -55,7 +58,7 @@ export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; o
       {source ? <Text role="subhead" tone="ink-2">Opens on {source}</Text> : null}
     </View>
     <Choices>
-      <PrepRow label="Resume" value={contact?.name ? `${contact.name}'s resume` : "Add your resume"} onPress={() => change("/you/resume")} />
+      <PrepRow label="Resume" value={pdf?.name ?? "Add your PDF"} onPress={() => change("/you/resume")} />
       <PrepRow label="Email" value={contact?.email || "Not added"} onPress={() => change("/you/resume")} />
       <PrepRow label="LinkedIn" value={contact?.linkedin ? contact.linkedin.replace(/^https?:\/\/(www\.)?/, "") : "Not added"} onPress={() => change("/you/resume")} />
       <PrepRow label="Answers" value={answers ? `${answers.length} saved` : "—"} onPress={() => change("/you/answers")} />

@@ -10,6 +10,10 @@ import type { FormControl } from "@pinkslip/domain/application-form";
  */
 export const SAMPLE_FORM_URL = "https://job-boards.greenhouse.io/stripe/jobs/sample";
 
+/** A live Greenhouse form for the kit (Stripe, Data Analyst, Intern): the
+ * board's own page, filled with the sample answers and never submitted. */
+export const LIVE_FORM_URL = "https://job-boards.greenhouse.io/embed/job_app?for=stripe&token=8194291";
+
 export const SAMPLE_FORM = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font: 15px -apple-system, Helvetica, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 20px 16px 140px; background: #fff; }
@@ -42,9 +46,13 @@ export const SAMPLE_FORM = `<!doctype html><html><head><meta name="viewport" con
 </script>
 </body></html>`;
 
-/** What the sample knows about Jordan, by words in a field's label. Legal
- * questions (sponsorship) and essays (Why Stripe?) are left for the person. */
+/** What the sample knows about Jordan, by words in a field's label. Visa
+ * sponsorship and essays (Why Stripe?) are left for the person. */
 const ANSWERS: [RegExp, string][] = [
+  // Dropdowns on the live Greenhouse form, as the real plan fills them.
+  [/eligible to work/i, "Yes"],
+  [/country where you currently reside/i, "United States"],
+  [/first location preference/i, "San Francisco"],
   [/first name/i, "Jordan"],
   [/last name/i, "Lee"],
   [/email/i, "jordan@lee.dev"],
@@ -52,13 +60,17 @@ const ANSWERS: [RegExp, string][] = [
   [/linkedin/i, "https://www.linkedin.com/in/jordanlee"],
 ];
 
+/** A one-page PDF for the kit's samples, so attaching a resume can be tried. */
+export const SAMPLE_RESUME = { name: "Jordan_Lee.pdf", base64: "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNjEyIDc5Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggNDQ+PnN0cmVhbQpCVCAvRjEgMTggVGYgNzIgNzIwIFRkIChKb3JkYW4gTGVlKSBUaiBFVAplbmRzdHJlYW0gZW5kb2JqCjUgMCBvYmo8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PmVuZG9iagp0cmFpbGVyPDwvUm9vdCAxIDAgUj4+CiUlRU9GCg==" };
+
 /** The apply API, answered on the phone for the sample form. */
 export const sampleApplyApi = {
   apply: {
     plan: async (_jobId: string | null, controls: FormControl[]) => ({
       steps: controls.flatMap((control) => {
+        if (control.kind === "file" && /resume|\bcv\b/i.test(control.label)) return [{ ref: control.ref, kind: control.kind, value: "resume" }];
         const answer = ANSWERS.find(([pattern]) => pattern.test(control.label))?.[1];
-        return answer ? [{ ref: control.ref, kind: control.kind, value: answer }] : [];
+        return answer ? [{ ref: control.ref, kind: control.kind, value: answer, ...(control.kind === "combobox" && control.searchable ? { pick: true } : {}) }] : [];
       }),
       needs: [],
       inferred: [],
