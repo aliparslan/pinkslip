@@ -57,6 +57,8 @@ export async function rankedContactsForCompany(
     `SELECT cc.id, cc.company_id, cc.email, cc.name, cc.title, cc.source, cc.created_at
      FROM company_contacts cc
      WHERE cc.company_id = ?
+       -- An admin's test-email run makes its own contact (email/test-emails.ts).
+       AND cc.source != 'pinkslip-test'
        AND (
          SELECT COUNT(*) FROM outreach_threads ot
          WHERE ot.contact_id = cc.id

@@ -36,7 +36,9 @@ interface ApplicationRow {
 }
 
 export type ProcessOutcome =
-  | { status: "ignored" | "duplicate" }
+  /** `reason`: no step read, no company found, or no Pinkslip job it's about. */
+  | { status: "ignored"; reason?: "no_step" | "no_company" | "no_job" }
+  | { status: "duplicate" }
   | { status: InboundEmailStatus; emailId: string; applicationId: string | null };
 
 const STAGE_ORDER: Record<ApplicationStage, number> = {
@@ -183,7 +185,7 @@ export async function processEmail(
 ): Promise<ProcessOutcome> {
   const ruled = detectStage(email);
   const stage = ruled ?? (fallback ? await fallback(email) : null);
-  if (!stage) return { status: "ignored" };
+  if (!stage) return { status: "ignored", reason: "no_step" };
   const detectedBy = ruled ? "rules" as const : "ai" as const;
   const zone = stage === "interview" || stage === "assessment"
     ? validTimeZone((await db.prepare("SELECT time_zone FROM users WHERE id = ?").bind(userId).first<{ time_zone: string | null }>())?.time_zone)
@@ -264,7 +266,7 @@ export async function processEmail(
       if (tiedApplications.length === 1) return moveApplication(applicationFor(tiedApplications[0]!), companyId);
       if (tiedApplications.length > 1) return askWhich(companyId, tiedApplications.map((key) => key.slice(4)));
       // Names jobs at the company, none of them the user's: not theirs to file.
-      return { status: "ignored" };
+      return { status: "ignored", reason: "no_job" };
     }
     // A generic email: their only application there, or ask.
     if (pool.length === 1) return moveApplication(pool[0]!, companyId);
@@ -274,9 +276,9 @@ export async function processEmail(
   // Not tracking anything at that company yet: start tracking the catalog job
   // the email names by link or exact title. A generic email names none.
   const company = await resolveCatalogCompany(db, email);
-  if (!company) return { status: "ignored" };
+  if (!company) return { status: "ignored", reason: "no_company" };
   const match = matchSpecific(email, await catalogJobs(db, company.id));
-  return match.kind === "match" ? startTracking(company.id, match.id) : { status: "ignored" };
+  return match.kind === "match" ? startTracking(company.id, match.id) : { status: "ignored", reason: "no_job" };
 }
 
 interface InboundEmailRow {
@@ -289,6 +291,7 @@ interface InboundEmailRow {
   detected_stage: DetectedStage;
   status: InboundEmailStatus;
   company_name: string | null;
+  company_domain: string | null;
   application_id: string | null;
   candidate_application_ids: string;
 }
@@ -303,7 +306,7 @@ export async function listInboundEmails(
 ): Promise<InboundEmail[]> {
   const result = await db.prepare(
     `SELECT e.id, e.received_at, e.sender_name, e.sender_address, e.subject, e.sent_at, e.detected_stage,
-            e.status, c.name AS company_name, e.application_id, e.candidate_application_ids
+            e.status, c.name AS company_name, c.website AS company_domain, e.application_id, e.candidate_application_ids
      FROM inbound_emails e
      LEFT JOIN companies c ON c.id = e.company_id
      WHERE e.user_id = ? ${status ? "AND e.status = ?" : ""}

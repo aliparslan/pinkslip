@@ -10,6 +10,7 @@ import {
 } from "./notifications";
 import { remindDueFollowUps } from "./outreach/reminders";
 import { queueDueReminders } from "./reminders";
+import { runRequestedTestEmails } from "./email/test-emails";
 import { CLOSE_AFTER_MISSES } from "./poller";
 import type { Env } from "./types";
 
@@ -26,6 +27,8 @@ export interface SchedulerRun {
  * has come go out, then everything due in the log is delivered.
  */
 export async function runNotificationScheduler(env: Env, now = new Date()): Promise<SchedulerRun> {
+  // An admin's requested test-email run goes first, so its pushes go out this tick.
+  await runRequestedTestEmails(env, now);
   const followUps = await remindDueFollowUps(env, now);
   const reminders = await queueDueReminders(env, now);
   const digests = await dailyDigestsDue(env.DB, now);

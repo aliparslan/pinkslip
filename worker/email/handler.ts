@@ -6,7 +6,9 @@ import { readStageWithAi } from "./stage-reader";
 import type { Env } from "../types";
 import { hashMessage, processEmail, trackedCompanies } from "./process";
 import {
+  domainOf,
   isGmailForwardingConfirmation,
+  isManualForward,
   parseGmailForwardingConfirmation,
   parseInboxTag,
   shouldOpen,
@@ -84,6 +86,14 @@ function calendarParts(parsed: Email): string[] {
     .slice(0, 3);
 }
 
+/**
+ * What happened to an email, for Worker logs: the outcome and the sender's
+ * domain, never the address, subject or text. Explains "it wasn't reflected".
+ */
+function logOutcome(outcome: string, senderAddress: string) {
+  console.log(JSON.stringify({ event: "inbound_email", outcome, sender_domain: domainOf(senderAddress) }));
+}
+
 export async function handleInboundEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
   const tag = parseInboxTag(message.to);
   if (!tag || message.rawSize > MAX_EMAIL_BYTES) return;
@@ -101,17 +111,25 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   }
 
   await recordInboxDelivery(env.DB, userId, now);
+  const forwarded = isManualForward(subject);
   // A reply from someone the user wrote to (N11), decided from the sender
-  // alone. A reply can also be a step (an interview invite), so it goes on.
-  await recordRecruiterReply(env.DB, userId, from.address);
+  // alone. A forward the user sent by hand is checked by its original sender
+  // below: the forwarder is the user, never the recruiter. A reply can also
+  // be a step (an interview invite), so it goes on either way.
+  if (!forwarded) await recordRecruiterReply(env.DB, userId, from.address);
   // Decided from the headers alone: mail that isn't about a job is never parsed.
-  if (!shouldOpen({ from, subject }, await trackedCompanies(env.DB, userId))) return;
+  if (!shouldOpen({ from, subject }, await trackedCompanies(env.DB, userId))) {
+    logOutcome("not_opened", from.address);
+    return;
+  }
 
   const parsed = await PostalMime.parse(message.raw);
   const email = unwrapForward(toEmailContent(parsed, from));
+  if (forwarded && email.from.address !== from.address) await recordRecruiterReply(env.DB, userId, email.from.address);
   const hash = await hashMessage(parsed.messageId ?? message.headers.get("message-id"), email);
   // Rules first; Jev reads only hiring mail the rules can't place (stage-reader.ts).
   const outcome = await processEmail(env.DB, userId, email, hash, now, (content) => readStageWithAi(env, content));
+  logOutcome(outcome.status === "ignored" ? outcome.reason ?? "ignored" : outcome.status, email.from.address);
   // Notifications start from what the email wrote to the Activity stream:
   // an application it moved (N3) or "which application?" (N4).
   if ("emailId" in outcome) {

@@ -7,7 +7,7 @@ import {
   type ForwardingProvider,
   type InboundEmailStatus,
 } from "../../shared/email-tracking";
-import { getPrimaryIdentity, requireAuthenticated } from "../auth";
+import { getPrimaryIdentity, requireAdmin, requireAuthenticated } from "../auth";
 import { sendForwardingStepsEmail } from "../email";
 import {
   assignInboundEmail,
@@ -16,6 +16,7 @@ import {
   undoInboundEmail,
   type InboundEmailAction,
 } from "../email/process";
+import { clearTestEmails, sendTestEmails } from "../email/test-emails";
 import { getOrCreateInbox, rotateInbox } from "../inbox";
 import type { Env, Variables } from "../types";
 
@@ -28,6 +29,11 @@ inbox.use("*", requireAuthenticated);
 inbox.get("/", async (c) => c.json(await getOrCreateInbox(c.env.DB, c.get("userId"))));
 
 inbox.post("/rotate", async (c) => c.json(await rotateInbox(c.env.DB, c.get("userId"))));
+
+/** Admins only: a scripted run of job emails through every step, to their own
+ * inbox (email/test-emails.ts). DELETE removes what it made. */
+inbox.post("/test-emails", requireAdmin, async (c) => c.json(await sendTestEmails(c.env, c.get("userId"))));
+inbox.delete("/test-emails", requireAdmin, async (c) => c.json({ removed: await clearTestEmails(c.env, c.get("userId")) }));
 
 /** "Email me these steps": the setup steps, sent to the account's email. */
 inbox.post("/steps-email", async (c) => {

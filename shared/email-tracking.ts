@@ -46,6 +46,8 @@ export interface InboundEmail {
   detected_stage: DetectedStage;
   status: InboundEmailStatus;
   company_name: string | null;
+  /** The company's site, for its logo. */
+  company_domain?: string | null;
   application_id: string | null;
   /** Filled while status is needs_choice. */
   candidates: { id: string; title: string; stage: ApplicationStage }[];

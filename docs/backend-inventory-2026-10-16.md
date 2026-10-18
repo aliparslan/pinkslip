@@ -899,3 +899,27 @@ Liberties for the owner to keep or veto:
 
 Not in step 5: showing "from the email" beside a date (a small label; Paper
 first), and bounces marking outreach contacts bad (step 8).
+
+After the owner's first forwards (2026-10-18):
+
+- **A forward isn't a reply.** The owner forwarded a DoorDash receipt from
+  Outlook, which is also the outreach test contact, and got "The recruiter
+  replied". Reply detection now reads a hand-made forward by its original
+  sender, so the user's own forward never counts, and a recruiter's reply
+  forwarded by hand still does. The Verkada test thread it closed stays
+  closed (its follow-up dates were cleared).
+- **Logos in Job emails:** each email now carries its company's site.
+- **Why an email was dropped:** the Worker logs each email's outcome and
+  sender domain (`not_opened`, `no_step`, `no_company`, `no_job`), never its
+  address, subject or text. The Jane Street forward was `no_job` in effect:
+  no Jane Street job is tracked, and the email didn't link or exactly name
+  one of its 44 postings, so it kept nothing, as decided ("Pinkslip jobs
+  only"). Tracking the job first, then forwarding again, files it.
+- **Test emails** (`worker/email/test-emails.ts`): an admin's scripted run
+  through every step, fed to the same reader as forwarded mail. Three real
+  catalog jobs at a company the admin doesn't track go through receipts,
+  an assessment with a deadline, an interview with a calendar invite, an
+  offer, a rejection that asks "Which application?", and a recruiter's
+  reply on a test thread. `POST /api/v2/inbox/test-emails` runs it,
+  `DELETE` removes everything it made; a `test_emails:<user id>` row in
+  `preferences` ("send" or "clear") runs it on the next tick.

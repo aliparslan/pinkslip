@@ -65,6 +65,11 @@ export function isHiringService(host: string): boolean {
 
 const FORWARDED_SUBJECT = /^\s*(fwd?|fw)\s*:/i;
 
+/** A forward the user sent by hand ("Fwd: …"), not one their mail sent automatically. */
+export function isManualForward(subject: string): boolean {
+  return FORWARDED_SUBJECT.test(subject);
+}
+
 /** Gmail's "confirm forwarding" message for a new forwarding address. */
 export function isGmailForwardingConfirmation(from: Sender, subject: string): boolean {
   return from.address.toLowerCase() === "forwarding-noreply@google.com" && /forwarding confirmation/i.test(subject);
