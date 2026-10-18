@@ -570,6 +570,10 @@ wrote 431 activity rows; 277 people's alert settings carried over (34 on).
 The apps' side went to the owner's phone over the air; testers' production
 update waits for the owner.
 
+**Deployed 2026-10-18:** eb0de71 (follow-ups without the spacing, one job
+push per run), Worker 3c220792, no migrations. Health checks passing and no
+new errors after it.
+
 ### Step 1: keeping it running (2026-10-16, live 2026-10-17)
 
 - **Errors table** (migration 0093, `worker/errors.ts`): one row per source,
