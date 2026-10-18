@@ -298,7 +298,9 @@ owner's check before the next.
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
    priority. **Built and live 2026-10-18** (see "Built").
-6. **Accounts** (§7): Google sign-in, email and password.
+6. **Accounts** (§7): Google sign-in, email and password. **Built
+   2026-10-18, not deployed** (see "Built"); the sign-in screens wait for
+   Paper, and Google waits for the owner's OAuth client.
 7. **Following and events** (§6), with N19 and N20.
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
    removal path, then the flag.
@@ -434,6 +436,8 @@ fallback, #3 dates, #5 forwarding stopped, #6 replies. #4 stays a note.
 7. **No email bodies are stored,** as today.
 
 ### Accounts (owner, 2026-10-16)
+
+**Built 2026-10-18** (step 6; see "Built"), server side.
 
 1. **Google sign-in** in the system's sign-in sheet (no new SDK, ships over
    the air), on the web too.
@@ -928,3 +932,63 @@ After the owner's first forwards (2026-10-18):
   scripted, the interview's time came from its invite, four pushes reached
   both phones within a minute, and "Which application?" waited 4 hours for
   the spacing.
+
+### Step 6: accounts (2026-10-18, not deployed)
+
+- **Migration 0098** rebuilds `auth_identities` to allow `google` and to
+  hold a password's hash, copying the Apple refresh tokens aside and back
+  (dropping the old table deletes them). Rehearsed on a copy of
+  production's 8 identities (identical afterwards, no foreign-key
+  problems); the copy was deleted. Take a D1 restore point before it runs.
+- **Sign-in by code** (`POST /api/v2/auth/email/code/start` and
+  `/verify`): a 6-digit code by email, good for 15 minutes and five tries,
+  sharing the sign-in link's send limits. It signs in without a password,
+  creates the account (with `password`, setting one), or resets a
+  forgotten password. The old sign-in link keeps working for older builds.
+- **Email and password** (`POST /api/v2/auth/password/login`): passwords
+  are PBKDF2-SHA256 hashes (600,000 iterations, a salt each, compared in
+  constant time; `worker/passwords.ts`). A wrong email and a wrong password
+  get the same answer; ten misses in 15 minutes pause that email.
+- **Google** (`worker/google.ts`): authorization code with PKCE, the code
+  exchanged with the client secret, and only a Google-signed ID token for
+  this client with the flow's nonce accepted. On the web, a POST from
+  Account starts it and the callback signs in on the session that started
+  it. On the iPhone, `POST /auth/google/native/start` gives the URL for the
+  system's sign-in sheet; Google returns to the callback, which keeps the
+  confirmed identity and sends the sheet to `pinkslip://auth/google`; the
+  app collects it with `POST /auth/google/native/finish` on its own
+  session. Flows are single-use, bound to a session and expire in 10
+  minutes.
+- **One person, one account:** a verified email joins the account it's
+  already on, bringing the guest's data, for Google, a code or a password
+  alike. Only verified emails join now (before, any identity's email could),
+  so an Apple "Hide my email" address only ever matches itself.
+- **Deleting an account** removes every sign-in method, the password
+  included (tested).
+- `GET /me` lists every way an account signs in (`account.providers`),
+  whether it has a password, and the features
+  `google_sign_in_enabled` and `password_sign_in_enabled`.
+
+Owner to-dos for Google:
+
+1. Google Cloud console → APIs & Services → OAuth consent screen: External,
+   app name Pinkslip, support email, scopes `openid`, `email`, `profile`;
+   publish it.
+2. Credentials → Create credentials → OAuth client ID → Web application.
+   Authorized redirect URIs: `https://pinkslip.work/api/v2/auth/google/callback`,
+   `https://pinkslip.alip.dev/api/v2/auth/google/callback`, and for local
+   testing `http://localhost:3000/api/v2/auth/google/callback`.
+3. Give Claude the client ID (it goes in `wrangler.toml` as
+   `GOOGLE_CLIENT_ID`), and set the secret yourself:
+   `wrangler secret put GOOGLE_CLIENT_SECRET`.
+
+Liberties for the owner to keep or veto:
+
+1. Sign-up is a code first, then a password: the code proves the email,
+   which "joins it once the email is verified" needs.
+2. A code lasts 15 minutes and five tries; ten wrong passwords pause an
+   email for 15 minutes (a code still works).
+3. Google asks which account each time (`prompt=select_account`).
+
+Not in step 6: the sign-in screens on the iPhone and the web (Google,
+password, code), which wait for Paper (the onboarding design asks for them).

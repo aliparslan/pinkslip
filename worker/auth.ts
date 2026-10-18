@@ -20,7 +20,7 @@ const SESSION_TTL_MS = COOKIE_MAX_AGE * 1000;
 export const AUTH_ACTIVITY_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const API_TOKEN_STORAGE_PREFIX = "sha256:v1:";
 
-function parseCookie(header: string | undefined, name: string): string | undefined {
+export function parseCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
   const match = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   const rawValue = match?.[1];
@@ -298,6 +298,9 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
     // must not become a guest account just by reporting it.
     if (pathname === "/api/v2/access" || pathname === "/api/v2/health"
       || (pathname === "/api/v2/errors" && c.req.method === "POST")
+      // Google's redirect back: the sheet on the iPhone carries no cookies; a
+      // web flow checks its own session cookie in the handler.
+      || (pathname === "/api/v2/auth/google/callback" && c.req.method === "GET")
       || (pathname === "/api/v2/auth/apple/web/callback" && c.req.method === "POST")) {
       await next();
       return;

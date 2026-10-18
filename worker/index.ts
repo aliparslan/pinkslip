@@ -25,6 +25,7 @@ import tailorRoutes from "./routes/tailor";
 import runRoutes from "./routes/runs";
 import authRoutes, { buildAccountState, completeEmailMagicLink } from "./routes/auth";
 import { appleWebConfig } from "./apple-web";
+import { googleConfig } from "./google";
 import resumeImportRoutes from "./routes/resume-import";
 import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
@@ -153,6 +154,8 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
     auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin),
     auto_submit_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SUBMIT, account.is_admin),
     web_apple_sign_in_enabled: Boolean(appleWebConfig(env)),
+    google_sign_in_enabled: Boolean(googleConfig(env)),
+    password_sign_in_enabled: true,
     tailoring_enabled: Boolean(tailoring),
     tailoring_provider: tailoring?.provider ?? null,
     tailoring_model: tailoring?.model ?? "",

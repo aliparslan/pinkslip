@@ -180,3 +180,41 @@ export async function sendForwardingStoppedEmail(
     html,
   });
 }
+
+/** Sign-in by code (Decisions: Accounts #2): for signing in without a
+ * password, signing up and a forgotten password. */
+export async function sendSignInCodeEmail(env: Env, args: { to: string; code: string }) {
+  if (!env.EMAIL) throw new Error("Email sending is not configured");
+  const fromEmail = env.EMAIL_FROM_ADDRESS?.trim();
+  if (!fromEmail) throw new Error("EMAIL_FROM_ADDRESS is not configured");
+  const fromName = env.EMAIL_FROM_NAME?.trim() || "Pinkslip";
+  const text = [
+    `Your Pinkslip code is ${args.code}.`,
+    "",
+    "Enter it in Pinkslip to continue. It works for 15 minutes.",
+    "",
+    "If you didn't ask for it, you can ignore this email; no one can sign in without the code.",
+    "",
+    "— Pinkslip",
+  ].join("\n");
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:24px 0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:14px;border:1px solid #ececec;">
+        <tr><td style="padding:28px 28px 4px;font-size:20px;font-weight:600;color:#111;">Your Pinkslip code</td></tr>
+        <tr><td style="padding:12px 28px 4px;"><div style="background:#f4f4f2;border-radius:10px;padding:14px;font-size:28px;font-weight:600;letter-spacing:6px;color:#111;text-align:center;">${escapeHtml(args.code)}</div></td></tr>
+        <tr><td style="padding:12px 28px 4px;color:#444;font-size:15px;line-height:1.5;">Enter it in Pinkslip to continue. It works for 15 minutes.</td></tr>
+        <tr><td style="padding:8px 28px 28px;color:#777;font-size:13px;line-height:1.5;">If you didn't ask for it, you can ignore this email; no one can sign in without the code.</td></tr>
+      </table>
+    </td></tr></table>
+  </body>
+</html>`;
+  await env.EMAIL.send({
+    to: args.to,
+    from: { email: fromEmail, name: fromName },
+    subject: `Your Pinkslip code: ${args.code}`,
+    text,
+    html,
+  });
+}

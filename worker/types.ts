@@ -27,6 +27,10 @@ export interface Env {
   /** Services ID grouped with the native App ID; enables browser sign-in. */
   APPLE_WEB_CLIENT_ID?: string;
   APPLE_SIGN_IN_KEY_ID?: string;
+  /** Google sign-in's OAuth client (worker/google.ts); unset turns it off. */
+  GOOGLE_CLIENT_ID?: string;
+  /** Secret. */
+  GOOGLE_CLIENT_SECRET?: string;
   APPLE_SIGN_IN_PRIVATE_KEY?: string;
   APPLE_TOKEN_ENCRYPTION_KEY?: string;
   EMAIL_FROM_ADDRESS?: string;
@@ -219,7 +223,7 @@ export interface AuthSessionRow {
 export interface AuthIdentityRow {
   id: string;
   user_id: string;
-  provider: "apple" | "email";
+  provider: "apple" | "email" | "google";
   provider_subject: string;
   email: string | null;
   email_verified: number;
