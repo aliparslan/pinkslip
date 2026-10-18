@@ -923,3 +923,8 @@ After the owner's first forwards (2026-10-18):
   reply on a test thread. `POST /api/v2/inbox/test-emails` runs it,
   `DELETE` removes everything it made; a `test_emails:<user id>` row in
   `preferences` ("send" or "clear") runs it on the next tick.
+- **Deployed 2026-10-18** as Worker 2c0a8804 (no migration). The first test
+  run on the owner's account used 1X Technologies: all seven emails filed as
+  scripted, the interview's time came from its invite, four pushes reached
+  both phones within a minute, and "Which application?" waited 4 hours for
+  the spacing.
