@@ -9,6 +9,7 @@ import settings from "../settings/Settings.module.css";
 import styles from "./Account.module.css";
 
 const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const providerLabel = { apple: "Apple", email: "email", google: "Google" } as const;
 
 /** `AccountSection.svelte` plus the display name: who you are, email sign-in
  * for guests, and log out / delete / start over. Apple redirects through Hono
@@ -44,7 +45,7 @@ export function Account() {
           <Stack gap="1">
             <Text weight="medium">Signed in</Text>
             <Text size="sm" tone="ink-3">
-              {account?.email ?? "Your account is active"}{account?.provider && ` · ${account.provider === "apple" ? "Apple" : "email"}`}
+              {account?.email ?? "Your account is active"}{account?.provider && ` · ${providerLabel[account.provider]}`}
             </Text>
           </Stack>
           <Badge>Synced</Badge>
