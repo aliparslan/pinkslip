@@ -678,16 +678,18 @@ export const ui = {
     },
     stub: {
       tear: {
-        duration: 140,
-        curve: [0.55, 0.085, 0.68, 0.53],
+        duration: 160,
         angle: -4,
       },
       fall: {
         gravity: 5200,
-        min: 240,
-        max: 560,
-        angle: -7,
-        scale: 0.96,
+        spinDecay: 100,
+        drift: 150,
+        shrink: 0.04,
+        shrinkTime: 350,
+      },
+      rip: {
+        ticks: 9,
       },
       catch: {
         scale: 0.97,
@@ -696,8 +698,7 @@ export const ui = {
         curve: [0.23, 1, 0.32, 1],
       },
       rise: {
-        duration: 420,
-        curve: [0.23, 1, 0.32, 1],
+        pace: 0.8,
       },
     },
     stamp: {

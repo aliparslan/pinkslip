@@ -527,17 +527,24 @@ export const uiMotion = {
   tab: {
     glide: { response: 0.4, damping: 1 },
   },
-  /** The stub tearing off on Apply (owner, 2026-10-18; Paper "The stub
-   * tears off, frame by frame"). It tears from its left end round a hinge
-   * on the right, then falls under gravity behind the job page's bar, so
-   * the fall takes as long as its distance says. The Apply button catches
-   * it with a dip. Undo rises back on the strong ease-out. */
+  /** The stub tearing off on Apply: Peel, with a light rip (owner,
+   * 2026-10-18, picked from four ways on the phone; Paper "The stub tears
+   * off, frame by frame"). One continuous path: it tears from its left end
+   * round a hinge on the right, speeding up as the holes give, then falls
+   * under gravity behind the job page's bar, carrying on at the speed and
+   * spin it tore with, so nothing stalls where the two meet. The Apply
+   * button catches it with a dip. Undo runs the path back. */
   stub: {
-    tear: { duration: 140, curve: [0.55, 0.085, 0.68, 0.53], angle: -4 },
-    /** Points a second squared, and the fall's shortest and longest time. */
-    fall: { gravity: 5200, min: 240, max: 560, angle: -7, scale: 0.96 },
+    /** The tear: the free end turns this many degrees in this long. */
+    tear: { duration: 160, angle: -4 },
+    /** Points a second squared; how long (ms) the spin and the sideways
+     * drift take to die away; how much it shrinks, and over how long. */
+    fall: { gravity: 5200, spinDecay: 100, drift: 150, shrink: 0.04, shrinkTime: 350 },
+    /** Light taps along the tear, closer and closer together. */
+    rip: { ticks: 9 },
     catch: { scale: 0.97, down: 90, up: 200, curve: [0.23, 1, 0.32, 1] },
-    rise: { duration: 420, curve: [0.23, 1, 0.32, 1] },
+    /** Undo runs the path back at this share of the time it took. */
+    rise: { pace: 0.8 },
   },
   /** A new step's rubber stamp coming down onto your stub: from larger and
    * clear, accelerating like a hand pressing down. */

@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Text as RNText, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { faces } from "./fonts";
 import { Grain } from "./Grain";
+import { StampFrame } from "./StampFrame";
 
 export interface StampedSlipProps {
   /** The stamp's two lines: "CLOSED" over "OCT 12". */
@@ -22,6 +23,9 @@ export interface StampedSlipProps {
  * 12/16, a 2pt ink border, radius 8, at 88%. Common errors stay plain.
  */
 export function StampedSlip({ stamp, detail, children, stacked = false }: StampedSlipProps) {
+  const { theme } = useUnistyles();
+  // The stamp's frame is drawn, so it stays smooth turned (Paper "Stamp ink", A).
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return <View style={styles.stage} accessible accessibilityLabel={`${stamp.toLowerCase()}, ${detail.toLowerCase()}`}>
     {stacked ? <View style={[styles.slip, styles.behind]} /> : null}
     <View style={[styles.slip, styles.front]}>
@@ -32,7 +36,8 @@ export function StampedSlip({ stamp, detail, children, stacked = false }: Stampe
         <View style={[styles.line, styles.lineShort]} />
       </View>}
     </View>
-    <View style={styles.stamp}>
+    <View style={styles.stamp} onLayout={(event) => setSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
+      {size ? <StampFrame {...size} color={theme.ui.color.ink} line={2} radius={8} /> : null}
       <RNText style={styles.stampLabel} maxFontSizeMultiplier={1.2}>{stamp}</RNText>
       <RNText style={styles.stampDetail} maxFontSizeMultiplier={1.2}>{detail}</RNText>
     </View>
@@ -60,11 +65,9 @@ const styles = StyleSheet.create((theme) => ({
     right: 62,
     top: 84,
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 2,
-    borderRadius: 8,
-    borderColor: theme.ui.color.ink,
+    // The 2pt frame is drawn over the padding, where a border would sit.
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     opacity: 0.88,
     transformOrigin: "0% 0%",
     transform: [{ rotate: "-10deg" }],

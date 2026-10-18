@@ -11,7 +11,8 @@ import { faces } from "./fonts";
 import { Grain } from "./Grain";
 import { Icon } from "./Icon";
 import { motion, timing } from "./motion";
-import { fallTime, stubPose, TEAR_SHAPES, type TearStyle } from "./stub-motion";
+import { fallTime, RIP_TICKS, stubPose } from "./stub-motion";
+import { StampFrame } from "./StampFrame";
 import { Text } from "./Text";
 
 export interface TicketFact {
@@ -45,19 +46,10 @@ export interface TicketProps {
 }
 
 /** Kit only: slows the tear down so it can be watched frame by frame (1 is
- * real time), and tries its other ways and rips (owner, 2026-10-18). */
+ * real time). */
 let pace = 1;
-let tearStyle: TearStyle = "peel";
-let ripFeel: RipFeel = "ticks";
-export type RipFeel = "ticks" | "light" | "rigid";
 export function setTearPace(next: number) {
   pace = next;
-}
-export function setTearStyle(next: TearStyle) {
-  tearStyle = next;
-}
-export function setRipFeel(next: RipFeel) {
-  ripFeel = next;
 }
 
 /** The stub on its way out (tearing and falling) or back in (Undo). */
@@ -254,13 +246,20 @@ function RubberStamp({ stamp, fresh, angle, arrived }: { stamp: StubStamp; fresh
     // Only as it first appears.
   }, []);
   const body = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(ink.value, [0, 1], [light, dark]),
     opacity: press.value,
     transform: [{ rotate: `${angle}deg` }, { scale: reduced ? 1 : land.from + (1 - land.from) * press.value }],
   }));
   const words = useAnimatedStyle(() => ({ color: interpolateColor(ink.value, [0, 1], [light, dark]) }));
+  // The full ink lies over the faded one, so fading is the top frame going.
+  const fullInk = useAnimatedStyle(() => ({ opacity: ink.value }));
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return <Animated.View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
-    style={[stubStyles.stamp, stamp.pending && stubStyles.pending, body]}>
+    onLayout={(event) => setSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}
+    style={[stubStyles.stamp, body]}>
+    {size ? <Fragment>
+      <StampFrame {...size} color={light} dashed={stamp.pending} />
+      <Animated.View style={[stubStyles.fill, fullInk]} pointerEvents="none"><StampFrame {...size} color={dark} dashed={stamp.pending} /></Animated.View>
+    </Fragment> : null}
     <Animated.Text style={[stubStyles.stampLabel, words]} maxFontSizeMultiplier={1.4}>{stamp.label}</Animated.Text>
     <Animated.Text style={[stubStyles.stampDetail, words]} maxFontSizeMultiplier={1.4}>{stamp.detail}</Animated.Text>
   </Animated.View>;
@@ -282,28 +281,23 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
   onDone: (id: number, landed: boolean) => void;
 }) {
   const reduced = useReducedMotion();
-  const gravity = motion.stub.fall.gravity;
   const clock = useSharedValue(0);
   const opacity = useSharedValue(1);
-  const style = useSharedValue<TearStyle>(tearStyle);
   const box = useSharedValue({ width: 0, height: 0 });
-  const ticks = useSharedValue<number[]>([]);
-  const pop = useSharedValue(-1);
   const moving = useRef(false);
   const done = useRef(onDone);
   done.current = onDone;
 
-  // The rip: a tick each time the clock passes one (one a frame at most),
-  // and the pop as the last hole gives. Only on the way out.
+  // The rip: a light tap each time the clock passes one of its ticks (one
+  // a frame at most). Only on the way out.
   useAnimatedReaction(() => clock.value, (now, before) => {
     if (before === null || now <= before) return;
-    for (const at of ticks.value) {
+    for (const at of RIP_TICKS) {
       if (at > before && at <= now) {
         scheduleOnRN(rip);
         break;
       }
     }
-    if (pop.value >= 0 && pop.value > before && pop.value <= now) scheduleOnRN(lastHole);
   });
 
   useEffect(() => {
@@ -323,11 +317,7 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
       const catching = Boolean(catcher?.current);
       if (kind === "falling") {
         if (!turning) {
-          const shape = TEAR_SHAPES[tearStyle];
-          style.value = tearStyle;
           box.value = { width, height };
-          ticks.value = shape.ticks;
-          pop.value = shape.pop ? shape.release : -1;
           clock.value = 0;
           // The rip's first tick, as the tear starts.
           rip();
@@ -337,7 +327,7 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
           opacity.value = withTiming(0, { duration: reduced ? 200 : 0 }, (finished) => { if (finished) scheduleOnRN(finish, true); });
           return;
         }
-        const end = fallTime(style.value, drop, width, height, gravity);
+        const end = fallTime(drop, width, height);
         const ms = Math.max(end - clock.value, 0) * 1000 * pace;
         if (!catching) opacity.value = withTiming(0, { duration: ms, easing: Easing.in(Easing.cubic) });
         clock.value = withTiming(end, { duration: ms, easing: Easing.linear }, (finished) => { if (finished) scheduleOnRN(finish, true); });
@@ -351,10 +341,10 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
       }
       if (!turning) {
         box.value = { width, height };
-        clock.value = fallTime(style.value, drop, width, height, gravity);
+        clock.value = fallTime(drop, width, height);
         opacity.value = catching ? 1 : 0;
       }
-      const ms = clock.value * 1000 * pace * RISE_PACE;
+      const ms = clock.value * 1000 * pace * motion.stub.rise.pace;
       opacity.value = withTiming(1, { duration: ms });
       clock.value = withTiming(0, { duration: ms, easing: Easing.linear }, (finished) => { if (finished) scheduleOnRN(finish, false); });
     });
@@ -362,7 +352,7 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
   }, [flight?.id]);
 
   return useAnimatedStyle(() => {
-    const pose = stubPose(style.value, clock.value, box.value.width, box.value.height, gravity);
+    const pose = stubPose(clock.value, box.value.width, box.value.height);
     return {
       opacity: opacity.value,
       transform: [{ translateX: pose.x }, { translateY: pose.y }, { rotate: `${pose.angle}deg` }, { scale: pose.scale }],
@@ -370,24 +360,14 @@ function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catc
   });
 }
 
-/** Undo runs the path back this much quicker than it fell. */
-const RISE_PACE = 0.8;
-
-/** The last hole giving. */
-function lastHole() {
-  haptics.rigid();
-}
-
 /** A stamp meeting the paper. */
 function stampDown() {
   haptics.tap();
 }
 
-/** One tick of the rip, in the feel picked (kit). */
+/** One tick of the rip: a light tap (owner, 2026-10-18). */
 function rip() {
-  if (ripFeel === "light") haptics.tap();
-  else if (ripFeel === "rigid") haptics.rigid();
-  else haptics.tick();
+  haptics.tap();
 }
 
 /**
@@ -551,8 +531,9 @@ const stubStyles = StyleSheet.create((theme) => ({
   /** The lower half of a side notch, up to the tear. */
   halfNotch: { position: "absolute", top: -TEAR, width: NOTCH, height: NOTCH / 2, borderBottomLeftRadius: NOTCH / 2, borderBottomRightRadius: NOTCH / 2 },
   stamps: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 10, rowGap: theme.ui.space["3"] },
-  stamp: { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1.5, borderRadius: 6, gap: 1 },
-  pending: { borderStyle: "dashed" },
+  /** The 1.5 frame is drawn over the padding, where a border would sit. */
+  stamp: { paddingHorizontal: 11.5, paddingVertical: 7.5, gap: 1 },
+  fill: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   stampLabel: { fontFamily: faces.stamp, fontSize: 13, lineHeight: 16, letterSpacing: 0.78 },
   stampDetail: { fontFamily: faces.stampDetail, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
   aside: { paddingLeft: theme.ui.space["1"] },

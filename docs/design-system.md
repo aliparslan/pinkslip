@@ -299,24 +299,24 @@ the storyboard spec. These were chosen in the Motion lab
   - Press and slide along the bar: the oval follows the finger, and the icon
     under it turns pink with a selection tick. Let go and it settles on the
     nearest tab (or where a flick was heading) and opens it.
-- **The stub tears off** on Apply (owner, 2026-10-18; Paper "The stub
-  tears off, frame by frame"; `motion.stub`). Later on Oct 18 the owner
-  found the hand-off from tear to fall choppy: the path is now one
-  function of time (`ui/stub-motion.ts`) whose fall carries on at the
-  tear's own speed and spin, with a rip of haptic ticks along the tear.
-  Four ways are being compared in the kit (Peel, Snap, Flutter, Swing;
-  ticks, light or rigid rip); the numbers below are Peel's until the pick:
-  - It tears from its left end round a hinge at its top right (-4° in
-    140ms, ease-in) with a light tap, then falls under gravity, tipping to
-    -7° and shrinking to 96%, until it's behind the job page's pinned bar.
-    The fall's time is the distance's (5200pt/s², 240–560ms), so a ticket
-    high on the page falls a little longer.
+- **The stub tears off** on Apply: Peel, with a light rip (owner,
+  2026-10-18, picked from four ways tried on the phone; Paper "The stub
+  tears off, frame by frame"; `motion.stub`, path in `ui/stub-motion.ts`).
+  One continuous path, so nothing stalls where the tear hands over to the
+  fall (the first cut did, and felt choppy):
+  - It tears from its left end round a hinge at its top right, -4° in
+    160ms, speeding up as the holes give, with a rip of nine light taps
+    closing up along them.
+  - Then it falls behind the job page's pinned bar under gravity
+    (5200pt/s²), carrying on at the speed and spin it tore with (the spin
+    dies away over 100ms) and shrinking to 96% over 350ms. Its time is the
+    distance's, so a ticket high on the page falls a little longer.
   - The Apply button catches it: the bar dips to 97% (90ms) and back
     (200ms) on the strong ease-out, reads Applied, and the success haptic
     plays. A ticket scrolled out of view skips the fall.
   - It waits until the in-app browser and "Did you apply?" have gone.
-    Undo is the same path back on the strong ease-out (420ms), with a tap
-    as it meets the ticket; either way can turn around halfway.
+    Undo runs the same path back at 80% of the time, with a tap as it
+    meets the ticket; either way can turn around halfway.
   - Reduce Motion: the stub fades and the button changes.
 - **A stamp lands** (`motion.stamp`): a new step's stamp on your stub
   comes down at its own angle, from 112% and clear, in 160ms ease-in (a
@@ -435,8 +435,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
 - **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
   torn-off stub on an application's page. Its top is the tear's other half;
   each step is a rubber stamp (Founders Grotesk Mono caps: the step in
-  Medium 13/16, the date in Regular 11/14, both 0.06em; 1.5 border, radius
-  6, each at its own angle), the newest in `ink` and older ones `ink-3`;
+  Medium 13/16, the date in Regular 11/14, both 0.06em; a 1.5 frame,
+  radius 6, drawn as a line (`StampFrame`) so it stays smooth at its own
+  angle), the newest in `ink` and older ones `ink-3`;
   email steps add "· EMAIL" and the foot offers "Not right?". The Mono is
   the trial cut for now; the owner buys it with the other Klim licences
   before release (2026-10-14).
@@ -717,6 +718,16 @@ cut so that each remaining one has a job.
     the stamp before it fades to `ink-3` (owner).
   - The punch card's hole comes back to size without springing past it,
     as nothing overshoots (owner).
+  - Later the same day: the owner found the tear's hand-off from tear to
+    fall choppy and wanted a ripping haptic. It became one continuous
+    path; of four ways (Peel, Snap, Flutter, Swing) and three rips (ticks,
+    light, rigid) tried on the phone, the owner picked Peel with light.
+  - A new stamp lands once its sheet has gone, after the date it asks for,
+    not behind the sheet (owner).
+  - Stamps' frames are drawn, not bordered (owner, Paper "Stamp ink", A
+    of five): a turned view's own border is stair-stepped on iOS. The
+    owner preferred the smooth line to inked specks or a hand-cut wobble,
+    as the cleanest and least busy. The error slips' stamps use it too.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
