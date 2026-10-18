@@ -8,7 +8,7 @@ import {
 import { ScrollView, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { SectionHeader, Text } from "../../ui";
+import { SectionHeader, Text, useTabBarSpace } from "../../ui";
 
 type SFSymbol = NonNullable<ImageProps["systemName"]>;
 
@@ -79,7 +79,8 @@ const SIZE = 22;
 export function IconSets() {
   const { theme } = useUnistyles();
   const ink = theme.ui.color.ink;
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+  const tabSpace = useTabBarSpace();
+  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { paddingBottom: tabSpace }]}>
     <View style={styles.headerRow}>
       <View style={styles.labelCell} />
       {columns.map((column) => <View key={column} style={styles.cell}><Text role="footnote" tone="ink-3" align="center">{column}</Text></View>)}

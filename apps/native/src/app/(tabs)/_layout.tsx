@@ -10,7 +10,7 @@ import { rememberSearch } from "../../features/redesign/recent-searches";
 import { setSearchText, useSearchText } from "../../features/redesign/search-text";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
-import { TabBar, useTabBarSpace, useTabBarSteppedAside } from "../../ui";
+import { TabBar } from "../../ui";
 
 /** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
  * Search and You, each with its own stack. The redesign draws its own
@@ -20,14 +20,10 @@ export default function TabsLayout() {
 }
 
 /** Our tab bar (Paper "Tab bar · Oct 12", option C). It floats over the
- * content: redesigned screens (Jobs, Tracker, Search) leave room under their
- * lists; the You stack, which still has some of today's screens, gets the room as padding. */
+ * content on every tab, You included (owner, 2026-10-18: a band under it
+ * read as a dark box); each screen leaves room under its list. */
 function PillTabs() {
-  const { theme } = useUnistyles();
-  const space = useTabBarSpace();
   const needsYou = useTodayNeedsYou();
-  // A page with its own pinned bar takes the tab bar's room back.
-  const aside = useTabBarSteppedAside();
   // The app opens on Today, the first tab; "/" is still Jobs for links. A
   // new install stays on Jobs, where onboarding ends.
   const pathname = usePathname();
@@ -35,8 +31,6 @@ function PillTabs() {
     if (pathname === "/" && !onboardingDue()) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
-  // The room under the pill is the page's white, so it reads as page.
-  const padded = { sceneStyle: { paddingBottom: aside ? 0 : space, backgroundColor: theme.ui.color.bg } };
   // The Search tab's field sits in the bar, as iOS 26 draws it.
   const searchText = useSearchText();
   const search = { value: searchText, onChangeText: setSearchText, onSubmit: () => rememberSearch(searchText), placeholder: "Jobs and companies" };
@@ -46,7 +40,7 @@ function PillTabs() {
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />
     <Tabs.Screen name="(search)" />
-    <Tabs.Screen name="(you)" options={padded} />
+    <Tabs.Screen name="(you)" />
   </Tabs>
   <WhatsNewOnLaunch />
   <OnboardingOnLaunch />

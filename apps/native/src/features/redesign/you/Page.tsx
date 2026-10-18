@@ -4,7 +4,7 @@ import { ScrollView, View } from "react-native";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Icon, IconButton, Text, useTabBarScroll, useTabBarStepsAside, useToastLift } from "../../../ui";
+import { Icon, IconButton, Text, useTabBarScroll, useTabBarSpace, useTabBarStepsAside, useToastLift } from "../../../ui";
 
 /** The pinned bar's own height: a 50 button with 12 above it. */
 const BAR = 62;
@@ -24,6 +24,8 @@ export function YouPage({ title, children, scroll = true, bar, action }: {
 }) {
   const insets = useSafeAreaInsets();
   const tabBarScroll = useTabBarScroll();
+  // Without a pinned bar of its own, the tab bar floats over the page's end.
+  const tabSpace = useTabBarSpace();
   const focused = useIsFocused();
   useTabBarStepsAside(Boolean(bar) && focused);
   const barBottom = Math.max(insets.bottom, 16);
@@ -46,7 +48,7 @@ export function YouPage({ title, children, scroll = true, bar, action }: {
   const page = <ScrollView {...(bar ? {} : tabBarScroll)} style={styles.fill} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
     onLayout={(event) => { const frame = event.nativeEvent.layout.height - (bar ? barBottom + BAR : 0); setBox((current) => ({ ...current, frame })); }}
     onContentSizeChange={(_width, content) => setBox((current) => ({ ...current, content }))}
-    contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: bar ? barBottom + BAR + 24 : insets.bottom + 32 }]}>
+    contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: bar ? barBottom + BAR + 24 : tabSpace + 24 }]}>
     {top}
     {children}
   </ScrollView>;

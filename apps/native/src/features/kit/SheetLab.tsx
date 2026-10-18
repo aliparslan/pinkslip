@@ -4,7 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
-import { Button, Choice, ChoiceLink, Choices, ListGroup, ListItem, SheetBack, Text } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ListGroup, ListItem, SheetBack, Text, useTabBarSpace } from "../../ui";
 import { motion, timing } from "../../ui/motion";
 
 /**
@@ -49,7 +49,8 @@ const FADE_SCALE = 0.96;
 
 export function SheetLab() {
   const [open, setOpen] = useState<Variant | null>(null);
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+  const tabSpace = useTabBarSpace();
+  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { paddingBottom: tabSpace }]}>
     <ListGroup footer="Each opens a copy of Your search with made-up choices. Try Career stage, Roles (long) and Visa (short).">
       {VARIANTS.map((variant) => <ListItem key={variant.id} title={variant.title} detail={variant.detail} accessory="chevron"
         onPress={() => setOpen(variant.id)} />)}

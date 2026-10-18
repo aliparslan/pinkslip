@@ -4,16 +4,18 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 /** A scrolling screen body under the native navigation bar: insets follow
  * the (large-title) header and the tab bar, with the screen gutter. */
-export function Screen({ children, refreshing, onRefresh, padded = true }: {
+export function Screen({ children, refreshing, onRefresh, padded = true, bottom }: {
   children: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
   padded?: boolean;
+  /** Room at the end for the redesign's floating tab bar. */
+  bottom?: number;
 }) {
   const { theme } = useUnistyles();
   return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="interactive" style={styles.scroll}
     refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors["ink-3"]} /> : undefined}>
-    <View style={[styles.body, padded && styles.padded]}>{children}</View>
+    <View style={[styles.body, padded && styles.padded, bottom !== undefined && { paddingBottom: bottom }]}>{children}</View>
   </ScrollView>;
 }
 

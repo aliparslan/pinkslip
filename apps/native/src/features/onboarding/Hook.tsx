@@ -291,8 +291,8 @@ function Sticky() {
       </Defs>
       <Rect x="0" y="0" width="1" height="1" fill="url(#sticky)" />
     </Svg>
-    <RNText allowFontScaling={false} style={styles.stickyText}>follow up with the recruiter??</RNText>
-    <Small size={13} tone={MESS.stickyInk2}>which one</Small>
+    <RNText allowFontScaling={false} style={styles.stickyText}>follow up with recruiter</RNText>
+    <Small size={13} tone={MESS.stickyInk2}>which one??</Small>
     <View style={styles.tape} />
   </View>;
 }

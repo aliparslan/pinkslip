@@ -7,15 +7,17 @@ import {
   MultiToggleGroup, Screen, SegmentedControl, Separator, Skeleton, Spinner, Stack, Surface, Switch, Text, Textarea, toast,
   ToggleGroup,
 } from "../../kit";
+import { useTabBarSpace } from "../../ui";
 
 /** Dev-only: every native kit component in its states (the web's /_kit). */
 export function KitGallery() {
   const [on, setOn] = useState(true);
+  const tabSpace = useTabBarSpace();
   const [checked, setChecked] = useState(false);
   const [segment, setSegment] = useState<"saved" | "applied">("saved");
   const [stage, setStage] = useState<"intern" | "new_grad" | undefined>("new_grad");
   const [modes, setModes] = useState<("remote" | "hybrid" | "onsite")[]>(["remote"]);
-  return <Screen>
+  return <Screen bottom={tabSpace}>
     <Section title="Type">
       <Heading variant="display-lg">Display large</Heading>
       <Heading variant="display-md">Display medium</Heading>

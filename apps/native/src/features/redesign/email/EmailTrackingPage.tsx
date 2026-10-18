@@ -7,7 +7,7 @@ import { Alert, Pressable, ScrollView, Text as RNText, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { toast } from "../../../kit";
-import { Button, Icon, IconButton, ListGroup, ListItem, Text, faces, useCopy, useTabBarScroll } from "../../../ui";
+import { Button, Icon, IconButton, ListGroup, ListItem, Text, faces, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
 import { jobEmailsThisMonth, shortAddress, sinceLastEmail, trackingState, type TrackingState } from "./email-facts";
 import { useEmailTrackingPrefs, type EmailTrackingPrefs } from "./email-prefs";
 import { EmailSetupSheet, useEmailSetupActions, type EmailSetupActions, type SetupStart } from "./SetupSheet";
@@ -32,6 +32,7 @@ export interface EmailTrackingViewProps {
 export function EmailTrackingView({ inbox, emails, prefs, actions }: EmailTrackingViewProps) {
   const insets = useSafeAreaInsets();
   const tabBarScroll = useTabBarScroll();
+  const tabSpace = useTabBarSpace();
   const state = trackingState(inbox, prefs.started);
   const [setup, setSetup] = useState<SetupStart | null>(null);
   const replace = () => Alert.alert("Replace your address?", "The old one stops working right away. You'll forward to the new one.", [
@@ -45,7 +46,7 @@ export function EmailTrackingView({ inbox, emails, prefs, actions }: EmailTracki
   ]);
   return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 32 }]}>
+    <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: tabSpace + 24 }]}>
       <View style={styles.nav}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
       <View style={styles.body}>
         <Text role="title1" accessibilityRole="header">Email tracking</Text>

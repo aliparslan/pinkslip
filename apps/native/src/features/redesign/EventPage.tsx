@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, DateTile, IconButton, JobRow, Text, Ticket, toast, useTabBarStepsAside } from "../../ui";
+import { Button, DateTile, IconButton, JobRow, Text, Ticket, toast, useTabBarSpace, useTabBarStepsAside } from "../../ui";
 import { JobIdentity } from "./JobIdentity";
 
 /**
@@ -98,9 +98,10 @@ export function EventPageView({ event }: { event: CompanyEvent }) {
 /** The kit's event list and page. */
 export function SampleEventsPage() {
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const [open, setOpen] = useState<CompanyEvent | null>(null);
   if (open) return <EventPageView event={open} />;
-  return <ScrollView contentContainerStyle={{ paddingTop: insets.top }}>
+  return <ScrollView contentContainerStyle={{ paddingTop: insets.top, paddingBottom: tabSpace }}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.listTop}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
     <View style={styles.listTitle}><Text role="title1">Stripe's events</Text></View>
