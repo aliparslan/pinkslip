@@ -12,6 +12,7 @@ import {
 } from "../../../ui";
 import { plainText } from "../job-facts";
 import { groupOf, stageGroupLabels } from "../tracker-facts";
+import { logoUri } from "../../jobs/CompanyLogo";
 import { emailAge, emailCompany, emailHeadline, emailSubject } from "./email-facts";
 
 export interface JobEmailsActions {
@@ -86,7 +87,7 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
 function EmailRow({ email, onPress }: { email: InboundEmail; onPress: () => void }) {
   const tappable = email.status === "needs_choice" || Boolean(email.application_id);
   return <JobRow headline="news" company={emailCompany(email)} title={emailHeadline(email)} facts={emailSubject(email)}
-    age={emailAge(email)} needsYou={email.status === "needs_choice"} logo={{ name: emailCompany(email) }}
+    age={emailAge(email)} needsYou={email.status === "needs_choice"} logo={{ name: emailCompany(email), uri: logoUri(email.company_domain) }}
     onPress={tappable ? onPress : undefined} />;
 }
 
