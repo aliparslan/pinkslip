@@ -53,14 +53,15 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   `bun run update --message "What changed"` in `apps/native`.
 - Installed apps download the update on launch and switch to it on the next
   launch.
-- An update only reaches builds with the same native fingerprint
-  (`runtimeVersion` policy `fingerprint`).
-  - Native changes alter the fingerprint: a new native module, native config
-    in `app.json`, edits in `ios/`, an SDK upgrade.
-  - Those need a pushed build, and updates published afterwards reach only
-    that build.
-  - `bun run fingerprint` prints the current value. Each build embeds its own
-    in `EXUpdates.bundle/fingerprint`.
+- An update only reaches builds of the same app version (`runtimeVersion`
+  policy `appVersion`; `Supporting/Expo.plist` carries the same number).
+  - Until 1.3.5 it was the native fingerprint, but the fingerprint differed
+    between this Mac and Xcode Cloud (the `Podfile.lock` that `pod install`
+    writes is machine-specific), so TestFlight builds never matched the
+    updates published from here (found 2026-10-18).
+  - Native changes need a new version and a pushed build: a new native
+    module, native config in `app.json`, edits in `ios/`, an SDK upgrade.
+    Never publish native changes as an update to an older version.
 - To undo an update, republish the previous one from the EAS dashboard or
   with `eas update:republish`.
 - **The owner's phone** runs builds made with `EXPO_PUBLIC_REDESIGN=1`,
@@ -68,12 +69,16 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   (`src/platform/updates-channel.ts`). Publish the redesign kit to it with
   `bun run update:owner --message "What changed"`; it never reaches
   TestFlight, which stays on `production`. The switch needs one phone build
-  that has it (2026-10-14), and updates only reach builds with the same
-  fingerprint, as above.
+  that has it (2026-10-14), and updates only reach builds of the same
+  version, as above.
 
-The release version is **1.3.5**. Bump the patch (1.3.2, 1.3.3, …) with
+The release version is **1.3.6**. Bump the patch (1.3.2, 1.3.3, …) with
 every push that changes the app, in `app.json`, both `MARKETING_VERSION`
-entries and `Info.plist` (owner, 2026-10-14). Apple requires a separate build
+entries, `Info.plist` and `EXUpdatesRuntimeVersion` in
+`Supporting/Expo.plist` (owner, 2026-10-14; `tests/native-release.test.ts`
+checks they agree, in Xcode Cloud too). External testers get a build only
+once it's added to their group in App Store Connect (see
+[external testing](../../docs/testflight-external-testing.md)). Apple requires a separate build
 number; Xcode Cloud supplies it, and TestFlight displays it in parentheses. The app
 does not display that number. See [the recovery notes](../../docs/native-1.3-recovery.md)
 for the launch diagnosis and local verification flows.

@@ -263,6 +263,9 @@ function appleAppSiteAssociation(env: Env) {
       apps: [],
       details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*", "/jobs/*"] }] : [],
     },
+    // The iPhone app's passwords: iOS offers, saves and fills them for
+    // pinkslip.work (app 1.3.6's webcredentials entitlement).
+    webcredentials: { apps: teamId ? [`${teamId}.${appId}`] : [] },
   };
 }
 

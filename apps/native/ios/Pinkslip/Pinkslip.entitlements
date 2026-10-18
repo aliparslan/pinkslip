@@ -12,6 +12,7 @@
     <array>
       <string>applinks:pinkslip.work</string>
       <string>applinks:pinkslip.alip.dev</string>
+      <string>webcredentials:pinkslip.work</string>
     </array>
   </dict>
 </plist>

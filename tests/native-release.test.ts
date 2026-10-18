@@ -35,4 +35,13 @@ describe("committed iOS release configuration", () => {
     expect(config.ios.bundleIdentifier).toBe("dev.alip.pinkslip");
     expect(plist).toContain("<string>pinkslip</string>");
   });
+
+  it("matches updates on the app version, the same on every machine", () => {
+    // A fingerprint runtime differed between this Mac and Xcode Cloud (the
+    // Podfile.lock pod install writes is machine-specific), so TestFlight
+    // builds never matched an update (2026-10-18). The version is exact.
+    const expo = readFileSync(new URL("ios/Pinkslip/Supporting/Expo.plist", native), "utf8");
+    expect(config.runtimeVersion).toEqual({ policy: "appVersion" });
+    expect(expo).toMatch(new RegExp(`<key>EXUpdatesRuntimeVersion</key>\\s*<string>${config.version.replaceAll(".", "\\.")}</string>`));
+  });
 });
