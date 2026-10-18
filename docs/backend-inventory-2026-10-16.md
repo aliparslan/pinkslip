@@ -268,7 +268,7 @@ Activity, the digest and each application's timeline.
 | Product events (`/interactions/events`) and metrics | **Works** |
 | Admin alerts | **Works** |
 | Charts in Admin (owner: more visuals, fewer numbers) | **Later**, after looking at chart libraries |
-| Error reporting beyond Worker logs | **Built** 2026-10-16, not deployed: the errors table and admin push (see "Built") |
+| Error reporting beyond Worker logs | **Live** 2026-10-17: the errors table and admin push (see "Built") |
 | Production schema drift (source-health found it once) | **Check** |
 | Restore points before risky migrations (D1 Time Travel) | **Works**, as a habit |
 
@@ -279,16 +279,16 @@ owner's check before the next.
 
 1. **Keeping it running** (Decisions: Admin): the errors table and admin
    push, the 15-minute checks. First, so everything after is watched.
-   **Built 2026-10-16, not deployed** (see "Built").
+   **Built 2026-10-16, live 2026-10-17** (see "Built").
 2. **Notifications foundation** (§1): kinds and per-kind settings, the
    phone's time zone, the scheduler on the every-minute tick, deep links per
    kind, the log, the daily cap for passive kinds. Fix and check what's live
    (§1 "Fix what we have"). Then N2 (once a day) and N9 (a saved job
-   closed), which need only what exists. **Built 2026-10-16, not deployed**
+   closed), which need only what exists. **Built 2026-10-16, live 2026-10-17**
    (see "Built").
 3. **The Activity stream and Today** (§2): the table, the backfill,
    `GET /today`, seen per person, the badge from the server. N3 and N4 come
-   out of it. **Built 2026-10-17, not deployed** (see "Built").
+   out of it. **Built and live 2026-10-17** (see "Built").
 4. **Application dates and gaps** (§3): N5 to N8, fixing a step's date,
    applications without a Pinkslip job ("Add an application"), pay and the
    company domain kept on the application.
@@ -561,7 +561,14 @@ list.
 
 ## Built
 
-### Step 1: keeping it running (2026-10-16, not deployed)
+**Deployed 2026-10-17 (steps 1 to 3 together):** migrations 0093 to 0095,
+Worker 6046fde9, web f320d256; D1 bookmark before:
+`00004576-0000935e-00005108-076fb7124e6a2de47ca8aceabd73dcb8`. The backfill
+wrote 431 activity rows; 277 people's alert settings carried over (34 on).
+The apps' side went to the owner's phone over the air; testers' production
+update waits for the owner.
+
+### Step 1: keeping it running (2026-10-16, live 2026-10-17)
 
 - **Errors table** (migration 0093, `worker/errors.ts`): one row per source,
   kind and route, with a count, first and last seen, the latest message and
@@ -615,7 +622,7 @@ pinkslip.work, the zone's bot protection is blocking the Worker's request
 and the check should call the API in-process instead. The app reporters
 ship with `bun run deploy:web` and an over-the-air update.
 
-### Step 2: notifications foundation (2026-10-16, not deployed)
+### Step 2: notifications foundation (2026-10-16, live 2026-10-17)
 
 - **Kinds** (`worker/notification-kinds.ts`): every kind in Decisions #1
   with its default, whether it's time-sensitive and whether it sends yet.
@@ -709,7 +716,7 @@ Checked from "Fix what we have" (production, read-only, 2026-10-16):
 Not in step 2: showing sent and opened per kind in Admin (Paper first), a
 time picker for Once a day (Paper), the badge (step 3), and N3/N4 (step 3).
 
-### Step 3: the Activity stream and Today (2026-10-17, not deployed)
+### Step 3: the Activity stream and Today (2026-10-17, live 2026-10-17)
 
 - **The stream** (migration 0095, `activity`; `worker/activity.ts`): one
   row per thing that happened: a stage move (you, an email, later
