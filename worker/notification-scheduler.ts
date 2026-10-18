@@ -9,11 +9,14 @@ import {
   type DeliveryStats,
 } from "./notifications";
 import { remindDueFollowUps } from "./outreach/reminders";
+import { queueDueReminders } from "./reminders";
 import { CLOSE_AFTER_MISSES } from "./poller";
 import type { Env } from "./types";
 
 export interface SchedulerRun {
   followUps: number;
+  /** N5 to N8 that came due. */
+  reminders: number;
   digests: number;
   delivered: DeliveryStats;
 }
@@ -24,12 +27,13 @@ export interface SchedulerRun {
  */
 export async function runNotificationScheduler(env: Env, now = new Date()): Promise<SchedulerRun> {
   const followUps = await remindDueFollowUps(env, now);
+  const reminders = await queueDueReminders(env, now);
   const digests = await dailyDigestsDue(env.DB, now);
   const digestsSent = digests.length > 0
     ? await deliverPendingNotifications(env.DB, env, 500, { digests, now })
     : 0;
   const delivered = await deliverDueNotifications(env, now);
-  return { followUps: followUps.queued, digests: digestsSent, delivered };
+  return { followUps: followUps.queued, reminders, digests: digestsSent, delivered };
 }
 
 /** How far back a closing still gets a push; older ones are old news. */

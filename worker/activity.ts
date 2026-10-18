@@ -19,6 +19,7 @@ import { DEFAULT_TIME_ZONE, localParts, validTimeZone, zonedTime } from "./local
 import {
   applicationMovedNotification,
   followUpNotification,
+  isNotificationKind,
   savedJobClosedNotification,
   STAGE_NEWS,
   whichApplicationNotification,
@@ -223,6 +224,29 @@ export async function notifyActivity(db: D1Database, activity: ActivityRow, now 
         ...followUpNotification(row),
         entityType: "outreach_message",
         entityId: detail.message_id,
+      }, now);
+    }
+    case "reminder_due": {
+      // The reminder's words and kind were worked out when it came due (reminders.ts).
+      const detail = JSON.parse(activity.detail_json) as {
+        notification_kind?: string;
+        title?: string;
+        body?: string;
+        url?: string;
+        time_sensitive?: boolean;
+        dedupe_key?: string;
+      };
+      if (!detail.notification_kind || !isNotificationKind(detail.notification_kind) || !detail.title || !detail.url) return false;
+      return scheduleNotification(db, {
+        ...base,
+        kind: detail.notification_kind,
+        dedupeKey: detail.dedupe_key ?? `reminder:${activity.id}`,
+        title: detail.title,
+        body: detail.body ?? "",
+        url: detail.url,
+        timeSensitive: detail.time_sensitive === true,
+        entityType: "application",
+        entityId: activity.application_id,
       }, now);
     }
     default:

@@ -32,12 +32,16 @@ interface ApplicationRow {
   job_location: string | null;
   job_closed_at: string | null;
   company_domain: string | null;
+  snapshot_domain: string | null;
+  snapshot_salary: string | null;
+  job_salary: string | null;
 }
 
 const APPLICATION_FIELDS = `
   a.id, a.user_id, a.job_id, a.company_name, a.title, a.url, a.stage, a.notes,
   a.applied_at, a.stage_changed_at, a.stage_date, a.created_at, a.updated_at,
-  j.location AS job_location, j.closed_at AS job_closed_at, c.website AS company_domain
+  j.location AS job_location, j.closed_at AS job_closed_at, c.website AS company_domain,
+  a.company_domain AS snapshot_domain, a.salary AS snapshot_salary, j.salary AS job_salary
 `;
 
 const APPLICATION_JOINS = `
@@ -75,6 +79,8 @@ function serialize(row: ApplicationRow): Application {
     job: row.job_id && row.job_location !== null
       ? { location: row.job_location, closed_at: row.job_closed_at, company_domain: row.company_domain ?? "" }
       : null,
+    company_domain: row.company_domain || row.snapshot_domain || null,
+    salary: row.job_salary ?? row.snapshot_salary ?? null,
   };
 }
 
@@ -157,9 +163,9 @@ async function createApplication(
   const inserted = await db.prepare(
     `INSERT OR IGNORE INTO applications (
        id, user_id, job_id, company_name, title, url, stage, notes,
-       applied_at, stage_changed_at, created_at, updated_at
+       applied_at, stage_changed_at, created_at, updated_at, company_domain, salary
      )
-     SELECT ?, ?, j.id, c.name, j.title, COALESCE(j.url, ''), ?, '', ?, ?, ?, ?
+     SELECT ?, ?, j.id, c.name, j.title, COALESCE(j.url, ''), ?, '', ?, ?, ?, ?, c.website, j.salary
      FROM jobs j
      JOIN companies c ON c.id = j.company_id
      WHERE j.id = ?`
@@ -277,6 +283,81 @@ export async function trackJob(
   return created ? getApplicationDetail(db, userId, created.id) : null;
 }
 
+/**
+ * An application for a job that isn't in Pinkslip (Decisions: Application
+ * dates and gaps #7): company, title, an optional link and a stage. A catalog
+ * company with the same name gives it a logo.
+ */
+export async function createManualApplication(
+  db: D1Database,
+  userId: string,
+  input: { company: string; title: string; url: string; stage: ApplicationStage },
+  source: ApplicationEventSource = "user"
+): Promise<ApplicationDetail> {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const company = await db.prepare(
+    `SELECT website FROM companies
+     WHERE lower(name) = lower(?) AND website IS NOT NULL AND website != ''
+     ORDER BY enabled DESC
+     LIMIT 1`
+  ).bind(input.company).first<{ website: string }>();
+  await db.prepare(
+    `INSERT INTO applications (
+       id, user_id, job_id, company_name, title, url, stage, notes,
+       applied_at, stage_changed_at, created_at, updated_at, company_domain, salary
+     ) VALUES (?, ?, NULL, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, NULL)`
+  ).bind(
+    id, userId, input.company, input.title, input.url, input.stage,
+    hasApplied(input.stage) ? now : null, now, now, now, company?.website ?? null
+  ).run();
+  await db.batch(recordEvent(db, id, input.stage, source, now));
+  return (await getApplicationDetail(db, userId, id))!;
+}
+
+export type EventDateUpdate =
+  | { detail: ApplicationDetail }
+  | { error: "not_found" | "in_future" };
+
+/**
+ * "I applied on the 2nd": moves one timeline step to when it really happened
+ * (Decisions: Application dates and gaps #6), email steps included. The
+ * stage stays; the applied date and when the current stage began follow the
+ * timeline.
+ */
+export async function setEventDate(
+  db: D1Database,
+  userId: string,
+  applicationId: string,
+  eventId: string,
+  occurredAt: string,
+  now = new Date()
+): Promise<EventDateUpdate> {
+  const application = await findApplication(db, userId, applicationId);
+  if (!application) return { error: "not_found" };
+  // A minute of leeway for clocks a little ahead.
+  if (Date.parse(occurredAt) > now.getTime() + 60_000) return { error: "in_future" };
+  const changed = await db.prepare(
+    "UPDATE application_events SET occurred_at = ? WHERE id = ? AND application_id = ?"
+  ).bind(occurredAt, eventId, applicationId).run();
+  if (!changed.meta.changes) return { error: "not_found" };
+  const events = await db.prepare(
+    "SELECT stage, occurred_at FROM application_events WHERE application_id = ?"
+  ).bind(applicationId).all<{ stage: ApplicationStage; occurred_at: string }>();
+  const timeline = (events.results ?? []).sort((a, b) => byTime(a.occurred_at, b.occurred_at));
+  const appliedAt = hasApplied(application.stage)
+    ? timeline.find((event) => hasApplied(event.stage))?.occurred_at ?? application.applied_at
+    : null;
+  const stageChangedAt = timeline.filter((event) => event.stage === application.stage).at(-1)?.occurred_at
+    ?? application.stage_changed_at;
+  await db.batch([
+    db.prepare("UPDATE activity SET occurred_at = ? WHERE event_id = ?").bind(occurredAt, eventId),
+    db.prepare("UPDATE applications SET applied_at = ?, stage_changed_at = ?, updated_at = ? WHERE id = ?")
+      .bind(appliedAt, stageChangedAt, now.toISOString(), applicationId),
+  ]);
+  return { detail: (await getApplicationDetail(db, userId, applicationId))! };
+}
+
 export type ApplicationUpdate =
   | { detail: ApplicationDetail; previousStage: ApplicationStage }
   | { error: "not_found" | "stage_takes_no_date" };
@@ -350,9 +431,11 @@ export async function legacyMarkApplied(db: D1Database, userId: string, jobId: s
     `UPDATE applications
      SET company_name = COALESCE((SELECT c.name FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?), company_name),
          title = COALESCE((SELECT title FROM jobs WHERE id = ?), title),
-         url = COALESCE((SELECT url FROM jobs WHERE id = ?), url)
+         url = COALESCE((SELECT url FROM jobs WHERE id = ?), url),
+         company_domain = COALESCE((SELECT c.website FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?), company_domain),
+         salary = COALESCE((SELECT salary FROM jobs WHERE id = ?), salary)
      WHERE id = ?`
-  ).bind(jobId, jobId, jobId, existing.id).run();
+  ).bind(jobId, jobId, jobId, jobId, jobId, existing.id).run();
 }
 
 /** `applied: false` ("I didn't apply"): a correction, not a step. Back to

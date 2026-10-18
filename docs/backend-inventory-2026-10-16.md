@@ -291,7 +291,9 @@ owner's check before the next.
    out of it. **Built and live 2026-10-17** (see "Built").
 4. **Application dates and gaps** (§3): N5 to N8, fixing a step's date,
    applications without a Pinkslip job ("Add an application"), pay and the
-   company domain kept on the application.
+   company domain kept on the application. **Built 2026-10-18, not
+   deployed** (see "Built"); the screens for adding one and fixing a date
+   wait for Paper.
 5. **Email tracking proven** (§4): the owner's Cloudflare check and test
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
@@ -379,6 +381,9 @@ Made by the owner with Claude on 2026-10-16, part by part.
    on day one.
 
 ### Application dates and gaps (owner, 2026-10-16)
+
+**Built 2026-10-18** (step 4; see "Built"). #6 and #7 have their endpoints;
+their screens wait for Paper.
 
 1. **Interview:** the evening before at 6 pm ("Interview with Stripe
    tomorrow at 11:00") and an hour before when the time is known
@@ -779,3 +784,55 @@ Liberties for the owner to keep or veto:
 
 Not in step 3: the "new" mark on Today (Paper), an application page on the
 web, reminders from dates (step 4).
+
+### Step 4: application dates and gaps (2026-10-18, not deployed)
+
+- **Reminders from dates** (`worker/reminders.ts`, on the every-minute
+  tick), in the person's time zone, all opening the application:
+  - N5 interview: "Interview with Stripe tomorrow at 11:00 AM" the evening
+    before at 6 pm, then "Interview with Stripe in an hour, at 11:00 AM"
+    (time-sensitive); with only a day, "…tomorrow" at 6 pm and "Interview
+    with Stripe today" at 8 am.
+  - N6 assessment: "Stripe assessment due tomorrow" at 9 am the day
+    before, "…due today" at 8 am (skipped if it's due before then).
+  - N7 offer: "Reply to Stripe's offer by Friday" 3 days before at 9 am,
+    "…by tomorrow" at 8 am the day before (time-sensitive).
+  - N8 no word: "No word from Stripe yet" at 8 am the morning after the
+    hear-back date; without a date, at 9 am 3 weeks and 6 weeks after
+    applying, then never.
+
+  Nothing is stored ahead: each minute works out what's due from the
+  application as it is, so a new date or stage changes the reminders with
+  nothing to cancel. A due reminder goes into the Activity stream
+  (`reminder_due`) and its push starts there; a late tick catches up while
+  the reminder still makes sense (never after the interview starts).
+- **Fixing a step's date:** `PATCH /api/v2/applications/:id/events/:eventId`
+  with a day (midday where the person is) or an instant, email steps
+  included; never in the future. The applied date and when the stage began
+  follow the timeline; the stage doesn't change.
+- **Applications without a Pinkslip job:** `POST /api/v2/applications` with
+  `company`, `title`, an optional `url` and `stage`. A catalog company with
+  the same name gives it a logo.
+- **Pay and the company's domain** (migration 0096) are kept on every
+  application, backfilled for existing ones, and returned as
+  `company_domain` and `salary`. The app's logos use the kept domain when
+  the job is gone.
+
+Liberties for the owner to keep or veto:
+
+1. Interview and offer reminders sit outside the cap; only the one closest
+   to the moment (the hour before, the morning before the reply-by) breaks
+   through Focus. The evening-before and 3-days-before ones are ordinary.
+2. Assessment reminders skip the 4-hour spacing (they have a moment, like
+   follow-ups) and count toward the three. No-word nudges are ordinary.
+3. Copy is the decisions' wording with the company in the title and the
+   role as the body; times read "11:00 AM".
+4. A step dated by day lands at midday in the person's time zone (now, if
+   it's today and still morning).
+5. A hand-added application matches a catalog company only by exact name
+   (any case).
+
+Not in step 4: the "Add an application" form and the date picker on the
+application page (Paper first); Still waiting / Ghosted buttons on the
+no-word push (they need the native build's notification categories); pay
+on Tracker rows (no design yet).

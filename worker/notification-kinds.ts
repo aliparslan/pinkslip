@@ -35,11 +35,13 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   // An interview or offer move is sent time-sensitive on its own.
   application_moved: { n: "N3", live: true, defaultOn: true, timeSensitive: false },
   which_application: { n: "N4", live: true, defaultOn: true, timeSensitive: false },
-  // Step 4.
-  interview_reminder: { n: "N5", live: false, defaultOn: true, timeSensitive: true },
-  assessment_due: { n: "N6", live: false, defaultOn: true, timeSensitive: false },
-  offer_reply: { n: "N7", live: false, defaultOn: true, timeSensitive: true },
-  no_word: { n: "N8", live: false, defaultOn: true, timeSensitive: false },
+  // From the application's date (worker/reminders.ts). Interview and offer
+  // reminders sit outside the cap (UNCAPPED_KINDS); only the one closest to
+  // the moment breaks through Focus.
+  interview_reminder: { n: "N5", live: true, defaultOn: true, timeSensitive: false },
+  assessment_due: { n: "N6", live: true, defaultOn: true, timeSensitive: false },
+  offer_reply: { n: "N7", live: true, defaultOn: true, timeSensitive: false },
+  no_word: { n: "N8", live: true, defaultOn: true, timeSensitive: false },
   // Step 5.
   replied: { n: "N11", live: false, defaultOn: true, timeSensitive: true },
   // Exists but off by default (Decisions: Notifications #1).
@@ -67,13 +69,13 @@ export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
  * once a day), so they neither wait for the cap nor count toward it; the cap
  * keeps everything else from piling on (owner, 2026-10-17).
  */
-export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs"];
+export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply"];
 
 /**
  * Passive kinds with a moment attached go out when they come due, without
  * the 4-hour spacing, and still count toward the three (owner, 2026-10-18).
  */
-export const UNSPACED_KINDS: readonly NotificationKind[] = ["follow_up"];
+export const UNSPACED_KINDS: readonly NotificationKind[] = ["follow_up", "assessment_due"];
 
 /** New jobs once a day, until the person picks a time. */
 export const DEFAULT_DAILY_TIME = "08:00";

@@ -489,7 +489,8 @@ export async function deliverDueNotifications(
         stats.skipped += group.length;
         continue;
       }
-      if (group[0]!.passive === 1) {
+      // Uncapped kinds (new jobs, interview and offer reminders) never wait.
+      if (group[0]!.passive === 1 && !UNCAPPED_KINDS.includes(kind)) {
         const freesAt = await passiveCapFreesAt(db, userId, now, { spaced: !UNSPACED_KINDS.includes(kind) });
         if (freesAt) {
           await reschedule(group, freesAt, "Waiting for the daily cap", false);

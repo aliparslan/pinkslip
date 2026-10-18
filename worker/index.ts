@@ -484,9 +484,9 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: Execution
       alertNewErrors(env),
     ]);
     if (reminders.status === "fulfilled") {
-      const { followUps, digests, delivered } = reminders.value;
-      if (followUps + digests + delivered.sent + delivered.held + delivered.failed > 0) {
-        console.log(`Notifications: ${followUps} follow-ups queued, ${digests} daily alerts, ${delivered.sent} sent, ${delivered.held} held for the daily cap, ${delivered.skipped} skipped, ${delivered.failed} failed`);
+      const { followUps, reminders: dateReminders, digests, delivered } = reminders.value;
+      if (followUps + dateReminders + digests + delivered.sent + delivered.held + delivered.failed > 0) {
+        console.log(`Notifications: ${followUps} follow-ups and ${dateReminders} date reminders queued, ${digests} daily alerts, ${delivered.sent} sent, ${delivered.held} held for the daily cap, ${delivered.skipped} skipped, ${delivered.failed} failed`);
       }
     }
     if (dispatch.status === "fulfilled") {

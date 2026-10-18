@@ -2,16 +2,20 @@ import { Hono, type Context } from "hono";
 import {
   APPLICATION_NOTES_MAX_LENGTH,
   isApplicationStage,
+  MANUAL_APPLICATION_LIMITS,
   normalizeStageDate,
   type ApplicationStage,
 } from "../../shared/application-stages";
 import {
+  createManualApplication,
   deleteApplication,
   getApplicationDetail,
   listApplications,
+  setEventDate,
   trackJob,
   updateApplication,
 } from "../applications";
+import { DEFAULT_TIME_ZONE, localDate, validTimeZone, zonedTime } from "../local-time";
 import { resolveJobId } from "../job-identity";
 import { recordProductEvent } from "../product-events";
 import type { Env, Variables } from "../types";
@@ -29,14 +33,34 @@ applications.get("/", async (c) => {
   return c.json({ applications: await listApplications(c.env.DB, c.get("userId"), stage) });
 });
 
-/** Tracks a job at a stage, creating its application if needed. */
+/** Tracks a job at a stage, creating its application if needed. Without a
+ * `job_id`, `company` and `title` (and an optional `url`) add an application
+ * for a job that isn't in Pinkslip. */
 applications.post("/", async (c) => {
-  const body = await c.req.json<{ job_id?: unknown; stage?: unknown }>().catch(() => ({}) as { job_id?: unknown; stage?: unknown });
+  type Body = { job_id?: unknown; stage?: unknown; company?: unknown; title?: unknown; url?: unknown };
+  const body = await c.req.json<Body>().catch(() => ({}) as Body);
+  if (!isApplicationStage(body.stage)) return c.json({ error: "Unknown stage" }, 400);
+  const userId = c.get("userId");
+  if (body.job_id === undefined && (body.company !== undefined || body.title !== undefined)) {
+    const company = typeof body.company === "string" ? body.company.trim() : "";
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const url = typeof body.url === "string" ? body.url.trim() : "";
+    if (!company || company.length > MANUAL_APPLICATION_LIMITS.company) {
+      return c.json({ error: `Company is required, at most ${MANUAL_APPLICATION_LIMITS.company} characters` }, 400);
+    }
+    if (!title || title.length > MANUAL_APPLICATION_LIMITS.title) {
+      return c.json({ error: `Title is required, at most ${MANUAL_APPLICATION_LIMITS.title} characters` }, 400);
+    }
+    if (url && (url.length > MANUAL_APPLICATION_LIMITS.url || !/^https?:\/\/[^\s]+$/i.test(url))) {
+      return c.json({ error: "The link must start with http:// or https://" }, 400);
+    }
+    const detail = await createManualApplication(c.env.DB, userId, { company, title, url, stage: body.stage });
+    await recordStageChange(c, detail.id, detail.stage);
+    return c.json(detail, 201);
+  }
   if (typeof body.job_id !== "string" || body.job_id === "") {
     return c.json({ error: "job_id is required" }, 400);
   }
-  if (!isApplicationStage(body.stage)) return c.json({ error: "Unknown stage" }, 400);
-  const userId = c.get("userId");
   const jobId = await resolveJobId(c.env.DB, body.job_id);
   const detail = await trackJob(c.env.DB, userId, jobId, body.stage);
   if (!detail) return c.json({ error: "Not found" }, 404);
@@ -81,6 +105,33 @@ applications.patch("/:id", async (c) => {
   }
   if (result.detail.stage !== result.previousStage) {
     await recordStageChange(c, result.detail.id, result.detail.stage);
+  }
+  return c.json(result.detail);
+});
+
+/**
+ * Moves one timeline step to when it happened: `occurred_at` is a day
+ * ("2026-10-02", taken as midday where the person is) or an instant.
+ */
+applications.patch("/:id/events/:eventId", async (c) => {
+  const body = await c.req.json<{ occurred_at?: unknown }>().catch(() => ({}) as { occurred_at?: unknown });
+  const value = typeof body.occurred_at === "string" ? normalizeStageDate(body.occurred_at) : null;
+  if (!value) return c.json({ error: "occurred_at must be a day (YYYY-MM-DD) or a date and time" }, 400);
+  let occurredAt = value;
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (day) {
+    const user = await c.env.DB.prepare("SELECT time_zone FROM users WHERE id = ?")
+      .bind(c.get("userId")).first<{ time_zone: string | null }>();
+    const zone = validTimeZone(user?.time_zone, DEFAULT_TIME_ZONE);
+    occurredAt = zonedTime(Number(day[1]), Number(day[2]), Number(day[3]), 12, zone).toISOString();
+    // Today, before midday: now.
+    if (localDate(new Date(), zone) === value && Date.parse(occurredAt) > Date.now()) occurredAt = new Date().toISOString();
+  }
+  const result = await setEventDate(c.env.DB, c.get("userId"), c.req.param("id"), c.req.param("eventId"), occurredAt);
+  if ("error" in result) {
+    return result.error === "not_found"
+      ? c.json({ error: "Not found" }, 404)
+      : c.json({ error: "A step can't be dated in the future" }, 400);
   }
   return c.json(result.detail);
 });

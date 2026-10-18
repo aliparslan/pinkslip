@@ -86,6 +86,10 @@ describe("notification settings", () => {
         follow_up: { enabled: true },
         application_moved: { enabled: true },
         which_application: { enabled: true },
+        interview_reminder: { enabled: true },
+        assessment_due: { enabled: true },
+        offer_reply: { enabled: true },
+        no_word: { enabled: true },
       },
       passive_per_day: 3,
     });

@@ -89,7 +89,8 @@ export interface ApplicationEvent {
 
 export interface Application {
   id: string;
-  /** Null only when the job was removed from the catalog after tracking. */
+  /** Null when the job left the catalog after tracking, or for an
+   * application added by hand (company, title and an optional link). */
   job_id: string | null;
   company_name: string;
   title: string;
@@ -110,7 +111,15 @@ export interface Application {
     closed_at: string | null;
     company_domain: string;
   } | null;
+  /** The company's site, kept on the application so its logo outlives the
+   * job (and found in the catalog for one added by hand). */
+  company_domain?: string | null;
+  /** The job's pay as it was listed, kept on the application. */
+  salary?: string | null;
 }
+
+/** Limits for an application added by hand. */
+export const MANUAL_APPLICATION_LIMITS = { company: 120, title: 200, url: 2000 } as const;
 
 export interface ApplicationDetail extends Application {
   /** Oldest first. */
