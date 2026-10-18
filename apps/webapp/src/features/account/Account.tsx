@@ -1,12 +1,13 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { AppleLogo, EnvelopeSimple } from "@phosphor-icons/react";
+import { EnvelopeSimple } from "@phosphor-icons/react";
 import { useDeleteAccount, useSession, useSignOut, useStartEmailLogin, useUpdateName } from "@pinkslip/data";
 import { Alert, AlertDialog, Badge, Button, Field, Heading, Input, SaveStatus, Stack, Surface, Text, toast } from "../../kit";
 import { useAutosave } from "../settings/useAutosave";
 import { clearResumeFile } from "../resume/resume-file";
 import settings from "../settings/Settings.module.css";
 import styles from "./Account.module.css";
+import { AppleMark } from "./AppleMark";
 
 const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const providerLabel = { apple: "Apple", email: "email", google: "Google" } as const;
@@ -135,7 +136,7 @@ function EmailSignIn({ onRestart, appleEnabled }: { onRestart?: () => void; appl
       <Text size="sm" tone="ink-3">Sign in to keep your jobs and preferences on every device.</Text>
     </Stack>
     {appleEnabled && <form method="post" action="/api/v2/auth/apple/web/start">
-      <Button type="submit" variant="secondary" icon={AppleLogo} fullWidth>Sign in with Apple</Button>
+      <Button type="submit" variant="secondary" icon={AppleMark} fullWidth>Sign in with Apple</Button>
     </form>}
     <form className={styles.emailForm} noValidate onSubmit={(event) => {
       event.preventDefault();

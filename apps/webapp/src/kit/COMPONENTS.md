@@ -9,7 +9,8 @@ visual references only; component APIs follow Pinkslip's needs.
 ## Quarantine
 
 - **Website Apple sign-in composition (integration closeout)** — Account uses
-  the existing full-width secondary Button and AppleLogo in a normal HTML
+  the existing full-width secondary Button and Apple's own logo
+  (`features/account/AppleMark.tsx`, from Apple's logo kit) in a normal HTML
   form. Hono owns the redirect and callback; no router/API dependencies enter
   the kit. The button appears only when server configuration is complete.
   Product review is at `/you/account`; fixture coverage is in `e2e/you.pw.ts`.
