@@ -5,6 +5,11 @@ the website button stays hidden until the Services ID and server credentials
 are configured. The native app's identifier is `dev.alip.pinkslip`. An Apple
 private-relay email is an account address, not an app or Services ID.
 
+Status (2026-10-18): the Services ID and a Sign in with Apple key exist; the
+key's ID, `K352A5SSTJ`, is in `wrangler.toml`, and both secrets are set. Once
+the Key ID is deployed, every iPhone Apple sign-in exchanges its code with this
+key, so test an iPhone Apple sign-in right after deploying it.
+
 ## Apple Developer portal (owner)
 
 1. Open Certificates, Identifiers & Profiles → Identifiers → + → Services ID.
@@ -16,8 +21,9 @@ private-relay email is an account address, not an app or Services ID.
    same Apple account can resolve to the existing Pinkslip identity.
 3. Add domain `pinkslip.work` and this exact return URL:
    `https://pinkslip.work/api/v2/auth/apple/web/callback`.
-   To support the old hostname directly too, add `pinkslip.alip.dev` and
-   `https://pinkslip.alip.dev/api/v2/auth/apple/web/callback`.
+   Only pinkslip.work is registered (2026-10-18): Apple's form rejected the
+   old hostname, and page visits to it already redirect to pinkslip.work, so
+   the server starts website Apple sign-in from pinkslip.work only.
 4. Save. Create or reuse a **Sign in with Apple** key associated with the
    primary App ID. Record its Key ID and retain the downloaded `.p8` file.
    The APNs key is a different capability and is not a substitute.

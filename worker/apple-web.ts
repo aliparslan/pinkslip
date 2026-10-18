@@ -6,7 +6,9 @@ export const APPLE_WEB_CALLBACK = "/api/v2/auth/apple/web/callback";
 export const APPLE_WEB_FLOW_COOKIE = "__Host-psapple";
 const FLOW_TTL_SECONDS = 10 * 60;
 const FLOW_PURPOSE = "pinkslip:apple-web-login:v1";
-const ORIGINS = new Set(["https://pinkslip.work", "https://pinkslip.alip.dev"]);
+// Only pinkslip.work is a return URL on the Services ID; page visits to the old
+// hostname already redirect here.
+const ORIGINS = new Set(["https://pinkslip.work"]);
 
 export interface AppleWebFlow {
   state: string;

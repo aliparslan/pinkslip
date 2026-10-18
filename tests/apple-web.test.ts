@@ -99,6 +99,8 @@ describe("website Apple sign-in", () => {
     expect((await readAppleWebFlow(current.env, cookie, state, "https://pinkslip.work")).sessionId).toBe("guest-session");
     expect((await current.start("https://evil.example")).status).toBe(403);
     await expect(startAppleWebFlow(current.env, "guest-session", "https://evil.example", null)).rejects.toThrow();
+    // The old hostname isn't a return URL on the Services ID.
+    await expect(startAppleWebFlow(current.env, "guest-session", "https://pinkslip.alip.dev", null)).rejects.toThrow();
   });
   test("missing, altered or cross-origin state cannot sign in", async () => {
     const current = setup();
