@@ -10,7 +10,7 @@ import { YouPage } from "./Page";
 export interface AccountViewProps {
   name: string;
   email: string | null;
-  provider: "apple" | "email" | null;
+  provider: "apple" | "email" | "google" | null;
   actions: {
     rename: (name: string) => Promise<void>;
     logOut: () => Promise<void>;
@@ -43,7 +43,8 @@ export function AccountView({ name, email, provider, actions }: AccountViewProps
         : "Account deleted. You can keep browsing as a guest.", { duration: 8000 }), () => toast.error("Couldn't delete your account. Try again.")),
     },
   ]);
-  const signedIn = provider === "apple" ? "Signed in with Apple" : provider === "email" ? "Signed in with an email link" : undefined;
+  const signedIn = provider === "apple" ? "Signed in with Apple" : provider === "google" ? "Signed in with Google"
+    : provider === "email" ? "Signed in with an email link" : undefined;
   return <YouPage title="Account">
     <ListGroup surface="fill">
       <ListItem title="Name" value={name || "Add"} accessory="chevron" onPress={rename} />

@@ -436,8 +436,11 @@ export interface SessionInfo {
 export interface AccountInfo {
   authenticated: boolean;
   email: string | null;
-  provider?: "apple" | "email" | null;
+  provider?: "apple" | "email" | "google" | null;
+  /** Every way the account signs in, the primary first. */
   providers: string[];
+  /** Whether the email sign-in has a password. */
+  has_password?: boolean;
   identity_count?: number;
 }
 
@@ -447,6 +450,8 @@ export interface AppFeatures {
   auto_apply_enabled?: boolean;
   auto_submit_enabled?: boolean;
   web_apple_sign_in_enabled?: boolean;
+  google_sign_in_enabled?: boolean;
+  password_sign_in_enabled?: boolean;
   tailoring_enabled: boolean;
   tailoring_provider: "workers_ai" | null;
   tailoring_model: string;
@@ -800,6 +805,32 @@ function createEndpoints(context: ClientContext) {
       request<MeResponse>("/auth/email/verify", {
         method: "POST",
         body: JSON.stringify({ token }),
+      }),
+    /** Mails a 6-digit code: sign in without a password, sign up, or reset one. */
+    startEmailCode: (email: string) =>
+      request<{ ok: boolean; expires_at: string }>("/auth/email/code/start", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+    /** Signs in with the code; with `password`, also sets the account's password. */
+    verifyEmailCode: (data: { email: string; code: string; password?: string }) =>
+      request<MeResponse & { native_token?: string }>("/auth/email/code/verify", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    signInWithPassword: (data: { email: string; password: string }) =>
+      request<MeResponse & { native_token?: string }>("/auth/password/login", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    /** The iPhone's Google sign-in: open `url` in the system's sign-in sheet,
+     * then finish with the `state` it returns to `return_url` with. */
+    startGoogleNative: () =>
+      request<{ url: string; state: string; return_url: string }>("/auth/google/native/start", { method: "POST" }),
+    finishGoogleNative: (state: string) =>
+      request<MeResponse & { native_token: string }>("/auth/google/native/finish", {
+        method: "POST",
+        body: JSON.stringify({ state }),
       }),
     logout: () =>
       request<MeResponse>("/auth/logout", { method: "POST" }),
