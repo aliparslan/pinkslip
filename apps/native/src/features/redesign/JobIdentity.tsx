@@ -15,7 +15,9 @@ export interface JobIdentityProps {
 }
 
 /** The top of a job's page and an application's: the logo, the company (a
- * link to its page) and the title. */
+ * link to its page) and the title. The logo tops with the company name, so
+ * a title on two lines grows downward instead of pulling the logo off it
+ * (owner, 2026-10-18). */
 export function JobIdentity({ companyName, companyDomain, companyId, title, closed = false }: JobIdentityProps) {
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const company = `${plainText(companyName)}${closed ? " · Closed" : ""}`;
@@ -39,7 +41,7 @@ export function JobIdentity({ companyName, companyDomain, companyId, title, clos
 }
 
 const styles = StyleSheet.create((theme) => ({
-  identity: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
+  identity: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["3"] },
   company: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"], alignSelf: "flex-start" },
   pressed: { opacity: 0.5 },
   heading: { flex: 1, gap: 2 },

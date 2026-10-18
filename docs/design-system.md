@@ -665,6 +665,15 @@ cut so that each remaining one has a job.
     and Go to Submit's caret take the sheet's 2pt line. Greenhouse's
     reCAPTCHA badge moves above the bar. Apply's sheet names the PDF kept on
     this iPhone (what gets attached), or "Add your PDF".
+- **2026-10-18**
+  - The job and application page header tops the 48 logo with the company
+    name instead of centring it on company and title together, so a title
+    on two lines grows downward and the logo stays with the name (owner).
+    Paper's headers on the Approved page follow.
+  - Paper caught up with the code: board 2's filled fields are the 7% pink
+    on the board's own gray border, its ✕, ⋯ (22), arrows and Go to
+    Submit's caret take the sheet's 2pt line, and the Search tab's folded
+    circle and field are 56.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
