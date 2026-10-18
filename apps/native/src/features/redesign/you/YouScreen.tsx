@@ -37,10 +37,11 @@ export interface YouViewProps {
 const appearanceLabels: Record<AppearancePreference, string> = { system: "Automatic", light: "Light", dark: "Dark" };
 
 /** The version and, after an over-the-air update, which update is running:
- * "Pinkslip 1.3.2 · update 01a12c". */
+ * "Pinkslip 1.3.5 · update 01a1506d". Update ids start with the time they
+ * were made, so eight characters tell apart updates sent minutes apart. */
 export function appVersionLine() {
   const version = `Pinkslip ${Constants.expoConfig?.version ?? ""}`.trim();
-  return Updates.isEnabled && !Updates.isEmbeddedLaunch && Updates.updateId ? `${version} · update ${Updates.updateId.slice(0, 6)}` : version;
+  return Updates.isEnabled && !Updates.isEmbeddedLaunch && Updates.updateId ? `${version} · update ${Updates.updateId.slice(0, 8)}` : version;
 }
 
 /** You (Paper "You · Oct 14", B with the B4 tiles, owner 2026-10-14): your

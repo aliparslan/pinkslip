@@ -13,10 +13,11 @@ import { setAppearancePreference, useAppearancePreference, type AppearancePrefer
 import { useDevicePush } from "../alerts/Alerts";
 
 /** The version and, after an over-the-air update, which update is running:
- * "Pinkslip 1.3.1 · update 01a12c". */
+ * "Pinkslip 1.3.5 · update 01a1506d" (eight characters tell apart updates
+ * sent minutes apart). */
 function appVersionLine() {
   const version = `Pinkslip ${Constants.expoConfig?.version ?? ""}`.trim();
-  return Updates.isEnabled && !Updates.isEmbeddedLaunch && Updates.updateId ? `${version} · update ${Updates.updateId.slice(0, 6)}` : version;
+  return Updates.isEnabled && !Updates.isEmbeddedLaunch && Updates.updateId ? `${version} · update ${Updates.updateId.slice(0, 8)}` : version;
 }
 
 /** `Profile.svelte`'s overview: grouped rows, each with a one-line summary of
