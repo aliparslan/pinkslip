@@ -121,7 +121,7 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
         </View>
         {at.map((application) => <Pressable key={application.id} onPress={() => actions.openApplication(application)} accessibilityRole="button"
           style={({ pressed }) => [styles.application, pressed && styles.pressed]}>
-          <CompanyLogo name={application.company_name} uri={logoUri(application.job?.company_domain)} />
+          <CompanyLogo name={application.company_name} uri={logoUri(application.company_domain ?? application.job?.company_domain)} />
           <View style={styles.flex}>
             <Text weight="medium" lines={1}>{jobTitle(application)}</Text>
             {application.applied_at ? <Text role="subhead" tone="ink-2">{`Applied ${shortDate(application.applied_at)}`}</Text> : null}

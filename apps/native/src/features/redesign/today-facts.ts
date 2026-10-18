@@ -62,7 +62,7 @@ const NEWS: Record<DetectedStage, string> = {
 };
 
 function logoOf(application: Application) {
-  return { name: application.company_name, domain: application.job?.company_domain };
+  return { name: application.company_name, domain: application.company_domain ?? application.job?.company_domain };
 }
 
 function applicationTarget(application: Application): TodayTarget {

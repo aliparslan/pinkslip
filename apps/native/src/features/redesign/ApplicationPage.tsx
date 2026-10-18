@@ -151,7 +151,7 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     <Stack.Screen options={{ headerShown: false }} />
     <ScrollView style={styles.fill}
       contentContainerStyle={[styles.body, { paddingTop: insets.top + TOP_BAR + theme.ui.space["2"], paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
-      <JobIdentity companyName={job?.company_name ?? application.company_name} companyDomain={job?.company_domain ?? application.job?.company_domain}
+      <JobIdentity companyName={job?.company_name ?? application.company_name} companyDomain={job?.company_domain ?? application.company_domain ?? application.job?.company_domain}
         companyId={job?.company_id} title={job?.title ?? application.title} closed={Boolean(job?.closed_at ?? application.job?.closed_at)} />
       <View style={styles.stub}>
         <Stub stamps={stubStampsShown} foot={proof?.foot ?? (job ? ticketStub(job) : undefined)}

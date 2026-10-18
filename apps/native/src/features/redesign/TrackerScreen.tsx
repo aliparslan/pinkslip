@@ -153,7 +153,7 @@ function TrackerRow({ application, sample, thread }: { application: Application;
   const outreach = thread && application.stage !== "saved" ? trackerOutreachLine(thread) : null;
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
     facts={outreach ?? trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
-    logo={{ name: application.company_name, uri: logoUri(application.job?.company_domain) }} />;
+    logo={{ name: application.company_name, uri: logoUri(application.company_domain ?? application.job?.company_domain) }} />;
   // Samples have no pages to open, and a saved job that left the catalog has none either.
   if (sample || (!application.job_id && application.stage === "saved")) return row;
   const move = (stage: ApplicationStage) => update.mutate({ id: application.id, stage }, {
