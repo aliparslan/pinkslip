@@ -5,8 +5,9 @@ the website button stays hidden until the Services ID and server credentials
 are configured. The native app's identifier is `dev.alip.pinkslip`. An Apple
 private-relay email is an account address, not an app or Services ID.
 
-Status (2026-10-18): the Services ID and a Sign in with Apple key exist; the
-key's ID, `K352A5SSTJ`, is in `wrangler.toml`, and both secrets are set. Once
+Status (2026-10-18): the Services ID, `dev.alip.pinkslip.web`, and a Sign in
+with Apple key exist; both IDs (key `K352A5SSTJ`) are in `wrangler.toml`, and
+both secrets are set. Once
 the Key ID is deployed, every iPhone Apple sign-in exchanges its code with this
 key, so test an iPhone Apple sign-in right after deploying it.
 

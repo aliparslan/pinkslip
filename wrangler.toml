@@ -124,6 +124,8 @@ APPLE_SIGN_IN_CLIENT_ID = "dev.alip.pinkslip"
 # code exchange and account-deletion revocation. With it set, every iPhone
 # Apple sign-in exchanges its code with this key, so a wrong key blocks them.
 APPLE_SIGN_IN_KEY_ID = "K352A5SSTJ"
+# The website's Services ID; setting it shows Sign in with Apple on the website.
+APPLE_WEB_CLIENT_ID = "dev.alip.pinkslip.web"
 # Secrets (never commit values): APPLE_SIGN_IN_PRIVATE_KEY,
 # APPLE_TOKEN_ENCRYPTION_KEY (32 random bytes, base64url encoded).
 APNS_TEAM_ID = "KV876H8952"
