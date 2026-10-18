@@ -1,5 +1,6 @@
 import { ENDING_APPLICATION_STAGES, type ApplicationStage } from "../../shared/application-stages";
 import type { DetectedStage, InboundEmail, InboundEmailStatus } from "../../shared/email-tracking";
+import { recordActivity } from "../activity";
 import { createApplicationFromEmail, recordEmailStep, undoEmailSteps } from "../applications";
 import { companyNameHints, matchSpecific, type JobCandidate } from "./match";
 import {
@@ -203,7 +204,16 @@ export async function processEmail(
 
   const askWhich = async (companyId: string, ids: string[]): Promise<ProcessOutcome> => {
     const emailId = await record("needs_choice", companyId, null, ids);
-    return emailId ? { status: "needs_choice", emailId, applicationId: null } : { status: "duplicate" };
+    if (!emailId) return { status: "duplicate" };
+    await recordActivity(db, {
+      userId,
+      kind: "email_needs_choice",
+      source: "email",
+      inboundEmailId: emailId,
+      occurredAt: now,
+      dedupeKey: `email:${emailId}`,
+    });
+    return { status: "needs_choice", emailId, applicationId: null };
   };
 
   const companyId = resolveTrackedCompany(email, applications);

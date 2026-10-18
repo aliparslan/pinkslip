@@ -107,6 +107,7 @@ export function buildApnsBody(payload: NotificationPayload): string {
       sound: "default",
       ...(payload.kind ? { "thread-id": payload.kind } : {}),
       ...(payload.timeSensitive ? { "interruption-level": "time-sensitive" } : {}),
+      ...(typeof payload.badge === "number" ? { badge: payload.badge } : {}),
     },
     url: payload.data.url,
     job_ids: payload.data.job_ids ?? [],

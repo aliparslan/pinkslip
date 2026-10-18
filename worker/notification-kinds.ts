@@ -32,9 +32,9 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   new_jobs: { n: "N1, N2", live: true, defaultOn: false, timeSensitive: false },
   saved_job_closed: { n: "N9", live: true, defaultOn: true, timeSensitive: false },
   follow_up: { n: "N10", live: true, defaultOn: true, timeSensitive: false },
-  // Step 3: an interview or offer move is sent time-sensitive on its own.
-  application_moved: { n: "N3", live: false, defaultOn: true, timeSensitive: false },
-  which_application: { n: "N4", live: false, defaultOn: true, timeSensitive: false },
+  // An interview or offer move is sent time-sensitive on its own.
+  application_moved: { n: "N3", live: true, defaultOn: true, timeSensitive: false },
+  which_application: { n: "N4", live: true, defaultOn: true, timeSensitive: false },
   // Step 4.
   interview_reminder: { n: "N5", live: false, defaultOn: true, timeSensitive: true },
   assessment_due: { n: "N6", live: false, defaultOn: true, timeSensitive: false },
@@ -78,8 +78,8 @@ export const notificationLinks = {
   alerts: () => "/you/alerts",
   followUp: (jobId: string | null, threadId: string) =>
     jobId ? `/jobs/${encodeURIComponent(jobId)}?outreach=${encodeURIComponent(threadId)}` : "/library/applied",
-  /** An application opens on its job when Pinkslip has one, else the Applied list. */
-  application: (jobId: string | null) => jobId ? `/jobs/${encodeURIComponent(jobId)}` : "/library/applied",
+  /** The application's page (its stub and timeline). */
+  application: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
 };
 
 export interface LoggedNotification {
@@ -127,5 +127,51 @@ export function savedJobClosedNotification(job: { jobId: string; company: string
     title: job.company,
     body: `${job.title} has closed`,
     url: notificationLinks.job(job.jobId),
+  };
+}
+
+/** N10: a follow-up the person sends from their own mail came due. */
+export function followUpNotification(row: {
+  thread_id: string;
+  step: 1 | 2;
+  job_id: string | null;
+  company_name: string;
+  contact_name: string;
+}) {
+  const who = row.contact_name.trim().split(/\s+/)[0] || "the recruiter";
+  return {
+    title: `Follow up with ${row.company_name}`,
+    body: row.step === 1
+      ? `Your follow-up to ${who} is ready to send.`
+      : `Your last follow-up to ${who} is ready to send.`,
+    url: notificationLinks.followUp(row.job_id, row.thread_id),
+  };
+}
+
+/** What an email's step says as news (the app's What changed says the same). */
+export const STAGE_NEWS = {
+  applied: "Application received",
+  assessment: "Assessment sent",
+  interview: "Interview invite",
+  offer: "Offer",
+  rejected: "Not moving forward",
+} as const;
+
+/** N3: an email moved an application. Interview and offer break through Focus. */
+export function applicationMovedNotification(application: { id: string; company_name: string; title: string }, stage: keyof typeof STAGE_NEWS) {
+  return {
+    title: application.company_name,
+    body: `${STAGE_NEWS[stage]} · ${application.title}`,
+    url: notificationLinks.application(application.id),
+    timeSensitive: stage === "interview" || stage === "offer",
+  };
+}
+
+/** N4: an email matched more than one application. Today asks which. */
+export function whichApplicationNotification(email: { company_name: string | null; sender_name: string }) {
+  return {
+    title: email.company_name || email.sender_name || "A job email",
+    body: "Which application is this?",
+    url: notificationLinks.today(),
   };
 }

@@ -31,6 +31,10 @@ async function outreachDb() {
   sqlite.run(await Bun.file(new URL("../migrations/0084_outreach.sql", import.meta.url)).text());
   const notifications = await Bun.file(new URL("../migrations/0094_notifications.sql", import.meta.url)).text();
   sqlite.exec(notifications.slice(notifications.indexOf("CREATE TABLE notification_log")));
+  // Tables the Activity stream points at, which these tests don't otherwise need.
+  sqlite.exec("CREATE TABLE applications (id TEXT PRIMARY KEY); CREATE TABLE application_events (id TEXT PRIMARY KEY); CREATE TABLE inbound_emails (id TEXT PRIMARY KEY);");
+  const activity = await Bun.file(new URL("../migrations/0095_activity.sql", import.meta.url)).text();
+  sqlite.exec(activity.slice(activity.indexOf("CREATE TABLE activity"), activity.indexOf("-- When the person last opened Today")));
   sqlite.run(`INSERT INTO users (id, name) VALUES ('user-1', 'Ali Arslan'), ('user-2', ''), ('user-3', ''), ('user-4', ''), ('user-5', '')`);
   sqlite.run(`INSERT INTO companies (id, name) VALUES ('stripe', 'Stripe')`);
   sqlite.run(`INSERT INTO jobs (id, company_id, title) VALUES ('job-1', 'stripe', 'Software Engineer, New Grad')`);

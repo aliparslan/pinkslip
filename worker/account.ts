@@ -352,6 +352,23 @@ export async function mergeGuestDataIntoAccount(
   ).bind(sourceUserId, targetUserId).run().catch(() => undefined);
   await db.prepare("UPDATE notification_log SET user_id = ? WHERE user_id = ?")
     .bind(targetUserId, sourceUserId).run().catch(() => undefined);
+  // The guest's Activity stream comes along; a once-per-person entry the
+  // account already has stays single.
+  await db.prepare(
+    `DELETE FROM activity
+     WHERE user_id = ? AND dedupe_key IS NOT NULL
+       AND dedupe_key IN (SELECT dedupe_key FROM activity WHERE user_id = ? AND dedupe_key IS NOT NULL)`
+  ).bind(sourceUserId, targetUserId).run().catch(() => undefined);
+  await db.prepare("UPDATE activity SET user_id = ? WHERE user_id = ?")
+    .bind(targetUserId, sourceUserId).run().catch(() => undefined);
+  await db.prepare(
+    `UPDATE users SET today_seen_at = (
+       SELECT MAX(value) FROM (
+         SELECT today_seen_at AS value FROM users WHERE id IN (?, ?) AND today_seen_at IS NOT NULL
+       )
+     )
+     WHERE id = ?`
+  ).bind(sourceUserId, targetUserId, targetUserId).run().catch(() => undefined);
 
   await db.prepare(
     `DELETE FROM notification_candidates

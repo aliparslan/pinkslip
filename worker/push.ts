@@ -13,6 +13,8 @@ export interface NotificationPayload {
   kind?: string;
   /** Breaks through Focus once the app has the entitlement; ignored before. */
   timeSensitive?: boolean;
+  /** The app icon's count: what needs the person (Today's Needs you). */
+  badge?: number;
 }
 
 export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {

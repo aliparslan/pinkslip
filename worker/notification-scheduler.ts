@@ -2,11 +2,10 @@
 // saved jobs closing (docs/backend-inventory-2026-10-16.md, step 2).
 
 import { deliverPendingNotifications } from "./notification-delivery";
-import { savedJobClosedNotification } from "./notification-kinds";
+import { notifyActivity, recordActivity } from "./activity";
 import {
   dailyDigestsDue,
   deliverDueNotifications,
-  scheduleNotification,
   type DeliveryStats,
 } from "./notifications";
 import { remindDueFollowUps } from "./outreach/reminders";
@@ -38,12 +37,13 @@ const CLOSED_WITHIN_MS = 24 * 60 * 60 * 1000;
 
 /**
  * N9: a job someone saved (and hasn't applied to) closed at the company.
+ * It goes into the Activity stream (What changed) and the push starts there.
  * Only closings the poller saw count (the job missed enough polls); jobs
  * Pinkslip took out of its own catalog are still open where they're posted.
  */
 export async function queueSavedJobClosings(env: Env, now = new Date()): Promise<number> {
   const rows = await env.DB.prepare(
-    `SELECT a.user_id, a.job_id, a.company_name, a.title
+    `SELECT a.id AS application_id, a.user_id, a.job_id, j.closed_at
      FROM jobs j
      JOIN applications a ON a.job_id = j.id
      WHERE j.closed_at IS NOT NULL
@@ -53,18 +53,19 @@ export async function queueSavedJobClosings(env: Env, now = new Date()): Promise
        AND a.user_id IS NOT NULL
      LIMIT 1000`
   ).bind(new Date(now.getTime() - CLOSED_WITHIN_MS).toISOString(), CLOSE_AFTER_MISSES)
-    .all<{ user_id: string; job_id: string; company_name: string; title: string }>();
+    .all<{ application_id: string; user_id: string; job_id: string; closed_at: string }>();
   let queued = 0;
   for (const row of rows.results ?? []) {
-    const content = savedJobClosedNotification({ jobId: row.job_id, company: row.company_name, title: row.title });
-    if (await scheduleNotification(env.DB, {
+    const activity = await recordActivity(env.DB, {
       userId: row.user_id,
       kind: "saved_job_closed",
+      source: "system",
+      applicationId: row.application_id,
+      jobId: row.job_id,
+      occurredAt: row.closed_at,
       dedupeKey: `saved_job_closed:${row.job_id}`,
-      ...content,
-      entityType: "job",
-      entityId: row.job_id,
-    }, now)) queued += 1;
+    }, now);
+    if (activity && await notifyActivity(env.DB, activity, now)) queued += 1;
   }
   return queued;
 }

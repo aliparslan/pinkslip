@@ -288,7 +288,7 @@ owner's check before the next.
    (see "Built").
 3. **The Activity stream and Today** (§2): the table, the backfill,
    `GET /today`, seen per person, the badge from the server. N3 and N4 come
-   out of it.
+   out of it. **Built 2026-10-17, not deployed** (see "Built").
 4. **Application dates and gaps** (§3): N5 to N8, fixing a step's date,
    applications without a Pinkslip job ("Add an application"), pay and the
    company domain kept on the application.
@@ -353,6 +353,8 @@ Made by the owner with Claude on 2026-10-16, part by part.
    else is push.
 
 ### Activity stream and Today (owner, 2026-10-16)
+
+**Built 2026-10-17** (step 3; see "Built").
 
 1. **Its own table**, written when something happens: a stage moves (you,
    an email, later auto-apply), an email needs a choice, a date is added or
@@ -699,3 +701,55 @@ Checked from "Fix what we have" (production, read-only, 2026-10-16):
 
 Not in step 2: showing sent and opened per kind in Admin (Paper first), a
 time picker for Once a day (Paper), the badge (step 3), and N3/N4 (step 3).
+
+### Step 3: the Activity stream and Today (2026-10-17, not deployed)
+
+- **The stream** (migration 0095, `activity`; `worker/activity.ts`): one
+  row per thing that happened: a stage move (you, an email, later
+  auto-apply), an email needing a choice, a date set, a follow-up coming
+  due, a reply ("They replied"), a saved job closing, a new-jobs alert
+  sent. A stage move is written in the same batch as its timeline entry
+  and points at it, so undoing an email's step or deleting an application
+  removes both.
+- **Backfilled** from every timeline entry, the emails still waiting for a
+  choice, saved jobs the company closed and follow-ups already due.
+- **Notifications start from it** (`notifyActivity`): N3 when an email
+  moves an application to assessment, interview (time-sensitive), offer
+  (time-sensitive) or rejected: "Zephyr Labs" / "Interview invite ·
+  Software Engineer", opening the application's page. N4 when an email
+  matches several applications: "Zephyr Labs" / "Which application is
+  this?", opening Today. N9 and N10 now go through it too.
+- **`GET /api/v2/today`** with the app's rules: Needs you (an offer, an
+  interview without a date, an email needing a choice, a follow-up due),
+  What changed (steps emails filed and saved postings that closed, last 3
+  days, one row per application), Coming up (dated steps and planned
+  follow-ups through 2 weeks in the person's time zone). Each row carries
+  the application, email or thread it's about; the app words and lays out
+  rows as before.
+- **Seen per person:** `POST /api/v2/today/seen` (the app calls it when
+  Today opens); What changed rows say whether they're new since then.
+- **The badge:** Needs you's count rides every push as the app icon's
+  badge, and the app sets it from Today too.
+- **Apps:** the iPhone Today tab reads `GET /today` (the samples still plan
+  on the phone, with the same row builders); Alerts shows "Application
+  changes" (the approved design's switch, now that N3 sends); pushes open
+  `/applications/:id` (the web sends those to Applied, having no
+  application page).
+
+Liberties for the owner to keep or veto:
+
+1. Needs you and Coming up are read from the applications, emails and
+   threads as they are now, not stored as stream rows, so they clear
+   themselves the moment something's resolved with nothing to keep in step.
+2. N3 is for emails filed automatically. Filing a "Which application?"
+   email yourself sends nothing, and a receipt ("Application received")
+   isn't news enough for a push. It still shows in What changed.
+3. N4 has no switch of its own on Alerts (the design has none); it's on.
+4. Older TestFlight builds will show the server's badge on the app icon
+   from their next push, but only newer builds update it when you act in
+   the app.
+5. What changed's "new since you looked" is in the data but not shown:
+   showing it needs a Paper round.
+
+Not in step 3: the "new" mark on Today (Paper), an application page on the
+web, reminders from dates (step 4).

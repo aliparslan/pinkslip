@@ -1,4 +1,5 @@
 import PostalMime, { addressParser, decodeWords, type Email } from "postal-mime";
+import { activityForEmail, notifyActivity } from "../activity";
 import { findInboxUser, recordForwardingConfirmation, recordInboxDelivery } from "../inbox";
 import type { Env } from "../types";
 import { hashMessage, processEmail, trackedCompanies } from "./process";
@@ -92,5 +93,12 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   const parsed = await PostalMime.parse(message.raw);
   const email = unwrapForward(toEmailContent(parsed, from));
   const hash = await hashMessage(parsed.messageId ?? message.headers.get("message-id"), email);
-  await processEmail(env.DB, userId, email, hash, now);
+  const outcome = await processEmail(env.DB, userId, email, hash, now);
+  // Notifications start from what the email wrote to the Activity stream:
+  // an application it moved (N3) or "which application?" (N4).
+  if ("emailId" in outcome) {
+    for (const activity of await activityForEmail(env.DB, outcome.emailId)) {
+      await notifyActivity(env.DB, activity);
+    }
+  }
 }

@@ -84,6 +84,8 @@ describe("notification settings", () => {
         new_jobs: { enabled: false, mode: "post", daily_time: "08:00" },
         saved_job_closed: { enabled: true },
         follow_up: { enabled: true },
+        application_moved: { enabled: true },
+        which_application: { enabled: true },
       },
       passive_per_day: 3,
     });

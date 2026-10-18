@@ -1,5 +1,5 @@
-import { notificationLinks } from "../notification-kinds";
-import { scheduleNotification } from "../notifications";
+import { followUpNotification } from "../notification-kinds";
+import { notifyActivity, recordActivity } from "../activity";
 import type { NotificationPayload } from "../push";
 import type { Env } from "../types";
 
@@ -14,14 +14,8 @@ interface DueRow {
 }
 
 export function followUpReminderPayload(row: Omit<DueRow, "message_id" | "user_id">): NotificationPayload {
-  const who = row.contact_name.trim().split(/\s+/)[0] || "the recruiter";
-  return {
-    title: `Follow up with ${row.company_name}`,
-    body: row.step === 1
-      ? `Your follow-up to ${who} is ready to send.`
-      : `Your last follow-up to ${who} is ready to send.`,
-    data: { url: notificationLinks.followUp(row.job_id, row.thread_id) },
-  };
+  const { title, body, url } = followUpNotification(row);
+  return { title, body, data: { url } };
 }
 
 /** Queues one reminder per follow-up that has come due; the every-minute
@@ -54,17 +48,17 @@ export async function remindDueFollowUps(env: Env, now = new Date(), limit = 100
 
   let queued = 0;
   for (const row of rows) {
-    const payload = followUpReminderPayload(row);
-    if (await scheduleNotification(env.DB, {
+    const activity = await recordActivity(env.DB, {
       userId: row.user_id,
-      kind: "follow_up",
+      kind: "follow_up_due",
+      source: "system",
+      jobId: row.job_id,
+      threadId: row.thread_id,
+      detail: { message_id: row.message_id, step: row.step },
+      occurredAt: now,
       dedupeKey: `follow_up:${row.message_id}`,
-      title: payload.title,
-      body: payload.body,
-      url: payload.data.url,
-      entityType: "outreach_message",
-      entityId: row.message_id,
-    }, now)) queued += 1;
+    }, now);
+    if (activity && await notifyActivity(env.DB, activity, now)) queued += 1;
   }
   return { reminded: rows.length, queued };
 }

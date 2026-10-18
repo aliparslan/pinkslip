@@ -1,3 +1,4 @@
+import { needsYouCount, recordActivity } from "./activity";
 import { apnsReason } from "./apns";
 import { recordProductEvent } from "./product-events";
 import { buildDailyDigestPayload, buildNotificationPayload, type NotificationJob, type NotificationPayload } from "./push";
@@ -350,6 +351,8 @@ export async function deliverPendingNotifications(
     }
     let delivered: NotificationPayload | null = null;
     let devicesSent = 0;
+    // The app icon shows what needs the person, set with every push.
+    const badge = await needsYouCount(db, userId, now);
 
     await db.batch(userCandidates.flatMap((candidate) =>
       subs.map((sub) =>
@@ -399,6 +402,7 @@ export async function deliverPendingNotifications(
       const payload: NotificationPayload = {
         ...(digestKey ? buildDailyDigestPayload(jobs) : buildNotificationPayload(jobs)),
         kind: "new_jobs",
+        badge,
       };
       payload.data.notification_id = notificationId;
       const result = await send(sub, payload, transports);
@@ -461,6 +465,15 @@ export async function deliverPendingNotifications(
     }
 
     if (delivered) {
+      await recordActivity(db, {
+        userId,
+        kind: "new_jobs_sent",
+        source: "system",
+        jobId: delivered.data.job_ids?.[0] ?? null,
+        detail: { count: userCandidates.length, daily: Boolean(digestKey) },
+        occurredAt: now,
+        dedupeKey: `new_jobs:${notificationId}`,
+      }, now);
       await recordSentNotification(db, {
         id: notificationId,
         userId,

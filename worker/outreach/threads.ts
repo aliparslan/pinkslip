@@ -1,3 +1,4 @@
+import { recordActivity } from "../activity";
 import { getUserProfile } from "../account";
 import type { Env } from "../types";
 import type {
@@ -300,6 +301,17 @@ export async function closeThread(
        WHERE thread_id = ? AND status IN ('draft', 'scheduled')`
     ).bind(stamp, threadId),
   ]);
+  if (status === "replied") {
+    await recordActivity(db, {
+      userId,
+      kind: "replied",
+      source: "user",
+      jobId: thread.job_id,
+      threadId,
+      occurredAt: now,
+      dedupeKey: `replied:${threadId}`,
+    }, now);
+  }
   return (await loadThread(db, userId, threadId))!;
 }
 

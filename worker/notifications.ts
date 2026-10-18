@@ -5,6 +5,7 @@
 // tables (notification-delivery.ts) but write here as they go out.
 
 import { MAX_POSTED_AGE_DAYS } from "../shared/job-policy";
+import { needsYouCount } from "./activity";
 import { DEFAULT_TIME_ZONE, isTimeZone, localDate, localParts, validTimeZone } from "./local-time";
 import {
   DEFAULT_DAILY_TIME,
@@ -509,6 +510,7 @@ export async function deliverDueNotifications(
         data: { url: content.url, notification_id: group[0]!.id },
         kind,
         timeSensitive: group[0]!.passive === 0,
+        badge: await needsYouCount(db, userId, now),
       };
       const result = await sendToUser(db, userId, payload, transports, send);
       if (result.devices > 0) {

@@ -7,6 +7,7 @@ import {
   type ApplicationEventSource,
   type ApplicationStage,
 } from "../shared/application-stages";
+import { recordActivity, stageMoveActivity } from "./activity";
 
 /**
  * Every write to an application goes through here, so the stage, the applied
@@ -122,6 +123,7 @@ export async function getApplicationDetail(
   };
 }
 
+/** A timeline entry and its twin in the Activity stream (worker/activity.ts). */
 function recordEvent(
   db: D1Database,
   applicationId: string,
@@ -129,11 +131,15 @@ function recordEvent(
   source: ApplicationEventSource,
   now: string,
   inboundEmailId: string | null = null
-): D1PreparedStatement {
-  return db.prepare(
-    `INSERT INTO application_events (id, application_id, stage, source, occurred_at, inbound_email_id)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).bind(crypto.randomUUID(), applicationId, stage, source, now, inboundEmailId);
+): D1PreparedStatement[] {
+  const eventId = crypto.randomUUID();
+  return [
+    db.prepare(
+      `INSERT INTO application_events (id, application_id, stage, source, occurred_at, inbound_email_id)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(eventId, applicationId, stage, source, now, inboundEmailId),
+    stageMoveActivity(db, { eventId, applicationId, stage, source, occurredAt: now, inboundEmailId }),
+  ];
 }
 
 /** Creates the job's application at `stage`, or returns null when the job is
@@ -159,7 +165,7 @@ async function createApplication(
      WHERE j.id = ?`
   ).bind(id, userId, stage, hasApplied(stage) ? now : null, now, now, now, jobId).run();
   if (!inserted.meta.changes) return null;
-  await recordEvent(db, id, stage, source, now, inboundEmailId).run();
+  await db.batch(recordEvent(db, id, stage, source, now, inboundEmailId));
   return id;
 }
 
@@ -180,7 +186,7 @@ async function moveToStage(
            applied_at = CASE WHEN ? = 'saved' THEN NULL ELSE COALESCE(applied_at, ?) END
        WHERE id = ?`
     ).bind(stage, now, now, stage, now, application.id),
-    recordEvent(db, application.id, stage, source, now, inboundEmailId),
+    ...recordEvent(db, application.id, stage, source, now, inboundEmailId),
   ]);
 }
 
@@ -294,6 +300,19 @@ export async function updateApplication(
     await db.prepare("UPDATE applications SET stage_date = ?, updated_at = ? WHERE id = ?")
       .bind(changes.stage_date, now, id)
       .run();
+    const previousDate = changes.stage !== undefined && changes.stage !== existing.stage ? null : existing.stage_date;
+    if (changes.stage_date && changes.stage_date !== previousDate) {
+      await recordActivity(db, {
+        userId,
+        kind: "date_set",
+        source,
+        applicationId: id,
+        jobId: existing.job_id,
+        stage,
+        detail: { date: changes.stage_date },
+        occurredAt: now,
+      });
+    }
   }
   if (changes.notes !== undefined && changes.notes !== existing.notes) {
     await db.prepare("UPDATE applications SET notes = ?, updated_at = ? WHERE id = ?")
@@ -421,6 +440,8 @@ export async function mergeApplicationConflicts(
     await db.batch([
       db.prepare("UPDATE application_events SET application_id = ? WHERE application_id = ?")
         .bind(account.id, guest.id),
+      db.prepare("UPDATE activity SET application_id = ?, user_id = ? WHERE application_id = ?")
+        .bind(account.id, targetUserId, guest.id),
       db.prepare("DELETE FROM applications WHERE id = ?").bind(guest.id),
       db.prepare(
         `UPDATE applications
