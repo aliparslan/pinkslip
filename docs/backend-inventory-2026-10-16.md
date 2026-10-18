@@ -943,6 +943,16 @@ answer, Apple's route still verifies tokens, no new errors. The owner's
 Google OAuth client is set: `GOOGLE_CLIENT_ID` in `wrangler.toml`, the
 secret as a Worker secret.
 
+**Deployed 2026-10-18, follow-up:** Worker dd4baa61 (before: 6510985e).
+Setting a password with a code failed live: Workers caps PBKDF2 at 100,000
+iterations and the hash asked for 600,000, which Bun's tests allow (ba6751c
+uses the cap, hashes before the code is used, and a test guards the limit).
+Mail now comes from "Pinkslip". Sign in with Apple is on for the website:
+Services ID `dev.alip.pinkslip.web` (pinkslip.work only), key `K352A5SSTJ`,
+both secrets set. Checked live: the owner's iPhone Apple sign-in exchanged
+its code with the new key and stored the account's first Apple refresh
+token, and Apple's page accepts the Services ID and return URL.
+
 - **Migration 0098** rebuilds `auth_identities` to allow `google` and to
   hold a password's hash, copying the Apple refresh tokens aside and back
   (dropping the old table deletes them). Rehearsed on a copy of
@@ -954,8 +964,8 @@ secret as a Worker secret.
   creates the account (with `password`, setting one), or resets a
   forgotten password. The old sign-in link keeps working for older builds.
 - **Email and password** (`POST /api/v2/auth/password/login`): passwords
-  are PBKDF2-SHA256 hashes (600,000 iterations, a salt each, compared in
-  constant time; `worker/passwords.ts`). A wrong email and a wrong password
+  are PBKDF2-SHA256 hashes (100,000 iterations, Workers' maximum, a salt
+  each, compared in constant time; `worker/passwords.ts`). A wrong email and a wrong password
   get the same answer; ten misses in 15 minutes pause that email.
 - **Google** (`worker/google.ts`): authorization code with PKCE, the code
   exchanged with the client secret, and only a Google-signed ID token for
