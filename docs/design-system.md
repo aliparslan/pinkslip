@@ -299,6 +299,26 @@ the storyboard spec. These were chosen in the Motion lab
   - Press and slide along the bar: the oval follows the finger, and the icon
     under it turns pink with a selection tick. Let go and it settles on the
     nearest tab (or where a flick was heading) and opens it.
+- **The stub tears off** on Apply (owner, 2026-10-18; Paper "The stub
+  tears off, frame by frame"; `motion.stub`):
+  - It tears from its left end round a hinge at its top right (-4° in
+    140ms, ease-in) with a light tap, then falls under gravity, tipping to
+    -7° and shrinking to 96%, until it's behind the job page's pinned bar.
+    The fall's time is the distance's (5200pt/s², 240–560ms), so a ticket
+    high on the page falls a little longer.
+  - The Apply button catches it: the bar dips to 97% (90ms) and back
+    (200ms) on the strong ease-out, reads Applied, and the success haptic
+    plays. A ticket scrolled out of view skips the fall.
+  - It waits until the in-app browser and "Did you apply?" have gone.
+    Undo is the same path back on the strong ease-out (420ms), with a tap
+    as it meets the ticket; either way can turn around halfway.
+  - Reduce Motion: the stub fades and the button changes.
+- **A stamp lands** (`motion.stamp`): a new step's stamp on your stub
+  comes down at its own angle, from 112% and clear, in 160ms ease-in (a
+  hand pressing down), with a tap as it meets the paper. The one before it
+  fades to `ink-3` in 200ms. Only steps that arrive while the page is open.
+- **A hole is punched** (`motion.punch`): it sinks to 82% in 90ms and comes
+  back in 200ms on the strong ease-out.
 - **Nothing overshoots.** Bounce is only for a throw that carried momentum,
   as Apple does.
 - **Presses** dim to 60%.
@@ -308,7 +328,7 @@ the storyboard spec. These were chosen in the Motion lab
 | Object | Means | Where |
 | --- | --- | --- |
 | Grained ticket with perforated stub | A job's facts | Job page |
-| Torn stub | You applied | Job page after applying, the flight into Tracker |
+| Torn stub | You applied | Job page after applying (it falls into the Apply button), your stub on the application |
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
 | Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, small marks |
 
@@ -681,6 +701,17 @@ cut so that each remaining one has a job.
     its words). Tapping it drops the answer in as written, cursor still
     there to edit; nothing is rewritten. Beside it, Answer for me with
     the bot and "Soon", a roadmap signal until Pro writes answers.
+  - The stub tear (owner, Paper "Motion and icons", The stub tears off,
+    frame by frame): the job page hides the tab bar for its own Save and
+    Apply bar, so the stub drops into the Apply button rather than the
+    Tracker tab, and Tracker gets no count. It tears from its left end
+    (a light tap), falls behind the bar, and the button dips and reads
+    Applied (success). Undo runs it backwards. It waits for the in-app
+    browser and "Did you apply?" to be gone, so you see it.
+  - A new step's stamp on your stub comes down onto the paper with a tap;
+    the stamp before it fades to `ink-3` (owner).
+  - The punch card's hole comes back to size without springing past it,
+    as nothing overshoots (owner).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

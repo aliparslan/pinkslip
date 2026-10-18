@@ -1,11 +1,16 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { Text as RNText, Pressable, View, type LayoutChangeEvent } from "react-native";
-import Animated, { Easing, withTiming } from "react-native-reanimated";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Dimensions, Pressable, View, type LayoutChangeEvent } from "react-native";
+import Animated, {
+  Easing, interpolateColor, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withTiming,
+} from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Line, Path } from "react-native-svg";
+import { scheduleOnRN } from "react-native-worklets";
+import { haptics } from "../platform/haptics";
 import { faces } from "./fonts";
 import { Grain } from "./Grain";
 import { Icon } from "./Icon";
+import { motion, timing } from "./motion";
 import { Text } from "./Text";
 
 export interface TicketFact {
@@ -30,26 +35,87 @@ export interface TicketProps {
   torn?: boolean;
   /** The colour behind the ticket, which shows through the holes and notches. */
   backdrop?: TicketBackdrop;
+  /** What a tearing stub falls behind: the job page's pinned Save and Apply
+   * bar. Without one it drops a little way and fades. */
+  catcher?: RefObject<View | null>;
+  /** The torn stub is out of sight (or there was none to watch): the moment
+   * for the bar to change. */
+  onCaught?: () => void;
 }
 
+/** Kit only: slows the tear down so it can be watched frame by frame (1 is
+ * real time). */
+let pace = 1;
+export function setTearPace(next: number) {
+  pace = next;
+}
+
+/** The stub on its way out (tearing and falling) or back in (Undo). */
+type Flight = "falling" | "rising";
+
+/** How far the stub drops with nothing to catch it. */
+const SHORT_DROP = 56;
+
 /** The job's facts as a printed ticket: faint grain, a slight lift, and a stub
- * punched along its perforation. */
-export function Ticket({ rows, stub, torn = false, backdrop = "bg" }: TicketProps) {
+ * punched along its perforation. On Apply the stub tears off from its left
+ * end and falls behind the page's pinned bar (Paper "The stub tears off,
+ * frame by frame"); Undo brings it back the same way. */
+export function Ticket({ rows, stub, torn = false, backdrop = "bg", catcher, onCaught }: TicketProps) {
   const { theme } = useUnistyles();
   const radius = theme.ui.radius.lg;
   const [width, setWidth] = useState(0);
   const holeColor = theme.ui.color[backdrop];
   const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
-  return <View style={[styles.ticket, torn && styles.tornTicket, torn && styles.tornSpace]} onLayout={onLayout}>
-    <Grain radius={radius} flatBottom={torn} />
+  const root = useRef<View>(null);
+  // Where the stub sat on the ticket, for the piece that leaves it.
+  const [frame, setFrame] = useState<{ y: number; height: number } | null>(null);
+  const [shown, setShown] = useState(torn);
+  const [flight, setFlight] = useState<{ kind: Flight; id: number } | null>(null);
+  if (shown !== torn) {
+    setShown(torn);
+    // A ticket that never showed its stub has nothing to tear or bring back.
+    setFlight(stub && frame ? { kind: torn ? "falling" : "rising", id: (flight?.id ?? 0) + 1 } : null);
+  }
+  const caught = useRef(onCaught);
+  caught.current = onCaught;
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    // Torn with no stub to watch: the bar changes straight away.
+    if (torn && !(stub && frame)) caught.current?.();
+  }, [torn]);
+  const piece = useStubFlight(flight, { root, catcher, frame, onDone: (id, landed) => {
+    setFlight((current) => (current?.id === id ? null : current));
+    if (landed) caught.current?.();
+  } });
+
+  const tornNow = torn || flight !== null;
+  return <View ref={root} style={[styles.ticket, tornNow && styles.tornTicket, tornNow && styles.tornSpace,
+    // Coming back, it keeps the stub's room so the page below moves first.
+    flight?.kind === "rising" && frame ? { marginBottom: frame.height } : null]} onLayout={onLayout}>
+    <Grain radius={radius} flatBottom={tornNow} />
     {rows.map((row, index) => <View key={index} style={[styles.row, index > 0 && styles.ruled]}>
       {row.map((fact) => <Fact key={fact.label} fact={fact} />)}
     </View>)}
-    {stub && !torn ? <Animated.View exiting={tearOff}>
+    {stub && !tornNow ? <View onLayout={(event) => setFrame({ y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height })}>
       <Perforation width={width} color={holeColor} />
       <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>
+    </View> : null}
+    {stub && flight && frame && width > 0 ? <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+      style={[styles.piece, { top: frame.y + TEAR_STRIP, height: frame.height - TEAR_STRIP }, piece]}>
+      <Grain radius={radius} flatTop />
+      <View style={stubStyles.tear} pointerEvents="none">
+        <Svg width={width} height={TEAR_STRIP} style={stubStyles.flip}>
+          <Path d={tornEdge(width)} fill={theme.ui.color.paper} />
+          <Path d={tornEdge(width)} fill={theme.ui.color.grain} opacity={GRAIN_ALPHA} />
+        </Svg>
+      </View>
+      <View style={styles.stub}><Text role="footnote" tone="ink-3">{stub}</Text></View>
     </Animated.View> : null}
-    {torn && width > 0 ? <Fragment>
+    {tornNow && width > 0 ? <Fragment>
       <View style={styles.tear} pointerEvents="none">
         <Svg width={width} height={TEAR_STRIP}>
           <Path d={tornEdge(width)} fill={theme.ui.color.paper} />
@@ -119,6 +185,10 @@ const STAMP_ANGLES = [-3, 2, -1.5, 2.5, -2, 1.5];
 export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps) {
   const { theme } = useUnistyles();
   const [width, setWidth] = useState(0);
+  // The stamps already there when the page opened; only later ones land.
+  const seen = useRef<Set<string> | null>(null);
+  seen.current ??= new Set(stamps.map((stamp) => stamp.key));
+  useEffect(() => { for (const stamp of stamps) seen.current?.add(stamp.key); }, [stamps]);
   const holeColor = theme.ui.color[backdrop];
   const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
   return <View style={stubStyles.stub} onLayout={onLayout}>
@@ -135,7 +205,7 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
     </Fragment> : null}
     <View style={stubStyles.stamps}>
       {stamps.map((stamp, index) => <RubberStamp key={stamp.key} stamp={stamp} fresh={index === stamps.length - 1}
-        angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} />)}
+        angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={!seen.current?.has(stamp.key)} />)}
       {aside ? <View style={stubStyles.aside}>{aside}</View> : null}
     </View>
     {foot || action ? <View style={stubStyles.foot}>
@@ -156,30 +226,161 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
   </View>;
 }
 
-function RubberStamp({ stamp, fresh, angle }: { stamp: StubStamp; fresh: boolean; angle: number }) {
+/** A stamp; one that `arrived` while you look comes down onto the paper
+ * (tokens `motion.stamp`) with a tap as it meets it, and the one before it
+ * fades to `ink-3`. */
+function RubberStamp({ stamp, fresh, angle, arrived }: { stamp: StubStamp; fresh: boolean; angle: number; arrived: boolean }) {
   const { theme } = useUnistyles();
-  const color = theme.ui.color[fresh && !stamp.pending ? "ink" : "ink-3"];
-  return <View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
-    style={[stubStyles.stamp, stamp.pending && stubStyles.pending, { borderColor: color, transform: [{ rotate: `${angle}deg` }] }]}>
-    <RNText style={[stubStyles.stampLabel, { color }]} maxFontSizeMultiplier={1.4}>{stamp.label}</RNText>
-    <RNText style={[stubStyles.stampDetail, { color }]} maxFontSizeMultiplier={1.4}>{stamp.detail}</RNText>
-  </View>;
+  const reduced = useReducedMotion();
+  const full = fresh && !stamp.pending;
+  const [dark, light] = [theme.ui.color.ink, theme.ui.color["ink-3"]];
+  const ink = useSharedValue(full ? 1 : 0);
+  useEffect(() => { ink.value = withTiming(full ? 1 : 0, { duration: 200 }); }, [full, ink]);
+  const { land } = motion.stamp;
+  const press = useSharedValue(arrived ? 0 : 1);
+  useEffect(() => {
+    if (!arrived) return;
+    press.value = withTiming(1, timing(land), (finished) => { if (finished) scheduleOnRN(haptics.tap); });
+    // Only as it first appears.
+  }, []);
+  const body = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(ink.value, [0, 1], [light, dark]),
+    opacity: press.value,
+    transform: [{ rotate: `${angle}deg` }, { scale: reduced ? 1 : land.from + (1 - land.from) * press.value }],
+  }));
+  const words = useAnimatedStyle(() => ({ color: interpolateColor(ink.value, [0, 1], [light, dark]) }));
+  return <Animated.View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
+    style={[stubStyles.stamp, stamp.pending && stubStyles.pending, body]}>
+    <Animated.Text style={[stubStyles.stampLabel, words]} maxFontSizeMultiplier={1.4}>{stamp.label}</Animated.Text>
+    <Animated.Text style={[stubStyles.stampDetail, words]} maxFontSizeMultiplier={1.4}>{stamp.detail}</Animated.Text>
+  </Animated.View>;
 }
 
-const TEAR_MS = 360;
+/**
+ * The torn stub's flight (tokens `motion.stub`). Falling, it tears from its
+ * left end round a hinge at its right (a light tap), then falls under
+ * gravity, so its time is the distance's, until its hinge is just behind the
+ * catcher's top edge. Rising (Undo), it comes back from there on the strong
+ * ease-out, with a tap as it meets the ticket. Either can turn around
+ * halfway: the new one starts from wherever the stub is.
+ */
+function useStubFlight(flight: { kind: Flight; id: number } | null, { root, catcher, frame, onDone }: {
+  root: RefObject<View | null>;
+  catcher?: RefObject<View | null>;
+  frame: { y: number; height: number } | null;
+  onDone: (id: number, landed: boolean) => void;
+}) {
+  const reduced = useReducedMotion();
+  const y = useSharedValue(0);
+  const angle = useSharedValue(0);
+  const size = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const moving = useRef(false);
+  const done = useRef(onDone);
+  done.current = onDone;
 
-/** The stub tearing off on Apply: it drops and tips as it goes, falling
- * faster as it leaves (gravity, so ease-in), and fades on the way. */
-function tearOff() {
-  "worklet";
-  const fall = { duration: TEAR_MS, easing: Easing.in(Easing.quad) };
-  return {
-    initialValues: { opacity: 1, transform: [{ translateY: 0 }, { rotate: "0deg" }] },
-    animations: {
-      opacity: withTiming(0, { duration: TEAR_MS, easing: Easing.in(Easing.cubic) }),
-      transform: [{ translateY: withTiming(56, fall) }, { rotate: withTiming("-4deg", fall) }],
-    },
+  useEffect(() => {
+    if (!flight) {
+      moving.current = false;
+      return;
+    }
+    const { kind, id } = flight;
+    const turning = moving.current;
+    moving.current = true;
+    const finish = (landed: boolean) => {
+      if (!landed) haptics.tap();
+      done.current(id, landed);
+    };
+    measureDrop(root, catcher, frame, (drop) => {
+      const { tear, fall, rise } = motion.stub;
+      const dropped = { y: drop ?? 0, angle: fall.angle, size: fall.scale, opacity: catcher?.current ? 1 : 0 };
+      if (kind === "falling") {
+        haptics.tap();
+        // Out of view, or Reduce Motion: it just goes.
+        if (drop === null || reduced) {
+          opacity.value = withTiming(0, { duration: reduced ? 200 : 0 }, (finished) => { if (finished) scheduleOnRN(finish, true); });
+          return;
+        }
+        const gravity = Easing.in(Easing.quad);
+        // Turning round mid-rise skips the tear: it's already loose.
+        const wait = turning ? 0 : tear.duration * pace;
+        const ms = pace * Math.min(Math.max(Math.sqrt((2 * Math.max(drop - y.value, 0)) / fall.gravity) * 1000, fall.min), fall.max);
+        angle.value = turning ? withTiming(fall.angle, { duration: ms, easing: gravity })
+          : withSequence(withTiming(tear.angle, timing({ ...tear, duration: wait })), withTiming(fall.angle, { duration: ms, easing: gravity }));
+        size.value = withDelay(wait, withTiming(dropped.size, { duration: ms, easing: gravity }));
+        opacity.value = withDelay(wait, withTiming(dropped.opacity, { duration: ms, easing: Easing.in(Easing.cubic) }));
+        y.value = withDelay(wait, withTiming(dropped.y, { duration: ms, easing: gravity }, (finished) => {
+          if (finished) scheduleOnRN(finish, true);
+        }));
+        return;
+      }
+      if (drop === null || reduced) {
+        y.value = 0;
+        angle.value = 0;
+        size.value = 1;
+        if (!turning) opacity.value = 0;
+        opacity.value = withTiming(1, { duration: drop === null ? 0 : 200 }, (finished) => { if (finished) scheduleOnRN(finish, false); });
+        return;
+      }
+      if (!turning) {
+        y.value = dropped.y;
+        angle.value = dropped.angle;
+        size.value = dropped.size;
+        opacity.value = dropped.opacity;
+      }
+      const back = timing({ ...rise, duration: rise.duration * pace });
+      angle.value = withTiming(0, back);
+      size.value = withTiming(1, back);
+      opacity.value = withTiming(1, back);
+      y.value = withTiming(0, back, (finished) => { if (finished) scheduleOnRN(finish, false); });
+    });
+    // A new flight (its id) starts the motion; the rest is read as it is then.
+  }, [flight?.id]);
+
+  return useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: y.value }, { rotate: `${angle.value}deg` }, { scale: size.value }],
+  }));
+}
+
+/**
+ * The page's half of the tear (Paper "The stub tears off, frame by frame"):
+ * the ticket tears only once nothing covers the page (the in-app browser,
+ * "Did you apply?"), so you see it go, and the pinned bar says Applied when
+ * the stub has fallen behind it, with a dip and the success haptic. Give
+ * `bar` to the pinned bar and `catcher`/`onCaught` to the Ticket; scale the
+ * bar's buttons with `dip`.
+ */
+export function useStubCatch(applied: boolean, covered: boolean) {
+  const bar = useRef<View>(null);
+  const [caught, setCaught] = useState(applied);
+  if (!applied && caught) setCaught(false);
+  const scale = useSharedValue(1);
+  const onCaught = () => {
+    const dip = motion.stub.catch;
+    const out = Easing.bezier(...dip.curve);
+    scale.value = withSequence(withTiming(dip.scale, { duration: dip.down * pace, easing: out }), withTiming(1, { duration: dip.up * pace, easing: out }));
+    haptics.success();
+    setCaught(true);
   };
+  const dip = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return { torn: applied && !covered, applied: applied && caught, bar, onCaught, dip };
+}
+
+/** How far the stub falls: until its top is just behind the catcher's top
+ * edge, or a short way with nothing to catch it. Null when the ticket is
+ * scrolled out of view, where nobody would see it go. */
+function measureDrop(root: RefObject<View | null>, catcher: RefObject<View | null> | undefined,
+  frame: { y: number; height: number } | null, done: (drop: number | null) => void) {
+  const ticket = root.current;
+  if (!ticket || !frame) return done(null);
+  ticket.measureInWindow((_x, ticketTop) => {
+    const top = ticketTop + frame.y + TEAR_STRIP;
+    if (top > Dimensions.get("window").height || top + frame.height < 0) return done(null);
+    const bar = catcher?.current;
+    if (!bar) return done(SHORT_DROP);
+    bar.measureInWindow((_bx, barTop) => done(Math.max(barTop - top + 2, SHORT_DROP)));
+  });
 }
 
 /** The tile's average alpha, for the sliver of torn paper the tile can't reach. */
@@ -268,6 +469,19 @@ const styles = StyleSheet.create((theme) => ({
   notchRight: { right: -NOTCH / 2 },
   stub: { paddingVertical: theme.ui.space["3"] },
   tear: { position: "absolute", left: 0, right: 0, bottom: -TEAR_STRIP, height: TEAR_STRIP },
+  /** The torn-off stub in flight: its own paper, hinged at its top right. */
+  piece: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    paddingHorizontal: theme.ui.space["4"],
+    backgroundColor: theme.ui.color.paper,
+    borderBottomLeftRadius: theme.ui.radius.lg,
+    borderBottomRightRadius: theme.ui.radius.lg,
+    borderCurve: "continuous",
+    boxShadow: theme.ui.shadow.card,
+    transformOrigin: "right top",
+  },
 }));
 
 const stubStyles = StyleSheet.create((theme) => ({

@@ -97,6 +97,12 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const track = useTrack();
   const api = useApi();
   const [applying, setApplying] = useState<ApplicationRequest | null>(null);
+  // From opening the in-app browser until it has left the screen.
+  const [browserUp, setBrowserUp] = useState(false);
+  const browse = (request: ApplicationRequest) => {
+    setBrowserUp(true);
+    setApplying(request);
+  };
   const [reporting, setReporting] = useState(false);
   const [asking, setAsking] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -128,8 +134,9 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const asJob = job as Job;
 
   const setApplied = (value: boolean) => (value ? markApplied : unmarkApplied).mutate(asJob, {
-    // The page's button says where it stands, so no toast.
-    onSuccess: () => { if (value) haptics.success(); },
+    // The page's button says where it stands, so no toast. The redesigned
+    // page's success comes as the torn stub lands in its button.
+    onSuccess: () => { if (value && !ownSheets) haptics.success(); },
     onError: () => toast.error("Couldn't update this job. Try again."),
   });
   /** The board confirmed it, or you said so (Paper 2.5): the stub tears into
@@ -175,7 +182,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   };
   const startAutoApply = async () => {
     const request = await prepareRequest();
-    if (request) setApplying(request);
+    if (request) browse(request);
   };
   // iOS shows one modal at a time and quietly drops a second: the browser
   // waits for Apply's sheet to be gone, and "Did you apply?" for the
@@ -244,6 +251,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
         askAfterBrowser.current = result === "closed" && !applied && ownSheets;
       }}
       onDismissed={() => {
+        setBrowserUp(false);
         if (!askAfterBrowser.current) return;
         askAfterBrowser.current = false;
         setAsking(true);
@@ -274,9 +282,12 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
       prepGone: () => {
         const pending = afterPrep.current;
         afterPrep.current = null;
-        void pending?.then((request) => { if (request) setApplying(request); });
+        void pending?.then((request) => { if (request) browse(request); });
       },
     },
+    /** Something is over the page (Apply's sheets, the in-app browser), so
+     * the stub waits to tear until you can see it. */
+    covered: asking || preparing || browserUp,
     share: () => void shareJob(job),
     menu,
     glyphMenu,

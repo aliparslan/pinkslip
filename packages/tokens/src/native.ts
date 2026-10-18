@@ -676,5 +676,42 @@ export const ui = {
         damping: 1,
       },
     },
+    stub: {
+      tear: {
+        duration: 140,
+        curve: [0.55, 0.085, 0.68, 0.53],
+        angle: -4,
+      },
+      fall: {
+        gravity: 5200,
+        min: 240,
+        max: 560,
+        angle: -7,
+        scale: 0.96,
+      },
+      catch: {
+        scale: 0.97,
+        down: 90,
+        up: 200,
+        curve: [0.23, 1, 0.32, 1],
+      },
+      rise: {
+        duration: 420,
+        curve: [0.23, 1, 0.32, 1],
+      },
+    },
+    stamp: {
+      land: {
+        duration: 160,
+        curve: [0.55, 0.085, 0.68, 0.53],
+        from: 1.12,
+      },
+    },
+    punch: {
+      scale: 0.82,
+      down: 90,
+      up: 200,
+      curve: [0.23, 1, 0.32, 1],
+    },
   },
 } as const;

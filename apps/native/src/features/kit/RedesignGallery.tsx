@@ -55,6 +55,7 @@ export function RedesignGallery() {
         <ListItem title="In-app browser, a live Greenhouse form" accessory="chevron"
           onPress={() => setBrowsing({ jobId: "sample", url: LIVE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true })} />
         <ListItem title="Apply's sheet, then the browser" accessory="chevron" onPress={() => setPreparing(true)} />
+        <ListItem title="Job page, the stub tears off" accessory="chevron" onPress={() => router.push("/you/kit-job")} />
         <ListItem title="Events, and an event's page" accessory="chevron" onPress={() => router.push("/you/kit-events")} />
         <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />
         <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />

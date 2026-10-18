@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Path } from "react-native-svg";
 import { Grain } from "./Grain";
+import { motion } from "./motion";
 import { Text } from "./Text";
 
 export interface Allowance {
@@ -116,11 +117,14 @@ function Holes({ limit, used, over, backdrop }: { limit: number; used: number; o
 function Hole({ punched, backdrop }: { punched: boolean; backdrop: Backdrop }) {
   const { theme } = useUnistyles();
   // A spot punched while the card is on screen gives a small press, as a
-  // punch would; holes already punched when it appears stay still.
+  // punch would, and comes back to size without springing past it (tokens
+  // `motion.punch`); holes already punched when it appears stay still.
   const scale = useSharedValue(1);
   const was = useRef(punched);
   useEffect(() => {
-    if (punched && !was.current) scale.value = withSequence(withTiming(0.82, { duration: 90 }), withSpring(1, { damping: 12, stiffness: 320 }));
+    const { punch } = motion;
+    const out = { easing: Easing.bezier(...punch.curve) };
+    if (punched && !was.current) scale.value = withSequence(withTiming(punch.scale, { duration: punch.down, ...out }), withTiming(1, { duration: punch.up, ...out }));
     was.current = punched;
   }, [punched, scale]);
   const press = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));

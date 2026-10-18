@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet } from "../../kit";
 import {
-  ApplyButton, Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useToastLift,
+  ApplyButton, Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -55,9 +55,11 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const insets = useSafeAreaInsets();
   usePinnedBarToastLift();
   const profile = usePreferences().data?.search_profile;
-  const { saved, applied, closed, toggleSave, apply, share, glyphMenu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
+  const { saved, applied, closed, covered, toggleSave, apply, share, glyphMenu, sheets, applyFlow } = useJobPageActions(job, { outreachThread, controlsColor: theme.ui.color.accent, ownSheets: true });
   const [placesOpen, setPlacesOpen] = useState(false);
-  const applyState = applyButtonState(job, applied, closed);
+  // The stub tears once you can see it, and the button says Applied as it lands.
+  const tear = useStubCatch(applied, covered);
+  const applyState = applyButtonState(job, tear.applied, closed);
   // Past Applied, the button opens the application, so find it in Tracker's list.
   const applications = useQuery({ ...applicationsQueryOptions(useApi()), enabled: applyState.kind === "stage" });
   const applicationId = applications.data?.find((item) => item.job_id === job.id)?.id;
@@ -86,7 +88,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       contentContainerStyle={[styles.body, { paddingTop: insets.top + TOP_BAR + theme.ui.space["2"], paddingBottom: BAR + insets.bottom + theme.ui.space["6"] }]}>
       <JobIdentity companyName={job.company_name} companyDomain={job.company_domain} companyId={job.company_id} title={job.title} closed={closed} />
       <View style={styles.ticket}>
-        <Ticket rows={rows} stub={ticketStub(job)} torn={applied} />
+        <Ticket rows={rows} stub={ticketStub(job)} torn={tear.torn} catcher={tear.bar} onCaught={tear.onCaught} />
       </View>
       <Animated.View layout={LinearTransition.duration(240)} style={styles.after}>
         {fits.length > 0 ? <View style={styles.fits}>
@@ -105,9 +107,11 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       </Animated.View>
     </ScrollView>
     <TopBar onShare={share} menu={glyphMenu} />
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
-      <ApplyButton state={applyState} saved={saved} onSave={toggleSave}
-        onPress={applyState.kind === "apply" ? (job.url ? apply : undefined) : applyState.kind === "stage" ? openApplication : undefined} />
+    <View ref={tear.bar} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
+      <Animated.View style={tear.dip}>
+        <ApplyButton state={applyState} saved={saved} onSave={toggleSave}
+          onPress={applyState.kind === "apply" ? (job.url ? apply : undefined) : applyState.kind === "stage" ? openApplication : undefined} />
+      </Animated.View>
     </View>
     {sheets}
     <SheetModal open={applyFlow.asking} onClosed={applyFlow.endAsking}><DidYouApply onYes={applyFlow.confirmApplied} /></SheetModal>
@@ -217,7 +221,8 @@ const styles = StyleSheet.create((theme) => ({
   slipLineTitle: { width: 96, height: 8, backgroundColor: theme.ui.color["ink-4"] },
   slipLineLong: { width: 160, height: 7, backgroundColor: theme.ui.color.separator },
   body: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"] },
-  ticket: { marginTop: theme.ui.space["6"] },
+  // Above what follows, so the torn stub falls over the page.
+  ticket: { marginTop: theme.ui.space["6"], zIndex: 1 },
   after: { gap: theme.ui.space["6"], marginTop: theme.ui.space["6"] },
   fits: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["2"] },
   about: { gap: theme.ui.space["2"] },

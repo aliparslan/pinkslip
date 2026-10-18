@@ -527,4 +527,23 @@ export const uiMotion = {
   tab: {
     glide: { response: 0.4, damping: 1 },
   },
+  /** The stub tearing off on Apply (owner, 2026-10-18; Paper "The stub
+   * tears off, frame by frame"). It tears from its left end round a hinge
+   * on the right, then falls under gravity behind the job page's bar, so
+   * the fall takes as long as its distance says. The Apply button catches
+   * it with a dip. Undo rises back on the strong ease-out. */
+  stub: {
+    tear: { duration: 140, curve: [0.55, 0.085, 0.68, 0.53], angle: -4 },
+    /** Points a second squared, and the fall's shortest and longest time. */
+    fall: { gravity: 5200, min: 240, max: 560, angle: -7, scale: 0.96 },
+    catch: { scale: 0.97, down: 90, up: 200, curve: [0.23, 1, 0.32, 1] },
+    rise: { duration: 420, curve: [0.23, 1, 0.32, 1] },
+  },
+  /** A new step's rubber stamp coming down onto your stub: from larger and
+   * clear, accelerating like a hand pressing down. */
+  stamp: {
+    land: { duration: 160, curve: [0.55, 0.085, 0.68, 0.53], from: 1.12 },
+  },
+  /** A punch card's hole as it's punched: in and back out, no overshoot. */
+  punch: { scale: 0.82, down: 90, up: 200, curve: [0.23, 1, 0.32, 1] },
 } as const;
