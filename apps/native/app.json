@@ -67,9 +67,7 @@
       }
     },
     "owner": "lipster",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.3.6",
     "updates": {
       "url": "https://u.expo.dev/a7441d5b-2424-4a4a-bcbd-be5c26f36588",
       "requestHeaders": {

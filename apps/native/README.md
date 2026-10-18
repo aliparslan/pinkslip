@@ -53,8 +53,10 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   `bun run update --message "What changed"` in `apps/native`.
 - Installed apps download the update on launch and switch to it on the next
   launch.
-- An update only reaches builds of the same app version (`runtimeVersion`
-  policy `appVersion`; `Supporting/Expo.plist` carries the same number).
+- An update only reaches builds of the same app version: `runtimeVersion`
+  in `app.json` is the version written out ("1.3.6"), since EAS Update
+  can't apply the `appVersion` policy to a committed iOS project, and
+  `Supporting/Expo.plist` carries the same number.
   - Until 1.3.5 it was the native fingerprint, but the fingerprint differed
     between this Mac and Xcode Cloud (the `Podfile.lock` that `pod install`
     writes is machine-specific), so TestFlight builds never matched the
@@ -73,7 +75,8 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   version, as above.
 
 The release version is **1.3.6**. Bump the patch (1.3.2, 1.3.3, …) with
-every push that changes the app, in `app.json`, both `MARKETING_VERSION`
+every push that changes the app, in `app.json` (`version` and
+`runtimeVersion`), both `MARKETING_VERSION`
 entries, `Info.plist` and `EXUpdatesRuntimeVersion` in
 `Supporting/Expo.plist` (owner, 2026-10-14; `tests/native-release.test.ts`
 checks they agree, in Xcode Cloud too). External testers get a build only
