@@ -5,7 +5,8 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  ApplyButton, Chip, IconButton, setTearPace, SheetModal, Text, Ticket, toast, UNDO_TOAST_DURATION, useStubCatch, useTabBarStepsAside,
+  ApplyButton, Chip, IconButton, Segmented, setRipFeel, setTearPace, setTearStyle, SheetModal, TEAR_STYLES, Text, Ticket, toast,
+  UNDO_TOAST_DURATION, useStubCatch, useTabBarStepsAside, type RipFeel, type TearStyle,
 } from "../../ui";
 import { DidYouApply } from "../redesign/ApplySheets";
 import { JobIdentity } from "../redesign/JobIdentity";
@@ -15,6 +16,12 @@ const FACTS = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
   [{ label: "Location", value: "Remote (US)" }],
   [{ label: "Visa sponsorship", value: "Yes" }, { label: "Experience", value: "0–1 years" }],
+];
+
+const RIPS: { value: RipFeel; label: string }[] = [
+  { value: "ticks", label: "Ticks" },
+  { value: "light", label: "Light" },
+  { value: "rigid", label: "Rigid" },
 ];
 
 const ABOUT = [
@@ -27,8 +34,9 @@ const ABOUT = [
  * The job page's tear on a sample (Paper "The stub tears off, frame by
  * frame"): Apply asks "Did you apply?" as coming back from a posting does,
  * Yes tears the stub into the button once the sheet has gone, and the
- * toast's Undo (or Put it back) brings it back. Nothing is saved. Slow
- * motion runs it at a quarter speed.
+ * toast's Undo (or Put it back) brings it back. Nothing is saved. Under
+ * the posting, the ways to tear and the rip's haptic to compare (owner,
+ * 2026-10-18); slow motion runs it at a quarter speed.
  */
 export function TearSample() {
   const { theme } = useUnistyles();
@@ -39,10 +47,18 @@ export function TearSample() {
   const [asking, setAsking] = useState(false);
   const [saved, setSaved] = useState(false);
   const [slow, setSlow] = useState(false);
+  const [way, setWay] = useState<TearStyle>("peel");
+  const [feel, setFeel] = useState<RipFeel>("ticks");
   useEffect(() => {
     setTearPace(slow ? 4 : 1);
-    return () => setTearPace(1);
-  }, [slow]);
+    setTearStyle(way);
+    setRipFeel(feel);
+  }, [slow, way, feel]);
+  useEffect(() => () => {
+    setTearPace(1);
+    setTearStyle("peel");
+    setRipFeel("ticks");
+  }, []);
   const tear = useStubCatch(applied, asking);
   const yes = () => {
     setApplied(true);
@@ -61,6 +77,12 @@ export function TearSample() {
       <View style={styles.about}>
         <Text weight="medium" accessibilityRole="header">About the role</Text>
         {ABOUT.map((line) => <Text key={line} role="subhead" tone="ink-2">{line}</Text>)}
+      </View>
+      <View style={styles.lab}>
+        <Text role="footnote" weight="medium" tone="ink-2">The tear</Text>
+        <Segmented value={way} onChange={setWay} segments={TEAR_STYLES} />
+        <Text role="footnote" weight="medium" tone="ink-2">The rip</Text>
+        <Segmented value={feel} onChange={setFeel} segments={RIPS} />
       </View>
     </ScrollView>
     <View style={[styles.top, { paddingTop: insets.top }]}>
@@ -87,6 +109,7 @@ const styles = StyleSheet.create((theme) => ({
   ticket: { marginTop: theme.ui.space["6"], zIndex: 1 },
   about: { gap: theme.ui.space["3"], marginTop: theme.ui.space["6"] },
   controls: { flexDirection: "row", gap: theme.ui.space["2"] },
+  lab: { gap: theme.ui.space["2"], marginTop: theme.ui.space["8"] },
   top: {
     position: "absolute", left: 0, right: 0, top: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: theme.ui.space["4"], backgroundColor: theme.ui.color.bg,

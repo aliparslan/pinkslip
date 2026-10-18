@@ -300,7 +300,12 @@ the storyboard spec. These were chosen in the Motion lab
     under it turns pink with a selection tick. Let go and it settles on the
     nearest tab (or where a flick was heading) and opens it.
 - **The stub tears off** on Apply (owner, 2026-10-18; Paper "The stub
-  tears off, frame by frame"; `motion.stub`):
+  tears off, frame by frame"; `motion.stub`). Later on Oct 18 the owner
+  found the hand-off from tear to fall choppy: the path is now one
+  function of time (`ui/stub-motion.ts`) whose fall carries on at the
+  tear's own speed and spin, with a rip of haptic ticks along the tear.
+  Four ways are being compared in the kit (Peel, Snap, Flutter, Swing;
+  ticks, light or rigid rip); the numbers below are Peel's until the pick:
   - It tears from its left end round a hinge at its top right (-4° in
     140ms, ease-in) with a light tap, then falls under gravity, tipping to
     -7° and shrinking to 96%, until it's behind the job page's pinned bar.

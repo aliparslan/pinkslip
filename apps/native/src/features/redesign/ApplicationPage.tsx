@@ -4,7 +4,7 @@ import { ApiError, type ApplicationDetail, type ApplicationStage } from "@pinksl
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { useApplication, useRemoveApplication, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
 import { router, Stack, useSegments } from "expo-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -145,6 +145,11 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     key: `${stamp.stage}-${index}`, label: proof?.waiting ? "SENT" : stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,
     pending: proof?.waiting,
   }));
+  // A new step's stamp lands once its sheet has gone (the date asked for
+  // too), not behind it (owner, 2026-10-18).
+  const held = useRef(stubStampsShown);
+  if (sheet === null) held.current = stubStampsShown;
+  const stampsInView = sheet === null ? stubStampsShown : held.current;
   const aside = proof?.aside ?? (waiting ? { title: waiting, detail: "no reply yet" } : null);
 
   return <View style={styles.fill}>
@@ -154,7 +159,7 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
       <JobIdentity companyName={job?.company_name ?? application.company_name} companyDomain={job?.company_domain ?? application.company_domain ?? application.job?.company_domain}
         companyId={job?.company_id} title={job?.title ?? application.title} closed={Boolean(job?.closed_at ?? application.job?.closed_at)} />
       <View style={styles.stub}>
-        <Stub stamps={stubStampsShown} foot={proof?.foot ?? (job ? ticketStub(job) : undefined)}
+        <Stub stamps={stampsInView} foot={proof?.foot ?? (job ? ticketStub(job) : undefined)}
           aside={aside ? <View>
             <Text role="subhead" weight="medium" tone="ink-2">{aside.title}</Text>
             <Text role="footnote" tone="ink-3">{aside.detail}</Text>
