@@ -235,6 +235,28 @@ describe("the scheduler", () => {
     expect((await deliverDueNotifications(harness.env, hours(3), harness.send)).sent).toBe(1);
   });
 
+  it("sends a follow-up when it comes due, without the spacing, but within the three", async () => {
+    const harness = setup();
+    const insert = (id: string, sentAt: Date) => harness.sqlite.run(
+      `INSERT INTO notification_log (id, user_id, kind, dedupe_key, title, body, url, passive, status, scheduled_for, created_at, sent_at)
+       VALUES (?, 'u1', 'saved_job_closed', ?, 't', 'b', '/', 1, 'sent', ?, ?, ?)`,
+      [id, id, sentAt.toISOString(), sentAt.toISOString(), sentAt.toISOString()]
+    );
+    const followUp = (key: string, at: Date) => scheduleNotification(harness.db, {
+      userId: "u1", kind: "follow_up", dedupeKey: key, title: "Follow up with Stripe", body: "Ready", url: "/jobs/j1",
+    }, at);
+    insert("an-hour-ago", hours(-1));
+    await followUp("f1", NOW);
+    expect((await deliverDueNotifications(harness.env, NOW, harness.send)).sent).toBe(1);
+
+    // Now three in 24 hours (the one above, the closing and one more): it waits.
+    insert("earlier", hours(-20));
+    await followUp("f2", hours(0.5));
+    expect((await deliverDueNotifications(harness.env, hours(0.5), harness.send)).held).toBe(1);
+    expect(harness.log().find((row) => row.kind === "follow_up" && row.status === "scheduled"))
+      .toMatchObject({ scheduled_for: hours(4).toISOString() });
+  });
+
   it("doesn't count new-job alerts toward the cap", async () => {
     const harness = setup();
     for (const [index, sentAt] of [hours(-3), hours(-2), hours(-1)].entries()) {
@@ -383,6 +405,16 @@ describe("new-job alerts (N1, N2)", () => {
     expect(harness.log()).toEqual([expect.objectContaining({ kind: "new_jobs", title: "5 new jobs", status: "sent", devices: 1 })]);
     const notificationId = harness.sent[0]!.payload.data.notification_id;
     expect(harness.sqlite.query("SELECT id FROM notification_log").get()).toEqual({ id: notificationId });
+  });
+
+  it("sends one push per person per run, leaving jobs past 100 for the next", async () => {
+    const harness = setup();
+    await matchedJobs(harness, 103);
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(100);
+    expect(harness.sent.map(({ payload }) => payload.title)).toEqual(["100 new jobs"]);
+    expect(harness.sqlite.query("SELECT COUNT(*) AS count FROM notification_candidates WHERE status = 'pending'").get()).toEqual({ count: 3 });
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: hours(0.1), send: harness.send })).toBe(3);
+    expect(harness.sent.map(({ payload }) => payload.title)).toEqual(["100 new jobs", "3 new jobs"]);
   });
 
   it("sends new jobs as they post whatever the daily cap", async () => {

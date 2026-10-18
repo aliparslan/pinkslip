@@ -49,6 +49,12 @@ stays as it is today, once a day stays one push), follow-ups stay as built
 (with job alerts out of the cap they rarely wait), and the error endpoint
 stays open for now. Items 1 to 3 below are kept as the record.
 
+Revisited 2026-10-18 (owner): nothing to tell testers about job alerts (as
+they post already sends every one); follow-ups now skip the 4-hour spacing
+and still count toward the three; the error endpoint stays open. From
+"Small things": one new-job push per person per run, so more than 100 jobs
+waiting no longer means two pushes at once.
+
 1. **"As they post" becomes about three pushes a day.** People with alerts on
    got about 20 new-job pushes a day (up to 48); with the cap and the 4-hour
    spacing they'll get at most three, each listing everything since the last.

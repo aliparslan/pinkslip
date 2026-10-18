@@ -179,7 +179,7 @@ export interface DeliverOptions {
   send?: typeof sendNotificationToSubscription;
 }
 
-/** Jobs a push lists for the app; the title still counts them all. */
+/** The most jobs one push covers; any more wait for the person's next push. */
 const JOBS_PER_PUSH = 100;
 
 export async function deliverPendingNotifications(
@@ -294,15 +294,24 @@ export async function deliverPendingNotifications(
   }
   if (available.length === 0) return 0;
 
+  // One push per person per run: a person's jobs past the first
+  // JOBS_PER_PUSH stay queued for their next one instead of a second push now.
+  const perUser = new Map<string, number>();
+  const batch = available.filter((candidate) => {
+    const count = (perUser.get(candidate.user_id) ?? 0) + 1;
+    perUser.set(candidate.user_id, count);
+    return count <= JOBS_PER_PUSH;
+  });
+
   const claimedAt = new Date().toISOString();
-  const claimResults = await db.batch(available.map((candidate) =>
+  const claimResults = await db.batch(batch.map((candidate) =>
     db.prepare(
       `UPDATE notification_candidates
        SET status = 'sending', attempt_count = attempt_count + 1, last_attempt_at = ?
        WHERE id = ? AND status IN ('pending', 'retry')`
     ).bind(claimedAt, candidate.candidate_id)
   ));
-  const rows = available.filter((_, index) => (claimResults[index].meta.changes ?? 0) > 0);
+  const rows = batch.filter((_, index) => (claimResults[index].meta.changes ?? 0) > 0);
   if (rows.length === 0) return 0;
 
   const byUser = new Map<string, CandidateRow[]>();
@@ -311,12 +320,7 @@ export async function deliverPendingNotifications(
   }
   // One push per person per run, so five jobs landing together are one
   // alert, not five.
-  const deliveries: Array<[string, CandidateRow[]]> = [];
-  for (const [userId, userCandidates] of byUser) {
-    for (let offset = 0; offset < userCandidates.length; offset += JOBS_PER_PUSH) {
-      deliveries.push([userId, userCandidates.slice(offset, offset + JOBS_PER_PUSH)]);
-    }
-  }
+  const deliveries = [...byUser.entries()];
 
   const transports = resolveNotificationTransports(env);
   let sent = 0;

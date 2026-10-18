@@ -69,6 +69,12 @@ export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
  */
 export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs"];
 
+/**
+ * Passive kinds with a moment attached go out when they come due, without
+ * the 4-hour spacing, and still count toward the three (owner, 2026-10-18).
+ */
+export const UNSPACED_KINDS: readonly NotificationKind[] = ["follow_up"];
+
 /** New jobs once a day, until the person picks a time. */
 export const DEFAULT_DAILY_TIME = "08:00";
 

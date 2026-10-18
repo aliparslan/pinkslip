@@ -350,6 +350,8 @@ Made by the owner with Claude on 2026-10-16, part by part.
    Passive pushes are also at least 4 hours apart (owner, 2026-10-17).
    New-job alerts are outside the cap: as they post (every match, one push
    per check) or once a day is the person's choice (owner, 2026-10-17).
+   Follow-ups go when they come due, without the spacing, still counting
+   toward the three (owner, 2026-10-18).
    **Built 2026-10-16** (step 2; see "Built" for how the cap counts).
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
@@ -656,7 +658,10 @@ ship with `bun run deploy:web` and an over-the-air update.
   day. A push that can't go yet is rescheduled for the moment it can.
   New-job alerts neither wait for it nor count toward it
   (`UNCAPPED_KINDS`): how often is the person's choice, as they post or
-  once a day (owner, 2026-10-17). Time-sensitive pushes skip the cap and carry iOS's
+  once a day (owner, 2026-10-17). Follow-ups skip the spacing but count
+  toward the three (`UNSPACED_KINDS`, owner, 2026-10-18). A person's
+  new-job alert covers at most 100 jobs; any more wait for their next one,
+  never a second push in the same run. Time-sensitive pushes skip the cap and carry iOS's
   `time-sensitive` interruption level (it takes effect once the native
   build has the entitlement).
 - **N2, once a day:** people on Once a day keep their matches until their
@@ -696,7 +701,10 @@ spent all three in the first hour of new jobs. The owner chose spacing:
 passive pushes at least 4 hours apart as well. Later the same day, after
 the review: new-job alerts leave the cap entirely, so "as they post" stays
 as testers have it (one push per check with everything new), and the cap
-keeps the other kinds from piling on. Follow-ups stay passive.
+keeps the other kinds from piling on. Follow-ups stay passive. On
+2026-10-18 the owner had follow-ups skip the 4-hour spacing, since a
+follow-up has its moment (9am where the person is); they still count
+toward the three.
 
 Checked from "Fix what we have" (production, read-only, 2026-10-16):
 

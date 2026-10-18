@@ -16,6 +16,7 @@ import {
   NOTIFICATION_KINDS,
   PASSIVE_PER_DAY,
   UNCAPPED_KINDS,
+  UNSPACED_KINDS,
   PASSIVE_SPACING_MS,
   PASSIVE_WINDOW_MS,
   type LoggedNotification,
@@ -321,10 +322,15 @@ export function passiveWindowStart(now: Date): string {
 
 /**
  * When a person may get their next passive push: null when they can now,
- * else the later of 4 hours after their last one and the moment the oldest
- * of their last three leaves the 24 hours.
+ * else the later of 4 hours after their last one (unless `spaced` is false)
+ * and the moment the oldest of their last three leaves the 24 hours.
  */
-export async function passiveCapFreesAt(db: D1Database, userId: string, now: Date): Promise<Date | null> {
+export async function passiveCapFreesAt(
+  db: D1Database,
+  userId: string,
+  now: Date,
+  { spaced = true }: { spaced?: boolean } = {}
+): Promise<Date | null> {
   const rows = await db.prepare(
     `SELECT sent_at FROM notification_log
      WHERE user_id = ? AND passive = 1 AND kind NOT IN (${UNCAPPED_SQL}) AND status = 'sent' AND sent_at > ?
@@ -333,7 +339,7 @@ export async function passiveCapFreesAt(db: D1Database, userId: string, now: Dat
   ).bind(userId, passiveWindowStart(now), PASSIVE_PER_DAY).all<{ sent_at: string }>();
   const sent = (rows.results ?? []).map((row) => Date.parse(row.sent_at));
   const waits: number[] = [];
-  if (sent.length > 0) waits.push(sent[0]! + PASSIVE_SPACING_MS);
+  if (spaced && sent.length > 0) waits.push(sent[0]! + PASSIVE_SPACING_MS);
   if (sent.length >= PASSIVE_PER_DAY) waits.push(sent.at(-1)! + PASSIVE_WINDOW_MS);
   const freesAt = Math.max(0, ...waits);
   return freesAt > now.getTime() ? new Date(freesAt) : null;
@@ -484,7 +490,7 @@ export async function deliverDueNotifications(
         continue;
       }
       if (group[0]!.passive === 1) {
-        const freesAt = await passiveCapFreesAt(db, userId, now);
+        const freesAt = await passiveCapFreesAt(db, userId, now, { spaced: !UNSPACED_KINDS.includes(kind) });
         if (freesAt) {
           await reschedule(group, freesAt, "Waiting for the daily cap", false);
           stats.held += group.length;
