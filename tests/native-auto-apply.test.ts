@@ -75,7 +75,7 @@ describe("native application session", () => {
       flow.load();
       await until(() => flow.statuses.includes("Ready to submit"));
       expect(flow.progress[0]).toEqual({ phase: "filling", done: 0, of: 1 });
-      expect(flow.progress.find((update) => update.phase === "form")).toEqual({ phase: "form", filled: 1, total: 1, open: [], byPinkslip: ["email"] });
+      expect(flow.progress.find((update) => update.phase === "form")).toEqual({ phase: "form", filled: 1, total: 1, open: [], byPinkslip: ["email"], blanks: [] });
     } finally { flow.close(); }
     await flow.result;
   });

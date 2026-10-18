@@ -674,6 +674,13 @@ cut so that each remaining one has a job.
     on the board's own gray border, its ✕, ⋯ (22), arrows and Go to
     Submit's caret take the sheet's 2pt line, and the Search tab's folded
     circle and field are 56.
+  - The answers strip (board 2, 2.3): while you type in a blank, "From
+    your answers" sits above the keyboard with your newest saved answer
+    of the same kind of question (why this company, why this role, a
+    project, anything else; otherwise one whose question shares most of
+    its words). Tapping it drops the answer in as written, cursor still
+    there to edit; nothing is rewritten. Beside it, Answer for me with
+    the bot and "Soon", a roadmap signal until Pro writes answers.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

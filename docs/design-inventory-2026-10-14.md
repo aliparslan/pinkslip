@@ -54,8 +54,7 @@ on sample data from You → Kit → Redesign kit until its backend exists.
 - **On samples:** Ask first (Today's card, the review, a job's preview), the
   live bar and queue, What Pinkslip sent, Auto-apply settings and paused,
   the Pro sheet from a moment, Events (a company's list and an event page).
-- **Not built yet:** the saved answers above the keyboard (board 2, 2.3),
-  the Live Activity and Dynamic Island (a native build), Following and the
+- **Not built yet:** Answer for me (board 2, 2.3; it says Soon), the Live Activity and Dynamic Island (a native build), Following and the
   follow-only rules (backend). On Search, Companies you follow, Coming up
   and the result scopes (All, Jobs, Companies, Events) wait on following
   and events.
@@ -63,7 +62,8 @@ on sample data from You → Kit → Redesign kit until its backend exists.
   until sends are recorded), the Search tab's bottom field as iOS 26
   draws it, the Apply button's every state with its split menu (board 1;
   the auto-apply states on samples), and the in-app browser's redraw with
-  its fill bar (board 2, all but 2.3).
+  its fill bar (board 2), with 2.3's saved answers above the keyboard
+  (Oct 18).
 
 ## Designed and built
 

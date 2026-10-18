@@ -1,4 +1,4 @@
-import { useApi } from "@pinkslip/data";
+import { useAnswers, useApi } from "@pinkslip/data";
 import { ui } from "@pinkslip/tokens/native";
 import * as Crypto from "expo-crypto";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -9,9 +9,10 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { PressableScale } from "../../kit/PressableScale";
 import { GlyphMenu, Icon, IconButton, Text, type IconName } from "../../ui";
+import { suggestAnswer, type AnswerSuggestion } from "./answer-match";
 import { autoApply, type ApplicationBrowserSession, type AutoApplyResult, type FillProgress } from "../../platform/autofill/auto-apply";
 import { runAutoApply } from "../../platform/autofill/auto-apply-loop";
-import { SAMPLE_FORM, SAMPLE_RESUME, sampleApplyApi } from "./sample-form";
+import { SAMPLE_ANSWERS, SAMPLE_FORM, SAMPLE_RESUME, sampleApplyApi } from "./sample-form";
 
 export interface ApplicationRequest {
   jobId: string;
@@ -100,9 +101,21 @@ const showSubmitScript = (accent: string) => `(() => { const b = ${SUBMIT_BUTTON
   b.scrollIntoView({ block: "center", behavior: "smooth" });
   b.style.outline = "3px solid ${accent}"; b.style.outlineOffset = "2px"; setTimeout(() => { b.style.outline = ""; }, 1800); })(); true;`;
 
-/** Tells the app when Submit is pressed, so it can ask if no confirmation follows. */
+/** Types a saved answer into a field as a person would, leaving the cursor in it. */
+const fillScript = (ref: string, value: string) => `(() => { const el = ${byRef(ref)}; if (!el) return;
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(value)});
+  el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); })(); true;`;
+
+/** Tells the app when Submit is pressed, so it can ask if no confirmation
+ * follows, and which field has the cursor, for the answers strip (2.3). */
 const WATCH_PAGE = `(() => { if (window.__pinkslipWatch) return; window.__pinkslipWatch = true;
-  const tell = () => window.ReactNativeWebView.postMessage(JSON.stringify({ pinkslipEvent: "submit" }));
+  const send = (message) => window.ReactNativeWebView.postMessage(JSON.stringify(message));
+  const tell = () => send({ pinkslipEvent: "submit" });
+  document.addEventListener("focusin", (event) => {
+    const el = event.target && event.target.closest && event.target.closest("[data-pinkslip-ref]");
+    send({ pinkslipEvent: "focus", ref: el ? el.getAttribute("data-pinkslip-ref") : null });
+  }, true);
   document.addEventListener("submit", tell, true);
   // A form's own Submit counts once the form really submits (after the
   // board's checks pass); a script-driven one counts on the press.
@@ -155,11 +168,18 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
   // so the fill bar steps aside. Only the real keyboard counts: filling a
   // dropdown or the arrows focus fields without one.
   const [typing, setTyping] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
-    const shown = Keyboard.addListener("keyboardWillShow", () => setTyping(true));
+    const shown = Keyboard.addListener("keyboardWillShow", (event) => { setTyping(true); setKeyboardHeight(event.endCoordinates.height); });
     const hidden = Keyboard.addListener("keyboardWillHide", () => setTyping(false));
     return () => { shown.remove(); hidden.remove(); };
   }, []);
+  /** The field with the cursor, and the blanks a saved answer already went into. */
+  const [focused, setFocused] = useState<string | null>(null);
+  const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set());
+  // The kit's samples carry their own answers; nothing reads or saves the bank.
+  const bank = useAnswers(Boolean(request) && !request?.sample);
+  const answers = request?.sample ? SAMPLE_ANSWERS : bank.data ?? [];
   const loading = useSharedValue(0);
   const submittedCallback = useRef(onSubmitted);
   const closeCallback = useRef(onClose);
@@ -246,6 +266,7 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     let data: { pinkslip?: string; pinkslipEvent?: string; ok?: boolean; value?: unknown; error?: string };
     try { data = JSON.parse(event.nativeEvent.data); } catch { return; }
     if (data.pinkslipEvent === "submit") { setPressedAt(Date.now()); return; }
+    if (data.pinkslipEvent === "focus") { setFocused((data as { ref?: string | null }).ref ?? null); return; }
     const waiting = data.pinkslip ? pending.current.get(data.pinkslip) : undefined;
     if (!waiting || !data.pinkslip) return;
     pending.current.delete(data.pinkslip);
@@ -259,6 +280,14 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
     setBlank(next);
     web.current?.injectJavaScript(focusScript(open[next]!));
   };
+  // 2.3: a blank you're typing in, and the saved answer of its kind.
+  const typingIn = typing ? form?.blanks.find((item) => item.ref === focused && (item.kind === "textarea" || item.kind === "text")) : undefined;
+  const suggestion = typingIn && !answered.has(typingIn.ref) ? suggestAnswer(typingIn.label, answers, request?.company) : null;
+  const useSuggestion = (ref: string, chosen: AnswerSuggestion) => {
+    web.current?.injectJavaScript(fillScript(ref, chosen.answer));
+    setAnswered((current) => new Set(current).add(ref));
+  };
+
   const line = useAnimatedStyle(() => ({ width: `${loading.value * 100}%`, opacity: loading.value > 0 && loading.value < 1 ? 1 : 0 }));
 
   const bar: ReactNode = applied || typing ? null
@@ -305,7 +334,7 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
       <View style={styles.track}><Animated.View style={[styles.line, line]} /></View>
       {url ? <WebView ref={web} source={request?.local ? { html: SAMPLE_FORM, baseUrl: url } : { uri: url }} style={styles.web} onMessage={onMessage}
         injectedJavaScript={WATCH_PAGE} contentInset={{ bottom: 88 }}
-        onLoadStart={() => { events.current?.onNavigating(); cancelScripts("The page changed"); setProgress(null); }}
+        onLoadStart={() => { events.current?.onNavigating(); cancelScripts("The page changed"); setProgress(null); setFocused(null); setAnswered(new Set()); }}
         onLoadProgress={(event) => { loading.value = withTiming(event.nativeEvent.progress, { duration: 150 }); }}
         onLoadEnd={(event) => {
           if (event.nativeEvent.loading) return;
@@ -315,8 +344,38 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
         sharedCookiesEnabled={false} incognito={false} allowsBackForwardNavigationGestures
         originWhitelist={["https://*", "http://*"]} setSupportMultipleWindows={false} /> : null}
       {bar ? <View style={styles.barSlot} pointerEvents="box-none">{bar}</View> : null}
+      {suggestion && typingIn ? <AnswersStrip suggestion={suggestion} bottom={keyboardHeight} onUse={() => useSuggestion(typingIn.ref, suggestion)} /> : null}
     </View>
   </Modal>;
+}
+
+/**
+ * Above the keyboard (Paper 2.3): your saved answer for this kind of
+ * question, to drop in and edit, and Answer for me, which comes with Pro
+ * and isn't here yet. Whatever you type is still saved to Answers.
+ */
+function AnswersStrip({ suggestion, bottom, onUse }: { suggestion: AnswerSuggestion; bottom: number; onUse: () => void }) {
+  const { theme, rt } = useUnistyles();
+  const dark = !rt.themeName?.startsWith("light");
+  return <GlassView glassEffectStyle="regular" colorScheme={dark ? "dark" : "light"} tintColor={dark ? theme.ui.color["bg-elev"] : undefined}
+    style={[styles.strip, !GLASS && styles.stripPaper, { bottom }]}>
+    <View style={styles.stripLabel}><Text role="footnote" weight="medium" tone="ink-3">From your answers</Text></View>
+    <View style={styles.stripRow}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={`Use your answer: ${suggestion.title}`} onPress={onUse}
+        style={styles.flex} contentStyle={styles.answerCard}>
+        <Text role="subhead" weight="medium" lines={1}>{suggestion.title}</Text>
+        <Text role="subhead" tone="ink-2" lines={1}>{suggestion.answer}</Text>
+      </PressableScale>
+      {/* Answer for me is Pro and on its way: a roadmap signal, not a button yet. */}
+      <View style={[styles.answerCard, styles.forMe]} accessible accessibilityLabel="Answer for me, coming soon">
+        <View style={styles.forMeTop}>
+          <Icon name="autoApply" size={18} tone="accent" />
+          <Text role="footnote" tone="ink-3">Soon</Text>
+        </View>
+        <Text role="footnote" weight="medium" lines={1}>Answer for me</Text>
+      </View>
+    </View>
+  </GlassView>;
 }
 
 /** The fill bar: a glass capsule, what's happening on the left, its buttons on the right. */
@@ -367,6 +426,20 @@ const styles = StyleSheet.create((theme, rt) => ({
   track: { height: 2 },
   line: { height: 2, backgroundColor: theme.ui.color.accent },
   web: { flex: 1 },
+  strip: {
+    position: "absolute", left: 0, right: 0, gap: theme.ui.space["2"], paddingVertical: 10, paddingHorizontal: theme.ui.space["3"],
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator,
+  },
+  stripPaper: { backgroundColor: theme.ui.color["bg-elev"] },
+  stripLabel: { paddingHorizontal: theme.ui.space["1"] },
+  stripRow: { flexDirection: "row", gap: theme.ui.space["2"] },
+  flex: { flex: 1, minWidth: 0 },
+  answerCard: {
+    gap: 2, paddingVertical: 10, paddingHorizontal: theme.ui.space["3"], borderRadius: theme.ui.radius.md, borderCurve: "continuous",
+    backgroundColor: theme.ui.color.bg, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.ui.color.separator,
+  },
+  forMe: { width: 108, alignItems: "center", justifyContent: "center", paddingHorizontal: theme.ui.space["1"] },
+  forMeTop: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
   barSlot: { position: "absolute", left: theme.ui.size.gutter, right: theme.ui.size.gutter, bottom: Math.max(rt.insets.bottom, theme.ui.space["4"]) },
   bar: {
     flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"],

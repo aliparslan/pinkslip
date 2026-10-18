@@ -14,9 +14,12 @@ export interface ApplicationBrowserSession {
   setProgress?(progress: FillProgress): Promise<void>;
 }
 
+/** A required field still empty: what the arrows and the answers strip (2.3) work with. */
+export interface FormBlank { ref: string; label: string; kind: FormControl["kind"] }
+
 export type FillProgress =
   | { phase: "filling"; done: number; of: number }
-  | { phase: "form"; filled: number; total: number; open: string[]; byPinkslip: string[] }
+  | { phase: "form"; filled: number; total: number; open: string[]; byPinkslip: string[]; blanks: FormBlank[] }
   | { phase: "applied" };
 
 interface PageRead { submitted: boolean; controls: FormControl[] }
@@ -80,6 +83,8 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
       filled: controls.filter((control) => !isEmpty(control)).length,
       open: controls.filter((control) => control.required && isEmpty(control)).map((control) => control.ref),
       byPinkslip: controls.filter((control) => byPinkslip.has(control.ref) && !isEmpty(control)).map((control) => control.ref),
+      blanks: controls.filter((control) => control.required && isEmpty(control))
+        .map((control) => ({ ref: control.ref, label: control.label, kind: control.kind })),
     });
 
     const fill = async (steps: FillStep[], resume: Awaited<typeof resumeFile>, expected: number) => {

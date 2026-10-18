@@ -3,7 +3,7 @@ import { File } from "expo-file-system";
 import { localResumeFile } from "../resume-file";
 import { runAutoApply, type ApplicationBrowserSession, type AutoApplyOptions, type ResumeUpload } from "./auto-apply-loop";
 
-export type { ApplicationBrowserSession, AutoApplyResult, FillProgress } from "./auto-apply-loop";
+export type { ApplicationBrowserSession, AutoApplyResult, FillProgress, FormBlank } from "./auto-apply-loop";
 
 async function resumeForUpload(): Promise<ResumeUpload | null> {
   const kept = localResumeFile();

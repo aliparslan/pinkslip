@@ -1,4 +1,5 @@
 import type { ApiClient } from "@pinkslip/core/api";
+import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { FormControl } from "@pinkslip/domain/application-form";
 
 /**
@@ -58,6 +59,22 @@ const ANSWERS: [RegExp, string][] = [
   [/email/i, "jordan@lee.dev"],
   [/phone/i, "(415) 555-0134"],
   [/linkedin/i, "https://www.linkedin.com/in/jordanlee"],
+];
+
+/** Jordan's answers bank for the samples (2.3): an earlier "why" and a project. */
+export const SAMPLE_ANSWERS: SavedApplicationAnswer[] = [
+  {
+    key: "q:Why do you want to work at Datadog?",
+    label: "Why do you want to work at Datadog?",
+    value: "I've wanted to build payments infrastructure since my first side project took its first dollar.",
+    updated_at: "2026-10-12T15:00:00Z",
+  },
+  {
+    key: "q:Tell us about a project you're proud of",
+    label: "Tell us about a project you're proud of",
+    value: "I built a budgeting app that reads bank exports and sorts spending; about 2,000 people use it each month.",
+    updated_at: "2026-10-09T15:00:00Z",
+  },
 ];
 
 /** A one-page PDF for the kit's samples, so attaching a resume can be tried. */
