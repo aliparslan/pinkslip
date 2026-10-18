@@ -13,7 +13,7 @@ import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
 import { LaunchFailure } from "../redesign/errors";
-import { redesignEnabled } from "../redesign/flag";
+import { redesignEnabled, rememberOwnerPhone } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
@@ -57,6 +57,9 @@ function AppEffects({ api }: { api: ApiClient }) {
   const { data: session } = useSession();
   const owner = session?.me?.user?.id;
   useEffect(() => { if (owner) void refreshDevicePush(api); }, [api, owner]);
+  // An admin's phone gets the kit and the owner's updates from the next launch.
+  const admin = session?.me?.is_admin;
+  useEffect(() => { if (admin !== undefined) rememberOwnerPhone(admin); }, [admin]);
   // Reminders and the daily alert go out in the phone's own time zone.
   useEffect(() => {
     if (!owner) return;
