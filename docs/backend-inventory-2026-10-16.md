@@ -298,9 +298,8 @@ owner's check before the next.
    forwards, the test set of real-shaped emails, AI fallback, dates from
    emails, N18, and reply detection (N11). Tracking from one email is not a
    priority. **Built and live 2026-10-18** (see "Built").
-6. **Accounts** (§7): Google sign-in, email and password. **Built
-   2026-10-18, not deployed** (see "Built"); the sign-in screens wait for
-   Paper, and Google waits for the owner's OAuth client.
+6. **Accounts** (§7): Google sign-in, email and password. **Built and live
+   2026-10-18** (see "Built"); the sign-in screens wait for Paper.
 7. **Following and events** (§6), with N19 and N20.
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
    removal path, then the flag.
@@ -933,7 +932,16 @@ After the owner's first forwards (2026-10-18):
   both phones within a minute, and "Which application?" waited 4 hours for
   the spacing.
 
-### Step 6: accounts (2026-10-18, not deployed)
+### Step 6: accounts (2026-10-18, live 2026-10-18)
+
+**Deployed 2026-10-18:** migration 0098, Worker 895fc20c (with the other
+session's `webcredentials` line in the AASA file); D1 bookmark before:
+`00004578-00012eee-00005108-e89400ac8d6da9f01597adc8412b470c`. All 8
+identities came through (4 Apple, 4 email). Checked live: Google sign-in on,
+Google accepts the client and redirect URI, the password and code routes
+answer, Apple's route still verifies tokens, no new errors. The owner's
+Google OAuth client is set: `GOOGLE_CLIENT_ID` in `wrangler.toml`, the
+secret as a Worker secret.
 
 - **Migration 0098** rebuilds `auth_identities` to allow `google` and to
   hold a password's hash, copying the Apple refresh tokens aside and back
