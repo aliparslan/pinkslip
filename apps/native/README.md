@@ -74,7 +74,7 @@ through EAS Update (project `@lipster/pinkslip`, channel `production`).
   that has it (2026-10-14), and updates only reach builds of the same
   version, as above.
 
-The release version is **1.3.6**. Bump the patch (1.3.2, 1.3.3, …) with
+The release version is **1.3.7**. Bump the patch (1.3.2, 1.3.3, …) with
 every push that changes the app, in `app.json` (`version` and
 `runtimeVersion`), both `MARKETING_VERSION`
 entries, `Info.plist` and `EXUpdatesRuntimeVersion` in
