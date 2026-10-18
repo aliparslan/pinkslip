@@ -3,8 +3,6 @@ import { apnsReason } from "./apns";
 import { recordProductEvent } from "./product-events";
 import { buildDailyDigestPayload, buildNotificationPayload, type NotificationJob, type NotificationPayload } from "./push";
 import {
-  CAPPED_USERS_SQL,
-  cappedUsersBindings,
   recordSentNotification,
   type DueDigest,
 } from "./notifications";
@@ -267,19 +265,17 @@ export async function deliverPendingNotifications(
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = nc.user_id AND ubc.company_id = j.company_id
        )
-       -- Once-a-day people wait for their digest; anyone at the daily cap, or
-       -- within 4 hours of their last passive push, waits.
+       -- Once-a-day people wait for their digest. New-job alerts don't wait
+       -- for the daily cap: how often is the person's choice (UNCAPPED_KINDS).
        AND ${options.digests
          ? `nc.user_id IN (${digests.map(() => "?").join(", ")})`
          : "COALESCE(ns.mode, 'post') = 'post'"}
-       AND nc.user_id NOT IN (${CAPPED_USERS_SQL})
      ORDER BY nc.created_at ASC
      LIMIT ?`
   ).bind(
     MATCHER_VERSION,
     JOB_CLASSIFIER_VERSION,
     ...digests.map((digest) => digest.userId),
-    ...cappedUsersBindings(now),
     limit
   ).all<CandidateRow>();
   const available: CandidateRow[] = [];
@@ -313,8 +309,8 @@ export async function deliverPendingNotifications(
   for (const row of rows) {
     byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
   }
-  // One push per person per run: the cap counts pushes, so five jobs landing
-  // together are one alert, not five.
+  // One push per person per run, so five jobs landing together are one
+  // alert, not five.
   const deliveries: Array<[string, CandidateRow[]]> = [];
   for (const [userId, userCandidates] of byUser) {
     for (let offset = 0; offset < userCandidates.length; offset += JOBS_PER_PUSH) {

@@ -62,6 +62,13 @@ export const PASSIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
  */
 export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
 
+/**
+ * New-job alerts are the person's own choice of how often (as they post, or
+ * once a day), so they neither wait for the cap nor count toward it; the cap
+ * keeps everything else from piling on (owner, 2026-10-17).
+ */
+export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs"];
+
 /** New jobs once a day, until the person picks a time. */
 export const DEFAULT_DAILY_TIME = "08:00";
 

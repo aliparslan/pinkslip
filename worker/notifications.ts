@@ -15,6 +15,7 @@ import {
   LIVE_KINDS,
   NOTIFICATION_KINDS,
   PASSIVE_PER_DAY,
+  UNCAPPED_KINDS,
   PASSIVE_SPACING_MS,
   PASSIVE_WINDOW_MS,
   type LoggedNotification,
@@ -310,21 +311,12 @@ export async function recordSentNotification(
   ).run();
 }
 
+/** Kinds that neither wait for the cap nor count toward it, as SQL. */
+const UNCAPPED_SQL = UNCAPPED_KINDS.map((kind) => `'${kind}'`).join(", ");
+
 /** Passive notifications sent in the last 24 hours at or above which a person waits. */
 export function passiveWindowStart(now: Date): string {
   return new Date(now.getTime() - PASSIVE_WINDOW_MS).toISOString();
-}
-
-/**
- * People who can't get a passive push right now: three in the last 24 hours,
- * or one in the last 4. Bind `cappedUsersBindings(now)`.
- */
-export const CAPPED_USERS_SQL = `SELECT user_id FROM notification_log
-  WHERE passive = 1 AND status = 'sent' AND sent_at > ?
-  GROUP BY user_id HAVING COUNT(*) >= ${PASSIVE_PER_DAY} OR MAX(sent_at) > ?`;
-
-export function cappedUsersBindings(now: Date): [string, string] {
-  return [passiveWindowStart(now), new Date(now.getTime() - PASSIVE_SPACING_MS).toISOString()];
 }
 
 /**
@@ -335,7 +327,7 @@ export function cappedUsersBindings(now: Date): [string, string] {
 export async function passiveCapFreesAt(db: D1Database, userId: string, now: Date): Promise<Date | null> {
   const rows = await db.prepare(
     `SELECT sent_at FROM notification_log
-     WHERE user_id = ? AND passive = 1 AND status = 'sent' AND sent_at > ?
+     WHERE user_id = ? AND passive = 1 AND kind NOT IN (${UNCAPPED_SQL}) AND status = 'sent' AND sent_at > ?
      ORDER BY sent_at DESC
      LIMIT ?`
   ).bind(userId, passiveWindowStart(now), PASSIVE_PER_DAY).all<{ sent_at: string }>();

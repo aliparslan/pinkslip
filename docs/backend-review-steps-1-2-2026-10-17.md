@@ -44,6 +44,11 @@ worth a decision first.
 
 ## Worth deciding before deploy
 
+Decided the same day (owner): new-job alerts leave the cap ("as they post"
+stays as it is today, once a day stays one push), follow-ups stay as built
+(with job alerts out of the cap they rarely wait), and the error endpoint
+stays open for now. Items 1 to 3 below are kept as the record.
+
 1. **"As they post" becomes about three pushes a day.** People with alerts on
    got about 20 new-job pushes a day (up to 48); with the cap and the 4-hour
    spacing they'll get at most three, each listing everything since the last.

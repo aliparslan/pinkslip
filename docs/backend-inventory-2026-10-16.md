@@ -348,6 +348,8 @@ Made by the owner with Claude on 2026-10-16, part by part.
 3. **No quiet hours** for now. At most three passive pushes a day; the
    time-sensitive kinds (interview, offer, a reply) don't count toward it.
    Passive pushes are also at least 4 hours apart (owner, 2026-10-17).
+   New-job alerts are outside the cap: as they post (every match, one push
+   per check) or once a day is the person's choice (owner, 2026-10-17).
    **Built 2026-10-16** (step 2; see "Built" for how the cap counts).
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
@@ -642,10 +644,12 @@ ship with `bun run deploy:web` and an over-the-air update.
 - **Deep links per kind** (`notificationLinks`): job, feed, saved,
   applied, Today, Alerts, a follow-up's thread, an application. The iPhone
   app now opens `/today` in its Today tab.
-- **The daily cap:** passive pushes (every live kind) are at most three in
-  any 24 hours and at least 4 hours apart (owner, 2026-10-17), so the three
-  fall across the day. A push that can't go yet is rescheduled for the
-  moment it can, and new-job matches wait and go out together then. Time-sensitive pushes skip the cap and carry iOS's
+- **The daily cap:** passive pushes are at most three in any 24 hours and
+  at least 4 hours apart (owner, 2026-10-17), so the three fall across the
+  day. A push that can't go yet is rescheduled for the moment it can.
+  New-job alerts neither wait for it nor count toward it
+  (`UNCAPPED_KINDS`): how often is the person's choice, as they post or
+  once a day (owner, 2026-10-17). Time-sensitive pushes skip the cap and carry iOS's
   `time-sensitive` interruption level (it takes effect once the native
   build has the entitlement).
 - **N2, once a day:** people on Once a day keep their matches until their
@@ -682,7 +686,10 @@ Liberties for the owner to keep or veto:
 **Decided 2026-10-17:** in production a person with alerts on got about
 20 new-job pushes a day (up to 48), so three in 24 hours alone would have
 spent all three in the first hour of new jobs. The owner chose spacing:
-passive pushes at least 4 hours apart as well.
+passive pushes at least 4 hours apart as well. Later the same day, after
+the review: new-job alerts leave the cap entirely, so "as they post" stays
+as testers have it (one push per check with everything new), and the cap
+keeps the other kinds from piling on. Follow-ups stay passive.
 
 Checked from "Fix what we have" (production, read-only, 2026-10-16):
 
