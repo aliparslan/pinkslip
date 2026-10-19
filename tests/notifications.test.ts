@@ -92,6 +92,7 @@ describe("notification settings", () => {
         no_word: { enabled: true },
         replied: { enabled: true },
         forwarding_stopped: { enabled: true },
+        event_reminder: { enabled: true },
       },
       passive_per_day: 3,
     });

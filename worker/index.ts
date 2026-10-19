@@ -35,6 +35,7 @@ import applyRoutes from "./routes/apply";
 import errorRoutes from "./routes/errors";
 import notificationRoutes from "./routes/notifications";
 import todayRoutes from "./routes/today";
+import eventRoutes from "./routes/events";
 import { alertNewErrors, describeThrown, recordError } from "./errors";
 import {
   HEALTH_CRON_SCHEDULE,
@@ -338,6 +339,7 @@ app.route("/api/v2/preferences", preferenceRoutes);
 app.route("/api/v2/push", pushRoutes);
 app.route("/api/v2/notifications", notificationRoutes);
 app.route("/api/v2/today", todayRoutes);
+app.route("/api/v2/events", eventRoutes);
 app.route("/api/v2/stats", statRoutes);
 app.route("/api/v2/profile", profileRoutes);
 app.route("/api/v2/resume-import", resumeImportRoutes);

@@ -15,6 +15,7 @@ export type NotificationKind =
   | "no_word"
   | "replied"
   | "forwarding_stopped"
+  | "event_reminder"
   | "daily_summary";
 
 interface KindSpec {
@@ -47,6 +48,9 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   replied: { n: "N11", live: true, defaultOn: true, timeSensitive: true },
   // By email, not push (Decisions: Notifications #4; worker/email/forwarding.ts).
   forwarding_stopped: { n: "N18", live: true, defaultOn: true, timeSensitive: false },
+  // Remind me on an event: the day before (worker/events.ts). N20, a followed
+  // company's new job, rides with new_jobs marked "Following".
+  event_reminder: { n: "N19", live: true, defaultOn: true, timeSensitive: false },
   // Exists but off by default (Decisions: Notifications #1).
   daily_summary: { n: "N16", live: false, defaultOn: false, timeSensitive: false },
 };
@@ -72,7 +76,7 @@ export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
  * once a day), so they neither wait for the cap nor count toward it; the cap
  * keeps everything else from piling on (owner, 2026-10-17).
  */
-export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped"];
+export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped", "event_reminder"];
 
 /**
  * Passive kinds with a moment attached go out when they come due, without
@@ -98,6 +102,8 @@ export const notificationLinks = {
     jobId ? `/jobs/${encodeURIComponent(jobId)}?outreach=${encodeURIComponent(threadId)}` : "/library/applied",
   /** The application's page (its stub and timeline). */
   application: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
+  /** An event's page (Remind me, Sign up). */
+  event: (eventId: string) => `/events/${encodeURIComponent(eventId)}`,
 };
 
 export interface LoggedNotification {

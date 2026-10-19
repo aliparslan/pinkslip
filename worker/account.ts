@@ -300,6 +300,18 @@ export async function mergeGuestDataIntoAccount(
        WHERE user_id = ?`
     ).bind(targetUserId, sourceUserId),
     db.prepare(
+      `INSERT OR IGNORE INTO company_follows (user_id, company_id, followed_at)
+       SELECT ?, company_id, followed_at
+       FROM company_follows
+       WHERE user_id = ?`
+    ).bind(targetUserId, sourceUserId),
+    db.prepare(
+      `INSERT OR IGNORE INTO event_reminders (user_id, event_id, created_at)
+       SELECT ?, event_id, created_at
+       FROM event_reminders
+       WHERE user_id = ?`
+    ).bind(targetUserId, sourceUserId),
+    db.prepare(
       `INSERT INTO viewed_jobs (user_id, job_id, viewed_at)
        SELECT ?, job_id, viewed_at
        FROM viewed_jobs
@@ -437,6 +449,8 @@ export async function deleteUserAccountData(
     db.prepare("DELETE FROM outreach_threads WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM application_answers WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_blocked_companies WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM company_follows WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM event_reminders WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM user_notification_settings WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM notification_candidates WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM content_reports WHERE user_id = ?").bind(userId),

@@ -1,4 +1,5 @@
 import type { Application } from "./application-stages";
+import type { CompanyEvent } from "./company-events";
 import type { DetectedStage, InboundEmail } from "./email-tracking";
 import type { OutreachThread } from "./outreach";
 
@@ -18,7 +19,9 @@ export type TodayEntry =
   | { kind: "saved_job_closed"; key: string; at: string; application: Application; new: boolean }
   // Coming up
   | { kind: "upcoming_step"; key: string; at: string; application: Application }
-  | { kind: "upcoming_follow_up"; key: string; at: string; thread: OutreachThread };
+  | { kind: "upcoming_follow_up"; key: string; at: string; thread: OutreachThread }
+  // An event at a company you follow, or one you asked to be reminded of.
+  | { kind: "upcoming_event"; key: string; at: string; event: CompanyEvent };
 
 export interface TodayResponse {
   /** Newest first. */

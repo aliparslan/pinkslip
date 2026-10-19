@@ -13,6 +13,7 @@ import { isEndingStage, type ApplicationStage } from "../shared/application-stag
 import type { DetectedStage } from "../shared/email-tracking";
 import type { OutreachThread } from "../shared/outreach";
 import type { TodayEntry, TodayResponse } from "../shared/today";
+import { comingUpEvents } from "./events";
 import { listApplications } from "./applications";
 import { listInboundEmails } from "./email/process";
 import { DEFAULT_TIME_ZONE, localParts, validTimeZone, zonedTime } from "./local-time";
@@ -264,6 +265,9 @@ export async function notifyActivity(db: D1Database, activity: ActivityRow, now 
         url?: string;
         time_sensitive?: boolean;
         dedupe_key?: string;
+        /** An event reminder names its event; the rest are about the application. */
+        entity_type?: string;
+        entity_id?: string;
       };
       if (!detail.notification_kind || !isNotificationKind(detail.notification_kind) || !detail.title || !detail.url) return false;
       return scheduleNotification(db, {
@@ -274,8 +278,8 @@ export async function notifyActivity(db: D1Database, activity: ActivityRow, now 
         body: detail.body ?? "",
         url: detail.url,
         timeSensitive: detail.time_sensitive === true,
-        entityType: "application",
-        entityId: activity.application_id,
+        entityType: detail.entity_type ?? "application",
+        entityId: detail.entity_id ?? activity.application_id,
       }, now);
     }
     default:
@@ -386,6 +390,9 @@ export async function buildToday(db: D1Database, userId: string, now = new Date(
     const at = stageDateInstant(application.stage_date, zone);
     if (Number.isNaN(at) || at < todayStart || at >= horizon) continue;
     comingUp.push({ kind: "upcoming_step", key: `upcoming-${application.id}`, at: new Date(at).toISOString(), application });
+  }
+  for (const event of await comingUpEvents(db, userId, todayStart, horizon)) {
+    comingUp.push({ kind: "upcoming_event", key: `event-${event.id}`, at: event.starts_at, event });
   }
   comingUp.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 

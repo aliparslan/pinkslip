@@ -9,7 +9,7 @@ import {
   rowToListing,
   type FeatureJobRow,
 } from "../job-features";
-import { matchJobsForAllProfiles } from "../user-job-matches";
+import { matchJobsForAllProfiles, rematchCompanyForUser } from "../user-job-matches";
 import type { Env, Variables } from "../types";
 import { resolveJobId } from "../job-identity";
 
@@ -71,6 +71,8 @@ interactions.post("/companies/:id/block", async (c) => {
     `INSERT OR IGNORE INTO user_blocked_companies (user_id, company_id, blocked_at)
      VALUES (?, ?, ?)`
   ).bind(userId, companyId, new Date().toISOString()).run();
+  // Hiding and following can't both hold: hiding a company unfollows it.
+  await c.env.DB.prepare("DELETE FROM company_follows WHERE user_id = ? AND company_id = ?").bind(userId, companyId).run();
   await c.env.DB.prepare(
     `UPDATE notification_candidates
      SET status = 'skipped', last_error = 'Company hidden by user'
@@ -86,6 +88,55 @@ interactions.post("/companies/:id/block", async (c) => {
     entityId: companyId,
   }).catch(() => undefined);
   return c.json({ blocked: true });
+});
+
+/**
+ * Following a company (Decisions: Following and events): its jobs at your
+ * level reach you even outside your roles and places, its new ones marked
+ * "Following" (N20), and its events show in Today's Coming up. Following a
+ * hidden company brings it back.
+ */
+interactions.post("/companies/:id/follow", async (c) => {
+  const userId = c.get("userId");
+  const companyId = c.req.param("id");
+  const exists = await c.env.DB.prepare(
+    "SELECT id FROM companies WHERE id = ? AND enabled = 1"
+  ).bind(companyId).first<{ id: string }>();
+  if (!exists) return c.json({ error: "Company not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("INSERT OR IGNORE INTO company_follows (user_id, company_id, followed_at) VALUES (?, ?, ?)")
+      .bind(userId, companyId, new Date().toISOString()),
+    c.env.DB.prepare("DELETE FROM user_blocked_companies WHERE user_id = ? AND company_id = ?").bind(userId, companyId),
+  ]);
+  c.executionCtx.waitUntil(rematchCompanyForUser(c.env.DB, userId, companyId)
+    .catch((error) => console.error("Follow rematch failed", error)));
+  await recordProductEvent(c.env.DB, {
+    userId,
+    sessionId: c.get("sessionId"),
+    name: "company_followed",
+    entityType: "company",
+    entityId: companyId,
+  }).catch(() => undefined);
+  return c.json({ following: true });
+});
+
+interactions.delete("/companies/:id/follow", async (c) => {
+  const userId = c.get("userId");
+  const companyId = c.req.param("id");
+  const removed = await c.env.DB.prepare("DELETE FROM company_follows WHERE user_id = ? AND company_id = ?")
+    .bind(userId, companyId).run();
+  if ((removed.meta.changes ?? 0) > 0) {
+    c.executionCtx.waitUntil(rematchCompanyForUser(c.env.DB, userId, companyId)
+      .catch((error) => console.error("Unfollow rematch failed", error)));
+    await recordProductEvent(c.env.DB, {
+      userId,
+      sessionId: c.get("sessionId"),
+      name: "company_unfollowed",
+      entityType: "company",
+      entityId: companyId,
+    }).catch(() => undefined);
+  }
+  return c.json({ following: false });
 });
 
 interactions.delete("/companies/:id/block", async (c) => {

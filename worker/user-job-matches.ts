@@ -37,7 +37,7 @@ export interface UserJobMatch {
   requiredYears?: number | null;
 }
 
-type MatchableJobRow = FeatureJobRow & StoredJobFeatureColumns & { evergreen: number | null };
+type MatchableJobRow = FeatureJobRow & StoredJobFeatureColumns & { evergreen: number | null; company_id: string };
 
 interface FeatureCompleteness {
   classifier_version: string | null;
@@ -106,7 +106,14 @@ export function evaluateJobForProfile(
    * gate. They never close, so judging them by posted date would disqualify
    * every one of them and the feed's evergreen filter would always be empty.
    */
-  evergreen = false
+  evergreen = false,
+  /**
+   * The person follows the company. Following only widens (Decisions:
+   * Following and events #2): its jobs at their level reach them even when
+   * the role or place is outside their search. Level, experience,
+   * qualifications, US jobs, sponsorship and excluded titles still apply.
+   */
+  followed = false
 ): UserJobMatch {
   const selectedSpecialty = specificRoleSpecialties(features.specialties)
     .some((specialty) => profile.roles.includes(specialty));
@@ -139,7 +146,7 @@ export function evaluateJobForProfile(
 
   const sponsorshipDisqualified = profile.work_authorization === "sponsorship"
     && features.sponsorship_available === false;
-  const locationDisqualified = !isLocationEligibleForProfile(listing, features, profile);
+  const locationDisqualified = !followed && !isLocationEligibleForProfile(listing, features, profile);
   const contentDisqualified = !listing.description?.trim();
   const staleDisqualified = !evergreen && !isFreshPostedAt(listing.postedAt);
   const countryDisqualified = !isUsJobLocation(listing.location);
@@ -163,7 +170,7 @@ export function evaluateJobForProfile(
     && !staleDisqualified
     && !countryDisqualified
     && !excludedTitleDisqualified
-    && (selectedSpecialty || customTitle || legacyTitleMatch);
+    && (followed || selectedSpecialty || customTitle || legacyTitleMatch);
   const requiredYears = features.qualification_requirements
     ? qualificationYearsForProfile(features.qualification_requirements, profile, features.min_years)
     : features.min_years;
@@ -208,6 +215,13 @@ async function storeMatches(db: D1Database, userId: string, matches: UserJobMatc
   }
 }
 
+/** The companies a person follows (company_follows). */
+export async function followedCompanyIds(db: D1Database, userId: string): Promise<Set<string>> {
+  const rows = await db.prepare("SELECT company_id FROM company_follows WHERE user_id = ?")
+    .bind(userId).all<{ company_id: string }>();
+  return new Set((rows.results ?? []).map((row) => row.company_id));
+}
+
 async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string[]) {
   if (jobIds && jobIds.length > 0) {
     const rows: MatchableJobRow[] = [];
@@ -215,7 +229,7 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
       const ids = jobIds.slice(offset, offset + 75);
       const placeholders = ids.map(() => "?").join(", ");
       const result = await db.prepare(
-        `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+        `SELECT j.id, j.company_id, j.external_id, j.title, j.url, j.location, j.department,
                 j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
                 jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
                 jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
@@ -253,7 +267,7 @@ async function loadMatchableRows(db: D1Database, userId: string, jobIds?: string
     ? [JOB_CLASSIFIER_VERSION, cursor.match_cursor_seen_at, MATCH_WARM_BATCH_SIZE]
     : [JOB_CLASSIFIER_VERSION, MATCH_WARM_BATCH_SIZE];
   return db.prepare(
-    `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+    `SELECT j.id, j.company_id, j.external_id, j.title, j.url, j.location, j.department,
             j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
             jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
             jf.max_years, jf.work_mode, jf.countries_json, jf.metro_areas_json,
@@ -352,6 +366,7 @@ export async function ensureUserJobMatches(db: D1Database, userId: string, jobId
     );
   }
   const state = await loadUserPreferenceState(db, userId);
+  const followed = await followedCompanyIds(db, userId);
   const result = await loadMatchableRows(db, userId, jobIds);
   // SQL guards are authoritative; the runtime check is defense in depth for
   // mocked databases and any future query refactor that accidentally widens
@@ -365,7 +380,8 @@ export async function ensureUserJobMatches(db: D1Database, userId: string, jobId
       rowToListing(row),
       storedJobFeaturesFromRow(row),
       state.search_profile,
-      row.evergreen === 1
+      row.evergreen === 1,
+      followed.has(row.company_id)
     )
   );
   await storeMatches(db, userId, matches);
@@ -449,7 +465,7 @@ export async function ensureUserEvergreenMatchesReady(
   );
   const state = await loadUserPreferenceState(db, userId);
   const result = await db.prepare(
-    `SELECT j.id, j.external_id, j.title, j.url, j.location, j.department,
+    `SELECT j.id, j.company_id, j.external_id, j.title, j.url, j.location, j.department,
             j.posted_at, j.first_seen_at, 'available' AS description, j.salary,
             j.evergreen,
             jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
@@ -472,13 +488,15 @@ export async function ensureUserEvergreenMatchesReady(
      LIMIT 2500`
   ).bind(JOB_CLASSIFIER_VERSION).all<MatchableJobRow>();
   const rows = (result.results ?? []).filter(hasCurrentStoredJobFeatures);
+  const followed = await followedCompanyIds(db, userId);
   const matches = rows.map((row) =>
     evaluateJobForProfile(
       row.id,
       rowToListing(row),
       storedJobFeaturesFromRow(row),
       state.search_profile,
-      true
+      true,
+      followed.has(row.company_id)
     )
   );
   await storeMatches(db, userId, matches);
@@ -579,6 +597,7 @@ async function matchJobsForProfiles(
 ) {
   if (jobs.length === 0) return;
   const preparedJobs = prepareJobsForMatching(jobs);
+  const followers = await followersOfJobs(db, preparedJobs.map((job) => job.jobId));
   const users = await db.prepare(
     `SELECT usp.user_id, usp.profile_json, usp.notifications_enabled,
             usp.onboarding_version, usp.onboarding_completed_at
@@ -588,10 +607,27 @@ async function matchJobsForProfiles(
   for (const row of users.results ?? []) {
     const profile = searchProfileFromRow(row);
     const matches = preparedJobs.map(({ jobId, listing, evergreen, features }) =>
-      evaluateJobForProfile(jobId, listing, features, profile, evergreen === true)
+      evaluateJobForProfile(jobId, listing, features, profile, evergreen === true, followers.get(jobId)?.has(row.user_id) ?? false)
     );
     await storeMatches(db, row.user_id, matches);
   }
+}
+
+/** For each job, the people who follow its company. */
+async function followersOfJobs(db: D1Database, jobIds: string[]): Promise<Map<string, Set<string>>> {
+  const followers = new Map<string, Set<string>>();
+  for (let offset = 0; offset < jobIds.length; offset += 75) {
+    const ids = jobIds.slice(offset, offset + 75);
+    const rows = await db.prepare(
+      `SELECT j.id AS job_id, cf.user_id
+       FROM jobs j JOIN company_follows cf ON cf.company_id = j.company_id
+       WHERE j.id IN (${ids.map(() => "?").join(", ")})`
+    ).bind(...ids).all<{ job_id: string; user_id: string }>();
+    for (const row of rows.results ?? []) {
+      followers.set(row.job_id, (followers.get(row.job_id) ?? new Set()).add(row.user_id));
+    }
+  }
+  return followers;
 }
 
 /**
@@ -669,6 +705,7 @@ export async function catchUpNewJobMatches(
 
     await ensureCurrentCandidateFeatures(db, rows);
     const state = await loadUserPreferenceState(db, userId);
+    const followed = await followedCompanyIds(db, userId);
     const matchable = (await loadMatchableRows(db, userId, rows.map((row) => row.id)))
       .results?.filter(hasCurrentStoredJobFeatures) ?? [];
     await storeMatches(db, userId, matchable.map((row) =>
@@ -677,7 +714,8 @@ export async function catchUpNewJobMatches(
         rowToListing(row),
         storedJobFeaturesFromRow(row),
         state.search_profile,
-        row.evergreen === 1
+        row.evergreen === 1,
+        followed.has(row.company_id)
       )
     ));
     evaluated += rows.length;
@@ -726,5 +764,26 @@ export async function rematchJobForMatchedUsers(
         "DELETE FROM user_job_matches WHERE user_id = ? AND job_id = ?"
       ).bind(userId, jobId).run();
     }
+  }
+}
+
+/**
+ * After someone follows or unfollows a company: its open jobs are matched
+ * again for them, so followed jobs outside their search arrive and, after an
+ * unfollow, leave.
+ */
+export async function rematchCompanyForUser(db: D1Database, userId: string, companyId: string) {
+  const jobs = await db.prepare(
+    "SELECT id FROM jobs WHERE company_id = ? AND closed_at IS NULL ORDER BY first_seen_at DESC LIMIT 500"
+  ).bind(companyId).all<{ id: string }>();
+  const ids = (jobs.results ?? []).map((row) => row.id);
+  if (ids.length === 0) return;
+  const matches = await ensureUserJobMatches(db, userId, ids);
+  const plausible = new Set(matches.filter((match) => match.plausible).map((match) => match.jobId));
+  const gone = ids.filter((id) => !plausible.has(id));
+  for (let offset = 0; offset < gone.length; offset += 75) {
+    const batch = gone.slice(offset, offset + 75);
+    await db.prepare(`DELETE FROM user_job_matches WHERE user_id = ? AND job_id IN (${batch.map(() => "?").join(", ")})`)
+      .bind(userId, ...batch).run();
   }
 }

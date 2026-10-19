@@ -7,6 +7,7 @@ import {
   shouldQueueNotificationsForCompany,
   type NewJobMeta,
 } from "../poller";
+import { listCompanyEvents } from "../events";
 import { matchJobsForAllProfiles } from "../user-job-matches";
 import { loadCustomTitles } from "../job-scope";
 import {
@@ -101,14 +102,23 @@ companies.get("/", async (c) => {
        CAST(EXISTS(
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ? AND ubc.company_id = c.id
-       ) AS INTEGER) AS blocked
+       ) AS INTEGER) AS blocked,
+       CAST(EXISTS(
+         SELECT 1 FROM company_follows cf
+         WHERE cf.user_id = ? AND cf.company_id = c.id
+       ) AS INTEGER) AS following
      FROM companies c ${where}
      ORDER BY c.name ASC`
   )
-    .bind(c.get("userId"), ...bindings)
+    .bind(c.get("userId"), c.get("userId"), ...bindings)
     .all<CompanyRow>();
 
   return c.json({ companies: (result.results ?? []).map(serializeCompany) });
+});
+
+/** A company's events still on its page, soonest first, with the viewer's Remind me. */
+companies.get("/:id/events", async (c) => {
+  return c.json({ events: await listCompanyEvents(c.env.DB, c.req.param("id"), c.get("userId")) });
 });
 
 companies.post("/verify", requireAdmin, async (c) => {

@@ -12,6 +12,8 @@ import type {
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
 import type { TodayResponse } from "@pinkslip/domain/today";
 export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
+import type { CompanyEvent } from "@pinkslip/domain/company-events";
+export type { CompanyEvent } from "@pinkslip/domain/company-events";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
@@ -298,6 +300,8 @@ export interface Job {
   application_stage?: ApplicationStage | null;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
+  /** The person follows the company (N20 marks it "Following"). */
+  following?: boolean;
 }
 
 export interface Company {
@@ -319,6 +323,38 @@ export interface Company {
    */
   quarantined_at?: string | null;
   blocked?: boolean | number;
+  /** The person follows it: its jobs at their level reach them even outside their search. */
+  following?: boolean | number;
+}
+
+/** What Admin's "paste a link" read from an event's page, to check before saving. */
+export interface EventDraft {
+  title: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  location: string;
+  online: boolean;
+  url: string;
+  signup_closes_at: string | null;
+  host: string;
+  about: string;
+  organizer: string;
+  source: "structured_data" | "ai" | "page_title";
+}
+
+export interface EventInput {
+  company_id: string;
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+  location?: string;
+  online?: boolean;
+  url: string;
+  signup_closes_at?: string | null;
+  audience?: string;
+  host?: string;
+  about?: string;
+  points?: string[];
 }
 
 export type ResumeImportErrorCode =
@@ -718,6 +754,31 @@ function createEndpoints(context: ClientContext) {
       request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "POST" }),
     restore: (id: string) =>
       request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "DELETE" }),
+    follow: (id: string) =>
+      request<{ following: boolean }>(`/interactions/companies/${id}/follow`, { method: "POST" }),
+    unfollow: (id: string) =>
+      request<{ following: boolean }>(`/interactions/companies/${id}/follow`, { method: "DELETE" }),
+    /** Its events still on its page, soonest first. */
+    events: (id: string) => request<{ events: CompanyEvent[] }>(`/companies/${id}/events`),
+  },
+  events: {
+    get: (id: string) => request<CompanyEvent>(`/events/${id}`),
+    /** Remind me: a push the day before. */
+    remind: (id: string) => request<{ reminded: boolean }>(`/events/${id}/reminder`, { method: "PUT" }),
+    unremind: (id: string) => request<{ reminded: boolean }>(`/events/${id}/reminder`, { method: "DELETE" }),
+    admin: {
+      list: () => request<{ events: Array<CompanyEvent & { reminders: number }> }>("/events"),
+      preview: (url: string) =>
+        request<{ draft: EventDraft; company: { id: string; name: string } | null }>("/events/preview", {
+          method: "POST",
+          body: JSON.stringify({ url }),
+        }, 20_000),
+      create: (event: EventInput) =>
+        request<CompanyEvent & { reminders: number }>("/events", { method: "POST", body: JSON.stringify(event) }),
+      update: (id: string, event: Partial<EventInput>) =>
+        request<CompanyEvent & { reminders: number }>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(event) }),
+      delete: (id: string) => request<void>(`/events/${id}`, { method: "DELETE" }),
+    },
   },
   preferences: {
     get: () => request<PreferenceState>("/preferences"),
