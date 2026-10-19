@@ -142,12 +142,12 @@ export function usePinnedBarToastLift() {
 
 /** A page with nothing to show: the page bar's Back, then the error centred
  * in the room (W3, W4; the event page's E2c too). */
-export function ErrorPage({ children }: { children: React.ReactNode }) {
+export function ErrorPage({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={[styles.errorBody, { paddingTop: insets.top + PAGE_BAR }]}>{children}</View>
-    <PageBar />
+    <PageBar onBack={onBack} />
   </View>;
 }
 
