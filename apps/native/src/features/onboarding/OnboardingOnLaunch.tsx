@@ -1,5 +1,5 @@
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
+import { openSignIn } from "../account/sign-in-request";
 import { finishOnboarding, onboardingDue, onReplayOnboarding } from "./launch";
 import { Welcome } from "./Welcome";
 
@@ -25,7 +25,7 @@ export function OnboardingOnLaunch() {
   };
   const account = () => {
     done();
-    if (run.real) router.push("/you/account");
+    if (run.real) openSignIn();
   };
   return <Welcome key={replays} saves={run.saves} counts={run.real} onDone={done} onAccount={account} />;
 }

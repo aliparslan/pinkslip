@@ -414,6 +414,21 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   - **Endings each have their own mark,** grey: Rejected is the ring with
     an ✕, Withdrawn the ring with an arrow back, Ghosted (was "No reply")
     Phosphor's ghost. Tracker's Closed group keeps the ring with a dash.
+- **Sign in** (`ui/SignIn.tsx`, `SignInSheet.tsx`; Paper "Sign in · Oct 15",
+  S1 approved as K1; built 2026-10-18): one sheet over the page you were on,
+  opened with `openSignIn()` (You's guest card, the welcome's "I have an
+  account", Account as a guest). The ways in are 50 capsules 12 apart, each
+  leading with its own mark at 18 and the label in Body Medium: Apple black
+  (white in dark mode) with Apple's logo, Google `sheet-group` with a 1pt
+  `outline` and Google's own "G" (an image from Google's 2026 kit, which
+  react-native-svg can't draw), email on `fill`. Email is S2 then S4: the
+  field is white at the sheet group's radius with its label always above,
+  and the code is six 60-tall boxes 9 apart (the next one ringed
+  `accent-fill` with its caret), filled from Mail. What goes wrong is one
+  `bad` line: under the title (Apple or Google didn't finish), under the
+  field, or under the boxes, whose rings turn `bad`; an expired code greys
+  the digits and offers "Send a new code" in pink. No Terms line until there
+  is a Terms page. Passwords (S3a, S3b) aren't built yet.
 - **Sheet or page** (owner, 2026-10-15): a sheet is for a quick choice or
   form that drops you back where you were (sign in, report, edit search,
   pick a plan, change stage, What's new). Anything you read, come back to

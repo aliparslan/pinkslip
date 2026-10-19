@@ -12,6 +12,7 @@ import { notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
+import { SignInHost } from "../account/SignInSheet";
 import { LaunchFailure } from "../redesign/errors";
 import { redesignEnabled, rememberOwnerPhone } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
@@ -48,6 +49,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <AppEffects api={api} />
       <ResumeOcrProvider>{children}</ResumeOcrProvider>
       <ToastHost />
+      <SignInHost />
     </DataProvider>
   </PersistQueryClientProvider>;
 }

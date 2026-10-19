@@ -1,10 +1,11 @@
 import { useDeleteAccount, useSession, useSignOut, useUpdateName } from "@pinkslip/data";
-import { router, Stack } from "expo-router";
+import { router } from "expo-router";
+import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { toast } from "../../../kit";
 import { clearResumeFile } from "../../../platform/resume-file";
 import { ListGroup, ListItem } from "../../../ui";
-import { Account } from "../../account/Account";
+import { openSignIn } from "../../account/sign-in-request";
 import { YouPage } from "./Page";
 
 export interface AccountViewProps {
@@ -61,20 +62,23 @@ export function AccountView({ name, email, provider, actions }: AccountViewProps
   </YouPage>;
 }
 
-/** Account on the live session. A guest still gets today's sign-in page,
- * which the redesign hasn't drawn yet. */
+/** Account on the live session. A guest who lands here (a link, an old
+ * route) gets the sign-in sheet over it, and goes back if they close it. */
 export function AccountPage() {
   const session = useSession();
   const updateName = useUpdateName();
   const signOut = useSignOut();
   const deleteAccount = useDeleteAccount();
-  if (session.data?.state !== "authenticated") {
-    return <>
-      <Stack.Screen options={{ headerShown: true, title: "Account" }} />
-      <Account />
-    </>;
-  }
-  const me = session.data.me;
+  const signedIn = session.data?.state === "authenticated";
+  const signedInNow = useRef(signedIn);
+  signedInNow.current = signedIn;
+  const guest = session.data !== undefined && !signedIn;
+  useEffect(() => {
+    if (!guest) return;
+    openSignIn({ onClosed: () => { if (!signedInNow.current && router.canGoBack()) router.back(); } });
+  }, [guest]);
+  if (!signedIn) return <YouPage title="Account">{null}</YouPage>;
+  const me = session.data?.me;
   return <AccountView name={me?.user?.name ?? ""} email={me?.account?.email ?? null} provider={me?.account?.provider ?? null} actions={{
     rename: async (name) => {
       await updateName.mutateAsync(name);

@@ -17,6 +17,7 @@ export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type Lis
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { RowPlaceholders, useDelayed } from "./RowPlaceholders";
 export { SearchField, type SearchFieldProps } from "./SearchField";
+export { AppleLogo, CODE_LENGTH, CodeBoxes, GoogleLogo, ProviderButton, SignInField, type CodeBoxesProps, type ProviderButtonProps, type SignInFieldProps, type SignInProvider } from "./SignIn";
 export { Segmented, type SegmentedProps } from "./Segmented";
 export { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
 export { Sheet, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet, useSheetGuard, type SheetHeaderProps, type SheetModalProps, type SheetProps, type SheetStepProps } from "./Sheet";

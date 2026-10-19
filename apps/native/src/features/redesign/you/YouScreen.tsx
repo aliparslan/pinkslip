@@ -11,6 +11,7 @@ import { Menu } from "../../../kit";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
 import { faces, Icon, IconTile, ListGroup, ListItem, Text, useTabBarScroll, useTabBarSpace } from "../../../ui";
+import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
 import { EditSearchSheet } from "../EditSearch";
 import { trackingState, trackingStateLabels } from "../email/email-facts";
@@ -172,7 +173,9 @@ export function YouScreen() {
       onAppearance={setAppearancePreference}
       // Pro isn't sold yet, so Plan says Soon like the two it pays for.
       show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable, outreach: signedIn && Boolean(me?.features?.outreach_enabled) }}
-      open={(destination) => destination === "search" ? setSearching(true) : go(destinations[destination])} />
+      // A guest's card opens the sign-in sheet over You, not a page.
+      open={(destination) => destination === "search" ? setSearching(true)
+        : destination === "account" && !signedIn ? openSignIn() : go(destinations[destination])} />
     <EditSearchSheet open={searching} onClosed={() => setSearching(false)} />
   </>;
 }
