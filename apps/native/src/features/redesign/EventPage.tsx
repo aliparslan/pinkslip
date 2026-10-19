@@ -3,13 +3,14 @@ import { useApi, useEvent, useSetEventReminder } from "@pinkslip/data";
 import * as WebBrowser from "expo-web-browser";
 import { router, Stack, useIsFocused } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { enableDevicePush } from "../../platform/push";
 import { shareEvent } from "../../platform/share";
 import {
-  Button, DateTile, EmptyState, IconButton, JobRow, StampedSlip, Text, Ticket, toast, useTabBarSpace, useTabBarStepsAside, type TicketFact,
+  Button, DateTile, EmptyState, Floating, Icon, IconButton, JobRow, StampedSlip, Text, Ticket, toast, TopEdgeFade, useTabBarSpace, useTabBarStepsAside,
+  type TicketFact,
 } from "../../ui";
 import { eventStarted, toEventView, type EventView } from "./event-facts";
 import { JobIdentity } from "./JobIdentity";
@@ -93,9 +94,15 @@ export function EventPageView({ event, reminder, onSignUp, onShare }: EventPageV
         </View>)}
       </View> : null}
     </ScrollView>
+    {/* Floating over the page, as the job page's are. */}
+    <TopEdgeFade height={insets.top + 44 + 12} />
     <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
-      <IconButton icon="back" label="Back" onPress={() => router.back()} />
-      {onShare ? <IconButton icon="share" label="Share" onPress={onShare} /> : null}
+      <Floating>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={styles.slot}><Icon name="back" size={20} /></Pressable>
+      </Floating>
+      {onShare ? <Floating>
+        <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
+      </Floating> : null}
     </View>
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       {reminder ? <Button icon="notifications" pending={reminder.pending} onPress={reminder.onPress}>{reminder.on ? "Reminding" : "Remind me"}</Button> : null}
@@ -172,6 +179,7 @@ const styles = StyleSheet.create((theme) => ({
   about: { gap: theme.ui.space["2"] },
   point: { flexDirection: "row", gap: theme.ui.space["2"] },
   top: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter },
+  slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   bar: {
     position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: theme.ui.space["3"],
     paddingTop: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, backgroundColor: theme.ui.color.bg,

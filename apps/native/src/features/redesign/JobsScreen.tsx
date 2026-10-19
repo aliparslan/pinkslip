@@ -32,9 +32,13 @@ export function JobsScreen() {
     <Stack.Screen options={{ headerShown: false }} />
     <JobsFeed query={query || undefined} chips onClearQuery={() => setText("")}
       top={(offline) => <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
-          {offline ? <OfflinePill /> : null}
+        {/* The title sits under the 44 nav row, level with every other tab's. */}
+        <View style={styles.titleBlock}>
+          <View style={styles.nav} />
+          <View style={styles.titleRow}>
+            <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+            {offline ? <OfflinePill /> : null}
+          </View>
         </View>
         <View style={styles.row}>
           <SearchField value={text} onChangeText={setText} placeholder="Search these jobs" onSubmit={() => rememberSearch(text)} />
@@ -63,7 +67,9 @@ function SearchEverything({ query }: { query: string }) {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"] },
+  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
+  titleBlock: { gap: theme.ui.space["2"] },
+  nav: { height: theme.ui.size.iconButton },
   row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   everything: {

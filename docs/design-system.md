@@ -48,7 +48,7 @@ else is decided.
 | Card | `bg-grouped` | White cards of settings, choice lists | The page, paper objects |
 | Paper | `paper` | The ticket and the application stub | Anything else |
 | Grouped screen | `screen-grouped` | A settings-style page whose cards are white (Mist, like `bg`) | Ordinary screens |
-| Floating | `bg-elev` | The tab bar, toasts (both glass on iOS 26), menus | Inline content |
+| Floating | `bg-elev` | The tab bar, toasts, a page's pinned Back, share and ⋯ (all glass on iOS 26), menus | Inline content |
 | Sheet | `sheet` | A sheet's own surface: Mist in light, like the page | Anything inside it |
 | Sheet group | `sheet-group` | Groups and fields inside a sheet: white in light | The page |
 | Control | `fill` | Gray buttons, search, icon buttons; see-through | Groups, fields |
@@ -93,7 +93,8 @@ else is decided.
 | Outline | No fill, pink edge and pink label | A pink action that repeats down a list or sits inside a card, where filled pink would shout | Follow on company rows, Answer in a needs-you card, Approve in admin lists |
 | Text | No container, `ink-2` label (`plain`) | Quiet ways out | Not now, Skip, I already applied |
 | Text, ink | No container, `ink` label (`text`) | The other answer under a primary, when it's a real choice | Discard changes |
-| Icon | Round gray, 36 or 44, `ink-2` icon | Close, back, share, more, the filter button | |
+| Icon | Round gray, 36 or 44, `ink-2` icon | Close, back, share, more, the filter button, on the page | Over a scrolling page: `Floating` (below) |
+| Floating icon | `Floating`: Liquid Glass on iOS 26, `bg-elev` with the pill shadow before; the page fades out under it (`TopEdgeFade`) | Back, share and ⋯ pinned over a page (job, application, event) | Buttons that sit on the page |
 | Destructive | Text button in `bad` | Remove, Withdraw. Confirm in a sheet if it can't be undone | |
 | Disabled | Gray fill, `ink-3` label | Any button that can't be used yet | Save search before anything changed |
 
@@ -817,6 +818,15 @@ cut so that each remaining one has a job.
     with several on; the board also tried heavier lines, berry and ink
     labels, softer, rose and magenta pinks, a pastel fill, and Linear's way
     (a grey fill, colour only in small marks). Jobs' filters stay ink.
+- **2026-10-19 (later)**
+  - Consistency pass (`consistency-audit-2026-10-19.md`, owner: Search's
+    header stuck, the job page's buttons were see-through, headers
+    differ). Fixed to rules already here: Search's title scrolls with its
+    page; Jobs' and Search's titles sit under the 44 nav row like every
+    tab's; the job, application and event pages' pinned Back, share and ⋯
+    are `Floating` (glass) over a `TopEdgeFade`, since the grey `fill` let
+    the page show through. The header pattern for pushed pages is waiting
+    on the owner (the audit's options A, B, C).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

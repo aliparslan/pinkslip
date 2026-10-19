@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet } from "../../kit";
 import {
-  ApplyButton, Button, CompanyLogo, EmptyState, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, useStubCatch, useToastLift,
+  ApplyButton, Button, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, TopEdgeFade,
+  useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -189,18 +190,24 @@ export function BrokenLink({ path }: { path: string }) {
 
 /** Back on the left; share and the ⋯ menu in one pill on the right (Paper
  * "Job page"), drawn with our icons. The menu is the system's, with our
- * icons too (Paper "Menus · Oct 16" M2). */
+ * icons too (Paper "Menus · Oct 16" M2). They float over the page, so
+ * they're the floating material, and the page fades out under them. */
 export function TopBar({ onShare, menu }: { onShare: () => void; menu: GlyphMenuSpec }) {
   const insets = useSafeAreaInsets();
-  return <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
-    <IconButton icon="back" label="Back" onPress={() => router.back()} />
-    <View style={styles.pill}>
-      <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
-      <GlyphMenu {...menu}>
-        <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
-      </GlyphMenu>
+  return <>
+    <TopEdgeFade height={insets.top + TOP_BAR + 12} />
+    <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
+      <Floating>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={styles.slot}><Icon name="back" size={20} /></Pressable>
+      </Floating>
+      <Floating style={styles.pill}>
+        <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
+        <GlyphMenu {...menu}>
+          <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
+        </GlyphMenu>
+      </Floating>
     </View>
-  </View>;
+  </>;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -209,7 +216,7 @@ const styles = StyleSheet.create((theme) => ({
     position: "absolute", top: 0, left: 0, right: 0,
     flexDirection: "row", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter,
   },
-  pill: { flexDirection: "row", borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill },
+  pill: { flexDirection: "row" },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
   errorTop: { paddingHorizontal: theme.ui.size.gutter },

@@ -1,6 +1,6 @@
 import { useCompanies } from "@pinkslip/data";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
@@ -26,26 +26,33 @@ export function SearchScreen() {
   useEffect(() => { if (params.q) setSearchText(params.q); }, [params.q]);
   const query = useDebounced(text.trim());
 
-  return <View style={[styles.screen, { paddingTop: insets.top }]}>
+  // The title scrolls with the page, as on every other tab, under the 44 nav row.
+  const title = <View style={styles.header}>
+    <View style={styles.nav} />
+    <Text role="largeTitle" accessibilityRole="header">Search</Text>
+  </View>;
+  return <View style={styles.screen}>
     <Stack.Screen options={{ headerShown: false }} />
-    <View style={styles.header}>
-      <Text role="largeTitle" accessibilityRole="header">Search</Text>
-    </View>
     {query
       ? <JobsFeed query={query} scope="all" tab="(search)" chips={false} onClearQuery={() => setSearchText("")}
-        top={<Companies query={query} />} />
-      : <Recent onPick={setSearchText} />}
+        top={<>{title}<Companies query={query} /></>} />
+      : <Recent title={title} top={insets.top} onPick={setSearchText} />}
   </View>;
 }
 
-function Recent({ onPick }: { onPick: (text: string) => void }) {
+function Recent({ title, top, onPick }: { title: ReactNode; top: number; onPick: (text: string) => void }) {
   const recent = useRecentSearches();
   if (recent.length === 0) {
-    return <View style={styles.idle}>
-      <Text role="subhead" tone="ink-2" align="center">Search every open job and company, not just your feed.</Text>
+    return <View style={{ paddingTop: top }}>
+      {title}
+      <View style={styles.idle}>
+        <Text role="subhead" tone="ink-2" align="center">Search every open job and company, not just your feed.</Text>
+      </View>
     </View>;
   }
-  return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.recent}>
+  return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentInsetAdjustmentBehavior="automatic"
+    contentContainerStyle={styles.recent}>
+    {title}
     <View style={styles.recentHeader}>
       <Text role="footnote" weight="medium" tone="ink-2">Recent</Text>
       <Pressable onPress={clearRecentSearches} hitSlop={8} accessibilityRole="button"><Text role="footnote" tone="ink-3">Clear</Text></Pressable>
@@ -91,7 +98,8 @@ const hostOf = (website: string) => website.replace(/^https?:\/\//, "").replace(
 
 const styles = StyleSheet.create((theme) => ({
   screen: { flex: 1, backgroundColor: theme.ui.color.bg },
-  header: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
+  header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["2"] },
+  nav: { height: theme.ui.size.iconButton },
   idle: { paddingHorizontal: theme.ui.space["8"], paddingTop: theme.ui.space["10"] },
   recent: { paddingBottom: theme.ui.space["10"] },
   recentHeader: {
