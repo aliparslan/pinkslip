@@ -73,8 +73,8 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
     cancel.current = new AbortController();
     try {
       const result = await importResume(setStep, cancel.current.signal);
-      setStep(null);
       if (result) setFound(result);
+      setStep(null);
     } catch (error) {
       setStep(null);
       toast.error(error instanceof ResumeImportFailure ? error.message : "Couldn't read that PDF. Try another file.");
@@ -104,8 +104,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
       <Button fullWidth onPress={() => void runImport()}>{empty && !file ? "Import a PDF" : "Import a new PDF"}</Button>
     </View>
     {empty ? null : <DangerRow label="Clear resume" onPress={clear} />}
-    <ImportingSheet step={step} onCancel={() => { cancel.current?.abort(); setStep(null); }} />
-    <UseThisResumeSheet found={found} onClosed={() => setFound(null)} onUse={(accepted) => {
+    <ImportSheet step={step} found={found} onClosed={() => { cancel.current?.abort(); setStep(null); setFound(null); }} onUse={(accepted) => {
       draft.replace(withImport(profile, accepted.profile));
       void keepResumeFile(accepted.sourceFile).then(() => undefined, () => toast.error("Couldn't keep the PDF for applications."));
     }} />
@@ -130,15 +129,21 @@ function withImport(current: ResumeProfile, imported: Partial<ResumeProfile>): R
   return next;
 }
 
-/** L3: what the import is doing, a bar that fills by real steps, and Cancel.
- * Never a time estimate. */
-function ImportingSheet({ step, onCancel }: { step: ImportStep | null; onCancel: () => void }) {
-  return <SheetModal open={step !== null} onClosed={onCancel}>
-    {step ? <ImportingStep step={step} onCancel={onCancel} /> : null}
+/** L3 then R7 in one sheet: reading the PDF, then what it found. iOS shows
+ * one modal at a time, so a second sheet opened as the first left never
+ * appeared and the import seemed to do nothing (owner, 2026-10-19). Closing
+ * it while it reads cancels the import. */
+function ImportSheet({ step, found, onClosed, onUse }: {
+  step: ImportStep | null; found: ImportedResume | null; onClosed: () => void; onUse: (found: ImportedResume) => void;
+}) {
+  return <SheetModal open={step !== null || found !== null} onClosed={onClosed}>
+    {found ? <UseThisResumeStep found={found} onUse={onUse} /> : step ? <ImportingStep step={step} /> : null}
   </SheetModal>;
 }
 
-function ImportingStep({ step, onCancel }: { step: ImportStep; onCancel: () => void }) {
+/** L3: what the import is doing, a bar that fills by real steps, and Cancel.
+ * Never a time estimate. */
+function ImportingStep({ step }: { step: ImportStep }) {
   const sheet = useSheet();
   return <SheetStep id="importing">
     <View style={styles.lead}>
@@ -146,17 +151,11 @@ function ImportingStep({ step, onCancel }: { step: ImportStep; onCancel: () => v
       <Text tone="ink-2">{step.step === "reading" ? "Finding your experience and skills." : "It's a scan, so reading it page by page."}</Text>
     </View>
     <View style={styles.track}><View style={[styles.fillBar, { width: step.step === "reading" ? "45%" : "75%" }]} /></View>
-    <Button variant="text" fullWidth onPress={() => { onCancel(); sheet.close(); }}>Cancel</Button>
+    <Button variant="text" fullWidth onPress={sheet.close}>Cancel</Button>
   </SheetStep>;
 }
 
 /** R7: what was found, before it replaces anything. */
-function UseThisResumeSheet({ found, onClosed, onUse }: { found: ImportedResume | null; onClosed: () => void; onUse: (found: ImportedResume) => void }) {
-  return <SheetModal open={found !== null} onClosed={onClosed}>
-    {found ? <UseThisResumeStep found={found} onUse={onUse} /> : null}
-  </SheetModal>;
-}
-
 function UseThisResumeStep({ found, onUse }: { found: ImportedResume; onUse: (found: ImportedResume) => void }) {
   const sheet = useSheet();
   const { profile } = found;
