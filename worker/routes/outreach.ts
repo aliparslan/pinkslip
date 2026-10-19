@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { requireAuthenticated } from "../auth";
 import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
+import { listCompanyPeople } from "../outreach/contacts";
 import { recordProductEvent } from "../product-events";
 import {
   closeThread,
@@ -33,18 +34,27 @@ outreach.get("/threads", async (c) => {
   return c.json({ threads: await listThreads(c.env.DB, c.get("userId"), { jobId, companyId }) });
 });
 
-/** About a job ({ job_id }), or the company as a whole from its page ({ company_id }). */
+/** A company's People (Paper O1): its listed recruiters and anyone you've written to there. */
+outreach.get("/companies/:companyId/people", async (c) =>
+  c.json({ people: await listCompanyPeople(c.env.DB, c.req.param("companyId"), c.get("userId")) }));
+
+/** One person from People ({ contact_id }, with job_id when it's about a
+ * job), the best recruiter for a job ({ job_id }), or the company as a whole
+ * ({ company_id }). */
 outreach.post("/threads", async (c) => {
-  const body = await c.req.json<{ job_id?: unknown; company_id?: unknown }>().catch(() => null);
-  const jobId = typeof body?.job_id === "string" && body.job_id ? body.job_id : null;
-  const companyId = typeof body?.company_id === "string" && body.company_id ? body.company_id : null;
-  if (!jobId && !companyId) {
-    return c.json({ error: "Missing job_id or company_id", code: "invalid_request" }, 400);
+  const body = await c.req.json<{ job_id?: unknown; company_id?: unknown; contact_id?: unknown }>().catch(() => null);
+  const text = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const jobId = text(body?.job_id);
+  const companyId = text(body?.company_id);
+  const contactId = text(body?.contact_id);
+  if (!jobId && !companyId && !contactId) {
+    return c.json({ error: "Missing contact_id, job_id or company_id", code: "invalid_request" }, 400);
   }
   const userId = c.get("userId");
-  const thread = await startThread(c.env, userId, jobId
-    ? { jobId: await resolveJobId(c.env.DB, jobId) }
-    : { companyId: companyId! });
+  const resolvedJob = jobId ? await resolveJobId(c.env.DB, jobId) : undefined;
+  const thread = await startThread(c.env, userId, contactId
+    ? { contactId, jobId: resolvedJob }
+    : resolvedJob ? { jobId: resolvedJob } : { companyId: companyId! });
   await recordProductEvent(c.env.DB, {
     userId,
     sessionId: c.get("sessionId"),

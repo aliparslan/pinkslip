@@ -17,8 +17,22 @@ export interface OutreachContact {
   name: string;
   email: string;
   title: string;
-  /** A stand-in recipient (OUTREACH_TEST_RECIPIENT), not a real recruiter. */
+  /** Addressed to the stand-in (OUTREACH_TEST_RECIPIENT), not the real recruiter. */
   test: boolean;
+  /** Their LinkedIn profile, for a recruiter the sourcing search found. */
+  linkedin_url?: string | null;
+}
+
+/** Someone on a company's People (Paper O1): a listed recruiter, or anyone
+ * you've written to there. The address comes with their page. */
+export interface CompanyPerson {
+  /** The contact's id: POST /outreach/threads { contact_id } opens their page. */
+  id: string;
+  name: string;
+  title: string;
+  linkedin_url: string | null;
+  /** Your thread with them; first_sent_at puts the paper plane on the row. */
+  thread: { id: string; status: OutreachThreadStatus; first_sent_at: string | null } | null;
 }
 
 export interface OutreachThread {

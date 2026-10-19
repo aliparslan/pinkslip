@@ -39,7 +39,7 @@ async function writtenTo(db: D1Database, userId: string, addresses: string[]): P
     `SELECT DISTINCT cc.id FROM company_contacts cc
      JOIN outreach_threads ot ON ot.contact_id = cc.id
      WHERE ot.user_id = ? AND ot.status != 'draft'
-       AND cc.email_status NOT IN ('bounced', 'removed')
+       AND cc.status NOT IN ('bounced', 'removed')
        AND lower(cc.email) IN (${addresses.map(() => "?").join(", ")})`
   ).bind(userId, ...addresses).all<{ id: string }>();
   return (rows.results ?? []).map((row) => row.id);
@@ -47,8 +47,7 @@ async function writtenTo(db: D1Database, userId: string, addresses: string[]): P
 
 async function markGone(db: D1Database, contactIds: string[], now: Date): Promise<void> {
   for (const id of contactIds) {
-    await db.prepare("UPDATE company_contacts SET email_status = 'bounced', checked_at = ? WHERE id = ?")
-      .bind(now.toISOString(), id).run();
+    await db.prepare("UPDATE company_contacts SET status = 'bounced' WHERE id = ?").bind(id).run();
     await stopThreadsTo(db, id, now);
   }
 }

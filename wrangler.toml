@@ -106,11 +106,10 @@ AI_MONTHLY_BUDGET_USD = "10"
 JEV_DAILY_CALL_LIMIT = "100"
 JOB_CLASSIFICATION_AUDIT = "true"
 # Recruiter outreach for admins only. While OUTREACH_TEST_RECIPIENT is set,
-# every company's "recruiter" is this stand-in address and real contacts stay
-# hidden: test emails reach the owner, never a real recruiter. Opening it to
-# everyone (Decisions: Outreach #5) removes the stand-in and sets "on", once
-# EMAIL_CHECK_API_KEY (a secret) has checked a first list. CONTACT_FINDER =
-# "on" runs the shared-inbox search on the 15-minute cycle.
+# it stands in for every recruiter's address: People lists the recruiters the
+# owner confirmed, but every email is addressed here, so testing never
+# reaches a real recruiter. Opening it to everyone (Decisions: Outreach #5)
+# removes the stand-in and sets "on".
 OUTREACH = "admin"
 OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
 # Autofill is available to signed-in admins. Submission stays manual unless

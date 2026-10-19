@@ -106,7 +106,32 @@ export function useStartOutreach() {
     onSuccess: (thread) => {
       queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachPeopleRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
+    },
+  });
+}
+
+/** A company's People (Paper O1): its listed recruiters and anyone you've written to there. */
+export function useCompanyPeople(companyId: string, enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personal.outreachPeople(companyId),
+    queryFn: async () => (await api.outreach.people(companyId)).people,
+    enabled,
+  });
+}
+
+/** Opens someone from People: your thread with them, or a new draft to write. */
+export function useOpenPerson() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ contactId, jobId }: { contactId: string; jobId?: string }) => api.outreach.open(contactId, jobId),
+    onSuccess: (thread) => {
+      queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachPeopleRoot });
     },
   });
 }
@@ -126,6 +151,7 @@ export function useOutreachUpdate() {
     onSuccess: (thread) => {
       queryClient.setQueryData(queryKeys.personal.outreachById(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.outreachPeopleRoot });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
     },
   });

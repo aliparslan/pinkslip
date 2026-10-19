@@ -31,8 +31,6 @@ import interactionRoutes from "./routes/interactions";
 import metricRoutes from "./routes/metrics";
 import recruiterRoutes from "./routes/recruiters";
 import contactRoutes from "./routes/contacts";
-import { checkDueContacts, emailCheckerFor } from "./outreach/email-check";
-import { runContactFinding } from "./outreach/shared-inboxes";
 import outreachRoutes from "./routes/outreach";
 import applyRoutes from "./routes/apply";
 import errorRoutes from "./routes/errors";
@@ -481,19 +479,6 @@ export function scheduledCycle(cron: string): ScheduledCycle {
   return cron === NOTIFICATION_CRON_SCHEDULE ? "notifications" : "poll";
 }
 
-/** Outreach's contact list (step 8): the weekly address checks, then, when
- * CONTACT_FINDER is on, the shared-inbox search for two more companies. */
-async function runContactUpkeep(env: Env): Promise<void> {
-  const checker = emailCheckerFor(env);
-  if (!checker) return;
-  const checks = await checkDueContacts(env, checker);
-  const checked = Object.values(checks).reduce((sum, count) => sum + count, 0);
-  if (checked > 0) console.log(`Contact checks: ${checks.valid} valid, ${checks.invalid} invalid, ${checks.catch_all} catch-all, ${checks.unknown} unknown, ${checks.failed} failed`);
-  if (env.CONTACT_FINDER?.trim().toLowerCase() !== "on") return;
-  const runs = await runContactFinding(env, checker);
-  if (runs.length > 0) console.log(`Shared inboxes: ${runs.map((run) => `${run.company} ${run.outcome}`).join(", ")}`);
-}
-
 async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: ExecutionContext): Promise<void> {
   if (cycle === "health") {
     const health = await runHealthChecks(env, healthCheckDeps(env, ctx));
@@ -537,9 +522,6 @@ async function runScheduledCycle(cycle: ScheduledCycle, env: Env, ctx: Execution
     const nudged = await nudgeStoppedForwarding(env);
     if (nudged > 0) console.log(`Forwarding stopped: ${nudged} emails sent`);
     await runClassificationShadow(env).catch(() => console.error("Classification shadow cycle failed"));
-    await runContactUpkeep(env).catch(async (error) => {
-      await recordError(env.DB, { source: "cron", route: "contact upkeep", ...describeThrown(error) });
-    });
     return;
   }
   const result = await runPollCycle(env, { sendNotifications: false });

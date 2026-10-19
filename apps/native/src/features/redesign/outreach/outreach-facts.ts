@@ -12,6 +12,15 @@ export function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join("");
 }
 
+/** "in/danawhitfield": a LinkedIn profile as O2's card shows it. */
+export function linkedinPath(url: string): string {
+  try {
+    return new URL(url).pathname.replace(/^\/+|\/+$/g, "") || url;
+  } catch {
+    return url;
+  }
+}
+
 /** The first name, for "Write to Dana". */
 export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name;

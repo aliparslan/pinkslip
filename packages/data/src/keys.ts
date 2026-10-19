@@ -39,6 +39,9 @@ export const queryKeys = {
     /** Every recruiter thread, and one by id: the redesign's person pages and Today. */
     outreachAll: () => ["personal", "outreach", "all"] as const,
     outreachById: (threadId: string) => ["personal", "outreach", "thread", threadId] as const,
+    /** A company's People (the root covers every company, as one company can have two ids). */
+    outreachPeopleRoot: ["personal", "outreach", "people"] as const,
+    outreachPeople: (companyId: string) => ["personal", "outreach", "people", companyId] as const,
     admin: (part: "metrics" | "feedback" | "reports" | "reviews" | "runs" | "latency" | "jev" | "recruiters") => ["personal", "admin", part] as const,
   },
   session: () => ["session"] as const,

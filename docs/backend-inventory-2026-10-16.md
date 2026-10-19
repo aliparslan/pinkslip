@@ -92,22 +92,23 @@ Following (owner, 2026-10-19: parked until outreach and auto-apply):
 
 Outreach (step 8, 2026-10-19):
 
-- [ ] **The checker's account:** MillionVerifier (or Hunter through treg,
-  option 2 in [treg-evaluation-2026-10-18.md](treg-evaluation-2026-10-18.md);
-  the check is one function, `worker/outreach/email-check.ts`), then
-  `wrangler secret put EMAIL_CHECK_API_KEY`.
-- [ ] **Run the shared-inbox search** on a few companies from Admin
-  (`POST /contacts/find`), then `CONTACT_FINDER = "on"` for the catalog
-  (about 1,000 companies, two every 15 minutes, a few days).
+- [ ] **A systematic way to list recruiters**, replacing "the ones the
+  owner confirmed": the sourcing search's rules once its "works there"
+  accuracy on the owner's labels reaches 90% (Decisions: Outreach #1).
+- [ ] **Checking addresses** (owner, 2026-10-19: no paid checker for now).
+  Until then a guessed address is trusted as guessed, and bounces take it
+  off. Options when it returns: MillionVerifier, or Hunter through treg
+  ([treg-evaluation-2026-10-18.md](treg-evaluation-2026-10-18.md)).
 - [ ] **Open it:** remove `OUTREACH_TEST_RECIPIENT`, set `OUTREACH = "on"`.
-- [ ] **Screens, Paper first:** Admin's contact list (counts, imports,
-  remove, turn down), People on a company's page, "Email the company" from
-  its page, and Gmail/Outlook beside the mail app when sending.
+- [ ] **Screens, Paper first:** Admin's contact list (imports, remove),
+  the two new messages (5 a day; "heard from several users this week",
+  today a toast), "Email the company" from its page, and Gmail/Outlook
+  beside the mail app when sending.
 - [ ] **A public way for a recruiter to ask out** (a page, or
   help@pinkslip.work once its routing rule exists); until then, a request
   reaching the owner goes through `POST /contacts/remove`.
-- [ ] **Individual recruiters** from the sourcing search, once its "works
-  there" accuracy on the owner's labels reaches 90% (Decisions: Outreach #1).
+- [ ] **Guests see People** (names and titles, sign in to write) and a
+  quiet daily limit on addresses opened, as the Oct 15 plan says.
 
 Owner to-dos:
 
@@ -293,11 +294,11 @@ Activity, the digest and each application's timeline.
 | Need | Status |
 | --- | --- |
 | Threads, messages, follow-up schedule and reminders | **Works**, admin-only |
-| Recruiter contacts for every company | **Built 2026-10-19, not deployed:** the shared-inbox search, and imports of sourced lists (see "Built", step 8) |
-| Import with source and a verified mark | **Built 2026-10-19:** weekly checks through MillionVerifier once `EMAIL_CHECK_API_KEY` is set |
-| Threads by company (company page People, "You reached out") | **Built 2026-10-19** on the server; the company page's People waits for Paper |
+| Recruiter contacts for every company | **Built 2026-10-19, not deployed:** recruiters the owner confirms in Admin → Recruiters, and imports (see "Built", step 8) |
+| Import with source and a verified mark | **Built 2026-10-19:** imports; no address checker for now (owner) |
+| Threads by company (company page People, "You reached out") | **Built 2026-10-19:** People lists confirmed recruiters (Paper O1, O2) |
 | Reply detection (N11) | **Live** 2026-10-18 (step 5); auto-replies no longer count (step 8) |
-| Opening it up: drop the test recipient, `OUTREACH = "on"` | **Waiting** on the checker's key and a first checked list |
+| Opening it up: drop the test recipient, `OUTREACH = "on"` | **Waiting** on the owner |
 
 ## 9. Apply and auto-apply (after the rest)
 
@@ -364,8 +365,7 @@ owner's check before the next.
    outreach and auto-apply (owner, 2026-10-19; see "Come back to").
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
    removal path, then the flag. **Built 2026-10-19, not deployed** (see
-   "Built"); opening it waits on the email checker's key and a first
-   checked list.
+   "Built"): confirmed recruiters on People, no paid checker for now.
 9. **Plans and billing** (§10): plan and metering first; payments at the App
    Store release.
 10. **Auto-apply** (§9), last.
@@ -1156,70 +1156,71 @@ and Admin's events screen (not drawn yet).
 
 ### Step 8: outreach for everyone (2026-10-19, not deployed)
 
-Migration 0100 adds columns to `company_contacts` and two tables; nothing
-existing changes shape, and the API only gains. Nothing reaches users yet:
-`OUTREACH` stays admin-only and `OUTREACH_TEST_RECIPIENT` stays set, and
-while it is, the stand-in is the only contact anyone sees.
+Built twice on 2026-10-19. The first version (a team-inbox search and
+weekly checks through a paid checker) was replaced the same day: the owner
+wants specific recruiters, not team inboxes, and no paid checker for now.
+Recruiters the owner confirms show on People "until we find a systematic
+way to do it".
 
-- **Only checked addresses** (Decisions: Outreach #2): each contact has a
-  kind (a person or a team's shared inbox), an email status (unchecked,
-  valid, catch-all, unknown, invalid, bounced, rejected, removed), when it
-  was last checked, and the page that shows it. Users see `valid` only.
-- **Weekly checks** (`email-check.ts`): MillionVerifier's one-address API,
-  on the 15-minute notifications cycle, 25 at a time, new addresses first,
-  then any checked over a week ago. "Unknown" is asked again the next day;
-  an address that fails stops follow-ups to it. If every check in a run
-  fails (a spent balance, a dead key), the errors table pushes admins. No
-  key, no checks.
-- **Shared inboxes first** (`shared-inboxes.ts`; Decisions: Outreach #1):
-  per company, one search for addresses a public page shows (Serper), then
-  the usual names (university@, campus@, earlycareers@…), each through the
-  checker, at most 10 checks and two found. A catch-all domain stops the
-  guessing; a domain with no mail is skipped. Every company gets a row in
-  `contact_finding` with how it ended, and is searched again after a
-  quarter. Hiring companies go first. Runs from Admin, or on the cycle with
-  `CONTACT_FINDER = "on"`.
-- **Imports** (`POST /contacts/import`, CSV or JSON, with a dry run):
-  matched to companies by id, website, or the address's domain; new
-  addresses start unchecked; the report lists rows it couldn't place.
-- **Removal** (Decisions: Outreach #3): `POST /contacts/remove` suppresses
-  the address for good (as a SHA-256 in `contact_suppressions`), wipes the
-  contact's details on every company, stops open follow-ups and clears it
-  from the sourcing review. `DELETE /contacts/:id` turns down a contact
-  that isn't useful; it's never added again.
-- **Caps:** at most 5 new people a day per user (rolling 24 hours,
-  `daily_cap`); the weekly cap of 3 users per recipient now says
-  `contacts_resting` ("try again next week") when nobody at the company is
-  left, instead of "no recruiter found".
-- **By company:** `POST /outreach/threads { company_id }` writes about the
-  company as a whole (drafts without a job title); `GET
-  /outreach/threads?company_id=` lists every thread there, for People on
-  the company page.
+Migration 0100 adds columns to `company_contacts` and `outreach_threads`
+and one table; nothing existing changes shape, and the API only gains. It
+lists the recruiters already confirmed (2 in production on 2026-10-19,
+both with first-name addresses the search marks risky). Nothing reaches
+users yet: `OUTREACH` stays admin-only, and while `OUTREACH_TEST_RECIPIENT`
+is set every email is addressed to it.
+
+- **Confirmed recruiters on People:** labelling someone "works there: yes"
+  in Admin → Recruiters (and not "not a recruiter") lists them on their
+  company's People, at the address the search guessed, with their
+  LinkedIn. Changing the label takes them off; a later search that guesses
+  a different address moves the listing to it. Rows stay while threads
+  point at them. Contact status: listed, hidden, bounced, removed.
+- **People** (`GET /outreach/companies/:id/people`, Paper O1): listed
+  recruiters and anyone you've written to there, by name and title, with
+  your thread (the paper plane and date once the first email went). A
+  company listed twice is one page. The address comes with the person's
+  page (O2), which now shows LinkedIn under Email.
+- **Writing to someone:** `POST /outreach/threads { contact_id }` opens
+  your thread with them or drafts one, about their company's job when one
+  is given, or the company as a whole (drafts without a job title).
+- **Test mode:** while the test recipient is set, People shows the real
+  confirmed recruiters, but each thread is addressed to the stand-in
+  (`outreach_threads.send_to`), so trying it never emails a recruiter. A
+  company with nobody listed still gets the stand-in itself.
+- **Caps:** at most 5 new people emailed a day per user (first emails
+  sent, rolling 24 hours; a draft costs nothing), `daily_cap`; the weekly
+  cap of 3 users per recipient says `contacts_resting` ("try again next
+  week").
+- **Removal** (Decisions: Outreach #3): `POST /contacts/remove`
+  suppresses the address for good (a SHA-256 in `contact_suppressions`),
+  wipes the contact on every company, stops open follow-ups, and deletes
+  them from the sourcing review; a later search or label can't list them
+  again. `DELETE /contacts/:id` takes an imported contact off People.
+- **Imports** (`POST /contacts/import`, CSV or JSON, with a dry run): the
+  owner's own lists, listed at once; matched by company id, website, or
+  the address's domain.
 - **Bounces and auto-replies** through forwarding: a bounce marks every
   address in it the user wrote to as bounced and stops follow-ups; an
   auto-reply from someone the user wrote to no longer counts as their
   reply, and one saying they left marks the address bounced.
-- **Web mail:** `outreachComposeUrl` in `shared/outreach.ts` opens the
-  message in Gmail's or Outlook's compose window.
-- **Admin:** `GET /contacts` (counts by status, companies searched, the
-  list), `POST /contacts/check` and `POST /contacts/find` run now.
-- Tests: `tests/outreach-contacts.test.ts` (24); the outreach tests load
-  0100.
+- **Web mail:** `outreachComposeUrl` in `shared/outreach.ts` (Gmail,
+  Outlook); not on a screen yet.
+- **App** (Paper O1, O2, approved Oct 15): the company page's People lists
+  the server's People; tapping someone new opens their page with "Write
+  to"; their page shows LinkedIn. Errors from the caps show as a toast.
+- Tests: `tests/outreach-contacts.test.ts` (21); the outreach tests load
+  0092 and 0100.
 
 Liberties for the owner to keep or veto:
 
-1. MillionVerifier for checks, as the sourcing note planned; treg's Hunter
-   check (option 2 in the treg note) swaps in by replacing one function.
-2. Catch-all addresses stay hidden, even ones a page shows: the decision
-   says checked only, and a catch-all can't be checked.
-3. Guessed inboxes that pass the check show without an admin's review.
-   They're team inboxes, not people; Admin can turn any down.
-4. A named recruiter ranks above a team inbox with the same kind of title,
-   and an early-career inbox above a technical recruiter.
-5. The 5-a-day cap counts threads started, drafts included (a discarded
-   draft frees its place), over a rolling 24 hours.
-6. While the test recipient is set, real contacts stay hidden even from
-   the owner's outreach, so testing never emails a real recruiter.
-7. A bounce or "I've left" stops other users' follow-ups to that address
+1. "Confirmed" is "works there: yes" with any role except "not a
+   recruiter"; the role label can stay blank.
+2. Every confirmed recruiter shows, including risky first-name addresses
+   (both in production today are); a bounce takes one off.
+3. Imports are listed at once, as the owner's own list.
+4. In test mode People shows the real recruiters, with every email
+   addressed to the stand-in.
+5. The 5-a-day cap counts first emails sent, so opening someone's page
+   costs nothing; it can't stop an address being copied.
+6. A bounce or "I've left" stops other users' follow-ups to that address
    too, without telling them; the thread shows as stopped.
-8. Outlook's compose link is outlook.live.com (personal accounts).

@@ -8,7 +8,7 @@ import type {
   OutreachThread,
   OutreachThreadStatus,
 } from "../../shared/outreach";
-import { companyContacts } from "./contacts";
+import { companyContacts, outreachTestRecipient } from "./contacts";
 import { draftOutreachSequence } from "./drafts";
 import { followUpDueAt, testFollowUpMinutes, validTimeZone } from "./schedule";
 
@@ -34,6 +34,8 @@ interface ThreadRow {
   contact_title: string;
   contact_source: string;
   contact_status: string;
+  contact_profile_url: string | null;
+  send_to: string | null;
   time_zone: string;
   created_at: string;
   updated_at: string;
@@ -53,7 +55,8 @@ interface MessageRow {
 const THREAD_SELECT = `
   SELECT ot.id, ot.status, ot.job_id, j.title AS job_title, ot.company_id,
          c.name AS company_name, cc.name AS contact_name, cc.email AS contact_email,
-         cc.title AS contact_title, cc.source AS contact_source, cc.email_status AS contact_status, ot.time_zone,
+         cc.title AS contact_title, cc.source AS contact_source, cc.status AS contact_status,
+         cc.profile_url AS contact_profile_url, ot.send_to, ot.time_zone,
          ot.created_at, ot.updated_at
   FROM outreach_threads ot
   JOIN companies c ON c.id = ot.company_id
@@ -73,9 +76,10 @@ function toThread(row: ThreadRow, messages: MessageRow[]): OutreachThread {
       ? { name: "", email: "", title: "", test: false }
       : {
         name: row.contact_name,
-        email: row.contact_email,
+        email: row.send_to ?? row.contact_email,
         title: row.contact_title,
-        test: row.contact_source === "test",
+        test: row.contact_source === "test" || row.send_to !== null,
+        linkedin_url: row.contact_profile_url,
       },
     messages: messages
       .filter((message) => message.thread_id === row.id)
@@ -144,60 +148,100 @@ export async function loadThread(
   return (await withMessages(db, [row]))[0];
 }
 
-/** Most new people one user starts writing to in a day (Decisions: Outreach #4). */
+/** Most new people one user emails in a day (Decisions: Outreach #4). */
 export const DAILY_NEW_PEOPLE_CAP = 5;
 
-export type ThreadTarget = { jobId: string } | { companyId: string };
+/** About a job (the best recruiter there), the company as a whole, or one
+ * person from the company's People (with the job, when there is one). */
+export type ThreadTarget = { jobId: string } | { companyId: string } | { contactId: string; jobId?: string };
 
-/** Starts an email to the company's best available recruiter, about a job or
- * the company as a whole, or returns the thread the user already has with
- * that recruiter. */
+interface ThreadSubject {
+  job_id: string | null;
+  job_title: string | null;
+  company_id: string;
+  company_name: string;
+}
+
+async function threadSubject(db: D1Database, target: ThreadTarget): Promise<ThreadSubject | null> {
+  if ("jobId" in target && target.jobId) {
+    return db.prepare(
+      `SELECT j.id AS job_id, j.title AS job_title, j.company_id, c.name AS company_name
+       FROM jobs j JOIN companies c ON c.id = j.company_id
+       WHERE j.id = ?`
+    ).bind(target.jobId).first<ThreadSubject>();
+  }
+  const byCompany = (where: string, id: string) => db.prepare(
+    `SELECT NULL AS job_id, NULL AS job_title, c.id AS company_id, c.name AS company_name
+     FROM companies c WHERE c.id = ${where}`
+  ).bind(id).first<ThreadSubject>();
+  if ("contactId" in target) return byCompany("(SELECT company_id FROM company_contacts WHERE id = ?)", target.contactId);
+  return "companyId" in target ? byCompany("?", target.companyId) : null;
+}
+
+/** Starts an email to a recruiter, drafting the first email and both
+ * follow-ups, or returns the thread the user already has with them. */
 export async function startThread(
   env: Env,
   userId: string,
   target: ThreadTarget,
   now = new Date(),
 ): Promise<OutreachThread> {
-  const subject = "jobId" in target
-    ? await env.DB.prepare(
-      `SELECT j.id AS job_id, j.title AS job_title, j.company_id, c.name AS company_name
-       FROM jobs j JOIN companies c ON c.id = j.company_id
-       WHERE j.id = ?`
-    ).bind(target.jobId).first<{ job_id: string | null; job_title: string | null; company_id: string; company_name: string }>()
-    : await env.DB.prepare(
-      `SELECT NULL AS job_id, NULL AS job_title, id AS company_id, name AS company_name FROM companies WHERE id = ?`
-    ).bind(target.companyId).first<{ job_id: string | null; job_title: string | null; company_id: string; company_name: string }>();
+  const contactId = "contactId" in target ? target.contactId : null;
+  if (contactId) {
+    const existing = await env.DB.prepare("SELECT id FROM outreach_threads WHERE user_id = ? AND contact_id = ?")
+      .bind(userId, contactId).first<{ id: string }>();
+    if (existing) return (await loadThread(env.DB, userId, existing.id))!;
+  }
+  let subject = await threadSubject(env.DB, target);
+  // A person's job must be at their company; otherwise it's about the company.
+  if (contactId && "jobId" in target && target.jobId && subject) {
+    const contactCompany = await env.DB.prepare("SELECT company_id FROM company_contacts WHERE id = ?").bind(contactId).first<{ company_id: string }>();
+    if (contactCompany?.company_id !== subject.company_id) subject = await threadSubject(env.DB, { contactId });
+  }
   if (!subject) {
-    throw "jobId" in target
-      ? new OutreachError("Job not found", 404, "not_found")
+    throw contactId ? new OutreachError("Person not found", 404, "not_found")
+      : "jobId" in target ? new OutreachError("Job not found", 404, "not_found")
       : new OutreachError("Company not found", 404, "not_found");
   }
 
-  const { available: contacts, resting } = await companyContacts(env, subject.company_id, userId, now);
+  const { available, resting } = await companyContacts(env, subject.company_id, userId, now);
+  const contacts = contactId ? available.filter((contact) => contact.id === contactId) : available;
   if (contacts.length === 0) {
+    if (contactId) {
+      const listed = await env.DB.prepare("SELECT 1 FROM company_contacts WHERE id = ? AND status = 'listed'").bind(contactId).first();
+      throw listed
+        ? new OutreachError("They've heard from several Pinkslip users this week. Try again next week.", 409, "contacts_resting")
+        : new OutreachError("Person not found", 404, "not_found");
+    }
     throw resting > 0
       ? new OutreachError(`${subject.company_name}'s recruiters heard from several Pinkslip users this week. Try again next week.`, 409, "contacts_resting")
       : new OutreachError("No recruiter found for this company yet.", 404, "no_contacts");
   }
 
-  const existing = await env.DB.prepare(
-    `SELECT id FROM outreach_threads
-     WHERE user_id = ? AND contact_id IN (${contacts.map(() => "?").join(", ")})
-     ORDER BY created_at ASC LIMIT 1`
-  ).bind(userId, ...contacts.map((contact) => contact.id)).first<{ id: string }>();
-  if (existing) return (await loadThread(env.DB, userId, existing.id))!;
-
-  // Threads with the stand-in test recipient don't count: they reach nobody.
-  const today = await env.DB.prepare(
-    `SELECT COUNT(*) AS started FROM outreach_threads ot
-     JOIN company_contacts cc ON cc.id = ot.contact_id
-     WHERE ot.user_id = ? AND ot.created_at > ? AND cc.source NOT IN ('test', 'pinkslip-test')`
-  ).bind(userId, new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()).first<{ started: number }>();
-  if ((today?.started ?? 0) >= DAILY_NEW_PEOPLE_CAP && contacts[0].source !== "test") {
-    throw new OutreachError(`You've started emails to ${DAILY_NEW_PEOPLE_CAP} new people today. Start more tomorrow.`, 429, "daily_cap");
+  if (!contactId) {
+    const existing = await env.DB.prepare(
+      `SELECT id FROM outreach_threads
+       WHERE user_id = ? AND contact_id IN (${contacts.map(() => "?").join(", ")})
+       ORDER BY created_at ASC LIMIT 1`
+    ).bind(userId, ...contacts.map((contact) => contact.id)).first<{ id: string }>();
+    if (existing) return (await loadThread(env.DB, userId, existing.id))!;
   }
 
   const contact = contacts[0];
+  const testRecipient = outreachTestRecipient(env);
+  // First emails sent in the last day; ones addressed to the stand-in reach nobody.
+  if (!testRecipient) {
+    const today = await env.DB.prepare(
+      `SELECT COUNT(*) AS sent FROM outreach_messages om
+       JOIN outreach_threads ot ON ot.id = om.thread_id
+       WHERE ot.user_id = ? AND om.step = 0 AND om.status = 'sent' AND om.sent_at > ? AND ot.send_to IS NULL
+         AND ot.contact_id NOT IN (SELECT id FROM company_contacts WHERE source IN ('test', 'pinkslip-test'))`
+    ).bind(userId, new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()).first<{ sent: number }>();
+    if ((today?.sent ?? 0) >= DAILY_NEW_PEOPLE_CAP) {
+      throw new OutreachError(`You've emailed ${DAILY_NEW_PEOPLE_CAP} new people today. Write to more tomorrow.`, 429, "daily_cap");
+    }
+  }
+
   const [profile, user] = await Promise.all([
     getUserProfile(env.DB, userId),
     env.DB.prepare("SELECT name FROM users WHERE id = ?").bind(userId).first<{ name: string }>(),
@@ -215,9 +259,9 @@ export async function startThread(
   const stamp = now.toISOString();
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO outreach_threads (id, user_id, company_id, job_id, contact_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`
-    ).bind(threadId, userId, subject.company_id, subject.job_id, contact.id, stamp, stamp),
+      `INSERT INTO outreach_threads (id, user_id, company_id, job_id, contact_id, status, send_to, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?)`
+    ).bind(threadId, userId, subject.company_id, subject.job_id, contact.id, contact.source === "test" ? null : testRecipient, stamp, stamp),
     ...drafts.map((draft) => env.DB.prepare(
       `INSERT INTO outreach_messages (id, thread_id, step, subject, body, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`

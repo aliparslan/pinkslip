@@ -11,11 +11,13 @@ import {
   saveSourcingError,
   type CandidateLabels,
 } from "../outreach/sourcing/store";
+import { syncCandidateContact, syncCompanyCandidates } from "../outreach/contacts";
 import type { Env, Variables } from "../types";
 
 /** Admin review of recruiter sourcing: run it on a few catalog companies and
- * label who it found. Nothing here reaches users. See
- * docs/recruiter-contacts-sourcing.md. */
+ * label who it found. Someone labelled "works there: yes" (and not "not a
+ * recruiter") is listed on their company's People, at the guessed address;
+ * nobody else reaches users. See docs/recruiter-contacts-sourcing.md. */
 const recruiters = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 recruiters.use("*", requireAdmin);
@@ -43,6 +45,8 @@ recruiters.post("/run", async (c) => {
     try {
       const result = await sourceCompany(company.name, company.site, search);
       await saveSourcing(c.env.DB, company, result, now);
+      // A recruiter already on People keeps up with a changed guess.
+      await syncCompanyCandidates(c.env.DB, company.id);
       const kept = result.people.filter((row) => row.reason === null).length;
       runs.push({ company: company.name, kept, left_out: result.people.length - kept, error: null });
     } catch (error) {
@@ -70,7 +74,10 @@ recruiters.put("/candidates/:id", async (c) => {
     labels.actual_role = body.actual_role as CandidateLabels["actual_role"];
   }
   const candidate = await labelCandidate(c.env.DB, c.req.param("id"), labels, new Date().toISOString());
-  return candidate ? c.json(candidate) : c.json({ error: "Not found" }, 404);
+  if (!candidate) return c.json({ error: "Not found" }, 404);
+  // "Works there: yes" lists them on their company's People (owner, 2026-10-19).
+  await syncCandidateContact(c.env.DB, candidate.id);
+  return c.json(candidate);
 });
 
 export default recruiters;

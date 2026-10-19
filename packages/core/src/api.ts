@@ -14,7 +14,7 @@ import type { TodayResponse } from "@pinkslip/domain/today";
 export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
 import type { CompanyEvent } from "@pinkslip/domain/company-events";
 export type { CompanyEvent } from "@pinkslip/domain/company-events";
-import type { OutreachThread } from "@pinkslip/domain/outreach";
+import type { CompanyPerson, OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 import type { ActualRole, RecruiterCandidate, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
@@ -49,6 +49,7 @@ export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
  * A bare `{ uri, name, type }` reference does not upload through Expo's fetch. */
 export type ResumeUploadFile = Blob;
 export type {
+  CompanyPerson,
   OutreachContact,
   OutreachMessage,
   OutreachThread,
@@ -982,6 +983,15 @@ function createEndpoints(context: ClientContext) {
       request<OutreachThread>("/outreach/threads", {
         method: "POST",
         body: JSON.stringify({ job_id: jobId }),
+      }),
+    /** A company's People: its listed recruiters and anyone you've written to there. */
+    people: (companyId: string) =>
+      request<{ people: CompanyPerson[] }>(`/outreach/companies/${encodeURIComponent(companyId)}/people`),
+    /** Someone from People: your thread with them, or a new draft. */
+    open: (contactId: string, jobId?: string) =>
+      request<OutreachThread>("/outreach/threads", {
+        method: "POST",
+        body: JSON.stringify(jobId ? { contact_id: contactId, job_id: jobId } : { contact_id: contactId }),
       }),
     edit: (messageId: string, changes: { subject?: string; body?: string }) =>
       request<OutreachThread>(`/outreach/messages/${messageId}`, {

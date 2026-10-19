@@ -1,19 +1,11 @@
 import { normalizeEmail } from "../account";
-import { emailHash, type ContactKind } from "./contacts";
-import { isRoleAddress } from "./sourcing/email-pattern";
+import { emailHash } from "./contacts";
 import { websiteDomain } from "./sourcing/mail-domain";
 import { stopThreadsTo } from "./threads";
 
-/* Admin's side of the contact list: imports, a recruiter's removal request,
- * and turning down a contact that isn't useful (Decisions: Outreach #2, #3). */
-
-async function suppress(db: D1Database, email: string, reason: "asked" | "rejected", now: Date): Promise<void> {
-  // A removal request outranks an admin's "not useful".
-  await db.prepare(
-    `INSERT INTO contact_suppressions (email_hash, reason, created_at) VALUES (?, ?, ?)
-     ON CONFLICT(email_hash) DO UPDATE SET reason = 'asked' WHERE excluded.reason = 'asked'`
-  ).bind(await emailHash(email), reason, now.toISOString()).run();
-}
+/* Admin's side of the contact list: imports, taking someone off People, and
+ * a recruiter's removal request (Decisions: Outreach #3). Sourced recruiters
+ * are listed from Admin → Recruiters' labels instead (contacts.ts). */
 
 export interface RemovalResult {
   contacts: number;
@@ -24,36 +16,36 @@ export interface RemovalResult {
  * A recruiter asked to be left alone: suppressed for everyone, for good.
  * Their details are wiped from every company's list (threads that already
  * went out keep their own text, with the contact blank), open follow-ups
- * stop, and the sourcing review forgets the address.
+ * stop, and the sourcing review forgets them.
  */
 export async function removeContactEmail(db: D1Database, rawEmail: string, now = new Date()): Promise<RemovalResult> {
   const email = normalizeEmail(rawEmail);
-  await suppress(db, email, "asked", now);
+  await db.prepare("INSERT INTO contact_suppressions (email_hash, created_at) VALUES (?, ?) ON CONFLICT(email_hash) DO NOTHING")
+    .bind(await emailHash(email), now.toISOString()).run();
   const contacts = (await db.prepare("SELECT id FROM company_contacts WHERE lower(email) = ?").bind(email).all<{ id: string }>()).results ?? [];
   let stopped = 0;
   for (const { id } of contacts) {
     stopped += await stopThreadsTo(db, id, now);
     await db.prepare(
       `UPDATE company_contacts
-       SET email = 'removed:' || id, name = '', title = '', evidence_url = NULL, email_status = 'removed', checked_at = ?
+       SET email = 'removed:' || id, name = '', title = '', profile_url = NULL, candidate_id = NULL, status = 'removed'
        WHERE id = ?`
-    ).bind(now.toISOString(), id).run();
+    ).bind(id).run();
   }
-  await db.prepare("UPDATE recruiter_candidates SET email_guess = NULL WHERE lower(email_guess) = ?").bind(email).run();
+  await db.prepare("DELETE FROM recruiter_candidates WHERE lower(email_guess) = ?").bind(email).run();
   return { contacts: contacts.length, threads_stopped: stopped };
 }
 
-/** An admin's "not useful": never added again. Kept, hidden, only while
- * users' threads point at it. */
-export async function rejectContact(db: D1Database, contactId: string, now = new Date()): Promise<boolean> {
-  const contact = await db.prepare("SELECT email, email_status FROM company_contacts WHERE id = ?")
-    .bind(contactId).first<{ email: string; email_status: string }>();
+/** Takes an imported contact off People. One nobody wrote to is deleted;
+ * one somebody did stays, hidden, for their thread. (A sourced recruiter
+ * leaves by changing their label in Admin → Recruiters.) */
+export async function unlistContact(db: D1Database, contactId: string): Promise<boolean> {
+  const contact = await db.prepare("SELECT status FROM company_contacts WHERE id = ?").bind(contactId).first<{ status: string }>();
   if (!contact) return false;
-  if (contact.email_status === "removed") return true;
-  await suppress(db, contact.email, "rejected", now);
+  if (contact.status !== "listed") return true;
   const used = await db.prepare("SELECT 1 FROM outreach_threads WHERE contact_id = ? LIMIT 1").bind(contactId).first();
   await (used
-    ? db.prepare("UPDATE company_contacts SET email_status = 'rejected' WHERE id = ?")
+    ? db.prepare("UPDATE company_contacts SET status = 'hidden' WHERE id = ?")
     : db.prepare("DELETE FROM company_contacts WHERE id = ?")
   ).bind(contactId).run();
   return true;
@@ -65,7 +57,6 @@ export interface ContactImportRow {
   email: string;
   name?: string;
   title?: string;
-  kind?: string;
   source?: string;
 }
 
@@ -78,7 +69,7 @@ export interface ImportReport {
 export const MAX_IMPORT_ROWS = 5000;
 
 /** Reads a CSV with a header row: company (or website, domain), email,
- * name, title, kind, source. Quoted fields may hold commas and newlines. */
+ * name, title, source. Quoted fields may hold commas and newlines. */
 export function parseContactCsv(text: string): ContactImportRow[] {
   const records: string[][] = [];
   let field = "";
@@ -119,7 +110,6 @@ export function parseContactCsv(text: string): ContactImportRow[] {
     email: column("email", "address"),
     name: column("name"),
     title: column("title"),
-    kind: column("kind"),
     source: column("source"),
   };
   const cell = (row: string[], index: number) => (index >= 0 ? row[index] ?? "" : "").trim();
@@ -128,7 +118,6 @@ export function parseContactCsv(text: string): ContactImportRow[] {
     email: cell(row, at.email),
     name: cell(row, at.name),
     title: cell(row, at.title),
-    kind: cell(row, at.kind),
     source: cell(row, at.source),
   }));
 }
@@ -139,8 +128,8 @@ const EMAIL = /^[^\s@,;<>"]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/;
  * Adds a sourced list (docs/recruiter-contacts-sourcing.md, "What Pinkslip
  * builds" #2). Each row is matched to companies by id, by website or mail
  * domain, or by the address's own domain; a company listed twice gets it
- * twice. New addresses start unchecked, so users see them only once the
- * checker passes them. A dry run reports without writing.
+ * twice. An import is the owner's own list, so it's listed on People at
+ * once. A dry run reports without writing.
  */
 export async function importContacts(
   db: D1Database,
@@ -185,28 +174,25 @@ export async function importContacts(
       report.skipped.push({ row: line, email, reason: "suppressed" });
       continue;
     }
-    const kind: ContactKind = row.kind === "shared" || row.kind === "person"
-      ? row.kind
-      : isRoleAddress(email.slice(0, email.indexOf("@"))) ? "shared" : "person";
     for (const companyId of companyIds) {
-      const existing = await db.prepare("SELECT email_status FROM company_contacts WHERE company_id = ? AND email = ?")
-        .bind(companyId, email).first<{ email_status: string }>();
-      if (existing?.email_status === "bounced" || existing?.email_status === "removed") {
-        report.skipped.push({ row: line, email, reason: existing.email_status });
+      const existing = await db.prepare("SELECT status FROM company_contacts WHERE company_id = ? AND email = ?")
+        .bind(companyId, email).first<{ status: string }>();
+      if (existing?.status === "bounced" || existing?.status === "removed") {
+        report.skipped.push({ row: line, email, reason: existing.status });
         continue;
       }
       if (existing || queued.has(`${companyId} ${email}`)) report.updated += 1;
       else report.added += 1;
       queued.add(`${companyId} ${email}`);
       writes.push(db.prepare(
-        `INSERT INTO company_contacts (id, company_id, email, name, title, source, kind, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO company_contacts (id, company_id, email, name, title, source, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'listed', ?)
          ON CONFLICT(company_id, email) DO UPDATE SET
            name = CASE WHEN excluded.name != '' THEN excluded.name ELSE company_contacts.name END,
            title = CASE WHEN excluded.title != '' THEN excluded.title ELSE company_contacts.title END,
-           kind = excluded.kind, source = excluded.source`
+           source = excluded.source, status = 'listed'`
       ).bind(crypto.randomUUID(), companyId, email, row.name?.trim() ?? "", row.title?.trim() ?? "",
-        row.source?.trim() || "import", kind, stamp));
+        row.source?.trim() || "import", stamp));
     }
   }
   if (!dryRun) {

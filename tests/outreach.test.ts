@@ -29,6 +29,7 @@ async function outreachDb() {
   sqlite.run(`CREATE TABLE user_profiles (user_id TEXT PRIMARY KEY, data TEXT NOT NULL, created_at TEXT, updated_at TEXT)`);
   sqlite.run(`CREATE TABLE push_subscriptions (id TEXT PRIMARY KEY, user_id TEXT, endpoint TEXT, p256dh TEXT, auth TEXT, created_at TEXT, platform TEXT)`);
   sqlite.run(await Bun.file(new URL("../migrations/0084_outreach.sql", import.meta.url)).text());
+  sqlite.exec(await Bun.file(new URL("../migrations/0092_recruiter_sourcing.sql", import.meta.url)).text());
   sqlite.exec(await Bun.file(new URL("../migrations/0100_outreach_contacts.sql", import.meta.url)).text());
   const notifications = await Bun.file(new URL("../migrations/0094_notifications.sql", import.meta.url)).text();
   sqlite.exec(notifications.slice(notifications.indexOf("CREATE TABLE notification_log")));
@@ -231,7 +232,7 @@ describe("threads", () => {
     const env = envWith(db);
     const thread = await startThreadForJob(env, "user-1", "job-1");
     expect(thread.status).toBe("draft");
-    expect(thread.contact).toEqual({ name: "", email: "me@example.com", title: "Recruiter (test)", test: true });
+    expect(thread.contact).toEqual({ name: "", email: "me@example.com", title: "Recruiter (test)", test: true, linkedin_url: null });
     expect(thread.messages.map((message) => [message.step, message.status])).toEqual([
       [0, "draft"], [1, "draft"], [2, "draft"],
     ]);

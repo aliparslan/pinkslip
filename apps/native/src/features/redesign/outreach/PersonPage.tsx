@@ -16,7 +16,7 @@ import {
 import { logoUri } from "../../jobs/CompanyLogo";
 import { plainText } from "../job-facts";
 import { companyName, jobTitle, shortDate } from "../tracker-facts";
-import { emailRows, firstName, initials, unsentFirst } from "./outreach-facts";
+import { emailRows, firstName, initials, linkedinPath, unsentFirst } from "./outreach-facts";
 import { followUpsSetting, signatureSetting } from "./outreach-prefs";
 
 export interface PersonActions {
@@ -30,8 +30,8 @@ export interface PersonActions {
 
 /**
  * A person is a page (owner, 2026-10-15, Paper O2, O4 and O5): who they are,
- * the emails at the top once one's sent, how to reach them, and the
- * application at their company. "Write to Dana" is pinned until the first
+ * the emails at the top once one's sent, how to reach them (Email to copy,
+ * then LinkedIn), and the application at their company. "Write to Dana" is pinned until the first
  * email goes; the mail app opens with it written, and coming back asks "Did
  * you send it?".
  */
@@ -110,6 +110,17 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
           </View>
           <Icon name={copy.copied ? "done" : "copy"} size={16} tone="ink-3" />
         </Pressable>
+        {thread.contact.linkedin_url ? <>
+          <View style={styles.rule} />
+          <Pressable onPress={() => void Linking.openURL(thread.contact.linkedin_url!)}
+            accessibilityRole="link" accessibilityLabel={`LinkedIn, ${thread.contact.name}`} style={({ pressed }) => [styles.field, pressed && styles.pressed]}>
+            <View style={styles.flex}>
+              <Text role="footnote" tone="ink-3">LinkedIn</Text>
+              <Text lines={1}>{linkedinPath(thread.contact.linkedin_url)}</Text>
+            </View>
+            <Icon name="disclosure" size={12} tone="ink-4" />
+          </Pressable>
+        </> : null}
       </View>
       {at.length > 0 ? <View style={styles.section}>
         <View style={[styles.label, styles.labelRow]}>
@@ -217,6 +228,7 @@ const styles = StyleSheet.create((theme) => ({
   dotPlanned: { borderWidth: 1.5, borderColor: theme.ui.color["ink-4"] },
   card: { marginHorizontal: theme.ui.size.gutter, paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
   field: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: 10 },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: theme.ui.color.separator },
   application: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   pressed: { opacity: 0.6 },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, backgroundColor: theme.ui.color.bg },

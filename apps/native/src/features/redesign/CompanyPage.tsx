@@ -1,6 +1,6 @@
-import { queryKeys, useApi, useCompanies, useCompanyEvents, useOutreachThreads, usePreferences, useSession, useViewedJobs } from "@pinkslip/data";
-import type { CompanyEvent } from "@pinkslip/core/api";
-import type { OutreachThread } from "@pinkslip/domain/outreach";
+import { queryKeys, useApi, useCompanies, useCompanyEvents, useCompanyPeople, useOpenPerson, usePreferences, useSession, useViewedJobs } from "@pinkslip/data";
+import { ApiError, type CompanyEvent } from "@pinkslip/core/api";
+import type { CompanyPerson } from "@pinkslip/domain/outreach";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import type { Job } from "@pinkslip/core/api";
 import * as WebBrowser from "expo-web-browser";
@@ -9,9 +9,9 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { Text as RNText } from "react-native";
-import { firstSentAt, initials } from "./outreach/outreach-facts";
+import { initials } from "./outreach/outreach-facts";
 import { shortDate } from "./tracker-facts";
 import { logoUri } from "../jobs/CompanyLogo";
 import { toEventView } from "./event-facts";
@@ -37,10 +37,10 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const events = useCompanyEvents(companyId);
   const jobs = feed.jobs;
   const [segment, setSegment] = useState<Segment>("jobs");
-  // People: those you've written to here, until Pinkslip lists everyone it
-  // finds (O1, O13).
+  // People (O1, O13): the recruiters the owner confirmed here, and anyone
+  // you've written to.
   const session = useSession().data;
-  const threads = useOutreachThreads(session?.state === "authenticated" && Boolean(session.me?.features?.outreach_enabled));
+  const people = useCompanyPeople(companyId, session?.state === "authenticated" && Boolean(session.me?.features?.outreach_enabled));
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
 
@@ -62,11 +62,11 @@ export function CompanyPage({ companyId }: { companyId: string }) {
         </View>
       </View>
       <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
-        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people(threads.data, name).length || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people.data?.length || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
       ]} /></View>
     </View>
     {segment === "people"
-      ? <People threads={people(threads.data, name)} company={plainText(name)} />
+      ? <People people={people.data} pending={people.isPending && people.fetchStatus !== "idle"} company={plainText(name)} />
       : segment === "events"
       ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <RowPlaceholders lines={2} logo={false} />
@@ -91,29 +91,33 @@ function CompanyEvents({ events, pending, company }: { events: CompanyEvent[] | 
   }} />;
 }
 
-function people(threads: OutreachThread[] | undefined, company: string): OutreachThread[] {
-  const key = company.trim().toLowerCase();
-  return (threads ?? []).filter((thread) => thread.company_name.trim().toLowerCase() === key);
-}
-
 /** O1: a round avatar of initials, the name and title; someone you've
- * written to shows the paper plane and the date. O13 when there's no one. */
-function People({ threads, company }: { threads: OutreachThread[]; company: string }) {
+ * written to shows the paper plane and the date. O13 when there's no one.
+ * Someone new opens as a draft to them, ready for "Write to". */
+function People({ people, pending, company }: { people: CompanyPerson[] | undefined; pending: boolean; company: string }) {
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
-  if (threads.length === 0) {
+  const open = useOpenPerson();
+  if (pending) return <RowPlaceholders rows={3} />;
+  if (!people?.length) {
     return <EmptyState title="No one listed yet" message={`People at ${company} show up here as Pinkslip finds them.`} />;
   }
-  return <View>{threads.map((thread) => {
-    const sent = firstSentAt(thread);
-    return <Pressable key={thread.id} accessibilityRole="button" style={({ pressed }) => [styles.person, pressed && styles.pressed]}
-      onPress={() => router.push({ pathname: `/(tabs)/${tab}/people/[threadId]` as "/(tabs)/(jobs)/people/[threadId]", params: { threadId: thread.id } })}>
-      <View style={styles.avatar}><RNText style={styles.initials} maxFontSizeMultiplier={1.3}>{initials(thread.contact.name)}</RNText></View>
+  const show = (threadId: string) =>
+    router.push({ pathname: `/(tabs)/${tab}/people/[threadId]` as "/(tabs)/(jobs)/people/[threadId]", params: { threadId } });
+  return <View>{people.map((person) => {
+    const sent = person.thread?.first_sent_at ?? null;
+    return <Pressable key={person.id} accessibilityRole="button" disabled={open.isPending} style={({ pressed }) => [styles.person, pressed && styles.pressed]}
+      onPress={() => person.thread ? show(person.thread.id) : open.mutate({ contactId: person.id }, {
+        onSuccess: (thread) => show(thread.id),
+        // The day's limit, or someone resting this week: the server says which.
+        onError: (error) => toast.error(error instanceof ApiError && error.status < 500 ? error.message : "Couldn't open that. Try again."),
+      })}>
+      <View style={styles.avatar}><RNText style={styles.initials} maxFontSizeMultiplier={1.3}>{initials(person.name)}</RNText></View>
       <View style={styles.personText}>
         <View style={styles.line}>
-          <Text weight="medium" lines={1} flex>{thread.contact.name}</Text>
+          <Text weight="medium" lines={1} flex>{person.name}</Text>
           {sent ? <View style={styles.age}><Icon name="send" size={14} tone="ink-3" /><Text role="subhead" tone="ink-3">{shortDate(sent)}</Text></View> : null}
         </View>
-        <Text role="subhead" tone="ink-2" lines={1}>{thread.contact.title}</Text>
+        <Text role="subhead" tone="ink-2" lines={1}>{person.title}</Text>
       </View>
     </Pressable>;
   })}</View>;
