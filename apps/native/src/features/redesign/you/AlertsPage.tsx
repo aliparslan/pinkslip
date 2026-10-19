@@ -1,9 +1,9 @@
 import { useApi, useNotificationSettings, useUpdateNotificationSettings } from "@pinkslip/data";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { enableDevicePush } from "../../../platform/push";
-import { EmptyState, GroupPlaceholders, ListGroup, ListItem, Text, toast } from "../../../ui";
+import { AlertPreview, EmptyState, GroupPlaceholders, ListGroup, ListItem, Text, toast } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { YouPage } from "./Page";
 
@@ -24,7 +24,6 @@ export interface AlertsViewProps {
   };
 }
 
-const icon = require("../../../../assets/icon.png");
 
 /** Alerts (Paper "You · Oct 14", B, owner 2026-10-14): what an alert looks
  * like, then how often new jobs come, then the other kinds and a test. */
@@ -35,7 +34,7 @@ export function AlertsView({ newJobs, dailyAt, applicationChanges, blocked = fal
     actions.sendTest().finally(() => setTesting(false));
   };
   return <YouPage title="Alerts">
-    {newJobs !== "off" ? <View style={styles.slot}><Preview daily={newJobs === "daily"} at={dailyAt} /></View> : null}
+    {newJobs !== "off" ? <View style={styles.slot}><AlertPreview daily={newJobs === "daily"} at={dailyAt} /></View> : null}
     <ListGroup surface="fill" header="New jobs"
       footer={blocked ? "Notifications are off for Pinkslip in the iPhone's Settings." : undefined}>
       <ListItem title="As they post" accessory="radio" selected={newJobs === "post"} onPress={() => actions.setNewJobs("post")} />
@@ -52,20 +51,6 @@ export function AlertsView({ newJobs, dailyAt, applicationChanges, blocked = fal
         : <ListItem title="Send a test" onPress={testing ? undefined : test} trailing={testing ? <Spinner /> : undefined} />}
     </ListGroup>
   </YouPage>;
-}
-
-/** The alert as it lands, on the lock screen's rounded card. */
-function Preview({ daily, at }: { daily: boolean; at?: string }) {
-  return <View style={styles.preview} accessibilityLabel="What an alert looks like">
-    <Image source={icon} style={styles.icon} />
-    <View style={styles.previewText}>
-      <View style={styles.previewTop}>
-        <Text role="subhead" weight="medium">{daily ? "12 new jobs today" : "3 new jobs"}</Text>
-        <Text role="footnote" tone="ink-3">{daily ? at : "now"}</Text>
-      </View>
-      <Text role="subhead">{daily ? "Datadog, Ramp, Mercury and 9 more" : "Datadog, Ramp, Mercury"}</Text>
-    </View>
-  </View>;
 }
 
 function Spinner() {
@@ -161,13 +146,6 @@ export function AlertsPage() {
 
 const styles = StyleSheet.create((theme) => ({
   slot: { paddingHorizontal: theme.ui.space["4"] },
-  preview: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: theme.ui.space["3"], paddingHorizontal: 14,
-    borderRadius: 22, borderCurve: "continuous", backgroundColor: theme.ui.color.fill,
-  },
-  icon: { width: 38, height: 38, borderRadius: 9 },
-  previewText: { flex: 1, minWidth: 0 },
-  previewTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: theme.ui.space["2"] },
   // Ink on a white chip: pink on gray was too faint (owner, 2026-10-14).
   time: { height: 34, paddingHorizontal: 11, borderRadius: theme.ui.radius.sm, backgroundColor: theme.ui.color.bg, justifyContent: "center" },
 }));
