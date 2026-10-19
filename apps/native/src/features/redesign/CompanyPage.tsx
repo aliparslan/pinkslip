@@ -6,10 +6,10 @@ import type { Job } from "@pinkslip/core/api";
 import * as WebBrowser from "expo-web-browser";
 import { Link, router, Stack, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { Text as RNText } from "react-native";
 import { firstSentAt, initials } from "./outreach/outreach-facts";
 import { shortDate } from "./tracker-facts";
@@ -69,7 +69,7 @@ export function CompanyPage({ companyId }: { companyId: string }) {
       ? <People threads={people(threads.data, name)} company={plainText(name)} />
       : segment === "events"
       ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
-      : feed.isPending ? <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
+      : feed.isPending ? <RowPlaceholders lines={2} logo={false} />
       : <CompanyJobs jobs={jobs} />}
   </ScrollView>
   <PageBar />
@@ -79,10 +79,9 @@ export function CompanyPage({ companyId }: { companyId: string }) {
 /** E1: the company's events as Coming up's rows, soonest first; E1b when
  * there are none. An event opens its page in the same tab. */
 function CompanyEvents({ events, pending, company }: { events: CompanyEvent[] | undefined; pending: boolean; company: string }) {
-  const { theme } = useUnistyles();
   const queryClient = useQueryClient();
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
-  if (pending) return <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>;
+  if (pending) return <RowPlaceholders rows={3} />;
   if (!events?.length) return <EmptyState title="Nothing coming up" message={`${company}'s info sessions and fairs show up here.`} />;
   const byId = new Map(events.map((event) => [event.id, event]));
   return <EventRows events={events.map((event) => toEventView(event))} onOpen={(view) => {

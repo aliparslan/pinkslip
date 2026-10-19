@@ -7,9 +7,8 @@ import { router, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
-import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, useSheetGuard } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, toast, useSheet, useSheetGuard } from "../../ui";
 import {
   changedRows, changedSentence, experienceSummary, needsSponsorship, rolesSummary, stageName, STAGES_IN_ORDER, stageSummary, toggled, wantsRemote, whereSummary,
   withRemote,

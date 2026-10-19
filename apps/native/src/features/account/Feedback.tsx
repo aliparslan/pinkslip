@@ -2,7 +2,8 @@ import { useSubmitFeedback } from "@pinkslip/data";
 import { router } from "expo-router";
 import { PaperPlaneTilt } from "phosphor-react-native";
 import { useState } from "react";
-import { Button, Field, Input, Screen, Stack, Textarea, toast, ToggleGroup } from "../../kit";
+import { Button, Field, Input, Screen, Stack, Textarea, ToggleGroup } from "../../kit";
+import { toast } from "../../ui";
 
 /** "Help and feedback": an idea or a problem, to the admin inbox. */
 export function Feedback() {

@@ -8,11 +8,10 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import {
   Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
-  useSheet,
+  toast, useSheet,
   type GlyphMenuItem, type GlyphMenuSpec, type StubStamp,
 } from "../../ui";
 import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";

@@ -3,13 +3,13 @@ import { useAssignInboundEmail, useDismissInboundEmail, useInboxEmails } from "@
 import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, Choice, Choices, EmptyState, JobRow, PAGE_BAR, PageBar, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet, useTabBarScroll,
-  useTabBarSpace,
+  Button, Choice, Choices, EmptyState, JobRow, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet,
+  useTabBarScroll, useTabBarSpace,
 } from "../../../ui";
 import { plainText } from "../job-facts";
 import { groupOf, stageGroupLabels } from "../tracker-facts";
@@ -42,7 +42,6 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
   onRetry?: () => void;
   actions: JobEmailsActions;
 }) {
-  const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const tabBarScroll = useTabBarScroll();
   const tabSpace = useTabBarSpace();
@@ -75,10 +74,9 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
           if (item.email.status === "needs_choice") setAsking(item.email);
           else if (item.email.application_id) actions.openApplication(item.email.application_id);
         }} />}
-      ListEmptyComponent={<View style={styles.empty}>
-        {loading ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
-          : failed ? <EmptyState title="Job emails didn't load" message="Check your connection and try again."
-            action={onRetry ? { label: "Try again", variant: "secondary", onPress: onRetry } : undefined} />
+      ListEmptyComponent={loading ? <RowPlaceholders /> : <View style={styles.empty}>
+        {failed ? <EmptyState title="Job emails didn't load" message="Check your connection and try again."
+          action={onRetry ? { label: "Try again", variant: "secondary", onPress: onRetry } : undefined} />
           : <EmptyState title="Nothing yet" message="Emails from companies show up here once they're forwarded." />}
       </View>} />
     <PageBar />

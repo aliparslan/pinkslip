@@ -3,9 +3,8 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast } from "../../../kit";
 import { haptics } from "../../../platform/haptics";
-import { Button, faces, ListGroup, ListItem, Segmented, useUiFontsLoaded } from "../../../ui";
+import { Button, faces, ListGroup, ListItem, Segmented, toast, useUiFontsLoaded } from "../../../ui";
 import { YouPage } from "./Page";
 
 export type FeedbackKind = "idea" | "problem";

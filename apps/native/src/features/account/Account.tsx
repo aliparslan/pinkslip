@@ -5,7 +5,8 @@ import { EnvelopeSimple } from "phosphor-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 import { useUnistyles } from "react-native-unistyles";
-import { Badge, Button, Field, Inline, Input, SaveStatus, Screen, Stack, Surface, Text, toast } from "../../kit";
+import { Badge, Button, Field, Inline, Input, SaveStatus, Screen, Stack, Surface, Text } from "../../kit";
+import { toast } from "../../ui";
 import { clearResumeFile } from "../../platform/resume-file";
 import { useAppleSignIn } from "./useSignIn";
 

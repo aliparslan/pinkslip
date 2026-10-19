@@ -23,9 +23,11 @@ export function useDelayed(ms = WAIT_MS): boolean {
 /**
  * A list on its way (L1): six rows in the job row's shape, grey (`fill`),
  * pulsing softly; still under Reduce Motion. Nothing shows for the first
- * second, so a quick load never flashes them.
+ * second, so a quick load never flashes them. A list whose rows are shorter
+ * keeps its own shape: `lines` (a company's jobs are two, hidden companies
+ * one) and `logo` off where its rows have none.
  */
-export function RowPlaceholders({ rows = ROWS.length }: { rows?: number }) {
+export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: { rows?: number; lines?: 1 | 2 | 3; logo?: boolean }) {
   const shown = useDelayed();
   const reduced = useReducedMotion();
   const pulse = useSharedValue(1);
@@ -37,10 +39,11 @@ export function RowPlaceholders({ rows = ROWS.length }: { rows?: number }) {
   const fade = useAnimatedStyle(() => ({ opacity: pulse.value }));
   if (!shown) return null;
   return <Animated.View style={fade} accessible accessibilityLabel="Loading">
-    {ROWS.slice(0, rows).map((bars, index) => <View key={index} style={styles.row}>
-      <View style={styles.logoSlot}><View style={styles.logo} /></View>
-      <View style={styles.bars}>
-        {bars.map((width, bar) => <View key={bar} style={[styles.bar, { width }]} />)}
+    {ROWS.slice(0, rows).map((bars, index) => <View key={index} style={[styles.row, lines < 3 && styles.short, lines === 1 && styles.single, !logo && styles.bare]}>
+      {logo ? <View style={styles.logoSlot}><View style={styles.logo} /></View> : null}
+      <View style={[styles.bars, lines === 1 && styles.barsSingle]}>
+        {/* One line is a name (the short bar); two are a title and its facts. */}
+        {(lines === 1 ? bars.slice(0, 1) : bars.slice(3 - lines)).map((width, bar) => <View key={bar} style={[styles.bar, { width }]} />)}
       </View>
     </View>)}
   </Animated.View>;
@@ -48,8 +51,13 @@ export function RowPlaceholders({ rows = ROWS.length }: { rows?: number }) {
 
 const styles = StyleSheet.create((theme) => ({
   row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, paddingTop: theme.ui.space["3"] },
+  // Two lines (12 above, two Subhead lines, 12 below) or a logo and a name.
+  short: { minHeight: 64 },
+  single: { alignItems: "center", paddingTop: 0 },
+  bare: { paddingLeft: theme.ui.size.gutter },
   logoSlot: { width: theme.ui.size.keyline, paddingLeft: theme.ui.size.gutter },
   logo: { width: theme.ui.size.logo, height: theme.ui.size.logo, borderRadius: theme.ui.size.logo / 4, borderCurve: "continuous", backgroundColor: theme.ui.color.fill },
   bars: { gap: 10, paddingTop: theme.ui.space["1"] },
+  barsSingle: { paddingTop: 0 },
   bar: { height: 12, borderRadius: 6, backgroundColor: theme.ui.color.fill },
 }));

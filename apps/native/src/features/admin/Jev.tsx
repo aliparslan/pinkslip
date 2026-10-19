@@ -4,7 +4,8 @@ import { useClassificationReport, useClassificationVerdict } from "@pinkslip/dat
 import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, Disclosure, Inline, Screen, SegmentedControl, Spinner, Stack, Text, toast, usePullToRefresh } from "../../kit";
+import { Button, Disclosure, Inline, Screen, SegmentedControl, Spinner, Stack, Text, usePullToRefresh } from "../../kit";
+import { toast } from "../../ui";
 import { Centered, Entries, Entry, Failure, LinkOut, SectionHead } from "./parts";
 
 const VERDICTS: { id: ClassificationVerdict; label: string }[] = [

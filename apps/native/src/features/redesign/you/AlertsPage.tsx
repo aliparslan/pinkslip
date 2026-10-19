@@ -2,9 +2,8 @@ import { useApi, useNotificationSettings, useUpdateNotificationSettings } from "
 import { useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast } from "../../../kit";
 import { enableDevicePush } from "../../../platform/push";
-import { EmptyState, ListGroup, ListItem, Text } from "../../../ui";
+import { EmptyState, ListGroup, ListItem, Text, toast } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { YouPage } from "./Page";
 

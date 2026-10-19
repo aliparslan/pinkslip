@@ -5,7 +5,8 @@ import {
 } from "@pinkslip/data";
 import { useState } from "react";
 import { Pressable } from "react-native";
-import { Badge, Button, Inline, Screen, Spinner, Stack, Text, Textarea, toast, UNDO_TOAST_DURATION, usePullToRefresh } from "../../kit";
+import { Badge, Button, Inline, Screen, Spinner, Stack, Text, Textarea, usePullToRefresh } from "../../kit";
+import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { Actions, Centered, Entries, Entry, Failure, LinkOut, SectionHead } from "./parts";
 
 const failed = () => toast.error("Couldn't update that. Try again.");

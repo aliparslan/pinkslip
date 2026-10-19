@@ -1,6 +1,6 @@
 import { router, type Href } from "expo-router";
 import { useState } from "react";
-import { toast } from "../../kit";
+import { toast } from "../../ui";
 import { setAppearancePreference, useAppearancePreference } from "../../theme/appearance";
 import type { ApplicationAnswerValue, SavedApplicationAnswer } from "@pinkslip/core/api";
 import type { WorkAuthorization } from "@pinkslip/domain/search-profile";

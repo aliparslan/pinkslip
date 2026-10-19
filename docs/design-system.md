@@ -236,8 +236,10 @@ on one line share a size.
   Paper "Menus · Oct 16"): template images in the app's asset catalog
   (`ios/Pinkslip/Images.xcassets/menu-*`, drawn at the kit's line), so iOS
   tints them like its own. A long-press menu has an icon on every item; the
-  job page's ⋯ puts Save and Hide as icons alone across the top. A new menu
-  icon needs a native build.
+  job page's ⋯ puts Save and Hide as icons alone across the top. Every
+  action menu (a ⋯) is `GlyphMenu` with an icon per item; a value picker
+  (Degree, Appearance, Auto-apply's time) stays the system menu with a
+  tick and no icons. A new menu icon needs a native build.
 - **The line is proportional to the icon** (owner, 2026-10-15, replacing
   "1.75pt at any size"): 1.75pt at 24, which is 7.3% of the icon. So 1.46
   at 20, 1.31 at 18, 1.17 at 16, 1.02 at 14 and 0.88 at 12. The lit tab is
@@ -494,6 +496,12 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   - **Words:** what happened, then the fix. Never "we" or "us" (Pinkslip is
     one person), "invalid", "sorry", "please", "oops" or codes. Reassure
     when things might look lost ("Your applications are safe").
+- **Loading** (Paper "Loading · Oct 15", L1): the screen's own parts show
+  at once; what's still coming is grey (`fill`) in its real shape, pulsing
+  softly, after a second of nothing. A list is `RowPlaceholders` in its
+  rows' shape (`lines`, `logo`: a company's jobs are two lines with no
+  logo, hidden companies a logo and a name). A spinner is only for a single
+  thing on its way (a posting's text, a button's own wait).
 - **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
   torn-off stub on an application's page. Its top is the tear's other half;
   each step is a rubber stamp (Founders Grotesk Mono caps: the step in
@@ -840,6 +848,15 @@ cut so that each remaining one has a job.
     staying put; the company page, a person, email tracking, the kit's
     pages and the job and application pages while loading leave iOS's bar
     for it.
+  - The audit's other findings, to rules already here: a person's ⋯ is a
+    `GlyphMenu` (They replied with the open envelope, Don't follow up with
+    the ✕); a company's jobs and events, a job's emails and hidden companies
+    load as placeholder rows in their own shape, not a spinner
+    (`RowPlaceholders` gains `lines` and `logo`); Admin's Add and Edit source
+    are Pinkslip's sheet (`admin/SourceSheet.tsx`). Every screen imports
+    `toast` from `ui`. Drawn for the owner (Paper "Consistency · Oct 19"):
+    Locations in our sheet (C1), Alerts loading as its cards (C3b), and a
+    fade behind the clock on scrolled tabs (C7).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

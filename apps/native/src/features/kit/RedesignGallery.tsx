@@ -5,10 +5,10 @@ import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
   ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, SheetModal, SheetStep, Text, Ticket,
-  useSheet, type ApplyState,
+  toast, useSheet, type ApplyState,
 } from "../../ui";
 import { KitPage } from "./KitPage";
-import { SwipeRow, toast } from "../../kit";
+import { SwipeRow } from "../../kit";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
 import { replayOnboarding } from "../onboarding/launch";
 import { DidYouApply } from "../redesign/ApplySheets";

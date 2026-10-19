@@ -7,7 +7,8 @@ import { ArrowClockwise, Funnel, MagnifyingGlass, WarningCircle } from "phosphor
 import { useEffect, useMemo } from "react";
 import { RefreshControl, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, Inline, Skeleton, Spinner, Text, toast, usePullToRefresh } from "../../kit";
+import { Button, EmptyState, Inline, Skeleton, Spinner, Text, usePullToRefresh } from "../../kit";
+import { toast } from "../../ui";
 import { JobRow } from "../jobs/JobRow";
 import { RowSeparator } from "../jobs/RowSeparator";
 import { useJobActions, type RowJob } from "../jobs/useJobActions";

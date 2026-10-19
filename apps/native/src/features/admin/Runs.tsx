@@ -4,7 +4,8 @@ import { MANUAL_SWEEP_BATCHES, useRefreshAllSources, useRunLatency, useRuns } fr
 import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Badge, Button, Disclosure, Inline, Screen, Spinner, Stack, Text, toast, usePullToRefresh } from "../../kit";
+import { Badge, Button, Disclosure, Inline, Screen, Spinner, Stack, Text, usePullToRefresh } from "../../kit";
+import { toast } from "../../ui";
 import { Entries, Entry, Failure, SectionHead } from "./parts";
 
 const runDate = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });

@@ -7,11 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu } from "../../../kit";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, CompanyLogo, EmptyState, faces, Floating, Icon, PAGE_BAR, PageBar, SheetModal, SheetStep, Text, toast, useCopy, useSheet,
+  Button, CompanyLogo, EmptyState, faces, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, SheetModal, SheetStep, Text, toast, useCopy, useSheet,
   useTabBarStepsAside, useToastLift,
+  type GlyphMenuItem,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { plainText } from "../job-facts";
@@ -75,10 +75,11 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
   const rows = emailRows(thread);
   const company = plainText(thread.company_name);
   const at = applications.filter((application) => companyName(application).toLowerCase() === company.toLowerCase() && application.stage !== "saved");
-  const menu = [
-    thread.status === "active" ? { id: "replied", title: "They replied", onSelect: () => void actions.markReplied() } : null,
-    thread.status === "active" ? { id: "stop", title: "Don't follow up", onSelect: () => void actions.stop() } : null,
-  ];
+  // An action menu, so each item carries its icon (M2).
+  const menu: GlyphMenuItem[] = thread.status === "active" ? [
+    { id: "replied", title: "They replied", glyph: "read", onSelect: () => void actions.markReplied() },
+    { id: "stop", title: "Don't follow up", glyph: "remove", onSelect: () => void actions.stop() },
+  ] : [];
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + PAGE_BAR + 8, paddingBottom: (draft ? 62 + Math.max(insets.bottom, 16) : insets.bottom) + 32 }]}>
@@ -126,9 +127,11 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
         </Pressable>)}
       </View> : null}
     </ScrollView>
-    <PageBar actions={menu.some(Boolean) ? <Menu title="" items={menu}>
-      <Floating><View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} /></View></Floating>
-    </Menu> : undefined} />
+    <PageBar actions={menu.length > 0 ? <Floating>
+      <GlyphMenu items={menu}>
+        <View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} /></View>
+      </GlyphMenu>
+    </Floating> : undefined} />
     {draft ? <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
       <Button variant="primary" fullWidth onPress={() => void write()}>{`Write to ${firstName(thread.contact.name)}`}</Button>
     </View> : null}

@@ -2,7 +2,8 @@ import { useApi, usePreferences, usePushSettings, useUpdatePreferences, useUpdat
 import { BellRinging, WarningCircle } from "phosphor-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Linking, View } from "react-native";
-import { Button, EmptyState, Inline, ListRow, ListSection, Screen, Spinner, Switch, Text, toast } from "../../kit";
+import { Button, EmptyState, Inline, ListRow, ListSection, Screen, Spinner, Switch, Text } from "../../kit";
+import { toast } from "../../ui";
 import { devicePushStatus, enableDevicePush, type DevicePushStatus } from "../../platform/push";
 
 const statusLabel: Record<DevicePushStatus, string> = {

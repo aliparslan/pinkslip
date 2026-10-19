@@ -3,7 +3,7 @@ import {
   useBlockJob, useHideJob, useMarkApplied, useMarkViewed, useSaveJob, useSession, useSetViewed, useUnmarkApplied, useUnsaveJob,
 } from "@pinkslip/data";
 import { Alert } from "react-native";
-import { toast, UNDO_TOAST_DURATION } from "../../kit";
+import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { haptics } from "../../platform/haptics";
 
 export type JobListContext = "feed" | "saved" | "applied";

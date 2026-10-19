@@ -2,9 +2,8 @@ import { useDeleteAccount, useSession, useSignOut, useUpdateName } from "@pinksl
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
-import { toast } from "../../../kit";
 import { clearResumeFile } from "../../../platform/resume-file";
-import { ListGroup, ListItem } from "../../../ui";
+import { ListGroup, ListItem, toast } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { YouPage } from "./Page";
 

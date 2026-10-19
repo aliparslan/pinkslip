@@ -1,9 +1,8 @@
 import { useCompanies, useSetCompanyHidden } from "@pinkslip/data";
 import { Fragment, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast } from "../../../kit";
-import { Button, CompanyLogo, EmptyState, Text } from "../../../ui";
+import { View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
+import { Button, CompanyLogo, EmptyState, RowPlaceholders, Text, toast } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { YouPage } from "./Page";
 
@@ -23,7 +22,6 @@ export interface HiddenCompaniesViewProps {
 /** Hidden companies (Paper "You · Oct 14", owner 2026-10-14), reached from
  * Your search: each with Show, which brings its jobs back. */
 export function HiddenCompaniesView({ companies, failed = false, onRetry, onShow }: HiddenCompaniesViewProps) {
-  const { theme } = useUnistyles();
   const [showing, setShowing] = useState<string | null>(null);
   const show = (company: HiddenCompany) => {
     setShowing(company.id);
@@ -33,7 +31,7 @@ export function HiddenCompaniesView({ companies, failed = false, onRetry, onShow
     return <YouPage title="Hidden companies">
       {failed ? <EmptyState title="Hidden companies didn't load" message="Check your connection and try again."
         action={onRetry ? { label: "Try again", variant: "secondary", onPress: onRetry } : undefined} />
-        : <View style={styles.loading}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>}
+        : <RowPlaceholders rows={4} lines={1} />}
     </YouPage>;
   }
   return <YouPage title="Hidden companies">
@@ -73,5 +71,4 @@ const styles = StyleSheet.create((theme) => ({
   name: { flex: 1, minWidth: 0 },
   // Under the name, past the 40 logo and its 12 gap.
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 52, backgroundColor: theme.ui.color.separator },
-  loading: { minHeight: 200, alignItems: "center", justifyContent: "center" },
 }));

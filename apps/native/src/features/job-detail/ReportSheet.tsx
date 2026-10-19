@@ -1,6 +1,7 @@
 import { useReportJob, type ReportType } from "@pinkslip/data";
 import { useState } from "react";
-import { Button, Field, Select, Sheet, Textarea, toast } from "../../kit";
+import { Button, Field, Select, Sheet, Textarea } from "../../kit";
+import { toast } from "../../ui";
 
 const reasons: { value: ReportType; label: string }[] = [
   { value: "expired_listing", label: "Listing is closed" },

@@ -82,6 +82,9 @@ so they get drawn and approved before code.
    button); everything else uses Pinkslip's own sheet (`ui/Sheet`: floats 8
    in, 40 corners, grab bar). Fix: move both to `SheetModal`. Paper first
    for Locations (a list in our sheet).
+   **Admin fixed** (`redesign/admin/SourceSheet.tsx`: Add and Edit source
+   in our sheet, from the kit's form parts). **Locations drawn**, waiting on
+   the owner: Paper "Consistency · Oct 19", C1.
 2. **Fixed with A.** **Loading pages show the system bar, then swap to ours.** A job or
    application that's still loading shows iOS's Back (`title: ""`), then the
    floating bar replaces it, so Back jumps. Fix with the header decision:
@@ -90,6 +93,10 @@ so they get drawn and approved before code.
    (`RowPlaceholders`); a company's jobs, hidden companies, a job's emails
    and Alerts show a centred spinner. Fix: placeholder rows wherever rows
    will appear; a spinner only for a single thing (a posting's text).
+   **Fixed** for a company's jobs (two lines, no logo) and events, a job's
+   emails and hidden companies (a logo and a name; Paper C3a);
+   `RowPlaceholders` takes `lines` and `logo`. **Alerts drawn** (its two
+   cards with bars, C3b), waiting on the owner.
 4. **Empty-state copy.** Today and Job emails say "Nothing yet", Tracker says
    "Nothing here yet". Pick one (suggest "Nothing yet").
 5. **"Soon" and "Coming soon".** You lists Outreach, Plan and Auto-apply as
@@ -97,23 +104,26 @@ so they get drawn and approved before code.
    wrench page; Answers' wrench page is titled "Coming soon". The wrench
    pages stay (roadmap signals); the wording should match. Suggest "Soon"
    on rows, and the wrench pages titled by what's coming.
-6. **A person's ⋯ menu has no icons.** Rule (Paper "Menus · Oct 16", M2):
+6. **Fixed.** **A person's ⋯ menu has no icons.** Rule (Paper "Menus · Oct 16", M2):
    menus carry our Phosphor icons (`GlyphMenu`). `PersonPage` uses the old
    `Menu` for They replied / Don't follow up. Value pickers (Degree,
    Earliest start, Auto-apply's settings) using the system menu with ticks
-   are fine; only action menus get icons.
+   are fine; only action menus get icons. Built with the icons already in
+   the app (no native build): They replied is the open envelope (`read`),
+   Don't follow up the ✕ (`remove`).
 7. **Rows run under the clock on every tab.** Scrolled, a tab's rows pass
    under the status bar with nothing behind it. A `TopEdgeFade` the status
    bar's height on each tab would match the pages that float a bar. Paper
-   first.
+   first. **Drawn**, waiting on the owner: C7a (today) and C7b (the page's
+   colour behind the clock, fading out 12 under it).
 8. **Fixed with A** (`features/kit/KitPage.tsx`). **Kit pages use the system bar with a centred title** (Redesign kit, Icon
    sets, Sheet transitions, Swipes, Kit). Only the owner sees them; they
    follow whichever header is picked.
 
 Code hygiene (no visible change):
 
-- 13 files import `toast` from the old `kit` (a re-export of `ui/Toast`);
-  import it from `ui`.
+- **Fixed.** Files imported `toast` from the old `kit` (a re-export of
+  `ui/Toast`); all 30 now import it (and `UNDO_TOAST_DURATION`) from `ui`.
 - Old screens kept for the non-redesign build are still routed (Preferences,
   Tailor, the old Welcome onboarding); they're unreachable with the redesign
   on, so they go when the old build does.

@@ -9,7 +9,8 @@ import { Plus, Trash, UploadSimple, WarningCircle } from "phosphor-react-native"
 import { useState, type ReactNode } from "react";
 import { Alert, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, EmptyState, Field, ListRow, ListSection, SaveStatus, Screen, Select, Sheet, Spinner, Stack, Text, toast, UNDO_TOAST_DURATION } from "../../kit";
+import { Button, EmptyState, Field, ListRow, ListSection, SaveStatus, Screen, Select, Sheet, Spinner, Stack, Text } from "../../kit";
+import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { clearResumeFile, keepResumeFile } from "../../platform/resume-file";
 import { Bullets, CityState, DateRange, MonthField, PairList, TextField } from "./fields";
 import { ResumeImportFailure, type ImportedResume } from "./import";

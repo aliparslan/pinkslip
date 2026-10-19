@@ -7,9 +7,9 @@ import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { toast, usePullToRefresh, type MenuItem } from "../../kit";
+import { usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, useTabBarScroll, useTabBarSpace,
+  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, useTabBarScroll, useTabBarSpace,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
 } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";

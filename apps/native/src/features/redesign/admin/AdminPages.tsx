@@ -9,14 +9,13 @@ import { router, useLocalSearchParams, type Href } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Alert, Linking } from "react-native";
-import { Sheet } from "../../../kit";
 import { EmptyState, toast, UNDO_TOAST_DURATION } from "../../../ui";
-import { AddSourceForm, EditSourceForm } from "../../admin/Sources";
 import {
   SAMPLE_COMPANIES, SAMPLE_FEEDBACK, SAMPLE_JEV, SAMPLE_METRICS, SAMPLE_RECRUITER_SCORE, SAMPLE_RECRUITERS, SAMPLE_REPORTS, SAMPLE_REVIEWS, SAMPLE_RUNS,
   SAMPLE_TIERS,
 } from "../../kit/admin-sample";
 import { YouPage } from "../you/Page";
+import { SourceSheet } from "./SourceSheet";
 import { ago, failingSources, flagEvidence, lastDay, needsYou, recruiterQueue, recruiterTally, runLine, shortDate } from "./admin-facts";
 import {
   AdminHomeView, askForNote, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, RecruitersView, reportRow, RunsView, SourcesView,
@@ -313,7 +312,7 @@ export function RunsPage() {
     onRefresh={runNow} onOpenSource={() => router.push(`/you/admin/sources?filter=attention${sample ? "&sample=on" : ""}` as Href)} />;
 }
 
-/** A6, live and sample. Add and Edit keep the forms they had. */
+/** A6, live and sample. Add and Edit are Pinkslip's sheet. */
 export function SourcesPage() {
   const sample = useAdminSample();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
@@ -338,12 +337,8 @@ export function SourcesPage() {
         toggle.mutate({ id: company.id, enabled }, { onError: () => toast.error("Couldn't update that source. Try again.") });
       }}
       onRemove={confirmRemove} />
-    <Sheet open={adding} onOpenChange={setAdding} title="Add a source">
-      {adding && <AddSourceForm onDone={() => setAdding(false)} />}
-    </Sheet>
-    <Sheet open={editing !== null} onOpenChange={(isOpen) => { if (!isOpen) setEditing(null); }} title="Edit source">
-      {editing && <EditSourceForm key={editing.id} company={editing} onDone={() => setEditing(null)} />}
-    </Sheet>
+    <SourceSheet open={adding} onClosed={() => setAdding(false)} />
+    <SourceSheet open={editing !== null} company={editing} onClosed={() => setEditing(null)} />
   </>;
 }
 

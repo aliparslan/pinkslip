@@ -6,7 +6,8 @@ import { ArrowCounterClockwise, Buildings, DotsThree, EyeSlash, Plus, WarningCir
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, Field, IconButton, Input, Menu, SegmentedControl, Sheet, Spinner, Text, Textarea, toast, UNDO_TOAST_DURATION } from "../../kit";
+import { Button, EmptyState, Field, IconButton, Input, Menu, SegmentedControl, Sheet, Spinner, Text, Textarea } from "../../kit";
+import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { CompanyLogo } from "../jobs/CompanyLogo";
 
 type CompanyView = "all" | "hidden";

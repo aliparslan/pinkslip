@@ -8,7 +8,7 @@ import * as WebBrowser from "expo-web-browser";
 import { router, usePathname } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Alert } from "react-native";
-import { toast, UNDO_TOAST_DURATION } from "../../kit";
+import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import type { GlyphMenuItem, GlyphMenuSpec } from "../../ui";
 import { haptics } from "../../platform/haptics";
 import { shareJob } from "../../platform/share";

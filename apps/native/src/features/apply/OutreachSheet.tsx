@@ -6,7 +6,8 @@ import { CheckCircle, Copy, EnvelopeSimple, WarningCircle } from "phosphor-react
 import { useEffect, useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, EmptyState, IconButton, Input, Sheet, Spinner, Stack, Text, Textarea, toast } from "../../kit";
+import { Button, EmptyState, IconButton, Input, Sheet, Spinner, Stack, Text, Textarea } from "../../kit";
+import { toast } from "../../ui";
 import { haptics } from "../../platform/haptics";
 
 const STEP_LABELS = ["First email", "Follow-up", "Last follow-up"] as const;

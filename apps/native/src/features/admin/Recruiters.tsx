@@ -4,7 +4,8 @@ import { MagnifyingGlass } from "phosphor-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, Screen, SegmentedControl, Spinner, Stack, Text, toast, ToggleGroup, usePullToRefresh, type ToggleOption } from "../../kit";
+import { Button, Screen, SegmentedControl, Spinner, Stack, Text, ToggleGroup, usePullToRefresh, type ToggleOption } from "../../kit";
+import { toast } from "../../ui";
 import { Centered, Entries, Entry, Failure, LinkOut, SectionHead } from "./parts";
 
 const WORKS_THERE: ToggleOption<WorksThere>[] = [
