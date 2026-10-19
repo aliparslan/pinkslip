@@ -147,25 +147,26 @@ function depart(direction: SharedValue<number>, width: number): EntryExitAnimati
   };
 }
 
-/** One question's chips: the kit's 32pt Chip, ink when on, with a tick. */
+/** One question's chips: the kit's 32pt Chip, pink when on, since each
+ * answer is saved to your search (owner, 2026-10-19). */
 function Answers({ question, draft, pick }: { question: Question; draft: Profile; pick: (patch: Partial<Profile>) => void }) {
   if (question === "stage") {
-    return <>{STAGES_IN_ORDER.map((id) => <Chip key={id} label={stageName(id)} selected={draft.target_levels.includes(id)}
+    return <>{STAGES_IN_ORDER.map((id) => <Chip key={id} tone="pink" label={stageName(id)} selected={draft.target_levels.includes(id)}
       onPress={() => pick(pickStage(draft, id))} />)}</>;
   }
   if (question === "roles") {
     const chips = roleChips(draft);
     return <>
-      <Chip label="Any role" selected={chips.includes(NO_ROLE_PREFERENCE)} onPress={() => pick(pickRole(draft, NO_ROLE_PREFERENCE))} />
-      {visibleRoles.map((option) => <Chip key={option.id} label={option.label} selected={chips.includes(option.id)}
+      <Chip tone="pink" label="Any role" selected={chips.includes(NO_ROLE_PREFERENCE)} onPress={() => pick(pickRole(draft, NO_ROLE_PREFERENCE))} />
+      {visibleRoles.map((option) => <Chip key={option.id} tone="pink" label={option.label} selected={chips.includes(option.id)}
         onPress={() => pick(pickRole(draft, option.id))} />)}
     </>;
   }
   const anywhere = draft.relocation_willing || draft.location_ids.length === 0;
   return <>
-    <Chip label="Remote" selected={wantsRemote(draft)} onPress={() => pick(flipRemote(draft))} />
-    <Chip label="Anywhere in the US" selected={anywhere} onPress={() => pick(pickPlace(draft, "anywhere"))} />
-    {LOCATION_OPTIONS.map((option) => <Chip key={option.id} label={locationLabels[option.id]}
+    <Chip tone="pink" label="Remote" selected={wantsRemote(draft)} onPress={() => pick(flipRemote(draft))} />
+    <Chip tone="pink" label="Anywhere in the US" selected={anywhere} onPress={() => pick(pickPlace(draft, "anywhere"))} />
+    {LOCATION_OPTIONS.map((option) => <Chip key={option.id} tone="pink" label={locationLabels[option.id]}
       selected={!anywhere && draft.location_ids.includes(option.id)} onPress={() => pick(pickPlace(draft, option.id))} />)}
   </>;
 }

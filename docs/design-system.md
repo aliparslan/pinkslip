@@ -58,7 +58,7 @@ else is decided.
 | Secondary text | `ink-2` | Facts, descriptions, sheet body copy, icons at rest | Titles |
 | Tertiary text | `ink-3` | Labels, captions, times, counts, placeholders | Anything to act on |
 | Strokes | `ink-4` | Empty radios, chevrons, disabled marks | Text, ever |
-| Pink | `accent-fill` | The primary button, checks and switches that are on, badges | Text, chips |
+| Pink | `accent-fill` | The primary button, checks and switches that are on, badges | Text, filter chips |
 | On pink | `accent-ink` | Text and icons on pink (white) | Anything else |
 | Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons, a done toast's check | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
@@ -119,6 +119,13 @@ else is decided.
   with white text. The label is Regular either way, so a chip doesn't
   change width when it's picked (owner, 2026-10-15). A count sits after a
   small gap in `ink-3`.
+- **Chips that save to your search are pink** (`Chip tone="pink"`;
+  onboarding's questions), as checks and switches are: an answer is a
+  setting, not a filter. On in light is the pink tint (`chip-pink`) inside a
+  1pt `accent` line with an `accent` label; in dark it's the line and label
+  with no fill (owner, 2026-10-19, Paper "Pink chips, refining E": E for
+  light, 1 for dark). Off is the same outline as any chip. Jobs' filters
+  stay ink.
 - **Checks, radios and switches change a setting,** so they are pink. A
   check or radio that's on is a pink circle with a white
   check; one that's off is a 1.75pt `ink-4` ring. A switch that's on has a
@@ -564,7 +571,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   Chevrons are `ink-4`.
 - **Badge** (`Badge.tsx`): 20 tall, Footnote Medium, white on pink.
 - **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side, outlined when
-  off; a count is `ink-3` after a 6 gap.
+  off; a count is `ink-3` after a 6 gap. `tone="pink"` for chips that save
+  to your search (Selection, above).
 - **Progress:** one solid bar, as on the Live Activity (owner, 2026-10-14:
   no segments, no green beside the pink).
 - **Spacing:** only 4, 8, 12, 16, 20, 24, 32, 40. 24–32 between sections.
@@ -803,6 +811,13 @@ cut so that each remaining one has a job.
     19", B of three): the tile inks were quieted to sit on a tile, so
     standing alone in dark they read dim, and a touch thin in light. Same
     1.5pt line; the 2pt option wasn't needed.
+  - Onboarding's question chips are pink when on, since each answer is
+    saved to your search (owner, Paper "Pink chips, refining E · Oct 19"):
+    E in light (the pink tint inside a pink line, pink label) and 1 in dark
+    (just the line and label). The owner found the solid ink chip harsh
+    with several on; the board also tried heavier lines, berry and ink
+    labels, softer, rose and magenta pinks, a pastel fill, and Linear's way
+    (a grey fill, colour only in small marks). Jobs' filters stay ink.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
