@@ -5,7 +5,8 @@ export interface DraftContext {
   /** Account name, used when the resume has none. */
   accountName: string;
   contactName: string;
-  jobTitle: string;
+  /** Null for an email about the company as a whole, from its page. */
+  jobTitle: string | null;
   companyName: string;
   now?: Date;
 }
@@ -66,7 +67,10 @@ export function draftOutreachSequence(context: DraftContext): DraftMessage[] {
   const name = context.profile.contact.name.trim() || context.accountName.trim();
   const greeting = `Hi ${firstName(context.contactName) || "there"},`;
   const sign = signature(context.profile, name);
-  const subject = name ? `${context.jobTitle} — ${name}` : `Interested in the ${context.jobTitle} role`;
+  const about = context.jobTitle ? `the ${context.jobTitle} role` : `roles at ${context.companyName}`;
+  const subject = context.jobTitle
+    ? name ? `${context.jobTitle} — ${name}` : `Interested in ${about}`
+    : name ? `${context.companyName} — ${name}` : `Interested in ${about}`;
   const reply = `Re: ${subject}`;
 
   const thanks = (closing: string, signed: string) => [closing, signed].filter(Boolean).join("\n");
@@ -76,7 +80,9 @@ export function draftOutreachSequence(context: DraftContext): DraftMessage[] {
     greeting,
     [
       introLine(context.profile, name, now),
-      `I applied for the ${context.jobTitle} role at ${context.companyName} and wanted to reach out directly.`,
+      context.jobTitle
+        ? `I applied for the ${context.jobTitle} role at ${context.companyName} and wanted to reach out directly.`
+        : `I'd love to work at ${context.companyName} and wanted to reach out directly.`,
       experienceLine(context.profile),
     ].filter(Boolean).join(" "),
     "Would you be open to a quick chat, or pointing me to the right person on the team?",
@@ -84,12 +90,12 @@ export function draftOutreachSequence(context: DraftContext): DraftMessage[] {
   );
   const followUp = paragraphs(
     greeting,
-    `I wanted to follow up on my note about the ${context.jobTitle} role. I'm still very interested and happy to send anything that would help.`,
+    `I wanted to follow up on my note about ${about}. I'm still very interested and happy to send anything that would help.`,
     thanks("Thanks,", name),
   );
   const lastFollowUp = paragraphs(
     greeting,
-    `Checking in one last time about the ${context.jobTitle} role. If someone else is the better person to talk to, I'd be grateful for a pointer.`,
+    `Checking in one last time about ${about}. If someone else is the better person to talk to, I'd be grateful for a pointer.`,
     thanks("Thanks again,", name),
   );
 

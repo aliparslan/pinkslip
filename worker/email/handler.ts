@@ -1,6 +1,7 @@
 import PostalMime, { addressParser, decodeWords, type Email } from "postal-mime";
 import { activityForEmail, notifyActivity } from "../activity";
 import { findInboxUser, recordForwardingConfirmation, recordInboxDelivery } from "../inbox";
+import { isAutoReply, isBounce, recordAutoReply, recordBounce } from "./bounces";
 import { recordRecruiterReply } from "./replies";
 import { readStageWithAi } from "./stage-reader";
 import type { Env } from "../types";
@@ -111,7 +112,20 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   }
 
   await recordInboxDelivery(env.DB, userId, now);
+  // A bounce is never a step: it only tells the contact list an address is dead.
+  if (isBounce(from, subject)) {
+    const parsed = toEmailContent(await PostalMime.parse(message.raw), from);
+    const marked = await recordBounce(env.DB, userId, `${parsed.subject}\n${parsed.text}`);
+    logOutcome(marked.length > 0 ? "bounce_marked" : "bounce", from.address);
+    return;
+  }
   const forwarded = isManualForward(subject);
+  // An out-of-office from a recruiter the user wrote to isn't their reply.
+  if (!forwarded && isAutoReply(message.headers, subject)
+    && await recordAutoReply(env.DB, userId, from.address, async () => toEmailContent(await PostalMime.parse(message.raw), from).text)) {
+    logOutcome("auto_reply", from.address);
+    return;
+  }
   // A reply from someone the user wrote to (N11), decided from the sender
   // alone. A forward the user sent by hand is checked by its original sender
   // below: the forwarder is the user, never the recruiter. A reply can also

@@ -49,3 +49,19 @@ export function outreachMailtoUrl(to: string, message: Pick<OutreachMessage, "su
   ].join("&");
   return `mailto:${encodeURIComponent(to).replace(/%40/g, "@")}?${query}`;
 }
+
+export type WebMail = "gmail" | "outlook";
+
+/** The same message in Gmail's or Outlook's web compose window, for someone
+ * whose mail lives in a browser rather than a mail app (Decisions: Outreach
+ * #6). Outlook's is for personal accounts (outlook.com, hotmail). */
+export function outreachComposeUrl(app: WebMail, to: string, message: Pick<OutreachMessage, "subject" | "body">): string {
+  const params = app === "gmail"
+    ? new URLSearchParams({ view: "cm", fs: "1", to, su: message.subject, body: message.body })
+    : new URLSearchParams({ to, subject: message.subject, body: message.body });
+  // URLSearchParams writes spaces as "+", which some compose windows keep.
+  const query = params.toString().replace(/\+/g, "%20");
+  return app === "gmail"
+    ? `https://mail.google.com/mail/?${query}`
+    : `https://outlook.live.com/mail/0/deeplink/compose?${query}`;
+}

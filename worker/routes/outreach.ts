@@ -11,7 +11,7 @@ import {
   loadThread,
   markMessageSent,
   OutreachError,
-  startThreadForJob,
+  startThread,
 } from "../outreach/threads";
 import type { Env, Variables } from "../types";
 
@@ -29,16 +29,22 @@ outreach.onError((error, c) => {
 outreach.get("/threads", async (c) => {
   const rawJobId = c.req.query("job_id");
   const jobId = rawJobId ? await resolveJobId(c.env.DB, rawJobId) : undefined;
-  return c.json({ threads: await listThreads(c.env.DB, c.get("userId"), { jobId }) });
+  const companyId = c.req.query("company_id") || undefined;
+  return c.json({ threads: await listThreads(c.env.DB, c.get("userId"), { jobId, companyId }) });
 });
 
+/** About a job ({ job_id }), or the company as a whole from its page ({ company_id }). */
 outreach.post("/threads", async (c) => {
-  const body = await c.req.json<{ job_id?: unknown }>().catch(() => null);
-  if (typeof body?.job_id !== "string" || !body.job_id) {
-    return c.json({ error: "Missing job_id", code: "invalid_request" }, 400);
+  const body = await c.req.json<{ job_id?: unknown; company_id?: unknown }>().catch(() => null);
+  const jobId = typeof body?.job_id === "string" && body.job_id ? body.job_id : null;
+  const companyId = typeof body?.company_id === "string" && body.company_id ? body.company_id : null;
+  if (!jobId && !companyId) {
+    return c.json({ error: "Missing job_id or company_id", code: "invalid_request" }, 400);
   }
   const userId = c.get("userId");
-  const thread = await startThreadForJob(c.env, userId, await resolveJobId(c.env.DB, body.job_id));
+  const thread = await startThread(c.env, userId, jobId
+    ? { jobId: await resolveJobId(c.env.DB, jobId) }
+    : { companyId: companyId! });
   await recordProductEvent(c.env.DB, {
     userId,
     sessionId: c.get("sessionId"),

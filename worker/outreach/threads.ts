@@ -8,14 +8,14 @@ import type {
   OutreachThread,
   OutreachThreadStatus,
 } from "../../shared/outreach";
-import { rankedContactsForCompany } from "./contacts";
+import { companyContacts } from "./contacts";
 import { draftOutreachSequence } from "./drafts";
 import { followUpDueAt, testFollowUpMinutes, validTimeZone } from "./schedule";
 
 export class OutreachError extends Error {
   constructor(
     message: string,
-    readonly status: 400 | 404 | 409,
+    readonly status: 400 | 404 | 409 | 429,
     readonly code: string,
   ) {
     super(message);
@@ -33,6 +33,7 @@ interface ThreadRow {
   contact_email: string;
   contact_title: string;
   contact_source: string;
+  contact_status: string;
   time_zone: string;
   created_at: string;
   updated_at: string;
@@ -52,7 +53,7 @@ interface MessageRow {
 const THREAD_SELECT = `
   SELECT ot.id, ot.status, ot.job_id, j.title AS job_title, ot.company_id,
          c.name AS company_name, cc.name AS contact_name, cc.email AS contact_email,
-         cc.title AS contact_title, cc.source AS contact_source, ot.time_zone,
+         cc.title AS contact_title, cc.source AS contact_source, cc.email_status AS contact_status, ot.time_zone,
          ot.created_at, ot.updated_at
   FROM outreach_threads ot
   JOIN companies c ON c.id = ot.company_id
@@ -67,12 +68,15 @@ function toThread(row: ThreadRow, messages: MessageRow[]): OutreachThread {
     job_title: row.job_title,
     company_id: row.company_id,
     company_name: row.company_name,
-    contact: {
-      name: row.contact_name,
-      email: row.contact_email,
-      title: row.contact_title,
-      test: row.contact_source === "test",
-    },
+    // A recruiter who asked to be left alone has their details wiped.
+    contact: row.contact_status === "removed"
+      ? { name: "", email: "", title: "", test: false }
+      : {
+        name: row.contact_name,
+        email: row.contact_email,
+        title: row.contact_title,
+        test: row.contact_source === "test",
+      },
     messages: messages
       .filter((message) => message.thread_id === row.id)
       .sort((a, b) => a.step - b.step)
@@ -104,7 +108,7 @@ async function withMessages(db: D1Database, rows: ThreadRow[]): Promise<Outreach
 export async function listThreads(
   db: D1Database,
   userId: string,
-  filter: { jobId?: string } = {},
+  filter: { jobId?: string; companyId?: string } = {},
 ): Promise<OutreachThread[]> {
   const rows = filter.jobId
     ? await db.prepare(
@@ -112,6 +116,13 @@ export async function listThreads(
        WHERE ot.user_id = ? AND ot.job_id = ?
        ORDER BY ot.updated_at DESC`
     ).bind(userId, filter.jobId).all<ThreadRow>()
+    // The company page's People: every thread there, whichever job it began from.
+    : filter.companyId
+    ? await db.prepare(
+      `${THREAD_SELECT}
+       WHERE ot.user_id = ? AND ot.company_id = ?
+       ORDER BY ot.updated_at DESC`
+    ).bind(userId, filter.companyId).all<ThreadRow>()
     : await db.prepare(
       `${THREAD_SELECT}
        WHERE ot.user_id = ?
@@ -133,24 +144,40 @@ export async function loadThread(
   return (await withMessages(db, [row]))[0];
 }
 
-/** Starts an email to the company's best available recruiter, or returns the
- * thread the user already has with that recruiter. */
-export async function startThreadForJob(
+/** Most new people one user starts writing to in a day (Decisions: Outreach #4). */
+export const DAILY_NEW_PEOPLE_CAP = 5;
+
+export type ThreadTarget = { jobId: string } | { companyId: string };
+
+/** Starts an email to the company's best available recruiter, about a job or
+ * the company as a whole, or returns the thread the user already has with
+ * that recruiter. */
+export async function startThread(
   env: Env,
   userId: string,
-  jobId: string,
+  target: ThreadTarget,
   now = new Date(),
 ): Promise<OutreachThread> {
-  const job = await env.DB.prepare(
-    `SELECT j.id, j.title, j.company_id, c.name AS company_name
-     FROM jobs j JOIN companies c ON c.id = j.company_id
-     WHERE j.id = ?`
-  ).bind(jobId).first<{ id: string; title: string; company_id: string; company_name: string }>();
-  if (!job) throw new OutreachError("Job not found", 404, "not_found");
+  const subject = "jobId" in target
+    ? await env.DB.prepare(
+      `SELECT j.id AS job_id, j.title AS job_title, j.company_id, c.name AS company_name
+       FROM jobs j JOIN companies c ON c.id = j.company_id
+       WHERE j.id = ?`
+    ).bind(target.jobId).first<{ job_id: string | null; job_title: string | null; company_id: string; company_name: string }>()
+    : await env.DB.prepare(
+      `SELECT NULL AS job_id, NULL AS job_title, id AS company_id, name AS company_name FROM companies WHERE id = ?`
+    ).bind(target.companyId).first<{ job_id: string | null; job_title: string | null; company_id: string; company_name: string }>();
+  if (!subject) {
+    throw "jobId" in target
+      ? new OutreachError("Job not found", 404, "not_found")
+      : new OutreachError("Company not found", 404, "not_found");
+  }
 
-  const contacts = await rankedContactsForCompany(env, job.company_id, userId, now);
+  const { available: contacts, resting } = await companyContacts(env, subject.company_id, userId, now);
   if (contacts.length === 0) {
-    throw new OutreachError("No recruiter found for this company yet.", 404, "no_contacts");
+    throw resting > 0
+      ? new OutreachError(`${subject.company_name}'s recruiters heard from several Pinkslip users this week. Try again next week.`, 409, "contacts_resting")
+      : new OutreachError("No recruiter found for this company yet.", 404, "no_contacts");
   }
 
   const existing = await env.DB.prepare(
@@ -159,6 +186,16 @@ export async function startThreadForJob(
      ORDER BY created_at ASC LIMIT 1`
   ).bind(userId, ...contacts.map((contact) => contact.id)).first<{ id: string }>();
   if (existing) return (await loadThread(env.DB, userId, existing.id))!;
+
+  // Threads with the stand-in test recipient don't count: they reach nobody.
+  const today = await env.DB.prepare(
+    `SELECT COUNT(*) AS started FROM outreach_threads ot
+     JOIN company_contacts cc ON cc.id = ot.contact_id
+     WHERE ot.user_id = ? AND ot.created_at > ? AND cc.source NOT IN ('test', 'pinkslip-test')`
+  ).bind(userId, new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()).first<{ started: number }>();
+  if ((today?.started ?? 0) >= DAILY_NEW_PEOPLE_CAP && contacts[0].source !== "test") {
+    throw new OutreachError(`You've started emails to ${DAILY_NEW_PEOPLE_CAP} new people today. Start more tomorrow.`, 429, "daily_cap");
+  }
 
   const contact = contacts[0];
   const [profile, user] = await Promise.all([
@@ -169,8 +206,8 @@ export async function startThreadForJob(
     profile: profile.data,
     accountName: user?.name ?? "",
     contactName: contact.name,
-    jobTitle: job.title,
-    companyName: job.company_name,
+    jobTitle: subject.job_title,
+    companyName: subject.company_name,
     now,
   });
 
@@ -180,13 +217,17 @@ export async function startThreadForJob(
     env.DB.prepare(
       `INSERT INTO outreach_threads (id, user_id, company_id, job_id, contact_id, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`
-    ).bind(threadId, userId, job.company_id, job.id, contact.id, stamp, stamp),
+    ).bind(threadId, userId, subject.company_id, subject.job_id, contact.id, stamp, stamp),
     ...drafts.map((draft) => env.DB.prepare(
       `INSERT INTO outreach_messages (id, thread_id, step, subject, body, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`
     ).bind(crypto.randomUUID(), threadId, draft.step, draft.subject, draft.body, stamp, stamp)),
   ]);
   return (await loadThread(env.DB, userId, threadId))!;
+}
+
+export async function startThreadForJob(env: Env, userId: string, jobId: string, now = new Date()): Promise<OutreachThread> {
+  return startThread(env, userId, { jobId }, now);
 }
 
 async function ownedMessage(db: D1Database, userId: string, messageId: string) {
@@ -328,4 +369,14 @@ export async function discardDraftThread(db: D1Database, userId: string, threadI
     db.prepare("DELETE FROM outreach_messages WHERE thread_id = ?").bind(threadId),
     db.prepare("DELETE FROM outreach_threads WHERE id = ? AND user_id = ?").bind(threadId, userId),
   ]);
+}
+
+/** Ends every open thread to a contact whose address stopped working or who
+ * asked to be left alone: follow-ups would only bounce or annoy. */
+export async function stopThreadsTo(db: D1Database, contactId: string, now = new Date()): Promise<number> {
+  const open = (await db.prepare(
+    "SELECT id, user_id FROM outreach_threads WHERE contact_id = ? AND status IN ('draft', 'active')"
+  ).bind(contactId).all<{ id: string; user_id: string }>()).results ?? [];
+  for (const thread of open) await closeThread(db, thread.user_id, thread.id, "stopped", now);
+  return open.length;
 }

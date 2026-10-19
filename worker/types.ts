@@ -64,6 +64,12 @@ export interface Env {
   OUTREACH_FOLLOW_UP_MINUTES?: string;
   /** Serper (Google results) for recruiter sourcing; admin runs only. */
   SERPER_API_KEY?: string;
+  /** MillionVerifier, for outreach address checks (a secret). Nothing is
+   * checked, and no address reaches users, until it's set. */
+  EMAIL_CHECK_API_KEY?: string;
+  /** "on" runs the shared-inbox search on the 15-minute cycle, two companies
+   * at a time; unset leaves it to admins' runs. */
+  CONTACT_FINDER?: string;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */
