@@ -1063,11 +1063,12 @@ Liberties for the owner to keep or veto:
 Not in step 6: the sign-in screens on the iPhone and the web (Google,
 password, code), which wait for Paper (the onboarding design asks for them).
 
-### Step 7: events (2026-10-19, not deployed)
+### Step 7: events (2026-10-19, live)
 
-Server side only; the apps' screens come next (events on the company's
-page, the event page with Remind me and Sign up, Today's Coming up row,
-Admin's events, the push link `/events/:id`). Migration 0099 adds two
+Deployed 2026-10-19 (migration 0099, Worker version 52676b42); the iPhone
+screens went to the owner channel the same day (update 01a155a9, on 1.3.7),
+not to TestFlight. Admin's events screen is still to come, so production
+has no events until one is added. Migration 0099 adds two
 tables; nothing existing changes shape. Following was built on 2026-10-18,
 then parked by the owner before deploying, and taken out (see Decisions:
 Following and events, 2026-10-19).
