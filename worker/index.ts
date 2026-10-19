@@ -160,6 +160,8 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
     web_apple_sign_in_enabled: Boolean(appleWebConfig(env)),
     google_sign_in_enabled: Boolean(googleConfig(env)),
     password_sign_in_enabled: true,
+    // POST /auth/password, for "Make a password" after a code (2026-10-19).
+    password_after_code_enabled: true,
     tailoring_enabled: Boolean(tailoring),
     tailoring_provider: tailoring?.provider ?? null,
     tailoring_model: tailoring?.model ?? "",

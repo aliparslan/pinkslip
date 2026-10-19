@@ -125,6 +125,29 @@ describe("email and password", () => {
     expect((await check("/api/v2/auth/password/login", { email: "alex@example.com", password: "new-password-2" })).status).toBe(200);
   });
 
+  it("makes a password right after signing in with a code, and only then", async () => {
+    const { sqlite, db, app, lastCode } = setup();
+    await app(await guest(db))("/api/v2/auth/email/code/start", { email: "alex@example.com" });
+    const first = await app(await guest(db))("/api/v2/auth/email/code/verify", { email: "alex@example.com", code: lastCode() });
+    const { native_token: token, account } = await first.json() as { native_token: string; account: { has_password: boolean } };
+    expect(account.has_password).toBe(false);
+    const signedIn = app(token);
+
+    expect((await signedIn("/api/v2/auth/password", { password: "short" })).status).toBe(400);
+    const made = await signedIn("/api/v2/auth/password", { password: "hunter2hunter2" });
+    expect(made.status).toBe(200);
+    expect(await made.json()).toMatchObject({ account: { has_password: true } });
+    expect((await app(await guest(db))("/api/v2/auth/password/login", { email: "alex@example.com", password: "hunter2hunter2" })).status).toBe(200);
+
+    // A quarter of an hour later the code no longer vouches for the session.
+    const earlier = new Date(Date.now() - 20 * 60_000).toISOString();
+    sqlite.run("UPDATE email_login_tokens SET consumed_at = ?", [earlier]);
+    sqlite.run("UPDATE auth_sessions SET created_at = ?", [earlier]);
+    expect((await signedIn("/api/v2/auth/password", { password: "another-one-2" })).status).toBe(403);
+    // A guest can't set one at all.
+    expect((await app(await guest(db))("/api/v2/auth/password", { password: "another-one-2" })).status).toBe(401);
+  });
+
   it("pauses an email after ten wrong passwords", async () => {
     const { db, app } = setup();
     const call = app(await guest(db));

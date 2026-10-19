@@ -672,6 +672,41 @@ auth.post("/password/login", async (c) => {
   });
 });
 
+/** How long after a code proves the email the app may still set a password. */
+const FRESH_CODE_MS = 15 * 60 * 1000;
+
+/**
+ * "Make a password" after signing in with a code (owner, 2026-10-19, Paper
+ * "Sign in, code first · Oct 19", A3): sets or replaces the email sign-in's
+ * password, so new accounts can add one and "Forgot it?" can reset one. Only
+ * for a session that began with a code for this email in the last 15
+ * minutes, so a session alone can't set a password.
+ */
+auth.post("/password", requireAuthenticated, async (c) => {
+  const body = await c.req.json<{ password?: unknown }>().catch(() => null);
+  const problem = passwordProblem(body?.password);
+  if (problem) return c.json({ error: problem, code: "weak_password" }, 400);
+  const since = new Date(Date.now() - FRESH_CODE_MS).toISOString();
+  const fresh = await c.env.DB.prepare(
+    `SELECT identity.provider_subject AS email FROM auth_identities identity
+     JOIN auth_sessions session ON session.id = ? AND session.user_id = identity.user_id
+     WHERE identity.user_id = ? AND identity.provider = 'email'
+       AND datetime(session.created_at) > datetime(?)
+       AND EXISTS (
+         SELECT 1 FROM email_login_tokens token
+         WHERE token.email = identity.provider_subject AND token.kind = 'code'
+           AND token.consumed_at IS NOT NULL AND datetime(token.consumed_at) > datetime(?)
+       )
+     LIMIT 1`
+  ).bind(c.get("sessionId"), c.get("userId"), since, since).first<{ email: string }>();
+  if (!fresh) return c.json({ error: "Sign in with a code first", code: "code_required" }, 403);
+  await c.env.DB.prepare(
+    `UPDATE auth_identities SET password_hash = ?, password_updated_at = ?
+     WHERE user_id = ? AND provider = 'email' AND provider_subject = ?`
+  ).bind(await hashPassword(body!.password as string), new Date().toISOString(), c.get("userId"), fresh.email).run();
+  return c.json(await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")));
+});
+
 /** Google on the web: a same-origin POST from Account, like Apple's. */
 auth.post("/google/web/start", async (c) => {
   c.header("Cache-Control", "no-store");
