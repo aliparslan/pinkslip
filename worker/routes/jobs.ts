@@ -6,7 +6,6 @@ import {
   ensureUserEvergreenMatchesReady,
   ensureUserJobMatchesReady,
   ensureUserJobMatches,
-  followedCompanyIds,
   invalidateJobMatches,
   MATCHER_VERSION,
   rematchJobForMatchedUsers,
@@ -151,8 +150,7 @@ const CAREER_STAGE_IDS = new Set<string>(
   CAREER_STAGE_OPTIONS.map((option) => option.id)
 );
 
-/** `following`: the person follows the job's company (N20 marks it in the feed). */
-function serializeJob(row: JobListRow, followed?: Set<string>) {
+function serializeJob(row: JobListRow) {
   let specialties: string[] = [];
   try {
     const parsed = JSON.parse(row.specialties_json);
@@ -173,7 +171,6 @@ function serializeJob(row: JobListRow, followed?: Set<string>) {
     applied: stage !== null && hasApplied(stage) ? 1 : 0,
     ...(applied_at ? { applied_at } : {}),
     specialties,
-    following: followed?.has(row.company_id) ?? false,
     sponsorship_available: row.sponsorship_available === null
       ? null
       : row.sponsorship_available === 1,
@@ -541,7 +538,6 @@ jobs.get("/", async (c) => {
 
   const stmt = c.env.DB.prepare(sql);
   const result = await stmt.bind(...bindings).all<JobListRow>();
-  const followed = await followedCompanyIds(c.env.DB, userId);
   const filteredRows = hasAdvancedFilters
     ? (result.results ?? []).filter((row) => passesAdvancedFilters(row, advancedFilters))
     : (result.results ?? []);
@@ -550,7 +546,7 @@ jobs.get("/", async (c) => {
     : filteredRows.slice(0, limitVal);
 
   return c.json({
-    jobs: rows.map((row) => serializeJob(row, followed)),
+    jobs: rows.map(serializeJob),
     meta: {
       total: filteredRows.length,
       count: rows.length,
@@ -649,7 +645,7 @@ jobs.get("/:id", async (c) => {
   }
 
   return c.json({
-    ...serializeJob(result, await followedCompanyIds(db, userId)),
+    ...serializeJob(result),
     content_pending: contentPending,
     content_refresh_after_ms: contentPending ? 1500 : null,
   });
@@ -730,7 +726,7 @@ jobs.patch("/:id", async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
-  return c.json(serializeJob(updated, await followedCompanyIds(c.env.DB, userId)));
+  return c.json(serializeJob(updated));
 });
 
 // Blocking is global, not per-user: the poller skips blocked external_ids, so the
@@ -787,8 +783,7 @@ jobs.get("/saved/list", async (c) => {
      ORDER BY datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC`
   ).bind(userId, userId, userId, userId, userId, userId).all<JobListRow>();
 
-  const followed = await followedCompanyIds(c.env.DB, userId);
-  return c.json({ jobs: (result.results ?? []).map((row) => serializeJob(row, followed)) });
+  return c.json({ jobs: (result.results ?? []).map(serializeJob) });
 });
 
 // Every application past Saved, whatever its stage. Tracker reads stages from
@@ -807,8 +802,7 @@ jobs.get("/applied/list", async (c) => {
      ORDER BY julianday(a.applied_at) DESC, a.id DESC`
   ).bind(userId, userId, userId, userId, userId).all<JobListRow>();
 
-  const followed = await followedCompanyIds(c.env.DB, userId);
-  return c.json({ jobs: (result.results ?? []).map((row) => serializeJob(row, followed)) });
+  return c.json({ jobs: (result.results ?? []).map(serializeJob) });
 });
 
 export default jobs;

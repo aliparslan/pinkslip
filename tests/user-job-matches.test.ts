@@ -175,10 +175,6 @@ function createMatchingSchema(sqlite: Database) {
     CREATE TABLE notification_candidates (
       user_id TEXT, status TEXT, last_error TEXT
     );
-    CREATE TABLE company_follows (
-      user_id TEXT NOT NULL, company_id TEXT NOT NULL, followed_at TEXT NOT NULL,
-      PRIMARY KEY (user_id, company_id)
-    );
   `);
 }
 

@@ -2,17 +2,12 @@ import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { buildToday } from "@worker/activity";
+import { createManualApplication, trackJob } from "@worker/applications";
 import { createGuestSession } from "@worker/auth";
 import { matchEventCompany, readEventWithAi, readPageBasics, readStructuredEvent } from "@worker/event-import";
 import { listCompanyEvents, queueDueEventReminders } from "@worker/events";
 import worker from "@worker/index";
-import { classifyJob } from "@worker/job-features";
-import { notificationJobMatchesCurrentProfile } from "@worker/notification-delivery";
-import { buildDailyDigestPayload, buildNotificationPayload } from "@worker/push";
-import { ensureUserJobMatches } from "@worker/user-job-matches";
-import { saveUserPreferenceState } from "@worker/user-preferences";
 import type { Env } from "@worker/types";
-import { DEFAULT_SEARCH_PROFILE, normalizeSearchProfile } from "../shared/search-profile";
 import { sqliteD1 } from "./sqlite-d1";
 
 const migrationsDir = new URL("../migrations/", import.meta.url).pathname;
@@ -25,19 +20,6 @@ afterEach(() => {
 
 const ORIGIN = "https://pinkslip.work";
 const NOW = new Date().toISOString();
-const NEW_GRAD = "We're hiring new graduates for this role. A bachelor's degree in computer science or a related field. 0-1 years of experience. "
-  + "You'll build and ship features with a small team, review code and learn from experienced engineers.";
-
-const JOBS = [
-  // In the search: a new-grad software job in New York.
-  { id: "swe-ny", title: "Software Engineer, New Grad", location: "New York, NY", description: NEW_GRAD },
-  // Outside it twice over: a role not picked, in a city not picked.
-  { id: "ml-seattle", title: "Machine Learning Engineer, New Grad", location: "Seattle, WA", description: NEW_GRAD },
-  // Above the person's level: following doesn't widen that.
-  { id: "ml-senior", title: "Senior Machine Learning Engineer", location: "Seattle, WA",
-    description: "Requires 7+ years of professional experience building machine learning systems at scale. You'll lead a team and set direction." },
-];
-
 async function setup() {
   const { sqlite, db } = sqliteD1();
   databases.push(sqlite);
@@ -48,11 +30,8 @@ async function setup() {
   sqlite.run(`INSERT INTO companies (id, name, ats_type, ats_slug, website, enabled)
     VALUES ('zephyr', 'Zephyr Labs', 'greenhouse', 'zephyrlabs-test', 'https://zephyrlabs.example', 1),
            ('other', 'Other Co', 'greenhouse', 'otherco-test', 'https://otherco.example', 1)`);
-  for (const job of JOBS) {
-    sqlite.query(`INSERT INTO jobs (id, company_id, external_id, title, url, location, posted_at, first_seen_at, description)
-      VALUES (?, 'zephyr', ?, ?, ?, ?, ?, ?, ?)`)
-      .run(job.id, job.id, job.title, `https://boards.greenhouse.io/zephyrlabs-test/jobs/${job.id}`, job.location, NOW, NOW, job.description);
-  }
+  sqlite.run(`INSERT INTO jobs (id, company_id, external_id, title, url, location, posted_at, first_seen_at, description)
+    VALUES ('z1', 'zephyr', 'z1', 'Software Engineer, New Grad', 'https://boards.greenhouse.io/zephyrlabs-test/jobs/z1', 'New York, NY', ?, ?, 'Build things.')`, [NOW, NOW]);
   const mail: Array<{ to: string; text?: string }> = [];
   const env = {
     DB: db,
@@ -84,87 +63,8 @@ async function setup() {
     if (role === "admin") sqlite.run("UPDATE users SET role = 'admin' WHERE id = ?", [userId]);
     return { token, userId, call: app(token) };
   };
-  const searchFor = (userId: string) => saveUserPreferenceState(db, userId, {
-    search_profile: normalizeSearchProfile({
-      ...DEFAULT_SEARCH_PROFILE,
-      primary_role: "software_engineering",
-      roles: ["software_engineering", "backend"],
-      target_levels: ["new_grad"],
-      location_ids: ["new_york"],
-    }),
-  });
-  const matched = (userId: string) => (sqlite.query("SELECT job_id FROM user_job_matches WHERE user_id = ? ORDER BY job_id").all(userId) as { job_id: string }[])
-    .map((row) => row.job_id);
-  return { sqlite, db, env, guest, signedIn, searchFor, matched, lastCode };
+  return { sqlite, db, env, guest, signedIn, lastCode };
 }
-
-describe("following a company", () => {
-  it("widens matches to its jobs at your level, whatever the role or place, and narrows them again on unfollow", async () => {
-    const { sqlite, db, guest, searchFor, matched } = await setup();
-    const person = await guest();
-    await searchFor(person.userId);
-    await ensureUserJobMatches(db, person.userId, JOBS.map((job) => job.id));
-    expect(matched(person.userId)).toEqual(["swe-ny"]);
-
-    expect(await (await person.call("/api/v2/interactions/companies/zephyr/follow")).json() as { following: boolean }).toEqual({ following: true });
-    expect(matched(person.userId)).toEqual(["ml-seattle", "swe-ny"]);
-    const companies = await (await person.call("/api/v2/companies", undefined, "GET")).json() as { companies: Array<{ id: string; following: number }> };
-    expect(companies.companies.find((company) => company.id === "zephyr")?.following).toBe(1);
-    expect(companies.companies.find((company) => company.id === "other")?.following).toBe(0);
-    const job = await (await person.call("/api/v2/jobs/ml-seattle", undefined, "GET")).json() as { following: boolean };
-    expect(job.following).toBe(true);
-
-    expect(await (await person.call("/api/v2/interactions/companies/zephyr/follow", undefined, "DELETE")).json() as { following: boolean }).toEqual({ following: false });
-    expect(matched(person.userId)).toEqual(["swe-ny"]);
-    expect(sqlite.query("SELECT COUNT(*) AS count FROM company_follows").get()).toEqual({ count: 0 });
-  });
-
-  it("can't be hidden and followed at once", async () => {
-    const { sqlite, guest } = await setup();
-    const person = await guest();
-    await person.call("/api/v2/interactions/companies/zephyr/block");
-    await person.call("/api/v2/interactions/companies/zephyr/follow");
-    expect(sqlite.query("SELECT COUNT(*) AS count FROM user_blocked_companies").get()).toEqual({ count: 0 });
-    await person.call("/api/v2/interactions/companies/zephyr/block");
-    expect(sqlite.query("SELECT COUNT(*) AS count FROM company_follows").get()).toEqual({ count: 0 });
-    expect((await person.call("/api/v2/interactions/companies/missing/follow")).status).toBe(404);
-  });
-
-  it("keeps a followed job through the alert's last check, and marks it Following (N20)", () => {
-    const listing = { externalId: "ml-seattle", title: JOBS[1]!.title, url: "https://example.com", location: "Seattle, WA",
-      department: null, postedAt: NOW, description: NEW_GRAD, salary: null };
-    const profile = normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, roles: ["software_engineering"], target_levels: ["new_grad"], location_ids: ["new_york"] });
-    expect(notificationJobMatchesCurrentProfile("ml-seattle", listing, classifyJob(listing), profile)).toBe(false);
-    expect(notificationJobMatchesCurrentProfile("ml-seattle", listing, classifyJob(listing), profile, false, true)).toBe(true);
-
-    expect(buildNotificationPayload([{ company: "Zephyr Labs", title: "ML Engineer", jobId: "j1", following: true }]))
-      .toMatchObject({ title: "Zephyr Labs", body: "Following · ML Engineer" });
-    expect(buildNotificationPayload([
-      { company: "Ramp", title: "SWE", jobId: "j2" },
-      { company: "Zephyr Labs", title: "ML Engineer", jobId: "j1", following: true },
-    ])).toMatchObject({ title: "2 new jobs", body: "Zephyr Labs, Ramp", data: { url: "/jobs/j1" } });
-    expect(buildDailyDigestPayload([{ company: "Zephyr Labs", title: "ML Engineer", jobId: "j1", following: true }]))
-      .toMatchObject({ body: "Zephyr Labs · Following · ML Engineer" });
-  });
-
-  it("comes along when a guest signs in, with their reminders", async () => {
-    const { sqlite, guest, signedIn, lastCode } = await setup();
-    const account = await signedIn("jordan@lee.dev");
-    sqlite.run(`INSERT INTO company_events (id, company_id, title, starts_at, url, created_at, updated_at)
-      VALUES ('ev', 'zephyr', 'Info session', ?, 'https://zephyrlabs.example/events/1', ?, ?)`,
-    [new Date(Date.now() + 5 * 86_400_000).toISOString(), NOW, NOW]);
-    // Browsing as a guest on another phone, then signing in there.
-    const visitor = await guest();
-    await visitor.call("/api/v2/interactions/companies/zephyr/follow");
-    await visitor.call("/api/v2/events/ev/reminder", undefined, "PUT");
-    // One code a minute per email: the first one is spent.
-    sqlite.run("DELETE FROM email_login_tokens");
-    await visitor.call("/api/v2/auth/email/code/start", { email: "jordan@lee.dev" });
-    expect((await visitor.call("/api/v2/auth/email/code/verify", { email: "jordan@lee.dev", code: lastCode() })).status).toBe(200);
-    expect(sqlite.query("SELECT user_id, company_id FROM company_follows").all()).toEqual([{ user_id: account.userId, company_id: "zephyr" }]);
-    expect(sqlite.query("SELECT user_id, event_id FROM event_reminders").all()).toEqual([{ user_id: account.userId, event_id: "ev" }]);
-  });
-});
 
 describe("events", () => {
   const html = (json: unknown) => `<html><head><title>Ignored</title><script type="application/ld+json">${JSON.stringify(json)}</script></head><body></body></html>`;
@@ -270,21 +170,43 @@ describe("events", () => {
     expect(sqlite.query("SELECT COUNT(*) AS count FROM event_reminders").get()).toEqual({ count: 0 });
   });
 
-  it("show in Today's Coming up for a company you follow or an event you asked about", async () => {
+  it("show in Today's Coming up at a company you've saved or applied to, or when you asked", async () => {
     const { sqlite, db, guest } = await setup();
-    const follower = await guest();
+    const saver = await guest();
+    const manual = await guest();
     const reminded = await guest();
     const stranger = await guest();
     const at = new Date(Date.now() + 2 * 86_400_000).toISOString();
     sqlite.run(`INSERT INTO company_events (id, company_id, title, starts_at, location, url, created_at, updated_at)
       VALUES ('ev1', 'zephyr', 'Info session', ?, 'Online', 'https://zephyrlabs.example/e/1', ?, ?),
-             ('ev2', 'other', 'Fair', ?, 'Boston', 'https://otherco.example/e/2', ?, ?)`, [at, NOW, NOW, at, NOW, NOW]);
-    sqlite.run("INSERT INTO company_follows (user_id, company_id, followed_at) VALUES (?, 'zephyr', ?)", [follower.userId, NOW]);
+             ('ev2', 'other', 'Fair', ?, 'Boston', 'https://otherco.example/e/2', ?, ?),
+             ('far', 'zephyr', 'Next month', ?, 'Online', 'https://zephyrlabs.example/e/3', ?, ?)`,
+    [at, NOW, NOW, at, NOW, NOW, new Date(Date.now() + 30 * 86_400_000).toISOString(), NOW, NOW]);
+    // A saved Pinkslip job, an application added by hand, and a Remind me.
+    await trackJob(db, saver.userId, "z1", "saved");
+    await createManualApplication(db, manual.userId, { company: "other co", title: "Engineer", url: "https://otherco.example/jobs/1", stage: "applied" });
     sqlite.run("INSERT INTO event_reminders (user_id, event_id, created_at) VALUES (?, 'ev2', ?)", [reminded.userId, NOW]);
     const comingUp = async (userId: string) => (await buildToday(db, userId)).coming_up
       .flatMap((entry) => entry.kind === "upcoming_event" ? [`${entry.event.id}:${entry.event.reminded}`] : []);
-    expect(await comingUp(follower.userId)).toEqual(["ev1:false"]);
+    expect(await comingUp(saver.userId)).toEqual(["ev1:false"]);
+    expect(await comingUp(manual.userId)).toEqual(["ev2:false"]);
     expect(await comingUp(reminded.userId)).toEqual(["ev2:true"]);
     expect(await comingUp(stranger.userId)).toEqual([]);
+  });
+
+  it("carry a guest's reminders over when they sign in", async () => {
+    const { sqlite, guest, signedIn, lastCode } = await setup();
+    const account = await signedIn("jordan@lee.dev");
+    sqlite.run(`INSERT INTO company_events (id, company_id, title, starts_at, url, created_at, updated_at)
+      VALUES ('ev', 'zephyr', 'Info session', ?, 'https://zephyrlabs.example/events/1', ?, ?)`,
+    [new Date(Date.now() + 5 * 86_400_000).toISOString(), NOW, NOW]);
+    // Browsing as a guest on another phone, then signing in there.
+    const visitor = await guest();
+    await visitor.call("/api/v2/events/ev/reminder", undefined, "PUT");
+    // One code a minute per email: the first one is spent.
+    sqlite.run("DELETE FROM email_login_tokens");
+    await visitor.call("/api/v2/auth/email/code/start", { email: "jordan@lee.dev" });
+    expect((await visitor.call("/api/v2/auth/email/code/verify", { email: "jordan@lee.dev", code: lastCode() })).status).toBe(200);
+    expect(sqlite.query("SELECT user_id, event_id FROM event_reminders").all()).toEqual([{ user_id: account.userId, event_id: "ev" }]);
   });
 });

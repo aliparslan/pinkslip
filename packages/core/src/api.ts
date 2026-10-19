@@ -300,8 +300,6 @@ export interface Job {
   application_stage?: ApplicationStage | null;
   content_pending?: boolean;
   content_refresh_after_ms?: number | null;
-  /** The person follows the company (N20 marks it "Following"). */
-  following?: boolean;
 }
 
 export interface Company {
@@ -323,8 +321,6 @@ export interface Company {
    */
   quarantined_at?: string | null;
   blocked?: boolean | number;
-  /** The person follows it: its jobs at their level reach them even outside their search. */
-  following?: boolean | number;
 }
 
 /** What Admin's "paste a link" read from an event's page, to check before saving. */
@@ -754,10 +750,6 @@ function createEndpoints(context: ClientContext) {
       request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "POST" }),
     restore: (id: string) =>
       request<{ blocked: boolean }>(`/interactions/companies/${id}/block`, { method: "DELETE" }),
-    follow: (id: string) =>
-      request<{ following: boolean }>(`/interactions/companies/${id}/follow`, { method: "POST" }),
-    unfollow: (id: string) =>
-      request<{ following: boolean }>(`/interactions/companies/${id}/follow`, { method: "DELETE" }),
     /** Its events still on its page, soonest first. */
     events: (id: string) => request<{ events: CompanyEvent[] }>(`/companies/${id}/events`),
   },

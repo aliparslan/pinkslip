@@ -102,15 +102,11 @@ companies.get("/", async (c) => {
        CAST(EXISTS(
          SELECT 1 FROM user_blocked_companies ubc
          WHERE ubc.user_id = ? AND ubc.company_id = c.id
-       ) AS INTEGER) AS blocked,
-       CAST(EXISTS(
-         SELECT 1 FROM company_follows cf
-         WHERE cf.user_id = ? AND cf.company_id = c.id
-       ) AS INTEGER) AS following
+       ) AS INTEGER) AS blocked
      FROM companies c ${where}
      ORDER BY c.name ASC`
   )
-    .bind(c.get("userId"), c.get("userId"), ...bindings)
+    .bind(c.get("userId"), ...bindings)
     .all<CompanyRow>();
 
   return c.json({ companies: (result.results ?? []).map(serializeCompany) });

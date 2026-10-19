@@ -1,17 +1,6 @@
--- Step 7, following and events (docs/backend-inventory-2026-10-16.md,
--- Decisions: Following and events). Additive: three new tables.
-
--- Companies a person follows. Following only widens what reaches them: a
--- followed company's jobs at their level match even outside their roles and
--- places (worker/user-job-matches.ts), and its new jobs ride with new-job
--- alerts marked "Following" (N20). Never followed automatically.
-CREATE TABLE company_follows (
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  followed_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, company_id)
-);
-CREATE INDEX idx_company_follows_company ON company_follows(company_id, user_id);
+-- Step 7, events (docs/backend-inventory-2026-10-16.md, Decisions:
+-- Following and events). Additive: two new tables. Following is parked until
+-- outreach and auto-apply (owner, 2026-10-19), so it has no table yet.
 
 -- A company's info sessions and fairs, added in Admin from a pasted link
 -- (no scraping). Times are instants; each person sees them in their own

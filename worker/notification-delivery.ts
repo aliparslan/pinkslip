@@ -37,8 +37,6 @@ interface CandidateRow extends FeatureJobRow, StoredJobFeatureColumns, SearchPro
   company: string;
   attempt_count: number;
   evergreen: number | null;
-  /** The person follows the job's company (N20). */
-  followed: number;
 }
 
 export function notificationJobMatchesCurrentProfile(
@@ -46,16 +44,14 @@ export function notificationJobMatchesCurrentProfile(
   listing: JobListing,
   features: JobFeatures,
   profile: SearchProfile,
-  evergreen = false,
-  followed = false
+  evergreen = false
 ): boolean {
   return evaluateJobForProfile(
     jobId,
     listing,
     features,
     profile,
-    evergreen,
-    followed
+    evergreen
   ).plausible;
 }
 
@@ -66,8 +62,7 @@ function notificationCandidateMatchesCurrentProfile(candidate: CandidateRow): bo
     rowToListing(candidate),
     storedJobFeaturesFromRow(candidate),
     searchProfileFromRow(candidate),
-    candidate.evergreen === 1,
-    candidate.followed === 1
+    candidate.evergreen === 1
   );
 }
 
@@ -244,11 +239,7 @@ export async function deliverPendingNotifications(
             jf.sponsorship_available, jf.requires_advanced_degree,
             jf.requires_security_clearance, jf.qualification_requirements_json, jf.classifier_version, jf.confidence,
             usp.profile_json, usp.notifications_enabled,
-            usp.onboarding_version, usp.onboarding_completed_at,
-            CAST(EXISTS(
-              SELECT 1 FROM company_follows cf
-              WHERE cf.user_id = nc.user_id AND cf.company_id = j.company_id
-            ) AS INTEGER) AS followed
+            usp.onboarding_version, usp.onboarding_completed_at
      FROM notification_candidates nc
      JOIN jobs j ON j.id = nc.job_id
      JOIN companies c ON c.id = j.company_id
@@ -407,7 +398,6 @@ export async function deliverPendingNotifications(
           company: candidate.company,
           title: candidate.title,
           jobId: candidate.job_id,
-          following: candidate.followed === 1,
         }));
       const payload: NotificationPayload = {
         ...(digestKey ? buildDailyDigestPayload(jobs) : buildNotificationPayload(jobs)),

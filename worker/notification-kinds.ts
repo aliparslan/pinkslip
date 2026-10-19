@@ -48,8 +48,8 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   replied: { n: "N11", live: true, defaultOn: true, timeSensitive: true },
   // By email, not push (Decisions: Notifications #4; worker/email/forwarding.ts).
   forwarding_stopped: { n: "N18", live: true, defaultOn: true, timeSensitive: false },
-  // Remind me on an event: the day before (worker/events.ts). N20, a followed
-  // company's new job, rides with new_jobs marked "Following".
+  // Remind me on an event: the day before (worker/events.ts). N20 waits for
+  // following, which is parked until outreach and auto-apply.
   event_reminder: { n: "N19", live: true, defaultOn: true, timeSensitive: false },
   // Exists but off by default (Decisions: Notifications #1).
   daily_summary: { n: "N16", live: false, defaultOn: false, timeSensitive: false },

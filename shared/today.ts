@@ -20,7 +20,7 @@ export type TodayEntry =
   // Coming up
   | { kind: "upcoming_step"; key: string; at: string; application: Application }
   | { kind: "upcoming_follow_up"; key: string; at: string; thread: OutreachThread }
-  // An event at a company you follow, or one you asked to be reminded of.
+  // An event at a company you've saved or applied to, or one you asked to be reminded of.
   | { kind: "upcoming_event"; key: string; at: string; event: CompanyEvent };
 
 export interface TodayResponse {

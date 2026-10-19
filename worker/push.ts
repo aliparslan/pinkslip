@@ -2,13 +2,6 @@ export interface NotificationJob {
   company: string;
   title: string;
   jobId: string;
-  /** At a company the person follows (N20): marked "Following", named first. */
-  following?: boolean;
-}
-
-/** Followed companies' jobs first, otherwise in the order they came. */
-function followedFirst(jobs: NotificationJob[]): NotificationJob[] {
-  return [...jobs.filter((job) => job.following), ...jobs.filter((job) => !job.following)];
 }
 
 export interface NotificationPayload {
@@ -24,14 +17,13 @@ export interface NotificationPayload {
   badge?: number;
 }
 
-export function buildNotificationPayload(unordered: NotificationJob[]): NotificationPayload {
-  const jobs = followedFirst(unordered);
+export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {
   const count = jobs.length;
 
   if (count === 1) {
     return {
       title: jobs[0].company,
-      body: jobs[0].following ? `Following · ${jobs[0].title}` : jobs[0].title,
+      body: jobs[0].title,
       data: { url: `/jobs/${jobs[0].jobId}`, job_ids: [jobs[0].jobId] },
     };
   }
@@ -66,13 +58,12 @@ const MAX_PUSH_JOB_IDS = 50;
  * today" / "Datadog, Ramp, Mercury and 9 more". It opens the feed, where they
  * all are; a single job opens that job.
  */
-export function buildDailyDigestPayload(unordered: NotificationJob[]): NotificationPayload {
-  const jobs = followedFirst(unordered);
+export function buildDailyDigestPayload(jobs: NotificationJob[]): NotificationPayload {
   const jobIds = jobs.slice(0, MAX_PUSH_JOB_IDS).map((job) => job.jobId);
   if (jobs.length === 1) {
     return {
       title: "1 new job today",
-      body: `${jobs[0].company} · ${jobs[0].following ? "Following · " : ""}${jobs[0].title}`,
+      body: `${jobs[0].company} · ${jobs[0].title}`,
       data: { url: `/jobs/${jobs[0].jobId}`, job_ids: jobIds },
     };
   }

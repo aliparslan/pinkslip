@@ -1,8 +1,9 @@
 // Company events (docs/backend-inventory-2026-10-16.md, step 7; Decisions:
 // Following and events): info sessions and fairs added in Admin from a pasted
-// link. Shown on the company's page for everyone, in Today's Coming up for a
-// company you follow or an event you asked to be reminded of, and gone from
-// the page the day after. Remind me (N19) is a push the day before.
+// link. Shown on the company's page for everyone, in Today's Coming up at a
+// company you've saved or applied to (following is parked until outreach and
+// auto-apply; owner, 2026-10-19) or when you asked to be reminded, and gone
+// from the page the day after. Remind me (N19) is a push the day before.
 
 import type { CompanyEvent } from "../shared/company-events";
 import { notifyActivity, recordActivity } from "./activity";
@@ -104,9 +105,10 @@ export async function getEvent(db: D1Database, eventId: string, userId: string):
 }
 
 /**
- * Coming up's events (Decisions: Following and events, events #2): the ones
- * at companies the person follows and the ones they asked to be reminded of,
- * from the start of today through the horizon.
+ * Coming up's events, from the start of today through the horizon: the ones
+ * at companies the person has saved or applied to (any application, with or
+ * without a Pinkslip job), and the ones they asked to be reminded of. That
+ * interest is already known, so there's nothing to follow (owner, 2026-10-19).
  */
 export async function comingUpEvents(db: D1Database, userId: string, from: number, until: number): Promise<CompanyEvent[]> {
   const rows = await db.prepare(
@@ -114,7 +116,9 @@ export async function comingUpEvents(db: D1Database, userId: string, from: numbe
             CAST(EXISTS(SELECT 1 FROM event_reminders r WHERE r.user_id = ? AND r.event_id = e.id) AS INTEGER) AS reminded
      FROM company_events e JOIN companies c ON c.id = e.company_id
      WHERE e.starts_at >= ? AND e.starts_at < ?
-       AND (EXISTS (SELECT 1 FROM company_follows cf WHERE cf.user_id = ? AND cf.company_id = e.company_id)
+       AND (EXISTS (
+              SELECT 1 FROM applications a LEFT JOIN jobs j ON j.id = a.job_id
+              WHERE a.user_id = ? AND (j.company_id = e.company_id OR (a.job_id IS NULL AND lower(a.company_name) = lower(c.name))))
          OR EXISTS (SELECT 1 FROM event_reminders r WHERE r.user_id = ? AND r.event_id = e.id))
      ORDER BY e.starts_at ASC
      LIMIT 20`
