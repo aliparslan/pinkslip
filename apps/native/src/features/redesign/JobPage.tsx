@@ -3,14 +3,14 @@ import { applicationsQueryOptions, useApi, usePreferences } from "@pinkslip/data
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Sheet } from "../../kit";
 import {
-  ApplyButton, Button, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, IconButton, ListGroup, ListItem, SheetModal, StampedSlip, Text, Ticket, TopEdgeFade,
-  useStubCatch, useToastLift,
+  ApplyButton, Button, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, PageBarSlot, SheetModal, StampedSlip, Text,
+  Ticket, useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -27,9 +27,11 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
   const { theme } = useUnistyles();
   const { job, status, full, failed, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
   if (!job) {
+    // The same bar while it loads, so Back doesn't jump when the page arrives.
     if (status === "loading") return <View style={styles.center}>
-      <Stack.Screen options={{ title: "" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ActivityIndicator color={theme.ui.color["ink-3"]} />
+      <PageBar />
     </View>;
     // A link to a job that isn't there (W4) is rare enough for its slip; a
     // job that didn't load is plain, with a grey retry (Paper "Errors · Oct 15").
@@ -129,7 +131,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
 
 /** The pinned bar's height above the home indicator: a 50pt button and 12 above it. */
 export const BAR = 50 + 12;
-export const TOP_BAR = 44;
+export const TOP_BAR = PAGE_BAR;
 
 /** While the page shows, toasts sit 12 above its pinned bar. */
 export function usePinnedBarToastLift() {
@@ -138,14 +140,14 @@ export function usePinnedBarToastLift() {
   useToastLift(useIsFocused() ? Math.max(insets.bottom, theme.ui.space["4"]) + BAR : null);
 }
 
-/** A page with nothing to show: the round Back, then the error centred in
- * the room (W3, W4; the event page's E2c too). */
+/** A page with nothing to show: the page bar's Back, then the error centred
+ * in the room (W3, W4; the event page's E2c too). */
 export function ErrorPage({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
-    <View style={[styles.errorTop, { paddingTop: insets.top }]}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
-    <View style={styles.errorBody}>{children}</View>
+    <View style={[styles.errorBody, { paddingTop: insets.top + PAGE_BAR }]}>{children}</View>
+    <PageBar />
   </View>;
 }
 
@@ -188,38 +190,23 @@ export function BrokenLink({ path }: { path: string }) {
   </>;
 }
 
-/** Back on the left; share and the ⋯ menu in one pill on the right (Paper
+/** The page bar with share and the ⋯ menu in one pill on the right (Paper
  * "Job page"), drawn with our icons. The menu is the system's, with our
- * icons too (Paper "Menus · Oct 16" M2). They float over the page, so
- * they're the floating material, and the page fades out under them. */
+ * icons too (Paper "Menus · Oct 16" M2). */
 export function TopBar({ onShare, menu }: { onShare: () => void; menu: GlyphMenuSpec }) {
-  const insets = useSafeAreaInsets();
-  return <>
-    <TopEdgeFade height={insets.top + TOP_BAR + 12} />
-    <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
-      <Floating>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={styles.slot}><Icon name="back" size={20} /></Pressable>
-      </Floating>
-      <Floating style={styles.pill}>
-        <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
-        <GlyphMenu {...menu}>
-          <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
-        </GlyphMenu>
-      </Floating>
-    </View>
-  </>;
+  return <PageBar actions={<Floating style={styles.pill}>
+    <PageBarSlot icon="share" label="Share" onPress={onShare} />
+    <GlyphMenu {...menu}>
+      <View style={styles.slot} accessibilityRole="button" accessibilityLabel="More job actions"><Icon name="more" size={22} /></View>
+    </GlyphMenu>
+  </Floating>} />;
 }
 
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
-  top: {
-    position: "absolute", top: 0, left: 0, right: 0,
-    flexDirection: "row", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter,
-  },
   pill: { flexDirection: "row" },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
-  errorTop: { paddingHorizontal: theme.ui.size.gutter },
   // Centred in the room under Back, a little above the middle.
   errorBody: { flex: 1, justifyContent: "center", paddingBottom: 64 },
   slipJob: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["3"] },

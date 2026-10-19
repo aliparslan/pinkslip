@@ -23,7 +23,13 @@ redesign on, checked in code and on the simulator.
    `TopEdgeFade` (the page's colour fading out under the bar, so text no
    longer runs under the clock and the buttons).
 
-## The header decision (owner to pick)
+## The header decision
+
+**Decided (owner, 2026-10-19): A, with no title in the bar.** Built as
+`ui/PageBar.tsx` on every pushed page; see `design-system.md`, "A pushed
+page's top".
+
+The options as they were put:
 
 What's built today, four ways:
 
@@ -76,7 +82,7 @@ so they get drawn and approved before code.
    button); everything else uses Pinkslip's own sheet (`ui/Sheet`: floats 8
    in, 40 corners, grab bar). Fix: move both to `SheetModal`. Paper first
    for Locations (a list in our sheet).
-2. **Loading pages show the system bar, then swap to ours.** A job or
+2. **Fixed with A.** **Loading pages show the system bar, then swap to ours.** A job or
    application that's still loading shows iOS's Back (`title: ""`), then the
    floating bar replaces it, so Back jumps. Fix with the header decision:
    the same bar while loading.
@@ -100,7 +106,7 @@ so they get drawn and approved before code.
    under the status bar with nothing behind it. A `TopEdgeFade` the status
    bar's height on each tab would match the pages that float a bar. Paper
    first.
-8. **Kit pages use the system bar with a centred title** (Redesign kit, Icon
+8. **Fixed with A** (`features/kit/KitPage.tsx`). **Kit pages use the system bar with a centred title** (Redesign kit, Icon
    sets, Sheet transitions, Swipes, Kit). Only the owner sees them; they
    follow whichever header is picked.
 

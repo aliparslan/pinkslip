@@ -5,8 +5,9 @@ import { ScrollView, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import {
   ApplyButton, Badge, Button, Chip, GlyphMenu, IconButton, JobRow, ListGroup, ListItem, PunchCard, SectionHeader, SheetModal, SheetStep, Text, Ticket,
-  useSheet, useTabBarSpace, type ApplyState,
+  useSheet, type ApplyState,
 } from "../../ui";
+import { KitPage } from "./KitPage";
 import { SwipeRow, toast } from "../../kit";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
 import { replayOnboarding } from "../onboarding/launch";
@@ -26,7 +27,6 @@ const facts = [
 /** Dev-only: the October 2026 redesign kit (src/ui) in its states. */
 export function RedesignGallery() {
   const [chip, setChip] = useState("Remote");
-  const tabSpace = useTabBarSpace();
   const [plan, setPlan] = useState("monthly");
   const redesign = useRedesign();
   const [torn, setTorn] = useState(false);
@@ -42,7 +42,7 @@ export function RedesignGallery() {
   const askAfter = useRef(false);
   const sampleRequest: ApplicationRequest = { jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true, local: true };
   const sampleApplied = () => toast.show({ message: "Applied to Stripe. It's in Tracker.", icon: "done" });
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { paddingBottom: tabSpace }]}>
+  return <KitPage title="Redesign kit" style={styles.screen} contentStyle={styles.content}>
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
@@ -239,7 +239,7 @@ export function RedesignGallery() {
         </ListGroup>
       </Section>
     </View>
-  </ScrollView>;
+  </KitPage>;
 }
 
 /** Apply's sheet on a sample: just its Open application. */

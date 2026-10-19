@@ -5,10 +5,11 @@ import {
   IdentificationBadge, Lightning, MagnifyingGlass, MapPin, PaperPlaneTilt, Prohibit, SealCheck, SignOut,
   SlidersHorizontal, Sparkle, Star, ThumbsDown, UserCircle, UsersThree, XCircle, type Icon as PhosphorIcon,
 } from "phosphor-react-native";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { SectionHeader, Text, useTabBarSpace } from "../../ui";
+import { SectionHeader, Text } from "../../ui";
+import { KitPage } from "./KitPage";
 
 type SFSymbol = NonNullable<ImageProps["systemName"]>;
 
@@ -79,8 +80,7 @@ const SIZE = 22;
 export function IconSets() {
   const { theme } = useUnistyles();
   const ink = theme.ui.color.ink;
-  const tabSpace = useTabBarSpace();
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { paddingBottom: tabSpace }]}>
+  return <KitPage title="Icon sets" style={styles.screen} contentStyle={styles.content}>
     <View style={styles.headerRow}>
       <View style={styles.labelCell} />
       {columns.map((column) => <View key={column} style={styles.cell}><Text role="footnote" tone="ink-3" align="center">{column}</Text></View>)}
@@ -98,7 +98,7 @@ export function IconSets() {
         <View style={styles.cell}>{concept.ring === undefined ? null : <Ring progress={concept.ring} color={ink} />}</View>
       </View>)}
     </View>)}
-  </ScrollView>;
+  </KitPage>;
 }
 
 /** The stage ring: dashed when saved, filling by quarters as an application

@@ -3,13 +3,13 @@ import { useApi, useEvent, useSetEventReminder } from "@pinkslip/data";
 import * as WebBrowser from "expo-web-browser";
 import { router, Stack, useIsFocused } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { enableDevicePush } from "../../platform/push";
 import { shareEvent } from "../../platform/share";
 import {
-  Button, DateTile, EmptyState, Floating, Icon, IconButton, JobRow, StampedSlip, Text, Ticket, toast, TopEdgeFade, useTabBarSpace, useTabBarStepsAside,
+  Button, DateTile, EmptyState, JobRow, PAGE_BAR, PageBar, PageBarButton, StampedSlip, Text, Ticket, toast, useTabBarSpace, useTabBarStepsAside,
   type TicketFact,
 } from "../../ui";
 import { eventStarted, toEventView, type EventView } from "./event-facts";
@@ -80,7 +80,7 @@ export function EventPageView({ event, reminder, onSignUp, onShare }: EventPageV
   useTabBarStepsAside(useIsFocused());
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
-    <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top + 44 + theme.ui.space["2"], paddingBottom: 62 + insets.bottom + theme.ui.space["6"] }]}>
+    <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top + PAGE_BAR + theme.ui.space["2"], paddingBottom: 62 + insets.bottom + theme.ui.space["6"] }]}>
       <JobIdentity companyName={event.company} companyDomain={event.domain} title={event.name} />
       <View>
         <Ticket rows={ticketRows(event)} stub={event.stub || undefined} />
@@ -94,16 +94,7 @@ export function EventPageView({ event, reminder, onSignUp, onShare }: EventPageV
         </View>)}
       </View> : null}
     </ScrollView>
-    {/* Floating over the page, as the job page's are. */}
-    <TopEdgeFade height={insets.top + 44 + 12} />
-    <View style={[styles.top, { paddingTop: insets.top }]} pointerEvents="box-none">
-      <Floating>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={styles.slot}><Icon name="back" size={20} /></Pressable>
-      </Floating>
-      {onShare ? <Floating>
-        <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share" style={styles.slot}><Icon name="share" size={20} /></Pressable>
-      </Floating> : null}
-    </View>
+    <PageBar actions={onShare ? <PageBarButton icon="share" label="Share" onPress={onShare} /> : undefined} />
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       {reminder ? <Button icon="notifications" pending={reminder.pending} onPress={reminder.onPress}>{reminder.on ? "Reminding" : "Remind me"}</Button> : null}
       <View style={styles.primary}>
@@ -164,12 +155,14 @@ export function SampleEventsPage() {
       reminder={{ on: reminding, onPress: () => { setReminding(!reminding); toast.show({ message: "Sample: a reminder the day before" }); } }}
       onSignUp={() => toast.show({ message: "Sample: their sign-up page would open" })} />;
   }
-  return <ScrollView contentContainerStyle={{ paddingTop: insets.top, paddingBottom: tabSpace }}>
+  return <View style={styles.fill}>
+    <ScrollView contentContainerStyle={{ paddingTop: insets.top + PAGE_BAR, paddingBottom: tabSpace }}>
     <Stack.Screen options={{ headerShown: false }} />
-    <View style={styles.listTop}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
     <View style={styles.listTitle}><Text role="title1">Stripe's events</Text></View>
     <EventRows events={EVENT_SAMPLE} onOpen={setOpen} />
-  </ScrollView>;
+    </ScrollView>
+    <PageBar />
+  </View>;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -178,14 +171,11 @@ const styles = StyleSheet.create((theme) => ({
   body: { paddingHorizontal: theme.ui.size.gutter, gap: theme.ui.space["6"] },
   about: { gap: theme.ui.space["2"] },
   point: { flexDirection: "row", gap: theme.ui.space["2"] },
-  top: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter },
-  slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   bar: {
     position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: theme.ui.space["3"],
     paddingTop: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, backgroundColor: theme.ui.color.bg,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator,
   },
   primary: { flex: 1 },
-  listTop: { height: 44, justifyContent: "center", paddingHorizontal: theme.ui.size.gutter },
   listTitle: { paddingHorizontal: theme.ui.size.gutter, paddingVertical: theme.ui.space["2"] },
 }));

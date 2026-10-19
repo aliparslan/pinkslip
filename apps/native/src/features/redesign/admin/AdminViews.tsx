@@ -8,7 +8,8 @@ import { useState } from "react";
 import { ActionSheetIOS, Alert, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  Button, Chip, CompanyLogo, EmptyState, Icon, IconButton, IconTile, JobRow, ListGroup, ListItem, SearchField, Segmented, SwipeRow, Text, type IconName,
+  Button, Chip, CompanyLogo, EmptyState, Icon, IconTile, JobRow, ListGroup, ListItem, PageBarButton, PageBarNote, SearchField, Segmented, SwipeRow, Text,
+  type IconName,
   type SwipeAction,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
@@ -141,7 +142,7 @@ export function DecideView({ company, domain, title, whyHeader, why, body, link,
   note?: string;
   onNote?: () => void;
 }) {
-  return <YouPage title="" action={<Text role="subhead" tone="ink-3">{`${position} of ${total}`}</Text>}
+  return <YouPage title="" action={<PageBarNote><Text role="subhead" tone="ink-3">{`${position} of ${total}`}</Text></PageBarNote>}
     bar={<View style={styles.pair}>
       <Button onPress={onReject}>{reject}</Button>
       <View style={styles.flex}><Button variant="primary" fullWidth onPress={onApprove}>{approve}</Button></View>
@@ -203,7 +204,7 @@ export function JevView({ rows, judged, budget, onJudge }: {
   }
   const { differ, same } = jevDifferences(row);
   const shown = showSame ? row.fields : differ;
-  return <YouPage title="" action={<Text role="subhead" tone="ink-3">{`1 of ${rows.length}`}</Text>}
+  return <YouPage title="" action={<PageBarNote><Text role="subhead" tone="ink-3">{`1 of ${rows.length}`}</Text></PageBarNote>}
     bar={<View style={styles.verdicts}>
       <View style={styles.pair}>
         <View style={styles.flex}><Button fullWidth onPress={() => { setShowSame(false); onJudge(row, "rules"); }}>Rules right</Button></View>
@@ -263,7 +264,7 @@ export function RecruitersView({ queue, tally, canRun, searching, onSearch, onLa
         action={canRun ? { label: searching ? "Searching…" : "Search 5 more companies", onPress: onSearch } : undefined} />
     </YouPage>;
   }
-  return <YouPage title="" action={<Text role="subhead" tone="ink-3">{`1 of ${queue.length}`}</Text>}
+  return <YouPage title="" action={<PageBarNote><Text role="subhead" tone="ink-3">{`1 of ${queue.length}`}</Text></PageBarNote>}
     bar={<View style={styles.questions}>
       <View style={styles.question}>
         <Text role="footnote" weight="medium" tone="ink-2">Works there now?</Text>
@@ -311,7 +312,7 @@ export function RunsView({ runs, tiers, companies, now, refreshing, onRefresh, o
   const latest = runs[0];
   const failing = failingSources(companies);
   const today = runs.filter((run) => now - new Date(run.started_at).getTime() < 86_400_000).length;
-  return <YouPage title="Runs" action={<IconButton icon="runs" label="Refresh every source" onPress={onRefresh} />}>
+  return <YouPage title="Runs" action={<PageBarButton icon="runs" label="Refresh every source" onPress={onRefresh} />}>
     {refreshing ? <View style={styles.gutterText}><Text role="subhead" tone="ink-2">{refreshing}</Text></View> : null}
     {latest ? <NumbersCard label={`Last run · ${ago(latest.started_at, now)}`} numbers={[
       [String(latest.new_jobs_found), "new jobs"],
@@ -372,7 +373,7 @@ export function SourcesView({ companies, now, onAdd, onEdit, onToggle, onRemove,
     if (index === 1) onEdit(company);
     if (index === 2) onRemove(company);
   });
-  return <YouPage title="Sources" action={<IconButton icon="add" label="Add a source" onPress={onAdd} />}>
+  return <YouPage title="Sources" action={<PageBarButton icon="add" label="Add a source" onPress={onAdd} />}>
     <View style={styles.searchBlock}>
       <SearchField value={query} onChangeText={(text) => { setQuery(text); setLimit(PAGE); }} placeholder="Search sources" />
       <View style={styles.chips}>

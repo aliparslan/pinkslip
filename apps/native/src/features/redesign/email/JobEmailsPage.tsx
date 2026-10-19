@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, Choice, Choices, EmptyState, IconButton, JobRow, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet, useTabBarScroll, useTabBarSpace,
+  Button, Choice, Choices, EmptyState, JobRow, PAGE_BAR, PageBar, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet, useTabBarScroll,
+  useTabBarSpace,
 } from "../../../ui";
 import { plainText } from "../job-facts";
 import { groupOf, stageGroupLabels } from "../tracker-facts";
@@ -59,8 +60,7 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
     ]);
   }, [emails]);
 
-  const header = <View style={{ paddingTop: insets.top }}>
-    <View style={styles.nav}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
+  const header = <View style={{ paddingTop: insets.top + PAGE_BAR + 8 }}>
     <View style={styles.title}><Text role="title1" accessibilityRole="header">Job emails</Text></View>
   </View>;
 
@@ -81,6 +81,7 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
             action={onRetry ? { label: "Try again", variant: "secondary", onPress: onRetry } : undefined} />
           : <EmptyState title="Nothing yet" message="Emails from companies show up here once they're forwarded." />}
       </View>} />
+    <PageBar />
     <WhichApplicationSheet email={asking} onClosed={() => setAsking(null)} actions={actions} />
   </>;
 }
@@ -170,7 +171,6 @@ export function JobEmailsPage() {
 
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
-  nav: { paddingHorizontal: theme.ui.size.gutter, height: 44, justifyContent: "center" },
   title: { paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["2"] },
   empty: { minHeight: 320, alignItems: "center", justifyContent: "center", paddingHorizontal: theme.ui.space["8"] },
   lead: { gap: theme.ui.space["2"] },

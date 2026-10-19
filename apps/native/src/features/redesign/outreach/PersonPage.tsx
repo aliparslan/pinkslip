@@ -6,11 +6,12 @@ import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, CompanyLogo, EmptyState, faces, Icon, IconButton, SheetModal, SheetStep, Text, toast, useCopy, useSheet, useTabBarStepsAside, useToastLift,
+  Button, CompanyLogo, EmptyState, faces, Floating, Icon, PAGE_BAR, PageBar, SheetModal, SheetStep, Text, toast, useCopy, useSheet,
+  useTabBarStepsAside, useToastLift,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { plainText } from "../job-facts";
@@ -80,13 +81,7 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
   ];
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: (draft ? 62 + Math.max(insets.bottom, 16) : insets.bottom) + 32 }]}>
-      <View style={styles.nav}>
-        <IconButton icon="back" label="Back" onPress={() => router.back()} />
-        {menu.some(Boolean) ? <Menu title="" items={menu}>
-          <View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} /></View>
-        </Menu> : null}
-      </View>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + PAGE_BAR + 8, paddingBottom: (draft ? 62 + Math.max(insets.bottom, 16) : insets.bottom) + 32 }]}>
       <View style={styles.who}>
         <View style={styles.avatar}><RNText style={styles.initials} maxFontSizeMultiplier={1.3}>{initials(thread.contact.name)}</RNText></View>
         <View style={styles.whoText}>
@@ -131,6 +126,9 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
         </Pressable>)}
       </View> : null}
     </ScrollView>
+    <PageBar actions={menu.some(Boolean) ? <Menu title="" items={menu}>
+      <Floating><View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} /></View></Floating>
+    </Menu> : undefined} />
     {draft ? <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
       <Button variant="primary" fullWidth onPress={() => void write()}>{`Write to ${firstName(thread.contact.name)}`}</Button>
     </View> : null}
@@ -162,16 +160,16 @@ function DidYouSend({ onYes }: { onYes: () => void }) {
 
 /** A person's page on the live account, by thread. */
 export function PersonPage({ threadId }: { threadId: string }) {
-  const { theme } = useUnistyles();
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const thread = useOutreachThreadById(threadId);
   const applications = useApplications();
   const update = useOutreachUpdate();
   if (!thread.data) {
     return <View style={[styles.fill, styles.center]}>
-      <Stack.Screen options={{ title: "", headerTintColor: theme.ui.color.ink }} />
+      <Stack.Screen options={{ headerShown: false }} />
       {thread.isError ? <EmptyState title="This didn't load" message="Check your connection and try again."
         action={{ label: "Try again", variant: "secondary", onPress: () => void thread.refetch() }} /> : null}
+      <PageBar />
     </View>;
   }
   const current = thread.data;
@@ -202,8 +200,7 @@ const styles = StyleSheet.create((theme) => ({
   center: { justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
   content: { gap: theme.ui.space["6"] },
-  nav: { height: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter, marginBottom: -theme.ui.space["2"] },
-  more: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, borderRadius: theme.ui.radius.full, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
+  more: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   who: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   whoText: { flex: 1, gap: 2 },
   avatar: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },

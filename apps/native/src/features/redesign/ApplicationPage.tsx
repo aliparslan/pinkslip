@@ -11,7 +11,8 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import {
-  Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text, useSheet,
+  Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
+  useSheet,
   type GlyphMenuItem, type GlyphMenuSpec, type StubStamp,
 } from "../../ui";
 import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";
@@ -50,11 +51,12 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
   if (!application) {
     const gone = query.error instanceof ApiError && query.error.status === 404;
     return <View style={styles.center}>
-      <Stack.Screen options={{ title: "" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       {query.isPending ? <ActivityIndicator color={theme.ui.color["ink-3"]} />
         : <EmptyState title={gone ? "This isn't in Tracker anymore" : "This application didn't load"}
           message={gone ? "It may have been removed." : "Check your connection and try again."}
           action={gone ? undefined : { label: "Try again", onPress: () => void query.refetch() }} />}
+      <PageBar />
     </View>;
   }
   const failed = (message: string) => (error: unknown) => {

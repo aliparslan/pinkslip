@@ -7,8 +7,9 @@ import * as WebBrowser from "expo-web-browser";
 import { Link, router, Stack, useSegments } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, EmptyState, faces, Icon, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, SectionHeader, Segmented, Text, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { Text as RNText } from "react-native";
 import { firstSentAt, initials } from "./outreach/outreach-facts";
 import { shortDate } from "./tracker-facts";
@@ -27,6 +28,7 @@ type Segment = "jobs" | "people" | "events";
  */
 export function CompanyPage({ companyId }: { companyId: string }) {
   const { theme } = useUnistyles();
+  const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const tabBarScroll = useTabBarScroll();
   const companies = useCompanies();
@@ -42,8 +44,9 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
 
-  return <ScrollView {...tabBarScroll} style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabSpace }}>
-    <Stack.Screen options={{ title: "", headerTintColor: theme.ui.color.ink }} />
+  return <>
+  <ScrollView {...tabBarScroll} style={styles.screen} contentContainerStyle={{ paddingTop: insets.top + PAGE_BAR, paddingBottom: tabSpace }}>
+    <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.header}>
       <View style={styles.identity}>
         <CompanyLogo name={name || "?"} uri={logoUri(website)} size="page" />
@@ -68,7 +71,9 @@ export function CompanyPage({ companyId }: { companyId: string }) {
       ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
       : <CompanyJobs jobs={jobs} />}
-  </ScrollView>;
+  </ScrollView>
+  <PageBar />
+  </>;
 }
 
 /** E1: the company's events as Coming up's rows, soonest first; E1b when
@@ -178,7 +183,7 @@ const hostOf = (website: string) => website.replace(/^https?:\/\//, "").replace(
 
 const styles = StyleSheet.create((theme) => ({
   screen: { flex: 1, backgroundColor: theme.ui.color.bg },
-  header: { gap: theme.ui.space["4"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["1"] },
+  header: { gap: theme.ui.space["4"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["1"] },
   identity: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["4"] },
   name: { flex: 1, gap: 2 },
   buttons: { flexDirection: "row", gap: theme.ui.space["2"] },

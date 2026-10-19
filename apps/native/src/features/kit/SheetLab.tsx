@@ -4,7 +4,8 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
-import { Button, Choice, ChoiceLink, Choices, ListGroup, ListItem, SheetBack, Text, useTabBarSpace } from "../../ui";
+import { Button, Choice, ChoiceLink, Choices, ListGroup, ListItem, SheetBack, Text } from "../../ui";
+import { KitPage } from "./KitPage";
 import { motion, timing } from "../../ui/motion";
 
 /**
@@ -49,14 +50,13 @@ const FADE_SCALE = 0.96;
 
 export function SheetLab() {
   const [open, setOpen] = useState<Variant | null>(null);
-  const tabSpace = useTabBarSpace();
-  return <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, { paddingBottom: tabSpace }]}>
+  return <KitPage title="Sheet transitions" style={styles.screen} contentStyle={styles.content}>
     <ListGroup footer="Each opens a copy of Your search with made-up choices. Try Career stage, Roles (long) and Visa (short).">
       {VARIANTS.map((variant) => <ListItem key={variant.id} title={variant.title} detail={variant.detail} accessory="chevron"
         onPress={() => setOpen(variant.id)} />)}
     </ListGroup>
     {open ? <LabSheet variant={open} onClosed={() => setOpen(null)} /> : null}
-  </ScrollView>;
+  </KitPage>;
 }
 
 function LabSheet({ variant, onClosed }: { variant: Variant; onClosed: () => void }) {

@@ -7,7 +7,7 @@ import { Alert, Pressable, ScrollView, Text as RNText, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { toast } from "../../../kit";
-import { Button, Icon, IconButton, ListGroup, ListItem, Text, faces, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
+import { Button, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, Text, faces, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
 import { jobEmailsThisMonth, shortAddress, sinceLastEmail, trackingState, type TrackingState } from "./email-facts";
 import { useEmailTrackingPrefs, type EmailTrackingPrefs } from "./email-prefs";
 import { EmailSetupSheet, useEmailSetupActions, type EmailSetupActions, type SetupStart } from "./SetupSheet";
@@ -46,8 +46,7 @@ export function EmailTrackingView({ inbox, emails, prefs, actions }: EmailTracki
   ]);
   return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: tabSpace + 24 }]}>
-      <View style={styles.nav}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
+    <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top + PAGE_BAR + 8, paddingBottom: tabSpace + 24 }]}>
       <View style={styles.body}>
         <Text role="title1" accessibilityRole="header">Email tracking</Text>
         <Status state={state} inbox={inbox} emails={emails} provider={prefs.provider}
@@ -60,6 +59,7 @@ export function EmailTrackingView({ inbox, emails, prefs, actions }: EmailTracki
         <ListItem title="Replace address" onPress={replace} />
       </ListGroup> : null}
     </ScrollView>
+    <PageBar />
     <EmailSetupSheet open={setup !== null} onClosed={() => setSetup(null)} start={setup ?? "provider"} inbox={inbox} prefs={prefs} actions={actions} />
   </>;
 }
@@ -134,7 +134,6 @@ const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
   content: { gap: theme.ui.space["6"] },
   // The title sits right under Back, as on Job emails.
-  nav: { paddingHorizontal: theme.ui.size.gutter, height: 44, justifyContent: "center", marginBottom: -theme.ui.space["4"] },
   body: { paddingHorizontal: theme.ui.size.gutter, gap: theme.ui.space["6"] },
   card: { borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"], padding: theme.ui.space["4"] },
   stack: { gap: theme.ui.space["1"] },

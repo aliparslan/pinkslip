@@ -565,6 +565,14 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   2026-10-13; closest-to-an-offer first had put Saved near the bottom).
 - **Large title:** 8 under the 44 nav row on every tab, so titles line up
   across tabs. A date eyebrow sits inside the nav row, not above the title.
+- **A pushed page's top** (`ui/PageBar.tsx`; owner, 2026-10-19, option A in
+  `consistency-audit-2026-10-19.md`): Back on the left and the page's
+  actions on the right, pinned, each on `Floating` glass over a
+  `TopEdgeFade`. The page's title (Title 1, or a job's identity) sits 8
+  under Back and scrolls away; the bar has no title of its own. Every pushed
+  page uses it: You's pages (`YouPage`), the job, application, event,
+  company and person pages, email tracking, the kit's pages, and their
+  loading and error states. iOS's own bar isn't used.
 - **Cards:** radius 12 (`bg-grouped`). Only the ticket is 16, on `paper`.
 - **Tappable words inside rows and cards** (Pause, Change, See all,
   All 142) are `ink` Medium; pink stays for Needs you (owner, 2026-10-13).
@@ -825,8 +833,13 @@ cut so that each remaining one has a job.
     page; Jobs' and Search's titles sit under the 44 nav row like every
     tab's; the job, application and event pages' pinned Back, share and ⋯
     are `Floating` (glass) over a `TopEdgeFade`, since the grey `fill` let
-    the page show through. The header pattern for pushed pages is waiting
-    on the owner (the audit's options A, B, C).
+    the page show through.
+  - The owner picked option A for every pushed page's top: the kit's
+    `PageBar` (Back and actions pinned in glass over the fade, the title in
+    the page, no title in the bar). You's pages keep their look with Back
+    staying put; the company page, a person, email tracking, the kit's
+    pages and the job and application pages while loading leave iOS's bar
+    for it.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
