@@ -1016,6 +1016,13 @@ answer, Apple's route still verifies tokens, no new errors. The owner's
 Google OAuth client is set: `GOOGLE_CLIENT_ID` in `wrangler.toml`, the
 secret as a Worker secret.
 
+**Deployed 2026-10-19, "Make a password" after a code:** Worker e1a1e002
+(before: 52676b42), built from the live worker (e451437) plus 5dc67e6 only:
+`POST /auth/password` sets or replaces the email sign-in's password within
+15 minutes of a code proving the email, and `password_after_code_enabled`
+tells the app to offer it. Outreach step 8 (b5800c9) and migration 0100 were
+not in it; they deploy on their own.
+
 **Deployed 2026-10-18, follow-up:** Worker dd4baa61 (before: 6510985e).
 Setting a password with a code failed live: Workers caps PBKDF2 at 100,000
 iterations and the hash asked for 600,000, which Bun's tests allow (ba6751c
