@@ -357,6 +357,12 @@ export const uiDark = {
   "--ui-tile-pro-ink": "oklch(0.58 0.13 350)",
   "--ui-tile-app": "oklch(0.245 0.003 285)",
   "--ui-tile-app-ink": "oklch(0.58 0.006 285)",
+  // A meaning's icon standing on the page with no tile (onboarding's page
+  // two): brighter than the tile inks, which were quieted to sit on a tile
+  // (owner, 2026-10-19, Paper "Page two icons and filled chips" B).
+  "--ui-glyph-find": "oklch(0.74 0.12 259)",
+  "--ui-glyph-apply": "oklch(0.75 0.12 153)",
+  "--ui-glyph-pro": "oklch(0.72 0.17 350)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
   // An outlined pill's line (owner, 2026-10-15): pills are clear with this
@@ -419,6 +425,10 @@ export const uiLight = {
   "--ui-tile-pro-ink": "oklch(0.57 0.205 350)",
   "--ui-tile-app": "oklch(0.985 0 0)",
   "--ui-tile-app-ink": "oklch(0.51 0.006 285)",
+  // A step deeper than the tile inks, so a 1.5pt line holds up on Mist.
+  "--ui-glyph-find": "oklch(0.52 0.17 259)",
+  "--ui-glyph-apply": "oklch(0.52 0.13 153)",
+  "--ui-glyph-pro": "oklch(0.55 0.21 350)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",

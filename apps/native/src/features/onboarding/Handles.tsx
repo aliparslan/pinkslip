@@ -94,7 +94,7 @@ export function Handles({ onLeaving, onReady, onGone }: HandlesProps) {
 function Row({ item }: { item: Handled }) {
   const { theme } = useUnistyles();
   return <View style={styles.row}>
-    <View style={styles.icon}><Icon name={item.icon} size={24} color={theme.ui.color[`tile-${item.meaning}-ink`]} /></View>
+    <View style={styles.icon}><Icon name={item.icon} size={24} color={theme.ui.color[`glyph-${item.meaning}`]} /></View>
     <View style={styles.text}>
       <Text weight="medium">{item.title}</Text>
       <Text role="subhead" tone="ink-2">{item.line}</Text>

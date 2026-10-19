@@ -64,6 +64,7 @@ else is decided.
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
 | Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app`, each with its `-ink` | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro, gray is the app. Dark mode is D2, quieter (owner, 2026-10-14) | Text, anything outside settings rows |
+| Glyphs | `glyph-find`, `glyph-apply`, `glyph-pro` | A meaning's icon standing on the page with no tile (onboarding's page two): brighter than the tile inks in dark, a step deeper in light (owner, 2026-10-19) | Tiles, text |
 | Stage colors | `stage-assessment` (amber), `stage-interview` (blue) | Those stages' marks | Text, fills, anything else |
 | Bad | `bad` | Errors and destructive text | Fills |
 | Dim | `scrim` | Behind a sheet | |
@@ -653,9 +654,9 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **The application page:** five ideas on Paper "Application page · ideas ·
-  Oct 13". The owner likes C (your stub, stamped with each step) and is
-  deciding.
+- None right now. The application page was decided as C, your stub
+  stamped with each step (Paper "Application page · ideas · Oct 13"), and
+  is built.
 
 ## Changelog
 
@@ -794,6 +795,12 @@ cut so that each remaining one has a job.
     sheet cover the feed, and seeing it fill in is the point of the sheet
     (owner). Each answer is saved a moment after a tap, so the jobs behind
     change as you pick. The last button is Show my jobs.
+- **2026-10-19**
+  - Page two's icons get their own colours, `glyph-find`, `glyph-apply`
+    and `glyph-pro` (owner, Paper "Page two icons and filled chips · Oct
+    19", B of three): the tile inks were quieted to sit on a tile, so
+    standing alone in dark they read dim, and a touch thin in light. Same
+    1.5pt line; the 2pt option wasn't needed.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
