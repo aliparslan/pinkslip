@@ -1,20 +1,21 @@
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  ApplyButton, Chip, IconButton, setTearPace, SheetModal, Text, Ticket, toast, UNDO_TOAST_DURATION, useStubCatch, useTabBarStepsAside,
+  ApplyButton, Chip, PageBar, setTearPace, SheetModal, Text, Ticket, toast, UNDO_TOAST_DURATION, useStubCatch, useTabBarStepsAside,
 } from "../../ui";
 import { DidYouApply } from "../redesign/ApplySheets";
 import { JobIdentity } from "../redesign/JobIdentity";
 import { BAR, TOP_BAR, usePinnedBarToastLift } from "../redesign/JobPage";
 
+// The ticket's order (owner, 2026-10-19): visa last.
 const FACTS = [
-  [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
+  [{ label: "Level", value: "New grad" }, { label: "Experience", value: "0–1 years" }],
   [{ label: "Location", value: "Remote (US)" }],
-  [{ label: "Visa sponsorship", value: "Yes" }, { label: "Experience", value: "0–1 years" }],
+  [{ label: "Pay", value: "$145K–$175K" }, { label: "Visa sponsorship", value: "Yes" }],
 ];
 
 const ABOUT = [
@@ -63,13 +64,11 @@ export function TearSample() {
         {ABOUT.map((line) => <Text key={line} role="subhead" tone="ink-2">{line}</Text>)}
       </View>
     </ScrollView>
-    <View style={[styles.top, { paddingTop: insets.top }]}>
-      <IconButton icon="back" label="Back" onPress={() => router.back()} />
-      <View style={styles.controls}>
-        {applied ? <Chip label="Put it back" onPress={() => setApplied(false)} /> : null}
-        <Chip label="Slow motion" selected={slow} onPress={() => setSlow(!slow)} />
-      </View>
-    </View>
+    {/* The kit's own controls ride in the page bar every pushed page has. */}
+    <PageBar actions={<View style={styles.controls}>
+      {applied ? <Chip label="Put it back" onPress={() => setApplied(false)} /> : null}
+      <Chip label="Slow motion" selected={slow} onPress={() => setSlow(!slow)} />
+    </View>} />
     <View ref={tear.bar} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       <Animated.View style={tear.dip}>
         <ApplyButton state={tear.applied ? { kind: "applied", date: "Oct 18" } : { kind: "apply", closed: false }}
@@ -87,10 +86,6 @@ const styles = StyleSheet.create((theme) => ({
   ticket: { marginTop: theme.ui.space["6"], zIndex: 1 },
   about: { gap: theme.ui.space["3"], marginTop: theme.ui.space["6"] },
   controls: { flexDirection: "row", gap: theme.ui.space["2"] },
-  top: {
-    position: "absolute", left: 0, right: 0, top: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: theme.ui.space["4"], backgroundColor: theme.ui.color.bg,
-  },
   bar: {
     position: "absolute",
     left: 0,
