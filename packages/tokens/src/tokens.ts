@@ -576,5 +576,13 @@ export const uiMotion = {
     rows: { duration: 420, curve: [0.23, 1, 0.32, 1], rise: 8, delay: 120, stagger: 60 },
     /** I'm ready slides page two off to the feed. */
     leave: { response: 0.42, damping: 1 },
+    /** The feed behind the questions, as each chip changes it: a job comes
+     * in from `from` points up at `scale`, `stagger` ms after the one above;
+     * one that no longer fits slides `out` points left and fades in
+     * `outDuration` ms; the rest move to their new places on the spring. */
+    feed: { from: -14, scale: 0.98, stagger: 28, out: -24, outDuration: 220, response: 0.42, damping: 0.88 },
+    /** From one question to the next, the words slide this share of the
+     * screen and fade, and the sheet eases to its new height. */
+    step: { shift: 0.4, response: 0.42, damping: 1 },
   },
 } as const;

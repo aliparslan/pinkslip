@@ -753,6 +753,20 @@ export const ui = {
         response: 0.42,
         damping: 1,
       },
+      feed: {
+        from: -14,
+        scale: 0.98,
+        stagger: 28,
+        out: -24,
+        outDuration: 220,
+        response: 0.42,
+        damping: 0.88,
+      },
+      step: {
+        shift: 0.4,
+        response: 0.42,
+        damping: 1,
+      },
     },
   },
 } as const;

@@ -340,10 +340,23 @@ the storyboard spec. These were chosen in the Motion lab
   - Page two's rows rise 8pt and fade in one at a time, 60ms apart, in
     420ms on the strong ease-out, with a selection tick each; no bounce and
     nothing turned (owner, 2026-10-18: the lab's drop from above needed
-    refining). I'm ready slides the page off to the left and the questions
-    rise over Jobs as it goes.
+    refining). I'm ready slides the page off to the left as Jobs slides in
+    from 30% to the right, and the questions rise over it.
+  - The feed behind the questions answers every chip at once (owner,
+    2026-10-18: "like the artifact"). Its jobs are fetched while the hook
+    plays (the search widened to everything first), and each tap narrows
+    them on the phone: a job that now fits comes in from 14pt up at 98%,
+    28ms after the one above, on Apple's spring (response 0.42s, damping
+    0.88); one that doesn't slides 24pt left and fades in 220ms; the rest
+    move to their places on the same spring. Each chip ticks. An empty
+    question doesn't narrow it; before the first answer it shows
+    placeholders.
+  - From one question to the next the words slide 40% of the screen and
+    fade (response 0.42s, no bounce) as the sheet eases to its new height.
+    The answers are saved once, at the end, and the sheet waits for Jobs to
+    load them before it goes.
   - Reduce Motion: the cards fade in where they lie and fade away; the rows
-    fade without rising.
+    fade without rising; the feed and the questions change in place.
 - **Nothing overshoots.** Bounce is only for a throw that carried momentum,
   as Apple does.
 - **Presses** dim to 60%.

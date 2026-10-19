@@ -1,15 +1,21 @@
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { NO_ROLE_PREFERENCE, roleChips, visibleRoles, type Profile } from "@pinkslip/core/profile-fields";
-import { useApi, useUpdatePreferences } from "@pinkslip/data";
-import { LOCATION_OPTIONS, normalizeSearchProfile, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
-import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { queryKeys, useApi, useUpdatePreferences } from "@pinkslip/data";
+import { LOCATION_OPTIONS, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { View, useWindowDimensions } from "react-native";
+import Animated, { useReducedMotion, useSharedValue, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 import { toast } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import { Button, Chip, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, useSheetGuard } from "../../ui";
+import { motion, spring } from "../../ui/motion";
 import { stageName, STAGES_IN_ORDER, wantsRemote } from "../redesign/search-draft";
-import { canContinue, flipRemote, pickPlace, pickRole, pickStage, QUESTIONS, unanswered, withAnswer, type Question } from "./answers";
+import { answeredSearch, canContinue, flipRemote, pickPlace, pickRole, pickStage, QUESTIONS, type Question } from "./answers";
+
+const { step: STEP } = motion.onboarding;
+const STEP_SPRING = spring(STEP);
 
 const TITLES: Record<Question, string> = {
   stage: "Where are you in your career?",
@@ -17,14 +23,18 @@ const TITLES: Record<Question, string> = {
   where: "Where do you want to work?",
 };
 
-/** How long after the last tap an answer is saved, so the feed behind
- * catches up without a save for every tap. */
-const SETTLE_MS = 400;
+/** How long the real Jobs gets to load the saved search before the sheet
+ * goes anyway. */
+const HANDOVER_MS = 2500;
 
 export interface QuestionsProps {
   open: boolean;
   /** The search as it's saved now; the answers go into it. */
   saved: Profile;
+  draft: Profile;
+  change: (patch: Partial<Profile>) => void;
+  index: number;
+  setIndex: (index: number) => void;
   /** The answers go into your search (not in the kit's plain replay). */
   saves: boolean;
   /** A new install's own run, which sends the completed event. */
@@ -34,80 +44,58 @@ export interface QuestionsProps {
 
 /**
  * The three questions (Paper "Onboarding · the build · Oct 18", 3 to 3c):
- * career stage, roles and where as chips, one step each, in a short sheet
- * over Jobs that leaves the feed bright and in view behind it (owner: that's
- * the point of a sheet). Each answer is saved a moment after a tap, so the
- * jobs behind change as you pick; the last marks onboarding done. The sheet
+ * career stage, roles and where as chips, in a short sheet over the feed
+ * that leaves it bright and in view (owner: that's the point of a sheet).
+ * The feed behind answers every tap at once (PreviewFeed). From one
+ * question to the next the words slide and fade as the sheet eases to its
+ * new height (the Onboarding Motion Lab). The answers are saved once, at
+ * the end, and the sheet waits for Jobs to load them before it goes. It
  * can't be swiped away: three taps and it's finished.
  */
-export function Questions({ open, saved, saves, counts, onDone }: QuestionsProps) {
+export function Questions({ open, onDone, ...props }: QuestionsProps) {
   return <SheetModal open={open} onClosed={onDone} dim={false}>
-    <Steps saved={saved} saves={saves} counts={counts} />
+    <Steps {...props} />
   </SheetModal>;
 }
 
-type Move = "forward" | "back";
-
-function Steps({ saved: initial, saves, counts }: { saved: Profile; saves: boolean; counts: boolean }) {
+function Steps({ saved, draft, change, index, setIndex, saves, counts }: Omit<QuestionsProps, "open" | "onDone">) {
   const sheet = useSheet();
   const api = useApi();
+  const queryClient = useQueryClient();
   const update = useUpdatePreferences();
-  const [saved, setSaved] = useState(initial);
-  const [draft, setDraft] = useState(() => unanswered(initial));
-  const [index, setIndex] = useState(0);
+  const { width } = useWindowDimensions();
+  const reduced = useReducedMotion();
+  // Which way the words move: read as one question leaves and the next comes.
+  const direction = useSharedValue(1);
   const [finishing, setFinishing] = useState(false);
-  // A step leaves the way the next one is coming from, so the step in front
-  // is drawn for the move before it changes (see `inner` below).
-  const [leaving, setLeaving] = useState<{ move: Move; to: number } | null>(null);
-  const [arrived, setArrived] = useState<Move>("forward");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const turns = useRef(0);
   useSheetGuard(true, () => undefined);
-
-  useEffect(() => {
-    if (!leaving) return;
-    setArrived(leaving.move);
-    setIndex(leaving.to);
-    setLeaving(null);
-  }, [leaving]);
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
 
   const question = QUESTIONS[index]!;
   const last = index === QUESTIONS.length - 1;
-
-  /** Saves the search with this answer in; only the newest save's reply counts. */
-  const save = async (answered: Profile) => {
-    const turn = ++turns.current;
-    const result = await update.mutateAsync({ search_profile: answered });
-    if (turn === turns.current) setSaved(normalizeSearchProfile(result.search_profile));
+  const pick = (patch: Partial<Profile>) => {
+    haptics.tick();
+    change(patch);
+  };
+  const go = (to: number) => {
+    direction.value = to > index ? 1 : -1;
+    setIndex(to);
   };
 
-  const change = (patch: Partial<Profile>) => {
-    const next = { ...draft, ...patch };
-    setDraft(next);
-    if (!saves || !canContinue(question, next)) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(withAnswer(saved, question, next, new Date())).catch(() => undefined), SETTLE_MS);
-  };
-
-  const next = async () => {
-    if (timer.current) clearTimeout(timer.current);
+  const finish = async () => {
     if (saves) {
       setFinishing(true);
       try {
-        await save(withAnswer(saved, question, draft, new Date()));
+        await update.mutateAsync({ search_profile: answeredSearch(saved, draft, new Date()) });
+        // Jobs behind takes over from the preview once it has the new search.
+        await Promise.race([
+          queryClient.refetchQueries({ queryKey: queryKeys.personal.jobsRoot, type: "active" }),
+          new Promise((resolve) => setTimeout(resolve, HANDOVER_MS)),
+        ]);
       } catch {
+        setFinishing(false);
         toast.error("Couldn't save that. Try again.");
         return;
-      } finally {
-        setFinishing(false);
       }
-    }
-    if (!last) {
-      setLeaving({ move: "forward", to: index + 1 });
-      return;
     }
     if (counts) {
       void api.interactions.event({ event_name: "onboarding_completed", entity_type: "onboarding", properties: { onboarding_version: ONBOARDING_VERSION } })
@@ -117,52 +105,79 @@ function Steps({ saved: initial, saves, counts }: { saved: Profile; saves: boole
     sheet.close();
   };
 
-  // Arriving forward it came in from the right; about to go forward it
-  // leaves to the left, and back the other way round.
-  const inner = leaving ? leaving.move === "back" : arrived === "forward";
-  const done = <Button variant="primary" fullWidth disabled={!canContinue(question, draft)} pending={finishing} onPress={() => void next()}>
+  const done = <Button variant="primary" fullWidth disabled={!canContinue(question, draft)} pending={finishing}
+    onPress={() => (last ? void finish() : go(index + 1))}>
     {last ? "Show my jobs" : "Continue"}
   </Button>;
 
-  return <SheetStep id={question} inner={inner} grabber={false}>
-    <View style={styles.header}>
-      <Text role="subhead" tone="ink-3">{`${index + 1} of ${QUESTIONS.length}`}</Text>
-      <SheetHeader title={TITLES[question]} />
-    </View>
-    <SheetScroll style={styles.scroll} contentContainerStyle={styles.chips}>
-      <Answers question={question} draft={draft} change={change} />
-    </SheetScroll>
+  return <SheetStep id="questions" grabber={false}>
+    <Animated.View key={question} style={styles.question}
+      entering={reduced ? undefined : arrive(direction, width)} exiting={reduced ? undefined : depart(direction, width)}>
+      <View style={styles.header}>
+        <Text role="subhead" tone="ink-3">{`${index + 1} of ${QUESTIONS.length}`}</Text>
+        <SheetHeader title={TITLES[question]} />
+      </View>
+      <SheetScroll style={styles.scroll} contentContainerStyle={styles.chips}>
+        <Answers question={question} draft={draft} pick={pick} />
+      </SheetScroll>
+    </Animated.View>
     {index === 0 ? done : <View style={styles.actions}>
-      <SheetBack onPress={() => setLeaving({ move: "back", to: index - 1 })} />
+      <SheetBack onPress={() => go(index - 1)} />
       <View style={styles.flex}>{done}</View>
     </View>}
   </SheetStep>;
 }
 
-/** One question's chips: the kit's 32pt Chip, ink when on. */
-function Answers({ question, draft, change }: { question: Question; draft: Profile; change: (patch: Partial<Profile>) => void }) {
+/** The next question's words come in from the side it's heading from... */
+function arrive(direction: SharedValue<number>, width: number): EntryExitAnimationFunction {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { opacity: 0, transform: [{ translateX: direction.value * width * STEP.shift }] },
+      animations: { opacity: withTiming(1, { duration: 220 }), transform: [{ translateX: withSpring(0, STEP_SPRING) }] },
+    };
+  };
+}
+
+/** ...as the last one's slide the other way and fade. */
+function depart(direction: SharedValue<number>, width: number): EntryExitAnimationFunction {
+  return () => {
+    "worklet";
+    return {
+      initialValues: { opacity: 1, transform: [{ translateX: 0 }] },
+      animations: {
+        opacity: withTiming(0, { duration: 180 }),
+        transform: [{ translateX: withSpring(-direction.value * width * STEP.shift, STEP_SPRING) }],
+      },
+    };
+  };
+}
+
+/** One question's chips: the kit's 32pt Chip, ink when on, with a tick. */
+function Answers({ question, draft, pick }: { question: Question; draft: Profile; pick: (patch: Partial<Profile>) => void }) {
   if (question === "stage") {
     return <>{STAGES_IN_ORDER.map((id) => <Chip key={id} label={stageName(id)} selected={draft.target_levels.includes(id)}
-      onPress={() => change(pickStage(draft, id))} />)}</>;
+      onPress={() => pick(pickStage(draft, id))} />)}</>;
   }
   if (question === "roles") {
     const chips = roleChips(draft);
     return <>
-      <Chip label="Any role" selected={chips.includes(NO_ROLE_PREFERENCE)} onPress={() => change(pickRole(draft, NO_ROLE_PREFERENCE))} />
+      <Chip label="Any role" selected={chips.includes(NO_ROLE_PREFERENCE)} onPress={() => pick(pickRole(draft, NO_ROLE_PREFERENCE))} />
       {visibleRoles.map((option) => <Chip key={option.id} label={option.label} selected={chips.includes(option.id)}
-        onPress={() => change(pickRole(draft, option.id))} />)}
+        onPress={() => pick(pickRole(draft, option.id))} />)}
     </>;
   }
   const anywhere = draft.relocation_willing || draft.location_ids.length === 0;
   return <>
-    <Chip label="Remote" selected={wantsRemote(draft)} onPress={() => change(flipRemote(draft))} />
-    <Chip label="Anywhere in the US" selected={anywhere} onPress={() => change(pickPlace(draft, "anywhere"))} />
+    <Chip label="Remote" selected={wantsRemote(draft)} onPress={() => pick(flipRemote(draft))} />
+    <Chip label="Anywhere in the US" selected={anywhere} onPress={() => pick(pickPlace(draft, "anywhere"))} />
     {LOCATION_OPTIONS.map((option) => <Chip key={option.id} label={locationLabels[option.id]}
-      selected={!anywhere && draft.location_ids.includes(option.id)} onPress={() => change(pickPlace(draft, option.id))} />)}
+      selected={!anywhere && draft.location_ids.includes(option.id)} onPress={() => pick(pickPlace(draft, option.id))} />)}
   </>;
 }
 
 const styles = StyleSheet.create((theme) => ({
+  question: { gap: theme.ui.space["5"], flexShrink: 1 },
   header: { gap: 2 },
   /** The chips size the step, and scroll if larger text makes them taller than the screen. */
   scroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },

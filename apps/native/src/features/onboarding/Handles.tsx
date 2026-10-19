@@ -32,7 +32,9 @@ const HANDLED: readonly Handled[] = [
 ];
 
 export interface HandlesProps {
-  /** I'm ready, as page two starts to slide away: the questions come up. */
+  /** I'm ready: page two starts to slide away, and the feed in under it. */
+  onLeaving: () => void;
+  /** Partway through, the questions come up. */
   onReady: () => void;
   /** Page two is off the screen. */
   onGone: () => void;
@@ -45,7 +47,7 @@ export interface HandlesProps {
  * calm and straight where the mess fell crooked; I'm ready slides the page
  * away to the feed.
  */
-export function Handles({ onReady, onGone }: HandlesProps) {
+export function Handles({ onLeaving, onReady, onGone }: HandlesProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -62,6 +64,7 @@ export function Handles({ onReady, onGone }: HandlesProps) {
 
   const ready = () => {
     haptics.tap();
+    onLeaving();
     const leave = spring(LEAVE);
     away.value = withSpring(1, leave, (done) => {
       if (done) scheduleOnRN(onGone);
