@@ -82,6 +82,14 @@ Other screens waiting:
 - [ ] Step 4's date picker for fixing a step's date (waits for Paper).
 - [ ] "Add an application" (owner, 2026-10-18: not a priority).
 
+Following (owner, 2026-10-19: parked until outreach and auto-apply):
+
+- [ ] **Following as "your companies"**, narrowing rather than widening: a
+  "Following only" filter for Jobs and alerts, a push when a followed
+  company has an event, auto-apply's "Ones I follow", and outreach's "a
+  recruiter turned up at a company you follow". The company page's
+  "Follow · Soon" stays as the placeholder.
+
 Owner to-dos:
 
 - [ ] Rotate the Google OAuth client secret (it appeared in chat once), then
@@ -244,7 +252,7 @@ Activity, the digest and each application's timeline.
 | Public job pages and the sitemap (web, SEO) | **Works** |
 | Search tab: jobs and companies together | **Check:** the tab uses the feed's `q` and the company list |
 | A company's page: jobs, people, events | **Partial:** jobs only |
-| Following a company (alerts, auto-apply's "Ones I follow", N20) | **Built** (step 7, server; app screens next) |
+| Following a company (alerts, auto-apply's "Ones I follow", N20) | **Parked** until outreach and auto-apply (owner, 2026-10-19) |
 | Events: a company's info sessions and fairs, reminders (N19) | **Built** (step 7, server; app screens next) |
 | Hidden companies, blocked jobs, reports | **Works** |
 
@@ -332,8 +340,9 @@ owner's check before the next.
    priority. **Built and live 2026-10-18** (see "Built").
 6. **Accounts** (§7): Google sign-in, email and password. **Built and live
    2026-10-18** (see "Built"); the sign-in screens wait for Paper.
-7. **Following and events** (§6), with N19 and N20. **Built 2026-10-18,
-   not deployed** (see "Built"); the app's screens come next.
+7. **Following and events** (§6), with N19 and N20. **Events built
+   2026-10-19, not deployed** (see "Built"); following is parked until
+   outreach and auto-apply (owner, 2026-10-19; see "Come back to").
 8. **Outreach for everyone** (§8): contacts, weekly verification, caps,
    removal path, then the flag.
 9. **Plans and billing** (§10): plan and metering first; payments at the App
@@ -495,6 +504,16 @@ Following:
 4. **No automatic follows.**
 5. **Auto-apply's "Ones I follow"** reads the same list.
 6. **Later:** "Only companies I follow" as an option for alerts too.
+
+**Owner, 2026-10-19 (supersedes the following part above for now):**
+following is parked. Its payoff today is small (1,061 companies, 420
+hiring; events are few and added by hand), and its real jobs come with
+outreach and auto-apply. Meanwhile Today's Coming up shows events at
+companies you've saved or applied to, since that interest is already known.
+When following returns it narrows rather than widens: a "Following only"
+filter for Jobs and alerts, a push when a followed company has an event,
+auto-apply's "Ones I follow" (apply to every new job there that fits), and
+outreach's "a recruiter turned up at a company you follow".
 
 Events:
 
@@ -1044,28 +1063,21 @@ Liberties for the owner to keep or veto:
 Not in step 6: the sign-in screens on the iPhone and the web (Google,
 password, code), which wait for Paper (the onboarding design asks for them).
 
-### Step 7: following and events (2026-10-18, not deployed)
+### Step 7: events (2026-10-19, not deployed)
 
-Server side only; the apps' screens come next (Follow on a company's page,
-the Following list in You, events on the company's page and the event page,
-Admin's events, the push link `/events/:id`). Migration 0099 adds three
-tables; nothing existing changes shape.
+Server side only; the apps' screens come next (events on the company's
+page, the event page with Remind me and Sign up, Today's Coming up row,
+Admin's events, the push link `/events/:id`). Migration 0099 adds two
+tables; nothing existing changes shape. Following was built on 2026-10-18,
+then parked by the owner before deploying, and taken out (see Decisions:
+Following and events, 2026-10-19).
 
-- **Following** (`company_follows`; `POST`/`DELETE
-  /api/v2/interactions/companies/:id/follow`; `following` on each company in
-  `GET /companies` and on every job): a followed company's jobs at your
-  level match even when the role or place is outside your search. Level,
-  experience, qualifications, US jobs, sponsorship and excluded titles still
-  apply (`evaluateJobForProfile`'s `followed`). Following or unfollowing
-  matches the company's open jobs again for you, and the alerts' last check
-  before sending knows about follows too.
-- **N20:** a followed company's new jobs go out with the new-job alerts: one
-  job reads "Following · <role>", a grouped push names followed companies
-  first, and the feed marks them (`following: true`).
 - **Events** (`company_events`): `GET /companies/:id/events` (still on the
   page until the day after, in the viewer's time zone), `GET /events/:id`,
-  and Today's Coming up (`upcoming_event`) for a company you follow or an
-  event you asked about, through the next two weeks.
+  and Today's Coming up (`upcoming_event`) through the next two weeks for
+  an event at a company you've saved or applied to (a Pinkslip job, or an
+  application added by hand with the company's name) or one you asked
+  about.
 - **Remind me (N19)** (`event_reminders`; `PUT`/`DELETE
   /events/:id/reminder`): a push at 6 pm the day before, where the person is,
   until 10 pm or the start; sent through the Activity stream once per event
@@ -1076,24 +1088,18 @@ tables; nothing existing changes shape.
   page's title), matches the company by its site or the organizer, and
   returns a draft to check; `POST`, `PATCH`, `DELETE /events`, and `GET
   /events` lists them with how many asked to be reminded.
-- **Guests** can follow and set reminders; signing in carries both to the
-  account, and deleting the account removes them.
-- Tests: `tests/following-events.test.ts` (8), plus the matcher and
-  notification settings suites updated.
+- **Guests** can set reminders; signing in carries them to the account,
+  and deleting the account removes them.
+- Tests: `tests/company-events.test.ts` (5).
 
 Liberties for the owner to keep or veto:
 
-1. Following relaxes only role and place; a senior job at a followed
-   company still doesn't reach a new grad.
-2. Hiding and following can't both hold: following a hidden company brings
-   it back, and hiding a followed one unfollows it.
-3. Event reminders at 6 pm the day before (as an interview's), outside the
+1. Event reminders at 6 pm the day before (as an interview's), outside the
    daily cap since the person asked for them.
-4. Event times are instants shown in each person's own time zone; no venue
+2. Event times are instants shown in each person's own time zone; no venue
    time zone is stored.
-5. The link reader uses Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
+3. The link reader uses Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
    only when the page has no structured event, and never guesses a time it
    can't read.
-6. Auto-apply's "Ones I follow" will read `company_follows` when auto-apply
-   is built (step 10); nothing reads it there yet.
-
+4. Coming up counts any application at the company, ended ones included:
+   an info session can still matter after a rejection.
