@@ -363,9 +363,6 @@ export const uiDark = {
   "--ui-glyph-find": "oklch(0.74 0.12 259)",
   "--ui-glyph-apply": "oklch(0.75 0.12 153)",
   "--ui-glyph-pro": "oklch(0.72 0.17 350)",
-  // A chip that saves to your search, when on: clear in dark, the pink line
-  // and label carry it (owner, 2026-10-19, Paper "Pink chips, refining E", 1).
-  "--ui-chip-pink": "oklch(0 0 0 / 0)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
   // An outlined pill's line (owner, 2026-10-15): pills are clear with this
@@ -432,9 +429,6 @@ export const uiLight = {
   "--ui-glyph-find": "oklch(0.52 0.17 259)",
   "--ui-glyph-apply": "oklch(0.52 0.13 153)",
   "--ui-glyph-pro": "oklch(0.55 0.21 350)",
-  // On in light: the pink tint inside the pink line (Paper "Pink chips,
-  // refining E", E).
-  "--ui-chip-pink": "oklch(0.935 0.038 350)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",

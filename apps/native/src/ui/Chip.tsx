@@ -16,11 +16,11 @@ export interface ChipProps {
 /** A 32pt capsule for filters, with an optional count after the label.
  * Selected is an ink fill with the background colour as text; pink never
  * means "on" for a filter. A chip that saves to your search is pink when on
- * (owner, 2026-10-19, Paper "Pink chips, refining E"): the pink tint inside a
- * pink line in light, just the line in dark, the label pink. Unselected is
- * outlined, clear inside with a 1pt ring (owner, 2026-10-15), so it reads
- * the same on the page, on a card and in a sheet. The label stays Regular
- * either way, so a chip keeps its width (owner, 2026-10-15). */
+ * (owner, 2026-10-19, Paper "Pink chips, refining E", 1): a pink line and
+ * label, clear inside. Unselected is outlined, clear inside with a 1pt ring
+ * (owner, 2026-10-15), so it reads the same on the page, on a card and in a
+ * sheet. The label stays Regular either way, so a chip keeps its width
+ * (owner, 2026-10-15). */
 export function Chip({ label, count, selected = false, tone = "ink", onPress }: ChipProps) {
   const look = selected ? tone : "off";
   styles.useVariants({ look });
@@ -44,7 +44,7 @@ const styles = StyleSheet.create((theme) => ({
     variants: {
       look: {
         ink: { backgroundColor: theme.ui.color.ink, borderColor: theme.ui.color.ink },
-        pink: { backgroundColor: theme.ui.color["chip-pink"], borderColor: theme.ui.color.accent },
+        pink: { backgroundColor: "transparent", borderColor: theme.ui.color.accent },
         off: { backgroundColor: "transparent", borderColor: theme.ui.color.outline },
       },
     },

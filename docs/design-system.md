@@ -121,11 +121,10 @@ else is decided.
   small gap in `ink-3`.
 - **Chips that save to your search are pink** (`Chip tone="pink"`;
   onboarding's questions), as checks and switches are: an answer is a
-  setting, not a filter. On in light is the pink tint (`chip-pink`) inside a
-  1pt `accent` line with an `accent` label; in dark it's the line and label
-  with no fill (owner, 2026-10-19, Paper "Pink chips, refining E": E for
-  light, 1 for dark). Off is the same outline as any chip. Jobs' filters
-  stay ink.
+  setting, not a filter. On is a 1pt `accent` line with an `accent` label,
+  clear inside, in both modes (owner, 2026-10-19, Paper "Pink chips,
+  refining E", 1; the owner tried E's pink tint in light first and preferred
+  no fill). Off is the same outline as any chip. Jobs' filters stay ink.
 - **Checks, radios and switches change a setting,** so they are pink. A
   check or radio that's on is a pink circle with a white
   check; one that's off is a 1.75pt `ink-4` ring. A switch that's on has a
@@ -813,8 +812,8 @@ cut so that each remaining one has a job.
     1.5pt line; the 2pt option wasn't needed.
   - Onboarding's question chips are pink when on, since each answer is
     saved to your search (owner, Paper "Pink chips, refining E · Oct 19"):
-    E in light (the pink tint inside a pink line, pink label) and 1 in dark
-    (just the line and label). The owner found the solid ink chip harsh
+    1, a pink line and pink label with no fill, in both modes (E's pink
+    tint was tried in light first). The owner found the solid ink chip harsh
     with several on; the board also tried heavier lines, berry and ink
     labels, softer, rose and magenta pinks, a pastel fill, and Linear's way
     (a grey fill, colour only in small marks). Jobs' filters stay ink.
