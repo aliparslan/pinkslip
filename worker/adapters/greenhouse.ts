@@ -1,5 +1,5 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
-import { extractSalaryFromHtml, formatGreenhouseSalary } from "./salary";
+import { extractSalaryFromHtml, formatGreenhouseSalary, greenhousePayRanges } from "./salary";
 import { fetchWithTimeout } from "../http";
 
 interface GreenhouseJob {
@@ -50,7 +50,8 @@ export class GreenhouseAdapter implements ATSAdapter {
 
   async fetchJobs(slug: string): Promise<JobListing[]> {
     try {
-      const url = `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`;
+      // Pay ranges come only when asked for (pay by place, 2026-10-19).
+      const url = `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true&pay_transparency=true`;
       const response = await fetchWithTimeout(url);
 
       if (!response.ok) {
@@ -70,6 +71,7 @@ export class GreenhouseAdapter implements ATSAdapter {
           postedAt: job.updated_at,
           description: decodeGreenhouseContent(job.content) || null,
           salary,
+          payRanges: greenhousePayRanges(job.pay_input_ranges),
         };
       });
     } catch (e) {
@@ -78,13 +80,15 @@ export class GreenhouseAdapter implements ATSAdapter {
   }
 
   async fetchJobContent(slug: string, externalId: string): Promise<JobContent> {
-    const url = `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs/${externalId}`;
+    // One job's page lists its pay ranges only when asked for them.
+    const url = `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs/${externalId}?pay_transparency=true`;
     const res = await fetchWithTimeout(url);
     if (!res.ok) return { description: null, salary: null };
     const job: GreenhouseJob = await res.json();
     return {
       description: decodeGreenhouseContent(job.content) || null,
       salary: formatGreenhouseSalary(job.pay_input_ranges?.[0]) ?? extractSalaryFromHtml(job.content),
+      payRanges: greenhousePayRanges(job.pay_input_ranges),
     };
   }
 }

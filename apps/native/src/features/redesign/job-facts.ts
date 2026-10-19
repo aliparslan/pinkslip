@@ -4,11 +4,12 @@ import { decodeEntities } from "@pinkslip/core/job-description";
 import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts } from "@pinkslip/core/job-format";
 import { compactJobAge } from "@pinkslip/core/job-timing";
 import { companySourceLabel, isCompanySourceType } from "@pinkslip/domain/company-sources";
+import { formatPayRange, paySpread, rangeForPlace, rangesNamePlaces } from "@pinkslip/domain/pay-ranges";
 import { LOCATION_OPTIONS, ROLE_OPTIONS, type SearchProfile } from "@pinkslip/domain/search-profile";
 
 /** What the redesigned screens read from a job (a feed row or the full posting). */
 export type FactsJob = Pick<Job, "title" | "location" | "salary" | "posted_at" | "first_seen_at"> &
-  Partial<Pick<Job, "match_fact" | "sponsorship_available" | "source_type" | "specialties" | "applied_at">>;
+  Partial<Pick<Job, "match_fact" | "sponsorship_available" | "source_type" | "specialties" | "applied_at" | "pay_ranges">>;
 
 /** Some feeds send titles and names with HTML entities ("K&amp;I"). */
 export const plainText = (text: string) => decodeEntities(text).trim();
@@ -116,8 +117,51 @@ export function ticketRows(job: FactsJob, profile?: SearchProfile): TicketFactVa
   return [
     [{ label: "Level", value: jobLevel(job) ?? NOT_LISTED }, { label: "Experience", value: jobExperience(job) ?? NOT_LISTED }],
     [location],
-    [{ label: "Pay", value: formatCompactSalaryText(job.salary) ?? NOT_LISTED }, { label: "Visa sponsorship", value: visa }],
+    [{ label: "Pay", value: ticketPay(job, places[0]?.place) ?? NOT_LISTED }, { label: "Visa sponsorship", value: visa }],
   ];
+}
+
+/** The ticket's pay (pay by place, owner 2026-10-19): the range for the
+ * place on its Location line when the posting says; the whole spread when it
+ * names only zones; otherwise the one range it gave. */
+function ticketPay(job: FactsJob, place: string | undefined): string | null {
+  const ranges = job.pay_ranges ?? [];
+  if (ranges.length > 1) {
+    const range = place && rangesNamePlaces(ranges) ? rangeForPlace(place, ranges) : null;
+    const pay = range ? formatPayRange(range) : paySpread(ranges);
+    if (pay) return pay;
+  }
+  if (ranges.length === 1) return formatPayRange(ranges[0]!);
+  return formatCompactSalaryText(job.salary);
+}
+
+export interface PlacesByPay {
+  /** Places under each pay range, in the order they're listed (your search's
+   * first); `pay` is null for places no range names. */
+  groups: { pay: string | null; places: { place: string; matched: boolean }[] }[];
+  /** A posting that names only zones: each zone with its pay. */
+  zones: { label: string; pay: string }[];
+}
+
+/** The Locations sheet (Paper "Pay by place · Oct 19"): places grouped under
+ * their pay when the ranges name them (P2); when they name only zones, the
+ * places as they are and the zones with their pay beside them (P1). */
+export function placesByPay(job: FactsJob, places: { place: string; matched: boolean }[]): PlacesByPay {
+  const ranges = job.pay_ranges ?? [];
+  if (ranges.length < 2) return { groups: [{ pay: null, places }], zones: [] };
+  if (!rangesNamePlaces(ranges)) {
+    return { groups: [{ pay: null, places }], zones: ranges.map((range, index) => ({ label: range.label ?? `Range ${index + 1}`, pay: formatPayRange(range) })) };
+  }
+  const groups: PlacesByPay["groups"] = [];
+  for (const entry of places) {
+    const range = rangeForPlace(entry.place, ranges);
+    const pay = range ? formatPayRange(range) : null;
+    const group = groups.find((existing) => existing.pay === pay);
+    if (group) group.places.push(entry);
+    else groups.push({ pay, places: [entry] });
+  }
+  // Places no range names go last, with no heading.
+  return { groups: [...groups.filter((group) => group.pay), ...groups.filter((group) => !group.pay)], zones: [] };
 }
 
 /** "Seattle, Austin and 3 more": two names, then a count. */

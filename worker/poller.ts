@@ -38,6 +38,7 @@ import {
 import { hasTable } from "./db-schema";
 import { sourceDecisionRecorder } from "./classification-shadow";
 import { queuedPollingTiers, sourcePollRecord } from "./poll-schedule";
+import type { PayRange } from "../shared/pay-ranges";
 
 const CLOSED_JOB_PURGE_BATCH_SIZE = 100;
 
@@ -285,6 +286,11 @@ export async function runWithConcurrency<T, R>(
   return results;
 }
 
+/** A job's pay ranges as stored: JSON, or null when the source lists none. */
+export function payRangesJson(ranges: readonly PayRange[] | null | undefined): string | null {
+  return ranges?.length ? JSON.stringify(ranges) : null;
+}
+
 export function mergeListingContent(
   listing: JobListing,
   content: JobContent
@@ -293,6 +299,7 @@ export function mergeListingContent(
     ...listing,
     description: content.description?.trim() || listing.description,
     salary: content.salary?.trim() || listing.salary,
+    payRanges: content.payRanges ?? listing.payRanges,
     location: content.location?.trim() || listing.location,
     postedAt: content.postedAt || listing.postedAt,
   };
@@ -693,8 +700,8 @@ export async function pollCompany(
       const statements = [
         db
         .prepare(
-          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary, pay_ranges)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
         )
         .bind(
           job.jobId,
@@ -707,7 +714,8 @@ export async function pollCompany(
           job.listing.postedAt ?? null,
           now,
           job.listing.description ?? null,
-          job.listing.salary ?? null
+          job.listing.salary ?? null,
+          payRangesJson(job.listing.payRanges)
         ),
       ];
       if (shouldQueueNotificationsForCompany(company)) {
@@ -1235,11 +1243,12 @@ async function backfillMissingJobContent(
     await db.batch(repaired.slice(offset, offset + 35).flatMap(({ row, listing }) => [
       db.prepare(
         `UPDATE jobs
-         SET description = ?, salary = ?, location = ?, posted_at = ?
+         SET description = ?, salary = ?, pay_ranges = COALESCE(?, pay_ranges), location = ?, posted_at = ?
          WHERE id = ?`
       ).bind(
         listing.description,
         listing.salary,
+        payRangesJson(listing.payRanges),
         listing.location,
         listing.postedAt,
         row.id

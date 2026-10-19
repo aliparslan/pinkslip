@@ -530,6 +530,13 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   email steps add "· EMAIL" and the foot offers "Not right?". The Mono is
   the trial cut for now; the owner buys it with the other Klim licences
   before release (2026-10-14).
+- **Pay by place** (owner, 2026-10-19, Paper "Pay by place · Oct 19"): the
+  ticket's Pay is the range for the place on its Location line. When a
+  posting names the places each range covers, the Locations sheet groups
+  places under their pay (P2: the range as a Footnote Medium `ink-2` label
+  above each card); when it names only zones, the places stay as they are
+  and a "Pay" card lists each zone with its pay as the row's value (P1), and
+  the ticket shows the whole spread.
 - **Fixing a step's date** (owner, 2026-10-19, Paper "Step dates · Oct
   19"): tap a stamp on your stub. The sheet asks the step's own question
   ("When did you apply?", "When did it arrive?"), adds which email it came
@@ -868,6 +875,10 @@ cut so that each remaining one has a job.
     with several on; the board also tried heavier lines, berry and ink
     labels, softer, rose and magenta pinks, a pastel fill, and Linear's way
     (a grey fill, colour only in small marks). Jobs' filters stay ink.
+- **2026-10-19 (night)**
+  - Pay by place built (see the rule above): every Greenhouse range is kept
+    with its zone or places (`jobs.pay_ranges`, migration 0101), the ticket
+    shows the pay for its place, and the Locations sheet groups by pay.
 - **2026-10-19 (evening)**
   - Sign-in, code first, built (see Sign in): A on the code step, M1 on a
     guest's first save, S5 after the first sign-in, and "Make a password"

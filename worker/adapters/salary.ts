@@ -1,3 +1,5 @@
+import { readRangeTitle, type PayRange } from "../../shared/pay-ranges";
+
 interface GreenhousePayRange {
   min_cents: number;
   max_cents: number;
@@ -49,6 +51,21 @@ export function formatGreenhouseSalary(range: GreenhousePayRange | undefined): s
   const max = Math.round(range.max_cents / 100).toLocaleString();
   const prefix = range.currency_type === "USD" ? "$" : `${range.currency_type} `;
   return `${prefix}${min} – ${prefix}${max}`;
+}
+
+/** Every range Greenhouse lists, each with the zone or places its title
+ * names (pay by place, owner 2026-10-19). Null when it lists none. */
+export function greenhousePayRanges(ranges: GreenhousePayRange[] | undefined): PayRange[] | null {
+  if (!ranges?.length) return null;
+  return ranges
+    .filter((range) => Number.isFinite(range.min_cents) && Number.isFinite(range.max_cents) && range.max_cents > 0)
+    .map((range) => ({
+      ...readRangeTitle(range.title),
+      min: Math.round(range.min_cents / 100),
+      max: Math.round(range.max_cents / 100),
+      currency: range.currency_type || "USD",
+      period: /\b(?:hour|hourly|hr)\b/i.test(range.title ?? "") ? "hour" as const : "year" as const,
+    }));
 }
 
 export function formatLeverSalary(range: LeverSalaryRange | undefined): string | null {

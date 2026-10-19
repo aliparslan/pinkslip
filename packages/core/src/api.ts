@@ -13,6 +13,7 @@ import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-qualit
 import type { TodayResponse } from "@pinkslip/domain/today";
 export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
 import type { CompanyEvent } from "@pinkslip/domain/company-events";
+import type { PayRange } from "@pinkslip/domain/pay-ranges";
 export type { CompanyEvent } from "@pinkslip/domain/company-events";
 import type { CompanyPerson, OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
@@ -289,6 +290,8 @@ export interface Job {
   dismissed: number;
   description: string | null;
   salary: string | null;
+  /** The job page's: each pay range with its zone or places (pay by place). */
+  pay_ranges?: PayRange[];
   closed_at: string | null;
   company_name: string;
   company_domain: string;

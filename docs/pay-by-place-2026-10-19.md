@@ -59,14 +59,22 @@ interface PayRange {
 
 ## On screen
 
-Paper "Pay by place · Oct 19" (P1 and P2, waiting on the owner):
+Paper "Pay by place · Oct 19". The owner picked P2, and P1 for postings
+that name only zones ("if we know what cities are in each zone, then we can
+go back to grouping"):
 
 - The ticket's Pay is the range for the place on its Location line (your
   search's place first). A posting that names only zones shows the full
   spread there.
-- The Locations sheet shows each place's pay: beside it (P1), or grouped
-  under each range (P2). Zones that name no places are listed by their
-  zone's name.
+- The Locations sheet groups places under each range (P2). Zones that name
+  no places are listed by their zone's name with their pay beside them
+  (P1), under the places.
+
+Built 2026-10-19: `shared/pay-ranges.ts` (reading a title, formatting,
+matching a place), Greenhouse asks for `pay_transparency` on the list and on
+one job (one job's page had never listed its ranges), the poller stores
+`pay_ranges`, and the job API returns them. Jobs saved before read their
+ranges the first time they're opened.
 
 Building needs a migration (the new column) and a Worker deploy, each with
 the owner's go-ahead.

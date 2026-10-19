@@ -1,3 +1,5 @@
+import type { PayRange } from "../../shared/pay-ranges";
+
 export interface JobListing {
   externalId: string;
   title: string;
@@ -7,11 +9,14 @@ export interface JobListing {
   postedAt: string | null;
   description: string | null;
   salary: string | null;
+  /** Each pay range with its zone or places, when the source lists them. */
+  payRanges?: PayRange[] | null;
 }
 
 export interface JobContent {
   description: string | null;
   salary: string | null;
+  payRanges?: PayRange[] | null;
   location?: string | null;
   postedAt?: string | null;
 }

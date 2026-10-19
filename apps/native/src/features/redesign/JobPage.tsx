@@ -18,7 +18,7 @@ import { ApplyPrep, DidYouApply } from "./ApplySheets";
 import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/useJobPage";
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
-import { applyButtonState, fitsYourSearch, orderedPlaces, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
+import { applyButtonState, fitsYourSearch, orderedPlaces, placesByPay, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
@@ -74,6 +74,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const blocks = useMemo(() => parseJobDescription(job.description, { title: job.title, companyName: job.company_name }),
     [job.description, job.title, job.company_name]);
   const places = useMemo(() => orderedPlaces(job, profile), [job, profile]);
+  const byPay = useMemo(() => placesByPay(job, places), [job, places]);
   const rows = useMemo(() => ticketRows(job, profile).map((row) => row.map((fact) =>
     fact.detail ? { ...fact, onPress: () => setPlacesOpen(true) } : fact)), [job, profile]);
   const fits = fitsYourSearch(job, profile);
@@ -127,9 +128,23 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
       <SheetStep id="locations">
         <SheetHeader title="Locations" />
         <SheetScroll style={styles.placesScroll} contentContainerStyle={styles.placesBody}>
-          <Choices last>
-            {places.map((entry) => <ChoiceLink key={entry.place} title={entry.place} value={entry.matched ? "Your search" : undefined} />)}
-          </Choices>
+          {/* Pay by place (Paper "Pay by place · Oct 19"): places grouped
+              under their pay when the posting names them, or the zones with
+              their pay after the places when it names only zones. */}
+          <View style={styles.placeGroups}>
+            {byPay.groups.map((group, index) => <View key={group.pay ?? "rest"} style={styles.placeGroup}>
+              {group.pay ? <View style={styles.groupLabel}><Text role="footnote" weight="medium" tone="ink-2">{group.pay}</Text></View> : null}
+              <Choices last={index === byPay.groups.length - 1 && byPay.zones.length === 0}>
+                {group.places.map((entry) => <ChoiceLink key={entry.place} title={entry.place} value={entry.matched ? "Your search" : undefined} />)}
+              </Choices>
+            </View>)}
+            {byPay.zones.length > 0 ? <View style={styles.placeGroup}>
+              <View style={styles.groupLabel}><Text role="footnote" weight="medium" tone="ink-2">Pay</Text></View>
+              <Choices last>
+                {byPay.zones.map((zone) => <ChoiceLink key={zone.label} title={zone.label} value={zone.pay} />)}
+              </Choices>
+            </View> : null}
+          </View>
         </SheetScroll>
       </SheetStep>
     </SheetModal>
@@ -215,6 +230,10 @@ const styles = StyleSheet.create((theme) => ({
   // A long list scrolls inside the sheet, edge to edge under its padding.
   placesScroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
   placesBody: { paddingHorizontal: theme.ui.space["5"] },
+  placeGroups: { gap: theme.ui.space["4"] },
+  placeGroup: { gap: theme.ui.space["1"] },
+  // A group's label lines up with its rows, 16 in.
+  groupLabel: { paddingHorizontal: theme.ui.space["4"] },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
   // Centred in the room under Back, a little above the middle.

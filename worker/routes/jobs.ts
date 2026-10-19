@@ -31,6 +31,7 @@ import {
   legacyUnmarkApplied,
   legacyUnsaveJob,
 } from "../applications";
+import type { PayRange } from "../../shared/pay-ranges";
 
 /**
  * Source timestamps arrive with mixed UTC representations and offsets, so the
@@ -119,6 +120,7 @@ const JOB_DETAIL_FIELDS = `
   ) AS dismissed,
   j.description,
   j.salary,
+  j.pay_ranges,
   j.closed_at,
   (
     SELECT a.stage
@@ -143,6 +145,8 @@ type JobListRow = JobRow & {
   match_fact: string;
   specialties_json: string;
   sponsorship_available: number | null;
+  /** The detail's pay ranges as stored (JSON); list rows don't carry it. */
+  pay_ranges?: string | null;
 };
 
 const ROLE_IDS = new Set<string>(ROLE_OPTIONS.map((option) => option.id));
@@ -162,10 +166,11 @@ function serializeJob(row: JobListRow) {
   } catch {
     specialties = [];
   }
-  const { specialties_json: _, applied_at, ...job } = row;
+  const { specialties_json: _, applied_at, pay_ranges: payRanges, ...job } = row;
   const stage = row.application_stage;
   return {
     ...job,
+    ...(payRanges !== undefined ? { pay_ranges: parsePayRanges(payRanges) } : {}),
     // Saved is the first stage of an application; every later stage is applied.
     saved: stage === "saved" ? 1 : 0,
     applied: stage !== null && hasApplied(stage) ? 1 : 0,
@@ -175,6 +180,17 @@ function serializeJob(row: JobListRow) {
       ? null
       : row.sponsorship_available === 1,
   };
+}
+
+/** A job's stored pay ranges; anything unreadable is none. */
+function parsePayRanges(json: string | null): PayRange[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed as PayRange[] : [];
+  } catch {
+    return [];
+  }
 }
 
 const LOCATION_ALIASES: Record<string, string[]> = {
@@ -570,6 +586,7 @@ async function backfillJobContent(
     posted_at: string | null;
     description: string | null;
     salary: string | null;
+    pay_ranges?: string | null;
     ats_type: string;
     source_type: string | null;
     ats_slug: string;
@@ -607,10 +624,27 @@ async function backfillJobContent(
     sets.push("posted_at = ?");
     vals.push(content.postedAt);
   }
+  if (content.payRanges !== undefined) {
+    sets.push("pay_ranges = ?");
+    vals.push(content.payRanges?.length ? JSON.stringify(content.payRanges) : "[]");
+  }
   vals.push(job.id);
   await db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).bind(...vals).run();
   // Re-evaluate binary eligibility after content changes.
   await rematchJobForMatchedUsers(db, job.id, viewerUserId);
+}
+
+/** Pay by place for a job saved before it (2026-10-19): reads the source's
+ * ranges once and stores them, '[]' when it lists none, so it isn't asked
+ * again. Nothing else on the job changes. */
+async function backfillPayRanges(
+  db: D1Database,
+  job: { id: string; external_id: string; url: string; ats_type: string; source_type: string | null; ats_slug: string },
+) {
+  const adapter = getAdapter((job.source_type ?? job.ats_type) as CompanySourceType);
+  const content = adapter ? await adapter.fetchJobContent(job.ats_slug, job.external_id, job.url) : null;
+  const ranges = content?.payRanges?.length ? JSON.stringify(content.payRanges) : "[]";
+  await db.prepare("UPDATE jobs SET pay_ranges = ? WHERE id = ? AND pay_ranges IS NULL").bind(ranges, job.id).run();
 }
 
 jobs.get("/:id", async (c) => {
@@ -640,6 +674,14 @@ jobs.get("/:id", async (c) => {
     c.executionCtx.waitUntil(
       backfillJobContent(db, result, userId).catch((error) => {
         console.error("Description backfill failed:", error);
+      })
+    );
+  } else if (result.pay_ranges === null) {
+    // A job saved before pay by place reads its ranges the first time it's
+    // opened; the page shows them on the next visit.
+    c.executionCtx.waitUntil(
+      backfillPayRanges(db, result).catch((error) => {
+        console.error("Pay ranges backfill failed:", error);
       })
     );
   }
