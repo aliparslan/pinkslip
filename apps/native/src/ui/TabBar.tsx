@@ -103,12 +103,15 @@ interface TopScrollable {
 }
 
 /** Spread onto a list under the tab bar (`{...useTabBarScroll()}`): scrolling
- * down shrinks the bar, scrolling up or reaching the top brings it back.
+ * down shrinks the bar, scrolling up or reaching the top brings it back. A
+ * tab root passes its `useTopEdge()` so the blur behind the clock follows.
  * Given the list, tapping the tab you're on scrolls it back to the top, and
  * the list may be scrolled above zero (`scrollToOverflowEnabled`): React
  * Native otherwise stops a scroll at zero, short of the status bar's inset. */
-export function useTabBarScroll(list?: RefObject<TopScrollable | null>) {
+export function useTabBarScroll(list?: RefObject<TopScrollable | null>, edge?: { onScrollY: (y: number) => void }) {
   const last = useRef(0);
+  const topEdge = useRef(edge);
+  topEdge.current = edge;
   const insets = useSafeAreaInsets();
   const statusBar = useRef(insets.top);
   statusBar.current = insets.top;
@@ -127,6 +130,8 @@ export function useTabBarScroll(list?: RefObject<TopScrollable | null>) {
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const y = contentOffset.y + Math.max(0, contentInsetTop(event));
+    // The blur behind the clock (TopEdgeBlur) shows once anything is under it.
+    topEdge.current?.onScrollY(y);
     const moved = y - last.current;
     last.current = y;
     // The bounce past the end isn't a change of direction.

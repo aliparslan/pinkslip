@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { enableDevicePush } from "../../../platform/push";
-import { EmptyState, ListGroup, ListItem, Text, toast } from "../../../ui";
+import { EmptyState, GroupPlaceholders, ListGroup, ListItem, Text, toast } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { YouPage } from "./Page";
 
@@ -90,7 +90,7 @@ export function AlertsPage() {
   const [choice, setChoice] = useState<NewJobAlerts | null>(null);
   const [changesChoice, setChangesChoice] = useState<boolean | null>(null);
 
-  if (settings.isPending) return <YouPage title="Alerts"><View style={styles.loading}><Spinner /></View></YouPage>;
+  if (settings.isPending) return <YouPage title="Alerts"><GroupPlaceholders groups={[3, 2]} /></YouPage>;
   if (settings.isError) {
     return <YouPage title="Alerts"><EmptyState title="Alerts didn't load" message="Check your connection and try again."
       action={{ label: "Try again", variant: "secondary", onPress: () => void settings.refetch() }} /></YouPage>;
@@ -170,5 +170,4 @@ const styles = StyleSheet.create((theme) => ({
   previewTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: theme.ui.space["2"] },
   // Ink on a white chip: pink on gray was too faint (owner, 2026-10-14).
   time: { height: 34, paddingHorizontal: 11, borderRadius: theme.ui.radius.sm, backgroundColor: theme.ui.color.bg, justifyContent: "center" },
-  loading: { minHeight: 200, alignItems: "center", justifyContent: "center" },
 }));

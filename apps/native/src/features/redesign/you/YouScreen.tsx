@@ -10,7 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
-import { faces, Icon, IconTile, ListGroup, ListItem, Text, useTabBarScroll, useTabBarSpace } from "../../../ui";
+import { faces, Icon, IconTile, ListGroup, ListItem, Text, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
 import { EditSearchSheet } from "../EditSearch";
@@ -50,10 +50,12 @@ export function appVersionLine() {
  * it's for. Appearance opens the iPhone's menu from its row. */
 export function YouView({ person, values, appearance, onAppearance, show, open }: YouViewProps) {
   const insets = useSafeAreaInsets();
-  const tabBarScroll = useTabBarScroll();
+  const edge = useTopEdge();
+  const tabBarScroll = useTabBarScroll(undefined, edge);
   // The tab bar floats over the list's end.
   const tabSpace = useTabBarSpace();
-  return <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: tabSpace }]}>
+  return <>
+  <ScrollView {...tabBarScroll} style={styles.fill} contentContainerStyle={[styles.content, { paddingTop: insets.top, paddingBottom: tabSpace }]}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.header}>
       <View style={styles.nav} />
@@ -77,7 +79,7 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       {show.outreach
         ? <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" accessory="chevron" onPress={() => open("outreach")} />
         : <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" value="Soon" />}
-      <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Coming soon" accessory="chevron" onPress={() => open("tailoring")} />
+      <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Soon" accessory="chevron" onPress={() => open("tailoring")} />
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
       {show.plan
@@ -107,7 +109,9 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <ListItem leading={<IconTile icon="whatsNew" meaning="app" />} title="What's new" value={values.whatsNew} accessory="chevron" onPress={() => open("whatsNew")} />
     </ListGroup>
     <View style={styles.version}><Text role="footnote" tone="ink-3" align="center" selectable>{appVersionLine()}</Text></View>
-  </ScrollView>;
+  </ScrollView>
+  <TopEdgeBlur under={edge.under} />
+  </>;
 }
 
 /** Your name and email on a gray card; it opens Account. */

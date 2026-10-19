@@ -48,9 +48,9 @@ describe("level and experience", () => {
 describe("the ticket", () => {
   test("keeps the same grid and says Not listed for missing facts", () => {
     const rows = ticketRows(job({ salary: null, sponsorship_available: null }));
-    expect(rows.map((row) => row.map((fact) => fact.label))).toEqual([["Level", "Pay"], ["Location"], ["Visa sponsorship", "Experience"]]);
-    expect(rows[0][1].value).toBe("Not listed");
+    expect(rows.map((row) => row.map((fact) => fact.label))).toEqual([["Level", "Experience"], ["Location"], ["Pay", "Visa sponsorship"]]);
     expect(rows[2][0].value).toBe("Not listed");
+    expect(rows[2][1].value).toBe("Not listed");
   });
 
   test("leads with the place the search covers and summarizes the rest", () => {

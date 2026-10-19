@@ -7,9 +7,9 @@ import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-na
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Sheet } from "../../kit";
 import {
-  ApplyButton, Button, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, PageBarSlot, SheetModal, StampedSlip, Text,
+  ApplyButton, Button, ChoiceLink, Choices, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, PageBarSlot, SheetHeader, SheetModal,
+  SheetScroll, SheetStep, StampedSlip, Text,
   Ticket, useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
@@ -121,11 +121,18 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     <SheetModal open={applyFlow.preparing} onClosed={applyFlow.endPreparing} onGone={applyFlow.prepGone}>
       <ApplyPrep job={job} onOpen={applyFlow.openAssisted} onAlreadyApplied={applyFlow.confirmApplied} />
     </SheetModal>
-    <Sheet open={placesOpen} onOpenChange={setPlacesOpen} title="Locations">
-      <ListGroup>
-        {places.map((entry) => <ListItem key={entry.place} title={entry.place} value={entry.matched ? "Your search" : undefined} />)}
-      </ListGroup>
-    </Sheet>
+    {/* Every place, in Pinkslip's sheet like every other (Paper "Consistency
+        · Oct 19", C1): the ones you searched for say so. */}
+    <SheetModal open={placesOpen} onClosed={() => setPlacesOpen(false)}>
+      <SheetStep id="locations">
+        <SheetHeader title="Locations" />
+        <SheetScroll style={styles.placesScroll} contentContainerStyle={styles.placesBody}>
+          <Choices last>
+            {places.map((entry) => <ChoiceLink key={entry.place} title={entry.place} value={entry.matched ? "Your search" : undefined} />)}
+          </Choices>
+        </SheetScroll>
+      </SheetStep>
+    </SheetModal>
   </View>;
 }
 
@@ -205,6 +212,9 @@ export function TopBar({ onShare, menu }: { onShare: () => void; menu: GlyphMenu
 const styles = StyleSheet.create((theme) => ({
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
   pill: { flexDirection: "row" },
+  // A long list scrolls inside the sheet, edge to edge under its padding.
+  placesScroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
+  placesBody: { paddingHorizontal: theme.ui.space["5"] },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.bg },
   // Centred in the room under Back, a little above the middle.

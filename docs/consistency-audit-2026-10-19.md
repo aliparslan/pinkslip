@@ -82,9 +82,10 @@ so they get drawn and approved before code.
    button); everything else uses Pinkslip's own sheet (`ui/Sheet`: floats 8
    in, 40 corners, grab bar). Fix: move both to `SheetModal`. Paper first
    for Locations (a list in our sheet).
-   **Admin fixed** (`redesign/admin/SourceSheet.tsx`: Add and Edit source
-   in our sheet, from the kit's form parts). **Locations drawn**, waiting on
-   the owner: Paper "Consistency · Oct 19", C1.
+   **Fixed.** Admin: `redesign/admin/SourceSheet.tsx` (Add and Edit source
+   in our sheet, from the kit's form parts). Locations: our sheet (Paper
+   "Consistency · Oct 19", C1, owner-approved), and the ticket now reads
+   Level | Experience, Location, Pay | Visa sponsorship (owner: visa last).
 2. **Fixed with A.** **Loading pages show the system bar, then swap to ours.** A job or
    application that's still loading shows iOS's Back (`title: ""`), then the
    floating bar replaces it, so Back jumps. Fix with the header decision:
@@ -95,11 +96,13 @@ so they get drawn and approved before code.
    will appear; a spinner only for a single thing (a posting's text).
    **Fixed** for a company's jobs (two lines, no logo) and events, a job's
    emails and hidden companies (a logo and a name; Paper C3a);
-   `RowPlaceholders` takes `lines` and `logo`. **Alerts drawn** (its two
-   cards with bars, C3b), waiting on the owner.
-4. **Empty-state copy.** Today and Job emails say "Nothing yet", Tracker says
+   `RowPlaceholders` takes `lines` and `logo`. Alerts: its two cards with a
+   bar per row (`GroupPlaceholders`, C3b, owner-approved).
+4. **Fixed** (owner: "Nothing yet"; Tracker changed). **Empty-state copy.** Today and Job emails say "Nothing yet", Tracker says
    "Nothing here yet". Pick one (suggest "Nothing yet").
-5. **"Soon" and "Coming soon".** You lists Outreach, Plan and Auto-apply as
+5. **Fixed** (owner-approved: Tailoring's row says "Soon" and keeps its
+   chevron; Answers' wrench page is "Answers are coming"). **"Soon" and
+   "Coming soon".** You lists Outreach, Plan and Auto-apply as
    "Soon" (no chevron) but Tailoring as "Coming soon" with a chevron to its
    wrench page; Answers' wrench page is titled "Coming soon". The wrench
    pages stay (roadmap signals); the wording should match. Suggest "Soon"
@@ -114,8 +117,9 @@ so they get drawn and approved before code.
 7. **Rows run under the clock on every tab.** Scrolled, a tab's rows pass
    under the status bar with nothing behind it. A `TopEdgeFade` the status
    bar's height on each tab would match the pages that float a bar. Paper
-   first. **Drawn**, waiting on the owner: C7a (today) and C7b (the page's
-   colour behind the clock, fading out 12 under it).
+   first. **Fixed** (C7b, owner-approved after asking for a heavy blur
+   instead of the flat band): `TopEdgeBlur` on every tab's top, none at
+   the bottom.
 8. **Fixed with A** (`features/kit/KitPage.tsx`). **Kit pages use the system bar with a centred title** (Redesign kit, Icon
    sets, Sheet transitions, Swipes, Kit). Only the owner sees them; they
    follow whichever header is picked.

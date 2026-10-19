@@ -379,7 +379,7 @@ the storyboard spec. These were chosen in the Motion lab
 
 | Object | Means | Where |
 | --- | --- | --- |
-| Grained ticket with perforated stub | A job's facts | Job page |
+| Grained ticket with perforated stub | A job's facts: Level and Experience, then Location, then Pay and Visa sponsorship last (owner, 2026-10-19) | Job page |
 | Torn stub | You applied | Job page after applying (it falls into the Apply button), your stub on the application |
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
 | Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, small marks |
@@ -500,8 +500,14 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   at once; what's still coming is grey (`fill`) in its real shape, pulsing
   softly, after a second of nothing. A list is `RowPlaceholders` in its
   rows' shape (`lines`, `logo`: a company's jobs are two lines with no
-  logo, hidden companies a logo and a name). A spinner is only for a single
+  logo, hidden companies a logo and a name); settings are
+  `GroupPlaceholders`, their white cards with a grey bar per row (Alerts;
+  Paper "Consistency · Oct 19", C3b). A spinner is only for a single
   thing on its way (a posting's text, a button's own wait).
+- **Words for empty and not yet** (owner, 2026-10-19): a list that fills
+  over time says "Nothing yet" (Today, Tracker, Job emails). Something not
+  built yet is "Soon" as a row's value; its wrench page is titled by what's
+  coming ("Tailoring is coming", "Answers are coming", "Pro is coming").
 - **Your stub** (`Stub` in `Ticket.tsx`, owner 2026-10-14): the ticket's
   torn-off stub on an application's page. Its top is the tear's other half;
   each step is a rubber stamp (Founders Grotesk Mono caps: the step in
@@ -573,6 +579,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   2026-10-13; closest-to-an-offer first had put Saved near the bottom).
 - **Large title:** 8 under the 44 nav row on every tab, so titles line up
   across tabs. A date eyebrow sits inside the nav row, not above the title.
+- **A tab's top** (owner, 2026-10-19, Paper "Consistency · Oct 19", C7b):
+  rows scrolled up go soft under a blur behind the clock (`TopEdgeBlur`:
+  iOS's thin material, solid through the status bar, gone 32 under it), as
+  iOS 26 does at a scroll edge. A flat band of the page colour was harsh.
+  Like iOS's, it shows only once the list has scrolled past 8 (the mostly
+  empty nav row), fading in over `uiMotion.topEdge` (200ms), so a tab at
+  rest has nothing behind the clock; the material reaches 24 past the
+  screen's edges, where it would otherwise lighten. A tab root makes it
+  with `useTopEdge()`, passed to `useTabBarScroll`. Nothing at the bottom;
+  the tab bar floats on its own.
 - **A pushed page's top** (`ui/PageBar.tsx`; owner, 2026-10-19, option A in
   `consistency-audit-2026-10-19.md`): Back on the left and the page's
   actions on the right, pinned, each on `Floating` glass over a
@@ -857,6 +873,14 @@ cut so that each remaining one has a job.
     `toast` from `ui`. Drawn for the owner (Paper "Consistency · Oct 19"):
     Locations in our sheet (C1), Alerts loading as its cards (C3b), and a
     fade behind the clock on scrolled tabs (C7).
+  - The owner approved them, built the same day: a job's Locations is
+    Pinkslip's sheet; the ticket reads Level | Experience, Location, Pay |
+    Visa sponsorship (owner: visa last); Alerts loads as `GroupPlaceholders`;
+    every tab's top is `TopEdgeBlur` (C7b, redrawn from a flat fade to a
+    heavy blur at the owner's ask; top only), shown once a list scrolls
+    under the clock; new token `uiMotion.topEdge`. Empty lists say "Nothing yet";
+    Tailoring's row says "Soon" and Answers' wrench page "Answers are
+    coming".
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

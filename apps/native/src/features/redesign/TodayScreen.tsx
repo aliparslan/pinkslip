@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
-import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
@@ -75,7 +75,8 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
   const list = useRef<ScrollView>(null);
-  const tabBarScroll = useTabBarScroll();
+  const edge = useTopEdge();
+  const tabBarScroll = useTabBarScroll(undefined, edge);
   const { plan, today } = useTodayPlan(sample);
   const markSeen = useMarkTodaySeen();
   const newToday = useNewToday();
@@ -142,6 +143,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
       </View>
       {body}
     </ScrollView>
+    <TopEdgeBlur under={edge.under} />
     <WhichApplicationSheet email={asking} onClosed={() => setAsking(null)} actions={sample ? {
       assign: async () => { toast.success("Filed"); },
       dismiss: async () => undefined,

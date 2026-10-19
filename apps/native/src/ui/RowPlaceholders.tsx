@@ -27,8 +27,8 @@ export function useDelayed(ms = WAIT_MS): boolean {
  * keeps its own shape: `lines` (a company's jobs are two, hidden companies
  * one) and `logo` off where its rows have none.
  */
-export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: { rows?: number; lines?: 1 | 2 | 3; logo?: boolean }) {
-  const shown = useDelayed();
+/** The pulse every placeholder shares: full, then half, and back. */
+function usePulse(shown: boolean) {
   const reduced = useReducedMotion();
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -36,7 +36,35 @@ export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: 
     pulse.value = withRepeat(withTiming(0.5, { duration: PULSE_MS }), -1, true);
     return () => cancelAnimation(pulse);
   }, [shown, reduced, pulse]);
-  const fade = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return useAnimatedStyle(() => ({ opacity: pulse.value }));
+}
+
+/** Each settings row's one bar, so the cards don't read as a grid. */
+const GROUP_BARS = [104, 88, 40, 150, 92, 120] as const;
+
+/**
+ * Settings on their way (Paper "Consistency · Oct 19", C3b, owner): the
+ * page's white cards at once, a grey bar where each 50-tall row's label
+ * goes, pulsing like the rows; room above the first for its label. `groups`
+ * is the rows in each card.
+ */
+export function GroupPlaceholders({ groups }: { groups: readonly number[] }) {
+  const shown = useDelayed();
+  const fade = usePulse(shown);
+  if (!shown) return null;
+  let bar = 0;
+  return <View style={styles.groups} accessible accessibilityLabel="Loading">
+    {groups.map((rows, group) => <View key={group} style={styles.card}>
+      {Array.from({ length: rows }, (_, row) => <View key={row} style={[styles.setting, row > 0 && styles.rule]}>
+        <Animated.View style={[styles.bar, { width: GROUP_BARS[bar++ % GROUP_BARS.length] }, fade]} />
+      </View>)}
+    </View>)}
+  </View>;
+}
+
+export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: { rows?: number; lines?: 1 | 2 | 3; logo?: boolean }) {
+  const shown = useDelayed();
+  const fade = usePulse(shown);
   if (!shown) return null;
   return <Animated.View style={fade} accessible accessibilityLabel="Loading">
     {ROWS.slice(0, rows).map((bars, index) => <View key={index} style={[styles.row, lines < 3 && styles.short, lines === 1 && styles.single, !logo && styles.bare]}>
@@ -60,4 +88,9 @@ const styles = StyleSheet.create((theme) => ({
   bars: { gap: 10, paddingTop: theme.ui.space["1"] },
   barsSingle: { paddingTop: 0 },
   bar: { height: 12, borderRadius: 6, backgroundColor: theme.ui.color.fill },
+  // A settings card's label is 14 tall and sits 8 above it.
+  groups: { gap: theme.ui.space["6"], paddingTop: 22, paddingHorizontal: theme.ui.size.gutter },
+  card: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
+  setting: { height: 50, justifyContent: "center" },
+  rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator },
 }));

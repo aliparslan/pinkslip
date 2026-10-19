@@ -9,8 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import {
-  Chip, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast, useTabBarScroll, useTabBarSpace,
-  type StageGroup,
+  Chip, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast, TopEdgeBlur, useTabBarScroll,
+  useTabBarSpace, useTopEdge, type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -46,7 +46,8 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const insets = useSafeAreaInsets();
   const tabSpace = useTabBarSpace();
   const list = useRef<FlashListRef<Item>>(null);
-  const tabBarScroll = useTabBarScroll(list);
+  const edge = useTopEdge();
+  const tabBarScroll = useTabBarScroll(list, edge);
   const chips = useRef<ScrollView>(null);
   const chipX = useRef(new Map<TrackerView, number>());
   const [view, setView] = useState<TrackerView>(initialView);
@@ -130,9 +131,10 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
         {applications.isError
           ? <EmptyState title="Tracker didn't load" message="Your applications are safe."
             action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />
-          : <EmptyState slips title="Nothing here yet" message="Jobs you save or apply to show up here."
+          : <EmptyState slips title="Nothing yet" message="Jobs you save or apply to show up here."
             action={{ label: "Browse jobs", onPress: () => router.navigate("/") }} />}
       </View>} />
+    <TopEdgeBlur under={edge.under} />
     {sample
       ? <EmailSetupSheet open={setup} onClosed={() => setSetup(false)} inbox={sampleTracking.inbox} prefs={sampleTracking.prefs} actions={sampleTracking.actions} />
       : <LiveEmailSetupSheet open={setup} onClosed={() => setSetup(false)} />}

@@ -9,7 +9,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, Vie
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, useTabBarScroll, useTabBarSpace,
+  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
 } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
@@ -59,7 +59,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const tabSpace = useTabBarSpace();
   // Tapping the current tab again scrolls back to the top.
   const list = useRef(null);
-  const tabBarScroll = useTabBarScroll(list);
+  const edge = useTopEdge();
+  const tabBarScroll = useTabBarScroll(list, edge);
   const criteria = useFeedCriteria();
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
@@ -121,7 +122,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   </View>;
 
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
-  return <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+  return <>
+  <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     renderItem={({ item, index }) => item.kind === "section"
@@ -150,7 +152,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
           action={refined
             ? { label: "Clear filters", variant: "secondary", onPress: () => setFeedSearch({}) }
             : { label: "Refresh", variant: "secondary", icon: "refresh", pending: feed.isRefetching, onPress: () => void refresh() }} />}
-    </View>} />;
+    </View>} />
+  <TopEdgeBlur under={edge.under} />
+  </>;
 }
 
 /** A row opens its job; long-press peeks at it with the row's actions under

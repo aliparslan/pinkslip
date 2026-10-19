@@ -227,7 +227,7 @@ type WrittenSheetSave = (answer: SavedApplicationAnswer, value: ApplicationAnswe
 export function AnswersPage() {
   const session = useSession();
   if (!session.data?.me?.features?.auto_apply_enabled) {
-    return <YouPage title="Answers" scroll={false}><ComingSoon title="Coming soon" message="Answers you give once will fill in every application." /></YouPage>;
+    return <YouPage title="Answers" scroll={false}><ComingSoon title="Answers are coming" message="Answers you give once will fill in every application." /></YouPage>;
   }
   return <LiveAnswers />;
 }

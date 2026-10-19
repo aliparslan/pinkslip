@@ -682,6 +682,9 @@ export const ui = {
       closeShare: 0.25,
       closeSpeed: 400,
     },
+    topEdge: {
+      duration: 200,
+    },
     tab: {
       glide: {
         response: 0.4,

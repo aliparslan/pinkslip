@@ -534,6 +534,9 @@ export const uiMotion = {
     closeShare: 0.25,
     closeSpeed: 400,
   },
+  /** The blur behind the clock on a tab (`TopEdgeBlur`, owner 2026-10-19)
+   * fades in once a list scrolls under it, and out at the top. */
+  topEdge: { duration: 200 },
   tab: {
     glide: { response: 0.4, damping: 1 },
   },

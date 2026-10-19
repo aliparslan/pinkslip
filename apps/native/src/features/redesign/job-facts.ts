@@ -102,10 +102,11 @@ export function orderedPlaces(job: FactsJob, profile: SearchProfile | undefined)
   return [...places.filter((entry) => entry.matched), ...places.filter((entry) => !entry.matched)];
 }
 
-/** The ticket's grid, the same for every job: Level | Pay, Location, Visa
- * sponsorship | Experience. Missing facts say "Not listed" so the grid holds.
- * With several places, the one you searched for leads and the rest follow on
- * a quieter line. */
+/** The ticket's grid, the same for every job: Level | Experience, Location,
+ * Pay | Visa sponsorship, so who it's for comes first and visa last (owner,
+ * 2026-10-19). Missing facts say "Not listed" so the grid holds. With
+ * several places, the one you searched for leads and the rest follow on a
+ * quieter line. */
 export function ticketRows(job: FactsJob, profile?: SearchProfile): TicketFactValue[][] {
   const places = orderedPlaces(job, profile);
   const visa = job.sponsorship_available === true ? "Yes" : job.sponsorship_available === false ? "No" : NOT_LISTED;
@@ -113,9 +114,9 @@ export function ticketRows(job: FactsJob, profile?: SearchProfile): TicketFactVa
     ? { label: "Locations", value: places[0].place, matched: places[0].matched, detail: otherPlaces(places.slice(1).map((entry) => entry.place)) }
     : { label: "Location", value: places[0]?.place ?? NOT_LISTED, matched: places[0]?.matched };
   return [
-    [{ label: "Level", value: jobLevel(job) ?? NOT_LISTED }, { label: "Pay", value: formatCompactSalaryText(job.salary) ?? NOT_LISTED }],
+    [{ label: "Level", value: jobLevel(job) ?? NOT_LISTED }, { label: "Experience", value: jobExperience(job) ?? NOT_LISTED }],
     [location],
-    [{ label: "Visa sponsorship", value: visa }, { label: "Experience", value: jobExperience(job) ?? NOT_LISTED }],
+    [{ label: "Pay", value: formatCompactSalaryText(job.salary) ?? NOT_LISTED }, { label: "Visa sponsorship", value: visa }],
   ];
 }
 
