@@ -58,6 +58,38 @@ Production on 2026-10-16:
 The redesign went to every TestFlight tester on 2026-10-16, so testers can
 reach screens whose backend is partial.
 
+## Come back to
+
+Left for later on purpose (owner, 2026-10-18). Nothing here blocks the next
+step; pick these up when there's room.
+
+Sign-in on the iPhone (Paper "Sign in · Oct 15"; the sheet with Apple,
+Google and email by code is live on the owner channel):
+
+- [ ] **Password screens** (S3a "Make a password", S3b "Welcome back"). The
+  server already takes passwords. First decide whether the app may ask if
+  an email has an account: step 6 deliberately never says so, and the
+  drawn screens (and E2 "This email uses Apple") need it, or they get
+  redrawn around code-first sign-up.
+- [ ] **One alerts ask after the first sign-in** (S5).
+- [ ] **The sheet from the moments that need an account:** saving a job
+  ("Save your jobs"), keeping a search, signed out after a long while (K1).
+- [ ] **A Terms page**, then the sheet's "By continuing you agree…" line.
+- [ ] **Google on the website** next to Apple (owner, 2026-10-18: not now).
+
+Other screens waiting:
+
+- [ ] Step 4's date picker for fixing a step's date (waits for Paper).
+- [ ] "Add an application" (owner, 2026-10-18: not a priority).
+
+Owner to-dos:
+
+- [ ] Rotate the Google OAuth client secret (it appeared in chat once), then
+  `wrangler secret put GOOGLE_CLIENT_SECRET`.
+- [ ] An Email Routing rule for help@pinkslip.work.
+- [ ] Clear the 1X Technologies test data from the owner's Tracker (ask
+  Claude, or `DELETE /api/v2/inbox/test-emails`).
+
 ## 1. Notifications
 
 The owner's first priority. Every automation level reaches people through

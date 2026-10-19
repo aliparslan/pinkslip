@@ -31,7 +31,7 @@ Sizes are relative: S is a session, M a few, L a week or more of sessions.
   - a job alert opening the right job
   - account deletion with Apple token revocation
 - [ ] Search Console sitemap and the Rich Results test on a job page.
-- [ ] Optional: the Apple portal setup for website Apple sign-in
+- [x] Optional: the Apple portal setup for website Apple sign-in (live 2026-10-18)
   ([apple-web-sign-in-setup.md](apple-web-sign-in-setup.md)).
 - [ ] Optional: a one-off salary backfill for older Greenhouse postings
   (writes to the live database).
