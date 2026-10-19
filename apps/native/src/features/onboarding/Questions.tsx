@@ -1,8 +1,7 @@
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { NO_ROLE_PREFERENCE, roleChips, visibleRoles, type Profile } from "@pinkslip/core/profile-fields";
-import { queryKeys, useApi, useUpdatePreferences } from "@pinkslip/data";
+import { useApi, useUpdatePreferences } from "@pinkslip/data";
 import { LOCATION_OPTIONS, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, { useReducedMotion, useSharedValue, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
@@ -23,10 +22,6 @@ const TITLES: Record<Question, string> = {
   where: "Where do you want to work?",
 };
 
-/** How long the real Jobs gets to load the saved search before the sheet
- * goes anyway. */
-const HANDOVER_MS = 2500;
-
 export interface QuestionsProps {
   open: boolean;
   /** The search as it's saved now; the answers go into it. */
@@ -39,6 +34,9 @@ export interface QuestionsProps {
   saves: boolean;
   /** A new install's own run, which sends the completed event. */
   counts: boolean;
+  /** Once the answers are saved: resolves when the feed behind shows Jobs'
+   * own list for them, so the sheet can go. */
+  handOver: () => Promise<void>;
   onDone: () => void;
 }
 
@@ -49,7 +47,8 @@ export interface QuestionsProps {
  * The feed behind answers every tap at once (PreviewFeed). From one
  * question to the next the words slide and fade as the sheet eases to its
  * new height (the Onboarding Motion Lab). The answers are saved once, at
- * the end, and the sheet waits for Jobs to load them before it goes. It
+ * the end; the feed behind moves to Jobs' own list for them before the
+ * sheet goes, so what's left when it does is simply Jobs. It
  * can't be swiped away: three taps and it's finished.
  */
 export function Questions({ open, onDone, ...props }: QuestionsProps) {
@@ -58,10 +57,9 @@ export function Questions({ open, onDone, ...props }: QuestionsProps) {
   </SheetModal>;
 }
 
-function Steps({ saved, draft, change, index, setIndex, saves, counts }: Omit<QuestionsProps, "open" | "onDone">) {
+function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver }: Omit<QuestionsProps, "open" | "onDone">) {
   const sheet = useSheet();
   const api = useApi();
-  const queryClient = useQueryClient();
   const update = useUpdatePreferences();
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
@@ -86,11 +84,7 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts }: Omit<Qu
       setFinishing(true);
       try {
         await update.mutateAsync({ search_profile: answeredSearch(saved, draft, new Date()) });
-        // Jobs behind takes over from the preview once it has the new search.
-        await Promise.race([
-          queryClient.refetchQueries({ queryKey: queryKeys.personal.jobsRoot, type: "active" }),
-          new Promise((resolve) => setTimeout(resolve, HANDOVER_MS)),
-        ]);
+        await handOver();
       } catch {
         setFinishing(false);
         toast.error("Couldn't save that. Try again.");

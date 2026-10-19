@@ -353,8 +353,10 @@ the storyboard spec. These were chosen in the Motion lab
     placeholders.
   - From one question to the next the words slide 40% of the screen and
     fade (response 0.42s, no bounce) as the sheet eases to its new height.
-    The answers are saved once, at the end, and the sheet waits for Jobs to
-    load them before it goes.
+    The answers are saved once, at the end. Then the feed behind moves to
+    Jobs' own list for them (the same rows, sections and counts Jobs will
+    show), the sheet goes, and the feed fades over Jobs showing the same,
+    so nothing reloads: you're simply in Jobs (owner, 2026-10-18).
   - Reduce Motion: the cards fade in where they lie and fade away; the rows
     fade without rising; the feed and the questions change in place.
 - **Nothing overshoots.** Bounce is only for a throw that carried momentum,

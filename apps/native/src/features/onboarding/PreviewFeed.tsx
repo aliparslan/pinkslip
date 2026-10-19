@@ -5,6 +5,7 @@ import { ScrollView, View, useWindowDimensions } from "react-native";
 import Animated, {
   LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming, type EntryExitAnimationFunction,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { Chip, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text } from "../../ui";
@@ -49,7 +50,23 @@ const rowOut: EntryExitAnimationFunction = () => {
 /** The rest move to their new places on the same spring. */
 const moved = LinearTransition.springify().mass(ROW_SPRING.mass).stiffness(ROW_SPRING.stiffness).damping(ROW_SPRING.damping);
 
-type Item = { kind: "section"; key: string; title: string; count: number } | { kind: "job"; key: string; job: Job };
+type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: Job };
+
+/** Sections and rows as Jobs lists them: the last section has no count while
+ * more pages are left. */
+function listed(jobs: readonly Job[], more: boolean): Item[] {
+  const sections = feedSections([...jobs]);
+  const list: Item[] = [];
+  let left = SHOWN;
+  sections.forEach((section, index) => {
+    if (left <= 0) return;
+    const count = index === sections.length - 1 && more ? undefined : section.jobs.length;
+    list.push({ kind: "section", key: `section-${section.title}`, title: section.title, count });
+    for (const job of section.jobs.slice(0, left)) list.push({ kind: "job", key: job.id, job });
+    left -= Math.min(left, section.jobs.length);
+  });
+  return list;
+}
 
 export interface PreviewFeedProps {
   /** The jobs fetched while the hook played, widest first; undefined while they load. */
@@ -60,6 +77,12 @@ export interface PreviewFeedProps {
   whereAsked: boolean;
   /** Page two is leaving: the feed slides in from the right under it. */
   arriving: boolean;
+  /** Jobs' own first page for the saved answers: once it's here the rows
+   * move to exactly what Jobs shows, so handing over changes nothing. */
+  final: { jobs: readonly Job[]; more: boolean } | null;
+  /** Done: it fades, and Jobs, showing the same, is underneath. */
+  leaving: boolean;
+  onGone: () => void;
 }
 
 /**
@@ -67,10 +90,11 @@ export interface PreviewFeedProps {
  * Oct 18", 3 to 3c; the Onboarding Motion Lab): the jobs fetched while the
  * hook played, narrowed on the phone as each chip changes, so the feed
  * answers the tap at once. Jobs that now fit come in, ones that don't slide
- * away, and the rest move up or down. Nothing in it is tappable; the real
- * Jobs, from the saved search, takes over when the questions are done.
+ * away, and the rest move up or down. At the end the rows move to Jobs' own
+ * list for the saved answers, then it fades over Jobs showing the same, so
+ * you're simply in Jobs. Nothing in it is tappable.
  */
-export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving }: PreviewFeedProps) {
+export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final, leaving, onGone }: PreviewFeedProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -78,21 +102,20 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving }: Pre
   useEffect(() => {
     if (arriving) offset.value = withSpring(0, spring(LEAVE));
   }, [arriving, offset]);
-  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: offset.value }] }));
+  const shown = useSharedValue(1);
+  useEffect(() => {
+    if (!leaving) return;
+    shown.value = withTiming(0, { duration: 200 }, (done) => {
+      if (done) scheduleOnRN(onGone);
+    });
+  }, [leaving, shown, onGone]);
+  const slide = useAnimatedStyle(() => ({ opacity: shown.value, transform: [{ translateX: offset.value }] }));
 
   const items = useMemo(() => {
+    if (final) return listed(final.jobs, final.more);
     if (!jobs || !answered) return null;
-    const sections = feedSections(jobs.filter((job) => fitsAnswers(job, draft, whereAsked)));
-    const list: Item[] = [];
-    let left = SHOWN;
-    for (const section of sections) {
-      if (left <= 0 || section.jobs.length === 0) continue;
-      list.push({ kind: "section", key: `section-${section.title}`, title: section.title, count: section.jobs.length });
-      for (const job of section.jobs.slice(0, left)) list.push({ kind: "job", key: job.id, job });
-      left -= Math.min(left, section.jobs.length);
-    }
-    return list;
-  }, [jobs, answered, draft, whereAsked]);
+    return listed(jobs.filter((job) => fitsAnswers(job, draft, whereAsked)), false);
+  }, [final, jobs, answered, draft, whereAsked]);
 
   const stages = STAGES_IN_ORDER.filter((stage) => draft.target_levels.includes(stage));
   let rows = 0;

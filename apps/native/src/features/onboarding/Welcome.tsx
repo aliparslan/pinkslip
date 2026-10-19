@@ -1,8 +1,9 @@
+import { feedParams } from "@pinkslip/core/feed-criteria";
 import type { Profile } from "@pinkslip/core/profile-fields";
-import { useApi, usePreferences, useUpdatePreferences } from "@pinkslip/data";
+import { useApi, useFeed, usePreferences, useUpdatePreferences } from "@pinkslip/data";
 import { normalizeSearchProfile, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, { Easing, interpolateColor, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -10,6 +11,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { useTabBarStepsAside } from "../../ui";
 import { motion, spring } from "../../ui/motion";
 import { screenCornerRadius } from "../../ui/screen-corners";
+import { useFeedCriteria } from "../feed/Feed";
 import { everything, unanswered } from "./answers";
 import { Handles } from "./Handles";
 import { Hook, settleTime, type ButtonRect } from "./Hook";
@@ -21,6 +23,12 @@ const { bloom: BLOOM } = motion.onboarding;
 /** Jobs fetched while the hook plays, for the feed behind the questions to
  * narrow on the phone: the newest first, enough to fill it for any answer. */
 const POOL = "400";
+
+/** Once the rows have moved to Jobs' own list, how long they get to land
+ * before the sheet goes. */
+const SETTLE_MS = 450;
+/** How long Jobs' list gets to load the saved answers before the sheet goes anyway. */
+const HANDOVER_MS = 4000;
 
 type Stage = "hook" | "handles" | "questions";
 
@@ -51,6 +59,8 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   const [arriving, setArriving] = useState(false);
   const [draft, setDraft] = useState<Profile | null>(null);
   const [index, setIndex] = useState(0);
+  const [handingOver, setHandingOver] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   useTabBarStepsAside(true);
 
   const saved = useMemo(() => (preferences.data ? normalizeSearchProfile(preferences.data.search_profile) : null), [preferences.data]);
@@ -74,6 +84,32 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
     gcTime: 0,
   });
 
+  // Jobs' own list, read as Jobs reads it. Once the answers are saved the
+  // feed behind moves to it, so when the sheet and the preview go, the
+  // screen underneath already shows the same: you're simply in Jobs.
+  const criteria = useFeedCriteria();
+  const params = useMemo(() => feedParams(criteria.search, criteria.available, criteria.defaults), [criteria.search, criteria.available, criteria.defaults]);
+  const real = useFeed(params, handingOver);
+  const loaded = handingOver && real.isSuccess && !real.isFetching;
+  const final = useMemo(() => (loaded && real.data ? { jobs: real.data.pages.flatMap((page) => page.jobs), more: real.hasNextPage } : null),
+    [loaded, real.data, real.hasNextPage]);
+  const waiting = useRef<(() => void) | null>(null);
+  const handOver = () => new Promise<void>((resolve) => {
+    waiting.current = resolve;
+    setHandingOver(true);
+    setTimeout(() => {
+      if (waiting.current !== resolve) return;
+      waiting.current = null;
+      resolve();
+    }, HANDOVER_MS);
+  });
+  useEffect(() => {
+    const resolve = waiting.current;
+    if (!final || !resolve) return;
+    waiting.current = null;
+    setTimeout(resolve, SETTLE_MS);
+  }, [final]);
+
   const leave = (button: ButtonRect) => {
     if (counts) {
       void api.interactions.event({ event_name: "onboarding_started", entity_type: "onboarding", properties: { onboarding_version: ONBOARDING_VERSION } })
@@ -85,13 +121,14 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   const change = (patch: Partial<Profile>) => setDraft((current) => (current ? { ...current, ...patch } : current));
   const answered = Boolean(draft && (draft.target_levels.length > 0 || index > 0));
   return <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-    {stage !== "hook" && draft ? <PreviewFeed jobs={pool.data} draft={draft} answered={answered} whereAsked={index >= 2} arriving={arriving} /> : null}
+    {stage !== "hook" && draft ? <PreviewFeed jobs={pool.data} draft={draft} answered={answered} whereAsked={index >= 2} arriving={arriving}
+      final={final} leaving={leaving} onGone={onDone} /> : null}
     {stage === "hook" ? <Hook onLeave={leave} onAccount={onAccount} /> : null}
     {stage !== "hook" && !pageGone
       ? <Handles onLeaving={() => setArriving(true)} onReady={() => setStage("questions")} onGone={() => setPageGone(true)} /> : null}
     {bloom ? <Bloom from={bloom} onCovered={() => setStage("handles")} onGone={() => setBloom(null)} /> : null}
     {saved && draft ? <Questions open={stage === "questions"} saved={saved} draft={draft} change={change} index={index} setIndex={setIndex}
-      saves={saves} counts={counts} onDone={onDone} /> : null}
+      saves={saves} counts={counts} handOver={handOver} onDone={() => setLeaving(true)} /> : null}
   </View>;
 }
 
