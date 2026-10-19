@@ -9,9 +9,9 @@ import { SHEET_GROUP_RADIUS } from "./sheet-geometry";
 import { Text, type TextTone } from "./Text";
 
 /**
- * The sign-in sheet's parts (Paper "Sign in · Oct 15", S1 approved as K1):
- * the three ways in as 50 capsules 12 apart, the email field, and the
- * six-digit code.
+ * The sign-in sheet's parts (Paper "Sign in · Oct 15", S1 approved as K1;
+ * "Sign in, code first · Oct 19"): the three ways in as 50 capsules 12
+ * apart, the email and password field, and the six-digit code.
  */
 
 export type SignInProvider = "apple" | "google" | "email";
@@ -64,7 +64,7 @@ export function ProviderButton({ provider, pending, disabled, onPress, children 
   </PressableScale>;
 }
 
-export interface SignInFieldProps extends Pick<TextInputProps, "keyboardType" | "textContentType" | "autoComplete" | "returnKeyType" | "onSubmitEditing" | "autoFocus"> {
+export interface SignInFieldProps extends Pick<TextInputProps, "keyboardType" | "textContentType" | "autoComplete" | "returnKeyType" | "onSubmitEditing" | "autoFocus" | "secureTextEntry"> {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -74,7 +74,7 @@ export interface SignInFieldProps extends Pick<TextInputProps, "keyboardType" | 
 
 /** A standalone field on the sheet: white at the sheet group's radius, its
  * label always above the value (S2), the sign-in ring when it's wrong (E1). */
-export function SignInField({ label, value, onChangeText, invalid, keyboardType, textContentType, autoComplete, returnKeyType, onSubmitEditing, autoFocus }: SignInFieldProps) {
+export function SignInField({ label, value, onChangeText, invalid, keyboardType, textContentType, autoComplete, returnKeyType, onSubmitEditing, autoFocus, secureTextEntry }: SignInFieldProps) {
   const { theme } = useUnistyles();
   const fonts = useUiFontsLoaded();
   styles.useVariants({ invalid: Boolean(invalid) });
@@ -82,6 +82,7 @@ export function SignInField({ label, value, onChangeText, invalid, keyboardType,
     <Text role="footnote" tone="ink-3">{label}</Text>
     <TextInput value={value} onChangeText={onChangeText} accessibilityLabel={label} autoFocus={autoFocus}
       keyboardType={keyboardType} textContentType={textContentType} autoComplete={autoComplete} autoCapitalize="none" autoCorrect={false}
+      secureTextEntry={secureTextEntry}
       returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} selectionColor={theme.ui.color.accent}
       style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
   </View>;

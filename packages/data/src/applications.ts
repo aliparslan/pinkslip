@@ -61,6 +61,17 @@ export function useUpdateApplication() {
   });
 }
 
+/** Fixes a step's date (a stamp on your stub), email steps included. */
+export function useSetStepDate() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, eventId, day }: { id: string; eventId: string; day: string }) => api.applications.setEventDate(id, eventId, day),
+    onSuccess: (detail) => storeDetail(queryClient, detail),
+    onSettled: (detail) => refreshAfterChange(queryClient, detail?.job_id ?? null),
+  });
+}
+
 export function useRemoveApplication() {
   const api = useApi();
   const queryClient = useQueryClient();

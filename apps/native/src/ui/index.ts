@@ -19,6 +19,7 @@ export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type Lis
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { GroupPlaceholders, RowPlaceholders, useDelayed } from "./RowPlaceholders";
 export { SearchField, type SearchFieldProps } from "./SearchField";
+export { AlertPreview } from "./AlertPreview";
 export { AppleLogo, CODE_LENGTH, CodeBoxes, GoogleLogo, ProviderButton, SignInField, type CodeBoxesProps, type ProviderButtonProps, type SignInFieldProps, type SignInProvider } from "./SignIn";
 export { Segmented, type SegmentedProps } from "./Segmented";
 export { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
@@ -27,7 +28,6 @@ export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { StampedSlip, type StampedSlipProps } from "./StampedSlip";
 export { TabBar, useTabBarScroll, useTabBarSpace, useTabBarSteppedAside, useTabBarStepsAside } from "./TabBar";
-export type { TabBarSearch } from "./TabBar";
 export { toast, ToastHost, UNDO_TOAST_DURATION, useToastLift, type ToastAction, type ToastInput, type ToastTone } from "./Toast";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";

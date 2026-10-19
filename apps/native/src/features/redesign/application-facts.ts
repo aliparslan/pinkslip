@@ -9,6 +9,11 @@ export interface Stamp {
   date: string;
   /** The email that recorded it, for "Not right?". */
   email: { id: string; subject: string } | null;
+  /** The timeline step, whose date can be fixed; none for an application
+   * from before the timeline. */
+  eventId: string | null;
+  /** When it happened, for the calendar. */
+  occurredAt: string;
 }
 
 const stampLabels: Record<ApplicationStage, string> = {
@@ -46,12 +51,15 @@ export function stubStamps(application: ApplicationDetail): Stamp[] {
       email: event.source === "email" && event.inbound_email_id
         ? { id: event.inbound_email_id, subject: event.email_subject ?? "" }
         : null,
+      eventId: event.id,
+      occurredAt: event.occurred_at,
     });
   }
   // Applications from before the timeline have no events.
   if (stamps.length === 0 && application.stage !== "saved") {
     const when = new Date(application.applied_at ?? application.stage_changed_at);
-    stamps.push({ stage: application.stage, label: stampLabels[application.stage], date: `${MONTHS[when.getMonth()]} ${when.getDate()}`, email: null });
+    stamps.push({ stage: application.stage, label: stampLabels[application.stage], date: `${MONTHS[when.getMonth()]} ${when.getDate()}`, email: null,
+      eventId: null, occurredAt: when.toISOString() });
   }
   return stamps;
 }
@@ -104,6 +112,32 @@ export const stageDateTitles: Partial<Record<ApplicationStage, string>> = {
 };
 
 /** The date step's question. */
+/** Fixing a step's date (a stamp on your stub; owner, 2026-10-19, Paper
+ * "Step dates · Oct 19"): the question each step asks. */
+export const stepDatePrompts: Record<ApplicationStage, string> = {
+  saved: "When did you save it?",
+  applied: "When did you apply?",
+  assessment: "When did it arrive?",
+  interview: "When did interviews start?",
+  offer: "When did the offer come?",
+  rejected: "When did you hear?",
+  withdrawn: "When did you withdraw?",
+  ghosted: "When did they go quiet?",
+};
+
+/** What an email's step was, for the line under its question ("The
+ * assessment, from Mercury's email"). */
+export const stepNouns: Record<ApplicationStage, string> = {
+  saved: "The save",
+  applied: "Your application",
+  assessment: "The assessment",
+  interview: "The interview",
+  offer: "The offer",
+  rejected: "The answer",
+  withdrawn: "Withdrawing",
+  ghosted: "The silence",
+};
+
 export const stageDatePrompts: Partial<Record<ApplicationStage, string>> = {
   applied: "When will you hear back?",
   assessment: "When's it due?",

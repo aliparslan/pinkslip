@@ -160,6 +160,9 @@ export interface StubStamp {
   detail: string;
   /** Sent but not yet confirmed: dashed and quiet however fresh. */
   pending?: boolean;
+  /** Tapping the stamp fixes its step's date (owner, 2026-10-19, Paper
+   * "Step dates · Oct 19"). */
+  onPress?: () => void;
 }
 
 export interface StubProps {
@@ -206,8 +209,16 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
       <View style={[stubStyles.halfNotch, styles.notchRight, { backgroundColor: holeColor }]} pointerEvents="none" />
     </Fragment> : null}
     <View style={stubStyles.stamps}>
-      {stamps.map((stamp, index) => <RubberStamp key={stamp.key} stamp={stamp} fresh={index === stamps.length - 1}
-        angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={!seen.current?.has(stamp.key)} />)}
+      {stamps.map((stamp, index) => {
+        const mark = <RubberStamp stamp={stamp} fresh={index === stamps.length - 1}
+          angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={!seen.current?.has(stamp.key)} />;
+        return stamp.onPress
+          ? <Pressable key={stamp.key} onPress={stamp.onPress} accessibilityRole="button" accessibilityHint="Changes its date"
+            accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`} style={({ pressed }) => pressed && styles.pressed}>
+            {mark}
+          </Pressable>
+          : <Fragment key={stamp.key}>{mark}</Fragment>;
+      })}
       {aside ? <View style={stubStyles.aside}>{aside}</View> : null}
     </View>
     {foot || action ? <View style={stubStyles.foot}>

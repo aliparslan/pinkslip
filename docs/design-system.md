@@ -278,14 +278,12 @@ on one line share a size.
 - **Search** (2026-10-15): the Search tab finds jobs and companies, so
   companies need no search of their own in settings. Jobs' field says
   "Search these jobs" and only narrows your feed.
-- **The Search tab's field is at the bottom** (2026-10-16, Paper "Search ·
-  before typing", as iOS 26 draws it): on Search the pill folds into a
-  glass circle holding the tab you came from (in `ink`; tap it to go
-  back) and the field opens out of the Search icon's place, 10 after the
-  circle. One spring (`tab.glide`) drives the fold both ways. Circle and
-  field keep the pill's 56 height rather than Paper's older 62, so the
-  bar doesn't change size. The glass itself never fades, only what's on
-  it. While you type, the bar stands 8 above the keyboard.
+- **The Search tab's field is under its title** (owner, 2026-10-19,
+  replacing the iOS 26 bottom field of 2026-10-16): the 44 field like
+  Jobs' own, 12 under the Large title, scrolling with the page. The tab bar
+  stays as on every tab; the owner found the bar folding round a field at
+  the bottom took it over. Recent searches and the results share one list,
+  so the field keeps the keyboard as results arrive.
 
 ## Motion
 
@@ -457,7 +455,22 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bad` line: under the title (Apple or Google didn't finish), under the
   field, or under the boxes, whose rings turn `bad`; an expired code greys
   the digits and offers "Send a new code" in pink. No Terms line until there
-  is a Terms page. Passwords (S3a, S3b) aren't built yet.
+  is a Terms page.
+  - **Code first** (owner, 2026-10-19, Paper "Sign in, code first · Oct
+    19"): the email step's pink is "Send me a code", with "Use my password"
+    under it. The code step keeps the email step's shape: Back and a grey
+    "Send it again" (A), which turns pink as "Send a new code" when the code
+    expires. After a code, an account with no password gets "Make a
+    password" (Save password or Not now); "Forgot it? Email me a code" ends
+    there as "Make a new password". A wrong password never says which part
+    was wrong ("That email and password don't match."); too many tries makes
+    the pink "Email me a code". "This email uses Apple" is gone.
+  - **When it asks:** a guest's first save, once per phone ("Keep your
+    saved jobs", one line why, Not now under the ways in). There is no
+    separate ask for keeping a search (owner). After the first sign-in on a
+    phone, if new-job alerts aren't reaching it, "Be first to apply" shows
+    the Alerts page's own preview (`AlertPreview`: the app icon, "3 new
+    jobs") with Turn on alerts and Not now.
 - **Sheet or page** (owner, 2026-10-15): a sheet is for a quick choice or
   form that drops you back where you were (sign in, report, edit search,
   pick a plan, change stage, What's new). Anything you read, come back to
@@ -517,6 +530,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   email steps add "· EMAIL" and the foot offers "Not right?". The Mono is
   the trial cut for now; the owner buys it with the other Klim licences
   before release (2026-10-14).
+- **Fixing a step's date** (owner, 2026-10-19, Paper "Step dates · Oct
+  19"): tap a stamp on your stub. The sheet asks the step's own question
+  ("When did you apply?", "When did it arrive?"), adds which email it came
+  from for an email's step ("The assessment, from Mercury's email"), and
+  shows iOS's calendar up to today, with Save. A step is never dated ahead.
 - **Copy field** (`CopyField.tsx`, Paper "Parts · Copy field", owner
   2026-10-14): a value to paste somewhere else, white (`sheet-group`) at
   the sheet group radius. Copy is our two soft squares (copy D) in a 36
@@ -850,7 +868,16 @@ cut so that each remaining one has a job.
     with several on; the board also tried heavier lines, berry and ink
     labels, softer, rose and magenta pinks, a pastel fill, and Linear's way
     (a grey fill, colour only in small marks). Jobs' filters stay ink.
+- **2026-10-19 (evening)**
+  - Sign-in, code first, built (see Sign in): A on the code step, M1 on a
+    guest's first save, S5 after the first sign-in, and "Make a password"
+    after a code (`POST /auth/password`, within 15 minutes of the code).
+  - Fixing a step's date by tapping its stamp, built.
+  - A link the app has no page for shows W4's slip (`app/+not-found.tsx`).
 - **2026-10-19 (later)**
+  - The Search tab's field moved from the bottom (where the tab bar folded
+    round it) to under the title, like Jobs'; the tab bar no longer
+    changes on Search (owner).
   - Consistency pass (`consistency-audit-2026-10-19.md`, owner: Search's
     header stuck, the job page's buttons were see-through, headers
     differ). Fixed to rules already here: Search's title scrolls with its

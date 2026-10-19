@@ -45,6 +45,9 @@ export interface JobsFeedProps {
   /** "feed" searches inside your saved search and filters; "all" searches
    * every open job (the Search tab). */
   scope?: "feed" | "all";
+  /** The Search tab before you type (recent searches): shown in the jobs'
+   * place under `top`, with nothing fetched, so the field stays put. */
+  idle?: ReactNode;
 }
 
 /**
@@ -53,7 +56,7 @@ export interface JobsFeedProps {
  * shows the same list for its query. Rows keep today's full swipes and
  * long-press menu.
  */
-export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, after, scope = "feed" }: JobsFeedProps = {}) {
+export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, after, scope = "feed", idle }: JobsFeedProps = {}) {
   const { theme } = useUnistyles();
   const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
@@ -66,13 +69,14 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const searching = query !== undefined;
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
   const params = useMemo(() => (scope === "all" ? { q: search.q } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
-  const feed = useFeed(params, preferences.isSuccess);
+  const waiting = idle !== undefined && !search.q;
+  const feed = useFeed(params, preferences.isSuccess && !waiting);
   const stats = useStats();
   const viewed = useViewedJobs();
   const { actions, onOpen } = useJobActions("feed");
   const track = useTrack();
 
-  const jobs = useMemo(() => feed.data?.pages.flatMap((page) => page.jobs) ?? [], [feed.data]);
+  const jobs = useMemo(() => (waiting ? [] : feed.data?.pages.flatMap((page) => page.jobs) ?? []), [waiting, feed.data]);
   const items = useMemo(() => {
     const sections = feedSections(jobs);
     return sections.flatMap<Item>((section, index) => [
@@ -130,7 +134,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
       ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
-    refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
+    // Always there: adding or removing it rebuilds the list's content on iOS,
+    // and the Search field in the header would lose its keyboard.
+    refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={waiting ? noop : pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
     ListFooterComponent={jobs.length > 0 ? <>
       {after}
       <View style={styles.footer}>
@@ -138,7 +144,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
           : feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
       </View>
     </> : null}
-    ListEmptyComponent={feed.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
+    ListEmptyComponent={waiting ? <>{idle}</> : feed.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
       {emptyOffline
         ? <EmptyState title="You're offline" message="Jobs will be here when you're back." />
         : feed.isError && !feed.data
@@ -156,6 +162,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   <TopEdgeBlur under={edge.under} />
   </>;
 }
+
+const noop = () => undefined;
 
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). */

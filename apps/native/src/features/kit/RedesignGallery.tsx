@@ -9,6 +9,7 @@ import {
 } from "../../ui";
 import { KitPage } from "./KitPage";
 import { SwipeRow } from "../../kit";
+import { openSignIn } from "../account/sign-in-request";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
 import { replayOnboarding } from "../onboarding/launch";
 import { DidYouApply } from "../redesign/ApplySheets";
@@ -48,6 +49,9 @@ export function RedesignGallery() {
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Onboarding, from the start" accessory="chevron" onPress={() => { replayOnboarding(); router.navigate("/"); }} />
         <ListItem title="Onboarding, saving to your search" accessory="chevron" onPress={() => { replayOnboarding(true); router.navigate("/"); }} />
+        <ListItem title="Sign in, every step (sends nothing)" accessory="chevron" onPress={() => openSignIn({ sample: true })} />
+        <ListItem title="Sign in, a guest's first save" accessory="chevron"
+          onPress={() => openSignIn({ title: "Keep your saved jobs", detail: "So they follow you to a new phone.", notNow: true, sample: true })} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />

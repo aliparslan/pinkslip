@@ -18,6 +18,7 @@ import { cachedJob, type AnyJob } from "../jobs/cached-job";
 import { useTrack } from "../jobs/track";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { ReportSheet } from "./ReportSheet";
+import { askToKeepSaves } from "../account/keep-saves";
 
 export type DetailJob = AnyJob & Partial<Job>;
 
@@ -151,7 +152,9 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   });
   const toggleSave = () => {
     haptics.tap();
-    (saved ? unsave : save).mutate(job.id, { onError: () => toast.error("Couldn't update your saved jobs. Try again.") });
+    const onError = () => toast.error("Couldn't update your saved jobs. Try again.");
+    if (saved) unsave.mutate(job.id, { onError });
+    else save.mutate(job.id, { onSuccess: () => askToKeepSaves(session?.state === "authenticated"), onError });
   };
 
   /** Safari opens over the app; closing it asks whether you applied, since

@@ -484,6 +484,8 @@ export interface AppFeatures {
   web_apple_sign_in_enabled?: boolean;
   google_sign_in_enabled?: boolean;
   password_sign_in_enabled?: boolean;
+  /** The server can set a password right after a code sign-in. */
+  password_after_code_enabled?: boolean;
   tailoring_enabled: boolean;
   tailoring_provider: "workers_ai" | null;
   tailoring_model: string;
@@ -876,6 +878,12 @@ function createEndpoints(context: ClientContext) {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    /** Makes (or replaces) the password within 15 minutes of a code sign-in. */
+    setPassword: (password: string) =>
+      request<MeResponse>("/auth/password", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      }),
     /** The iPhone's Google sign-in: open `url` in the system's sign-in sheet,
      * then finish with the `state` it returns to `return_url` with. */
     startGoogleNative: () =>
@@ -1012,6 +1020,12 @@ function createEndpoints(context: ClientContext) {
         body: JSON.stringify(changes),
       }),
     remove: (id: string) => request<void>(`/applications/${id}`, { method: "DELETE" }),
+    /** Moves one step to when it happened: a day ("2026-10-02") or an instant, never ahead. */
+    setEventDate: (id: string, eventId: string, occurredAt: string) =>
+      request<ApplicationDetail>(`/applications/${id}/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ occurred_at: occurredAt }),
+      }),
   },
   /** Email tracking: the forwarding address and what forwarded mail reported. */
   inbox: {

@@ -2,7 +2,7 @@ import { DatePicker, Host } from "@expo/ui/swift-ui";
 import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { ApiError, type ApplicationDetail, type ApplicationStage } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
-import { useApplication, useRemoveApplication, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
+import { useApplication, useRemoveApplication, useSetStepDate, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
 import { router, Stack, useSegments } from "expo-router";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
@@ -17,18 +17,20 @@ import {
 import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";
 import {
   addStageDateLabels, asksForDate, daysSinceApplied, nextRowFacts, stageDateHasTime, stageDatePrompts, stageDateTitles, stageDateToSend,
-  stageDateValue, sentStub, stubStamps, type SentProof, type Stamp,
+  stageDateValue, sentStub, stepDatePrompts, stepNouns, stubStamps, type SentProof, type Stamp,
 } from "./application-facts";
 import { Description } from "./Description";
 import { BAR, TOP_BAR, TopBar, usePinnedBarToastLift } from "./JobPage";
 import { JobIdentity } from "./JobIdentity";
-import { ticketStub } from "./job-facts";
+import { plainText, ticketStub } from "./job-facts";
 import { MOVE_TO } from "./tracker-facts";
 
 /** What the page asks of whoever holds the application: the server, or a sample's own state. */
 export interface ApplicationActions {
   setStage: (stage: ApplicationStage) => Promise<void>;
   setDate: (stageDate: string | null) => Promise<void>;
+  /** Moves one step (a stamp) to the day it happened. */
+  setStepDate: (eventId: string, day: string) => Promise<void>;
   undoEmail: (emailId: string) => Promise<void>;
   remove: () => Promise<void>;
 }
@@ -46,6 +48,7 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
   const update = useUpdateApplication();
   const removal = useRemoveApplication();
   const undo = useUndoInboundEmail();
+  const stepDate = useSetStepDate();
   const application = query.data;
   if (!application) {
     const gone = query.error instanceof ApiError && query.error.status === 404;
@@ -69,6 +72,9 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
     },
     setDate: async (stageDate) => {
       await update.mutateAsync({ id: application.id, stage_date: stageDate }).catch(failed("Couldn't save the date. Try again."));
+    },
+    setStepDate: async (eventId, day) => {
+      await stepDate.mutateAsync({ id: application.id, eventId, day }).catch(failed("Couldn't change the date. Try again."));
     },
     undoEmail: async (emailId) => {
       await undo.mutateAsync({ emailId, applicationId: application.id }).catch(failed("Couldn't undo it. Try again."));
@@ -114,6 +120,8 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
   usePinnedBarToastLift();
   const tab = (useSegments() as readonly string[])[1] ?? "(library)";
   const [sheet, setSheet] = useState<SheetStart | null>(null);
+  // The stamp whose date is being fixed.
+  const [fixing, setFixing] = useState<Stamp & { eventId: string } | null>(null);
   const stamps = stubStamps(application);
   const latest = stamps.at(-1);
   const proof = sent ? sentStub(application, sent, stamps) : null;
@@ -145,6 +153,7 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
   const stubStampsShown: StubStamp[] = stamps.map((stamp, index) => ({
     key: `${stamp.stage}-${index}`, label: proof?.waiting ? "SENT" : stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,
     pending: proof?.waiting,
+    onPress: stamp.eventId && !proof ? () => setFixing({ ...stamp, eventId: stamp.eventId! }) : undefined,
   }));
   // A new step's stamp lands once its sheet has gone (the date asked for
   // too), not behind it (owner, 2026-10-18).
@@ -180,6 +189,9 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     </View>
     <SheetModal open={sheet !== null} onClosed={() => setSheet(null)}>
       {sheet ? <StageSheet application={application} start={sheet} actions={actions} /> : null}
+    </SheetModal>
+    <SheetModal open={fixing !== null} onClosed={() => setFixing(null)}>
+      {fixing ? <StepDateSheet stamp={fixing} company={job?.company_name ?? application.company_name} actions={actions} /> : null}
     </SheetModal>
   </View>;
 }
@@ -272,6 +284,47 @@ function defaultDate(stage: ApplicationStage): Date {
   return date;
 }
 
+/** iOS's own month calendar on a white group. Its height follows what
+ * SwiftUI lays out: measured once on mount, it left off a month's last week. */
+function Calendar({ date, onChange, upTo }: { date: Date; onChange: (date: Date) => void; upTo?: Date }) {
+  const { theme } = useUnistyles();
+  const [height, setHeight] = useState<number | null>(null);
+  return <View style={styles.calendar}>
+    <Host matchContents={{ vertical: true }} onLayoutContent={(event) => setHeight(event.nativeEvent.height)}
+      style={[styles.host, height ? { height } : null]}>
+      <DatePicker selection={date} range={upTo ? { end: upTo } : undefined} displayedComponents={["date"]} onDateChange={onChange}
+        modifiers={[datePickerStyle("graphical"), tint(theme.ui.color["accent-fill"])]} />
+    </Host>
+  </View>;
+}
+
+/** Fixing a step's date (Paper "Step dates · Oct 19"): the step's own
+ * question, which email it came from for an email's step, iOS's calendar up
+ * to today (a step is never ahead), and Save. The stamp keeps its place. */
+function StepDateSheet({ stamp, company, actions }: { stamp: Stamp & { eventId: string }; company: string; actions: ApplicationActions }) {
+  const sheet = useSheet();
+  const [date, setDate] = useState(() => new Date(stamp.occurredAt));
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await actions.setStepDate(stamp.eventId, stageDateToSend(date, false));
+      haptics.success();
+      sheet.close();
+    } catch {
+      setSaving(false);
+    }
+  };
+  return <SheetStep id="step-date">
+    <View style={styles.heading}>
+      <SheetHeader title={stepDatePrompts[stamp.stage]} />
+      {stamp.email ? <Text role="subhead" tone="ink-2">{`${stepNouns[stamp.stage]}, from ${plainText(company)}'s email`}</Text> : null}
+    </View>
+    <Calendar date={date} onChange={setDate} upTo={new Date()} />
+    <Button variant="primary" fullWidth pending={saving} onPress={() => void save()}>Save</Button>
+  </SheetStep>;
+}
+
 /** "When's the interview?": the calendar, a time for an interview, then Save,
  * with Skip under it (or Remove date when it already had one). */
 function DateStep({ stage, existing, inner, onSave, onRemove, onSkip }: {
@@ -295,12 +348,7 @@ function DateStep({ stage, existing, inner, onSave, onRemove, onSkip }: {
   const accent = theme.ui.color["accent-fill"];
   return <SheetStep id="date" inner={inner}>
     <SheetHeader title={stageDatePrompts[stage] ?? "When?"} />
-    <View style={styles.calendar}>
-      <Host matchContents={{ vertical: true }} style={styles.host}>
-        <DatePicker selection={date} displayedComponents={["date"]} onDateChange={setDay}
-          modifiers={[datePickerStyle("graphical"), tint(accent)]} />
-      </Host>
-    </View>
+    <Calendar date={date} onChange={setDay} />
     {withTime ? <View style={styles.time}>
       <Text flex>Time</Text>
       <Host matchContents>
@@ -342,6 +390,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   calendar: { borderRadius: SHEET_GROUP_RADIUS, borderCurve: "continuous", backgroundColor: theme.ui.color["sheet-group"], paddingHorizontal: theme.ui.space["2"] },
   host: { alignSelf: "stretch" },
+  heading: { gap: theme.ui.space["1"] },
   time: {
     flexDirection: "row",
     alignItems: "center",

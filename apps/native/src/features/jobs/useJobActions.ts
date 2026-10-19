@@ -5,6 +5,7 @@ import {
 import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { haptics } from "../../platform/haptics";
+import { askToKeepSaves } from "../account/keep-saves";
 
 export type JobListContext = "feed" | "saved" | "applied";
 
@@ -47,7 +48,7 @@ export function useJobActions(context: JobListContext) {
   const saveJob = (job: RowJob) => {
     haptics.tap();
     // The bookmark fills (and a swipe's capsule says Save), so no toast.
-    save.mutate(job.id, { onError: () => toast.error("Couldn't save that job. Try again.") });
+    save.mutate(job.id, { onSuccess: () => askToKeepSaves(access.signedIn), onError: () => toast.error("Couldn't save that job. Try again.") });
   };
 
   const actions: JobActions = {

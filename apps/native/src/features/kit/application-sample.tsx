@@ -83,6 +83,10 @@ export function SampleApplicationPage({ state }: { state: SampleState }) {
       events: [...current.events, { id: `${stage}-${Date.now()}`, stage, occurred_at: new Date().toISOString(), source: "user", inbound_email_id: null, email_subject: null }],
     })),
     setDate: async (stageDate) => setApplication((current) => ({ ...current, stage_date: stageDate })),
+    setStepDate: async (eventId, day) => setApplication((current) => ({
+      ...current,
+      events: current.events.map((item) => item.id === eventId ? { ...item, occurred_at: `${day}T12:00:00` } : item),
+    })),
     undoEmail: async (emailId) => setApplication((current) => {
       const events = current.events.filter((item) => item.inbound_email_id !== emailId);
       const last = events.at(-1)!;

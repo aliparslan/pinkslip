@@ -6,8 +6,6 @@ import { useUnistyles } from "react-native-unistyles";
 import { onboardingDue } from "../../features/onboarding/launch";
 import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
 import { useRedesign } from "../../features/redesign/flag";
-import { rememberSearch } from "../../features/redesign/recent-searches";
-import { setSearchText, useSearchText } from "../../features/redesign/search-text";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { TabBar } from "../../ui";
@@ -31,11 +29,8 @@ function PillTabs() {
     if (pathname === "/" && !onboardingDue()) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
-  // The Search tab's field sits in the bar, as iOS 26 draws it.
-  const searchText = useSearchText();
-  const search = { value: searchText, onChangeText: setSearchText, onSubmit: () => rememberSearch(searchText), placeholder: "Jobs and companies" };
   return <>
-  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} search={search} />} screenOptions={{ headerShown: false, animation: "none" }}>
+  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(today)" />
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />
