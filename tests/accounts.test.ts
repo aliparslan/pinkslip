@@ -246,6 +246,46 @@ describe("Google sign-in", () => {
     expect(sqlite.query("SELECT COUNT(*) AS count FROM auth_identities WHERE provider = 'google'").get()).toEqual({ count: 1 });
   });
 
+  it("adds Google to the account you're signed into, and never another account's Google", async () => {
+    const { sqlite, db, env, ctx, app, lastCode } = setup();
+    // Signed in by code as jordan@lee.dev, on the iPhone.
+    const signUp = app(await guest(db));
+    await signUp("/api/v2/auth/email/code/start", { email: "jordan@lee.dev" });
+    const { native_token: token } = await (await signUp("/api/v2/auth/email/code/verify", { email: "jordan@lee.dev", code: lastCode() })).json() as { native_token: string };
+    const call = app(token);
+    const userId = (sqlite.query("SELECT user_id FROM auth_identities WHERE provider = 'email'").get() as { user_id: string }).user_id;
+    const connect = async (sub: string) => {
+      // Each fake signs with a new key, so the cached keys go first.
+      _resetGoogleKeyCache();
+      const google = await fakeGoogle({ sub, email: "jordan.lee@gmail.com", email_verified: true });
+      const started = await (await call("/api/v2/auth/google/native/start")).json() as { url: string; state: string };
+      google.setNonce(new URL(started.url).searchParams.get("nonce")!);
+      await worker.fetch(new Request(`${ORIGIN}/api/v2/auth/google/callback?state=${started.state}&code=good-code`), env, ctx);
+      return call("/api/v2/auth/google/native/finish", { state: started.state });
+    };
+
+    const connected = await connect("google-mine");
+    expect(connected.status).toBe(200);
+    const body = await connected.json() as Record<string, unknown>;
+    expect(body).toMatchObject({ session: { state: "authenticated" }, account: { email: "jordan@lee.dev", providers: ["email", "google"] } });
+    // The session stays the one the app has.
+    expect(body.native_token).toBeUndefined();
+    expect(sqlite.query("SELECT user_id FROM auth_identities WHERE provider = 'google'").get()).toEqual({ user_id: userId });
+    // Connecting the same Google again changes nothing.
+    expect((await connect("google-mine")).status).toBe(200);
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM auth_identities WHERE provider = 'google'").get()).toEqual({ count: 1 });
+
+    // A Google that's already on someone else's account is refused, and neither account moves.
+    sqlite.run("INSERT INTO users (id) VALUES ('other')");
+    sqlite.run(`INSERT INTO auth_identities (id, user_id, provider, provider_subject, email, email_verified)
+      VALUES ('o', 'other', 'google', 'google-theirs', 'them@gmail.com', 1)`);
+    const refused = await connect("google-theirs");
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ code: "google_in_use", error: "That Google account is on another Pinkslip account." });
+    expect(sqlite.query("SELECT user_id FROM auth_identities WHERE provider_subject = 'google-theirs'").get()).toEqual({ user_id: "other" });
+    expect((await (await call("/api/v2/me", undefined, "GET")).json() as { session: { state: string } }).session.state).toBe("authenticated");
+  });
+
   it("returns to the app as cancelled when the person backs out", async () => {
     const { db, env, ctx, app } = setup();
     const started = await (await app(await guest(db))("/api/v2/auth/google/native/start")).json() as { state: string };

@@ -758,6 +758,27 @@ auth.post("/google/native/finish", async (c) => {
   }
   if (!(await consumeGoogleFlow(c.env.DB, state))) return c.json({ error: "Google sign-in didn't finish. Try again.", code: "google_incomplete" }, 400);
   const identity = JSON.parse(flow.result_json) as GoogleIdentity;
+  // Signed in already (Account's Connect Google): Google joins this account
+  // and the session stays. Never another account's Google, which signing in
+  // would answer by moving this account's data into that one.
+  if (c.get("sessionState") === "authenticated") {
+    const userId = c.get("userId");
+    const existing = await findIdentityByProviderSubject(c.env.DB, "google", identity.sub);
+    if (existing && existing.user_id !== userId) {
+      return c.json({ error: "That Google account is on another Pinkslip account.", code: "google_in_use" }, 409);
+    }
+    const now = new Date().toISOString();
+    const email = identity.email ? normalizeEmail(identity.email) : null;
+    if (existing) {
+      await c.env.DB.prepare("UPDATE auth_identities SET email = COALESCE(?, email), last_used_at = ? WHERE id = ?").bind(email, now, existing.id).run();
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO auth_identities (id, user_id, provider, provider_subject, email, email_verified, created_at, last_used_at)
+         VALUES (?, ?, 'google', ?, ?, ?, ?, ?)`
+      ).bind(crypto.randomUUID(), userId, identity.sub, email, identity.emailVerified ? 1 : 0, now, now).run();
+    }
+    return c.json(await buildAccountState(c.env.DB, userId, "authenticated"));
+  }
   const nextSession = await signInWithIdentity(c, {
     provider: "google", providerSubject: identity.sub, email: identity.email, emailVerified: identity.emailVerified, fullName: identity.name,
   });
