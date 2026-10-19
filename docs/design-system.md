@@ -431,7 +431,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   S1 approved as K1; built 2026-10-18): one sheet over the page you were on,
   opened with `openSignIn()` (You's guest card, the welcome's "I have an
   account", Account as a guest). The ways in are 50 capsules 12 apart, each
-  leading with its own mark at 18 and the label in Body Medium: Apple black
+  leading with its own mark as tall as the label (Apple's at 18, whose glyph
+  stands 16; Google's G, which fills its square, at 16) and the label in
+  Body Medium: Apple black
   (white in dark mode) with Apple's logo, Google `sheet-group` with a 1pt
   `outline` and Google's own "G" (an image from Google's 2026 kit, which
   react-native-svg can't draw), email on `fill`. Email is S2 then S4: the

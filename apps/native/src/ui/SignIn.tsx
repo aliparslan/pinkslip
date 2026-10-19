@@ -26,8 +26,10 @@ export function AppleLogo({ size = 18, color }: { size?: number; color: string }
 
 /** Google's "G" from Google's sign-in kit (2026), drawn from its SVG with the
  * button's own background left out; Google's gradient can't be drawn by
- * react-native-svg, so it ships as an image. */
-export function GoogleLogo({ size = 18 }: { size?: number }) {
+ * react-native-svg, so it ships as an image. The G fills its square where
+ * Apple's logo sits inside its 18, so 16 stands it as tall (owner,
+ * 2026-10-18: at 18 it looked too large). */
+export function GoogleLogo({ size = 16 }: { size?: number }) {
   return <Image source={require("../../assets/brand/google-g.png")} style={{ width: size, height: size }} accessibilityIgnoresInvertColors />;
 }
 
