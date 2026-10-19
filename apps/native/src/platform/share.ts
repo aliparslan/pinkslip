@@ -8,3 +8,9 @@ export async function shareJob(job: { id: string; title: string; company_name: s
   const url = `${WEB_URL}/jobs/${encodeURIComponent(job.id)}`;
   await Share.share({ url, title: `${job.title} at ${job.company_name}` }).catch(() => undefined);
 }
+
+/** An event: its own page (where Sign up goes), since Pinkslip has no public
+ * event page; the bare link keeps Messages' rich preview. */
+export async function shareEvent(event: { url: string; title: string; company_name: string }) {
+  await Share.share({ url: event.url, title: `${event.title} at ${event.company_name}` }).catch(() => undefined);
+}

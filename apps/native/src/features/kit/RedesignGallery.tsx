@@ -248,7 +248,7 @@ function SamplePrep({ onOpen }: { onOpen: () => void }) {
   return <SheetStep id="prep">
     <View style={styles.body}>
       <Text role="title2">Apply at Stripe</Text>
-      <Button variant="primary" fullWidth icon="apply" onPress={() => { close(); onOpen(); }}>Open application</Button>
+      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { close(); onOpen(); }}>Open application</Button>
     </View>
   </SheetStep>;
 }

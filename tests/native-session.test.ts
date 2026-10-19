@@ -60,6 +60,8 @@ test("universal links and app links map only supported trusted URLs", () => {
   for (const url of ["https://pinkslip.work/jobs/abc", "pinkslip://jobs/abc", "pinkslip:///jobs/abc"]) expect(appPathFor(url)).toBe("/jobs/abc");
   expect(appPathFor("https://pinkslip.work/auth/email/verify?token=abc")).toBe("/auth/email/verify?token=abc");
   expect(appPathFor("/library?view=applied")).toBe("/library?view=applied");
+  // An event reminder (N19) opens the event's page.
+  expect(appPathFor("/events/ev-1")).toBe("/events/ev-1");
   for (const url of ["https://evil.example/jobs/abc", "ftp://pinkslip.work/jobs/abc", "javascript:alert(1)", "/library-evil"]) expect(appPathFor(url)).toBeNull();
 });
 

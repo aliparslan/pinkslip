@@ -64,7 +64,7 @@ export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; o
       <PrepRow label="Answers" value={answers ? `${answers.length} saved` : "—"} onPress={() => change("/you/answers")} />
     </Choices>
     <View style={styles.actions}>
-      <Button variant="primary" fullWidth icon="apply" onPress={() => { close(); onOpen(); }}>Open application</Button>
+      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { close(); onOpen(); }}>Open application</Button>
       <Button variant="plain" fullWidth onPress={() => { onAlreadyApplied(); close(); }}>I already applied</Button>
     </View>
   </SheetStep>;

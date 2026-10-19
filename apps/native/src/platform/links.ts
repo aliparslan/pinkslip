@@ -23,6 +23,9 @@ export function appPathFor(input: string): string | null {
   if (path === "/today") return "/today";
   const application = /^\/applications\/([^/]+)\/?$/.exec(path);
   if (application) return `/applications/${application[1]}`;
+  // An event reminder (N19) opens the event's page.
+  const event = /^\/events\/([^/]+)\/?$/.exec(path);
+  if (event) return `/events/${event[1]}`;
   if (/^\/library(?:\/(?:saved|applied))?\/?$/.test(path)) return path.includes("applied") || url.searchParams.get("view") === "applied" ? "/library?view=applied" : "/library";
   if (path === "/you" || path.startsWith("/you/")) return path;
   // Admin alerts link to the web admin; the app has its own.

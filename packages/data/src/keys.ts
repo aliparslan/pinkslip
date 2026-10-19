@@ -30,6 +30,10 @@ export const queryKeys = {
     resume: () => ["personal", "resume"] as const,
     answers: () => ["personal", "answers"] as const,
     companies: () => ["personal", "companies"] as const,
+    /** A company's events and one event: personal, since each carries the viewer's Remind me. */
+    eventsRoot: ["personal", "events"] as const,
+    companyEvents: (companyId: string) => ["personal", "events", "company", companyId] as const,
+    event: (id: string) => ["personal", "events", "detail", id] as const,
     prepared: (jobId: string) => ["personal", "prepared", jobId] as const,
     outreach: (jobId: string, threadId: string | null) => ["personal", "outreach", jobId, threadId] as const,
     /** Every recruiter thread, and one by id: the redesign's person pages and Today. */

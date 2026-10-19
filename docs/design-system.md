@@ -109,6 +109,8 @@ else is decided.
 - **Sizes:** 50 tall for full-width actions, 36 for small capsules (Follow),
   labels in Body Medium (17) or Subhead Medium (15) for small ones. Capsule
   padding 16 each side.
+- **Icons lead the label, except ↗.** A button that leaves Pinkslip (Sign
+  up, Open application) puts its ↗ after the words (`iconAfter`).
 
 ## Selection
 

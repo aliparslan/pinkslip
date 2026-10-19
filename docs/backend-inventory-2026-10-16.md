@@ -253,7 +253,7 @@ Activity, the digest and each application's timeline.
 | Search tab: jobs and companies together | **Check:** the tab uses the feed's `q` and the company list |
 | A company's page: jobs, people, events | **Partial:** jobs only |
 | Following a company (alerts, auto-apply's "Ones I follow", N20) | **Parked** until outreach and auto-apply (owner, 2026-10-19) |
-| Events: a company's info sessions and fairs, reminders (N19) | **Built** (step 7, server; app screens next) |
+| Events: a company's info sessions and fairs, reminders (N19) | **Built** (step 7, server and iPhone screens; Admin's events next) |
 | Hidden companies, blocked jobs, reports | **Works** |
 
 ## 7. Accounts, profile, resume and answers
@@ -1103,3 +1103,24 @@ Liberties for the owner to keep or veto:
    can't read.
 4. Coming up counts any application at the company, ended ones included:
    an info session can still matter after a rejection.
+
+**iPhone screens (2026-10-19, from Paper "Events · the build · Oct 19",
+owner-approved; E3c for Coming up):**
+
+- Company page, Events tab (E1): the date tile, the day, the event, where
+  and how long; "Nothing coming up" when there are none (E1b).
+- Event page (E2): the job page's layout with the event's ticket; Remind me
+  (with "Reminding you the day before", E2b) and Sign up ↗, which opens
+  their page in a sheet. Remind me goes once the event starts. A taken-down
+  event gets the return-to-sender slip (E2c).
+- Today's Coming up (E3c): the event leads, the company on the facts line.
+- `/events/:id` links (N19's push) open the event page.
+- Kit: `Button iconAfter` puts the ↗ after the label, as Paper draws it
+  (Sign up, and Open application, which had it in front). The tab bar
+  hides on `/events/…` by path like the job page, and a page that asks it
+  to step aside (event sample, a person's page) only does so while in
+  front; left open on another tab it hid that tab's bar.
+
+Still open for the owner: what goes in the event page's ⋯ menu (share is
+built; the ⋯ waits), the company header's button size (Paper H1 or H2),
+and Admin's events screen (not drawn yet).

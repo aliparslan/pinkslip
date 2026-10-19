@@ -1,6 +1,7 @@
-import { useApi, useCompanies, useOutreachThreads, usePreferences, useSession, useViewedJobs } from "@pinkslip/data";
+import { queryKeys, useApi, useCompanies, useCompanyEvents, useOutreachThreads, usePreferences, useSession, useViewedJobs } from "@pinkslip/data";
+import type { CompanyEvent } from "@pinkslip/core/api";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import type { Job } from "@pinkslip/core/api";
 import * as WebBrowser from "expo-web-browser";
 import { Link, router, Stack, useSegments } from "expo-router";
@@ -12,6 +13,8 @@ import { Text as RNText } from "react-native";
 import { firstSentAt, initials } from "./outreach/outreach-facts";
 import { shortDate } from "./tracker-facts";
 import { logoUri } from "../jobs/CompanyLogo";
+import { toEventView } from "./event-facts";
+import { EventRows } from "./EventPage";
 import { fitsYourSearch, plainText, rowAge, rowFacts } from "./job-facts";
 
 type Segment = "jobs" | "people" | "events";
@@ -29,6 +32,7 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const companies = useCompanies();
   const company = companies.data?.find((item) => item.id === companyId);
   const feed = useCompanyJobs(companyId, company?.name);
+  const events = useCompanyEvents(companyId);
   const jobs = feed.jobs;
   const [segment, setSegment] = useState<Segment>("jobs");
   // People: those you've written to here, until Pinkslip lists everyone it
@@ -55,16 +59,32 @@ export function CompanyPage({ companyId }: { companyId: string }) {
         </View>
       </View>
       <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
-        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people(threads.data, name).length || undefined }, { value: "events", label: "Events" },
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people(threads.data, name).length || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
       ]} /></View>
     </View>
     {segment === "people"
       ? <People threads={people(threads.data, name)} company={plainText(name)} />
       : segment === "events"
-      ? <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">Events are coming soon.</Text></View>
+      ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>
       : <CompanyJobs jobs={jobs} />}
   </ScrollView>;
+}
+
+/** E1: the company's events as Coming up's rows, soonest first; E1b when
+ * there are none. An event opens its page in the same tab. */
+function CompanyEvents({ events, pending, company }: { events: CompanyEvent[] | undefined; pending: boolean; company: string }) {
+  const { theme } = useUnistyles();
+  const queryClient = useQueryClient();
+  const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
+  if (pending) return <View style={styles.soon}><ActivityIndicator color={theme.ui.color["ink-3"]} /></View>;
+  if (!events?.length) return <EmptyState title="Nothing coming up" message={`${company}'s info sessions and fairs show up here.`} />;
+  const byId = new Map(events.map((event) => [event.id, event]));
+  return <EventRows events={events.map((event) => toEventView(event))} onOpen={(view) => {
+    const event = byId.get(view.id);
+    if (event) queryClient.setQueryData(queryKeys.personal.event(event.id), event);
+    router.push({ pathname: `/(tabs)/${tab}/events/[eventId]` as "/(tabs)/(jobs)/events/[eventId]", params: { eventId: view.id } });
+  }} />;
 }
 
 function people(threads: OutreachThread[] | undefined, company: string): OutreachThread[] {

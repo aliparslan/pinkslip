@@ -97,6 +97,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
     // Samples have no pages to open.
     else if (sample) return;
     else if (target.kind === "job") router.push({ pathname: "/(tabs)/(today)/jobs/[jobId]", params: { jobId: target.id } });
+    else if (target.kind === "event") router.push({ pathname: "/(tabs)/(today)/events/[eventId]", params: { eventId: target.id } });
     else router.push({ pathname: "/(tabs)/(today)/applications/[applicationId]", params: { applicationId: target.id } });
   };
 

@@ -171,7 +171,7 @@ export function TabBar({ state, navigation, badges, search }: BottomTabBarProps 
 }) {
   const insets = useSafeAreaInsets();
   const steppedAside = useTabBarSteppedAside();
-  const onJobPage = /^\/(jobs|applications)\/[^/]+$/.test(usePathname()) || steppedAside;
+  const onJobPage = /^\/(jobs|applications|events)\/[^/]+$/.test(usePathname()) || steppedAside;
   // Toasts sit 12 above the pill; the job page's own bar takes over there.
   useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
   const tabs = state.routes.filter((route) => TABS[route.name]);

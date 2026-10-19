@@ -2,7 +2,7 @@ import type { Application } from "@pinkslip/core/api";
 import { outreachMailtoUrl, type OutreachThread } from "@pinkslip/domain/outreach";
 import { useApplications, useOutreachThreadById, useOutreachUpdate } from "@pinkslip/data";
 import * as Clipboard from "expo-clipboard";
-import { router, Stack, useSegments } from "expo-router";
+import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,7 +41,8 @@ export function PersonView({ thread, applications, actions }: { thread: Outreach
   const [asking, setAsking] = useState(false);
   const away = useRef(false);
   const left = useRef(false);
-  useTabBarStepsAside(true);
+  // Only while in front: left open on another tab's stack, it hid that tab's bar.
+  useTabBarStepsAside(useIsFocused());
   useToastLift(draft ? Math.max(insets.bottom, 16) + 62 : Math.max(insets.bottom, 16));
   // Back from the mail app: did it go?
   useEffect(() => {

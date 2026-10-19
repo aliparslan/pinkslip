@@ -3,6 +3,7 @@ import { isEndingStage } from "@pinkslip/domain/application-stages";
 import type { DetectedStage, InboundEmail } from "@pinkslip/domain/email-tracking";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { nextRowFacts, stageDateValue, type NextRowFacts } from "./application-facts";
+import { toEventView } from "./event-facts";
 import { plainText } from "./job-facts";
 import { firstSentAt, nextFollowUp } from "./outreach/outreach-facts";
 import { companyName, jobTitle, shortDate, trackerAge } from "./tracker-facts";
@@ -20,7 +21,8 @@ export type TodayTarget =
   | { kind: "application"; id: string }
   | { kind: "job"; id: string }
   | { kind: "email"; email: InboundEmail }
-  | { kind: "person"; id: string };
+  | { kind: "person"; id: string }
+  | { kind: "event"; id: string };
 
 export interface TodayItem {
   key: string;
@@ -266,6 +268,14 @@ function rowFor(entry: TodayEntry, now: Date): TodayItem | null {
       return headline && entry.application.stage_date ? upcomingRow(entry.application, headline, now) : null;
     }
     case "upcoming_follow_up": return plannedRow(entry.thread, entry.at, now);
+    case "upcoming_event": {
+      // E3c (owner, 2026-10-19): the event leads, the company on the quiet line.
+      const view = toEventView(entry.event, now);
+      return {
+        key: entry.key, company: view.when, headline: view.name, facts: [plainText(view.company), view.facts].filter(Boolean).join(" · "),
+        trailing: view.time, date: { month: view.month, day: view.day }, target: { kind: "event", id: entry.event.id }, at: Date.parse(entry.at),
+      };
+    }
     default: return null;
   }
 }

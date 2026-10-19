@@ -33,7 +33,7 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
     // A link to a job that isn't there (W4) is rare enough for its slip; a
     // job that didn't load is plain, with a grey retry (Paper "Errors · Oct 15").
     return <ErrorPage>{status === "gone"
-      ? <EmptyState art={<StampedSlip stamp="RETURN TO SENDER" detail="NO SUCH PAGE"><BrokenLink jobId={jobId} /></StampedSlip>}
+      ? <EmptyState art={<StampedSlip stamp="RETURN TO SENDER" detail="NO SUCH PAGE"><BrokenLink path={`pinkslip.alip.dev/jobs/${jobId.slice(0, 4)}…`} /></StampedSlip>}
         title="This link goes nowhere" message="It may be old, or cut short."
         action={{ label: "Go to Jobs", onPress: () => router.navigate("/") }} />
       : <EmptyState title="This job didn't load" message="Check your connection and try again."
@@ -137,8 +137,9 @@ export function usePinnedBarToastLift() {
   useToastLift(useIsFocused() ? Math.max(insets.bottom, theme.ui.space["4"]) + BAR : null);
 }
 
-/** A page with nothing to show: the round Back, then the error centred in the room. */
-function ErrorPage({ children }: { children: React.ReactNode }) {
+/** A page with nothing to show: the round Back, then the error centred in
+ * the room (W3, W4; the event page's E2c too). */
+export function ErrorPage({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return <View style={styles.fill}>
     <Stack.Screen options={{ headerShown: false }} />
@@ -174,14 +175,15 @@ function ClosedJob({ job }: { job: DetailJob }) {
 }
 
 /** W4's slip: a blank posting with the link at its foot. */
-function BrokenLink({ jobId }: { jobId: string }) {
+/** The broken link's slip: two grey lines, the rule, and where the link pointed. */
+export function BrokenLink({ path }: { path: string }) {
   return <>
     <View style={styles.slipLines}>
       <View style={[styles.slipLine, styles.slipLineTitle]} />
       <View style={[styles.slipLine, styles.slipLineLong]} />
     </View>
     <View style={styles.slipRule} />
-    <Text role="footnote" tone="ink-3" lines={1}>{`pinkslip.alip.dev/jobs/${jobId.slice(0, 4)}…`}</Text>
+    <Text role="footnote" tone="ink-3" lines={1}>{path}</Text>
   </>;
 }
 

@@ -13,6 +13,9 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: IconName;
+  /** The icon after the words, for ↗ (the button leaves Pinkslip): Paper's
+   * Open application and Sign up. */
+  iconAfter?: boolean;
   pending?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -32,7 +35,7 @@ const tones: Record<ButtonVariant, TextTone> = { primary: "accent-ink", secondar
  * under a primary (Discard changes). A disabled button turns gray, never
  * faded pink. Large is Apple's 50; small is 36.
  */
-export function Button({ variant = "secondary", size = "large", icon, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
+export function Button({ variant = "secondary", size = "large", icon, iconAfter, pending, disabled, fullWidth, accessibilityLabel, onPress, children }: ButtonProps) {
   const { theme } = useUnistyles();
   styles.useVariants({ variant, size });
   const tone: TextTone = disabled ? "ink-3" : tones[variant];
@@ -42,8 +45,9 @@ export function Button({ variant = "secondary", size = "large", icon, pending, d
     accessibilityState={{ disabled: inactive, busy: pending }} disabled={inactive} onPress={onPress}
     style={fullWidth ? styles.full : styles.hug} contentStyle={[styles.root, disabled && variant !== "plain" && variant !== "text" && styles.disabled]}>
     {pending ? <ActivityIndicator size="small" color={color} />
-      : icon ? <Icon name={icon} size={size === "large" ? 20 : 16} tone={tone} /> : null}
+      : icon && !iconAfter ? <Icon name={icon} size={size === "large" ? 20 : 16} tone={tone} /> : null}
     <Text role={size === "large" ? "body" : "subhead"} weight="medium" tone={tone} lines={1}>{children}</Text>
+    {!pending && icon && iconAfter ? <Icon name={icon} size={size === "large" ? 20 : 16} tone={tone} /> : null}
   </PressableScale>;
 }
 
