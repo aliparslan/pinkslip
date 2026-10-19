@@ -54,8 +54,8 @@ interface PayRange {
   places.
 - Other sources fill one entry (or none) until they're looked at.
 - The job API returns `pay_ranges`; the app matches each of the job's
-  places to a range by name (the same `placeMatches` aliases the Locations
-  sheet uses).
+  places to a range by its city ("New York City, NY" is "New York, NY") or
+  a country it's in (`rangeForPlace`).
 
 ## On screen
 
