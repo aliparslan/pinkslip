@@ -92,6 +92,11 @@ Following (owner, 2026-10-19: parked until outreach and auto-apply):
 
 Outreach (step 8, 2026-10-19):
 
+- [ ] **Approve the Recruiters screens** (Paper "Recruiters · Skip and the
+  company · Oct 19", R1 to R4), then build them; and decide the recruiter
+  types ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md)).
+- [ ] **A GitHub token** (public read only), `wrangler secret put
+  GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
 - [ ] **A systematic way to list recruiters**, replacing "the ones the
   owner confirmed": the sourcing search's rules once its "works there"
   accuracy on the owner's labels reaches 90% (Decisions: Outreach #1).
@@ -1208,8 +1213,37 @@ is set every email is addressed to it.
 - **App** (Paper O1, O2, approved Oct 15): the company page's People lists
   the server's People; tapping someone new opens their page with "Write
   to"; their page shows LinkedIn. Errors from the caps show as a toast.
-- Tests: `tests/outreach-contacts.test.ts` (21); the outreach tests load
+- Tests: `tests/outreach-contacts.test.ts` (20); the outreach tests load
   0092 and 0100.
+
+**Finding tech recruiters more carefully (2026-10-19, option A in
+[recruiter-sourcing-review-2026-10-19.md](recruiter-sourcing-review-2026-10-19.md)):**
+
+- **Tech only** (owner): the second search asks for technical recruiters
+  by name; anyone whose title recruits for sales, GTM, finance, executives,
+  HR business partnering and the like is left out ("recruits outside
+  tech").
+- **Which company it is:** one search finds the company's own LinkedIn page
+  by its website ("Website: https://weaveos.com"), another counts LinkedIn
+  pages with the same name. With the name shared, someone far from every
+  office (where the company's jobs are) is left out as "may work at another
+  Weave", where you can still see them. Tried on real results for Weave:
+  every Weave Communications recruiter is now out.
+- **The mail domain** is the website's whenever it takes mail; format pages
+  only fill in when it doesn't.
+- **The format:** yours first (`PUT /recruiters/companies/:id/format`, from a
+  Hunter check; it rewrites every guess at that company and People
+  follows), then GitHub's public commits when 2+ addresses agree 75%+
+  (only the format is kept), then the format pages.
+- **You choose the companies:** `GET /recruiters/companies` (search, hiring
+  now, not searched, has a format; most open jobs first) and `POST
+  /recruiters/run { company_ids }`; `{ count }` still works for the build in
+  hand.
+- Six searches a company instead of four (about $0.006). `GITHUB_TOKEN`
+  (optional secret) raises GitHub's limit from 60 to 5,000 requests an hour.
+- The screens (Paper "Recruiters · Skip and the company · Oct 19": R1 site
+  and Skip, R2 a mismatched address, R3 choosing companies, R4 a company's
+  format) wait for the owner's approval.
 
 Liberties for the owner to keep or veto:
 

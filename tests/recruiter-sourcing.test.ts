@@ -11,12 +11,20 @@ import {
   likelyTemplate,
   patternEvidence,
 } from "@worker/outreach/sourcing/email-pattern";
+import { githubFormat, trustGithub, type GithubFetch } from "@worker/outreach/sourcing/github-format";
 import {
   basedInUs,
   classifyRecruiter,
+  companyPageFor,
+  companyPageQuery,
   earlyCareerQuery,
   matchCompany,
+  namesakes,
+  nearOffice,
   parseLinkedInResult,
+  recruiterQuery,
+  recruitsOutsideTech,
+  sameNameQuery,
 } from "@worker/outreach/sourcing/linkedin-search";
 import { chooseMailDomain, lookupMx, mailProvider, websiteDomain } from "@worker/outreach/sourcing/mail-domain";
 
@@ -267,6 +275,9 @@ describe("mail domain", () => {
     const lookup = async (domain: string) => mx[domain] ?? [];
     expect(await chooseMailDomain("acme.so", ["getacme.example"], lookup))
       .toEqual({ domain: "getacme.example", exchanges: ["aspmx.l.google.com"], source: "format pages" });
+    // A website that takes mail wins: format pages can be about a same-name company.
+    expect(await chooseMailDomain("acme.example", ["getacme.example"], lookup))
+      .toEqual({ domain: "acme.example", exchanges: ["mx.acme.example"], source: "website" });
     expect(await chooseMailDomain("acme.example", ["acme.example"], lookup))
       .toEqual({ domain: "acme.example", exchanges: ["mx.acme.example"], source: "website" });
     expect(await chooseMailDomain("acme.example", [], lookup)).toMatchObject({ domain: "acme.example", source: "website" });
@@ -283,5 +294,98 @@ describe("mail domain", () => {
       ],
     })) as unknown as typeof fetch;
     expect(await lookupMx("acme.example", fetcher)).toEqual(["aspmx.l.google.com", "alt1.aspmx.l.google.com"]);
+  });
+});
+
+describe("tech recruiters only", () => {
+  it("asks for technical recruiters by name, not any recruiter", () => {
+    const query = recruiterQuery("Acme");
+    expect(query).toContain('"technical recruiter" OR "engineering recruiter"');
+    expect(query).not.toContain('"recruiter" OR');
+    expect(query.endsWith(' "Acme"')).toBe(true);
+  });
+
+  it("leaves out recruiting outside tech", () => {
+    const outside = (headline: string, role: string | null = null) => recruitsOutsideTech({ headline, role });
+    expect(outside("GTM Recruiter @ Acme")).toBe(true);
+    expect(outside("Sales Recruiter at Acme")).toBe(true);
+    expect(outside("Executive Recruiter | Acme")).toBe(true);
+    expect(outside("HR Business Partner")).toBe(true);
+    expect(outside("Recruiter at Acme", "Finance Recruiter")).toBe(true);
+    expect(outside("Technical Recruiter at Acme")).toBe(false);
+    expect(outside("University Recruiter at Acme")).toBe(false);
+    expect(outside("Senior Talent Acquisition Recruiter")).toBe(false);
+    expect(outside("Recruiting Operations Coordinator")).toBe(false);
+    // The role, the actual position, decides over an older headline.
+    expect(outside("Sales Recruiter turned tech", "Technical Recruiter")).toBe(false);
+  });
+});
+
+describe("which company it is", () => {
+  const page = (title: string, slug: string, snippet: string) => ({ title, link: `https://www.linkedin.com/company/${slug}`, snippet });
+  const RESULTS = [
+    page("Zephyr", "getzephyr", "Zephyr is the all-in-one platform for dental offices. Lehi, Utah."),
+    page("ZEPHYR INC", "zephyr-inc", "Zephyr, Inc. provides community services."),
+    page("Zephyr", "zephyr-dev", "Zephyr measures engineering work. Website: https://zephyros.example/. External link for Zephyr."),
+    page("Zephyr Bio", "zephyrbio", "A small team of scientists."),
+    { title: "Zephyr: Jobs", link: "https://www.linkedin.com/company/getzephyr/jobs", snippet: "Zephyr. Software Development. Lehi, Utah." },
+  ];
+
+  it("finds the company's own LinkedIn page by its website", () => {
+    expect(companyPageQuery("zephyros.example")).toBe('site:linkedin.com/company "zephyros.example"');
+    expect(companyPageFor(RESULTS, "zephyros.example")).toEqual({ slug: "zephyr-dev", name: "Zephyr" });
+    expect(companyPageFor(RESULTS, "nowhere.example")).toBeNull();
+  });
+
+  it("counts the companies that share the name", () => {
+    expect(sameNameQuery("Zephyr")).toBe('site:linkedin.com/company "Zephyr"');
+    // getzephyr, zephyr-inc and zephyr-dev; not Zephyr Bio, not a Jobs tab twice.
+    expect(namesakes(RESULTS, "Zephyr")).toBe(3);
+    expect(namesakes(RESULTS, "Zephyr Bio")).toBe(1);
+  });
+
+  it("tells whether someone lives near the company's offices", () => {
+    const offices = ["San Francisco, CA, US", "New York, NY"];
+    expect(nearOffice("San Francisco Bay Area", offices)).toBe(true);
+    expect(nearOffice("New York City Metropolitan Area", offices)).toBe(true);
+    expect(nearOffice("Salt Lake City Metropolitan Area", offices)).toBe(false);
+    expect(nearOffice(null, offices)).toBeNull();
+    expect(nearOffice("Austin, Texas", [])).toBeNull();
+    expect(nearOffice("Austin, Texas", ["Remote, US", "New York, NY"])).toBeNull();
+  });
+});
+
+describe("GitHub's commits", () => {
+  const commit = (name: string, email: string) => ({ commit: { author: { name, email } } });
+  const fake = (pages: Record<string, unknown>): GithubFetch => async (path) => pages[path] ?? null;
+  const API = {
+    "/search/users?q=acme%20type%3Aorg&per_page=3": { items: [{ login: "acme-fans" }, { login: "acme" }] },
+    "/orgs/acme-fans": { login: "acme-fans", blog: "https://fans.example" },
+    "/orgs/acme": { login: "acme", blog: "https://www.acme.example" },
+    "/orgs/acme/repos?sort=pushed&per_page=12": [{ name: "fork", fork: true }, { name: "core", fork: false }],
+    "/repos/acme/core/commits?per_page=100": [
+      commit("Avery Testerson", "avery.testerson@acme.example"),
+      commit("Avery Testerson", "avery.testerson@acme.example"),
+      commit("Rowan Placeholder", "rowan.placeholder@eng.acme.example"),
+      commit("Kit Examplar", "kexamplar@acme.example"),
+      commit("Build Bot", "ci@acme.example"),
+      commit("Imani Fakename", "imani@users.noreply.github.com"),
+    ],
+  };
+
+  it("finds the org by its website and votes on its commit addresses", async () => {
+    expect(await githubFormat("acme.example", fake(API))).toEqual({ org: "acme", template: "{first}.{last}", votes: 2, total: 3 });
+  });
+
+  it("is trusted only when the addresses clearly agree", () => {
+    expect(trustGithub({ org: "acme", template: "{first}.{last}", votes: 2, total: 3 })).toBe(false);
+    expect(trustGithub({ org: "acme", template: "{first}.{last}", votes: 3, total: 4 })).toBe(true);
+    expect(trustGithub({ org: "acme", template: "{first}.{last}", votes: 1, total: 1 })).toBe(false);
+    expect(trustGithub(null)).toBe(false);
+  });
+
+  it("finds nothing without an org that links the website", async () => {
+    expect(await githubFormat("acme.example", fake({ "/search/users?q=acme%20type%3Aorg&per_page=3": { items: [{ login: "acme-fans" }] }, "/orgs/acme-fans": { blog: "fans.example" } }))).toBeNull();
+    expect(await githubFormat("acme.example", fake({}))).toBeNull();
   });
 });

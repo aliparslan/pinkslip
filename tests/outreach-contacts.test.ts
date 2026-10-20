@@ -114,7 +114,7 @@ describe("confirmed recruiters", () => {
     candidate("sam", { works: "yes", role: "not_recruiter", email: "sam@zephyrlabs.example" });
     candidate("kim", { works: "no", email: "kim@zephyrlabs.example" });
     const migration = readFileSync(`${migrationsDir}0100_outreach_contacts.sql`, "utf8");
-    sqlite.exec(migration.slice(migration.indexOf("INSERT INTO company_contacts")));
+    sqlite.exec(migration.slice(migration.indexOf("INSERT INTO company_contacts"), migration.indexOf("DO NOTHING;") + "DO NOTHING;".length));
     expect(sqlite.query("SELECT email, source, status, candidate_id FROM company_contacts").all()).toEqual([
       { email: "dana.whitfield@zephyrlabs.example", source: "sourcing", status: "listed", candidate_id: "dana" },
     ]);

@@ -97,6 +97,12 @@ after LinkedIn sued it).
 About a day to build; it costs the same per company as today, plus one
 search for the company page.
 
+## Built (2026-10-19)
+
+Option A on the server, plus the owner's format and GitHub's (see
+[recruiter-emails-2026-10-19.md](recruiter-emails-2026-10-19.md) and the
+backend inventory's step 8). The screens wait for Paper approval.
+
 ## Recommendation
 
 **A now**, and **C's free tier** on the side to spot-check guessed

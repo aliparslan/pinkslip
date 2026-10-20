@@ -37,3 +37,27 @@ SELECT lower(hex(randomblob(16))), rc.company_id, lower(trim(rc.email_guess)), r
 FROM recruiter_candidates rc
 WHERE rc.works_there = 'yes' AND COALESCE(rc.actual_role, '') != 'not_recruiter' AND rc.email_guess IS NOT NULL
 ON CONFLICT(company_id, email) DO NOTHING;
+
+-- Tech recruiters only, found more carefully (2026-10-19,
+-- docs/recruiter-sourcing-review-2026-10-19.md): the company's own LinkedIn
+-- page (found by its website), whether another company shares its name, and
+-- where the address format came from: you, GitHub's commits, or the format
+-- pages.
+ALTER TABLE recruiter_sourcing ADD COLUMN pattern_source TEXT;
+ALTER TABLE recruiter_sourcing ADD COLUMN linkedin_slug TEXT;
+ALTER TABLE recruiter_sourcing ADD COLUMN linkedin_name TEXT;
+ALTER TABLE recruiter_sourcing ADD COLUMN name_shared INTEGER NOT NULL DEFAULT 0;
+-- Only the format and how many addresses agree; GitHub's addresses are never kept.
+ALTER TABLE recruiter_sourcing ADD COLUMN github_org TEXT;
+ALTER TABLE recruiter_sourcing ADD COLUMN github_pattern TEXT;
+ALTER TABLE recruiter_sourcing ADD COLUMN github_votes INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE recruiter_sourcing ADD COLUMN github_total INTEGER NOT NULL DEFAULT 0;
+
+-- A company's address format as you set it (from a Hunter check), before or
+-- after its search: every recruiter's address there is written from it.
+CREATE TABLE company_mail_formats (
+  company_id TEXT PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+  domain TEXT NOT NULL,
+  pattern TEXT NOT NULL,
+  set_at TEXT NOT NULL
+);

@@ -37,13 +37,57 @@ export interface RecruiterCandidate {
 export interface RecruiterCompany {
   company_id: string;
   company: string;
+  /** The catalog website's domain ("weaveos.com"), so "works there" means this company. */
+  site: string;
   mail_domain: string;
   mail_domain_source: "website" | "format pages";
   pattern: string | null;
   pattern_votes: number;
   pattern_sources: number;
+  /** Where the format came from: you (a Hunter check), GitHub's commits, or the format pages. */
+  pattern_source: "owner" | "github" | "pages" | null;
+  /** The company's own LinkedIn page, found by its website. */
+  linkedin_slug: string | null;
+  linkedin_name: string | null;
+  /** Another company on LinkedIn has the same name. */
+  name_shared: boolean;
+  github_org: string | null;
+  github_pattern: string | null;
+  github_votes: number;
+  github_total: number;
   error: string | null;
   ran_at: string;
+}
+
+/** A catalog company in Admin's "Choose companies" (Paper R3). */
+export interface RecruiterCompanyChoice {
+  id: string;
+  name: string;
+  site: string;
+  open_jobs: number;
+  searched_at: string | null;
+  kept: number;
+  /** The format as written ("first.last"), and where it came from. */
+  pattern: string | null;
+  pattern_source: "owner" | "github" | "pages" | null;
+}
+
+/** The address formats Admin offers (Paper R4), most common first. */
+export const MAIL_TEMPLATES = [
+  "{first}.{last}",
+  "{first}",
+  "{f}{last}",
+  "{first}{last}",
+  "{f}.{last}",
+  "{first}_{last}",
+  "{first}{l}",
+  "{last}.{first}",
+  "{last}{f}",
+] as const;
+
+/** "{first}.{last}" → "first.last", as the screens write it. */
+export function templateLabel(template: string): string {
+  return template.replace(/[{}]/g, "");
 }
 
 /** Measured against the owner's labels. Each is "right of labelled". */

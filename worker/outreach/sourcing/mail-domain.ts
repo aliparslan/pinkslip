@@ -59,24 +59,20 @@ export interface MailDomain {
   source: "website" | "format pages";
 }
 
-/** The domain the company's people have addresses at. Another domain the
- * format pages show wins when it receives mail and the website's domain
- * isn't among those shown. */
+/** The domain the company's people have addresses at: the website's own
+ * whenever it takes mail. A domain the format pages show is used only when
+ * the website's takes none (notion.so → makenotion.com); trusting them first
+ * picked a same-name company's domain for Weave (weaveinc.org). */
 export async function chooseMailDomain(
   website: string,
   shown: string[],
   lookup: (domain: string) => Promise<string[]> = lookupMx,
 ): Promise<MailDomain> {
   const safeLookup = (domain: string) => lookup(domain).catch(() => [] as string[]);
-  if (shown.length > 0 && !shown.includes(website)) {
-    for (const domain of shown) {
-      const exchanges = await safeLookup(domain);
-      if (exchanges.length) return { domain, exchanges, source: "format pages" };
-    }
-  }
   const exchanges = await safeLookup(website);
   if (exchanges.length || shown.length === 0) return { domain: website, exchanges, source: "website" };
   for (const domain of shown) {
+    if (domain === website) continue;
     const other = await safeLookup(domain);
     if (other.length) return { domain, exchanges: other, source: "format pages" };
   }

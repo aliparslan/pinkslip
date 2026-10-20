@@ -48,9 +48,30 @@ export function earlyCareerQuery(company: string): string {
   return `site:linkedin.com/in (${EARLY_CAREER_TITLES.map((title) => `"${title}"`).join(" OR ")}) "${company}"`;
 }
 
-/** Recruiters of any kind, the fallback when a company has no early-career team. */
+/** Pinkslip only lists tech recruiting (owner, 2026-10-19), so the second
+ * search asks for technical recruiters by name rather than any recruiter. */
+const TECH_RECRUITER_TITLES = [
+  "technical recruiter",
+  "engineering recruiter",
+  "tech recruiter",
+  "software recruiter",
+  "technical sourcer",
+  "technical talent",
+];
+
 export function recruiterQuery(company: string): string {
-  return `site:linkedin.com/in ("technical recruiter" OR "recruiter" OR "talent acquisition") "${company}"`;
+  return `site:linkedin.com/in (${TECH_RECRUITER_TITLES.map((title) => `"${title}"`).join(" OR ")}) "${company}"`;
+}
+
+/** The company's own LinkedIn page, found by its website: the page's About
+ * shows "Website: https://acme.com", which a same-name company's doesn't. */
+export function companyPageQuery(domain: string): string {
+  return `site:linkedin.com/company "${domain}"`;
+}
+
+/** Every LinkedIn company page with this name, to learn whether it's shared. */
+export function sameNameQuery(company: string): string {
+  return `site:linkedin.com/company "${company}"`;
 }
 
 /** "Acme email format" pages (RocketReach, LeadIQ and others) state the
@@ -139,6 +160,68 @@ export function classifyRecruiter(person: Pick<LinkedInPerson, "headline" | "sni
   // The snippet's opening usually repeats the headline before "Experience:".
   const opening = person.snippet.split(/\s·\s|Experience:/i)[0] ?? "";
   return { kind: kindOf(opening), weak: true };
+}
+
+/** Recruiting for work outside tech: sales, finance, executives, hourly
+ * roles and the like. A generic recruiter isn't, an early-career one isn't. */
+const OUTSIDE_TECH = /\b(?:sales|gtm|go[\s-]to[\s-]market|revenue|business|finance|financial|accounting|marketing|legal|retail|hourly|manufacturing|warehouse|operations|supply chain|clinical|nursing|healthcare|medical|executive|leadership|corporate|g&a|non[\s-]?tech\w*)\s+(?:recruit\w*|sourc\w*|talent)|\b(?:hr business partner|hrbp|people partner|benefits|payroll|compensation)\b/i;
+
+export function recruitsOutsideTech(person: Pick<LinkedInPerson, "headline"> & { role?: string | null }): boolean {
+  return OUTSIDE_TECH.test(person.role ?? "") || (!person.role && OUTSIDE_TECH.test(person.headline));
+}
+
+export interface LinkedInCompany {
+  slug: string;
+  /** The name LinkedIn shows for it. */
+  name: string;
+}
+
+/** A company page result: /company/<slug>, without its Jobs or Life tabs. */
+export function parseCompanyPage(result: SearchResult): (LinkedInCompany & { tab: boolean }) | null {
+  const match = /^https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/company\/([^/?#]+)(\/[^?#]*)?/i.exec(result.link);
+  if (!match?.[1]) return null;
+  const name = result.title.replace(/\s*\|\s*LinkedIn\s*$/i, "").replace(/:\s*(?:Jobs|Culture|Life|About|People|Posts)\s*$/i, "").trim();
+  return { slug: decodeURIComponent(match[1]).toLowerCase(), name, tab: Boolean(match[2] && match[2] !== "/") };
+}
+
+/** The page whose result shows the company's website. */
+export function companyPageFor(results: SearchResult[], domain: string): LinkedInCompany | null {
+  const host = domain.toLowerCase();
+  for (const result of results) {
+    const page = parseCompanyPage(result);
+    if (!page || page.tab) continue;
+    if (`${result.title} ${result.snippet ?? ""}`.toLowerCase().includes(host)) return { slug: page.slug, name: page.name };
+  }
+  return null;
+}
+
+/** How many different companies LinkedIn has under this name. */
+export function namesakes(results: SearchResult[], company: string): number {
+  const key = companyKey(company);
+  const slugs = new Set<string>();
+  for (const result of results) {
+    const page = parseCompanyPage(result);
+    if (page && companyKey(page.name) === key) slugs.add(page.slug);
+  }
+  return slugs.size;
+}
+
+const AREA_WORDS = /\b(?:greater|metropolitan|metro|area|bay|city|county|region)\b/gi;
+
+function placeKey(text: string): string {
+  return (text.split(",")[0] ?? "").replace(AREA_WORDS, " ").toLowerCase().replace(/[^a-z]+/g, " ").trim();
+}
+
+/** Whether someone lives near one of the company's offices (where its jobs
+ * are). Null when it can't be told: no location, no offices, or remote jobs. */
+export function nearOffice(location: string | null, offices: string[]): boolean | null {
+  if (!location || offices.length === 0 || offices.some((office) => /remote/i.test(office))) return null;
+  const person = placeKey(location);
+  if (!person) return null;
+  return offices.some((office) => {
+    const place = placeKey(office);
+    return place.length > 0 && (place.includes(person) || person.includes(place));
+  });
 }
 
 export type CompanyMatch =

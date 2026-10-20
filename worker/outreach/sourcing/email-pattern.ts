@@ -1,3 +1,5 @@
+import { MAIL_TEMPLATES } from "../../../shared/recruiter-review";
+
 /* Work addresses from names: clean a display name into the parts addresses
  * are built from, learn a company's template from known name and address
  * pairs, and apply it to everyone else. See docs/recruiter-contacts-sourcing.md. */
@@ -97,18 +99,10 @@ function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
-/** Templates use {first}, {last}, {f} and {l}, with ".", "_" or "-" between. */
-export const COMMON_TEMPLATES = [
-  "{first}.{last}",
-  "{first}",
-  "{f}{last}",
-  "{first}{last}",
-  "{f}.{last}",
-  "{first}_{last}",
-  "{first}{l}",
-  "{last}.{first}",
-  "{last}{f}",
-] as const;
+/** Templates use {first}, {last}, {f} and {l}, with ".", "_" or "-" between.
+ * These are the common ones, most common first (shared with Admin's format
+ * sheet). */
+export const COMMON_TEMPLATES = MAIL_TEMPLATES;
 
 /** Null when the template needs a last name that isn't known. */
 export function applyTemplate(template: string, name: PersonName): string | null {

@@ -64,6 +64,9 @@ export interface Env {
   OUTREACH_FOLLOW_UP_MINUTES?: string;
   /** Serper (Google results) for recruiter sourcing; admin runs only. */
   SERPER_API_KEY?: string;
+  /** A GitHub token (public read only) for the address-format cross-check:
+   * 5,000 requests an hour instead of 60. Optional. */
+  GITHUB_TOKEN?: string;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */

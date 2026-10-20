@@ -3,12 +3,15 @@ import {
   type ActualRole,
   type RecruiterCandidate,
   type RecruiterCompany,
+  type RecruiterCompanyChoice,
   type RecruiterReview,
   type RecruiterReviewScore,
   type WorksThere,
 } from "../../../shared/recruiter-review";
+import { syncCompanyCandidates } from "../contacts";
+import { applyTemplate, cleanPersonName, completeNameFromSlug } from "./email-pattern";
 import { websiteDomain } from "./mail-domain";
-import type { SourcedCompany } from "./source-company";
+import { emailConfidence, type SourcedCompany } from "./source-company";
 
 /* Saving sourcing runs for admin review, and the owner's labels. See
  * migrations/0092_recruiter_sourcing.sql. */
@@ -48,16 +51,22 @@ export async function saveSourcing(db: D1Database, company: CompanyToSource, res
   const statements = [
     db.prepare(
       `INSERT INTO recruiter_sourcing
-         (company_id, site, mail_domain, mail_domain_source, mail_provider, pattern, pattern_votes, pattern_sources, searches, error, ran_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+         (company_id, site, mail_domain, mail_domain_source, mail_provider, pattern, pattern_votes, pattern_sources, searches, error, ran_at,
+          pattern_source, linkedin_slug, linkedin_name, name_shared, github_org, github_pattern, github_votes, github_total)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(company_id) DO UPDATE SET
          site = excluded.site, mail_domain = excluded.mail_domain, mail_domain_source = excluded.mail_domain_source,
          mail_provider = excluded.mail_provider, pattern = excluded.pattern, pattern_votes = excluded.pattern_votes,
          pattern_sources = excluded.pattern_sources, searches = recruiter_sourcing.searches + excluded.searches,
-         error = NULL, ran_at = excluded.ran_at`
+         error = NULL, ran_at = excluded.ran_at, pattern_source = excluded.pattern_source,
+         linkedin_slug = excluded.linkedin_slug, linkedin_name = excluded.linkedin_name, name_shared = excluded.name_shared,
+         github_org = excluded.github_org, github_pattern = excluded.github_pattern,
+         github_votes = excluded.github_votes, github_total = excluded.github_total`
     ).bind(
       company.id, company.site, result.mail.domain, result.mail.source, result.provider,
       result.pattern?.template ?? null, result.pattern?.votes ?? 0, result.pattern?.total ?? 0, result.searches, now,
+      result.pattern?.source ?? null, result.linkedin?.slug ?? null, result.linkedin?.name ?? null, result.nameShared ? 1 : 0,
+      result.github?.org ?? null, result.github?.template ?? null, result.github?.votes ?? 0, result.github?.total ?? 0,
     ),
     // Labels stay; everything the search says is refreshed.
     ...result.people.map((row) => db.prepare(
@@ -97,11 +106,12 @@ const MAX_CANDIDATES = 1000;
 export async function recruiterReview(db: D1Database): Promise<Omit<RecruiterReview, "available" | "can_run">> {
   const [companies, candidates] = await Promise.all([
     db.prepare(
-      `SELECT rs.company_id, c.name AS company, rs.mail_domain, rs.mail_domain_source, rs.pattern,
-              rs.pattern_votes, rs.pattern_sources, rs.error, rs.ran_at
+      `SELECT rs.company_id, c.name AS company, rs.site, rs.mail_domain, rs.mail_domain_source, rs.pattern,
+              rs.pattern_votes, rs.pattern_sources, rs.pattern_source, rs.linkedin_slug, rs.linkedin_name, rs.name_shared,
+              rs.github_org, rs.github_pattern, rs.github_votes, rs.github_total, rs.error, rs.ran_at
        FROM recruiter_sourcing rs JOIN companies c ON c.id = rs.company_id
        ORDER BY rs.ran_at DESC`
-    ).all<RecruiterCompany>(),
+    ).all<Omit<RecruiterCompany, "name_shared"> & { name_shared: number }>(),
     db.prepare(
       `SELECT rc.id, rc.company_id, c.name AS company, rc.profile_url, rc.name, rc.headline, rc.current_title,
               rc.current_employer, rc.location, rc.kind, rc.kind_from_snippet, rc.employer_evidence,
@@ -113,7 +123,11 @@ export async function recruiterReview(db: D1Database): Promise<Omit<RecruiterRev
     ).bind(MAX_CANDIDATES).all<CandidateRow>(),
   ]);
   const rows = (candidates.results ?? []).map((row) => ({ ...row, kind_from_snippet: row.kind_from_snippet === 1 }));
-  return { companies: companies.results ?? [], candidates: rows, score: scoreReview(rows) };
+  return {
+    companies: (companies.results ?? []).map((row) => ({ ...row, name_shared: row.name_shared === 1 })),
+    candidates: rows,
+    score: scoreReview(rows),
+  };
 }
 
 export function scoreReview(rows: RecruiterCandidate[]): RecruiterReviewScore {
@@ -155,4 +169,100 @@ export async function labelCandidate(db: D1Database, id: string, labels: Candida
      FROM recruiter_candidates rc JOIN companies c ON c.id = rc.company_id WHERE rc.id = ?`
   ).bind(id).first<CandidateRow>();
   return row ? { ...row, kind_from_snippet: row.kind_from_snippet === 1 } : null;
+}
+
+/** The companies you picked to search (Paper R3), in the order given. */
+export async function companiesByIds(db: D1Database, ids: string[]): Promise<CompanyToSource[]> {
+  if (ids.length === 0) return [];
+  const rows = (await db.prepare(
+    `SELECT id, name, website FROM companies WHERE website != '' AND id IN (${ids.map(() => "?").join(", ")})`
+  ).bind(...ids).all<{ id: string; name: string; website: string }>()).results ?? [];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    const site = row ? websiteDomain(row.website) : null;
+    return row && site ? [{ id: row.id, name: row.name, site }] : [];
+  });
+}
+
+export type CompanyFilter = "hiring" | "not_searched" | "has_format";
+
+/** Catalog companies for "Choose companies": most open jobs first, with when
+ * each was searched and its format (yours first). */
+export async function companyChoices(
+  db: D1Database,
+  { q = "", filter, limit = 50 }: { q?: string; filter?: CompanyFilter; limit?: number } = {},
+): Promise<RecruiterCompanyChoice[]> {
+  const where = ["c.enabled = 1", "c.website != ''"];
+  const binds: unknown[] = [];
+  if (q.trim()) {
+    where.push("(lower(c.name) LIKE ? OR lower(c.website) LIKE ?)");
+    binds.push(`%${q.trim().toLowerCase()}%`, `%${q.trim().toLowerCase()}%`);
+  }
+  if (filter === "not_searched") where.push("rs.company_id IS NULL");
+  if (filter === "has_format") where.push("(f.pattern IS NOT NULL OR rs.pattern IS NOT NULL)");
+  const rows = (await db.prepare(
+    `SELECT c.id, c.name, c.website, rs.ran_at AS searched_at,
+       (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL) AS open_jobs,
+       (SELECT COUNT(*) FROM recruiter_candidates rc WHERE rc.company_id = c.id AND rc.left_out_reason IS NULL) AS kept,
+       COALESCE(f.pattern, rs.pattern) AS pattern,
+       CASE WHEN f.pattern IS NOT NULL THEN 'owner' ELSE rs.pattern_source END AS pattern_source
+     FROM companies c
+     LEFT JOIN recruiter_sourcing rs ON rs.company_id = c.id
+     LEFT JOIN company_mail_formats f ON f.company_id = c.id
+     WHERE ${where.join(" AND ")}
+     ${filter === "hiring" ? "AND (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL) > 0" : ""}
+     ORDER BY open_jobs DESC, c.name
+     LIMIT ?`
+  ).bind(...binds, limit).all<Omit<RecruiterCompanyChoice, "site"> & { website: string }>()).results ?? [];
+  return rows.map(({ website, ...row }) => ({ ...row, site: websiteDomain(website) ?? website }));
+}
+
+/** Where a company's open jobs are, to tell its recruiters from a namesake's. */
+export async function companyOffices(db: D1Database, companyId: string): Promise<string[]> {
+  const rows = (await db.prepare(
+    "SELECT DISTINCT location FROM jobs WHERE company_id = ? AND closed_at IS NULL AND location != '' LIMIT 50"
+  ).bind(companyId).all<{ location: string }>()).results ?? [];
+  return rows.map((row) => row.location);
+}
+
+export async function ownerFormat(db: D1Database, companyId: string): Promise<{ domain: string; pattern: string } | null> {
+  return db.prepare("SELECT domain, pattern FROM company_mail_formats WHERE company_id = ?")
+    .bind(companyId).first<{ domain: string; pattern: string }>();
+}
+
+/**
+ * Your format for a company (Paper R4): kept for its next searches, and every
+ * address already guessed there is written again from it. Recruiters on
+ * People follow (syncCompanyCandidates). Returns how many were rewritten.
+ */
+export async function setOwnerFormat(db: D1Database, companyId: string, domain: string, pattern: string, now = new Date()): Promise<number> {
+  const stamp = now.toISOString();
+  await db.prepare(
+    `INSERT INTO company_mail_formats (company_id, domain, pattern, set_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(company_id) DO UPDATE SET domain = excluded.domain, pattern = excluded.pattern, set_at = excluded.set_at`
+  ).bind(companyId, domain, pattern, stamp).run();
+  await db.prepare(
+    `UPDATE recruiter_sourcing SET mail_domain = ?, mail_domain_source = CASE WHEN site = ? THEN 'website' ELSE 'format pages' END,
+       pattern = ?, pattern_votes = 1, pattern_sources = 1, pattern_source = 'owner'
+     WHERE company_id = ?`
+  ).bind(domain, domain, pattern, companyId).run();
+  const candidates = (await db.prepare(
+    "SELECT id, name, profile_url, left_out_reason FROM recruiter_candidates WHERE company_id = ?"
+  ).bind(companyId).all<{ id: string; name: string; profile_url: string; left_out_reason: string | null }>()).results ?? [];
+  const source = { template: pattern, votes: 1, total: 1, source: "owner" as const };
+  const writes = candidates.map((row) => {
+    const slug = decodeURIComponent(row.profile_url.split("/in/")[1]?.split(/[/?#]/)[0] ?? "").toLowerCase();
+    const cleaned = cleanPersonName(row.name);
+    const name = cleaned ? completeNameFromSlug(cleaned, slug) : null;
+    const local = name ? applyTemplate(pattern, name) : null;
+    return db.prepare("UPDATE recruiter_candidates SET email_guess = ?, email_confidence = ? WHERE id = ?").bind(
+      local ? `${local}@${domain}` : null,
+      row.left_out_reason === null ? emailConfidence({ name }, source, local) : null,
+      row.id,
+    );
+  });
+  for (let start = 0; start < writes.length; start += 50) await db.batch(writes.slice(start, start + 50));
+  await syncCompanyCandidates(db, companyId, now);
+  return candidates.length;
 }

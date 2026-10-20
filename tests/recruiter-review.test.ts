@@ -4,7 +4,15 @@ import { readdirSync, readFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { SearchResult } from "@worker/outreach/sourcing/linkedin-search";
 import { sourceCompany, type Search } from "@worker/outreach/sourcing/source-company";
-import { companiesToSource, labelCandidate, recruiterReview, saveSourcing } from "@worker/outreach/sourcing/store";
+import {
+  companiesByIds,
+  companiesToSource,
+  companyChoices,
+  labelCandidate,
+  recruiterReview,
+  saveSourcing,
+  setOwnerFormat,
+} from "@worker/outreach/sourcing/store";
 import recruiterRoutes from "@worker/routes/recruiters";
 import type { Env, Variables } from "@worker/types";
 import { sqliteD1 } from "./sqlite-d1";
@@ -55,7 +63,7 @@ describe("sourceCompany", () => {
     expect(result.mail).toEqual({ domain: "getacme.example", exchanges: ["aspmx.l.google.com"], source: "format pages" });
     expect(result.provider).toBe("google");
     // mailmo.io is ignored, so both remaining sources agree.
-    expect(result.pattern).toEqual({ template: "{first}.{last}", votes: 2, total: 2 });
+    expect(result.pattern).toEqual({ template: "{first}.{last}", votes: 2, total: 2, source: "pages" });
     expect(result.people.map((row) => [row.person.name?.display, row.kind, row.reason])).toEqual([
       ["Avery Testerson", "early_career", null],
       ["Imani Fakename", "technical", null],
@@ -69,6 +77,46 @@ describe("sourceCompany", () => {
       emailConfidence: "format probable",
     });
     expect(result.people[2]?.emailConfidence).toBeNull();
+  });
+});
+
+describe("sourceCompany, more carefully", () => {
+  const companyPage = (title: string, slug: string, snippet: string): SearchResult => ({ title, link: `https://www.linkedin.com/company/${slug}`, snippet });
+  const namesakeSearch: Search = async (query, page) => {
+    if (query === 'site:linkedin.com/company "acme.example"') return [{ title: "Acme", link: "https://www.linkedin.com/company/acme-dev", snippet: "Website: https://acme.example" }];
+    if (query === 'site:linkedin.com/company "Acme"') return [companyPage("Acme", "acme-dev", "Engineering tools."), companyPage("Acme", "getacme", "Dental software. Lehi, Utah.")];
+    if (query.includes('"technical recruiter"') && page === 1) return [
+      profile("Jordan Lee", "Senior Technical Recruiter at Acme", "Salt Lake City Metropolitan Area · Senior Technical Recruiter · Acme", "jordan-lee"),
+      profile("Sam Rivera", "Technical Recruiter at Acme", "San Francisco Bay Area · Technical Recruiter · Acme", "sam-rivera"),
+      profile("Pat Quinn", "GTM Recruiter at Acme", "San Francisco Bay Area · GTM Recruiter · Acme", "pat-quinn"),
+    ];
+    return fakeSearch(query, page);
+  };
+
+  it("checks which Acme it is, keeps tech recruiters, and prefers your format, then GitHub's", async () => {
+    const offices = ["San Francisco, CA, US"];
+    const pages = await sourceCompany("Acme", "acme.example", namesakeSearch, fakeLookup, { offices });
+    expect(pages.linkedin).toEqual({ slug: "acme-dev", name: "Acme" });
+    expect(pages.nameShared).toBe(true);
+    const reasons = Object.fromEntries(pages.people.map((row) => [row.person.name?.display, row.reason]));
+    expect(reasons["Jordan Lee"]).toBe("may work at another Acme");
+    expect(reasons["Sam Rivera"]).toBeNull();
+    expect(reasons["Pat Quinn"]).toBe("recruits outside tech");
+    expect(pages.pattern?.source).toBe("pages");
+
+    const github = async () => ({ org: "acme", template: "{f}{last}", votes: 4, total: 4 });
+    const fromGithub = await sourceCompany("Acme", "acme.example", namesakeSearch, fakeLookup, { offices, github });
+    expect(fromGithub.pattern).toEqual({ template: "{f}{last}", votes: 4, total: 4, source: "github" });
+    expect(fromGithub.people.find((row) => row.person.name?.display === "Sam Rivera")).toMatchObject({
+      emailGuess: "srivera@getacme.example", emailConfidence: "format from GitHub, 4 of 4",
+    });
+
+    const yours = await sourceCompany("Acme", "acme.example", namesakeSearch, fakeLookup, { offices, github, owner: { domain: "acme.example", pattern: "{first}" } });
+    expect(yours.pattern?.source).toBe("owner");
+    expect(yours.mail.domain).toBe("acme.example");
+    expect(yours.people.find((row) => row.person.name?.display === "Sam Rivera")).toMatchObject({
+      emailGuess: "sam@acme.example", emailConfidence: "risky: first-name addresses often belong to someone else",
+    });
   });
 });
 
@@ -140,6 +188,53 @@ describe("recruiter review storage", () => {
   });
 });
 
+describe("choosing companies and their formats", () => {
+  it("lists catalog companies with open jobs first, and picks the ones you chose", async () => {
+    const { sqlite, db } = await setup();
+    sqlite.run(`INSERT INTO jobs (id, company_id, external_id, title, url, location, first_seen_at, description) VALUES
+      ('g1', 'globex', 'g1', 'Engineer', 'https://example.com/g1', 'Austin, TX', '2026-10-01', ''),
+      ('g2', 'globex', 'g2', 'Engineer II', 'https://example.com/g2', 'Austin, TX', '2026-10-01', '')`);
+    sqlite.run("UPDATE companies SET enabled = 1 WHERE id IN ('acme', 'acme-2', 'globex', 'nosite')");
+    await saveSourcing(db, { id: "acme", name: "Acme", site: "acme.example" },
+      await sourceCompany("Acme", "acme.example", fakeSearch, fakeLookup), "2026-10-14T10:00:00.000Z");
+    const choices = await companyChoices(db);
+    expect(choices.map((row) => [row.name, row.site, row.open_jobs, row.searched_at, row.kept, row.pattern, row.pattern_source])).toEqual([
+      ["Globex", "globex.example", 2, null, 0, null, null],
+      ["Acme", "acme.example", 0, "2026-10-14T10:00:00.000Z", 2, "{first}.{last}", "pages"],
+      ["Acme", "acme.example", 0, null, 0, null, null],
+    ]);
+    expect((await companyChoices(db, { filter: "hiring" })).map((row) => row.id)).toEqual(["globex"]);
+    expect((await companyChoices(db, { filter: "not_searched" })).map((row) => row.id)).toEqual(["globex", "acme-2"]);
+    expect((await companyChoices(db, { q: "glob" })).map((row) => row.id)).toEqual(["globex"]);
+    expect((await companiesByIds(db, ["globex", "nosite", "acme", "missing"])).map((row) => [row.id, row.site])).toEqual([
+      ["globex", "globex.example"], ["acme", "acme.example"],
+    ]);
+  });
+
+  it("rewrites every guess at a company from your format, and People follows", async () => {
+    const { sqlite, db } = await setup();
+    await saveSourcing(db, { id: "acme", name: "Acme", site: "acme.example" },
+      await sourceCompany("Acme", "acme.example", fakeSearch, fakeLookup), "2026-10-14T10:00:00.000Z");
+    const avery = (await recruiterReview(db)).candidates!.find((row) => row.name === "Avery Testerson")!;
+    await labelCandidate(db, avery.id, { works_there: "yes" }, "2026-10-14T11:00:00.000Z");
+    const { syncCandidateContact } = await import("@worker/outreach/contacts");
+    await syncCandidateContact(db, avery.id);
+
+    expect(await setOwnerFormat(db, "acme", "acme.example", "{f}{last}")).toBe(5);
+    const review = await recruiterReview(db);
+    expect(review.companies![0]).toMatchObject({ mail_domain: "acme.example", pattern: "{f}{last}", pattern_source: "owner", site: "acme.example" });
+    expect(review.candidates!.find((row) => row.name === "Avery Testerson")).toMatchObject({
+      email_guess: "atesterson@acme.example", email_confidence: "format from you",
+    });
+    // Left-out people get the new guess but no confidence, as from a search.
+    expect(review.candidates!.find((row) => row.name === "Rowan Placeholder")).toMatchObject({ email_guess: "rplaceholder@acme.example", email_confidence: null });
+    expect(sqlite.query("SELECT email, status FROM company_contacts ORDER BY email").all()).toEqual([
+      { email: "atesterson@acme.example", status: "listed" },
+      { email: "avery.testerson@getacme.example", status: "hidden" },
+    ]);
+  });
+});
+
 describe("recruiter review routes", () => {
   async function app(env: Partial<Env> = {}) {
     const { sqlite, db } = await setup();
@@ -199,6 +294,19 @@ describe("recruiter review routes", () => {
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+
+  it("lists companies to choose and saves your format", async () => {
+    const { db, call } = await app();
+    await saveSourcing(db, { id: "acme", name: "Acme", site: "acme.example" },
+      await sourceCompany("Acme", "acme.example", fakeSearch, fakeLookup), "2026-10-14T10:00:00.000Z");
+    expect((await call("/recruiters/companies", { user: "someone" })).status).toBe(403);
+    expect((await call("/recruiters/companies?filter=has_format")).body.companies.map((row: { id: string }) => row.id)).toEqual(["acme"]);
+    const put = (body: unknown, id = "acme") => call(`/recruiters/companies/${id}/format`, { method: "PUT", body: JSON.stringify(body) });
+    expect((await put({ domain: "acme.example", template: "{first}-{last}" })).status).toBe(400);
+    expect((await put({ template: "{first}" })).status).toBe(400);
+    expect((await put({ domain: "acme.example", template: "{first}" }, "missing")).status).toBe(404);
+    expect((await put({ domain: "https://www.acme.example/", template: "{first}" })).body).toEqual({ domain: "acme.example", template: "{first}", rewritten: 5 });
   });
 
   it("validates and saves labels", async () => {

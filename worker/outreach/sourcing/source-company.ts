@@ -9,17 +9,25 @@ import {
   patternEvidence,
   type FormatClaim,
 } from "./email-pattern";
+import { trustGithub, type GithubFormat } from "./github-format";
 import {
   basedInUs,
   classifyRecruiter,
   companyKey,
+  companyPageFor,
+  companyPageQuery,
   earlyCareerQuery,
   formatQuery,
   matchCompany,
+  namesakes,
+  nearOffice,
   parseLinkedInResult,
   recruiterQuery,
+  recruitsOutsideTech,
   RECRUITER_KIND_RANK,
+  sameNameQuery,
   type CompanyMatch,
+  type LinkedInCompany,
   type LinkedInPerson,
   type RecruiterKind,
   type SearchResult,
@@ -52,11 +60,20 @@ export interface SourcedPerson {
   emailConfidence: string | null;
 }
 
+export type PatternSource = "owner" | "github" | "pages";
+
 export interface SourcedCompany {
   site: string;
   mail: MailDomain;
   provider: MailProvider | null;
-  pattern: { template: string; votes: number; total: number } | null;
+  /** Yours (from a Hunter check) first, then GitHub's commits when they
+   * clearly agree, then the format pages' vote. */
+  pattern: { template: string; votes: number; total: number; source: PatternSource } | null;
+  /** The company's own LinkedIn page, found by its website. */
+  linkedin: LinkedInCompany | null;
+  /** Another company on LinkedIn has the same name (Weave). */
+  nameShared: boolean;
+  github: GithubFormat | null;
   claims: FormatClaim[];
   roleAddresses: string[];
   /** Kept first, best first; then everyone left out. */
@@ -64,22 +81,39 @@ export interface SourcedCompany {
   searches: number;
 }
 
-/** Searches per company: two early-career pages, one recruiter page, one
- * "email format" page. */
-export const SEARCHES_PER_COMPANY = 4;
+/** Searches per company: two early-career pages, one technical-recruiter
+ * page, one "email format" page, the company's LinkedIn page by its website,
+ * and its LinkedIn namesakes. */
+export const SEARCHES_PER_COMPANY = 6;
+
+export interface SourceOptions {
+  /** The format you set from a Hunter check; it wins over everything. */
+  owner?: { domain: string; pattern: string } | null;
+  /** Where the company's open jobs are, to tell a namesake's people apart. */
+  offices?: string[];
+  /** GitHub's commits as a second opinion on the format. */
+  github?: (domain: string) => Promise<GithubFormat | null>;
+}
 
 export async function sourceCompany(
   company: string,
   site: string,
   search: Search,
   lookup: (domain: string) => Promise<string[]> = lookupMx,
+  options: SourceOptions = {},
 ): Promise<SourcedCompany> {
-  const [earlyFirst, earlySecond, recruiterResults, formatResults] = await Promise.all([
+  const [earlyFirst, earlySecond, recruiterResults, formatResults, pageResults, namesakeResults] = await Promise.all([
     search(earlyCareerQuery(company), 1),
     search(earlyCareerQuery(company), 2),
     search(recruiterQuery(company), 1),
     search(formatQuery(company), 1),
+    search(companyPageQuery(site), 1),
+    search(sameNameQuery(company), 1),
   ]);
+  const linkedin = companyPageFor(pageResults, site);
+  const nameShared = namesakes(namesakeResults, company) > 1;
+  // LinkedIn's own name for it counts as the company too (Square for Block).
+  const aliases = linkedin && companyKey(linkedin.name) !== companyKey(company) ? [linkedin.name] : [];
 
   const profiles = new Map<string, LinkedInPerson>();
   for (const result of [...earlyFirst, ...earlySecond, ...recruiterResults]) {
@@ -88,25 +122,37 @@ export async function sourceCompany(
   }
 
   const formatText = formatResults.map((result) => `${result.title} ${result.snippet ?? ""}`).join("\n");
-  const mail = await chooseMailDomain(site, mailDomainsInText(formatText, [companyKey(company), site.split(".")[0] ?? ""]), lookup);
+  const owner = options.owner ?? null;
+  const mail: MailDomain = owner
+    ? { domain: owner.domain, exchanges: await lookup(owner.domain).catch(() => [] as string[]), source: owner.domain === site ? "website" : "format pages" }
+    : await chooseMailDomain(site, mailDomainsInText(formatText, [companyKey(company), site.split(".")[0] ?? ""]), lookup);
   const claims = formatResults
     .map((result) => formatClaim(`${result.title} ${result.snippet ?? ""}`, hostname(result.link)))
     .filter((claim) => claim !== null);
   const peopleText = [...profiles.values()].map((person) => `${person.rawName} ${person.snippet}`).join("\n");
-  const pattern = likelyTemplate([...claims, ...patternEvidence(peopleText, mail.domain)]);
+  const github = options.github ? await options.github(mail.domain).catch(() => null) : null;
+  const pages = likelyTemplate([...claims, ...patternEvidence(peopleText, mail.domain)]);
+  const pattern: SourcedCompany["pattern"] = owner ? { template: owner.pattern, votes: 1, total: 1, source: "owner" }
+    : trustGithub(github) ? { template: github.template, votes: github.votes, total: github.total, source: "github" }
+    : pages ? { ...pages, source: "pages" }
+    : null;
 
   const isThisCompany = (name: string | null) =>
-    name !== null && matchCompany({ headline: "", snippet: "", experience: name }, company) === "current";
+    name !== null && matchCompany({ headline: "", snippet: "", experience: name }, company, aliases) === "current";
 
   const people = [...profiles.values()].map((person): SourcedPerson => {
     const { kind, weak } = classifyRecruiter(person);
-    const match = matchCompany(person, company);
+    const match = matchCompany(person, company, aliases);
     const rank = RECRUITER_KIND_RANK[kind];
+    // With the name shared, someone far from every office probably works at the namesake.
+    const awayFromOffices = nameShared && nearOffice(person.location, options.offices ?? []) === false;
     const reason = !person.name ? "no usable name"
       : rank >= 9 ? (kind === "intern" ? "recruiting intern" : "not a recruiter")
+      : recruitsOutsideTech(person) ? "recruits outside tech"
       : match === "former" ? `left the company${person.employer ? ` (now at ${person.employer})` : ""}`
       : match === "none" ? (person.employer ? `works at ${person.employer}` : "company not confirmed")
       : !basedInUs(person) ? `based outside the US (${person.location})`
+      : awayFromOffices ? `may work at another ${company}`
       : null;
     const employerEvidence: EmployerEvidence = isThisCompany(person.employer) ? "current employer"
       : isThisCompany(person.experience) ? "experience line"
@@ -135,6 +181,9 @@ export async function sourceCompany(
     mail,
     provider: mail.exchanges.length ? mailProvider(mail.exchanges) : null,
     pattern,
+    linkedin,
+    nameShared,
+    github,
     claims,
     roleAddresses: addressesAt(`${formatText}\n${peopleText}`, mail.domain).filter(isRoleAddress),
     people: [...kept, ...people.filter((row) => row.reason !== null)],
@@ -148,8 +197,8 @@ export const FALLBACK_TEMPLATES = COMMON_TEMPLATES.slice(0, 3);
 /** How far to trust the guessed address, from the pattern's support and the
  * name. A {first} format is risky at any size: a common first name's
  * address usually belongs to whoever joined first. */
-function emailConfidence(
-  person: LinkedInPerson,
+export function emailConfidence(
+  person: Pick<LinkedInPerson, "name">,
   pattern: SourcedCompany["pattern"],
   local: string | null,
 ): string {
@@ -157,6 +206,8 @@ function emailConfidence(
   if (!local) return "no guess: the format needs a last name";
   const notes: string[] = [];
   if (pattern.template === "{first}") notes.push("risky: first-name addresses often belong to someone else");
+  else if (pattern.source === "owner") notes.push("format from you");
+  else if (pattern.source === "github") notes.push(`format from GitHub, ${pattern.votes} of ${pattern.total}`);
   else if (pattern.votes === pattern.total && pattern.total >= 3) notes.push("format likely");
   else if (pattern.votes / pattern.total >= 0.75) notes.push("format probable");
   else notes.push("format uncertain");
