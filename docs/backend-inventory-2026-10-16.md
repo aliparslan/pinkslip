@@ -92,9 +92,11 @@ Following (owner, 2026-10-19: parked until outreach and auto-apply):
 
 Outreach (step 8, 2026-10-19):
 
-- [ ] **Approve the Recruiters screens** (Paper "Recruiters · Skip and the
-  company · Oct 19", R1 to R4), then build them; and decide the recruiter
-  types ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md)).
+- [x] ~~Approve the Recruiters screens~~ (approved and built 2026-10-22,
+  not yet on the owner channel).
+- [ ] **Decide the recruiter types**
+  ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md)); "Their
+  role" keeps its three answers until then.
 - [ ] **A GitHub token** (public read only), `wrangler secret put
   GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
 - [ ] **A systematic way to list recruiters**, replacing "the ones the
@@ -1254,9 +1256,20 @@ is set every email is addressed to it.
   hand.
 - Six searches a company instead of four (about $0.006). `GITHUB_TOKEN`
   (optional secret) raises GitHub's limit from 60 to 5,000 requests an hour.
-- The screens (Paper "Recruiters · Skip and the company · Oct 19": R1 site
-  and Skip, R2 a mismatched address, R3 choosing companies, R4 a company's
-  format) wait for the owner's approval.
+- The screens (Paper "Recruiters · Skip and the company · Oct 19", approved
+  by the owner 2026-10-22) are built in Admin → Recruiters: the company's
+  site on the card's top line and the person's location in the card (R1);
+  Skip under the questions, sending them to the back for this visit; the
+  Email row's red line when the guess isn't at the site, unless you set the
+  format (R2); + opens Choose companies (R3: search, Hiring now, Not
+  searched, Has a format, most open jobs first, "Search N companies"); and
+  Email opens the company's format sheet (R4: the domain, the formats
+  written out with the person's name, Look it up on Hunter, what GitHub and
+  the format pages say, Save). Left-out people marked "may work at another
+  X" come up for a second look. Checked in the simulator on the kit's
+  samples; not on the owner channel yet. Choose companies is a pushed page
+  with Back, as Admin's pages are, where Paper drew Jobs' select mode with
+  its close button.
 
 Liberties for the owner to keep or veto:
 

@@ -1,6 +1,6 @@
 import type {
   ClassificationDisagreement, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics, RecruiterCandidate,
-  RecruiterReviewScore,
+  RecruiterCompany, RecruiterCompanyChoice, RecruiterReviewScore,
 } from "@pinkslip/core/api";
 
 /**
@@ -94,11 +94,36 @@ const person = (id: string, name: string, company: string, title: string, patch:
   reviewed_at: null, ...patch,
 });
 
-/** Recruiters (A7): two kept and one left out worth a second look. */
+/** Recruiters (A7, R1, R2): two kept, one whose address isn't at the
+ * company's site, and one left out worth a second look. */
 export const SAMPLE_RECRUITERS: RecruiterCandidate[] = [
-  person("r1", "Dana Kim", "Stripe", "University Recruiter", { email_guess: "dana@stripe.com", email_confidence: "likely" }),
-  person("r2", "Marcus Ortiz", "Stripe", "Technical Recruiter, Payments", { kind: "technical", location: "Seattle", email_guess: "marcus@stripe.com", email_confidence: "likely" }),
+  person("r1", "Dana Kim", "Stripe", "University Recruiter", { email_guess: "dana.kim@stripe.com", email_confidence: "format from you" }),
+  person("r2", "Marcus Ortiz", "Stripe", "Technical Recruiter, Payments", { kind: "technical", location: "Seattle", email_guess: "marcus.ortiz@stripe.com", email_confidence: "format from you" }),
+  person("r4", "Jordan Lee", "Weave", "Senior Technical Recruiter", { kind: "technical", location: "Salt Lake City", email_guess: "jordan@weaveinc.org", email_confidence: "risky: first-name addresses often belong to someone else" }),
   person("r3", "Priya Shah", "Ramp", "Talent Partner", { kind: "recruiter", kind_from_snippet: true, location: "New York", left_out_reason: "company not confirmed", employer_evidence: "headline only" }),
+];
+
+const sourcing = (id: string, company: string, site: string, patch: Partial<RecruiterCompany> = {}): RecruiterCompany => ({
+  company_id: id, company, site, mail_domain: site, mail_domain_source: "website", pattern: "{first}.{last}", pattern_votes: 6, pattern_sources: 7,
+  pattern_source: "pages", linkedin_slug: id, linkedin_name: company, name_shared: false, github_org: null, github_pattern: null, github_votes: 0,
+  github_total: 0, error: null, ran_at: minutesAgo(60 * 30), ...patch,
+});
+
+/** The searches behind them: Stripe's format set from a Hunter check. */
+export const SAMPLE_RECRUITER_COMPANIES: RecruiterCompany[] = [
+  sourcing("stripe", "Stripe", "stripe.com", { pattern_source: "owner", github_org: "stripe", github_pattern: "{first}.{last}", github_votes: 4, github_total: 4 }),
+  sourcing("weave", "Weave", "weaveos.com", { mail_domain: "weaveinc.org", mail_domain_source: "format pages", pattern: "{first}", pattern_votes: 2, pattern_sources: 4, name_shared: true }),
+  sourcing("ramp", "Ramp", "ramp.com"),
+];
+
+/** Choose companies (R3). */
+export const SAMPLE_COMPANY_CHOICES: RecruiterCompanyChoice[] = [
+  { id: "ramp", name: "Ramp", site: "ramp.com", open_jobs: 22, searched_at: null, kept: 0, pattern: null, pattern_source: null },
+  { id: "stripe", name: "Stripe", site: "stripe.com", open_jobs: 18, searched_at: minutesAgo(60 * 24 * 5), kept: 5, pattern: "{first}.{last}", pattern_source: "owner" },
+  { id: "notion", name: "Notion", site: "notion.com", open_jobs: 15, searched_at: minutesAgo(60 * 24 * 5), kept: 1, pattern: null, pattern_source: null },
+  { id: "duolingo", name: "Duolingo", site: "duolingo.com", open_jobs: 12, searched_at: null, kept: 0, pattern: null, pattern_source: null },
+  { id: "linear", name: "Linear", site: "linear.app", open_jobs: 11, searched_at: null, kept: 0, pattern: "{first}.{last}", pattern_source: "github" },
+  { id: "figma", name: "Figma", site: "figma.com", open_jobs: 9, searched_at: null, kept: 0, pattern: null, pattern_source: null },
 ];
 
 export const SAMPLE_RECRUITER_SCORE: RecruiterReviewScore = {

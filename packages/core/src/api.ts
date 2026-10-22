@@ -18,7 +18,7 @@ export type { CompanyEvent } from "@pinkslip/domain/company-events";
 import type { CompanyPerson, OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
-import type { ActualRole, RecruiterCandidate, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
+import type { ActualRole, RecruiterCandidate, RecruiterCompanyChoice, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
@@ -42,7 +42,7 @@ export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answer
 export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
 export type { DetectedStage, ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 export type {
-  ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterKind, RecruiterReview, RecruiterReviewScore, RecruiterRun, WorksThere,
+  ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, RecruiterKind, RecruiterReview, RecruiterReviewScore, RecruiterRun, WorksThere,
 } from "@pinkslip/domain/recruiter-review";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
@@ -1199,6 +1199,23 @@ function createEndpoints(context: ClientContext) {
     /** Sources a few more catalog companies; about 3 seconds each. */
     run: (count: number) =>
       request<{ runs: RecruiterRun[] }>("/recruiters/run", { method: "POST", body: JSON.stringify({ count }) }, 120_000),
+    /** Searches the companies you picked (Paper R3); about 3 seconds each. */
+    runCompanies: (companyIds: string[]) =>
+      request<{ runs: RecruiterRun[] }>("/recruiters/run", { method: "POST", body: JSON.stringify({ company_ids: companyIds }) }, 120_000),
+    /** Catalog companies to choose from, most open jobs first. */
+    companies: (params: { q?: string; filter?: "hiring" | "not_searched" | "has_format" } = {}) => {
+      const query = new URLSearchParams();
+      if (params.q?.trim()) query.set("q", params.q.trim());
+      if (params.filter) query.set("filter", params.filter);
+      const search = query.toString();
+      return request<{ companies: RecruiterCompanyChoice[] }>(`/recruiters/companies${search ? `?${search}` : ""}`);
+    },
+    /** Your format for a company, from a Hunter check (Paper R4). */
+    setFormat: (companyId: string, domain: string, template: string) =>
+      request<{ domain: string; template: string; rewritten: number }>(`/recruiters/companies/${encodeURIComponent(companyId)}/format`, {
+        method: "PUT",
+        body: JSON.stringify({ domain, template }),
+      }),
     label: (id: string, labels: { works_there?: WorksThere | null; actual_role?: ActualRole | null }) =>
       request<RecruiterCandidate>(`/recruiters/candidates/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(labels) }),
   },

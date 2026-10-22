@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Company, FetchRun, JobReview, PollTierLatency, RecruiterCandidate } from "../packages/core/src/api";
 import {
-  ago, failingSources, flagEvidence, lastDay, needsYou, recruiterFacts, recruiterQueue, recruiterTally, runLength, runLine, sourceProblem, sourceStatus, tierRow,
+  ago, companySearchLine, exampleName, failingSources, flagEvidence, formatEvidence, lastDay, needsYou, recruiterEmail, recruiterFacts, recruiterQueue,
+  recruiterTally, runLength, runLine, sourceProblem, sourceStatus, tierRow, writeAddress,
 } from "../apps/native/src/features/redesign/admin/admin-facts";
 
 const now = new Date(2026, 9, 16, 12, 0).getTime();
@@ -95,11 +96,47 @@ describe("recruiters", () => {
     expect(queue.map((row) => row.id)).toEqual(["half", "kept", "left"]);
   });
 
-  test("facts say how the search read them", () => {
-    expect(recruiterFacts(person("a", { kind: "technical", kind_from_snippet: true, email_guess: "a@stripe.com", email_confidence: "likely" }))).toEqual([
-      ["Title", "University Recruiter"], ["Kept as", "Technical recruiter, from their summary"], ["Email", "a@stripe.com · likely"],
+  test("Skip sends someone to the back, and a namesake's people get a second look", () => {
+    const rows = [person("a"), person("b"), person("c"), person("weave", { left_out_reason: "may work at another Weave" })];
+    expect(recruiterQueue(rows).map((row) => row.id)).toEqual(["a", "b", "c", "weave"]);
+    expect(recruiterQueue(rows, ["a"]).map((row) => row.id)).toEqual(["b", "c", "weave", "a"]);
+    expect(recruiterQueue(rows, ["a", "c", "gone"]).map((row) => row.id)).toEqual(["b", "weave", "a", "c"]);
+  });
+
+  test("facts say how the search read them, with where they are", () => {
+    expect(recruiterFacts(person("a", { kind: "technical", kind_from_snippet: true, location: "Seattle", email_guess: "a@stripe.com" }))).toEqual([
+      ["Title", "University Recruiter"], ["Location", "Seattle"], ["Kept as", "Technical recruiter, from their summary"],
     ]);
     expect(recruiterFacts(person("b", { left_out_reason: "not a recruiter" }))[1]).toEqual(["Left out", "Not a recruiter"]);
+  });
+
+  test("the email row warns when the address isn't at the company's site", () => {
+    const stripe = { site: "stripe.com", pattern_source: "pages" as const };
+    expect(recruiterEmail(person("a", { email_guess: "dana.kim@stripe.com", email_confidence: "format likely" }), stripe))
+      .toEqual({ detail: "dana.kim@stripe.com · format likely", warning: null });
+    expect(recruiterEmail(person("b", { email_guess: "dana@mail.stripe.com" }), stripe).warning).toBeNull();
+    expect(recruiterEmail(person("c", { company: "Weave", email_guess: "jordan@weaveinc.org" }), { site: "weaveos.com", pattern_source: "pages" }).warning)
+      .toBe("Not at weaveos.com: maybe another Weave.");
+    // Your own format is trusted, even at another domain (Notion's mail is at makenotion.com).
+    expect(recruiterEmail(person("d", { email_guess: "dkim@makenotion.com" }), { site: "notion.so", pattern_source: "owner" }).warning).toBeNull();
+    expect(recruiterEmail(person("e", { email_confidence: "no pattern found" }), stripe)).toEqual({ detail: "no pattern found", warning: null });
+  });
+
+  test("choosing companies and setting a format read plainly", () => {
+    expect(companySearchLine({ searched_at: null, kept: 0, pattern: null })).toBe("Not searched yet");
+    expect(companySearchLine({ searched_at: null, kept: 0, pattern: "{first}.{last}" })).toBe("Not searched yet · first.last@");
+    expect(companySearchLine({ searched_at: "2026-10-14T10:00:00.000Z", kept: 5, pattern: "{f}{last}" })).toBe("Searched Oct 14 · 5 kept · flast@");
+    expect(companySearchLine({ searched_at: "2026-10-14T10:00:00.000Z", kept: 1, pattern: null })).toBe("Searched Oct 14 · 1 kept · no format yet");
+    const dana = exampleName("Dana Whitfield");
+    expect(dana).toEqual({ first: "Dana", last: "Whitfield" });
+    expect(["{first}.{last}", "{first}", "{f}{last}", "{first}{l}"].map((template) => writeAddress(template, dana)))
+      .toEqual(["dana.whitfield", "dana", "dwhitfield", "danaw"]);
+    expect(formatEvidence(undefined)).toBeNull();
+    expect(formatEvidence({
+      company_id: "weave", company: "Weave", site: "weaveos.com", mail_domain: "weaveos.com", mail_domain_source: "website", pattern: "{first}.{last}",
+      pattern_votes: 1, pattern_sources: 3, pattern_source: "pages", linkedin_slug: "weave-dev", linkedin_name: "Weave", name_shared: true,
+      github_org: "weave", github_pattern: "{first}", github_votes: 3, github_total: 4, error: null, ran_at: "2026-10-19T00:00:00Z",
+    })).toBe("GitHub: 3 of 4 addresses are first. Format pages: first.last, 1 of 3. Another company is called Weave too.");
   });
 
   test("the tally is one sentence", () => {

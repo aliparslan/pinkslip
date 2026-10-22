@@ -184,6 +184,44 @@ export function useRunRecruiterSourcing() {
   });
 }
 
+/** Catalog companies to choose from (Paper R3), most open jobs first. */
+export function useRecruiterCompanies(q: string, filter: "hiring" | "not_searched" | "has_format" | undefined, enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personal.recruiterCompanies(q.trim(), filter ?? ""),
+    queryFn: async () => (await api.recruiters.companies({ q, filter })).companies,
+    placeholderData: (previous) => previous,
+    enabled,
+  });
+}
+
+/** Searches the companies you picked, then reloads the review and the list. */
+export function useRunRecruiterCompanies() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (companyIds: string[]) => api.recruiters.runCompanies(companyIds),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.admin("recruiters") });
+      void queryClient.invalidateQueries({ queryKey: ["personal", "admin", "recruiter-companies"] });
+    },
+  });
+}
+
+/** Your format for a company (Paper R4): every guess there is rewritten. */
+export function useSetRecruiterFormat() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, domain, template }: { companyId: string; domain: string; template: string }) =>
+      api.recruiters.setFormat(companyId, domain, template),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.admin("recruiters") });
+      void queryClient.invalidateQueries({ queryKey: ["personal", "admin", "recruiter-companies"] });
+    },
+  });
+}
+
 /** Saves either label on one person, shown at once and rolled back if the
  * save fails. */
 export function useRecruiterLabel() {

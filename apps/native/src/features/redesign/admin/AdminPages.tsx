@@ -1,25 +1,29 @@
 import { readableCode } from "@pinkslip/core/admin-format";
-import type { ClassificationDisagreement, ClassificationVerdict, Company } from "@pinkslip/core/api";
+import type { ClassificationDisagreement, ClassificationVerdict, Company, RecruiterCandidate, RecruiterCompanyChoice } from "@pinkslip/core/api";
+import { MAIL_TEMPLATES } from "@pinkslip/domain/recruiter-review";
 import {
   MANUAL_SWEEP_BATCHES, useClassificationReport, useClassificationVerdict, useCompanies, useDeleteCompany, useFeedbackInbox, useJobReviews, useModerateFeedback,
-  useModerateReport, useModerateReview, useProductMetrics, useRecruiterLabel, useRecruiterReview, useRefreshAllSources, useRefreshInbox, useReports, useRuns,
-  useRunLatency, useRunRecruiterSourcing, useToggleCompany,
+  useModerateReport, useModerateReview, useProductMetrics, useRecruiterCompanies, useRecruiterLabel, useRecruiterReview, useRefreshAllSources, useRefreshInbox,
+  useReports, useRuns, useRunLatency, useRunRecruiterCompanies, useSetRecruiterFormat, useToggleCompany,
 } from "@pinkslip/data";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Alert, Linking } from "react-native";
-import { EmptyState, toast, UNDO_TOAST_DURATION } from "../../../ui";
+import { EmptyState, SheetModal, toast, UNDO_TOAST_DURATION } from "../../../ui";
 import {
-  SAMPLE_COMPANIES, SAMPLE_FEEDBACK, SAMPLE_JEV, SAMPLE_METRICS, SAMPLE_RECRUITER_SCORE, SAMPLE_RECRUITERS, SAMPLE_REPORTS, SAMPLE_REVIEWS, SAMPLE_RUNS,
-  SAMPLE_TIERS,
+  SAMPLE_COMPANIES, SAMPLE_COMPANY_CHOICES, SAMPLE_FEEDBACK, SAMPLE_JEV, SAMPLE_METRICS, SAMPLE_RECRUITER_COMPANIES, SAMPLE_RECRUITER_SCORE, SAMPLE_RECRUITERS,
+  SAMPLE_REPORTS, SAMPLE_REVIEWS, SAMPLE_RUNS, SAMPLE_TIERS,
 } from "../../kit/admin-sample";
 import { YouPage } from "../you/Page";
 import { SourceSheet } from "./SourceSheet";
-import { ago, failingSources, flagEvidence, lastDay, needsYou, recruiterQueue, recruiterTally, runLine, shortDate } from "./admin-facts";
 import {
-  AdminHomeView, askForNote, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, RecruitersView, reportRow, RunsView, SourcesView,
-  type AdminTool, type InboxRow,
+  ago, exampleName, failingSources, flagEvidence, formatEvidence, lastDay, needsYou, recruiterQueue, recruiterTally, runLine, shortDate,
+} from "./admin-facts";
+import {
+  AdminHomeView, askForNote, ChooseCompaniesView, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, RecruiterFormatSheet, RecruitersView,
+  reportRow, RunsView, SourcesView,
+  type AdminTool, type CompanyPickFilter, type InboxRow,
 } from "./AdminViews";
 
 /**
@@ -251,13 +255,16 @@ export function JevPage() {
     }} />;
 }
 
-/** A7, live and sample. */
+/** A7 with R1, R2 and R4, live and sample. */
 export function RecruitersPage() {
   const sample = useAdminSample();
   const review = useRecruiterReview();
   const label = useRecruiterLabel();
-  const run = useRunRecruiterSourcing();
+  const setFormat = useSetRecruiterFormat();
   const [sampleRows, setSampleRows] = useState(SAMPLE_RECRUITERS);
+  // Skips last while you're here; on your next visit they're back in line.
+  const [skipped, setSkipped] = useState<string[]>([]);
+  const [formatFor, setFormatFor] = useState<RecruiterCandidate | null>(null);
   if (!sample && review.isPending) return <YouPage title="Recruiters">{null}</YouPage>;
   if (!sample && review.isError) {
     return <YouPage title="Recruiters">
@@ -268,27 +275,85 @@ export function RecruitersPage() {
     return <YouPage title="Recruiters"><EmptyState title="Not set up yet" message="Run the latest database migration to review recruiters." /></YouPage>;
   }
   const rows = sample ? sampleRows : review.data?.candidates ?? [];
+  const companies = new Map((sample ? SAMPLE_RECRUITER_COMPANIES : review.data?.companies ?? []).map((company) => [company.company_id, company]));
+  const company = formatFor ? companies.get(formatFor.company_id) : undefined;
+  const guessedDomain = formatFor?.email_guess ? formatFor.email_guess.slice(formatFor.email_guess.lastIndexOf("@") + 1) : "";
+  return <>
+    <RecruitersView queue={recruiterQueue(rows, skipped)} tally={recruiterTally(sample ? SAMPLE_RECRUITER_SCORE : review.data?.score)}
+      canRun={sample || Boolean(review.data?.can_run)} companies={companies}
+      onLabel={(row, labels) => {
+        if (sample) { setSampleRows(rows.map((item) => item.id === row.id ? { ...item, ...labels } : item)); return; }
+        label.mutate({ id: row.id, labels }, { onError: failed });
+      }}
+      onSkip={(row) => setSkipped((current) => [...current.filter((id) => id !== row.id), row.id])}
+      onChoose={() => router.push((sample ? "/you/admin/recruiter-companies?sample=on" : "/you/admin/recruiter-companies") as Href)}
+      onFormat={setFormatFor}
+      // LinkedIn's app, where the owner is signed in.
+      onOpenProfile={(row) => sample ? sampled("LinkedIn would open")() : void Linking.openURL(row.profile_url)} />
+    <SheetModal open={formatFor !== null} onClosed={() => setFormatFor(null)}>
+      {formatFor ? <RecruiterFormatSheet companyName={formatFor.company}
+        initialDomain={company?.pattern_source === "owner" ? company.mail_domain : company?.site ?? guessedDomain}
+        initialTemplate={company?.pattern && (MAIL_TEMPLATES as readonly string[]).includes(company.pattern) ? company.pattern : null}
+        sampleName={exampleName(formatFor.name)} evidence={formatEvidence(company)}
+        // Hunter's own page for the domain; you're signed in there in the in-app browser.
+        onLookUp={(domain) => open(`https://hunter.io/search/${encodeURIComponent(domain)}`)}
+        onSave={async (domain, template) => {
+          if (sample) { sampled(`${formatFor.company}'s addresses would be rewritten`)(); return; }
+          try {
+            await setFormat.mutateAsync({ companyId: formatFor.company_id, domain, template });
+            toast.success(`Saved for ${formatFor.company}`);
+          } catch (error) {
+            failed();
+            throw error;
+          }
+        }} /> : null}
+    </SheetModal>
+  </>;
+}
+
+/** R3, live and sample: pick the companies to search. */
+export function RecruiterCompaniesPage() {
+  const sample = useAdminSample();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<CompanyPickFilter | undefined>();
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const list = useRecruiterCompanies(query, filter, !sample);
+  const run = useRunRecruiterCompanies();
+  if (!sample && list.isPending) return <YouPage title="Choose companies">{null}</YouPage>;
+  if (!sample && list.isError) {
+    return <YouPage title="Choose companies">
+      <EmptyState title="Companies didn't load" message="Check your connection and try again." action={{ label: "Try again", onPress: () => void list.refetch() }} />
+    </YouPage>;
+  }
+  const companies = sample ? sampleChoices(query, filter) : list.data ?? [];
+  const toggle = (company: RecruiterCompanyChoice) => setPicked((current) => {
+    const next = new Set(current);
+    if (next.has(company.id)) next.delete(company.id);
+    else next.add(company.id);
+    return next;
+  });
   const search = () => {
-    if (sample) { sampled("five more companies would be searched")(); return; }
-    run.mutate(5, {
+    if (sample) { sampled(`${picked.size} companies would be searched`)(); return; }
+    run.mutate([...picked], {
       onSuccess: ({ runs }) => {
         const found = runs.reduce((sum, item) => sum + item.kept, 0);
         const broke = runs.filter((item) => item.error).length;
-        toast.success(runs.length === 0
-          ? "Every company with a website has been searched."
-          : `Found ${found} recruiters at ${runs.length - broke} companies${broke ? `; ${broke} failed` : ""}.`);
+        toast.success(`Found ${found} recruiters at ${runs.length - broke} companies${broke ? `; ${broke} failed` : ""}.`);
+        router.back();
       },
       onError: () => toast.error("The search didn't finish. Try again."),
     });
   };
-  return <RecruitersView queue={recruiterQueue(rows)} tally={recruiterTally(sample ? SAMPLE_RECRUITER_SCORE : review.data?.score)}
-    canRun={sample || Boolean(review.data?.can_run)} searching={run.isPending} onSearch={search}
-    onLabel={(row, labels) => {
-      if (sample) { setSampleRows(rows.map((item) => item.id === row.id ? { ...item, ...labels } : item)); return; }
-      label.mutate({ id: row.id, labels }, { onError: failed });
-    }}
-    // LinkedIn's app, where the owner is signed in.
-    onOpenProfile={(row) => sample ? sampled("LinkedIn would open")() : void Linking.openURL(row.profile_url)} />;
+  return <ChooseCompaniesView companies={companies} query={query} filter={filter} picked={picked} searching={run.isPending}
+    onQuery={setQuery} onFilter={setFilter} onToggle={toggle} onSearch={search} />;
+}
+
+function sampleChoices(query: string, filter: CompanyPickFilter | undefined): RecruiterCompanyChoice[] {
+  const q = query.trim().toLowerCase();
+  return SAMPLE_COMPANY_CHOICES.filter((company) => (!q || company.name.toLowerCase().includes(q) || company.site.includes(q))
+    && (filter !== "hiring" || company.open_jobs > 0)
+    && (filter !== "not_searched" || company.searched_at === null)
+    && (filter !== "has_format" || company.pattern !== null));
 }
 
 /** A5, live and sample. */

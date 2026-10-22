@@ -1,14 +1,16 @@
 import { readableCode } from "@pinkslip/core/admin-format";
 import type {
   ActualRole, ClassificationDisagreement, ClassificationVerdict, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
-  RecruiterCandidate, WorksThere,
+  RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, WorksThere,
 } from "@pinkslip/core/api";
 import { companySourceLabel } from "@pinkslip/domain/company-sources";
+import { MAIL_TEMPLATES, templateLabel } from "@pinkslip/domain/recruiter-review";
 import { useState } from "react";
-import { ActionSheetIOS, Alert, Pressable, View } from "react-native";
+import { ActionSheetIOS, Alert, Pressable, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  Button, Chip, CompanyLogo, EmptyState, Icon, IconTile, JobRow, ListGroup, ListItem, PageBarButton, PageBarNote, SearchField, Segmented, SwipeRow, Text,
+  Button, Chip, Choice, ChoiceLink, Choices, CompanyLogo, EmptyState, Icon, IconTile, JobRow, ListGroup, ListItem, PageBarButton, PageBarNote, Radio,
+  SearchField, SectionHeader, Segmented, SheetHeader, SheetScroll, SheetStep, SwipeRow, Text, TextField, useSheet,
   type IconName,
   type SwipeAction,
 } from "../../../ui";
@@ -16,7 +18,9 @@ import { logoUri } from "../../jobs/CompanyLogo";
 import { JobIdentity } from "../JobIdentity";
 import { YouPage } from "../you/Page";
 import {
-  ago, callWord, failingSources, flagReasons, jevDifferences, recruiterFacts, rowAge, runLength, shortDate, sourceProblem, sourceStatus, tierRow, type Health,
+  ago, callWord, companySearchLine, failingSources, flagReasons, jevDifferences, recruiterEmail, recruiterFacts, rowAge, runLength, shortDate, sourceProblem,
+  sourceStatus, tierRow, writeAddress,
+  type Health,
   type NeedsYouRow,
 } from "./admin-facts";
 
@@ -246,25 +250,38 @@ const ROLES: { value: ActualRole; label: string }[] = [
 
 /** A7, Recruiters (Paper "Admin · Oct 16", note 7: Jev's pattern): one
  * person at a time, what the search made of them, and the two questions
- * pinned where Jev's verdicts are. With both answered the next person
- * comes up. Nothing here reaches users (docs/recruiter-contacts-sourcing.md). */
-export function RecruitersView({ queue, tally, canRun, searching, onSearch, onLabel, onOpenProfile }: {
+ * pinned where Jev's verdicts are. With both answered the next person comes
+ * up; Skip sends them to the back (Paper "Recruiters · Skip and the company
+ * · Oct 19", R1). The top line names the company and its site, so "Works
+ * there now?" means that company; an address that isn't at the site is
+ * flagged (R2), and tapping Email opens the company's format (R4). Someone
+ * labelled "works there" goes on the company's People. */
+export function RecruitersView({ queue, tally, canRun, companies, onLabel, onSkip, onChoose, onFormat, onOpenProfile }: {
   queue: RecruiterCandidate[];
   tally: string;
   canRun: boolean;
-  searching: boolean;
-  onSearch: () => void;
+  /** The sourcing runs, by company id: its site, format and where that came from. */
+  companies: Map<string, RecruiterCompany>;
   onLabel: (row: RecruiterCandidate, labels: { works_there?: WorksThere; actual_role?: ActualRole }) => void;
+  onSkip: (row: RecruiterCandidate) => void;
+  onChoose: () => void;
+  onFormat: (row: RecruiterCandidate) => void;
   onOpenProfile: (row: RecruiterCandidate) => void;
 }) {
   const row = queue[0];
+  const choose = <PageBarButton icon="add" label="Choose companies" onPress={onChoose} />;
   if (!row) {
-    return <YouPage title="Recruiters">
+    return <YouPage title="Recruiters" action={canRun ? choose : undefined}>
       <EmptyState title="Nobody to label" message={canRun ? tally : "Set SERPER_API_KEY on the Worker to search."}
-        action={canRun ? { label: searching ? "Searching…" : "Search 5 more companies", onPress: onSearch } : undefined} />
+        action={canRun ? { label: "Choose companies", onPress: onChoose } : undefined} />
     </YouPage>;
   }
-  return <YouPage title="" action={<PageBarNote><Text role="subhead" tone="ink-3">{`1 of ${queue.length}`}</Text></PageBarNote>}
+  const company = companies.get(row.company_id);
+  const email = recruiterEmail(row, company);
+  return <YouPage title="" action={<>
+    <PageBarNote><Text role="subhead" tone="ink-3">{`1 of ${queue.length}`}</Text></PageBarNote>
+    {canRun ? choose : null}
+  </>}
     bar={<View style={styles.questions}>
       <View style={styles.question}>
         <Text role="footnote" weight="medium" tone="ink-2">Works there now?</Text>
@@ -274,13 +291,17 @@ export function RecruitersView({ queue, tally, canRun, searching, onSearch, onLa
         <Text role="footnote" weight="medium" tone="ink-2">Their role</Text>
         <Segmented value={row.actual_role} onChange={(value) => onLabel(row, { actual_role: value })} segments={ROLES} />
       </View>
+      <Button variant="plain" fullWidth onPress={() => onSkip(row)}>Skip</Button>
     </View>}>
-    <View style={styles.gutter}><JobIdentity companyName={[row.company, row.location].filter(Boolean).join(" · ")} title={row.name} /></View>
+    <View style={styles.gutter}>
+      <JobIdentity companyName={[row.company, company?.site].filter(Boolean).join(" · ")} companyDomain={company?.site} title={row.name} />
+    </View>
     <ListGroup surface="fill">
       {/* A long value goes under its label, as on the flagged job's page. */}
       {recruiterFacts(row).map(([label, value]) => value.length > 18
         ? <ListItem key={label} title={label} detail={value} />
         : <ListItem key={label} title={label} value={value} />)}
+      <EmailRow detail={email.detail} warning={email.warning} onPress={() => onFormat(row)} />
     </ListGroup>
     <ListGroup surface="fill" footer="Turn on private mode in LinkedIn first, or people see that you viewed them.">
       <ListItem title="Open in LinkedIn" trailing={<Icon name="apply" size={16} tone="ink-3" />} onPress={() => onOpenProfile(row)} />
@@ -288,6 +309,125 @@ export function RecruitersView({ queue, tally, canRun, searching, onSearch, onLa
     <View style={styles.gutterText}><Text role="footnote" tone="ink-3">{tally}</Text></View>
   </YouPage>;
 }
+
+/** R1's Email row: the guess and its trust, a chevron to the company's
+ * format, and R2's warning (the kit's field that's wrong: the label and one
+ * line in `bad`). */
+function EmailRow({ detail, warning, onPress }: { detail: string; warning: string | null; onPress: () => void }) {
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={["Email", detail, warning].filter(Boolean).join(", ")}
+    style={({ pressed }) => [styles.listRow, pressed && styles.pressed]}>
+    <View style={styles.flex}>
+      <Text tone={warning ? "bad" : "ink"}>Email</Text>
+      <Text role="subhead" tone="ink-3">{detail}</Text>
+      {warning ? <Text role="subhead" tone="bad">{warning}</Text> : null}
+    </View>
+    <Icon name="disclosure" size={12} tone="ink-4" />
+  </Pressable>;
+}
+
+export type CompanyPickFilter = "hiring" | "not_searched" | "has_format";
+
+/** R3, Choose companies (Paper "Recruiters · Skip and the company · Oct 19"):
+ * Jobs' select pattern for the catalog, most open jobs first; each row says
+ * when it was searched and its format. "Search 3 companies" is pinned. */
+export function ChooseCompaniesView({ companies, query, filter, picked, searching, onQuery, onFilter, onToggle, onSearch }: {
+  companies: RecruiterCompanyChoice[];
+  query: string;
+  filter: CompanyPickFilter | undefined;
+  picked: Set<string>;
+  searching: boolean;
+  onQuery: (text: string) => void;
+  onFilter: (filter: CompanyPickFilter | undefined) => void;
+  onToggle: (company: RecruiterCompanyChoice) => void;
+  onSearch: () => void;
+}) {
+  const count = picked.size;
+  const chip = (label: string, value: CompanyPickFilter) =>
+    <Chip label={label} selected={filter === value} onPress={() => onFilter(filter === value ? undefined : value)} />;
+  return <YouPage title={count > 0 ? `${count} selected` : "Choose companies"}
+    bar={<Button variant="primary" fullWidth disabled={count === 0} pending={searching} onPress={onSearch}>
+      {count === 0 ? "Search companies" : count === 1 ? "Search 1 company" : `Search ${count} companies`}
+    </Button>}>
+    <View style={styles.searchBlock}>
+      <SearchField value={query} onChangeText={onQuery} placeholder="Search companies" />
+    </View>
+    {/* As Jobs' quick filters: they scroll sideways rather than crowd the margin. */}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipStrip}>
+      {chip("Hiring now", "hiring")}
+      {chip("Not searched", "not_searched")}
+      {chip("Has a format", "has_format")}
+    </ScrollView>
+    {companies.length === 0 ? <View style={styles.gutterText}><Text tone="ink-2">No companies match.</Text></View> : <View style={styles.bleed}>
+      <SectionHeader title="Most open jobs first" count={companies.length} first />
+      {companies.map((company) => <View key={company.id} style={styles.pickRow}>
+        <Pressable onPress={() => onToggle(company)} accessibilityRole="checkbox" accessibilityState={{ checked: picked.has(company.id) }}
+          accessibilityLabel={company.name} hitSlop={8} style={styles.pick}>
+          <Radio selected={picked.has(company.id)} />
+        </Pressable>
+        <View style={styles.flex}>
+          <JobRow headline="company" company={company.name} title={`${company.site} · ${company.open_jobs === 1 ? "1 open job" : `${company.open_jobs} open jobs`}`}
+            facts={companySearchLine(company)} logo={{ name: company.name, uri: logoUri(company.site) }} onPress={() => onToggle(company)} />
+        </View>
+      </View>)}
+    </View>}
+  </YouPage>;
+}
+
+/** R4, a company's email format: the domain, the common formats written out
+ * with the person's name, Hunter to look it up, and what GitHub and the
+ * format pages say. Saving rewrites every guess there. */
+export function RecruiterFormatSheet({ companyName, initialDomain, initialTemplate, sampleName, evidence, onLookUp, onSave }: {
+  companyName: string;
+  initialDomain: string;
+  initialTemplate: string | null;
+  /** First and last name to show each format with ("dana.whitfield@"). */
+  sampleName: { first: string; last: string };
+  /** "GitHub: 4 addresses, all first.last. Format pages: first.last, 6 of 7." */
+  evidence: string | null;
+  onLookUp: (domain: string) => void;
+  /** Resolves once saved; the sheet then closes. */
+  onSave: (domain: string, template: string) => Promise<void>;
+}) {
+  const sheet = useSheet();
+  const [saving, setSaving] = useState(false);
+  const [domain, setDomain] = useState(initialDomain);
+  const [template, setTemplate] = useState(initialTemplate ?? MAIL_TEMPLATES[0]);
+  const [more, setMore] = useState(() => initialTemplate !== null && MAIL_TEMPLATES.indexOf(initialTemplate as (typeof MAIL_TEMPLATES)[number]) > 3);
+  const shown = more ? MAIL_TEMPLATES : MAIL_TEMPLATES.slice(0, 4);
+  const host = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  return <SheetStep id="format">
+    <View style={styles.sheetHeading}>
+      <SheetHeader title={`${companyName}'s email format`} />
+      <Text role="subhead" tone="ink-2">Every address there is written from it.</Text>
+    </View>
+    {/* All nine formats are taller than the screen: the middle scrolls, Save stays. */}
+    <SheetScroll style={styles.sheetScroll} contentContainerStyle={styles.sheetScrollBody}>
+      <Choices><TextField label="Domain" value={domain} onChangeText={setDomain} keyboardType="url" /></Choices>
+      <Choices>
+        {[...shown.map((option) => <Choice key={option} plain title={templateLabel(option)} detail={`${writeAddress(option, sampleName)}@${host || "…"}`}
+          selected={template === option} onPress={() => setTemplate(option)} />),
+        ...(more ? [] : [<ChoiceLink key="more" title="More formats" onPress={() => setMore(true)} />])]}
+      </Choices>
+      <View style={styles.sheetLookUp}>
+        <Choices><ChoiceLinkOut title="Look it up on Hunter" onPress={() => onLookUp(host)} /></Choices>
+        {evidence ? <View style={styles.sheetNote}><Text role="footnote" tone="ink-3">{evidence}</Text></View> : null}
+      </View>
+    </SheetScroll>
+    <Button variant="primary" fullWidth disabled={!host.includes(".")} pending={saving} onPress={() => {
+      setSaving(true);
+      onSave(host, template).then(() => sheet.close(), () => setSaving(false));
+    }}>Save</Button>
+  </SheetStep>;
+}
+
+/** A sheet row that leaves Pinkslip: the title, then ↗. */
+function ChoiceLinkOut({ title, onPress }: { title: string; onPress: () => void }) {
+  return <Pressable onPress={onPress} accessibilityRole="link" style={({ pressed }) => [styles.linkOut, pressed && styles.pressedSoft]}>
+    <Text flex>{title}</Text>
+    <Icon name="apply" size={16} tone="ink-3" />
+  </Pressable>;
+}
+
 
 function CompareRow({ label, rules, jev, strong }: { label: string; rules: string; jev: string; strong?: boolean }) {
   return <View style={styles.compareRow}>
@@ -449,6 +589,26 @@ const styles = StyleSheet.create((theme) => ({
   dot: { width: 8, height: 8, borderRadius: 4 },
   pair: { flexDirection: "row", gap: theme.ui.space["3"] },
   questions: { gap: theme.ui.space["3"] },
+  // R1's Email row, as a list row draws itself (ui/List.tsx).
+  listRow: {
+    minHeight: theme.ui.size.listRow, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"],
+    paddingHorizontal: theme.ui.space["4"], paddingVertical: theme.ui.space["2"],
+  },
+  pressed: { backgroundColor: theme.ui.color.fill },
+  pressedSoft: { opacity: 0.6 },
+  // R3: the selection circle before the logo, level with it (Jobs' select).
+  pickRow: { flexDirection: "row", backgroundColor: theme.ui.color.bg },
+  pick: {
+    width: theme.ui.space["4"] + theme.ui.size.hole, paddingLeft: theme.ui.space["4"],
+    paddingTop: (theme.ui.size.jobRow - theme.ui.type.subhead.line * 3) / 2 + (40 - theme.ui.size.hole) / 2,
+  },
+  sheetHeading: { gap: theme.ui.space["1"] },
+  // As Edit search's lists scroll: to the sheet's edges, the groups back on its padding.
+  sheetScroll: { flexShrink: 1, marginHorizontal: -theme.ui.space["5"] },
+  sheetScrollBody: { gap: theme.ui.space["5"], paddingHorizontal: theme.ui.space["5"], paddingBottom: theme.ui.space["1"] },
+  sheetLookUp: { gap: theme.ui.space["2"] },
+  sheetNote: { paddingHorizontal: theme.ui.space["4"] },
+  linkOut: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   question: { gap: theme.ui.space["2"] },
   verdicts: { gap: theme.ui.space["1"] },
   compare: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
@@ -458,6 +618,8 @@ const styles = StyleSheet.create((theme) => ({
   compareMore: { flexDirection: "row", alignItems: "center", minHeight: 50, gap: theme.ui.space["3"] },
   searchBlock: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   chips: { flexDirection: "row", gap: theme.ui.space["2"] },
+  chipScroll: { flexGrow: 0, marginTop: -theme.ui.space["3"] },
+  chipStrip: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   healthGroup: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: theme.ui.space["4"] },
   half: { width: "50%" },

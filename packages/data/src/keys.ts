@@ -43,6 +43,8 @@ export const queryKeys = {
     outreachPeopleRoot: ["personal", "outreach", "people"] as const,
     outreachPeople: (companyId: string) => ["personal", "outreach", "people", companyId] as const,
     admin: (part: "metrics" | "feedback" | "reports" | "reviews" | "runs" | "latency" | "jev" | "recruiters") => ["personal", "admin", part] as const,
+    /** Admin's "Choose companies" (Paper R3), by its search and filter. */
+    recruiterCompanies: (q: string, filter: string) => ["personal", "admin", "recruiter-companies", q, filter] as const,
   },
   session: () => ["session"] as const,
 } as const;

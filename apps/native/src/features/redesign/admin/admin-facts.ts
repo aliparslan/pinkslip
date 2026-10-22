@@ -1,8 +1,9 @@
 import { friendlyPollError, sourceNeedsAttention } from "@pinkslip/core/admin-format";
 import type {
-  ClassificationDisagreement, Company, FeedbackSubmission, ContentReport, FetchRun, JobReview, PollTierLatency, RecruiterCandidate, RecruiterKind,
-  RecruiterReviewScore,
+  ClassificationDisagreement, Company, FeedbackSubmission, ContentReport, FetchRun, JobReview, PollTierLatency, RecruiterCandidate, RecruiterCompany,
+  RecruiterCompanyChoice, RecruiterKind, RecruiterReviewScore,
 } from "@pinkslip/core/api";
+import { templateLabel } from "@pinkslip/domain/recruiter-review";
 
 /**
  * What Admin says, worked out from its data (owner, 2026-10-16, Paper
@@ -164,20 +165,25 @@ export function flagEvidence(review: JobReview): [string, string][] {
 }
 
 /** Left-out reasons worth a second look; the rest name their evidence
- * ("works at Sierra", "based outside the US"). */
+ * ("works at Sierra", "based outside the US"). "May work at another Weave"
+ * is a guess from where they live, so you see it too. */
 const QUESTIONABLE = new Set(["company not confirmed", "not a recruiter", "no usable name"]);
+const worthASecondLook = (reason: string) => QUESTIONABLE.has(reason) || reason.startsWith("may work at another");
 
 const labelled = (row: RecruiterCandidate) => row.works_there !== null && row.actual_role !== null;
 
 /** Recruiters (A7, Jev's pattern): who's left to label, one at a time. The
  * kept people first, then the left-out ones worth a second look. A person
- * stays until both questions have answers. */
-export function recruiterQueue(candidates: RecruiterCandidate[]): RecruiterCandidate[] {
+ * stays until both questions have answers. Someone skipped (R1) goes to the
+ * back of the line, the last skipped last. */
+export function recruiterQueue(candidates: RecruiterCandidate[], skipped: string[] = []): RecruiterCandidate[] {
   const open = candidates.filter((row) => !labelled(row));
-  return [
+  const queue = [
     ...open.filter((row) => row.left_out_reason === null),
-    ...open.filter((row) => row.left_out_reason !== null && QUESTIONABLE.has(row.left_out_reason)),
+    ...open.filter((row) => row.left_out_reason !== null && worthASecondLook(row.left_out_reason)),
   ];
+  const back = skipped.flatMap((id) => queue.filter((row) => row.id === id));
+  return [...queue.filter((row) => !skipped.includes(row.id)), ...back];
 }
 
 const KIND_WORDS: Record<RecruiterKind, string> = {
@@ -189,14 +195,30 @@ const KIND_WORDS: Record<RecruiterKind, string> = {
   other: "Not a recruiter",
 };
 
-/** What the search made of a person, as label and value rows. */
+/** What the search made of a person, as label and value rows (R1). Their
+ * location sits here; the card's top line names the company and its site.
+ * The email has its own row (recruiterEmail). */
 export function recruiterFacts(row: RecruiterCandidate): [string, string][] {
   const facts: [string, string][] = [["Title", row.current_title ?? row.headline]];
+  if (row.location) facts.push(["Location", row.location]);
   facts.push(row.left_out_reason
     ? ["Left out", row.left_out_reason.replace(/^./, (letter) => letter.toUpperCase())]
     : ["Kept as", `${KIND_WORDS[row.kind]}${row.kind_from_snippet ? ", from their summary" : ""}`]);
-  if (row.email_guess) facts.push(["Email", row.email_confidence ? `${row.email_guess} · ${row.email_confidence}` : row.email_guess]);
   return facts;
+}
+
+/** The Email row (R1, R2): the guess and how far to trust it, and a warning
+ * when it isn't at the company's site, unless you set the format yourself. */
+export function recruiterEmail(row: RecruiterCandidate, company: Pick<RecruiterCompany, "site" | "pattern_source"> | undefined): {
+  detail: string;
+  warning: string | null;
+} {
+  if (!row.email_guess) return { detail: row.email_confidence ?? "No guess yet", warning: null };
+  const detail = row.email_confidence ? `${row.email_guess} · ${row.email_confidence}` : row.email_guess;
+  const domain = row.email_guess.slice(row.email_guess.lastIndexOf("@") + 1).toLowerCase();
+  const site = company?.site?.toLowerCase();
+  const atSite = !site || domain === site || domain.endsWith(`.${site}`) || site.endsWith(`.${domain}`);
+  return { detail, warning: atSite || company?.pattern_source === "owner" ? null : `Not at ${site}: maybe another ${row.company}.` };
 }
 
 /** The score as one sentence under the person, as Jev's tally is. */
@@ -206,4 +228,39 @@ export function recruiterTally(score: RecruiterReviewScore | undefined): string 
   return `So far: ${of(score.works_there.yes, score.works_there.labelled)} work there now, kind right ${of(score.role.right, score.role.labelled)}, `
     + `early-career right ${of(score.early_career.right, score.early_career.labelled)}`
     + (score.left_out_labelled > 0 ? `, ${of(score.wrongly_left_out, score.left_out_labelled)} wrongly left out.` : ".");
+}
+
+/** Under R4's formats: what GitHub's commits and the format pages say. */
+export function formatEvidence(company: RecruiterCompany | undefined): string | null {
+  if (!company) return null;
+  const label = (template: string) => template.replace(/[{}]/g, "");
+  const parts: string[] = [];
+  if (company.github_pattern && company.github_total > 0) {
+    parts.push(`GitHub: ${company.github_votes} of ${company.github_total} addresses are ${label(company.github_pattern)}.`);
+  }
+  if (company.pattern_source === "pages" && company.pattern) {
+    parts.push(`Format pages: ${label(company.pattern)}, ${company.pattern_votes} of ${company.pattern_sources}.`);
+  }
+  if (company.name_shared) parts.push(`Another company is called ${company.company} too.`);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/** "Dana Kim" → first "dana", last "kim", for R4's examples. */
+export function exampleName(name: string): { first: string; last: string } {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return { first: words[0] ?? "dana", last: words.length > 1 ? words[words.length - 1]! : "whitfield" };
+}
+
+/** "Searched Oct 14 · 5 kept · first.last@", or "Not searched yet". */
+export function companySearchLine(company: Pick<RecruiterCompanyChoice, "searched_at" | "kept" | "pattern">): string {
+  const format = company.pattern ? `${templateLabel(company.pattern)}@` : null;
+  if (!company.searched_at) return ["Not searched yet", format].filter(Boolean).join(" · ");
+  return [`Searched ${shortDate(company.searched_at)}`, `${company.kept} kept`, format ?? "no format yet"].join(" · ");
+}
+
+/** "{first}.{last}" for Dana Whitfield → "dana.whitfield". */
+export function writeAddress(template: string, name: { first: string; last: string }): string {
+  const first = name.first.toLowerCase();
+  const last = name.last.toLowerCase();
+  return template.replace(/\{first\}/g, first).replace(/\{last\}/g, last).replace(/\{f\}/g, first.slice(0, 1)).replace(/\{l\}/g, last.slice(0, 1));
 }
