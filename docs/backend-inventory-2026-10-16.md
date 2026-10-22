@@ -1159,7 +1159,20 @@ Still open for the owner: what goes in the event page's ⋯ menu (share is
 built; the ⋯ waits), the company header's button size (Paper H1 or H2),
 and Admin's events screen (not drawn yet).
 
-### Step 8: outreach for everyone (2026-10-19, not deployed)
+### Step 8: outreach for everyone (2026-10-19, deployed 2026-10-22, still admin-only)
+
+**Deployed 2026-10-22** with pay by place and assisted apply for everyone
+(owner: "if the backend changes are fine"): migrations 0100 and 0101,
+Worker f7b519e4 (before: e1a1e002), built from 0ecb1ab. D1 bookmark before:
+00004599-00000ea7-0000510c-4ed6f0de5c7ccee6dbff63eb87f70708. Reviewed first:
+both migrations only add (0100's copy of confirmed recruiters relies on
+`UNIQUE(company_id, email)`, which 0084 has); `OUTREACH` stays admin-only
+with the test recipient set, so no recruiter is emailed; the new bounce
+check only matches mailer-daemon senders and failure subjects; pay by place
+asks Greenhouse for ranges and keeps `salary` for builds on phones.
+`AUTO_APPLY = "on"`: the in-app browser's fill, Apply's sheet and Answers
+for every signed-in user; submission stays manual. Health and the public
+feed answered after it; no new errors.
 
 Built twice on 2026-10-19. The first version (a team-inbox search and
 weekly checks through a paid checker) was replaced the same day: the owner
