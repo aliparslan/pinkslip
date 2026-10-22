@@ -43,7 +43,10 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   interview_reminder: { n: "N5", live: true, defaultOn: true, timeSensitive: false },
   assessment_due: { n: "N6", live: true, defaultOn: true, timeSensitive: false },
   offer_reply: { n: "N7", live: true, defaultOn: true, timeSensitive: false },
-  no_word: { n: "N8", live: true, defaultOn: true, timeSensitive: false },
+  // Off for good (owner, 2026-10-22): with a hundred applications out, "no
+  // word yet" is normal and nothing to act on, so it lowers what every push
+  // is worth. Kept as a kind so older settings rows still read.
+  no_word: { n: "N8", live: false, defaultOn: false, timeSensitive: false },
   // Email tracking sees the reply (worker/email/replies.ts).
   replied: { n: "N11", live: true, defaultOn: true, timeSensitive: true },
   // By email, not push (Decisions: Notifications #4; worker/email/forwarding.ts).

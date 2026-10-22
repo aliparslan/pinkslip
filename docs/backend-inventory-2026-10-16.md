@@ -428,6 +428,21 @@ Made by the owner with Claude on 2026-10-16, part by part.
    **Built 2026-10-16** (step 2; see "Built" for how the cap counts).
 4. **Email** only for the weekly recap and "Forwarding stopped"; everything
    else is push.
+5. **No "no word yet" (N8)** (owner, 2026-10-22): "the average user will
+   have 100+ applications and it doesnt make sense to send them stuff that
+   is not actionable", since not hearing back is normal. The reminders and
+   pushes are gone, its setting leaves Alerts, and any still queued are
+   skipped.
+
+Fixed 2026-10-22 (owner: tapping a new-job alert "just takes me to jobs.
+and even then i need to refresh"): the APNs payload carried the link at its
+top level, and expo-notifications reads a remote push's data only from its
+`body` key on iOS, so every tap arrived with no link, opened the feed, and
+was never recorded as opened. The link now rides in `body` as well (the
+Worker fix reaches every build), and the app also reads the top level, so
+older pushes still open their job. The app refetches stale lists when it
+comes back to the front (React Query's focus, wired to `AppState`) and on a
+tapped alert.
 
 ### Activity stream and Today (owner, 2026-10-16)
 

@@ -57,8 +57,15 @@ export async function refreshDevicePush(api: ApiClient): Promise<void> {
 
 export interface NotificationTarget { url: string | null; jobIds: string[]; notificationId: string | null }
 
+/** Where a tapped alert goes. A remote push's `data` is its payload's
+ * `body` key; pushes sent before it carried one have the link at the top of
+ * the payload, which the trigger holds. */
 export function notificationTarget(response: Notifications.NotificationResponse): NotificationTarget {
-  const data = response.notification.request.content.data as { url?: unknown; job_ids?: unknown; notification_id?: unknown } | undefined;
+  type Target = { url?: unknown; job_ids?: unknown; notification_id?: unknown };
+  const request = response.notification.request;
+  const trigger = request.trigger as { payload?: Target | null } | null;
+  const content = request.content.data as Target | null | undefined;
+  const data = content && typeof content.url === "string" ? content : trigger?.payload ?? content ?? undefined;
   return {
     url: typeof data?.url === "string" ? data.url : null,
     jobIds: Array.isArray(data?.job_ids) ? data.job_ids.filter((id): id is string => typeof id === "string") : [],

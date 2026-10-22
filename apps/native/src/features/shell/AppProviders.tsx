@@ -1,9 +1,10 @@
-import { createAppQueryClient, DataProvider, useOwnerChangeCleanup, useSession } from "@pinkslip/data";
+import { createAppQueryClient, DataProvider, queryKeys, useOwnerChangeCleanup, useSession } from "@pinkslip/data";
+import { focusManager, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as Notifications from "expo-notifications";
 import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button, EmptyState, ToastHost } from "../../kit";
 import { appPathFor } from "../../platform/links";
@@ -68,6 +69,14 @@ function AppEffects({ api }: { api: ApiClient }) {
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (zone) void api.notifications.update({ time_zone: zone }).catch(() => undefined);
   }, [api, owner]);
+  // Coming back to the app counts as focus, so stale lists (the feed, Today)
+  // refetch; without it the jobs an alert named only showed after a pull to
+  // refresh (owner, 2026-10-22).
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => focusManager.setFocused(state === "active"));
+    return () => subscription.remove();
+  }, []);
+  const queryClient = useQueryClient();
   useEffect(() => {
     const handled = new Set<string>();
     // A tapped alert opens its job (or the feed) and records the open.
@@ -77,6 +86,9 @@ function AppEffects({ api }: { api: ApiClient }) {
       handled.add(id);
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
       const target = notificationTarget(response);
+      // What the alert is about is new since the lists were loaded.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobs().slice(0, 2) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
       if (target.jobIds.length > 0 || target.notificationId) {
         void api.push.opened(target.jobIds, target.notificationId ?? undefined).catch(() => undefined);
       }
@@ -87,7 +99,7 @@ function AppEffects({ api }: { api: ApiClient }) {
     if (last) open(last);
     const subscription = Notifications.addNotificationResponseReceivedListener(open);
     return () => subscription.remove();
-  }, [api]);
+  }, [api, queryClient]);
   return null;
 }
 

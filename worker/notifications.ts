@@ -95,6 +95,8 @@ export async function loadNotificationSettings(db: D1Database, userId: string): 
 
 /** Whether a person gets this kind right now. */
 export async function kindEnabled(db: D1Database, userId: string, kind: NotificationKind): Promise<boolean> {
+  // A kind that no longer sends (N8) doesn't, even when it's still queued.
+  if (!NOTIFICATION_KINDS[kind].live) return false;
   if (kind === "new_jobs") return (await loadNotificationSettings(db, userId)).kinds.new_jobs.enabled;
   const row = await db.prepare("SELECT enabled FROM notification_settings WHERE user_id = ? AND kind = ?")
     .bind(userId, kind).first<{ enabled: number }>();

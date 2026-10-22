@@ -87,6 +87,8 @@ describe("buildApnsBody", () => {
     expect(body.aps.sound).toBe("default");
     expect(body.url).toBe("/jobs/abc123");
     expect(body.job_ids).toEqual(["abc123"]);
+    // expo-notifications reads a remote push's data from `body` on iOS.
+    expect(body.body).toEqual({ url: "/jobs/abc123", job_ids: ["abc123"] });
   });
 });
 

@@ -89,7 +89,6 @@ describe("notification settings", () => {
         interview_reminder: { enabled: true },
         assessment_due: { enabled: true },
         offer_reply: { enabled: true },
-        no_word: { enabled: true },
         replied: { enabled: true },
         forwarding_stopped: { enabled: true },
         event_reminder: { enabled: true },

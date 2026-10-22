@@ -27,10 +27,7 @@ export type ReminderType =
   | "assessment_day_before"
   | "assessment_morning"
   | "offer_three_days"
-  | "offer_morning_before"
-  | "no_word_after_date"
-  | "no_word_three_weeks"
-  | "no_word_six_weeks";
+  | "offer_morning_before";
 
 export interface ReminderApplication {
   id: string;
@@ -167,26 +164,10 @@ export function plannedReminders(application: ReminderApplication, zone: string)
       new Date(Math.min(morningBefore.getTime() + 12 * HOUR_MS, replyBy.getTime())),
       `Reply to ${company}'s offer by tomorrow`, anchor, true));
   }
-
-  if (application.stage === "applied") {
-    const title = `No word from ${company} yet`;
-    if (dated) {
-      const morningAfter = at(addDays(dated.day, 1), 8, zone);
-      reminders.push(plan("no_word_after_date", "no_word", morningAfter, new Date(morningAfter.getTime() + DAY_MS), title, anchor));
-    } else if (application.applied_at) {
-      const applied = localParts(new Date(application.applied_at), zone);
-      const appliedDay = { year: applied.year, month: applied.month, day: applied.day };
-      for (const [type, weeks] of [["no_word_three_weeks", 3], ["no_word_six_weeks", 6]] as const) {
-        const when = at(addDays(appliedDay, weeks * 7), 9, zone);
-        reminders.push(plan(type, "no_word", when, new Date(when.getTime() + DAY_MS), title, application.applied_at));
-      }
-    }
-  }
+  // No "no word yet" (N8): with a hundred applications out, not hearing
+  // back is normal and nothing to act on (owner, 2026-10-22).
   return reminders;
 }
-
-/** Applying looks back this far for the 6-week nudge, plus a day of slack. */
-const NO_WORD_LOOKBACK_MS = (6 * 7 + 1) * DAY_MS;
 
 /**
  * Runs on the every-minute tick: writes each reminder that has come due to
@@ -198,11 +179,9 @@ export async function queueDueReminders(env: Env, now = new Date()): Promise<num
             u.time_zone
      FROM applications a
      JOIN users u ON u.id = a.user_id
-     WHERE (a.stage IN ('interview', 'assessment', 'offer') AND a.stage_date IS NOT NULL)
-        OR (a.stage = 'applied' AND (a.stage_date IS NOT NULL OR a.applied_at > ?))
+     WHERE a.stage IN ('interview', 'assessment', 'offer') AND a.stage_date IS NOT NULL
      LIMIT 5000`
-  ).bind(new Date(now.getTime() - NO_WORD_LOOKBACK_MS).toISOString())
-    .all<ReminderApplication & { time_zone: string | null }>();
+  ).all<ReminderApplication & { time_zone: string | null }>();
 
   let queued = 0;
   for (const application of rows.results ?? []) {

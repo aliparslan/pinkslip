@@ -97,10 +97,18 @@ export function _resetApnsTokenCache(): void {
 }
 
 /**
- * The `url` from the web-push payload is carried at the top level so the app can
- * deep-link on tap.
+ * Where a tap goes (`url`, `job_ids`, `notification_id`) rides in `body`, the
+ * only key expo-notifications reads a remote push's data from on iOS
+ * (NotificationRecords.swift). With it only at the top level, every tap
+ * reached the app with no link and opened the feed (owner, 2026-10-22). The
+ * top-level copy stays for builds that read it there.
  */
 export function buildApnsBody(payload: NotificationPayload): string {
+  const data = {
+    url: payload.data.url,
+    job_ids: payload.data.job_ids ?? [],
+    ...(payload.data.notification_id ? { notification_id: payload.data.notification_id } : {}),
+  };
   return JSON.stringify({
     aps: {
       alert: { title: payload.title, body: payload.body },
@@ -109,9 +117,8 @@ export function buildApnsBody(payload: NotificationPayload): string {
       ...(payload.timeSensitive ? { "interruption-level": "time-sensitive" } : {}),
       ...(typeof payload.badge === "number" ? { badge: payload.badge } : {}),
     },
-    url: payload.data.url,
-    job_ids: payload.data.job_ids ?? [],
-    ...(payload.data.notification_id ? { notification_id: payload.data.notification_id } : {}),
+    ...data,
+    body: data,
   });
 }
 

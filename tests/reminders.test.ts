@@ -71,15 +71,9 @@ describe("plannedReminders", () => {
     ]);
   });
 
-  it("nudges the morning after the hear-back date, or at 3 and 6 weeks without one", () => {
-    expect(summary(plannedReminders(application({ stage: "applied", stage_date: "2026-10-20" }), NY))).toEqual([
-      ["no_word_after_date", "2026-10-21T12:00:00.000Z", "No word from Stripe yet", false],
-    ]);
-    // Six weeks crosses the end of daylight saving: 9 am is 14:00 UTC by then.
-    expect(summary(plannedReminders(application({ stage: "applied" }), NY))).toEqual([
-      ["no_word_three_weeks", "2026-10-22T13:00:00.000Z", "No word from Stripe yet", false],
-      ["no_word_six_weeks", "2026-11-12T14:00:00.000Z", "No word from Stripe yet", false],
-    ]);
+  it("doesn't nudge about no word from a company (owner, 2026-10-22)", () => {
+    expect(plannedReminders(application({ stage: "applied", stage_date: "2026-10-20" }), NY)).toEqual([]);
+    expect(plannedReminders(application({ stage: "applied" }), NY)).toEqual([]);
   });
 
   it("has nothing for stages that take no reminder", () => {
