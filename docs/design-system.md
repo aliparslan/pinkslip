@@ -63,7 +63,7 @@ else is decided.
 | Pink text | `accent` | Needs-you labels, unread dots, tappable text, outline buttons, a done toast's check | Headings, body |
 | Pink tint | `accent-soft` | Fields Pinkslip filled in (assisted fill) | Buttons |
 | Good | `good` | The Offer stage only | Success toasts, checks |
-| Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app`, each with its `-ink` | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro, gray is the app. Dark mode is D2, quieter (owner, 2026-10-14) | Text, anything outside settings rows |
+| Tiles | `tile-find`, `tile-apply`, `tile-pro`, `tile-app`, each with its `-ink` | A settings row's 28 tile, by what the row is for: blue finds jobs, green is what you apply with, pink is Pro and Support Pinkslip (its heart filled, owner 2026-10-22), gray is the app. Dark mode is D2, quieter (owner, 2026-10-14) | Text, anything outside settings rows |
 | Glyphs | `glyph-find`, `glyph-apply`, `glyph-pro` | A meaning's icon standing on the page with no tile (onboarding's page two): brighter than the tile inks in dark, a step deeper in light (owner, 2026-10-19) | Tiles, text |
 | Stage colors | `stage-assessment` (amber), `stage-interview` (blue) | Those stages' marks | Text, fills, anything else |
 | Bad | `bad` | Errors and destructive text | Fills |
@@ -566,7 +566,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
 - **Toast** (`ui/Toast.tsx`, Paper "Toast · Oct 14" T1, owner 2026-10-14):
   a 48 capsule in the tab bar's glass, hugging its words, 12 above whatever
   is pinned at the bottom (the tab bar, a page's bar, the keyboard). It
-  leads with the action's icon in `ink-2`, a pink check, or the `bad` mark;
+  leads with the action's icon in `ink-2`, a pink check, the `bad` mark,
+  or a filled pink heart after a tip;
   Undo (the U-turn arrow) and Try again are 32 round icons on `pill`, with a
   2pt `ink-3` ring running down the time left. Three stack, 8 and 16 behind
   at 95% and 90%; tap to spread, swipe one down or aside to clear it; the
@@ -919,6 +920,14 @@ cut so that each remaining one has a job.
     under the clock; new token `uiMotion.topEdge`. Empty lists say "Nothing yet";
     Tailoring's row says "Soon" and Answers' wrench page "Answers are
     coming".
+- **2026-10-22**
+  - Support Pinkslip (Paper "Support Pinkslip · Oct 22", A approved): a
+    row in its own card at the end of You, a filled pink heart on the pink
+    tile (owner: the gray heart looked plain). It opens a sheet copied from
+    Plan's See Pro: one line in the owner's words, One time or Monthly, the
+    amounts as radios, "Support with $5 ↗" to a Stripe Payment Link. Back
+    from Stripe, the toast leads with the filled pink heart, "Thank you for
+    your support!". Not built yet.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

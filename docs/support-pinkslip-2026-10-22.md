@@ -73,7 +73,16 @@ no build, and the Stripe account carries over to Pro on the web.
 
 The page in the app: the note, $3 · $5 · $10 · Other (each a Payment Link,
 or one link with "customer chooses the amount"), one-time with monthly as a
-choice, then Stripe's sheet, then a thank-you. Paper first.
+choice, then Stripe's sheet, then a thank-you.
+
+**Decided (owner, Oct 22): take A** in Paper "Support Pinkslip · Oct 22
+(approved: A)". The row ends You with a filled pink heart on the pink tile.
+It opens a sheet like Plan's See Pro: "Pinkslip is a one-man team! A tip
+helps with server and compute costs 😊", One time or Monthly, $3 · $5 · $10
+· Other amount as radios, and "Support with $5 ↗". No line about Stripe.
+Back from Stripe, a toast with a filled pink heart: "Thank you for your
+support!". Take B (a page with a note and a costs-covered bar) wasn't
+picked.
 
 To do before building: a Stripe account (business details, payouts), the
 Payment Link(s), and a sentence in the privacy notice about Stripe.
