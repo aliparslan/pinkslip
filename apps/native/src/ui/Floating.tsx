@@ -1,4 +1,4 @@
-import { Host, Mask, Rectangle } from "@expo/ui/swift-ui";
+import { Host, Mask, Rectangle, ZStack } from "@expo/ui/swift-ui";
 import { animation, Animation, foregroundStyle, opacity } from "@expo/ui/swift-ui/modifiers";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useCallback, useRef, useState, type ReactNode } from "react";
@@ -41,11 +41,29 @@ export function TopEdgeFade({ height }: { height: number }) {
 }
 
 /** How far the blur runs past the status bar before it's gone. */
-const BLUR_TAIL = 32;
+const BLUR_TAIL = 44;
 /** The material samples past its own edges and lightens there, so it
  * reaches this far beyond the screen on every side but the bottom. */
 const BLUR_BLEED = 24;
+/** The page's own colour over the blur, so it reads as the page going soft
+ * rather than a grey band (2026-10-22: the owner found the blur off; the
+ * thin material alone is a lighter grey than the dark page). */
+const TINT = 0.7;
+/** Stops down the mask, evenly spaced as SwiftUI's gradient takes them. */
+const MASK_STOPS = 12;
 const FADE = Animation.easeOut({ duration: motion.topEdge.duration / 1000 });
+
+/** The mask: solid through the bleed and the status bar, then easing out
+ * over the tail, so there's no line where the blur stops. */
+function maskColors(solid: number): string[] {
+  return Array.from({ length: MASK_STOPS }, (_, i) => {
+    const t = i / (MASK_STOPS - 1);
+    const left = t <= solid ? 1 : 1 - (t - solid) / (1 - solid);
+    const alpha = left * left * (3 - 2 * left);
+    // Expo UI reads eight digits as #RRGGBBAA.
+    return `#000000${Math.round(alpha * 255).toString(16).padStart(2, "0")}`;
+  });
+}
 
 /** Points scrolled before the blur shows: the 44 nav row is mostly empty. */
 const UNDER = 8;
@@ -73,16 +91,18 @@ export function useTopEdge() {
  * is under it, so a tab at rest has nothing there. Tabs only; a pushed
  * page's bar keeps TopEdgeFade, and the bottom has none. */
 export function TopEdgeBlur({ under }: { under: boolean }) {
+  const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const height = BLUR_BLEED + insets.top + BLUR_TAIL;
+  const colors = maskColors((BLUR_BLEED + insets.top) / height);
   return <Host pointerEvents="none" ignoreSafeArea="all" style={[styles.blur, { height }]}>
     <Mask>
-      <Rectangle modifiers={[foregroundStyle({ type: "material", material: "thin" }), opacity(under ? 1 : 0), animation(FADE, under)]} />
+      <ZStack modifiers={[opacity(under ? 1 : 0), animation(FADE, under)]}>
+        <Rectangle modifiers={[foregroundStyle({ type: "material", material: "ultraThin" })]} />
+        <Rectangle modifiers={[foregroundStyle(theme.ui.color.bg), opacity(TINT)]} />
+      </ZStack>
       <Mask.Content>
-        {/* Evenly spaced stops: solid for three quarters (the bleed and the status bar), then gone. */}
-        <Rectangle modifiers={[foregroundStyle({
-          type: "linearGradient", colors: ["#000000", "#000000", "#000000", "#000000", "#00000000"], startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 1 },
-        })]} />
+        <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors, startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 1 } })]} />
       </Mask.Content>
     </Mask>
   </Host>;
