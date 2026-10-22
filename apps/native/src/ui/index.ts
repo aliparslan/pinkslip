@@ -18,6 +18,7 @@ export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { GroupPlaceholders, RowPlaceholders, useDelayed } from "./RowPlaceholders";
+export { BottomSearch, type BottomSearchProps } from "./BottomSearch";
 export { SearchField, type SearchFieldProps } from "./SearchField";
 export { AlertPreview } from "./AlertPreview";
 export { AppleLogo, CODE_LENGTH, CodeBoxes, GoogleLogo, ProviderButton, SignInField, type CodeBoxesProps, type ProviderButtonProps, type SignInFieldProps, type SignInProvider } from "./SignIn";
@@ -27,7 +28,9 @@ export { Sheet, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useS
 export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { StampedSlip, type StampedSlipProps } from "./StampedSlip";
-export { TabBar, useTabBarScroll, useTabBarSpace, useTabBarSteppedAside, useTabBarStepsAside } from "./TabBar";
+export {
+  leaveSearch, TabBar, useSearchTabPress, useTabBarLine, useTabBarScroll, useTabBarSpace, useTabBarSteppedAside, useTabBarStepsAside,
+} from "./TabBar";
 export { toast, ToastHost, UNDO_TOAST_DURATION, useToastLift, type ToastAction, type ToastInput, type ToastTone } from "./Toast";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";

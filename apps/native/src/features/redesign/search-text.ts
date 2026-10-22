@@ -1,9 +1,8 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * What's typed in the Search tab's field. The field lives in the tab bar
- * (iOS 26 puts it at the bottom) and the results on the screen, so both
- * read it from here; it stays when you leave the tab and come back.
+ * What's typed in the Search tab's field. Jobs' "Search everything" hands
+ * its words over through here too; Search's X empties it.
  */
 let text = "";
 const listeners = new Set<() => void>();

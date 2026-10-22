@@ -142,6 +142,34 @@ function pillBottom(insetBottom: number) {
   return Math.max(insetBottom - 7, 12);
 }
 
+/** How far from the bottom edge a control this tall sits so its middle is
+ * on the pill's: where Search's field and X wait with the keyboard down. */
+export function useTabBarLine(size: number) {
+  const insets = useSafeAreaInsets();
+  return pillBottom(insets.bottom) + (PILL - size) / 2;
+}
+
+/** Search is a quick lookup you leave with its X, back to the tab you were
+ * on before it (owner, 2026-10-22, Paper "Search at the bottom · Oct 22").
+ * The bar knows which tab that was. */
+let backFromSearch: (() => void) | null = null;
+export function leaveSearch() {
+  backFromSearch?.();
+}
+
+const searchPressed = new Set<() => void>();
+/** Called each time Search is picked in the bar, so its field can take the
+ * keyboard; coming back to it from a page it opened doesn't call it. */
+export function useSearchTabPress(callback: () => void) {
+  const latest = useRef(callback);
+  latest.current = callback;
+  useEffect(() => {
+    const listener = () => latest.current();
+    searchPressed.add(listener);
+    return () => { searchPressed.delete(listener); };
+  }, []);
+}
+
 /** Space a screen leaves under its content so the last row clears the pill. */
 export function useTabBarSpace() {
   const insets = useSafeAreaInsets();
@@ -193,6 +221,17 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     placed.current = true;
   }, [selected, x, current]);
 
+  // Search's X goes back to the tab you were on before it.
+  const previous = useRef("(jobs)");
+  const here = tabs[selected]?.name;
+  useEffect(() => {
+    if (here && here !== "(search)") previous.current = here;
+  }, [here]);
+  useEffect(() => {
+    backFromSearch = () => navigation.navigate(previous.current);
+    return () => { backFromSearch = null; };
+  }, [navigation]);
+
   const open = (index: number, feedback: boolean) => {
     const route = tabs[index];
     if (!route) return;
@@ -201,6 +240,7 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
       if (feedback) haptics.tap();
       navigation.navigate(route.name, route.params);
     }
+    if (route.name === "(search)" && !event.defaultPrevented) for (const listener of searchPressed) listener();
   };
   // The drag is built once per tab count; it reaches today's tabs through here.
   const latest = useRef({ open, setHover });

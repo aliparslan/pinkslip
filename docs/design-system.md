@@ -278,12 +278,18 @@ on one line share a size.
 - **Search** (2026-10-15): the Search tab finds jobs and companies, so
   companies need no search of their own in settings. Jobs' field says
   "Search these jobs" and only narrows your feed.
-- **The Search tab's field is under its title** (owner, 2026-10-19,
-  replacing the iOS 26 bottom field of 2026-10-16): the 44 field like
-  Jobs' own, 12 under the Large title, scrolling with the page. The tab bar
-  stays as on every tab; the owner found the bar folding round a field at
-  the bottom took it over. Recent searches and the results share one list,
-  so the field keeps the keyboard as results arrive.
+- **Search is a quick lookup at the bottom** (owner, 2026-10-22, Paper
+  "Search at the bottom · Oct 22", A; replacing the field under the title
+  of 2026-10-19; research in `search-tab-research-2026-10-22.md`). Picking
+  the tab brings up the keyboard; the tab bar steps aside for the field
+  and an X, each 44 and floating like the page bar's buttons (`Floating`,
+  the X a `PageBarButton` with its 20 `ink` icon), 8 apart on the gutters.
+  With the keyboard up they ride 8 above it; down, they sit on the tab
+  bar's line. The X goes back to the tab you came from and empties the
+  field; the field's own clear button only clears the words. A page opened
+  from the results keeps the tab bar, and coming back leaves the keyboard
+  down. Rejected the same day: one pill with the X inside (B), which put
+  the clear button and the X side by side.
 
 ## Motion
 

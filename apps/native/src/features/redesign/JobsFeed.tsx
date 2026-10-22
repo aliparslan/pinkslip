@@ -135,7 +135,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     // Always there: adding or removing it rebuilds the list's content on iOS,
-    // and the Search field in the header would lose its keyboard.
+    // and Jobs' field in the header would lose its keyboard.
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={waiting ? noop : pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
     ListFooterComponent={jobs.length > 0 ? <>
       {after}

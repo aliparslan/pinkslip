@@ -1,9 +1,9 @@
 import { useCompanies } from "@pinkslip/data";
-import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo } from "react";
-import { Pressable, View } from "react-native";
+import { router, Stack, useIsFocused, useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useRef } from "react";
+import { Pressable, View, type TextInput } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { CompanyLogo, Icon, SearchField, SectionHeader, Text } from "../../ui";
+import { BottomSearch, CompanyLogo, Icon, leaveSearch, SectionHeader, Text, useSearchTabPress, useTabBarStepsAside } from "../../ui";
 import { logoUri } from "../jobs/CompanyLogo";
 import { JobsFeed } from "./JobsFeed";
 import { useDebounced } from "./JobsScreen";
@@ -11,35 +11,43 @@ import { clearRecentSearches, rememberSearch, useRecentSearches } from "./recent
 import { setSearchText, useSearchText } from "./search-text";
 
 /**
- * The Search tab (Paper "Search and companies · Oct 12"): one field for
- * everything, under the title like Jobs' own, with the tab bar left as it is
- * (owner, 2026-10-19: the bar folding round a field at the bottom took it
- * over). Before you type it shows your recent searches; then companies that
+ * The Search tab, a quick lookup (owner, 2026-10-22, Paper "Search at the
+ * bottom · Oct 22", A; Apple's search tab with the button appearance):
+ * picking it brings up the keyboard with the field at the bottom and an X
+ * beside it, where the tab bar was, and the X goes back to the tab you came
+ * from. Before you type it shows your recent searches; then companies that
  * match, and every open job that does, outside your saved search. Jobs' own
- * field narrows the feed instead. The field sits in the list's header, which
- * stays mounted from recent searches to results, so it keeps the keyboard.
+ * field narrows the feed instead. A page you open from here keeps the tab
+ * bar; coming back to the results leaves the keyboard down.
  */
 export function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
   const text = useSearchText();
-  // "Search everything" from Jobs arrives with its words.
+  // "Search everything" from Jobs arrives with its words, and the results.
   useEffect(() => { if (params.q) setSearchText(params.q); }, [params.q]);
   const query = useDebounced(text.trim());
+  const focused = useIsFocused();
+  useTabBarStepsAside(focused);
+  const field = useRef<TextInput>(null);
+  useSearchTabPress(() => field.current?.focus());
+  const leave = () => {
+    field.current?.blur();
+    setSearchText("");
+    leaveSearch();
+  };
 
   // The title scrolls with the page, as on every other tab, under the 44 nav row.
   const header = <View style={styles.header}>
-    <View style={styles.titleBlock}>
-      <View style={styles.nav} />
-      <Text role="largeTitle" accessibilityRole="header">Search</Text>
-    </View>
-    <View style={styles.row}>
-      <SearchField value={text} onChangeText={setSearchText} placeholder="Jobs and companies" onSubmit={() => rememberSearch(text)} />
-    </View>
+    <View style={styles.nav} />
+    <Text role="largeTitle" accessibilityRole="header">Search</Text>
   </View>;
   return <View style={styles.screen}>
     <Stack.Screen options={{ headerShown: false }} />
     <JobsFeed query={query} scope="all" tab="(search)" chips={false} onClearQuery={() => setSearchText("")}
       top={<>{header}{query ? <Companies query={query} /> : null}</>} idle={<Recent onPick={setSearchText} />} />
+    {/* Picked from the bar the first time, the screen is new, so it asks for the keyboard itself. */}
+    <BottomSearch ref={field} shown={focused} onLeave={leave} value={text} onChangeText={setSearchText}
+      placeholder="Jobs and companies" onSubmit={() => rememberSearch(text)} autoFocus={!params.q} />
   </View>;
 }
 
@@ -96,11 +104,9 @@ const hostOf = (website: string) => website.replace(/^https?:\/\//, "").replace(
 
 const styles = StyleSheet.create((theme) => ({
   screen: { flex: 1, backgroundColor: theme.ui.color.bg },
-  // Jobs' header: the title under the 44 nav row, the field 12 below.
-  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["2"] },
-  titleBlock: { gap: theme.ui.space["2"] },
+  // Jobs' header: the title under the 44 nav row.
+  header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["2"] },
   nav: { height: theme.ui.size.iconButton },
-  row: { flexDirection: "row", alignItems: "center" },
   idle: { paddingHorizontal: theme.ui.space["8"], paddingTop: theme.ui.space["10"] },
   recent: { paddingBottom: theme.ui.space["4"] },
   recentHeader: {
