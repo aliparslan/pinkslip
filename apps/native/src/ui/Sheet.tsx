@@ -212,20 +212,54 @@ export interface SheetModalProps extends SheetProps {
 /** A Sheet over everything on screen, the tab bar included. The page you
  * were on stays in view behind it. */
 export function SheetModal({ open, onClosed, onGone, dim, children }: SheetModalProps) {
+  const { attempt, onShow } = useShownOrAskedAgain(open);
   if (onGone) {
     // Kept mounted while closing, so iOS can say when its modal is gone.
-    return <Modal transparent visible={open} animationType="none" statusBarTranslucent onRequestClose={onClosed} onDismiss={onGone}>
+    return <Modal key={attempt} transparent visible={open} animationType="none" statusBarTranslucent onRequestClose={onClosed}
+      onShow={onShow} onDismiss={onGone}>
       {open ? <GestureHandlerRootView style={styles.fill}>
         <Sheet onClosed={onClosed} dim={dim}>{children}</Sheet>
       </GestureHandlerRootView> : null}
     </Modal>;
   }
   if (!open) return null;
-  return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed}>
+  return <Modal key={attempt} transparent visible animationType="none" statusBarTranslucent onRequestClose={onClosed} onShow={onShow}>
     <GestureHandlerRootView style={styles.fill}>
       <Sheet onClosed={onClosed} dim={dim}>{children}</Sheet>
     </GestureHandlerRootView>
   </Modal>;
+}
+
+/** How long iOS gets to show a modal before it's asked again, and how often. */
+const SHOW_WAIT_MS = 600;
+const SHOW_TRIES = 3;
+
+/**
+ * iOS shows one modal at a time and quietly drops one asked for while
+ * another is still leaving, a system one as much as ours: the Files picker
+ * after you pick a PDF, Safari after you close it. A sheet opened then never
+ * appeared, so importing a resume seemed to do nothing (2026-10-22). Until
+ * iOS says it has shown the modal, it's asked again, a few times at most.
+ */
+function useShownOrAskedAgain(open: boolean) {
+  const [attempt, setAttempt] = useState(0);
+  const shown = useRef(false);
+  const tries = useRef(0);
+  useEffect(() => {
+    if (!open) {
+      shown.current = false;
+      tries.current = 0;
+      return;
+    }
+    if (shown.current || tries.current >= SHOW_TRIES) return;
+    const timer = setTimeout(() => {
+      if (shown.current) return;
+      tries.current += 1;
+      setAttempt((current) => current + 1);
+    }, SHOW_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [open, attempt]);
+  return { attempt, onShow: () => { shown.current = true; } };
 }
 
 export interface SheetStepProps {

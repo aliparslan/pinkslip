@@ -97,7 +97,8 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
       <Text weight={(accessory === "radio" && !settings) || headline ? "medium" : "regular"} tone={destructive ? "bad" : "ink"}>{title}</Text>
       {detail ? <Text role={settings && !headline ? "footnote" : "subhead"} tone={headline ? "ink-2" : "ink-3"} lines={headline ? 1 : undefined}>{detail}</Text> : null}
     </View>
-    {value ? <Text tone={settings ? "ink-3" : "ink-2"} lines={1}>{value}</Text> : null}
+    {/* A long value (a resume's file name) gives way before the title does. */}
+    {value ? <View style={styles.value}><Text tone={settings ? "ink-3" : "ink-2"} lines={1}>{value}</Text></View> : null}
     {trailing}
     {/* A value without a chevron keeps the chevron's room, so values line up
         down a card (owner, 2026-10-15). */}
@@ -180,6 +181,7 @@ const styles = StyleSheet.create((theme) => ({
   leading: { width: LEADING, alignItems: "center" },
   chevronRoom: { width: 12 },
   text: { flex: 1, minWidth: 0 },
+  value: { flexShrink: 1, maxWidth: "60%" },
   inline: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
   radio: { width: theme.ui.size.hole, height: theme.ui.size.hole, borderRadius: theme.ui.radius.full, alignItems: "center", justifyContent: "center" },
   // A check or switch changes a setting, so "on" is pink (docs/design-system.md).
