@@ -46,6 +46,7 @@ import {
   type HealthCheckDeps,
 } from "./health-checks";
 import { flagEnabled } from "./feature-flags";
+import { parseSupportLinks, SUPPORT_THANKS_PATH } from "../shared/support";
 import { queueSavedJobClosings, runNotificationScheduler } from "./notification-scheduler";
 import { nudgeStoppedForwarding } from "./email/forwarding";
 import { runClassificationShadow } from "./classification-shadow";
@@ -163,6 +164,8 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
     tailoring_enabled: Boolean(tailoring),
     tailoring_provider: tailoring?.provider ?? null,
     tailoring_model: tailoring?.model ?? "",
+    // Support Pinkslip's Stripe links, guests included; null hides the row.
+    support: flagEnabled(env.SUPPORT, account.is_admin) ? parseSupportLinks(env.SUPPORT_LINKS) : null,
   };
 }
 
@@ -257,15 +260,16 @@ app.post("/api/v2/native/session", async (c) => {
 
 // Apple fetches this directly from /.well-known/ and does NOT follow redirects,
 // so both paths must serve the JSON body itself (no redirect). `paths` lists
-// what the iOS app can show: the magic-link route and job pages (a shared job
-// link opens in the app when it's installed).
+// what the iOS app can show: the magic-link route, job pages (a shared job
+// link opens in the app when it's installed) and where Stripe sends people
+// after a tip.
 function appleAppSiteAssociation(env: Env) {
   const teamId = env.APPLE_TEAM_ID?.trim() || env.APNS_TEAM_ID?.trim();
   const appId = env.APPLE_APP_ID?.trim() || env.APNS_BUNDLE_ID?.trim() || "dev.alip.pinkslip";
   return {
     applinks: {
       apps: [],
-      details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*", "/jobs/*"] }] : [],
+      details: teamId ? [{ appID: `${teamId}.${appId}`, paths: ["/auth/email/verify*", "/jobs/*", `${SUPPORT_THANKS_PATH}*`] }] : [],
     },
     // The iPhone app's passwords: iOS offers, saves and fills them for
     // pinkslip.work (app 1.3.6's webcredentials entitlement).

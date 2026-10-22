@@ -67,6 +67,11 @@ export interface Env {
   /** A GitHub token (public read only) for the address-format cross-check:
    * 5,000 requests an hour instead of 60. Optional. */
   GITHUB_TOKEN?: string;
+  /** Support Pinkslip (tips): "on", "admin", or unset, like OUTREACH. */
+  SUPPORT?: string;
+  /** The tips' Stripe Payment Links, `once_5 = "https://buy.stripe.com/…"`
+   * and so on (shared/support.ts). Public links, so a var, not a secret. */
+  SUPPORT_LINKS?: string | Record<string, string>;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */

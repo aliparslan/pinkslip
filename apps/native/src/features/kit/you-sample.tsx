@@ -4,11 +4,13 @@ import { toast } from "../../ui";
 import { setAppearancePreference, useAppearancePreference } from "../../theme/appearance";
 import type { ApplicationAnswerValue, SavedApplicationAnswer } from "@pinkslip/core/api";
 import type { WorkAuthorization } from "@pinkslip/domain/search-profile";
+import type { SupportLinks } from "@pinkslip/domain/support";
 import { AccountView } from "../redesign/you/AccountPage";
 import { AnswersView } from "../redesign/you/AnswersPage";
 import { AlertsView, type NewJobAlerts } from "../redesign/you/AlertsPage";
 import { HiddenCompaniesView, type HiddenCompany } from "../redesign/you/HiddenCompaniesPage";
 import { PlanFreeView, PlanProView } from "../redesign/you/PlanPage";
+import { SupportSheet } from "../redesign/you/SupportSheet";
 import { YouView, type YouDestination } from "../redesign/you/YouScreen";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,6 +19,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * and Alerts open their sample pages; the rest open the real ones. */
 export function SampleYouScreen() {
   const appearance = useAppearancePreference();
+  const [supporting, setSupporting] = useState(false);
   const samples: Partial<Record<YouDestination, Href>> = {
     plan: { pathname: "/you/plan", params: { sample: "free" } },
     email: { pathname: "/you/email", params: { sample: "on" } },
@@ -27,17 +30,29 @@ export function SampleYouScreen() {
     resume: "/you/resume", answers: "/you/answers", outreach: "/you/outreach", tailoring: "/you/tailoring", help: "/you/feedback", whatsNew: "/you/whats-new",
     admin: "/you/admin", kit: "/you/kit-redesign",
   };
-  return <YouView
+  return <>
+  <YouView
     person={{ name: "Jordan Lee", email: "jordan@lee.dev" }}
     values={{ search: "New grad +1", email: "On", alerts: "On", resume: "Jordan_Lee.pdf", answers: "12", plan: "Free", whatsNew: "1.4" }}
     appearance={appearance}
     onAppearance={setAppearancePreference}
-    show={{ email: true, answers: true, plan: true, admin: true, kit: true, outreach: true }}
+    show={{ email: true, answers: true, plan: true, admin: true, kit: true, outreach: true, support: true }}
     open={(destination) => {
+      if (destination === "support") return setSupporting(true);
       const href = samples[destination] ?? live[destination];
       if (href) router.push(href);
-    }} />;
+    }} />
+  {/* Nothing opens Stripe: the button goes straight to coming back. */}
+  <SupportSheet open={supporting} onClosed={() => setSupporting(false)} links={SAMPLE_SUPPORT_LINKS}
+    onSupport={() => router.push("/support/thanks")} />
+  </>;
 }
+
+const SAMPLE_SUPPORT_LINKS: SupportLinks = {
+  once: [3, 5, 10].map((dollars) => ({ dollars, url: `https://buy.stripe.com/sample_once_${dollars}` })),
+  other: "https://buy.stripe.com/sample_once_other",
+  monthly: [3, 5, 10].map((dollars) => ({ dollars, url: `https://buy.stripe.com/sample_monthly_${dollars}` })),
+};
 
 /** Alerts B with everything on: Once a day at a time, and Application
  * changes. Nothing is saved. */

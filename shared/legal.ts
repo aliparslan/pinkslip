@@ -2,11 +2,11 @@
  * the current site) and the React web app. The App Store links to `/privacy`
  * and `/support`, so the paths are stable. Bodies are static, repository-owned
  * HTML. */
-export const LEGAL_UPDATED_AT = "August 27, 2026";
+export const LEGAL_UPDATED_AT = "October 22, 2026";
 export const SUPPORT_EMAIL = "login@pinkslip.work";
 
 export interface LegalPage {
-  path: "/privacy" | "/support";
+  path: "/privacy" | "/support" | "/support/thanks";
   title: string;
   description: string;
   subtitle: string;
@@ -34,7 +34,7 @@ export const privacyPolicy: LegalPage = {
 <p>Pinkslip uses this information to find and rank relevant jobs, sync your choices, send alerts you enable, create resume and tailoring tools you request, authenticate accounts, prevent abuse, provide support, and improve reliability. Pinkslip does not sell personal information or use it for third-party advertising.</p>
 
 <h2>Service providers</h2>
-<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and process resume extraction or tailoring requests with Workers AI. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
+<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and process resume extraction or tailoring requests with Workers AI. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
 
 <h2>Retention and deletion</h2>
 <p>Pinkslip keeps account-linked information while your account is active and as needed to provide the features you use. Short-lived sign-in and security records expire or are removed as they are no longer needed. De-identified operational records may be retained to measure reliability and prevent abuse.</p>
@@ -76,6 +76,21 @@ export const supportPage: LegalPage = {
 <nav class="actions" aria-label="Legal and support links">
   <a href="mailto:${SUPPORT_EMAIL}">Email Pinkslip support</a>
   <a href="/privacy">Read the privacy policy</a>
+</nav>
+`,
+};
+
+/** Where Stripe sends people after a tip, when the iPhone doesn't open the
+ * app there itself (shared/support.ts). */
+export const supportThanksPage: LegalPage = {
+  path: "/support/thanks",
+  title: "Thank you for your support!",
+  description: "Your tip to Pinkslip went through.",
+  subtitle: "Your tip went through.",
+  bodyHtml: `
+<p>Stripe emails you the receipt.</p>
+<nav class="actions" aria-label="Back to Pinkslip">
+  <a href="pinkslip://support/thanks">Back to Pinkslip</a>
 </nav>
 `,
 };

@@ -33,6 +33,7 @@ import { Route as AdminSourcesRouteImport } from './routes/admin.sources'
 import { Route as ApplicationsApplicationIdRouteImport } from './routes/applications.$applicationId'
 import { Route as MyJobsAppliedRouteImport } from './routes/my-jobs.applied'
 import { Route as MyJobsSavedRouteImport } from './routes/my-jobs.saved'
+import { Route as SupportThanksRouteImport } from './routes/support_.thanks'
 import { Route as TailorJobIdRouteImport } from './routes/tailor.$jobId'
 import { Route as YouIndexRouteImport } from './routes/you.index'
 import { Route as YouAccountRouteImport } from './routes/you.account'
@@ -168,6 +169,11 @@ const MyJobsSavedRoute = MyJobsSavedRouteImport.update({
   path: '/my-jobs/saved',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportThanksRoute = SupportThanksRouteImport.update({
+  id: '/support_/thanks',
+  path: '/support/thanks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TailorJobIdRoute = TailorJobIdRouteImport.update({
   id: '/tailor/$jobId',
   path: '/tailor/$jobId',
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/support/thanks': typeof SupportThanksRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
   '/you/account': typeof YouAccountRoute
   '/you/alerts': typeof YouAlertsRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/support/thanks': typeof SupportThanksRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
   '/you/account': typeof YouAccountRoute
   '/you/alerts': typeof YouAlertsRoute
@@ -339,6 +347,7 @@ export interface FileRoutesById {
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/my-jobs/applied': typeof MyJobsAppliedRoute
   '/my-jobs/saved': typeof MyJobsSavedRoute
+  '/support_/thanks': typeof SupportThanksRoute
   '/tailor/$jobId': typeof TailorJobIdRoute
   '/you/account': typeof YouAccountRoute
   '/you/alerts': typeof YouAlertsRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
+    | '/support/thanks'
     | '/tailor/$jobId'
     | '/you/account'
     | '/you/alerts'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
+    | '/support/thanks'
     | '/tailor/$jobId'
     | '/you/account'
     | '/you/alerts'
@@ -457,6 +468,7 @@ export interface FileRouteTypes {
     | '/applications/$applicationId'
     | '/my-jobs/applied'
     | '/my-jobs/saved'
+    | '/support_/thanks'
     | '/tailor/$jobId'
     | '/you/account'
     | '/you/alerts'
@@ -494,6 +506,7 @@ export interface RootRouteChildren {
   ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
   MyJobsAppliedRoute: typeof MyJobsAppliedRoute
   MyJobsSavedRoute: typeof MyJobsSavedRoute
+  SupportThanksRoute: typeof SupportThanksRoute
   TailorJobIdRoute: typeof TailorJobIdRoute
 }
 
@@ -665,6 +678,13 @@ declare module '@tanstack/react-router' {
       path: '/my-jobs/saved'
       fullPath: '/my-jobs/saved'
       preLoaderRoute: typeof MyJobsSavedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support_/thanks': {
+      id: '/support_/thanks'
+      path: '/support/thanks'
+      fullPath: '/support/thanks'
+      preLoaderRoute: typeof SupportThanksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tailor/$jobId': {
@@ -849,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,
   MyJobsAppliedRoute: MyJobsAppliedRoute,
   MyJobsSavedRoute: MyJobsSavedRoute,
+  SupportThanksRoute: SupportThanksRoute,
   TailorJobIdRoute: TailorJobIdRoute,
 }
 export const routeTree = rootRouteImport

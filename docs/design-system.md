@@ -933,7 +933,8 @@ cut so that each remaining one has a job.
     Plan's See Pro: one line in the owner's words, One time or Monthly, the
     amounts as radios, "Support with $5 ↗" to a Stripe Payment Link. Back
     from Stripe, the toast leads with the filled pink heart, "Thank you for
-    your support!". Not built yet.
+    your support!". Built the same day (`SupportSheet`); the row shows once
+    the Worker has `SUPPORT_LINKS`.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

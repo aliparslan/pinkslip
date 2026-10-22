@@ -333,6 +333,18 @@ describe("accounts", () => {
     expect(me.features).toMatchObject({ google_sign_in_enabled: true, password_sign_in_enabled: true });
   });
 
+  it("sends Support Pinkslip's links only while SUPPORT lets this person see them", async () => {
+    const { db, env, app } = setup();
+    const token = await guest(db);
+    const support = async () => ((await (await app(token)("/api/v2/me", undefined, "GET")).json()) as { features: { support: unknown } }).features.support;
+    Object.assign(env, { SUPPORT_LINKS: { once_5: "https://buy.stripe.com/five", once_other: "https://buy.stripe.com/other" } });
+    expect(await support()).toBeNull();
+    Object.assign(env, { SUPPORT: "admin" });
+    expect(await support()).toBeNull();
+    Object.assign(env, { SUPPORT: "on" });
+    expect(await support()).toEqual({ once: [{ dollars: 5, url: "https://buy.stripe.com/five" }], other: "https://buy.stripe.com/other", monthly: [] });
+  });
+
   it("removes every sign-in method when the account is deleted", async () => {
     const { sqlite, db, app, lastCode } = setup();
     const call = app(await guest(db));

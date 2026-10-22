@@ -35,8 +35,9 @@ export interface ToastAction {
 
 export interface ToastInput {
   message: string;
-  /** success: a pink check; error and warning: the red mark; loading: a
-   * spinner that stays until the same key shows its result. */
+  /** success: a pink check, or `icon` filled in pink; error and warning:
+   * the red mark; loading: a spinner that stays until the same key shows
+   * its result. */
   tone?: ToastTone;
   /** The action's icon, for something that left the screen (hidden, removed). */
   icon?: IconName;
@@ -408,9 +409,10 @@ function actionIconFor(label: string): IconName | undefined {
   return undefined;
 }
 
-/** What leads the toast: a pink check, the red mark, a spinner, or the action's icon. */
+/** What leads the toast: a pink check (or its own icon filled in pink, the
+ * heart after a tip), the red mark, a spinner, or the action's icon. */
 function Mark({ item }: { item: ShownToast }) {
-  if (item.tone === "success") return <Icon name="done" size={20} tone="accent" />;
+  if (item.tone === "success") return item.icon ? <Icon name={item.icon} size={20} tone="accent" weight="fill" /> : <Icon name="done" size={20} tone="accent" />;
   if (item.tone === "error" || item.tone === "warning") return <Icon name="warning" size={20} tone="bad" />;
   if (item.tone === "loading") return <Spinner />;
   return item.icon ? <Icon name={item.icon} size={20} tone="ink-2" /> : null;

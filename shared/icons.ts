@@ -76,6 +76,9 @@ export const ICONS = {
   appearance: "CircleHalf",
   help: "ChatCircleDots",
   whatsNew: "Gift",
+  /** Support Pinkslip: filled on its pink tile and in the thank-you toast
+   * (owner, 2026-10-22). */
+  support: "Heart",
   admin: "Wrench",
   /** Admin's tools (Paper "Admin · Oct 16"). */
   flagged: "Funnel",

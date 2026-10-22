@@ -37,6 +37,7 @@ export const pages = {
   "/about": { title: "About Pinkslip", shell: "consumer", depth: 0, root: null, access: "public" },
   "/privacy": { title: "Privacy policy", shell: "consumer", depth: 0, root: null, access: "public" },
   "/support": { title: "Support", shell: "consumer", depth: 0, root: null, access: "public" },
+  "/support/thanks": { title: "Thank you", shell: "consumer", depth: 0, root: null, access: "public" },
 } as const satisfies Record<string, PageMetadata>;
 
 /** You's destinations, grouped as in the current design's secondary nav. The

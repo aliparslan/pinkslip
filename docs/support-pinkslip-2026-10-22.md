@@ -84,8 +84,82 @@ Back from Stripe, a toast with a filled pink heart: "Thank you for your
 support!". Take B (a page with a note and a costs-covered bar) wasn't
 picked.
 
-To do before building: a Stripe account (business details, payouts), the
-Payment Link(s), and a sentence in the privacy notice about Stripe.
+## How it works (built Oct 22)
+
+- **Safari, not the in-app browser.** Stripe's iOS guide for Payment Links
+  opens the page in Safari and comes back by a universal link, which is
+  where Apple Pay is certain to show. Apple Pay inside an in-app sheet that
+  can also report back to the app (`ASWebAuthenticationSession`) isn't
+  documented, so the button opens Safari (its ↗ already says it leaves).
+- **Back to the app:** every Payment Link redirects to
+  `https://pinkslip.work/support/thanks`. The site's
+  apple-app-site-association now lists `/support/thanks*`, so the iPhone
+  opens Pinkslip there: You, with the heart toast. A phone that hasn't
+  fetched the new association yet (iOS refreshes it on its own schedule)
+  shows the page instead: "Thank you for your support!" with a button back
+  into the app.
+- **The links live on the Worker,** not in the app: `SUPPORT_LINKS` in
+  `wrangler.toml`, and `SUPPORT` = `admin` (only you) or `on` (everyone).
+  `/api/v2/me` sends them as `features.support`. With no links or the flag
+  off, the row isn't there. Changing a link or an amount needs a Worker
+  deploy, not an app update.
+- **US only:** the row shows only when the iPhone's region is the US,
+  standing in for the App Store storefront (Apple's 3.1.1(a) covers the US
+  storefront). Monthly shows only when its links exist; "Other amount" is
+  one-time only, since Stripe can't take a typed amount every month.
+
+## Stripe setup (for the owner)
+
+Use a sandbox (test mode) first, then repeat the products and links in live
+mode.
+
+1. **Account.** Sign up at dashboard.stripe.com/register and turn on
+   two-step sign-in. Activate payments: Individual / sole proprietorship,
+   website `https://pinkslip.work`, and a description like "A job-search
+   app. People can leave an optional tip to support it; a tip unlocks
+   nothing." Add the bank account for payouts.
+2. **Public details** (Settings → Business → Public details): name
+   Pinkslip, statement descriptor `PINKSLIP`, support email
+   `login@pinkslip.work` (the address the privacy and support pages give).
+3. **Branding** (Settings → Branding): the app icon, brand color
+   `#EE5FAC`, so Stripe's page looks like Pinkslip.
+4. **Receipts** (Settings → Customer emails): turn on emails for successful
+   payments. For monthly: Settings → Billing → Customer portal, activate
+   it and allow cancelling, so the renewal emails carry a way to stop.
+5. **Payment methods** (Settings → Payment methods): cards and Apple Pay
+   are on by default; Google Pay and Link are fine to leave on. Stripe's
+   own pages need no Apple Pay domain setup.
+6. **Products** (Product catalog → Add product):
+   - "Tip for Pinkslip", one-off prices $3, $5 and $10.
+   - "Monthly support for Pinkslip", recurring monthly prices $3, $5 and
+     $10 (skip it if you'd rather not offer monthly; the app hides it).
+7. **Payment Links** (Payment Links → New), seven of them:
+   - One each for the one-off $3, $5 and $10, and the monthly $3, $5 and
+     $10. Options: quantity not adjustable, no promotion codes, no address
+     or phone.
+   - "Other amount": choose "Customers choose what to pay", product "Tip
+     for Pinkslip", USD, minimum $1, maximum $500.
+   - On every link, After payment → "Don't show confirmation page" →
+     `https://pinkslip.work/support/thanks`.
+8. **Test** each link in the sandbox: card 4242 4242 4242 4242, any future
+   date, any CVC. On the iPhone, Apple Pay in a sandbox uses your real card
+   without charging it.
+9. **Live:** copy the products to live mode, make the seven links again in
+   live mode with the same redirect, and send them over, named like this
+   (they're public links, fine to paste):
+
+   ```toml
+   SUPPORT = "admin"
+   SUPPORT_LINKS = { once_3 = "https://buy.stripe.com/…", once_5 = "…", once_10 = "…", once_other = "…", monthly_3 = "…", monthly_5 = "…", monthly_10 = "…" }
+   ```
+
+   Any name of the form `once_<dollars>` or `monthly_<dollars>` works, so
+   the amounts can change without touching the app.
+
+Then: deploy the Worker and the web Worker (the association and the thanks
+page), publish an owner-channel update to try a real $1 tip from your phone,
+then `SUPPORT = "on"` and an update for everyone. Not tax advice: tips are
+income to you, and Stripe reports them on a 1099-K past its thresholds.
 
 ## Sources
 

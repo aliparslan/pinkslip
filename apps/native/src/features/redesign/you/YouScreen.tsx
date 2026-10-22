@@ -4,13 +4,14 @@ import Constants from "expo-constants";
 import { router, Stack, type Href } from "expo-router";
 import * as Updates from "expo-updates";
 import { useState } from "react";
-import { Pressable, ScrollView, Text as RNText, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
+import { deviceRegion } from "../../../platform/region";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
-import { faces, Icon, IconTile, ListGroup, ListItem, Text, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
+import { faces, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
 import { EditSearchSheet } from "../EditSearch";
@@ -19,9 +20,11 @@ import { useEmailTrackingPrefs } from "../email/email-prefs";
 import { redesignKitAvailable } from "../flag";
 import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
+import { SupportSheet } from "./SupportSheet";
 
-/** The rows that open something. "search" opens the Your search sheet. */
-export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "help" | "whatsNew" | "admin" | "kit";
+/** The rows that open something. "search" opens the Your search sheet and
+ * "support" Support Pinkslip's. */
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "help" | "whatsNew" | "support" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
@@ -31,7 +34,7 @@ export interface YouViewProps {
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
-  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean };
+  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean; support?: boolean };
   open: (destination: YouDestination) => void;
 }
 
@@ -108,6 +111,11 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <ListItem leading={<IconTile icon="help" meaning="app" />} title="Help and feedback" accessory="chevron" onPress={() => open("help")} />
       <ListItem leading={<IconTile icon="whatsNew" meaning="app" />} title="What's new" value={values.whatsNew} accessory="chevron" onPress={() => open("whatsNew")} />
     </ListGroup>
+    {/* Its own card at the end, the heart filled on the pink tile (Paper
+        "Support Pinkslip · Oct 22", A, owner 2026-10-22). */}
+    {show.support ? <ListGroup surface="fill" inset="leading">
+      <ListItem leading={<IconTile icon="support" meaning="pro" weight="fill" />} title="Support Pinkslip" accessory="chevron" onPress={() => open("support")} />
+    </ListGroup> : null}
     <View style={styles.version}><Text role="footnote" tone="ink-3" align="center" selectable>{appVersionLine()}</Text></View>
   </ScrollView>
   <TopEdgeBlur under={edge.under} />
@@ -154,11 +162,14 @@ export function YouScreen() {
   const { status: device } = useDevicePush();
   const appearance = useAppearancePreference();
   const [searching, setSearching] = useState(false);
+  const [supporting, setSupporting] = useState(false);
+  // Tips link out to Stripe, which Apple allows on the US storefront only.
+  const support = deviceRegion() === "US" ? me?.features?.support ?? null : null;
 
   const resumeData = resume.data?.data;
   const resumeReady = Boolean(resumeData?.contact.name || resumeData?.experience.length || resumeData?.education.length || resumeData?.projects.length);
   const go = (href: Href) => router.push(href);
-  const destinations: Record<Exclude<YouDestination, "search">, Href> = {
+  const destinations: Record<Exclude<YouDestination, "search" | "support">, Href> = {
     account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
     outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", whatsNew: "/you/whats-new", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
@@ -176,11 +187,16 @@ export function YouScreen() {
       appearance={appearance}
       onAppearance={setAppearancePreference}
       // Pro isn't sold yet, so Plan says Soon like the two it pays for.
-      show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable, outreach: signedIn && Boolean(me?.features?.outreach_enabled) }}
+      show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable, outreach: signedIn && Boolean(me?.features?.outreach_enabled), support: Boolean(support) }}
       // A guest's card opens the sign-in sheet over You, not a page.
       open={(destination) => destination === "search" ? setSearching(true)
+        : destination === "support" ? setSupporting(true)
         : destination === "account" && !signedIn ? openSignIn() : go(destinations[destination])} />
     <EditSearchSheet open={searching} onClosed={() => setSearching(false)} />
+    {/* Stripe's page opens in Safari, where Apple Pay always shows (Stripe's
+        guide for Payment Links in iOS apps); paying comes back to You. */}
+    {support ? <SupportSheet open={supporting} onClosed={() => setSupporting(false)} links={support}
+      onSupport={(url) => void Linking.openURL(url).catch(() => toast.error("Couldn't open Safari."))} /> : null}
   </>;
 }
 

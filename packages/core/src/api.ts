@@ -10,6 +10,7 @@ import type {
   PollableCompanySourceType,
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
+import type { SupportLinks } from "@pinkslip/domain/support";
 import type { TodayResponse } from "@pinkslip/domain/today";
 export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
 import type { CompanyEvent } from "@pinkslip/domain/company-events";
@@ -493,6 +494,8 @@ export interface AppFeatures {
   tailoring_enabled: boolean;
   tailoring_provider: "workers_ai" | null;
   tailoring_model: string;
+  /** Support Pinkslip's Stripe links; null or missing hides the row. */
+  support?: SupportLinks | null;
 }
 
 export type Tailoring = StructuredTailoring;
