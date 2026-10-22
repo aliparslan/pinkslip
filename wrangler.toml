@@ -112,9 +112,10 @@ JOB_CLASSIFICATION_AUDIT = "true"
 # removes the stand-in and sets "on".
 OUTREACH = "admin"
 OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
-# Autofill is available to signed-in admins. Submission stays manual unless
+# Assisted apply (the in-app browser's fill, Apply's sheet, Answers) for
+# every signed-in user (owner, 2026-10-22). Submission stays manual unless
 # AUTO_APPLY_SUBMIT is explicitly enabled separately.
-AUTO_APPLY = "admin"
+AUTO_APPLY = "on"
 
 # ─── Native iOS push (APNs) ───────────────────────────────────────────────────
 # The .p8 contents go in a secret, NOT here:  wrangler secret put APNS_PRIVATE_KEY
