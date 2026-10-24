@@ -1390,7 +1390,7 @@ RevenueCat):**
 - Products (`shared/plans.ts`): `dev.alip.pinkslip.pro.weekly` and
   `dev.alip.pinkslip.pro.monthly`, in one group.
 
-Owner's part in App Store Connect (before the app can sell Pro):
+Owner's part in App Store Connect (before the app can sell Pro; step by step in [app-store-subscriptions-setup.md](app-store-subscriptions-setup.md)):
 
 1. Business: accept the Paid Apps agreement, add banking and tax, and join
    the Small Business Program (15%) if it isn't already.
