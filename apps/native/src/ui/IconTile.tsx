@@ -1,9 +1,9 @@
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Icon, type IconName } from "./Icon";
+import type { TileMeaning } from "./tile-meaning";
 
-/** What a settings row is for, which sets its tile's color. */
-export type TileMeaning = "find" | "apply" | "pro" | "app";
+export type { TileMeaning };
 
 export interface IconTileProps {
   icon: IconName;

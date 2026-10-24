@@ -4,17 +4,9 @@ import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { storage } from "../../platform/storage";
 import { appRanBefore, onboardingDue } from "../onboarding/launch";
-import { Button, IconTile, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, type IconName, type TileMeaning } from "../../ui";
-import { notesIn, notesToShow, UPDATE_NOTES, type UpdateNotes } from "./update-notes";
+import { Button, IconTile, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet } from "../../ui";
+import { notesIn, notesToShow, UPDATE_NOTES, type ReleaseItem, type UpdateNotes } from "./update-notes";
 import { YouPage } from "./you/Page";
-
-export interface ReleaseItem {
-  icon: IconName;
-  meaning: TileMeaning;
-  title: string;
-  /** One line on what it does for you; an update's note can say it all in its title. */
-  line?: string;
-}
 
 export interface Release {
   /** "1.4": a big release, the first two parts of the version. */

@@ -1,4 +1,14 @@
-import type { ReleaseItem } from "./whats-new";
+import type { IconName } from "@pinkslip/domain/icons";
+import type { TileMeaning } from "../../ui/tile-meaning";
+
+/** One thing that changed: a release's feature or an update's note. */
+export interface ReleaseItem {
+  icon: IconName;
+  meaning: TileMeaning;
+  title: string;
+  /** One line on what it does for you; an update's note can say it all in its title. */
+  line?: string;
+}
 
 /** What changed in one over-the-air update, said once at launch. */
 export interface UpdateNotes {
