@@ -172,10 +172,19 @@ mode.
    Any name of the form `once_<dollars>` or `monthly_<dollars>` works, so
    the amounts can change without touching the app.
 
-Then: deploy the Worker and the web Worker (the association and the thanks
-page), publish an owner-channel update to try a real $1 tip from your phone,
-then `SUPPORT = "on"` and an update for everyone. Not tax advice: tips are
-income to you, and Stripe reports them on a 1099-K past its thresholds.
+Then `SUPPORT = "on"` once a real tip from your phone has gone through.
+Not tax advice: tips are income to you, and Stripe reports them on a 1099-K
+past its thresholds.
+
+**Status (Oct 24):** the owner made one link, "Customers choose what to
+pay" (`once_other`), and asked why the fixed amounts need links of their
+own: each Payment Link is one price, and Stripe's product page isn't a page
+customers see. One link covers one-time tips of any amount; monthly would
+need fixed-price links, since Stripe can't repeat a typed amount. The app
+shows whatever links exist, so monthly can come later with a Worker deploy
+alone. Deployed with `SUPPORT = "admin"` (API Worker 7b113df8, web Worker
+7aed037f, from e28c9c9). TestFlight 1.3.8 already has the row; the sheet's
+tweak for a lone link (no list, straight to Stripe) rides the next update.
 
 ## Sources
 
