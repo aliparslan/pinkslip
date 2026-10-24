@@ -344,7 +344,7 @@ Activity, the digest and each application's timeline.
 | Need | Status |
 | --- | --- |
 | Free and Pro, usage-based, to cover costs | **Built 2026-10-24, not deployed** (step 9): plans, allowances, `GET /plan` |
-| Buying in the app (StoreKit) and checking it on the server | **Missing:** at the App Store release |
+| Buying in the app (StoreKit) and checking it on the server | **Server built 2026-10-24, not deployed:** Apple's API and notifications; the app's StoreKit side waits |
 | Usage the plan meters (auto-apply sends, tailoring) | **Built:** tailoring counts against the plan; auto-apply sends have `reserveAllowance` waiting for the server sends |
 
 ## 11. Admin, analytics and ops
@@ -1363,10 +1363,53 @@ Store release. Migration `0102_plans.sql`.
 - **Accounts:** signing in carries a guest's Pro (bought before signing in)
   and a used trial over; deleting an account deletes its plan and usage.
 
-Not built: StoreKit and Apple's server notifications, Stripe for the web,
-"Pro ends when you're hired" (it needs payments to end), and the Plan
-page's screens. The Pro-for-everyone switch is an idea to talk through
-first (see "Come back to").
+**Apple purchases (2026-10-24, owner: "i'd rather us just own it"; no
+RevenueCat):**
+
+- `worker/apple-store.ts` talks to Apple's App Store Server API with the
+  In-App Purchase key (ES256 bearer token), Production first and then
+  Sandbox (TestFlight buys in Sandbox). Whatever Pinkslip believes comes
+  from asking Apple over TLS, so Apple's certificate chain never has to be
+  checked here.
+- `POST /api/v2/plan/apple { transaction_id }`: after a purchase or to
+  restore. Pinkslip asks Apple for the subscription's status and writes the
+  plan: Pro while active or in the grace period, until its end; Free once
+  expired, failing to renew or refunded; the free trial as `trial` and
+  marked used. A subscription another account holds answers 409.
+- `POST /api/v2/apple/notifications` (no session): Apple's server
+  notifications v2. The post only names the subscription; Pinkslip asks
+  Apple what happened, and answers 500 only when Apple can't be reached,
+  so Apple retries.
+- The app buys with the user id as `appAccountToken`, so a notification can
+  find its person even before the app reports the purchase.
+- An admin's Pro isn't taken away when an Apple subscription ends.
+- `GET /plan` adds `offer_application`: on Pro, the latest application at
+  Offer, for "Got the job? Pro ends here".
+- Products (`shared/plans.ts`): `dev.alip.pinkslip.pro.weekly` and
+  `dev.alip.pinkslip.pro.monthly`, in one group.
+
+Owner's part in App Store Connect (before the app can sell Pro):
+
+1. Business: accept the Paid Apps agreement, add banking and tax, and join
+   the Small Business Program (15%) if it isn't already.
+2. The app → Subscriptions: a group "Pinkslip Pro" with
+   `dev.alip.pinkslip.pro.weekly` (1 week, $5 or the nearest price Apple
+   offers) and `dev.alip.pinkslip.pro.monthly` (1 month, $15), each with a
+   3-day free trial as the introductory offer for new subscribers.
+3. The app → App Information → App Store Server Notifications: version 2,
+   `https://pinkslip.work/api/v2/apple/notifications` for both Production
+   and Sandbox.
+4. Users and Access → Integrations → In-App Purchase: make a key, download
+   its .p8 (it downloads once), and send its Key ID and Issuer ID (not
+   secret; they go in `wrangler.toml`). Then from the repo:
+   `XDG_CONFIG_HOME=$HOME/.config bunx wrangler secret put APPLE_IAP_PRIVATE_KEY`
+   and paste the .p8's contents.
+
+Not built: the app's side (a StoreKit module such as expo-iap, buying with
+`appAccountToken`, restore, Apple's subscription page and refund request),
+Stripe for the web (later, owner 2026-10-24), and the Plan page's screens.
+The Pro-for-everyone switch is an idea to talk through first (see "Come
+back to").
 
 Testing flows (after a deploy):
 

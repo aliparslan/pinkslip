@@ -77,6 +77,12 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   /** The "Support Pinkslip" product (`prod_…`) every tip is a price of. */
   SUPPORT_STRIPE_PRODUCT?: string;
+  /** App Store Connect's In-App Purchase key, for checking Pro purchases
+   * with Apple (worker/apple-store.ts): its id and issuer as vars, the .p8
+   * contents as a secret. */
+  APPLE_IAP_KEY_ID?: string;
+  APPLE_IAP_ISSUER_ID?: string;
+  APPLE_IAP_PRIVATE_KEY?: string;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */

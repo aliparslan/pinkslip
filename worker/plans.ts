@@ -1,7 +1,8 @@
 import {
-  ALLOWANCE_LABELS, PLAN_ALLOWANCES, PRO_PRICES_USD, PRO_TRIAL_DAYS,
+  ALLOWANCE_LABELS, APPLE_PRO_PRODUCTS, PLAN_ALLOWANCES, PRO_PRICES_USD, PRO_TRIAL_DAYS,
   type Allowance, type AllowanceKind, type AllowanceRule, type PlanName, type PlanSource, type PlanState,
 } from "../shared/plans";
+import { appleSubscriptions, type AppleEnvironment, type AppleStoreConfig, type AppleSubscription } from "./apple-store";
 import { localParts, validTimeZone, zonedTime } from "./local-time";
 import type { Env } from "./types";
 
@@ -83,6 +84,11 @@ export async function planState(env: Env, userId: string, now = new Date()): Pro
   const allowances = await Promise.all((Object.keys(PLAN_ALLOWANCES[current.plan]) as AllowanceKind[])
     .map((kind) => allowanceFor(env, userId, kind, now)));
   const paid = current.plan === "pro" ? current.row : null;
+  const offer = current.plan === "pro"
+    ? await env.DB.prepare(
+      `SELECT id, company_name FROM applications WHERE user_id = ? AND stage = 'offer' ORDER BY stage_changed_at DESC LIMIT 1`
+    ).bind(userId).first<{ id: string; company_name: string | null }>()
+    : null;
   return {
     plan: current.plan,
     source: current.source,
@@ -92,6 +98,7 @@ export async function planState(env: Env, userId: string, now = new Date()): Pro
     trial: { available: !current.row?.trial_used_at, days: PRO_TRIAL_DAYS },
     prices: { currency: "usd", ...PRO_PRICES_USD },
     allowances: allowances.map(({ since: _since, ...allowance }) => allowance),
+    offer_application: offer ? { id: offer.id, company_name: offer.company_name } : null,
   };
 }
 
@@ -157,3 +164,76 @@ export async function mergeGuestPlan(db: D1Database, sourceUserId: string, targe
   }
   await db.batch(statements);
 }
+
+const iso = (ms: number | undefined) => (ms === undefined ? null : new Date(ms).toISOString());
+
+/** Pro's subscription among what Apple returned: the one that gives access
+ * now (active or in the grace period), else the one that ended last. */
+export function proSubscription(subscriptions: AppleSubscription[]): AppleSubscription | null {
+  const ours = subscriptions.filter((subscription) => APPLE_PRO_PRODUCTS[subscription.transaction.productId]);
+  const live = ours.find((subscription) => subscription.status === 1 || subscription.status === 4);
+  return live ?? ours.sort((a, b) => (b.transaction.expiresDate ?? 0) - (a.transaction.expiresDate ?? 0))[0] ?? null;
+}
+
+/** Writes what Apple says onto someone's plan: Pro while the subscription is
+ * active or in its grace period (until its end, which a renewal moves), Free
+ * once it has expired, failed to renew or been refunded. A free trial is
+ * the trial source and marks the trial used. An admin's Pro isn't taken
+ * away by an Apple subscription ending. */
+export async function applyAppleSubscription(db: D1Database, userId: string, subscription: AppleSubscription, now = new Date()): Promise<void> {
+  const { status, transaction, renewal } = subscription;
+  const pro = status === 1 || status === 4;
+  const trial = transaction.offerType === 1 && transaction.offerDiscountType === "FREE_TRIAL";
+  const endsAt = status === 4 && renewal?.gracePeriodExpiresDate ? iso(renewal.gracePeriodExpiresDate) : iso(transaction.expiresDate);
+  const existing = await db.prepare(
+    `SELECT plan, source, ends_at, trial_used_at FROM user_plans WHERE user_id = ?`
+  ).bind(userId).first<{ plan: PlanName; source: PlanSource; ends_at: string | null; trial_used_at: string | null }>();
+  const trialUsedAt = existing?.trial_used_at ?? (trial ? iso(transaction.purchaseDate) : null);
+  const adminPro = existing?.source === "admin" && existing.plan === "pro" && (existing.ends_at === null || existing.ends_at > now.toISOString());
+  if (adminPro && !pro) {
+    await db.prepare("UPDATE user_plans SET trial_used_at = ?, updated_at = ? WHERE user_id = ?").bind(trialUsedAt, now.toISOString(), userId).run();
+    return;
+  }
+  await db.prepare(
+    `INSERT INTO user_plans (user_id, plan, source, period, started_at, ends_at, will_renew, trial_used_at, external_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET plan = excluded.plan, source = excluded.source, period = excluded.period,
+       started_at = excluded.started_at, ends_at = excluded.ends_at, will_renew = excluded.will_renew,
+       trial_used_at = excluded.trial_used_at, external_id = excluded.external_id, updated_at = excluded.updated_at`
+  ).bind(
+    userId, pro ? "pro" : "free", trial ? "trial" : "apple", APPLE_PRO_PRODUCTS[transaction.productId] ?? null,
+    iso(transaction.originalPurchaseDate) ?? now.toISOString(), endsAt, renewal?.autoRenewStatus === 1 ? 1 : 0,
+    trialUsedAt, transaction.originalTransactionId, now.toISOString(),
+  ).run();
+}
+
+export type AppleSyncResult =
+  | { ok: true; userId: string; pro: boolean }
+  | { ok: false; code: "not_found" | "not_pro" | "owned_elsewhere" | "no_owner" };
+
+/** Asks Apple about a transaction and updates whoever owns it: the account
+ * already holding that subscription, else the one asking (a purchase or a
+ * restore), else the user id the app put on the purchase (a notification).
+ * A subscription another account holds isn't moved. */
+export async function syncAppleSubscription(
+  db: D1Database,
+  config: AppleStoreConfig,
+  input: { transactionId: string; userId?: string; prefer?: AppleEnvironment; fetcher?: typeof fetch; now?: Date },
+): Promise<AppleSyncResult> {
+  const found = await appleSubscriptions(config, input.transactionId, { prefer: input.prefer, fetcher: input.fetcher });
+  if (!found) return { ok: false, code: "not_found" };
+  const subscription = proSubscription(found.subscriptions);
+  if (!subscription) return { ok: false, code: "not_pro" };
+  const holder = await db.prepare("SELECT user_id FROM user_plans WHERE external_id = ?")
+    .bind(subscription.transaction.originalTransactionId).first<{ user_id: string }>();
+  if (input.userId && holder && holder.user_id !== input.userId) return { ok: false, code: "owned_elsewhere" };
+  const token = subscription.transaction.appAccountToken;
+  const tokenOwner = !holder && !input.userId && token
+    ? await db.prepare("SELECT id FROM users WHERE id = ?").bind(token).first<{ id: string }>()
+    : null;
+  const owner = holder?.user_id ?? input.userId ?? tokenOwner?.id;
+  if (!owner) return { ok: false, code: "no_owner" };
+  await applyAppleSubscription(db, owner, subscription, input.now);
+  return { ok: true, userId: owner, pro: subscription.status === 1 || subscription.status === 4 };
+}
+

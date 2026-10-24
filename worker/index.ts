@@ -34,6 +34,7 @@ import contactRoutes from "./routes/contacts";
 import outreachRoutes from "./routes/outreach";
 import supportRoutes from "./routes/support";
 import planRoutes from "./routes/plan";
+import appleNotificationRoutes from "./routes/apple-notifications";
 import applyRoutes from "./routes/apply";
 import errorRoutes from "./routes/errors";
 import notificationRoutes from "./routes/notifications";
@@ -339,6 +340,8 @@ app.get("/api/v2/logo", async (c) => {
     },
   });
 });
+// Apple's server notifications arrive without a session; ahead of auth.
+app.route("/api/v2/apple/notifications", appleNotificationRoutes);
 app.use("/api/v2/*", authMiddleware);
 app.use("/auth/email/verify", authMiddleware);
 

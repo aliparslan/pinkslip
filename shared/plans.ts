@@ -39,8 +39,17 @@ export const ALLOWANCE_LABELS: Record<AllowanceKind, string> = {
  * Stripe hold the real prices; these are for the Plan page and the web. */
 export const PRO_PRICES_USD = { week: 5, month: 15 } as const;
 
-/** A free trial of Pro, once per person. */
+/** A free trial of Pro, once per person: Apple's introductory offer on the
+ * subscription. */
 export const PRO_TRIAL_DAYS = 3;
+
+/** Pro's subscriptions in App Store Connect, one group ("Pinkslip Pro"),
+ * and the length each sells. Apple is the only way to buy Pro for now
+ * (owner, 2026-10-24). */
+export const APPLE_PRO_PRODUCTS: Record<string, "week" | "month"> = {
+  "dev.alip.pinkslip.pro.weekly": "week",
+  "dev.alip.pinkslip.pro.monthly": "month",
+};
 
 export interface Allowance {
   kind: AllowanceKind;
@@ -65,4 +74,7 @@ export interface PlanState {
   trial: { available: boolean; days: number };
   prices: { currency: "usd"; week: number; month: number };
   allowances: Allowance[];
+  /** "Got the job? Pro ends here": on Pro, the latest application at Offer,
+   * for the app to offer ending Pro (owner, 2026-10-24). */
+  offer_application: { id: string; company_name: string | null } | null;
 }

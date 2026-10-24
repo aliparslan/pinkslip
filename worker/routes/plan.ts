@@ -1,6 +1,7 @@
 import { Hono } from "hono";
+import { AppleStoreError, resolveAppleStoreConfig } from "../apple-store";
 import { requireAdmin } from "../auth";
-import { planState, setPlanByAdmin } from "../plans";
+import { planState, setPlanByAdmin, syncAppleSubscription } from "../plans";
 import type { Env, Variables } from "../types";
 
 /** Plans (step 9): what someone's plan is and what's left this week, for
@@ -9,6 +10,32 @@ import type { Env, Variables } from "../types";
 const plan = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 plan.get("/", async (c) => c.json(await planState(c.env, c.get("userId"))));
+
+/** After buying Pro, or to restore it: the app sends the transaction's id
+ * (StoreKit's `Transaction.id`, bought with the user id as
+ * `appAccountToken`). Pinkslip asks Apple about it and answers with the
+ * plan. */
+plan.post("/apple", async (c) => {
+  const config = resolveAppleStoreConfig(c.env);
+  if (!config) return c.json({ error: "Purchases aren't set up yet.", code: "purchases_unavailable" }, 503);
+  const body = await c.req.json<{ transaction_id?: unknown }>().catch(() => ({} as { transaction_id?: unknown }));
+  const transactionId = typeof body.transaction_id === "string" ? body.transaction_id.trim() : "";
+  if (!/^\d{1,32}$/.test(transactionId)) return c.json({ error: "transaction_id is Apple's transaction id.", code: "invalid_transaction" }, 400);
+  try {
+    const result = await syncAppleSubscription(c.env.DB, config, { transactionId, userId: c.get("userId") });
+    if (!result.ok) {
+      const [status, error] = result.code === "owned_elsewhere"
+        ? [409, "This subscription belongs to another Pinkslip account."] as const
+        : [404, "Apple doesn't know that purchase."] as const;
+      return c.json({ error, code: result.code }, status);
+    }
+    return c.json(await planState(c.env, c.get("userId")));
+  } catch (error) {
+    if (!(error instanceof AppleStoreError)) throw error;
+    console.error("Apple purchase check failed:", error.message);
+    return c.json({ error: "Couldn't reach the App Store. Try again.", code: "app_store_unavailable" }, 502);
+  }
+});
 
 /** An admin gives someone Pro, until a date or with no end, or puts them
  * back on Free: `{ email, plan: "pro" | "free", ends_at?: ISO date }`. */
