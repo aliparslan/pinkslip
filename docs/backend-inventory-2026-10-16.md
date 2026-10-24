@@ -126,6 +126,14 @@ Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pin
 - [ ] **A real tip from the owner's phone**, once an update carries the new
   sheet, then `SUPPORT = "on"`.
 
+Plans and billing (step 9, live 2026-10-24):
+
+- [ ] **App Store Connect for Pro** (tabled 2026-10-24: the owner will do it
+  after the flight): the Paid Apps agreement, banking and tax, the two
+  subscriptions with the 3-day trial, server notifications, and the
+  In-App Purchase key ([app-store-subscriptions-setup.md](app-store-subscriptions-setup.md)).
+  Until then the purchase check answers "Purchases aren't set up yet".
+
 Ideas (owner, 2026-10-24):
 
 - [ ] **Interview prep, a stretch goal:** when an application reaches
