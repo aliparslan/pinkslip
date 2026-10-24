@@ -122,6 +122,10 @@ AUTO_APPLY = "on"
 # whichever exist. For now, one link where people type the amount.
 SUPPORT = "admin"
 SUPPORT_LINKS = { once_other = "https://buy.stripe.com/9B6eV7d1m2aA2Ti020eME00" }
+# Tips of any amount, once or monthly: each is a price of this product,
+# made for the tip (worker/support.ts), with the STRIPE_SECRET_KEY secret.
+# The link above stays for builds up to 1.3.8, which read only links.
+SUPPORT_STRIPE_PRODUCT = "prod_VUMG0vNuwRABSp"
 
 # ─── Native iOS push (APNs) ───────────────────────────────────────────────────
 # The .p8 contents go in a secret, NOT here:  wrangler secret put APNS_PRIVATE_KEY
