@@ -343,8 +343,8 @@ Activity, the digest and each application's timeline.
 
 | Need | Status |
 | --- | --- |
-| Free and Pro, usage-based, to cover costs | **Built 2026-10-24, not deployed** (step 9): plans, allowances, `GET /plan` |
-| Buying in the app (StoreKit) and checking it on the server | **Server built 2026-10-24, not deployed:** Apple's API and notifications; the app's StoreKit side waits |
+| Free and Pro, usage-based, to cover costs | **Live 2026-10-24** (step 9): plans, allowances, `GET /plan` |
+| Buying in the app (StoreKit) and checking it on the server | **Server live 2026-10-24:** Apple's API and notifications (waiting on the IAP key); the app's StoreKit side waits |
 | Usage the plan meters (auto-apply sends, tailoring) | **Built:** tailoring counts against the plan; auto-apply sends have `reserveAllowance` waiting for the server sends |
 
 ## 11. Admin, analytics and ops
@@ -1337,10 +1337,12 @@ Liberties for the owner to keep or veto:
 6. A bounce or "I've left" stops other users' follow-ups to that address
    too, without telling them; the thread shows as stopped.
 
-### Step 9: plans and limits (2026-10-24, not deployed)
+### Step 9: plans and limits (2026-10-24, deployed 2026-10-24)
 
 The plumbing from Decisions: Plans and billing; payments wait for the App
-Store release. Migration `0102_plans.sql`.
+Store release. Migration `0102_plans.sql`. Deployed with the Apple purchase
+check below (API Worker bc68a2de; D1 bookmark before the migration
+`00004634-0000312e-0000510e-4f6e3c8f2ec002751ec8ac1aa099dc01`).
 
 - **`user_plans`:** one row per person once anything sets a plan (no row
   is Free): plan, who set it (admin, trial, Apple, Stripe), the paid
