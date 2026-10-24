@@ -141,3 +141,18 @@ card".
 - **C · The trial as a ticket:** the sheet's hero is the trial, drawn as a
   three-stop ticket (Today, reminder, first charge) with the "ends when
   you're hired" stub, so the promise is the graphic.
+
+## What was picked (round 6)
+
+The owner approved Paper "Plan and Pro · round 6 · Oct 24":
+
+- **The Get Pro sheet:**
+  - A plum-to-pink field across the top, with a white headline and white dots for Free's 3 and Pro's 70.
+  - A white panel rises over the field with the Monthly/Weekly switch, an ink button, one line of terms, and Terms · Privacy.
+  - The rows read "3 applications per week" and "70 applications per week".
+  - Restore is set in Medium.
+- **Plan on Free and Plan on Pro:** round 4's first layout.
+  - The big Founders count with its dots, the week grid, and the subscription card.
+  - The mono capitals became plain Untitled labels ("Free plan", "This week").
+  - The Free page's Pro card takes the sheet's gradient with white dots, so tapping it reads as the card opening.
+- **Copy says "per":** "per day" and "per week" throughout.
