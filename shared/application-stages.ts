@@ -32,7 +32,7 @@ export const APPLICATION_STAGE_LABELS: Record<ApplicationStage, string> = {
 
 /** Who recorded a step: the user, or an email they forwarded. Automation
  * reports here later. */
-export type ApplicationEventSource = "user" | "email";
+export type ApplicationEventSource = "user" | "email" | "auto_apply";
 
 export const APPLICATION_NOTES_MAX_LENGTH = 10_000;
 

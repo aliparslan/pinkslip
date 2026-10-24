@@ -87,6 +87,13 @@ export interface Env {
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */
   AUTO_APPLY_SUBMIT?: string;
+  /** Server sends: Pinkslip's own browser applies (worker/apply/sends.ts).
+   * "on", "admin", or unset. */
+  AUTO_APPLY_SEND?: string;
+  /** Cloudflare's headless browser (Browser Run), for server sends. */
+  BROWSER?: Fetcher;
+  /** The send Workflow (worker/apply/send-workflow.ts). */
+  APPLY_SEND?: Workflow<{ send_id?: string; email?: string; job?: string; dry_run?: boolean }>;
   SOURCE_POLL_PRIORITY_QUEUE?: Queue<SourcePollMessage>;
   SOURCE_POLL_QUEUE?: Queue<SourcePollMessage>;
   NOTIFY_QUEUE?: Queue<NotifyMessage>;

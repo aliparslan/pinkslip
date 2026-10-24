@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { isAdminUser } from "./auth";
 import type { Env, Variables } from "./types";
 
-export type FeatureFlag = "OUTREACH" | "AUTO_APPLY" | "SUPPORT";
+export type FeatureFlag = "OUTREACH" | "AUTO_APPLY" | "AUTO_APPLY_SEND" | "SUPPORT";
 
 /** A flag set to "on" opens a feature to every signed-in user, "admin" to
  * admins only; anything else keeps it off. */

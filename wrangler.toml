@@ -1,5 +1,5 @@
 name = "pinkslip"
-main = "worker/index.ts"
+main = "worker/main.ts"
 compatibility_date = "2026-08-27"
 compatibility_flags = ["nodejs_compat"]
 # No routes and no assets: since chunk 3.4 the web Worker (apps/webapp,
@@ -30,6 +30,17 @@ binding = "AI"
 # follow-ups, new-error alerts) and the 15-minute health checks
 # (worker/health-checks.ts).
 crons = ["*/15 * * * *", "2,17,32,47 * * * *", "* * * * *", "7,22,37,52 * * * *"]
+
+# ─── Auto-apply server sends ──────────────────────────────────────────────────
+# Cloudflare's headless browser (Browser Run) and the Workflow that runs one
+# send, waiting for Greenhouse's emailed code when it asks for one.
+[browser]
+binding = "BROWSER"
+
+[[workflows]]
+name = "pinkslip-apply-send"
+binding = "APPLY_SEND"
+class_name = "ApplySendWorkflow"
 
 # ─── Queue-based source polling ───────────────────────────────────────────────
 # The every-minute cron dispatches due sources for the tiers listed in
@@ -116,6 +127,10 @@ OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
 # every signed-in user (owner, 2026-10-22). Submission stays manual unless
 # AUTO_APPLY_SUBMIT is explicitly enabled separately.
 AUTO_APPLY = "on"
+# Server sends (step 10): Pinkslip's own browser fills and submits Greenhouse
+# and Ashby applications (worker/apply/sends.ts). Admins only until the
+# owner's own test applications have gone through (Decisions: Auto-apply #6).
+AUTO_APPLY_SEND = "admin"
 # Support Pinkslip (tips; docs/support-pinkslip-2026-10-22.md): only the
 # owner sees the row while it's "admin". The Stripe Payment Links are public,
 # named once_<dollars>, once_other and monthly_<dollars>; the app offers

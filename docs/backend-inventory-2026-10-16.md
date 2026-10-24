@@ -346,8 +346,8 @@ Activity, the digest and each application's timeline.
 | Need | Status |
 | --- | --- |
 | Assisted fill: prepare, the in-app browser fill, the answers bank, learn | **Works**, admin-only |
-| Proof it went through (the stub's APPLIED and SENT) | **Missing** |
-| The queue: apply in the background, progress, pause | **Missing** |
+| Proof it went through (the stub's APPLIED and SENT) | **Built 2026-10-24, not deployed** (step 10): the confirmation's picture, text and address, the filled form's picture, and every answer sent with who put it there |
+| The queue: apply in the background, progress, pause | **Partial** (step 10): one Workflow per send, admin-only; no batches, progress or pause yet |
 | Ask first: the morning list, review, send | **Missing** (samples in the app) |
 | Auto-apply settings and limits | **Missing** (samples in the app) |
 | Questions it can't answer → Needs you (N13) | **Missing** |
@@ -409,7 +409,8 @@ owner's check before the next.
    "Built"): confirmed recruiters on People, no paid checker for now.
 9. **Plans and billing** (§10): plan and metering first; payments at the App
    Store release.
-10. **Auto-apply** (§9), last.
+10. **Auto-apply** (§9), last. **Phase 1 built 2026-10-24, not deployed**
+    (see "Built"): the real send for Greenhouse and Ashby, admin-only.
 
 ## For the building session
 
@@ -1435,4 +1436,45 @@ Testing flows (after a deploy):
    `"plan": "pro"`; their `GET /plan` shows Pro, 10 a day.
 3. Tailoring four times in a week on Free answers the fourth with "You've
    used this week's tailored resumes" and Monday's reset.
+
+### Step 10: auto-apply's real send, phase 1 (2026-10-24, not deployed)
+
+Owner: "build the real send for Greenhouse and Ashby with the fixes,
+admin-only, and I'll pick the jobs for the first real submissions from my
+account." Details and the dry run on real forms are in
+[auto-apply-phase1-2026-10-24.md](auto-apply-phase1-2026-10-24.md).
+
+**The send:**
+- Migration `0103_apply_sends.sql`.
+- `worker/apply/sends.ts` queues and records sends.
+- `worker/apply/send-engine.ts` runs the steps in the page.
+- `worker/apply/browser.ts` drives Cloudflare's browser (Browser Run).
+- The Workflow `pinkslip-apply-send` (`worker/apply/send-workflow.ts`, from
+  the new entry `worker/main.ts`) runs one send and can wait for
+  Greenhouse's emailed code.
+
+**Guards and fixes:**
+- Phase 0's six fixes are in.
+- The reader now reads Ashby's required marks, grouped questions and
+  location box.
+- A form that changes under the fill is never taken as complete.
+
+**Using it:** admin-only (`AUTO_APPLY_SEND = "admin"`).
+- The routes are under `/api/v2/apply` (`resume`, `sends`).
+- `scripts/auto-apply/send.ts` is the owner's way in until the app has
+  screens.
+
+**The plan's sends:** one is taken when a real send is queued and given
+back unless something went out. A sent application lands in Tracker as
+Applied, from auto-apply.
+
+**Greenhouse's code:** email tracking hands Greenhouse's code to the
+waiting send.
+
+**Waiting:**
+- The owner's go-ahead to deploy (migration 0103, the Worker with the
+  browser and the Workflow).
+- The owner's first real sends.
+- The app's screens (Paper first).
+- An over-the-air update for the reader fixes on the phone.
 

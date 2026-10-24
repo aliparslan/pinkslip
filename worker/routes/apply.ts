@@ -5,6 +5,7 @@ import { resolveJobId } from "../job-identity";
 import { ApplyError, prepareApplication, saveApplicationAnswers } from "../apply/prepare";
 import { learnAnswers, planApplication } from "../apply/plan";
 import { deleteAnswer, listAnswers, saveAnswer } from "../apply/answer-bank";
+import sends from "./apply-sends";
 import type { FormControl, FormControlKind } from "../../shared/application-form";
 import type { Env, Variables } from "../types";
 
@@ -131,5 +132,7 @@ apply.post("/learn", async (c) => {
   if (!controls) return c.json({ error: "Invalid form", code: "invalid_request" }, 400);
   return c.json({ saved: await learnAnswers(c.env.DB, c.get("userId"), controls) });
 });
+
+apply.route("/", sends);
 
 export default apply;

@@ -1,0 +1,120 @@
+/**
+ * The owner's way to use auto-apply's server sends before the app has
+ * screens for them (docs/auto-apply-phase1-2026-10-24.md). It runs wrangler
+ * against production, so it needs the deployed Worker and migration 0103.
+ *
+ *   bun scripts/auto-apply/send.ts resume ~/Documents/resume.pdf   once, and when it changes
+ *   bun scripts/auto-apply/send.ts dry <job link or id>            fills everything, never submits
+ *   bun scripts/auto-apply/send.ts send <job link or id>           a real application
+ *   bun scripts/auto-apply/send.ts code <code>                     Greenhouse's code, if forwarding missed it
+ *   bun scripts/auto-apply/send.ts show [send id]                  the latest send, or one, with its pictures
+ *
+ * A job link is the Pinkslip job page or the Greenhouse or Ashby posting.
+ * The account is the admin signed in with PINKSLIP_EMAIL (default: git's email).
+ */
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+
+const WORKFLOW = "pinkslip-apply-send";
+const BUCKET = "pinkslip-resumes";
+const [command, argument] = process.argv.slice(2);
+const email = process.env.PINKSLIP_EMAIL
+  ?? new TextDecoder().decode(Bun.spawnSync(["git", "config", "user.email"]).stdout).trim();
+
+function wrangler(...args: string[]): string {
+  const run = Bun.spawnSync(["bunx", "wrangler", ...args], { env: { ...process.env, XDG_CONFIG_HOME: `${homedir()}/.config` } });
+  const out = new TextDecoder().decode(run.stdout);
+  if (run.exitCode !== 0) throw new Error(`wrangler ${args.slice(0, 3).join(" ")} failed:\n${new TextDecoder().decode(run.stderr) || out}`);
+  return out;
+}
+
+const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+
+function query<T>(sql: string): T[] {
+  const out = JSON.parse(wrangler("d1", "execute", "pinkslip", "--remote", "--json", "--command", sql)) as Array<{ results: T[] }>;
+  return out[0]?.results ?? [];
+}
+
+function userId(): string {
+  const row = query<{ id: string }>(
+    `SELECT u.id FROM users u JOIN auth_identities ai ON ai.user_id = u.id
+     WHERE u.role = 'admin' AND (lower(ai.email) = lower(${quote(email)}) OR lower(ai.provider_subject) = lower(${quote(email)}))
+     ORDER BY ai.last_used_at DESC LIMIT 1`,
+  )[0];
+  if (!row) throw new Error(`No admin account signed in with ${email}. Set PINKSLIP_EMAIL.`);
+  return row.id;
+}
+
+interface SendRow {
+  id: string; status: string; dry_run: number; detail: string | null; needs_json: string | null; sent_json: string | null;
+  form_shot_key: string | null; proof_shot_key: string | null; confirmation_url: string | null; title: string | null; company: string | null;
+}
+
+function show(sendId?: string) {
+  const row = query<SendRow>(
+    `SELECT s.*, j.title, c.name AS company FROM apply_sends s
+     LEFT JOIN jobs j ON j.id = s.job_id LEFT JOIN companies c ON c.id = j.company_id
+     WHERE ${sendId ? `s.id = ${quote(sendId)}` : `s.user_id = ${quote(userId())}`}
+     ORDER BY s.created_at DESC LIMIT 1`,
+  )[0];
+  if (!row) return console.log("No send yet.");
+  console.log(`\n${row.company} · ${row.title}${row.dry_run ? " (dry run)" : ""}\n${row.status}: ${row.detail ?? ""}`);
+  for (const need of JSON.parse(row.needs_json ?? "[]") as Array<{ label: string }>) console.log(`  needs you: ${need.label}`);
+  const sent = JSON.parse(row.sent_json ?? "[]") as Array<{ label: string; value: string; by: string }>;
+  if (sent.length) console.log("\nOn the form:");
+  for (const answer of sent) console.log(`  ${answer.label}: ${answer.value.slice(0, 120)}${answer.by === "pinkslip" ? "" : `  [${answer.by}]`}`);
+  const folder = `${process.cwd()}/.wrangler/auto-apply/${row.id}`;
+  mkdirSync(folder, { recursive: true });
+  for (const [name, key] of [["form", row.form_shot_key], ["confirmation", row.proof_shot_key]] as const) {
+    if (!key) continue;
+    wrangler("r2", "object", "get", `${BUCKET}/${key}`, "--file", `${folder}/${name}.jpg`, "--remote");
+    console.log(`\n${name}: ${folder}/${name}.jpg`);
+  }
+  if (row.confirmation_url) console.log(`confirmation page: ${row.confirmation_url}`);
+}
+
+async function start(job: string, dryRun: boolean) {
+  const id = crypto.randomUUID();
+  wrangler("workflows", "trigger", WORKFLOW, JSON.stringify({ email, job, dry_run: dryRun }), "--id", id);
+  console.log(`${dryRun ? "Dry run" : "Send"} ${id} started.`);
+  let last = "";
+  for (let second = 0; second < 900; second += 5) {
+    await Bun.sleep(5_000);
+    const status = query<{ status: string }>(`SELECT status FROM apply_sends WHERE id = ${quote(id)}`)[0]?.status;
+    if (!status) {
+      if (second < 60) continue;
+      // The queue step turned it down (not admin, posting gone, already sent…).
+      return console.log(wrangler("workflows", "instances", "describe", WORKFLOW, id));
+    }
+    if (status !== last) console.log(status === "code_needed" ? "Greenhouse emailed a code. Forwarding hands it over; or run: code <code>" : `… ${status}`);
+    last = status;
+    if (!["queued", "running", "submitting", "code_needed"].includes(status)) return show(id);
+  }
+  console.log("Still going after 15 minutes. Run: show", id);
+}
+
+switch (command) {
+  case "resume": {
+    if (!argument?.endsWith(".pdf")) throw new Error("Give the resume's .pdf path.");
+    wrangler("r2", "object", "put", `${BUCKET}/apply/${userId()}/resume.pdf`, "--file", argument, "--content-type", "application/pdf", "--remote");
+    console.log("Uploaded. Sends attach it as <your name>_Resume.pdf.");
+    break;
+  }
+  case "dry":
+  case "send":
+    if (!argument) throw new Error("Give the job's link or id.");
+    await start(argument, command === "dry");
+    break;
+  case "code": {
+    const waiting = query<{ id: string }>(`SELECT id FROM apply_sends WHERE user_id = ${quote(userId())} AND status = 'code_needed' ORDER BY updated_at DESC LIMIT 1`)[0];
+    if (!waiting || !argument) throw new Error(waiting ? "Give the code." : "No send is waiting for a code.");
+    wrangler("workflows", "instances", "send-event", WORKFLOW, waiting.id, "--type", "code", "--payload", JSON.stringify({ code: argument.trim() }));
+    console.log("Code handed over.");
+    break;
+  }
+  case "show":
+    show(argument);
+    break;
+  default:
+    console.log("Usage: bun scripts/auto-apply/send.ts resume <pdf> | dry <job> | send <job> | code <code> | show [id]");
+}

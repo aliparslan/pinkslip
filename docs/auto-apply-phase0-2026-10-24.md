@@ -54,8 +54,10 @@ on the Mac, outside the repo.
    required acknowledgement. Auto-apply must only tick what's required to
    apply, never optional consents.
 3. **Former-employer questions went unanswered** ("Have you ever been
-   employed by Spotify?") although Jordan's history answers them. The planner
-   has the rule; it misses checkbox-group versions.
+   employed by Spotify?") although Jordan's history answers them. Phase 1
+   found the harness's fault: it planned without the job, so the company
+   was unknown. With the job, all of them answer "No"
+   ([phase 1](auto-apply-phase1-2026-10-24.md)).
 4. **A location search stayed empty** on one Ashby form (WorkOS), possibly
    cleared by Ashby's own autofill. Re-check searchable fields after the
    upload.

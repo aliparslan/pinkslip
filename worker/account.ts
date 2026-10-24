@@ -8,6 +8,7 @@ import { createEmptyResumeProfile, normalizeResumeProfile } from "../shared/resu
 import { deleteUserArtifactObjects } from "./tailor/artifact-storage";
 import { mergeApplicationConflicts } from "./applications";
 import { mergeGuestPlan } from "./plans";
+import { deleteApplyFiles } from "./apply/send-files";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -426,6 +427,8 @@ export async function deleteUserAccountData(
   // if storage is unavailable, leave the account and metadata intact so the
   // deletion can be retried without orphaning files.
   await deleteUserArtifactObjects({ db, bucket: resumeBucket, userId });
+  // Auto-apply's resume copy and each send's pictures.
+  if (resumeBucket) await deleteApplyFiles(resumeBucket, userId);
   await db.batch([
     db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM email_login_tokens WHERE lower(email) IN (SELECT lower(email) FROM auth_identities WHERE user_id = ?)").bind(userId),
@@ -456,4 +459,5 @@ export async function deleteUserAccountData(
   await db.prepare("DELETE FROM tailor_usage WHERE user_id = ?").bind(userId).run().catch(() => undefined);
   await db.prepare("DELETE FROM user_plans WHERE user_id = ?").bind(userId).run().catch(() => undefined);
   await db.prepare("DELETE FROM usage_ledger WHERE user_id = ?").bind(userId).run().catch(() => undefined);
+  await db.prepare("DELETE FROM apply_sends WHERE user_id = ?").bind(userId).run().catch(() => undefined);
 }

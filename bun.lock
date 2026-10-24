@@ -5,11 +5,11 @@
     "": {
       "name": "pinkslip",
       "dependencies": {
+        "@cloudflare/puppeteer": "^1.4.0",
         "hono": "^4.13.5",
         "postal-mime": "2.7.6",
       },
       "devDependencies": {
-        "@cloudflare/puppeteer": "^1.4.0",
         "@cloudflare/workers-types": "5.20260828.1",
         "@types/bun": "^1.4.0",
         "@types/node": "^25.9.5",

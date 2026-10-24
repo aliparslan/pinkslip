@@ -4,6 +4,7 @@ import { findInboxUser, recordForwardingConfirmation, recordInboxDelivery } from
 import { isAutoReply, isBounce, recordAutoReply, recordBounce } from "./bounces";
 import { recordRecruiterReply } from "./replies";
 import { readStageWithAi } from "./stage-reader";
+import { deliverSendCode, greenhouseCode, hasSendWaitingForCode, isGreenhouseCodeEmail } from "../apply/sends";
 import type { Env } from "../types";
 import { hashMessage, processEmail, trackedCompanies } from "./process";
 import {
@@ -112,6 +113,14 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   }
 
   await recordInboxDelivery(env.DB, userId, now);
+  // The code Greenhouse emails when it wants to be sure a person applied:
+  // handed to the send waiting for it, and nothing else read from the email.
+  if (isGreenhouseCodeEmail(from.address, subject) && await hasSendWaitingForCode(env.DB, userId)) {
+    const parsed = toEmailContent(await PostalMime.parse(message.raw), from);
+    const code = greenhouseCode(`${parsed.subject}\n${parsed.text}`);
+    logOutcome(code && await deliverSendCode(env, userId, code) ? "apply_code" : "apply_code_missing", from.address);
+    return;
+  }
   // A bounce is never a step: it only tells the contact list an address is dead.
   if (isBounce(from, subject)) {
     const parsed = toEmailContent(await PostalMime.parse(message.raw), from);
