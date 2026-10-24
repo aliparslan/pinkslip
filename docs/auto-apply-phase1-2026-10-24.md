@@ -25,7 +25,7 @@ from my account." Phase 0 (no submits) is in
     to Applied, and the send is recorded as sent.
   - Forwarding had delivered the code email too. The reader skipped it
     because the code was letters only (`OGRULIke`).
-  - Both are fixed in 8bc183a (waiting on a deploy): a navigation mid-script
+  - Both are fixed in 8bc183a (live since the 20:46 deploy, 194c3609): a navigation mid-script
     is followed to where the page lands, and the reader takes letter-only
     codes.
 - **No more real sends** unless the owner asks for that specific job
@@ -103,7 +103,10 @@ from my account." Phase 0 (no submits) is in
   while submitting becomes "unconfirmed" and is never retried.
 - Entering the code never runs twice.
 
-## Phase B: finishing a stopped send, pushes, the app's API (built 2026-10-24, not deployed)
+## Phase B: finishing a stopped send, pushes, the app's API (live 2026-10-24, admin-only)
+
+Phase B went out with the 20:46 deploy (Worker 194c3609, from 9172739) and is in every
+deploy since, the latest being 6145f51c from 0f22a44.
 
 - **Answering what a send stopped on:**
   - A send that stops keeps each question's ref, options and whether

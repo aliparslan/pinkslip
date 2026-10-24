@@ -383,7 +383,7 @@ Activity, the digest and each application's timeline.
 | The queue: apply in the background, progress, pause | **Partial** (step 10): one Workflow per send, admin-only; no batches, progress or pause yet |
 | Ask first: the morning list, review, send | **Missing** (samples in the app) |
 | Auto-apply settings and limits | **Missing** (samples in the app) |
-| Questions it can't answer → Needs you (N13) | **Built 2026-10-24, not deployed** (step 10, phase B): answer the stopped send's questions, saved to the bank, then it sends again; N13/N14 pushes |
+| Questions it can't answer → Needs you (N13) | **Live 2026-10-24, admin-only** (step 10, phase B; Worker 194c3609 and later): answer the stopped send's questions, saved to the bank, then it sends again; N13/N14 pushes |
 | Live Activity updates (N15) | **Missing** |
 
 ## 10. Plans and billing
@@ -1580,7 +1580,7 @@ specific job.
   `wrangler.toml`, the .p8 as a secret; deployed as Worker `f98e78f3`.
 - Production's App Store Server API refuses the key (401) until something
   is on sale; Sandbox accepts it.
-- d8569e6 falls back to Sandbox (waiting on a deploy).
+- d8569e6 falls back to Sandbox (live since the 20:46 deploy, 194c3609).
 
 **Waiting:**
 - The app's screens (Paper first).
