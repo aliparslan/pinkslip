@@ -159,6 +159,8 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
     outreach_enabled: account.session.state === "authenticated" && flagEnabled(env.OUTREACH, account.is_admin),
     auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin),
     auto_submit_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SUBMIT, account.is_admin),
+    // Server sends (worker/apply/sends.ts): Pinkslip's own browser applies.
+    auto_apply_send_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SEND, account.is_admin),
     web_apple_sign_in_enabled: Boolean(appleWebConfig(env)),
     google_sign_in_enabled: Boolean(googleConfig(env)),
     password_sign_in_enabled: true,

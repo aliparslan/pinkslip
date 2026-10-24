@@ -92,6 +92,9 @@ describe("notification settings", () => {
         replied: { enabled: true },
         forwarding_stopped: { enabled: true },
         event_reminder: { enabled: true },
+        apply_sent: { enabled: true },
+        apply_needs_you: { enabled: true },
+        apply_code: { enabled: true },
       },
       passive_per_day: 3,
     });

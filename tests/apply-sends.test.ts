@@ -20,6 +20,8 @@ import { PageNavigated, enterCode, fillPlan, prepareForm, recheck, submit } from
 import { applyResumeKey, loadResume, saveApplyResume } from "@worker/apply/send-files";
 import {
   SendError,
+  answerSend,
+  deliverSendCode,
   describeSent,
   enterSendCode,
   expireSendCode,
@@ -493,9 +495,58 @@ describe("running a send", () => {
     const page = fakePage({ controls: form() });
     expect(await runSend(context.env, send.id, deps(page, steps.slice(0, 2)))).toEqual({ outcome: "needs_you" });
     expect(page.calls).not.toContain("submit");
-    expect(JSON.parse(String(context.row(send.id).needs_json))).toEqual([{ label: "Are you authorized to work in the US?", kind: "combobox" }]);
+    expect(JSON.parse(String(context.row(send.id).needs_json))).toEqual([
+      { ref: "p5", label: "Are you authorized to work in the US?", kind: "combobox", options: ["Yes", "No"], required: true },
+    ]);
     expect(context.ledger()[0]!.released_at).not.toBeNull();
     expect(context.sqlite.query("SELECT COUNT(*) AS count FROM applications").get()).toEqual({ count: 0 });
+  });
+
+  it("takes the answers, keeps them for every later form, and sends again", async () => {
+    const context = setup();
+    const send = await queued(context, true);
+    await runSend(context.env, send.id, deps(fakePage({ controls: form() }), steps.slice(0, 2)));
+    expect(await rejected(answerSend(context.env, "someone-else", send.id, { p5: "Yes" }))).toBe("not_found");
+    const answered = await answerSend(context.env, "u1", send.id, { p5: "Yes", nope: "x" }, { fetcher: context.greenhouseUp });
+    expect(answered.saved).toBe(1);
+    expect(answered.send).toMatchObject({ job_id: "j1", dry_run: true, status: "queued" });
+    expect(answered.send!.id).not.toBe(send.id);
+    const bank = context.sqlite.query("SELECT label, value_json FROM application_answers WHERE user_id = 'u1'").all();
+    expect(bank).toEqual([{ label: "Are you authorized to work in the US?", value_json: "\"yes\"" }]);
+    // The first send isn't waiting any more once it's answered.
+    context.sqlite.run("UPDATE apply_sends SET status = 'ready' WHERE id = ?", [send.id]);
+    expect(await rejected(answerSend(context.env, "u1", send.id, { p5: "Yes" }))).toBe("not_waiting");
+  });
+
+  it("says how a real send went, and nothing for a dry run", async () => {
+    const pushes = (context: ReturnType<typeof setup>) => context.sqlite.query(
+      "SELECT kind, title, body, url, status FROM notification_log ORDER BY created_at"
+    ).all() as Array<{ kind: string; title: string; body: string; url: string; status: string }>;
+    const sent = setup();
+    const real = await queued(sent);
+    await runSend(sent.env, real.id, deps(fakePage({ controls: form() }), steps));
+    expect(pushes(sent)).toEqual([{ kind: "apply_sent", title: "Acme", body: "Sent for you · Software Engineer", url: "/jobs/j1", status: "scheduled" }]);
+
+    const stopped = setup();
+    const needs = await queued(stopped);
+    await runSend(stopped.env, needs.id, deps(fakePage({ controls: form() }), steps.slice(0, 2)));
+    expect(pushes(stopped).map((push) => [push.kind, push.body])).toEqual([["apply_needs_you", "One question to finish · Software Engineer"]]);
+
+    const dry = setup();
+    const trial = await queued(dry, true);
+    await runSend(dry.env, trial.id, deps(fakePage({ controls: form() }), steps));
+    expect(pushes(dry)).toEqual([]);
+  });
+
+  it("holds the code's push a minute, and drops it when forwarding brings the code", async () => {
+    const context = setup();
+    const send = await queued(context);
+    await runSend(context.env, send.id, deps(fakePage({ controls: form(), submits: ["unknown"], asksForCode: true }), steps));
+    const push = () => context.sqlite.query("SELECT kind, body, status, scheduled_for FROM notification_log").get() as { kind: string; body: string; status: string; scheduled_for: string };
+    expect(push()).toMatchObject({ kind: "apply_code", body: "Enter the code Greenhouse emailed you", status: "scheduled" });
+    expect(Date.parse(push().scheduled_for) - Date.parse("2026-10-24T15:00:00Z")).toBe(60_000);
+    expect(await deliverSendCode(context.env, "u1", "OGRULIke")).toBe(true);
+    expect(push().status).toBe("skipped");
   });
 
   it("stops before Submit when the form shows its own validation error", async () => {
@@ -660,6 +711,12 @@ describe("send routes", () => {
     expect((await admin.call(`/api/v2/apply/sends/${send.id}/code`, { body: JSON.stringify({ code: "Ab12Cd34" }) })).status).toBe(409);
     // Someone else's send isn't theirs to see.
     expect((await user.call(`/api/v2/apply/sends/${send.id}`, { method: "GET" })).status).toBe(404);
+    expect((await admin.call(`/api/v2/apply/sends/${send.id}/answers`, { body: JSON.stringify({ answers: { p1: "Yes" } }) })).status).toBe(409);
+    expect((await admin.call(`/api/v2/apply/sends/${send.id}/answers`, { body: JSON.stringify({ answers: [] }) })).status).toBe(400);
+    // The app learns that sends are on for this account.
+    const me = async (caller: typeof admin) => ((await (await caller.call("/api/v2/me", { method: "GET" })).json()) as { features: { auto_apply_send_enabled: boolean } }).features;
+    expect((await me(admin)).auto_apply_send_enabled).toBe(true);
+    expect((await me(user)).auto_apply_send_enabled).toBe(false);
     expect((await admin.call("/api/v2/apply/sends", { body: JSON.stringify({ job_id: "j3" }) })).status).toBe(400);
   });
 });

@@ -1,11 +1,13 @@
 import { getCompanySourceType } from "../ats";
 import { trackJob } from "../applications";
 import { releaseAllowance, reserveAllowance } from "../plans";
+import { scheduleNotification } from "../notifications";
+import { applySendNotification } from "../notification-kinds";
 import type { CompanyRow, Env } from "../types";
 import type { ApplyPlan, FormControl } from "../../shared/application-form";
-import type { ApplySend, ApplySendStatus, SentAnswer } from "../../shared/auto-apply";
+import type { ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "../../shared/auto-apply";
 import { applicationUrl, fetchApplicationForm, type FormSource } from "./forms";
-import { planApplication } from "./plan";
+import { learnAnswers, planApplication } from "./plan";
 import { openFormPage, reconnectFormPage, type OpenedPage } from "./browser";
 import { enterCode, fillPlan, isEmpty, prepareForm, recheck, submit, type Prepared } from "./send-engine";
 import { applyResumeKey, loadResume, shotKey } from "./send-files";
@@ -232,7 +234,7 @@ async function setStatus(db: D1Database, sendId: string, status: ApplySendStatus
 
 interface FinishFields {
   detail: string;
-  needs?: Array<{ label: string; kind: string }>;
+  needs?: SendNeed[];
   sent?: SentAnswer[];
   formShot?: string | null;
   proofShot?: string | null;
@@ -260,7 +262,39 @@ async function finish(env: Env, row: SendRow, status: ApplySendStatus, fields: F
   ).run();
   if (!SENT.has(status) && row.ledger_id) await releaseAllowance(env.DB, row.ledger_id, now);
   if (status === "submitted" && !row.dry_run) await trackJob(env.DB, row.user_id, row.job_id, "applied", "auto_apply");
+  await skipCodePush(env.DB, row);
+  await notifySend(env, row, status, fields.needs?.length ?? 0, now);
   return { outcome: status };
+}
+
+/** N13 and N14 (notification-kinds.ts): how a real send went, on the next
+ * minute's tick. The code's push waits a minute, in case forwarding brings
+ * the code first. */
+async function notifySend(env: Env, row: SendRow, status: ApplySendStatus, needs: number, now: Date) {
+  if (row.dry_run) return;
+  const job = await env.DB.prepare(
+    "SELECT j.title, c.name AS company FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?"
+  ).bind(row.job_id).first<{ title: string; company: string }>();
+  const push = applySendNotification({ status, company: job?.company ?? "Your application", title: job?.title ?? "", jobId: row.job_id, needs });
+  if (!push) return;
+  await scheduleNotification(env.DB, {
+    userId: row.user_id,
+    kind: push.kind,
+    dedupeKey: `apply:${row.id}:${status}`,
+    title: push.title,
+    body: push.body,
+    url: push.url,
+    entityType: "apply_send",
+    entityId: row.id,
+    scheduledFor: status === "code_needed" ? new Date(now.getTime() + 60_000) : now,
+  }, now).catch((error: unknown) => console.error("Auto-apply push failed:", error instanceof Error ? error.message : String(error)));
+}
+
+/** The code came, or the wait ended: its push, if it hasn't gone, never does. */
+async function skipCodePush(db: D1Database, row: Pick<SendRow, "id" | "user_id">) {
+  await db.prepare(
+    "UPDATE notification_log SET status = 'skipped' WHERE user_id = ? AND dedupe_key = ? AND status = 'scheduled'"
+  ).bind(row.user_id, `apply:${row.id}:code_needed`).run().catch(() => undefined);
 }
 
 async function saveShot(env: Env, row: SendRow, page: OpenedPage, which: "form" | "confirmation"): Promise<string | null> {
@@ -292,7 +326,14 @@ export function describeSent(controls: FormControl[], prepared: Extract<Prepared
   return sent;
 }
 
-const needsOf = (controls: FormControl[]) => controls.map((control) => ({ label: control.label.slice(0, 300), kind: control.kind }));
+/** What the app needs to ask each question again and send. */
+const needsOf = (controls: FormControl[]): SendNeed[] => controls.map((control) => ({
+  ref: control.ref,
+  label: control.label.slice(0, 300),
+  kind: control.kind,
+  options: control.options.slice(0, 200).map((option) => option.slice(0, 200)),
+  required: control.required,
+}));
 
 /**
  * The browser part of a send. Safe to run again: a send that already ended
@@ -346,6 +387,7 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
     if (result.status === "code_needed") {
       await setStatus(env.DB, sendId, "code_needed", deps.now(), { browser_session: page.sessionId });
       await env.DB.prepare("UPDATE apply_sends SET sent_json = ?, form_shot_key = ? WHERE id = ?").bind(JSON.stringify(sent), formShot, sendId).run();
+      await notifySend(env, row, "code_needed", 0, deps.now());
       keepBrowser = true;
       page.detach();
       return { outcome: "code_needed", session_id: page.sessionId };
@@ -446,6 +488,7 @@ export async function deliverSendCode(env: Env, userId: string, code: string, se
   if (!row) return false;
   const instance = await env.APPLY_SEND.get(row.id);
   await instance.sendEvent({ type: "code", payload: { code } });
+  await skipCodePush(env.DB, { id: row.id, user_id: userId });
   return true;
 }
 
@@ -477,6 +520,41 @@ export function greenhouseCode(text: string, subject = ""): string | null {
     if (/\d/.test(token) || (/[A-Z]/.test(token.slice(1)) && /[a-z]/.test(token))) return token;
   }
   return null;
+}
+
+// ─── Answering what a send stopped on ────────────────────────────────────────
+
+/**
+ * The person answers the questions a send stopped on. The answers go into
+ * their answers bank (where every later form finds them), and the send starts
+ * again, a dry run if the first one was. `resend: false` only saves.
+ */
+export async function answerSend(
+  env: Env,
+  userId: string,
+  sendId: string,
+  answers: Record<string, string | string[]>,
+  options: { resend?: boolean; fetcher?: typeof fetch; now?: Date } = {},
+): Promise<{ saved: number; send: ApplySend | null }> {
+  const row = await loadRow(env.DB, sendId);
+  if (!row || row.user_id !== userId) throw new SendError("Not found.", 404, "not_found");
+  if (row.status !== "needs_you") throw new SendError("That send isn't waiting on answers.", 409, "not_waiting");
+  const controls: FormControl[] = parseList<SendNeed>(row.needs_json).flatMap((need) => {
+    const value = need.ref ? answers[need.ref] : undefined;
+    if (!need.ref || need.kind === "error" || value === undefined) return [];
+    return [{
+      ref: need.ref,
+      kind: need.kind as FormControl["kind"],
+      label: need.label,
+      required: need.required ?? true,
+      options: need.options ?? [],
+      searchable: false,
+      value: Array.isArray(value) ? value.slice(0, 50).map((item) => String(item).slice(0, 500)) : String(value).slice(0, 2_000),
+    }];
+  });
+  const saved = await learnAnswers(env.DB, userId, controls, options.now, { all: true });
+  if (options.resend === false) return { saved, send: null };
+  return { saved, send: await queueSend(env, userId, { jobId: row.job_id, dryRun: Boolean(row.dry_run) }, { fetcher: options.fetcher, now: options.now }) };
 }
 
 // ─── Reading ─────────────────────────────────────────────────────────────────

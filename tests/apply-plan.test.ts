@@ -165,6 +165,18 @@ describe("planning a page", () => {
     expect(plan.needs.map((need) => need.ref)).toEqual(["c4"]);
   });
 
+  it("ticks a statement the person answered yes to for a send, and asks when they said no", async () => {
+    const { env, db } = await planDb();
+    const certify = control("c", "checkbox", "I certify that I am a U.S. citizen");
+    await learnAnswers(db, "user-1", [{ ...certify, value: "checked" }], new Date(), { all: true });
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: [certify] }, fakeJev({}));
+    expect(plan.steps).toEqual([{ ref: "c", kind: "checkbox", value: "checked" }]);
+    await learnAnswers(db, "user-1", [{ ...certify, value: "no" }], new Date(), { all: true });
+    expect((await planApplication(env, "user-1", { jobId: null, controls: [certify] }, fakeJev({}))).needs.map((need) => need.ref)).toEqual(["c"]);
+    // What the phone watches still leaves boxes alone.
+    expect(await learnAnswers(db, "user-1", [{ ...certify, value: "checked" }])).toBe(0);
+  });
+
   it("answers whether the applicant worked at the company from the resume", () => {
     const affirm = control("q", "combobox", "Have you previously been employed at Affirm for any length of time?", {
       options: [

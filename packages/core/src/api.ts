@@ -22,6 +22,9 @@ import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 import type { ActualRole, RecruiterCandidate, RecruiterCompanyChoice, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
+import type { ApplyResumeInfo, ApplySend } from "@pinkslip/domain/auto-apply";
+export type { ApplyResumeInfo, ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "@pinkslip/domain/auto-apply";
+export { SEND_IN_PROGRESS } from "@pinkslip/domain/auto-apply";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
   ApplicationAnswerValue,
@@ -487,6 +490,8 @@ export interface AppFeatures {
   outreach_enabled?: boolean;
   auto_apply_enabled?: boolean;
   auto_submit_enabled?: boolean;
+  /** Pinkslip's own browser sends applications (admins only for now). */
+  auto_apply_send_enabled?: boolean;
   web_apple_sign_in_enabled?: boolean;
   google_sign_in_enabled?: boolean;
   password_sign_in_enabled?: boolean;
@@ -979,6 +984,32 @@ function createEndpoints(context: ClientContext) {
       }),
     deleteAnswer: (key: string) =>
       request<void>(`/apply/answers/${encodeURIComponent(key)}`, { method: "DELETE" }),
+    /** The resume PDF Pinkslip's sends upload; 404 until there is one. */
+    sendResume: () => request<ApplyResumeInfo>("/apply/resume"),
+    uploadSendResume: (pdf: Blob | ArrayBuffer, name: string) =>
+      request<ApplyResumeInfo>(`/apply/resume?name=${encodeURIComponent(name)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: pdf,
+      }, 60_000),
+    deleteSendResume: () => request<void>("/apply/resume", { method: "DELETE" }),
+    /** Pinkslip's browser applies to a job; a dry run stops before Submit. */
+    startSend: (jobId: string, dryRun = false) =>
+      request<ApplySend>("/apply/sends", { method: "POST", body: JSON.stringify({ job_id: jobId, dry_run: dryRun }) }, 30_000),
+    sends: () => request<{ sends: ApplySend[] }>("/apply/sends"),
+    send: (sendId: string) => request<ApplySend>(`/apply/sends/${encodeURIComponent(sendId)}`),
+    /** Answers to what a send stopped on, by question ref; starts it again unless `resend` is false. */
+    answerSend: (sendId: string, answers: Record<string, string | string[]>, resend = true) =>
+      request<{ saved: number; send: ApplySend | null }>(`/apply/sends/${encodeURIComponent(sendId)}/answers`, {
+        method: "POST",
+        body: JSON.stringify({ answers, resend }),
+      }, 30_000),
+    /** The code Greenhouse emailed, when forwarding didn't bring it. */
+    sendCode: (sendId: string, code: string) =>
+      request<void>(`/apply/sends/${encodeURIComponent(sendId)}/code`, { method: "POST", body: JSON.stringify({ code }) }),
+    /** The filled form, or the confirmation page, as Pinkslip's browser saw it. */
+    sendShot: (sendId: string, which: "form" | "confirmation") =>
+      requestBlob(`/apply/sends/${encodeURIComponent(sendId)}/shots/${which}`),
   },
   outreach: {
     list: (jobId?: string) =>

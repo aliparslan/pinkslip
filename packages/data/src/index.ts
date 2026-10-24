@@ -15,5 +15,6 @@ export * from "./materials";
 export * from "./plan";
 export * from "./provider";
 export * from "./query-client";
+export * from "./sends";
 export * from "./session";
 export * from "./support";

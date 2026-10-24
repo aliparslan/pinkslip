@@ -18,6 +18,7 @@ import {
   isAcknowledgement,
   isOptionalConsent,
   prepareFields,
+  questionKey,
   resumeAnswer,
   resumeKeyForLabel,
   sectionFor,
@@ -231,6 +232,17 @@ export async function planApplication(
 
   for (const control of pending) {
     if (control.kind === "checkbox") {
+      // A statement the person answered for a send that stopped on it.
+      const field = fieldForControl(control);
+      const remembered = saved.get(questionKey(field)) ?? saved.get(field.key);
+      if (remembered === "yes") {
+        steps.push({ ref: control.ref, kind: "checkbox", value: "checked" });
+        continue;
+      }
+      if (remembered === "no") {
+        need(control);
+        continue;
+      }
       // A box labelled only "I agree" hides what it agrees to (Column's asks
       // to contact you for two years), so it's ticked only when required.
       if (!control.required && (isOptionalConsent(control.label) || BARE_AGREEMENT.test(control.label.trim()))) continue;
@@ -334,19 +346,23 @@ export async function planApplication(
 }
 
 /** Saves what the user typed into a form, so the same question fills itself
- * next time. Only questions the user actually answered are given. */
+ * next time. Only questions the user actually answered are given. What the
+ * phone watches leaves name and phone to the profile and boxes to the page;
+ * answers given for a send that stopped (`all`) keep those too. */
 export async function learnAnswers(
   db: D1Database,
   userId: string,
   controls: FormControl[],
   now = new Date(),
+  { all = false }: { all?: boolean } = {},
 ): Promise<number> {
   const statements: D1PreparedStatement[] = [];
   for (const control of controls) {
-    if (isEmpty(control.value) || control.kind === "file" || control.kind === "checkbox") continue;
+    if (isEmpty(control.value) || control.kind === "file" || (control.kind === "checkbox" && !all)) continue;
     const field = fieldForControl(control);
-    if (field.section === "about") continue;
-    const stored = storedAnswer(field, control.value!);
+    if (field.section === "about" && !all) continue;
+    const value = control.kind === "checkbox" ? (/^(checked|yes|true)$/i.test(String(control.value)) ? "yes" : "no") : control.value!;
+    const stored = storedAnswer(field, value);
     statements.push(db.prepare(
       `INSERT INTO application_answers (user_id, answer_key, label, value_json, updated_at)
        VALUES (?, ?, ?, ?, ?)

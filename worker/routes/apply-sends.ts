@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
-import { SendError, deliverSendCode, getSend, listSends, queueSend, sendShot } from "../apply/sends";
+import { SendError, answerSend, deliverSendCode, getSend, listSends, queueSend, sendShot } from "../apply/sends";
 import { ResumeFileError, applyResumeInfo, applyResumeKey, saveApplyResume } from "../apply/send-files";
 import type { Env, Variables } from "../types";
 
@@ -62,6 +62,23 @@ sends.get("/sends/:id/shots/:shot", async (c) => {
   const object = await sendShot(c.env, c.get("userId"), c.req.param("id"), shot);
   if (!object) return c.json({ error: "Not found", code: "not_found" }, 404);
   return new Response(object.body, { headers: { "content-type": "image/jpeg", "cache-control": "private, max-age=3600" } });
+});
+
+/** `{ answers: { [ref]: value }, resend? }`: answers to the questions a send
+ * stopped on. They're saved for every later form, and the send starts again
+ * unless `resend` is false. */
+sends.post("/sends/:id/answers", async (c) => {
+  const body = await c.req.json<{ answers?: unknown; resend?: unknown }>().catch(() => null);
+  const answers = body?.answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+    return c.json({ error: "answers are { ref: value }.", code: "invalid_request" }, 400);
+  }
+  const valid = Object.entries(answers as Record<string, unknown>).filter(([, value]) =>
+    typeof value === "string" || (Array.isArray(value) && value.every((item) => typeof item === "string")));
+  const result = await answerSend(c.env, c.get("userId"), c.req.param("id"), Object.fromEntries(valid) as Record<string, string | string[]>, {
+    resend: body?.resend !== false,
+  });
+  return c.json(result, result.send ? 201 : 200);
 });
 
 /** The code Greenhouse emailed, typed by the person when email tracking

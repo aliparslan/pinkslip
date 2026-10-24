@@ -36,6 +36,10 @@ export const queryKeys = {
     companyEvents: (companyId: string) => ["personal", "events", "company", companyId] as const,
     event: (id: string) => ["personal", "events", "detail", id] as const,
     prepared: (jobId: string) => ["personal", "prepared", jobId] as const,
+    /** Auto-apply's sends, one send, and the resume they upload. */
+    sends: () => ["personal", "sends"] as const,
+    send: (sendId: string) => ["personal", "sends", sendId] as const,
+    sendResume: () => ["personal", "send-resume"] as const,
     outreach: (jobId: string, threadId: string | null) => ["personal", "outreach", jobId, threadId] as const,
     /** Every recruiter thread, and one by id: the redesign's person pages and Today. */
     outreachAll: () => ["personal", "outreach", "all"] as const,

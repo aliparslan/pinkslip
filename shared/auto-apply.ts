@@ -26,6 +26,23 @@ export interface SentAnswer {
   by: SentBy;
 }
 
+/** A question a send stopped on. With a ref and options it can be answered
+ * in the app and the send started again; "error" is the form's own message. */
+export interface SendNeed {
+  ref?: string;
+  label: string;
+  kind: string;
+  options?: string[];
+  required?: boolean;
+}
+
+/** The resume a send uploads (`/apply/resume`). */
+export interface ApplyResumeInfo {
+  name: string;
+  size: number;
+  uploaded_at: string;
+}
+
 export interface ApplySend {
   id: string;
   job_id: string;
@@ -36,7 +53,7 @@ export interface ApplySend {
   dry_run: boolean;
   status: ApplySendStatus;
   detail: string | null;
-  needs: Array<{ label: string; kind: string }>;
+  needs: SendNeed[];
   sent: SentAnswer[];
   form_shot: boolean;
   proof_shot: boolean;

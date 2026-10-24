@@ -16,7 +16,10 @@ export type NotificationKind =
   | "replied"
   | "forwarding_stopped"
   | "event_reminder"
-  | "daily_summary";
+  | "daily_summary"
+  | "apply_sent"
+  | "apply_needs_you"
+  | "apply_code";
 
 interface KindSpec {
   /** The inventory's number. */
@@ -56,6 +59,12 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   event_reminder: { n: "N19", live: true, defaultOn: true, timeSensitive: false },
   // Exists but off by default (Decisions: Notifications #1).
   daily_summary: { n: "N16", live: false, defaultOn: false, timeSensitive: false },
+  // Auto-apply's sends (worker/apply/sends.ts): sent for you, one question to
+  // finish (or a captcha to finish on the phone), and the code Greenhouse
+  // emailed, which can't wait.
+  apply_sent: { n: "N14", live: true, defaultOn: true, timeSensitive: false },
+  apply_needs_you: { n: "N13", live: true, defaultOn: true, timeSensitive: false },
+  apply_code: { n: "N13", live: true, defaultOn: true, timeSensitive: true },
 };
 
 export function isNotificationKind(value: unknown): value is NotificationKind {
@@ -79,7 +88,11 @@ export const PASSIVE_SPACING_MS = 4 * 60 * 60 * 1000;
  * once a day), so they neither wait for the cap nor count toward it; the cap
  * keeps everything else from piling on (owner, 2026-10-17).
  */
-export const UNCAPPED_KINDS: readonly NotificationKind[] = ["new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped", "event_reminder"];
+export const UNCAPPED_KINDS: readonly NotificationKind[] = [
+  "new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped", "event_reminder",
+  // The person sent these themselves, so each says how it went.
+  "apply_sent", "apply_needs_you", "apply_code",
+];
 
 /**
  * Passive kinds with a moment attached go out when they come due, without
@@ -107,6 +120,8 @@ export const notificationLinks = {
   application: (applicationId: string) => `/applications/${encodeURIComponent(applicationId)}`,
   /** An event's page (Remind me, Sign up). */
   event: (eventId: string) => `/events/${encodeURIComponent(eventId)}`,
+  /** A send, for now its job's page; the app's send screen comes later. */
+  applySend: (jobId: string) => `/jobs/${encodeURIComponent(jobId)}`,
 };
 
 export interface LoggedNotification {
@@ -213,3 +228,29 @@ export function repliedNotification(thread: { id: string; job_id: string | null;
     url: notificationLinks.followUp(thread.job_id, thread.id),
   };
 }
+
+/** N13 and N14: how a send went. A dry run says nothing. */
+export function applySendNotification(send: { status: string; company: string; title: string; jobId: string; needs: number }) {
+  const what = (text: string) => [text, send.title].filter(Boolean).join(" · ");
+  const url = notificationLinks.applySend(send.jobId);
+  switch (send.status) {
+    case "submitted":
+      return { kind: "apply_sent" as const, title: send.company, body: what("Sent for you"), url };
+    case "unconfirmed":
+      return { kind: "apply_sent" as const, title: send.company, body: what("Sent, but no confirmation yet. Check your email"), url };
+    case "needs_you":
+      return {
+        kind: "apply_needs_you" as const,
+        title: send.company,
+        body: what(send.needs <= 1 ? "One question to finish" : `${send.needs} questions to finish`),
+        url,
+      };
+    case "blocked":
+      return { kind: "apply_needs_you" as const, title: send.company, body: what("Finish on your phone"), url };
+    case "code_needed":
+      return { kind: "apply_code" as const, title: send.company, body: "Enter the code Greenhouse emailed you", url };
+    default:
+      return null;
+  }
+}
+
