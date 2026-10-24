@@ -139,8 +139,8 @@ Outreach (step 8, 2026-10-19):
 - [ ] **Removal by email** (owner, 2026-10-24): recruiters email
   support@pinkslip.work, and the owner removes them in Admin
   (`POST /contacts/remove`). No public page. **The privacy page's
-  "Recruiters" section is written** (`shared/legal.ts`, dated Oct 24);
-  it goes out with the next web deploy.
+  "Recruiters" section is live** (`shared/legal.ts`, dated Oct 24; web
+  Worker deployed 2026-10-24 from 8cccaa9, at pinkslip.work/privacy).
 - [ ] **People for signed-in people only; guests see a count** (owner,
   2026-10-24; Decisions: Outreach, revisited). **Built and deployed
   2026-10-24** (Worker 6145f51c); guests see nothing until OUTREACH is on
