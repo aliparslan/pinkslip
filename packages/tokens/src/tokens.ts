@@ -549,11 +549,6 @@ export const uiMotion = {
    * recorded drags: response 0.24s, the target easing in over 0.8 of the
    * pill's width from just before its middle). */
   swipe: { grow: { response: 0.24, damping: 1 } },
-  /** Picking Search: the tab bar's pill stretches into the field and its X
-   * grows out of the right end (owner, 2026-10-24: it used to just appear).
-   * Fitted to Photos' search tab from a recording: response 0.26s, a touch
-   * of overshoot. */
-  search: { handoff: { response: 0.26, damping: 0.84 } },
   /** The stub tearing off on Apply: Peel, with a light rip (owner,
    * 2026-10-18, picked from four ways on the phone; Paper "The stub tears
    * off, frame by frame"). One continuous path: it tears from its left end

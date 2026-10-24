@@ -1,6 +1,5 @@
-import { forwardRef, type ComponentProps } from "react";
+import { forwardRef } from "react";
 import { Pressable, TextInput, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Floating } from "./Floating";
 import { faces, useUiFontsLoaded } from "./fonts";
@@ -16,14 +15,11 @@ export interface SearchFieldProps {
   /** Over the page rather than on it (Search's field at the bottom): the
    * page bar's floating material instead of the grey fill. */
   floating?: boolean;
-  /** Floating: the magnifier and words, which Search's field fades in as
-   * it forms out of the tab bar. */
-  contentStyle?: ComponentProps<typeof Animated.View>["style"];
 }
 
 /** A search field in the design's pill: the grey fill, a magnifier, and a
  * clear button once there's text. */
-export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField({ value, onChangeText, placeholder, onSubmit, autoFocus, floating, contentStyle }, ref) {
+export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField({ value, onChangeText, placeholder, onSubmit, autoFocus, floating }, ref) {
   const { theme } = useUnistyles();
   const fonts = useUiFontsLoaded();
   const content = <>
@@ -36,9 +32,7 @@ export const SearchField = forwardRef<TextInput, SearchFieldProps>(function Sear
       <Icon name="close" size={10} tone="bg" />
     </Pressable> : null}
   </>;
-  // Floating, the glass fills whatever height it's given (it starts as the
-  // tab bar's pill) with the field's row in its middle.
-  if (floating) return <Floating style={styles.floating}><Animated.View style={[styles.field, styles.floatingRow, contentStyle]}>{content}</Animated.View></Floating>;
+  if (floating) return <Floating style={[styles.field, styles.floating]}>{content}</Floating>;
   return <View style={[styles.field, styles.onPage]}>{content}</View>;
 });
 
@@ -52,8 +46,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.ui.space["4"],
   },
   onPage: { borderRadius: 22, backgroundColor: theme.ui.color.fill },
-  floating: { flex: 1, borderRadius: theme.ui.radius.full, justifyContent: "center" },
-  floatingRow: { flex: 0 },
+  floating: { borderRadius: theme.ui.radius.full },
   input: { flex: 1, height: 44, fontSize: theme.ui.type.body.size, color: theme.ui.color.ink, padding: 0 },
   clear: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["ink-4"] },
 }));

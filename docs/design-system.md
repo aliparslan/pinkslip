@@ -289,16 +289,10 @@ on one line share a size.
   field; the field's own clear button only clears the words. A page opened
   from the results keeps the tab bar, and coming back leaves the keyboard
   down. Rejected the same day: one pill with the X inside (B), which put
-  the clear button and the X side by side. Picked from the bar, the field
-  forms out of it (owner, 2026-10-24: it used to just appear): it starts
-  as the pill and stretches into place on `motion.search.handoff`
-  (response 0.26s, damping 0.84, fitted to Photos' search tab), the X
-  grows out of its right end, and the words fade in once it's mostly
-  formed. It moves only by transforms (a change of size each frame went
-  through layout, and the ride up with the keyboard fell behind it), and
-  the bar mounts Search in the background after launch, so even the first
-  pick is a change of focus rather than a new screen. The X is a cut back
-  to the bar, as in Photos. Before you type, Recent lists
+  the clear button and the X side by side. The field fades in where the
+  bar was as the bar steps aside (owner, 2026-10-24: a version where it
+  formed out of the bar, after Photos, went back; the owner preferred
+  this). Before you type, Recent lists
   your searches with the 18 clock centred in the 40 logo column, so it
   lines up with the company rows and the words start on the 68 line.
 - **An empty resume leads with Import a PDF** (2026-10-24), above the

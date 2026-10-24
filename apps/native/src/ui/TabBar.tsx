@@ -279,33 +279,6 @@ export function leaveSearch() {
   backFromSearch?.();
 }
 
-/** The pill as Search was picked from it, so Search's field can start out
- * as the pill and stretch into place (owner, 2026-10-24). */
-export interface SearchHandoff {
-  width: number;
-  height: number;
-  /** How far the pill's middle sat below the field's line (it shrinks
-   * towards the bottom edge while you scroll). */
-  drop: number;
-}
-let handoff: SearchHandoff | null = null;
-/** The pill Search was just picked from, once. */
-export function takeSearchHandoff(): SearchHandoff | null {
-  const taken = handoff;
-  handoff = null;
-  return taken;
-}
-/** The pill Search was just picked from, if its field hasn't taken it yet. */
-export function waitingSearchHandoff(): SearchHandoff | null {
-  return handoff;
-}
-
-/** Where the pill sits: its bottom edge and height. */
-export function useTabBarFrame() {
-  const insets = useSafeAreaInsets();
-  return { bottom: pillBottom(insets.bottom), height: PILL };
-}
-
 const searchPressed = new Set<() => void>();
 /** Called each time Search is picked in the bar, so its field can take the
  * keyboard; coming back to it from a page it opened doesn't call it. */
@@ -370,17 +343,6 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     placed.current = true;
   }, [selected, x, current]);
 
-  // Search mounts in the background once launch has settled, so picking it
-  // is a change of focus rather than a new screen: a screen mounting holds
-  // up the field's hand-off and its ride up with the keyboard.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (state.routes.some((route) => route.name === "(search)")) navigation.preload("(search)");
-    }, 2000);
-    return () => clearTimeout(timer);
-    // Once, at launch.
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Search's X goes back to the tab you were on before it.
   const previous = useRef("(jobs)");
   const here = tabs[selected]?.name;
@@ -399,11 +361,7 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     if (!route) return;
     const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
     if (index !== selected && !event.defaultPrevented) navigation.navigate(route.name, route.params);
-    if (route.name === "(search)" && !event.defaultPrevented) {
-      const scale = 1 - (1 - COMPACT_SCALE) * compact.value;
-      handoff = { width: (count * PITCH + PAD_X * 2) * scale, height: PILL * scale, drop: (PILL / 2) * (1 - scale) };
-      for (const listener of searchPressed) listener();
-    }
+    if (route.name === "(search)" && !event.defaultPrevented) for (const listener of searchPressed) listener();
   };
   // The drag is built once per tab count; it reaches today's tabs through here.
   const latest = useRef({ open, setHover });
