@@ -130,11 +130,14 @@ function UpdateNotesStep({ notes }: { notes: UpdateNotes }) {
   </SheetStep>;
 }
 
+/** An item with a line under it leads with its title in Medium, the tile on
+ * the title's line; a title-only note (an update's) is Regular and centred
+ * on its tile (owner, 2026-10-24). */
 function ReleaseItems({ items }: { items: ReleaseItem[] }) {
-  return <>{items.map((item) => <View key={item.title} style={styles.item}>
-    <View style={styles.tile}><IconTile icon={item.icon} meaning={item.meaning} /></View>
+  return <>{items.map((item) => <View key={item.title} style={[styles.item, !item.line && styles.itemCentred]}>
+    <View style={item.line ? styles.tile : null}><IconTile icon={item.icon} meaning={item.meaning} /></View>
     <View style={styles.text}>
-      <Text weight="medium">{item.title}</Text>
+      <Text weight={item.line ? "medium" : "regular"}>{item.title}</Text>
       {item.line ? <Text role="subhead" tone="ink-2">{item.line}</Text> : null}
     </View>
   </View>)}</>;
@@ -173,6 +176,7 @@ const styles = StyleSheet.create((theme) => ({
   // Its own height until the notes outgrow the sheet, then it scrolls.
   notesScroll: { flexGrow: 0, flexShrink: 1 },
   item: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  itemCentred: { alignItems: "center" },
   // Centred on the title's line.
   tile: { marginTop: 2 },
   text: { flex: 1, gap: 2 },
