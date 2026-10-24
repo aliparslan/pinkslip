@@ -115,8 +115,10 @@ Outreach (step 8, 2026-10-19):
 - [ ] **A public way for a recruiter to ask out** (a page, or
   help@pinkslip.work once its routing rule exists); until then, a request
   reaching the owner goes through `POST /contacts/remove`.
-- [ ] **Guests see People** (names and titles, sign in to write) and a
-  quiet daily limit on addresses opened, as the Oct 15 plan says.
+- [ ] **People for signed-in people only; guests see a count** (owner,
+  2026-10-24; Decisions: Outreach, revisited). The People endpoint answers
+  guests with the count alone. The teaser line on the company page goes to
+  Paper first.
 
 Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pinkslip-2026-10-22.md)):
 
@@ -632,6 +634,30 @@ repeated probing gets an address blocklisted. Bounces from outreach emails
 that reach Pinkslip through forwarding mark a contact bad at once. Whether a
 recruiter still does campus hiring still needs the quarterly refresh of the
 list.
+
+Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
+
+- **Who sees People:** signed-in people only. Guests see a count on the
+  company page, with no names: "3 recruiters at Stripe · Sign in to see
+  them". It's the owner's call over letting guests browse names, for these
+  reasons:
+  - guest sessions are free to make, so anyone could scrape names and
+    titles, and per-guest limits mean nothing;
+  - limits per account do mean something;
+  - recruiters' names stay off an anonymous directory;
+  - "see who recruits here" gives people a reason to sign in.
+- **No badge, no checker:**
+  - recruiters never sign up, and the paid checker stays dropped
+    (2026-10-19);
+  - an address is Pinkslip's best guess from the company's email pattern
+    and shows plainly, with no "verified" mark either way;
+  - the first bounce drops it for everyone.
+- **One at a time:**
+  - browsing People shows names and titles;
+  - an address appears only in the draft when someone starts writing to
+    that recruiter, which counts toward their 5 new people a day;
+  - a weekly cap per recruiter applies across everyone;
+  - no list, export or copy-all.
 
 ### Plans and billing (owner, 2026-10-16)
 
