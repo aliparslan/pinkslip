@@ -5,10 +5,14 @@ the fixes, admin-only, and I'll pick the jobs for the first real submissions
 from my account." Phase 0 (no submits) is in
 [auto-apply-phase0-2026-10-24.md](auto-apply-phase0-2026-10-24.md).
 
-**State:** built and tested locally, committed, **not deployed**. Deploying
-needs the owner's go-ahead (migration `0103_apply_sends.sql`, the Worker
-with Cloudflare's browser and a Workflow). No real application has been
-sent; the first ones are the owner's picks.
+**State:** live for admins since 2026-10-24.
+- **Deploy:** API Worker `f59535fe`, migration 0103, the Workflow
+  `pinkslip-apply-send`. D1 bookmark before the migration:
+  `00004645-00008c00-0000510e-92fbd76418f0e1ab21d7bc72730f4c07`.
+- **Reader fixes on the phone:** over-the-air update for 1.3.8 on
+  `production` (group `e95493e6`) and `owner` (`a4d22089`), from a360ee3.
+- **Sends:** none to a real employer yet. The first ones are the owner's
+  picks.
 
 ## What a send does
 
@@ -210,19 +214,19 @@ sent" has the answer either way.
 5. **Pictures are full-page JPEGs**, kept until the account is deleted.
 6. **Dropdown consents get "No"** on the phone too, not only on the server.
 
-## Deploying (needs the go-ahead)
+## Deployed (2026-10-24)
 
-- **What goes out:** migration 0103 and the API Worker. The Worker now
-  starts from `worker/main.ts`, which adds the Workflow class.
-  `wrangler.toml` gains `[browser]`, `[[workflows]]` and
-  `AUTO_APPLY_SEND = "admin"`.
-- **Account services:** Workers Paid includes Browser Run and Workflows;
-  the deploy creates the Workflow.
+- **What went out:** migration 0103 and the API Worker, which starts from
+  `worker/main.ts` with the Workflow class. `wrangler.toml` has
+  `[browser]`, `[[workflows]]` and `AUTO_APPLY_SEND = "admin"`.
+- **Checks after the deploy:**
+  - The Workflow and the table (with the never-twice index) exist.
+  - The new routes answer 401 without a session.
+  - The feed and the app-link file answer 200.
+  - No new errors.
 - **Cost:** Browser Run is $0.09 an hour beyond 10 included hours. A send
   takes about 20 to 30 seconds of browser, or up to 10 minutes while
   waiting for a code.
-- **What nobody sees:** admin-only throughout; guests and other accounts
-  get 404s.
 
 ## Testing flows (after the deploy)
 

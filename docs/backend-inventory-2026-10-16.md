@@ -346,7 +346,7 @@ Activity, the digest and each application's timeline.
 | Need | Status |
 | --- | --- |
 | Assisted fill: prepare, the in-app browser fill, the answers bank, learn | **Works**, admin-only |
-| Proof it went through (the stub's APPLIED and SENT) | **Built 2026-10-24, not deployed** (step 10): the confirmation's picture, text and address, the filled form's picture, and every answer sent with who put it there |
+| Proof it went through (the stub's APPLIED and SENT) | **Live 2026-10-24, admin-only** (step 10): the confirmation's picture, text and address, the filled form's picture, and every answer sent with who put it there |
 | The queue: apply in the background, progress, pause | **Partial** (step 10): one Workflow per send, admin-only; no batches, progress or pause yet |
 | Ask first: the morning list, review, send | **Missing** (samples in the app) |
 | Auto-apply settings and limits | **Missing** (samples in the app) |
@@ -409,8 +409,8 @@ owner's check before the next.
    "Built"): confirmed recruiters on People, no paid checker for now.
 9. **Plans and billing** (§10): plan and metering first; payments at the App
    Store release.
-10. **Auto-apply** (§9), last. **Phase 1 built 2026-10-24, not deployed**
-    (see "Built"): the real send for Greenhouse and Ashby, admin-only.
+10. **Auto-apply** (§9), last. **Phase 1 live 2026-10-24, admin-only**
+    (see "Built"): the real send for Greenhouse and Ashby.
 
 ## For the building session
 
@@ -1437,7 +1437,7 @@ Testing flows (after a deploy):
 3. Tailoring four times in a week on Free answers the fourth with "You've
    used this week's tailored resumes" and Monday's reset.
 
-### Step 10: auto-apply's real send, phase 1 (2026-10-24, not deployed)
+### Step 10: auto-apply's real send, phase 1 (2026-10-24, deployed 2026-10-24)
 
 Owner: "build the real send for Greenhouse and Ashby with the fixes,
 admin-only, and I'll pick the jobs for the first real submissions from my
@@ -1471,10 +1471,14 @@ Applied, from auto-apply.
 **Greenhouse's code:** email tracking hands Greenhouse's code to the
 waiting send.
 
+**Deployed 2026-10-24:**
+- API Worker `f59535fe` with migration 0103.
+- D1 bookmark before:
+  `00004645-00008c00-0000510e-92fbd76418f0e1ab21d7bc72730f4c07`.
+- The reader fixes reached 1.3.8 phones over the air (`production`
+  e95493e6, `owner` a4d22089, from a360ee3).
+
 **Waiting:**
-- The owner's go-ahead to deploy (migration 0103, the Worker with the
-  browser and the Workflow).
 - The owner's first real sends.
 - The app's screens (Paper first).
-- An over-the-air update for the reader fixes on the phone.
 
