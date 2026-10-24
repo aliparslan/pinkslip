@@ -1,0 +1,12 @@
+// Phase 0 of auto-apply (docs/auto-apply-phase0-2026-10-24.md): a throwaway
+// Worker that only drives Cloudflare's headless browser. Run it in
+// Cloudflare's preview, never deployed:
+//   XDG_CONFIG_HOME=$HOME/.config bunx wrangler dev --remote -c scripts/auto-apply-spike/wrangler.jsonc --port 8790
+{
+  "name": "pinkslip-apply-spike",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "browser": { "binding": "BROWSER" },
+  "workers_dev": false
+}
