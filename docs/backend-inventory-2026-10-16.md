@@ -112,14 +112,21 @@ Outreach (step 8, 2026-10-19):
   Until then a guessed address is trusted as guessed, and bounces take it
   off. Options when it returns: MillionVerifier, or Hunter through treg
   ([treg-evaluation-2026-10-18.md](treg-evaluation-2026-10-18.md)).
-- [ ] **Open it:** remove `OUTREACH_TEST_RECIPIENT`, set `OUTREACH = "on"`.
+- [ ] **Open it** once these are done:
+  1. the types, the confirm queue and the guest count are built;
+  2. the owner has confirmed a first set at the companies people use most;
+  3. the privacy line is up;
+  4. the People teaser and the Admin labelling are through Paper.
+
+  Then remove `OUTREACH_TEST_RECIPIENT` and set `OUTREACH = "on"`.
 - [ ] **Screens, Paper first:** Admin's contact list (imports, remove),
   the two new messages (5 a day; "heard from several users this week",
   today a toast), "Email the company" from its page, and Gmail/Outlook
   beside the mail app when sending.
-- [ ] **A public way for a recruiter to ask out** (a page, or
-  help@pinkslip.work once its routing rule exists); until then, a request
-  reaching the owner goes through `POST /contacts/remove`.
+- [ ] **Removal by email** (owner, 2026-10-24): recruiters email
+  support@pinkslip.work, and the owner removes them in Admin
+  (`POST /contacts/remove`). No public page. The privacy page's
+  "Recruiters" line goes in before outreach opens.
 - [ ] **People for signed-in people only; guests see a count** (owner,
   2026-10-24; Decisions: Outreach, revisited). The People endpoint answers
   guests with the count alone. The teaser line on the company page goes to
@@ -664,6 +671,14 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
   - Confident matches list themselves only once that share proves 90%
     "works there" on the owner's labels.
   - No search runs on demand for users.
+- **Removal:**
+  - a recruiter emails support@pinkslip.work, and the owner removes them in
+    Admin;
+  - removal hides them for everyone, for good (`POST /contacts/remove`);
+  - no public page for now;
+  - before outreach opens, the privacy page says what Pinkslip keeps about
+    recruiters (name, title, company, a guessed address) and to email
+    support@ to be removed.
 - **One at a time:**
   - browsing People shows names and titles;
   - an address appears only in the draft when someone starts writing to
