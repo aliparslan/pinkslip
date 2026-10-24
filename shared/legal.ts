@@ -3,7 +3,7 @@
  * and `/support`, so the paths are stable. Bodies are static, repository-owned
  * HTML. */
 export const LEGAL_UPDATED_AT = "October 22, 2026";
-export const SUPPORT_EMAIL = "login@pinkslip.work";
+export const SUPPORT_EMAIL = "support@pinkslip.work";
 
 export interface LegalPage {
   path: "/privacy" | "/support" | "/support/thanks";

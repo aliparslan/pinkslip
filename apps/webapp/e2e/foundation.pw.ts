@@ -75,7 +75,7 @@ test("renders legal pages in the app with their canonical URLs", async ({ page }
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(page).toHaveTitle(`${title} · Pinkslip`);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `https://pinkslip.work${path}`);
-    await expect(page.getByRole("link", { name: "login@pinkslip.work" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "support@pinkslip.work" }).first()).toBeVisible();
   }
 });
 

@@ -54,8 +54,9 @@ record if possible, because the public developer name is chosen only once.
 
 ## Required service configuration before review
 
-- [ ] Confirm `login@pinkslip.work` receives inbound support mail, or replace
-  it on both public pages with a monitored address.
+- [ ] Both public pages now give `support@pinkslip.work` (owner, 2026-10-23;
+  `login@` only sends sign-in mail). Confirm a Cloudflare Email Routing
+  rule forwards it to an inbox you read.
 - [ ] Create a dedicated Sign in with Apple private key in Apple Developer.
 - [x] Set `APPLE_SIGN_IN_CLIENT_ID` to `dev.alip.pinkslip`.
 - [ ] Set `APPLE_SIGN_IN_KEY_ID` and the existing `APPLE_TEAM_ID`.

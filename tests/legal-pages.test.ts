@@ -11,13 +11,13 @@ describe("public legal pages", () => {
     expect(html).toContain("Sign in with Apple");
     expect(html).toContain("You → Account → Delete account");
     expect(html).toContain("does not sell personal information");
-    expect(html).toContain("mailto:login@pinkslip.work");
+    expect(html).toContain("mailto:support@pinkslip.work");
   });
 
   test("the support page provides real contact and self-service paths", () => {
     const html = supportPage();
 
-    expect(html).toContain("mailto:login@pinkslip.work");
+    expect(html).toContain("mailto:support@pinkslip.work");
     expect(html).toContain("You → Help and feedback");
     expect(html).toContain("Delete account");
     expect(html).toContain('href="/privacy"');
