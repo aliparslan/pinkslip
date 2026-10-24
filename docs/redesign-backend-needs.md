@@ -45,7 +45,7 @@ the applications review is [applications-backend-review-2026-10-13.md](applicati
 | Need | Status |
 | --- | --- |
 | The forwarding address, Gmail's confirmation code and whether mail arrives | Exists: `GET /inbox`, `POST /inbox/rotate` |
-| **Which application?** with several picked: one email files to each | Built and deployed (24171c2): `assign` takes `application_ids`, and `undo` takes the page's `application_id` so "Not right?" undoes only that application. No migration: the email lists under the first pick, and the steps it records link the rest |
+| **Which application?** with several picked: one email files to each | Built and deployed (404607b): `assign` takes `application_ids`, and `undo` takes the page's `application_id` so "Not right?" undoes only that application. No migration: the email lists under the first pick, and the steps it records link the rest |
 | **Job emails**, the history page | Exists: `GET /inbox/emails` (sender, subject, detected step, status, company, application) |
 | **Job emails this month** on the status page | Done in the app: it counts `GET /inbox/emails` by date |
 | **Email me these steps** (setup on a computer) | Built and deployed (version 36df7baa): `POST /inbox/steps-email` with the provider and what Gmail forwards; it mails the steps and the address to the account's email |

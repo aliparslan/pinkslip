@@ -685,7 +685,7 @@ wrote 431 activity rows; 277 people's alert settings carried over (34 on).
 The apps' side went to the owner's phone over the air; testers' production
 update waits for the owner.
 
-**Deployed 2026-10-18:** eb0de71 (follow-ups without the spacing, one job
+**Deployed 2026-10-18:** 6c59a11 (follow-ups without the spacing, one job
 push per run), Worker 3c220792, no migrations. Health checks passing and no
 new errors after it.
 
@@ -1048,15 +1048,15 @@ Google OAuth client is set: `GOOGLE_CLIENT_ID` in `wrangler.toml`, the
 secret as a Worker secret.
 
 **Deployed 2026-10-19, "Make a password" after a code:** Worker e1a1e002
-(before: 52676b42), built from the live worker (e451437) plus 5dc67e6 only:
+(before: 52676b42), built from the live worker (95754db) plus b23d46c only:
 `POST /auth/password` sets or replaces the email sign-in's password within
 15 minutes of a code proving the email, and `password_after_code_enabled`
-tells the app to offer it. Outreach step 8 (b5800c9) and migration 0100 were
+tells the app to offer it. Outreach step 8 (0c5f295) and migration 0100 were
 not in it; they deploy on their own.
 
 **Deployed 2026-10-18, follow-up:** Worker dd4baa61 (before: 6510985e).
 Setting a password with a code failed live: Workers caps PBKDF2 at 100,000
-iterations and the hash asked for 600,000, which Bun's tests allow (ba6751c
+iterations and the hash asked for 600,000, which Bun's tests allow (2caad60
 uses the cap, hashes before the code is used, and a test guards the limit).
 Mail now comes from "Pinkslip". Sign in with Apple is on for the website:
 Services ID `dev.alip.pinkslip.web` (pinkslip.work only), key `K352A5SSTJ`,
@@ -1189,7 +1189,7 @@ and Admin's events screen (not drawn yet).
 
 **Deployed 2026-10-22** with pay by place and assisted apply for everyone
 (owner: "if the backend changes are fine"): migrations 0100 and 0101,
-Worker f7b519e4 (before: e1a1e002), built from 0ecb1ab. D1 bookmark before:
+Worker f7b519e4 (before: e1a1e002), built from 07a7111. D1 bookmark before:
 00004599-00000ea7-0000510c-4ed6f0de5c7ccee6dbff63eb87f70708. Reviewed first:
 both migrations only add (0100's copy of confirmed recruiters relies on
 `UNIQUE(company_id, email)`, which 0084 has); `OUTREACH` stays admin-only

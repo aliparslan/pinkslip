@@ -1,8 +1,8 @@
 # Backend steps 1 and 2: review (2026-10-17)
 
 A read-through of what the building session committed for step 1 (keeping it
-running: 4dc96d3, 1d9e6dd) and step 2 (notifications foundation: f42bb40,
-3287410, and the 4-hour spacing 5919adc), checked against the Decisions in
+running: de82eae, 6fbac58) and step 2 (notifications foundation: 183aed1,
+bb003b8, and the 4-hour spacing 5b9c2ec), checked against the Decisions in
 `backend-inventory-2026-10-16.md`. Reviewed at the committed versions, not
 the uncommitted step 3 work in the same files.
 

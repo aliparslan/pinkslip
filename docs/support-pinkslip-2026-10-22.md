@@ -183,7 +183,7 @@ customers see. One link covers one-time tips of any amount; monthly would
 need fixed-price links, since Stripe can't repeat a typed amount. The app
 shows whatever links exist, so monthly can come later with a Worker deploy
 alone. Deployed with `SUPPORT = "admin"` (API Worker 7b113df8, web Worker
-7aed037f, from e28c9c9). TestFlight 1.3.8 already has the row; the sheet's
+7aed037f, from 168b966). TestFlight 1.3.8 already has the row; the sheet's
 tweak for a lone link (no list, straight to Stripe) rides the next update.
 
 ## Any amount, monthly too (owner, Oct 24: "way 2")
