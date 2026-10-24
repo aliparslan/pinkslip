@@ -154,5 +154,5 @@ The owner approved Paper "Plan and Pro · round 6 · Oct 24":
 - **Plan on Free and Plan on Pro:** round 4's first layout.
   - The big Founders count with its dots, the week grid, and the subscription card.
   - The mono capitals became plain Untitled labels ("Free plan", "This week").
-  - The Free page's Pro card takes the sheet's gradient with white dots, so tapping it reads as the card opening.
+  - The Free page's Pro card stays near-black with pink dots. The owner tried the sheet's gradient on it and found it cheap.
 - **Copy says "per":** "per day" and "per week" throughout.
