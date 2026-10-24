@@ -359,12 +359,17 @@ the storyboard spec. These were chosen in the Motion lab
   - Not taken: the first page of jobs fading in (no visible difference), the
     update notes rising in, and the Offline pill easing in. The swipe settle
     is part of the swipe rework.
-- **Swipe actions, proposed** (owner, 2026-10-24, after iOS Mail; Kit →
-  Swipes, now and proposed; `swipe-frame-analysis-2026-10-24.md`): pills sized
-  to their icon and label in fixed slots at the screen's edge, growing in as
-  the row uncovers them; the outer one stretches, then fills solid to arm; the
-  swiped row becomes a card (rounded, separator grey). Waiting on the owner;
-  the feed still uses the circles.
+- **Swipe actions** move after iOS Mail (owner, 2026-10-24; parts under
+  Swipe actions below; `swipe-frame-analysis-2026-10-24.md`):
+  - Each pill grows in its slot at the screen's edge as the row uncovers it.
+    Its size chases the drag on `motion.swipe.grow` (0.24s), so it eases in
+    a beat behind the row, never cut and never pushed out.
+  - Past the open point the outer pill stretches toward the row. Past the
+    commit point it fills solid to the row's edge, with a tap, and the other
+    pill is gone first.
+  - Letting go springs from the finger's speed and never overshoots.
+  - Hide leaves on that spring and the space starts closing 120ms in.
+  - Save, Read and Applied come home in their colour, then run.
 - **Onboarding** (`motion.onboarding`; the Onboarding Motion Lab, owner
   2026-10-14; Paper "Onboarding · the build · Oct 18"):
   - The hook's mess lands card by card over 860ms, each gap 0.8 of the one
@@ -625,11 +630,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   can't: something left the screen, it happened elsewhere, or it didn't
   work. Liquid Glass can't fade with a parent, so the glass materializes
   and dissolves on its own.
-- **Swipe actions** (`SwipeRow`, Paper "Swipe actions · Oct 14" S4): up
-  to two 44 circles a side, tinted by meaning (the ink at 14%), with
-  Footnote labels under them; a short swipe stays open on them, all the way
-  widens the outer circle into its filled capsule and runs it. Settles ease
-  out (never a spring that overshoots); a row that leaves folds its height.
+- **Swipe actions** (`SwipeRow`; owner, 2026-10-24, after iOS Mail,
+  replacing S4's circles):
+  - Up to two pills a side, 44 tall, each sized to its 18 icon and Subhead
+    Medium label inline: 14 padding, at least 72 wide, 8 apart and 8 from
+    the screen's edge.
+  - They're tinted by meaning (the ink at 14%), with the icon and label in
+    the tone's ink. The outer one fills solid once a full swipe arms.
+  - A short swipe stays open on them; all the way runs the outer one.
+  - The row being swiped is a card: corners round to 22 and it takes the
+    separator's grey. `JobRow` drops its own background inside one.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Settings cards** (`ListGroup surface="fill"`, which now draws

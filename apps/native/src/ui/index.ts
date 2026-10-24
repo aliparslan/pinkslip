@@ -34,7 +34,7 @@ export {
 } from "./TabBar";
 export { toast, ToastHost, UNDO_TOAST_DURATION, useToastLift, type ToastAction, type ToastInput, type ToastTone } from "./Toast";
 export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
-export { closeOpenSwipeRow, SwipeLookContext, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";
+export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";
 export { setTearPace, Stub, Ticket, tornEdge, useStubCatch, type StubProps, type StubStamp, type TicketBackdrop, type TicketFact, type TicketProps } from "./Ticket";
 export { AddRow, BulletRows, DangerRow, FieldGroup, InlineField, monthLabel, MonthRow, SwitchRow, TextField, type TextFieldProps } from "./Form";
 export { GlyphMenu, glyphMenuAction, menuAsset, type GlyphMenuItem, type GlyphMenuSpec, type MenuGlyph } from "./GlyphMenu";
