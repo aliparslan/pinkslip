@@ -1,13 +1,14 @@
-// Writes every brand icon from one mark: public/favicon.svg, the PWA and
-// Apple touch PNGs, the monochrome notification badge, and the iOS app icon. The geometry
-// matches src/features/shell/BrandMark.tsx. Run `bun run icons` from
-// apps/webapp after changing the mark.
+// Writes the site's icons. The tab icons and the notification badge are the
+// bare mark (public/favicon.svg; the geometry matches
+// src/features/shell/BrandMark.tsx). The home-screen and install icons are
+// the App Store icon, apps/native/assets/icon.png (owner, 2026-10-24: mail
+// apps show the site's touch icon beside its emails), which is drawn
+// separately and only read here. Run `bun run icons` from apps/webapp after
+// changing either.
 import { chromium } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 const pink = "#ff8cc5"; // --color-accent-fill
-const ink = "#110c0e"; // --color-accent-ink
-const plum = "#1f1219"; // the iOS app icon's background, as the 1.x app had
 
 /** The mark in a 32-unit box, scaled by `scale` around its visual center. */
 function mark(color, scale = 1, id = "gap") {
@@ -23,14 +24,12 @@ const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 3
 // Browser tabs: the pink mark on its own, as in the sidebar, as large as it
 // can be. No tile, so it sits on any tab-bar colour.
 const favicon = svg(mark(pink, 1.08));
-// Desktop install and shortcuts ("any"): the same tile with more air.
-const tile = svg(`<rect width="32" height="32" rx="7" fill="${pink}"/>${mark(ink, 0.78)}`);
-// Maskable and Apple touch icons are full-bleed: the OS cuts the shape, and
-// maskable content must sit inside the central 80% circle.
-const maskable = svg(`<rect width="32" height="32" fill="${pink}"/>${mark(ink, 0.6)}`);
-const apple = svg(`<rect width="32" height="32" fill="${pink}"/>${mark(ink, 0.72)}`);
-// The iOS app icon: the pink mark on dark plum, full-bleed and opaque.
-const iosApp = svg(`<rect width="32" height="32" fill="${plum}"/>${mark(pink, 0.72)}`);
+// The App Store icon. Apple touch and maskable icons are full-bleed (the OS
+// cuts the shape; the slips sit inside the maskable 80% circle); desktop
+// install and shortcuts ("any") get the old tile's rounded corners.
+const appIcon = `data:image/png;base64,${(await readFile(new URL("../../native/assets/icon.png", import.meta.url))).toString("base64")}`;
+const fullBleed = `<img src="${appIcon}">`;
+const tile = `<img src="${appIcon}" style="border-radius:21.875%">`;
 // Android tints the badge from its alpha channel.
 const badge = svg(mark("#fff", 0.92));
 
@@ -44,14 +43,13 @@ for (const [file, source, size] of [
   ["favicon-96.png", favicon, 96],
   ["icon-192.png", tile, 192],
   ["icon-512.png", tile, 512],
-  ["icon-maskable-512.png", maskable, 512],
-  ["apple-touch-icon-180.png", apple, 180],
-  // The iOS app icon (apps/native): full-bleed, opaque, 1024px.
-  ["../../../native/assets/icon.png", iosApp, 1024],
+  ["icon-maskable-512.png", fullBleed, 512],
+  ["apple-touch-icon-180.png", fullBleed, 180],
 ]) {
   await page.setViewportSize({ width: size, height: size });
-  await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:${size}px;height:${size}px}</style>${source}`);
+  await page.setContent(`<style>html,body{margin:0;background:transparent}svg,img{display:block;width:${size}px;height:${size}px}</style>${source}`);
+  await page.waitForFunction(() => [...document.images].every((image) => image.complete));
   await page.screenshot({ path: new URL(`../public/icons/${file}`, import.meta.url).pathname, omitBackground: true });
 }
 await browser.close();
-console.log("Wrote favicon.svg, notification-badge.svg, five PNG icons and the iOS app icon.");
+console.log("Wrote favicon.svg, notification-badge.svg and five PNG icons.");
