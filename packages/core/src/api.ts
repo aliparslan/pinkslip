@@ -1265,6 +1265,11 @@ function createEndpoints(context: ClientContext) {
   plan: {
     /** Your plan, the trial, the prices and what's left of each allowance. */
     get: () => request<PlanState>("/plan"),
+    /** After buying Pro, or to restore it: StoreKit's `Transaction.id` (bought
+     * with the user id as `appAccountToken`). The server asks Apple and
+     * answers with the plan; 409 when another account holds it. */
+    apple: (transactionId: string) =>
+      request<PlanState>("/plan/apple", { method: "POST", body: JSON.stringify({ transaction_id: transactionId }) }, 30_000),
   },
   support: {
     /** A Stripe page for this tip, to open in Safari. */
