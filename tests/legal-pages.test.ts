@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { termsPage } from "../shared/legal";
 import { LEGAL_STYLES, privacyPolicyPage, supportPage } from "../worker/legal";
 
 describe("public legal pages", () => {
@@ -21,6 +22,26 @@ describe("public legal pages", () => {
     expect(html).toContain("You → Help and feedback");
     expect(html).toContain("Delete account");
     expect(html).toContain('href="/privacy"');
+  });
+
+  test("the terms cover applying, outreach, tips and the App Store, and link the policy", () => {
+    const html = termsPage.bodyHtml;
+
+    expect(termsPage.path).toBe("/terms");
+    expect(html).toContain("you choose whether to send it");
+    expect(html).toContain("Pinkslip limits how many messages go out");
+    expect(html).toContain("Tips are optional and go through Stripe");
+    expect(html).toContain("Apple's standard license");
+    expect(html).toContain("You → Account → Delete account");
+    expect(html).toContain("mailto:support@pinkslip.work");
+    expect(html).toContain('href="/privacy"');
+    // Pinkslip is one person, so the copy never speaks as "we".
+    expect(html).not.toMatch(/\b([Ww]e|[Uu]s|[Oo]ur)\b/);
+  });
+
+  test("the privacy policy and support page link the terms", () => {
+    expect(privacyPolicyPage()).toContain('href="/terms"');
+    expect(supportPage()).toContain('href="/terms"');
   });
 
   test("the shared stylesheet remains script-free and mobile friendly", () => {

@@ -9,7 +9,7 @@ const routes = [
   "/", `/jobs/${smokeJob.id}`, "/library/saved", "/library/applied", "/you", "/you/preferences", "/you/alerts",
   "/you/companies", "/you/resume", "/you/tailoring", "/you/answers", "/you/account", "/you/feedback", "/welcome",
   "/admin", "/admin/inbox", "/admin/sources", "/admin/runs", "/admin/jev", `/tailor/${smokeJob.id}`,
-  "/about", "/privacy", "/support",
+  "/about", "/privacy", "/terms", "/support",
 ];
 
 const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });

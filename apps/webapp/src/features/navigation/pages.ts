@@ -36,6 +36,7 @@ export const pages = {
   "/welcome": { title: "Set up", shell: "focus", depth: 0, root: null, access: "personal" },
   "/about": { title: "About Pinkslip", shell: "consumer", depth: 0, root: null, access: "public" },
   "/privacy": { title: "Privacy policy", shell: "consumer", depth: 0, root: null, access: "public" },
+  "/terms": { title: "Terms of use", shell: "consumer", depth: 0, root: null, access: "public" },
   "/support": { title: "Support", shell: "consumer", depth: 0, root: null, access: "public" },
   "/support/thanks": { title: "Thank you", shell: "consumer", depth: 0, root: null, access: "public" },
 } as const satisfies Record<string, PageMetadata>;

@@ -1,10 +1,12 @@
 import { ApiError, type ApiClient, type MeResponse } from "@pinkslip/core/api";
 import { notificationSettingsQueryOptions, queryKeys, useApi, useUpdateNotificationSettings, type Session } from "@pinkslip/data";
 import { useQueryClient } from "@tanstack/react-query";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AppleSignInCanceled, signInWithApple } from "../../platform/apple";
+import { WEB_URL } from "../../platform/config";
 import { GoogleSignInCanceled, signInWithGoogle } from "../../platform/google";
 import { haptics } from "../../platform/haptics";
 import { devicePushStatus, enableDevicePush } from "../../platform/push";
@@ -364,7 +366,23 @@ function SignInSteps({ request }: { request: SignInRequest }) {
       </View>
       {request.notNow ? <Button variant="text" fullWidth disabled={Boolean(busy)} onPress={sheet.close}>Not now</Button> : null}
     </View>
+    <TermsLine />
   </SheetStep>;
+}
+
+/** Under the ways in (Paper "Sign in · Oct 15", S1): what continuing agrees
+ * to, each page opening in the in-app browser over the sheet. */
+function TermsLine() {
+  const { theme } = useUnistyles();
+  const open = (path: "/terms" | "/privacy") => void WebBrowser.openBrowserAsync(`${WEB_URL}${path}`, {
+    presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent,
+  });
+  return <Text role="footnote" tone="ink-3" align="center">
+    By continuing you agree to the{" "}
+    <Text role="footnote" tone="ink-3" accessibilityRole="link" onPress={() => open("/terms")}>Terms</Text>
+    {" "}and{" "}
+    <Text role="footnote" tone="ink-3" accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</Text>.
+  </Text>;
 }
 
 /**

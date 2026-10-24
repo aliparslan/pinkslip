@@ -11,7 +11,7 @@ describe("React web Worker routing", () => {
       expect(isApiOwnedPath(path)).toBe(true);
     }
     // Legal pages render in the React app with the product's own styles.
-    for (const path of ["/", "/jobs/123", "/you", "/privacy", "/support", "/legal.css", "/apiary", "/supporting", "/auth/email/verify/extra"]) {
+    for (const path of ["/", "/jobs/123", "/you", "/privacy", "/terms", "/support", "/legal.css", "/apiary", "/supporting", "/auth/email/verify/extra"]) {
       expect(isApiOwnedPath(path)).toBe(false);
     }
   });
@@ -51,7 +51,7 @@ describe("React web Worker routing", () => {
   });
 
   it("lets only public pages that rendered be indexed", () => {
-    for (const path of ["/", "/about", "/privacy", "/support", "/jobs/abc-123"]) expect(isIndexablePath(path)).toBe(true);
+    for (const path of ["/", "/about", "/privacy", "/terms", "/support", "/jobs/abc-123"]) expect(isIndexablePath(path)).toBe(true);
     for (const path of ["/you", "/you/resume", "/library/saved", "/admin", "/jobs/abc/extra", "/welcome", "/_kit", "/tailor/abc"]) {
       expect(isIndexablePath(path)).toBe(false);
     }

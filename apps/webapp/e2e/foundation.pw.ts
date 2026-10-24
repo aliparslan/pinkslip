@@ -69,7 +69,7 @@ test("applies stored and system appearance before hydration", async ({ page }) =
 });
 
 test("renders legal pages in the app with their canonical URLs", async ({ page }) => {
-  for (const [path, title] of [["/privacy", "Privacy policy"], ["/support", "Support"]] as const) {
+  for (const [path, title] of [["/privacy", "Privacy policy"], ["/terms", "Terms of use"], ["/support", "Support"]] as const) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();

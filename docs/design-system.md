@@ -460,8 +460,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `accent-fill` with its caret), filled from Mail. What goes wrong is one
   `bad` line: under the title (Apple or Google didn't finish), under the
   field, or under the boxes, whose rings turn `bad`; an expired code greys
-  the digits and offers "Send a new code" in pink. No Terms line until there
-  is a Terms page.
+  the digits and offers "Send a new code" in pink. Under the ways in, S1's
+  Footnote `ink-3` line, centred: "By continuing you agree to the Terms and
+  Privacy Policy.", each opening its page in the in-app browser (Terms at
+  `/terms` since 2026-10-23).
   - **Code first** (owner, 2026-10-19, Paper "Sign in, code first · Oct
     19"): the email step's pink is "Send me a code", with "Use my password"
     under it. The code step keeps the email step's shape: Back and a grey

@@ -27,7 +27,7 @@ export const CANONICAL_ORIGIN = "https://pinkslip.work";
  * public information pages. Personal and admin routes, the kit pages and
  * anything unknown stay `noindex`. */
 export function isIndexablePath(pathname: string): boolean {
-  return ["/", "/about", "/privacy", "/support"].includes(pathname) || /^\/jobs\/[^/]+$/.test(pathname);
+  return ["/", "/about", "/privacy", "/terms", "/support"].includes(pathname) || /^\/jobs\/[^/]+$/.test(pathname);
 }
 
 function secure(response: Response, indexable: boolean): Response {
@@ -71,7 +71,7 @@ export function sitemapXml(jobs: ReadonlyArray<{ id: string; lastmod: string | n
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
-    ...["/", "/about", "/privacy", "/support"].map((path) => url(path)),
+    ...["/", "/about", "/privacy", "/terms", "/support"].map((path) => url(path)),
     ...jobs.map((job) => url(`/jobs/${encodeURIComponent(job.id)}`, day(job.lastmod))),
     `</urlset>`,
     "",

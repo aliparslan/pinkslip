@@ -74,7 +74,8 @@ Google and email by code is live on the owner channel):
 - [ ] **One alerts ask after the first sign-in** (S5).
 - [ ] **The sheet from the moments that need an account:** saving a job
   ("Save your jobs"), keeping a search, signed out after a long while (K1).
-- [ ] **A Terms page**, then the sheet's "By continuing you agree…" line.
+- [x] ~~A Terms page, then the sheet's "By continuing you agree…" line~~
+  (2026-10-23: `/terms` from `shared/legal.ts`, and S1's line in the sheet).
 - [ ] **Google on the website** next to Apple (owner, 2026-10-18: not now).
 
 Other screens waiting:
