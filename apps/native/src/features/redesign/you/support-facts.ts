@@ -15,14 +15,16 @@ export function supportAmounts(offer: SupportOffer, often: SupportOften): readon
   return (often === "once" ? offer.once : offer.monthly).map((amount) => amount.dollars);
 }
 
+// A Worker from before checkout leaves the field out rather than null, so
+// these test it for a value, as the rest of the sheet does.
 export function supportOffersMonthly(offer: SupportOffer): boolean {
-  return offer.checkout !== null || offer.monthly.length > 0;
+  return Boolean(offer.checkout) || offer.monthly.length > 0;
 }
 
 /** Other amount: typed in the sheet with checkout, either way; typed on
  * Stripe's page with a link, one time only. */
 export function supportOtherOffered(offer: SupportOffer, often: SupportOften): boolean {
-  return offer.checkout !== null || (often === "once" && offer.other !== null);
+  return Boolean(offer.checkout) || (often === "once" && offer.other !== null);
 }
 
 /** The sheet opens on $5 (as drawn), else the middle amount, else Other. */

@@ -77,6 +77,15 @@ describe("the Support sheet", () => {
     expect(defaultSupportPick(lone, "once")).toBe("other");
     expect(supportOffersMonthly(lone)).toBe(false);
   });
+
+  test("a Worker from before checkout leaves the field out, and the sheet reads that as links only", () => {
+    // What the live Worker sent on 2026-10-24: the lone link, no `checkout` key.
+    const older = parseSupportLinks({ once_other: link("other") })! as Parameters<typeof supportOffersMonthly>[0];
+    expect(supportOffersMonthly(older)).toBe(false);
+    expect(supportOtherOffered(older, "monthly")).toBe(false);
+    expect(supportOtherOffered(older, "once")).toBe(true);
+    expect(supportTarget(older, "once", "other", null)).toEqual({ kind: "link", url: link("other") });
+  });
 });
 
 describe("the tip amounts the Worker takes", () => {
