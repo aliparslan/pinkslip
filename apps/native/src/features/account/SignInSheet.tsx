@@ -3,7 +3,7 @@ import { notificationSettingsQueryOptions, queryKeys, useApi, useUpdateNotificat
 import { useQueryClient } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Text as RNText, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AppleSignInCanceled, signInWithApple } from "../../platform/apple";
 import { WEB_URL } from "../../platform/config";
@@ -377,12 +377,16 @@ function TermsLine() {
   const open = (path: "/terms" | "/privacy") => void WebBrowser.openBrowserAsync(`${WEB_URL}${path}`, {
     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent,
   });
-  return <Text role="footnote" tone="ink-3" align="center">
-    By continuing you agree to the{" "}
-    <Text role="footnote" tone="ink-3" accessibilityRole="link" onPress={() => open("/terms")}>Terms</Text>
+  // The links keep the line's colour and are underlined, as links in a job's
+  // description are, so they read as tappable without a second colour. Two
+  // set lines, the links together on the second, rather than one line run
+  // out to the sheet's rounded corners.
+  return <View style={styles.terms}><Text role="footnote" tone="ink-3" align="center">
+    By continuing you agree to the{"\n"}
+    <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/terms")}>Terms</RNText>
     {" "}and{" "}
-    <Text role="footnote" tone="ink-3" accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</Text>.
-  </Text>;
+    <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</RNText>.
+  </Text></View>;
 }
 
 /**
@@ -416,6 +420,8 @@ function sampleAuth(): SignInAuth {
 
 const styles = StyleSheet.create((theme) => ({
   heading: { gap: theme.ui.space["1"] },
+  link: { textDecorationLine: "underline" },
+  terms: { paddingHorizontal: theme.ui.space["6"], paddingTop: theme.ui.space["1"] },
   ways: { gap: theme.ui.space["3"] },
   tight: { gap: theme.ui.space["2"] },
   answers: { gap: theme.ui.space["2"] },

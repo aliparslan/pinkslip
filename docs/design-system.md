@@ -289,7 +289,12 @@ on one line share a size.
   field; the field's own clear button only clears the words. A page opened
   from the results keeps the tab bar, and coming back leaves the keyboard
   down. Rejected the same day: one pill with the X inside (B), which put
-  the clear button and the X side by side.
+  the clear button and the X side by side. Before you type, Recent lists
+  your searches with the 18 clock centred in the 40 logo column, so it
+  lines up with the company rows and the words start on the 68 line.
+- **An empty resume leads with Import a PDF** (2026-10-24), above the
+  sections, since importing is the quick way in; once anything is in it,
+  "Import a new PDF" sits under the sections.
 
 ## Motion
 
@@ -463,7 +468,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   the digits and offers "Send a new code" in pink. Under the ways in, S1's
   Footnote `ink-3` line, centred: "By continuing you agree to the Terms and
   Privacy Policy.", each opening its page in the in-app browser (Terms at
-  `/terms` since 2026-10-23).
+  `/terms` since 2026-10-23). The two links keep the line's colour and are
+  underlined, as links in a job's description are, and the line is set as
+  two centred lines with the links together on the second, 24 in from the
+  sheet's sides (2026-10-24: one full-width line looked crammed).
   - **Code first** (owner, 2026-10-19, Paper "Sign in, code first · Oct
     19"): the email step's pink is "Send me a code", with "Use my password"
     under it. The code step keeps the email step's shape: Back and a grey

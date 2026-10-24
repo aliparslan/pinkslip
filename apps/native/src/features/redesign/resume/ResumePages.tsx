@@ -85,7 +85,14 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
     { text: "Clear resume", style: "destructive", onPress: () => { draft.replace(createEmptyResumeProfile()); clearResumeFile(); } },
   ]);
 
+  // With nothing in it yet, importing is the fast way in, so it comes first.
+  const fresh = empty && !file;
+  const importButton = <View style={styles.slot}>
+    <Button fullWidth onPress={() => void runImport()}>{fresh ? "Import a PDF" : "Import a new PDF"}</Button>
+  </View>;
+
   return <YouPage title="Resume">
+    {fresh ? importButton : null}
     <ListGroup surface="fill">
       <ListItem title="Contact" value={profile.contact.name || "Add"} accessory="chevron" onPress={() => go("/you/resume-contact")} />
       <ListItem title="Experience" value={count(profile.experience)} accessory="chevron" onPress={() => go("/you/resume-experience")} />
@@ -100,9 +107,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
         <Text role="subhead" weight="medium">Try again</Text>
       </Pressable>
     </View> : null}
-    <View style={styles.slot}>
-      <Button fullWidth onPress={() => void runImport()}>{empty && !file ? "Import a PDF" : "Import a new PDF"}</Button>
-    </View>
+    {fresh ? null : importButton}
     {empty ? null : <DangerRow label="Clear resume" onPress={clear} />}
     <ImportSheet step={step} found={found} onClosed={() => { cancel.current?.abort(); setStep(null); setFound(null); }} onUse={(accepted) => {
       draft.replace(withImport(profile, accepted.profile));

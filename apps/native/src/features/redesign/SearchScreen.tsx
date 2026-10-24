@@ -113,8 +113,10 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row", justifyContent: "space-between", alignItems: "baseline",
     paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["4"], paddingBottom: theme.ui.space["1"],
   },
-  recentRow: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.listRow },
-  recentIcon: { width: theme.ui.size.keyline, paddingLeft: theme.ui.size.gutter },
+  recentRow: { flexDirection: "row", alignItems: "center", minHeight: theme.ui.size.listRow, paddingRight: theme.ui.size.gutter },
+  // The clock sits centred in the 40 slot the company logos use below, so
+  // it lines up with them and isn't stranded far from its text.
+  recentIcon: { width: theme.ui.size.keyline, paddingLeft: theme.ui.size.gutter, paddingRight: theme.ui.space["3"], alignItems: "center" },
   recentText: { flex: 1, minWidth: 0 },
   company: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingVertical: theme.ui.space["3"] },
   pressed: { opacity: 0.6 },
