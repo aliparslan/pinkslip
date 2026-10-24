@@ -5,7 +5,7 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from ".
 export { Chip, type ChipProps } from "./Chip";
 export { AmountInput, Choice, ChoiceLink, Choices, ChoiceSwitch, type AmountInputProps, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
-export { CopyField, useCopy, type CopyFieldProps } from "./CopyField";
+export { CopyField, CopyGlyph, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";
@@ -18,6 +18,7 @@ export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";
 export { GroupPlaceholders, RowPlaceholders, useDelayed } from "./RowPlaceholders";
+export { ProgressBar } from "./ProgressBar";
 export { BottomSearch, type BottomSearchProps } from "./BottomSearch";
 export { SearchField, type SearchFieldProps } from "./SearchField";
 export { AlertPreview } from "./AlertPreview";

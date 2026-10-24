@@ -9,7 +9,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { clearResumeFile, keepResumeFile, useLocalResumeFile } from "../../../platform/resume-file";
 import {
-  AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow,
+  AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow, ProgressBar,
   SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, SwitchRow, Text, TextField, toast, UNDO_TOAST_DURATION, useSheet,
 } from "../../../ui";
 import { ResumeImportFailure, type ImportedResume, type ImportStep } from "../../resume/import";
@@ -155,7 +155,7 @@ function ImportingStep({ step }: { step: ImportStep }) {
       <SheetHeader title={`Reading ${step.name}`} />
       <Text tone="ink-2">{step.step === "reading" ? "Finding your experience and skills." : "It's a scan, so reading it page by page."}</Text>
     </View>
-    <View style={styles.track}><View style={[styles.fillBar, { width: step.step === "reading" ? "45%" : "75%" }]} /></View>
+    <ProgressBar share={step.step === "reading" ? 0.45 : 0.75} />
     <Button variant="text" fullWidth onPress={sheet.close}>Cancel</Button>
   </SheetStep>;
 }
@@ -511,8 +511,6 @@ const styles = StyleSheet.create((theme) => ({
   saveFailed: { flexDirection: "row", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter + theme.ui.space["4"] },
   lead: { gap: theme.ui.space["2"] },
   answers: { gap: theme.ui.space["2"] },
-  track: { height: 6, borderRadius: 3, backgroundColor: theme.ui.color.fill, overflow: "hidden" },
-  fillBar: { height: 6, borderRadius: 3, backgroundColor: theme.ui.color.ink },
   sheetGroup: { paddingHorizontal: theme.ui.space["4"], borderRadius: SHEET_GROUP_RADIUS, borderCurve: "continuous", backgroundColor: theme.ui.color["sheet-group"] },
   sheetRow: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   sheetRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator },

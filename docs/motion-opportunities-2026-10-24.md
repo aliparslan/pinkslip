@@ -16,6 +16,14 @@ motion were picked. The swipe settle (#7, below the verdict) is there too,
 behind an opt-in `settle="spring"` prop on `SwipeRow` that only the lab
 passes.
 
+**Owner's verdict (2026-10-24):**
+- #1, #2 and #3 are in the kit: `ui/ProgressBar.tsx`, `ui/Segmented.tsx`
+  and `ui/CopyField.tsx`.
+- #4 showed no visible difference.
+- #5 and #6 weren't worth it.
+- The swipe needs a rework of its own, starting from a frame-by-frame look
+  at how it moves now, so the lab keeps only the swipe.
+
 ## What's already there
 
 The app already moves well where it matters:

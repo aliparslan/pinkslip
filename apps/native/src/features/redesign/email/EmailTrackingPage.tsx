@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, Text, faces, toast, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
+import { Button, CopyGlyph, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, Text, faces, toast, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
 import { jobEmailsThisMonth, shortAddress, sinceLastEmail, trackingState, type TrackingState } from "./email-facts";
 import { useEmailTrackingPrefs, type EmailTrackingPrefs } from "./email-prefs";
 import { EmailSetupSheet, useEmailSetupActions, type EmailSetupActions, type SetupStart } from "./SetupSheet";
@@ -110,7 +110,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 function AddressRow({ address }: { address: string }) {
   const { copied, copy } = useCopy(address);
   return <ListItem title="Your address" value={shortAddress(address)} onPress={copy}
-    trailing={<Icon name={copied ? "done" : "copy"} size={16} tone="ink-3" />} />;
+    trailing={<CopyGlyph copied={copied} size={16} tone="ink-3" />} />;
 }
 
 /** The status page on the live inbox. */

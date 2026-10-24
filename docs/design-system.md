@@ -345,6 +345,20 @@ the storyboard spec. These were chosen in the Motion lab
   fades to `ink-3` in 200ms. Only steps that arrive while the page is open.
 - **A hole is punched** (`motion.punch`): it sinks to 82% in 90ms and comes
   back in 200ms on the strong ease-out.
+- **Small state changes** (owner, 2026-10-24, picked in the kit's Motion lab
+  from `motion-opportunities-2026-10-24.md`):
+  - A progress bar (`ProgressBar`, the resume import's) grows to each real
+    step's share over 600ms on the strong ease-out. It never runs ahead of a
+    step and never animates back down.
+  - The segmented control's thumb is one view that slides to the tapped
+    segment on the tab glide, clamped so it doesn't overshoot. Its first
+    place is set, not travelled to.
+  - The copy button's glyph turns into the check and back: the leaving one
+    shrinks to 60% as it clears and the arriving one grows from 60%, 140ms on
+    the strong ease-out. A field appearing shows its icon still.
+  - Not taken: the first page of jobs fading in (no visible difference), the
+    update notes rising in, and the Offline pill easing in. The swipe settle
+    is part of the swipe rework.
 - **Onboarding** (`motion.onboarding`; the Onboarding Motion Lab, owner
   2026-10-14; Paper "Onboarding · the build · Oct 18"):
   - The hook's mess lands card by card over 860ms, each gap 0.8 of the one
