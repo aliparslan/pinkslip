@@ -5,6 +5,26 @@ steps let Apple sell Pro. App Store Connect is at
 [appstoreconnect.apple.com](https://appstoreconnect.apple.com). Only the
 Account Holder can do step 1.
 
+## Status (2026-10-24)
+
+- **Agreements:** Paid Apps active since Oct 23; bank account and W-9
+  active. The owner is applying to the Small Business Program.
+- **Subscriptions:** group "Pinkslip Pro" (display name `Pinkslip Pro`,
+  English U.S., app name "Pinkslip Jobs"), with:
+  - "Pro Weekly" (`dev.alip.pinkslip.pro.weekly`): $4.99 in the US;
+  - "Pinkslip Monthly" (`dev.alip.pinkslip.pro.monthly`): $14.99 in the
+    US.
+- **Both subscriptions:** all regions, Family Sharing off, and a 3-day
+  free trial from Oct 24 with no end. Each waits only for its Review
+  Information screenshot, which comes with the app's purchase screen.
+- **Server notifications:** both URLs are
+  `https://pinkslip.work/api/v2/apple/notifications`. App Store Connect no
+  longer offers a version choice; new setups get Version 2.
+- **The In-App Purchase key:** ID `8JY84WU3LG`, issuer and ID in
+  `wrangler.toml`, the .p8 as the `APPLE_IAP_PRIVATE_KEY` secret.
+  Production's API refuses it until something is on sale, so the server
+  goes on to Sandbox (d8569e6); checked live.
+
 ## 1. The Paid Apps agreement, banking and tax
 
 1. On App Store Connect's home page, click **Business** (it used to be
