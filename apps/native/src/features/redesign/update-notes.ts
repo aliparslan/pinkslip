@@ -33,6 +33,8 @@ export const UPDATE_NOTES: readonly UpdateNotes[] = [
       // The owner's words (2026-10-23).
       { icon: "search", meaning: "find", title: "Search has been improved" },
       { icon: "resume", meaning: "apply", title: "Fixed a bug with PDF import" },
+      // The owner's words (2026-10-24).
+      { icon: "jobs", meaning: "find", title: "Swiping jobs feels smoother" },
     ],
   },
 ];
