@@ -26,6 +26,7 @@ function SupportChoices({ links, onSupport }: { links: SupportLinks; onSupport: 
   const [often, setOften] = useState<SupportOften>("once");
   const [pick, setPick] = useState<SupportPick>(() => defaultSupportPick(links, "once"));
   const url = supportUrl(links, often, pick);
+  const amounts = supportAmounts(links, often);
   const switchTo = (next: SupportOften) => {
     setOften(next);
     if (!supportPickOffered(links, next, pick)) setPick(defaultSupportPick(links, next));
@@ -39,11 +40,13 @@ function SupportChoices({ links, onSupport }: { links: SupportLinks; onSupport: 
       { value: "once", label: "One time" },
       { value: "monthly", label: "Monthly" },
     ]} /> : null}
-    <Choices>
-      {supportAmounts(links, often).map((amount) => <Choice key={amount.dollars} plain title={`$${amount.dollars}`}
+    {/* With only the typed amount (the owner's one link, Oct 24), there's
+        nothing to pick here: the button goes straight to Stripe's page. */}
+    {amounts.length ? <Choices>
+      {amounts.map((amount) => <Choice key={amount.dollars} plain title={`$${amount.dollars}`}
         selected={pick === amount.dollars} onPress={() => setPick(amount.dollars)} />)}
       {often === "once" && links.other ? <Choice plain title="Other amount" selected={pick === "other"} onPress={() => setPick("other")} /> : null}
-    </Choices>
+    </Choices> : null}
     <Button variant="primary" fullWidth icon="apply" iconAfter disabled={!url} onPress={() => {
       if (!url) return;
       onSupport(url);
