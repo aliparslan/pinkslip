@@ -7,6 +7,14 @@ Account Holder can do step 1.
 
 ## Status (2026-10-24)
 
+- **The store listing (owner, 2026-10-24):**
+  - Name "Pinkslip: Job Search & Apply". "Pinkslip" alone is taken on the
+    App Store.
+  - Subtitle "Job hunting, from start to end".
+  - The home screen, pushes and subscriptions say just "Pinkslip".
+  - The listing goes out with the first App Store release.
+  - App Store Connect shows "Sorry, something went wrong" on Save here, but
+    the change saves; reload to check.
 - **Agreements:** Paid Apps active since Oct 23; bank account and W-9
   active. The owner is applying to the Small Business Program.
 - **Subscriptions:** group "Pinkslip Pro" (display name `Pinkslip Pro`,
