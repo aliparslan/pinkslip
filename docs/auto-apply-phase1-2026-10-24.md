@@ -11,6 +11,11 @@ from my account." Phase 0 (no submits) is in
   `00004645-00008c00-0000510e-92fbd76418f0e1ab21d7bc72730f4c07`.
 - **Reader fixes on the phone:** over-the-air update for 1.3.8 on
   `production` (group `e95493e6`) and `owner` (`a4d22089`), from a360ee3.
+- **Later the same day:** Worker `a0d360c3`. Sends attach the resume under
+  the uploaded file's own name, and the script sends as the admin account
+  that has the resume: the owner's phone signs in with Apple; the Outlook
+  login has no resume.
+- **Resume:** the owner's resume is uploaded for sends.
 - **Sends:** none to a real employer yet. The first ones are the owner's
   picks.
 
