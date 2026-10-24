@@ -540,6 +540,15 @@ export const uiMotion = {
   tab: {
     glide: { response: 0.4, damping: 1 },
   },
+  /** The segmented control's thumb: quicker than the tab oval, as iOS's is
+   * (owner, 2026-10-24: 0.4 felt slow). */
+  segment: { response: 0.28, damping: 1 },
+  /** A swipe action's pill grows in on a spring that chases the drag, so it
+   * eases in a beat behind the row rather than being pushed out by it
+   * (owner, 2026-10-24; fitted to Reminders, the system swipe, from two
+   * recorded drags: response 0.24s, the target easing in over 0.8 of the
+   * pill's width from just before its middle). */
+  swipe: { grow: { response: 0.24, damping: 1 } },
   /** The stub tearing off on Apply: Peel, with a light rip (owner,
    * 2026-10-18, picked from four ways on the phone; Paper "The stub tears
    * off, frame by frame"). One continuous path: it tears from its left end

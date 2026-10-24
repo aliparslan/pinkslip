@@ -691,6 +691,16 @@ export const ui = {
         damping: 1,
       },
     },
+    segment: {
+      response: 0.28,
+      damping: 1,
+    },
+    swipe: {
+      grow: {
+        response: 0.24,
+        damping: 1,
+      },
+    },
     stub: {
       tear: {
         duration: 160,

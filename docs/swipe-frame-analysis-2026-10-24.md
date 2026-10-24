@@ -166,3 +166,24 @@ Measured on the simulator (light and dark):
 - Save: back home in about 0.4s, still pink.
 - A short let-go turns back over about 6 frames (2, 4, then 4.6pt a frame)
   where it used to jump 10pt in one.
+
+## Halfway swipes (owner, 2026-10-24: "a lot less smooth than Reminders")
+
+The same 8pt-a-frame halfway drag was recorded in both apps.
+- **Reminders' pills aren't a function of the row's position.** In a
+  faster drag they're smaller at the same distance, so each pill's size
+  chases a target on a spring.
+- **The fitted model**, from two Reminders drags, about 5% off: the target
+  eases in (sine) over 70pt from 6pt before the pill's middle, and the size
+  follows on a critically damped spring with a 0.24s response.
+- **Ours grew at a fixed rate** tied to the row's edge, then stopped dead at
+  full size. It also appeared at 70% strength instead of faint.
+- **Now each pill chases that target** on `motion.swipe.grow`, the target
+  easing in over 0.8 of its width and always whole by the open point.
+  Opacity is its size × 1.25.
+- **Side by side** (scratchpad `compare-halfway.png`), both pills come in
+  tiny and faint and ease up to full size a beat behind the row; ours
+  finishes a little sooner.
+
+The segmented control's thumb moved to its own `motion.segment` spring,
+0.28s, because the tab glide's 0.4s felt slow.

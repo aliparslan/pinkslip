@@ -12,14 +12,14 @@ export interface SegmentedProps<T extends string> {
   segments: ReadonlyArray<{ value: T; label: string; count?: number }>;
 }
 
-/** The thumb travels on the tab glide, clamped so it never overshoots. */
-const GLIDE = { ...spring(motion.tab.glide), overshootClamping: true };
+/** The thumb travels on its own quick spring, clamped so it never overshoots. */
+const GLIDE = { ...spring(motion.segment), overshootClamping: true };
 
 /** A segmented control (owner, 2026-10-13): a gray track 40 tall with the
  * chosen segment a raised `seg-on` thumb 4 inside it, 32 like a chip. A
  * segment can carry its count, as chips do. The thumb is one view that
  * slides to the segment you tap, as iOS's does (Motion lab #2, owner
- * 2026-10-24). */
+ * 2026-10-24), on `motion.segment`. */
 export function Segmented<T extends string>({ value, onChange, segments }: SegmentedProps<T>) {
   const reduced = useReducedMotion();
   const [width, setWidth] = useState(0);

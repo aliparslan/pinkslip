@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Pressable, Text as RNText, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Easing, interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
+  Easing, interpolate, interpolateColor, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { settleSpring } from "../kit/motion";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -10,7 +10,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { faces } from "./fonts";
 import { Icon, type IconName } from "./Icon";
-import { rubberBand } from "./motion";
+import { motion, rubberBand, spring } from "./motion";
 import { Text } from "./Text";
 
 /** What an action is, which sets its color (Paper "Swipe actions · Oct
@@ -347,6 +347,8 @@ const PILL_MIN = 72;
 const PILL_GAP = 8;
 const PILL_EDGE = 8;
 const CARD_RADIUS = 22;
+/** A pill chasing its target size: critically damped, a beat behind the drag. */
+const GROW = { ...spring(motion.swipe.grow), overshootClamping: true };
 /** Home after an action that keeps the row: brisker than a settle, and it
  * stops creeping sooner, so the action runs without a wait. */
 const HOME = { duration: 300, dampingRatio: 1, overshootClamping: true, energyThreshold: 1e-5 } as const;
@@ -571,13 +573,24 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, onPress 
   const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>);
   const sign = side === "leading" ? 1 : -1;
   const outer = index === 0;
+  // Its size chases a target set by how far the row has gone: from just
+  // before its slot's middle, easing in over 0.8 of its width (and always
+  // whole by the time the row is open). The spring keeps it a beat behind
+  // the drag, as the system swipe does, so it eases in rather than being
+  // pushed out by the row's edge.
+  const size = useSharedValue(0);
+  useAnimatedReaction(() => {
+    const start = near + own / 2 - 4;
+    const span = Math.max(1, Math.min(own * 0.8, reveal - start));
+    const t = Math.min(1, Math.max(0, (x.value * sign - start) / span));
+    return Math.sin((t * Math.PI) / 2);
+  }, (target, previous) => {
+    if (target !== previous) size.value = withSpring(target, GROW);
+  }, [near, own, reveal, sign]);
   const shape = useAnimatedStyle(() => {
     const distance = x.value * sign;
-    // It grows from its slot's middle once the row's edge has passed it,
-    // only as big as the space the row has uncovered, so it's never cut.
-    const room = distance - (near + own / 2) - PILL_GAP / 2;
-    const grow = Math.min(1, Math.max(0, room / (own / 2)));
-    const shown = Math.min(1, Math.max(0, (grow - 0.15) / 0.5));
+    const grow = Math.min(1, Math.max(0, size.value));
+    const shown = Math.min(1, grow * 1.25);
     const over = Math.max(0, distance - reveal);
     const f = outer ? fill.value : 0;
     const stretched = own + over;
