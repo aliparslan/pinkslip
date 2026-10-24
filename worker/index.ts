@@ -157,6 +157,8 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
   return {
     access_required: Boolean(env.ACCESS_CODE?.trim()),
     outreach_enabled: account.session.state === "authenticated" && flagEnabled(env.OUTREACH, account.is_admin),
+    // A company's People: names for signed-in people, a count for guests.
+    outreach_people_enabled: flagEnabled(env.OUTREACH, account.is_admin),
     auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin),
     auto_submit_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SUBMIT, account.is_admin),
     // Server sends (worker/apply/sends.ts): Pinkslip's own browser applies.

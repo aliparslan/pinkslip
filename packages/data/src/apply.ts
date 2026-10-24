@@ -112,12 +112,13 @@ export function useStartOutreach() {
   });
 }
 
-/** A company's People (Paper O1): its listed recruiters and anyone you've written to there. */
+/** A company's People (Paper O1): its listed recruiters and anyone you've
+ * written to there; for a guest, only how many it lists (Paper G1). */
 export function useCompanyPeople(companyId: string, enabled = true) {
   const api = useApi();
   return useQuery({
     queryKey: queryKeys.personal.outreachPeople(companyId),
-    queryFn: async () => (await api.outreach.people(companyId)).people,
+    queryFn: () => api.outreach.people(companyId),
     enabled,
   });
 }

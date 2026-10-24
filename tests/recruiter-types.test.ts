@@ -4,9 +4,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createGuestSession } from "@worker/auth";
 import worker from "@worker/index";
 import { companyPeopleCount, listCompanyPeople, recruiterScore, syncCandidateContact } from "@worker/outreach/contacts";
-import { companyChoices, labelCandidate } from "@worker/outreach/sourcing/store";
+import { companyChoices, labelCandidate, scoreReview } from "@worker/outreach/sourcing/store";
 import type { Env } from "@worker/types";
-import { recruiterTypesFromTitle } from "../shared/recruiter-review";
+import { recruiterTypesFromTitle, withRecruiterLabels, type RecruiterLabels } from "../shared/recruiter-review";
 import { SEARCH_PROFILE_VERSION } from "../shared/search-profile";
 import { sqliteD1 } from "./sqlite-d1";
 
@@ -87,6 +87,36 @@ describe("labelling types in Admin", () => {
       .toMatchObject({ types: { job: "not_recruiting" }, types_confirmed: true });
   });
 
+  it("moves the screen on as the server will answer", async () => {
+    const { db, candidate } = setup();
+    candidate("c1", "University Recruiter");
+    let row = (await labelCandidate(db, "c1", {}, NOW.toISOString()))!;
+    // L2's Save, then L1's answer with the types as shown, then a cleared type.
+    const steps: RecruiterLabels[] = [
+      { hires: ["new_grads"] },
+      { works_there: "yes", ...row.types, hires: ["new_grads"], agency: true },
+      { hires_for: null },
+    ];
+    for (const labels of steps) {
+      const expected = withRecruiterLabels(row, labels);
+      row = (await labelCandidate(db, "c1", labels, NOW.toISOString()))!;
+      expect({ works_there: expected.works_there, types: expected.types, types_confirmed: expected.types_confirmed })
+        .toEqual({ works_there: row.works_there, types: row.types, types_confirmed: row.types_confirmed });
+    }
+  });
+
+  it("scores how often the title's guess held, for people who work there", async () => {
+    const { db, candidate } = setup();
+    for (const id of ["right", "changed", "gone", "open"]) candidate(id, "University Recruiter");
+    const as = (id: string, labels: RecruiterLabels) => labelCandidate(db, id, labels, NOW.toISOString());
+    const guess = recruiterTypesFromTitle("University Recruiter");
+    await as("right", { works_there: "yes", ...guess });
+    await as("changed", { works_there: "yes", ...guess, hires: ["experienced"] });
+    await as("gone", { works_there: "no", ...guess });
+    const rows = await Promise.all(["right", "changed", "gone", "open"].map((id) => as(id, {})));
+    expect(scoreReview(rows.map((row) => row!)).titles).toEqual({ right: 1, labelled: 2 });
+  });
+
   it("carries the older answers over in the migration", () => {
     const { sqlite } = setup();
     const migration = readFileSync(`${migrationsDir}0104_recruiter_types.sql`, "utf8");
@@ -159,6 +189,19 @@ describe("People", () => {
     expect(signedIn.signed_in).toBe(true);
     expect(signedIn.people.map((person) => person.name).sort()).toEqual(["Person campus", "Person rec"]);
     expect(sqlite.query("SELECT COUNT(*) AS n FROM company_contacts").get()).toEqual({ n: 2 });
+  });
+
+  it("tells the app whether a guest gets the count", async () => {
+    const features = async (outreach: string) => {
+      const { db, env } = setup({ OUTREACH: outreach });
+      const guest = await createGuestSession(db);
+      const response = await worker.fetch(new Request("https://pinkslip.work/api/v2/me", {
+        headers: { authorization: `Bearer ${guest.id}`, "x-pinkslip-client": "ios" },
+      }), env, { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext);
+      return ((await response.json()) as { features: { outreach_enabled: boolean; outreach_people_enabled: boolean } }).features;
+    };
+    expect(await features("on")).toMatchObject({ outreach_enabled: false, outreach_people_enabled: true });
+    expect(await features("admin")).toMatchObject({ outreach_enabled: false, outreach_people_enabled: false });
   });
 
   it("stays hidden from everyone while outreach is admin-only", async () => {

@@ -103,6 +103,12 @@ export function recruiterTypes(row: {
   };
 }
 
+/** Whether two sets of types say the same (lists in any order). */
+export function sameTypes(a: RecruiterTypes, b: RecruiterTypes): boolean {
+  const same = (x: readonly string[], y: readonly string[]) => x.length === y.length && x.every((item) => y.includes(item));
+  return same(a.hires, b.hires) && same(a.hires_for, b.hires_for) && a.job === b.job && a.agency === b.agency;
+}
+
 /** Listed on People: in recruiting, and not through an agency or on contract. */
 export function listable(types: RecruiterTypes): boolean {
   return types.job !== "not_recruiting" && !types.agency;
@@ -141,6 +147,37 @@ export interface RecruiterCandidate {
   /** Whether the owner confirmed the types (otherwise they're the suggestion). */
   types_confirmed: boolean;
   reviewed_at: string | null;
+}
+
+/** What Admin sets on a person: any label, or null to clear it. */
+export interface RecruiterLabels {
+  works_there?: WorksThere | null;
+  /** Older Admin builds' single answer; it fills the types it implies. */
+  actual_role?: ActualRole | null;
+  hires?: RecruiterLevel[] | null;
+  hires_for?: RecruiterField[] | null;
+  job?: RecruiterJob | null;
+  agency?: boolean | null;
+}
+
+/** A person with labels applied, as the server stores them, for a screen
+ * that moves on before the server answers. A cleared type goes back to the
+ * title's suggestion. */
+export function withRecruiterLabels(row: RecruiterCandidate, labels: RecruiterLabels): RecruiterCandidate {
+  const suggested = recruiterTypesFromTitle(row.current_title?.trim() || row.headline);
+  const implied: Partial<RecruiterTypes> = labels.actual_role ? typesFromActualRole(labels.actual_role) : {};
+  const pick =<K extends keyof RecruiterTypes>(key: K): RecruiterTypes[K] => {
+    const value = labels[key] as RecruiterTypes[K] | null | undefined;
+    return value === undefined ? implied[key] ?? row.types[key] : value === null ? suggested[key] : value;
+  };
+  const job = labels.job !== undefined ? labels.job : implied.job;
+  return {
+    ...row,
+    works_there: labels.works_there === undefined ? row.works_there : labels.works_there,
+    actual_role: labels.actual_role === undefined ? row.actual_role : labels.actual_role,
+    types: { hires: pick("hires"), hires_for: pick("hires_for"), job: pick("job"), agency: pick("agency") },
+    types_confirmed: job === undefined ? row.types_confirmed : job !== null,
+  };
 }
 
 export interface RecruiterCompany {
@@ -212,6 +249,9 @@ export interface RecruiterReviewScore {
   role: { right: number; labelled: number };
   /** Kept early-career people labelled early-career. */
   early_career: { right: number; labelled: number };
+  /** Kept people who work there, with their types confirmed as the title
+   * suggested them. Missing from servers before 2026-10-24. */
+  titles?: { right: number; labelled: number };
   /** Left-out people labelled as recruiters working there now. */
   wrongly_left_out: number;
   left_out_labelled: number;

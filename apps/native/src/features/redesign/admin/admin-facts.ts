@@ -1,7 +1,7 @@
 import { friendlyPollError, sourceNeedsAttention } from "@pinkslip/core/admin-format";
 import type {
   ClassificationDisagreement, Company, FeedbackSubmission, ContentReport, FetchRun, JobReview, PollTierLatency, RecruiterCandidate, RecruiterCompany,
-  RecruiterCompanyChoice, RecruiterKind, RecruiterReviewScore,
+  RecruiterCompanyChoice, RecruiterField, RecruiterJob, RecruiterLevel, RecruiterReviewScore,
 } from "@pinkslip/core/api";
 import { templateLabel } from "@pinkslip/domain/recruiter-review";
 
@@ -170,12 +170,14 @@ export function flagEvidence(review: JobReview): [string, string][] {
 const QUESTIONABLE = new Set(["company not confirmed", "not a recruiter", "no usable name"]);
 const worthASecondLook = (reason: string) => QUESTIONABLE.has(reason) || reason.startsWith("may work at another");
 
-const labelled = (row: RecruiterCandidate) => row.works_there !== null && row.actual_role !== null;
+/** Answered: "works there now", with the types confirmed (L1 sends them with
+ * the answer), or an older build's role. */
+const labelled = (row: RecruiterCandidate) => row.works_there !== null && (row.types_confirmed || row.actual_role !== null);
 
 /** Recruiters (A7, Jev's pattern): who's left to label, one at a time. The
  * kept people first, then the left-out ones worth a second look. A person
- * stays until both questions have answers. Someone skipped (R1) goes to the
- * back of the line, the last skipped last. */
+ * stays until "Works there now?" has an answer. Someone skipped (R1) goes
+ * to the back of the line, the last skipped last. */
 export function recruiterQueue(candidates: RecruiterCandidate[], skipped: string[] = []): RecruiterCandidate[] {
   const open = candidates.filter((row) => !labelled(row));
   const queue = [
@@ -186,14 +188,22 @@ export function recruiterQueue(candidates: RecruiterCandidate[], skipped: string
   return [...queue.filter((row) => !skipped.includes(row.id)), ...back];
 }
 
-const KIND_WORDS: Record<RecruiterKind, string> = {
-  early_career: "Early-career recruiter",
-  technical: "Technical recruiter",
-  recruiter: "Recruiter",
-  coordinator: "Recruiting coordinator",
-  intern: "Recruiting intern",
-  other: "Not a recruiter",
+/* The types' words (Paper L1 and L2), in the questions' order. */
+export const LEVEL_WORDS: Record<RecruiterLevel, string> = {
+  interns: "Interns", new_grads: "New grads", experienced: "Experienced", leadership: "Leadership",
 };
+export const FIELD_WORDS: Record<RecruiterField, string> = {
+  engineering: "Engineering", product_design: "Product and design", business: "Business", research: "Research", everything: "Everything",
+};
+export const JOB_WORDS: Record<RecruiterJob, string> = {
+  recruiter: "Recruiter", sourcer: "Sourcer", coordinator: "Coordinator", programs: "Programs and events", leads: "Leads the team",
+  not_recruiting: "Not in recruiting",
+};
+
+/** "Interns, New grads": the picks, in the questions' order. */
+export function typeWords<T extends string>(values: readonly T[], words: Record<T, string>): string {
+  return (Object.keys(words) as T[]).filter((value) => values.includes(value)).map((value) => words[value]).join(", ");
+}
 
 /** What the search made of a person, as label and value rows (R1). Their
  * location sits here; the card's top line names the company and its site.
@@ -201,9 +211,8 @@ const KIND_WORDS: Record<RecruiterKind, string> = {
 export function recruiterFacts(row: RecruiterCandidate): [string, string][] {
   const facts: [string, string][] = [["Title", row.current_title ?? row.headline]];
   if (row.location) facts.push(["Location", row.location]);
-  facts.push(row.left_out_reason
-    ? ["Left out", row.left_out_reason.replace(/^./, (letter) => letter.toUpperCase())]
-    : ["Kept as", `${KIND_WORDS[row.kind]}${row.kind_from_snippet ? ", from their summary" : ""}`]);
+  // What the search kept them as gave way to From their title (L1).
+  if (row.left_out_reason) facts.push(["Left out", row.left_out_reason.replace(/^./, (letter) => letter.toUpperCase())]);
   return facts;
 }
 
@@ -225,9 +234,11 @@ export function recruiterEmail(row: RecruiterCandidate, company: Pick<RecruiterC
 export function recruiterTally(score: RecruiterReviewScore | undefined): string {
   if (!score || score.works_there.labelled === 0) return "Label a few to see how the search is doing.";
   const of = (right: number, total: number) => `${right} of ${total}`;
-  return `So far: ${of(score.works_there.yes, score.works_there.labelled)} work there now, kind right ${of(score.role.right, score.role.labelled)}, `
-    + `early-career right ${of(score.early_career.right, score.early_career.labelled)}`
-    + (score.left_out_labelled > 0 ? `, ${of(score.wrongly_left_out, score.left_out_labelled)} wrongly left out.` : ".");
+  return [
+    `So far: ${of(score.works_there.yes, score.works_there.labelled)} work there now`,
+    score.titles && score.titles.labelled > 0 ? `${of(score.titles.right, score.titles.labelled)} titles read right` : null,
+    score.left_out_labelled > 0 ? `${of(score.wrongly_left_out, score.left_out_labelled)} wrongly left out` : null,
+  ].filter(Boolean).join(", ") + ".";
 }
 
 /** Under R4's formats: what GitHub's commits and the format pages say. */
@@ -256,6 +267,14 @@ export function companySearchLine(company: Pick<RecruiterCompanyChoice, "searche
   const format = company.pattern ? `${templateLabel(company.pattern)}@` : null;
   if (!company.searched_at) return ["Not searched yet", format].filter(Boolean).join(" · ");
   return [`Searched ${shortDate(company.searched_at)}`, `${company.kept} kept`, format ?? "no format yet"].join(" · ");
+}
+
+/** W1's last line under Wanted: how many people are looking first, then
+ * when it was searched; the format waits for the other views, so it stays
+ * one line. */
+export function wantedLine(company: Pick<RecruiterCompanyChoice, "wanted" | "searched_at" | "kept">): string {
+  if (!company.searched_at) return `${company.wanted} looking · Not searched yet`;
+  return [`${company.wanted} looking`, `Searched ${shortDate(company.searched_at)}`, `${company.kept} kept`].join(" · ");
 }
 
 /** "{first}.{last}" for Dana Whitfield → "dana.whitfield". */

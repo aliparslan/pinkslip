@@ -35,6 +35,14 @@ export interface CompanyPerson {
   thread: { id: string; status: OutreachThreadStatus; first_sent_at: string | null } | null;
 }
 
+/** A company's People: names and titles when signed in; a guest gets only
+ * how many it lists (owner, 2026-10-24). Older servers send no count. */
+export interface CompanyPeople {
+  people: CompanyPerson[];
+  count?: number;
+  signed_in?: boolean;
+}
+
 export interface OutreachThread {
   id: string;
   status: OutreachThreadStatus;

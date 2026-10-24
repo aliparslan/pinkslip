@@ -698,6 +698,23 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
     that recruiter, which counts toward their 5 new people a day;
   - a weekly cap per recruiter applies across everyone;
   - no list, export or copy-all.
+- **The screens** (Paper "Recruiters · types, wanted, guests · Oct 24",
+  approved by the owner 2026-10-24, liberties included), built
+  2026-10-24, not deployed:
+  - **G1, a guest on a company's People:** "3 recruiters at Stripe", "Sign
+    in to see who they are." and Sign in. `features.outreach_people_enabled`
+    says People is open (OUTREACH on, signed in or not); servers before it
+    keep People to signed-in people.
+  - **L1, labelling:** "Their role" and "Kept as" go; From their title has
+    Who they hire, What for, Their job (each opens L2, a sheet of picks with
+    Save) and Agency or contract (a switch). Answering "Works there now?"
+    saves the types as shown, so a right guess is one tap. The tally reads
+    "5 of 6 titles read right" (`score.titles`: people who work there whose
+    confirmed types are the title's guess).
+  - **W1, Wanted:** the first chip in Choose companies, on when it opens
+    unless nobody is waiting anywhere; "Where people are looking", rows
+    leading with "31 looking". **W2:** with nobody to label, Recruiters
+    says how many companies are wanted.
 
 ### Plans and billing (owner, 2026-10-16)
 

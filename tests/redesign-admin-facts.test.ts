@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Company, FetchRun, JobReview, PollTierLatency, RecruiterCandidate } from "../packages/core/src/api";
 import {
-  ago, companySearchLine, exampleName, failingSources, flagEvidence, formatEvidence, lastDay, needsYou, recruiterEmail, recruiterFacts, recruiterQueue,
-  recruiterTally, runLength, runLine, sourceProblem, sourceStatus, tierRow, writeAddress,
+  ago, companySearchLine, exampleName, failingSources, FIELD_WORDS, flagEvidence, formatEvidence, lastDay, LEVEL_WORDS, needsYou, recruiterEmail, recruiterFacts,
+  recruiterQueue, recruiterTally, runLength, runLine, sourceProblem, sourceStatus, tierRow, typeWords, wantedLine, writeAddress,
 } from "../apps/native/src/features/redesign/admin/admin-facts";
 
 const now = new Date(2026, 9, 16, 12, 0).getTime();
@@ -86,15 +86,17 @@ describe("recruiters", () => {
     types: { hires: ["interns", "new_grads"], hires_for: ["everything"], job: "recruiter", agency: false }, types_confirmed: false, ...patch,
   });
 
-  test("the queue is the kept, then left-out people worth a second look, until both questions are answered", () => {
+  test("the queue is the kept, then left-out people worth a second look, until works-there and the types are answered", () => {
     const queue = recruiterQueue([
       person("left", { left_out_reason: "company not confirmed" }),
       person("based abroad", { left_out_reason: "based outside the US" }),
       person("half", { works_there: "yes" }),
-      person("done", { works_there: "yes", actual_role: "early_career" }),
+      person("typed", { types_confirmed: true }),
+      person("done", { works_there: "yes", types_confirmed: true }),
+      person("older build", { works_there: "yes", actual_role: "early_career" }),
       person("kept"),
     ]);
-    expect(queue.map((row) => row.id)).toEqual(["half", "kept", "left"]);
+    expect(queue.map((row) => row.id)).toEqual(["half", "typed", "kept", "left"]);
   });
 
   test("Skip sends someone to the back, and a namesake's people get a second look", () => {
@@ -106,7 +108,7 @@ describe("recruiters", () => {
 
   test("facts say how the search read them, with where they are", () => {
     expect(recruiterFacts(person("a", { kind: "technical", kind_from_snippet: true, location: "Seattle", email_guess: "a@stripe.com" }))).toEqual([
-      ["Title", "University Recruiter"], ["Location", "Seattle"], ["Kept as", "Technical recruiter, from their summary"],
+      ["Title", "University Recruiter"], ["Location", "Seattle"],
     ]);
     expect(recruiterFacts(person("b", { left_out_reason: "not a recruiter" }))[1]).toEqual(["Left out", "Not a recruiter"]);
   });
@@ -142,7 +144,18 @@ describe("recruiters", () => {
 
   test("the tally is one sentence", () => {
     expect(recruiterTally(undefined)).toBe("Label a few to see how the search is doing.");
-    expect(recruiterTally({ works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 }, wrongly_left_out: 1, left_out_labelled: 5 }))
-      .toBe("So far: 21 of 24 work there now, kind right 17 of 21, early-career right 6 of 7, 1 of 5 wrongly left out.");
+    const older = { works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 }, wrongly_left_out: 1, left_out_labelled: 5 };
+    expect(recruiterTally({ ...older, titles: { right: 17, labelled: 20 } }))
+      .toBe("So far: 21 of 24 work there now, 17 of 20 titles read right, 1 of 5 wrongly left out.");
+    // A server from before the types, or no types confirmed yet.
+    expect(recruiterTally(older)).toBe("So far: 21 of 24 work there now, 1 of 5 wrongly left out.");
+    expect(recruiterTally({ ...older, titles: { right: 0, labelled: 0 }, left_out_labelled: 0 })).toBe("So far: 21 of 24 work there now.");
+  });
+
+  test("types read in the questions' order, and Wanted leads with who's looking", () => {
+    expect(typeWords(["new_grads", "interns"], LEVEL_WORDS)).toBe("Interns, New grads");
+    expect(typeWords(["research", "product_design"], FIELD_WORDS)).toBe("Product and design, Research");
+    expect(wantedLine({ wanted: 31, searched_at: null, kept: 0 })).toBe("31 looking · Not searched yet");
+    expect(wantedLine({ wanted: 18, searched_at: "2026-10-14T10:00:00.000Z", kept: 1 })).toBe("18 looking · Searched Oct 14 · 1 kept");
   });
 });

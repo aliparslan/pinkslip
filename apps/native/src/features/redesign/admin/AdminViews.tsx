@@ -1,7 +1,7 @@
 import { readableCode } from "@pinkslip/core/admin-format";
 import type {
-  ActualRole, ClassificationDisagreement, ClassificationVerdict, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
-  RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, WorksThere,
+  ClassificationDisagreement, ClassificationVerdict, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics,
+  RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, RecruiterLabels, WorksThere,
 } from "@pinkslip/core/api";
 import { companySourceLabel } from "@pinkslip/domain/company-sources";
 import { MAIL_TEMPLATES, templateLabel } from "@pinkslip/domain/recruiter-review";
@@ -18,8 +18,8 @@ import { logoUri } from "../../jobs/CompanyLogo";
 import { JobIdentity } from "../JobIdentity";
 import { YouPage } from "../you/Page";
 import {
-  ago, callWord, companySearchLine, failingSources, flagReasons, jevDifferences, recruiterEmail, recruiterFacts, rowAge, runLength, shortDate, sourceProblem,
-  sourceStatus, tierRow, writeAddress,
+  ago, callWord, companySearchLine, failingSources, FIELD_WORDS, flagReasons, JOB_WORDS, jevDifferences, LEVEL_WORDS, recruiterEmail, recruiterFacts, rowAge,
+  runLength, shortDate, sourceProblem, sourceStatus, tierRow, typeWords, wantedLine, writeAddress,
   type Health,
   type NeedsYouRow,
 } from "./admin-facts";
@@ -244,25 +244,31 @@ export function JevView({ rows, judged, budget, onJudge }: {
 const WORKS_THERE: { value: WorksThere; label: string }[] = [
   { value: "yes", label: "Yes" }, { value: "no", label: "No" }, { value: "unsure", label: "Not sure" },
 ];
-const ROLES: { value: ActualRole; label: string }[] = [
-  { value: "early_career", label: "Early-career" }, { value: "other_recruiter", label: "Other recruiter" }, { value: "not_recruiter", label: "Not a recruiter" },
-];
+/** The types a sheet sets (L2). */
+export type TypeQuestion = "hires" | "hires_for" | "job";
 
 /** A7, Recruiters (Paper "Admin · Oct 16", note 7: Jev's pattern): one
- * person at a time, what the search made of them, and the two questions
- * pinned where Jev's verdicts are. With both answered the next person comes
- * up; Skip sends them to the back (Paper "Recruiters · Skip and the company
- * · Oct 19", R1). The top line names the company and its site, so "Works
- * there now?" means that company; an address that isn't at the site is
- * flagged (R2), and tapping Email opens the company's format (R4). Someone
- * labelled "works there" goes on the company's People. */
-export function RecruitersView({ queue, tally, canRun, companies, onLabel, onSkip, onChoose, onFormat, onOpenProfile }: {
+ * person at a time, what the search made of them, and "Works there now?"
+ * pinned where Jev's verdicts are; Skip sends them to the back (Paper
+ * "Recruiters · Skip and the company · Oct 19", R1). The top line names the
+ * company and its site, so the question means that company; an address
+ * that isn't at the site is flagged (R2), and tapping Email opens the
+ * company's format (R4). Under the facts, From their title (Paper
+ * "Recruiters · types, wanted, guests · Oct 24", L1): who they hire, what
+ * for and their job, pre-filled, each opening its sheet (L2), and agency as
+ * a switch. Answering saves the types as shown, so a right guess is one tap,
+ * and the next person comes up. Someone who works there, in recruiting and
+ * not through an agency, goes on the company's People. */
+export function RecruitersView({ queue, tally, canRun, wanted, companies, onLabel, onType, onSkip, onChoose, onFormat, onOpenProfile }: {
   queue: RecruiterCandidate[];
   tally: string;
   canRun: boolean;
+  /** Companies people are looking at with no one listed (W2), once known. */
+  wanted: number | undefined;
   /** The sourcing runs, by company id: its site, format and where that came from. */
   companies: Map<string, RecruiterCompany>;
-  onLabel: (row: RecruiterCandidate, labels: { works_there?: WorksThere; actual_role?: ActualRole }) => void;
+  onLabel: (row: RecruiterCandidate, labels: RecruiterLabels) => void;
+  onType: (row: RecruiterCandidate, question: TypeQuestion) => void;
   onSkip: (row: RecruiterCandidate) => void;
   onChoose: () => void;
   onFormat: (row: RecruiterCandidate) => void;
@@ -271,11 +277,14 @@ export function RecruitersView({ queue, tally, canRun, companies, onLabel, onSki
   const row = queue[0];
   const choose = <PageBarButton icon="add" label="Choose companies" onPress={onChoose} />;
   if (!row) {
+    // W2: with nobody to label, where people are looking is what to search next.
+    const message = !canRun ? "Set SERPER_API_KEY on the Worker to search."
+      : wanted ? `People are looking at ${wanted === 1 ? "1 company" : `${wanted} companies`} with no one listed.` : tally;
     return <YouPage title="Recruiters" action={canRun ? choose : undefined}>
-      <EmptyState title="Nobody to label" message={canRun ? tally : "Set SERPER_API_KEY on the Worker to search."}
-        action={canRun ? { label: "Choose companies", onPress: onChoose } : undefined} />
+      <EmptyState title="Nobody to label" message={message} action={canRun ? { label: "Choose companies", onPress: onChoose } : undefined} />
     </YouPage>;
   }
+  const types = row.types;
   const company = companies.get(row.company_id);
   const email = recruiterEmail(row, company);
   return <YouPage title="" action={<>
@@ -285,11 +294,7 @@ export function RecruitersView({ queue, tally, canRun, companies, onLabel, onSki
     bar={<View style={styles.questions}>
       <View style={styles.question}>
         <Text role="footnote" weight="medium" tone="ink-2">Works there now?</Text>
-        <Segmented value={row.works_there} onChange={(value) => onLabel(row, { works_there: value })} segments={WORKS_THERE} />
-      </View>
-      <View style={styles.question}>
-        <Text role="footnote" weight="medium" tone="ink-2">Their role</Text>
-        <Segmented value={row.actual_role} onChange={(value) => onLabel(row, { actual_role: value })} segments={ROLES} />
+        <Segmented value={row.works_there} onChange={(value) => onLabel(row, { works_there: value, ...types })} segments={WORKS_THERE} />
       </View>
       <Button variant="plain" fullWidth onPress={() => onSkip(row)}>Skip</Button>
     </View>}>
@@ -302,6 +307,12 @@ export function RecruitersView({ queue, tally, canRun, companies, onLabel, onSki
         ? <ListItem key={label} title={label} detail={value} />
         : <ListItem key={label} title={label} value={value} />)}
       <EmailRow detail={email.detail} warning={email.warning} onPress={() => onFormat(row)} />
+    </ListGroup>
+    <ListGroup surface="fill" header="From their title">
+      <ListItem title="Who they hire" value={typeWords(types.hires, LEVEL_WORDS)} accessory="chevron" onPress={() => onType(row, "hires")} />
+      <ListItem title="What for" value={typeWords(types.hires_for, FIELD_WORDS)} accessory="chevron" onPress={() => onType(row, "hires_for")} />
+      <ListItem title="Their job" value={JOB_WORDS[types.job]} accessory="chevron" onPress={() => onType(row, "job")} />
+      <ListItem title="Agency or contract" accessory="switch" selected={types.agency} onToggle={(agency) => onLabel(row, { agency })} />
     </ListGroup>
     <ListGroup surface="fill" footer="Turn on private mode in LinkedIn first, or people see that you viewed them.">
       <ListItem title="Open in LinkedIn" trailing={<Icon name="apply" size={16} tone="ink-3" />} onPress={() => onOpenProfile(row)} />
@@ -325,11 +336,14 @@ function EmailRow({ detail, warning, onPress }: { detail: string; warning: strin
   </Pressable>;
 }
 
-export type CompanyPickFilter = "hiring" | "not_searched" | "has_format";
+export type CompanyPickFilter = "wanted" | "hiring" | "not_searched" | "has_format";
 
 /** R3, Choose companies (Paper "Recruiters · Skip and the company · Oct 19"):
  * Jobs' select pattern for the catalog, most open jobs first; each row says
- * when it was searched and its format. "Search 3 companies" is pinned. */
+ * when it was searched and its format. "Search 3 companies" is pinned.
+ * Wanted (W1, Paper "Recruiters · types, wanted, guests · Oct 24") is the
+ * confirm queue: companies people apply to and open with no one listed, the
+ * most people first, each row leading with how many are looking. */
 export function ChooseCompaniesView({ companies, query, filter, picked, searching, onQuery, onFilter, onToggle, onSearch }: {
   companies: RecruiterCompanyChoice[];
   query: string;
@@ -353,12 +367,13 @@ export function ChooseCompaniesView({ companies, query, filter, picked, searchin
     </View>
     {/* As Jobs' quick filters: they scroll sideways rather than crowd the margin. */}
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipStrip}>
+      {chip("Wanted", "wanted")}
       {chip("Hiring now", "hiring")}
       {chip("Not searched", "not_searched")}
       {chip("Has a format", "has_format")}
     </ScrollView>
     {companies.length === 0 ? <View style={styles.gutterText}><Text tone="ink-2">No companies match.</Text></View> : <View style={styles.bleed}>
-      <SectionHeader title="Most open jobs first" count={companies.length} first />
+      <SectionHeader title={filter === "wanted" ? "Where people are looking" : "Most open jobs first"} count={companies.length} first />
       {companies.map((company) => <View key={company.id} style={styles.pickRow}>
         <Pressable onPress={() => onToggle(company)} accessibilityRole="checkbox" accessibilityState={{ checked: picked.has(company.id) }}
           accessibilityLabel={company.name} hitSlop={8} style={styles.pick}>
@@ -366,11 +381,44 @@ export function ChooseCompaniesView({ companies, query, filter, picked, searchin
         </Pressable>
         <View style={styles.flex}>
           <JobRow headline="company" company={company.name} title={`${company.site} · ${company.open_jobs === 1 ? "1 open job" : `${company.open_jobs} open jobs`}`}
-            facts={companySearchLine(company)} logo={{ name: company.name, uri: logoUri(company.site) }} onPress={() => onToggle(company)} />
+            facts={filter === "wanted" ? wantedLine(company) : companySearchLine(company)} logo={{ name: company.name, uri: logoUri(company.site) }} onPress={() => onToggle(company)} />
         </View>
       </View>)}
     </View>}
   </YouPage>;
+}
+
+/** L2, one of a person's types (Paper "Recruiters · types, wanted, guests ·
+ * Oct 24"): the kit's plain picks with round checks, the title the guess
+ * came from above them. Who they hire and What for take several; Their job
+ * one. Save sets it on the card. */
+export function RecruiterTypeSheet<T extends string>({ title, from, words, multiple, initial, onSave }: {
+  title: string;
+  /** The person's title, which the guess was read from. */
+  from: string;
+  words: Record<T, string>;
+  multiple: boolean;
+  initial: readonly T[];
+  onSave: (values: T[]) => void;
+}) {
+  const sheet = useSheet();
+  const [picked, setPicked] = useState<T[]>(() => [...initial]);
+  const pick = (value: T) => setPicked((current) =>
+    !multiple ? [value] : current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+  return <SheetStep id="type">
+    <View style={styles.sheetHeading}>
+      <SheetHeader title={title} />
+      <Text role="subhead" tone="ink-2">{`Read from “${from}”.`}</Text>
+    </View>
+    <Choices>
+      {(Object.keys(words) as T[]).map((value) => <Choice key={value} plain multiple={multiple} title={words[value]}
+        selected={picked.includes(value)} onPress={() => pick(value)} />)}
+    </Choices>
+    <Button variant="primary" fullWidth disabled={picked.length === 0} onPress={() => {
+      onSave(picked);
+      sheet.close();
+    }}>Save</Button>
+  </SheetStep>;
 }
 
 /** R4, a company's email format: the domain, the common formats written out

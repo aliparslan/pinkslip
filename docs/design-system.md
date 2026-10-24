@@ -742,7 +742,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   under row titles; if a row needs one, reword its title (owner,
   2026-10-15, on Alerts).
 - **People** (Outreach): a round 40 avatar of initials (Founders 15
-  `ink-2` on `fill`), where companies have square logos.
+  `ink-2` on `fill`), where companies have square logos. A guest sees only
+  how many, as the empty state: "3 recruiters at Stripe", "Sign in to see
+  who they are." and Sign in (owner, 2026-10-24, Paper "Recruiters · types,
+  wanted, guests · Oct 24", G1).
 - **The sample person** (owner, 2026-10-15): one Jordan Lee everywhere, a
   recent grad with a personal address (jordan@lee.dev), searching New grad
   and Early career ("New grad +1"). No school email, no "Interns" search.

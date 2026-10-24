@@ -96,7 +96,10 @@ What it does:
   recruiters and sourcers ahead of the rest.
 - **Shown:** the recruiter's own title. The types only rank and filter.
 
-The Admin labelling screen changes in Paper first.
+The Admin labelling screen was drawn in Paper ("Recruiters · types,
+wanted, guests · Oct 24", L1 and L2) and approved by the owner on
+2026-10-24: From their title under the facts, each type opening a sheet of
+picks, agency as a switch, and "Works there now?" saving the types as shown.
 
 **Built 2026-10-24, not deployed:**
 - **The fields:** migration `0104_recruiter_types.sql` adds `hires`,

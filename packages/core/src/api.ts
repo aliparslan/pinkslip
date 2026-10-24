@@ -17,7 +17,7 @@ export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
 import type { CompanyEvent } from "@pinkslip/domain/company-events";
 import type { PayRange } from "@pinkslip/domain/pay-ranges";
 export type { CompanyEvent } from "@pinkslip/domain/company-events";
-import type { CompanyPerson, OutreachThread } from "@pinkslip/domain/outreach";
+import type { CompanyPeople, OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 import type {
@@ -26,6 +26,7 @@ import type {
   RecruiterCompanyChoice,
   RecruiterField,
   RecruiterJob,
+  RecruiterLabels,
   RecruiterLevel,
   RecruiterReview,
   RecruiterRun,
@@ -58,14 +59,16 @@ export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage
 export type { DetectedStage, ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 export type {
   ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, RecruiterField, RecruiterJob, RecruiterKind, RecruiterLevel,
-  RecruiterReview, RecruiterReviewScore, RecruiterRun, RecruiterTypes, WorksThere,
+  RecruiterLabels, RecruiterReview, RecruiterReviewScore, RecruiterRun, RecruiterTypes, WorksThere,
 } from "@pinkslip/domain/recruiter-review";
+export { withRecruiterLabels } from "@pinkslip/domain/recruiter-review";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
 /** Web passes a File; native passes expo-file-system's `File`, which is a Blob.
  * A bare `{ uri, name, type }` reference does not upload through Expo's fetch. */
 export type ResumeUploadFile = Blob;
 export type {
+  CompanyPeople,
   CompanyPerson,
   OutreachContact,
   OutreachMessage,
@@ -499,6 +502,8 @@ export interface AccountInfo {
 export interface AppFeatures {
   access_required: boolean;
   outreach_enabled?: boolean;
+  /** A company's People: names when signed in, a count for guests. */
+  outreach_people_enabled?: boolean;
   auto_apply_enabled?: boolean;
   auto_submit_enabled?: boolean;
   /** Pinkslip's own browser sends applications (admins only for now). */
@@ -1037,7 +1042,7 @@ function createEndpoints(context: ClientContext) {
      * there, best first. Guests get the count alone ("3 recruiters at Stripe ·
      * Sign in to see them"). */
     people: (companyId: string) =>
-      request<{ people: CompanyPerson[]; count?: number; signed_in?: boolean }>(`/outreach/companies/${encodeURIComponent(companyId)}/people`),
+      request<CompanyPeople>(`/outreach/companies/${encodeURIComponent(companyId)}/people`),
     /** Someone from People: your thread with them, or a new draft. */
     open: (contactId: string, jobId?: string) =>
       request<OutreachThread>("/outreach/threads", {
@@ -1264,14 +1269,7 @@ function createEndpoints(context: ClientContext) {
         method: "PUT",
         body: JSON.stringify({ domain, template }),
       }),
-    label: (id: string, labels: {
-      works_there?: WorksThere | null;
-      actual_role?: ActualRole | null;
-      hires?: RecruiterLevel[] | null;
-      hires_for?: RecruiterField[] | null;
-      job?: RecruiterJob | null;
-      agency?: boolean | null;
-    }) =>
+    label: (id: string, labels: RecruiterLabels) =>
       request<RecruiterCandidate>(`/recruiters/candidates/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(labels) }),
   },
   ops: {

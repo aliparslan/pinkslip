@@ -178,6 +178,8 @@ describe("recruiter review storage", () => {
       works_there: { yes: 1, labelled: 2 },
       role: { right: 1, labelled: 2 },
       early_career: { right: 1, labelled: 1 },
+      // Avery's older early-career answer is what "University Recruiter" suggests.
+      titles: { right: 1, labelled: 1 },
       wrongly_left_out: 1,
       left_out_labelled: 1,
     });

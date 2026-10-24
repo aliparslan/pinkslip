@@ -1,6 +1,8 @@
 import {
   kindMatchesRole,
   recruiterTypes,
+  recruiterTypesFromTitle,
+  sameTypes,
   typesFromActualRole,
   type ActualRole,
   type RecruiterCandidate,
@@ -9,6 +11,7 @@ import {
   type RecruiterLevel,
   type RecruiterCompany,
   type RecruiterCompanyChoice,
+  type RecruiterLabels,
   type RecruiterReview,
   type RecruiterReviewScore,
   type WorksThere,
@@ -153,25 +156,23 @@ export function scoreReview(rows: RecruiterCandidate[]): RecruiterReviewScore {
   const withWorks = kept.filter((row) => row.works_there === "yes" || row.works_there === "no");
   const withRole = kept.filter((row) => row.actual_role !== null);
   const early = withRole.filter((row) => row.kind === "early_career");
-  const leftOutLabelled = leftOut.filter((row) => row.works_there !== null && row.actual_role !== null);
+  // Admin confirms the types with "works there"; they only matter for those who do.
+  const confirmed = kept.filter((row) => row.works_there === "yes" && row.types_confirmed);
+  const leftOutLabelled = leftOut.filter((row) => row.works_there !== null && (row.types_confirmed || row.actual_role !== null));
   return {
     works_there: { yes: withWorks.filter((row) => row.works_there === "yes").length, labelled: withWorks.length },
     role: { right: withRole.filter((row) => kindMatchesRole(row.kind, row.actual_role!)).length, labelled: withRole.length },
     early_career: { right: early.filter((row) => row.actual_role === "early_career").length, labelled: early.length },
-    wrongly_left_out: leftOutLabelled.filter((row) => row.works_there === "yes" && row.actual_role !== "not_recruiter").length,
+    titles: {
+      right: confirmed.filter((row) => sameTypes(row.types, recruiterTypesFromTitle(row.current_title?.trim() || row.headline))).length,
+      labelled: confirmed.length,
+    },
+    wrongly_left_out: leftOutLabelled.filter((row) => row.works_there === "yes" && row.types.job !== "not_recruiting").length,
     left_out_labelled: leftOutLabelled.length,
   };
 }
 
-export interface CandidateLabels {
-  works_there?: WorksThere | null;
-  /** Older Admin builds' single answer; it fills the types it implies. */
-  actual_role?: ActualRole | null;
-  hires?: RecruiterLevel[] | null;
-  hires_for?: RecruiterField[] | null;
-  job?: RecruiterJob | null;
-  agency?: boolean | null;
-}
+export type CandidateLabels = RecruiterLabels;
 
 /**
  * Sets any label, or clears it with null; what's left out stays. Confirming

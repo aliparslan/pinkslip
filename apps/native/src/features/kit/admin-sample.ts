@@ -128,5 +128,6 @@ export const SAMPLE_COMPANY_CHOICES: RecruiterCompanyChoice[] = [
 ];
 
 export const SAMPLE_RECRUITER_SCORE: RecruiterReviewScore = {
-  works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 }, wrongly_left_out: 1, left_out_labelled: 5,
+  works_there: { yes: 21, labelled: 24 }, role: { right: 17, labelled: 21 }, early_career: { right: 6, labelled: 7 },
+  titles: { right: 17, labelled: 20 }, wrongly_left_out: 1, left_out_labelled: 5,
 };

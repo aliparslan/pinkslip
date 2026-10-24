@@ -1,6 +1,6 @@
-import type {
-  ActualRole, ApiClient, ClassificationDisagreement, ClassificationDisagreements, ClassificationVerdict, ContentReport,
-  FeedbackSubmission, JobReview, RecruiterCandidate, RecruiterReview, WorksThere,
+import {
+  withRecruiterLabels, type ApiClient, type ClassificationDisagreement, type ClassificationDisagreements, type ClassificationVerdict,
+  type ContentReport, type FeedbackSubmission, type JobReview, type RecruiterCandidate, type RecruiterLabels, type RecruiterReview,
 } from "@pinkslip/core/api";
 import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
@@ -185,7 +185,7 @@ export function useRunRecruiterSourcing() {
 }
 
 /** Catalog companies to choose from (Paper R3), most open jobs first. */
-export function useRecruiterCompanies(q: string, filter: "hiring" | "not_searched" | "has_format" | undefined, enabled = true) {
+export function useRecruiterCompanies(q: string, filter: "wanted" | "hiring" | "not_searched" | "has_format" | undefined, enabled = true) {
   const api = useApi();
   return useQuery({
     queryKey: queryKeys.personal.recruiterCompanies(q.trim(), filter ?? ""),
@@ -234,12 +234,11 @@ export function useRecruiterLabel() {
       candidates: review.candidates?.map((row) => (row.id === id ? update(row) : row)),
     });
   return useMutation({
-    mutationFn: ({ id, labels }: { id: string; labels: { works_there?: WorksThere | null; actual_role?: ActualRole | null } }) =>
-      api.recruiters.label(id, labels),
+    mutationFn: ({ id, labels }: { id: string; labels: RecruiterLabels }) => api.recruiters.label(id, labels),
     onMutate: async ({ id, labels }) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<RecruiterReview>(key);
-      patch(id, (row) => ({ ...row, ...labels }));
+      patch(id, (row) => withRecruiterLabels(row, labels));
       return { previous };
     },
     onError: (_error, _variables, context) => {

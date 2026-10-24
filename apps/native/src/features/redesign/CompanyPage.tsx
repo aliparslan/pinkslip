@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { Text as RNText } from "react-native";
+import { openSignIn } from "../account/sign-in-request";
 import { initials } from "./outreach/outreach-facts";
 import { shortDate } from "./tracker-facts";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -38,9 +39,12 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   const jobs = feed.jobs;
   const [segment, setSegment] = useState<Segment>("jobs");
   // People (O1, O13): the recruiters the owner confirmed here, and anyone
-  // you've written to.
+  // you've written to; a guest sees how many (G1). Servers before
+  // 2026-10-24 don't say, and keep People to signed-in people.
   const session = useSession().data;
-  const people = useCompanyPeople(companyId, session?.state === "authenticated" && Boolean(session.me?.features?.outreach_enabled));
+  const features = session?.me?.features;
+  const people = useCompanyPeople(companyId, features?.outreach_people_enabled ?? (session?.state === "authenticated" && Boolean(features?.outreach_enabled)));
+  const peopleCount = people.data?.signed_in === false ? people.data.count : people.data?.people.length;
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
 
@@ -62,11 +66,12 @@ export function CompanyPage({ companyId }: { companyId: string }) {
         </View>
       </View>
       <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
-        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: people.data?.length || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: peopleCount || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
       ]} /></View>
     </View>
     {segment === "people"
-      ? <People people={people.data} pending={people.isPending && people.fetchStatus !== "idle"} company={plainText(name)} />
+      ? <People people={people.data?.people} guestCount={people.data?.signed_in === false ? people.data.count ?? 0 : undefined}
+        pending={people.isPending && people.fetchStatus !== "idle"} company={plainText(name)} />
       : segment === "events"
       ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <RowPlaceholders lines={2} logo={false} />
@@ -93,11 +98,16 @@ function CompanyEvents({ events, pending, company }: { events: CompanyEvent[] | 
 
 /** O1: a round avatar of initials, the name and title; someone you've
  * written to shows the paper plane and the date. O13 when there's no one.
- * Someone new opens as a draft to them, ready for "Write to". */
-function People({ people, pending, company }: { people: CompanyPerson[] | undefined; pending: boolean; company: string }) {
+ * Someone new opens as a draft to them, ready for "Write to". A guest sees
+ * only how many, and Sign in (G1, owner 2026-10-24). */
+function People({ people, guestCount, pending, company }: { people: CompanyPerson[] | undefined; guestCount?: number; pending: boolean; company: string }) {
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const open = useOpenPerson();
   if (pending) return <RowPlaceholders rows={3} />;
+  if (guestCount) {
+    return <EmptyState title={`${guestCount} ${guestCount === 1 ? "recruiter" : "recruiters"} at ${company}`} message="Sign in to see who they are."
+      action={{ label: "Sign in", onPress: () => openSignIn() }} />;
+  }
   if (!people?.length) {
     return <EmptyState title="No one listed yet" message={`People at ${company} show up here as Pinkslip finds them.`} />;
   }

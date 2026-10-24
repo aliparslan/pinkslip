@@ -1,5 +1,8 @@
 import { readableCode } from "@pinkslip/core/admin-format";
-import type { ClassificationDisagreement, ClassificationVerdict, Company, RecruiterCandidate, RecruiterCompanyChoice } from "@pinkslip/core/api";
+import {
+  withRecruiterLabels, type ClassificationDisagreement, type ClassificationVerdict, type Company, type RecruiterCandidate, type RecruiterCompanyChoice,
+  type RecruiterLabels, type RecruiterReviewScore,
+} from "@pinkslip/core/api";
 import { MAIL_TEMPLATES } from "@pinkslip/domain/recruiter-review";
 import {
   MANUAL_SWEEP_BATCHES, useClassificationReport, useClassificationVerdict, useCompanies, useDeleteCompany, useFeedbackInbox, useJobReviews, useModerateFeedback,
@@ -8,7 +11,7 @@ import {
 } from "@pinkslip/data";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Linking } from "react-native";
 import { EmptyState, SheetModal, toast, UNDO_TOAST_DURATION } from "../../../ui";
 import {
@@ -18,12 +21,13 @@ import {
 import { YouPage } from "../you/Page";
 import { SourceSheet } from "./SourceSheet";
 import {
-  ago, exampleName, failingSources, flagEvidence, formatEvidence, lastDay, needsYou, recruiterQueue, recruiterTally, runLine, shortDate,
+  ago, exampleName, failingSources, FIELD_WORDS, flagEvidence, formatEvidence, JOB_WORDS, lastDay, LEVEL_WORDS, needsYou, recruiterQueue, recruiterTally, runLine,
+  shortDate,
 } from "./admin-facts";
 import {
   AdminHomeView, askForNote, ChooseCompaniesView, DecideView, feedbackRow, flaggedRow, HealthView, InboxListView, JevView, RecruiterFormatSheet, RecruitersView,
-  reportRow, RunsView, SourcesView,
-  type AdminTool, type CompanyPickFilter, type InboxRow,
+  RecruiterTypeSheet, reportRow, RunsView, SourcesView,
+  type AdminTool, type CompanyPickFilter, type InboxRow, type TypeQuestion,
 } from "./AdminViews";
 
 /**
@@ -95,7 +99,7 @@ export function AdminHomePage() {
       sources: companies.data ? String(companies.data.filter((company) => company.enabled).length) : undefined,
       health: "30 days",
       jev: compared > 0 ? `${Math.round(((counts?.agree ?? 0) / compared) * 100)}% agree` : undefined,
-      recruiters: score && score.role.labelled > 0 ? `${Math.round((score.role.right / score.role.labelled) * 100)}% right` : undefined,
+      recruiters: recruiterRight(score),
     }}
     onOpen={(id) => router.push(adminHref(id, false))} />;
 }
@@ -255,7 +259,13 @@ export function JevPage() {
     }} />;
 }
 
-/** A7 with R1, R2 and R4, live and sample. */
+/** Home's Recruiters line: how often a title's guess at the types held. */
+function recruiterRight(score: RecruiterReviewScore | undefined): string | undefined {
+  const measured = score?.titles ?? score?.role;
+  return measured && measured.labelled > 0 ? `${Math.round((measured.right / measured.labelled) * 100)}% right` : undefined;
+}
+
+/** A7 with R1, R2 and R4, and L1, L2 and W2, live and sample. */
 export function RecruitersPage() {
   const sample = useAdminSample();
   const review = useRecruiterReview();
@@ -265,6 +275,11 @@ export function RecruitersPage() {
   // Skips last while you're here; on your next visit they're back in line.
   const [skipped, setSkipped] = useState<string[]>([]);
   const [formatFor, setFormatFor] = useState<RecruiterCandidate | null>(null);
+  const [typeFor, setTypeFor] = useState<{ row: RecruiterCandidate; question: TypeQuestion } | null>(null);
+  const rows = sample ? sampleRows : review.data?.candidates ?? [];
+  const queue = recruiterQueue(rows, skipped);
+  // W2: how many companies are waiting, once there's nobody left to label.
+  const wanted = useRecruiterCompanies("", "wanted", !sample && review.isSuccess && queue.length === 0);
   if (!sample && review.isPending) return <YouPage title="Recruiters">{null}</YouPage>;
   if (!sample && review.isError) {
     return <YouPage title="Recruiters">
@@ -274,22 +289,26 @@ export function RecruitersPage() {
   if (!sample && !review.data?.available) {
     return <YouPage title="Recruiters"><EmptyState title="Not set up yet" message="Run the latest database migration to review recruiters." /></YouPage>;
   }
-  const rows = sample ? sampleRows : review.data?.candidates ?? [];
   const companies = new Map((sample ? SAMPLE_RECRUITER_COMPANIES : review.data?.companies ?? []).map((company) => [company.company_id, company]));
   const company = formatFor ? companies.get(formatFor.company_id) : undefined;
   const guessedDomain = formatFor?.email_guess ? formatFor.email_guess.slice(formatFor.email_guess.lastIndexOf("@") + 1) : "";
+  const labelRow = (row: RecruiterCandidate, labels: RecruiterLabels) => {
+    if (sample) { setSampleRows(rows.map((item) => item.id === row.id ? withRecruiterLabels(item, labels) : item)); return; }
+    label.mutate({ id: row.id, labels }, { onError: failed });
+  };
   return <>
-    <RecruitersView queue={recruiterQueue(rows, skipped)} tally={recruiterTally(sample ? SAMPLE_RECRUITER_SCORE : review.data?.score)}
+    <RecruitersView queue={queue} tally={recruiterTally(sample ? SAMPLE_RECRUITER_SCORE : review.data?.score)}
       canRun={sample || Boolean(review.data?.can_run)} companies={companies}
-      onLabel={(row, labels) => {
-        if (sample) { setSampleRows(rows.map((item) => item.id === row.id ? { ...item, ...labels } : item)); return; }
-        label.mutate({ id: row.id, labels }, { onError: failed });
-      }}
+      wanted={sample ? sampleChoices("", "wanted").length : wanted.data?.length}
+      onLabel={labelRow} onType={(row, question) => setTypeFor({ row, question })}
       onSkip={(row) => setSkipped((current) => [...current.filter((id) => id !== row.id), row.id])}
       onChoose={() => router.push((sample ? "/you/admin/recruiter-companies?sample=on" : "/you/admin/recruiter-companies") as Href)}
       onFormat={setFormatFor}
       // LinkedIn's app, where the owner is signed in.
       onOpenProfile={(row) => sample ? sampled("LinkedIn would open")() : void Linking.openURL(row.profile_url)} />
+    <SheetModal open={typeFor !== null} onClosed={() => setTypeFor(null)}>
+      {typeFor ? <TypeSheet row={typeFor.row} question={typeFor.question} onLabel={labelRow} /> : null}
+    </SheetModal>
     <SheetModal open={formatFor !== null} onClosed={() => setFormatFor(null)}>
       {formatFor ? <RecruiterFormatSheet companyName={formatFor.company}
         initialDomain={company?.pattern_source === "owner" ? company.mail_domain : company?.site ?? guessedDomain}
@@ -311,14 +330,40 @@ export function RecruitersPage() {
   </>;
 }
 
+/** L2 for each question: the words, how many it takes, and what Save sets. */
+function TypeSheet({ row, question, onLabel }: {
+  row: RecruiterCandidate;
+  question: TypeQuestion;
+  onLabel: (row: RecruiterCandidate, labels: RecruiterLabels) => void;
+}) {
+  const from = row.current_title?.trim() || row.headline;
+  if (question === "hires") {
+    return <RecruiterTypeSheet title="Who they hire" from={from} words={LEVEL_WORDS} multiple initial={row.types.hires}
+      onSave={(hires) => onLabel(row, { hires })} />;
+  }
+  if (question === "hires_for") {
+    return <RecruiterTypeSheet title="What for" from={from} words={FIELD_WORDS} multiple initial={row.types.hires_for}
+      onSave={(hires_for) => onLabel(row, { hires_for })} />;
+  }
+  return <RecruiterTypeSheet title="Their job" from={from} words={JOB_WORDS} multiple={false} initial={[row.types.job]}
+    onSave={([job]) => onLabel(row, { job })} />;
+}
+
 /** R3, live and sample: pick the companies to search. */
 export function RecruiterCompaniesPage() {
   const sample = useAdminSample();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<CompanyPickFilter | undefined>();
+  // W1: Wanted first; with nobody waiting anywhere it steps aside for the
+  // whole catalog, unless you picked it.
+  const [filter, setFilter] = useState<CompanyPickFilter | undefined>("wanted");
+  const [chose, setChose] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const list = useRecruiterCompanies(query, filter, !sample);
   const run = useRunRecruiterCompanies();
+  const nobodyWaiting = filter === "wanted" && !chose && !query.trim() && (sample ? sampleChoices("", "wanted").length === 0 : list.isSuccess && list.data.length === 0);
+  useEffect(() => {
+    if (nobodyWaiting) setFilter(undefined);
+  }, [nobodyWaiting]);
   if (!sample && list.isPending) return <YouPage title="Choose companies">{null}</YouPage>;
   if (!sample && list.isError) {
     return <YouPage title="Choose companies">
@@ -345,15 +390,17 @@ export function RecruiterCompaniesPage() {
     });
   };
   return <ChooseCompaniesView companies={companies} query={query} filter={filter} picked={picked} searching={run.isPending}
-    onQuery={setQuery} onFilter={setFilter} onToggle={toggle} onSearch={search} />;
+    onQuery={setQuery} onFilter={(next) => { setChose(true); setFilter(next); }} onToggle={toggle} onSearch={search} />;
 }
 
 function sampleChoices(query: string, filter: CompanyPickFilter | undefined): RecruiterCompanyChoice[] {
   const q = query.trim().toLowerCase();
-  return SAMPLE_COMPANY_CHOICES.filter((company) => (!q || company.name.toLowerCase().includes(q) || company.site.includes(q))
+  const matches = SAMPLE_COMPANY_CHOICES.filter((company) => (!q || company.name.toLowerCase().includes(q) || company.site.includes(q))
+    && (filter !== "wanted" || (company.wanted > 0 && company.listed === 0))
     && (filter !== "hiring" || company.open_jobs > 0)
     && (filter !== "not_searched" || company.searched_at === null)
     && (filter !== "has_format" || company.pattern !== null));
+  return filter === "wanted" ? matches.sort((a, b) => b.wanted - a.wanted) : matches;
 }
 
 /** A5, live and sample. */
