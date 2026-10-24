@@ -1,13 +1,26 @@
 import type { DescriptionBlock, DescriptionRun } from "@pinkslip/core/job-description";
 import * as WebBrowser from "expo-web-browser";
-import { Text as RNText, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import type { ReactNode } from "react";
+import { Text as RNText, TextInput, View, type StyleProp, type TextStyle } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { faces, useUiFontsLoaded } from "../../ui";
 
 function Runs({ runs, loaded }: { runs: DescriptionRun[]; loaded: boolean }) {
   return runs.map((run, index) => <RNText key={index}
     style={[run.bold && (loaded ? styles.boldFace : styles.boldWeight), run.italic && styles.italic, run.href && styles.link]}
     onPress={run.href ? () => void WebBrowser.openBrowserAsync(run.href!) : undefined}>{run.text}</RNText>);
+}
+
+/** A paragraph you can select part of, highlighted in pink (owner,
+ * 2026-10-24). iOS selects in a text view: `selectable` text only offers to
+ * copy all of it. A text view can't tell which run a tap landed on, so a
+ * paragraph with a link stays text, and its links open. */
+function Paragraph({ runs, loaded, style }: { runs: DescriptionRun[]; loaded: boolean; style: StyleProp<TextStyle> }) {
+  const { theme } = useUnistyles();
+  const children: ReactNode = <Runs runs={runs} loaded={loaded} />;
+  if (runs.some((run) => run.href)) return <RNText selectable style={style}>{children}</RNText>;
+  return <TextInput editable={false} multiline scrollEnabled={false} selectionColor={theme.ui.color.accent}
+    style={[style, styles.selectable]}>{children}</TextInput>;
 }
 
 /** The posting in the redesign's long-text style (17/24), drawn from core's
@@ -22,11 +35,11 @@ export function Description({ blocks }: { blocks: DescriptionBlock[] }) {
           <Runs runs={block.runs} loaded={loaded} />
         </RNText>;
       }
-      if (block.kind === "paragraph") return <RNText key={index} selectable style={[styles.paragraph, text]}><Runs runs={block.runs} loaded={loaded} /></RNText>;
+      if (block.kind === "paragraph") return <Paragraph key={index} runs={block.runs} loaded={loaded} style={[styles.paragraph, text]} />;
       return <View key={index} style={styles.list}>
         {block.items.map((item, itemIndex) => <View key={itemIndex} style={styles.item}>
           <RNText style={[styles.marker, text]}>{block.ordered ? `${itemIndex + 1}.` : "•"}</RNText>
-          <RNText selectable style={[styles.paragraph, text, styles.itemText]}><Runs runs={item} loaded={loaded} /></RNText>
+          <Paragraph runs={item} loaded={loaded} style={[styles.paragraph, text, styles.itemText]} />
         </View>)}
       </View>;
     })}
@@ -48,5 +61,7 @@ const styles = StyleSheet.create((theme) => {
     item: { flexDirection: "row", gap: theme.ui.space["2"] },
     marker: { color: theme.ui.color["ink-3"], fontSize: long.size, lineHeight: long.line, minWidth: 12 },
     itemText: { flex: 1 },
+    // A text view brings no padding of its own to the page.
+    selectable: { padding: 0 },
   };
 });

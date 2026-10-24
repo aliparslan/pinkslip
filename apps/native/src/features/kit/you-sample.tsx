@@ -54,9 +54,14 @@ const SAMPLE_SUPPORT_OFFER: SupportOffer = { once: [], other: null, monthly: [],
  * changes. Nothing is saved. */
 export function SampleAlertsPage() {
   const [newJobs, setNewJobs] = useState<NewJobAlerts>("daily");
+  const [dailyAt, setDailyAt] = useState("08:00");
   const [changes, setChanges] = useState(true);
-  return <AlertsView newJobs={newJobs} dailyAt="8:00 AM" applicationChanges={changes} actions={{
+  return <AlertsView newJobs={newJobs} dailyAt={dailyAt} applicationChanges={changes} actions={{
     setNewJobs,
+    setDailyTime: (time) => {
+      setDailyAt(time);
+      setNewJobs("daily");
+    },
     setApplicationChanges: setChanges,
     sendTest: async () => {
       await wait(600);
