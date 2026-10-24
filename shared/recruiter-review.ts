@@ -10,6 +10,111 @@ export type ActualRole = (typeof ACTUAL_ROLES)[number];
 
 export type RecruiterKind = "early_career" | "technical" | "recruiter" | "coordinator" | "intern" | "other";
 
+/* Recruiter types (owner, 2026-10-24; docs/recruiter-types-2026-10-19.md):
+ * three short questions, pre-filled from the title so labelling is mostly a
+ * confirm, plus a mark for agency or contract. They decide who's listed on
+ * People and who comes first; People shows the recruiter's own title. */
+export const RECRUITER_LEVELS = ["interns", "new_grads", "experienced", "leadership"] as const;
+export type RecruiterLevel = (typeof RECRUITER_LEVELS)[number];
+export const RECRUITER_FIELDS = ["engineering", "product_design", "business", "research", "everything"] as const;
+export type RecruiterField = (typeof RECRUITER_FIELDS)[number];
+export const RECRUITER_JOBS = ["recruiter", "sourcer", "coordinator", "programs", "leads", "not_recruiting"] as const;
+export type RecruiterJob = (typeof RECRUITER_JOBS)[number];
+
+export interface RecruiterTypes {
+  /** Who they hire. Several allowed. */
+  hires: RecruiterLevel[];
+  /** What they hire for. Several allowed. */
+  hires_for: RecruiterField[];
+  /** What they do in recruiting. */
+  job: RecruiterJob;
+  /** Hired through an outside firm or on a fixed term: never listed. */
+  agency: boolean;
+}
+
+/** The types a title suggests, for the owner to confirm. */
+export function recruiterTypesFromTitle(title: string): RecruiterTypes {
+  const text = title.toLowerCase();
+  const hires: RecruiterLevel[] = [];
+  const early = /universit|campus|college|early.?(career|talent)|new.?grad|graduate|emerging talent|student|entry.?level/.test(text);
+  if (/\bintern(s|ship)?\b|co-?op/.test(text) || early) hires.push("interns");
+  if (early) hires.push("new_grads");
+  if (/executive|leadership/.test(text)) hires.push("leadership");
+  if (/experienced|lateral|senior hiring/.test(text) || hires.length === 0) hires.push("experienced");
+
+  const hiresFor: RecruiterField[] = [];
+  if (/technical|tech\b|engineer|software|developer|\bit\b|infrastructure|security|data\b|machine learning|\bml\b/.test(text)) hiresFor.push("engineering");
+  if (/product|design/.test(text)) hiresFor.push("product_design");
+  if (/business|sales|go.?to.?market|\bgtm\b|finance|marketing|operations|corporate|g&a|legal/.test(text)) hiresFor.push("business");
+  if (/research|scien|\bphd\b/.test(text)) hiresFor.push("research");
+  if (hiresFor.length === 0) hiresFor.push("everything");
+
+  const recruiting = /recruit|talent|sourc|staffing|hiring/.test(text);
+  const job: RecruiterJob = /sourc/.test(text)
+    ? "sourcer"
+    : /coordinat|schedul/.test(text)
+      ? "coordinator"
+      : /program|relations|events|employer brand/.test(text) && recruiting
+        ? "programs"
+        : /head of|\bvp\b|vice president|director|\blead\b|manager/.test(text) && recruiting
+          ? "leads"
+          : recruiting
+            ? "recruiter"
+            : "not_recruiting";
+  const agency = /agency|contract(or)?\b|\brpo\b|staffing|consultant|freelance|on behalf of/.test(text);
+  return { hires, hires_for: hiresFor, job, agency };
+}
+
+function listOf<T extends string>(json: string | null, allowed: readonly T[]): T[] | null {
+  if (!json) return null;
+  try {
+    const value = JSON.parse(json) as unknown;
+    if (!Array.isArray(value)) return null;
+    const kept = value.filter((item): item is T => (allowed as readonly unknown[]).includes(item));
+    return kept.length > 0 ? kept : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A recruiter's types as stored: the owner's answers where given, the
+ * title's suggestion for the rest. Confirmed once the owner has answered
+ * their job. */
+export function recruiterTypes(row: {
+  current_title: string | null;
+  headline: string;
+  hires: string | null;
+  hires_for: string | null;
+  job: RecruiterJob | null;
+  agency: number | null;
+  /** The single answer older labels gave, for what the new ones leave out. */
+  actual_role?: ActualRole | null;
+}): { types: RecruiterTypes; confirmed: boolean } {
+  const suggested = recruiterTypesFromTitle(row.current_title?.trim() || row.headline);
+  const older = row.actual_role ? typesFromActualRole(row.actual_role) : {};
+  return {
+    types: {
+      hires: listOf<RecruiterLevel>(row.hires, RECRUITER_LEVELS) ?? older.hires ?? suggested.hires,
+      hires_for: listOf<RecruiterField>(row.hires_for, RECRUITER_FIELDS) ?? suggested.hires_for,
+      job: row.job ?? older.job ?? suggested.job,
+      agency: row.agency === null ? suggested.agency : row.agency === 1,
+    },
+    confirmed: row.job !== null,
+  };
+}
+
+/** Listed on People: in recruiting, and not through an agency or on contract. */
+export function listable(types: RecruiterTypes): boolean {
+  return types.job !== "not_recruiting" && !types.agency;
+}
+
+/** What an older Admin build's single answer says in the new terms. */
+export function typesFromActualRole(role: ActualRole): Partial<RecruiterTypes> {
+  if (role === "early_career") return { job: "recruiter", hires: ["interns", "new_grads"] };
+  if (role === "other_recruiter") return { job: "recruiter" };
+  return { job: "not_recruiting" };
+}
+
 export interface RecruiterCandidate {
   id: string;
   company_id: string;
@@ -31,6 +136,10 @@ export interface RecruiterCandidate {
   email_confidence: string | null;
   works_there: WorksThere | null;
   actual_role: ActualRole | null;
+  /** The owner's answers, or the title's suggestion where there's none yet. */
+  types: RecruiterTypes;
+  /** Whether the owner confirmed the types (otherwise they're the suggestion). */
+  types_confirmed: boolean;
   reviewed_at: string | null;
 }
 
@@ -65,6 +174,11 @@ export interface RecruiterCompanyChoice {
   name: string;
   site: string;
   open_jobs: number;
+  /** People who saved, applied to or opened its jobs in the last 30 days
+   * (the confirm queue's order). */
+  wanted: number;
+  /** Recruiters already on its People. */
+  listed: number;
   searched_at: string | null;
   kept: number;
   /** The format as written ("first.last"), and where it came from. */

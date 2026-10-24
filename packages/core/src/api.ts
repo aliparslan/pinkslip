@@ -20,7 +20,17 @@ export type { CompanyEvent } from "@pinkslip/domain/company-events";
 import type { CompanyPerson, OutreachThread } from "@pinkslip/domain/outreach";
 import type { Application, ApplicationDetail, ApplicationStage } from "@pinkslip/domain/application-stages";
 import type { ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
-import type { ActualRole, RecruiterCandidate, RecruiterCompanyChoice, RecruiterReview, RecruiterRun, WorksThere } from "@pinkslip/domain/recruiter-review";
+import type {
+  ActualRole,
+  RecruiterCandidate,
+  RecruiterCompanyChoice,
+  RecruiterField,
+  RecruiterJob,
+  RecruiterLevel,
+  RecruiterReview,
+  RecruiterRun,
+  WorksThere,
+} from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { ApplyResumeInfo, ApplySend } from "@pinkslip/domain/auto-apply";
 export type { ApplyResumeInfo, ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "@pinkslip/domain/auto-apply";
@@ -47,7 +57,8 @@ export type { SavedApplicationAnswer } from "@pinkslip/domain/application-answer
 export type { Application, ApplicationDetail, ApplicationEvent, ApplicationStage } from "@pinkslip/domain/application-stages";
 export type { DetectedStage, ForwardingProvider, ForwardingScope, InboundEmail, InboundEmailStatus, Inbox } from "@pinkslip/domain/email-tracking";
 export type {
-  ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, RecruiterKind, RecruiterReview, RecruiterReviewScore, RecruiterRun, WorksThere,
+  ActualRole, RecruiterCandidate, RecruiterCompany, RecruiterCompanyChoice, RecruiterField, RecruiterJob, RecruiterKind, RecruiterLevel,
+  RecruiterReview, RecruiterReviewScore, RecruiterRun, RecruiterTypes, WorksThere,
 } from "@pinkslip/domain/recruiter-review";
 export type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 
@@ -1022,9 +1033,11 @@ function createEndpoints(context: ClientContext) {
         method: "POST",
         body: JSON.stringify({ job_id: jobId }),
       }),
-    /** A company's People: its listed recruiters and anyone you've written to there. */
+    /** A company's People: its listed recruiters and anyone you've written to
+     * there, best first. Guests get the count alone ("3 recruiters at Stripe ·
+     * Sign in to see them"). */
     people: (companyId: string) =>
-      request<{ people: CompanyPerson[] }>(`/outreach/companies/${encodeURIComponent(companyId)}/people`),
+      request<{ people: CompanyPerson[]; count?: number; signed_in?: boolean }>(`/outreach/companies/${encodeURIComponent(companyId)}/people`),
     /** Someone from People: your thread with them, or a new draft. */
     open: (contactId: string, jobId?: string) =>
       request<OutreachThread>("/outreach/threads", {
@@ -1238,7 +1251,7 @@ function createEndpoints(context: ClientContext) {
     runCompanies: (companyIds: string[]) =>
       request<{ runs: RecruiterRun[] }>("/recruiters/run", { method: "POST", body: JSON.stringify({ company_ids: companyIds }) }, 120_000),
     /** Catalog companies to choose from, most open jobs first. */
-    companies: (params: { q?: string; filter?: "hiring" | "not_searched" | "has_format" } = {}) => {
+    companies: (params: { q?: string; filter?: "hiring" | "not_searched" | "has_format" | "wanted" } = {}) => {
       const query = new URLSearchParams();
       if (params.q?.trim()) query.set("q", params.q.trim());
       if (params.filter) query.set("filter", params.filter);
@@ -1251,7 +1264,14 @@ function createEndpoints(context: ClientContext) {
         method: "PUT",
         body: JSON.stringify({ domain, template }),
       }),
-    label: (id: string, labels: { works_there?: WorksThere | null; actual_role?: ActualRole | null }) =>
+    label: (id: string, labels: {
+      works_there?: WorksThere | null;
+      actual_role?: ActualRole | null;
+      hires?: RecruiterLevel[] | null;
+      hires_for?: RecruiterField[] | null;
+      job?: RecruiterJob | null;
+      agency?: boolean | null;
+    }) =>
       request<RecruiterCandidate>(`/recruiters/candidates/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(labels) }),
   },
   ops: {

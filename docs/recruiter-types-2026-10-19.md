@@ -98,6 +98,18 @@ What it does:
 
 The Admin labelling screen changes in Paper first.
 
+**Built 2026-10-24, not deployed:**
+- **The fields:** migration `0104_recruiter_types.sql` adds `hires`,
+  `hires_for`, `job` and `agency`, and carries older single answers over.
+- **The pre-fill:** `recruiterTypesFromTitle` in `shared/recruiter-review.ts`.
+  Older Admin builds' one answer still works and fills the job it implies.
+- **Labelling:** `PUT /api/v2/recruiters/candidates/:id` takes `hires`,
+  `hires_for`, `job` and `agency`; confirming sends the suggestion back as
+  it is.
+- **People:** lists only people in recruiting and not through an agency,
+  ranked for the person looking (`recruiterScore`, from their search levels
+  and roles).
+
 ## Sources
 
 - [Yardstick: campus vs corporate recruiter](https://yardstick.team/compare-roles/what-is-the-difference-between-a-campus-recruiter-and-a-corporate-recruiter)

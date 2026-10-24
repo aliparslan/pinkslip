@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { requireAuthenticated } from "../auth";
 import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
-import { listCompanyPeople } from "../outreach/contacts";
+import { companyPeopleCount, listCompanyPeople } from "../outreach/contacts";
 import { recordProductEvent } from "../product-events";
 import {
   closeThread,
@@ -17,6 +17,14 @@ import {
 import type { Env, Variables } from "../types";
 
 const outreach = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+/** People is for signed-in people; a guest sees how many recruiters a
+ * company has, never who ("3 recruiters at Stripe · Sign in to see them",
+ * owner 2026-10-24). Registered ahead of the sign-in check below. */
+outreach.get("/companies/:companyId/people", requireFlag("OUTREACH"), async (c, next) => {
+  if (c.get("sessionState") === "authenticated") return next();
+  return c.json({ people: [], count: await companyPeopleCount(c.env.DB, c.req.param("companyId")), signed_in: false });
+});
 
 outreach.use("*", requireAuthenticated, requireFlag("OUTREACH"));
 
@@ -34,9 +42,15 @@ outreach.get("/threads", async (c) => {
   return c.json({ threads: await listThreads(c.env.DB, c.get("userId"), { jobId, companyId }) });
 });
 
-/** A company's People (Paper O1): its listed recruiters and anyone you've written to there. */
-outreach.get("/companies/:companyId/people", async (c) =>
-  c.json({ people: await listCompanyPeople(c.env.DB, c.req.param("companyId"), c.get("userId")) }));
+/** A company's People (Paper O1): its listed recruiters and anyone you've
+ * written to there, best first for you, and how many it lists. */
+outreach.get("/companies/:companyId/people", async (c) => {
+  const [people, count] = await Promise.all([
+    listCompanyPeople(c.env.DB, c.req.param("companyId"), c.get("userId")),
+    companyPeopleCount(c.env.DB, c.req.param("companyId")),
+  ]);
+  return c.json({ people, count, signed_in: true });
+});
 
 /** One person from People ({ contact_id }, with job_id when it's about a
  * job), the best recruiter for a job ({ job_id }), or the company as a whole

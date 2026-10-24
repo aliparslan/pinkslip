@@ -1,7 +1,12 @@
 import {
   kindMatchesRole,
+  recruiterTypes,
+  typesFromActualRole,
   type ActualRole,
   type RecruiterCandidate,
+  type RecruiterField,
+  type RecruiterJob,
+  type RecruiterLevel,
   type RecruiterCompany,
   type RecruiterCompanyChoice,
   type RecruiterReview,
@@ -97,8 +102,22 @@ export async function saveSourcingError(db: D1Database, company: CompanyToSource
   ).bind(company.id, company.site, company.site, error.slice(0, 500), now).run();
 }
 
-interface CandidateRow extends Omit<RecruiterCandidate, "kind_from_snippet"> {
+interface CandidateRow extends Omit<RecruiterCandidate, "kind_from_snippet" | "types" | "types_confirmed"> {
   kind_from_snippet: number;
+  hires: string | null;
+  hires_for: string | null;
+  job: RecruiterJob | null;
+  agency: number | null;
+}
+
+const CANDIDATE_COLUMNS = `rc.id, rc.company_id, c.name AS company, rc.profile_url, rc.name, rc.headline, rc.current_title,
+  rc.current_employer, rc.location, rc.kind, rc.kind_from_snippet, rc.employer_evidence,
+  rc.left_out_reason, rc.email_guess, rc.email_confidence, rc.works_there, rc.actual_role, rc.reviewed_at,
+  rc.hires, rc.hires_for, rc.job, rc.agency`;
+
+function toCandidate({ hires, hires_for, job, agency, ...row }: CandidateRow): RecruiterCandidate {
+  const { types, confirmed } = recruiterTypes({ ...row, hires, hires_for, job, agency, actual_role: row.actual_role });
+  return { ...row, kind_from_snippet: row.kind_from_snippet === 1, types, types_confirmed: confirmed };
 }
 
 const MAX_CANDIDATES = 1000;
@@ -113,16 +132,14 @@ export async function recruiterReview(db: D1Database): Promise<Omit<RecruiterRev
        ORDER BY rs.ran_at DESC`
     ).all<Omit<RecruiterCompany, "name_shared"> & { name_shared: number }>(),
     db.prepare(
-      `SELECT rc.id, rc.company_id, c.name AS company, rc.profile_url, rc.name, rc.headline, rc.current_title,
-              rc.current_employer, rc.location, rc.kind, rc.kind_from_snippet, rc.employer_evidence,
-              rc.left_out_reason, rc.email_guess, rc.email_confidence, rc.works_there, rc.actual_role, rc.reviewed_at
+      `SELECT ${CANDIDATE_COLUMNS}
        FROM recruiter_candidates rc JOIN companies c ON c.id = rc.company_id
        JOIN recruiter_sourcing rs ON rs.company_id = rc.company_id
        ORDER BY rs.ran_at DESC, rc.left_out_reason IS NOT NULL, rc.found_at, rc.rowid
        LIMIT ?`
     ).bind(MAX_CANDIDATES).all<CandidateRow>(),
   ]);
-  const rows = (candidates.results ?? []).map((row) => ({ ...row, kind_from_snippet: row.kind_from_snippet === 1 }));
+  const rows = (candidates.results ?? []).map(toCandidate);
   return {
     companies: (companies.results ?? []).map((row) => ({ ...row, name_shared: row.name_shared === 1 })),
     candidates: rows,
@@ -148,27 +165,50 @@ export function scoreReview(rows: RecruiterCandidate[]): RecruiterReviewScore {
 
 export interface CandidateLabels {
   works_there?: WorksThere | null;
+  /** Older Admin builds' single answer; it fills the types it implies. */
   actual_role?: ActualRole | null;
+  hires?: RecruiterLevel[] | null;
+  hires_for?: RecruiterField[] | null;
+  job?: RecruiterJob | null;
+  agency?: boolean | null;
 }
 
-/** Sets either label, or clears it with null. A person counts as reviewed
- * once both are answered. Null when there's no such person. */
+/**
+ * Sets any label, or clears it with null; what's left out stays. Confirming
+ * the suggested types means sending them back as they are. A person counts as
+ * reviewed once "works there" and their job are answered. Null when there's
+ * no such person.
+ */
 export async function labelCandidate(db: D1Database, id: string, labels: CandidateLabels, now: string): Promise<RecruiterCandidate | null> {
-  const current = await db.prepare("SELECT works_there, actual_role FROM recruiter_candidates WHERE id = ?")
-    .bind(id).first<{ works_there: WorksThere | null; actual_role: ActualRole | null }>();
+  const current = await db.prepare(
+    "SELECT works_there, actual_role, hires, hires_for, job, agency FROM recruiter_candidates WHERE id = ?"
+  ).bind(id).first<{ works_there: WorksThere | null; actual_role: ActualRole | null; hires: string | null; hires_for: string | null; job: RecruiterJob | null; agency: number | null }>();
   if (!current) return null;
+  // An older Admin build's single answer fills the types it implies.
+  const implied = labels.actual_role ? typesFromActualRole(labels.actual_role) : {};
+  const list = (value: string[] | null | undefined, kept: string | null) =>
+    value === undefined ? kept : value === null ? null : JSON.stringify(value);
   const worksThere = labels.works_there === undefined ? current.works_there : labels.works_there;
   const actualRole = labels.actual_role === undefined ? current.actual_role : labels.actual_role;
+  const job = labels.job !== undefined ? labels.job : implied.job ?? current.job;
+  const agency = labels.agency === undefined ? current.agency : labels.agency === null ? null : labels.agency ? 1 : 0;
   await db.prepare(
-    "UPDATE recruiter_candidates SET works_there = ?, actual_role = ?, reviewed_at = ? WHERE id = ?"
-  ).bind(worksThere, actualRole, worksThere && actualRole ? now : null, id).run();
+    `UPDATE recruiter_candidates SET works_there = ?, actual_role = ?, hires = ?, hires_for = ?, job = ?, agency = ?, reviewed_at = ?
+     WHERE id = ?`
+  ).bind(
+    worksThere,
+    actualRole,
+    list(labels.hires !== undefined ? labels.hires : implied.hires, current.hires),
+    list(labels.hires_for, current.hires_for),
+    job,
+    agency,
+    worksThere && (job || actualRole) ? now : null,
+    id,
+  ).run();
   const row = await db.prepare(
-    `SELECT rc.id, rc.company_id, c.name AS company, rc.profile_url, rc.name, rc.headline, rc.current_title,
-            rc.current_employer, rc.location, rc.kind, rc.kind_from_snippet, rc.employer_evidence,
-            rc.left_out_reason, rc.email_guess, rc.email_confidence, rc.works_there, rc.actual_role, rc.reviewed_at
-     FROM recruiter_candidates rc JOIN companies c ON c.id = rc.company_id WHERE rc.id = ?`
+    `SELECT ${CANDIDATE_COLUMNS} FROM recruiter_candidates rc JOIN companies c ON c.id = rc.company_id WHERE rc.id = ?`
   ).bind(id).first<CandidateRow>();
-  return row ? { ...row, kind_from_snippet: row.kind_from_snippet === 1 } : null;
+  return row ? toCandidate(row) : null;
 }
 
 /** The companies you picked to search (Paper R3), in the order given. */
@@ -185,13 +225,22 @@ export async function companiesByIds(db: D1Database, ids: string[]): Promise<Com
   });
 }
 
-export type CompanyFilter = "hiring" | "not_searched" | "has_format";
+export type CompanyFilter = "hiring" | "not_searched" | "has_format" | "wanted";
 
-/** Catalog companies for "Choose companies": most open jobs first, with when
- * each was searched and its format (yours first). */
+/** How far back "where people are" looks for the confirm queue. */
+const WANTED_DAYS = 30;
+
+/**
+ * Catalog companies for "Choose companies": most open jobs first, with when
+ * each was searched and its format (yours first). "wanted" is the confirm
+ * queue (owner, 2026-10-24): companies where people saved, applied to or
+ * opened jobs in the last 30 days, with no recruiter listed yet, most people
+ * first. Admins' own activity doesn't count.
+ */
 export async function companyChoices(
   db: D1Database,
   { q = "", filter, limit = 50 }: { q?: string; filter?: CompanyFilter; limit?: number } = {},
+  now = new Date(),
 ): Promise<RecruiterCompanyChoice[]> {
   const where = ["c.enabled = 1", "c.website != ''"];
   const binds: unknown[] = [];
@@ -201,20 +250,43 @@ export async function companyChoices(
   }
   if (filter === "not_searched") where.push("rs.company_id IS NULL");
   if (filter === "has_format") where.push("(f.pattern IS NOT NULL OR rs.pattern IS NOT NULL)");
+  if (filter === "hiring") where.push("(SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL) > 0");
+  if (filter === "wanted") where.push("COALESCE(d.wanted, 0) > 0", "COALESCE(l.listed, 0) = 0");
+  const since = new Date(now.getTime() - WANTED_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const rows = (await db.prepare(
-    `SELECT c.id, c.name, c.website, rs.ran_at AS searched_at,
+    `WITH activity AS (
+       -- Saving a job is an application at "saved" (since 0089).
+       SELECT user_id, job_id FROM applications WHERE job_id IS NOT NULL AND datetime(updated_at) > datetime(?)
+       UNION SELECT user_id, job_id FROM viewed_jobs WHERE datetime(viewed_at) > datetime(?)
+     ),
+     demand AS (
+       SELECT j.company_id, COUNT(DISTINCT a.user_id) AS wanted
+       FROM activity a
+       JOIN jobs j ON j.id = a.job_id
+       JOIN users u ON u.id = a.user_id AND COALESCE(u.role, 'user') != 'admin'
+       GROUP BY j.company_id
+     ),
+     listing AS (
+       SELECT company_id, COUNT(*) AS listed FROM company_contacts
+       WHERE status = 'listed' AND source NOT IN ('test', 'pinkslip-test')
+       GROUP BY company_id
+     )
+     SELECT c.id, c.name, c.website, rs.ran_at AS searched_at,
        (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL) AS open_jobs,
+       COALESCE(d.wanted, 0) AS wanted,
+       COALESCE(l.listed, 0) AS listed,
        (SELECT COUNT(*) FROM recruiter_candidates rc WHERE rc.company_id = c.id AND rc.left_out_reason IS NULL) AS kept,
        COALESCE(f.pattern, rs.pattern) AS pattern,
        CASE WHEN f.pattern IS NOT NULL THEN 'owner' ELSE rs.pattern_source END AS pattern_source
      FROM companies c
      LEFT JOIN recruiter_sourcing rs ON rs.company_id = c.id
      LEFT JOIN company_mail_formats f ON f.company_id = c.id
+     LEFT JOIN demand d ON d.company_id = c.id
+     LEFT JOIN listing l ON l.company_id = c.id
      WHERE ${where.join(" AND ")}
-     ${filter === "hiring" ? "AND (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL) > 0" : ""}
-     ORDER BY open_jobs DESC, c.name
+     ORDER BY ${filter === "wanted" ? "wanted DESC, open_jobs DESC" : "open_jobs DESC"}, c.name
      LIMIT ?`
-  ).bind(...binds, limit).all<Omit<RecruiterCompanyChoice, "site"> & { website: string }>()).results ?? [];
+  ).bind(since, since, ...binds, limit).all<Omit<RecruiterCompanyChoice, "site"> & { website: string }>()).results ?? [];
   return rows.map(({ website, ...row }) => ({ ...row, site: websiteDomain(website) ?? website }));
 }
 

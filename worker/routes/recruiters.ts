@@ -1,5 +1,13 @@
 import { Hono } from "hono";
-import { ACTUAL_ROLES, MAIL_TEMPLATES, WORKS_THERE_ANSWERS, type RecruiterRun } from "../../shared/recruiter-review";
+import {
+  ACTUAL_ROLES,
+  MAIL_TEMPLATES,
+  RECRUITER_FIELDS,
+  RECRUITER_JOBS,
+  RECRUITER_LEVELS,
+  WORKS_THERE_ANSWERS,
+  type RecruiterRun,
+} from "../../shared/recruiter-review";
 import { requireAdmin } from "../auth";
 import { hasTable } from "../db-schema";
 import { githubApi, githubFormat } from "../outreach/sourcing/github-format";
@@ -92,6 +100,31 @@ recruiters.put("/candidates/:id", async (c) => {
     }
     labels.actual_role = body.actual_role as CandidateLabels["actual_role"];
   }
+  // The recruiter types (owner, 2026-10-24): confirming the suggestion sends it back as it is.
+  const many = <T extends string>(value: unknown, allowed: readonly T[]): T[] | null | undefined =>
+    value === null ? null
+      : Array.isArray(value) && value.length > 0 && value.every((item) => (allowed as readonly unknown[]).includes(item)) ? [...new Set(value as T[])]
+        : undefined;
+  if ("hires" in body) {
+    const hires = many(body.hires, RECRUITER_LEVELS);
+    if (hires === undefined) return c.json({ error: `hires is a list of ${RECRUITER_LEVELS.join(", ")}, or null` }, 400);
+    labels.hires = hires;
+  }
+  if ("hires_for" in body) {
+    const hiresFor = many(body.hires_for, RECRUITER_FIELDS);
+    if (hiresFor === undefined) return c.json({ error: `hires_for is a list of ${RECRUITER_FIELDS.join(", ")}, or null` }, 400);
+    labels.hires_for = hiresFor;
+  }
+  if ("job" in body) {
+    if (body.job !== null && !(RECRUITER_JOBS as readonly unknown[]).includes(body.job)) {
+      return c.json({ error: `job must be ${RECRUITER_JOBS.join(", ")} or null` }, 400);
+    }
+    labels.job = body.job as CandidateLabels["job"];
+  }
+  if ("agency" in body) {
+    if (body.agency !== null && typeof body.agency !== "boolean") return c.json({ error: "agency must be true, false or null" }, 400);
+    labels.agency = body.agency as boolean | null;
+  }
   const candidate = await labelCandidate(c.env.DB, c.req.param("id"), labels, new Date().toISOString());
   if (!candidate) return c.json({ error: "Not found" }, 404);
   // "Works there: yes" lists them on their company's People (owner, 2026-10-19).
@@ -99,9 +132,10 @@ recruiters.put("/candidates/:id", async (c) => {
   return c.json(candidate);
 });
 
-const FILTERS: CompanyFilter[] = ["hiring", "not_searched", "has_format"];
+const FILTERS: CompanyFilter[] = ["hiring", "not_searched", "has_format", "wanted"];
 
-/** Catalog companies to pick from (Paper R3), most open jobs first. */
+/** Catalog companies to pick from (Paper R3), most open jobs first; "wanted"
+ * is the confirm queue: where people are and no recruiter is listed yet. */
 recruiters.get("/companies", async (c) => {
   const filter = FILTERS.find((value) => value === c.req.query("filter"));
   const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 200);

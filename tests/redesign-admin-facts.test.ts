@@ -82,7 +82,8 @@ describe("recruiters", () => {
   const person = (id: string, patch: Partial<RecruiterCandidate> = {}): RecruiterCandidate => ({
     id, company_id: "stripe", company: "Stripe", profile_url: "", name: id, headline: "Recruiter at Stripe", current_title: "University Recruiter",
     current_employer: "Stripe", location: null, kind: "early_career", kind_from_snippet: false, employer_evidence: "current employer",
-    left_out_reason: null, email_guess: null, email_confidence: null, works_there: null, actual_role: null, reviewed_at: null, ...patch,
+    left_out_reason: null, email_guess: null, email_confidence: null, works_there: null, actual_role: null, reviewed_at: null,
+    types: { hires: ["interns", "new_grads"], hires_for: ["everything"], job: "recruiter", agency: false }, types_confirmed: false, ...patch,
   });
 
   test("the queue is the kept, then left-out people worth a second look, until both questions are answered", () => {

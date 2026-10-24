@@ -99,15 +99,24 @@ Outreach (step 8, 2026-10-19):
   ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md), Decided).
   - The questions: who they hire, what for, their job, plus agency or
     contract, pre-filled from the title.
-  - To build: the fields, the pre-fill, and People's filter and ranking.
+  - **Built 2026-10-24, not deployed:**
+    - migration 0104 (older single answers carried over);
+    - the pre-fill (`recruiterTypesFromTitle`);
+    - labelling through `PUT /recruiters/candidates/:id`;
+    - People listing only in-recruiting, non-agency people, ranked for the
+      person looking (level, then field, then job).
   - The Admin screen goes to Paper first.
 - [ ] **A GitHub token** (public read only), `wrangler secret put
   GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
-- [ ] **The confirm queue** (owner, 2026-10-24): Admin → Recruiters
-  orders companies by where people are (saves, applications, page opens)
-  and without confirmed recruiters, so the search runs where it matters.
-  Confident matches list themselves later, once they prove 90% "works
-  there" on the owner's labels.
+- [ ] **The confirm queue** (owner, 2026-10-24). **Built, not deployed:**
+  `GET /recruiters/companies?filter=wanted`.
+  - It lists companies where people (not admins) saved, applied to or
+    opened jobs in the last 30 days, with no recruiter listed yet, most
+    people first.
+  - Each company carries `wanted` and `listed`.
+  - The Admin screen's filter waits on Paper.
+  - Confident matches list themselves later, once they prove 90% "works
+    there" on the owner's labels.
 - [ ] **Checking addresses** (owner, 2026-10-19: no paid checker for now).
   Until then a guessed address is trusted as guessed, and bounces take it
   off. Options when it returns: MillionVerifier, or Hunter through treg
@@ -125,12 +134,16 @@ Outreach (step 8, 2026-10-19):
   beside the mail app when sending.
 - [ ] **Removal by email** (owner, 2026-10-24): recruiters email
   support@pinkslip.work, and the owner removes them in Admin
-  (`POST /contacts/remove`). No public page. The privacy page's
-  "Recruiters" line goes in before outreach opens.
+  (`POST /contacts/remove`). No public page. **The privacy page's
+  "Recruiters" section is written** (`shared/legal.ts`, dated Oct 24);
+  it goes out with the next web deploy.
 - [ ] **People for signed-in people only; guests see a count** (owner,
-  2026-10-24; Decisions: Outreach, revisited). The People endpoint answers
-  guests with the count alone. The teaser line on the company page goes to
-  Paper first.
+  2026-10-24; Decisions: Outreach, revisited). **Built, not deployed:**
+  - `GET /outreach/companies/:id/people` answers guests
+    `{ people: [], count, signed_in: false }`;
+  - signed-in people get the list and the count.
+
+  The teaser line on the company page goes to Paper first.
 
 Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pinkslip-2026-10-22.md)):
 

@@ -2,7 +2,7 @@
  * React web app. The App Store links to `/privacy` and `/support`, and the
  * app's sign-in sheet to `/terms` and `/privacy`, so the paths are stable.
  * Bodies are static, repository-owned HTML. */
-export const LEGAL_UPDATED_AT = "October 22, 2026";
+export const LEGAL_UPDATED_AT = "October 24, 2026";
 export const TERMS_UPDATED_AT = "October 23, 2026";
 export const SUPPORT_EMAIL = "support@pinkslip.work";
 
@@ -36,6 +36,21 @@ export const privacyPolicy: LegalPage = {
 
 <h2>Service providers</h2>
 <p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and process resume extraction or tailoring requests with Workers AI. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
+
+<h2>Recruiters</h2>
+<p>To help job seekers reach the right person, Pinkslip keeps a short list of recruiters at the companies it lists:</p>
+<ul>
+  <li>their name, job title, and company;</li>
+  <li>a link to their public profile;</li>
+  <li>a work email address Pinkslip guesses from the company's usual address format.</li>
+</ul>
+<p>This comes from public search results and the company's own public information, not from the recruiter.</p>
+<ul>
+  <li>Only signed-in Pinkslip users see it, one person at a time.</li>
+  <li>An address appears only when someone starts writing to that recruiter, and the email is sent from the job seeker's own mail.</li>
+  <li>An address that bounces is removed.</li>
+  <li>A recruiter who'd rather not be listed can email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>, and Pinkslip removes them for everyone.</li>
+</ul>
 
 <h2>Retention and deletion</h2>
 <p>Pinkslip keeps account-linked information while your account is active and as needed to provide the features you use. Short-lived sign-in and security records expire or are removed as they are no longer needed. De-identified operational records may be retained to measure reliability and prevent abuse.</p>

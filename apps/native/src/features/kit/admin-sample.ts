@@ -2,6 +2,7 @@ import type {
   ClassificationDisagreement, Company, ContentReport, FeedbackSubmission, FetchRun, JobReview, PollTierLatency, ProductMetrics, RecruiterCandidate,
   RecruiterCompany, RecruiterCompanyChoice, RecruiterReviewScore,
 } from "@pinkslip/core/api";
+import { recruiterTypesFromTitle } from "@pinkslip/domain/recruiter-review";
 
 /**
  * Admin on sample data (Paper "Admin · Oct 16"), for the kit and the
@@ -91,7 +92,7 @@ const person = (id: string, name: string, company: string, title: string, patch:
   id, company_id: company.toLowerCase(), company, profile_url: `https://www.linkedin.com/in/sample-${id}`, name, headline: `${title} at ${company}`,
   current_title: title, current_employer: company, location: "San Francisco", kind: "early_career", kind_from_snippet: false,
   employer_evidence: "current employer", left_out_reason: null, email_guess: null, email_confidence: null, works_there: null, actual_role: null,
-  reviewed_at: null, ...patch,
+  types: recruiterTypesFromTitle(title), types_confirmed: false, reviewed_at: null, ...patch,
 });
 
 /** Recruiters (A7, R1, R2): two kept, one whose address isn't at the
@@ -118,12 +119,12 @@ export const SAMPLE_RECRUITER_COMPANIES: RecruiterCompany[] = [
 
 /** Choose companies (R3). */
 export const SAMPLE_COMPANY_CHOICES: RecruiterCompanyChoice[] = [
-  { id: "ramp", name: "Ramp", site: "ramp.com", open_jobs: 22, searched_at: null, kept: 0, pattern: null, pattern_source: null },
-  { id: "stripe", name: "Stripe", site: "stripe.com", open_jobs: 18, searched_at: minutesAgo(60 * 24 * 5), kept: 5, pattern: "{first}.{last}", pattern_source: "owner" },
-  { id: "notion", name: "Notion", site: "notion.com", open_jobs: 15, searched_at: minutesAgo(60 * 24 * 5), kept: 1, pattern: null, pattern_source: null },
-  { id: "duolingo", name: "Duolingo", site: "duolingo.com", open_jobs: 12, searched_at: null, kept: 0, pattern: null, pattern_source: null },
-  { id: "linear", name: "Linear", site: "linear.app", open_jobs: 11, searched_at: null, kept: 0, pattern: "{first}.{last}", pattern_source: "github" },
-  { id: "figma", name: "Figma", site: "figma.com", open_jobs: 9, searched_at: null, kept: 0, pattern: null, pattern_source: null },
+  { id: "ramp", name: "Ramp", site: "ramp.com", open_jobs: 22, wanted: 14, listed: 0, searched_at: null, kept: 0, pattern: null, pattern_source: null },
+  { id: "stripe", name: "Stripe", site: "stripe.com", open_jobs: 18, wanted: 9, listed: 2, searched_at: minutesAgo(60 * 24 * 5), kept: 5, pattern: "{first}.{last}", pattern_source: "owner" },
+  { id: "notion", name: "Notion", site: "notion.com", open_jobs: 15, wanted: 6, listed: 0, searched_at: minutesAgo(60 * 24 * 5), kept: 1, pattern: null, pattern_source: null },
+  { id: "duolingo", name: "Duolingo", site: "duolingo.com", open_jobs: 12, wanted: 4, listed: 0, searched_at: null, kept: 0, pattern: null, pattern_source: null },
+  { id: "linear", name: "Linear", site: "linear.app", open_jobs: 11, wanted: 3, listed: 0, searched_at: null, kept: 0, pattern: "{first}.{last}", pattern_source: "github" },
+  { id: "figma", name: "Figma", site: "figma.com", open_jobs: 9, wanted: 1, listed: 0, searched_at: null, kept: 0, pattern: null, pattern_source: null },
 ];
 
 export const SAMPLE_RECRUITER_SCORE: RecruiterReviewScore = {
