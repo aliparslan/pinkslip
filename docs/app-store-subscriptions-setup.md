@@ -16,7 +16,8 @@ Account Holder can do step 1.
   - App Store Connect shows "Sorry, something went wrong" on Save here, but
     the change saves; reload to check.
 - **Agreements:** Paid Apps active since Oct 23; bank account and W-9
-  active. The owner is applying to the Small Business Program.
+  active. The Small Business Program (15%) form went in on Oct 24, listing
+  this account as the only one; Apple emails when it's approved.
 - **Subscriptions:** group "Pinkslip Pro" (display name `Pinkslip Pro`,
   English U.S., custom app name "Pinkslip", owner: "everywhere else i want
   it to just say Pinkslip"), with:
