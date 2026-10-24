@@ -134,6 +134,12 @@ Plans and billing (step 9, live 2026-10-24):
   In-App Purchase key ([app-store-subscriptions-setup.md](app-store-subscriptions-setup.md)).
   Until then the purchase check answers "Purchases aren't set up yet".
 
+Apply:
+
+- [ ] **Refine assisted apply** (owner, 2026-10-24: "we also eventually
+  need to go back and really refine assisted apply"), after auto-apply's
+  first slices.
+
 Ideas (owner, 2026-10-24):
 
 - [ ] **Interview prep, a stretch goal:** when an application reaches
