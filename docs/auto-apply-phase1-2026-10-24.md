@@ -16,8 +16,20 @@ from my account." Phase 0 (no submits) is in
   that has the resume: the owner's phone signs in with Apple; the Outlook
   login has no resume.
 - **Resume:** the owner's resume is uploaded for sends.
-- **Sends:** none to a real employer yet. The first ones are the owner's
-  picks.
+- **The first real send** went through on 2026-10-24: Reddit, Software
+  Engineer, Ad Signals (Greenhouse), as the owner's one validation.
+  - Greenhouse asked for its emailed code; the owner typed it in.
+  - The code's last letter submitted the form and moved the page while the
+    send was still in it, so the send stopped as "unconfirmed".
+  - Reddit's confirmation email settled it: email tracking moved the job
+    to Applied, and the send is recorded as sent.
+  - Forwarding had delivered the code email too. The reader skipped it
+    because the code was letters only (`OGRULIke`).
+  - Both are fixed in 8bc183a (waiting on a deploy): a navigation mid-script
+    is followed to where the page lands, and the reader takes letter-only
+    codes.
+- **No more real sends** unless the owner asks for that specific job
+  (owner, 2026-10-24). Dry runs are fine.
 
 ## What a send does
 

@@ -1481,7 +1481,17 @@ waiting send.
   return to the same You went over the air (`production` b5128c2e,
   `owner` b8e96e21, from 6c0b949).
 
+**First real send, 2026-10-24:** Reddit went through, confirmed by
+Reddit's own email. The owner wants no more real sends unless asked for a
+specific job.
+
+**Apple purchases, 2026-10-24:**
+- The In-App Purchase key is set: ID 8JY84WU3LG, the issuer in
+  `wrangler.toml`, the .p8 as a secret; deployed as Worker `f98e78f3`.
+- Production's App Store Server API refuses the key (401) until something
+  is on sale; Sandbox accepts it.
+- d8569e6 falls back to Sandbox (waiting on a deploy).
+
 **Waiting:**
-- The owner's first real sends.
 - The app's screens (Paper first).
 
