@@ -101,6 +101,17 @@ describe("the App Store Server API", () => {
     expect(found?.environment).toBe("Sandbox");
     expect(found?.subscriptions[0]).toMatchObject({ status: 1, transaction: { productId: "dev.alip.pinkslip.pro.weekly" }, renewal: { autoRenewStatus: 1 } });
   });
+
+  it("goes on to Sandbox when Production turns the key down before anything is on sale", async () => {
+    const { config } = await setup();
+    const answer = (production: number, sandbox: number) => (async (input: RequestInfo | URL) =>
+      new Response(String(input).includes("sandbox") && sandbox === 200 ? JSON.stringify({ environment: "Sandbox", bundleId: "dev.alip.pinkslip", data: [] }) : "{}",
+        { status: String(input).includes("sandbox") ? sandbox : production })) as unknown as typeof fetch;
+    expect(await appleSubscriptions(config, "2000000111", { fetcher: answer(401, 200) })).toEqual({ environment: "Sandbox", subscriptions: [] });
+    expect(await appleSubscriptions(config, "2000000111", { fetcher: answer(401, 404) })).toBeNull();
+    // A key Sandbox refuses too is wrong.
+    expect(appleSubscriptions(config, "2000000111", { fetcher: answer(401, 401) })).rejects.toThrow("answered 401");
+  });
 });
 
 describe("Pro from Apple", () => {

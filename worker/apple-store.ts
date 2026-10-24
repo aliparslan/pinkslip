@@ -125,7 +125,9 @@ export async function appleSubscriptions(
     const response = await fetcher(`${HOSTS[environment]}/inApps/v1/subscriptions/${encodeURIComponent(transactionId)}`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    if (response.status === 404) continue;
+    // Production answers 401 for an app with nothing on sale yet, while
+    // Sandbox (TestFlight's purchases) takes the same key (found 2026-10-24).
+    if (response.status === 404 || (response.status === 401 && environment === "Production")) continue;
     if (!response.ok) throw new AppleStoreError(`App Store Server API answered ${response.status}`, response.status);
     const body = await response.json() as StatusResponse;
     if (body.bundleId && body.bundleId !== config.bundleId) return null;
