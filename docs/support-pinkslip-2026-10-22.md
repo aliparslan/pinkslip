@@ -120,25 +120,41 @@ mode.
    nothing." Add the bank account for payouts.
 2. **Public details** (Settings → Business → Public details): name
    Pinkslip, statement descriptor `PINKSLIP`, support email
-   `login@pinkslip.work` (the address the privacy and support pages give).
-3. **Branding** (Settings → Branding): the app icon, brand color
-   `#EE5FAC`, so Stripe's page looks like Pinkslip.
+   `support@pinkslip.work` (the owner's, Oct 23). Mail to pinkslip.work
+   goes through Cloudflare Email Routing, so it needs a routing rule that
+   forwards `support@` to an inbox you read; send it a test first.
+3. **Branding** (Settings → Branding; Stripe's limits: PNG or JPG, under
+   512 KB, at least 128 px):
+   - Icon: `apps/native/assets/icon.png`, the App Store icon (1024 px
+     square, 324 KB). It shows in emails, on the Payment Link page and on
+     receipts.
+   - Logo: leave it empty. Stripe's logo is the wide mark with a name,
+     shown only on the payment page and invoice PDFs; Pinkslip has no
+     wordmark, and the commissioned logo replaces the icon later anyway.
+   - Brand color `#EE5FAC` (the app's pink buttons): Stripe uses it on
+     receipts and the customer portal. If the receipt preview's pink
+     looks faint, the deeper pink `#C82E88` is the app's pink for text.
+   - Accent color `#F8F8F9` (the app's page, Mist): Stripe uses it as a
+     background on emails and pages, and pink is never a background.
+   - Checkout (Branding → Checkout): background `#F8F8F9`, buttons
+     `#EE5FAC`.
 4. **Receipts** (Settings → Customer emails): turn on emails for successful
    payments. For monthly: Settings → Billing → Customer portal, activate
    it and allow cancelling, so the renewal emails carry a way to stop.
 5. **Payment methods** (Settings → Payment methods): cards and Apple Pay
    are on by default; Google Pay and Link are fine to leave on. Stripe's
    own pages need no Apple Pay domain setup.
-6. **Products** (Product catalog → Add product):
-   - "Tip for Pinkslip", one-off prices $3, $5 and $10.
-   - "Monthly support for Pinkslip", recurring monthly prices $3, $5 and
-     $10 (skip it if you'd rather not offer monthly; the app hides it).
+6. **One product** (Product catalog → Add product): "Support Pinkslip",
+   with six prices on it: one-off $3, $5 and $10, and recurring monthly
+   $3, $5 and $10 (leave out the monthly ones if you'd rather not offer
+   monthly; the app hides it). Each Payment Link picks one price, so one
+   product is enough; its name is what Stripe's page and the receipt show,
+   with the amount and "per month" after it.
 7. **Payment Links** (Payment Links → New), seven of them:
-   - One each for the one-off $3, $5 and $10, and the monthly $3, $5 and
-     $10. Options: quantity not adjustable, no promotion codes, no address
-     or phone.
-   - "Other amount": choose "Customers choose what to pay", product "Tip
-     for Pinkslip", USD, minimum $1, maximum $500.
+   - One for each of the six prices. Options: quantity not adjustable, no
+     promotion codes, no address or phone.
+   - "Other amount": choose "Customers choose what to pay", product
+     "Support Pinkslip", USD, minimum $1, maximum $500.
    - On every link, After payment → "Don't show confirmation page" →
      `https://pinkslip.work/support/thanks`.
 8. **Test** each link in the sandbox: card 4242 4242 4242 4242, any future
