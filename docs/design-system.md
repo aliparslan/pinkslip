@@ -289,7 +289,16 @@ on one line share a size.
   field; the field's own clear button only clears the words. A page opened
   from the results keeps the tab bar, and coming back leaves the keyboard
   down. Rejected the same day: one pill with the X inside (B), which put
-  the clear button and the X side by side. Before you type, Recent lists
+  the clear button and the X side by side. Picked from the bar, the field
+  forms out of it (owner, 2026-10-24: it used to just appear): it starts
+  as the pill and stretches into place on `motion.search.handoff`
+  (response 0.26s, damping 0.84, fitted to Photos' search tab), the X
+  grows out of its right end, and the words fade in once it's mostly
+  formed. It moves only by transforms (a change of size each frame went
+  through layout, and the ride up with the keyboard fell behind it), and
+  the bar mounts Search in the background after launch, so even the first
+  pick is a change of focus rather than a new screen. The X is a cut back
+  to the bar, as in Photos. Before you type, Recent lists
   your searches with the 18 clock centred in the 40 logo column, so it
   lines up with the company rows and the words start on the 68 line.
 - **An empty resume leads with Import a PDF** (2026-10-24), above the
@@ -516,6 +525,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   form that drops you back where you were (sign in, report, edit search,
   pick a plan, change stage, What's new). Anything you read, come back to
   or share is a page (a job, an application, a company, an event).
+- **Alerts' daily time** (owner, 2026-10-24: the chip looked like a
+  picker and did nothing): Once a day's time is iOS's own compact time
+  picker, as a step's time is (`DatePicker`, hour and minute, tinted
+  `accent-fill`). Picking a time picks Once a day too. The alert goes out
+  on the quarter-hour check, so within 15 minutes of the time.
 - **Update notes** (owner, 2026-10-23, Paper "Update note · Oct 23", A;
   `whats-new.tsx` and `update-notes.ts`): an over-the-air update that
   changes something you'd notice says so once, at the launch it arrives:
@@ -570,8 +584,18 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   rows' shape (`lines`, `logo`: a company's jobs are two lines with no
   logo, hidden companies a logo and a name); settings are
   `GroupPlaceholders`, their white cards with a grey bar per row (Alerts;
-  Paper "Consistency · Oct 19", C3b). A spinner is only for a single
-  thing on its way (a posting's text, a button's own wait).
+  Paper "Consistency · Oct 19", C3b). A posting on its way is
+  `TextPlaceholders`, grey lines in its paragraphs' shape, shown at once,
+  and the words fade in over them (owner, 2026-10-24: no spinner). A
+  spinner is only for a button's own wait.
+- **A job page opens whole** (owner, 2026-10-24): it shows the row you
+  tapped at once, level and source included. The public copy, which often
+  lands first, only adds the posting; nothing that was there drops out and
+  comes back.
+- **Postings are selectable** (owner, 2026-10-24): press and hold to
+  select part of a paragraph, highlighted in `accent` with pink handles.
+  A paragraph with a link stays plain text, so its link still opens; it
+  offers Copy for the whole paragraph.
 - **Words for empty and not yet** (owner, 2026-10-19): a list that fills
   over time says "Nothing yet" (Today, Tracker, Job emails). Something not
   built yet is "Soon" as a row's value; its wrench page is titled by what's
@@ -611,6 +635,13 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `bg` with the home indicator's room below, as the job page's Apply does.
   The line above it shows only once content scrolls under the bar (owner:
   not on a page that fits). The tab bar steps aside on those pages.
+- **The tab bar leaves with the list** (owner, 2026-10-24: it popped in
+  over the job page's bar on Back, and only after a swipe back had
+  finished). On a page that hides it (a job, an application, an event),
+  the bar goes and comes back with the list underneath on the stack's own
+  transition: the list's 30% parallax, cut off by the page's edge as it
+  slides over, following the finger on a swipe back. Switching tabs is
+  silent: no tap, and no tick while sliding along the bar.
 - **No tab names** (owner, 2026-10-15, after living with L2): the lit tab
   is a 64 oval around its pink icon; the others stay 56 icons. The oval
   grows and shrinks on the tab spring. Names are for VoiceOver only.
