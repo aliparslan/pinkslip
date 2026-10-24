@@ -701,6 +701,12 @@ export const ui = {
         damping: 1,
       },
     },
+    search: {
+      handoff: {
+        response: 0.26,
+        damping: 0.84,
+      },
+    },
     stub: {
       tear: {
         duration: 160,
