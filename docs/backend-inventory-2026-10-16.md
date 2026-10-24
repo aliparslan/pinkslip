@@ -648,6 +648,8 @@ list.
    tailored resumes a week; Pro gets up to 10 auto-apply sends a day, no
    per-company limit, and tailoring under a quiet fair-use ceiling (50 a
    week). A third tier much later.
+10. **Apple only for now (owner, 2026-10-24):** Pro is bought in the iPhone
+   app with Apple's subscriptions; Stripe for the website comes later.
 
 ### Auto-apply (owner, 2026-10-16)
 
