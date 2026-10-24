@@ -126,6 +126,13 @@ Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pin
 - [ ] **A real tip from the owner's phone**, once an update carries the new
   sheet, then `SUPPORT = "on"`.
 
+Ideas (owner, 2026-10-24):
+
+- [ ] **Interview prep, a stretch goal:** when an application reaches
+  Interviewing, research the company, the role and its level, then send
+  things to do and quizzes, so the person starts from that company's
+  material. After billing and auto-apply.
+
 Owner to-dos:
 
 - [ ] Rotate the Google OAuth client secret (it appeared in chat once), then
@@ -622,6 +629,21 @@ list.
 4. **Limits show where they bite** (Review's "3 left this week"), not as
    warnings elsewhere.
 5. **Prices** once there are a few weeks of real usage.
+6. **The model (owner, 2026-10-24):** Free + Pro that ends when you're
+   hired (D in [pricing-models-2026-10-24.md](pricing-models-2026-10-24.md)).
+   When an application reaches an accepted offer, Pinkslip offers to end
+   Pro: a refund of the rest where Pinkslip can give one (Stripe), Apple's
+   refund request on iPhone, or let it run to the end of the term.
+7. **Prices (owner, 2026-10-24):** $5 a week or $15 a month, the same on
+   iPhone and the web; no 3-month plan
+   ([pricing-costs-2026-10-24.md](pricing-costs-2026-10-24.md)).
+8. **A 3-day free trial of Pro (owner, 2026-10-24),** once per person. On
+   iPhone it's Apple's introductory offer on the subscription; on the web,
+   Stripe's trial days.
+9. **Limits (owner, 2026-10-24):** Free gets 3 auto-apply sends and 3
+   tailored resumes a week; Pro gets up to 10 auto-apply sends a day, no
+   per-company limit, and tailoring under a quiet fair-use ceiling (50 a
+   week). A third tier much later.
 
 ### Auto-apply (owner, 2026-10-16)
 

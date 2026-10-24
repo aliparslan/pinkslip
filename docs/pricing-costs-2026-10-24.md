@@ -117,7 +117,21 @@ costs about what four weeks do, so nobody is pushed into a long plan, and no
 | Tailored resumes (when tailoring returns) | 3 a week | as many as you like (a quiet fair-use ceiling, say 50 a week, against loops) |
 | Outreach drafted by Pinkslip (later) | none | included |
 
-## For the owner to decide
+## Decided (owner, 2026-10-24)
+
+- **$5 a week or $15 a month,** "Middle, a bit different".
+- **Pro:** up to 10 auto-apply sends a day, no per-company limit.
+- **Free:** 3 auto-apply sends and 3 tailored resumes a week.
+- **A 3-day free trial** of Pro, once per person.
+- **A third tier much later.**
+- **A stretch goal:** interview prep. Once an application reaches
+  Interviewing, Pinkslip researches the company, the role and its level,
+  then sends things to do and quizzes to practice with, so the person
+  starts from material about that company instead of an empty chat.
+  Parked; likely a Pro feature, and its cost would be a few cents of AI
+  and search per interview.
+
+## For the owner to decide (answered above)
 
 1. The price ladder: Lean or Middle (or other numbers).
 2. Pro's caps: 10 auto-apply sends a day, 2 per company a week?
