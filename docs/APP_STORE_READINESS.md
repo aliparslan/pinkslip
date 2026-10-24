@@ -54,9 +54,10 @@ record if possible, because the public developer name is chosen only once.
 
 ## Required service configuration before review
 
-- [ ] Both public pages now give `support@pinkslip.work` (owner, 2026-10-23;
-  `login@` only sends sign-in mail). Confirm a Cloudflare Email Routing
-  rule forwards it to an inbox you read.
+- [x] Both public pages now give `support@pinkslip.work` (owner, 2026-10-23;
+  `login@` only sends sign-in mail). A Cloudflare Email Routing rule
+  ("Support to Fastmail") forwards it to the owner's Fastmail; a test from
+  `login@` arrived on 2026-10-24.
 - [ ] Create a dedicated Sign in with Apple private key in Apple Developer.
 - [x] Set `APPLE_SIGN_IN_CLIENT_ID` to `dev.alip.pinkslip`.
 - [ ] Set `APPLE_SIGN_IN_KEY_ID` and the existing `APPLE_TEAM_ID`.
