@@ -10,7 +10,8 @@ Account Holder can do step 1.
 - **Agreements:** Paid Apps active since Oct 23; bank account and W-9
   active. The owner is applying to the Small Business Program.
 - **Subscriptions:** group "Pinkslip Pro" (display name `Pinkslip Pro`,
-  English U.S., app name "Pinkslip Jobs"), with:
+  English U.S., custom app name "Pinkslip", owner: "everywhere else i want
+  it to just say Pinkslip"), with:
   - "Pro Weekly" (`dev.alip.pinkslip.pro.weekly`): $4.99 in the US;
   - "Pinkslip Monthly" (`dev.alip.pinkslip.pro.monthly`): $14.99 in the
     US.
