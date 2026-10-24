@@ -101,7 +101,7 @@ wanted, guests · Oct 24", L1 and L2) and approved by the owner on
 2026-10-24: From their title under the facts, each type opening a sheet of
 picks, agency as a switch, and "Works there now?" saving the types as shown.
 
-**Built 2026-10-24, not deployed:**
+**Built and deployed 2026-10-24** (Worker 6145f51c; the Admin screens reach the owner as update 01a17016):
 - **The fields:** migration `0104_recruiter_types.sql` adds `hires`,
   `hires_for`, `job` and `agency`, and carries older single answers over.
 - **The pre-fill:** `recruiterTypesFromTitle` in `shared/recruiter-review.ts`.

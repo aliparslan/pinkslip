@@ -99,16 +99,20 @@ Outreach (step 8, 2026-10-19):
   ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md), Decided).
   - The questions: who they hire, what for, their job, plus agency or
     contract, pre-filled from the title.
-  - **Built 2026-10-24, not deployed:**
+  - **Built and deployed 2026-10-24** (Worker 6145f51c; 4 older labels
+    carried over):
     - migration 0104 (older single answers carried over);
     - the pre-fill (`recruiterTypesFromTitle`);
     - labelling through `PUT /recruiters/candidates/:id`;
     - People listing only in-recruiting, non-agency people, ranked for the
       person looking (level, then field, then job).
-  - The Admin screen goes to Paper first.
+  - The Admin screen is drawn, approved and built (L1 and L2 under
+    Decisions: Outreach, "The screens"); the owner has it as update
+    01a17016.
 - [ ] **A GitHub token** (public read only), `wrangler secret put
   GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
-- [ ] **The confirm queue** (owner, 2026-10-24). **Built, not deployed:**
+- [ ] **The confirm queue** (owner, 2026-10-24). **Built and deployed
+  2026-10-24** (Worker 6145f51c), with W1 in Admin:
   `GET /recruiters/companies?filter=wanted`.
   - It lists companies where people (not admins) saved, applied to or
     opened jobs in the last 30 days, with no recruiter listed yet, most
@@ -138,7 +142,9 @@ Outreach (step 8, 2026-10-19):
   "Recruiters" section is written** (`shared/legal.ts`, dated Oct 24);
   it goes out with the next web deploy.
 - [ ] **People for signed-in people only; guests see a count** (owner,
-  2026-10-24; Decisions: Outreach, revisited). **Built, not deployed:**
+  2026-10-24; Decisions: Outreach, revisited). **Built and deployed
+  2026-10-24** (Worker 6145f51c); guests see nothing until OUTREACH is on
+  for everyone:
   - `GET /outreach/companies/:id/people` answers guests
     `{ people: [], count, signed_in: false }`;
   - signed-in people get the list and the count.
@@ -699,8 +705,9 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
   - a weekly cap per recruiter applies across everyone;
   - no list, export or copy-all.
 - **The screens** (Paper "Recruiters · types, wanted, guests · Oct 24",
-  approved by the owner 2026-10-24, liberties included), built
-  2026-10-24, not deployed:
+  approved by the owner 2026-10-24, liberties included), built 2026-10-24
+  (0f22a44). The Worker is live (6145f51c) and the owner channel has them
+  as update 01a17016 (runtime 1.3.8); production's update waits:
   - **G1, a guest on a company's People:** "3 recruiters at Stripe", "Sign
     in to see who they are." and Sign in. `features.outreach_people_enabled`
     says People is open (OUTREACH on, signed in or not); servers before it
