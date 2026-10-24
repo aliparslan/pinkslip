@@ -120,11 +120,11 @@ Outreach (step 8, 2026-10-19):
 
 Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pinkslip-2026-10-22.md)):
 
-- [ ] **The Stripe key and product** (tabled 2026-10-24: Stripe wants an
-  SMS to make a restricted key, and the owner was on a plane). Then
-  `wrangler secret put STRIPE_SECRET_KEY`, `SUPPORT_STRIPE_PRODUCT` in
-  `wrangler.toml`, a deploy, and a real $1 tip. Until then tips use the
-  one custom Payment Link.
+- [x] ~~The Stripe key and product~~ (2026-10-24: key set, product
+  `prod_VUMG0vNuwRABSp`, API Worker 83530c19; a remote test made live $5
+  and $7-a-month pages).
+- [ ] **A real tip from the owner's phone**, once an update carries the new
+  sheet, then `SUPPORT = "on"`.
 
 Owner to-dos:
 
