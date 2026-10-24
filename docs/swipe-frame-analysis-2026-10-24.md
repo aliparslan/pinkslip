@@ -187,3 +187,18 @@ The same 8pt-a-frame halfway drag was recorded in both apps.
 
 The segmented control's thumb moved to its own `motion.segment` spring,
 0.28s, because the tab glide's 0.4s felt slow.
+
+## How far a short swipe goes (owner, 2026-10-24)
+
+"A smaller swipe should allow the user to see the expanded options."
+- Ours opened only past half the actions' width, about 110pt of row travel.
+- Reminders opened from an 18pt drag, held still and released.
+- Now, from closed, the row opens once where it was heading (its position
+  plus `project()` of the release speed) passes 8pt of travel. The row moves
+  only after 14pt of finger, so that's about a 22pt drag.
+- From open, the old half-way rule stays, so pushing an open row back past
+  half closes it.
+- Releasing while moving back faster than 150pt/s always closes it.
+- Checked on the simulator: a 24pt slow drag opens to Applied and Hide; from
+  open, a 40pt push back stays open; a 140pt push back closes.
+

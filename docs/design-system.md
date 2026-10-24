@@ -637,7 +637,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     the screen's edge.
   - They're tinted by meaning (the ink at 14%), with the icon and label in
     the tone's ink. The outer one fills solid once a full swipe arms.
-  - A short swipe stays open on them; all the way runs the outer one.
+  - A short swipe stays open on them: from closed, about 22pt of drag opens
+    the row all the way, counting where a flick was heading, as Reminders
+    does from 18. From open, it closes once pushed back past half, or
+    whenever the finger is moving back. All the way runs the outer one.
   - The row being swiped is a card: corners round to 22 and it takes the
     separator's grey. `JobRow` drops its own background inside one.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty

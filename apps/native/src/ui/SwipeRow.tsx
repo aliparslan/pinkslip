@@ -10,7 +10,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
 import { faces } from "./fonts";
 import { Icon, type IconName } from "./Icon";
-import { motion, rubberBand, spring } from "./motion";
+import { motion, project, rubberBand, spring } from "./motion";
 
 /** What an action is, which sets its color (Paper "Swipe actions · Oct
  * 14", S4): pink saves, blue reads, green is applying, graphite hides. */
@@ -91,6 +91,11 @@ const GROW = { ...spring(motion.swipe.grow), overshootClamping: true };
 const HOME = { duration: 300, dampingRatio: 1, overshootClamping: true, energyThreshold: 1e-5 } as const;
 /** Leaving rides the finger's speed, without overshooting. */
 const LEAVE = { duration: 320, dampingRatio: 1, overshootClamping: true } as const;
+/** Let go this far along (or heading this far) and the row opens on its
+ * actions; short of it, it closes (owner, 2026-10-24: half the actions'
+ * width asked for too long a swipe). The row only starts moving after 14pt
+ * of finger, so this opens from about a 22pt drag; Reminders opens from 18. */
+const OPEN_AT = 8;
 /** The space closes once the row is mostly gone, so leaving and closing up read as one. */
 const FOLD_DELAY = 120;
 const FOLD = { duration: 240, easing: Easing.bezier(0.2, 0.7, 0.2, 1) };
@@ -246,7 +251,13 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
         return;
       }
       fill.value = withTiming(0, FAST);
-      const stayOpen = success && reveal > 0 && Math.abs(value) >= reveal / 2 && outward > -300;
+      // As iOS does (Reminders, measured 2026-10-24): from closed, almost any
+      // deliberate swipe opens all the way, once where the row was heading
+      // passes OPEN_AT. From open, it closes once you've pushed it back past
+      // half. Either way, moving back toward closed closes it.
+      const heading = Math.abs(value) + project(outward);
+      const threshold = start.value === 0 ? Math.min(OPEN_AT, reveal / 2) : reveal / 2;
+      const stayOpen = success && reveal > 0 && outward > -150 && heading >= threshold;
       x.value = withSpring(stayOpen ? sign * reveal : 0, { ...settleSpring, velocity: event.velocityX });
       scheduleOnRN(markOpen, stayOpen ? side : null);
     }), [leading.length > 0, trailing.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
