@@ -131,11 +131,12 @@ AUTO_APPLY = "on"
 # and Ashby applications (worker/apply/sends.ts). Admins only until the
 # owner's own test applications have gone through (Decisions: Auto-apply #6).
 AUTO_APPLY_SEND = "admin"
-# Support Pinkslip (tips; docs/support-pinkslip-2026-10-22.md): only the
-# owner sees the row while it's "admin". The Stripe Payment Links are public,
-# named once_<dollars>, once_other and monthly_<dollars>; the app offers
-# whichever exist. For now, one link where people type the amount.
-SUPPORT = "admin"
+# Support Pinkslip (tips; docs/support-pinkslip-2026-10-22.md): on for
+# everyone since 2026-10-24 (owner: "turn tips on"); the iPhone app shows the
+# row on US devices only. The Stripe Payment Links are public, named
+# once_<dollars>, once_other and monthly_<dollars>; builds that read only
+# links offer whichever exist. For now, one link where people type the amount.
+SUPPORT = "on"
 SUPPORT_LINKS = { once_other = "https://buy.stripe.com/9B6eV7d1m2aA2Ti020eME00" }
 # Tips of any amount, once or monthly: each is a price of this product,
 # made for the tip (worker/support.ts), with the STRIPE_SECRET_KEY secret.

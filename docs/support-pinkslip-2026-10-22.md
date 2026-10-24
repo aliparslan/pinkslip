@@ -207,6 +207,12 @@ The owner's part:
 3. Send the "Support Pinkslip" product's ID (`prod_…`, top of its page in
    the Product catalog). It isn't secret.
 
+**On for everyone (Oct 24):** the owner said "turn tips on", so
+`SUPPORT = "on"`. Guests and signed-in people on US iPhones see the row on
+You; the website shows none. Builds with the any-amount sheet use Checkout
+Sessions. Older ones use the custom link, whose product the owner
+unarchived.
+
 **Built (Oct 24):** `POST /api/v2/support/checkout` (worker/routes/support.ts,
 behind `SUPPORT`; $1 to $500, whole dollars) and `features.support.checkout`
 once `STRIPE_SECRET_KEY` and `SUPPORT_STRIPE_PRODUCT` are set. Until then
