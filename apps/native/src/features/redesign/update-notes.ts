@@ -27,6 +27,15 @@ export interface UpdateNotes {
  */
 export const UPDATE_NOTES: readonly UpdateNotes[] = [
   {
+    id: "2026-10-24",
+    version: "1.3",
+    notes: [
+      // The owner's words (2026-10-24).
+      { icon: "copy", meaning: "find", title: "Select text in job postings" },
+      { icon: "notifications", meaning: "find", title: "Pick when your daily alert comes" },
+    ],
+  },
+  {
     id: "2026-10-23",
     version: "1.3",
     notes: [
