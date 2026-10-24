@@ -13,9 +13,11 @@ const guest = (page: import("@playwright/test").Page) => page.route("**/api/v2/m
 test("You summarizes each setting, and Appearance applies at once and sticks", async ({ page }) => {
   await installApiMocks(page);
   await page.goto("/you");
-  await expect(page.getByRole("link", { name: /Job preferences All career stages/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Account avery@example.com/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Admin workspace/ })).toBeVisible();
+  // Each row is named by its label and described by where it stands.
+  const main = page.getByRole("main");
+  await expect(main.getByRole("link", { name: "Job preferences", exact: true })).toHaveAccessibleDescription(/All career stages/);
+  await expect(main.getByRole("link", { name: "Account", exact: true })).toHaveAccessibleDescription(/avery@example.com/);
+  await expect(main.getByRole("link", { name: "Admin workspace", exact: true })).toBeVisible();
 
   await page.getByRole("combobox", { name: "Appearance" }).selectOption("light");
   await expect(page.locator("html")).toHaveAttribute("data-mode", "light");

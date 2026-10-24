@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 import {
   Bell, Buildings, CaretRight, ChatCircleDots, ClipboardText, FileText, PaintBrush, SlidersHorizontal, Sparkle,
   UserCircle, Wrench, type Icon as PhosphorIcon,
@@ -37,15 +37,19 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   </Stack>;
 }
 
+/** Each row's link is named by its label and described by its summary, so
+ * a screen reader hears "Job preferences" first and where it stands after. */
 function Rows({ rows }: { rows: Row[] }) {
+  const id = useId();
   return rows.map((row, index) => <Fragment key={row.to}>
     {index > 0 && <li aria-hidden><Separator /></li>}
     <li>
-      <Link to={row.to} className={styles.row}>
+      <Link to={row.to} className={styles.row} aria-labelledby={`${id}-${index}-label`}
+        aria-describedby={row.detail ? `${id}-${index}-detail` : undefined}>
         <Icon icon={row.icon} size={20} />
         <span className={styles.copy}>
-          <Text as="span" weight="medium">{row.label}</Text>
-          {row.detail && <Text as="span" size="sm" tone="ink-3" truncate>{row.detail}</Text>}
+          <Text as="span" weight="medium" id={`${id}-${index}-label`}>{row.label}</Text>
+          {row.detail && <Text as="span" size="sm" tone="ink-3" truncate id={`${id}-${index}-detail`}>{row.detail}</Text>}
         </span>
         <span className={styles.chevron}><Icon icon={CaretRight} size={16} weight="bold" /></span>
       </Link>
