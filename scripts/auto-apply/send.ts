@@ -10,7 +10,8 @@
  *   bun scripts/auto-apply/send.ts show [send id]                  the latest send, or one, with its pictures
  *
  * A job link is the Pinkslip job page or the Greenhouse or Ashby posting.
- * The account is the admin signed in with PINKSLIP_EMAIL (default: git's email).
+ * The account is the admin whose resume or sign-in has PINKSLIP_EMAIL
+ * (default: git's email), preferring the one with a resume.
  */
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -35,15 +36,28 @@ function query<T>(sql: string): T[] {
   return out[0]?.results ?? [];
 }
 
-function userId(): string {
-  const row = query<{ id: string }>(
-    `SELECT u.id FROM users u JOIN auth_identities ai ON ai.user_id = u.id
-     WHERE u.role = 'admin' AND (lower(ai.email) = lower(${quote(email)}) OR lower(ai.provider_subject) = lower(${quote(email)}))
-     ORDER BY ai.last_used_at DESC LIMIT 1`,
+/** The admin account to send as: the one whose resume (or sign-in) uses
+ * PINKSLIP_EMAIL, preferring an account with a resume and the latest
+ * session. The owner's phone signs in with Apple (a relay address), so its
+ * resume's email is what matches. */
+let chosen: { id: string; email: string; provider: string } | null = null;
+function account() {
+  if (chosen) return chosen;
+  const row = query<{ id: string; email: string; provider: string }>(
+    `SELECT u.id, ai.email, ai.provider FROM users u JOIN auth_identities ai ON ai.user_id = u.id
+     WHERE u.role = 'admin' AND ai.email IS NOT NULL AND (
+       lower(ai.email) = lower(${quote(email)}) OR lower(ai.provider_subject) = lower(${quote(email)})
+       OR EXISTS (SELECT 1 FROM user_profiles p WHERE p.user_id = u.id AND lower(json_extract(p.data, '$.contact.email')) = lower(${quote(email)})))
+     ORDER BY EXISTS (SELECT 1 FROM user_profiles p WHERE p.user_id = u.id) DESC,
+       (SELECT MAX(last_seen_at) FROM auth_sessions s WHERE s.user_id = u.id) DESC
+     LIMIT 1`,
   )[0];
-  if (!row) throw new Error(`No admin account signed in with ${email}. Set PINKSLIP_EMAIL.`);
-  return row.id;
+  if (!row) throw new Error(`No admin account with ${email} on its resume or sign-in. Set PINKSLIP_EMAIL.`);
+  console.log(`Account: the one you sign in to with ${row.provider === "apple" ? "Apple" : row.provider} (${row.id.slice(0, 8)}).`);
+  chosen = row;
+  return row;
 }
+const userId = () => account().id;
 
 interface SendRow {
   id: string; status: string; dry_run: number; detail: string | null; needs_json: string | null; sent_json: string | null;
@@ -75,7 +89,8 @@ function show(sendId?: string) {
 
 async function start(job: string, dryRun: boolean) {
   const id = crypto.randomUUID();
-  wrangler("workflows", "trigger", WORKFLOW, JSON.stringify({ email, job, dry_run: dryRun }), "--id", id);
+  // The Workflow finds the account by a sign-in email, so pass that account's own.
+  wrangler("workflows", "trigger", WORKFLOW, JSON.stringify({ email: account().email, job, dry_run: dryRun }), "--id", id);
   console.log(`${dryRun ? "Dry run" : "Send"} ${id} started.`);
   let last = "";
   for (let second = 0; second < 900; second += 5) {
