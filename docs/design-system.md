@@ -481,6 +481,17 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   form that drops you back where you were (sign in, report, edit search,
   pick a plan, change stage, What's new). Anything you read, come back to
   or share is a page (a job, an application, a company, an event).
+- **Update notes** (owner, 2026-10-23, Paper "Update note · Oct 23", A;
+  `whats-new.tsx` and `update-notes.ts`): an over-the-air update that
+  changes something you'd notice says so once, at the launch it arrives:
+  the "New in 1.4" sheet without its title, its notes in the one white
+  group (icon tile, Medium title, one `ink-2` line), then the grey Got it.
+  Any number of notes; the group scrolls when they outgrow the sheet. Fixes
+  stay silent, a new install sees none, a phone that missed several sees
+  the newest set, and a big release's sheet wins the launch. The notes then
+  lead their release in You's What's new. Each line is the owner's to
+  approve. Rejected: a card over the tab bar (B, where toasts go) and a
+  centred card (C, a pattern the app doesn't use).
 - **Empty and error states** (`EmptyState.tsx`, Paper "Parts · Empty
   state"): Title 2, one Body line in `ink-2`, the button under it on the
   same centre line, all centred in the room under the header. The slips

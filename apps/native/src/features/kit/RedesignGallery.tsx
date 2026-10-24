@@ -16,7 +16,8 @@ import { DidYouApply } from "../redesign/ApplySheets";
 import { LIVE_FORM_URL, SAMPLE_FORM_URL } from "../apply/sample-form";
 import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
-import { RELEASES, WhatsNewSheet, type Release } from "../redesign/whats-new";
+import { UPDATE_NOTES, type UpdateNotes } from "../redesign/update-notes";
+import { RELEASES, UpdateNotesSheet, WhatsNewSheet, type Release } from "../redesign/whats-new";
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
 
 const facts = [
@@ -35,6 +36,7 @@ export function RedesignGallery() {
   const texture = usePaperTexture();
   const [reporting, setReporting] = useState(false);
   const [release, setRelease] = useState<Release | null>(null);
+  const [notes, setNotes] = useState<UpdateNotes | null>(null);
   const [browsing, setBrowsing] = useState<ApplicationRequest | null>(null);
   // Apply's sheet, then the browser, then "Did you apply?", in the job page's order.
   const [preparing, setPreparing] = useState(false);
@@ -84,6 +86,7 @@ export function RedesignGallery() {
         <ListItem title="Answers with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/answers", params: { sample: "on" } })} />
         <ListItem title="Report a job" accessory="chevron" onPress={() => setReporting(true)} />
         <ListItem title="What's new, after an update" accessory="chevron" onPress={() => setRelease(RELEASES[0] ?? null)} />
+        <ListItem title="Update notes, after a small update" accessory="chevron" onPress={() => setNotes(UPDATE_NOTES[0] ?? null)} />
         <ListItem title="Admin with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/you/admin", params: { sample: "on" } })} />
       </ListGroup>
       {/* The job page's ⋯ (Paper "Menus · Oct 16" M2) without opening a real job. */}
@@ -102,6 +105,7 @@ export function RedesignGallery() {
       </View>
       <ReportJobSheet jobId="sample" sample open={reporting} onClosed={() => setReporting(false)} />
       <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
+      <UpdateNotesSheet notes={notes} onClosed={() => setNotes(null)} />
       {/* Paper "2 · The in-app browser and fill bar", on a local form. */}
       <ApplicationBrowser request={browsing} onSubmitted={sampleApplied} onConfirmApplied={sampleApplied}
         onClose={(result) => { setBrowsing(null); askAfter.current = result === "closed"; }}

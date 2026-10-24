@@ -4,7 +4,8 @@ import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { storage } from "../../platform/storage";
 import { appRanBefore, onboardingDue } from "../onboarding/launch";
-import { Button, IconTile, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, useSheet, type IconName, type TileMeaning } from "../../ui";
+import { Button, IconTile, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, useSheet, type IconName, type TileMeaning } from "../../ui";
+import { notesIn, notesToShow, UPDATE_NOTES, type UpdateNotes } from "./update-notes";
 import { YouPage } from "./you/Page";
 
 export interface ReleaseItem {
@@ -69,6 +70,8 @@ const appVersion = () => Constants.expoConfig?.version ?? "0.0";
 
 /** Which big release this phone last showed; set on every launch. */
 const SEEN = "whats-new.seen";
+/** Which update's notes this phone last showed; set on every launch. */
+const NOTES_SEEN = "whats-new.notes-seen";
 
 /** The release to show once at launch: a big release with notes, for
  * someone who had the app before it. A new install starts from here. */
@@ -79,16 +82,25 @@ export function releaseToShow(current: string, seen: string | undefined, hadAppB
   return newer(release.version, seen) ? release : null;
 }
 
-/** The sheet, once, the first time the app opens after a big release. */
+/** The sheet, once, the first time the app opens after a big release, or
+ * the small one after an update that came with notes. */
 export function WhatsNewOnLaunch() {
   const [release, setRelease] = useState<Release | null>(null);
+  const [notes, setNotes] = useState<UpdateNotes | null>(null);
   useEffect(() => {
-    const seen = storage.getString(SEEN);
-    // Onboarding has the launch to itself.
-    setRelease(onboardingDue() ? null : releaseToShow(appVersion(), seen, appRanBefore));
+    // Onboarding has the launch to itself, and a big release's sheet beats
+    // an update's notes; either way the notes count as seen.
+    const big = onboardingDue() ? null : releaseToShow(appVersion(), storage.getString(SEEN), appRanBefore);
+    setRelease(big);
+    setNotes(onboardingDue() || big ? null : notesToShow(storage.getString(NOTES_SEEN), appRanBefore));
     storage.set(SEEN, bigVersion(appVersion()));
+    const newest = UPDATE_NOTES[0];
+    if (newest) storage.set(NOTES_SEEN, newest.id);
   }, []);
-  return <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />;
+  return <>
+    <WhatsNewSheet release={release} onClosed={() => setRelease(null)} />
+    <UpdateNotesSheet notes={notes} onClosed={() => setNotes(null)} />
+  </>;
 }
 
 /** "New in 1.4" (N1): the items in one white group, then a grey Got it. */
@@ -107,6 +119,25 @@ function WhatsNewStep({ release }: { release: Release }) {
   </SheetStep>;
 }
 
+/** After an update with notes (Paper "Update note · Oct 23", A): the release
+ * sheet without its title, the notes in one white group that scrolls when
+ * there are more than fit, then Got it. */
+export function UpdateNotesSheet({ notes, onClosed }: { notes: UpdateNotes | null; onClosed: () => void }) {
+  return <SheetModal open={notes !== null} onClosed={onClosed}>
+    {notes ? <UpdateNotesStep notes={notes} /> : null}
+  </SheetModal>;
+}
+
+function UpdateNotesStep({ notes }: { notes: UpdateNotes }) {
+  const sheet = useSheet();
+  return <SheetStep id={`notes-${notes.id}`}>
+    <SheetScroll style={styles.notesScroll}>
+      <View style={[styles.group, styles.inSheet]}><ReleaseItems items={notes.notes} /></View>
+    </SheetScroll>
+    <Button fullWidth onPress={sheet.close}>Got it</Button>
+  </SheetStep>;
+}
+
 function ReleaseItems({ items }: { items: ReleaseItem[] }) {
   return <>{items.map((item) => <View key={item.title} style={styles.item}>
     <View style={styles.tile}><IconTile icon={item.icon} meaning={item.meaning} /></View>
@@ -118,7 +149,7 @@ function ReleaseItems({ items }: { items: ReleaseItem[] }) {
 }
 
 /** What's new in You (N3): each release, newest first, a small header over
- * a white card of its items. */
+ * a white card of its items; an update's notes lead the release they came in. */
 export function WhatsNewPage() {
   return <YouPage title="What's new">
     {releasesUpTo(appVersion()).map((release) => <View key={release.version} style={styles.release}>
@@ -126,7 +157,7 @@ export function WhatsNewPage() {
         <Text role="footnote" weight="medium" tone="ink-2">{release.version}</Text>
         <Text role="footnote" tone="ink-3">{release.when}</Text>
       </View>
-      <View style={styles.group}><ReleaseItems items={release.items} /></View>
+      <View style={styles.group}><ReleaseItems items={[...notesIn(release.version), ...release.items]} /></View>
     </View>)}
   </YouPage>;
 }
@@ -147,6 +178,8 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color["bg-grouped"],
   },
   inSheet: { borderRadius: SHEET_GROUP_RADIUS, backgroundColor: theme.ui.color["sheet-group"] },
+  // Its own height until the notes outgrow the sheet, then it scrolls.
+  notesScroll: { flexGrow: 0, flexShrink: 1 },
   item: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
   // Centred on the title's line.
   tile: { marginTop: 2 },
