@@ -43,8 +43,9 @@ export async function deleteApplyFiles(bucket: R2Bucket, userId: string) {
   } while (cursor);
 }
 
-/** The file's name is what the employer sees: the uploaded name, or
- * "<Name>_Resume.pdf" for a copy put there with wrangler. */
+/** The file's name is what the employer sees: the uploaded name (the app's
+ * upload keeps it as metadata, wrangler's as the content disposition), else
+ * "<Name>_Resume.pdf". */
 export async function loadResume(bucket: R2Bucket, userId: string, personName = ""): Promise<ResumeUpload | null> {
   const object = await bucket.get(applyResumeKey(userId));
   if (!object) return null;
@@ -53,6 +54,7 @@ export async function loadResume(bucket: R2Bucket, userId: string, personName = 
   for (let index = 0; index < bytes.length; index += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
   }
+  const disposition = object.httpMetadata?.contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1]?.trim();
   const fallback = `${personName.trim().replace(/[^\w]+/g, "_").replace(/^_|_$/g, "")}_Resume.pdf`.replace(/^_/, "");
-  return { name: object.customMetadata?.name ?? fallback, base64: btoa(binary) };
+  return { name: object.customMetadata?.name ?? (disposition ? disposition.replace(/[^\w .()-]+/g, "") : fallback), base64: btoa(binary) };
 }

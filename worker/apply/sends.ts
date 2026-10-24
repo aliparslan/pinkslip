@@ -303,8 +303,12 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
   }
   await setStatus(env.DB, sendId, "running", deps.now(), { started: true });
 
-  const person = await env.DB.prepare("SELECT name FROM users WHERE id = ?").bind(row.user_id).first<{ name: string | null }>();
-  const resume = await loadResume(env.RESUME_BUCKET!, row.user_id, person?.name ?? "");
+  // The resume's own name first ("Alip Arslan"), then the account's ("Alip").
+  const person = await env.DB.prepare(
+    `SELECT u.name, json_extract(p.data, '$.contact.name') AS resume_name
+     FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id WHERE u.id = ?`
+  ).bind(row.user_id).first<{ name: string | null; resume_name: string | null }>();
+  const resume = await loadResume(env.RESUME_BUCKET!, row.user_id, person?.resume_name || person?.name || "");
   if (!resume) return finish(env, row, "needs_you", { detail: "Upload the resume for sends first." }, deps.now());
 
   const page = await deps.open(env.BROWSER!, row.url);

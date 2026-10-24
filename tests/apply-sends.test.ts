@@ -274,11 +274,11 @@ describe("Greenhouse's emailed code", () => {
 // ─── Sends, with the database ────────────────────────────────────────────────
 
 function memoryBucket() {
-  const objects = new Map<string, { bytes: Uint8Array; customMetadata?: Record<string, string>; uploaded: Date }>();
+  const objects = new Map<string, { bytes: Uint8Array; customMetadata?: Record<string, string>; httpMetadata?: { contentDisposition?: string }; uploaded: Date }>();
   const bucket = {
     objects,
-    async put(key: string, value: ArrayBuffer | Uint8Array, options?: { customMetadata?: Record<string, string> }) {
-      objects.set(key, { bytes: value instanceof Uint8Array ? value : new Uint8Array(value), customMetadata: options?.customMetadata, uploaded: new Date() });
+    async put(key: string, value: ArrayBuffer | Uint8Array, options?: { customMetadata?: Record<string, string>; httpMetadata?: { contentDisposition?: string } }) {
+      objects.set(key, { bytes: value instanceof Uint8Array ? value : new Uint8Array(value), customMetadata: options?.customMetadata, httpMetadata: options?.httpMetadata, uploaded: new Date() });
     },
     async head(key: string) {
       const object = objects.get(key);
@@ -289,6 +289,7 @@ function memoryBucket() {
       if (!object) return null;
       return {
         customMetadata: object.customMetadata,
+        httpMetadata: object.httpMetadata,
         body: new Response(object.bytes).body,
         arrayBuffer: async () => object.bytes.slice().buffer,
       };
@@ -399,6 +400,9 @@ describe("queueing a send", () => {
     await bucket.put(applyResumeKey("u1"), new Uint8Array([37, 80, 68, 70]));
     expect((await loadResume(bucket as unknown as R2Bucket, "u1", "Ali Arslan"))?.name).toBe("Ali_Arslan_Resume.pdf");
     expect((await loadResume(bucket as unknown as R2Bucket, "u1"))?.name).toBe("Resume.pdf");
+    // The script keeps the file's own name as the content disposition.
+    await bucket.put(applyResumeKey("u1"), new Uint8Array([37, 80, 68, 70]), { httpMetadata: { contentDisposition: 'attachment; filename="Alip_Arslan_resume.pdf"' } });
+    expect((await loadResume(bucket as unknown as R2Bucket, "u1", "Alip"))?.name).toBe("Alip_Arslan_resume.pdf");
   });
 
   it("refuses a resume that isn't a PDF", async () => {

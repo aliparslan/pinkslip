@@ -10,6 +10,7 @@
  *   bun scripts/auto-apply/send.ts show [send id]                  the latest send, or one, with its pictures
  *
  * A job link is the Pinkslip job page or the Greenhouse or Ashby posting.
+ * Employers see the resume under the uploaded file's own name.
  * The account is the admin whose resume or sign-in has PINKSLIP_EMAIL
  * (default: git's email), preferring the one with a resume.
  */
@@ -111,8 +112,11 @@ async function start(job: string, dryRun: boolean) {
 switch (command) {
   case "resume": {
     if (!argument?.endsWith(".pdf")) throw new Error("Give the resume's .pdf path.");
-    wrangler("r2", "object", "put", `${BUCKET}/apply/${userId()}/resume.pdf`, "--file", argument, "--content-type", "application/pdf", "--remote");
-    console.log("Uploaded. Sends attach it as <your name>_Resume.pdf.");
+    // The file's own name is what employers see; R2 keeps it as the content disposition.
+    const name = (argument.split("/").pop() ?? "Resume.pdf").replace(/[^\w .()-]+/g, "");
+    wrangler("r2", "object", "put", `${BUCKET}/apply/${userId()}/resume.pdf`, "--file", argument.replace(/^~(?=\/)/, homedir()),
+      "--content-type", "application/pdf", "--content-disposition", `attachment; filename="${name}"`, "--remote");
+    console.log(`Uploaded. Sends attach it as ${name}.`);
     break;
   }
   case "dry":
