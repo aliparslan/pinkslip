@@ -118,6 +118,14 @@ Outreach (step 8, 2026-10-19):
 - [ ] **Guests see People** (names and titles, sign in to write) and a
   quiet daily limit on addresses opened, as the Oct 15 plan says.
 
+Support Pinkslip (built 2026-10-24, [support-pinkslip-2026-10-22.md](support-pinkslip-2026-10-22.md)):
+
+- [ ] **The Stripe key and product** (tabled 2026-10-24: Stripe wants an
+  SMS to make a restricted key, and the owner was on a plane). Then
+  `wrangler secret put STRIPE_SECRET_KEY`, `SUPPORT_STRIPE_PRODUCT` in
+  `wrangler.toml`, a deploy, and a real $1 tip. Until then tips use the
+  one custom Payment Link.
+
 Owner to-dos:
 
 - [ ] Rotate the Google OAuth client secret (it appeared in chat once), then
