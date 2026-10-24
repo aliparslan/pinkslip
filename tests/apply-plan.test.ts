@@ -149,11 +149,18 @@ describe("planning a page", () => {
         control("c2", "checkbox", "Send me news about future roles", { required: false }),
         control("c3", "checkbox", "I certify that I am 18 years of age or older"),
         control("c4", "checkbox", "I certify that I am a U.S. citizen"),
+        // Spotify's, ticked in phase 0: optional, so never given.
+        control("c5", "checkbox", "I consent to Spotify contacting me about future job opportunities", { required: false }),
+        // The same consent is given when the form won't take the application without it.
+        control("c6", "checkbox", "I consent to being considered for future roles and to Acme keeping my resume for that"),
+        // Column's: the question sits above the box, which only says "I agree".
+        control("c7", "checkbox", "I agree", { required: false }),
       ],
     }, fakeJev({ "18 years": { choice: "Yes", p: 0.9 }, "citizen": { choice: "Not stated", p: 1 } }));
     expect(plan.steps).toEqual([
       { ref: "c1", kind: "checkbox", value: "checked" },
       { ref: "c3", kind: "checkbox", value: "checked" },
+      { ref: "c6", kind: "checkbox", value: "checked" },
     ]);
     expect(plan.needs.map((need) => need.ref)).toEqual(["c4"]);
   });
@@ -179,6 +186,19 @@ describe("planning a page", () => {
     expect(formerEmployerAnswer(yesNo("Do you have a relative employed by Roblox?"), student, "Roblox")).toBeNull();
     expect(formerEmployerAnswer(yesNo("Have you previously applied to Roblox?"), student, "Roblox")).toBeNull();
     expect(formerEmployerAnswer(yesNo("If you worked at Roblox, list dates", "text"), student, "Roblox")).toBeNull();
+    // Phase 0's forms, which went unanswered only because the test left out the job.
+    expect(formerEmployerAnswer(yesNo("Have you previously been employed by Peloton?"), student, "Peloton")).toBe("No");
+    expect(formerEmployerAnswer(yesNo("Have you ever been previously employed by Spotify?"), student, "Spotify")).toBe("No");
+    expect(formerEmployerAnswer(yesNo("Are you currently, or have you previously, worked for Instacart?"), student, "Instacart")).toBe("No");
+    expect(formerEmployerAnswer(yesNo("Have you been employed, or otherwise engaged, by an Asana entity in the past? (Please include internships)"), student, "Asana")).toBe("No");
+    const squarespace = control("q", "select", "Have you previously been employed by or worked directly for Squarespace in any capacity?", {
+      options: ["Yes - Employee", "Yes - Consultant or Vendor for Squarespace", "No"],
+    });
+    expect(formerEmployerAnswer(squarespace, student, "Squarespace")).toBe("No");
+    const groups = control("q", "checkboxes", "Have you ever worked for Spotify?", { options: ["Yes", "No"] });
+    expect(formerEmployerAnswer(groups, student, "Spotify")).toBe("No");
+    // A follow-up that names "current employee" among its choices isn't the question.
+    expect(formerEmployerAnswer(yesNo('If you chose "search engine", "current customer", "current employee", or "other", please specify here.', "text"), student, "Applied Intuition")).toBeNull();
     // No resume, no employer list to go on.
     expect(formerEmployerAnswer(yesNo("Have you ever worked at Roblox?"), empty, "Roblox")).toBeNull();
   });

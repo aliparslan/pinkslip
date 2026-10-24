@@ -95,6 +95,10 @@ describe("answer keys", () => {
     ]) expect(answerKey("q1", label, "select")).toBe("sponsorship");
     expect(answerKey("q1", "At the time of application, are you 18+ years of age?", "select")).toBe("over_18");
     expect(answerKey("q1", "Legal First Name", "text")).toBe("first_name");
+    // Plaid's, left empty in the phase 1 dry run.
+    expect(answerKey("q1", "Current/Last Company", "text")).toBe("current_company");
+    expect(answerKey("q1", "Current or Previous Employer", "text")).toBe("current_company");
+    expect(answerKey("q1", "Most recent job title", "text")).toBe("current_title");
     expect(answerKey("q1", "Please provide your full legal name as it appears on your ID", "text")).toBe("full_name");
   });
 
@@ -163,6 +167,15 @@ describe("default answers", () => {
       .toBe("I acknowledge the above statement.");
     expect(defaultAnswer(choice("Do you consent to this interview being recorded?", ["Yes, I consent", "No"])))
       .toBe("Yes, I consent");
+  });
+
+  it("declines optional consents, giving one only when the form requires it", () => {
+    expect(defaultAnswer(choice("Would you like to join our talent community to hear about future opportunities?", ["Yes", "No"])))
+      .toBe("No");
+    expect(defaultAnswer(choice("I consent to receive SMS text messages about my application", ["Yes, I consent", "No, I do not consent"])))
+      .toBe("No, I do not consent");
+    expect(defaultAnswer({ ...choice("Keep me updated about future roles", ["I agree"]), required: false })).toBeNull();
+    expect(defaultAnswer(choice("Keep me updated about future roles", ["I agree"]))).toBe("I agree");
   });
 
   it("never answers a factual or legal question for the user", () => {

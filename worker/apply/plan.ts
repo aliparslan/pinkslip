@@ -16,6 +16,7 @@ import {
   answerKey,
   impliedAnswers,
   isAcknowledgement,
+  isOptionalConsent,
   prepareFields,
   resumeAnswer,
   resumeKeyForLabel,
@@ -29,6 +30,7 @@ import { COMMON_QUESTIONS } from "../../shared/application-answers";
 import type { JevRunner } from "../jev";
 import { preferredWorkAuthorization, savedAnswers } from "./prepare";
 
+const BARE_AGREEMENT = /^(i )?(agree|accept|consent|understand|confirm|acknowledge)\.?$|^yes\.?$/i;
 const VOLUNTARY = /gender|\brace\b|racial|ethnic|hispanic|latin[oxa]|veteran|disabilit|lgbt|sexual orientation|transgender/i;
 const CHOICE_KINDS = new Set<FormControlKind>(["select", "combobox", "radio", "buttons", "checkboxes"]);
 /** Longer option lists (every university, every country) aren't worth asking Jev. */
@@ -48,8 +50,8 @@ export function fuzzyOption(options: string[], fact: string): string | null {
   return found?.[0] ?? null;
 }
 
-const WORKED_THERE = /\b(worked|employed|interned)\s+(at|for|by|with)\b|\b(employee|intern|contractor)\s+(of|at|for|with)\b|\b(current|former|previous)\s+(or\s+(current|former)\s+)?(employee|intern|contractor)\b|\bworked here\b/i;
-const NOT_ABOUT_APPLICANT = /relative|family|friend|spouse|partner|related|know (any|some)one|refer|applied|interview|products?|technolog|platform/i;
+const WORKED_THERE = /\b(worked|employed|interned)\s+(at|for|by|with)\b|\bemployed,? or (otherwise )?engaged,? (by|with)\b|\b(employee|intern|contractor)\s+(of|at|for|with)\b|\b(current|former|previous)\s+(or\s+(current|former)\s+)?(employee|intern|contractor)\b|\bworked here\b/i;
+const NOT_ABOUT_APPLICANT = /relative|family|friend|spouse|partner|related|know (any|some)one|refer|applied|interview|products?|technolog|platform|^\s*if\b|specify|explain|elaborate/i;
 const NEGATIVE = /^\s*no\b|\b(not|never|haven'?t)\b/i;
 const EVASIVE = /prefer not|not to (say|answer|disclose)|decline|not listed/i;
 
@@ -229,6 +231,9 @@ export async function planApplication(
 
   for (const control of pending) {
     if (control.kind === "checkbox") {
+      // A box labelled only "I agree" hides what it agrees to (Column's asks
+      // to contact you for two years), so it's ticked only when required.
+      if (!control.required && (isOptionalConsent(control.label) || BARE_AGREEMENT.test(control.label.trim()))) continue;
       if (isAcknowledgement(control.label)) {
         steps.push({ ref: control.ref, kind: "checkbox", value: "checked" });
       } else if (control.required) {

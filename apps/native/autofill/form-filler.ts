@@ -196,7 +196,13 @@ export async function fillForm(request: FillRequest): Promise<FillReport> {
           }
           return any ? "filled" : "no_match";
         }
-        return (await typeAndPick(input, wanted[0])) ? "filled" : "no_match";
+        if (await typeAndPick(input, wanted[0])) return "filled";
+        // Typed text isn't an answer. Leave the search empty and closed: an
+        // open list can hide the rest of the form from the next read.
+        setValue(input, "", false);
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        input.blur();
+        return "no_match";
       }
       case "radio":
       case "checkboxes": {

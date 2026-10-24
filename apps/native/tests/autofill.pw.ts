@@ -20,6 +20,30 @@ const FORM = `<!doctype html><html><body>
   <button type="submit">Submit application</button>
 </form></body></html>`;
 
+/** Ashby's markup, from Plaid's form: required marked by a class and drawn
+ * with CSS, a location search whose label names an id nothing has, and
+ * checkbox and radio groups whose question is a <label> in the fieldset,
+ * under a section heading. */
+const ASHBY = `<!doctype html><html><head><style>._required_x::after { content: "*"; }</style></head><body>
+<div class="banner"><p>This job has application limits</p></div>
+<div data-field-path="name"><label class="_heading _required_x" for="name">Name</label><input id="name" name="name" type="text" value=""></div>
+<div data-field-path="employed"><label class="_heading _required_x" for="employed">Have you ever been previously employed by Plaid?</label>
+  <div class="yesno"><button aria-pressed="false" data-option="yes">Yes</button><button aria-pressed="false" data-option="no">No</button><input type="checkbox" tabindex="-1" name="employed"></div></div>
+<div data-field-path="_systemfield_location"><label class="_heading _required_x" for="_systemfield_location">Location</label>
+  <div><input placeholder="Start typing..." aria-autocomplete="list" role="combobox" value=""><button></button></div></div>
+<div class="section"><h2>AI &amp; Interest in Working at Plaid</h2>
+  <div data-field-path="why"><fieldset><label class="_heading _required_x" for="why">Why are you interested in working at Plaid? Select all that apply.</label>
+    <div><span><input type="checkbox" id="why-option" name="Plaid's Mission"></span><label for="why-option">Plaid's Mission</label></div>
+    <div><span><input type="checkbox" id="why-option" name="Company Culture"></span><label for="why-option">Company Culture</label></div>
+  </fieldset></div>
+  <div data-field-path="rate"><fieldset><label class="_heading _required_x" for="rate">How would you rate Plaid's position in AI?</label>
+    <div><input type="radio" id="rate-option" name="rate"><label for="rate-option">1 - Slightly below average</label></div>
+    <div><input type="radio" id="rate-option" name="rate"><label for="rate-option">2 - About average</label></div>
+  </fieldset></div>
+  <div data-field-path="github"><label class="_heading" for="github">GitHub</label><input id="github" name="github" type="url" value=""></div>
+</div>
+</body></html>`;
+
 interface Control { ref: string; kind: string; label: string; required: boolean; options: string[]; value: string | string[] | null }
 
 const read = async (page: Page) => JSON.parse(await page.evaluate(`(async () => { ${READ_FORM_BODY} })()`)) as { submitted: boolean; controls: Control[] };
@@ -71,4 +95,19 @@ test("fills each kind of field, attaches the resume, and submits", async ({ page
   const submit = JSON.parse(await page.evaluate(`(async () => { ${SUBMIT_FORM_BODY} })()`) as string) as { status: string };
   expect(submit.status).toBe("submitted");
   expect((await read(page)).submitted).toBe(true);
+});
+
+test("reads Ashby's questions, required marks and location search", async ({ page }) => {
+  await page.route("https://jobs.example.com/**", (route) => route.fulfill({ contentType: "text/html", body: ASHBY }));
+  await page.goto("https://jobs.example.com/plaid/1/application");
+  const { controls } = await read(page);
+  const summary = controls.map((control) => [control.kind, control.label, control.required]);
+  expect(summary).toEqual([
+    ["buttons", "Have you ever been previously employed by Plaid?", true],
+    ["text", "Name", true],
+    ["combobox", "Location", true],
+    ["url", "GitHub", false],
+    ["radio", "How would you rate Plaid's position in AI?", true],
+    ["checkboxes", "Why are you interested in working at Plaid? Select all that apply.", true],
+  ]);
 });

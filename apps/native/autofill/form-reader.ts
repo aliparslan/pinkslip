@@ -15,6 +15,16 @@ export function readForm(): FormControl[] {
   const clean = (text: string | null | undefined) =>
     (text ?? "").replace(/\s+/g, " ").replace(/\s*[*✱]\s*$/, "").trim();
   const starred = (text: string | null | undefined) => /[*✱]\s*$/.test((text ?? "").trim());
+  /** Some sites (Ashby) draw the asterisk with CSS from a "required" class. */
+  const markedRequired = (element: Element | null | undefined) => {
+    const marked = (node: Element) => [...node.classList].some((name) => /(^|[_-])required([_-]|$)/i.test(name) && !/not[_-]?required/i.test(name));
+    return Boolean(element && (marked(element) || [...element.querySelectorAll("[class*='required' i]")].some(marked)));
+  };
+  /** A label's question and whether it's marked required. */
+  const question = (element: Element | null | undefined) => {
+    const text = readable(element);
+    return { text: clean(text), starred: starred(text) || markedRequired(element) };
+  };
   /** What a person reads: visible text only, without the buttons inside it. */
   const readable = (element: Element | null | undefined): string => {
     if (!element) return "";
@@ -49,24 +59,29 @@ export function readForm(): FormControl[] {
 
   /** The question a control answers, from the most explicit source available. */
   const labelFor = (element: Element): { text: string; starred: boolean } => {
-    const fromIds = (ids: string | null) => (ids ?? "").split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent ?? "")
-      .join(" ");
-    const candidates: Array<string | null | undefined> = [
-      fromIds(element.getAttribute("aria-labelledby")),
-      element.id ? readable(document.querySelector(`label[for="${CSS.escape(element.id)}"]`)) : null,
-      readable(element.closest("label")),
-      element.getAttribute("aria-label"),
-      readable(element.closest("fieldset")?.querySelector("legend")),
+    const labelledBy = (element.getAttribute("aria-labelledby") ?? "").split(/\s+/)
+      .map((id) => document.getElementById(id)).filter((node): node is HTMLElement => node !== null);
+    const fromIds = labelledBy.map((node) => node.textContent ?? "").join(" ");
+    const candidates: Array<{ text: string; starred: boolean }> = [
+      { text: clean(fromIds), starred: starred(fromIds) || labelledBy.some(markedRequired) },
+      element.id ? question(document.querySelector(`label[for="${CSS.escape(element.id)}"]`)) : { text: "", starred: false },
+      question(element.closest("label")),
+      { text: clean(element.getAttribute("aria-label")), starred: starred(element.getAttribute("aria-label")) },
+      question(element.closest("fieldset")?.querySelector("legend")),
     ];
     // "Attach" or "Upload file" names the button, not the question.
     const meaningful = (text: string) =>
       text !== "" && !/^(attach|upload( a)?( file)?|browse|choose( a)? file|select( a)? file|enter manually|dropbox|google drive|paste)$/i.test(text);
-    /** A label that names a different input is that input's question, not this one's. */
-    const belongsElsewhere = (candidate: Element) =>
-      candidate instanceof HTMLLabelElement && candidate.htmlFor !== "" && candidate.htmlFor !== element.id;
+    /** A label that names a different input is that input's question, not
+     * this one's. One naming an id nothing has (Ashby's location) still
+     * belongs to the field it sits with. */
+    const belongsElsewhere = (candidate: Element) => {
+      if (!(candidate instanceof HTMLLabelElement) || candidate.htmlFor === "" || candidate.htmlFor === element.id) return false;
+      const target = document.getElementById(candidate.htmlFor);
+      return target !== null && target !== element && !target.contains(element);
+    };
     for (const candidate of candidates) {
-      if (meaningful(clean(candidate))) return { text: clean(candidate), starred: starred(candidate) };
+      if (meaningful(candidate.text)) return candidate;
     }
     // Fall back to the nearest label-like text above the control.
     let node: Element | null = element;
@@ -75,7 +90,7 @@ export function readForm(): FormControl[] {
       const headings = [...(node?.querySelectorAll("label, legend, [class*='label' i], h3, h4") ?? [])];
       const heading = headings.find((candidate) =>
         !candidate.contains(element) && !belongsElsewhere(candidate) && meaningful(clean(readable(candidate))));
-      if (heading) return { text: clean(readable(heading)), starred: starred(readable(heading)) };
+      if (heading) return question(heading);
     }
     return { text: clean(element.getAttribute("placeholder") ?? element.getAttribute("name")), starred: false };
   };
@@ -115,9 +130,17 @@ export function readForm(): FormControl[] {
 
   /** A group's question: its legend, else the nearest text before the group
    * that isn't one of its options. */
-  const groupLabel = (holder: Element): { text: string; starred: boolean } => {
+  const groupLabel = (holder: Element, options: Element[]): { text: string; starred: boolean } => {
     const legend = holder.matches("fieldset") ? holder.querySelector("legend") : null;
-    if (legend && clean(readable(legend))) return { text: clean(readable(legend)), starred: starred(readable(legend)) };
+    if (legend && clean(readable(legend))) return question(legend);
+    // A label at the top of the group that isn't one of its options (Ashby
+    // puts the question in a <label> inside the fieldset).
+    const heading = [...holder.querySelectorAll("label")].find((label) =>
+      !label.querySelector("input")
+      && options.every((option) => label.htmlFor === "" || label.htmlFor !== option.id)
+      && Boolean(label.compareDocumentPosition(options[0]) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && clean(readable(label)) !== "");
+    if (heading) return question(heading);
     const labelled = holder.getAttribute("aria-labelledby");
     if (labelled) {
       const text = labelled.split(/\s+/).map((id) => readable(document.getElementById(id))).join(" ");
@@ -247,7 +270,7 @@ export function readForm(): FormControl[] {
   for (const group of radiosByName.values()) {
     if (!group.some((input) => visible(input) || input.labels?.[0])) continue;
     const holder = group.length > 1 ? commonAncestor(group) : (group[0].closest("fieldset, [role='radiogroup']") ?? group[0]);
-    const label = groupLabel(holder);
+    const label = groupLabel(holder, group);
     const checked = group.find((input) => input.checked);
     controls.push({
       ref: stamp(holder),
@@ -273,8 +296,9 @@ export function readForm(): FormControl[] {
   for (const group of checkboxGroups.values()) {
     if (group.length === 1) {
       for (const box of group) {
-        const own = readable(box.labels?.[0] ?? box.closest("label"));
-        const label = { text: clean(own) || labelFor(box).text, starred: starred(own) };
+        const ownLabel = box.labels?.[0] ?? box.closest("label");
+        const own = question(ownLabel);
+        const label = { text: own.text || labelFor(box).text, starred: own.starred };
         controls.push({
           ref: stamp(box),
           kind: "checkbox",
@@ -288,7 +312,7 @@ export function readForm(): FormControl[] {
       continue;
     }
     const holder = commonAncestor(group);
-    const label = groupLabel(holder);
+    const label = groupLabel(holder, group);
     const chosen = group.filter((box) => box.checked).map(optionText);
     controls.push({
       ref: stamp(holder),

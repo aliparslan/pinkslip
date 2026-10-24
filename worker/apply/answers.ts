@@ -76,8 +76,8 @@ const LABEL_KEYS: Array<[RegExp, string]> = [
   [/earliest.*start|start date|available to start|when can you start|start-date/i, "start_date"],
   [/how did you (first )?(hear|find|learn)|where did you (first )?(hear|find|learn)|hear about|learn(ed)? about (this|the|us)|brought you to/i, "how_heard"],
   [/pronoun/i, "pronouns"],
-  [/current (or (most recent|previous) )?(company|employer)|current or previous employer/i, "current_company"],
-  [/current (or (most recent|previous) )?(job )?title|current or previous job title/i, "current_title"],
+  [/current ?(or|\/) ?(most recent |previous |last )?(company|employer)|current (company|employer)|(most recent|last) (company|employer)/i, "current_company"],
+  [/current ?(or|\/) ?(most recent |previous |last )?(job )?title|current (job )?title|(most recent|last) (job )?title/i, "current_title"],
   [/\bgpa\b|grade point/i, "gpa"],
   [/graduat/i, "graduation"],
   [/school|university|college|institution/i, "school"],
@@ -336,11 +336,27 @@ export function isAcknowledgement(label: string): boolean {
   return !FACTUAL_QUESTION.test(label) || EXPLICIT_ACKNOWLEDGEMENT.test(label);
 }
 
+/** Consent to more than the application: other roles, a talent community,
+ * texts, marketing, keeping the resume. Never given unless the form
+ * requires it to apply (Spotify's was ticked in phase 0). */
+const OPTIONAL_CONSENT = /future (job |career |employment )?(opportunit|role|position|opening|vacanc|recruit)|other (job |open )?(roles|positions|opportunit|openings|vacancies)|talent (community|network|pool|pipeline)|newsletter|marketing|promotion|\b(text|sms) (messages?|alerts?|updates?)\b|\bsms\b|keep me (informed|updated|posted)|stay in touch|contact(ed)? me (about|regarding|for)|send me|subscribe|(retain|keep|store) (my|your) (data|information|details|application|resume|cv) (for|to)/i;
+const DECLINE_CONSENT = /^(no\b|i do not|i don'?t|do not|don'?t|decline|opt.?out|not (now|interested)|no thanks)/i;
+
+export function isOptionalConsent(label: string): boolean {
+  return OPTIONAL_CONSENT.test(label);
+}
+
 /** An answer Pinkslip can pick without asking: the only option, a
- * confirmation, how the user found the job, or declining a voluntary survey. */
+ * confirmation, how the user found the job, or declining a voluntary survey
+ * or an optional consent. */
 export function defaultAnswer(field: ApplicationField): ApplicationAnswerValue | null {
   const choice = field.type === "select" || field.type === "multiselect" || field.type === "boolean";
   if (field.section === "voluntary") return fitToField(field, "decline");
+  if (choice && isOptionalConsent(field.label)) {
+    const decline = field.options.find((candidate) => DECLINE_CONSENT.test(candidate.label));
+    if (decline) return field.type === "multiselect" ? null : decline.label;
+    if (!field.required) return null;
+  }
   if (choice && field.options.length === 1) {
     return field.type === "multiselect" ? [field.options[0].label] : field.options[0].label;
   }
