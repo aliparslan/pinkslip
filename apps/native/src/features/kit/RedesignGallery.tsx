@@ -56,6 +56,7 @@ export function RedesignGallery() {
           onPress={() => openSignIn({ title: "Keep your saved jobs", detail: "So they follow you to a new phone.", notNow: true, sample: true })} />
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
+        <ListItem title="Motion, now and proposed" accessory="chevron" onPress={() => router.push("/you/kit-motion")} />
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />
         <ListItem title="Today, Ask first's list" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "ask" } })} />
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />

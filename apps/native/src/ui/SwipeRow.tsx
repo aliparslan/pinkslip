@@ -2,8 +2,9 @@ import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } f
 import { Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Easing, interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withTiming, type SharedValue,
+  Easing, interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
+import { settleSpring } from "../kit/motion";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
@@ -32,6 +33,10 @@ export interface SwipeRowProps {
   leading?: readonly SwipeAction[];
   /** Left swipe: the first is the outer one, which a full swipe runs. */
   trailing?: readonly SwipeAction[];
+  /** How a let-go row settles: `ease` (today) on the strong ease-out, or
+   * `spring` from the finger's speed on the kit's settle spring, which the
+   * Motion lab compares (docs/motion-opportunities-2026-10-24.md). */
+  settle?: "ease" | "spring";
   children: ReactNode;
 }
 
@@ -72,7 +77,8 @@ export function closeOpenSwipeRow() {
  * capsule, and letting go runs it. Every settle eases out, so nothing
  * overshoots to the other side.
  */
-export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRowProps) {
+export function SwipeRow({ id, leading = [], trailing = [], settle = "ease", children }: SwipeRowProps) {
+  const springy = settle === "spring";
   const x = useSharedValue(0);
   const start = useSharedValue(0);
   const width = useSharedValue(390);
@@ -193,9 +199,10 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
       }
       progress.value = withTiming(0, FAST);
       const stayOpen = success && count > 0 && Math.abs(value) >= revealWidth(count) / 2 && outward > -300;
-      x.value = withTiming(stayOpen ? sign * revealWidth(count) : 0, SETTLE);
+      const target = stayOpen ? sign * revealWidth(count) : 0;
+      x.value = springy ? withSpring(target, { ...settleSpring, velocity: event.velocityX }) : withTiming(target, SETTLE);
       scheduleOnRN(markOpen, stayOpen ? side : null);
-    }), [leadingCount, trailingCount]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [leadingCount, trailingCount, springy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   const foldStyle = useAnimatedStyle(() => fold.value < 1 ? { height: height.value * fold.value, opacity: fold.value } : {});
