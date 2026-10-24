@@ -96,4 +96,14 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
 ## Repository workflow
 
 Do not create pull requests. Commit and push authorized changes directly to
-`main` under the repository owner's configured identity.
+`main` under the repository owner's configured identity:
+`aliparslan <aliparslan@outlook.com>`. Check `git config user.email` in a
+fresh clone or cloud session before the first commit; never commit as an AI
+identity.
+
+Commit messages are `type(scope): subject`. The type is `feat`, `fix`,
+`docs`, `refactor`, `chore` or `test`; the scope is the part touched
+(`native`, `webapp`, `worker`, `tokens`, or two joined with a comma), and
+`docs:` needs none. The subject says what changed in plain words, lowercase,
+72 characters at most; the reasons and details go in the body. Keep history
+linear: rebase unpushed commits onto `origin/main` instead of merging.
