@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, closeOpenSwipeRow, PAGE_BAR, PageBar, Text, useTabBarSpace } from "../../ui";
+import { Button, closeOpenSwipeRow, PAGE_BAR, PageBar, Segmented, SwipeLookContext, Text, useTabBarSpace } from "../../ui";
 import type { JobActions } from "../jobs/useJobActions";
 import { FeedRow } from "../redesign/JobsFeed";
 
@@ -13,7 +13,8 @@ import { FeedRow } from "../redesign/JobsFeed";
  * Dev-only: the Jobs feed's own rows (FeedRow, in a FlashList as on Jobs) on
  * sample jobs, so a swipe can be tried and recorded all the way through:
  * Save and Read toggle, Applied marks, Hide takes the row away. Nothing
- * leaves the phone. Reset brings every row back.
+ * leaves the phone. Reset brings every row back. Now and Proposed switch
+ * between today's circles and the pills after iOS Mail (owner, 2026-10-24).
  */
 const COMPANIES: [string, string, string, string, string | null][] = [
   ["Stripe", "stripe.com", "Software Engineer, New Grad", "New York, NY", "$165,000"],
@@ -41,6 +42,7 @@ export function SwipeFeedLab() {
   const tabSpace = useTabBarSpace();
   const [jobs, setJobs] = useState(() => sampleJobs());
   const [viewed, setViewed] = useState(new Set<string>());
+  const [look, setLook] = useState<"circles" | "pills">("pills");
   const patch = (id: string, change: Partial<Job>) => setJobs((all) => all.map((job) => (job.id === id ? { ...job, ...change } : job)));
   const actions = useMemo<JobActions>(() => ({
     save: (job) => patch(job.id, { saved: true }),
@@ -50,21 +52,25 @@ export function SwipeFeedLab() {
     toggleRead: (job, read) => setViewed((all) => { const next = new Set(all); if (read) next.add(job.id); else next.delete(job.id); return next; }),
     hide: (job) => setJobs((all) => all.filter((other) => other.id !== job.id)),
   }), []);
-  return <View style={styles.screen}>
+  return <SwipeLookContext.Provider value={look}><View style={styles.screen}>
     <Stack.Screen options={{ headerShown: false }} />
     <FlashList data={jobs} keyExtractor={(job) => job.id} onScrollBeginDrag={closeOpenSwipeRow}
       contentContainerStyle={{ paddingTop: insets.top + PAGE_BAR + 8, paddingBottom: tabSpace }}
       ListHeaderComponent={<View style={styles.header}>
         <Text role="title1" accessibilityRole="header">Swipes</Text>
-        <Text role="subhead" tone="ink-2">The feed's rows on sample jobs. Save, Read and Applied toggle; Hide takes the row away.</Text>
+        <Text role="subhead" tone="ink-2">The feed's rows on sample jobs. Save, Read and Applied toggle; Hide takes the row away. Proposed follows iOS Mail.</Text>
+        <View style={styles.look}>
+          <Segmented value={look} onChange={setLook} segments={[{ value: "circles", label: "Now" }, { value: "pills", label: "Proposed" }]} />
+        </View>
         <Button variant="secondary" onPress={() => { setJobs(sampleJobs()); setViewed(new Set()); }}>Reset</Button>
       </View>}
       renderItem={({ item }) => <FeedRow job={item} viewed={viewed.has(item.id)} actions={actions} tab="(you)" onOpen={() => undefined} />} />
     <PageBar />
-  </View>;
+  </View></SwipeLookContext.Provider>;
 }
 
 const styles = StyleSheet.create((theme) => ({
   screen: { flex: 1, backgroundColor: theme.ui.color.bg },
   header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["4"], alignItems: "flex-start" },
+  look: { alignSelf: "stretch" },
 }));

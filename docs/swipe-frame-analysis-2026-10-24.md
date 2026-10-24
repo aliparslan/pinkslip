@@ -111,3 +111,58 @@ Each fix would go in the Motion lab as a Now/Proposed pair first.
      they're fully on screen.
    - Either way, give the labels the same slot width so the pair is evenly
      spaced.
+
+## The iOS reference (Reminders, same system swipe as Mail)
+
+The owner pointed at Mail (2026-10-24). The simulator has no Mail, so this
+records Reminders, which uses the same system swipe actions, with the same
+tools.
+- **Pills, not circles.** Each action is a capsule with its icon and label
+  inline: 87pt wide and 34pt tall in a 42pt row. They're about 10pt apart,
+  about 10pt from the screen's edge, and about 10pt from the row.
+- **Fixed slots.** Each pill sits in its own slot at the screen's edge and
+  grows in place, from small and clear, once the row's edge has passed it.
+  Nothing slides in from off-screen, so nothing is cut.
+- **The row turns into a card.** As it moves it greys (page 252 to 226) and
+  its moving edge rounds into a capsule end.
+- **Past the open point,** the outer action (the full-swipe one) stretches
+  toward the row, pushing the other one along, with its label riding the
+  row-side edge.
+- **At the commit,** it fills to the row's edge as the row leaves and the
+  other pill fades. The space closes about 200ms later.
+
+## Proposed (Kit → Swipes, now and proposed)
+
+`SwipeRow` reads `SwipeLookContext`. The pills version (`PillSwipeRow` in
+`ui/SwipeRow.tsx`) runs only in the kit until the owner approves it. It
+covers the owner's three points and the five fixes:
+- **Pills sized to their text:** 44 tall, icon 18 and Subhead Medium label
+  inline, 14 padding, at least 72 wide. They're 8 apart and 8 from the
+  screen's edge, tinted at rest, with the icon and label in the tone's ink.
+- **Fixed slots, growing in.** A pill grows from its slot's middle, only as
+  big as the space the row has uncovered, so it's never cut by the screen
+  or covered by the row. Once they're all out they don't move. Past that,
+  the outer one stretches toward the row and the inner one keeps its place
+  beside it.
+- **Arming:** the outer pill turns solid and fills to the row's edge, with
+  the tap haptic. The inner one is gone by the time it's reached. One shape
+  changes colour; nothing crosses.
+- **The row being acted on is a card:** corners round to 22 within the
+  first 24pt and it takes the separator's grey within 48pt. In dark mode
+  that's a lighter card. `JobRow` drops its own background inside one
+  (`SwipeCardContext`).
+- **Letting go** springs from the finger's speed (`settleSpring`), so a
+  short drag slows and turns back instead of reversing in a frame.
+- **Hide** sends the row off on a spring from the finger's speed, and the
+  space starts closing 120ms in, so it's one motion.
+- **Save, Read and Applied** bring the row home on a brisker spring with the
+  capsule still in its colour, then run, so nothing changes mid-motion.
+  "Saved" lands about 0.4s after letting go.
+
+Measured on the simulator (light and dark):
+- Pills never cut.
+- The stretch keeps the pair together.
+- Hide: let go to gone in about 300ms.
+- Save: back home in about 0.4s, still pink.
+- A short let-go turns back over about 6 frames (2, 4, then 4.6pt a frame)
+  where it used to jump 10pt in one.

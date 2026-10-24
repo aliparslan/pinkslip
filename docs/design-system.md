@@ -359,6 +359,12 @@ the storyboard spec. These were chosen in the Motion lab
   - Not taken: the first page of jobs fading in (no visible difference), the
     update notes rising in, and the Offline pill easing in. The swipe settle
     is part of the swipe rework.
+- **Swipe actions, proposed** (owner, 2026-10-24, after iOS Mail; Kit →
+  Swipes, now and proposed; `swipe-frame-analysis-2026-10-24.md`): pills sized
+  to their icon and label in fixed slots at the screen's edge, growing in as
+  the row uncovers them; the outer one stretches, then fills solid to arm; the
+  swiped row becomes a card (rounded, separator grey). Waiting on the owner;
+  the feed still uses the circles.
 - **Onboarding** (`motion.onboarding`; the Onboarding Motion Lab, owner
   2026-10-14; Paper "Onboarding · the build · Oct 18"):
   - The hook's mess lands card by card over 860ms, each gap 0.8 of the one
@@ -510,7 +516,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   changes something you'd notice says so once, at the launch it arrives:
   the "New in 1.4" sheet without its title, its notes in the one white
   group (icon tile, Medium title, an `ink-2` line only if the title needs
-  one), then the grey Got it.
+  one), then the grey Got it. A title-only note is Regular and centred on
+  its tile (owner, 2026-10-24: Medium read too heavy, and the tile sat
+  high).
   Any number of notes; the group scrolls when they outgrow the sheet. Fixes
   stay silent, a new install sees none, a phone that missed several sees
   the newest set, and a big release's sheet wins the launch. The notes then

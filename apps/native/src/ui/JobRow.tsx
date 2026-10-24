@@ -3,7 +3,7 @@ import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 import { StageMark } from "./StageMark";
-import { SwipingContext } from "./SwipeRow";
+import { SwipeCardContext, SwipingContext } from "./SwipeRow";
 import { Text } from "./Text";
 
 export type JobStage = "saved" | "applied";
@@ -59,13 +59,15 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
   const swiping = useContext(SwipingContext);
+  // In a pill swipe row the row's card is the background.
+  const inCard = useContext(SwipeCardContext);
   // The highlight waits 150ms, as iOS lists do, and a row being swiped
   // neither highlights nor opens.
   return <Pressable collapsable={false} unstable_pressDelay={150} accessibilityRole="button" accessibilityLabel={label}
     onPress={swiping ? undefined : onPress} onLongPress={swiping ? undefined : onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
-    style={({ pressed }) => [styles.row, pressed && !swiping && styles.pressed]}>
+    style={({ pressed }) => [styles.row, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
     <View style={[styles.logo, quiet && styles.faded]}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
     <View style={styles.text}>
       <View style={styles.line}>
@@ -95,6 +97,7 @@ const styles = StyleSheet.create((theme) => {
     // At least 84: larger Dynamic Type sizes grow the row instead of clipping it.
     row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
+    clear: { backgroundColor: "transparent" },
     // Centred on the digits' height rather than the line box, which sits a point higher.
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 2, backgroundColor: theme.ui.color.accent },
     // Level with the first line: the logo spans lines one and two.
