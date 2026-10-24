@@ -1,5 +1,5 @@
 import type { Browser, BrowserWorker, Page } from "@cloudflare/puppeteer";
-import type { FormPage } from "./send-engine";
+import { PageNavigated, type FormPage } from "./send-engine";
 
 /** A page that's a wall rather than a form. */
 const BLOCKED_TITLES = /just a moment|attention required|access denied|forbidden|are you a robot|verify you are human/i;
@@ -22,7 +22,15 @@ function wrap(browser: Browser, page: Page, status: number | null, title: string
     status,
     blocked: BLOCKED_TITLES.test(title),
     sessionId: browser.sessionId(),
-    run: async (body) => String(await page.evaluate(`(async () => { ${body} })()`)),
+    run: async (body) => {
+      try {
+        return String(await page.evaluate(`(async () => { ${body} })()`));
+      } catch (error) {
+        if (!/execution context was destroyed|cannot find context|context.*(detached|destroyed)/i.test(String(error))) throw error;
+        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 8_000 }).catch(() => undefined);
+        throw new PageNavigated(String(error));
+      }
+    },
     type: async (selector, text) => {
       await page.click(selector);
       await page.keyboard.type(text, { delay: 70 });

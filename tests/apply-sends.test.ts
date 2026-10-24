@@ -16,10 +16,11 @@ import {
   READ_FORM_BODY,
   SUBMIT_FORM_BODY,
 } from "@worker/apply/page-scripts";
-import { enterCode, fillPlan, prepareForm, recheck, submit } from "@worker/apply/send-engine";
+import { PageNavigated, enterCode, fillPlan, prepareForm, recheck, submit } from "@worker/apply/send-engine";
 import { applyResumeKey, loadResume, saveApplyResume } from "@worker/apply/send-files";
 import {
   SendError,
+  describeSent,
   enterSendCode,
   expireSendCode,
   failSend,
@@ -58,6 +59,8 @@ function fakePage(options: {
   submits?: SubmitStatus[];
   asksForCode?: boolean;
   status?: number;
+  /** Typing the code sends the form, and the page navigates mid-script. */
+  codeNavigates?: boolean;
   /** Options a search box lists once opened. */
   revealed?: string[];
   /** Searches that match nothing typed (their options load only when opened). */
@@ -104,7 +107,12 @@ function fakePage(options: {
       if (body === CLOSE_POPOVERS_BODY) { calls.push("close"); return "closed"; }
       if (body.includes("[role=option]")) { calls.push("peek"); return JSON.stringify(options.revealed ?? []); }
       if (body === CODE_PROMPT_BODY) return JSON.stringify({ asks: asksForCode, boxes: asksForCode ? 8 : 0 });
-      if (body.includes("const code =")) { calls.push("code fallback"); return "8"; }
+      if (body.includes("const code =")) {
+        calls.push("code fallback");
+        // Reddit's: the code's last letter sends the form and the page moves on.
+        if (options.codeNavigates) { asksForCode = false; submitted = true; throw new PageNavigated("Execution context was destroyed"); }
+        return "8";
+      }
       if (body === SUBMIT_FORM_BODY) {
         calls.push("submit");
         if (asksForCode && typed.length > 0) { asksForCode = false; submitted = true; return JSON.stringify({ status: "submitted", errors: [], url: "https://acme.example/thanks" }); }
@@ -253,6 +261,25 @@ describe("the send engine", () => {
     expect(entered).toEqual({ status: "submitted", url: "https://acme.example/thanks", text: "Thank you for applying to Acme!" });
   });
 
+  it("reads the confirmation when the code's last letter sends the form", async () => {
+    const page = fakePage({ controls: [control("p1", "text", "First Name", { value: "Ali" })], submits: ["unknown"], asksForCode: true, codeNavigates: true });
+    expect(await submit(page)).toEqual({ status: "code_needed" });
+    expect(await enterCode(page, "OGRULIke")).toEqual({ status: "submitted", url: "https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123", text: "Thank you for applying to Acme!" });
+  });
+
+  it("lists the resume in what was sent when the site hides its file input", () => {
+    const prepared = {
+      kind: "ready" as const,
+      controls: [control("p1", "text", "First Name"), control("p3", "file", "Resume/CV")],
+      planning: [], siteFilled: [], resumeRef: "p3", cookies: false,
+    };
+    const sent = describeSent([control("p1", "text", "First Name", { value: "Alip" })], prepared, { steps: [{ ref: "p1", kind: "text", value: "Alip" }], inferred: [] }, "Alip_Arslan_resume.pdf");
+    expect(sent).toEqual([
+      { label: "First Name", value: "Alip", by: "pinkslip" },
+      { label: "Resume/CV", value: "Alip_Arslan_resume.pdf", by: "pinkslip" },
+    ]);
+  });
+
   it("reports a captcha on Submit as it is", async () => {
     const page = fakePage({ controls: [control("p1", "text", "First Name", { value: "Ali" })], submits: ["captcha"] });
     expect(await submit(page)).toEqual({ status: "captcha", url: "https://acme.example/thanks" });
@@ -268,6 +295,10 @@ describe("Greenhouse's emailed code", () => {
       .toBe("Xk3Lp9Qa");
     expect(greenhouseCode("Call 5125550100 about your code: 48213907")).toBe("48213907");
     expect(greenhouseCode("No code here, just words")).toBeNull();
+    // Reddit's, the first real send: letters only.
+    expect(greenhouseCode("Copy and paste this code into the security code field on your application: OGRULIke")).toBe("OGRULIke");
+    expect(greenhouseCode("Your code is below.\nOGRULIke\nThanks", "Security code for your application to DoorDash")).toBe("OGRULIke");
+    expect(greenhouseCode("The code for DoorDash is below.\nOGRULIke", "Security code for your application to DoorDash")).toBe("OGRULIke");
   });
 });
 

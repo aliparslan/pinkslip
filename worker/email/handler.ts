@@ -117,7 +117,7 @@ export async function handleInboundEmail(message: ForwardableEmailMessage, env: 
   // handed to the send waiting for it, and nothing else read from the email.
   if (isGreenhouseCodeEmail(from.address, subject) && await hasSendWaitingForCode(env.DB, userId)) {
     const parsed = toEmailContent(await PostalMime.parse(message.raw), from);
-    const code = greenhouseCode(`${parsed.subject}\n${parsed.text}`);
+    const code = greenhouseCode(parsed.text, parsed.subject);
     logOutcome(code && await deliverSendCode(env, userId, code) ? "apply_code" : "apply_code_missing", from.address);
     return;
   }

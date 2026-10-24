@@ -33,6 +33,10 @@ export interface FormPage {
 
 export interface ResumeUpload { name: string; base64: string }
 
+/** The page went somewhere new while a script ran in it: a Submit, or the
+ * code's last letter sending the form (Reddit's, the first real send). */
+export class PageNavigated extends Error {}
+
 type FillOutcome = "filled" | "missing" | "no_match" | "failed";
 interface PageRead { submitted: boolean; controls: FormControl[] }
 interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "unknown"; errors: string[]; url: string }
@@ -232,24 +236,44 @@ async function afterSubmit(page: FormPage, report: SubmitReport): Promise<Submit
   return { status: report.status, url: report.url };
 }
 
+/** Once the page has gone somewhere new, reads where it landed. */
+async function landed(page: FormPage): Promise<Submitted> {
+  await page.wait(1_500);
+  const read = await readPage(page).catch(() => null);
+  if (read?.submitted) return { status: "submitted", url: page.url(), text: await page.run(PAGE_TEXT_BODY).catch(() => "") };
+  return { status: "unknown", url: page.url() };
+}
+
 /** Presses Submit and reads what the page said. */
 export async function submit(page: FormPage): Promise<Submitted> {
   await declineCookies(page);
-  return afterSubmit(page, JSON.parse(await page.run(SUBMIT_FORM_BODY)) as SubmitReport);
+  let report: SubmitReport;
+  try {
+    report = JSON.parse(await page.run(SUBMIT_FORM_BODY)) as SubmitReport;
+  } catch (error) {
+    if (error instanceof PageNavigated) return landed(page);
+    throw error;
+  }
+  return afterSubmit(page, report);
 }
 
 /** Types the emailed code into the boxes the prompt stamped, then submits again. */
 export async function enterCode(page: FormPage, code: string): Promise<Submitted | { status: "no_field" }> {
   const prompt = JSON.parse(await page.run(CODE_PROMPT_BODY).catch(() => "{}")) as { boxes?: number };
   if (!prompt.boxes) return { status: "no_field" };
-  await page.type('[data-pinkslip-code="0"]', code).catch(() => undefined);
-  await page.run(codeFallbackBody(code));
-  await page.wait(500);
-  const report = JSON.parse(await page.run(SUBMIT_FORM_BODY)) as SubmitReport;
-  // Some forms send the application as soon as the last box is typed.
-  if (report.status === "no_button") {
-    const settled = JSON.parse(await page.run(READ_FORM_BODY)) as PageRead;
-    if (settled.submitted) return { status: "submitted", url: page.url(), text: await page.run(PAGE_TEXT_BODY).catch(() => "") };
+  try {
+    await page.type('[data-pinkslip-code="0"]', code).catch(() => undefined);
+    await page.run(codeFallbackBody(code));
+    await page.wait(500);
+    const report = JSON.parse(await page.run(SUBMIT_FORM_BODY)) as SubmitReport;
+    // Some forms send the application as soon as the last box is typed.
+    if (report.status === "no_button") {
+      const settled = JSON.parse(await page.run(READ_FORM_BODY)) as PageRead;
+      if (settled.submitted) return { status: "submitted", url: page.url(), text: await page.run(PAGE_TEXT_BODY).catch(() => "") };
+    }
+    return await afterSubmit(page, report);
+  } catch (error) {
+    if (error instanceof PageNavigated) return landed(page);
+    throw error;
   }
-  return afterSubmit(page, report);
 }

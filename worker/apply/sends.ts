@@ -274,16 +274,22 @@ async function saveShot(env: Env, row: SendRow, page: OpenedPage, which: "form" 
   }
 }
 
-/** Everything on the form, and who put it there. */
-export function describeSent(controls: FormControl[], prepared: Extract<Prepared, { kind: "ready" }>, plan: Pick<ApplyPlan, "steps" | "inferred">): SentAnswer[] {
+/** Everything on the form, and who put it there. The resume is always
+ * listed: Greenhouse swaps its file input for a chip once a file is in. */
+export function describeSent(controls: FormControl[], prepared: Extract<Prepared, { kind: "ready" }>, plan: Pick<ApplyPlan, "steps" | "inferred">, resumeName?: string): SentAnswer[] {
   const byPinkslip = new Set([...plan.steps.map((step) => step.ref), ...(prepared.resumeRef ? [prepared.resumeRef] : [])]);
   const byJev = new Set(plan.inferred.map((guess) => guess.ref));
   const bySite = new Set(prepared.siteFilled);
-  return controls.filter((control) => !isEmpty(control)).slice(0, 150).map((control) => ({
+  const sent: SentAnswer[] = controls.filter((control) => !isEmpty(control)).slice(0, 150).map((control) => ({
     label: control.label.slice(0, 300),
     value: (Array.isArray(control.value) ? control.value.join(", ") : control.value ?? "").slice(0, 2_000),
     by: byJev.has(control.ref) ? "jev" : byPinkslip.has(control.ref) ? "pinkslip" : bySite.has(control.ref) ? "site" : "page",
   }));
+  const resumeLabel = prepared.controls.find((control) => control.ref === prepared.resumeRef)?.label;
+  if (resumeLabel && resumeName && !sent.some((answer) => answer.value === resumeName)) {
+    sent.push({ label: resumeLabel.slice(0, 300), value: resumeName, by: "pinkslip" });
+  }
+  return sent;
 }
 
 const needsOf = (controls: FormControl[]) => controls.map((control) => ({ label: control.label.slice(0, 300), kind: control.kind }));
@@ -322,7 +328,7 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
     const plan = await deps.plan(env, row.user_id, { jobId: row.job_id, controls: prepared.planning });
     const replan = (controls: FormControl[]) => deps.plan(env, row.user_id, { jobId: row.job_id, controls });
     const filled = await recheck(page, plan, prepared, resume, await fillPlan(page, plan, prepared, resume, replan), replan);
-    const sent = describeSent(filled.controls, prepared, plan);
+    const sent = describeSent(filled.controls, prepared, plan, resume.name);
     const formShot = await saveShot(env, row, page, "form");
     if (filled.open.length > 0 || filled.errors.length > 0) {
       const needs = [...needsOf(filled.open), ...filled.errors.map((error) => ({ label: error.slice(0, 300), kind: "error" }))];
@@ -453,16 +459,22 @@ export function isGreenhouseCodeEmail(fromAddress: string, subject: string): boo
   return /(^|\.)greenhouse(-mail)?\.io$/.test(domain) && /\bcode\b/i.test(subject);
 }
 
-/** The code in it: the first word after "code" that has a digit in it, 6 to
- * 10 letters and digits long, outside links. */
-export function greenhouseCode(text: string): string | null {
+/** The code in it. Greenhouse writes "…security code field on your
+ * application: OGRULIke", and its codes can be letters only. Otherwise the
+ * first word after "code" that looks like one: 6 to 10 letters and digits
+ * with a digit or a capital past the first letter, outside links and not a
+ * word from the subject (a company like "DoorDash"). */
+export function greenhouseCode(text: string, subject = ""): string | null {
   const plain = text.replace(/https?:\/\/\S+/g, " ");
+  const labelled = plain.match(/\bcode\b[^:\n]{0,80}:\s*([A-Za-z0-9]{6,12})\b/i)?.[1];
+  if (labelled) return labelled;
+  const fromSubject = new Set(subject.split(/[^A-Za-z0-9]+/).filter(Boolean));
   const after = plain.slice(Math.max(0, plain.search(/\bcode\b/i)));
   for (const match of after.matchAll(/\b[A-Za-z0-9]{6,10}\b/g)) {
     const token = match[0];
-    if (!/\d/.test(token)) continue;
+    if (fromSubject.has(token)) continue;
     if (/^\d+$/.test(token) && token.length > 8) continue;
-    return token;
+    if (/\d/.test(token) || (/[A-Z]/.test(token.slice(1)) && /[a-z]/.test(token))) return token;
   }
   return null;
 }
