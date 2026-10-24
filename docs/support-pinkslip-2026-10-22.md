@@ -186,6 +186,27 @@ alone. Deployed with `SUPPORT = "admin"` (API Worker 7b113df8, web Worker
 7aed037f, from e28c9c9). TestFlight 1.3.8 already has the row; the sheet's
 tweak for a lone link (no list, straight to Stripe) rides the next update.
 
+## Any amount, monthly too (owner, Oct 24: "way 2")
+
+Stripe's links can't repeat a typed amount, so Pinkslip makes the page:
+the sheet takes any whole-dollar amount ($1 to $500) in its Other amount
+row (Paper A3, A4, waiting for approval), and the Worker creates a Stripe
+Checkout Session for exactly that amount, one time or monthly, with
+`success_url` the same `/support/thanks`. Stripe's page says "$7.00 per
+month"; no Payment Links are needed, and the same key serves Pro on the web
+later. The custom link stays live until this ships.
+
+The owner's part:
+
+1. Stripe → Developers → API keys → **Create restricted key**, named
+   "Pinkslip Worker", with Checkout Sessions: Write, Prices: Write and
+   Products: Read; everything else None.
+2. Put it on the Worker from the repo, pasting the key at the prompt (never
+   in chat):
+   `XDG_CONFIG_HOME=$HOME/.config bunx wrangler secret put STRIPE_SECRET_KEY`
+3. Send the "Support Pinkslip" product's ID (`prod_…`, top of its page in
+   the Product catalog). It isn't secret.
+
 ## Sources
 
 - [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) (3.1.1, 3.1.1(a), 3.2.2)
