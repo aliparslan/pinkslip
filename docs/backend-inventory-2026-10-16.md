@@ -350,7 +350,7 @@ Activity, the digest and each application's timeline.
 | The queue: apply in the background, progress, pause | **Partial** (step 10): one Workflow per send, admin-only; no batches, progress or pause yet |
 | Ask first: the morning list, review, send | **Missing** (samples in the app) |
 | Auto-apply settings and limits | **Missing** (samples in the app) |
-| Questions it can't answer → Needs you (N13) | **Missing** |
+| Questions it can't answer → Needs you (N13) | **Built 2026-10-24, not deployed** (step 10, phase B): answer the stopped send's questions, saved to the bank, then it sends again; N13/N14 pushes |
 | Live Activity updates (N15) | **Missing** |
 
 ## 10. Plans and billing

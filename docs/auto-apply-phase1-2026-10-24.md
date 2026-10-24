@@ -103,6 +103,43 @@ from my account." Phase 0 (no submits) is in
   while submitting becomes "unconfirmed" and is never retried.
 - Entering the code never runs twice.
 
+## Phase B: finishing a stopped send, pushes, the app's API (built 2026-10-24, not deployed)
+
+- **Answering what a send stopped on:**
+  - A send that stops keeps each question's ref, options and whether
+    it's required.
+  - `POST /api/v2/apply/sends/:id/answers` `{ answers: { ref: value },
+    resend? }` saves the answers to the answers bank. That includes name
+    and phone, and statements to tick, which the phone's learning leaves
+    to the profile.
+  - It then starts the send again, a dry run if the first one was.
+  - The planner ticks a statement the person answered yes to, and asks
+    again when they said no.
+- **Pushes for real sends** (`worker/notification-kinds.ts`, never for
+  dry runs). They're outside the daily cap, since the person started the
+  send. They open the job's page until the app has a send screen.
+
+  | When | Type | Push |
+  | --- | --- | --- |
+  | Sent | N14 | Sent for you |
+  | Sent with no confirmation | N14 | Sent, but no confirmation yet. Check your email |
+  | Questions left | N13 | One question to finish, or *n* questions to finish |
+  | A captcha | N13 | Finish on your phone |
+  | Greenhouse's code | N13, time-sensitive | Enter the code Greenhouse emailed you |
+
+  Each push's title is the company, and the body ends with the role. The
+  code push waits a minute and is dropped if forwarding delivers the code
+  first.
+- **For the app:**
+  - `features.auto_apply_send_enabled`.
+  - `@pinkslip/core`'s `apply.sendResume`, `uploadSendResume`,
+    `startSend`, `sends`, `send`, `answerSend`, `sendCode`, `sendShot`.
+  - `@pinkslip/data`'s `useApplySends` and `useApplySend` (polling while
+    a send runs), `useStartSend`, `useAnswerSend`, `useSendCode`,
+    `useSendResume`, `useUploadSendResume`.
+- **Next:** Paper for the send screens (start, follow, needs you, the
+  code, what was sent); then the morning picks (N12), caps and pause.
+
 ## The owner's first sends
 
 The app has no screens for this yet (frontend later, Paper first). Until
