@@ -100,9 +100,11 @@ Outreach (step 8, 2026-10-19):
   role" keeps its three answers until then.
 - [ ] **A GitHub token** (public read only), `wrangler secret put
   GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
-- [ ] **A systematic way to list recruiters**, replacing "the ones the
-  owner confirmed": the sourcing search's rules once its "works there"
-  accuracy on the owner's labels reaches 90% (Decisions: Outreach #1).
+- [ ] **The confirm queue** (owner, 2026-10-24): Admin → Recruiters
+  orders companies by where people are (saves, applications, page opens)
+  and without confirmed recruiters, so the search runs where it matters.
+  Confident matches list themselves later, once they prove 90% "works
+  there" on the owner's labels.
 - [ ] **Checking addresses** (owner, 2026-10-19: no paid checker for now).
   Until then a guessed address is trusted as guessed, and bounces take it
   off. Options when it returns: MillionVerifier, or Hunter through treg
@@ -652,6 +654,13 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
   - an address is Pinkslip's best guess from the company's email pattern
     and shows plainly, with no "verified" mark either way;
   - the first bounce drops it for everyone.
+- **Who gets listed:** the sourcing search proposes, and the owner confirms
+  in Admin → Recruiters.
+  - The queue of companies is ordered by where people are: companies they
+    save, apply to and open most, without confirmed recruiters yet.
+  - Confident matches list themselves only once that share proves 90%
+    "works there" on the owner's labels.
+  - No search runs on demand for users.
 - **One at a time:**
   - browsing People shows names and titles;
   - an address appears only in the draft when someone starts writing to
