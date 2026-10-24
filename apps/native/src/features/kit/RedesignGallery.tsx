@@ -57,6 +57,7 @@ export function RedesignGallery() {
         <ListItem title="Icon sets" accessory="chevron" onPress={() => router.push("/you/kit-icons")} />
         <ListItem title="Sheet transitions" accessory="chevron" onPress={() => router.push("/you/kit-sheets")} />
         <ListItem title="Motion, now and proposed" accessory="chevron" onPress={() => router.push("/you/kit-motion")} />
+        <ListItem title="Swipes, the feed's rows on sample jobs" accessory="chevron" onPress={() => router.push("/you/kit-feed-swipes")} />
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />
         <ListItem title="Today, Ask first's list" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "ask" } })} />
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />

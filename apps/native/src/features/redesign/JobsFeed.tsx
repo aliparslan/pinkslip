@@ -166,8 +166,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 const noop = () => undefined;
 
 /** A row opens its job; long-press peeks at it with the row's actions under
- * the preview (a native context menu, so no extra view per row). */
-function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
+ * the preview (a native context menu, so no extra view per row). Exported for
+ * the kit's swipe lab, which runs it on sample jobs. */
+export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
