@@ -1,5 +1,5 @@
 import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
-import { useAnswers, useInbox, usePreferences, usePushSettings, useResumeProfile, useSession } from "@pinkslip/data";
+import { useAnswers, useInbox, usePreferences, usePushSettings, useResumeProfile, useSession, useSupportCheckout } from "@pinkslip/data";
 import Constants from "expo-constants";
 import { router, Stack, type Href } from "expo-router";
 import * as Updates from "expo-updates";
@@ -163,6 +163,7 @@ export function YouScreen() {
   const appearance = useAppearancePreference();
   const [searching, setSearching] = useState(false);
   const [supporting, setSupporting] = useState(false);
+  const checkout = useSupportCheckout();
   // Tips link out to Stripe, which Apple allows on the US storefront only.
   const support = deviceRegion() === "US" ? me?.features?.support ?? null : null;
 
@@ -195,8 +196,15 @@ export function YouScreen() {
     <EditSearchSheet open={searching} onClosed={() => setSearching(false)} />
     {/* Stripe's page opens in Safari, where Apple Pay always shows (Stripe's
         guide for Payment Links in iOS apps); paying comes back to You. */}
-    {support ? <SupportSheet open={supporting} onClosed={() => setSupporting(false)} links={support}
-      onSupport={(url) => void Linking.openURL(url).catch(() => toast.error("Couldn't open Safari."))} /> : null}
+    {support ? <SupportSheet open={supporting} onClosed={() => setSupporting(false)} offer={support} onSupport={async (target) => {
+      try {
+        const url = target.kind === "link" ? target.url : (await checkout.mutateAsync({ dollars: target.dollars, monthly: target.monthly })).url;
+        await Linking.openURL(url);
+      } catch (error) {
+        toast.error("Couldn't open Stripe. Try again.");
+        throw error;
+      }
+    }} /> : null}
   </>;
 }
 

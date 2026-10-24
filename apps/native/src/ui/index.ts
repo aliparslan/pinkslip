@@ -3,7 +3,7 @@
 export { Badge } from "./Badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./Button";
 export { Chip, type ChipProps } from "./Chip";
-export { Choice, ChoiceLink, Choices, ChoiceSwitch, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
+export { AmountInput, Choice, ChoiceLink, Choices, ChoiceSwitch, type AmountInputProps, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { CopyField, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";

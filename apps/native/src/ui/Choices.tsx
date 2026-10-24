@@ -1,6 +1,7 @@
-import { Children, Fragment, type ReactNode } from "react";
-import { Pressable, Switch, View } from "react-native";
+import { Children, Fragment, useEffect, useRef, type ReactNode } from "react";
+import { Pressable, Switch, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { faces, useUiFontsLoaded } from "./fonts";
 import { Icon } from "./Icon";
 import { Radio } from "./List";
 import { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
@@ -36,10 +37,12 @@ export interface ChoiceProps {
   value?: string;
   /** One line each, 48 tall, Regular until picked (Report's reasons). */
   plain?: boolean;
+  /** Something typed at the row's end, before the check (an AmountInput). */
+  trailing?: ReactNode;
 }
 
 /** A row to pick: title on the left, the round check on the right. */
-export function Choice({ title, detail, selected, onPress, multiple = false, leading, value, plain = false }: ChoiceProps) {
+export function Choice({ title, detail, selected, onPress, multiple = false, leading, value, plain = false, trailing }: ChoiceProps) {
   return <Pressable onPress={onPress} accessibilityRole={multiple ? "checkbox" : "radio"} accessibilityState={{ checked: selected }}
     accessibilityLabel={title} style={({ pressed }) => [styles.row, plain && styles.plain, pressed && styles.pressed]}>
     {leading ? <View style={styles.leading}>{leading}</View> : null}
@@ -48,8 +51,43 @@ export function Choice({ title, detail, selected, onPress, multiple = false, lea
       {detail ? <Text role="footnote" tone="ink-3">{detail}</Text> : null}
     </View>
     {value ? <Text>{value}</Text> : null}
+    {trailing}
     <Radio selected={selected} />
   </Pressable>;
+}
+
+export interface AmountInputProps {
+  /** Whole dollars, or null while it's empty. */
+  value: number | null;
+  onChange: (value: number | null) => void;
+  /** The most it takes; digits past it don't go in. */
+  max: number;
+  /** Focus it now: its row was just picked. */
+  focused: boolean;
+  onFocus?: () => void;
+  label: string;
+}
+
+/** Whole dollars typed at a choice's end, where Plan's prices sit (Paper
+ * "Support Pinkslip · Oct 22", A3, owner 2026-10-24): "$7" in Body ink with
+ * the pink caret, on the number pad. Nothing below $1 or above `max` goes in,
+ * so there's no error to show. */
+export function AmountInput({ value, onChange, max, focused, onFocus, label }: AmountInputProps) {
+  const { theme } = useUnistyles();
+  const fonts = useUiFontsLoaded();
+  const input = useRef<TextInput>(null);
+  useEffect(() => {
+    if (focused) input.current?.focus();
+  }, [focused]);
+  return <TextInput ref={input} value={value === null ? "" : `$${value}`} placeholder="Amount" placeholderTextColor={theme.ui.color["ink-3"]}
+    onChangeText={(text) => {
+      const digits = text.replace(/\D/g, "");
+      if (!digits) return onChange(null);
+      const next = Number(digits);
+      if (next >= 1 && next <= max) onChange(next);
+    }}
+    onFocus={onFocus} keyboardType="number-pad" textAlign="right" accessibilityLabel={label}
+    selectionColor={theme.ui.color.accent} style={[styles.amount, { fontFamily: fonts ? faces.text : undefined }]} />;
 }
 
 export interface ChoiceLinkProps {
@@ -103,5 +141,6 @@ const styles = StyleSheet.create((theme) => ({
   link: { minHeight: 50, gap: theme.ui.space["2"], paddingVertical: 0 },
   text: { flex: 1, gap: 2 },
   leading: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  amount: { minWidth: 72, padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },
   pressed: { opacity: 0.6 },
 }));

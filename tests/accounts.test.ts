@@ -342,7 +342,47 @@ describe("accounts", () => {
     Object.assign(env, { SUPPORT: "admin" });
     expect(await support()).toBeNull();
     Object.assign(env, { SUPPORT: "on" });
-    expect(await support()).toEqual({ once: [{ dollars: 5, url: "https://buy.stripe.com/five" }], other: "https://buy.stripe.com/other", monthly: [] });
+    expect(await support()).toEqual({ once: [{ dollars: 5, url: "https://buy.stripe.com/five" }], other: "https://buy.stripe.com/other", monthly: [], checkout: null });
+    // With the Stripe key and product, any amount, once or monthly.
+    Object.assign(env, { STRIPE_SECRET_KEY: "rk_test_key", SUPPORT_STRIPE_PRODUCT: "prod_support", SUPPORT_LINKS: undefined });
+    expect(await support()).toEqual({ once: [], other: null, monthly: [], checkout: { amounts: [3, 5, 10], min: 1, max: 500 } });
+  });
+
+  it("makes a Stripe page for a tip of any amount, once or monthly", async () => {
+    const { db, env, app } = setup();
+    const call = app(await guest(db));
+    const checkout = (body: unknown) => call("/api/v2/support/checkout", body);
+    expect((await checkout({ dollars: 7 })).status).toBe(404);
+    Object.assign(env, { SUPPORT: "on" });
+    expect((await checkout({ dollars: 7 })).status).toBe(503);
+    Object.assign(env, { STRIPE_SECRET_KEY: "rk_test_key", SUPPORT_STRIPE_PRODUCT: "prod_support" });
+    for (const dollars of [0, 501, 2.5, "7"]) expect((await checkout({ dollars })).status).toBe(400);
+    expect((await checkout({ dollars: 7, monthly: "yes" })).status).toBe(400);
+
+    const sent: URLSearchParams[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.stripe.com/v1/checkout/sessions");
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer rk_test_key");
+      sent.push(new URLSearchParams(String(init?.body)));
+      return Response.json({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    }) as typeof fetch;
+    const once = await checkout({ dollars: 7 });
+    expect(await once.json() as unknown).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
+    expect(Object.fromEntries(sent[0]!)).toMatchObject({
+      mode: "payment", "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "usd",
+      "line_items[0][price_data][product]": "prod_support", "line_items[0][price_data][unit_amount]": "700",
+      success_url: "https://pinkslip.work/support/thanks",
+    });
+    expect(sent[0]!.has("line_items[0][price_data][recurring][interval]")).toBe(false);
+    expect((await checkout({ dollars: 12, monthly: true })).status).toBe(200);
+    expect(Object.fromEntries(sent[1]!)).toMatchObject({
+      mode: "subscription", "line_items[0][price_data][unit_amount]": "1200", "line_items[0][price_data][recurring][interval]": "month",
+    });
+
+    globalThis.fetch = (async () => Response.json({ error: { message: "No such product: 'prod_support'" } }, { status: 400 })) as unknown as typeof fetch;
+    const failed = await checkout({ dollars: 7 });
+    expect(failed.status).toBe(502);
+    expect(await failed.json() as unknown).toMatchObject({ code: "stripe_unavailable" });
   });
 
   it("removes every sign-in method when the account is deleted", async () => {

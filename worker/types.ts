@@ -72,6 +72,11 @@ export interface Env {
   /** The tips' Stripe Payment Links, `once_5 = "https://buy.stripe.com/…"`
    * and so on (shared/support.ts). Public links, so a var, not a secret. */
   SUPPORT_LINKS?: string | Record<string, string>;
+  /** A Stripe restricted key (Checkout Sessions write, Prices write,
+   * Products read) for tips of any amount. A secret. */
+  STRIPE_SECRET_KEY?: string;
+  /** The "Support Pinkslip" product (`prod_…`) every tip is a price of. */
+  SUPPORT_STRIPE_PRODUCT?: string;
   /** Application prep and autofill: "on", "admin", or unset, like OUTREACH. */
   AUTO_APPLY?: string;
   /** Lets autofill press Submit itself: "on", "admin", or unset. */

@@ -4,7 +4,7 @@ import { toast } from "../../ui";
 import { setAppearancePreference, useAppearancePreference } from "../../theme/appearance";
 import type { ApplicationAnswerValue, SavedApplicationAnswer } from "@pinkslip/core/api";
 import type { WorkAuthorization } from "@pinkslip/domain/search-profile";
-import type { SupportLinks } from "@pinkslip/domain/support";
+import { SUPPORT_CHECKOUT, type SupportOffer } from "@pinkslip/domain/support";
 import { AccountView } from "../redesign/you/AccountPage";
 import { AnswersView } from "../redesign/you/AnswersPage";
 import { AlertsView, type NewJobAlerts } from "../redesign/you/AlertsPage";
@@ -43,16 +43,12 @@ export function SampleYouScreen() {
       if (href) router.push(href);
     }} />
   {/* Nothing opens Stripe: the button goes straight to coming back. */}
-  <SupportSheet open={supporting} onClosed={() => setSupporting(false)} links={SAMPLE_SUPPORT_LINKS}
-    onSupport={() => router.push("/support/thanks")} />
+  <SupportSheet open={supporting} onClosed={() => setSupporting(false)} offer={SAMPLE_SUPPORT_OFFER}
+    onSupport={async () => router.push("/support/thanks")} />
   </>;
 }
 
-const SAMPLE_SUPPORT_LINKS: SupportLinks = {
-  once: [3, 5, 10].map((dollars) => ({ dollars, url: `https://buy.stripe.com/sample_once_${dollars}` })),
-  other: "https://buy.stripe.com/sample_once_other",
-  monthly: [3, 5, 10].map((dollars) => ({ dollars, url: `https://buy.stripe.com/sample_monthly_${dollars}` })),
-};
+const SAMPLE_SUPPORT_OFFER: SupportOffer = { once: [], other: null, monthly: [], checkout: SUPPORT_CHECKOUT };
 
 /** Alerts B with everything on: Once a day at a time, and Application
  * changes. Nothing is saved. */

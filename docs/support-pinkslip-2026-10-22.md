@@ -207,6 +207,12 @@ The owner's part:
 3. Send the "Support Pinkslip" product's ID (`prod_…`, top of its page in
    the Product catalog). It isn't secret.
 
+**Built (Oct 24):** `POST /api/v2/support/checkout` (worker/routes/support.ts,
+behind `SUPPORT`; $1 to $500, whole dollars) and `features.support.checkout`
+once `STRIPE_SECRET_KEY` and `SUPPORT_STRIPE_PRODUCT` are set. Until then
+the app keeps using the custom link. Builds up to 1.3.8 read only the links,
+so `SUPPORT_LINKS` stays while they're around.
+
 ## Sources
 
 - [Apple App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) (3.1.1, 3.1.1(a), 3.2.2)

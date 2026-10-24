@@ -32,6 +32,7 @@ import metricRoutes from "./routes/metrics";
 import recruiterRoutes from "./routes/recruiters";
 import contactRoutes from "./routes/contacts";
 import outreachRoutes from "./routes/outreach";
+import supportRoutes from "./routes/support";
 import applyRoutes from "./routes/apply";
 import errorRoutes from "./routes/errors";
 import notificationRoutes from "./routes/notifications";
@@ -46,7 +47,7 @@ import {
   type HealthCheckDeps,
 } from "./health-checks";
 import { flagEnabled } from "./feature-flags";
-import { parseSupportLinks, SUPPORT_THANKS_PATH } from "../shared/support";
+import { supportOffer, SUPPORT_THANKS_PATH } from "../shared/support";
 import { queueSavedJobClosings, runNotificationScheduler } from "./notification-scheduler";
 import { nudgeStoppedForwarding } from "./email/forwarding";
 import { runClassificationShadow } from "./classification-shadow";
@@ -164,8 +165,11 @@ function appFeatures(env: Env, account: { is_admin: boolean; session: { state: s
     tailoring_enabled: Boolean(tailoring),
     tailoring_provider: tailoring?.provider ?? null,
     tailoring_model: tailoring?.model ?? "",
-    // Support Pinkslip's Stripe links, guests included; null hides the row.
-    support: flagEnabled(env.SUPPORT, account.is_admin) ? parseSupportLinks(env.SUPPORT_LINKS) : null,
+    // Support Pinkslip, guests included: tips of any amount once the Stripe
+    // key and product are set, and the Payment Links older builds read.
+    support: flagEnabled(env.SUPPORT, account.is_admin)
+      ? supportOffer(env.SUPPORT_LINKS, Boolean(env.STRIPE_SECRET_KEY?.trim() && env.SUPPORT_STRIPE_PRODUCT?.trim()))
+      : null,
   };
 }
 
@@ -357,6 +361,7 @@ app.route("/api/v2/metrics", metricRoutes);
 app.route("/api/v2/recruiters", recruiterRoutes);
 app.route("/api/v2/contacts", contactRoutes);
 app.route("/api/v2/outreach", outreachRoutes);
+app.route("/api/v2/support", supportRoutes);
 app.route("/api/v2/apply", applyRoutes);
 app.route("/api/v2/applications", applicationRoutes);
 app.route("/api/v2/inbox", inboxRoutes);

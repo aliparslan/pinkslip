@@ -1,8 +1,9 @@
 /** Support Pinkslip (owner, 2026-10-22, Paper "Support Pinkslip · Oct 22",
- * take A): tips through Stripe Payment Links. The links are the Worker's
- * `SUPPORT_LINKS`, named `once_<dollars>`, `once_other` and
- * `monthly_<dollars>`; `/api/v2/me` sends them parsed, and the app shows the
- * row only when there are some. */
+ * take A). Tips go through a Stripe Checkout Session the Worker makes for
+ * the amount picked or typed, one time or monthly (owner, Oct 24, A3 and
+ * A4). Before that, tips used Payment Links, the Worker's `SUPPORT_LINKS`
+ * (`once_<dollars>`, `once_other`, `monthly_<dollars>`), which builds up to
+ * 1.3.8 still read; `/api/v2/me` sends both as `features.support`. */
 
 export interface SupportAmount {
   dollars: number;
@@ -64,4 +65,34 @@ export function parseSupportLinks(raw: unknown): SupportLinks | null {
   links.once.sort((a, b) => a.dollars - b.dollars);
   links.monthly.sort((a, b) => a.dollars - b.dollars);
   return links.once.length || links.other ? links : null;
+}
+
+/** Any amount through a Checkout Session (POST /api/v2/support/checkout). */
+export interface SupportCheckout {
+  /** The amounts listed, smallest first; Other amount takes any other. */
+  amounts: number[];
+  /** Whole dollars, inclusive. */
+  min: number;
+  max: number;
+}
+
+/** What the Support sheet offers. The links stay for builds that predate
+ * `checkout`; a build that knows `checkout` uses it whenever it's there. */
+export interface SupportOffer extends SupportLinks {
+  checkout: SupportCheckout | null;
+}
+
+export const SUPPORT_CHECKOUT: SupportCheckout = { amounts: [3, 5, 10], min: 1, max: 500 };
+
+/** `features.support`: null when there's neither a Stripe key nor a link. */
+export function supportOffer(rawLinks: unknown, checkoutReady: boolean): SupportOffer | null {
+  const links = parseSupportLinks(rawLinks);
+  if (!links && !checkoutReady) return null;
+  return { ...(links ?? { once: [], other: null, monthly: [] }), checkout: checkoutReady ? SUPPORT_CHECKOUT : null };
+}
+
+/** A tip the Worker will make a page for: whole dollars within the range. */
+export function supportAmountAllowed(dollars: unknown): dollars is number {
+  return typeof dollars === "number" && Number.isInteger(dollars)
+    && dollars >= SUPPORT_CHECKOUT.min && dollars <= SUPPORT_CHECKOUT.max;
 }

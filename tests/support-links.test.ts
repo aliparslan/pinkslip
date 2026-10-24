@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { parseSupportLinks } from "../shared/support";
+import { parseSupportLinks, supportAmountAllowed, supportOffer } from "../shared/support";
 import { deviceRegion } from "../apps/native/src/platform/region";
 import {
-  defaultSupportPick, supportButtonLabel, supportPickOffered, supportUrl,
+  defaultSupportPick, supportAmounts, supportButtonLabel, supportDollars, supportOffersMonthly, supportOtherOffered, supportPickOffered, supportTarget,
 } from "../apps/native/src/features/redesign/you/support-facts";
 
 const link = (name: string) => `https://buy.stripe.com/${name}`;
@@ -40,29 +40,55 @@ describe("Support Pinkslip's links", () => {
 });
 
 describe("the Support sheet", () => {
-  const links = parseSupportLinks({
+  const links = { ...parseSupportLinks({
     once_3: link("o3"), once_5: link("o5"), once_10: link("o10"), once_other: link("other"), monthly_3: link("m3"), monthly_10: link("m10"),
-  })!;
+  })!, checkout: null };
+  const checkout = supportOffer(undefined, true)!;
 
-  test("opens on $5, else the middle amount, else Other", () => {
-    expect(defaultSupportPick(links, "once")).toBe(5);
+  test("with Stripe checkout, both list $3, $5 and $10, and Other is typed in either", () => {
+    expect(supportAmounts(checkout, "once")).toEqual([3, 5, 10]);
+    expect(supportAmounts(checkout, "monthly")).toEqual([3, 5, 10]);
+    expect(supportOffersMonthly(checkout)).toBe(true);
+    expect(supportOtherOffered(checkout, "monthly")).toBe(true);
+    expect(defaultSupportPick(checkout, "once")).toBe(5);
+  });
+
+  test("with checkout, the button makes a page for the amount picked or typed", () => {
+    expect(supportTarget(checkout, "once", 5, null)).toEqual({ kind: "checkout", dollars: 5, monthly: false });
+    expect(supportTarget(checkout, "monthly", "other", 7)).toEqual({ kind: "checkout", dollars: 7, monthly: true });
+    expect(supportTarget(checkout, "once", "other", null)).toBeNull();
+    expect(supportButtonLabel("monthly", supportDollars(checkout, "other", 7))).toBe("Support with $7 a month");
+    expect(supportButtonLabel("once", supportDollars(checkout, "other", null))).toBe("Support Pinkslip");
+  });
+
+  test("with only links, Other is one time and Stripe asks the amount", () => {
     expect(defaultSupportPick(links, "monthly")).toBe(3);
-    expect(defaultSupportPick(parseSupportLinks({ once_other: link("other") })!, "once")).toBe("other");
-  });
-
-  test("Other is one time only, and switching keeps an amount both offer", () => {
     expect(supportPickOffered(links, "monthly", "other")).toBe(false);
-    expect(supportPickOffered(links, "monthly", 3)).toBe(true);
     expect(supportPickOffered(links, "monthly", 5)).toBe(false);
-    expect(supportUrl(links, "monthly", 10)).toBe(link("m10"));
-    expect(supportUrl(links, "once", "other")).toBe(link("other"));
-    expect(supportUrl(links, "monthly", "other")).toBeNull();
+    expect(supportTarget(links, "monthly", 10, null)).toEqual({ kind: "link", url: link("m10") });
+    expect(supportTarget(links, "once", "other", 9)).toEqual({ kind: "link", url: link("other") });
+    expect(supportButtonLabel("once", supportDollars(links, "other", 9))).toBe("Support Pinkslip");
+    expect(supportButtonLabel("once", supportDollars(links, 5, null))).toBe("Support with $5");
   });
 
-  test("the button says the amount and how often", () => {
-    expect(supportButtonLabel("once", 5)).toBe("Support with $5");
-    expect(supportButtonLabel("monthly", 10)).toBe("Support with $10 a month");
-    expect(supportButtonLabel("once", "other")).toBe("Support Pinkslip");
+  test("a lone link where Stripe asks the amount lists nothing", () => {
+    const lone = { ...parseSupportLinks({ once_other: link("other") })!, checkout: null };
+    expect(supportAmounts(lone, "once")).toEqual([]);
+    expect(defaultSupportPick(lone, "once")).toBe("other");
+    expect(supportOffersMonthly(lone)).toBe(false);
+  });
+});
+
+describe("the tip amounts the Worker takes", () => {
+  test("whole dollars from $1 to $500", () => {
+    for (const dollars of [1, 7, 500]) expect(supportAmountAllowed(dollars)).toBe(true);
+    for (const dollars of [0, 501, 2.5, "7", null]) expect(supportAmountAllowed(dollars)).toBe(false);
+  });
+
+  test("the offer keeps the links for older builds and adds checkout once Stripe is set up", () => {
+    expect(supportOffer(undefined, false)).toBeNull();
+    expect(supportOffer({ once_other: link("other") }, false)).toEqual({ once: [], other: link("other"), monthly: [], checkout: null });
+    expect(supportOffer({ once_other: link("other") }, true)?.checkout).toEqual({ amounts: [3, 5, 10], min: 1, max: 500 });
   });
 });
 

@@ -949,6 +949,13 @@ cut so that each remaining one has a job.
     from Stripe, the toast leads with the filled pink heart, "Thank you for
     your support!". Built the same day (`SupportSheet`); the row shows once
     the Worker has `SUPPORT_LINKS`.
+- **2026-10-24**
+  - Support Pinkslip takes any amount, one time or monthly (Paper A3, A4,
+    approved): picking Other amount opens the number pad with "$7" typed
+    in that row where Plan's prices sit, with the pink caret (`AmountInput`
+    in `Choice`'s new `trailing` slot). Nothing below $1 or above $500 goes
+    in, so there's no error state; the button stays gray until there's an
+    amount.
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"
