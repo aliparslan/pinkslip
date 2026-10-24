@@ -74,6 +74,30 @@ Two lighter options, if three questions slow labelling too much:
 2. **Keep today's three answers, add "several allowed"** with Technical
    and Coordinator. The least work, the least to rank by.
 
+## Decided (owner, 2026-10-24)
+
+**The proposed set: three short questions plus the agency or contract
+mark.** The search pre-fills them from the title, so labelling is mostly
+one confirm.
+
+- **Who they hire:** interns, new grads, experienced, leadership. Several
+  allowed.
+- **What for:** engineering, product and design, business, research,
+  everything. Several allowed.
+- **Their job:** recruiter, sourcer, coordinator, programs and events,
+  leads the team, not in recruiting. One.
+- **Agency or contract:** a mark.
+
+What it does:
+
+- **Listed:** only someone who works there now, isn't "not in recruiting",
+  and isn't agency.
+- **Ranked:** level and field first for the person looking, then
+  recruiters and sourcers ahead of the rest.
+- **Shown:** the recruiter's own title. The types only rank and filter.
+
+The Admin labelling screen changes in Paper first.
+
 ## Sources
 
 - [Yardstick: campus vs corporate recruiter](https://yardstick.team/compare-roles/what-is-the-difference-between-a-campus-recruiter-and-a-corporate-recruiter)

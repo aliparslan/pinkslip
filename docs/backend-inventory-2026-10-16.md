@@ -95,9 +95,12 @@ Outreach (step 8, 2026-10-19):
 
 - [x] ~~Approve the Recruiters screens~~ (approved and built 2026-10-22,
   not yet on the owner channel).
-- [ ] **Decide the recruiter types**
-  ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md)); "Their
-  role" keeps its three answers until then.
+- [ ] **Recruiter types, decided 2026-10-24**
+  ([recruiter-types-2026-10-19.md](recruiter-types-2026-10-19.md), Decided).
+  - The questions: who they hire, what for, their job, plus agency or
+    contract, pre-filled from the title.
+  - To build: the fields, the pre-fill, and People's filter and ranking.
+  - The Admin screen goes to Paper first.
 - [ ] **A GitHub token** (public read only), `wrangler secret put
   GITHUB_TOKEN`, so the format check isn't capped at 60 requests an hour.
 - [ ] **The confirm queue** (owner, 2026-10-24): Admin → Recruiters
