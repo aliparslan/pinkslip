@@ -487,7 +487,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   `whats-new.tsx` and `update-notes.ts`): an over-the-air update that
   changes something you'd notice says so once, at the launch it arrives:
   the "New in 1.4" sheet without its title, its notes in the one white
-  group (icon tile, Medium title, one `ink-2` line), then the grey Got it.
+  group (icon tile, Medium title, an `ink-2` line only if the title needs
+  one), then the grey Got it.
   Any number of notes; the group scrolls when they outgrow the sheet. Fixes
   stay silent, a new install sees none, a phone that missed several sees
   the newest set, and a big release's sheet wins the launch. The notes then

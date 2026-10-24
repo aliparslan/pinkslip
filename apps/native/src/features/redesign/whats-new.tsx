@@ -12,8 +12,8 @@ export interface ReleaseItem {
   icon: IconName;
   meaning: TileMeaning;
   title: string;
-  /** One line on what it does for you. */
-  line: string;
+  /** One line on what it does for you; an update's note can say it all in its title. */
+  line?: string;
 }
 
 export interface Release {
@@ -143,7 +143,7 @@ function ReleaseItems({ items }: { items: ReleaseItem[] }) {
     <View style={styles.tile}><IconTile icon={item.icon} meaning={item.meaning} /></View>
     <View style={styles.text}>
       <Text weight="medium">{item.title}</Text>
-      <Text role="subhead" tone="ink-2">{item.line}</Text>
+      {item.line ? <Text role="subhead" tone="ink-2">{item.line}</Text> : null}
     </View>
   </View>)}</>;
 }

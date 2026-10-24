@@ -20,8 +20,9 @@ export const UPDATE_NOTES: readonly UpdateNotes[] = [
     id: "2026-10-23",
     version: "1.3",
     notes: [
-      { icon: "search", meaning: "find", title: "Search is at the bottom now", line: "Tap Search and start typing. The X takes you back." },
-      { icon: "resume", meaning: "apply", title: "Resume import works again", line: "Pick your PDF and it's ready for Apply." },
+      // The owner's words (2026-10-23).
+      { icon: "search", meaning: "find", title: "Search has been improved" },
+      { icon: "resume", meaning: "apply", title: "Fixed a bug with PDF import" },
     ],
   },
 ];
