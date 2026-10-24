@@ -34,7 +34,13 @@ export function useDetailJob(jobId: string) {
   const publicJob = usePublicJob(jobId);
   const personal = useJob(jobId);
   const seed = useMemo(() => cachedJob(queryClient, jobId), [queryClient, jobId]);
-  const job: DetailJob | undefined = personal.data ?? publicJob.data ?? seed;
+  // The page shows the row it was opened from at once. The public copy often
+  // lands first but knows less (no level, source, visa or pay ranges), so it
+  // only adds its posting to the row; the personal copy replaces both (owner,
+  // 2026-10-24: the level and source used to drop out and jump back in).
+  const job: DetailJob | undefined = useMemo(() => personal.data
+    ?? (seed && publicJob.data ? { ...seed, description: publicJob.data.description } : publicJob.data ?? seed),
+  [personal.data, publicJob.data, seed]);
   const markViewed = useMarkViewed();
   const track = useTrack();
 

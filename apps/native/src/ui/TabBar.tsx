@@ -1,16 +1,16 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { usePathname, useScrollToTop } from "expo-router";
+import { useNavigation, usePathname, useRoute, useScrollToTop, useSegments } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { Pressable, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { Animated as RNAnimated, Pressable, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   makeMutable, useAnimatedStyle, useSharedValue, withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTransitionProgress } from "react-native-screens";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
-import { haptics } from "../platform/haptics";
 import { Badge } from "./Badge";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
@@ -62,6 +62,128 @@ export function useTabBarStepsAside(active: boolean) {
     setAside(key, active);
     return () => setAside(key, false);
   }, [key, active]);
+}
+
+/** Routes whose page hides the bar: the ones with their own pinned bar, and
+ * Search, whose field sits at the bottom. */
+const HIDES_BAR = /^(jobs|applications|events)\/\[|^search$/;
+
+/** A stack screen's native transition: `progress` 0 to 1 as it comes or
+ * goes, `closing` 1 when it's going. */
+interface Transition {
+  progress: RNAnimated.Value;
+  closing: RNAnimated.Value;
+}
+/** Each tab stack screen's transition, by route key. */
+const transitions = new Map<string, Transition>();
+
+/** Each tab stack's `screenLayout`: the screen, and a note of its transition
+ * for the bar. */
+export function tabStackScreenLayout({ route, children }: { route: { key: string }; children: React.ReactElement }) {
+  return <>{children}<TransitionSource routeKey={route.key} /></>;
+}
+
+/** On its own beside the screen: the stack hands out the transition as a
+ * new object each render, so whatever reads it re-renders with the stack. */
+function TransitionSource({ routeKey }: { routeKey: string }) {
+  const { progress, closing } = useTransitionProgress();
+  useEffect(() => {
+    const transition = { progress, closing };
+    transitions.set(routeKey, transition);
+    return () => {
+      if (transitions.get(routeKey) === transition) transitions.delete(routeKey);
+    };
+  }, [routeKey, progress, closing]);
+  return null;
+}
+
+/** A page that hides the bar hands it the transition of the list under it,
+ * so the bar leaves and comes back with that list, following the finger on
+ * a swipe back (owner, 2026-10-24: it popped in over the page's bar on Back,
+ * and only after a swipe back had finished). The list's own transition,
+ * because a page you go back from is gone from React at once: iOS slides a
+ * picture of it. */
+interface Follower extends Transition {
+  /** The tab the page is in ("(jobs)"); the bar follows only that tab's. */
+  tab: string;
+}
+const followers: Follower[] = [];
+const followerListeners = new Set<() => void>();
+function followersChanged() {
+  for (const listener of followerListeners) listener();
+}
+
+/** In a tab stack screen whose page hides the bar: the bar slides with the
+ * page underneath as this one comes and goes. It renders nothing. */
+export function TabBarFollowsTransition() {
+  const route = useRoute();
+  const navigation = useNavigation();
+  // The tab this page opened in and the page under it, read once: the URL
+  // moves on when you switch tabs.
+  const segments = useSegments() as readonly string[];
+  const [tab] = useState(() => segments[1] ?? "(jobs)");
+  const [below] = useState(() => {
+    const routes = navigation.getState()?.routes ?? [];
+    const index = routes.findIndex((entry) => entry.key === route.key);
+    const under = index > 0 ? routes[index - 1]! : null;
+    // Under another page that hides the bar, it stays hidden.
+    return under && !HIDES_BAR.test(under.name) ? transitions.get(under.key) ?? null : null;
+  });
+  useEffect(() => {
+    if (!below) return;
+    const follower: Follower = { tab, ...below };
+    followers.push(follower);
+    followersChanged();
+    return () => unfollowOnceIn(follower);
+    // Once per page: its tab and what's under it don't change while it's up.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
+/** A list at rest, for the bar with nothing to follow. Its place always
+ * comes from the native driver: a view the native driver last moved keeps
+ * that place when its style stops naming it, so leaving the bar plain after
+ * a page (switching tabs from one, say) left it hidden. */
+let atRest: Transition | null = null;
+function restingList(): Transition {
+  if (atRest) return atRest;
+  atRest = { progress: new RNAnimated.Value(1), closing: new RNAnimated.Value(0) };
+  // Hands the values to the native driver, where the transitions are.
+  RNAnimated.parallel([
+    RNAnimated.timing(atRest.progress, { toValue: 1, duration: 0, useNativeDriver: true }),
+    RNAnimated.timing(atRest.closing, { toValue: 0, duration: 0, useNativeDriver: true }),
+  ]).start();
+  return atRest;
+}
+
+/** The page has gone, and the list under it is sliding back in: the bar
+ * stays with the list until it's all the way in, so it lets go at rest. */
+function unfollowOnceIn(follower: Follower) {
+  let progress = 0;
+  let closing = 1;
+  const done = () => {
+    clearTimeout(timeout);
+    follower.progress.removeListener(onProgress);
+    follower.closing.removeListener(onClosing);
+    const at = followers.indexOf(follower);
+    if (at >= 0) followers.splice(at, 1);
+    followersChanged();
+  };
+  const check = () => {
+    if (progress >= 1 && closing === 0) done();
+  };
+  const onProgress = follower.progress.addListener(({ value }) => { progress = value; check(); });
+  const onClosing = follower.closing.addListener(({ value }) => { closing = value; check(); });
+  // A swipe back has already finished, and nothing more comes.
+  const timeout = setTimeout(done, 1000);
+}
+
+/** The newest page following in this tab, if any. */
+function useFollower(tab: string | undefined): Follower | null {
+  return useSyncExternalStore(
+    (listener) => { followerListeners.add(listener); return () => followerListeners.delete(listener); },
+    () => (tab ? [...followers].reverse().find((follower) => follower.tab === tab) ?? null : null),
+  );
 }
 
 /** Whether a page has asked the bar to step aside. */
@@ -157,6 +279,33 @@ export function leaveSearch() {
   backFromSearch?.();
 }
 
+/** The pill as Search was picked from it, so Search's field can start out
+ * as the pill and stretch into place (owner, 2026-10-24). */
+export interface SearchHandoff {
+  width: number;
+  height: number;
+  /** How far the pill's middle sat below the field's line (it shrinks
+   * towards the bottom edge while you scroll). */
+  drop: number;
+}
+let handoff: SearchHandoff | null = null;
+/** The pill Search was just picked from, once. */
+export function takeSearchHandoff(): SearchHandoff | null {
+  const taken = handoff;
+  handoff = null;
+  return taken;
+}
+/** The pill Search was just picked from, if its field hasn't taken it yet. */
+export function waitingSearchHandoff(): SearchHandoff | null {
+  return handoff;
+}
+
+/** Where the pill sits: its bottom edge and height. */
+export function useTabBarFrame() {
+  const insets = useSafeAreaInsets();
+  return { bottom: pillBottom(insets.bottom), height: PILL };
+}
+
 const searchPressed = new Set<() => void>();
 /** Called each time Search is picked in the bar, so its field can take the
  * keyboard; coming back to it from a page it opened doesn't call it. */
@@ -221,6 +370,17 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     placed.current = true;
   }, [selected, x, current]);
 
+  // Search mounts in the background once launch has settled, so picking it
+  // is a change of focus rather than a new screen: a screen mounting holds
+  // up the field's hand-off and its ride up with the keyboard.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (state.routes.some((route) => route.name === "(search)")) navigation.preload("(search)");
+    }, 2000);
+    return () => clearTimeout(timer);
+    // Once, at launch.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Search's X goes back to the tab you were on before it.
   const previous = useRef("(jobs)");
   const here = tabs[selected]?.name;
@@ -232,15 +392,18 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     return () => { backFromSearch = null; };
   }, [navigation]);
 
-  const open = (index: number, feedback: boolean) => {
+  // Switching tabs is silent: no tap, and no tick while sliding along the
+  // bar (owner, 2026-10-24).
+  const open = (index: number) => {
     const route = tabs[index];
     if (!route) return;
     const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-    if (index !== selected && !event.defaultPrevented) {
-      if (feedback) haptics.tap();
-      navigation.navigate(route.name, route.params);
+    if (index !== selected && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+    if (route.name === "(search)" && !event.defaultPrevented) {
+      const scale = 1 - (1 - COMPACT_SCALE) * compact.value;
+      handoff = { width: (count * PITCH + PAD_X * 2) * scale, height: PILL * scale, drop: (PILL / 2) * (1 - scale) };
+      for (const listener of searchPressed) listener();
     }
-    if (route.name === "(search)" && !event.defaultPrevented) for (const listener of searchPressed) listener();
   };
   // The drag is built once per tab count; it reaches today's tabs through here.
   const latest = useRef({ open, setHover });
@@ -250,7 +413,7 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     const showHover = (index: number | null) => latest.current.setHover(index);
     const release = (index: number) => {
       latest.current.setHover(null);
-      latest.current.open(index, false);
+      latest.current.open(index);
     };
     /** The oval's x for a finger at `eventX` on the pill, stretching past the ends. */
     const along = (eventX: number) => {
@@ -281,7 +444,6 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
       if (index !== hovered.value) {
         hovered.value = index;
         scheduleOnRN(showHover, index);
-        scheduleOnRN(haptics.tick);
       }
     }).onEnd((event) => {
       const at = finger.value + offset.value;
@@ -302,6 +464,9 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
     });
   }, [count, x, dragging, finger, offset, current, hovered]);
 
+  const follower = useFollower(tabs[selected]?.name);
+  const follow = useMemo(() => followStyles(follower ?? restingList(), screen), [follower, screen]);
+
   // The pill is centred; scrolling down shrinks it towards the bottom edge.
   const pillWidth = count * PITCH + PAD_X * 2;
   const pillFrame = useAnimatedStyle(() => ({
@@ -310,10 +475,13 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   const oval = useAnimatedStyle(() => ({
     transform: [{ translateX: dragging.value ? finger.value + offset.value : x.value }],
   }));
-  if (onJobPage) return null;
+  if (onJobPage && !follower) return null;
 
   const lit = hover ?? selected;
-  return <View pointerEvents="box-none" style={[styles.bar, { height: bottom + PILL }]}>
+  // Over a page it's off to the side, behind the page's edge: out of reach.
+  return <RNAnimated.View pointerEvents={onJobPage ? "none" : "box-none"} accessibilityElementsHidden={onJobPage}
+    style={[styles.bar, { height: bottom + PILL }, follow.clip]}>
+    <RNAnimated.View pointerEvents="box-none" style={[styles.fill, follow.content]}>
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.pillFrame, { bottom, left: (screen - pillWidth) / 2, width: pillWidth }, pillFrame]}>
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
@@ -322,7 +490,7 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
             {tabs.map((route, index) => {
               const tab = TABS[route.name]!;
               const badge = badges?.[route.name];
-              return <Pressable key={route.key} onPress={() => open(index, true)} accessibilityRole="tab"
+              return <Pressable key={route.key} onPress={() => open(index)} accessibilityRole="tab"
                 accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
                 accessibilityState={{ selected: index === selected }} style={styles.slot}>
                 <View>
@@ -340,7 +508,26 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
         </GlassView>
       </Animated.View>
     </GestureDetector>
-  </View>;
+    </RNAnimated.View>
+  </RNAnimated.View>;
+}
+
+/**
+ * The bar's place while a hiding page comes or goes, from the transition of
+ * the list under it, all on the native driver. The bar moves with the list's
+ * 30% parallax, and a clip whose right edge is the page's left edge hides
+ * what the page covers.
+ */
+function followStyles({ progress: p, closing: c }: Transition, width: number) {
+  const scale = (value: RNAnimated.Animated, to: number) => (value as RNAnimated.Value).interpolate({ inputRange: [0, 1], outputRange: [0, to] });
+  // How much of the list is showing: 1 - p as the page arrives (the list
+  // closing), p as the page leaves (the list coming back), so p + c(1 - 2p).
+  const shown = RNAnimated.add(p, RNAnimated.multiply(c, p.interpolate({ inputRange: [0, 1], outputRange: [1, -1] })));
+  const hidden = RNAnimated.add(1, RNAnimated.multiply(shown, -1));
+  return {
+    clip: { transform: [{ translateX: scale(hidden, -width) }] },
+    content: { transform: [{ translateX: scale(hidden, width * 0.7) }] },
+  };
 }
 
 /** Where the oval sits under the tab at this index. */
@@ -350,7 +537,9 @@ function slotX(index: number) {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  bar: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  // It clips what a page arriving over it covers (see followStyles).
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, overflow: "hidden" },
+  fill: { flex: 1 },
   // It shrinks towards the bottom edge, staying on the home indicator.
   pillFrame: { position: "absolute", height: PILL, transformOrigin: "bottom" },
   pill: { flex: 1, borderRadius: PILL / 2, overflow: "hidden" },

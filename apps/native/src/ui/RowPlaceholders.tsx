@@ -77,6 +77,25 @@ export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: 
   </Animated.View>;
 }
 
+/** Each line's share of the width, so the text placeholder reads as prose:
+ * two paragraphs, the last line of each short. */
+const PROSE = [[1, 0.96, 1, 0.92, 0.58], [1, 0.94, 0.98, 0.72]] as const;
+
+/**
+ * A posting on its way (owner, 2026-10-24: the job page's spinner became
+ * this): grey lines the size of the long-text type, in two paragraphs,
+ * pulsing like the rows. It shows at once, since the page around it is
+ * already there.
+ */
+export function TextPlaceholders() {
+  const fade = usePulse(true);
+  return <Animated.View style={[styles.prose, fade]} accessible accessibilityLabel="Loading the posting">
+    {PROSE.map((lines, paragraph) => <View key={paragraph} style={styles.paragraph}>
+      {lines.map((share, line) => <View key={line} style={styles.line}><View style={[styles.lineBar, { width: `${share * 100}%` }]} /></View>)}
+    </View>)}
+  </Animated.View>;
+}
+
 const styles = StyleSheet.create((theme) => ({
   row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, paddingTop: theme.ui.space["3"] },
   // Two lines (12 above, two Subhead lines, 12 below) or a logo and a name.
@@ -93,4 +112,9 @@ const styles = StyleSheet.create((theme) => ({
   card: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
   setting: { height: 50, justifyContent: "center" },
   rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator },
+  // The description's long-text lines, a bar centred in each.
+  prose: { gap: theme.ui.space["3"] },
+  paragraph: {},
+  line: { height: theme.ui.type.longText.line, justifyContent: "center" },
+  lineBar: { height: 12, borderRadius: 6, backgroundColor: theme.ui.color.fill },
 }));

@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-native";
-import Animated, { LinearTransition } from "react-native-reanimated";
+import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
   ApplyButton, Button, ChoiceLink, Choices, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, PageBarSlot, SheetHeader, SheetModal,
-  SheetScroll, SheetStep, StampedSlip, Text,
+  SheetScroll, SheetStep, StampedSlip, Text, TextPlaceholders,
   Ticket, useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
@@ -19,6 +19,9 @@ import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/u
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
 import { applyButtonState, fitsYourSearch, orderedPlaces, placesByPay, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
+
+/** The posting replacing its placeholder lines. */
+const DESCRIPTION_IN = FadeIn.duration(180);
 
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
@@ -48,7 +51,7 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
 
 function JobView({ job, full, pendingDescription, onRetryDescription, outreachThread }: {
   job: DetailJob;
-  /** The full posting loaded, or failed to: either way, stop the spinner. */
+  /** The full posting loaded, or failed to: either way, stop waiting for it. */
   full: boolean;
   pendingDescription: boolean;
   onRetryDescription: () => void;
@@ -101,8 +104,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
         </View> : null}
         <View style={styles.about}>
           <Text weight="medium" accessibilityRole="header">About the role</Text>
-          {!full || pendingDescription ? <ActivityIndicator style={styles.spinner} color={theme.ui.color["ink-3"]} />
-            : blocks.length > 0 ? <Description blocks={blocks} />
+          {/* The posting's lines in grey while it's on its way, then the text
+              eases in over them (owner, 2026-10-24: no spinner). */}
+          {(!full || pendingDescription) && blocks.length === 0 ? <TextPlaceholders />
+            : blocks.length > 0 ? <Animated.View entering={DESCRIPTION_IN}><Description blocks={blocks} /></Animated.View>
             : <View style={styles.noPosting}>
               <Text role="subhead" tone="ink-2">The full posting didn't come through. The original may still have it.</Text>
               <Button size="small" icon="refresh" onPress={onRetryDescription}>Try again</Button>
@@ -251,7 +256,6 @@ const styles = StyleSheet.create((theme) => ({
   after: { gap: theme.ui.space["6"], marginTop: theme.ui.space["6"] },
   fits: { flexDirection: "row", alignItems: "flex-start", gap: theme.ui.space["2"] },
   about: { gap: theme.ui.space["2"] },
-  spinner: { alignSelf: "flex-start", paddingVertical: theme.ui.space["4"] },
   noPosting: { gap: theme.ui.space["3"], alignItems: "flex-start" },
   bar: {
     position: "absolute",

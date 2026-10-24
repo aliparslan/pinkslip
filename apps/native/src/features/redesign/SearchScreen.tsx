@@ -1,6 +1,6 @@
 import { useCompanies } from "@pinkslip/data";
 import { router, Stack, useIsFocused, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View, type TextInput } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { BottomSearch, CompanyLogo, Icon, leaveSearch, SectionHeader, Text, useSearchTabPress, useTabBarStepsAside } from "../../ui";
@@ -27,6 +27,9 @@ export function SearchScreen() {
   useEffect(() => { if (params.q) setSearchText(params.q); }, [params.q]);
   const query = useDebounced(text.trim());
   const focused = useIsFocused();
+  // The bar mounts Search in the background after launch; then picking it
+  // is what brings the keyboard.
+  const [inFront] = useState(focused);
   useTabBarStepsAside(focused);
   const field = useRef<TextInput>(null);
   useSearchTabPress(() => field.current?.focus());
@@ -45,9 +48,9 @@ export function SearchScreen() {
     <Stack.Screen options={{ headerShown: false }} />
     <JobsFeed query={query} scope="all" tab="(search)" chips={false} onClearQuery={() => setSearchText("")}
       top={<>{header}{query ? <Companies query={query} /> : null}</>} idle={<Recent onPick={setSearchText} />} />
-    {/* Picked from the bar the first time, the screen is new, so it asks for the keyboard itself. */}
+    {/* Picked before the bar mounted it, the screen is new, so it asks for the keyboard itself. */}
     <BottomSearch ref={field} shown={focused} onLeave={leave} value={text} onChangeText={setSearchText}
-      placeholder="Jobs and companies" onSubmit={() => rememberSearch(text)} autoFocus={!params.q} />
+      placeholder="Jobs and companies" onSubmit={() => rememberSearch(text)} autoFocus={inFront && !params.q} />
   </View>;
 }
 
