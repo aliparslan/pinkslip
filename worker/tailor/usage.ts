@@ -13,12 +13,24 @@ export function nextUtcDay(date = new Date()) {
   return next.toISOString();
 }
 
+/** The person's tailoring allowance on their plan (worker/plans.ts): how
+ * many, counted from when, and when it starts again. Without one, the old
+ * flat daily limit applies. */
+export interface TailorAllowance {
+  limit: number;
+  since: string;
+  resetsAt: string;
+}
+
 export async function loadTailorUsage(args: {
   db: D1Database;
   userId: string;
   model: string;
+  allowance?: TailorAllowance;
 }) {
   const today = startOfUtcDay();
+  const userSince = args.allowance?.since ?? today;
+  const userLimit = args.allowance?.limit ?? APP_USER_DAILY_LIMIT;
   const [app, user] = await Promise.all([
     args.db.prepare(
       `SELECT COALESCE(SUM(attempt_count), 0) AS count,
@@ -34,7 +46,7 @@ export async function loadTailorUsage(args: {
          AND model = ?
          AND state <> 'refunded'
          AND created_at >= ?`
-    ).bind(args.userId, args.model, today).first<{ count: number }>(),
+    ).bind(args.userId, args.model, userSince).first<{ count: number }>(),
   ]);
 
   const appToday = app?.count ?? 0;
@@ -50,21 +62,24 @@ export async function loadTailorUsage(args: {
     included_user_today: includedUserToday,
     daily_limit: null,
     app_remaining: null,
-    user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - userToday),
-    included_user_remaining: Math.max(0, APP_USER_DAILY_LIMIT - includedUserToday),
+    user_remaining: Math.max(0, userLimit - userToday),
+    included_user_remaining: Math.max(0, userLimit - includedUserToday),
     provider_units_today: providerUnitsToday,
     provider_units_limit: providerUnitsLimit,
     provider_units_remaining: Math.max(0, providerUnitsLimit - providerUnitsToday),
-    resets_at: nextUtcDay(),
+    resets_at: args.allowance?.resetsAt ?? nextUtcDay(),
   };
 }
 
 export async function reserveAppTailorQuota(
   db: D1Database,
   userId: string,
-  model: string
+  model: string,
+  allowance?: TailorAllowance
 ): Promise<{ ok: true; usageId: string } | { ok: false; resets_at: string }> {
   const today = startOfUtcDay();
+  const userSince = allowance?.since ?? today;
+  const userLimit = allowance?.limit ?? APP_USER_DAILY_LIMIT;
   const usageId = crypto.randomUUID();
   const reservedUnits = WORKERS_AI_RESERVATION_NEURONS;
 
@@ -95,8 +110,8 @@ export async function reserveAppTailorQuota(
     new Date().toISOString(),
     reservedUnits,
     userId,
-    today,
-    APP_USER_DAILY_LIMIT,
+    userSince,
+    userLimit,
     model,
     today,
     WORKERS_AI_GLOBAL_DAILY_REQUEST_LIMIT,
@@ -104,9 +119,13 @@ export async function reserveAppTailorQuota(
     reservedUnits,
     WORKERS_AI_DAILY_NEURON_LIMIT
   ).run();
-  return (result.meta.changes ?? 0) === 0
-    ? { ok: false, resets_at: nextUtcDay() }
-    : { ok: true, usageId };
+  if ((result.meta.changes ?? 0) > 0) return { ok: true, usageId };
+  // Out of the person's own allowance, it starts again when the plan says;
+  // out of the app's daily AI budget, tomorrow.
+  const used = await db.prepare(
+    `SELECT COUNT(*) AS count FROM tailor_usage WHERE user_id = ? AND state <> 'refunded' AND created_at >= ?`
+  ).bind(userId, userSince).first<{ count: number }>();
+  return { ok: false, resets_at: allowance && (used?.count ?? 0) >= userLimit ? allowance.resetsAt : nextUtcDay() };
 }
 
 export async function completeAppTailorUsage(args: {

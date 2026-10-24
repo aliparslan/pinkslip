@@ -132,6 +132,10 @@ Ideas (owner, 2026-10-24):
   Interviewing, research the company, the role and its level, then send
   things to do and quizzes, so the person starts from that company's
   material. After billing and auto-apply.
+- [ ] **Pro free for everyone while tips cover the costs:** a manual switch
+  the owner flips (owner, 2026-10-24: "it was just a fun idea"; talk
+  through the details before building any of it, such as how long it
+  stays on and what people see when it turns off).
 
 Owner to-dos:
 
@@ -339,9 +343,9 @@ Activity, the digest and each application's timeline.
 
 | Need | Status |
 | --- | --- |
-| Free and Pro, usage-based, to cover costs | **Missing:** the Plan page shows Free; nothing enforces a limit |
-| Buying in the app (StoreKit) and checking it on the server | **Missing** |
-| Usage the plan meters (auto-apply sends, tailoring) | **Partial:** tailoring usage only |
+| Free and Pro, usage-based, to cover costs | **Built 2026-10-24, not deployed** (step 9): plans, allowances, `GET /plan` |
+| Buying in the app (StoreKit) and checking it on the server | **Missing:** at the App Store release |
+| Usage the plan meters (auto-apply sends, tailoring) | **Built:** tailoring counts against the plan; auto-apply sends have `reserveAllowance` waiting for the server sends |
 
 ## 11. Admin, analytics and ops
 
@@ -1330,3 +1334,44 @@ Liberties for the owner to keep or veto:
    costs nothing; it can't stop an address being copied.
 6. A bounce or "I've left" stops other users' follow-ups to that address
    too, without telling them; the thread shows as stopped.
+
+### Step 9: plans and limits (2026-10-24, not deployed)
+
+The plumbing from Decisions: Plans and billing; payments wait for the App
+Store release. Migration `0102_plans.sql`.
+
+- **`user_plans`:** one row per person once anything sets a plan (no row
+  is Free): plan, who set it (admin, trial, Apple, Stripe), the paid
+  length, when Pro ends, renewal, the trial's use (once per person) and
+  Apple's or Stripe's id. A Pro past its end is Free.
+- **Allowances** (`shared/plans.ts`): Free 3 auto-apply sends and 3
+  tailored resumes a week; Pro 10 sends a day and a quiet 50 tailored a
+  week. Days start at local midnight and weeks on Monday's, in the
+  person's time zone. Prices ($5 a week, $15 a month) and the 3-day trial
+  are there for the Plan page.
+- **Metering:** tailoring counts its own `tailor_usage` against the plan
+  (it was a flat 15 a day); auto-apply sends get `usage_ledger` through
+  `reserveAllowance` and `releaseAllowance` (atomic, a failed send gives
+  its use back), ready for the server sends in step 10.
+- **`GET /api/v2/plan`:** the plan, its end and renewal, the trial, the
+  prices and each allowance's use, limit and reset. The client has
+  `api.plan.get()` and `usePlan()`.
+- **`PUT /api/v2/plan/admin`** (admins): `{ email, plan: "pro" | "free",
+  ends_at? }` gives someone Pro by hand, with an end or none.
+- **Accounts:** signing in carries a guest's Pro (bought before signing in)
+  and a used trial over; deleting an account deletes its plan and usage.
+
+Not built: StoreKit and Apple's server notifications, Stripe for the web,
+"Pro ends when you're hired" (it needs payments to end), and the Plan
+page's screens. The Pro-for-everyone switch is an idea to talk through
+first (see "Come back to").
+
+Testing flows (after a deploy):
+
+1. `GET /api/v2/plan` as anyone shows Free, 3 and 3 a week, the trial
+   available.
+2. As the owner, `PUT /api/v2/plan/admin` with a tester's email and
+   `"plan": "pro"`; their `GET /plan` shows Pro, 10 a day.
+3. Tailoring four times in a week on Free answers the fourth with "You've
+   used this week's tailored resumes" and Monday's reset.
+

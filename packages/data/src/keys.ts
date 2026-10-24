@@ -27,6 +27,7 @@ export const queryKeys = {
     push: () => ["personal", "push"] as const,
     notifications: () => ["personal", "notifications"] as const,
     today: () => ["personal", "today"] as const,
+    plan: () => ["personal", "plan"] as const,
     resume: () => ["personal", "resume"] as const,
     answers: () => ["personal", "answers"] as const,
     companies: () => ["personal", "companies"] as const,

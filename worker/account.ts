@@ -7,6 +7,7 @@ import type {
 import { createEmptyResumeProfile, normalizeResumeProfile } from "../shared/resume-profile";
 import { deleteUserArtifactObjects } from "./tailor/artifact-storage";
 import { mergeApplicationConflicts } from "./applications";
+import { mergeGuestPlan } from "./plans";
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -408,6 +409,7 @@ export async function mergeGuestDataIntoAccount(
   ]);
 
   await mergeSingletonProfile(db, sourceUserId, targetUserId, sourceLabel);
+  await mergeGuestPlan(db, sourceUserId, targetUserId);
 
   await db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").bind(sourceUserId).run();
   await db.prepare("DELETE FROM auth_identities WHERE user_id = ?").bind(sourceUserId).run();
@@ -452,4 +454,6 @@ export async function deleteUserAccountData(
   ]);
 
   await db.prepare("DELETE FROM tailor_usage WHERE user_id = ?").bind(userId).run().catch(() => undefined);
+  await db.prepare("DELETE FROM user_plans WHERE user_id = ?").bind(userId).run().catch(() => undefined);
+  await db.prepare("DELETE FROM usage_ledger WHERE user_id = ?").bind(userId).run().catch(() => undefined);
 }

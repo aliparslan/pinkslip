@@ -10,6 +10,7 @@ import type {
   PollableCompanySourceType,
 } from "@pinkslip/domain/company-sources";
 import type { TailoringQualitySnapshot } from "@pinkslip/domain/tailoring-quality";
+import type { PlanState } from "@pinkslip/domain/plans";
 import type { SupportOffer } from "@pinkslip/domain/support";
 import type { TodayResponse } from "@pinkslip/domain/today";
 export type { TodayEntry, TodayResponse } from "@pinkslip/domain/today";
@@ -1229,6 +1230,10 @@ function createEndpoints(context: ClientContext) {
         { method: "POST" },
         120_000
       ),
+  },
+  plan: {
+    /** Your plan, the trial, the prices and what's left of each allowance. */
+    get: () => request<PlanState>("/plan"),
   },
   support: {
     /** A Stripe page for this tip, to open in Safari. */

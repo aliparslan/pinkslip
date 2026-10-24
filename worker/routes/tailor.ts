@@ -19,6 +19,7 @@ import {
   regenerateStructuredBullet,
 } from "../tailor/structured";
 import { getLatestUserTailoring, getUserProfile } from "../account";
+import { allowanceFor } from "../plans";
 import { recordProductEvent } from "../product-events";
 import { ensureEligibleJobs } from "../job-scope";
 import {
@@ -349,10 +350,12 @@ tailor.get("/tailor/usage", async (c) => {
   const userId = c.get("userId");
   const model = normalizeWorkersAiModel(c.req.query("model") || c.env.WORKERS_AI_MODEL);
 
+  const allowance = await allowanceFor(c.env, userId, "tailoring").catch(() => null);
   const usage = await loadTailorUsage({
     db: c.env.DB,
     userId,
     model,
+    allowance: allowance ? { limit: allowance.limit, since: allowance.since, resetsAt: allowance.resets_at } : undefined,
   }).catch(() => ({
     provider: "workers_ai" as const,
     model,
@@ -418,10 +421,12 @@ tailor.post("/tailor/:job_id/plan", async (c) => {
     }, 400);
   }
   const model = normalizeWorkersAiModel(c.env.WORKERS_AI_MODEL);
-  const quota = await reserveAppTailorQuota(c.env.DB, userId, model);
+  // Free gets 3 a week; Pro has a quiet fair-use ceiling (step 9).
+  const allowance = await allowanceFor(c.env, userId, "tailoring");
+  const quota = await reserveAppTailorQuota(c.env.DB, userId, model, { limit: allowance.limit, since: allowance.since, resetsAt: allowance.resets_at });
   if (!quota.ok) {
     return c.json({
-      error: "You've used today's included tailorings. Try again tomorrow.",
+      error: allowance.used >= allowance.limit ? "You've used this week's tailored resumes." : "Tailoring is busy today. Try again tomorrow.",
       code: "tailor_quota_exceeded",
       resets_at: quota.resets_at,
     }, 429);
