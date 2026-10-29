@@ -260,10 +260,14 @@ sent" has the answer either way.
    `apply/<user>/resume.pdf` in the resume bucket and is deleted with the
    account. Server sends need one; until now the file lived only on the
    phone. The privacy page needs a line before sends open beyond the owner.
-2. **Jev's inferences go on the form**, marked `[jev]` in what was sent.
-   Decisions: Auto-apply #3 says answers come only from the answers bank.
-   In phase 1 the owner sees every one. The stricter option: any Jev guess
-   on a required question stops the send at "needs you".
+2. **Decided (owner, 2026-10-29): a send never guesses at a required
+   question.** Jev answers only optional questions on a send, marked
+   `[jev]` in what was sent. A required question with no answer from the
+   person stays empty; the send fills everything else, then stops at "needs
+   you" with every such question at once, and nothing is sent until they're
+   answered. Assisted apply on the phone still lets Jev fill required
+   questions, since the person looks the form over before submitting
+   (`planApplication`'s `guessRequired`). Built 2026-10-29.
 3. **The site's read of the resume stays** where Pinkslip has no answer,
    marked `[site]`.
 4. **"Unconfirmed" counts against the plan** and is never retried. Email

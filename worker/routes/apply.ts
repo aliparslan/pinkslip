@@ -93,7 +93,8 @@ apply.post("/plan", async (c) => {
   const controls = parseControls(body?.controls);
   if (!controls) return c.json({ error: "Invalid form", code: "invalid_request" }, 400);
   const jobId = typeof body?.job_id === "string" && body.job_id ? await resolveJobId(c.env.DB, body.job_id) : null;
-  return c.json(await planApplication(c.env, c.get("userId"), { jobId, controls }));
+  // The person looks the form over before submitting, so Jev may guess.
+  return c.json(await planApplication(c.env, c.get("userId"), { jobId, controls, guessRequired: true }));
 });
 
 /** How a fill went, for measuring which forms work. Kinds and outcomes only;

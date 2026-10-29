@@ -87,7 +87,8 @@ describe("planning a page", () => {
   it("fills Roblox from the resume, preferences, rules, and Jev", async () => {
     const { env, sqlite } = await planDb();
     const seen: string[] = [];
-    const plan = await planApplication(env, "user-1", { jobId: "job-1", controls: roblox }, fakeJev({
+    // Assisted apply, where Jev may guess at required questions.
+    const plan = await planApplication(env, "user-1", { jobId: "job-1", controls: roblox, guessRequired: true }, fakeJev({
       "employed by Roblox": { choice: "No", p: 0.95 },
     }, seen));
     const step = (ref: string) => plan.steps.find((item) => item.ref === ref);
@@ -118,6 +119,36 @@ describe("planning a page", () => {
     expect(plan.cost_usd).toBeCloseTo(0.000042, 9);
     expect(sqlite.query("SELECT calls, reported_cost_usd FROM classification_daily_budget").get())
       .toEqual({ calls: 0, reported_cost_usd: 0.000042 });
+  });
+
+  it("leaves a send's required questions Jev would guess at to the person, all at once, and fills the rest", async () => {
+    const { env } = await planDb();
+    const seen: string[] = [];
+    const controls = [
+      control("q1", "radio", "Do you have experience with Kubernetes?", { options: ["Yes", "No"] }),
+      control("q2", "checkbox", "I certify that I am a U.S. citizen"),
+      control("q3", "radio", "Have you used Terraform before?", { required: false, options: ["Yes", "No"] }),
+      control("q4", "select", "Are you comfortable working in a fast-paced team?", { options: ["Yes", "No"] }),
+      control("q5", "text", "First Name"),
+    ];
+    const jev = fakeJev({
+      Kubernetes: { choice: "Yes", p: 0.97 },
+      "U.S. citizen": { choice: "Yes", p: 0.97 },
+      Terraform: { choice: "No", p: 0.97 },
+      "fast-paced": { choice: "Yes", p: 0.97 },
+    }, seen);
+    const send = await planApplication(env, "user-1", { jobId: null, controls }, jev);
+    expect([...send.steps].sort((a, b) => a.ref.localeCompare(b.ref)))
+      .toEqual([{ ref: "q3", kind: "radio", value: "No" }, { ref: "q5", kind: "text", value: "Ali" }]);
+    expect(send.needs.map((need) => need.ref)).toEqual(["q1", "q2", "q4"]);
+    expect(send.inferred.map((item) => item.ref)).toEqual(["q3"]);
+    // Only the optional question reached Jev.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).not.toContain("Kubernetes");
+
+    const assisted = await planApplication(env, "user-1", { jobId: null, controls, guessRequired: true }, jev);
+    expect(assisted.needs).toEqual([]);
+    expect(assisted.inferred.map((item) => item.ref).sort()).toEqual(["q1", "q2", "q3", "q4"]);
   });
 
   it("leaves a doubtful Jev answer to the user", async () => {

@@ -167,7 +167,8 @@ describe("up-front answers when filling a page", () => {
 
     const question = [control("q", "radio", "This role requires 3 days a week in San Mateo. Are you able to do this?", { options: ["Yes", "No"] })];
     const seen: string[] = [];
-    const plan = await planApplication(env, "user-1", { jobId: null, controls: question }, jevWhenFactsSay("office: Up to 3 (hybrid)", seen));
+    // Assisted apply, where Jev may guess at a required question.
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: question, guessRequired: true }, jevWhenFactsSay("office: Up to 3 (hybrid)", seen));
     expect(plan.steps).toEqual([{ ref: "q", kind: "radio", value: "Yes" }]);
     expect(seen[0]).toContain("Answers the applicant set for every application:");
     // The learned list stays capped and doesn't repeat the up-front answer.
@@ -175,7 +176,7 @@ describe("up-front answers when filling a page", () => {
 
     // Remote only: the same question goes back to the user.
     await call("/answers/office_days", put("0"));
-    const remote = await planApplication(env, "user-1", { jobId: null, controls: question }, jevWhenFactsSay("office: Up to 3 (hybrid)"));
+    const remote = await planApplication(env, "user-1", { jobId: null, controls: question, guessRequired: true }, jevWhenFactsSay("office: Up to 3 (hybrid)"));
     expect(remote.needs.map((need) => need.ref)).toEqual(["q"]);
   });
 

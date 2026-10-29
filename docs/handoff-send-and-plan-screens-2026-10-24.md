@@ -88,7 +88,7 @@ The code push waits a minute and is dropped if forwarding delivers the code firs
 ### Decisions to design around (Decisions: Auto-apply, and the owner since)
 
 - **Answers come only from what the person has given.** Nothing is invented, and visa or work status is never guessed. Unknown questions go to Needs you (#3).
-  - Open liberty: Jev's inferences currently go on the form, marked `jev` in what was sent. The owner may want a stricter rule, where any guess on a required question stops the send instead.
+  - Decided (owner, 2026-10-29): Jev guesses only at optional questions on a send (marked `jev` in what was sent). Every required question without the person's own answer comes back in `needs` together, after the rest is filled; nothing is sent until they're answered.
 - **Proof** is the confirmation page (#4). The company's confirmation email, through email tracking, also moves Tracker to Applied.
 - **Safety** (#5):
   - never the same job twice;

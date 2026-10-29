@@ -188,11 +188,17 @@ function isEmpty(value: FormControl["value"]): boolean {
  * facts matched against long dropdowns, then Jev for the multiple-choice
  * questions left. Anything without a confident answer goes to `needs`.
  * Controls that already hold a value are left alone.
+ *
+ * Jev only guesses at optional questions unless `guessRequired`: a send
+ * presses Submit with nobody watching, so a required question Jev could only
+ * infer stays empty and waits for the person with the rest of what's left,
+ * all at once (owner, 2026-10-29). Assisted apply guesses, since the person
+ * looks the form over before they submit it.
  */
 export async function planApplication(
   env: Env,
   userId: string,
-  input: { jobId: string | null; controls: FormControl[] },
+  input: { jobId: string | null; controls: FormControl[]; guessRequired?: boolean },
   ai: JevRunner | undefined = env.AI as unknown as JevRunner | undefined,
   now = new Date(),
 ): Promise<ApplyPlan & { cost_usd: number }> {
@@ -248,6 +254,8 @@ export async function planApplication(
       if (!control.required && (isOptionalConsent(control.label) || BARE_AGREEMENT.test(control.label.trim()))) continue;
       if (isAcknowledgement(control.label)) {
         steps.push({ ref: control.ref, kind: "checkbox", value: "checked" });
+      } else if (control.required && !input.guessRequired) {
+        need(control);
       } else if (control.required) {
         // "I certify I am a U.S. citizen": tick it only if it's true.
         jevQuestions[control.ref] = {
@@ -295,7 +303,7 @@ export async function planApplication(
       && control.options.length >= 2
       && control.options.length <= MAX_JEV_OPTIONS
       && field?.section !== "voluntary";
-    if (askable) {
+    if (askable && (!control.required || input.guessRequired)) {
       jevQuestions[control.ref] = { label: control.label, options: control.options };
       continue;
     }
