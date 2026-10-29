@@ -244,9 +244,11 @@ export function repliedNotification(thread: { id: string; job_id: string | null;
   };
 }
 
-/** N12: a strong match as it posts. The company says it, the role and the question say what. */
+/** N12: a strong match as it posts. The company says it, the role says
+ * what, and the second line how to choose (owner, 2026-10-29, Paper "Apply
+ * for you? push · Oct 29"): pressing and holding shows Apply and Not this one. */
 export function applyAskNotification(job: { company: string; title: string; jobId: string }) {
-  return { title: job.company, body: [job.title, "Apply for you?"].filter(Boolean).join(" · "), url: notificationLinks.job(job.jobId) };
+  return { title: job.company, body: [job.title, "Hold to apply"].filter(Boolean).join("\n"), url: notificationLinks.job(job.jobId) };
 }
 
 /** N13 and N14: how a send went. A dry run says nothing. */

@@ -114,7 +114,7 @@ describe("asking as strong matches post", () => {
       { job_id: "j1", status: "asked", notify_at: NOW.toISOString() },
     ]);
     expect(sqlite.query("SELECT kind, title, body, url, entity_id, scheduled_for FROM notification_log").all()).toEqual([{
-      kind: "apply_ask", title: "Acme Test", body: "Software Engineer, New Grad · Apply for you?", url: "/jobs/j1", entity_id: "j1",
+      kind: "apply_ask", title: "Acme Test", body: "Software Engineer, New Grad\nHold to apply", url: "/jobs/j1", entity_id: "j1",
       scheduled_for: NOW.toISOString(),
     }]);
     expect(sqlite.query("SELECT status FROM notification_candidates WHERE id = 'c1'").get()).toEqual({ status: "skipped" });

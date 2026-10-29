@@ -1,4 +1,4 @@
-import type { ApiClient } from "@pinkslip/core/api";
+import { APPLY_ASK_CATEGORY, type ApiClient } from "@pinkslip/core/api";
 import * as Crypto from "expo-crypto";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -8,6 +8,17 @@ import { storage } from "./storage";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
 });
+
+/** The "Apply for you?" push's buttons, shown on press and hold (owner,
+ * 2026-10-29, Paper "Apply for you? push · Oct 29"). Apply opens Pinkslip on
+ * the job and starts the send; Not this one only clears the push, so it
+ * leaves the app closed. */
+export const ASK_APPLY = "apply";
+export const ASK_DISMISS = "dismiss";
+void Notifications.setNotificationCategoryAsync(APPLY_ASK_CATEGORY, [
+  { identifier: ASK_APPLY, buttonTitle: "Apply", options: { opensAppToForeground: true } },
+  { identifier: ASK_DISMISS, buttonTitle: "Not this one", options: { opensAppToForeground: false } },
+]).catch(() => undefined);
 
 export type DevicePushStatus = "enabled" | "promptable" | "denied" | "unsupported";
 

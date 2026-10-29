@@ -770,8 +770,10 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
    owner would act on a strong match straight from a push, or have it sent
    automatically, and expects a handful a day.
    - **When a strong match posts, Ask me** (the default, Free and Pro, and
-     where Pro starts): one push per job, "Stripe · New Grad SWE · Apply for
-     you?", with Apply and Not this one; tapping the push opens the job.
+     where Pro starts): one push per job, "Stripe" / "New Grad SWE" / "Hold
+     to apply" (owner, 2026-10-29, Paper "Apply for you? push · Oct 29":
+     the push says how to choose), with Apply and Not this one on press and
+     hold; tapping the push opens the job.
      Apply queues the send, and the send's own pushes (N13, N14) report
      back. It replaces the usual new-job alert for that job.
    - **Apply for me** (Pro, the person switches to it): strong matches are

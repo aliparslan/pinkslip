@@ -6,10 +6,10 @@ import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, EmptyState, ToastHost } from "../../kit";
+import { Button, EmptyState, toast, ToastHost } from "../../kit";
 import { appPathFor } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
-import { notificationTarget, refreshDevicePush } from "../../platform/push";
+import { ASK_APPLY, ASK_DISMISS, notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
@@ -86,6 +86,21 @@ function AppEffects({ api }: { api: ApiClient }) {
       handled.add(id);
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
       const target = notificationTarget(response);
+      // The "Apply for you?" push's buttons (platform/push.ts). Not this one
+      // reaches here only if the app was running; the job is never asked
+      // about again either way.
+      const askedJob = target.jobIds[0];
+      if (response.actionIdentifier === ASK_DISMISS) {
+        if (askedJob) void api.apply.answerAsk(askedJob, "dismiss").catch(() => undefined);
+        return;
+      }
+      if (response.actionIdentifier === ASK_APPLY && askedJob) {
+        api.apply.answerAsk(askedJob, "apply").then(
+          () => void queryClient.invalidateQueries({ queryKey: queryKeys.personal.sends() }),
+          // No sends left, no resume yet, the posting closed: the server says which.
+          (error: unknown) => toast.error(error instanceof Error && error.message ? error.message : "Couldn't start applying. Try again."),
+        );
+      }
       // What the alert is about is new since the lists were loaded.
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.jobs().slice(0, 2) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
