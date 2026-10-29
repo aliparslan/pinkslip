@@ -143,6 +143,31 @@ deploy since, the latest being 6145f51c from 0f22a44.
 - **Next:** Paper for the send screens (start, follow, needs you, the
   code, what was sent); then the morning picks (N12), caps and pause.
 
+## The send screens (built 2026-10-29, not deployed)
+
+Paper "Send screens · the missing states · Oct 24" (approved), on top of
+Oct 14's apply flow; the rules are in `design-system.md`, "A send on the job
+page".
+- **The job page is the send page.** On a Greenhouse or Ashby job, for
+  anyone with `auto_apply_send_enabled`, Apply becomes Apply for me and the
+  button follows the job's send (`send-facts.ts`, `sends/useSendFlow.tsx`).
+  Check first, in its caret for admins, is a dry run. The pushes already
+  open the job.
+- **The resume goes up by itself.** The first send uploads the PDF kept on
+  the phone; with none, Resume opens.
+- **Fill progress** (migration 0105, `fill_done` and `fill_total`): the
+  engine reports each field as it fills, at most once a second, so the
+  button reads "Applying · 11 of 17 filled". `ApplySend.progress` is null
+  until then, and older servers leave it out; the button says "Applying ·
+  opening the form" meanwhile.
+- **Pages:** `sends/[sendId]` is What Pinkslip sent, or Ready to send after
+  Check first, with Send pinned; `sends/[sendId]/[shot]` shows the filled
+  form or the thank-you page, cached on the phone. The application page's
+  stub now carries a real send's proof and "What it sent".
+- **Waiting on the go-ahead:** migration 0105 and the Worker, then an
+  over-the-air update. The Check first menu's eye is in the asset catalog
+  for the next build; 1.3.8 shows iOS's eye.
+
 ## The owner's first sends
 
 The app has no screens for this yet (frontend later, Paper first). Until
