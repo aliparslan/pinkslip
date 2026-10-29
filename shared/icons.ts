@@ -97,6 +97,8 @@ export const ICONS = {
   secure: "Lock",
   /** Sent, waiting for the company to confirm it (the Apply button). */
   waiting: "Clock",
+  /** A send found the posting closed (its toast). */
+  postingClosed: "XCircle",
 } as const;
 
 export type IconName = keyof typeof ICONS;

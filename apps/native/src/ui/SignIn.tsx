@@ -96,31 +96,39 @@ export interface CodeBoxesProps {
   /** Expired: the digits go grey (E7). */
   faded?: boolean;
   autoFocus?: boolean;
+  /** Greenhouse's emailed code is eight letters and digits, case kept
+   * (Paper "Send screens · Oct 24", S3); sign-in's is six digits. */
+  letters?: boolean;
 }
 
 export const CODE_LENGTH = 6;
+/** Greenhouse's security code. */
+export const LETTER_CODE_LENGTH = 8;
 
 /**
  * The six-digit code (S4): six white boxes, the digit in Title 1, the next
  * box ringed in pink with its caret. One hidden field takes the typing, so
- * iPhone can fill the code in from Mail.
+ * iPhone can fill the code in from Mail. Greenhouse's eight boxes sit 6
+ * apart instead of 9, so they fit.
  */
-export function CodeBoxes({ value, onChangeText, invalid, faded, autoFocus = true }: CodeBoxesProps) {
+export function CodeBoxes({ value, onChangeText, invalid, faded, autoFocus = true, letters = false }: CodeBoxesProps) {
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
+  const length = letters ? LETTER_CODE_LENGTH : CODE_LENGTH;
   const digits = value.split("");
-  return <Pressable onPress={() => input.current?.focus()} accessibilityLabel={`Code, ${value.length} of ${CODE_LENGTH} digits`}>
-    <View style={styles.boxes}>
-      {Array.from({ length: CODE_LENGTH }, (_, index) => {
-        const current = focused && !invalid && index === Math.min(value.length, CODE_LENGTH - 1) && value.length < CODE_LENGTH;
+  return <Pressable onPress={() => input.current?.focus()} accessibilityLabel={`Code, ${value.length} of ${length} ${letters ? "characters" : "digits"}`}>
+    <View style={[styles.boxes, letters && styles.boxesTight]}>
+      {Array.from({ length }, (_, index) => {
+        const current = focused && !invalid && index === Math.min(value.length, length - 1) && value.length < length;
         return <View key={index} style={[styles.box, current && styles.boxCurrent, invalid && digits[index] && styles.boxInvalid]}>
           {digits[index] ? <Text role="title1" tone={faded ? "ink-3" : "ink"}>{digits[index]}</Text> : current ? <View style={styles.caret} /> : null}
         </View>;
       })}
     </View>
-    <TextInput ref={input} value={value} autoFocus={autoFocus} maxLength={CODE_LENGTH} keyboardType="number-pad"
+    <TextInput ref={input} value={value} autoFocus={autoFocus} maxLength={length} keyboardType={letters ? "ascii-capable" : "number-pad"}
+      autoCapitalize="none" autoCorrect={false} spellCheck={false}
       textContentType="oneTimeCode" autoComplete="one-time-code" caretHidden
-      onChangeText={(text) => onChangeText(text.replace(/\D/g, "").slice(0, CODE_LENGTH))}
+      onChangeText={(text) => onChangeText(text.replace(letters ? /[^A-Za-z0-9]/g : /\D/g, "").slice(0, length))}
       onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={styles.hidden} />
   </Pressable>;
 }
@@ -161,6 +169,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   input: { padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },
   boxes: { flexDirection: "row", gap: 9 },
+  boxesTight: { gap: 6 },
   box: {
     flex: 1,
     height: 60,

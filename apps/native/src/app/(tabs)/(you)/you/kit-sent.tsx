@@ -1,23 +1,16 @@
-import { Redirect, router, Stack } from "expo-router";
-import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WhatPinkslipSent } from "../../../../features/redesign/apply-flow/WhileItRuns";
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
+import { READY_SAMPLE, SENT_SAMPLE } from "../../../../features/kit/send-sample";
 import { redesignKitAvailable } from "../../../../features/redesign/flag";
-import { IconButton, useTabBarSpace } from "../../../../ui";
+import { SentView } from "../../../../features/redesign/sends/SentPage";
+import { toast } from "../../../../ui";
 
-/** What Pinkslip sent (W3) on a sample. */
+/** What Pinkslip sent (W3), or Check first's Ready to send, on a sample. */
 export default function SentSampleScreen() {
-  const insets = useSafeAreaInsets();
-  const tabSpace = useTabBarSpace();
+  const { ready } = useLocalSearchParams<{ ready?: string }>();
   if (!redesignKitAvailable) return <Redirect href="/you" />;
-  return <ScrollView contentContainerStyle={{ paddingTop: insets.top, paddingBottom: tabSpace, gap: 8 }}>
+  return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <View style={{ paddingHorizontal: 16, height: 44, justifyContent: "center" }}><IconButton icon="back" label="Back" onPress={() => router.back()} /></View>
-    <WhatPinkslipSent company="Stripe" title="Backend Engineer, New Grad" total={12}
-      proof={[{ label: "Stripe's email confirmed it", when: "9:58 AM" }, { label: "Thank-you page", when: "9:52 AM" }, { label: "Sent by Pinkslip", when: "Oct 14, 9:52 AM" }]}
-      answers={[
-        { question: "Why do you want to work at Stripe?", answer: "I've wanted to build payments infrastructure since my first side project took its first dollar." },
-        { question: "Are you authorized to work in the US?", answer: "Yes" },
-      ]} />
-  </ScrollView>;
+    <SentView send={ready ? READY_SAMPLE : SENT_SAMPLE}
+      onSend={ready ? () => toast.show({ message: "A sample: nothing was sent", icon: "autoApply" }) : undefined} />
+  </>;
 }

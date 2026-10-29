@@ -686,6 +686,40 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   (Founders Semibold 11/12, 0.08em, `ink-3`) over the day (Founders
   Semibold 20/20, `ink`). Like logo initials, it's exempt from the type
   scale. The weekday goes on line one of the row and the time trails it.
+- **A send on the job page** (owner, 2026-10-24, Paper "Send screens ·
+  the missing states · Oct 24", on top of Oct 14's "1 · The Apply button,
+  every state"; built 2026-10-29): the job page is the send page, so the
+  one button follows the send and every push opens the job.
+  - Pink when the next move is yours: Review and send (Check first's
+    run), Enter Greenhouse's code, Finish on your phone (a captcha; it
+    opens assisted apply, filled) and Answer *n* questions.
+  - Gray while Pinkslip's browser is on it, with the bot mark and a deeper
+    gray (`pill`, see-through in both modes) filling behind the words, as
+    the live bar fills (owner, 2026-10-29:
+    no pink while it's in progress; Oct 14's board had a pale pink one):
+    "Applying · opening the form", "Applying · 11 of 17 filled" by real
+    fields (the resume counts as one), "Applying · sending to Stripe".
+    Didn't send · Try again is gray too, as every retry is.
+  - Check first sits in Apply for me's caret, between it and Apply
+    myself, with the eye (`menu-preview`; builds before 1.3.9 show iOS's
+    eye). It's for admins while sends are.
+  - Greenhouse's code is sign-in's code boxes, eight for its letters and
+    digits, 6 apart instead of 9 (`CodeBoxes letters`).
+  - Needs you asks one question a step in the job's sheet (logo, company,
+    title, close): "2 of 3" in Footnote Medium `ink-3` above the
+    question, Back and Next at the bottom, the last one "Send to
+    Stripe" ("Check again" after Check first). Choices are `Choice`
+    rows; past 12 options a search field shows the closest six.
+  - What Pinkslip sent (W3) labels only answers the person didn't give, in
+    Footnote `ink-3` under the answer: "Guessed from your resume",
+    "Filled by Greenhouse from your resume", "Already on the form". Proof's
+    rows open the pictures: Thank-you page, and Sent by Pinkslip for the
+    filled form. After Check first the same page is "Ready to send",
+    without Proof, with Send pinned.
+  - A send that can't start says so in the kit's toast ("Pinkslip already
+    sent this one", "Stripe closed this posting", "10 sent today · resets
+    at midnight", "Couldn't start it" with Try again). No resume goes to
+    Resume; Free with none left will open the Get Pro sheet.
 - **Needs you lives on Today only.** Tracker has no Needs-you chip or
   section; the Today tab's badge carries the count.
 - **Tracker order:** chips and groups run Saved, Applied, Assessment,
@@ -1027,6 +1061,15 @@ cut so that each remaining one has a job.
     in `Choice`'s new `trailing` slot). Nothing below $1 or above $500 goes
     in, so there's no error state; the button stays gray until there's an
     amount.
+- **2026-10-29**
+  - Built the send screens (Paper "Send screens · the missing states ·
+    Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`
+    gains opening, sending, checked, code, finishOnPhone and didntSend,
+    and Check first in its caret; `CodeBoxes letters`; `GlyphMenu` shows
+    iOS's symbol for an icon a build doesn't have yet. New: the Needs you
+    and code sheets (`sends/SendSheets.tsx`), What Pinkslip sent and Ready
+    to send (`sends/SentPage.tsx`, replacing the kit's sample), and the
+    kit's "Send states, sheets and toasts".
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

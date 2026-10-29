@@ -18,10 +18,32 @@ export const menuIconsAvailable = Updates.runtimeVersion !== BUILD_WITHOUT_ICONS
  */
 export type MenuGlyph =
   | "save" | "saved" | "applied" | "undo" | "read" | "unread" | "hide" | "block"
-  | "email" | "tailor" | "company" | "report" | "move" | "remove" | "date" | "open" | "share" | "bot";
+  | "email" | "tailor" | "company" | "report" | "move" | "remove" | "date" | "open" | "share" | "bot"
+  | "preview";
 
 /** The asset catalog name for a menu icon. */
 export const menuAsset = (glyph: MenuGlyph) => `menu-${glyph}`;
+
+/** Icons added after a build went out: older builds show iOS's nearest
+ * symbol until they're replaced. */
+const LATER_GLYPHS: Partial<Record<MenuGlyph, { since: number[]; symbol: string }>> = {
+  preview: { since: [1, 3, 9], symbol: "eye" },
+};
+
+const runtimeParts = (Updates.runtimeVersion ?? "").split(".").map(Number);
+function inThisBuild(glyph: MenuGlyph): boolean {
+  const later = LATER_GLYPHS[glyph];
+  if (!later || runtimeParts.some(Number.isNaN)) return true;
+  for (let index = 0; index < later.since.length; index += 1) {
+    const have = runtimeParts[index] ?? 0;
+    if (have !== later.since[index]) return have > later.since[index]!;
+  }
+  return true;
+}
+
+function GlyphImage({ glyph }: { glyph: MenuGlyph }) {
+  return inThisBuild(glyph) ? <Image assetName={menuAsset(glyph)} /> : <Image systemName={LATER_GLYPHS[glyph]!.symbol as never} />;
+}
 
 export interface GlyphMenuItem {
   id: string;
@@ -48,10 +70,10 @@ export interface GlyphMenuSpec {
 export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpec & { children: ReactNode }) {
   const button = (item: GlyphMenuItem) => item.on !== undefined
     ? <Toggle key={item.id} isOn={item.on} onIsOnChange={() => item.onSelect()}>
-      <Label title={item.title} icon={<Image assetName={menuAsset(item.glyph)} />} />
+      <Label title={item.title} icon={<GlyphImage glyph={item.glyph} />} />
     </Toggle>
     : <Button key={item.id} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect}>
-      <Label title={item.title} icon={<Image assetName={menuAsset(item.glyph)} />} />
+      <Label title={item.title} icon={<GlyphImage glyph={item.glyph} />} />
     </Button>;
   if (!menuIconsAvailable) {
     return <Host matchContents ignoreSafeArea="all">
@@ -63,7 +85,7 @@ export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpe
   }
   // The top row is icons alone; VoiceOver still hears the name.
   const iconButton = (item: GlyphMenuItem) => <Button key={item.id} onPress={item.onSelect} modifiers={[accessibilityLabel(item.title)]}>
-    <Image assetName={menuAsset(item.glyph)} />
+    <GlyphImage glyph={item.glyph} />
   </Button>;
   return <Host matchContents ignoreSafeArea="all">
     <Menu label={<RNHostView matchContents><>{children}</></RNHostView>}>

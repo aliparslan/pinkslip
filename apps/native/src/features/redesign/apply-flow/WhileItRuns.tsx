@@ -1,7 +1,6 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Children, Fragment, useState } from "react";
 import { Pressable, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
@@ -127,59 +126,6 @@ function QueueRow({ job, trailing }: { job: AskJob; trailing?: React.ReactNode }
   </View>;
 }
 
-/** W3, what Pinkslip sent: proof as a quiet log, newest first, small grey
- * dots and only the latest step in ink; the resume as a file row; each
- * answer with its question small above it. */
-export function WhatPinkslipSent({ company, title, proof, answers, total }: {
-  company: string;
-  title: string;
-  proof: { label: string; when: string }[];
-  answers: { question: string; answer: string }[];
-  total: number;
-}) {
-  const insets = useSafeAreaInsets();
-  return <View style={[styles.page, { paddingBottom: insets.bottom + 32 }]}>
-    <View style={styles.pageHead}>
-      <Text role="title1" accessibilityRole="header">What Pinkslip sent</Text>
-      <Text role="subhead" tone="ink-2">{`${company} · ${title}`}</Text>
-    </View>
-    <View style={styles.block}>
-      <Text role="footnote" weight="medium" tone="ink-2">Proof</Text>
-      {proof.map((step, index) => <View key={step.label} style={styles.proof}>
-        <View style={styles.rail}>
-          <View style={[styles.proofDot, index === 0 && styles.proofDotNow]} />
-          {index < proof.length - 1 ? <View style={styles.railLine} /> : null}
-        </View>
-        <Text weight={index === 0 ? "medium" : "regular"} tone={index === 0 ? "ink" : "ink-2"} flex>{step.label}</Text>
-        <Text role="subhead" tone="ink-3">{step.when}</Text>
-        <Icon name="disclosure" size={12} tone="ink-4" />
-      </View>)}
-    </View>
-    <View style={styles.block}>
-      <Text role="footnote" weight="medium" tone="ink-2">Resume</Text>
-      <View style={styles.file}>
-        <View style={styles.fileIcon}><Icon name="resume" size={18} tone="ink-2" /></View>
-        <View style={styles.flex}>
-          <Text>Jordan_Lee.pdf</Text>
-          <Text role="subhead" tone="ink-3">1 page</Text>
-        </View>
-        <Icon name="disclosure" size={12} tone="ink-4" />
-      </View>
-    </View>
-    <View style={styles.block}>
-      <Text role="footnote" weight="medium" tone="ink-2">Answers</Text>
-      {answers.map((item) => <View key={item.question} style={styles.answer}>
-        <Text role="subhead" tone="ink-3">{item.question}</Text>
-        <Text>{item.answer}</Text>
-      </View>)}
-      <View style={styles.allAnswers}>
-        <Text role="subhead" weight="medium" tone="ink-2" flex>{`All ${total} answers`}</Text>
-        <Icon name="disclosure" size={12} tone="ink-4" />
-      </View>
-    </View>
-  </View>;
-}
-
 const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
   slot: { position: "absolute", left: theme.ui.size.gutter, right: theme.ui.size.gutter },
@@ -198,16 +144,4 @@ const styles = StyleSheet.create((theme) => ({
   line: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
   moreRow: { minHeight: 48, flexDirection: "row", alignItems: "center", paddingLeft: 52 },
   confirmed: { flexDirection: "row", alignItems: "center", gap: 4 },
-  page: { flex: 1, gap: theme.ui.space["6"], paddingHorizontal: theme.ui.size.gutter, backgroundColor: theme.ui.color.bg },
-  pageHead: { gap: theme.ui.space["1"] },
-  block: { gap: theme.ui.space["2"] },
-  proof: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
-  rail: { width: 8, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
-  proofDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.ui.color["ink-4"] },
-  proofDotNow: { backgroundColor: theme.ui.color.ink },
-  railLine: { position: "absolute", top: 26, bottom: -22, width: 1.5, backgroundColor: theme.ui.color["ink-4"] },
-  file: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["1"] },
-  fileIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
-  answer: { gap: 2, paddingVertical: theme.ui.space["2"], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ui.color.separator },
-  allAnswers: { minHeight: 44, flexDirection: "row", alignItems: "center" },
 }));

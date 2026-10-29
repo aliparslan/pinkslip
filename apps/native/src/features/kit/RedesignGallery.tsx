@@ -62,6 +62,7 @@ export function RedesignGallery() {
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />
         <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
         <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
+        <ListItem title="Send states, sheets and toasts" accessory="chevron" onPress={() => router.push("/you/kit-sends")} />
         <ListItem title="In-app browser, a sample form" accessory="chevron" onPress={() => setBrowsing(sampleRequest)} />
         <ListItem title="In-app browser, a live Greenhouse form" accessory="chevron"
           onPress={() => setBrowsing({ jobId: "sample", url: LIVE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true })} />

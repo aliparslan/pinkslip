@@ -19,6 +19,7 @@ import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/u
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
 import { applyButtonState, fitsYourSearch, orderedPlaces, placesByPay, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
+import { useSendFlow } from "./sends/useSendFlow";
 
 /** The posting replacing its placeholder lines. */
 const DESCRIPTION_IN = FadeIn.duration(180);
@@ -65,7 +66,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const [placesOpen, setPlacesOpen] = useState(false);
   // The stub tears once you can see it, and the button says Applied as it lands.
   const tear = useStubCatch(applied, covered);
-  const applyState = applyButtonState(job, tear.applied, closed);
+  // Greenhouse and Ashby: Pinkslip's browser sends it, and the button
+  // follows the send (Paper "Send screens · the missing states · Oct 24").
+  const sends = useSendFlow(job, { applied: tear.applied, closed, applyMyself: apply });
+  const applyState = sends.state ?? applyButtonState(job, tear.applied, closed);
   // Past Applied, the button opens the application, so find it in Tracker's list.
   const applications = useQuery({ ...applicationsQueryOptions(useApi()), enabled: applyState.kind === "stage" });
   const applicationId = applications.data?.find((item) => item.job_id === job.id)?.id;
@@ -119,10 +123,12 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
     <View ref={tear.bar} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       <Animated.View style={tear.dip}>
         <ApplyButton state={applyState} saved={saved} onSave={toggleSave}
-          onPress={applyState.kind === "apply" ? (job.url ? apply : undefined) : applyState.kind === "stage" ? openApplication : undefined} />
+          onPress={sends.state ? sends.onPress : applyState.kind === "apply" ? (job.url ? apply : undefined) : applyState.kind === "stage" ? openApplication : undefined}
+          onApplyMyself={job.url ? apply : undefined} onCheckFirst={sends.onCheckFirst} />
       </Animated.View>
     </View>
     {sheets}
+    {sends.sheets}
     <SheetModal open={applyFlow.asking} onClosed={applyFlow.endAsking}><DidYouApply onYes={applyFlow.confirmApplied} /></SheetModal>
     <SheetModal open={applyFlow.preparing} onClosed={applyFlow.endPreparing} onGone={applyFlow.prepGone}>
       <ApplyPrep job={job} onOpen={applyFlow.openAssisted} onAlreadyApplied={applyFlow.confirmApplied} />

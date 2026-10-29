@@ -2,7 +2,7 @@ import { DatePicker, Host } from "@expo/ui/swift-ui";
 import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { ApiError, type ApplicationDetail, type ApplicationStage } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
-import { useApplication, useRemoveApplication, useSetStepDate, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
+import { useApplication, useApplySends, useRemoveApplication, useSession, useSetStepDate, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
 import { router, Stack, useSegments } from "expo-router";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
@@ -23,6 +23,7 @@ import { Description } from "./Description";
 import { BAR, TOP_BAR, TopBar, usePinnedBarToastLift } from "./JobPage";
 import { JobIdentity } from "./JobIdentity";
 import { plainText, ticketStub } from "./job-facts";
+import { atsName, followedSend } from "./send-facts";
 import { MOVE_TO } from "./tracker-facts";
 
 /** What the page asks of whoever holds the application: the server, or a sample's own state. */
@@ -99,7 +100,23 @@ function WithJob({ application, jobId, actions }: { application: ApplicationDeta
   const about = !full && !failed || pendingDescription ? <ActivityIndicator style={styles.spinner} color={theme.ui.color["ink-3"]} />
     : blocks.length > 0 ? <Description blocks={blocks} />
     : <Text role="subhead" tone="ink-2">The full posting didn't come through. The original may still have it.</Text>;
-  return <ApplicationView application={application} job={job} about={about} actions={actions} />;
+  const { sent, onWhatItSent } = useSentProof(jobId);
+  return <ApplicationView application={application} job={job} about={about} actions={actions} sent={sent} onWhatItSent={onWhatItSent} />;
+}
+
+/** When Pinkslip's browser sent it (Paper "6 · After: proof it went
+ * through"): the board's thank-you page confirmed it, or nothing has yet.
+ * The stub's "What it sent" opens the send. */
+function useSentProof(jobId: string): { sent?: SentProof; onWhatItSent?: () => void } {
+  const enabled = Boolean(useSession().data?.me?.features?.auto_apply_send_enabled);
+  const sends = useApplySends(enabled);
+  const tab = (useSegments() as readonly string[])[1] ?? "(library)";
+  const send = followedSend(sends.data, jobId);
+  if (!send || send.dry_run || (send.status !== "submitted" && send.status !== "unconfirmed")) return {};
+  return {
+    sent: { via: atsName(send.ats), confirmed: send.status === "submitted" ? { by: "board", at: send.finished_at ?? send.created_at } : null },
+    onWhatItSent: () => router.push({ pathname: `/(tabs)/${tab}/sends/[sendId]` as "/(tabs)/(library)/sends/[sendId]", params: { sendId: send.id } }),
+  };
 }
 
 type SheetStart = "stages" | "date";

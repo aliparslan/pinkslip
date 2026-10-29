@@ -64,9 +64,10 @@ export function useTabBarStepsAside(active: boolean) {
   }, [key, active]);
 }
 
-/** Routes whose page hides the bar: the ones with their own pinned bar, and
- * Search, whose field sits at the bottom. */
-const HIDES_BAR = /^(jobs|applications|events)\/\[|^search$/;
+/** Routes whose page hides the bar: the ones with their own pinned bar (a
+ * send's pages too, opened from the job), and Search, whose field sits at
+ * the bottom. */
+const HIDES_BAR = /^(jobs|applications|events|sends)\/\[|^search$/;
 
 /** A stack screen's native transition: `progress` 0 to 1 as it comes or
  * goes, `closing` 1 when it's going. */
@@ -313,7 +314,7 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
 }) {
   const insets = useSafeAreaInsets();
   const steppedAside = useTabBarSteppedAside();
-  const onJobPage = /^\/(jobs|applications|events)\/[^/]+$/.test(usePathname()) || steppedAside;
+  const onJobPage = /^\/(jobs|applications|events)\/[^/]+$|^\/sends\//.test(usePathname()) || steppedAside;
   // Toasts sit 12 above the pill; the job page's own bar takes over there.
   useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
   const tabs = state.routes.filter((route) => TABS[route.name]);
