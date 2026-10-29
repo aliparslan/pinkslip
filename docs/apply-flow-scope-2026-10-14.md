@@ -4,6 +4,12 @@ Item 2 of the design inventory (`design-inventory-2026-10-14.md`), and the
 part of item 3 that ships first, Ask first. The goal is to agree on the pieces
 and a few decisions, then draw them in the kit.
 
+> **Changed 2026-10-29 (owner):** Ask first's daily list is dropped. A
+> strong match asks as it posts instead: a push with Apply and Not this one,
+> or Apply for me (Pro) sends it with no ask. Today keeps no Ask first card.
+> See Decisions: Auto-apply #2 in
+> [backend-inventory-2026-10-16.md](backend-inventory-2026-10-16.md).
+
 ## What's already decided
 
 - **One Apply button** on the job page that changes state instead of adding

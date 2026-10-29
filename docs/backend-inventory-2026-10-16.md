@@ -763,9 +763,31 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
    locked and the Live Activity only reports. Anything blocked (captchas,
    bot checks) becomes "Finish on your phone" in the in-app browser.
    Greenhouse and Ashby first, then Lever. Workday stays assisted only.
-2. **Ask first:** each morning at the user's time the server picks matches
-   by their rules; Today's card and the morning push (N12); what they send
-   joins the queue.
+2. ~~**Ask first:** each morning at the user's time the server picks
+   matches by their rules; Today's card and the morning push (N12); what
+   they send joins the queue.~~ Revisited 2026-10-29 (owner): no morning
+   list. Jobs post through the day, and a morning batch costs a day. The
+   owner would act on a strong match straight from a push, or have it sent
+   automatically, and expects a handful a day.
+   - **When a strong match posts, Ask me** (the default, Free and Pro, and
+     where Pro starts): one push per job, "Stripe · New Grad SWE · Apply for
+     you?", with Apply and Not this one; tapping the push opens the job.
+     Apply queues the send, and the send's own pushes (N13, N14) report
+     back. It replaces the usual new-job alert for that job.
+   - **Apply for me** (Pro, the person switches to it): strong matches are
+     sent as they post, within the caps, with no ask.
+   - **Not this one** only dismisses that job; it teaches nothing for now.
+   - **A strong match** fits the search on level, role and location (and
+     pay, if a minimum is set), isn't at a hidden company or already
+     applied to, and is on Greenhouse or Ashby so Pinkslip can send it.
+     Anything else stays a normal alert.
+   - **Quiet hours:** an ask found overnight waits for the morning;
+     Automatic may send overnight.
+   - **Required questions** only the person can answer still stop the send
+     and come back together (#3).
+   - Open: whether Apply can run from the push without opening the app (it
+     may need a new app build); otherwise Apply opens Pinkslip and starts
+     the send.
 3. **Answers only from the answers bank;** nothing invented; visa and work
    status never guessed. Anything unknown sends the job to Needs you (N13)
    instead of sending. Settled 2026-10-29 (owner): on a send, Jev answers

@@ -96,11 +96,12 @@ The code push waits a minute and is dropped if forwarding delivers the code firs
   - caps;
   - Pause stops at once;
   - everything sent is kept for the person to see.
-- **Ask first:**
-  - the daily list lives in **Today**, at the person's time (N12);
-  - the review is a page, not a sheet, with Apply pinned at the bottom;
-  - no guardrail text on it;
-  - only jobs that need something carry a label (apply-flow scope, 2026-10-14).
+- **Ask first is no longer a morning list** (owner, 2026-10-29; Decisions: Auto-apply #2, revisited). Jobs post through the day, so a strong match asks as it posts:
+  - **Ask me** (the default, where Pro starts too): one push per job, "Stripe · New Grad SWE · Apply for you?", with Apply and Not this one; tapping the push opens the job. It replaces the usual new-job alert for that job.
+  - **Apply for me** (Pro, chosen by the person): strong matches are sent as they post, within the caps.
+  - **Not this one** only dismisses that job.
+  - So Today has **no Ask first card or daily review page**; it keeps sends in progress and what's waiting on the person. The auto-apply settings need the choice between Ask me and Apply for me.
+  - Selecting several on Jobs ("Apply to 8") and its review page are unaffected (apply-flow scope, 2026-10-14).
 - **Optional consents are never ticked.** That covers future roles, talent communities, texts and marketing. A box labelled only "I agree" is ticked only when the form requires it.
 - **Copy rules:**
   - no "we";
@@ -110,7 +111,7 @@ The code push waits a minute and is dropped if forwarding delivers the code firs
 
 ### Not built yet (backend phase C), so samples can't show these live
 
-- **The Ask first picks** and the morning list (N12).
+- **Asking as strong matches post** (the push with Apply and Not this one). The morning list (N12) is dropped.
 - **Automatic.** "Send as jobs post" is Pro.
 - **Caps, Pause, and the per-company rule.**
 - **Batches.** `WhileItRuns`' "Applying for you … Up next" assumes several at once; today each send is one job. A batch would be several sends followed together.
