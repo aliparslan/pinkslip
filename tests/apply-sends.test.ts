@@ -210,6 +210,21 @@ describe("the send engine", () => {
     expect(filled.open.map((entry) => entry.label)).toEqual(["Why Acme?"]);
   });
 
+  it("says how far the fill has got, the resume counting as one", async () => {
+    const page = fakePage({ controls: [control("p1", "text", "First Name"), control("p3", "file", "Resume/CV"), control("p4", "text", "Last Name")] });
+    const prepared = await prepareForm(page, RESUME);
+    if (prepared.kind !== "ready") throw new Error("no form");
+    const heard: string[] = [];
+    await fillPlan(page, {
+      steps: [
+        { ref: "p1", kind: "text", value: "Ali" },
+        { ref: "p3", kind: "file", value: "resume" },
+        { ref: "p4", kind: "text", value: "Arslan" },
+      ],
+    }, prepared, RESUME, undefined, async (done, total) => { heard.push(`${done}/${total}`); });
+    expect(heard).toEqual(["1/3", "2/3", "3/3"]);
+  });
+
   it("fills again when the site's autofill lands after the fill", async () => {
     const page = fakePage({
       controls: [control("p1", "text", "First Name"), control("p3", "file", "Resume/CV")],
@@ -470,6 +485,8 @@ describe("running a send", () => {
     const row = context.row(send.id);
     expect(row.status).toBe("submitted");
     expect(row.confirmation_text).toBe("Thank you for applying to Acme!");
+    // The resume and both answers: the job page's button read "3 of 3 filled".
+    expect([row.fill_done, row.fill_total]).toEqual([3, 3]);
     expect(JSON.parse(String(row.sent_json))).toEqual([
       { label: "First Name", value: "Ali", by: "pinkslip" },
       { label: "Resume/CV", value: "Ali Arslan Resume.pdf", by: "pinkslip" },

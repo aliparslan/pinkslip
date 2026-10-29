@@ -52,8 +52,9 @@ export async function declineCookies(page: FormPage): Promise<boolean> {
   return (await page.run(DECLINE_COOKIES_BODY).catch(() => "none")) === "declined";
 }
 
-/** Fills one step at a time, as the phone does, so one bad field can't stop the rest. */
-export async function fillSteps(page: FormPage, steps: FillStep[], resume: ResumeUpload | null): Promise<Record<string, FillOutcome>> {
+/** Fills one step at a time, as the phone does, so one bad field can't stop
+ * the rest. `onStep` hears after each one, filled or not. */
+export async function fillSteps(page: FormPage, steps: FillStep[], resume: ResumeUpload | null, onStep?: () => Promise<void>): Promise<Record<string, FillOutcome>> {
   const outcomes: Record<string, FillOutcome> = {};
   for (const step of steps) {
     const request = { steps: [step], resume: step.kind === "file" ? resume : null };
@@ -63,9 +64,13 @@ export async function fillSteps(page: FormPage, steps: FillStep[], resume: Resum
     } catch {
       outcomes[step.ref] = "failed";
     }
+    await onStep?.();
   }
   return outcomes;
 }
+
+/** How far the fill has got: the resume counts as one, then each field. */
+export type FillProgress = (done: number, total: number) => Promise<void>;
 
 const valuesOf = (controls: FormControl[]) => JSON.stringify(controls.map((control) => [control.ref, control.value]));
 
@@ -166,9 +171,14 @@ export async function fillPlan(
   prepared: Extract<Prepared, { kind: "ready" }>,
   resume: ResumeUpload | null,
   replan?: Replan,
+  progress?: FillProgress,
 ): Promise<Filled> {
   const steps = plan.steps.filter((step) => !(step.kind === "file" && (step.ref === prepared.resumeRef || !resume)));
-  const outcomes = await fillSteps(page, steps, resume);
+  // The resume went in while the form was prepared.
+  let done = prepared.resumeRef ? 1 : 0;
+  const total = done + steps.length;
+  await progress?.(done, total);
+  const outcomes = await fillSteps(page, steps, resume, progress ? () => progress((done += 1), total) : undefined);
 
   if (replan) {
     const unpicked = steps.filter((step) => step.kind === "combobox" && outcomes[step.ref] === "no_match");

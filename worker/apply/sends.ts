@@ -9,7 +9,7 @@ import type { ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "../../sha
 import { applicationUrl, fetchApplicationForm, type FormSource } from "./forms";
 import { learnAnswers, planApplication } from "./plan";
 import { openFormPage, reconnectFormPage, type OpenedPage } from "./browser";
-import { enterCode, fillPlan, isEmpty, prepareForm, recheck, submit, type Prepared } from "./send-engine";
+import { enterCode, fillPlan, isEmpty, prepareForm, recheck, submit, type FillProgress, type Prepared } from "./send-engine";
 import { applyResumeKey, loadResume, shotKey } from "./send-files";
 
 /**
@@ -48,6 +48,9 @@ interface SendRow {
   confirmation_url: string | null;
   browser_session: string | null;
   ledger_id: string | null;
+  /** How far the fill has got (migration 0105). */
+  fill_done: number | null;
+  fill_total: number | null;
   created_at: string;
   finished_at: string | null;
 }
@@ -326,6 +329,19 @@ export function describeSent(controls: FormControl[], prepared: Extract<Prepared
   return sent;
 }
 
+/** Writes how far the fill has got, for the job page's button: at most once
+ * a second while it goes, and always when it's done. */
+function progressWriter(db: D1Database, sendId: string, now: () => Date): FillProgress {
+  let last = Number.NEGATIVE_INFINITY;
+  return async (done, total) => {
+    const at = now().getTime();
+    if (done < total && at - last < 1_000) return;
+    last = at;
+    await db.prepare("UPDATE apply_sends SET fill_done = ?, fill_total = ? WHERE id = ?").bind(done, total, sendId).run()
+      .catch((error: unknown) => console.error("Auto-apply progress failed:", error instanceof Error ? error.message : String(error)));
+  };
+}
+
 /** What the app needs to ask each question again and send. */
 const needsOf = (controls: FormControl[]): SendNeed[] => controls.map((control) => ({
   ref: control.ref,
@@ -368,7 +384,8 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
 
     const plan = await deps.plan(env, row.user_id, { jobId: row.job_id, controls: prepared.planning });
     const replan = (controls: FormControl[]) => deps.plan(env, row.user_id, { jobId: row.job_id, controls });
-    const filled = await recheck(page, plan, prepared, resume, await fillPlan(page, plan, prepared, resume, replan), replan);
+    const progress = progressWriter(env.DB, sendId, deps.now);
+    const filled = await recheck(page, plan, prepared, resume, await fillPlan(page, plan, prepared, resume, replan, progress), replan);
     const sent = describeSent(filled.controls, prepared, plan, resume.name);
     const formShot = await saveShot(env, row, page, "form");
     if (filled.open.length > 0 || filled.errors.length > 0) {
@@ -589,6 +606,7 @@ async function describeSend(db: D1Database, row: SendRow): Promise<ApplySend> {
     proof_shot: Boolean(row.proof_shot_key),
     confirmation_text: row.confirmation_text,
     confirmation_url: row.confirmation_url,
+    progress: row.fill_total ? { filled: row.fill_done ?? 0, of: row.fill_total } : null,
     created_at: row.created_at,
     finished_at: row.finished_at,
   };

@@ -59,6 +59,9 @@ export interface ApplySend {
   proof_shot: boolean;
   confirmation_text: string | null;
   confirmation_url: string | null;
+  /** How far the fill has got, the resume counting as one; null until it
+   * starts. Missing from servers before migration 0105. */
+  progress?: { filled: number; of: number } | null;
   created_at: string;
   finished_at: string | null;
 }
