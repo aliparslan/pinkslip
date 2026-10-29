@@ -1,81 +1,84 @@
+import type { AutoApplyMode, AutoApplyPause, AutoApplySettings } from "@pinkslip/core/api";
+import { useAutoApplySettings, useCompanies, usePlan, useSaveAutoApplySettings } from "@pinkslip/data";
+import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu, type MenuItem } from "../../../kit";
-import { Icon, Radio, Text, toast } from "../../../ui";
+import { Menu } from "../../../kit";
+import { Icon, Radio, RowPlaceholders, Text, toast } from "../../../ui";
 import { YouPage } from "../you/Page";
+import { howManyLabel, pausedLine } from "./auto-apply-facts";
 
 /**
- * Auto-apply (owner, 2026-10-15, Paper "Auto-apply settings" A, after the
- * audit's Q6; O12 and A2): two groups. The mode with its time, Pause as a
- * row (Paused until … with Resume once paused); then Which jobs, each rule
- * opening the iPhone's menu in place. One footnote. Automatic shows only
- * "Pro". The settings aren't on the backend yet, so this runs on a sample.
+ * Auto-apply (owner, 2026-10-29, Paper "Auto-apply settings · Oct 29", after
+ * the morning list was dropped): how a strong match is handled as it posts,
+ * then Which jobs. Ask me, Apply for me (Pro; "Pro" where the radio would be
+ * on Free) or Off, and Pause as a row that opens its menu in place, or
+ * "Paused until …" with Resume. Which jobs says how many the plan allows and
+ * opens the hidden companies. One footnote.
  */
-export interface AutoApplySettings {
-  mode: "ask" | "off";
-  time: string;
-  pausedUntil: string | null;
-  matches: string;
-  companies: string;
-  posted: string;
-  perCompany: string;
-  hidden: number;
+export interface AutoApplyViewProps {
+  settings: AutoApplySettings;
+  /** "3 a week", "Up to 10 a day"; undefined while the plan loads. */
+  howMany?: string;
+  hidden?: number;
+  onMode: (mode: AutoApplyMode) => void;
+  /** null resumes. */
+  onPause: (pause: AutoApplyPause | null) => void;
+  onHidden: () => void;
 }
 
-const TIMES = ["7:00 AM", "8:00 AM", "9:00 AM", "12:00 PM", "6:00 PM"];
+const MODES: { mode: AutoApplyMode; title: string }[] = [
+  { mode: "ask", title: "Ask me" },
+  { mode: "auto", title: "Apply for me" },
+  { mode: "off", title: "Off" },
+];
 
-export function AutoApplyView({ settings, onChange, free }: { settings: AutoApplySettings; onChange: (next: AutoApplySettings) => void; free?: boolean }) {
-  const set = (patch: Partial<AutoApplySettings>) => onChange({ ...settings, ...patch });
-  const pause = (days: number, label: string) => {
-    const until = new Date(Date.now() + days * 86_400_000).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    set({ pausedUntil: until });
-    toast.show({ message: `Paused for ${label}` });
-  };
+export function AutoApplyView({ settings, howMany, hidden, onMode, onPause, onHidden }: AutoApplyViewProps) {
   return <YouPage title="Auto-apply">
     <Card>
-      <View style={styles.row}>
-        <Text flex>Ask each morning</Text>
-        <Menu title="" items={TIMES.map((time) => ({ id: time, title: time, checked: settings.time === time, onSelect: () => set({ time, mode: "ask" }) }))}>
-          <View style={styles.timeChip}><Text>{settings.time}</Text></View>
-        </Menu>
-        <Pressable onPress={() => set({ mode: "ask" })} hitSlop={8} accessibilityRole="radio" accessibilityState={{ checked: settings.mode === "ask" }}><Radio selected={settings.mode === "ask"} /></Pressable>
-      </View>
-      <View style={[styles.row, styles.rule]}>
-        <Text flex>Send as jobs post</Text>
-        <Text tone="ink-3">Pro</Text>
-      </View>
-      <Pressable onPress={() => set({ mode: "off" })} style={[styles.row, styles.rule]} accessibilityRole="radio" accessibilityState={{ checked: settings.mode === "off" }}>
-        <Text flex>Off</Text>
-        <Radio selected={settings.mode === "off"} />
-      </Pressable>
-      {settings.pausedUntil
+      {MODES.map(({ mode, title }, index) => {
+        const locked = mode === "auto" && !settings.can_automate;
+        const row = <>
+          <Text flex>{title}</Text>
+          {locked ? <Text tone="ink-3">Pro</Text> : <Radio selected={settings.mode === mode} />}
+        </>;
+        return locked
+          ? <View key={mode} style={[styles.row, index > 0 && styles.rule]}>{row}</View>
+          : <Pressable key={mode} onPress={() => onMode(mode)} accessibilityRole="radio" accessibilityState={{ checked: settings.mode === mode }}
+            style={({ pressed }) => [styles.row, index > 0 && styles.rule, pressed && styles.pressed]}>{row}</Pressable>;
+      })}
+      {settings.paused_until
         ? <View style={[styles.row, styles.rule]}>
-          <Text flex>{`Paused until ${settings.pausedUntil}`}</Text>
-          <Pressable onPress={() => set({ pausedUntil: null })} accessibilityRole="button" hitSlop={8}><Text weight="medium">Resume</Text></Pressable>
+          <Text flex>{pausedLine(settings)}</Text>
+          <Pressable onPress={() => onPause(null)} accessibilityRole="button" hitSlop={8}><Text weight="medium">Resume</Text></Pressable>
         </View>
-        : <MenuRow label="Pause" value="" items={[
-          { id: "day", title: "For a day", onSelect: () => pause(1, "a day") },
-          { id: "week", title: "For a week", onSelect: () => pause(7, "a week") },
-          { id: "two", title: "For two weeks", onSelect: () => pause(14, "two weeks") },
-        ]} rule />}
+        : <View style={[styles.row, styles.rule]}>
+          <Text flex>Pause</Text>
+          <Menu title="" items={[
+            { id: "day", title: "For a day", onSelect: () => onPause("day") },
+            { id: "week", title: "For a week", onSelect: () => onPause("week") },
+            { id: "until_resumed", title: "Until I turn it back on", onSelect: () => onPause("until_resumed") },
+          ]}>
+            <View style={styles.menuValue} accessibilityRole="button" accessibilityLabel="Pause"><Icon name="pick" size={12} tone="ink-4" /></View>
+          </Menu>
+        </View>}
     </Card>
     <View style={styles.group}>
       <View style={styles.label}><Text role="footnote" weight="medium" tone="ink-2">Which jobs</Text></View>
       <Card bare>
-        <MenuRow label="Matches" value={settings.matches} items={["Strong only", "Strong and good"].map((option) => ({ id: option, title: option, checked: settings.matches === option, onSelect: () => set({ matches: option }) }))} />
-        <MenuRow rule label="Companies" value={settings.companies} items={["Any", "Ones I follow"].map((option) => ({ id: option, title: option, checked: settings.companies === option, onSelect: () => set({ companies: option }) }))} />
-        <MenuRow rule label="Posted in the last" value={settings.posted} items={["1 day", "3 days", "A week"].map((option) => ({ id: option, title: option, checked: settings.posted === option, onSelect: () => set({ posted: option }) }))} />
-        {free ? <View style={[styles.row, styles.rule]}><Text flex>How many</Text><Text tone="ink-3">3 a week on Free</Text><View style={styles.room} /></View>
-          : <MenuRow rule label="A day" value="Up to 10" items={["Up to 5", "Up to 10", "Up to 20"].map((option) => ({ id: option, title: option, checked: option === "Up to 10", onSelect: () => undefined }))} />}
-        <MenuRow rule label="At one company" value={settings.perCompany} items={["1 a month", "3 a month", "5 a month"].map((option) => ({ id: option, title: option, checked: settings.perCompany === option, onSelect: () => set({ perCompany: option }) }))} />
-        <View style={[styles.row, styles.rule]}>
-          <Text flex>Hidden companies</Text>
-          <Text tone="ink-3">{String(settings.hidden)}</Text>
-          <Icon name="disclosure" size={12} tone="ink-4" />
+        <View style={styles.row}>
+          <Text flex>How many</Text>
+          {howMany ? <Text tone="ink-3">{howMany}</Text> : null}
+          <View style={styles.room} />
         </View>
+        <Pressable onPress={onHidden} accessibilityRole="button" style={({ pressed }) => [styles.row, styles.rule, pressed && styles.pressed]}>
+          <Text flex>Hidden companies</Text>
+          {hidden !== undefined ? <Text tone="ink-3">{String(hidden)}</Text> : null}
+          <Icon name="disclosure" size={12} tone="ink-4" />
+        </Pressable>
       </Card>
-      <View style={styles.label}><Text role="footnote" tone="ink-3">It never answers visa or work-status questions. When it doesn't know an answer, that job waits for you.</Text></View>
+      <View style={styles.label}><Text role="footnote" tone="ink-3">Only strong matches. A question only you can answer waits for you.</Text></View>
     </View>
   </YouPage>;
 }
@@ -84,25 +87,41 @@ function Card({ children, bare }: { children: React.ReactNode; bare?: boolean })
   return <View style={bare ? null : styles.group}><View style={styles.card}>{children}</View></View>;
 }
 
-function MenuRow({ label, value, items, rule }: { label: string; value: string; items: MenuItem[]; rule?: boolean }) {
-  return <View style={[styles.row, rule && styles.rule]}>
-    <Text flex>{label}</Text>
-    <Menu title="" items={items}>
-      <View style={styles.menuValue} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`}>
-        {value ? <Text tone="ink-3">{value}</Text> : null}
-        <Icon name="pick" size={12} tone="ink-4" />
-      </View>
-    </Menu>
-  </View>;
+/** You → Auto-apply, on the live settings. Shown where sends are on. */
+export function AutoApplyPage() {
+  const settings = useAutoApplySettings();
+  const save = useSaveAutoApplySettings();
+  const plan = usePlan();
+  const companies = useCompanies();
+  if (!settings.data) return <YouPage title="Auto-apply"><RowPlaceholders rows={4} /></YouPage>;
+  const failed = () => toast.error("Couldn't change that. Try again.");
+  return <AutoApplyView settings={settings.data}
+    howMany={howManyLabel(plan.data?.allowances.find((allowance) => allowance.kind === "auto_apply_send"))}
+    hidden={companies.data?.filter((company) => Boolean(company.blocked)).length}
+    onMode={(mode) => save.mutate({ mode }, {
+      // Apply for me is Pro; the server says so if the plan lapsed meanwhile.
+      onError: (error) => toast.error(error instanceof Error && error.message ? error.message : "Couldn't change that. Try again."),
+    })}
+    onPause={(pause) => save.mutate({ pause }, { onError: failed })}
+    onHidden={() => router.push("/you/companies" as Href)} />;
 }
 
-/** The kit's copy (O12, or A2 once paused); nothing is saved. */
-export function SampleAutoApplyPage({ paused, free }: { paused?: boolean; free?: boolean }) {
+/** The kit's copy (Paper S1 to S3); nothing is saved. */
+export function SampleAutoApplyPage({ paused, pro }: { paused?: boolean; pro?: boolean }) {
   const [settings, setSettings] = useState<AutoApplySettings>({
-    mode: "ask", time: "8:00 AM", pausedUntil: paused ? "Wed, Oct 22" : null,
-    matches: "Strong only", companies: "Ones I follow", posted: "3 days", perCompany: "3 a month", hidden: 4,
+    mode: pro ? "auto" : "ask",
+    paused_until: paused ? new Date(Date.now() + 86_400_000).toISOString() : null,
+    paused_indefinitely: false,
+    can_automate: Boolean(pro),
   });
-  return <AutoApplyView settings={settings} onChange={setSettings} free={free} />;
+  return <AutoApplyView settings={settings} howMany={pro ? "Up to 10 a day" : "3 a week"} hidden={4}
+    onMode={(mode) => setSettings({ ...settings, mode })}
+    onPause={(pause) => setSettings({
+      ...settings,
+      paused_until: pause === null ? null : new Date(Date.now() + (pause === "week" ? 7 : pause === "day" ? 1 : 3650) * 86_400_000).toISOString(),
+      paused_indefinitely: pause === "until_resumed",
+    })}
+    onHidden={() => router.push("/you/companies?sample=on" as Href)} />;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -111,7 +130,7 @@ const styles = StyleSheet.create((theme) => ({
   card: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
   row: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator },
-  timeChip: { height: 34, justifyContent: "center", paddingHorizontal: 11, borderRadius: theme.ui.radius.sm, borderCurve: "continuous", backgroundColor: theme.ui.color.bg },
+  pressed: { opacity: 0.6 },
   menuValue: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   room: { width: 12 },
 }));

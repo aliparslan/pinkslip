@@ -70,6 +70,7 @@ export function RedesignGallery() {
         <ListItem title="Job page, the stub tears off" accessory="chevron" onPress={() => router.push("/you/kit-job")} />
         <ListItem title="Events, and an event's page" accessory="chevron" onPress={() => router.push("/you/kit-events")} />
         <ListItem title="Auto-apply settings" accessory="chevron" onPress={() => router.push("/you/kit-auto-apply")} />
+        <ListItem title="Auto-apply on Pro, Apply for me" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { pro: "1" } })} />
         <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />
         <ListItem title="People: Dana, before writing" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: "sample-dana" } })} />
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />

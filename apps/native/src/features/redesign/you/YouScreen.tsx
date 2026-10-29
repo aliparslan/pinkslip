@@ -1,5 +1,5 @@
 import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
-import { useAnswers, useInbox, usePreferences, usePushSettings, useResumeProfile, useSession, useSupportCheckout } from "@pinkslip/data";
+import { useAnswers, useAutoApplySettings, useInbox, usePreferences, usePushSettings, useResumeProfile, useSession, useSupportCheckout } from "@pinkslip/data";
 import Constants from "expo-constants";
 import { router, Stack, type Href } from "expo-router";
 import * as Updates from "expo-updates";
@@ -14,6 +14,7 @@ import { setAppearancePreference, useAppearancePreference, type AppearancePrefer
 import { faces, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
+import { autoApplyValue } from "../apply-flow/auto-apply-facts";
 import { EditSearchSheet } from "../EditSearch";
 import { trackingState, trackingStateLabels } from "../email/email-facts";
 import { useEmailTrackingPrefs } from "../email/email-prefs";
@@ -24,17 +25,17 @@ import { SupportSheet } from "./SupportSheet";
 
 /** The rows that open something. "search" opens the Your search sheet and
  * "support" Support Pinkslip's. */
-export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "help" | "whatsNew" | "support" | "admin" | "kit";
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "autoApply" | "help" | "whatsNew" | "support" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
   person: { name: string; email: string | null } | null;
   /** Each row's current value; undefined while it loads. */
-  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan" | "whatsNew", string>>;
+  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan" | "autoApply" | "whatsNew", string>>;
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
-  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean; support?: boolean };
+  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean; support?: boolean; autoApply?: boolean };
   open: (destination: YouDestination) => void;
 }
 
@@ -88,7 +89,10 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       {show.plan
         ? <ListItem leading={<IconTile icon="plan" meaning="pro" />} title="Plan" value={values.plan} accessory="chevron" onPress={() => open("plan")} />
         : <ListItem leading={<IconTile icon="plan" meaning="pro" />} title="Plan" value="Soon" />}
-      <ListItem leading={<IconTile icon="autoApply" meaning="pro" />} title="Auto-apply" value="Soon" />
+      {/* Open where sends are (Paper "Auto-apply settings · Oct 29"); Soon for everyone else. */}
+      {show.autoApply
+        ? <ListItem leading={<IconTile icon="autoApply" meaning="pro" />} title="Auto-apply" value={values.autoApply} accessory="chevron" onPress={() => open("autoApply")} />
+        : <ListItem leading={<IconTile icon="autoApply" meaning="pro" />} title="Auto-apply" value="Soon" />}
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
       <View>
@@ -155,6 +159,9 @@ export function YouScreen() {
   const resume = useResumeProfile();
   const file = useLocalResumeFile();
   const answers = useAnswers(signedIn);
+  // Auto-apply opens where sends are; its row says how it's set.
+  const sendsOpen = signedIn && Boolean(me?.features?.auto_apply_send_enabled);
+  const autoApply = useAutoApplySettings(sendsOpen);
   const emailPrefs = useEmailTrackingPrefs();
   // The inbox is made the first time it's asked for, so only someone who
   // started setting it up asks.
@@ -172,7 +179,8 @@ export function YouScreen() {
   const go = (href: Href) => router.push(href);
   const destinations: Record<Exclude<YouDestination, "search" | "support">, Href> = {
     account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
-    outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", help: "/you/feedback", whatsNew: "/you/whats-new", admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
+    outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", autoApply: "/you/auto-apply", help: "/you/feedback", whatsNew: "/you/whats-new",
+    admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
   return <>
     <YouView
@@ -184,11 +192,15 @@ export function YouScreen() {
         resume: file?.name ?? (resume.data ? (resumeReady ? "Ready" : "Add") : undefined),
         answers: answers.data ? String(answers.data.length) : undefined,
         whatsNew: latestReleaseVersion(),
+        autoApply: autoApply.data ? autoApplyValue(autoApply.data) : undefined,
       }}
       appearance={appearance}
       onAppearance={setAppearancePreference}
       // Pro isn't sold yet, so Plan says Soon like the two it pays for.
-      show={{ email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable, outreach: signedIn && Boolean(me?.features?.outreach_enabled), support: Boolean(support) }}
+      show={{
+        email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable,
+        outreach: signedIn && Boolean(me?.features?.outreach_enabled), support: Boolean(support), autoApply: sendsOpen,
+      }}
       // A guest's card opens the sign-in sheet over You, not a page.
       open={(destination) => destination === "search" ? setSearching(true)
         : destination === "support" ? setSupporting(true)

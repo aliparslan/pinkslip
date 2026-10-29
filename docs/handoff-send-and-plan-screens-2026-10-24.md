@@ -113,7 +113,7 @@ The code push waits a minute and is dropped if forwarding delivers the code firs
 
 - ~~Asking as strong matches post~~ **Server built 2026-10-29** (not deployed; Decisions: Auto-apply #2). What the app needs, all over the air on 1.3.8:
   - **built 2026-10-29** (`platform/push.ts`, `AppProviders`): the `apply_ask` category with Apply (opens the app on the job and starts the send) and Not this one (clears the push, app stays closed); the push reads "Stripe" / "New Grad SWE" / "Hold to apply" (Paper "Apply for you? push · Oct 29", approved);
-  - auto-apply settings get Ask me / Apply for me (Pro) / off and Pause (a day, a week, until turned back on): `useAutoApplySettings()`, `useSaveAutoApplySettings()`; `can_automate` says whether Apply for me is open, and saving it on Free answers `pro_only`.
+  - **built 2026-10-29** (Paper "Auto-apply settings · Oct 29", approved): You → Auto-apply, where sends are on (Soon for everyone else), with Ask me / Apply for me (Pro) / Off, Pause (a day, a week, until turned back on) or "Paused until …" with Resume, then How many (the plan's sends) and Hidden companies, and one footnote (`apply-flow/AutoApplyPage.tsx`; the kit keeps samples).
   - The push reads "Stripe" / "New Grad SWE · Apply for you?". Its wording and the settings screen go through Paper first.
 - **Automatic.** "Send as jobs post" is Pro.
 - **Caps, Pause, and the per-company rule.**
