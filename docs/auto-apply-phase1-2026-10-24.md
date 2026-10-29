@@ -143,7 +143,7 @@ deploy since, the latest being 6145f51c from 0f22a44.
 - **Next:** Paper for the send screens (start, follow, needs you, the
   code, what was sent); then the morning picks (N12), caps and pause.
 
-## The send screens (built 2026-10-29, not deployed)
+## The send screens (live 2026-10-29, admin-only)
 
 Paper "Send screens · the missing states · Oct 24" (approved), on top of
 Oct 14's apply flow; the rules are in `design-system.md`, "A send on the job
@@ -164,9 +164,12 @@ page".
   Check first, with Send pinned; `sends/[sendId]/[shot]` shows the filled
   form or the thank-you page, cached on the phone. The application page's
   stub now carries a real send's proof and "What it sent".
-- **Waiting on the go-ahead:** migration 0105 and the Worker, then an
-  over-the-air update. The Check first menu's eye is in the asset catalog
-  for the next build; 1.3.8 shows iOS's eye.
+- **Deployed 2026-10-29** (owner's go-ahead): migration 0105 and Worker
+  `5266806d`, from 586e214. D1 bookmark before the migration:
+  `00004719-000078d7-00005113-e4fbe9791ad8d18852c5fb8008519cbd`. The app
+  went to the owner channel as update `c9ed0d35` (runtime 1.3.8);
+  production's update waits. The Check first menu's eye is in the asset
+  catalog for the next build; 1.3.8 shows iOS's eye.
 
 ## The owner's first sends
 
