@@ -167,9 +167,19 @@ page".
 - **Deployed 2026-10-29** (owner's go-ahead): migration 0105 and Worker
   `5266806d`, from 586e214. D1 bookmark before the migration:
   `00004719-000078d7-00005113-e4fbe9791ad8d18852c5fb8008519cbd`. The app
-  went to the owner channel as update `c9ed0d35` (runtime 1.3.8);
-  production's update waits. The Check first menu's eye is in the asset
-  catalog for the next build; 1.3.8 shows iOS's eye.
+  went to the owner channel as update `c9ed0d35` (runtime 1.3.8). The
+  Check first menu's eye is in the asset catalog for the next build; 1.3.8
+  shows iOS's eye.
+- **Later the same day** (owner's first real send, Toast, filled its form
+  three times): the filled form waits between steps (migration 0106), the
+  live bar is built, and feature grants open sends to one person (migration
+  0107). Deployed as Worker `f067cc50` (D1 bookmark before:
+  `0000471a-0000170c-00005113-523bd9d61b58ddf3df69e6abf08c205a`); updates
+  `6ca205f2` (owner) and `d119ebd3` (production, from 1f289e1: the send
+  screens show only where sends are on). Sends are granted to the tester
+  Kushal Gaddam, both his accounts (Apple, on his phone, and email):
+  `INSERT INTO feature_grants (user_id, flag, created_at) VALUES (…,
+  'AUTO_APPLY_SEND', …)`; delete the row to take it back.
 
 ## The owner's first sends
 
