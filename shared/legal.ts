@@ -2,7 +2,7 @@
  * React web app. The App Store links to `/privacy` and `/support`, and the
  * app's sign-in sheet to `/terms` and `/privacy`, so the paths are stable.
  * Bodies are static, repository-owned HTML. */
-export const LEGAL_UPDATED_AT = "October 24, 2026";
+export const LEGAL_UPDATED_AT = "October 29, 2026";
 export const TERMS_UPDATED_AT = "October 23, 2026";
 export const SUPPORT_EMAIL = "support@pinkslip.work";
 
@@ -50,6 +50,16 @@ export const privacyPolicy: LegalPage = {
   <li>An address appears only when someone starts writing to that recruiter, and the email is sent from the job seeker's own mail.</li>
   <li>An address that bounces is removed.</li>
   <li>A recruiter who'd rather not be listed can email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>, and Pinkslip removes them for everyone.</li>
+</ul>
+
+<h2>Applying for you</h2>
+<p>When you ask Pinkslip to apply for you, it fills the employer's application form in a browser run on Cloudflare and submits it.</p>
+<ul>
+  <li>To attach your resume, the server keeps its own copy of the PDF you choose. The copy on your phone stays there for applications you finish yourself.</li>
+  <li>Pinkslip keeps what each application sent, with pictures of the filled form and the confirmation page, so you can see what went out.</li>
+  <li>An answer your profile doesn't cover is guessed from your resume with Workers AI and marked as a guess.</li>
+  <li>The employer and its hiring system, such as Greenhouse or Ashby, receive the application under their own privacy policies.</li>
+  <li>Deleting your account removes the resume copy, the pictures, and each application's record.</li>
 </ul>
 
 <h2>Retention and deletion</h2>
