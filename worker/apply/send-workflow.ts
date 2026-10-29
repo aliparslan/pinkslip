@@ -1,6 +1,6 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 import type { Env } from "../types";
-import { enterSendCode, expireSendCode, failSend, queueFromTrigger, runSend } from "./sends";
+import { enterSendCode, expireSendCode, failSend, queueFromTrigger, releaseKeptBrowser, runSend } from "./sends";
 
 type SendParams = { send_id?: string; email?: string; job?: string; dry_run?: boolean };
 
@@ -8,7 +8,8 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 /**
  * One auto-apply send, as a Workflow so it outlives the request and can wait
- * for the code Greenhouse emails. The instance id is the send's id.
+ * for the code Greenhouse emails, or keep a checked form open for the send
+ * after it. The instance id is the send's id.
  *
  * The browser step may run again after a failure; `runSend` makes that safe
  * (a send that died while submitting is recorded as unconfirmed, never
@@ -30,6 +31,13 @@ export class ApplySendWorkflow extends WorkflowEntrypoint<Env, SendParams> {
         () => runSend(this.env, sendId));
     } catch (error) {
       return step.do("record the failure", () => failSend(this.env, sendId, message(error)));
+    }
+    if ((sent.outcome === "ready" || sent.outcome === "needs_you") && sent.session_id) {
+      // Check first, or a stop on questions: the filled form stays open for
+      // Send, or for the answers, to carry on in. Then it's let go, unless a
+      // send took it over.
+      await step.sleep("keep the filled form open", "9 minutes");
+      return step.do("let the form go", () => releaseKeptBrowser(this.env, sendId));
     }
     if (sent.outcome !== "code_needed") return sent;
 

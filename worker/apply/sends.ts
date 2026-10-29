@@ -9,7 +9,7 @@ import type { ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "../../sha
 import { applicationUrl, fetchApplicationForm, type FormSource } from "./forms";
 import { learnAnswers, planApplication } from "./plan";
 import { openFormPage, reconnectFormPage, type OpenedPage } from "./browser";
-import { enterCode, fillPlan, isEmpty, prepareForm, recheck, submit, type FillProgress, type Prepared } from "./send-engine";
+import { enterCode, fillPlan, isEmpty, keptForm, prepareForm, recheck, submit, type FillProgress, type Prepared } from "./send-engine";
 import { applyResumeKey, loadResume, shotKey } from "./send-files";
 
 /**
@@ -23,6 +23,9 @@ import { applyResumeKey, loadResume, shotKey } from "./send-files";
 const SEND_ATS = new Set(["greenhouse", "ashby"]);
 /** Statuses where something went out, or may have: the allowance stays used. */
 const SENT: ReadonlySet<ApplySendStatus> = new Set(["submitted", "unconfirmed"]);
+/** Check first, or a stop on questions, keeps the filled form open this long
+ * for the next send of the job to carry on in (Browser Run's most is ten). */
+const KEPT_FOR_MS = 9 * 60_000;
 const FINISHED: ReadonlySet<ApplySendStatus> = new Set(["submitted", "unconfirmed", "ready", "needs_you", "blocked", "gone", "failed"]);
 
 export class SendError extends Error {
@@ -51,6 +54,8 @@ interface SendRow {
   /** How far the fill has got (migration 0105). */
   fill_done: number | null;
   fill_total: number | null;
+  /** The send whose open browser this one carries on in (migration 0106). */
+  continued_from: string | null;
   created_at: string;
   finished_at: string | null;
 }
@@ -121,11 +126,12 @@ export async function queueSend(
     ledgerId = reserved.id;
   }
   const stamp = now.toISOString();
+  const kept = await adoptKeptBrowser(env.DB, userId, job.id, now);
   try {
     await env.DB.prepare(
-      `INSERT INTO apply_sends (id, user_id, job_id, ats, url, dry_run, status, ledger_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)`
-    ).bind(sendId, userId, job.id, source.ats, url, input.dryRun ? 1 : 0, ledgerId, stamp, stamp).run();
+      `INSERT INTO apply_sends (id, user_id, job_id, ats, url, dry_run, status, ledger_id, browser_session, continued_from, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)`
+    ).bind(sendId, userId, job.id, source.ats, url, input.dryRun ? 1 : 0, ledgerId, kept?.session ?? null, kept?.id ?? null, stamp, stamp).run();
   } catch (error) {
     if (ledgerId) await releaseAllowance(env.DB, ledgerId, now);
     if (/UNIQUE/i.test(String(error))) throw new SendError("Pinkslip already sent this application.", 409, "already_sent");
@@ -203,6 +209,34 @@ export async function jobFromLink(db: D1Database, link: string): Promise<string 
   return row?.id ?? null;
 }
 
+/** The browser the job's last Check first or stop on questions left open,
+ * taken over once: the row that kept it lets go, so its Workflow won't close
+ * it, and only one send can have it. */
+async function adoptKeptBrowser(db: D1Database, userId: string, jobId: string, now: Date): Promise<{ id: string; session: string } | null> {
+  const kept = await db.prepare(
+    `SELECT id, browser_session FROM apply_sends
+     WHERE user_id = ? AND job_id = ? AND browser_session IS NOT NULL AND status IN ('needs_you', 'ready') AND finished_at > ?
+     ORDER BY created_at DESC LIMIT 1`
+  ).bind(userId, jobId, new Date(now.getTime() - KEPT_FOR_MS).toISOString()).first<{ id: string; browser_session: string }>();
+  if (!kept) return null;
+  const taken = await db.prepare("UPDATE apply_sends SET browser_session = NULL WHERE id = ? AND browser_session = ?")
+    .bind(kept.id, kept.browser_session).run();
+  return (taken.meta?.changes ?? 0) > 0 ? { id: kept.id, session: kept.browser_session } : null;
+}
+
+/** What the person answered and what the site read stay theirs when a send
+ * carries on in a kept form: the fields it found already filled keep who
+ * filled them, and the resume stays listed. */
+export function carrySources(sent: SentAnswer[], before: SentAnswer[]): SentAnswer[] {
+  const earlier = new Map(before.map((answer) => [`${answer.label}\u0000${answer.value}`, answer.by]));
+  const carried = sent.map((answer) => {
+    const by = answer.by === "page" ? earlier.get(`${answer.label}\u0000${answer.value}`) : undefined;
+    return by ? { ...answer, by } : answer;
+  });
+  const labels = new Set(carried.map((answer) => answer.label));
+  return [...carried, ...before.filter((answer) => !labels.has(answer.label) && /\.pdf$/i.test(answer.value))];
+}
+
 // ─── Running ─────────────────────────────────────────────────────────────────
 
 export type SendStepResult = { outcome: ApplySendStatus; session_id?: string };
@@ -237,6 +271,9 @@ async function setStatus(db: D1Database, sendId: string, status: ApplySendStatus
 
 interface FinishFields {
   detail: string;
+  /** The browser left open for the next send of the job (Check first, a
+   * stop on questions). */
+  keptSession?: string;
   needs?: SendNeed[];
   sent?: SentAnswer[];
   formShot?: string | null;
@@ -254,20 +291,20 @@ async function finish(env: Env, row: SendRow, status: ApplySendStatus, fields: F
        needs_json = COALESCE(?, needs_json), sent_json = COALESCE(?, sent_json),
        form_shot_key = COALESCE(?, form_shot_key), proof_shot_key = COALESCE(?, proof_shot_key),
        confirmation_text = COALESCE(?, confirmation_text), confirmation_url = COALESCE(?, confirmation_url),
-       browser_session = NULL, finished_at = ?, updated_at = ?
+       browser_session = ?, finished_at = ?, updated_at = ?
      WHERE id = ?`
   ).bind(
     status, fields.detail.slice(0, 500),
     fields.needs ? JSON.stringify(fields.needs) : null, fields.sent ? JSON.stringify(fields.sent) : null,
     fields.formShot ?? null, fields.proofShot ?? null,
     fields.confirmationText ?? null, fields.confirmationUrl ?? null,
-    stamp, stamp, row.id,
+    fields.keptSession ?? null, stamp, stamp, row.id,
   ).run();
   if (!SENT.has(status) && row.ledger_id) await releaseAllowance(env.DB, row.ledger_id, now);
   if (status === "submitted" && !row.dry_run) await trackJob(env.DB, row.user_id, row.job_id, "applied", "auto_apply");
   await skipCodePush(env.DB, row);
   await notifySend(env, row, status, fields.needs?.length ?? 0, now);
-  return { outcome: status };
+  return fields.keptSession ? { outcome: status, session_id: fields.keptSession } : { outcome: status };
 }
 
 /** N13 and N14 (notification-kinds.ts): how a real send went, on the next
@@ -374,29 +411,50 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
   const resume = await loadResume(env.RESUME_BUCKET!, row.user_id, person?.resume_name || person?.name || "");
   if (!resume) return finish(env, row, "needs_you", { detail: "Upload the resume for sends first." }, deps.now());
 
-  const page = await deps.open(env.BROWSER!, row.url);
+  // Carry on in the form the send before left open (Check first, a stop on
+  // questions), or start over when it's gone.
+  const before = row.continued_from ? await loadRow(env.DB, row.continued_from) : null;
+  const kept = row.continued_from && row.browser_session
+    ? await deps.reconnect(env.BROWSER!, row.browser_session, row.url).catch(() => null) : null;
+  const page = kept ?? await deps.open(env.BROWSER!, row.url);
   let keepBrowser = false;
+  /** Leaves the filled form open for the next send of the job. */
+  const keepOpen = () => {
+    keepBrowser = true;
+    page.detach();
+    return page.sessionId;
+  };
   try {
     if (page.status === 404 || page.status === 410) return finish(env, row, "gone", { detail: "The posting is gone." }, deps.now());
     if (page.blocked) return finish(env, row, "blocked", { detail: "The site showed a bot check. Finish it on your phone." }, deps.now());
-    const prepared = await prepareForm(page, resume);
+    const prepared = kept ? await keptForm(page) : await prepareForm(page, resume);
     if (prepared.kind === "no_form") return finish(env, row, "gone", { detail: "The page had no application form." }, deps.now());
 
-    const plan = await deps.plan(env, row.user_id, { jobId: row.job_id, controls: prepared.planning });
+    const planned = await deps.plan(env, row.user_id, { jobId: row.job_id, controls: prepared.planning });
+    // The resume went up the first time; a kept form fills only what's empty.
+    const plan = kept ? { ...planned, steps: planned.steps.filter((step) => step.kind !== "file") } : planned;
     const replan = (controls: FormControl[]) => deps.plan(env, row.user_id, { jobId: row.job_id, controls });
-    const progress = progressWriter(env.DB, sendId, deps.now);
+    // A kept form's count carries on from where the send before left it.
+    const write = progressWriter(env.DB, sendId, deps.now);
+    const base = kept ? before?.fill_done ?? 0 : 0;
+    const progress: FillProgress = (done, total) => write(base + done, base + total);
     const filled = await recheck(page, plan, prepared, resume, await fillPlan(page, plan, prepared, resume, replan, progress), replan);
-    const sent = describeSent(filled.controls, prepared, plan, resume.name);
+    const described = describeSent(filled.controls, prepared, plan, resume.name);
+    const sent = kept && before ? carrySources(described, parseList<SentAnswer>(before.sent_json)) : described;
     const formShot = await saveShot(env, row, page, "form");
     if (filled.open.length > 0 || filled.errors.length > 0) {
       const needs = [...needsOf(filled.open), ...filled.errors.map((error) => ({ label: error.slice(0, 300), kind: "error" }))];
+      // The person can answer these in the app, so the form waits for them.
+      const answerable = filled.errors.length === 0 && filled.open.every((control) => control.kind !== "file");
       return finish(env, row, "needs_you", {
         detail: `${needs.length === 1 ? "1 question needs" : `${needs.length} questions need`} you. Nothing was sent.`,
-        needs, sent, formShot,
+        needs, sent, formShot, keptSession: answerable ? keepOpen() : undefined,
       }, deps.now());
     }
     if (row.dry_run) {
-      return finish(env, row, "ready", { detail: "Everything's filled. A real send would press Submit now.", sent, formShot }, deps.now());
+      return finish(env, row, "ready", {
+        detail: "Everything's filled. A real send would press Submit now.", sent, formShot, keptSession: keepOpen(),
+      }, deps.now());
     }
 
     await setStatus(env.DB, sendId, "submitting", deps.now());
@@ -479,6 +537,20 @@ export async function expireSendCode(env: Env, sendId: string, deps: SendDeps = 
     await deps.reconnect(env.BROWSER!, row.browser_session, row.url).then((page) => page.close()).catch(() => undefined);
   }
   return finish(env, row, "needs_you", { detail: "Greenhouse's emailed code didn't come in time. Nothing was sent." }, deps.now());
+}
+
+/** Nobody carried on in the form a send kept open: close its browser. A
+ * send that took it over cleared the session first, so this leaves it be. */
+export async function releaseKeptBrowser(env: Env, sendId: string, deps: SendDeps = defaultDeps): Promise<SendStepResult> {
+  const row = await loadRow(env.DB, sendId);
+  if (!row) return { outcome: "failed" };
+  if (!row.browser_session || (row.status !== "needs_you" && row.status !== "ready")) return { outcome: row.status };
+  const taken = await env.DB.prepare("UPDATE apply_sends SET browser_session = NULL WHERE id = ? AND browser_session = ?")
+    .bind(row.id, row.browser_session).run();
+  if ((taken.meta?.changes ?? 0) > 0) {
+    await deps.reconnect(env.BROWSER!, row.browser_session, row.url).then((page) => page.close()).catch(() => undefined);
+  }
+  return { outcome: row.status };
 }
 
 /** The Workflow's last word when a step failed outright. */

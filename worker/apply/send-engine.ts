@@ -132,6 +132,14 @@ export async function prepareForm(page: FormPage, resume: ResumeUpload | null): 
   };
 }
 
+/** A form left open by the send before, already filled: read as it is. The
+ * resume went up then, and nothing on it counts as the site's. */
+export async function keptForm(page: FormPage): Promise<Prepared> {
+  const read = await readPage(page);
+  if (read.submitted || read.controls.length === 0) return { kind: "no_form", submitted: read.submitted };
+  return { kind: "ready", controls: read.controls, planning: read.controls, siteFilled: [], resumeRef: null, cookies: false };
+}
+
 export interface Filled {
   controls: FormControl[];
   outcomes: Record<string, FillOutcome>;

@@ -30,6 +30,7 @@ import {
   isGreenhouseCodeEmail,
   jobFromLink,
   queueSend,
+  releaseKeptBrowser,
   runSend,
 } from "@worker/apply/sends";
 import type { Env } from "@worker/types";
@@ -510,7 +511,8 @@ describe("running a send", () => {
     const context = setup();
     const send = await queued(context);
     const page = fakePage({ controls: form() });
-    expect(await runSend(context.env, send.id, deps(page, steps.slice(0, 2)))).toEqual({ outcome: "needs_you" });
+    // The form waits, open, for the answer.
+    expect(await runSend(context.env, send.id, deps(page, steps.slice(0, 2)))).toEqual({ outcome: "needs_you", session_id: "session-1" });
     expect(page.calls).not.toContain("submit");
     expect(JSON.parse(String(context.row(send.id).needs_json))).toEqual([
       { ref: "p5", label: "Are you authorized to work in the US?", kind: "combobox", options: ["Yes", "No"], required: true },
@@ -590,9 +592,85 @@ describe("running a send", () => {
     const context = setup();
     const send = await queued(context, true);
     const page = fakePage({ controls: form() });
-    expect(await runSend(context.env, send.id, deps(page, steps))).toEqual({ outcome: "ready" });
+    expect(await runSend(context.env, send.id, deps(page, steps))).toEqual({ outcome: "ready", session_id: "session-1" });
     expect(page.calls).not.toContain("submit");
     expect(context.row(send.id).form_shot_key).toBe(`apply/u1/sends/${send.id}/form.jpg`);
+  });
+
+  /** A minute after the tests' clock: within the nine minutes a form is kept. */
+  const SOON = new Date("2026-10-24T15:01:00Z");
+  /** A planner that, like the real one, plans only what's still empty. */
+  const planEmpty = (all: ApplyPlan["steps"]) => async (_env: Env, _user: string, input: { controls: FormControl[] }) => ({
+    steps: all.filter((step) => input.controls.some((entry) => entry.ref === step.ref && (entry.value === null || entry.value === ""))),
+    needs: [],
+    inferred: [],
+  });
+  const fills = (page: { calls: string[] }) => page.calls.filter((call) => call.startsWith("fill "));
+
+  it("keeps the form Check first filled, and Send submits it without filling it again", async () => {
+    const context = setup();
+    const checked = await queued(context, true);
+    const page = fakePage({ controls: form() });
+    await runSend(context.env, checked.id, { ...deps(page), plan: planEmpty(steps) });
+    expect(page.calls).toContain("detach");
+    expect(page.closed()).toBe(false);
+    expect(context.row(checked.id).browser_session).toBe("session-1");
+    const filledOnce = fills(page).length;
+
+    const real = await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp, now: SOON });
+    // Taken over once: the check lets go, so its Workflow won't close it.
+    expect(context.row(checked.id).browser_session).toBeNull();
+    expect(context.row(real.id)).toMatchObject({ browser_session: "session-1", continued_from: checked.id });
+    let opened = false;
+    const carryOn = { ...deps(page), open: async () => { opened = true; return page; }, plan: planEmpty(steps) };
+    expect(await runSend(context.env, real.id, carryOn)).toEqual({ outcome: "submitted" });
+    expect(opened).toBe(false);
+    expect(fills(page)).toHaveLength(filledOnce);
+    expect(page.calls).toContain("submit");
+    // Who filled what, and the resume, carry over from the check.
+    expect(JSON.parse(String(context.row(real.id).sent_json))).toEqual(JSON.parse(String(context.row(checked.id).sent_json)));
+  });
+
+  it("fills only the answer when a send that stopped on a question carries on", async () => {
+    const context = setup();
+    const first = await queued(context);
+    const page = fakePage({ controls: form() });
+    expect(await runSend(context.env, first.id, { ...deps(page), plan: planEmpty(steps.slice(0, 2)) })).toEqual({ outcome: "needs_you", session_id: "session-1" });
+    const before = fills(page).length;
+    const { send } = await answerSend(context.env, "u1", first.id, { p5: "Yes" }, { fetcher: context.greenhouseUp, now: SOON });
+    expect(context.row(send!.id)).toMatchObject({ continued_from: first.id, browser_session: "session-1" });
+    expect(await runSend(context.env, send!.id, { ...deps(page), plan: planEmpty(steps) })).toEqual({ outcome: "submitted" });
+    expect(fills(page).slice(before)).toEqual(["fill p5"]);
+    // The count carries on: the resume and the name, then the answer.
+    expect([context.row(send!.id).fill_done, context.row(send!.id).fill_total]).toEqual([3, 3]);
+  });
+
+  it("starts over when the kept form has closed", async () => {
+    const context = setup();
+    const checked = await queued(context, true);
+    await runSend(context.env, checked.id, { ...deps(fakePage({ controls: form() })), plan: planEmpty(steps) });
+    const real = await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp, now: SOON });
+    const fresh = fakePage({ controls: form() });
+    const gone = { ...deps(fresh), reconnect: async () => { throw new Error("session closed"); }, plan: planEmpty(steps) };
+    expect(await runSend(context.env, real.id, gone)).toEqual({ outcome: "submitted" });
+    expect(fresh.calls.slice(0, 3)).toEqual(["cookies", "read", "fill p3"]);
+  });
+
+  it("closes a kept form nobody carried on in, and leaves one that was taken over", async () => {
+    const context = setup();
+    const checked = await queued(context, true);
+    const page = fakePage({ controls: form() });
+    await runSend(context.env, checked.id, { ...deps(page), plan: planEmpty(steps) });
+    await releaseKeptBrowser(context.env, checked.id, deps(page));
+    expect(page.closed()).toBe(true);
+    expect(context.row(checked.id).browser_session).toBeNull();
+
+    const again = await queued(context, true);
+    const second = fakePage({ controls: form() });
+    await runSend(context.env, again.id, { ...deps(second), plan: planEmpty(steps) });
+    await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp, now: SOON });
+    await releaseKeptBrowser(context.env, again.id, deps(second));
+    expect(second.closed()).toBe(false);
   });
 
   it("gives the send back when a captcha stops it or the form refuses it", async () => {
