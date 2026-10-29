@@ -90,7 +90,7 @@ const VOLUNTARY_KEYS: Array<[RegExp, string]> = [
   [/lgbt|sexual orientation/i, "orientation"],
   [/transgender/i, "transgender"],
   [/hispanic|latin[oxa]/i, "hispanic"],
-  [/\bgender\b/i, "gender"],
+  [/\bgender\b|\byour sex\b|^sex\b/i, "gender"],
   [/\brace\b|racial|ethnic/i, "race"],
   [/veteran/i, "veteran"],
   [/disabilit/i, "disability"],

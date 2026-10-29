@@ -32,7 +32,9 @@ import type { JevRunner } from "../jev";
 import { preferredWorkAuthorization, savedAnswers } from "./prepare";
 
 const BARE_AGREEMENT = /^(i )?(agree|accept|consent|understand|confirm|acknowledge)\.?$|^yes\.?$/i;
-const VOLUNTARY = /gender|\brace\b|racial|ethnic|hispanic|latin[oxa]|veteran|disabilit|lgbt|sexual orientation|transgender/i;
+// "Your sex" or a bare "Sex" is the gender question (Asana's "Please identify
+// your sex."); a criminal-record question that mentions it isn't.
+const VOLUNTARY = /gender|\byour sex\b|^sex\b|\brace\b|racial|ethnic|hispanic|latin[oxa]|veteran|disabilit|lgbt|sexual orientation|transgender/i;
 const CHOICE_KINDS = new Set<FormControlKind>(["select", "combobox", "radio", "buttons", "checkboxes"]);
 /** Longer option lists (every university, every country) aren't worth asking Jev. */
 const MAX_JEV_OPTIONS = 40;

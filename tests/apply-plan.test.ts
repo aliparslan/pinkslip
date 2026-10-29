@@ -151,6 +151,22 @@ describe("planning a page", () => {
     expect(assisted.inferred.map((item) => item.ref).sort()).toEqual(["q1", "q2", "q3", "q4"]);
   });
 
+  it("declines a voluntary question that asks for your sex, as it does gender", async () => {
+    const { env } = await planDb();
+    const options = ["Female", "Male", "Other", "I don't wish to answer"];
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: [
+      control("s1", "combobox", "Please identify your sex.", { options }),
+      control("s2", "select", "Sex", { options }),
+      control("s3", "radio", "Have you ever been convicted of a sex offense?", { options: ["Yes", "No"] }),
+    ] }, fakeJev({}));
+    expect(plan.steps.filter((step) => step.ref !== "s3")).toEqual([
+      { ref: "s1", kind: "combobox", value: "I don't wish to answer" },
+      { ref: "s2", kind: "select", value: "I don't wish to answer" },
+    ]);
+    // Not a demographic question: a send leaves it to the person.
+    expect(plan.needs.map((need) => need.ref)).toEqual(["s3"]);
+  });
+
   it("leaves a doubtful Jev answer to the user", async () => {
     const { env } = await planDb();
     const plan = await planApplication(env, "user-1", {
