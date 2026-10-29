@@ -180,6 +180,10 @@ page".
   Kushal Gaddam, both his accounts (Apple, on his phone, and email):
   `INSERT INTO feature_grants (user_id, flag, created_at) VALUES (…,
   'AUTO_APPLY_SEND', …)`; delete the row to take it back.
+- **Admins are never out of sends** (owner, 2026-10-29, after "No sends
+  left" on Free's three a week): their use is still counted, never
+  refused. Worker `5cdf0420`, from d1a0053. Kushal is on Free: three a
+  week until he's given Pro.
 
 ## The owner's first sends
 
