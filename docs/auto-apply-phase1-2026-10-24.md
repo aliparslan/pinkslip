@@ -182,8 +182,17 @@ page".
   'AUTO_APPLY_SEND', …)`; delete the row to take it back.
 - **Admins are never out of sends** (owner, 2026-10-29, after "No sends
   left" on Free's three a week): their use is still counted, never
-  refused. Worker `5cdf0420`, from d1a0053. Kushal is on Free: three a
-  week until he's given Pro.
+  refused. Worker `5cdf0420`, from d1a0053.
+- **Kushal is unlimited too** (owner, 2026-10-29: "put him on unlimited
+  like me"): a `feature_grants` row with the flag `UNLIMITED` is never
+  refused, like an admin, and is still counted. Both his accounts have it;
+  delete the row to put him back on Free's three a week. Worker `54784486`,
+  from e57a880 plus 93dfaad only (dff29af's asks and migration 0108 are not
+  deployed); D1 bookmark before:
+  `0000471a-0000213a-00005113-8121f1bc8019a14f0e376e17d1b9a95a`. The
+  privacy policy's new "Applying for you" section (750bcf7: the server's
+  resume copy, what each application sent and its pictures, guesses marked,
+  deleted with the account) is live as web `bea534c1`.
 
 ## The owner's first sends
 
