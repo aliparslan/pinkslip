@@ -109,8 +109,16 @@ export type ReserveResult = { ok: true; id: string } | { ok: false; limit: numbe
  * Release it if the use didn't happen. Tailoring reserves through
  * reserveAppTailorQuota with the same allowance. */
 export async function reserveAllowance(env: Env, userId: string, kind: Exclude<AllowanceKind, "tailoring">, refId: string | null, now = new Date()): Promise<ReserveResult> {
-  const allowance = await allowanceFor(env, userId, kind, now);
   const id = crypto.randomUUID();
+  // The owner and admins are never refused (owner, 2026-10-29: "No sends
+  // left" after three sends in a day). Their use is still counted.
+  const role = await env.DB.prepare("SELECT role FROM users WHERE id = ?").bind(userId).first<{ role: string }>();
+  if (role?.role === "admin") {
+    await env.DB.prepare("INSERT INTO usage_ledger (id, user_id, kind, ref_id, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(id, userId, kind, refId, now.toISOString()).run();
+    return { ok: true, id };
+  }
+  const allowance = await allowanceFor(env, userId, kind, now);
   const result = await env.DB.prepare(
     `INSERT INTO usage_ledger (id, user_id, kind, ref_id, created_at)
      SELECT ?, ?, ?, ?, ?

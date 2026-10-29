@@ -113,6 +113,16 @@ describe("plans", () => {
     expect((await reserveAllowance(env, userId, "auto_apply_send", "job-4", new Date("2026-10-26T15:00:00Z"))).ok).toBe(true);
   });
 
+  it("never refuse an admin, and still count what they use", async () => {
+    const { env, sqlite, guest } = setup();
+    const { userId } = await guest();
+    sqlite.run("UPDATE users SET role = 'admin' WHERE id = ?", [userId]);
+    for (let index = 0; index < 5; index += 1) {
+      expect((await reserveAllowance(env, userId, "auto_apply_send", `job-${index}`, SATURDAY)).ok).toBe(true);
+    }
+    expect(sqlite.query("SELECT COUNT(*) AS count FROM usage_ledger WHERE user_id = ?").get(userId)).toEqual({ count: 5 });
+  });
+
   it("carry a guest's Pro and used trial over when they sign in", async () => {
     const { env, db, sqlite, guest } = setup();
     const first = await guest();

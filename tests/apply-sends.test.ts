@@ -435,6 +435,8 @@ describe("queueing a send", () => {
 
   it("stops at the plan's allowance", async () => {
     const { env, sqlite, bucket, greenhouseUp } = setup();
+    // Someone on Free: admins are never refused.
+    sqlite.run("UPDATE users SET role = 'user' WHERE id = 'u1'");
     await saveApplyResume(bucket as unknown as R2Bucket, "u1", PDF, "Resume.pdf");
     for (let index = 0; index < 3; index += 1) {
       sqlite.run("INSERT INTO usage_ledger (id, user_id, kind, ref_id, created_at) VALUES (?, 'u1', 'auto_apply_send', 'x', ?)", [`l${index}`, "2026-10-24T14:00:00Z"]);
