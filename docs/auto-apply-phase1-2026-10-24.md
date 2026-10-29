@@ -267,7 +267,13 @@ sent" has the answer either way.
    you" with every such question at once, and nothing is sent until they're
    answered. Assisted apply on the phone still lets Jev fill required
    questions, since the person looks the form over before submitting
-   (`planApplication`'s `guessRequired`). Built 2026-10-29.
+   (`planApplication`'s `guessRequired`). Built 2026-10-29 and live as
+   Worker 41df0540. A dry run on Asana's Software Engineer form (send
+   b929e003) filled 20 answers from the profile and rules, Jev none, and
+   stopped with four questions at once: export control and U.S. government
+   work (the two Jev used to guess at), the follow-up asking which agency,
+   and "Please identify your sex.", which the decline rule missed (fixed in
+   8a4bd99, not deployed).
 3. **The site's read of the resume stays** where Pinkslip has no answer,
    marked `[site]`.
 4. **"Unconfirmed" counts against the plan** and is never retried. Email
