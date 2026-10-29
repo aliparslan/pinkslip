@@ -19,6 +19,7 @@ import { useDetailJob, useJobPageActions, type DetailJob } from "../job-detail/u
 import { Description } from "./Description";
 import { JobIdentity } from "./JobIdentity";
 import { applyButtonState, fitsYourSearch, orderedPlaces, placesByPay, plainText, rowFacts, ticketRows, ticketStub } from "./job-facts";
+import type { SendOpening } from "./sends/LiveSends";
 import { useSendFlow } from "./sends/useSendFlow";
 
 /** The posting replacing its placeholder lines. */
@@ -27,7 +28,7 @@ const DESCRIPTION_IN = FadeIn.duration(180);
 /** The job page, redesigned (Take A): logo, company and title, the facts as
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
  * at the bottom. Applying tears the ticket's stub off. */
-export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThread?: string }) {
+export function JobPage({ jobId, outreachThread, sendOpening }: { jobId: string; outreachThread?: string; sendOpening?: SendOpening }) {
   const { theme } = useUnistyles();
   const { job, status, full, failed, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
   if (!job) {
@@ -47,16 +48,18 @@ export function JobPage({ jobId, outreachThread }: { jobId: string; outreachThre
         action={{ label: "Try again", variant: "secondary", onPress: retry }} />}</ErrorPage>;
   }
   if (job.closed_at) return <ClosedJob job={job} />;
-  return <JobView job={job} full={full || failed} pendingDescription={pendingDescription} onRetryDescription={retryDescription} outreachThread={outreachThread} />;
+  return <JobView job={job} full={full || failed} pendingDescription={pendingDescription} onRetryDescription={retryDescription} outreachThread={outreachThread} sendOpening={sendOpening} />;
 }
 
-function JobView({ job, full, pendingDescription, onRetryDescription, outreachThread }: {
+function JobView({ job, full, pendingDescription, onRetryDescription, outreachThread, sendOpening }: {
   job: DetailJob;
   /** The full posting loaded, or failed to: either way, stop waiting for it. */
   full: boolean;
   pendingDescription: boolean;
   onRetryDescription: () => void;
   outreachThread?: string;
+  /** The live bar's action: open what the send waits on. */
+  sendOpening?: SendOpening;
 }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
@@ -68,7 +71,7 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
   const tear = useStubCatch(applied, covered);
   // Greenhouse and Ashby: Pinkslip's browser sends it, and the button
   // follows the send (Paper "Send screens · the missing states · Oct 24").
-  const sends = useSendFlow(job, { applied: tear.applied, closed, applyMyself: apply });
+  const sends = useSendFlow(job, { applied: tear.applied, closed, applyMyself: apply, opening: sendOpening });
   const applyState = sends.state ?? applyButtonState(job, tear.applied, closed);
   // Past Applied, the button opens the application, so find it in Tracker's list.
   const applications = useQuery({ ...applicationsQueryOptions(useApi()), enabled: applyState.kind === "stage" });

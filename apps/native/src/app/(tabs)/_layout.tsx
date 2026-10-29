@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
 import { onboardingDue } from "../../features/onboarding/launch";
 import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
+import { LIVE_BAR_HEIGHT } from "../../features/redesign/apply-flow/WhileItRuns";
 import { useRedesign } from "../../features/redesign/flag";
+import { useLiveSends } from "../../features/redesign/sends/LiveSends";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { TabBar } from "../../ui";
@@ -22,6 +24,8 @@ export default function TabsLayout() {
  * read as a dark box); each screen leaves room under its list. */
 function PillTabs() {
   const needsYou = useTodayNeedsYou();
+  // Above the pill on every tab while Pinkslip applies (Paper "4 · While it runs").
+  const live = useLiveSends();
   // The app opens on Today, the first tab; "/" is still Jobs for links. A
   // new install stays on Jobs, where onboarding ends.
   const pathname = usePathname();
@@ -30,7 +34,7 @@ function PillTabs() {
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   return <>
-  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} />} screenOptions={{ headerShown: false, animation: "none" }}>
+  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} above={live} aboveHeight={LIVE_BAR_HEIGHT} />} screenOptions={{ headerShown: false, animation: "none" }}>
     <Tabs.Screen name="(today)" />
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />

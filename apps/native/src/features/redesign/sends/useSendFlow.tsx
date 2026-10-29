@@ -12,6 +12,7 @@ import { localResumeFile } from "../../../platform/resume-file";
 import type { DetailJob } from "../../job-detail/useJobPage";
 import { plainText } from "../job-facts";
 import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE } from "../send-facts";
+import type { SendOpening } from "./LiveSends";
 import { CodeSheet, NeedsSheet, type SendJob } from "./SendSheets";
 
 /** Sends need their own copy of the resume on the server; the first one
@@ -83,7 +84,13 @@ function useBegin(enabled: boolean) {
  * needs. Greenhouse and Ashby only; everything else keeps plain Apply.
  * `state` is null when sends don't apply, so the page keeps its own button.
  */
-export function useSendFlow(job: DetailJob, { applied, closed, applyMyself }: { applied: boolean; closed: boolean; applyMyself: () => void }) {
+export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, opening }: {
+  applied: boolean;
+  closed: boolean;
+  applyMyself: () => void;
+  /** Opened from the live bar's action: go straight to what the send waits on. */
+  opening?: SendOpening;
+}) {
   const queryClient = useQueryClient();
   const session = useSession().data;
   const enabled = Boolean(session?.me?.features?.auto_apply_send_enabled);
@@ -113,6 +120,17 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself }: { 
     if (sheet === "code" && send?.status !== "code_needed") setSheet(null);
     lastStatus.current = send?.status;
   }, [send?.status, sheet, job.id, queryClient]);
+
+  // The live bar's Answer, Enter or Finish opens it here, once the send is known.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!opening || opened.current || !send) return;
+    if (opening === "answer" && send.status === "needs_you") setSheet("needs");
+    else if (opening === "code" && send.status === "code_needed") setSheet("code");
+    else if (opening === "finish" && (send.status === "blocked" || send.status === "needs_you")) applyMyself();
+    else return;
+    opened.current = true;
+  }, [opening, send?.status]);
 
   const openSend = (sendId: string) => router.push({ pathname: `/(tabs)/${tab}/sends/[sendId]` as "/(tabs)/(jobs)/sends/[sendId]", params: { sendId } });
   const go = (dryRun: boolean) => void begin(job.id, company, dryRun);

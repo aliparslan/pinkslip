@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplySend } from "../shared/auto-apply";
 import {
-  answerSource, followedSend, needControl, refusal, sendButtonState, splitResume,
+  answerSource, followedSend, liveBar, liveBarDone, needControl, refusal, sendButtonState, splitResume,
 } from "../apps/native/src/features/redesign/send-facts";
 
 const send = (patch: Partial<ApplySend> = {}): ApplySend => ({
@@ -100,5 +100,50 @@ describe("a send that can't start", () => {
     expect(refusal("limit_reached", "Stripe", { limit: 10 })).toMatchObject({ message: "10 sent today · resets at midnight" });
     expect(refusal("no_resume", "Stripe")).toEqual({ kind: "resume" });
     expect(refusal("sends_unavailable", "Stripe")).toMatchObject({ message: "Couldn't start it", retry: true, error: true });
+  });
+});
+
+describe("the live bar", () => {
+  const at = Date.parse("2026-10-24T15:00:00Z");
+  const minutesAgo = (minutes: number) => new Date(at - minutes * 60_000).toISOString();
+  const job = (id: string, patch: Partial<ApplySend>) => send({ id, job_id: id, company: id, created_at: minutesAgo(5), ...patch });
+
+  test("follows one application field by field", () => {
+    const bar = liveBar([job("Toast", { status: "running", progress: { filled: 11, of: 17 } })], at);
+    expect(bar?.state).toEqual({ kind: "sending", company: "Toast", count: "11 of 17", share: 11 / 17 });
+  });
+
+  test("counts applications when several are going, and lists the queue", () => {
+    const bar = liveBar([
+      job("Ramp", { status: "running" }),
+      job("Notion", { status: "queued" }),
+      job("Stripe", { status: "submitted", finished_at: minutesAgo(2) }),
+    ], at);
+    expect(bar?.state).toMatchObject({ kind: "sending", company: "Ramp", count: "2 of 3" });
+    expect(bar?.queue.next.map((item) => item.company)).toEqual(["Notion"]);
+    expect(bar?.queue.sent.map((item) => item.company)).toEqual(["Stripe"]);
+  });
+
+  test("puts the job that needs you first, and only the newest send of a job counts", () => {
+    const needs = [{ ref: "zip", label: "Postal code", kind: "text" }];
+    const answered = [
+      job("Toast", { id: "again", status: "running" }),
+      job("Toast", { id: "first", status: "needs_you", needs, finished_at: minutesAgo(1), created_at: minutesAgo(3) }),
+    ];
+    expect(liveBar(answered, at)?.state).toMatchObject({ kind: "sending", company: "Toast" });
+    expect(liveBar([job("Toast", { status: "needs_you", needs, finished_at: minutesAgo(1) })], at)?.state)
+      .toEqual({ kind: "needs", company: "Toast", words: "Toast needs 1 answer", action: "Answer" });
+    expect(liveBar([job("Toast", { status: "code_needed" })], at)?.state).toMatchObject({ words: "Toast needs Greenhouse's code", action: "Enter" });
+  });
+
+  test("leaves Check first's runs and old stops to the job page and Today", () => {
+    expect(liveBar([job("Toast", { status: "running", dry_run: true })], at)).toBeNull();
+    expect(liveBar([job("Toast", { status: "needs_you", needs: [{ ref: "q", label: "Q", kind: "text" }], finished_at: minutesAgo(30) })], at)).toBeNull();
+  });
+
+  test("says how many went, and how many were confirmed", () => {
+    expect(liveBarDone([job("Toast", { status: "submitted" })])).toEqual({ words: "Sent to Toast", detail: "Confirmed" });
+    expect(liveBarDone([job("A", { status: "submitted" }), job("B", { status: "unconfirmed" })])).toEqual({ words: "2 sent", detail: "1 confirmed so far" });
+    expect(liveBarDone([])).toBeNull();
   });
 });

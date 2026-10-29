@@ -1,7 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation, usePathname, useRoute, useScrollToTop, useSegments } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { Animated as RNAnimated, Pressable, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -293,10 +293,22 @@ export function useSearchTabPress(callback: () => void) {
   }, []);
 }
 
-/** Space a screen leaves under its content so the last row clears the pill. */
+/** What rides above the pill (the live bar) and the gap under it. */
+const ABOVE_GAP = 8;
+let aboveSpace = 0;
+const aboveListeners = new Set<() => void>();
+function setAboveSpace(space: number) {
+  if (space === aboveSpace) return;
+  aboveSpace = space;
+  for (const listener of aboveListeners) listener();
+}
+
+/** Space a screen leaves under its content so the last row clears the pill,
+ * and the live bar while it's there. */
 export function useTabBarSpace() {
   const insets = useSafeAreaInsets();
-  return pillBottom(insets.bottom) + PILL + 12;
+  const above = useSyncExternalStore((listener) => { aboveListeners.add(listener); return () => aboveListeners.delete(listener); }, () => aboveSpace);
+  return pillBottom(insets.bottom) + PILL + 12 + above;
 }
 
 /**
@@ -308,15 +320,22 @@ export function useTabBarSpace() {
  * down shrinks the bar. The job page and an application's have their own
  * pinned buttons, so the bar steps aside there.
  */
-export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
+export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: BottomTabBarProps & {
   /** A pink count on a tab, by route: Today's is what needs you. */
   badges?: Record<string, number>;
+  /** What rides above the pill on every tab, going and coming with it: the
+   * live bar while Pinkslip applies (Paper "4 · While it runs"). */
+  above?: ReactNode;
+  aboveHeight?: number;
 }) {
   const insets = useSafeAreaInsets();
   const steppedAside = useTabBarSteppedAside();
   const onJobPage = /^\/(jobs|applications|events)\/[^/]+$|^\/sends\//.test(usePathname()) || steppedAside;
-  // Toasts sit 12 above the pill; the job page's own bar takes over there.
-  useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL);
+  const room = above ? aboveHeight + ABOVE_GAP : 0;
+  useEffect(() => setAboveSpace(room), [room]);
+  // Toasts sit 12 above the pill (and the live bar); the job page's own bar
+  // takes over there.
+  useToastLift(onJobPage ? null : pillBottom(insets.bottom) + PILL + room);
   const tabs = state.routes.filter((route) => TABS[route.name]);
   const selected = tabs.findIndex((route) => route.key === state.routes[state.index]?.key);
   const count = tabs.length;
@@ -439,8 +458,9 @@ export function TabBar({ state, navigation, badges }: BottomTabBarProps & {
   const lit = hover ?? selected;
   // Over a page it's off to the side, behind the page's edge: out of reach.
   return <RNAnimated.View pointerEvents={onJobPage ? "none" : "box-none"} accessibilityElementsHidden={onJobPage}
-    style={[styles.bar, { height: bottom + PILL }, follow.clip]}>
+    style={[styles.bar, { height: bottom + PILL + room }, follow.clip]}>
     <RNAnimated.View pointerEvents="box-none" style={[styles.fill, follow.content]}>
+    {above ? <View pointerEvents="box-none" style={[styles.above, { bottom: bottom + PILL + ABOVE_GAP, height: aboveHeight }]}>{above}</View> : null}
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.pillFrame, { bottom, left: (screen - pillWidth) / 2, width: pillWidth }, pillFrame]}>
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
@@ -498,6 +518,7 @@ function slotX(index: number) {
 const styles = StyleSheet.create((theme) => ({
   // It clips what a page arriving over it covers (see followStyles).
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, overflow: "hidden" },
+  above: { position: "absolute", left: theme.ui.size.gutter, right: theme.ui.size.gutter },
   fill: { flex: 1 },
   // It shrinks towards the bottom edge, staying on the home indicator.
   pillFrame: { position: "absolute", height: PILL, transformOrigin: "bottom" },

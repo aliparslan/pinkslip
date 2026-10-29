@@ -109,3 +109,67 @@ export function needControl(need: SendNeed): { kind: "text"; multiline: boolean 
   if (options.length === 0) return { kind: "text", multiline: need.kind === "textarea" };
   return { kind: "pick", options, multiple: need.kind === "checkboxes", search: options.length > LONG_LIST };
 }
+
+/** The live bar's run (Paper "4 · While it runs"): real sends from the last
+ * few hours, only the newest of each job, that are going, waiting on the
+ * person, or ended in the last minutes. Check first's runs aren't in it. */
+const RUN_WINDOW_MS = 6 * 60 * 60_000;
+/** A send that stopped on the person stays on the bar this long; after
+ * that it waits in Today. */
+const WAITS_ON_BAR_MS = 15 * 60_000;
+
+const GOING = new Set<ApplySend["status"]>(["queued", "running", "submitting"]);
+
+export interface LiveBarFacts {
+  /** What the bar says; null when there's nothing to show. */
+  state: LiveBarState;
+  queue: { now: ApplySend | null; next: ApplySend[]; sent: ApplySend[] };
+  /** The job the bar's action or tap opens. */
+  jobId: string | null;
+}
+
+export type LiveBarState =
+  | { kind: "sending"; company: string; count: string; share: number }
+  | { kind: "needs"; company: string; words: string; action: string };
+
+export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now()): LiveBarFacts | null {
+  const newest = new Map<string, ApplySend>();
+  for (const send of sends ?? []) {
+    if (send.dry_run || now - Date.parse(send.created_at) > RUN_WINDOW_MS) continue;
+    if (!newest.has(send.job_id)) newest.set(send.job_id, send);
+  }
+  const run = [...newest.values()].filter((send) => !send.finished_at || now - Date.parse(send.finished_at) < WAITS_ON_BAR_MS
+    || send.status === "code_needed");
+  const going = run.filter((send) => GOING.has(send.status));
+  const waiting = run.find((send) => send.status === "code_needed")
+    ?? run.find((send) => (send.status === "needs_you" && send.needs.length > 0) || send.status === "blocked");
+  if (going.length === 0 && !waiting) return null;
+  const sent = run.filter((send) => send.status === "submitted" || send.status === "unconfirmed");
+  const current = going.find((send) => send.status !== "queued") ?? going[0] ?? null;
+  const queue = { now: current, next: going.filter((send) => send !== current), sent };
+  const name = (send: ApplySend) => send.company ?? "the company";
+  if (waiting) {
+    const asks = waiting.status === "code_needed" ? { words: `${name(waiting)} needs Greenhouse's code`, action: "Enter" }
+      : waiting.status === "blocked" ? { words: `${name(waiting)} needs you`, action: "Finish" }
+      : { words: `${name(waiting)} needs ${waiting.needs.length === 1 ? "1 answer" : `${waiting.needs.length} answers`}`, action: "Answer" };
+    return { state: { kind: "needs", company: name(waiting), ...asks }, queue, jobId: waiting.job_id };
+  }
+  const done = run.length - going.length;
+  // One application counts its fields; several count applications.
+  const fields = run.length === 1 ? current!.progress : null;
+  const state: LiveBarState = fields
+    ? { kind: "sending", company: name(current!), count: `${fields.filled} of ${fields.of}`, share: fields.filled / Math.max(fields.of, 1) }
+    : run.length === 1
+      ? { kind: "sending", company: name(current!), count: "", share: 0.04 }
+      : { kind: "sending", company: name(current!), count: `${done + 1} of ${run.length}`, share: done / run.length };
+  return { state, queue, jobId: current?.job_id ?? null };
+}
+
+/** The bar's last word once a run ends (4.3, Done): how many went, and how
+ * many a thank-you page confirmed. Null when nothing was sent. */
+export function liveBarDone(sent: readonly ApplySend[]): { words: string; detail?: string } | null {
+  if (sent.length === 0) return null;
+  const confirmed = sent.filter((send) => send.status === "submitted").length;
+  if (sent.length === 1) return { words: `Sent to ${sent[0]!.company ?? "the company"}`, detail: confirmed ? "Confirmed" : undefined };
+  return { words: `${sent.length} sent`, detail: `${confirmed} confirmed so far` };
+}

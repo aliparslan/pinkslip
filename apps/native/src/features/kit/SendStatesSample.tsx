@@ -3,6 +3,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { ApplyButton, SheetModal, Text, toast, type ApplyState } from "../../ui";
+import { LiveBar, type LiveQueue, type LiveState } from "../redesign/apply-flow/WhileItRuns";
 import { CodeSheet, NeedsSheet } from "../redesign/sends/SendSheets";
 import { refusal } from "../redesign/send-facts";
 import { KitPage } from "./KitPage";
@@ -23,6 +24,19 @@ const STATES: { caption: string; state: ApplyState }[] = [
   { caption: "12 · Didn't send · starts it again", state: { kind: "didntSend" } },
   { caption: "13 · Closed", state: { kind: "apply", closed: true } },
 ];
+
+/** The live bar above the tab bar (Paper "4 · While it runs", 4.3). */
+const LIVE: { caption: string; state: LiveState }[] = [
+  { caption: "One application · counts its fields", state: { kind: "sending", company: "Toast", count: "11 of 17", share: 11 / 17 } },
+  { caption: "Several · counts applications", state: { kind: "sending", company: "Ramp", count: "3 of 9", share: 2 / 9 } },
+  { caption: "Needs you · the rest keep going", state: { kind: "needs", company: "Toast", words: "Toast needs 1 answer", action: "Answer" } },
+  { caption: "Done · leaves after 4 seconds", state: { kind: "done", words: "3 sent", detail: "2 confirmed so far" } },
+];
+const LIVE_QUEUE: LiveQueue = {
+  now: { id: "ramp", company: "Ramp", domain: "ramp.com", title: "Software Engineer, New Grad" },
+  next: [{ id: "notion", company: "Notion", domain: "notion.so", title: "Software Engineer, Early Career" }],
+  sent: [{ job: { id: "stripe", company: "Stripe", domain: "stripe.com", title: "Backend Engineer, New Grad" }, confirmed: true }],
+};
 
 /** The refusals the button can still meet (S7). */
 const REFUSALS: { caption: string; code: string; data?: { limit: number } }[] = [
@@ -63,6 +77,10 @@ export function SendStatesSample() {
       <ApplyButton state={state} saved={false} onSave={() => undefined} onPress={press(state)}
         onApplyMyself={state.kind === "applyForMe" ? () => toast.show({ message: "Apply myself opens assisted apply" }) : undefined}
         onCheckFirst={state.kind === "applyForMe" ? () => router.push({ pathname: "/you/kit-sent", params: { ready: "1" } }) : undefined} />
+    </View>)}
+    {LIVE.map(({ caption, state }) => <View key={caption} style={styles.item}>
+      <Text role="footnote" weight="medium" tone="ink-2">{`Live bar · ${caption}`}</Text>
+      <LiveBar state={state} queue={LIVE_QUEUE} onAction={() => setSheet("needs")} onDismiss={() => undefined} />
     </View>)}
     <View style={styles.item}>
       <Text role="footnote" weight="medium" tone="ink-2">When a send can't start</Text>

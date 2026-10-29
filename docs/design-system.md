@@ -720,6 +720,22 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     sent this one", "Stripe closed this posting", "10 sent today · resets
     at midnight", "Couldn't start it" with Try again). No resume goes to
     Resume; Free with none left will open the Get Pro sheet.
+  - The filled form waits (owner, 2026-10-29: Toast filled its form three
+    times). After Check first, or a stop on questions, the next step
+    carries on in the same form for nine minutes: an answer fills only
+    itself, and Send presses Submit. The button counts on from where it
+    was ("16 of 17").
+  - The live bar (Paper "4 · While it runs", 4.1 to 4.3; built
+    2026-10-29) rides above the tab bar on every tab while real sends go,
+    in the tab bar's `above` slot, so it comes and goes with the bar and
+    lists and toasts make room. One application counts its fields
+    ("Applying to Toast 11 of 17"), several count applications ("3 of
+    9"); the fill is gray. A job that needs you takes it over with its
+    logo, a pink dot and its action (Answer, Enter, Finish), which opens
+    the job's sheet. Done ("3 sent · 2 confirmed so far", or "Sent to
+    Toast · Confirmed") stays 4 seconds. Tap for the queue: Now, Up next,
+    Sent. Pause waits for sends that can pause; Check first stays on its
+    job.
 - **Needs you lives on Today only.** Tracker has no Needs-you chip or
   section; the Today tab's badge carries the count.
 - **Tracker order:** chips and groups run Saved, Applied, Assessment,
@@ -1070,6 +1086,8 @@ cut so that each remaining one has a job.
     and code sheets (`sends/SendSheets.tsx`), What Pinkslip sent and Ready
     to send (`sends/SentPage.tsx`, replacing the kit's sample), and the
     kit's "Send states, sheets and toasts".
+  - Later the same day (owner's first real send, Toast): the filled form
+    waits between steps, and the live bar is built (both above).
 - **2026-10-15**
   - The measured audit (`design-audit-2026-10-15.md`) is settled. The
     owner agreed with the report and decided Q1 to Q12; its "Decided"

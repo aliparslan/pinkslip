@@ -14,7 +14,7 @@ import { LiveEmailSetupSheet } from "./email/SetupSheet";
 import { WhichApplicationSheet } from "./email/JobEmailsPage";
 import { feedSections } from "./job-facts";
 import { ASK_SAMPLE, AskFirstCard } from "./apply-flow/AskFirst";
-import { LiveBar, type Run } from "./apply-flow/WhileItRuns";
+import { LiveBar, type LiveQueue } from "./apply-flow/WhileItRuns";
 import { setAppBadge } from "../../platform/push";
 import { planFromToday, planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
 
@@ -82,9 +82,11 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const newToday = useNewToday();
   const [asking, setAsking] = useState<InboundEmail | null>(null);
   const [setup, setSetup] = useState(false);
-  const [run, setRun] = useState<Run>(() => ({
-    now: ASK_SAMPLE[1]!, next: ASK_SAMPLE.slice(2, 8), sent: [{ job: ASK_SAMPLE[0]!, confirmed: true }, { job: ASK_SAMPLE[5]!, confirmed: false }], done: 3, total: 9,
-  }));
+  // The kit's run of nine (Paper 4.1), paused and resumed with its button.
+  const [paused, setPaused] = useState(false);
+  const run: LiveQueue = {
+    now: ASK_SAMPLE[1]!, next: ASK_SAMPLE.slice(2, 8), sent: [{ job: ASK_SAMPLE[0]!, confirmed: true }, { job: ASK_SAMPLE[5]!, confirmed: false }],
+  };
   const assign = useAssignInboundEmail();
   const dismiss = useDismissInboundEmail();
   const pull = usePullToRefresh(() => today.refetch());
@@ -152,7 +154,10 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
       dismiss: async (emailId) => { await dismiss.mutateAsync(emailId); },
     }} />
     <LiveEmailSetupSheet open={setup} onClosed={() => setSetup(false)} />
-    {sample?.flow === "sending" ? <LiveBar roomGiven run={run} onPause={() => setRun((current) => ({ ...current, paused: !current.paused }))} /> : null}
+    {sample?.flow === "sending" ? <View pointerEvents="box-none" style={[styles.liveBar, { bottom: tabSpace - 4 }]}>
+      <LiveBar queue={run} onPause={() => setPaused(!paused)}
+        state={paused ? { kind: "paused", count: "3 of 9", share: 3 / 9 } : { kind: "sending", company: run.now!.company, count: "3 of 9", share: 3 / 9 }} />
+    </View> : null}
   </>;
 }
 
@@ -173,6 +178,8 @@ function NewJobsRow({ count }: { count: string }) {
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // The kit's live bar, where the tab bar's would ride.
+  liveBar: { position: "absolute", left: theme.ui.size.gutter, right: theme.ui.size.gutter },
   fill: { flex: 1, backgroundColor: theme.ui.color.bg },
   // The date sits in the 44 nav row; the large title 8 under it, as on every tab.
   header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
