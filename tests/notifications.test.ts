@@ -95,6 +95,7 @@ describe("notification settings", () => {
         apply_sent: { enabled: true },
         apply_needs_you: { enabled: true },
         apply_code: { enabled: true },
+        apply_ask: { enabled: true },
       },
       passive_per_day: 3,
     });

@@ -6,6 +6,7 @@ import { ApplyError, prepareApplication, saveApplicationAnswers } from "../apply
 import { learnAnswers, planApplication } from "../apply/plan";
 import { deleteAnswer, listAnswers, saveAnswer } from "../apply/answer-bank";
 import sends from "./apply-sends";
+import asks from "./apply-asks";
 import type { FormControl, FormControlKind } from "../../shared/application-form";
 import type { Env, Variables } from "../types";
 
@@ -135,5 +136,6 @@ apply.post("/learn", async (c) => {
 });
 
 apply.route("/", sends);
+apply.route("/", asks);
 
 export default apply;

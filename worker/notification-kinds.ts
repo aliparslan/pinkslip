@@ -3,6 +3,8 @@
 // Settings exist for every kind from the start; `live` marks the ones that
 // send today, and only those are offered to the apps.
 
+import { APPLY_ASK_CATEGORY } from "../shared/apply-asks";
+
 export type NotificationKind =
   | "new_jobs"
   | "saved_job_closed"
@@ -19,7 +21,8 @@ export type NotificationKind =
   | "daily_summary"
   | "apply_sent"
   | "apply_needs_you"
-  | "apply_code";
+  | "apply_code"
+  | "apply_ask";
 
 interface KindSpec {
   /** The inventory's number. */
@@ -65,6 +68,16 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, KindSpec> = {
   apply_sent: { n: "N14", live: true, defaultOn: true, timeSensitive: false },
   apply_needs_you: { n: "N13", live: true, defaultOn: true, timeSensitive: false },
   apply_code: { n: "N13", live: true, defaultOn: true, timeSensitive: true },
+  // A strong match as it posts, "Apply for you?" with Apply and Not this one
+  // (worker/apply/asks.ts; owner, 2026-10-29). It takes the place of that
+  // job's new-job alert, and replaces the morning list N12 once was.
+  apply_ask: { n: "N12", live: true, defaultOn: true, timeSensitive: false },
+};
+
+/** Kinds whose push carries buttons: the app registers each category's
+ * actions (shared/apply-asks.ts). */
+export const NOTIFICATION_CATEGORIES: Partial<Record<NotificationKind, string>> = {
+  apply_ask: APPLY_ASK_CATEGORY,
 };
 
 export function isNotificationKind(value: unknown): value is NotificationKind {
@@ -92,6 +105,8 @@ export const UNCAPPED_KINDS: readonly NotificationKind[] = [
   "new_jobs", "interview_reminder", "offer_reply", "replied", "forwarding_stopped", "event_reminder",
   // The person sent these themselves, so each says how it went.
   "apply_sent", "apply_needs_you", "apply_code",
+  // Stands in for that job's new-job alert, which is uncapped too.
+  "apply_ask",
 ];
 
 /**
@@ -227,6 +242,11 @@ export function repliedNotification(thread: { id: string; job_id: string | null;
     body: [thread.company_name, thread.job_title].filter(Boolean).join(" · "),
     url: notificationLinks.followUp(thread.job_id, thread.id),
   };
+}
+
+/** N12: a strong match as it posts. The company says it, the role and the question say what. */
+export function applyAskNotification(job: { company: string; title: string; jobId: string }) {
+  return { title: job.company, body: [job.title, "Apply for you?"].filter(Boolean).join(" · "), url: notificationLinks.job(job.jobId) };
 }
 
 /** N13 and N14: how a send went. A dry run says nothing. */

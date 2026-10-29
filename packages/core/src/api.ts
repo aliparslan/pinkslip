@@ -34,6 +34,9 @@ import type {
 } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
 import type { ApplyResumeInfo, ApplySend } from "@pinkslip/domain/auto-apply";
+import type { ApplyAskAction, AutoApplyMode, AutoApplyPause, AutoApplySettings } from "@pinkslip/domain/apply-asks";
+export type { ApplyAskAction, AutoApplyMode, AutoApplyPause, AutoApplySettings } from "@pinkslip/domain/apply-asks";
+export { APPLY_ASK_CATEGORY } from "@pinkslip/domain/apply-asks";
 export type { ApplyResumeInfo, ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "@pinkslip/domain/auto-apply";
 export { SEND_IN_PROGRESS } from "@pinkslip/domain/auto-apply";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
@@ -1026,6 +1029,15 @@ function createEndpoints(context: ClientContext) {
     /** The filled form, or the confirmation page, as Pinkslip's browser saw it. */
     sendShot: (sendId: string, which: "form" | "confirmation") =>
       requestBlob(`/apply/sends/${encodeURIComponent(sendId)}/shots/${which}`),
+    /** How a strong match is handled as it posts: Ask me, Apply for me, or off, and Pause. */
+    autoApplySettings: () => request<AutoApplySettings>("/apply/settings"),
+    /** `pause: null` resumes. */
+    saveAutoApplySettings: (input: { mode?: AutoApplyMode; pause?: AutoApplyPause | null }) =>
+      request<AutoApplySettings>("/apply/settings", { method: "PUT", body: JSON.stringify(input) }),
+    /** The "Apply for you?" push's buttons. */
+    answerAsk: (jobId: string, action: ApplyAskAction) =>
+      request<{ status: "applied" | "dismissed" | "sent"; send: ApplySend | null }>(
+        `/apply/asks/${encodeURIComponent(jobId)}`, { method: "POST", body: JSON.stringify({ action }) }, 30_000),
   },
   outreach: {
     list: (jobId?: string) =>

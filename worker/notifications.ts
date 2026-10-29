@@ -13,6 +13,7 @@ import {
   groupedNotification,
   isNotificationKind,
   LIVE_KINDS,
+  NOTIFICATION_CATEGORIES,
   NOTIFICATION_KINDS,
   PASSIVE_PER_DAY,
   UNCAPPED_KINDS,
@@ -506,12 +507,19 @@ export async function deliverDueNotifications(
         stats.failed += group.length;
         continue;
       }
+      const category = NOTIFICATION_CATEGORIES[kind];
       const payload: NotificationPayload = {
         ...content,
-        data: { url: content.url, notification_id: group[0]!.id },
+        // A push with buttons names its job, so Apply knows what to send.
+        data: {
+          url: content.url,
+          notification_id: group[0]!.id,
+          ...(category && group[0]!.entity_id ? { job_ids: [group[0]!.entity_id] } : {}),
+        },
         kind,
         timeSensitive: group[0]!.passive === 0,
         badge: await needsYouCount(db, userId, now),
+        ...(category ? { category } : {}),
       };
       const result = await sendToUser(db, userId, payload, transports, send);
       if (result.devices > 0) {

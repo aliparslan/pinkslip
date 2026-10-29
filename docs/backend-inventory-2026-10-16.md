@@ -785,9 +785,29 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
      Automatic may send overnight.
    - **Required questions** only the person can answer still stop the send
      and come back together (#3).
-   - Open: whether Apply can run from the push without opening the app (it
-     may need a new app build); otherwise Apply opens Pinkslip and starts
-     the send.
+   - **Apply from the push:** on 1.3.8 it opens Pinkslip and starts the
+     send; the buttons need only an over-the-air update. Running Apply
+     without opening the app needs `expo-task-manager`, so a new build.
+   - **Server built 2026-10-29, not deployed** (`worker/apply/asks.ts`,
+     migration 0108):
+     - the step runs in the new-job alert cycle after the alerts are made
+       and before they're delivered, so a strong match asks within
+       seconds of the poll finding it, with or without new-job alerts on;
+     - a strong match is the alert's match plus a role the person picked
+       (or a title they added), not a standing requisition, on Greenhouse
+       or Ashby, not yet asked about, sent, applied to or hidden;
+     - Ask me schedules the `apply_ask` push (N12, uncapped, category
+       `apply_ask`, `job_ids` in its data) and skips the job's alert; an
+       ask found from 10pm to 8am waits for 8am; no plan sends left means
+       no ask, and the job gets the normal alert;
+     - Apply for me (Pro) queues the send straight away; a refused send
+       (no resume, no sends left) leaves the normal alert;
+     - `GET`/`PUT /apply/settings` (mode, and Pause for a day, a week or
+       until resumed; pausing or leaving Apply for me stops automatic
+       sends that haven't started and gives their allowance back);
+       `POST /apply/asks/:job { action: "apply" | "dismiss" }`;
+     - open wherever sends are (admins, and anyone granted
+       AUTO_APPLY_SEND), signed in only.
 3. **Answers only from the answers bank;** nothing invented; visa and work
    status never guessed. Anything unknown sends the job to Needs you (N13)
    instead of sending. Settled 2026-10-29 (owner): on a send, Jev answers

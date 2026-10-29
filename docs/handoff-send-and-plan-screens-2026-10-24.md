@@ -111,7 +111,11 @@ The code push waits a minute and is dropped if forwarding delivers the code firs
 
 ### Not built yet (backend phase C), so samples can't show these live
 
-- **Asking as strong matches post** (the push with Apply and Not this one). The morning list (N12) is dropped.
+- ~~Asking as strong matches post~~ **Server built 2026-10-29** (not deployed; Decisions: Auto-apply #2). What the app needs, all over the air on 1.3.8:
+  - register the `apply_ask` category (`APPLY_ASK_CATEGORY` from `@pinkslip/core/api`) with two actions: Apply (opens the app) and Not this one;
+  - on Apply, read the job from the push's `job_ids`, call `useAnswerAsk()` with `{ jobId, action: "apply" }` and open the job's page, where the send shows; on Not this one, call it with `"dismiss"` if the app is running (it needn't: a job is never asked about twice);
+  - auto-apply settings get Ask me / Apply for me (Pro) / off and Pause (a day, a week, until turned back on): `useAutoApplySettings()`, `useSaveAutoApplySettings()`; `can_automate` says whether Apply for me is open, and saving it on Free answers `pro_only`.
+  - The push reads "Stripe" / "New Grad SWE · Apply for you?". Its wording and the settings screen go through Paper first.
 - **Automatic.** "Send as jobs post" is Pro.
 - **Caps, Pause, and the per-company rule.**
 - **Batches.** `WhileItRuns`' "Applying for you … Up next" assumes several at once; today each send is one job. A batch would be several sends followed together.

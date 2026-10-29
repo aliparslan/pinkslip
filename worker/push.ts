@@ -15,6 +15,8 @@ export interface NotificationPayload {
   timeSensitive?: boolean;
   /** The app icon's count: what needs the person (Today's Needs you). */
   badge?: number;
+  /** Buttons on the push, registered by the app under this name (apply_ask). */
+  category?: string;
 }
 
 export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {

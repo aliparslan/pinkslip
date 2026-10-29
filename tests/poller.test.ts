@@ -583,6 +583,25 @@ describe("processNotificationMatchBacklog", () => {
     ]);
   });
 
+  it("asks about strong matches after the alerts are made and before the batch clears", async () => {
+    const queue: NewJobMeta[] = [{
+      company: "Example",
+      title: "Software Engineer",
+      jobId: "job-1",
+      listing: makeJob("external-1", { description: "Build useful software." }),
+    }];
+    const steps: string[] = [];
+    const dependencies: NotificationBacklogDependencies = {
+      load: async () => [...queue],
+      match: async () => { steps.push("match"); },
+      createCandidates: async (_db, jobIds) => { steps.push("candidates"); return jobIds.length; },
+      ask: async (jobs) => { steps.push(`ask ${jobs.map((job) => job.jobId).join(",")}`); },
+      clear: async () => { steps.push("clear"); queue.splice(0); },
+    };
+    expect(await processNotificationMatchBacklog(null as unknown as D1Database, 10, dependencies)).toBe(1);
+    expect(steps).toEqual(["match", "candidates", "ask job-1", "clear"]);
+  });
+
   it("keeps the batch queued when candidate creation fails", async () => {
     const queue = [
       {

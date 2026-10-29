@@ -1,4 +1,5 @@
 import { expireNeedsChoice } from "./email/process";
+import { askForStrongMatches } from "./apply/asks";
 import type {
   ATSAdapter,
   JobContent,
@@ -1070,6 +1071,9 @@ export interface NotificationBacklogDependencies {
   load: (db: D1Database, limit: number) => Promise<NotificationMatchJob[]>;
   match: typeof matchJobsForNotifiableProfiles;
   createCandidates: typeof createNotificationCandidates;
+  /** Auto-apply's step: asks about or sends strong matches, skipping their
+   * new-job alerts (worker/apply/asks.ts). */
+  ask?: (jobs: NotificationMatchJob[]) => Promise<void>;
   clear: (db: D1Database, jobIds: string[]) => Promise<void>;
 }
 
@@ -1181,6 +1185,7 @@ export async function processNotificationMatchBacklog(
       }))
     );
     await dependencies.createCandidates(db, jobs.map((job) => job.jobId));
+    await dependencies.ask?.(jobs);
     // Candidate creation is idempotent. Clear only after it succeeds so a crash
     // retries this checkpoint instead of losing notifications.
     await dependencies.clear(db, jobs.map((job) => job.jobId));
@@ -1308,7 +1313,14 @@ export async function runNotificationCycle(env: Env): Promise<{
   matchesProcessed: number;
   notificationsSent: number;
 }> {
-  const matchesProcessed = await processNotificationMatchBacklog(env.DB);
+  const matchesProcessed = await processNotificationMatchBacklog(env.DB, undefined, {
+    ...notificationBacklogDependencies,
+    // A failed ask leaves the new-job alert to go out as before.
+    ask: async (jobs) => {
+      await askForStrongMatches(env, jobs).catch((error: unknown) =>
+        console.error("Auto-apply asks failed:", error instanceof Error ? error.message : String(error)));
+    },
+  });
   const notificationsSent = await deliverPendingNotifications(env.DB, env);
   return { matchesProcessed, notificationsSent };
 }
