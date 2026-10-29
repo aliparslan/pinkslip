@@ -460,4 +460,5 @@ export async function deleteUserAccountData(
   await db.prepare("DELETE FROM user_plans WHERE user_id = ?").bind(userId).run().catch(() => undefined);
   await db.prepare("DELETE FROM usage_ledger WHERE user_id = ?").bind(userId).run().catch(() => undefined);
   await db.prepare("DELETE FROM apply_sends WHERE user_id = ?").bind(userId).run().catch(() => undefined);
+  await db.prepare("DELETE FROM feature_grants WHERE user_id = ?").bind(userId).run().catch(() => undefined);
 }

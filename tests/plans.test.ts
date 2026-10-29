@@ -123,6 +123,15 @@ describe("plans", () => {
     expect(sqlite.query("SELECT COUNT(*) AS count FROM usage_ledger WHERE user_id = ?").get(userId)).toEqual({ count: 5 });
   });
 
+  it("never refuse someone granted UNLIMITED, a tester", async () => {
+    const { env, sqlite, guest } = setup();
+    const { userId } = await guest();
+    sqlite.run("INSERT INTO feature_grants (user_id, flag, created_at) VALUES (?, 'UNLIMITED', '2026-10-29T00:00:00Z')", [userId]);
+    for (let index = 0; index < 5; index += 1) {
+      expect((await reserveAllowance(env, userId, "auto_apply_send", `job-${index}`, SATURDAY)).ok).toBe(true);
+    }
+  });
+
   it("carry a guest's Pro and used trial over when they sign in", async () => {
     const { env, db, sqlite, guest } = setup();
     const first = await guest();
