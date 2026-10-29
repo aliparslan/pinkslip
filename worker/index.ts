@@ -48,7 +48,7 @@ import {
   SITE_ORIGIN,
   type HealthCheckDeps,
 } from "./health-checks";
-import { flagEnabled } from "./feature-flags";
+import { flagEnabled, grantedFlags, type FeatureFlag } from "./feature-flags";
 import { supportOffer, SUPPORT_THANKS_PATH } from "../shared/support";
 import { queueSavedJobClosings, runNotificationScheduler } from "./notification-scheduler";
 import { nudgeStoppedForwarding } from "./email/forwarding";
@@ -152,17 +152,18 @@ app.use("/*", async (c, next) => {
   await next();
 });
 
-function appFeatures(env: Env, account: { is_admin: boolean; session: { state: string } }) {
+function appFeatures(env: Env, account: { is_admin: boolean; session: { state: string } }, granted: ReadonlySet<FeatureFlag> = new Set()) {
   const tailoring = resolveAppTailorConfig(env);
   return {
     access_required: Boolean(env.ACCESS_CODE?.trim()),
-    outreach_enabled: account.session.state === "authenticated" && flagEnabled(env.OUTREACH, account.is_admin),
+    outreach_enabled: account.session.state === "authenticated" && flagEnabled(env.OUTREACH, account.is_admin, granted.has("OUTREACH")),
     // A company's People: names for signed-in people, a count for guests.
     outreach_people_enabled: flagEnabled(env.OUTREACH, account.is_admin),
-    auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin),
+    auto_apply_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY, account.is_admin, granted.has("AUTO_APPLY")),
     auto_submit_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SUBMIT, account.is_admin),
     // Server sends (worker/apply/sends.ts): Pinkslip's own browser applies.
-    auto_apply_send_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SEND, account.is_admin),
+    // Admins and the people granted it (feature_grants) while it's admin-only.
+    auto_apply_send_enabled: account.session.state === "authenticated" && flagEnabled(env.AUTO_APPLY_SEND, account.is_admin, granted.has("AUTO_APPLY_SEND")),
     web_apple_sign_in_enabled: Boolean(appleWebConfig(env)),
     google_sign_in_enabled: Boolean(googleConfig(env)),
     password_sign_in_enabled: true,
@@ -388,22 +389,26 @@ app.get("/api/v2/health", (c) =>
   })
 );
 app.get("/api/v2/me", async (c) => {
-  const accountState = await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState"));
+  const [accountState, granted] = await Promise.all([
+    buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),
+    grantedFlags(c.env.DB, c.get("userId"), c.get("sessionState")),
+  ]);
   return c.json({
     ...accountState,
-    features: appFeatures(c.env, accountState),
+    features: appFeatures(c.env, accountState, granted),
   });
 });
 app.get("/api/v2/bootstrap", async (c) => {
   const sessionState = c.get("sessionState");
-  const [accountState, preferences] = await Promise.all([
+  const [accountState, preferences, granted] = await Promise.all([
     buildAccountState(c.env.DB, c.get("userId"), sessionState),
     sessionState === "anonymous"
       ? Promise.resolve(defaultUserPreferenceState())
       : loadUserPreferenceState(c.env.DB, c.get("userId")),
+    grantedFlags(c.env.DB, c.get("userId"), sessionState),
   ]);
   return c.json({
-    me: { ...accountState, features: appFeatures(c.env, accountState) },
+    me: { ...accountState, features: appFeatures(c.env, accountState, granted) },
     preferences,
   });
 });

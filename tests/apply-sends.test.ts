@@ -781,6 +781,21 @@ describe("send routes", () => {
     return { userId, call: call(token) };
   }
 
+  it("open to someone granted them while they're admin-only, and only signed in", async () => {
+    const context = setup();
+    globalThis.fetch = context.greenhouseUp;
+    const tester = await signedIn(context, "sai@example.com", "user");
+    const me = async () => (await (await tester.call("/api/v2/me", { method: "GET" })).json() as { features: { auto_apply_send_enabled: boolean } }).features;
+    expect((await tester.call("/api/v2/apply/sends", { method: "GET" })).status).toBe(404);
+    expect((await me()).auto_apply_send_enabled).toBe(false);
+    context.sqlite.run("INSERT INTO feature_grants (user_id, flag, created_at) VALUES (?, 'AUTO_APPLY_SEND', '2026-10-29T00:00:00Z')", [tester.userId]);
+    expect((await tester.call("/api/v2/apply/sends", { method: "GET" })).status).toBe(200);
+    expect((await me()).auto_apply_send_enabled).toBe(true);
+    // The grant opens the admin-only flag, not one that's off.
+    context.env.AUTO_APPLY_SEND = "off";
+    expect((await tester.call("/api/v2/apply/sends", { method: "GET" })).status).toBe(404);
+  });
+
   it("are admin-only, take the resume, start a send and show it", async () => {
     const context = setup();
     globalThis.fetch = context.greenhouseUp;
