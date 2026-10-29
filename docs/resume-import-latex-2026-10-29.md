@@ -53,3 +53,27 @@ every line.
 
 The debug steps are reproducible with a script that calls `toMarkdown` and
 Llama 4 Scout over the REST API and runs `parseResumeText` on each result.
+
+## Fixed (live 2026-10-29)
+
+0b95f03, deployed as Worker `90800253` (D1 bookmark before:
+`0000471a-0000352c-00005113-22dcf2d327675a8b7999c8916c83c7cc`; startup
+17 ms, bundle 1,057 KiB gzipped with unpdf). No app update: the phone and
+the web send the PDF to the same route.
+
+- `/resume-import/parse` reads the PDF with PDF.js as well as the converter
+  (`worker/resume-pdf-text.ts`, lines from `packages/core/src/pdf-lines.ts`)
+  and keeps the parse with the higher quality score. The import event's
+  `extractor` says which won (`pdfjs_lines` or `workers_ai_markdown`).
+- The parser knows the layout above, plus LaTeX's default "– " bullets.
+- The tester's resume now imports in about 70 ms with every job, the school,
+  both projects and the three leadership roles right.
+- Fixture: `tests/fixtures/resume-import/latex-resume.tex` (a made-up person,
+  built with tectonic) and its PDF; tests in `tests/pdf-lines.test.ts`,
+  `tests/pdf-to-profile.test.ts` and `tests/resume-import-route.test.ts`.
+
+Left as it was: the web app's offline fallback still uses its own PDF.js line
+join (`apps/webapp/src/features/resume/import/pdf-extract.ts`); it only runs
+when the server can't be reached. A per-role or per-project tech stack has no
+field, so it's left off titles and names (the skills section usually lists
+the same tools).
