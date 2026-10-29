@@ -768,7 +768,12 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
    joins the queue.
 3. **Answers only from the answers bank;** nothing invented; visa and work
    status never guessed. Anything unknown sends the job to Needs you (N13)
-   instead of sending.
+   instead of sending. Settled 2026-10-29 (owner): on a send, Jev answers
+   only optional questions; every required question without the person's
+   own answer is left empty, the rest is filled, and they come back
+   together. Live as Worker da694633 (with 8a4bd99, which declines "your
+   sex" as it does gender). Asana's dry run b6af1389 came back with exactly
+   the three questions only the person can answer.
 4. **Proof:** the confirmation page is saved for each send; the company's
    confirmation email (email tracking) makes it "Confirmed". This feeds the
    stub's APPLIED and SENT stamps and "What Pinkslip sent".
