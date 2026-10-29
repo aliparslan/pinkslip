@@ -1,0 +1,101 @@
+% A made-up person on the common LaTeX resume layout: "Company | dates" over
+% "Title | stack | city", projects with a stack line, and Leadership &
+% Involvement. pdfTeX writes no newline characters, which is what broke import
+% (docs/resume-import-latex-2026-10-29.md). Rebuild with:
+%   tectonic tests/fixtures/resume-import/latex-resume.tex
+\documentclass[letterpaper,11pt]{article}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+\usepackage[shortlabels]{enumitem}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\pagestyle{empty}
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+\raggedright
+\setlength{\tabcolsep}{0in}
+\titleformat{\section}{\vspace{-4pt}\scshape\raggedright\large}{}{0em}{}[\titlerule \vspace{-5pt}]
+
+\newcommand{\entry}[4]{
+  \item
+  \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & #2 \\
+    \textit{\small#3} & \textit{\small #4} \\
+  \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\project}[2]{
+  \item
+  \begin{tabular*}{0.97\textwidth}[t]{l}
+    \textbf{#1} \\
+    \textit{\small#2} \\
+  \end{tabular*}\vspace{-7pt}
+}
+\newenvironment{entries}{\begin{itemize}[leftmargin=0.15in, label={}]}{\end{itemize}}
+\newenvironment{points}{\begin{itemize}[leftmargin=0.2in]}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+  {\Huge \scshape Jordan Lee} \\ \vspace{1pt}
+  \small \href{mailto:jordan.lee@example.com}{jordan.lee@example.com} $|$ (555) 010-2030 $|$
+  \href{https://www.linkedin.com/in/jordanlee-example}{linkedin.com/in/jordanlee-example} $|$
+  \href{https://github.com/jordanlee-example}{github.com/jordanlee-example}
+\end{center}
+
+\section{Education}
+\begin{entries}
+  \entry{Example State University}{May 2025}{B.S. in Computer Science, Minor in Business Administration}{Springfield, IL}
+  \begin{points}
+    \item Coursework: Operating Systems, Data Structures \& Algorithms, Software Engineering, Databases, Computer Networks, Computer Organization, Human-Computer Interaction
+  \end{points}
+\end{entries}
+
+\section{Experience}
+\begin{entries}
+  \entry{Northwind Bank}{Aug 2025 -- Present}{Software Engineer $|$ Go, Python, AWS Lambda, PostgreSQL}{Dallas, TX}
+  \begin{points}
+    \item Built a Go service that opens pull requests for dependency fixes across 40 repositories, closing 38 vulnerabilities in a quarter.
+    \item Moved a billing database with a billion rows to a managed cluster, owning the schema checks, cut-over and rollback plan.
+  \end{points}
+  \entry{Contoso Instruments}{May 2024 -- Aug 2024}{Software Engineer Intern $|$ Python, C, Embedded Systems}{Austin, TX}
+  \begin{points}
+    \item Wrote a tool that compares device support across chip families, replacing a week of manual searching.
+  \end{points}
+  \entry{Fabrikam Aerospace -- Space Division}{May 2023 -- Aug 2023}{Software Engineer Intern $|$ Python, JavaScript}{Huntsville, AL}
+  \begin{points}
+    \item Extracted thousands of attributes from a systems model into structured JSON.
+  \end{points}
+\end{entries}
+
+\section{Projects}
+\begin{entries}
+  \project{Plant Identifier}{React, AWS S3, Python, Flask, Machine Learning}
+  \begin{points}
+    \item Trained a convolutional network that names houseplants from photos with 95\% accuracy.
+    \item Built a React front end and Flask API that store each upload in S3.
+  \end{points}
+  \project{Alumni Paths}{C++, Graph Algorithms, Data Processing}
+  \begin{points}
+    \item Placed second in a class hackathon by modelling where graduates go next.
+  \end{points}
+\end{entries}
+
+\section{Leadership \& Involvement}
+\begin{entries}
+  \entry{Learning Committee}{Aug 2025 -- Present}{Committee Member and Cloud Instructor, Northwind Bank}{Dallas, TX}
+  \begin{points}
+    \item Taught a cloud storage workshop for 30 engineers.
+  \end{points}
+  \entry{Computing Student Union}{May 2023 -- May 2025}{Co-Founder and Treasurer, Example State University}{Springfield, IL}
+  \begin{points}
+    \item Co-founded a club for incoming computer science students.
+  \end{points}
+\end{entries}
+
+\section{Technical Skills}
+\textbf{Languages}: Go, Python, Java, C++, JavaScript, SQL, Bash, MATLAB \\
+\textbf{Technologies}: AWS Lambda, PostgreSQL, React, Flask, Docker, Git
+\end{document}

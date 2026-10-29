@@ -32,21 +32,24 @@ const DATE = `(?:Expected\\s+)?(?:(?:${MONTH}\\.?|${SEASON})\\s+)?${YEAR}`;
 const COMPACT_MONTH_RANGE_AT_END = new RegExp(`(${MONTH})\\.?\\s*(?:-|–|—|to)\\s*(${MONTH})\\.?\\s+(${YEAR})\\s*$`, "i");
 const DATE_RANGE_AT_END = new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(Present|Current|${DATE})\\s*$`, "i");
 const SINGLE_DATE_AT_END = new RegExp(`(${DATE})\\s*$`, "i");
-const FUSED_STATE_COLUMN = new RegExp(`,\\s*(?:${US_STATES.map((state) => state.value).join("|")})(?=[A-Z])`);
+// A state fused to the next column is followed by a word ("Austin, TXSenior"),
+// not more capitals ("Bash, MATLAB").
+const FUSED_STATE_COLUMN = new RegExp(`,\\s*(?:${US_STATES.map((state) => state.value).join("|")})(?=[A-Z][a-z])`);
 const FUSED_STATE_DEGREE_BOUNDARY = new RegExp(
   `(,\\s*(?:${US_STATES.map((state) => state.value).join("|")}))`
   + "(?=(?:Bachelor|Master|Doctor|Associate|Certificate|Diploma|Ph\\.?D|B\\.?\\s*[AS]\\.?|M\\.?\\s*[AS]\\.?|MCS|MBA|JD|MD)\\b)",
   "gi",
 );
 
-const BULLET_PREFIX = /^(?:[\-•●◦▪‣\uF0B7]\s*)+/;
+// "– " is LaTeX's default bullet in a nested list.
+const BULLET_PREFIX = /^(?:(?:[\-•●◦▪‣\uF0B7]|–(?=\s))\s*)+/;
 
 const SECTION_PATTERNS: Array<[SectionType, RegExp]> = [
   ["experience", /^(?:(?:work|professional)\s+)?experience$|^employment(?:\s+history)?$/i],
   ["education", /^education(?:\s+and\s+training)?$/i],
   ["projects", /^(?:(?:selected\s+)?projects?|project\s+experience(?:\s*(?:&|and)\s*activities)?|projects?\s*(?:&|and)\s*activities)$/i],
   ["skills", /^(?:technical\s+|programming\s+)?skills(?:\s*(?:&|and)\s*(?:technical\s+tools?|interests?|hobbies))?$/i],
-  ["leadership", /^(?:leadership|affiliations|activities)(?:\s+and\s+affiliations)?$/i],
+  ["leadership", /^(?:leadership|affiliations|activities|involvement)(?:\s*(?:&|and)\s*(?:affiliations|involvement|activities))?$/i],
   ["certifications", /^certifications?(?:\s+and\s+licenses)?$/i],
   ["publications", /^publications?$/i],
   ["awards", /^(?:awards?|honors?)(?:\s+and\s+(?:awards?|honors?))?$/i],
@@ -248,6 +251,30 @@ function splitFusedCompanyLocationTitle(text: string): {
   };
 }
 
+/** A list of short names: a tech stack ("React, AWS S3, Flask"), not a
+ * sentence. */
+function looksLikeStackLine(text: string): boolean {
+  const parts = text.split(/\s*,\s*/);
+  return parts.length >= 3
+    && parts.every((part) => part && part.split(/\s+/).length <= 4)
+    && !/[.!?]$/.test(text.trim())
+    && !splitTrailingDate(text).matched;
+}
+
+/** The common LaTeX template's row pair: "Company | dates" over
+ * "Title | stack | city". Returns the title row's role and city when the
+ * dated row holds no title of its own and the next line is that row. */
+function titleRowBelow(datedPrefix: string, next: string | undefined): { title: string; location: string } | null {
+  if (!next || isBulletLine(next) || splitTrailingDate(next).matched) return null;
+  if (!datedPrefix || looksLikeRoleTitle(datedPrefix)) return null;
+  const located = splitTrailingLocation(next);
+  // A stack after the title ("Software Engineer | Go, Python") isn't the title.
+  const title = located.prefix.split(/\s+\|\s+/)[0]?.trim() ?? "";
+  if (!title || title.length > 70 || /[.!?]$/.test(title)) return null;
+  if (!looksLikeRoleTitle(title) && !located.location) return null;
+  return { title, location: located.location };
+}
+
 function parseExperience(lines: string[]): ResumeProfile["experience"] {
   const experience: ResumeProfile["experience"] = [];
   let company = "";
@@ -265,6 +292,23 @@ function parseExperience(lines: string[]): ResumeProfile["experience"] {
     if (dated.matched) {
       const fused = splitFusedCompanyLocationTitle(dated.prefix);
       const located = splitTrailingLocation(dated.prefix);
+      const below = fused ? null : titleRowBelow(located.prefix, lines[index + 1]);
+      if (below) {
+        company = located.prefix;
+        location = below.location || located.location;
+        current = {
+          id: genId(),
+          company,
+          title: below.title,
+          location,
+          startDate: dated.start,
+          endDate: dated.end,
+          bullets: [],
+        };
+        experience.push(current);
+        index += 1;
+        continue;
+      }
       let title = fused?.title ?? located.prefix;
       let roleCompany = fused?.company ?? company;
       const roleLocation = fused?.location ?? (located.location || location);
@@ -334,7 +378,13 @@ function parseProjects(lines: string[]): ResumeProfile["projects"] {
     const usesFollowingDetailLine = !dated.matched
       && Boolean(nextDated?.matched)
       && Boolean(located.location);
-    if (!dated.matched && !usesFollowingDetailLine && current && appendBulletContinuation(current.bullets, line)) continue;
+    // The stack line under a project's name isn't another project.
+    if (!dated.matched && current && current.bullets.length === 0 && looksLikeStackLine(line)) continue;
+    // After a finished bullet, a short capitalised line is the next project.
+    const nextHeading = /[.!?]["')\]]?$/.test(current?.bullets.at(-1)?.trim() ?? "")
+      && /^[A-Z0-9]/.test(line)
+      && line.length <= 80;
+    if (!dated.matched && !usesFollowingDetailLine && !nextHeading && current && appendBulletContinuation(current.bullets, line)) continue;
 
     const heading = located.prefix;
     const url = displayedUrls(heading)[0] ?? "";
@@ -344,7 +394,7 @@ function parseProjects(lines: string[]): ResumeProfile["projects"] {
     const headingParts = withoutUrl
       .split(/\s+[–—-]\s+|\s+\|\s+/)
       .map((part) => part.replace(/[|,;\s]+$/, "").trim())
-      .filter(Boolean);
+      .filter((part, partIndex) => part && (partIndex === 0 || !looksLikeStackLine(part)));
     const name = headingParts[0] ?? "";
     const projectDate = usesFollowingDetailLine && nextDated
       ? nextDated
@@ -420,14 +470,14 @@ function degreeDetails(text: string): {
 
 function splitDegreeContent(text: string): { degrees: string[]; minors: string[] } {
   const segments = text
-    .split(/\s+\|\s+/)
+    .split(/\s+\|\s+|[,;]\s*(?=minors?\s+(?:in|of)\b)/i)
     .map((segment) => segment.trim())
     .filter(Boolean);
   const minors = segments
-    .filter((segment) => /^minor\b/i.test(segment))
-    .map((segment) => segment.replace(/^minor(?:\s+(?:in|of))?\s*/i, "").trim())
+    .filter((segment) => /^minors?\b/i.test(segment))
+    .map((segment) => segment.replace(/^minors?(?:\s+(?:in|of))?\s*/i, "").trim())
     .filter(Boolean);
-  const degreeSegments = segments.filter((segment) => looksLikeDegree(segment) && !/^minor\b/i.test(segment));
+  const degreeSegments = segments.filter((segment) => looksLikeDegree(segment) && !/^minors?\b/i.test(segment));
   const descriptiveDegrees = degreeSegments.filter((segment) => segment.length > 6);
   if (descriptiveDegrees.length > 1) {
     return {
@@ -484,7 +534,8 @@ function parseEducation(lines: string[]): ResumeProfile["education"] {
       continue;
     }
 
-    if (!dated.matched && (located.location || (index + 1 < lines.length && looksLikeDegree(lines[index + 1])))) {
+    // A degree line can carry the school's city ("B.S. in CS | Gainesville, FL").
+    if (!dated.matched && !looksLikeDegree(content) && (located.location || (index + 1 < lines.length && looksLikeDegree(lines[index + 1])))) {
       institution = content;
       location = located.location;
       institutionDates = { start: "", end: "" };

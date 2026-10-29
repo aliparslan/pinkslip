@@ -1,9 +1,10 @@
 import { Hono, type Context } from "hono";
 import { normalizeResumeProfile } from "../../shared/resume-profile";
 import { parseResumeText } from "../../packages/core/src/pdf-to-profile";
-import { assessResumeImportFields } from "../../packages/core/src/resume-import-quality";
+import { assessResumeImportFields, resumeImportQualityScore } from "../../packages/core/src/resume-import-quality";
 import { US_STATES } from "../../packages/core/src/resume-fields";
 import { recordProductEvent } from "../product-events";
+import { ProtectedPdfError, readPdfText } from "../resume-pdf-text";
 import type { Env, Variables } from "../types";
 
 const resumeImport = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -22,8 +23,9 @@ const PDF_PICKER_MIME_TYPES = new Set([
   "application/x-pdf",
   "application/octet-stream",
 ]);
+// "Austin, TXSenior" splits; "Bash, MATLAB" doesn't.
 const FUSED_STATE_COLUMN = new RegExp(
-  `,\\s*(${US_STATES.map((state) => state.value).join("|")})(?=[A-Z])`,
+  `,\\s*(${US_STATES.map((state) => state.value).join("|")})(?=[A-Z][a-z])`,
   "g",
 );
 
@@ -213,34 +215,52 @@ resumeImport.post("/parse", async (c) => {
 
   let eventStatus = "failed";
   let eventCode: ResumeImportErrorCode | "success" = "unknown";
+  let extractor = "workers_ai_markdown";
   try {
-    if (!c.env.AI) {
-      eventCode = "conversion_unavailable";
-      return responseError(c, eventCode, 503);
-    }
-    const converted = await c.env.AI.toMarkdown({
-      name: "resume.pdf",
-      blob: new Blob([bytes], { type: "application/pdf" }),
-    }, {
-      conversionOptions: { pdf: { metadata: false } },
-    });
-    if (converted.format === "error") {
-      eventCode = conversionFailureCode(converted.error);
-      const status = eventCode === "conversion_unavailable" ? 503 : 422;
-      return responseError(c, eventCode, status);
+    // The PDF's own lines (PDF.js) and Workers AI's converter, side by side;
+    // the better parse wins, and a tie keeps the converter's.
+    const [pdfText, converted] = await Promise.all([
+      readPdfText(bytes).catch((error: unknown) => error instanceof ProtectedPdfError ? "protected" as const : null),
+      c.env.AI?.toMarkdown({
+        name: "resume.pdf",
+        blob: new Blob([bytes], { type: "application/pdf" }),
+      }, {
+        conversionOptions: { pdf: { metadata: false } },
+      }) ?? null,
+    ]);
+    const links = pdfText && pdfText !== "protected" ? pdfText.links : [];
+    const candidates: { extractor: string; text: string }[] = [];
+    if (converted && converted.format !== "error") candidates.push({ extractor: "workers_ai_markdown", text: normalizeConvertedResumeText(converted.data) });
+    if (pdfText && pdfText !== "protected") candidates.push({ extractor: "pdfjs_lines", text: pdfText.text });
+    let best: { extractor: string; profile: ReturnType<typeof normalizeResumeProfile>; score: number } | null = null;
+    for (const candidate of candidates) {
+      if (candidate.text.replace(/\s/g, "").length < 40) continue;
+      const profile = normalizeResumeProfile(parseResumeText(candidate.text, links));
+      if (!profile.contact.name && Object.values(importCounts(profile)).every((count) => count === 0)) continue;
+      const score = resumeImportQualityScore(profile);
+      if (!best || score > best.score) best = { extractor: candidate.extractor, profile, score };
     }
 
-    const text = normalizeConvertedResumeText(converted.data);
-    if (text.replace(/\s/g, "").length < 40) {
+    if (!best) {
+      if (pdfText === "protected") {
+        eventCode = "protected_pdf";
+        return responseError(c, eventCode, 422);
+      }
+      if (converted?.format === "error") {
+        eventCode = conversionFailureCode(converted.error);
+        const status = eventCode === "conversion_unavailable" ? 503 : 422;
+        return responseError(c, eventCode, status);
+      }
+      if (!c.env.AI && !pdfText) {
+        eventCode = "conversion_unavailable";
+        return responseError(c, eventCode, 503);
+      }
       eventCode = "no_extractable_text";
       return responseError(c, eventCode, 422);
     }
-    const profile = normalizeResumeProfile(parseResumeText(text));
+    extractor = best.extractor;
+    const profile = best.profile;
     const counts = importCounts(profile);
-    if (!profile.contact.name && Object.values(counts).every((count) => count === 0)) {
-      eventCode = "no_extractable_text";
-      return responseError(c, eventCode, 422);
-    }
 
     const warnings = [
       !profile.contact.name ? "We couldn’t identify a name." : "",
@@ -277,7 +297,7 @@ resumeImport.post("/parse", async (c) => {
         client_build: clientBuild,
         size_bytes: file.size,
         latency_ms: Date.now() - startedAt,
-        extractor: "workers_ai_markdown",
+        extractor,
       },
     }).catch((error) => {
       console.error(JSON.stringify({

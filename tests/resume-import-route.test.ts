@@ -1,4 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import resumeImport from "../worker/routes/resume-import";
 import type { Env, Variables } from "../worker/types";
@@ -154,6 +155,34 @@ describe("POST /resume-import/parse", () => {
     expect(body.profile.contact.name).toBe("Jane Doe");
     expect(body.counts.experience).toBe(1);
     expect(body.warnings).toContain("We couldn’t identify an education section.");
+  });
+
+  // A real LaTeX PDF: Workers AI's converter keeps no line breaks for it
+  // (2026-10-29), so the PDF's own lines have to win.
+  const latexPdf = () => pdfForm(new Uint8Array(readFileSync(`${import.meta.dir}/fixtures/resume-import/latex-resume.pdf`)));
+  const runTogether = aiWith({
+    format: "markdown",
+    data: "# resume.pdf\n## Contents\n### Page 1\nJordan Leejordan.lee@example.com | (555) 010-2030EducationExample State University May 2025B.S. in Computer Science, Minor in Business Administration Springfield, ILExperienceNorthwind Bank Aug 2025 – PresentSoftware Engineer | Go, Python Dallas, TX",
+  });
+  type Parsed = { profile: { contact: { name: string; linkedin: string }; experience: { company: string; title: string; location: string }[]; education: { endDate: string; minors: string[] }[] } };
+
+  test("reads a LaTeX resume's own lines when the converter runs them together", async () => {
+    const response = await parseRequest(appWith(), { AI: runTogether }, latexPdf());
+    expect(response.status).toBe(200);
+    const { profile } = await response.json() as Parsed;
+    expect(profile.contact).toMatchObject({ name: "Jordan Lee", linkedin: "https://linkedin.com/in/jordanlee-example" });
+    expect(profile.experience.map(({ company, title, location }) => ({ company, title, location }))[0])
+      .toEqual({ company: "Northwind Bank", title: "Software Engineer", location: "Dallas, TX" });
+    expect(profile.experience).toHaveLength(3);
+    expect(profile.education[0]).toMatchObject({ endDate: "May 2025", minors: ["Business Administration"] });
+  });
+
+  test("reads a text PDF while the converter is down or missing", async () => {
+    const down = await parseRequest(appWith(), { AI: aiWith({ format: "error", error: "PDF conversion service unavailable" }) }, latexPdf());
+    expect(down.status).toBe(200);
+    const missing = await parseRequest(appWith(), {}, latexPdf());
+    expect(missing.status).toBe(200);
+    expect(((await missing.json()) as Parsed).profile.contact.name).toBe("Jordan Lee");
   });
 });
 

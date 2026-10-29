@@ -289,3 +289,92 @@ SKILLS AND INTERESTS
     expect(template.skills).toEqual([{ category: "Skills", items: "Python, C++, Java, MATLAB" }]);
   });
 });
+
+// The lines PDF.js gives for tests/fixtures/resume-import/latex-resume.pdf:
+// the common LaTeX layout, with LaTeX's default "–" bullets.
+const LATEX_RESUME_LINES = `Jordan Lee
+jordan.lee@example.com | (555) 010-2030 | linkedin.com/in/jordanlee-example | github.com/jordanlee-example
+Education
+Example State University | May 2025
+B.S. in Computer Science, Minor in Business Administration | Springfield, IL
+– Coursework: Operating Systems, Data Structures & Algorithms, Software Engineering, Databases,
+Computer Networks, Computer Organization, Human-Computer Interaction
+Experience
+Northwind Bank | Aug 2025 – Present
+Software Engineer | Go, Python, AWS Lambda, PostgreSQL | Dallas, TX
+– Built a Go service that opens pull requests for dependency fixes across 40 repositories, closing 38
+vulnerabilities in a quarter.
+– Moved a billing database with a billion rows to a managed cluster, owning the schema checks, cut-over and
+rollback plan.
+Contoso Instruments | May 2024 – Aug 2024
+Software Engineer Intern | Python, C, Embedded Systems | Austin, TX
+– Wrote a tool that compares device support across chip families, replacing a week of manual searching.
+Fabrikam Aerospace – Space Division | May 2023 – Aug 2023
+Software Engineer Intern | Python, JavaScript | Huntsville, AL
+– Extracted thousands of attributes from a systems model into structured JSON.
+Projects
+Plant Identifier
+React, AWS S3, Python, Flask, Machine Learning
+– Trained a convolutional network that names houseplants from photos with 95% accuracy.
+– Built a React front end and Flask API that store each upload in S3.
+Alumni Paths
+C++, Graph Algorithms, Data Processing
+– Placed second in a class hackathon by modelling where graduates go next.
+Leadership & Involvement
+Learning Committee | Aug 2025 – Present
+Committee Member and Cloud Instructor, Northwind Bank | Dallas, TX
+– Taught a cloud storage workshop for 30 engineers.
+Computing Student Union | May 2023 – May 2025
+Co-Founder and Treasurer, Example State University | Springfield, IL
+– Co-founded a club for incoming computer science students.
+Technical Skills
+Languages: Go, Python, Java, C++, JavaScript, SQL, Bash, MATLAB
+Technologies: AWS Lambda, PostgreSQL, React, Flask, Docker, Git`;
+
+describe("the common LaTeX resume layout", () => {
+  const profile = parseResumeText(LATEX_RESUME_LINES);
+
+  test("reads \"Company | dates\" over \"Title | stack | city\" as one role", () => {
+    expect(profile.experience?.map(({ company, title, location, startDate, endDate }) => ({ company, title, location, startDate, endDate }))).toEqual([
+      { company: "Northwind Bank", title: "Software Engineer", location: "Dallas, TX", startDate: "Aug 2025", endDate: "Present" },
+      { company: "Contoso Instruments", title: "Software Engineer Intern", location: "Austin, TX", startDate: "May 2024", endDate: "Aug 2024" },
+      { company: "Fabrikam Aerospace – Space Division", title: "Software Engineer Intern", location: "Huntsville, AL", startDate: "May 2023", endDate: "Aug 2023" },
+    ]);
+    expect(profile.experience?.[0].bullets).toEqual([
+      "Built a Go service that opens pull requests for dependency fixes across 40 repositories, closing 38 vulnerabilities in a quarter.",
+      "Moved a billing database with a billion rows to a managed cluster, owning the schema checks, cut-over and rollback plan.",
+    ]);
+  });
+
+  test("keeps the school's date and city when the degree line carries the city, and splits off the minor", () => {
+    expect(profile.education).toHaveLength(1);
+    expect(profile.education?.[0]).toMatchObject({
+      institution: "Example State University",
+      location: "Springfield, IL",
+      endDate: "May 2025",
+      minors: ["Business Administration"],
+    });
+    expect(profile.education?.[0].credentials.map(({ degreeType, fieldsOfStudy }) => ({ degreeType, fieldsOfStudy }))).toEqual([
+      { degreeType: "bachelor", fieldsOfStudy: ["Computer Science"] },
+    ]);
+  });
+
+  test("skips a project's stack line and starts the next project after a finished bullet", () => {
+    expect(profile.projects?.map(({ name, role, bullets }) => ({ name, role, bullets: bullets.length }))).toEqual([
+      { name: "Plant Identifier", role: undefined, bullets: 2 },
+      { name: "Alumni Paths", role: undefined, bullets: 1 },
+    ]);
+  });
+
+  test("files Leadership & Involvement as leadership, and leaves MATLAB whole", () => {
+    expect(profile.optionalSections).toEqual([{
+      kind: "leadership",
+      items: [
+        { category: "Committee Member and Cloud Instructor, Northwind Bank · Learning Committee", items: "Dallas, TX · Aug 2025 – Present · Taught a cloud storage workshop for 30 engineers." },
+        { category: "Co-Founder and Treasurer, Example State University · Computing Student Union", items: "Springfield, IL · May 2023 – May 2025 · Co-founded a club for incoming computer science students." },
+      ],
+    }]);
+    expect(profile.skills?.[0]).toEqual({ category: "Languages", items: "Go, Python, Java, C++, JavaScript, SQL, Bash, MATLAB" });
+    expect(profile.contact).toMatchObject({ name: "Jordan Lee", email: "jordan.lee@example.com", phone: "(555) 010-2030" });
+  });
+});
