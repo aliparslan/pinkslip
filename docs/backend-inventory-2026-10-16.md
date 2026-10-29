@@ -790,8 +790,12 @@ Revisited (owner, 2026-10-24), replacing #2 and the weekly checks:
    - **Apply from the push:** on 1.3.8 it opens Pinkslip and starts the
      send; the buttons need only an over-the-air update. Running Apply
      without opening the app needs `expo-task-manager`, so a new build.
-   - **Server built 2026-10-29, not deployed** (`worker/apply/asks.ts`,
-     migration 0108):
+   - **Live 2026-10-29:** Worker `dae34f97` from bc47de9 with migration
+     0108 (D1 bookmark before:
+     `0000471a-000025ee-00005113-2bf6a1c7361babd8bca76d3a770f281e`), after
+     the app's buttons went out as update `01a188b9` (production) and
+     `01a188b7` (owner) on 1.3.8, so Kushal's phone has them too
+     (`worker/apply/asks.ts`):
      - the step runs in the new-job alert cycle after the alerts are made
        and before they're delivered, so a strong match asks within
        seconds of the poll finding it, with or without new-job alerts on;
