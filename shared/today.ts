@@ -1,6 +1,7 @@
 import type { Application } from "./application-stages";
 import type { CompanyEvent } from "./company-events";
 import type { DetectedStage, InboundEmail } from "./email-tracking";
+import type { WaitingSends } from "./auto-apply";
 import type { OutreachThread } from "./outreach";
 
 /**
@@ -14,6 +15,8 @@ export type TodayEntry =
   | { kind: "interview_date"; key: string; at: string; application: Application }
   | { kind: "which_application"; key: string; at: string; email: InboundEmail; company_domain: string | null }
   | { kind: "follow_up_due"; key: string; at: string; thread: OutreachThread }
+  // Sends that stopped on questions: one row for all of them, `questions` still unanswered.
+  | { kind: "sends_waiting"; key: string; at: string; sends: WaitingSends["sends"]; questions: number; until: string }
   // What changed (`new`: since Today was last opened, on any device)
   | { kind: "email_step"; key: string; at: string; application: Application; stage: DetectedStage; new: boolean }
   | { kind: "saved_job_closed"; key: string; at: string; application: Application; new: boolean }

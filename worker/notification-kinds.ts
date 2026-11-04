@@ -137,6 +137,8 @@ export const notificationLinks = {
   event: (eventId: string) => `/events/${encodeURIComponent(eventId)}`,
   /** A send, for now its job's page; the app's send screen comes later. */
   applySend: (jobId: string) => `/jobs/${encodeURIComponent(jobId)}`,
+  /** Several stopped sends: Today, with their one sheet open. */
+  waitingSends: () => "/today?answer=sends",
 };
 
 export interface LoggedNotification {

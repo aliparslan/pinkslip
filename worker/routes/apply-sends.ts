@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
-import { SendError, answerSend, deliverSendCode, getSend, listSends, queueSend, sendShot } from "../apply/sends";
+import { SendError, answerSend, deliverSendCode, getSend, listSends, queueSend, sendShot, sendWaiting } from "../apply/sends";
+import { dropWaiting, keepWaitingAnswers, waitingRows, waitingView } from "../apply/waiting";
 import { ResumeFileError, applyResumeInfo, applyResumeKey, saveApplyResume } from "../apply/send-files";
 import type { Env, Variables } from "../types";
 
@@ -12,6 +13,8 @@ const sends = new Hono<{ Bindings: Env; Variables: Variables }>();
 sends.use("/resume", requireFlag("AUTO_APPLY_SEND"));
 sends.use("/sends/*", requireFlag("AUTO_APPLY_SEND"));
 sends.use("/sends", requireFlag("AUTO_APPLY_SEND"));
+sends.use("/waiting", requireFlag("AUTO_APPLY_SEND"));
+sends.use("/waiting/*", requireFlag("AUTO_APPLY_SEND"));
 
 sends.onError((error, c) => {
   if (error instanceof SendError) return c.json({ error: error.message, code: error.code, ...error.extra }, error.status);
@@ -89,6 +92,32 @@ sends.post("/sends/:id/code", async (c) => {
   if (!/^[A-Za-z0-9]{4,12}$/.test(code)) return c.json({ error: "That isn't a code.", code: "invalid_code" }, 400);
   const delivered = await deliverSendCode(c.env, c.get("userId"), code, c.req.param("id"));
   return delivered ? c.body(null, 202) : c.json({ error: "That send isn't waiting for a code.", code: "not_waiting" }, 409);
+});
+
+/** Sends that stopped on questions, for their one sheet (Paper "Stopped
+ * sends · Nov 4"): `{ waiting: { sends, questions, until } | null }`. */
+sends.get("/waiting", async (c) => c.json({ waiting: waitingView(await waitingRows(c.env.DB, c.get("userId"))) }));
+
+/** `{ answers: { [question id]: value } }`: kept until Send all, so closing
+ * the sheet loses nothing. */
+sends.put("/waiting/answers", async (c) => {
+  const body = await c.req.json<{ answers?: unknown }>().catch(() => null);
+  const answers = body?.answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+    return c.json({ error: "answers are { id: value }.", code: "invalid_request" }, 400);
+  }
+  const valid = Object.entries(answers as Record<string, unknown>).filter(([, value]) =>
+    typeof value === "string" || (Array.isArray(value) && value.every((item) => typeof item === "string")));
+  return c.json({ waiting: await keepWaitingAnswers(c.env.DB, c.get("userId"), Object.fromEntries(valid) as Record<string, string | string[]>) });
+});
+
+/** Send all: `{ started, failed }`, each that couldn't start with why. */
+sends.post("/waiting/send", async (c) => c.json(await sendWaiting(c.env, c.get("userId")), 201));
+
+/** Don't send: everything waiting is dropped. */
+sends.post("/waiting/drop", async (c) => {
+  await dropWaiting(c.env.DB, c.get("userId"));
+  return c.body(null, 204);
 });
 
 export default sends;

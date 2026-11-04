@@ -11,6 +11,7 @@ import {
 import { remindDueFollowUps } from "./outreach/reminders";
 import { queueDueEventReminders } from "./events";
 import { queueDueReminders } from "./reminders";
+import { remindWaiting } from "./apply/waiting";
 import { runRequestedTestEmails } from "./email/test-emails";
 import { CLOSE_AFTER_MISSES } from "./poller";
 import type { Env } from "./types";
@@ -31,7 +32,11 @@ export async function runNotificationScheduler(env: Env, now = new Date()): Prom
   // An admin's requested test-email run goes first, so its pushes go out this tick.
   await runRequestedTestEmails(env, now);
   const followUps = await remindDueFollowUps(env, now);
-  const reminders = await queueDueReminders(env, now) + await queueDueEventReminders(env, now);
+  const reminders = await queueDueReminders(env, now) + await queueDueEventReminders(env, now)
+    + await remindWaiting(env, now).catch((error: unknown) => {
+      console.error("Waiting sends' reminder failed:", error instanceof Error ? error.message : String(error));
+      return 0;
+    });
   const digests = await dailyDigestsDue(env.DB, now);
   const digestsSent = digests.length > 0
     ? await deliverPendingNotifications(env.DB, env, 500, { digests, now })

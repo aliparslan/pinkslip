@@ -27,6 +27,7 @@ import {
   whichApplicationNotification,
 } from "./notification-kinds";
 import { scheduleNotification } from "./notifications";
+import { waitingRows, waitingView } from "./apply/waiting";
 import { listThreads } from "./outreach/threads";
 
 export type ActivityKind =
@@ -381,6 +382,20 @@ export async function buildToday(db: D1Database, userId: string, now = new Date(
     } else if (at < horizon) {
       comingUp.push({ kind: "upcoming_follow_up", key: `planned-${thread.id}`, at: next.due_at, thread });
     }
+  }
+  // Sends that stopped on questions: one row for all of them (Paper "Stopped
+  // sends · Nov 4", W3), with how many questions are still unanswered.
+  const stopped = await waitingRows(db, userId, now).catch(() => []);
+  const waiting = waitingView(stopped);
+  if (waiting) {
+    needsYou.push({
+      kind: "sends_waiting",
+      key: "sends-waiting",
+      at: stopped[0]!.finished_at,
+      sends: waiting.sends,
+      questions: waiting.questions.filter((question) => question.answer === null).length,
+      until: waiting.until,
+    });
   }
   needsYou.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 

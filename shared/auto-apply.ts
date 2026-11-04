@@ -64,6 +64,31 @@ export interface ApplySend {
   progress?: { filled: number; of: number } | null;
   created_at: string;
   finished_at: string | null;
+  /** A real send that stopped on questions waits until then, a day after it
+   * stopped; null once dropped, and for everything else. Missing from
+   * servers before migration 0110. */
+  waiting_until?: string | null;
+}
+
+/** Sends that stopped on questions the person can answer in one sheet
+ * (Paper "Stopped sends · Nov 4", W3 to W7). */
+export interface WaitingSends {
+  sends: Array<{ id: string; job_id: string; company: string; domain: string | null; title: string }>;
+  /** Each asked once: a question two forms ask is one. */
+  questions: WaitingQuestion[];
+  /** The first of them lapses then. */
+  until: string;
+}
+
+export interface WaitingQuestion {
+  id: string;
+  label: string;
+  kind: string;
+  options: string[];
+  /** The companies asking it, for the step line. */
+  companies: string[];
+  /** Given already and kept until Send all. */
+  answer: string | string[] | null;
 }
 
 /** Still going: queued, in the browser, or waiting for the emailed code. */
