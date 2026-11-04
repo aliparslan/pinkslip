@@ -28,7 +28,7 @@ import { isUsJobLocation } from "./us-jobs";
 import { qualificationsEligible, qualificationYearsForProfile } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v19-doctoral-eligible-cohorts";
+export const MATCHER_VERSION = "profile-v20-coded-countries";
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {

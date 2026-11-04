@@ -27,6 +27,15 @@ const US_CITIES = [
 const US_STATE_ABBREVIATION =
   /(?:^|,\s*|\(\s*)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)(?:\b|,|\))/;
 
+/**
+ * "Bengaluru, KA, IN", "Toronto, ON, CA", "London, ENG, GB": a city, a
+ * region and a two-letter country, as Lever and Ashby write places. The last
+ * code is the country even when it reads like a state (IN is India, not
+ * Indiana; CA is Canada), so only US is the US (owner, 2026-11-04: a
+ * Bangalore job reached people).
+ */
+const CITY_REGION_COUNTRY = /^[^,]+,\s*([^,]+?),\s*([A-Za-z]{2})$/;
+
 function includesPhrase(location: string, phrase: string) {
   return new RegExp(`(?:^|[^a-z])${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^a-z])`)
     .test(location);
@@ -41,6 +50,14 @@ export function isUsJobLocation(location: string): boolean {
   if (!normalized || /^(?:unknown|unspecified|not specified|n\/?a)$/.test(normalized)) {
     return true;
   }
+
+  // Several places ("Bengaluru, KA, IN / Austin, TX") pass when any one is US.
+  const places = raw.split(/\s*(?:\/|;|\|)\s*/).filter(Boolean);
+  if (places.length > 1) return places.some((place) => isUsJobLocation(place));
+  // A US state in the middle ("Brooklyn, New York, NY") is the US's own way.
+  const coded = CITY_REGION_COUNTRY.exec(raw);
+  const usRegion = coded && (/^[A-Z]{2}$/.test(coded[1]!) ? US_STATE_ABBREVIATION.test(`, ${coded[1]}`) : US_STATE_NAMES.includes(coded[1]!.toLowerCase()));
+  if (coded && !usRegion) return coded[2]!.toUpperCase() === "US";
 
   // 1. Strong, unambiguous US signals (country, state abbreviation, state name)
   //    win outright, even alongside another country.

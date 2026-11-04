@@ -27,6 +27,21 @@ describe("isUsJobLocation", () => {
     expect(isUsJobLocation("2 Locations")).toBe(false);
   });
 
+  it("reads a city, region and country code by its country, even one that looks like a state", () => {
+    expect(isUsJobLocation("Bengaluru, KA, IN")).toBe(false);
+    expect(isUsJobLocation("Bengaluru, KA, IN / Bengaluru, Karnataka, IN")).toBe(false);
+    expect(isUsJobLocation("Toronto, ON, CA")).toBe(false);
+    expect(isUsJobLocation("Berlin, BE, DE")).toBe(false);
+    expect(isUsJobLocation("Indianapolis, IN, US")).toBe(true);
+    expect(isUsJobLocation("San Francisco, CA, US")).toBe(true);
+    expect(isUsJobLocation("Bengaluru, KA, IN / Austin, TX")).toBe(true);
+    expect(isUsJobLocation("Brooklyn, New York, NY")).toBe(true);
+    expect(isUsJobLocation("Austin, TX, 78701")).toBe(true);
+    // Two parts stay a city and a state.
+    expect(isUsJobLocation("Indianapolis, IN")).toBe(true);
+    expect(isUsJobLocation("San Francisco, CA")).toBe(true);
+  });
+
   it("does not let a US-named city override an explicit foreign country", () => {
     // Weak city matching only accepts the entire location, so a city name that
     // also exists in the US cannot rescue a foreign-qualified location.
