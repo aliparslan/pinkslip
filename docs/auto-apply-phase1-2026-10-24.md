@@ -224,8 +224,12 @@ X?".
     stop waits a day, then lapses; its run is told once when it ends; one
     reminder at 8 the next morning with no deadline; one row on Today
     with Don't send on its swipe; one sheet that asks each question once
-    and ends in Send all. Not deployed yet: Worker with migration 0110,
-    then the app's update.
+    and ends in Send all. Live the same day: Worker `30a49ef1` with
+    migration 0110 (D1 bookmark before:
+    `00004738-0000a114-00005119-f37a5196ccef029ccb3abbbf950ee042`), and
+    the owner's update `01a1a8e8` (group `01a98fc3`, runtime 1.3.9) with
+    the stacked swipe pills. Production's app update waits for the
+    owner's check.
 
 ## The owner's first sends
 
