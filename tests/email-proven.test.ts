@@ -113,7 +113,8 @@ describe("dates from emails", () => {
   });
 
   it("keeps only the day when a time comes without a zone", () => {
-    expect(detectEmailDate({ subject: "Interview", text: "Your interview is confirmed for October 22 at 11:00 AM.", date: null }, "interview", "America/New_York"))
+    // Sent Oct 15, so "October 22" is this year's, whatever today is.
+    expect(detectEmailDate({ subject: "Interview", text: "Your interview is confirmed for October 22 at 11:00 AM.", date: "Thu, 15 Oct 2026 14:00:00 +0000" }, "interview", "America/New_York"))
       .toEqual({ value: "2026-10-22" });
   });
 
