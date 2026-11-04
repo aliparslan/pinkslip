@@ -29,6 +29,7 @@ import {
   greenhouseCode,
   isGreenhouseCodeEmail,
   jobFromLink,
+  listSends,
   queueSend,
   releaseKeptBrowser,
   runSend,
@@ -557,6 +558,20 @@ describe("running a send", () => {
     const trial = await queued(dry, true);
     await runSend(dry.env, trial.id, deps(fakePage({ controls: form() }), steps));
     expect(pushes(dry)).toEqual([]);
+  });
+
+  it("checks a form before an ask: no browser held, not in the sends, and the ask goes out", async () => {
+    const context = setup();
+    await saveApplyResume(context.bucket as unknown as R2Bucket, "u1", PDF, "Ali Arslan Resume");
+    // 11am in New York.
+    const at = "2026-10-24T15:00:00.000Z";
+    context.sqlite.run("INSERT INTO apply_asks (id, user_id, job_id, status, notify_at, created_at) VALUES ('k1', 'u1', 'j1', 'checking', ?, ?)", [at, at]);
+    const check = await queueSend(context.env, "u1", { jobId: "j1", dryRun: true, forAsk: true }, { fetcher: context.greenhouseUp });
+    expect(await runSend(context.env, check.id, deps(fakePage({ controls: form() }), steps))).toEqual({ outcome: "ready" });
+    expect(context.row(check.id)).toMatchObject({ status: "ready", for_ask: 1, browser_session: null });
+    expect(context.sqlite.query("SELECT status, notify_at FROM apply_asks").get()).toEqual({ status: "asked", notify_at: at });
+    expect(context.sqlite.query("SELECT kind, title FROM notification_log").all()).toEqual([{ kind: "apply_ask", title: "Acme" }]);
+    expect(await listSends(context.db, "u1")).toEqual([]);
   });
 
   it("holds the code's push a minute, and drops it when forwarding brings the code", async () => {

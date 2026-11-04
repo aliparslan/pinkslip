@@ -8,14 +8,15 @@ import type { ApplySend } from "../../shared/auto-apply";
 import { specificRoleSpecialties, type SearchProfile } from "../../shared/search-profile";
 import type { JobListing } from "../adapters/types";
 import type { JobFeatures } from "../job-features";
-import { validTimeZone, localParts, zonedTime } from "../local-time";
-import { applyAskNotification } from "../notification-kinds";
-import { scheduleNotification } from "../notifications";
+import { validTimeZone } from "../local-time";
 import { allowanceFor, currentPlan, releaseAllowance } from "../plans";
 import type { Env } from "../types";
 import { evaluateJobForProfile, prepareJobsForMatching } from "../user-job-matches";
 import { searchProfileFromRow, type SearchProfileRow } from "../user-preferences";
 import { SendError, queueSend } from "./sends";
+import { askTime, dayAround, restoreAlert, skipAlert } from "./ask-checks";
+
+export { askTime } from "./ask-checks";
 
 /**
  * Asking as strong matches post (owner, 2026-10-29; Decisions: Auto-apply #2,
@@ -25,6 +26,9 @@ import { SendError, queueSend } from "./sends";
  * way it takes the place of that job's new-job alert, and a person is never
  * asked about a job twice. Required questions only the person can answer
  * still stop a send and come back together (worker/apply/plan.ts).
+ *
+ * An ask goes out only after its form checks out (ask-checks.ts), and at
+ * most ASKS_PER_DAY a day, freshest first (owner, 2026-11-04).
  */
 
 /** "Until I turn it back on". */
@@ -32,10 +36,11 @@ const FOREVER = "9999-12-31T00:00:00.000Z";
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Pinkslip sends these forms itself; anything else stays a normal alert. */
 const SENDABLE = new Set(["greenhouse", "ashby"]);
-/** An ask found between 10pm and 8am waits for the morning. */
-const QUIET_FROM = 22;
-const QUIET_UNTIL = 8;
 const JOBS_PER_PASS = 90;
+/** Asks a person gets in their day; past it, strong matches get the normal alert. */
+export const ASKS_PER_DAY = 5;
+/** Checks started in a day, counting ones whose form didn't check out. */
+const CHECKS_PER_DAY = 10;
 
 export class AskError extends Error {
   constructor(message: string, readonly status: 400 | 403 | 404, readonly code: string) {
@@ -124,15 +129,6 @@ export function isStrongMatch(input: {
     || input.profile.custom_titles.some((custom) => custom.trim() !== "" && title.includes(custom.trim().toLowerCase()));
 }
 
-/** When an ask found now goes out: straight away, or 8am if it's night where the person is. */
-export function askTime(now: Date, timeZone: string): Date {
-  const local = localParts(now, timeZone);
-  if (local.hour >= QUIET_UNTIL && local.hour < QUIET_FROM) return now;
-  if (local.hour < QUIET_UNTIL) return zonedTime(local.year, local.month, local.day, QUIET_UNTIL, timeZone);
-  const tomorrow = new Date(Date.UTC(local.year, local.month - 1, local.day + 1));
-  return zonedTime(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth() + 1, tomorrow.getUTCDate(), QUIET_UNTIL, timeZone);
-}
-
 interface Person extends SearchProfileRow {
   user_id: string;
   time_zone: string | null;
@@ -218,7 +214,10 @@ export async function askForStrongMatches(
       atsType: facts.get(job.jobId)!.ats_type,
     }));
     if (strong.length === 0) continue;
-    const fresh = await notYetHandled(db, person.user_id, strong.map((job) => facts.get(job.jobId)!));
+    // Freshest first, so the day's asks go to the newest postings.
+    const posted = new Map(strong.map((job) => [job.jobId, job.listing.postedAt ?? ""]));
+    const fresh = (await notYetHandled(db, person.user_id, strong.map((job) => facts.get(job.jobId)!)))
+      .sort((a, b) => (posted.get(b.id) ?? "").localeCompare(posted.get(a.id) ?? ""));
     for (const job of fresh) {
       try {
         acted += await actOnStrongMatch(env, person, job, now, deps) ? 1 : 0;
@@ -266,19 +265,38 @@ async function actOnStrongMatch(env: Env, person: Person, job: JobFacts, now: Da
   if (!person.has_device) return false;
   const allowance = await allowanceFor(env, person.user_id, "auto_apply_send", now);
   if (allowance.used >= allowance.limit) return false;
-  const notifyAt = askTime(now, validTimeZone(person.time_zone));
-  if (!(await recordAsk(db, person.user_id, job.id, "asked", { notifyAt, now }))) return false;
-  await scheduleNotification(db, {
-    userId: person.user_id,
-    ...applyAskNotification({ company: job.company, title: job.title, jobId: job.id }),
-    kind: "apply_ask",
-    dedupeKey: `apply_ask:${job.id}`,
-    entityType: "job",
-    entityId: job.id,
-    scheduledFor: notifyAt,
-  }, now);
+  const zone = validTimeZone(person.time_zone);
+  const notifyAt = askTime(now, zone);
+  if (!(await roomToAsk(db, person.user_id, notifyAt, now, zone))) return false;
+  // The form is checked first (ask-checks.ts); its alert waits meanwhile.
+  if (!(await recordAsk(db, person.user_id, job.id, "checking", { notifyAt, now }))) return false;
   await skipAlert(db, person.user_id, job.id);
+  try {
+    await deps.queue(env, person.user_id, { jobId: job.id, dryRun: true, forAsk: true }, { now });
+  } catch (error) {
+    await db.prepare("UPDATE apply_asks SET status = 'skipped', decided_at = ? WHERE user_id = ? AND job_id = ? AND status = 'checking'")
+      .bind(now.toISOString(), person.user_id, job.id).run();
+    await restoreAlert(db, person.user_id, job.id);
+    // No resume yet, the posting closed: the normal alert says it.
+    if (error instanceof SendError) return false;
+    throw error;
+  }
   return true;
+}
+
+/** Under the day's asks (ASKS_PER_DAY, in the day the push would go out)
+ * and the day's checks. */
+async function roomToAsk(db: D1Database, userId: string, notifyAt: Date, now: Date, zone: string): Promise<boolean> {
+  const [askFrom, askTo] = dayAround(notifyAt, zone);
+  const [checkFrom, checkTo] = dayAround(now, zone);
+  const counts = await db.prepare(
+    `SELECT
+       COALESCE(SUM(CASE WHEN status IN ('checking', 'asked', 'applied', 'dismissed') AND notify_at >= ? AND notify_at < ? THEN 1 ELSE 0 END), 0) AS asks,
+       COALESCE(SUM(CASE WHEN status != 'sent' AND created_at >= ? AND created_at < ? THEN 1 ELSE 0 END), 0) AS checks
+     FROM apply_asks WHERE user_id = ?`
+  ).bind(askFrom.toISOString(), askTo.toISOString(), checkFrom.toISOString(), checkTo.toISOString(), userId)
+    .first<{ asks: number; checks: number }>();
+  return (counts?.asks ?? 0) < ASKS_PER_DAY && (counts?.checks ?? 0) < CHECKS_PER_DAY;
 }
 
 /** Writes the ask once; false when the person already had one for the job. */
@@ -286,7 +304,7 @@ async function recordAsk(
   db: D1Database,
   userId: string,
   jobId: string,
-  status: "asked" | "sent",
+  status: "checking" | "sent",
   fields: { sendId?: string; notifyAt?: Date; now: Date },
 ): Promise<boolean> {
   const at = fields.now.toISOString();
@@ -295,14 +313,6 @@ async function recordAsk(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(crypto.randomUUID(), userId, jobId, status, fields.sendId ?? null, fields.notifyAt?.toISOString() ?? null, at, status === "sent" ? at : null).run();
   return (result.meta?.changes ?? 0) > 0;
-}
-
-/** One push per job: the ask (or the automatic send's own push) replaces its new-job alert. */
-async function skipAlert(db: D1Database, userId: string, jobId: string) {
-  await db.prepare(
-    `UPDATE notification_candidates SET status = 'skipped', last_error = 'Asked to apply instead'
-     WHERE user_id = ? AND job_id = ? AND status = 'pending'`
-  ).bind(userId, jobId).run();
 }
 
 // ─── The push's buttons ──────────────────────────────────────────────────────
@@ -322,7 +332,8 @@ export async function answerAsk(
 ): Promise<{ status: "applied" | "dismissed" | "sent"; send: ApplySend | null }> {
   const ask = await env.DB.prepare("SELECT id, status, send_id FROM apply_asks WHERE user_id = ? AND job_id = ?")
     .bind(userId, jobId).first<{ id: string; status: string; send_id: string | null }>();
-  if (!ask) throw new AskError("Pinkslip didn't ask about this job.", 404, "not_found");
+  // A check still filling, or one that didn't ask, has no push to answer.
+  if (!ask || ask.status === "checking" || ask.status === "skipped") throw new AskError("Pinkslip didn't ask about this job.", 404, "not_found");
   const at = now.toISOString();
   if (action === "dismiss") {
     await env.DB.prepare("UPDATE apply_asks SET status = 'dismissed', decided_at = ? WHERE id = ? AND status = 'asked'").bind(at, ask.id).run();

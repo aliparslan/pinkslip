@@ -11,6 +11,7 @@ import { learnAnswers, planApplication } from "./plan";
 import { openFormPage, reconnectFormPage, type OpenedPage } from "./browser";
 import { enterCode, fillPlan, isEmpty, keptForm, prepareForm, recheck, submit, type FillProgress, type Prepared } from "./send-engine";
 import { applyResumeKey, loadResume, shotKey } from "./send-files";
+import { concludeAskCheck } from "./ask-checks";
 
 /**
  * Auto-apply's server sends (step 10, phase 1; docs/auto-apply-phase1-2026-10-24.md).
@@ -56,6 +57,8 @@ interface SendRow {
   fill_total: number | null;
   /** The send whose open browser this one carries on in (migration 0106). */
   continued_from: string | null;
+  /** A strong match's check before it asks (migration 0109, ask-checks.ts). */
+  for_ask: number;
   created_at: string;
   finished_at: string | null;
 }
@@ -78,7 +81,7 @@ interface JobForSend extends Pick<CompanyRow, "ats_type" | "source_type" | "ats_
 export async function queueSend(
   env: Env,
   userId: string,
-  input: { jobId: string; dryRun: boolean; sendId?: string },
+  input: { jobId: string; dryRun: boolean; sendId?: string; forAsk?: boolean },
   options: { start?: boolean; fetcher?: typeof fetch; now?: Date } = {},
 ): Promise<ApplySend> {
   const now = options.now ?? new Date();
@@ -129,9 +132,10 @@ export async function queueSend(
   const kept = await adoptKeptBrowser(env.DB, userId, job.id, now);
   try {
     await env.DB.prepare(
-      `INSERT INTO apply_sends (id, user_id, job_id, ats, url, dry_run, status, ledger_id, browser_session, continued_from, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)`
-    ).bind(sendId, userId, job.id, source.ats, url, input.dryRun ? 1 : 0, ledgerId, kept?.session ?? null, kept?.id ?? null, stamp, stamp).run();
+      `INSERT INTO apply_sends (id, user_id, job_id, ats, url, dry_run, status, ledger_id, browser_session, continued_from, for_ask, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`
+    ).bind(sendId, userId, job.id, source.ats, url, input.dryRun ? 1 : 0, ledgerId, kept?.session ?? null, kept?.id ?? null,
+      input.forAsk && input.dryRun ? 1 : 0, stamp, stamp).run();
   } catch (error) {
     if (ledgerId) await releaseAllowance(env.DB, ledgerId, now);
     if (/UNIQUE/i.test(String(error))) throw new SendError("Pinkslip already sent this application.", 409, "already_sent");
@@ -304,6 +308,10 @@ async function finish(env: Env, row: SendRow, status: ApplySendStatus, fields: F
   if (status === "submitted" && !row.dry_run) await trackJob(env.DB, row.user_id, row.job_id, "applied", "auto_apply");
   await skipCodePush(env.DB, row);
   await notifySend(env, row, status, fields.needs?.length ?? 0, now);
+  if (row.for_ask) {
+    await concludeAskCheck(env, row, status, fields.needs ?? [], now)
+      .catch((error: unknown) => console.error("Ask check failed:", error instanceof Error ? error.message : String(error)));
+  }
   return fields.keptSession ? { outcome: status, session_id: fields.keptSession } : { outcome: status };
 }
 
@@ -448,12 +456,13 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
       const answerable = filled.errors.length === 0 && filled.open.every((control) => control.kind !== "file");
       return finish(env, row, "needs_you", {
         detail: `${needs.length === 1 ? "1 question needs" : `${needs.length} questions need`} you. Nothing was sent.`,
-        needs, sent, formShot, keptSession: answerable ? keepOpen() : undefined,
+        // A check's form isn't held open: the ask may wait till morning.
+        needs, sent, formShot, keptSession: answerable && !row.for_ask ? keepOpen() : undefined,
       }, deps.now());
     }
     if (row.dry_run) {
       return finish(env, row, "ready", {
-        detail: "Everything's filled. A real send would press Submit now.", sent, formShot, keptSession: keepOpen(),
+        detail: "Everything's filled. A real send would press Submit now.", sent, formShot, keptSession: row.for_ask ? undefined : keepOpen(),
       }, deps.now());
     }
 
@@ -690,7 +699,8 @@ export async function getSend(db: D1Database, userId: string, sendId: string): P
 }
 
 export async function listSends(db: D1Database, userId: string): Promise<ApplySend[]> {
-  const rows = await db.prepare("SELECT * FROM apply_sends WHERE user_id = ? ORDER BY created_at DESC LIMIT 50").bind(userId).all<SendRow>();
+  // A check before an ask isn't one of the person's sends.
+  const rows = await db.prepare("SELECT * FROM apply_sends WHERE user_id = ? AND for_ask = 0 ORDER BY created_at DESC LIMIT 50").bind(userId).all<SendRow>();
   return Promise.all((rows.results ?? []).map((row) => describeSend(db, row)));
 }
 

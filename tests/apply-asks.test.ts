@@ -2,11 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { buildApnsBody } from "../worker/apns";
 import { answerAsk, askForStrongMatches, askTime, isStrongMatch, loadAutoApplySettings, saveAutoApplySettings, type AskDeps } from "../worker/apply/asks";
+import { concludeAskCheck } from "../worker/apply/ask-checks";
 import { SendError } from "../worker/apply/sends";
 import { classifyJob } from "../worker/job-features";
 import { deliverDueNotifications } from "../worker/notifications";
 import { normalizeSearchProfile, SEARCH_PROFILE_VERSION } from "../shared/search-profile";
-import type { ApplySend } from "../shared/auto-apply";
+import type { ApplySend, ApplySendStatus, SendNeed } from "../shared/auto-apply";
 import type { JobListing } from "../worker/adapters/types";
 import type { Env } from "../worker/types";
 import { sqliteD1 } from "./sqlite-d1";
@@ -73,16 +74,20 @@ const jobs = [
   { jobId: "j3", listing: listing("Software Engineer, New Grad") },
 ];
 
-/** Starts sends without a browser, recording what it was asked. */
+/** Starts sends without a browser, recording what it was asked; a check is a dry run. */
 function fakeQueue(queued: string[] = [], refuse?: SendError): AskDeps {
   return {
     queue: async (_env, userId, input) => {
       if (refuse) throw refuse;
-      queued.push(`${userId}:${input.jobId}`);
+      queued.push(`${userId}:${input.jobId}${input.dryRun && input.forAsk ? ":check" : ""}`);
       return { id: input.sendId ?? `send-${input.jobId}`, job_id: input.jobId, status: "queued" } as unknown as ApplySend;
     },
   };
 }
+
+/** The check's dry run ends (sends.ts calls this from finish). */
+const checked = (env: Env, jobId: string, status: ApplySendStatus = "ready", needs: SendNeed[] = [], at = NOW, userId = "owner") =>
+  concludeAskCheck(env, { user_id: userId, job_id: jobId }, status, needs, at);
 
 describe("strong matches", () => {
   const profile = normalizeSearchProfile(PROFILE);
@@ -106,10 +111,17 @@ describe("strong matches", () => {
 });
 
 describe("asking as strong matches post", () => {
-  it("asks once with a push in place of the new-job alert", async () => {
+  it("checks the form, then asks once with a push in place of the new-job alert", async () => {
     const { db, env, sqlite } = setup();
     sqlite.run("INSERT INTO notification_candidates (id, user_id, job_id, channel, status, created_at) VALUES ('c1', 'owner', 'j1', 'push', 'pending', ?)", [NOW.toISOString()]);
-    expect(await askForStrongMatches(env, jobs, NOW, fakeQueue())).toBe(1);
+    const queued: string[] = [];
+    expect(await askForStrongMatches(env, jobs, NOW, fakeQueue(queued))).toBe(1);
+    expect(queued).toEqual(["owner:j1:check"]);
+    // While the form is checked: no push yet, and the alert waits.
+    expect(sqlite.query("SELECT status FROM apply_asks").all()).toEqual([{ status: "checking" }]);
+    expect(sqlite.query("SELECT COUNT(*) AS n FROM notification_log").get()).toEqual({ n: 0 });
+    expect(sqlite.query("SELECT status FROM notification_candidates WHERE id = 'c1'").get()).toEqual({ status: "skipped" });
+    await checked(env, "j1");
     expect(sqlite.query("SELECT job_id, status, notify_at FROM apply_asks").all()).toEqual([
       { job_id: "j1", status: "asked", notify_at: NOW.toISOString() },
     ]);
@@ -160,7 +172,80 @@ describe("asking as strong matches post", () => {
     const { env, sqlite } = setup();
     const night = new Date("2026-10-28T04:30:00Z");
     await askForStrongMatches(env, jobs, night, fakeQueue());
+    await checked(env, "j1", "ready", [], night);
     expect(sqlite.query("SELECT scheduled_for FROM notification_log").get()).toEqual({ scheduled_for: "2026-10-28T13:00:00.000Z" });
+  });
+});
+
+describe("the check before an ask", () => {
+  const pending = (sqlite: ReturnType<typeof setup>["sqlite"]) =>
+    sqlite.run("INSERT INTO notification_candidates (id, user_id, job_id, channel, status, created_at) VALUES ('c1', 'owner', 'j1', 'push', 'pending', ?)", [NOW.toISOString()]);
+
+  it("asks about a form that stopped only on questions the person can answer", async () => {
+    const { env, sqlite } = setup();
+    await askForStrongMatches(env, jobs, NOW, fakeQueue());
+    await checked(env, "j1", "needs_you", [{ label: "Why Acme?", kind: "textarea" }]);
+    expect(sqlite.query("SELECT status FROM apply_asks").get()).toEqual({ status: "asked" });
+    expect(sqlite.query("SELECT COUNT(*) AS n FROM notification_log").get()).toEqual({ n: 1 });
+  });
+
+  it("never asks about a form Pinkslip couldn't fill, and the alert goes out instead", async () => {
+    for (const [status, needs] of [
+      ["needs_you", [{ label: "Country", kind: "error" }]],
+      ["needs_you", [{ label: "Resume", kind: "file" }]],
+      ["blocked", []],
+      ["gone", []],
+      ["failed", []],
+    ] as [ApplySendStatus, SendNeed[]][]) {
+      const { env, sqlite } = setup();
+      pending(sqlite);
+      await askForStrongMatches(env, jobs, NOW, fakeQueue());
+      await checked(env, "j1", status, needs);
+      expect(sqlite.query("SELECT status FROM apply_asks").get()).toEqual({ status: "skipped" });
+      expect(sqlite.query("SELECT COUNT(*) AS n FROM notification_log").get()).toEqual({ n: 0 });
+      expect(sqlite.query("SELECT status, last_error FROM notification_candidates WHERE id = 'c1'").get()).toEqual({ status: "pending", last_error: null });
+      await expect(answerAsk(env, "owner", "j1", "apply", NOW, fakeQueue())).rejects.toMatchObject({ code: "not_found" });
+    }
+  });
+
+  it("leaves a check that couldn't start to the normal alert", async () => {
+    const { env, sqlite } = setup();
+    pending(sqlite);
+    expect(await askForStrongMatches(env, jobs, NOW, fakeQueue([], new SendError("Upload the resume for sends first.", 409, "no_resume")))).toBe(0);
+    expect(sqlite.query("SELECT status FROM apply_asks").get()).toEqual({ status: "skipped" });
+    expect(sqlite.query("SELECT status FROM notification_candidates WHERE id = 'c1'").get()).toEqual({ status: "pending" });
+  });
+
+  it("doesn't ask once the person paused or applied while it checked", async () => {
+    const { env, sqlite } = setup();
+    await askForStrongMatches(env, jobs, NOW, fakeQueue());
+    await saveAutoApplySettings(env, "owner", { pause: "day" }, NOW);
+    await checked(env, "j1");
+    expect(sqlite.query("SELECT status FROM apply_asks").get()).toEqual({ status: "skipped" });
+    expect(sqlite.query("SELECT COUNT(*) AS n FROM notification_log").get()).toEqual({ n: 0 });
+  });
+
+  it("asks at most five a day, about the freshest postings", async () => {
+    const { env, sqlite } = setup();
+    const many = Array.from({ length: 7 }, (_, index) => {
+      const id = `n${index}`;
+      // n6 is the newest; n0 the oldest.
+      const posted = new Date(NOW.getTime() - (7 - index) * 60_000).toISOString();
+      sqlite.run(`INSERT INTO jobs (id, company_id, external_id, title, url, location, description, posted_at, first_seen_at, evergreen)
+        VALUES (?, 'acme', ?, 'Software Engineer, New Grad', '', 'Austin, TX', 'x', ?, ?, 0)`, [id, id, posted, posted]);
+      return { jobId: id, listing: listing("Software Engineer, New Grad", { externalId: id, postedAt: posted }) };
+    });
+    const queued: string[] = [];
+    expect(await askForStrongMatches(env, many, NOW, fakeQueue(queued))).toBe(5);
+    expect(queued).toEqual(["n6", "n5", "n4", "n3", "n2"].map((id) => `owner:${id}:check`));
+    // A check that didn't ask frees its place.
+    await checked(env, "n6", "blocked");
+    expect(await askForStrongMatches(env, many, NOW, fakeQueue(queued))).toBe(1);
+    expect(queued.at(-1)).toBe("owner:n1:check");
+    // The next day starts over.
+    const tomorrow = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
+    expect(await askForStrongMatches(env, many, tomorrow, fakeQueue(queued))).toBe(1);
+    expect(queued.at(-1)).toBe("owner:n0:check");
   });
 });
 
@@ -212,6 +297,9 @@ describe("the push's buttons", () => {
   it("Apply starts the send and Not this one dismisses the job", async () => {
     const { env, sqlite } = setup();
     await askForStrongMatches(env, jobs, NOW, fakeQueue());
+    // Nothing to answer while the form is checked.
+    await expect(answerAsk(env, "owner", "j1", "apply", NOW, fakeQueue())).rejects.toMatchObject({ code: "not_found" });
+    await checked(env, "j1");
     const queued: string[] = [];
     expect(await answerAsk(env, "owner", "j1", "apply", NOW, fakeQueue(queued))).toMatchObject({ status: "applied", send: { id: "send-j1" } });
     expect(queued).toEqual(["owner:j1"]);
@@ -225,6 +313,7 @@ describe("the push's buttons", () => {
   it("go out on a push that names its category and job", async () => {
     const { env } = setup();
     await askForStrongMatches(env, jobs, NOW, fakeQueue());
+    await checked(env, "j1");
     const sent: unknown[] = [];
     const stats = await deliverDueNotifications(env, NOW, async (_subscription, payload) => {
       sent.push(payload);
