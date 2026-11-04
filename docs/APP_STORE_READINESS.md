@@ -100,6 +100,10 @@ candidate, not as one more TestFlight build:
 
 ### The build
 
+- [ ] The app draws in the system font. The redesign used the Klim trial
+  cuts, which can't ship in a store build; the switch to SF was in progress
+  in another session on 2026-11-04 (`apps/native/src/ui/fonts.ts`).
+  Screenshots wait for it.
 - [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
   `bun test tests/native-release.test.ts`. Do this when cutting the
   candidate, not before: until then, updates for testers still go to 1.3.9.
@@ -250,8 +254,8 @@ A draft for the Notes field:
 - **LLC.** File it, get an EIN and a D-U-N-S number, convert the
   membership, then redo tax and banking under the LLC. Decide on the EU
   then.
-- **Klim web licence** before promoting the website (iOS uses the system
-  font).
+- **Klim licences.** The website still uses the trial cuts, so buy the web
+  licence before promoting it. The app licence brings Klim back to iOS.
 
 Sources: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/),
 [App privacy details](https://developer.apple.com/app-store/app-privacy-details/),
