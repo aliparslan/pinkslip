@@ -219,9 +219,13 @@ X?".
     for now (owner: "i think it should prompt the user for now").
   - Stopped sends that nobody finishes: these four have waited 5–6 days
     with nothing bringing him back. Each stop pushes once (three within
-    11 seconds on Oct 29) and never again. Next, Paper first (owner,
-    2026-11-04): one push for sends that stop together, one sheet for all
-    their questions, one reminder.
+    11 seconds on Oct 29) and never again. Built 2026-11-04 (Paper
+    "Stopped sends · Nov 4", approved; 157dea2 worker, a12880e app): a
+    stop waits a day, then lapses; its run is told once when it ends; one
+    reminder at 8 the next morning with no deadline; one row on Today
+    with Don't send on its swipe; one sheet that asks each question once
+    and ends in Send all. Not deployed yet: Worker with migration 0110,
+    then the app's update.
 
 ## The owner's first sends
 
