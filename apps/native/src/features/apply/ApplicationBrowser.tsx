@@ -325,7 +325,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
           </View> : null}
         </View>
         <GlyphMenu items={[
-          { id: "fill", title: "Fill again", glyph: "tailor", onSelect: () => events.current?.onRefill() },
+          // The bar shows "Reading…", "Filling…" while it runs, not the form as it stood.
+          { id: "fill", title: "Fill again", glyph: "tailor", onSelect: () => { if (applied) return; setAsking(false); setProgress(null); events.current?.onRefill(); } },
           ...(page && !request?.local ? [{ id: "safari", title: "Open in Safari", glyph: "open" as const, onSelect: () => void Linking.openURL(page) }] : []),
         ]}>
           <View style={styles.more} accessibilityRole="button" accessibilityLabel="More"><Icon name="more" size={22} stroke={2} /></View>

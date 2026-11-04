@@ -68,7 +68,9 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     const learned = new Map<string, string>();
     /** Fields Pinkslip filled on this page, for the soft pink they're shown in. */
     let byPinkslip = new Set<string>();
-    const resumeFile = resumeForUpload();
+    // Neither a stuck resume read nor a stuck plan may hold a pass open:
+    // Fill again only queues behind a running one.
+    const resumeFile = within(resumeForUpload(), 15_000).catch(() => null);
     const isCurrent = (expected: number) => !closed && loaded && revision === expected;
     const read = async () => JSON.parse(await within(browser.run(READ_FORM_BODY), 20_000)) as PageRead;
     const where = (url: string) => { try { const parsed = new URL(url); return `${parsed.host}${parsed.pathname}`; } catch { return ""; } };
@@ -173,7 +175,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         phase = "plan";
         shownOpen = -1;
         await browser.setStatus("Filling…");
-        const plan: ApplyPlan = await api.apply.plan(options.jobId, controls);
+        const plan: ApplyPlan = await within(api.apply.plan(options.jobId, controls), 30_000);
         if (!isCurrent(expected)) return;
         const byRef = new Map(controls.map((control) => [control.ref, control]));
         watched = new Map([
@@ -226,7 +228,14 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         loaded = true; revision += 1; page = where(url); watched = new Map(); learned.clear(); byPinkslip = new Set(); formShown = false;
         void pass();
       },
-      onRefill: () => void pass(),
+      // Fill again (owner, 2026-11-04: it did nothing). The form is on
+      // screen, so a load that never said it finished (a cancelled
+      // navigation) doesn't stop it.
+      onRefill: () => {
+        if (closed) return;
+        if (!loaded) { loaded = true; revision += 1; }
+        void pass();
+      },
       onFinished: () => {
         if (closed) return;
         closed = true;

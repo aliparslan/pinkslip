@@ -51,7 +51,10 @@ export function YouPage({ title, children, scroll = true, bar, action }: {
       {pageBar}
     </View>;
   }
+  // The field you're typing in scrolls up over the keyboard (owner,
+  // 2026-11-04: Contact's fields went under it).
   const page = <ScrollView {...(bar ? {} : tabBarScroll)} style={styles.fill} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
+    automaticallyAdjustKeyboardInsets
     onLayout={(event) => { const frame = event.nativeEvent.layout.height - (bar ? barBottom + BAR : 0); setBox((current) => ({ ...current, frame })); }}
     onContentSizeChange={(_width, content) => setBox((current) => ({ ...current, content }))}
     contentContainerStyle={[styles.content, { paddingTop: pageTop, paddingBottom: bar ? barBottom + BAR + 24 : tabSpace + 24 }]}>

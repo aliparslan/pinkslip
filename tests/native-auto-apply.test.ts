@@ -120,6 +120,21 @@ describe("native application session", () => {
     expect(flow.cleaned).toBe(true);
   });
 
+  test("Fill again fills a form whose load never said it finished", async () => {
+    const flow = harness();
+    try {
+      flow.load();
+      await until(() => flow.statuses.includes("Ready to submit"));
+      // A navigation starts and is cancelled: no load end follows.
+      flow.navigating();
+      flow.correctEmail();
+      flow.refill();
+      await until(() => flow.reads >= 3);
+      expect(flow.plans).toBe(2);
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
   test("does not fill or submit a new page using the previous page's plan", async () => {
     const planning = deferred<ApplyPlan>();
     const flow = harness({ autoSubmit: true, planning: () => planning.promise });
