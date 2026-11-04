@@ -253,6 +253,28 @@ describe("forwarded email", () => {
     expect(applications()).toEqual([]);
   });
 
+  it("doesn't ask which application a receipt is about when each one is already applied", async () => {
+    const { db, send, call, applications, records } = await setup();
+    await trackJob(db, "u1", "z2", "applied");
+    await trackJob(db, "u1", "z3", "applied");
+    await send(greenhouse("Your application to Zephyr Labs", "Thank you for applying. We received your application.", "receipt-generic"));
+    expect(applications()).toEqual([{ job_id: "z2", stage: "applied" }, { job_id: "z3", stage: "applied" }]);
+    expect(records()).toEqual([{ detected_stage: "applied", status: "unchanged" }]);
+    expect((await call("/inbox/emails?status=needs_choice")).body.emails).toEqual([]);
+  });
+
+  it("stops asking once the answer would change nothing", async () => {
+    const { db, sqlite, send, call } = await setup();
+    await trackJob(db, "u1", "z2", "applied");
+    await trackJob(db, "u1", "z3", "applied");
+    await send(greenhouse("Update from Zephyr Labs", "We'd like to invite you to a phone screen.", "invite-generic"));
+    expect((await call("/inbox/emails?status=needs_choice")).body.emails).toHaveLength(1);
+    // Both moved on by hand before it was answered.
+    sqlite.run("UPDATE applications SET stage = 'interview'");
+    await expireNeedsChoice(db);
+    expect((await call("/inbox/emails?status=needs_choice")).body.emails).toEqual([]);
+  });
+
   it("expires unanswered prompts after 30 days", async () => {
     const { db, sqlite } = await setup();
     sqlite.run(`INSERT INTO inbound_emails (id, user_id, message_hash, received_at, detected_stage, status, created_at)

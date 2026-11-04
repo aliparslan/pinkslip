@@ -56,6 +56,12 @@ export function emailMovesStage(current: ApplicationStage, detected: DetectedSta
   return STAGE_ORDER[detected] > STAGE_ORDER[current];
 }
 
+/** Whether filing an email under one of these would change anything: a step
+ * it moves, or a date it states. Otherwise "Which application?" has no use. */
+export function answerChanges(candidates: { stage: ApplicationStage }[], detected: DetectedStage, detectedDate: string | null): boolean {
+  return detectedDate !== null || candidates.some((application) => emailMovesStage(application.stage, detected));
+}
+
 export async function hashMessage(messageId: string | null, email: EmailContent): Promise<string> {
   const key = messageId?.trim() || `${email.from.address}\n${email.subject}\n${email.date ?? ""}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
@@ -223,8 +229,16 @@ export async function processEmail(
     return { status: moves ? "applied" : "unchanged", emailId, applicationId: application.id };
   };
 
-  const askWhich = async (companyId: string, ids: string[]): Promise<ProcessOutcome> => {
-    const emailId = await record("needs_choice", companyId, null, ids);
+  const askWhich = async (companyId: string, candidates: ApplicationRow[]): Promise<ProcessOutcome> => {
+    // Only when the answer would change something: a step forward (or a
+    // rejection) for one of them, or an interview's date. A receipt when each
+    // is already Applied asks nothing (owner, 2026-11-04: "what would it even
+    // do after learning that info?").
+    if (!answerChanges(candidates, stage, detectedDate)) {
+      const emailId = await record("unchanged", companyId, null);
+      return emailId ? { status: "unchanged", emailId, applicationId: null } : { status: "duplicate" };
+    }
+    const emailId = await record("needs_choice", companyId, null, candidates.map((application) => application.id));
     if (!emailId) return { status: "duplicate" };
     await recordActivity(db, {
       userId,
@@ -264,13 +278,13 @@ export async function processEmail(
     if (specific.kind === "tie") {
       const tiedApplications = specific.ids.filter((key) => key.startsWith("app:"));
       if (tiedApplications.length === 1) return moveApplication(applicationFor(tiedApplications[0]!), companyId);
-      if (tiedApplications.length > 1) return askWhich(companyId, tiedApplications.map((key) => key.slice(4)));
+      if (tiedApplications.length > 1) return askWhich(companyId, tiedApplications.map(applicationFor));
       // Names jobs at the company, none of them the user's: not theirs to file.
       return { status: "ignored", reason: "no_job" };
     }
     // A generic email: their only application there, or ask.
     if (pool.length === 1) return moveApplication(pool[0]!, companyId);
-    return askWhich(companyId, pool.map((application) => application.id));
+    return askWhich(companyId, pool);
   }
 
   // Not tracking anything at that company yet: start tracking the catalog job
@@ -421,4 +435,18 @@ export async function expireNeedsChoice(db: D1Database): Promise<void> {
      WHERE status = 'needs_choice'
        AND julianday(received_at) < julianday('now', '-${NEEDS_CHOICE_TTL_DAYS} days')`
   ).run();
+  // An ask whose answer no longer changes anything (each one has moved on,
+  // or it never would have) stops asking.
+  const pending = await db.prepare(
+    "SELECT id, user_id, detected_stage, detected_date, candidate_application_ids FROM inbound_emails WHERE status = 'needs_choice' LIMIT 500"
+  ).all<{ id: string; user_id: string; detected_stage: DetectedStage; detected_date: string | null; candidate_application_ids: string }>();
+  for (const email of pending.results ?? []) {
+    const ids = JSON.parse(email.candidate_application_ids) as string[];
+    const found = ids.length === 0 ? [] : (await db.prepare(
+      `SELECT stage FROM applications WHERE user_id = ? AND id IN (${ids.map(() => "?").join(", ")})`
+    ).bind(email.user_id, ...ids).all<{ stage: ApplicationStage }>()).results ?? [];
+    if (answerChanges(found, email.detected_stage, email.detected_date)) continue;
+    await db.prepare("UPDATE inbound_emails SET status = 'unchanged', candidate_application_ids = '[]' WHERE id = ? AND status = 'needs_choice'")
+      .bind(email.id).run();
+  }
 }
