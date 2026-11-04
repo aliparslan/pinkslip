@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  Button, Choice, Choices, CodeBoxes, CompanyLogo, faces, Icon, LETTER_CODE_LENGTH, SearchField, SHEET_GROUP_RADIUS, SheetBack, SheetStep, Text,
+  Button, Choice, Choices, CodeBoxes, CompanyLogo, faces, Icon, LETTER_CODE_LENGTH, SearchField, SHEET_GROUP_RADIUS, SheetBack, SheetStep, Text, useSheetTravel,
   useSheet, useUiFontsLoaded,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
@@ -51,6 +51,9 @@ export function NeedsSheet({ job, needs, dryRun, pending, onSend }: {
 }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<NeedAnswers>({});
+  // Next slides the questions left, Back right, whichever question it is.
+  const travel = useSheetTravel();
+  const go = (by: 1 | -1) => { travel(by); setStep(step + by); };
   const need = needs[step];
   if (!need?.ref) return null;
   const ref = need.ref;
@@ -66,10 +69,10 @@ export function NeedsSheet({ job, needs, dryRun, pending, onSend }: {
     </View>
     <NeedInput key={ref} need={need} value={value} onChange={set} />
     <View style={styles.actions}>
-      {step > 0 ? <SheetBack onPress={() => setStep(step - 1)} /> : null}
+      {step > 0 ? <SheetBack onPress={() => go(-1)} /> : null}
       <View style={styles.flex}>
         <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
-          onPress={() => (last ? onSend(answers) : setStep(step + 1))}>
+          onPress={() => (last ? onSend(answers) : go(1))}>
           {!last ? "Next" : dryRun ? "Check again" : `Send to ${job.company}`}
         </Button>
       </View>
@@ -114,6 +117,8 @@ export function WaitingSheet({ waiting, pending, onKeep, onSendAll }: {
   const [step, setStep] = useState(() => Math.max(0, questions.findIndex((question) => question.answer === null)));
   const [answers, setAnswers] = useState<NeedAnswers>(() =>
     Object.fromEntries(questions.flatMap((question) => (question.answer === null ? [] : [[question.id, question.answer]]))));
+  const travel = useSheetTravel();
+  const go = (by: 1 | -1) => { travel(by); setStep(step + by); };
   const question = questions[step];
   if (!question) return null;
   const value = answers[question.id];
@@ -131,14 +136,14 @@ export function WaitingSheet({ waiting, pending, onKeep, onSendAll }: {
     </View>
     <NeedInput key={question.id} need={need} value={value} onChange={set} />
     <View style={styles.actions}>
-      {step > 0 ? <SheetBack onPress={() => setStep(step - 1)} /> : null}
+      {step > 0 ? <SheetBack onPress={() => go(-1)} /> : null}
       <View style={styles.flex}>
         <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
           onPress={() => {
             const given = { [question.id]: value! };
             if (last) return onSendAll(given);
             onKeep(given);
-            setStep(step + 1);
+            go(1);
           }}>
           {!last ? "Next" : several ? `Send all ${waiting.sends.length}` : `Send to ${waiting.sends[0]!.company}`}
         </Button>

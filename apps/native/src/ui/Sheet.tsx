@@ -52,6 +52,9 @@ interface SheetContextValue {
   width: number;
   /** Closes unless a step's guard asks first. */
   dismiss: () => void;
+  /** Which way a run of steps is moving: 1 forward, -1 back, 0 for a menu
+   * whose steps slide by `inner`. Read as the cards move (useSheetTravel). */
+  travel: SharedValue<number>;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -65,6 +68,18 @@ function useSheetContext() {
 /** Closes the sheet it's inside: slides it away, then runs onClosed. */
 export function useSheet() {
   return { close: useSheetContext().close };
+}
+
+/**
+ * For a run of steps (questions "1 of 3", "2 of 3"…): call with 1 before
+ * Next and -1 before Back, and the new card comes in from that side while
+ * the old one leaves the other way (owner, 2026-11-04: the cards went
+ * "kinda random", since `inner` alone only knows a menu and one level under
+ * it).
+ */
+export function useSheetTravel() {
+  const { travel } = useSheetContext();
+  return useCallback((direction: 1 | -1) => { travel.value = direction; }, [travel]);
 }
 
 /** While `active`, swiping the sheet away or tapping behind it runs
@@ -116,6 +131,7 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const lists = useSharedValue(0);
   const anchor = useSharedValue(0);
   const fromTop = useSharedValue(true);
+  const travel = useSharedValue(0);
   const opened = useRef(false);
   const guard = useRef<(() => void) | null>(null);
   const maxHeight = height - insets.top - SHEET_INSET;
@@ -180,8 +196,8 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const keyboard = useAnimatedKeyboard();
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value - keyboard.height.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width }),
-    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width]);
+  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width, travel }),
+    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width, travel]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -274,24 +290,27 @@ export interface SheetStepProps {
   children: ReactNode;
 }
 
-/** A step slides in from one side... */
-function arriving(from: 1 | -1, width: number) {
+/** A step slides in from one side: the side a run of steps is heading to,
+ * or its own (`inner`) in a menu... */
+function arriving(from: 1 | -1, travel: SharedValue<number>, width: number) {
   return () => {
     "worklet";
+    const side = travel.value !== 0 ? travel.value : from;
     return {
-      initialValues: { transform: [{ translateX: from * width }] },
+      initialValues: { transform: [{ translateX: side * width }] },
       animations: { transform: [{ translateX: withTiming(0, PUSH) }] },
     };
   };
 }
 
 /** ...as the one it replaces slides out the other. */
-function leaving(to: 1 | -1, width: number) {
+function leaving(to: 1 | -1, travel: SharedValue<number>, width: number) {
   return () => {
     "worklet";
+    const side = travel.value !== 0 ? -travel.value : to;
     return {
       initialValues: { transform: [{ translateX: 0 }] },
-      animations: { transform: [{ translateX: withTiming(to * width, PUSH) }] },
+      animations: { transform: [{ translateX: withTiming(side * width, PUSH) }] },
     };
   };
 }
@@ -303,7 +322,7 @@ export function SheetStep({ id, inner = false, grabber = true, children }: Sheet
 }
 
 function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boolean; children: ReactNode }) {
-  const { dismiss, measure, opened, maxHeight, width } = useSheetContext();
+  const { dismiss, measure, opened, maxHeight, width, travel } = useSheetContext();
   // The step the sheet opens with rises with it; only later steps slide in.
   const [initial] = useState(() => !opened.current);
   const height = useSharedValue(0);
@@ -317,7 +336,7 @@ function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boole
   };
   const side = inner ? 1 : -1;
   const card = useAnimatedStyle(() => ({ height: height.value }));
-  return <Animated.View entering={initial ? undefined : arriving(side, width)} exiting={leaving(side, width)}
+  return <Animated.View entering={initial ? undefined : arriving(side, travel, width)} exiting={leaving(side, travel, width)}
     style={[styles.card, card]}>
     {/* The content stands on the card's bottom edge, so it holds still while the card grows. */}
     <View onLayout={onLayout} style={[styles.step, { maxHeight }]}>

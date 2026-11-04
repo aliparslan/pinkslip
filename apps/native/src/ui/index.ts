@@ -25,7 +25,7 @@ export { AlertPreview } from "./AlertPreview";
 export { AppleLogo, CODE_LENGTH, CodeBoxes, GoogleLogo, LETTER_CODE_LENGTH, ProviderButton, SignInField, type CodeBoxesProps, type ProviderButtonProps, type SignInFieldProps, type SignInProvider } from "./SignIn";
 export { Segmented, type SegmentedProps } from "./Segmented";
 export { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
-export { Sheet, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet, useSheetGuard, type SheetHeaderProps, type SheetModalProps, type SheetProps, type SheetStepProps } from "./Sheet";
+export { Sheet, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, useSheet, useSheetGuard, useSheetTravel, type SheetHeaderProps, type SheetModalProps, type SheetProps, type SheetStepProps } from "./Sheet";
 export type { StageGroup, StageMarkKind } from "./stage-group";
 export { StageMark, type StageMarkProps } from "./StageMark";
 export { StampedSlip, type StampedSlipProps } from "./StampedSlip";
