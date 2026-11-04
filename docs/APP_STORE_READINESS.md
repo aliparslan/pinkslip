@@ -44,7 +44,7 @@ Checked in the repo or production on 2026-11-04:
 
 ## Decisions
 
-Made by the owner on 2026-11-04:
+All made by the owner on 2026-11-04:
 
 - **Seller:** the owner's personal name (individual membership) for now.
   An LLC comes in a few months. Then convert this membership through
@@ -56,32 +56,53 @@ Made by the owner on 2026-11-04:
 - **No AI consent prompt.** The privacy page covers the AI processing (see
   below).
 - **The repository stays public.**
-
-Still open, with the recommendation first:
-
-1. **Pro waits for an update.** The app's StoreKit side isn't built, so this
-   release sells nothing and the Plan row stays "Soon". When submitting,
-   App Store Connect offers to add the two subscriptions: leave them out.
-2. **Availability: the United States only.** The jobs are US jobs, the
-   Stripe tip link is allowed on the US storefront only, and selling in the
-   EU needs a Digital Services Act trader declaration, which shows a trader's
-   address, phone and email on EU listings. For an individual, that's a home
-   address. Revisit after the LLC.
-3. **Version 1.3.10**, the next patch (see "The build").
-4. **A review account with a password.** Guideline 2.1 asks for a demo
-   account when features need one. Add a Cloudflare Email Routing address
-   such as `review@pinkslip.work` that forwards to the owner (never the
-   personal address), sign up with it in the app, enter the code, then
-   choose a password at "Make a password". Keep it a normal account, not an
-   admin. Its email and password go in App Store Connect's sign-in fields.
-5. **Category:** Business, with Productivity second.
+- **Pro waits for an update.** The app's StoreKit side isn't built, so this
+  release sells nothing and the Plan row stays "Soon". When submitting,
+  App Store Connect offers to add the two subscriptions: leave them out.
+- **Availability: the United States only.** The jobs are US jobs, the
+  Stripe tip link is allowed on the US storefront only, and selling in the
+  EU needs a Digital Services Act trader declaration, which shows a trader's
+  address, phone and email on EU listings. For an individual, that's a home
+  address. Revisit after the LLC.
+- **Version 1.4.0.** This is the public release, so it's held to the
+  stability bar below.
+- **Category: Productivity**, with no second category (owner: Pinkslip
+  doesn't fit Business).
+- **A review account with a password**, which the owner makes (see "The
+  review account"). Guideline 2.1 asks for a demo account when features need
+  one.
 
 ## Before submitting
 
+### Stability for 1.4.0
+
+1.4.0 has to be steady from its first day, so it's built as a release
+candidate, not as one more TestFlight build:
+
+- **Freeze what the app does.** 1.4.0 carries what's on `main` when the
+  candidate is cut. Unfinished work stays hidden or behind its server
+  switch (Outreach and auto-apply sends are admin-only; Plan and Tailoring
+  are hidden or "Soon"). After the cut, only fixes go into 1.4.0.
+- **Every check before the cut:** `bun run check`, `bun test`,
+  `bun run build`, `bun run test:e2e`,
+  `bun --filter @pinkslip/native export:ios`, then
+  `cd apps/native && bunx playwright test -c playwright.config.ts`.
+- **Soak it.** Send the 1.4.0 build to the external testers and run the
+  phone checks below. Watch Xcode → Window → Organizer → Crashes and the
+  TestFlight feedback for a few days. Submit only with no crash open. A fix
+  means a new build and the phone checks again.
+- **Quiet during review and launch week.** No over-the-air updates to 1.4.0
+  except crash fixes, no API changes testers' builds rely on (the API stays
+  additive anyway), and a D1 restore point before any migration.
+- **Know the rollback.** An update that misbehaves is undone by republishing
+  the previous one (`eas update:republish`, see `apps/native/README.md`).
+  Try it once on the owner channel before launch.
+
 ### The build
 
-- [ ] Bump to 1.3.10 everywhere `apps/native/README.md` lists, and run
-  `bun test tests/native-release.test.ts`.
+- [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
+  `bun test tests/native-release.test.ts`. Do this when cutting the
+  candidate, not before: until then, updates for testers still go to 1.3.9.
 - [ ] Push `main` (go-ahead). Xcode Cloud builds it with tailoring hidden.
 - [ ] Confirm the Xcode Cloud workflow's Archive action says **TestFlight and
   App Store** under Deployment Preparation. External testing already needs
@@ -102,22 +123,31 @@ Still open, with the recommendation first:
      Settings → your name → Sign-In & Security → Sign in with Apple,
      Pinkslip should be gone, which shows Apple's token was revoked.
 
+### The review account
+
+The owner makes this; it needs a real inbox and a password, which an agent
+doesn't handle.
+
+- [ ] Cloudflare dashboard → pinkslip.work → Email → Email Routing →
+  Routing rules → **Create address**: `review`, sent to the same Fastmail
+  address as `support@`.
+- [ ] On the phone, signed out: You → Guest → `review@pinkslip.work` → the
+  code from Fastmail → **Make a password**. Keep it in the password manager.
+- [ ] Give the reviewer something to see: import the made-up resume at
+  `tests/fixtures/resume-import/latex-resume.pdf` (Jordan Lee, not a real
+  person), fill in a few Answers, and save a couple of jobs. Never use a
+  real resume, and never make the account an admin.
+- [ ] App Store Connect → the 1.4.0 version → App Review Information →
+  **Sign-in required**: the email and password.
+
 ### The privacy page
 
-`shared/legal.ts` already says resume extraction and Fill's guessed answers
-use Workers AI. Three things are missing:
-
-- [ ] **Forwarded email.** Add to "Information Pinkslip collects": "Job
-  emails you forward to your Pinkslip address, used to keep your
-  applications' status current."
-- [ ] **Application answers.** Add to "Career information": "answers you save
-  for applications, including optional demographic answers such as gender,
-  race, veteran and disability status."
-- [ ] **Service providers.** Name all the Workers AI uses and Google: "…and
-  run Workers AI models that read resumes, suggest application answers, and
-  sort forwarded job emails the rules can't place. If you use Google
-  sign-in, Google processes the information needed to sign you in."
-- [ ] Update `LEGAL_UPDATED_AT` and deploy (go-ahead).
+- [x] Added to `shared/legal.ts` on 2026-11-04: forwarded job emails, saved
+  application answers (including the optional demographic ones), every
+  Workers AI use, and Google sign-in. `LEGAL_UPDATED_AT` is November 4,
+  2026, and `tests/legal-pages.test.ts` checks the new lines.
+- [ ] Deploy the website (`bun run deploy:web`, go-ahead), where `/privacy`
+  renders.
 
 ### App Privacy answers
 
@@ -151,7 +181,8 @@ label.
 - [ ] Screenshots at 6.9-inch iPhone size (1320 × 2868), from the
   production build in the Simulator, browsing as a guest. Don't save
   anything on production.
-- [ ] Category (decision 5), price Free, availability (decision 2).
+- [ ] Category Productivity (no second category), price Free, availability
+  United States only.
 - [ ] Age rating questionnaire. The Fill browser and apply links open
   employers' sites inside the app, so answer the web-access question
   honestly. A higher rating costs nothing with an adult audience.
@@ -194,8 +225,8 @@ A draft for the Notes field:
 
 ## Submit
 
-- [ ] Add the 1.3.10 build to the version, leave in-app purchases out, and
-  submit.
+- [ ] Add the soaked 1.4.0 build to the version, leave in-app purchases
+  out, and submit.
 - [ ] Once approved, release when ready.
 
 ## After approval
