@@ -1,19 +1,20 @@
 import type { Application, InboundEmail } from "@pinkslip/core/api";
 import { feedParams } from "@pinkslip/core/feed-criteria";
-import { useAssignInboundEmail, useDismissInboundEmail, useFeed, useMarkTodaySeen, useToday } from "@pinkslip/data";
+import { useAssignInboundEmail, useDismissInboundEmail, useDropWaiting, useFeed, useMarkTodaySeen, useToday } from "@pinkslip/data";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
-import { router, Stack, useFocusEffect } from "expo-router";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
-import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
+import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
 import { WhichApplicationSheet } from "./email/JobEmailsPage";
 import { feedSections } from "./job-facts";
-import { ASK_SAMPLE, AskFirstCard } from "./apply-flow/AskFirst";
+import { ASK_SAMPLE, AskFirstCard, StackedLogos } from "./apply-flow/AskFirst";
+import { WaitingSheetModal } from "./sends/WaitingSends";
 import { LiveBar, type LiveQueue } from "./apply-flow/WhileItRuns";
 import { setAppBadge } from "../../platform/push";
 import { planFromToday, planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
@@ -89,12 +90,22 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   };
   const assign = useAssignInboundEmail();
   const dismiss = useDismissInboundEmail();
+  const drop = useDropWaiting();
+  // Stopped sends' one sheet, from their row or their push (`?answer=sends`).
+  const [waiting, setWaiting] = useState(false);
+  const { answer } = useLocalSearchParams<{ answer?: string }>();
+  useEffect(() => {
+    if (answer !== "sends" || sample) return;
+    setWaiting(true);
+    router.setParams({ answer: undefined });
+  }, [answer, sample]);
   const pull = usePullToRefresh(() => today.refetch());
   useFocusEffect(useCallback(() => {
     if (!sample) markSeen.mutate();
   }, [sample, markSeen.mutate]));
 
   const open = (target: TodayTarget) => {
+    if (target.kind === "waiting") return sample ? toast.show({ message: "A sample: nothing is waiting", icon: "autoApply" }) : setWaiting(true);
     if (target.kind === "email") setAsking(target.email);
     else if (target.kind === "person") router.push({ pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: target.id } });
     // Samples have no pages to open.
@@ -130,7 +141,15 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
       {quiet && newToday ? <NewJobsRow count={newToday} /> : null}
       {sections.map((section, index) => <View key={section.title}>
         <SectionHeader title={section.title} count={section.items.length} needsYou={section.needsYou} first={index === 0 && !(quiet && newToday)} />
-        {section.items.map((item) => <TodayRow key={item.key} item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />)}
+        {section.items.map((item) => item.target.kind === "waiting"
+          // W4: Don't send drops them all, the way Hide drops a job.
+          ? <SwipeRow key={item.key} id={item.key} trailing={[{
+            id: "drop", label: "Don't send", icon: "close", tone: "neutral", removes: true,
+            run: () => (sample ? undefined : drop.mutate(undefined, { onError: () => toast.error("Couldn't drop them. Try again.") })),
+          }]}>
+            <TodayRow item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />
+          </SwipeRow>
+          : <TodayRow key={item.key} item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />)}
       </View>)}
     </>;
 
@@ -154,6 +173,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
       dismiss: async (emailId) => { await dismiss.mutateAsync(emailId); },
     }} />
     <LiveEmailSetupSheet open={setup} onClosed={() => setSetup(false)} />
+    {sample ? null : <WaitingSheetModal open={waiting} onClosed={() => setWaiting(false)} />}
     {sample?.flow === "sending" ? <View pointerEvents="box-none" style={[styles.liveBar, { bottom: tabSpace - 4 }]}>
       <LiveBar queue={run} onPause={() => setPaused(!paused)}
         state={paused ? { kind: "paused", count: "3 of 9", share: 3 / 9 } : { kind: "sending", company: run.now!.company, count: "3 of 9", share: 3 / 9 }} />
@@ -163,7 +183,8 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
 
 function TodayRow({ item, needsYou, onPress }: { item: TodayItem; needsYou?: boolean; onPress: () => void }) {
   return <JobRow headline="news" company={item.company} title={item.headline} facts={item.facts} age={item.trailing} needsYou={needsYou}
-    leading={item.date ? <DateTile month={item.date.month} day={item.date.day} /> : undefined}
+    leading={item.date ? <DateTile month={item.date.month} day={item.date.day} />
+      : item.logos ? <StackedLogos first={item.logos[0]} second={item.logos[1]} ring="bg" /> : undefined}
     logo={item.logo ? { name: item.logo.name, uri: logoUri(item.logo.domain ?? undefined) } : undefined} onPress={onPress} />;
 }
 

@@ -1,4 +1,4 @@
-import type { SendNeed } from "@pinkslip/core/api";
+import type { SendNeed, WaitingSends } from "@pinkslip/core/api";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -7,7 +7,9 @@ import {
   useSheet, useUiFontsLoaded,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
+import { StackedLogos } from "../apply-flow/AskFirst";
 import { needControl } from "../send-facts";
+import { companyNames } from "../today-facts";
 
 export interface SendJob {
   company: string;
@@ -69,6 +71,76 @@ export function NeedsSheet({ job, needs, dryRun, pending, onSend }: {
         <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
           onPress={() => (last ? onSend(answers) : setStep(step + 1))}>
           {!last ? "Next" : dryRun ? "Check again" : `Send to ${job.company}`}
+        </Button>
+      </View>
+    </View>
+  </SheetStep>;
+}
+
+/** Several sends' one sheet opens with all of them (W5): the two logos, how
+ * many, and who. One send opens with its job, as its own sheet does. */
+function WaitingHeader({ waiting }: { waiting: WaitingSends }) {
+  const { close } = useSheet();
+  const [first, second] = waiting.sends;
+  if (!first) return null;
+  if (!second) return <SendHeader job={first} />;
+  return <View style={styles.header}>
+    <StackedLogos first={{ name: first.company, domain: first.domain }} second={{ name: second.company, domain: second.domain }} ring="sheet" />
+    <View style={styles.headerText}>
+      <Text weight="medium" lines={1}>{`${waiting.sends.length} applications`}</Text>
+      <Text role="subhead" tone="ink-2" lines={1}>{companyNames(waiting.sends.map((send) => send.company))}</Text>
+    </View>
+    <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close" hitSlop={6} style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
+      <Icon name="close" size={16} tone="ink-2" />
+    </Pressable>
+  </View>;
+}
+
+/**
+ * Every send that stopped on questions, in one sheet (Paper "Stopped sends ·
+ * Nov 4", W5 to W7): each question once, "1 of 6 · Glean and Databricks"
+ * above it, kept as it's answered so closing loses nothing; it opens on the
+ * first one still unanswered, and the last step sends them all.
+ */
+export function WaitingSheet({ waiting, pending, onKeep, onSendAll }: {
+  waiting: WaitingSends;
+  pending: boolean;
+  /** An answer, as Next is pressed. */
+  onKeep: (answers: NeedAnswers) => void;
+  /** The last answer, then Send all. */
+  onSendAll: (answers: NeedAnswers) => void;
+}) {
+  const questions = waiting.questions;
+  const [step, setStep] = useState(() => Math.max(0, questions.findIndex((question) => question.answer === null)));
+  const [answers, setAnswers] = useState<NeedAnswers>(() =>
+    Object.fromEntries(questions.flatMap((question) => (question.answer === null ? [] : [[question.id, question.answer]]))));
+  const question = questions[step];
+  if (!question) return null;
+  const value = answers[question.id];
+  const answered = Array.isArray(value) ? value.length > 0 : Boolean(value?.trim());
+  const last = step === questions.length - 1;
+  const several = waiting.sends.length > 1;
+  const need: SendNeed = { ref: question.id, label: question.label, kind: question.kind, options: question.options };
+  const set = (next: string | string[]) => setAnswers((current) => ({ ...current, [question.id]: next }));
+  const line = [questions.length > 1 ? `${step + 1} of ${questions.length}` : null, several ? companyNames(question.companies) : null].filter(Boolean).join(" · ");
+  return <SheetStep id={`waiting-${step}`} inner={step > 0} grabber={false}>
+    <WaitingHeader waiting={waiting} />
+    <View style={styles.question}>
+      {line ? <Text role="footnote" weight="medium" tone="ink-3">{line}</Text> : null}
+      <Text weight="medium">{question.label}</Text>
+    </View>
+    <NeedInput key={question.id} need={need} value={value} onChange={set} />
+    <View style={styles.actions}>
+      {step > 0 ? <SheetBack onPress={() => setStep(step - 1)} /> : null}
+      <View style={styles.flex}>
+        <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
+          onPress={() => {
+            const given = { [question.id]: value! };
+            if (last) return onSendAll(given);
+            onKeep(given);
+            setStep(step + 1);
+          }}>
+          {!last ? "Next" : several ? `Send all ${waiting.sends.length}` : `Send to ${waiting.sends[0]!.company}`}
         </Button>
       </View>
     </View>

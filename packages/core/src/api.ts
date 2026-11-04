@@ -33,11 +33,11 @@ import type {
   WorksThere,
 } from "@pinkslip/domain/recruiter-review";
 import type { SavedApplicationAnswer } from "@pinkslip/domain/application-answers";
-import type { ApplyResumeInfo, ApplySend } from "@pinkslip/domain/auto-apply";
+import type { ApplyResumeInfo, ApplySend, WaitingSends } from "@pinkslip/domain/auto-apply";
 import type { ApplyAskAction, AutoApplyMode, AutoApplyPause, AutoApplySettings } from "@pinkslip/domain/apply-asks";
 export type { ApplyAskAction, AutoApplyMode, AutoApplyPause, AutoApplySettings } from "@pinkslip/domain/apply-asks";
 export { APPLY_ASK_CATEGORY } from "@pinkslip/domain/apply-asks";
-export type { ApplyResumeInfo, ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "@pinkslip/domain/auto-apply";
+export type { ApplyResumeInfo, ApplySend, ApplySendStatus, SendNeed, SentAnswer, WaitingQuestion, WaitingSends } from "@pinkslip/domain/auto-apply";
 export { SEND_IN_PROGRESS } from "@pinkslip/domain/auto-apply";
 import type { PublicJob, PublicJobList } from "@pinkslip/domain/public-jobs";
 import type {
@@ -1023,6 +1023,17 @@ function createEndpoints(context: ClientContext) {
         method: "POST",
         body: JSON.stringify({ answers, resend }),
       }, 30_000),
+    /** Sends that stopped on questions, each question once; null when none wait. */
+    waitingSends: () => request<{ waiting: WaitingSends | null }>("/apply/waiting"),
+    /** Answers by question id, kept until Send all. */
+    keepWaitingAnswers: (answers: Record<string, string | string[]>) =>
+      request<{ waiting: WaitingSends | null }>("/apply/waiting/answers", { method: "PUT", body: JSON.stringify({ answers }) }),
+    /** Send all: each waiting send starts again; any that can't say why. */
+    sendWaiting: () =>
+      request<{ started: ApplySend[]; failed: Array<{ job_id: string; company: string; code: string; error: string }> }>(
+        "/apply/waiting/send", { method: "POST" }, 60_000),
+    /** Don't send: everything waiting is dropped. */
+    dropWaiting: () => request<void>("/apply/waiting/drop", { method: "POST" }),
     /** The code Greenhouse emailed, when forwarding didn't bring it. */
     sendCode: (sendId: string, code: string) =>
       request<void>(`/apply/sends/${encodeURIComponent(sendId)}/code`, { method: "POST", body: JSON.stringify({ code }) }),

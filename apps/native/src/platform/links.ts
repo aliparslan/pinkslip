@@ -20,7 +20,8 @@ export function appPathFor(input: string): string | null {
   if (job) return `/jobs/${job[1]}${url.search}`;
   if (path === "/auth/email/verify") return `/auth/email/verify${url.search}`;
   if (path === "/" || path === "") return "/";
-  if (path === "/today") return "/today";
+  // `?answer=sends` opens the stopped sends' sheet.
+  if (path === "/today") return `/today${url.search}`;
   const application = /^\/applications\/([^/]+)\/?$/.exec(path);
   if (application) return `/applications/${application[1]}`;
   // An event reminder (N19) opens the event's page.

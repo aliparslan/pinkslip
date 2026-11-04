@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
   Button, Chip, CompanyLogo, Icon, Radio, SHEET_GROUP_RADIUS, SheetModal, SheetStep, Text, toast, useSheet,
 } from "../../../ui";
@@ -42,10 +42,18 @@ export const ASK_SAMPLE: AskJob[] = [
 
 /** Two logos in the 40 slot, the second 12 down and right with a ring in
  * the card's colour (several companies in one row, never a number). */
-export function StackedLogos({ first, second }: { first: { name: string; domain?: string }; second: { name: string; domain?: string } }) {
+export function StackedLogos({ first, second, ring = "bg-grouped" }: {
+  first: { name: string; domain?: string | null };
+  second: { name: string; domain?: string | null };
+  /** What the pair sits on, for the ring: a card, the page, or a sheet. */
+  ring?: "bg-grouped" | "bg" | "sheet";
+}) {
+  const { theme } = useUnistyles();
   return <View style={styles.stack}>
     <View style={styles.stackBack}><CompanyLogo size="stack" name={first.name} uri={logoUri(first.domain)} /></View>
-    <View style={styles.stackFront}><CompanyLogo size="stack" name={second.name} uri={logoUri(second.domain)} /></View>
+    <View style={[styles.stackFront, { boxShadow: `0px 0px 0px 2px ${theme.ui.color[ring]}` }]}>
+      <CompanyLogo size="stack" name={second.name} uri={logoUri(second.domain)} />
+    </View>
   </View>;
 }
 
@@ -187,7 +195,7 @@ const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
   stack: { width: 40, height: 40 },
   stackBack: { position: "absolute", left: 0, top: 0 },
-  stackFront: { position: "absolute", left: 12, top: 12, borderRadius: 7, borderCurve: "continuous", boxShadow: `0px 0px 0px 2px ${theme.ui.color["bg-grouped"]}` },
+  stackFront: { position: "absolute", left: 12, top: 12, borderRadius: 7, borderCurve: "continuous" },
   card: { gap: theme.ui.space["4"], marginHorizontal: theme.ui.size.gutter, padding: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },
   cardTop: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   group: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },

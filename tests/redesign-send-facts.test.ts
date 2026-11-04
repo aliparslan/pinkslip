@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplySend } from "../shared/auto-apply";
 import {
-  answerSource, followedSend, liveBar, liveBarDone, needControl, refusal, sendButtonState, splitResume,
+  answerSource, followedSend, lapsed, liveBar, liveBarDone, needControl, refusal, sendButtonState, splitResume,
 } from "../apps/native/src/features/redesign/send-facts";
 
 const send = (patch: Partial<ApplySend> = {}): ApplySend => ({
@@ -145,5 +145,22 @@ describe("the live bar", () => {
     expect(liveBarDone([job("Toast", { status: "submitted" })])).toEqual({ words: "Sent to Toast", detail: "Confirmed" });
     expect(liveBarDone([job("A", { status: "submitted" }), job("B", { status: "unconfirmed" })])).toEqual({ words: "2 sent", detail: "1 confirmed so far" });
     expect(liveBarDone([])).toBeNull();
+  });
+});
+
+describe("a stopped send that no longer waits", () => {
+  const needs = [{ ref: "q1", label: "Visa?", kind: "radio", options: ["Yes", "No"], required: true }];
+  const at = Date.parse("2026-11-05T12:00:00Z");
+
+  test("goes back to Apply for me once its day is up or it's dropped", () => {
+    const waiting = send({ status: "needs_you", needs, waiting_until: "2026-11-05T23:14:00Z" });
+    expect(sendButtonState(waiting, "Stripe", at)).toEqual({ kind: "needsYou", questions: 1 });
+    expect(sendButtonState({ ...waiting, waiting_until: "2026-11-05T11:00:00Z" }, "Stripe", at)).toBeNull();
+    expect(sendButtonState({ ...waiting, waiting_until: null }, "Stripe", at)).toBeNull();
+  });
+
+  test("still waits on a server that doesn't say, and a dry run always does", () => {
+    expect(lapsed(send({ status: "needs_you", needs }), at)).toBe(false);
+    expect(lapsed(send({ status: "needs_you", needs, dry_run: true, waiting_until: null }), at)).toBe(false);
   });
 });

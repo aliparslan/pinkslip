@@ -737,6 +737,20 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     Toast · Confirmed") stays 4 seconds. Tap for the queue: Now, Up next,
     Sent. Pause waits for sends that can pause; Check first stays on its
     job.
+  - Sends that stop on questions (owner, 2026-11-04, Paper "Stopped sends
+    · Nov 4", approved; built the same day) wait a day, then lapse and the
+    job's button is Apply for me again. Their run says so once, when it
+    ends: one push naming the companies ("6 questions to finish all 3"),
+    or a stop alone's own push. One reminder at 8 the next morning, with
+    no deadline ("Still 6 questions to finish all 3"), and nothing after.
+    Today's Needs you has one row for them: the several-companies logos,
+    "Answer 6 questions to finish", and "3 applications · until tomorrow
+    6:14 PM", the only place the stop time shows. Swiping it gives Don't
+    send, neutral like Hide, which drops them all. Its sheet is Needs
+    you's, for all of them: the header names the batch ("3 applications"
+    over the companies), the step line says who asks ("1 of 6 · Glean and
+    Databricks"), a question two forms ask comes once, answers keep as
+    they're given, and the last step is Send all 3.
 - **Needs you lives on Today only.** Tracker has no Needs-you chip or
   section; the Today tab's badge carries the count.
 - **Tracker order:** chips and groups run Saved, Applied, Assessment,
@@ -1078,6 +1092,14 @@ cut so that each remaining one has a job.
     in `Choice`'s new `trailing` slot). Nothing below $1 or above $500 goes
     in, so there's no error state; the button stays gray until there's an
     amount.
+- **2026-11-04**
+  - Built stopped sends (Paper "Stopped sends · Nov 4", approved, W2's
+    deadline taken out): "A send on the job page" above. New:
+    `WaitingSheet` (`sends/SendSheets.tsx`) and its modal
+    (`sends/WaitingSends.tsx`); `StackedLogos` takes the ring colour of
+    what it sits on; the kit's send states show the row and the sheet.
+  - Swipe actions stack the icon over the label (owner: less across), see
+    Swipe actions.
 - **2026-10-29**
   - Built the send screens (Paper "Send screens · the missing states ·
     Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`

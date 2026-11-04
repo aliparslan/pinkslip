@@ -2,12 +2,14 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { ApplyButton, SheetModal, Text, toast, type ApplyState } from "../../ui";
+import { ApplyButton, Button, JobRow, SheetModal, SwipeRow, Text, toast, type ApplyState } from "../../ui";
+import { StackedLogos } from "../redesign/apply-flow/AskFirst";
 import { LiveBar, type LiveQueue, type LiveState } from "../redesign/apply-flow/WhileItRuns";
-import { CodeSheet, NeedsSheet } from "../redesign/sends/SendSheets";
+import { CodeSheet, NeedsSheet, WaitingSheet } from "../redesign/sends/SendSheets";
+import { companyNames, untilWords } from "../redesign/today-facts";
 import { refusal } from "../redesign/send-facts";
 import { KitPage } from "./KitPage";
-import { NEEDS_SAMPLE, SEND_SAMPLE_JOB } from "./send-sample";
+import { NEEDS_SAMPLE, SEND_SAMPLE_JOB, WAITING_SAMPLE } from "./send-sample";
 
 /** Each state with Paper's caption (S2 and the eight approved Oct 14). */
 const STATES: { caption: string; state: ApplyState }[] = [
@@ -52,7 +54,7 @@ const REFUSALS: { caption: string; code: string; data?: { limit: number } }[] = 
  * Nothing is sent.
  */
 export function SendStatesSample() {
-  const [sheet, setSheet] = useState<"needs" | "code" | null>(null);
+  const [sheet, setSheet] = useState<"needs" | "code" | "waiting" | null>(null);
   const press = (state: ApplyState) => {
     switch (state.kind) {
       case "needsYou": return () => setSheet("needs");
@@ -83,12 +85,31 @@ export function SendStatesSample() {
       <LiveBar state={state} queue={LIVE_QUEUE} onAction={() => setSheet("needs")} onDismiss={() => undefined} />
     </View>)}
     <View style={styles.item}>
+      <Text role="footnote" weight="medium" tone="ink-2">Stopped sends · W3 and W4, the row and its swipe</Text>
+      <View style={styles.bleed}>
+        <SwipeRow id="waiting-sample" trailing={[{ id: "drop", label: "Don't send", icon: "close", tone: "neutral", run: () => toast.show({ message: "A sample: nothing was dropped" }) }]}>
+          <JobRow headline="news" needsYou company={companyNames(WAITING_SAMPLE.sends.map((send) => send.company))}
+            title={`Answer ${WAITING_SAMPLE.questions.length} questions to finish`}
+            facts={`${WAITING_SAMPLE.sends.length} applications · until ${untilWords(WAITING_SAMPLE.until, new Date())}`} age="16m"
+            leading={<StackedLogos ring="bg"
+              first={{ name: WAITING_SAMPLE.sends[0]!.company, domain: WAITING_SAMPLE.sends[0]!.domain }}
+              second={{ name: WAITING_SAMPLE.sends[1]!.company, domain: WAITING_SAMPLE.sends[1]!.domain }} />}
+            onPress={() => setSheet("waiting")} />
+        </SwipeRow>
+      </View>
+      <Button variant="secondary" onPress={() => setSheet("waiting")}>Open the sheet (W5 to W7)</Button>
+    </View>
+    <View style={styles.item}>
       <Text role="footnote" weight="medium" tone="ink-2">When a send can't start</Text>
       {REFUSALS.map((item) => <Text key={item.code} weight="medium" onPress={() => showRefusal(item.code, item.data)}>{item.caption}</Text>)}
     </View>
     <SheetModal open={sheet === "needs"} onClosed={() => setSheet(null)}>
       <NeedsSheet job={SEND_SAMPLE_JOB} needs={NEEDS_SAMPLE} dryRun={false} pending={false}
         onSend={() => { setSheet(null); toast.show({ message: "A sample: answers kept, nothing sent", icon: "autoApply" }); }} />
+    </SheetModal>
+    <SheetModal open={sheet === "waiting"} onClosed={() => setSheet(null)}>
+      <WaitingSheet waiting={WAITING_SAMPLE} pending={false} onKeep={() => undefined}
+        onSendAll={() => { setSheet(null); toast.show({ message: "A sample: answers kept, nothing sent", icon: "autoApply" }); }} />
     </SheetModal>
     <SheetModal open={sheet === "code"} onClosed={() => setSheet(null)}>
       <CodeSheet job={SEND_SAMPLE_JOB} email="jordan@lee.dev" pending={false} failed={false}
@@ -100,4 +121,6 @@ export function SendStatesSample() {
 const styles = StyleSheet.create((theme) => ({
   content: { gap: theme.ui.space["6"], paddingHorizontal: theme.ui.size.gutter },
   item: { gap: theme.ui.space["2"] },
+  // A row runs edge to edge, as it does on Today.
+  bleed: { marginHorizontal: -theme.ui.size.gutter },
 }));

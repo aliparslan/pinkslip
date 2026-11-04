@@ -25,11 +25,19 @@ export function followedSend(sends: readonly ApplySend[] | undefined, jobId: str
  * form's own error message or a file to upload. */
 export const canAnswer = (need: SendNeed) => Boolean(need.ref) && need.kind !== "error" && need.kind !== "file";
 
+/** A real stop that no longer waits: dropped (Don't send), or its day is up
+ * (owner, 2026-11-04). Servers before migration 0110 don't say, and their
+ * stops still wait. */
+export function lapsed(send: ApplySend, now = Date.now()): boolean {
+  if (send.dry_run || send.status !== "needs_you" || send.waiting_until === undefined) return false;
+  return send.waiting_until === null || Date.parse(send.waiting_until) <= now;
+}
+
 const monthDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 /** The button for where a send stands; null to leave the page's own. */
-export function sendButtonState(send: ApplySend | null, company: string): ApplyState | null {
-  if (!send) return null;
+export function sendButtonState(send: ApplySend | null, company: string, now = Date.now()): ApplyState | null {
+  if (!send || lapsed(send, now)) return null;
   switch (send.status) {
     case "queued": return { kind: "opening" };
     case "running": return send.progress ? { kind: "applying", filled: send.progress.filled, of: send.progress.of } : { kind: "opening" };
@@ -142,7 +150,7 @@ export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now(
     || send.status === "code_needed");
   const going = run.filter((send) => GOING.has(send.status));
   const waiting = run.find((send) => send.status === "code_needed")
-    ?? run.find((send) => (send.status === "needs_you" && send.needs.length > 0) || send.status === "blocked");
+    ?? run.find((send) => (send.status === "needs_you" && send.needs.length > 0 && !lapsed(send, now)) || send.status === "blocked");
   if (going.length === 0 && !waiting) return null;
   const sent = run.filter((send) => send.status === "submitted" || send.status === "unconfirmed");
   const current = going.find((send) => send.status !== "queued") ?? going[0] ?? null;

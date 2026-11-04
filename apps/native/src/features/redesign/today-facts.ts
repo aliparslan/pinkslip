@@ -22,7 +22,9 @@ export type TodayTarget =
   | { kind: "job"; id: string }
   | { kind: "email"; email: InboundEmail }
   | { kind: "person"; id: string }
-  | { kind: "event"; id: string };
+  | { kind: "event"; id: string }
+  /** Sends that stopped on questions: their one sheet. */
+  | { kind: "waiting" };
 
 export interface TodayItem {
   key: string;
@@ -36,6 +38,8 @@ export interface TodayItem {
   trailing?: string;
   /** The logo, or Coming up's date tile. */
   logo?: { name: string; domain?: string | null };
+  /** Several companies in one row: two logos stacked in the slot. */
+  logos?: [{ name: string; domain?: string | null }, { name: string; domain?: string | null }];
   date?: Pick<NextRowFacts, "month" | "day">;
   target: TodayTarget;
   /** When it happened or happens, for ordering. */
@@ -253,9 +257,47 @@ export function planToday(applications: readonly Application[], emails: readonly
   };
 }
 
+/** "Glean, Databricks and Intercom", or the first three and how many more. */
+export function companyNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length <= 3) return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+}
+
+/** When the waiting sends lapse: "6:14 PM" today, "tomorrow 6:14 PM". */
+export function untilWords(until: string, now: Date): string {
+  const at = new Date(until);
+  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return day(at) === day(now) ? time : `tomorrow ${time}`;
+}
+
+/** W3 (Paper "Stopped sends · Nov 4"): one row for every send that stopped
+ * on questions, which opens their one sheet. */
+function waitingRow(entry: Extract<TodayEntry, { kind: "sends_waiting" }>, now: Date): TodayItem | null {
+  const [first, second] = entry.sends;
+  if (!first) return null;
+  const several = entry.sends.length > 1;
+  const left = entry.questions;
+  return {
+    key: entry.key,
+    company: companyNames(entry.sends.map((send) => send.company)),
+    headline: left === 0
+      ? (several ? `Send all ${entry.sends.length}` : `Send to ${first.company}`)
+      : `Answer ${left === 1 ? "1 question" : `${left} questions`} to finish`,
+    facts: [several ? `${entry.sends.length} applications` : first.title, `until ${untilWords(entry.until, now)}`].filter(Boolean).join(" · "),
+    trailing: trackerAge(entry.at, now),
+    logo: { name: first.company, domain: first.domain },
+    logos: second ? [{ name: first.company, domain: first.domain }, { name: second.company, domain: second.domain }] : undefined,
+    target: { kind: "waiting" },
+    at: Date.parse(entry.at),
+  };
+}
+
 /** One server entry as its row; null for a kind this build doesn't know yet. */
 function rowFor(entry: TodayEntry, now: Date): TodayItem | null {
   switch (entry.kind) {
+    case "sends_waiting": return waitingRow(entry, now);
     case "offer_reply": return offerRow(entry.application, now);
     case "interview_date": return interviewDateRow(entry.application, now);
     case "which_application":

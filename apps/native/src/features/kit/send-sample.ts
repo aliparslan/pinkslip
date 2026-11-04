@@ -1,4 +1,4 @@
-import type { ApplySend, SendNeed } from "@pinkslip/core/api";
+import type { ApplySend, SendNeed, WaitingSends } from "@pinkslip/core/api";
 import type { SendJob } from "../redesign/sends/SendSheets";
 
 /** The sample send's job (the kit's Stripe, as on Paper's send screens). */
@@ -17,6 +17,24 @@ export const NEEDS_SAMPLE: SendNeed[] = [
   { ref: "visa", label: "Will you need Stripe to sponsor a visa, now or later?", kind: "radio", options: ["Yes", "No"], required: true },
   { ref: "school", label: "School", kind: "combobox", options: SCHOOLS, required: true },
 ];
+
+/** Three sends that stopped together (Paper "Stopped sends · Nov 4"): a GPA
+ * two forms ask, and Intercom's own questions. */
+export const WAITING_SAMPLE: WaitingSends = {
+  sends: [
+    { id: "glean", job_id: "glean", company: "Glean", domain: "glean.com", title: "Software Engineer" },
+    { id: "databricks", job_id: "databricks", company: "Databricks", domain: "databricks.com", title: "Software Engineer, New Grad" },
+    { id: "intercom", job_id: "intercom", company: "Intercom", domain: "intercom.com", title: "Product Engineer" },
+  ],
+  questions: [
+    { id: "gpa", label: "What is your GPA?", kind: "text", options: [], companies: ["Glean", "Databricks"], answer: null },
+    { id: "ai", label: "What AI tools are you currently using today and how are you using them?", kind: "textarea", options: [], companies: ["Glean"], answer: null },
+    { id: "graduation", label: "What is your graduation date?", kind: "combobox", options: ["Earlier than Fall 2026", "Spring 2027", "Summer 2027", "Fall 2027 or later"], companies: ["Databricks"], answer: null },
+    { id: "relocate", label: "Are you willing to relocate?", kind: "combobox", options: ["Yes", "No"], companies: ["Intercom"], answer: null },
+    { id: "hybrid", label: "Are you willing to work from our office location 3 days per week?", kind: "combobox", options: ["Yes", "No"], companies: ["Intercom"], answer: null },
+  ],
+  until: new Date(Date.now() + 23 * 60 * 60_000).toISOString(),
+};
 
 const base: ApplySend = {
   id: "sample-send",

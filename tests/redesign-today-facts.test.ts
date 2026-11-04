@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Application } from "../shared/application-stages";
 import type { InboundEmail } from "../shared/email-tracking";
-import { planToday } from "../apps/native/src/features/redesign/today-facts";
+import { companyNames, planFromToday, planToday, untilWords } from "../apps/native/src/features/redesign/today-facts";
 
 // Thursday, Oct 15, 2 PM where the tests run.
 const now = new Date(2026, 9, 15, 14, 0);
@@ -86,5 +86,37 @@ describe("Today", () => {
       ["Monday", "Duolingo assessment due", "All day"],
     ]);
     expect(plan.comingUp[0]!.date).toEqual({ month: "OCT", day: "16" });
+  });
+});
+
+describe("stopped sends on Today", () => {
+  const now = new Date("2026-11-04T23:30:00Z");
+  const entry = (sends: number, questions: number) => ({
+    needs_you: [{
+      kind: "sends_waiting" as const, key: "sends-waiting", at: "2026-11-04T23:14:00Z", questions, until: "2026-11-05T23:14:00Z",
+      sends: [
+        { id: "g", job_id: "glean", company: "Glean", domain: "glean.com", title: "Software Engineer" },
+        { id: "d", job_id: "databricks", company: "Databricks", domain: "databricks.com", title: "Software Engineer, New Grad" },
+        { id: "i", job_id: "intercom", company: "Intercom", domain: "intercom.com", title: "Product Engineer" },
+      ].slice(0, sends),
+    }],
+    changed: [], coming_up: [], badge: 1, seen_at: null, tracking: 3,
+  });
+
+  test("are one row with both logos, the questions left, and when they lapse", () => {
+    const [row] = planFromToday(entry(3, 6), now).needsYou;
+    expect(row).toMatchObject({
+      company: "Glean, Databricks and Intercom",
+      headline: "Answer 6 questions to finish",
+      facts: `3 applications · until ${untilWords("2026-11-05T23:14:00Z", now)}`,
+      target: { kind: "waiting" },
+    });
+    expect(row!.logos?.map((logo) => logo.name)).toEqual(["Glean", "Databricks"]);
+  });
+
+  test("one alone reads like its job, and all answered is ready to send", () => {
+    expect(planFromToday(entry(1, 1), now).needsYou[0]).toMatchObject({ company: "Glean", headline: "Answer 1 question to finish", logos: undefined });
+    expect(planFromToday(entry(3, 0), now).needsYou[0]!.headline).toBe("Send all 3");
+    expect(companyNames(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 more");
   });
 });

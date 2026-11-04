@@ -39,6 +39,8 @@ export const queryKeys = {
     /** Auto-apply's sends, one send, and the resume they upload. */
     sends: () => ["personal", "sends"] as const,
     send: (sendId: string) => ["personal", "sends", sendId] as const,
+    /** Sends that stopped on questions, for their one sheet. */
+    waiting: () => ["personal", "sends", "waiting"] as const,
     sendResume: () => ["personal", "send-resume"] as const,
     autoApplySettings: () => ["personal", "auto-apply-settings"] as const,
     outreach: (jobId: string, threadId: string | null) => ["personal", "outreach", jobId, threadId] as const,

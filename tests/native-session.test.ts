@@ -74,6 +74,8 @@ test("admin alert links open the in-app admin", () => {
 
 test("notification links open Today and an application's page", () => {
   expect(appPathFor("/today")).toBe("/today");
+  // Several stopped sends' push opens Today with their sheet.
+  expect(appPathFor("/today?answer=sends")).toBe("/today?answer=sends");
   expect(appPathFor("/applications/app-123")).toBe("/applications/app-123");
   expect(appPathFor("https://pinkslip.work/applications/app-123")).toBe("/applications/app-123");
   expect(appPathFor("/applications/app-123/extra")).toBeNull();

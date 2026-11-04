@@ -62,6 +62,68 @@ export function useAnswerSend() {
   });
 }
 
+/** Sends that stopped on questions (Paper "Stopped sends · Nov 4"): each
+ * question once, with the answers kept so far. */
+export function useWaitingSends(enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.personal.waiting(),
+    queryFn: async () => (await api.apply.waitingSends()).waiting,
+    enabled,
+  });
+}
+
+/** After the waiting sends change, Today's row and the sends follow. */
+function useWaitingChanged() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.personal.sends() });
+  };
+}
+
+/** Keeps answers as they're given, so closing the sheet loses nothing. */
+export function useKeepWaitingAnswers() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (answers: Record<string, string | string[]>) => api.apply.keepWaitingAnswers(answers),
+    onSuccess: ({ waiting }) => {
+      queryClient.setQueryData(queryKeys.personal.waiting(), waiting);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.today() });
+    },
+  });
+}
+
+/** Send all: every waiting send starts again. */
+export function useSendWaiting() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const changed = useWaitingChanged();
+  return useMutation({
+    mutationFn: () => api.apply.sendWaiting(),
+    onSuccess: () => {
+      queryClient.setQueryData(queryKeys.personal.waiting(), null);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personal.answers() });
+      changed();
+    },
+  });
+}
+
+/** Don't send: everything waiting is dropped. */
+export function useDropWaiting() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const changed = useWaitingChanged();
+  return useMutation({
+    mutationFn: () => api.apply.dropWaiting(),
+    onSuccess: () => {
+      queryClient.setQueryData(queryKeys.personal.waiting(), null);
+      changed();
+    },
+  });
+}
+
 /** The code Greenhouse emailed, when forwarding didn't bring it. */
 export function useSendCode() {
   const api = useApi();
