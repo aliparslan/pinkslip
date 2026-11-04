@@ -107,6 +107,32 @@ const fillScript = (ref: string, value: string) => `(() => { const el = ${byRef(
   Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(value)});
   el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); })(); true;`;
 
+/**
+ * Keeps the field you're typing in above the answers strip (owner,
+ * 2026-11-04: the strip and iOS's form bar hid it). iOS lifts the field to
+ * just over the keyboard, where the strip sits, so the page rises the rest.
+ * `above` is how much of the page shows over the strip and `below` how far
+ * the strip and keyboard reach, in points; the page gets that much room at
+ * its end so even its last field can rise. It waits for iOS's own scroll.
+ */
+const clearStripScript = (above: number, below: number) => `setTimeout(() => {
+  const el = document.activeElement;
+  if (!el || !(el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+  let room = document.getElementById("pinkslip-room");
+  if (!room) { room = document.createElement("div"); room.id = "pinkslip-room"; room.setAttribute("aria-hidden", "true"); document.body.appendChild(room); }
+  const vv = window.visualViewport, scale = vv ? vv.scale : 1, top = vv ? vv.offsetTop : 0;
+  room.style.height = (${below} / scale) + "px";
+  const box = el.getBoundingClientRect();
+  // Up until its bottom clears the strip, never so far its label goes.
+  const by = Math.min(box.bottom + 12 - (top + ${above} / scale), box.top - top - 40);
+  if (by <= 0) return;
+  const before = window.scrollY;
+  window.scrollBy(0, by);
+  // A page that scrolls inside a box of its own.
+  if (window.scrollY === before) el.scrollIntoView({ block: "start" });
+}, 320); true;`;
+const DROP_ROOM = `(() => { const room = document.getElementById("pinkslip-room"); if (room) room.remove(); })(); true;`;
+
 /** Tells the app when Submit is pressed, so it can ask if no confirmation
  * follows, and which field has the cursor, for the answers strip (2.3). */
 const WATCH_PAGE = `(() => { if (window.__pinkslipWatch) return; window.__pinkslipWatch = true;
@@ -177,6 +203,10 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
   /** The field with the cursor, and the blanks a saved answer already went into. */
   const [focused, setFocused] = useState<string | null>(null);
   const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set());
+  /** Where the answers strip and the page sit, for keeping the field above the strip. */
+  const [strip, setStrip] = useState<{ y: number; height: number } | null>(null);
+  const [webTop, setWebTop] = useState(0);
+  const roomed = useRef(false);
   // The kit's samples carry their own answers; nothing reads or saves the bank.
   const bank = useAnswers(Boolean(request) && !request?.sample);
   const answers = request?.sample ? SAMPLE_ANSWERS : bank.data ?? [];
@@ -283,6 +313,20 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
   // 2.3: a blank you're typing in, and the saved answer of its kind.
   const typingIn = typing ? form?.blanks.find((item) => item.ref === focused && (item.kind === "textarea" || item.kind === "text")) : undefined;
   const suggestion = typingIn && !answered.has(typingIn.ref) ? suggestAnswer(typingIn.label, answers, request?.company) : null;
+  const stripShown = Boolean(suggestion && typingIn);
+  useEffect(() => {
+    if (!stripShown || !strip) return;
+    roomed.current = true;
+    web.current?.injectJavaScript(clearStripScript(strip.y - webTop, strip.height + keyboardHeight));
+    // Once per field, and again if the strip or keyboard moved.
+  }, [stripShown, typingIn?.ref, strip?.y, strip?.height, webTop, keyboardHeight]);
+  // The room goes with the keyboard, not with the strip (which leaves once
+  // the field isn't blank), so the page doesn't jump while you type.
+  useEffect(() => {
+    if (typing || !roomed.current) return;
+    web.current?.injectJavaScript(DROP_ROOM);
+    roomed.current = false;
+  }, [typing]);
   const useSuggestion = (ref: string, chosen: AnswerSuggestion) => {
     web.current?.injectJavaScript(fillScript(ref, chosen.answer));
     setAnswered((current) => new Set(current).add(ref));
@@ -334,7 +378,7 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
       </View>
       <View style={styles.track}><Animated.View style={[styles.line, line]} /></View>
       {url ? <WebView ref={web} source={request?.local ? { html: SAMPLE_FORM, baseUrl: url } : { uri: url }} style={styles.web} onMessage={onMessage}
-        injectedJavaScript={WATCH_PAGE} contentInset={{ bottom: 88 }}
+        injectedJavaScript={WATCH_PAGE} contentInset={{ bottom: 88 }} onLayout={(event) => setWebTop(event.nativeEvent.layout.y)}
         onLoadStart={() => { events.current?.onNavigating(); cancelScripts("The page changed"); setProgress(null); setFocused(null); setAnswered(new Set()); }}
         onLoadProgress={(event) => { loading.value = withTiming(event.nativeEvent.progress, { duration: 150 }); }}
         onLoadEnd={(event) => {
@@ -345,7 +389,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
         sharedCookiesEnabled={false} incognito={false} allowsBackForwardNavigationGestures
         originWhitelist={["https://*", "http://*"]} setSupportMultipleWindows={false} /> : null}
       {bar ? <View style={styles.barSlot} pointerEvents="box-none">{bar}</View> : null}
-      {suggestion && typingIn ? <AnswersStrip suggestion={suggestion} bottom={keyboardHeight} onUse={() => useSuggestion(typingIn.ref, suggestion)} /> : null}
+      {suggestion && typingIn ? <AnswersStrip suggestion={suggestion} bottom={keyboardHeight} onUse={() => useSuggestion(typingIn.ref, suggestion)}
+        onLayout={(layout) => setStrip((current) => current?.y === layout.y && current.height === layout.height ? current : layout)} /> : null}
     </View>
   </Modal>;
 }
@@ -355,11 +400,17 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
  * question, to drop in and edit, and Answer for me, which comes with Pro
  * and isn't here yet. Whatever you type is still saved to Answers.
  */
-function AnswersStrip({ suggestion, bottom, onUse }: { suggestion: AnswerSuggestion; bottom: number; onUse: () => void }) {
+function AnswersStrip({ suggestion, bottom, onUse, onLayout }: {
+  suggestion: AnswerSuggestion;
+  bottom: number;
+  onUse: () => void;
+  onLayout: (layout: { y: number; height: number }) => void;
+}) {
   const { theme, rt } = useUnistyles();
   const dark = !rt.themeName?.startsWith("light");
   return <GlassView glassEffectStyle="regular" colorScheme={dark ? "dark" : "light"} tintColor={dark ? theme.ui.color["bg-elev"] : undefined}
-    style={[styles.strip, !GLASS && styles.stripPaper, { bottom }]}>
+    style={[styles.strip, !GLASS && styles.stripPaper, { bottom }]}
+    onLayout={(event) => onLayout({ y: event.nativeEvent.layout.y, height: event.nativeEvent.layout.height })}>
     <View style={styles.stripLabel}><Text role="footnote" weight="medium" tone="ink-3">From your answers</Text></View>
     <View style={styles.stripRow}>
       <PressableScale accessibilityRole="button" accessibilityLabel={`Use your answer: ${suggestion.title}`} onPress={onUse}
