@@ -78,10 +78,11 @@ function toneColors(tone: SwipeTone, color: Record<string, string>) {
  */
 // The icon over its label (owner, 2026-11-04: less across).
 const PILL = 56;
-const PILL_PAD = 12;
+// More room either side (owner, 2026-11-04: it looked squeezed at 12).
+const PILL_PAD = 16;
 const PILL_ICON = 18;
 const PILL_ICON_GAP = 2;
-const PILL_MIN = 64;
+const PILL_MIN = 72;
 const PILL_GAP = 8;
 const PILL_EDGE = 8;
 const CARD_RADIUS = 22;
