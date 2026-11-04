@@ -146,8 +146,8 @@ doesn't handle.
   application answers (including the optional demographic ones), every
   Workers AI use, and Google sign-in. `LEGAL_UPDATED_AT` is November 4,
   2026, and `tests/legal-pages.test.ts` checks the new lines.
-- [ ] Deploy the website (`bun run deploy:web`, go-ahead), where `/privacy`
-  renders.
+- [x] Live on pinkslip.work since 2026-11-04 (`pinkslip-web` version
+  `7fb2d3b3`, which also hides tailoring on the website).
 
 ### App Privacy answers
 
