@@ -15,15 +15,19 @@ import type {
 import {
   answerKey,
   impliedAnswers,
+  inUnitedStates,
   isAcknowledgement,
   isOptionalConsent,
+  knownAnswer,
+  placeOption,
   prepareFields,
   questionKey,
-  resumeAnswer,
+  rangeOption,
   resumeKeyForLabel,
   sectionFor,
   storageKey,
   storedAnswer,
+  workStatusOption,
 } from "./answers";
 import { acceptedJevAnswer, answerWithJev, type JevQuestion } from "./jev-answers";
 import { commonAnswerFacts } from "./answer-bank";
@@ -51,6 +55,19 @@ export function fuzzyOption(options: string[], fact: string): string | null {
     ?? labelled.find(([, label]) => label.startsWith(target) || target.startsWith(label))
     ?? labelled.find(([, label]) => label.includes(target) || (label.length > 3 && target.includes(label)));
   return found?.[0] ?? null;
+}
+
+/** The option a known fact means: a date or GPA by its range, a place by
+ * city, state or country, anything else by name. */
+export function factOption(options: string[], key: string, fact: string, place: { location: string; country: string }): string | null {
+  if (key === "graduation" || key === "gpa") {
+    const ranged = rangeOption(options, key, fact);
+    if (ranged) return ranged;
+  }
+  const named = fuzzyOption(options, fact);
+  if (named) return named;
+  if (key === "location" || key === "country" || key === "state") return placeOption(options, place.location, place.country);
+  return null;
 }
 
 const WORKED_THERE = /\b(worked|employed|interned)\s+(at|for|by|with)\b|\bemployed,? or (otherwise )?engaged,? (by|with)\b|\b(employee|intern|contractor)\s+(of|at|for|with)\b|\b(current|former|previous)\s+(or\s+(current|former)\s+)?(employee|intern|contractor)\b|\bworked here\b/i;
@@ -218,11 +235,15 @@ export async function planApplication(
   ]);
 
   const pending = input.controls.filter((control) => isEmpty(control.value));
+  const implied = impliedAnswers(workAuthorization);
+  const statusAnswer = (key: string) => implied.get(key) ?? saved.get(key);
+  const authorizedWithoutSponsorship = statusAnswer("work_authorization") === "yes" && statusAnswer("sponsorship") === "no";
+  const place = { location: knownAnswer(profile.data, saved, "location"), country: knownAnswer(profile.data, saved, "country") };
   const prepared = new Map(prepareFields(
     pending.filter((control) => control.kind !== "checkbox").map(fieldForControl),
     profile.data,
     saved,
-    impliedAnswers(workAuthorization),
+    implied,
   ).map((field) => [field.id, field]));
 
   const steps: FillStep[] = [];
@@ -286,15 +307,25 @@ export async function planApplication(
       continue;
     }
 
-    // A resume fact asked as a search or a long dropdown: school, degree, country.
+    // Authorized with no sponsorship, said in a sentence: Intercom's "I am
+    // authorised to work in the country which this role is located".
+    const usRole = Boolean(job && inUnitedStates(job.location)) || /\b(u\.?s\.?a?|united states|america)\b/i.test(control.label);
+    const status = CHOICE_KINDS.has(control.kind) ? workStatusOption(control.label, control.options, authorizedWithoutSponsorship, usRole) : null;
+    if (status) {
+      steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, status) });
+      continue;
+    }
+
+    // A resume fact asked as a search or a long dropdown: school, degree,
+    // country; or one the applicant answered on an earlier form.
     const resumeKey = resumeKeyForLabel(control.label);
-    const fact = resumeKey ? resumeAnswer(profile.data, resumeKey) : "";
+    const fact = resumeKey ? knownAnswer(profile.data, saved, resumeKey) : "";
     if (fact) {
       if (control.searchable || control.options.length === 0) {
         steps.push({ ref: control.ref, kind: control.kind, value: fact, pick: control.kind === "combobox" || field?.type === "location" });
         continue;
       }
-      const option = fuzzyOption(control.options, fact);
+      const option = factOption(control.options, resumeKey!, fact, place);
       if (option) {
         steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, option) });
         continue;

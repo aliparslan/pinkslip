@@ -156,6 +156,11 @@ function stateName(location: string): string {
 
 const US_STATE = /\b(A[LKZR]|C[AOT]|DE|DC|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b|united states|\busa?\b/i;
 
+/** A place in the US: a state's code or name, or the country. */
+export function inUnitedStates(place: string): boolean {
+  return Boolean(stateName(place)) || US_STATE.test(place);
+}
+
 export function answerKey(
   fieldId: string,
   label: string,
@@ -402,4 +407,170 @@ export function prepareFields(
 
     return fill(defaultAnswer(field), "default") ?? { ...field, answer: null, source: null };
   });
+}
+
+/** A resume fact, or else the applicant's own answer to it on an earlier
+ * form: a GPA the resume leaves off, a city typed once. Country and state
+ * come from wherever the location does (owner, 2026-11-04: a tester gave his
+ * country four ways because his resume has no city). */
+export function knownAnswer(profile: ResumeProfile, saved: Map<string, ApplicationAnswerValue>, key: string): string {
+  const fromResume = resumeAnswer(profile, key);
+  if (fromResume) return fromResume;
+  const own = (name: string) => {
+    const value = saved.get(name);
+    return typeof value === "string" ? value.trim() : "";
+  };
+  if (key === "country" || key === "state") {
+    const location = profile.contact.location.trim() || own("location");
+    if (key === "state") return stateName(location);
+    return US_STATE.test(location) ? "United States" : "";
+  }
+  return ABOUT_KEYS.has(key) ? own(key) : "";
+}
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** The months a season covers, for graduation: spring ends in May or June,
+ * fall in December. */
+const SEASONS: Record<string, [number, number]> = { winter: [0, 1], spring: [2, 5], summer: [6, 7], fall: [8, 11], autumn: [8, 11] };
+
+/** "May 2025", "Spring 2027" or "2026" as a span of months, inclusive. */
+function monthSpan(text: string): [number, number] | null {
+  const year = Number(text.match(/\b(19|20)\d{2}\b/)?.[0]);
+  if (!year) return null;
+  const word = text.toLowerCase().match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(19|20)\d{2}\b|\b(winter|spring|summer|fall|autumn)\s+(19|20)\d{2}\b/);
+  if (word?.[1]) {
+    const month = year * 12 + MONTHS.indexOf(word[1]);
+    return [month, month];
+  }
+  if (word?.[3]) {
+    const [from, to] = SEASONS[word[3]]!;
+    return [year * 12 + from, year * 12 + to];
+  }
+  return [year * 12, year * 12 + 11];
+}
+
+/** What a date choice covers: "Earlier than Fall 2026", "Fall 2027 or
+ * later", "Dec 2025 – May 2026", or one term. */
+function dateRange(option: string): [number, number] | null {
+  const parts = option.split(/\s+(?:-|–|—|to|through)\s+/i);
+  if (parts.length === 2) {
+    const from = monthSpan(parts[0]!);
+    const to = monthSpan(parts[1]!);
+    return from && to ? [from[0], to[1]] : null;
+  }
+  const span = monthSpan(option);
+  if (!span) return null;
+  if (/\b(earlier than|before|prior to)\b/i.test(option)) return [-Infinity, span[0] - 1];
+  if (/\bor (later|after)\b|\b(after)\b|\band (later|beyond)\b|\+/i.test(option)) {
+    return /\bafter\b/i.test(option) && !/\bor after\b/i.test(option) ? [span[1] + 1, Infinity] : [span[0], Infinity];
+  }
+  return span;
+}
+
+/** What a GPA choice covers on a 4.0 scale: "3.1 - 3.3", "3.6 or above",
+ * "2.4 or below". Percentages and other scales don't count. */
+function gpaRange(option: string): [number, number] | null {
+  if (/%|out of (5|10|100)|\/ ?(5|10|100)\b/i.test(option)) return null;
+  const text = option.replace(/\(?\s*(out of|on a|\/)\s*4(\.0+)?(\s*scale)?\s*\)?/gi, " ");
+  const numbers = [...text.matchAll(/\b[0-4](?:\.\d{1,2})?\b/g)].map((match) => Number(match[0]));
+  const [low, high] = numbers;
+  if (low === undefined) return null;
+  if (high !== undefined && /\d\s*(?:-|–|—|to)\s*\d/.test(text)) return [low, high];
+  if (/or (above|higher|more|greater)|\babove\b|\bover\b|\+|>/i.test(text)) return [low, Infinity];
+  if (/or (below|lower|less)|\bbelow\b|\bunder\b|<|less than/i.test(text)) return [-Infinity, low];
+  return null;
+}
+
+/** The one choice whose range holds a known date or GPA ("May 2025" is
+ * "Earlier than Fall 2026"; 3.7 is "3.6 or above"), or null when none or
+ * several do. */
+export function rangeOption(options: string[], key: string, fact: string): string | null {
+  if (key === "graduation") {
+    const span = monthSpan(fact.replace(/^expected\s+/i, ""));
+    if (!span) return null;
+    const fits = options.filter((option) => {
+      const range = dateRange(option);
+      return range !== null && range[0] <= span[0] && span[1] <= range[1];
+    });
+    return fits.length === 1 ? fits[0]! : null;
+  }
+  if (key === "gpa") {
+    const value = Number(fact.match(/\b[0-4](?:\.\d{1,3})?\b/)?.[0]);
+    if (!Number.isFinite(value) || /\/ ?(5|10|100)\b|%/.test(fact)) return null;
+    const fits = options.filter((option) => {
+      const range = gpaRange(option);
+      return range !== null && range[0] <= value && value <= range[1];
+    });
+    return fits.length === 1 ? fits[0]! : null;
+  }
+  return null;
+}
+
+const COUNTRY_NAMES: Record<string, string[]> = {
+  "united states": ["united states", "united states of america", "usa", "us", "u s", "u s a", "america"],
+};
+
+/**
+ * The choice for where the applicant lives, from the most specific match
+ * down: the city ("Chicago Metro"), the state ("US - Texas"), then the
+ * country ("United States +1", "USA", "US - Other").
+ */
+export function placeOption(options: string[], location: string, country: string): string | null {
+  const words = (text: string) => ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  // "Dallas, TX" names a city; "Illinois" alone doesn't.
+  const first = location.includes(",") ? location.split(",")[0]!.trim() : "";
+  const city = first && !stateName(first) ? first : "";
+  const state = stateName(location);
+  const names = COUNTRY_NAMES[country.toLowerCase()] ?? (country ? [country.toLowerCase()] : []);
+  const inCountry = (option: string) => names.some((name) => words(option).includes(` ${name} `));
+  const only = (found: string[]) => (found.length === 1 ? found[0]! : null);
+
+  if (state) {
+    const stateOptions = options.filter((option) => words(option).includes(` ${state.toLowerCase()} `));
+    const withCity = city ? stateOptions.filter((option) => words(option).includes(` ${city.toLowerCase()} `)) : [];
+    const picked = only(withCity) ?? (stateOptions.length > 1 && city
+      // "Chicago Metro" and "Chicago Non-Metro": a city named is the metro.
+      ? only(stateOptions.filter((option) => !/\bnon.?metro\b/i.test(option) && words(option).includes(` ${city.toLowerCase()} `)))
+      : only(stateOptions));
+    if (picked) return picked;
+    if (stateOptions.length > 0) return null;
+  }
+  if (!names.length) return null;
+  const exact = options.filter((option) => names.includes(words(option).trim()) || names.some((name) => words(option).startsWith(` ${name} `) && !/ - /.test(option)));
+  if (exact.length === 1) return exact[0]!;
+  // A list of regions with one catch-all for the country: "US - Other".
+  return only(options.filter((option) => inCountry(option) && /\bother\b/i.test(option)));
+}
+
+/** Specific statuses an option may claim; being authorized doesn't say which. */
+const SPECIFIC_STATUS = /citizen|permanent resident|green card|\bvisa\b|\bh-?1b\b|\bopt\b|\bstem\b|\bf-?1\b|\btn\b|\bead\b|asylee|refugee/i;
+const UNSURE = /unknown|not sure|unsure|prefer not|don.?t know/i;
+const NEEDS_SPONSOR = /\b(require|requires|need|needs|needing|requiring)\b.{0,50}\b(sponsor\w*|renewal)\b/i;
+const NEGATED = /\b(do not|don.?t|does not|doesn.?t|will not|won.?t|never|no longer|without|not)\b/i;
+const AUTHORIZED = /\b(am|are|is)\b.{0,20}\b(legally )?(authori[sz]ed|eligible|permitted|allowed)\b.{0,10}\bto work\b/i;
+
+/**
+ * For someone authorized to work in the US who needs no sponsorship, the
+ * sentence choice that says so, when a work-authorization question words its
+ * choices as statements (Intercom's "I am authorised to work in the country
+ * which this role is located (citizen, permanent resident etc)"). Only for a
+ * US role, only one plain statement of authorization, never one that claims
+ * a particular status.
+ */
+export function workStatusOption(label: string, options: string[], authorizedWithoutSponsorship: boolean, usRole: boolean): string | null {
+  if (!authorizedWithoutSponsorship || !usRole) return null;
+  if (!YES_NO_TOPICS.slice(0, 2).some((topic) => topic.test(label))) return null;
+  // Plain Yes and No go by the saved yes/no answers instead.
+  if (options.length < 2 || options.every((option) => /^(yes|no)\.?$/i.test(option.trim()))) return null;
+  const fits = options.filter((option) => {
+    // "(citizen, permanent resident etc)" gives examples; it claims nothing.
+    const plain = option.replace(/\([^)]*\)/g, " ").trim();
+    if (UNSURE.test(plain) || SPECIFIC_STATUS.test(plain)) return false;
+    const sponsorship = NEEDS_SPONSOR.test(plain);
+    if (sponsorship && !NEGATED.test(plain)) return false;
+    const authorized = AUTHORIZED.test(plain) && !/\bnot\b.{0,20}\b(authori[sz]ed|eligible|permitted|allowed)\b/i.test(plain);
+    // "I am authorized to work…" or "I won't need sponsorship".
+    return authorized || sponsorship;
+  });
+  return fits.length === 1 ? fits[0]! : null;
 }
