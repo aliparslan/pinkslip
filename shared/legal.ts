@@ -2,7 +2,7 @@
  * React web app. The App Store links to `/privacy` and `/support`, and the
  * app's sign-in sheet to `/terms` and `/privacy`, so the paths are stable.
  * Bodies are static, repository-owned HTML. */
-export const LEGAL_UPDATED_AT = "October 29, 2026";
+export const LEGAL_UPDATED_AT = "November 4, 2026";
 export const TERMS_UPDATED_AT = "October 23, 2026";
 export const SUPPORT_EMAIL = "support@pinkslip.work";
 
@@ -25,7 +25,8 @@ export const privacyPolicy: LegalPage = {
 <h2>Information Pinkslip collects</h2>
 <ul>
   <li><strong>Account information:</strong> your display name, email address, sign-in provider, and the identifiers needed to keep you signed in.</li>
-  <li><strong>Career information:</strong> job preferences, location choices, resume and profile content, tailoring instructions and results, saved or dismissed jobs, viewed jobs, applications, and application status.</li>
+  <li><strong>Career information:</strong> job preferences, location choices, resume and profile content, answers you save for applications (including optional demographic answers such as gender, race, veteran and disability status), tailoring instructions and results, saved or dismissed jobs, viewed jobs, applications, and application status.</li>
+  <li><strong>Forwarded email:</strong> job emails you forward to your Pinkslip address, used to keep your applications' status current.</li>
   <li><strong>Notification information:</strong> notification preferences and a device push token when you enable notifications.</li>
   <li><strong>Support content:</strong> feedback, content reports, and information you include when asking for help.</li>
   <li><strong>Technical and usage information:</strong> app version, session and security information, request IP address for abuse prevention, product interactions, and error or delivery details used to operate and improve the service.</li>
@@ -35,7 +36,7 @@ export const privacyPolicy: LegalPage = {
 <p>Pinkslip uses this information to find and rank relevant jobs, sync your choices, send alerts you enable, create resume and tailoring tools you request, authenticate accounts, prevent abuse, provide support, and improve reliability. Pinkslip does not sell personal information or use it for third-party advertising.</p>
 
 <h2>Service providers</h2>
-<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and process resume extraction or tailoring requests with Workers AI. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
+<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and run Workers AI models that read and tailor resumes, suggest application answers, and sort forwarded job emails when Pinkslip's own rules can't tell what they're about. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you use Google sign-in, Google processes the information needed to sign you in. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
 
 <h2>Recruiters</h2>
 <p>To help job seekers reach the right person, Pinkslip keeps a short list of recruiters at the companies it lists:</p>

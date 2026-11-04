@@ -10,6 +10,9 @@ describe("public legal pages", () => {
     expect(html).toContain("resume and profile content");
     expect(html).toContain("Workers AI");
     expect(html).toContain("Sign in with Apple");
+    expect(html).toContain("Google sign-in");
+    expect(html).toContain("optional demographic answers");
+    expect(html).toContain("job emails you forward");
     expect(html).toContain("You → Account → Delete account");
     expect(html).toContain("does not sell personal information");
     expect(html).toContain("mailto:support@pinkslip.work");
