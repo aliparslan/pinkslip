@@ -194,6 +194,32 @@ page".
   resume copy, what each application sent and its pictures, guesses marked,
   deleted with the account) is live as web `bea534c1`.
 
+## What the first tester's sends stopped on (2026-11-04)
+
+Kushal (Free, unlimited grant) sent 7 real applications from Oct 29 to
+Nov 3: Stripe went through after he answered its stop, Vanta (Ashby) was
+submitted with no confirmation page, and Glean, Skild AI, Databricks and
+Intercom stopped on questions he never came back to (14 in all). He has
+44 kept answers; 21 are Stripe's "Do you possess N years of experience in
+X?".
+
+- **Fixed in e0b98af** (not deployed yet): a graduation date or GPA asked
+  as ranges, work authorization worded as sentences (US roles only), and
+  where he lives as regions, from the resume or his own earlier answers.
+  Replayed locally, the four stops ask 11 questions instead of 14.
+- **Still his to answer:** GPA (not on his resume; one answer now covers
+  the text box and the ranges), "Why us?" and "What AI tools…" essays, a
+  transcript upload, relocation, hybrid days, three export-control
+  questions, and Databricks' "How did you hear?" (no honest choice there:
+  LinkedIn, a recruiter, an event or a referral).
+- **For the owner to decide:**
+  - Stripe's "N years of experience in X?" when N is more than the
+    resume's whole career (first role to now): "No" is near-certain but
+    still an inference, and the Oct 29 rule keeps required inferences for
+    the person.
+  - Stopped sends that nobody finishes: these four have waited 5–6 days
+    with nothing bringing him back.
+
 ## The owner's first sends
 
 The app has no screens for this yet (frontend later, Paper first). Until
