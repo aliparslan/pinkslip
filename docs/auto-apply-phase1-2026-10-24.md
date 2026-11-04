@@ -214,12 +214,14 @@ X?".
   questions, and Databricks' "How did you hear?" (no honest choice there:
   LinkedIn, a recruiter, an event or a referral).
 - **For the owner to decide:**
-  - Stripe's "N years of experience in X?" when N is more than the
-    resume's whole career (first role to now): "No" is near-certain but
-    still an inference, and the Oct 29 rule keeps required inferences for
-    the person.
+  - ~~Stripe's "N years of experience in X?" when N is more than the
+    resume's whole career~~ Decided 2026-11-04: it keeps asking the person
+    for now (owner: "i think it should prompt the user for now").
   - Stopped sends that nobody finishes: these four have waited 5–6 days
-    with nothing bringing him back.
+    with nothing bringing him back. Each stop pushes once (three within
+    11 seconds on Oct 29) and never again. Next, Paper first (owner,
+    2026-11-04): one push for sends that stop together, one sheet for all
+    their questions, one reminder.
 
 ## The owner's first sends
 
