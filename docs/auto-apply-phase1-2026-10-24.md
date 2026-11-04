@@ -203,7 +203,8 @@ Intercom stopped on questions he never came back to (14 in all). He has
 44 kept answers; 21 are Stripe's "Do you possess N years of experience in
 X?".
 
-- **Fixed in e0b98af** (not deployed yet): a graduation date or GPA asked
+- **Fixed in e0b98af** (live 2026-11-04 as Worker `7484f9fe`; D1 bookmark before:
+  `00004738-000087e2-00005119-b03f67b4752ba79241a272f2f40a6a92`): a graduation date or GPA asked
   as ranges, work authorization worded as sentences (US roles only), and
   where he lives as regions, from the resume or his own earlier answers.
   Replayed locally, the four stops ask 11 questions instead of 14.
