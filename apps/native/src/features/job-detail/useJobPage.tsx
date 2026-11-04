@@ -19,6 +19,7 @@ import { useTrack } from "../jobs/track";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { ReportSheet } from "./ReportSheet";
 import { askToKeepSaves } from "../account/keep-saves";
+import { tailoringShown } from "../tailoring/shown";
 
 export type DetailJob = AnyJob & Partial<Job>;
 
@@ -227,7 +228,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     applied ? { label: "I didn't apply", icon: "arrow.uturn.backward", run: () => setApplied(false) } : { label: "I applied", icon: "checkmark.circle", run: () => setApplied(true) },
     !applied && { label: "Not interested", icon: "hand.thumbsdown", run: notInterested },
     outreach && { label: "Email recruiter", icon: "envelope", run: emailRecruiter },
-    { label: "Tailor resume", icon: "sparkles", run: () => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
+    tailoringShown && { label: "Tailor resume", icon: "sparkles", run:() => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
     { label: "Share", icon: "square.and.arrow.up", run: () => void shareJob(job) },
     job.company_id && { label: `Hide ${job.company_name}`, icon: "eye.slash", run: hideTheCompany },
     { label: "Report listing", icon: "flag", run: () => setReporting(true) },
@@ -247,7 +248,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
         ? { id: "unapply", title: "I didn't apply", glyph: "undo", onSelect: () => setApplied(false) }
         : { id: "apply", title: "I applied", glyph: "applied", onSelect: () => setApplied(true) },
       outreach && { id: "email", title: "Email recruiter", glyph: "email", onSelect: emailRecruiter },
-      { id: "tailor", title: "Tailor resume", glyph: "tailor", onSelect: () => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
+      tailoringShown && { id: "tailor", title: "Tailor resume", glyph: "tailor", onSelect:() => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
       job.company_id && { id: "company", title: `Hide ${job.company_name}`, glyph: "company", onSelect: hideTheCompany },
       { id: "report", title: "Report listing", glyph: "report", onSelect: () => setReporting(true) },
     ].filter((item): item is GlyphMenuItem => Boolean(item)),

@@ -9,6 +9,7 @@ import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { ListRow, ListSection, Screen, SegmentedControl, Stack, Text } from "../../kit";
 import { redesignKitAvailable } from "../redesign/flag";
+import { tailoringShown } from "../tailoring/shown";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../theme/appearance";
 import { useDevicePush } from "../alerts/Alerts";
 
@@ -50,7 +51,7 @@ export function You() {
     </ListSection>
     <ListSection label="Materials">
       <ListRow title="Resume" icon={FileText} detail={resume.data ? (resumeReady ? "Ready" : "Add your resume") : undefined} onPress={go("/you/resume")} />
-      <ListRow title="Tailoring" icon={Sparkle} detail="Coming soon" onPress={go("/you/tailoring")} />
+      {tailoringShown && <ListRow title="Tailoring" icon={Sparkle} detail="Coming soon" onPress={go("/you/tailoring")} />}
       {me?.features?.auto_apply_enabled && <ListRow title="Application answers" icon={ClipboardText} detail="Reused on every application" onPress={go("/you/answers")} />}
     </ListSection>
     <Stack gap="2">

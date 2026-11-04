@@ -18,6 +18,7 @@ import { autoApplyValue } from "../apply-flow/auto-apply-facts";
 import { EditSearchSheet } from "../EditSearch";
 import { trackingState, trackingStateLabels } from "../email/email-facts";
 import { useEmailTrackingPrefs } from "../email/email-prefs";
+import { tailoringShown } from "../../tailoring/shown";
 import { redesignKitAvailable } from "../flag";
 import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
@@ -35,7 +36,7 @@ export interface YouViewProps {
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
-  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean; support?: boolean; autoApply?: boolean };
+  show: { email: boolean; answers: boolean; plan: boolean; admin: boolean; kit: boolean; outreach?: boolean; support?: boolean; autoApply?: boolean; tailoring?: boolean };
   open: (destination: YouDestination) => void;
 }
 
@@ -83,7 +84,7 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       {show.outreach
         ? <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" accessory="chevron" onPress={() => open("outreach")} />
         : <ListItem leading={<IconTile icon="send" meaning="apply" />} title="Outreach" value="Soon" />}
-      <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Soon" accessory="chevron" onPress={() => open("tailoring")} />
+      {show.tailoring ? <ListItem leading={<IconTile icon="tailor" meaning="apply" />} title="Tailoring" value="Soon" accessory="chevron" onPress={() => open("tailoring")} /> : null}
     </ListGroup>
     <ListGroup surface="fill" inset="leading">
       {show.plan
@@ -200,6 +201,7 @@ export function YouScreen() {
       show={{
         email: signedIn, answers: signedIn, plan: false, admin: Boolean(me?.is_admin), kit: __DEV__ || redesignKitAvailable,
         outreach: signedIn && Boolean(me?.features?.outreach_enabled), support: Boolean(support), autoApply: sendsOpen,
+        tailoring: tailoringShown,
       }}
       // A guest's card opens the sign-in sheet over You, not a page.
       open={(destination) => destination === "search" ? setSearching(true)

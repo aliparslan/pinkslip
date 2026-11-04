@@ -93,7 +93,7 @@ function Editor({ initial }: { initial: ResumeProfile }) {
       setImporting(false);
     }
   };
-  const clearAll = () => Alert.alert("Clear your resume?", "This removes every section. Resumes you've already tailored stay.", [
+  const clearAll = () => Alert.alert("Clear your resume?", "This removes every section.", [
     { text: "Cancel", style: "cancel" },
     { text: "Clear resume", style: "destructive", onPress: () => save.mutate(createEmptyResumeProfile(), {
       onSuccess: (saved) => { setProfile(normalizeResumeProfile(saved.data)); clearResumeFile(); },

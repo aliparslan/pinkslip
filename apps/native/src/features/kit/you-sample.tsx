@@ -36,7 +36,7 @@ export function SampleYouScreen() {
     values={{ search: "New grad +1", email: "On", alerts: "On", resume: "Jordan_Lee.pdf", answers: "12", plan: "Free", whatsNew: "1.4" }}
     appearance={appearance}
     onAppearance={setAppearancePreference}
-    show={{ email: true, answers: true, plan: true, admin: true, kit: true, outreach: true, support: true }}
+    show={{ email: true, answers: true, plan: true, admin: true, kit: true, outreach: true, support: true, tailoring: true }}
     open={(destination) => {
       if (destination === "support") return setSupporting(true);
       const href = samples[destination] ?? live[destination];
