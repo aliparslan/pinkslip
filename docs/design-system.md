@@ -657,9 +657,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   and dissolves on its own.
 - **Swipe actions** (`SwipeRow`; owner, 2026-10-24, after iOS Mail,
   replacing S4's circles):
-  - Up to two pills a side, 44 tall, each sized to its 18 icon and Subhead
-    Medium label inline: 14 padding, at least 72 wide, 8 apart and 8 from
-    the screen's edge.
+  - Up to two pills a side, 56 tall, the 18 icon over its Footnote Medium
+    label, 2 apart (owner, 2026-11-04: less across; they were 44 tall with
+    the label inline): sized to the label with 12 padding, at least 64
+    wide, 8 apart and 8 from the screen's edge.
   - They're tinted by meaning (the ink at 14%), with the icon and label in
     the tone's ink. The outer one fills solid once a full swipe arms.
   - A short swipe stays open on them: from closed, about 22pt of drag opens

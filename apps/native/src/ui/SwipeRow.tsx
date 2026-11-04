@@ -76,11 +76,12 @@ function toneColors(tone: SwipeTone, color: Record<string, string>) {
  * removes the row leaves and closes up in one motion, and one that doesn't
  * runs once the row is home, so nothing changes while it moves.
  */
-const PILL = 44;
-const PILL_PAD = 14;
+// The icon over its label (owner, 2026-11-04: less across).
+const PILL = 56;
+const PILL_PAD = 12;
 const PILL_ICON = 18;
-const PILL_ICON_GAP = 6;
-const PILL_MIN = 72;
+const PILL_ICON_GAP = 2;
+const PILL_MIN = 64;
 const PILL_GAP = 8;
 const PILL_EDGE = 8;
 const CARD_RADIUS = 22;
@@ -105,7 +106,7 @@ const measured = new Map<string, number>();
 
 function pillWidth(label: string) {
   const text = measured.get(label) ?? label.length * 8.5;
-  return Math.max(PILL_MIN, Math.ceil(PILL_PAD * 2 + PILL_ICON + PILL_ICON_GAP + text));
+  return Math.max(PILL_MIN, Math.ceil(PILL_PAD * 2 + text));
 }
 
 /** Each pill's width and its distance from the screen's edge, outer first,
@@ -380,8 +381,8 @@ const styles = StyleSheet.create((theme) => ({
     position: "absolute", top: "50%", marginTop: -PILL / 2, height: PILL,
     borderRadius: theme.ui.radius.full, borderCurve: "continuous", overflow: "hidden",
   },
-  pillContent: { position: "absolute", top: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: PILL_ICON_GAP },
+  pillContent: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: PILL_ICON_GAP },
   pillContentLeft: { left: 0 },
   pillContentRight: { right: 0 },
-  pillLabel: { fontFamily: faces.textMedium, fontSize: theme.ui.type.subhead.size, lineHeight: theme.ui.type.subhead.line },
+  pillLabel: { fontFamily: faces.textMedium, fontSize: theme.ui.type.footnote.size, lineHeight: theme.ui.type.footnote.line },
 }));
