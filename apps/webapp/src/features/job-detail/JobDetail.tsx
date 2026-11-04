@@ -30,6 +30,7 @@ import { PageFailure, PageLoading } from "../states/LoadStates";
 import { JobNotFoundPage } from "../states/PageStates";
 import { openApplication } from "./application-return";
 import { useTrack } from "../jobs/track";
+import { tailoringShown } from "../tailoring/shown";
 import { Description } from "./Description";
 import { ReportDialog } from "./ReportDialog";
 import styles from "./JobDetail.module.css";
@@ -259,7 +260,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
             : <MenuItem icon={CheckCircle} onSelect={() => setApplied(true)}>I applied</MenuItem>)}
           {access.personal && !applied && <MenuItem icon={ThumbsDown} onSelect={notInterested}>Not interested</MenuItem>}
           {outreach && <MenuItem icon={EnvelopeSimple} onSelect={() => setEmailing(true)}>Email recruiter</MenuItem>}
-          {access.personal && <MenuItem icon={Sparkle} onSelect={() => void navigate({ to: "/tailor/$jobId", params: { jobId: job.id }, search: from ? { from } : {} })}>Tailor resume</MenuItem>}
+          {tailoringShown && access.personal && <MenuItem icon={Sparkle} onSelect={() => void navigate({ to: "/tailor/$jobId", params: { jobId: job.id }, search: from ? { from } : {} })}>Tailor resume</MenuItem>}
           <MenuItem icon={ShareNetwork} onSelect={() => void share(job)}>Share</MenuItem>
           {access.personal && job.company_id && <MenuItem icon={EyeSlash} onSelect={hideTheCompany}>Hide {job.company_name}</MenuItem>}
           {access.personal && <MenuItem icon={Flag} onSelect={() => setReporting(true)}>Report listing</MenuItem>}

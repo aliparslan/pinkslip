@@ -418,7 +418,7 @@ function Overview({ title, profile, open, add, onImported, onCleared, api }: {
     </Dialog>
 
     <AlertDialog open={clearing} onOpenChange={setClearing} title="Clear your resume?"
-      description="This removes every section. Resumes you've already tailored stay."
+      description="This removes every section."
       confirmLabel="Clear resume" tone="danger" pending={save.isPending}
       onConfirm={() => save.mutate(createEmptyResumeProfile(), {
         onSuccess: (saved) => {

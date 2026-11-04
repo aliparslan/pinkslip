@@ -10,6 +10,7 @@ import { Heading, Icon, Select, Separator, Stack, Surface, Text } from "../../ki
 import { usePushStatus, type PushStatus } from "../alerts/push";
 import { profileSummary } from "../preferences/profile";
 import { InlineFailure } from "../states/LoadStates";
+import { tailoringShown } from "../tailoring/shown";
 import { setThemePreference, useThemePreference, type ThemePreference } from "../theme/theme";
 import styles from "./You.module.css";
 
@@ -79,7 +80,7 @@ export function You() {
   ];
   const materials: Row[] = [
     { to: "/you/resume", label: "Resume", icon: FileText, detail: resume.data ? (resumeReady ? "Ready" : "Add your resume") : undefined },
-    { to: "/you/tailoring", label: "Tailoring", icon: Sparkle, detail: "Coming soon" },
+    ...(tailoringShown ? [{ to: "/you/tailoring", label: "Tailoring", icon: Sparkle, detail: "Coming soon" } as const] : []),
     ...(me?.features?.auto_apply_enabled ? [{ to: "/you/answers", label: "Application answers", icon: ClipboardText, detail: "Reused on every application" } as const] : []),
   ];
   const signedIn = session.data?.state === "authenticated";
