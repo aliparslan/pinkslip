@@ -331,9 +331,13 @@ export function readForm(): FormControl[] {
 /** Whether the page says an application just went through. Only a page with
  * nothing left to fill counts, since forms often open with a thank-you. */
 export function submittedPage(): boolean {
+  // Ashby swaps its form for this box in place, with the company's own
+  // words or "Your application was successfully submitted" (owner,
+  // 2026-11-04: Ashby never registered as applied, Greenhouse did).
+  if (document.querySelector(".ashby-application-form-success-container")) return true;
   if (document.querySelector("input:not([type=hidden]), textarea, select")) return false;
   return /\/(confirmation|thanks|thank-you|success)\b/i.test(location.pathname)
-    || /(thank you|thanks) for (applying|your application|submitting)|application (was |has been )?(submitted|received)|we('ve| have) received your application/i
+    || /(thank you|thanks) for (applying|your application|submitting)|application (was |has been )?(successfully )?(submitted|received)|we('ve| have) received your application/i
       .test(document.body?.innerText ?? "");
 }
 

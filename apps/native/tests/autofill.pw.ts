@@ -111,3 +111,16 @@ test("reads Ashby's questions, required marks and location search", async ({ pag
     ["checkboxes", "Why are you interested in working at Plaid? Select all that apply.", true],
   ]);
 });
+
+test("knows Ashby's sent application, in its own words or the company's", async ({ page }) => {
+  // Ashby swaps the form for its success box in place; the page's own
+  // inputs (a search, a hidden form) can still be there.
+  const sent = (words: string) => `<!doctype html><html><body><input type="search" placeholder="Search jobs">
+<div class="ashby-application-form-success-container"><div role="status"><h2>Success</h2><p>${words}</p></div></div></body></html>`;
+  await page.route("https://jobs.example.com/**", (route) => route.fulfill({ contentType: "text/html",
+    body: route.request().url().includes("custom") ? sent("Thanks! The team reads every one.") : sent("Your application was successfully submitted. We'll contact you if there are next steps.") }));
+  await page.goto("https://jobs.example.com/ramp/1/application");
+  expect((await read(page)).submitted).toBe(true);
+  await page.goto("https://jobs.example.com/custom/1/application");
+  expect((await read(page)).submitted).toBe(true);
+});

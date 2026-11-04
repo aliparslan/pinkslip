@@ -272,10 +272,12 @@ export async function submitForm(): Promise<SubmitReport> {
   const startUrl = location.href;
   button.click();
 
-  const SUCCESS = /(thank you|thanks) for (applying|your application|your interest)|application (was |has been )?(submitted|received)|we('ve| have) received your application/i;
+  const SUCCESS = /(thank you|thanks) for (applying|your application|your interest)|application (was |has been )?(successfully )?(submitted|received)|we('ve| have) received your application/i;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await wait(500);
-    if (SUCCESS.test(document.body.innerText) || (location.href !== startUrl && /confirm|thank|success/i.test(location.href))) {
+    // Ashby's own box for a sent application, whatever words it holds.
+    if (document.querySelector(".ashby-application-form-success-container")
+      || SUCCESS.test(document.body.innerText) || (location.href !== startUrl && /confirm|thank|success/i.test(location.href))) {
       return { status: "submitted", errors: [], url: location.href };
     }
     const challenge = [...document.querySelectorAll("iframe")].find((frame) =>

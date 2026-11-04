@@ -198,6 +198,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   // browser. The form is prepared while the sheet leaves.
   const afterPrep = useRef<Promise<ApplicationRequest | null> | null>(null);
   const askAfterBrowser = useRef(false);
+  /** The browser already knew: the board confirmed it, or "I applied" in its bar. */
+  const knownApplied = useRef(false);
 
   const leave = () => { if (router.canGoBack()) router.back(); };
   const notInterested = () => hideJob(job.id).then((hidden) => {
@@ -256,8 +258,11 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     {autoApply && <ApplicationBrowser request={applying}
       onClose={(result) => {
         setApplying(null);
-        // Closed with no confirmation: ask, as Safari's posting does, once the browser has gone.
-        askAfterBrowser.current = result === "closed" && !applied && ownSheets;
+        // Closed with no confirmation: ask, as Safari's posting does, once
+        // the browser has gone. Never when it already knew (owner,
+        // 2026-11-04: no "Applied?" once it's marked).
+        askAfterBrowser.current = result === "closed" && !applied && !knownApplied.current && ownSheets;
+        knownApplied.current = false;
       }}
       onDismissed={() => {
         setBrowserUp(false);
@@ -265,7 +270,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
         askAfterBrowser.current = false;
         setAsking(true);
       }}
-      onSubmitted={appliedThroughBrowser} onConfirmApplied={appliedThroughBrowser} />}
+      onSubmitted={() => { knownApplied.current = true; appliedThroughBrowser(); }}
+      onConfirmApplied={() => { knownApplied.current = true; appliedThroughBrowser(); }} />}
     {ownSheets
       ? <ReportJobSheet jobId={job.id} open={reporting} onClosed={() => setReporting(false)} onReportedClosed={hideQuietly} />
       : <ReportSheet jobId={job.id} open={reporting} onOpenChange={setReporting} />}
