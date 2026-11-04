@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplySend } from "../shared/auto-apply";
 import {
-  answerSource, followedSend, lapsed, liveBar, liveBarDone, needControl, refusal, sendButtonState, splitResume,
+  answerSource, followedSend, lapsed, liveBar, queueable, liveBarDone, needControl, refusal, sendButtonState, splitResume,
 } from "../apps/native/src/features/redesign/send-facts";
 
 const send = (patch: Partial<ApplySend> = {}): ApplySend => ({
@@ -162,5 +162,15 @@ describe("a stopped send that no longer waits", () => {
   test("still waits on a server that doesn't say, and a dry run always does", () => {
     expect(lapsed(send({ status: "needs_you", needs }), at)).toBe(false);
     expect(lapsed(send({ status: "needs_you", needs, dry_run: true, waiting_until: null }), at)).toBe(false);
+  });
+});
+
+describe("queueing a send from a job row", () => {
+  test("is for an open Greenhouse or Ashby job not applied to yet", () => {
+    expect(queueable({ source_type: "greenhouse", closed_at: null, applied: false })).toBe(true);
+    expect(queueable({ source_type: "ashby" })).toBe(true);
+    expect(queueable({ source_type: "lever" })).toBe(false);
+    expect(queueable({ source_type: "greenhouse", applied: true })).toBe(false);
+    expect(queueable({ source_type: "greenhouse", closed_at: "2026-11-01T00:00:00Z" })).toBe(false);
   });
 });

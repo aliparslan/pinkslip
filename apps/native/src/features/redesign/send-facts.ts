@@ -21,6 +21,12 @@ export function followedSend(sends: readonly ApplySend[] | undefined, jobId: str
   return mine.find((send) => !send.dry_run && WENT_OUT.has(send.status)) ?? mine[0] ?? null;
 }
 
+/** A job a long press can queue a send for (owner, 2026-11-04): a
+ * Greenhouse or Ashby form that's still open, not applied to yet. */
+export function queueable(job: { source_type?: string | null; closed_at?: string | null; applied?: boolean | number | null }): boolean {
+  return !job.applied && !job.closed_at && SENDABLE.has(job.source_type ?? "");
+}
+
 /** A question the app can ask and send back: it has a ref, and it isn't the
  * form's own error message or a file to upload. */
 export const canAnswer = (need: SendNeed) => Boolean(need.ref) && need.kind !== "error" && need.kind !== "file";

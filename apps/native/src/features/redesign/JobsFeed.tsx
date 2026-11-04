@@ -193,7 +193,7 @@ export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; vi
 
 /** A row's menu item with its icon (Paper "Menus · Oct 16" M1). */
 function glyphItem(item: MenuItem): GlyphMenuItem {
-  const glyph: MenuGlyph = item.id === "save" ? "save" : item.id === "unsave" ? "saved" : item.id === "applied" ? "applied"
+  const glyph: MenuGlyph = item.id === "apply_for_me" ? "bot" : item.id === "save" ? "save" : item.id === "unsave" ? "saved" : item.id === "applied" ? "applied"
     : item.id === "unapplied" ? "undo" : item.id === "read" ? (item.icon === "envelope.open" ? "read" : "unread")
     : item.id === "hide" ? "hide" : "block";
   return { id: item.id, title: item.title, glyph, destructive: item.destructive, onSelect: item.onSelect };

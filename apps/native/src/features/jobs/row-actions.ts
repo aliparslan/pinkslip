@@ -1,5 +1,6 @@
 import { ArrowCounterClockwise, BookmarkSimple, CheckCircle, EyeSlash, X } from "phosphor-react-native";
 import type { MenuItem, SwipeAction } from "../../kit";
+import { queueable } from "../redesign/send-facts";
 import type { JobActions, RowJob } from "./useJobActions";
 
 /** A row's full swipe each way and its long-press menu. The feed's right
@@ -8,7 +9,8 @@ import type { JobActions, RowJob } from "./useJobActions";
 export function rowActions(job: RowJob, actions: JobActions, viewed: boolean) {
   const saved = Boolean(job.saved);
   const applied = Boolean(job.applied);
-  const { save, unsave, markApplied, unmarkApplied, toggleRead, hide, block } = actions;
+  const { save, unsave, markApplied, unmarkApplied, toggleRead, hide, block, applyForMe } = actions;
+  const sendable = Boolean(applyForMe) && queueable(job);
 
   const leading: SwipeAction | null = save && !saved ? { label: "Save", icon: BookmarkSimple, symbol: "save", tone: "accent", run: () => save(job) }
     : save && unsave && saved ? { label: "Unsave", icon: BookmarkSimple, symbol: "saved", tone: "neutral", run: () => unsave(job) }
@@ -18,6 +20,7 @@ export function rowActions(job: RowJob, actions: JobActions, viewed: boolean) {
     : unmarkApplied && applied ? { label: "Didn't apply", icon: ArrowCounterClockwise, symbol: "undo", tone: "neutral", removes: true, run: () => unmarkApplied(job) } : null;
 
   const items: (MenuItem | false | undefined)[] = [
+    sendable && { id: "apply_for_me", title: "Apply for me", icon: "paperplane", onSelect: () => applyForMe!(job) },
     save && !saved && { id: "save", title: "Save", icon: "bookmark", onSelect: () => save(job) },
     unsave && saved && { id: "unsave", title: "Remove from saved", icon: "bookmark.slash", onSelect: () => unsave(job) },
     markApplied && !applied && { id: "applied", title: "I applied", icon: "checkmark.circle", onSelect: () => markApplied(job) },

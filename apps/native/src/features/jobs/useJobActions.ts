@@ -6,6 +6,7 @@ import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { haptics } from "../../platform/haptics";
 import { askToKeepSaves } from "../account/keep-saves";
+import { useBeginSend } from "../redesign/sends/useSendFlow";
 
 export type JobListContext = "feed" | "saved" | "applied";
 
@@ -20,6 +21,9 @@ export interface JobActions {
   toggleRead?: (job: RowJob, viewed: boolean) => void;
   hide?: (job: RowJob) => void;
   block?: (job: RowJob) => void;
+  /** Queues a real send without opening the job (owner, 2026-11-04: from a
+   * long press); only for jobs Pinkslip's browser can send. */
+  applyForMe?: (job: RowJob) => void;
 }
 
 /** The native app always has a session (a guest on first launch). */
@@ -44,6 +48,8 @@ export function useJobActions(context: JobListContext) {
   const hideJob = useHideJob();
   const block = useBlockJob();
   const markViewed = useMarkViewed();
+  const sends = Boolean(useSession().data?.me?.features?.auto_apply_send_enabled);
+  const { begin } = useBeginSend(sends && context !== "applied");
 
   const saveJob = (job: RowJob) => {
     haptics.tap();
@@ -52,6 +58,7 @@ export function useJobActions(context: JobListContext) {
   };
 
   const actions: JobActions = {
+    applyForMe: sends && context !== "applied" ? (job) => void begin(job.id, job.company_name, false) : undefined,
     save: context === "feed" ? saveJob : undefined,
     // In Library the row leaves, so it gets Undo; in the feed it stays.
     unsave: context === "saved" ? (job) => unsave.mutate(job.id, {

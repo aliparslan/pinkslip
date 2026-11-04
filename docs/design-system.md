@@ -659,8 +659,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   replacing S4's circles):
   - Up to two pills a side, 56 tall, the 18 icon over its Footnote Medium
     label, 2 apart (owner, 2026-11-04: less across; they were 44 tall with
-    the label inline): sized to the label with 12 padding, at least 64
-    wide, 8 apart and 8 from the screen's edge.
+    the label inline): sized to the label with 16 padding (12 looked
+    squeezed), at least 72 wide, 8 apart and 8 from the screen's edge.
   - They're tinted by meaning (the ink at 14%), with the icon and label in
     the tone's ink. The outer one fills solid once a full swipe arms.
   - A short swipe stays open on them: from closed, about 22pt of drag opens
@@ -878,9 +878,15 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- None right now. The application page was decided as C, your stub
-  stamped with each step (Paper "Application page · ideas · Oct 13"), and
-  is built.
+- **Choosing your swipe actions** (owner, 2026-11-04: "at some point we
+  should allow the user to change their swipe actions"). Each side keeps
+  its two pills, but which actions fill them becomes a setting, with
+  Apply for me (queueing a send) the first new one the owner wants on
+  offer. Until then Apply for me is in a job row's long-press menu.
+  Needs Paper first: the setting's page and how a full swipe's action is
+  picked.
+- The application page was decided as C, your stub stamped with each step
+  (Paper "Application page · ideas · Oct 13"), and is built.
 
 ## Changelog
 
@@ -1099,7 +1105,10 @@ cut so that each remaining one has a job.
     (`sends/WaitingSends.tsx`); `StackedLogos` takes the ring colour of
     what it sits on; the kit's send states show the row and the sheet.
   - Swipe actions stack the icon over the label (owner: less across), see
-    Swipe actions.
+    Swipe actions; later that day 16 padding instead of 12.
+  - A job row's long-press menu leads with Apply for me (bot glyph) on Jobs
+    and Saved when Pinkslip can send the job; it queues the send without
+    opening the job, and the live bar follows it.
 - **2026-10-29**
   - Built the send screens (Paper "Send screens · the missing states ·
     Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`

@@ -49,7 +49,9 @@ function openResume() {
 }
 
 /** Starts a send, the resume going up first when the server has none. */
-function useBegin(enabled: boolean) {
+/** Starts a real send or a Check first, uploading the resume first if the
+ * server has none; a refusal says why in a toast. */
+export function useBeginSend(enabled: boolean) {
   const start = useStartSend();
   const ensureResume = useEnsureSendResume(enabled);
   const [preparing, setPreparing] = useState(false);
@@ -98,7 +100,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
   const sendable = enabled && SENDABLE.has(job.source_type ?? "") && !closed;
   const sends = useApplySends(sendable);
   const send = followedSend(sends.data, job.id);
-  const { begin, starting } = useBegin(sendable);
+  const { begin, starting } = useBeginSend(sendable);
   const answer = useAnswerSend();
   const code = useSendCode();
   // Where Greenhouse sent its code: read only while a send waits for one.
@@ -181,7 +183,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
  * to the job page, whose button follows it. */
 export function useSendForReal() {
   const session = useSession().data;
-  const { begin, starting } = useBegin(Boolean(session?.me?.features?.auto_apply_send_enabled));
+  const { begin, starting } = useBeginSend(Boolean(session?.me?.features?.auto_apply_send_enabled));
   return {
     sending: starting,
     send: (checked: ApplySend) => void begin(checked.job_id, checked.company ?? "the company", false, () => {
