@@ -100,10 +100,8 @@ candidate, not as one more TestFlight build:
 
 ### The build
 
-- [ ] The app draws in the system font. The redesign used the Klim trial
-  cuts, which can't ship in a store build; the switch to SF was in progress
-  in another session on 2026-11-04 (`apps/native/src/ui/fonts.ts`).
-  Screenshots wait for it.
+- [x] The app draws in the system font (6eaf446, 2026-11-04). The redesign
+  used the Klim trial cuts, which can't ship in a store build.
 - [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
   `bun test tests/native-release.test.ts`. Do this when cutting the
   candidate, not before: until then, updates for testers still go to 1.3.9.
@@ -158,7 +156,7 @@ doesn't handle.
 App Store Connect → App Privacy. Nothing is used for tracking. Everything
 below is linked to the user, for App Functionality unless noted.
 
-Entered in App Store Connect on 2026-11-04, not yet published:
+Entered and published in App Store Connect on 2026-11-04:
 
 | Apple's category | Data types | What it is in Pinkslip | Purposes |
 | --- | --- | --- | --- |
@@ -195,12 +193,18 @@ label.
   United States only, and Apple silicon Mac and Vision Pro availability off
   (1.4.0 is tested on iPhone only). Version 1.4.0, support and marketing
   URLs, review notes and manual release are saved too (2026-11-04).
-- [ ] Age rating questionnaire. The Fill browser and apply links open
-  employers' sites inside the app, so answer the web-access question
-  honestly. A higher rating costs nothing with an adult audience.
+- [x] Age rating **16+** (2026-11-04). Every content question is None or
+  No. Unrestricted web access is No (owner): the Fill sheet opens an
+  employer's page with no address bar or search; switch to Yes if App Review
+  disagrees. The questions alone give 4+, but the terms of use require users
+  to be at least 16, and Apple requires the rating to match a stated
+  minimum. Devices on iOS older than 26 show 17+.
 - [ ] Copyright: "2026 " and the owner's legal name.
-- [ ] Content rights: yes, the app shows third-party content (job postings,
-  company names and logos from employers' public job boards).
+- [x] Content rights: the app shows third-party content (job postings,
+  company names and logos) and has the rights to it (owner, 2026-11-04).
+- [x] App Privacy answers published (2026-11-04).
+- [x] Apple's updated Developer Program License Agreement accepted by the
+  owner (2026-11-04).
 - [ ] Privacy, support and marketing URLs (the pages above, and
   `https://pinkslip.work`).
 - [ ] App Review contact details (Apple doesn't publish them).
