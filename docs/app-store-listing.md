@@ -1,7 +1,7 @@
-# App Store listing for 1.4.0 (draft, 2026-11-04)
+# App Store listing for 1.4.0
 
-Waiting for the owner's approval. Name and subtitle are already in App Store
-Connect. The copy only claims what 1.4.0 does: no auto-sending, cold emails,
+Approved by the owner and entered in App Store Connect on 2026-11-04. Name
+and subtitle were already there. The copy only claims what 1.4.0 does: no auto-sending, cold emails,
 follow-up nudges, tailoring or Pro.
 
 Rules it follows: never "we"; sell the calm after, not feature lists or job

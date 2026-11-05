@@ -182,7 +182,8 @@ label.
 
 ### The listing
 
-- [ ] Description, keywords (100 characters) and promotional text. Copy
+- [x] Description, keywords (100 characters) and promotional text, approved
+  and entered 2026-11-04 ([app-store-listing.md](app-store-listing.md)). Copy
   rules: never "we"; sell the calm after (one app, less stress), not feature
   lists or job counts; written for new grads and early- and mid-career
   people, not just students; no time promises. The owner approves the copy.
