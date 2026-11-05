@@ -158,17 +158,23 @@ doesn't handle.
 App Store Connect → App Privacy. Nothing is used for tracking. Everything
 below is linked to the user, for App Functionality unless noted.
 
-| Apple's category | Data types | What it is in Pinkslip |
-| --- | --- | --- |
-| Contact Info | Name, Email Address | Account |
-| User Content | Emails or Text Messages | Forwarded job emails |
-| User Content | Customer Support | Feedback and reports |
-| User Content | Other User Content | Resume, profile, saved answers, application records |
-| Sensitive Info | Sensitive Info | Optional demographic answers (race, disability) |
-| Identifiers | User ID, Device ID | Account; push token |
-| Usage Data | Product Interaction | Saves, views, applies, hides; also Analytics, to improve the app |
-| Location | Coarse Location | Saved places (typed, not GPS; declared to be safe) |
-| Diagnostics | Other Diagnostic Data | Server-side error and delivery details |
+Entered in App Store Connect on 2026-11-04, not yet published:
+
+| Apple's category | Data types | What it is in Pinkslip | Purposes |
+| --- | --- | --- | --- |
+| Contact Info | Name, Email Address | Account | App Functionality |
+| Contact Info | Phone Number | The resume's contact line | App Functionality |
+| Financial Info | Other Financial Info | Salary expectations in saved answers | App Functionality |
+| Location | Coarse Location | Saved places (typed, not GPS; declared to be safe) | App Functionality, Product Personalization |
+| Sensitive Info | Sensitive Info | Optional demographic answers (race, disability) | App Functionality |
+| User Content | Emails or Text Messages | Forwarded job emails | App Functionality |
+| User Content | Customer Support | Feedback and reports | App Functionality |
+| User Content | Other User Content | Resume, profile, saved answers, application records | App Functionality, Product Personalization |
+| Identifiers | User ID | Account | App Functionality, Analytics |
+| Identifiers | Device ID | Push token | App Functionality |
+| Usage Data | Product Interaction | Saves, views, applies, hides | App Functionality, Analytics, Product Personalization |
+| Diagnostics | Crash Data | JavaScript errors, fatal ones included (`platform/error-reporting.ts`) | App Functionality |
+| Diagnostics | Other Diagnostic Data | Server-side error and delivery details | App Functionality |
 
 Not collected: Purchases (tips stay with Stripe and the server doesn't tie
 them to accounts), Financial Info, Health, Contacts, Browsing History,
@@ -185,8 +191,10 @@ label.
 - [ ] Screenshots at 6.9-inch iPhone size (1320 × 2868), from the
   production build in the Simulator, browsing as a guest. Don't save
   anything on production.
-- [ ] Category Productivity (no second category), price Free, availability
-  United States only.
+- [x] Category Productivity (no second category), price Free, availability
+  United States only, and Apple silicon Mac and Vision Pro availability off
+  (1.4.0 is tested on iPhone only). Version 1.4.0, support and marketing
+  URLs, review notes and manual release are saved too (2026-11-04).
 - [ ] Age rating questionnaire. The Fill browser and apply links open
   employers' sites inside the app, so answer the web-access question
   honestly. A higher rating costs nothing with an adult audience.
