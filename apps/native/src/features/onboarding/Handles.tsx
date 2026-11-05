@@ -31,6 +31,12 @@ const HANDLED: readonly Handled[] = [
   { icon: "email", meaning: "pro", title: "Cold emails, written for you", line: "To the right recruiter", pro: true },
 ];
 
+/** Pro's two rows wait until Pro and what it pays for can be had (owner,
+ * 2026-11-04: dropped for now, since 1.4.0 sells neither). True brings them
+ * back. */
+const proRowsShown = false;
+const SHOWN = proRowsShown ? HANDLED : HANDLED.filter((item) => !item.pro);
+
 export interface HandlesProps {
   /** I'm ready: page two starts to slide away, and the feed in under it. */
   onLeaving: () => void;
@@ -52,12 +58,12 @@ export function Handles({ onLeaving, onReady, onGone }: HandlesProps) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const away = useSharedValue(0);
-  const last = ROWS.delay + HANDLED.length * ROWS.stagger;
+  const last = ROWS.delay + SHOWN.length * ROWS.stagger;
 
   useEffect(() => {
     if (reduced) return;
     // A soft tick as each row arrives.
-    const timers = HANDLED.map((_, index) => setTimeout(haptics.tick, ROWS.delay + (index + 1) * ROWS.stagger));
+    const timers = SHOWN.map((_, index) => setTimeout(haptics.tick, ROWS.delay + (index + 1) * ROWS.stagger));
     return () => timers.forEach(clearTimeout);
     // Plays once, on arrival.
   }, []);
@@ -80,7 +86,7 @@ export function Handles({ onLeaving, onReady, onGone }: HandlesProps) {
         <Text role="largeTitle" accessibilityRole="header">What Pinkslip handles</Text>
       </Rise>
       <View style={styles.list}>
-        {HANDLED.map((item, index) => <Rise key={item.title} delay={ROWS.delay + (index + 1) * ROWS.stagger} reduced={reduced}>
+        {SHOWN.map((item, index) => <Rise key={item.title} delay={ROWS.delay + (index + 1) * ROWS.stagger} reduced={reduced}>
           <Row item={item} />
         </Rise>)}
       </View>
