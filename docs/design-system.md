@@ -161,6 +161,19 @@ else is decided.
   Regular 400 and Medium 500, the stub's stamps SF with even digits (SF Mono
   isn't open to apps). `face` in `apps/native/src/ui/fonts.ts` is the one
   switch back to Klim. Paper and the website keep Klim.
+- **Lines break as UIKit's do, and apostrophes curl** (2026-11-04 polish
+  pass). The kit's `Text` uses Apple's standard line breaking, so a title
+  or a centred line doesn't end on one word ("Where are you in / your
+  career?"), and sets `'` between letters as `’` ("shouldn’t", "What’s
+  new"). Copy is written with plain apostrophes; fields and what's sent
+  keep what was typed. Raw `RNText` that shows the app's own words should
+  use `typeset()`.
+- **A tab's empty state starts at `EMPTY_TOP`** (14% of the screen under
+  the title) rather than centring, so Today's and Tracker's "Nothing yet"
+  sit in the same place. Tracker's Stats shows once there's something to
+  count.
+- **A posting that opens with its own heading leads with it**: the job
+  page drops "About the role" above "Summary".
 - **Type** follows Apple's text styles so it scales with the iPhone's text
   size:
 
@@ -1114,6 +1127,12 @@ cut so that each remaining one has a job.
     in, so there's no error state; the button stays gray until there's an
     amount.
 - **2026-11-04**
+  - Polish pass (`docs/polish-pass-2026-11-04.md`, items 1–8): line
+    breaking and curly apostrophes in `Text`; Apple's sections keep their
+    lines (core's description parser); the page bar's fade is solid behind
+    the top of its buttons; a posting's own first heading leads; empty
+    states share `EMPTY_TOP`; no Stats on an empty Tracker; the hook's pile
+    closes up above the headline on shorter phones.
   - The app switched to SF (see Text) until the Klim licences are bought.
   - Built stopped sends (Paper "Stopped sends · Nov 4", approved, W2's
     deadline taken out): "A send on the job page" above. New:

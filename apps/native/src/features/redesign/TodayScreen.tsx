@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
-import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
+import { DateTile, EMPTY_TOP, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
@@ -159,12 +159,12 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   const body = today.isPending && !sample
     ? <RowPlaceholders />
     : today.isError && !sample
-    ? <View style={[styles.center, { minHeight: height * 0.6 }]}>
+    ? <View style={[styles.center, { paddingTop: height * EMPTY_TOP }]}>
       <EmptyState title="Today didn't load" message="Your applications are safe."
         action={{ label: "Try again", variant: "secondary", pending: today.isFetching, onPress: () => void today.refetch() }} />
     </View>
     : nothing
-    ? <View style={[styles.center, { minHeight: height * 0.6 }]}>
+    ? <View style={[styles.center, { paddingTop: height * EMPTY_TOP }]}>
       <EmptyState slips title="Nothing yet" message="Save a job or apply to one, and your day shows up here."
         action={{ label: "Browse jobs", onPress: () => router.navigate("/") }}
         secondary={{ label: "Track one from an email", onPress: () => setSetup(true) }} />
@@ -238,7 +238,9 @@ const styles = StyleSheet.create((theme) => ({
   // The date sits in the 44 nav row; the large title 8 under it, as on every tab.
   header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   nav: { height: theme.ui.size.iconButton, justifyContent: "flex-end" },
-  center: { justifyContent: "center" },
+  // Set from the top, not centred: Today's empty state has one more line
+  // than Tracker's, so centring put its picture 30 higher (2026-11-04).
+  center: {},
   askFirst: { marginTop: theme.ui.space["2"], marginBottom: theme.ui.space["2"] },
   flex: { flex: 1 },
   newJobs: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, marginTop: theme.ui.space["2"] },

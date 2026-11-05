@@ -25,6 +25,11 @@ export interface EmptyStateProps {
  * state"): Title 2, one Body line in ink-2, then the button and an optional
  * text button, all on one centre line, 16 apart, 32 in from the edges.
  */
+/** Where a tab's empty state starts under its title, as a share of the
+ * screen's height: the same on every tab, so switching tabs doesn't move the
+ * picture (2026-11-04 polish pass). */
+export const EMPTY_TOP = 0.14;
+
 export function EmptyState({ title, message, slips, art, action, secondary }: EmptyStateProps) {
   return <View style={styles.root}>
     {art}

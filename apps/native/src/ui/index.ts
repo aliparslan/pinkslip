@@ -7,7 +7,7 @@ export { AmountInput, Choice, ChoiceLink, Choices, ChoiceSwitch, type AmountInpu
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { CopyField, CopyGlyph, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";
-export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { EMPTY_TOP, EmptyState, type EmptyStateProps } from "./EmptyState";
 export { face, klim, loadUiFonts, useUiFontsLoaded } from "./fonts";
 export { Icon, type IconName, type IconProps } from "./Icon";
 export { IconTile, type IconTileProps, type TileMeaning } from "./IconTile";
@@ -33,7 +33,7 @@ export {
   leaveSearch, TabBar, useSearchTabPress, useTabBarLine, useTabBarScroll, useTabBarSpace, TabBarFollowsTransition, tabStackScreenLayout, useTabBarSteppedAside, useTabBarStepsAside,
 } from "./TabBar";
 export { toast, ToastHost, UNDO_TOAST_DURATION, useToastLift, type ToastAction, type ToastInput, type ToastTone } from "./Toast";
-export { Text, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
+export { Text, typeset, type TextProps, type TextRole, type TextTone, type TextWeight } from "./Text";
 export { closeOpenSwipeRow, SwipeRow, type SwipeAction, type SwipeRowProps, type SwipeTone } from "./SwipeRow";
 export { setTearPace, Stub, Ticket, tornEdge, useStubCatch, type StubProps, type StubStamp, type TicketBackdrop, type TicketFact, type TicketProps } from "./Ticket";
 export { AddRow, BulletRows, DangerRow, FieldGroup, InlineField, monthLabel, MonthRow, SwitchRow, TextField, type TextFieldProps } from "./Form";

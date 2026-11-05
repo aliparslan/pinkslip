@@ -85,12 +85,18 @@ export function Hook({ onLeave, onAccount }: HookProps) {
   const pileY = useSharedValue(0);
   const [ready, setReady] = useState(false);
   const button = useRef<View>(null);
+  // Where the headline starts, once the words have laid out.
+  const [headlineTop, setHeadlineTop] = useState<number | null>(null);
 
   // The cards, placed as drawn on a 390pt screen: across in proportion,
-  // down from under the status bar.
+  // down from under the status bar. On a shorter screen the words sit
+  // higher, so the pile closes up to stay clear of the headline (2026-11-04
+  // polish pass: on a 844pt phone the stats card touched it).
   const across = width / 390;
   const down = insets.top - 47;
-  const cards = CARDS.map((card) => ({ ...card, x: card.left * across, y: card.top + down }));
+  const drawn = CARDS.map((card) => ({ ...card, x: card.left * across, y: card.top + down }));
+  const squeeze = pileSqueeze(drawn, insets.top, headlineTop);
+  const cards = drawn.map((card) => ({ ...card, y: insets.top + (card.y - insets.top) * squeeze }));
   // Faster and faster: each gap is 0.8 of the one before.
   const gaps = cards.map((_, index) => 0.8 ** index);
   const total = gaps.reduce((sum, gap) => sum + gap, 0);
@@ -151,7 +157,8 @@ export function Hook({ onLeave, onAccount }: HookProps) {
           </MessCard>;
         })}
       </Animated.View>
-      <View style={[styles.words, { paddingBottom: insets.bottom }]} pointerEvents={ready ? "box-none" : "none"}>
+      <View style={[styles.words, { paddingBottom: insets.bottom }]} pointerEvents={ready ? "box-none" : "none"}
+        onLayout={(event) => setHeadlineTop(event.nativeEvent.layout.y + WORDS_TOP)}>
         <Fade />
         <Animated.View style={[styles.headline, headline]}>
           <Text role="title1" accessibilityRole="header">Job hunting shouldn't be another job.</Text>
@@ -217,6 +224,24 @@ function MessCard({ x, y, turn, delay, reduced, from, spin, thrown, rank, vx, vy
 }
 
 /** The page darkens under the words, so the mess fades out behind them. */
+/** The words' room above the headline, where the fade lifts the pile away. */
+const WORDS_TOP = 48;
+/** Room kept between the lowest card, turned, and the headline. */
+const PILE_CLEAR = 20;
+
+/** How much the pile closes up toward the top so its lowest card clears the
+ * headline: 1 as drawn, never under 0.6. */
+function pileSqueeze(cards: { y: number; height: number }[], top: number, headlineTop: number | null): number {
+  if (headlineTop === null) return 1;
+  const limit = headlineTop - PILE_CLEAR;
+  let squeeze = 1;
+  for (const card of cards) {
+    if (card.y + card.height <= limit || card.y <= top) continue;
+    squeeze = Math.min(squeeze, (limit - card.height - top) / (card.y - top));
+  }
+  return Math.max(0.6, squeeze);
+}
+
 function Fade() {
   return <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 1 1">
     <Defs>
@@ -368,7 +393,7 @@ const styles = StyleSheet.create((theme) => ({
   card: { position: "absolute" },
   words: {
     position: "absolute", left: 0, right: 0, bottom: 0,
-    gap: theme.ui.space["8"], paddingTop: 48, paddingHorizontal: theme.ui.size.gutter,
+    gap: theme.ui.space["8"], paddingTop: WORDS_TOP, paddingHorizontal: theme.ui.size.gutter,
   },
   headline: { paddingHorizontal: theme.ui.space["2"] },
   answers: { gap: theme.ui.space["2"] },

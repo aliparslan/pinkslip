@@ -110,7 +110,10 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
           <Text role="subhead" tone="ink-2" flex>Fits your search: {fits.join(", ")}</Text>
         </View> : null}
         <View style={styles.about}>
-          <Text weight="medium" accessibilityRole="header">About the role</Text>
+          {/* A posting that opens with its own heading ("Summary") leads with
+              it; "About the role" above it read as two headings in a row
+              (2026-11-04 polish pass). */}
+          {blocks[0]?.kind === "heading" ? null : <Text weight="medium" accessibilityRole="header">About the role</Text>}
           {/* The posting's lines in grey while it's on its way, then the text
               eases in over them (owner, 2026-10-24: no spinner). */}
           {(!full || pendingDescription) && blocks.length === 0 ? <TextPlaceholders />

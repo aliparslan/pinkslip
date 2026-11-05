@@ -20,11 +20,12 @@ export function Floating({ style, children }: { style?: StyleProp<ViewStyle>; ch
 
 /** The page's own colour fading out over the top `height` points, under a
  * floating bar: what scrolls up there fades away instead of running under
- * the clock and the buttons. Solid through the status bar. */
-export function TopEdgeFade({ height }: { height: number }) {
+ * the clock and the buttons. Solid through the status bar, or down to
+ * `solidTo` points. */
+export function TopEdgeFade({ height, solidTo }: { height: number; solidTo?: number }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
-  const solid = Math.min(1, insets.top / height);
+  const solid = Math.min(1, (solidTo ?? insets.top) / height);
   const page = theme.ui.color.bg;
   return <View pointerEvents="none" style={[styles.fade, { height }]}>
     <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1 1">

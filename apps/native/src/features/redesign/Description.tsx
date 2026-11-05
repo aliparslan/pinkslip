@@ -31,7 +31,9 @@ export function Description({ blocks }: { blocks: DescriptionBlock[] }) {
   return <View style={styles.root}>
     {blocks.map((block, index) => {
       if (block.kind === "heading") {
-        return <RNText key={index} accessibilityRole="header" style={[styles.heading, loaded ? styles.boldFace : styles.boldWeight]}>
+        // The first heading leads the section, so it takes no space above it.
+        return <RNText key={index} accessibilityRole="header" lineBreakStrategyIOS="standard"
+          style={[styles.heading, index === 0 && styles.leading, loaded ? styles.boldFace : styles.boldWeight]}>
           <Runs runs={block.runs} loaded={loaded} />
         </RNText>;
       }
@@ -51,6 +53,7 @@ const styles = StyleSheet.create((theme) => {
   return {
     root: { gap: theme.ui.space["3"] },
     heading: { color: theme.ui.color.ink, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, marginTop: theme.ui.space["3"] },
+    leading: { marginTop: 0 },
     paragraph: { color: theme.ui.color.ink, fontSize: long.size, lineHeight: long.line, letterSpacing: long.tracking },
     textFace: { ...face.text },
     boldFace: { ...face.textMedium },

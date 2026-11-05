@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import {
-  Chip, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast, TopEdgeBlur, useTabBarScroll,
+  Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast, TopEdgeBlur, useTabBarScroll,
   useTabBarSpace, useTopEdge, type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
@@ -102,7 +102,8 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
     : inbox.data !== undefined && trackingState(inbox.data, prefs.started) === "off" && !prefs.nudgeDismissed);
   const header = <View>
     <View style={styles.header}>
-      <View style={styles.nav}><IconButton icon="stats" label="Stats" onPress={() => setStats(true)} /></View>
+      {/* Stats once there's something to count; the row keeps its height. */}
+      <View style={styles.nav}>{(data?.length ?? 0) > 0 ? <IconButton icon="stats" label="Stats" onPress={() => setStats(true)} /> : null}</View>
       <Text role="largeTitle" accessibilityRole="header">Tracker</Text>
     </View>
     {present.length > 0 ? <ScrollView ref={chips} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -127,7 +128,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
         : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} />}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
-      ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.6 }]}>
+      ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { paddingTop: height * EMPTY_TOP }]}>
         {applications.isError
           ? <EmptyState title="Tracker didn't load" message="Your applications are safe."
             action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />
@@ -189,6 +190,6 @@ const styles = StyleSheet.create((theme) => ({
   header: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   nav: { height: theme.ui.size.iconButton, flexDirection: "row", justifyContent: "flex-end", alignItems: "center" },
   chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
-  // Centred in the room under the header, not tucked under the title.
-  empty: { justifyContent: "center" },
+  // Set from the top at Today's height, so the picture stays put between tabs.
+  empty: {},
 }));

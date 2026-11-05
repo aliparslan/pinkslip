@@ -26,7 +26,10 @@ export const PAGE_BAR = 44;
 export function PageBar({ actions, onBack, title }: { actions?: ReactNode; onBack?: () => void; title?: ReactNode }) {
   const insets = useSafeAreaInsets();
   return <>
-    <TopEdgeFade height={insets.top + PAGE_BAR + 12} />
+    {/* Solid behind the top of the buttons and gone where a page's title
+        starts (8 under the bar), so text scrolling up doesn't show through
+        the glass (2026-11-04 polish pass) and a title at rest isn't dimmed. */}
+    <TopEdgeFade height={insets.top + PAGE_BAR + 8} solidTo={insets.top + PAGE_BAR * 0.6} />
     <View style={[styles.bar, { paddingTop: insets.top }]} pointerEvents="box-none">
       <PageBarButton icon="back" label="Back" onPress={onBack ?? (() => router.back())} />
       {title ? <View style={[styles.title, { top: insets.top }]} pointerEvents="none">{title}</View> : null}
