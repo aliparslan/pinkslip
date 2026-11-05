@@ -5,9 +5,10 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Pressable, View } from "react-native";
+import { ui } from "@pinkslip/tokens/native";
 import { StyleSheet } from "react-native-unistyles";
 import { Menu } from "../../../kit";
-import { clearResumeFile, keepResumeFile, useLocalResumeFile } from "../../../platform/resume-file";
+import { clearResumeFile, keepResumeFile, useLocalResumeFile, type LocalResumeFile } from "../../../platform/resume-file";
 import {
   AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow, ProgressBar,
   SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, SwitchRow, Text, TextField, toast, UNDO_TOAST_DURATION, useSheet,
@@ -16,7 +17,7 @@ import { ResumeImportFailure, type ImportedResume, type ImportStep } from "../..
 import { useImportResume } from "../../resume/useImportResume";
 import { YouPage } from "../you/Page";
 import { endResumeSample, useResumeDraft, useTidyOnLeave } from "./draft";
-import { dateRange, PRESENT, shortSchool } from "./facts";
+import { addedLine, dateRange, PRESENT, shortSchool } from "./facts";
 
 /**
  * The resume editors (owner, 2026-10-14, Paper "Resume and Answers
@@ -92,6 +93,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
   </View>;
 
   return <YouPage title="Resume">
+    {file ? <YourPdf file={file} /> : null}
     {fresh ? importButton : null}
     <ListGroup surface="fill">
       <ListItem title="Contact" value={profile.contact.name || "Add"} accessory="chevron" onPress={() => go("/you/resume-contact")} />
@@ -114,6 +116,32 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
       void keepResumeFile(accepted.sourceFile).then(() => undefined, () => toast.error("Couldn't keep the PDF for applications."));
     }} />
   </YouPage>;
+}
+
+/** The lines on the card's little first page: a heading, then text. */
+const PAGE_LINES = [18, 26, 22, 26, 14, 24];
+
+/**
+ * Your PDF, above the sections (owner, 2026-11-04: nothing in Resume said a
+ * PDF was there; Paper "Resume file · Nov 4", F1): its first page, its name
+ * and when it was added. It opens full screen. The page stays white in dark
+ * mode, as a document does.
+ */
+function YourPdf({ file }: { file: LocalResumeFile }) {
+  const added = addedLine(file.savedAt);
+  return <View style={styles.pdfSlot}>
+    <Pressable onPress={() => go("/you/resume-file" as Href)} accessibilityRole="button" accessibilityLabel={`${file.name}, ${added}`}
+      accessibilityHint="Opens it" style={({ pressed }) => [styles.pdfCard, pressed && styles.pdfPressed]}>
+      <View style={styles.pdfPage} accessible={false}>
+        {PAGE_LINES.map((width, index) => <View key={index} style={[styles.pdfLine, index === 0 && styles.pdfHeading, { width }]} />)}
+      </View>
+      <View style={styles.pdfWords}>
+        <Text lines={1}>{file.name}</Text>
+        <Text role="subhead" tone="ink-3" lines={1}>{added}</Text>
+      </View>
+      <Icon name="disclosure" size={12} tone="ink-4" />
+    </Pressable>
+  </View>;
 }
 
 /** An import replaces the sections it found; contact fills in only where
@@ -507,6 +535,20 @@ function More({ sections }: { sections: ResumeProfile["optionalSections"] }) {
 }
 
 const styles = StyleSheet.create((theme) => ({
+  pdfSlot: { paddingHorizontal: theme.ui.space["4"] },
+  pdfCard: {
+    flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingVertical: theme.ui.space["3"], paddingHorizontal: theme.ui.space["4"],
+    borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"],
+  },
+  pdfPressed: { opacity: 0.6 },
+  // A page's corner and proportions (US Letter), white in either theme.
+  pdfPage: {
+    width: 40, height: 52, borderRadius: 3, paddingVertical: 7, paddingHorizontal: 6, gap: 3,
+    backgroundColor: ui.color.light["bg-grouped"], borderWidth: 1, borderColor: theme.ui.color.outline,
+  },
+  pdfLine: { height: 2, borderRadius: 1, backgroundColor: ui.color.light["ink-4"] },
+  pdfHeading: { height: 3, backgroundColor: ui.color.light["ink-3"] },
+  pdfWords: { flex: 1, gap: 2 },
   slot: { paddingHorizontal: theme.ui.size.gutter },
   saveFailed: { flexDirection: "row", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter + theme.ui.space["4"] },
   lead: { gap: theme.ui.space["2"] },

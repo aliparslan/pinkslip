@@ -17,13 +17,19 @@ export const PAGE_BAR = 44;
  * under them. The page's title stays big in the page and scrolls away; the
  * bar has no title of its own (owner: less text). Swipe-back still works:
  * the stack is the system's.
+ *
+ * The one exception is a page that is a document, with no title of its own
+ * to scroll (your resume's PDF, owner, 2026-11-04, Paper "Resume file · Nov
+ * 4"): `title` centres its name between Back and the actions, as the in-app
+ * browser's header does.
  */
-export function PageBar({ actions, onBack }: { actions?: ReactNode; onBack?: () => void }) {
+export function PageBar({ actions, onBack, title }: { actions?: ReactNode; onBack?: () => void; title?: ReactNode }) {
   const insets = useSafeAreaInsets();
   return <>
     <TopEdgeFade height={insets.top + PAGE_BAR + 12} />
     <View style={[styles.bar, { paddingTop: insets.top }]} pointerEvents="box-none">
       <PageBarButton icon="back" label="Back" onPress={onBack ?? (() => router.back())} />
+      {title ? <View style={[styles.title, { top: insets.top }]} pointerEvents="none">{title}</View> : null}
       {actions ? <View style={styles.actions}>{actions}</View> : null}
     </View>
   </>;
@@ -52,6 +58,12 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: theme.ui.size.gutter,
   },
   actions: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
+  // Clear of a button on either side, centred on the screen.
+  title: {
+    position: "absolute", left: theme.ui.size.gutter + theme.ui.size.iconButton + theme.ui.space["2"],
+    right: theme.ui.size.gutter + theme.ui.size.iconButton + theme.ui.space["2"],
+    height: PAGE_BAR, alignItems: "center", justifyContent: "center",
+  },
   slot: { width: theme.ui.size.iconButton, height: theme.ui.size.iconButton, alignItems: "center", justifyContent: "center" },
   note: { height: theme.ui.size.iconButton, justifyContent: "center", paddingHorizontal: theme.ui.space["4"] },
 }));

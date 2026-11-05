@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dateRange, shortSchool } from "../apps/native/src/features/redesign/resume/facts";
+import { addedLine, dateRange, shortSchool } from "../apps/native/src/features/redesign/resume/facts";
 
 describe("Resume rows", () => {
   test("a range in one year names the year once; an ongoing one ends now", () => {
@@ -15,5 +15,14 @@ describe("Resume rows", () => {
     expect(shortSchool("The University of Texas at Austin")).toBe("UT Austin");
     expect(shortSchool("The University of California at Berkeley")).toBe("UC Berkeley");
     expect(shortSchool("Georgia Tech")).toBe("Georgia Tech");
+  });
+});
+
+describe("your resume's PDF", () => {
+  test("says when it was added, with the year only when it isn't this one", () => {
+    const now = new Date(2026, 10, 4, 12);
+    expect(addedLine(new Date(2026, 9, 29, 9).toISOString(), now)).toBe("Added Oct 29");
+    expect(addedLine(new Date(2025, 11, 3, 9).toISOString(), now)).toBe("Added Dec 3, 2025");
+    expect(addedLine("not a date", now)).toBe("Added");
   });
 });

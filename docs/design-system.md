@@ -521,6 +521,15 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     phone, if new-job alerts aren't reaching it, "Be first to apply" shows
     the Alerts page's own preview (`AlertPreview`: the app icon, "3 new
     jobs") with Turn on alerts and Not now.
+- **Your resume's PDF** (owner, 2026-11-04, Paper "Resume file · Nov 4",
+  approved): its own card above Resume's sections, shown when the phone
+  keeps a PDF. The first page leads (40 by 52, white in either theme with an
+  `outline` hairline and a few `ink-4` lines), then the name in Body and
+  "Added Oct 29" in Subhead `ink-3`, then the chevron. It opens a page, not
+  a sheet, where iOS draws the PDF. That page is the page bar's one title:
+  the name and date centred between Back and Share (`PageBar title`), as the
+  in-app browser's header does, since a document has no title of its own to
+  scroll. Share is iOS's own.
 - **Sheet or page** (owner, 2026-10-15): a sheet is for a quick choice or
   form that drops you back where you were (sign in, report, edit search,
   pick a plan, change stage, What's new). Anything you read, come back to

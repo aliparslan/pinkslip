@@ -23,3 +23,12 @@ export function shortSchool(name: string): string {
   return trimmed;
 }
 
+
+/** "Added Oct 29": when your resume's PDF was kept on this phone (Paper
+ * "Resume file · Nov 4"), with the year when it isn't this one. */
+export function addedLine(savedAt: string, now = new Date()): string {
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return "Added";
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return `Added ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) })}`;
+}
