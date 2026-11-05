@@ -187,7 +187,8 @@ label.
   rules: never "we"; sell the calm after (one app, less stress), not feature
   lists or job counts; written for new grads and early- and mid-career
   people, not just students; no time promises. The owner approves the copy.
-- [ ] Screenshots go under **App Previews and Screenshots** (pick it from
+- [x] Two screenshots uploaded by the owner (2026-11-04). Screenshots go
+  under **App Previews and Screenshots** (pick it from
   the menu at the top of the product page, which opens on "Header and
   Search Results") → **iPhone with Dynamic Island (medium display)**. As of
   2026-11-04 that slot takes 6.1 or 6.3-inch sizes: 1206 × 2622 or
@@ -215,7 +216,9 @@ label.
   owner (2026-11-04).
 - [ ] Privacy, support and marketing URLs (the pages above, and
   `https://pinkslip.work`).
-- [ ] App Review contact details (Apple doesn't publish them).
+- [x] App Review contact details (Apple doesn't publish them), with
+  `support@pinkslip.work` as the email, and the review account's sign-in
+  (owner, 2026-11-04).
 - [ ] Version release: **Manually release this version**, so approval
   doesn't publish the app before the owner is ready.
 
