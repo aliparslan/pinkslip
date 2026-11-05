@@ -27,6 +27,15 @@ export interface UpdateNotes {
  */
 export const UPDATE_NOTES: readonly UpdateNotes[] = [
   {
+    id: "2026-11-04",
+    version: "1.3",
+    notes: [
+      // The owner's approval (2026-11-04): SF type, the stacked swipe pills,
+      // and the long press's header-and-ticket preview.
+      { icon: "jobs", meaning: "find", title: "Swipes and job previews have been refreshed" },
+    ],
+  },
+  {
     id: "2026-10-24",
     version: "1.3",
     notes: [
