@@ -187,9 +187,15 @@ label.
   rules: never "we"; sell the calm after (one app, less stress), not feature
   lists or job counts; written for new grads and early- and mid-career
   people, not just students; no time promises. The owner approves the copy.
-- [ ] Screenshots at 6.9-inch iPhone size (1320 × 2868), from the
-  production build in the Simulator, browsing as a guest. Don't save
-  anything on production.
+- [ ] Screenshots go under **App Previews and Screenshots** (pick it from
+  the menu at the top of the product page, which opens on "Header and
+  Search Results") → **iPhone with Dynamic Island (medium display)**. As of
+  2026-11-04 that slot takes 6.1 or 6.3-inch sizes: 1206 × 2622 or
+  1179 × 2556. Two are ready (onboarding and a job page, from the
+  production build in the Simulator as a guest); the Jobs feed, Tracker and
+  Search need a simulator window to tap in. Don't save anything on
+  production. "Header" and "Search Results" are optional wide banners
+  (5244 × 2950 and similar) that need designed art.
 - [x] Category Productivity (no second category), price Free, availability
   United States only, and Apple silicon Mac and Vision Pro availability off
   (1.4.0 is tested on iPhone only). Version 1.4.0, support and marketing
