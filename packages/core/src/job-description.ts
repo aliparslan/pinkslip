@@ -120,6 +120,29 @@ function tidyRuns(runs: DescriptionRun[]): DescriptionRun[] {
 
 const plain = (runs: DescriptionRun[]) => runs.map((run) => run.text).join("");
 
+/** A heading whose lines are a list: Apple's qualifications and requirements. */
+const LIST_HEADING = /qualification|requirement|experience|skills|you have|you bring|education/i;
+
+/** Text a posting gives with no tags, where its line breaks are the only
+ * structure (Apple Jobs sends each section that way, under the heading the
+ * adapter adds): a blank line parts paragraphs, and under a list heading each
+ * line is an item. HTML drops bare line breaks, which ran Apple's bullets
+ * together ("…writing software Experience working on…"). */
+function plainLines(text: string, list: boolean): string {
+  if (!/\S[ \t]*\r?\n\s*\S/.test(text)) return text;
+  return text.split(/\r?\n\s*\r?\n/).map((chunk) => {
+    const lines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (list && lines.length > 1) return `<ul>${lines.map((line) => `<li>${line}</li>`).join("")}</ul>`;
+    return lines.map((line) => `<p>${line}</p>`).join("");
+  }).join("");
+}
+
+function breakPlainText(html: string): string {
+  if (!/<[a-z]/i.test(html)) return plainLines(html, false);
+  return html.replace(/(<h([1-6])[^>]*>([^<]*)<\/h\2>)([^<]+)/gi,
+    (_whole, heading: string, _level: string, title: string, text: string) => heading + plainLines(text, LIST_HEADING.test(title)));
+}
+
 /** A paragraph that is only bold text and short reads as a heading:
  * "<p><strong>What you'll do</strong></p>". */
 function looksLikeHeading(runs: DescriptionRun[]): boolean {
@@ -132,7 +155,7 @@ export function parseJobDescription(
   context: { title?: string | null; companyName?: string | null } = {},
 ): DescriptionBlock[] {
   if (!html?.trim()) return [];
-  const tokens = tokenize(decodeIfEncoded(html));
+  const tokens = tokenize(breakPlainText(decodeIfEncoded(html)));
   const blocks: DescriptionBlock[] = [];
   let runs: DescriptionRun[] = [];
   let heading = false;

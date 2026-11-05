@@ -13,6 +13,23 @@ describe("parseJobDescription", () => {
     ]);
   });
 
+  it("keeps the lines of text sent without tags, as Apple's sections are", () => {
+    const html = "<h2>Summary</h2>Build things people use.\n\nShip them too.<h2>Minimum Qualifications</h2>Experience writing software\nSwift or C++\n";
+    expect(parseJobDescription(html)).toEqual([
+      { kind: "heading", runs: [{ text: "Summary" }] },
+      { kind: "paragraph", runs: [{ text: "Build things people use." }] },
+      { kind: "paragraph", runs: [{ text: "Ship them too." }] },
+      { kind: "heading", runs: [{ text: "Minimum Qualifications" }] },
+      { kind: "list", ordered: false, items: [[{ text: "Experience writing software" }], [{ text: "Swift or C++" }]] },
+    ]);
+    // HTML's own line breaks between tags change nothing.
+    expect(parseJobDescription("<h2>About</h2>\n<p>One</p>\n<p>Two</p>")).toEqual([
+      { kind: "heading", runs: [{ text: "About" }] },
+      { kind: "paragraph", runs: [{ text: "One" }] },
+      { kind: "paragraph", runs: [{ text: "Two" }] },
+    ]);
+  });
+
   it("reads a short bold paragraph as a heading", () => {
     expect(parseJobDescription("<p><strong>Requirements</strong></p><p>A degree.</p>")[0]).toEqual({
       kind: "heading",
