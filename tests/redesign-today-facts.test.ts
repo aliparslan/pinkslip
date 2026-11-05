@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Application } from "../shared/application-stages";
 import type { InboundEmail } from "../shared/email-tracking";
-import { companyNames, planFromToday, planToday, untilWords } from "../apps/native/src/features/redesign/today-facts";
+import { companyNames, planFromToday, planToday, sinceLastLook, untilWords, type TodayItem } from "../apps/native/src/features/redesign/today-facts";
 
 // Thursday, Oct 15, 2 PM where the tests run.
 const now = new Date(2026, 9, 15, 14, 0);
@@ -118,5 +118,29 @@ describe("stopped sends on Today", () => {
     expect(planFromToday(entry(1, 1), now).needsYou[0]).toMatchObject({ company: "Glean", headline: "Answer 1 question to finish", logos: undefined });
     expect(planFromToday(entry(3, 0), now).needsYou[0]!.headline).toBe("Send all 3");
     expect(companyNames(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 more");
+  });
+});
+
+describe("what changed since you last looked", () => {
+  // Wednesday, 6pm where the test runs.
+  const now = new Date(2026, 10, 4, 18, 0);
+  const at = (day: number, hour: number) => new Date(2026, 10, day, hour, 0).getTime();
+  const item = (key: string, when: number) => ({ key, at: when }) as unknown as TodayItem;
+  const news = [item("today-noon", at(4, 12)), item("today-early", at(4, 7)), item("yesterday", at(3, 15)), item("monday", at(2, 9))];
+  const keys = (items: TodayItem[]) => items.map((entry) => entry.key);
+
+  test("the first look keeps all of the server's three days", () => {
+    expect(keys(sinceLastLook(news, null, now))).toEqual(["today-noon", "today-early", "yesterday", "monday"]);
+  });
+
+  test("news you saw on an earlier day drops off, but today's stays", () => {
+    // Last looked yesterday evening: yesterday's 3pm news was seen.
+    expect(keys(sinceLastLook(news, at(3, 20), now))).toEqual(["today-noon", "today-early"]);
+    // Looked again at 1pm today: today's news still shows.
+    expect(keys(sinceLastLook(news, at(4, 13), now))).toEqual(["today-noon", "today-early"]);
+  });
+
+  test("away since Monday morning, everything since then shows", () => {
+    expect(keys(sinceLastLook(news, at(2, 8), now))).toEqual(["today-noon", "today-early", "yesterday", "monday"]);
   });
 });

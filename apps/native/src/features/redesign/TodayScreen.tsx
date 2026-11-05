@@ -4,7 +4,7 @@ import { useAssignInboundEmail, useDismissInboundEmail, useDropWaiting, useFeed,
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { AppState, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import { DateTile, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
@@ -17,7 +17,8 @@ import { ASK_SAMPLE, AskFirstCard, StackedLogos } from "./apply-flow/AskFirst";
 import { WaitingSheetModal } from "./sends/WaitingSends";
 import { LiveBar, type LiveQueue } from "./apply-flow/WhileItRuns";
 import { setAppBadge } from "../../platform/push";
-import { planFromToday, planToday, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
+import { storage } from "../../platform/storage";
+import { planFromToday, planToday, sinceLastLook, type TodayItem, type TodayPlan, type TodayTarget } from "./today-facts";
 
 /** The Today tab's badge: how many things need you. The server counts them
  * (GET /today), and the app icon shows the same number. */
@@ -37,12 +38,44 @@ export interface TodaySample {
   flow?: "ask" | "sending";
 }
 
+/** When Today was last left on this phone: leaving it, or the app, while it shows. */
+const LAST_LOOK = "today-last-look";
+
+/** The last look before this visit, for What changed (sinceLastLook). It's
+ * read as Today comes into view and written as it goes, so a visit's list
+ * holds still while you're on it. */
+function useLastLook(enabled: boolean): number | null {
+  const read = () => storage.getNumber(LAST_LOOK) ?? null;
+  const [lastLook, setLastLook] = useState<number | null>(read);
+  const focused = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (!enabled) return;
+    focused.current = true;
+    setLastLook(read());
+    return () => { focused.current = false; storage.set(LAST_LOOK, Date.now()); };
+  }, [enabled]));
+  useEffect(() => {
+    if (!enabled) return;
+    const change = AppState.addEventListener("change", (state) => {
+      if (!focused.current) return;
+      if (state === "background") storage.set(LAST_LOOK, Date.now());
+      else if (state === "active") setLastLook(read());
+    });
+    return () => change.remove();
+  }, [enabled]);
+  return lastLook;
+}
+
 /** The live screen reads the server's Today; samples plan from their records. */
 function useTodayPlan(sample?: TodaySample) {
   const today = useToday(!sample);
-  const plan = useMemo<TodayPlan>(() => sample
-    ? planToday(sample.applications, sample.emails, new Date(), sample.threads)
-    : today.data ? planFromToday(today.data) : { needsYou: [], changed: [], comingUp: [] }, [sample, today.data]);
+  const lastLook = useLastLook(!sample);
+  const plan = useMemo<TodayPlan>(() => {
+    if (sample) return planToday(sample.applications, sample.emails, new Date(), sample.threads);
+    if (!today.data) return { needsYou: [], changed: [], comingUp: [] };
+    const live = planFromToday(today.data);
+    return { ...live, changed: sinceLastLook(live.changed, lastLook) };
+  }, [sample, today.data, lastLook]);
   return { plan, today };
 }
 

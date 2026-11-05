@@ -257,6 +257,20 @@ export function planToday(applications: readonly Application[], emails: readonly
   };
 }
 
+/**
+ * What changed since you last looked (owner, 2026-11-04: news from Nov 2
+ * and 3 kept coming back): only what happened after you last left Today,
+ * and never less than today's own news. `lastLook` is null the first time,
+ * which keeps everything the server sent (its last three days), so a
+ * weekend away still catches up.
+ */
+export function sinceLastLook(items: readonly TodayItem[], lastLook: number | null, now = new Date()): TodayItem[] {
+  if (lastLook === null) return [...items];
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const from = Math.min(lastLook, midnight);
+  return items.filter((item) => item.at >= from);
+}
+
 /** "Glean, Databricks and Intercom", or the first three and how many more. */
 export function companyNames(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? "";
