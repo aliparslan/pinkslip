@@ -27,9 +27,13 @@ export interface UpdateNotes {
  */
 export const UPDATE_NOTES: readonly UpdateNotes[] = [
   {
-    id: "2026-11-04",
+    // Replaces the evening's "2026-11-04" set, so a phone that hadn't opened
+    // since still hears about swipes, and What's new lists each line once.
+    id: "2026-11-04-resume",
     version: "1.3",
     notes: [
+      // The owner's yes to these words (2026-11-04): Resume shows the PDF.
+      { icon: "resume", meaning: "apply", title: "See your resume PDF in Resume" },
       // The owner's approval (2026-11-04): SF type, the stacked swipe pills,
       // and the long press's header-and-ticket preview.
       { icon: "jobs", meaning: "find", title: "Swipes and job previews have been refreshed" },
