@@ -228,8 +228,10 @@ X?".
     migration 0110 (D1 bookmark before:
     `00004738-0000a114-00005119-f37a5196ccef029ccb3abbbf950ee042`), and
     the owner's update `01a1a8e8` (group `01a98fc3`, runtime 1.3.9) with
-    the stacked swipe pills. Production's app update waits for the
-    owner's check.
+    the stacked swipe pills. Production's update followed the owner's
+    check the same day, with SF type and the header-and-ticket preview:
+    groups `21061ee9` (1.3.9) and `238cf2d0` (1.3.8), noted "Swipes and job
+    previews have been refreshed".
 
 ## The owner's first sends
 
