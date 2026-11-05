@@ -93,6 +93,25 @@ export function formerEmployerAnswer(control: FormControl, profile: ResumeProfil
   return control.options.find((option) => NEGATIVE.test(option) && !EVASIVE.test(option)) ?? null;
 }
 
+const LIVES_IN = /^(are|do) you (currently |presently )?(located|based|living|live|reside|residing|resident)\b[^?]*?\bin\b/i;
+const NOT_WHERE_YOU_LIVE = /relocat|willing|open to|able to|\bplan|intend|commut|travel|within|miles|near|hybrid|on.?site|office|time ?zone/i;
+const NAMES_US = /\b(u\.?s\.?a?|united states|america)\b/i;
+
+/** "Are you located in the US or Canada?" The profile says where the person
+ * lives, so when it's in the US and the question names the US, it's Yes
+ * (owner, 2026-11-04: GitLab asked it of someone in Dallas). Moving,
+ * commuting and other places stay with Jev or the person. */
+export function residenceAnswer(control: FormControl, place: { location: string; country: string }): string | null {
+  const label = control.label.trim();
+  if (control.kind === "checkbox" || control.kind === "file") return null;
+  const asked = LIVES_IN.exec(label);
+  if (!asked || NOT_WHERE_YOU_LIVE.test(label)) return null;
+  const livesInUs = inUnitedStates(place.location) || NAMES_US.test(place.country);
+  if (!livesInUs || !NAMES_US.test(label.slice(asked[0].length))) return null;
+  if (control.options.length === 0) return CHOICE_KINDS.has(control.kind) ? null : "Yes";
+  return control.options.find((option) => /^\s*yes\b/i.test(option)) ?? null;
+}
+
 /** How a page control maps onto the answer rules written for ATS forms. */
 export function fieldForControl(control: FormControl): ApplicationField {
   const choice = CHOICE_KINDS.has(control.kind) && control.options.length > 0;
@@ -304,6 +323,12 @@ export async function planApplication(
     const formerEmployer = job ? formerEmployerAnswer(control, profile.data, job.company) : null;
     if (formerEmployer) {
       steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, formerEmployer) });
+      continue;
+    }
+
+    const residence = residenceAnswer(control, place);
+    if (residence) {
+      steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, residence) });
       continue;
     }
 

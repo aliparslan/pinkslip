@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createEmptyResumeProfile, type ResumeProfile } from "../shared/resume-profile";
 import type { FormControl } from "../shared/application-form";
-import { applicantFacts, formerEmployerAnswer, fuzzyOption, learnAnswers, planApplication } from "../worker/apply/plan";
+import { applicantFacts, formerEmployerAnswer, fuzzyOption, learnAnswers, planApplication, residenceAnswer } from "../worker/apply/plan";
 import { answerWithJev, acceptedJevAnswer } from "../worker/apply/jev-answers";
 import type { JevRunner } from "../worker/jev";
 import type { Env } from "../worker/types";
@@ -222,6 +222,21 @@ describe("planning a page", () => {
     expect((await planApplication(env, "user-1", { jobId: null, controls: [certify] }, fakeJev({}))).needs.map((need) => need.ref)).toEqual(["c"]);
     // What the phone watches still leaves boxes alone.
     expect(await learnAnswers(db, "user-1", [{ ...certify, value: "checked" }])).toBe(0);
+  });
+
+  it("answers whether the applicant lives in the US from where the profile says they live", () => {
+    const yesNo = (label: string) => control("q", "radio", label, { options: ["Yes", "No"] });
+    const dallas = { location: "Dallas, TX", country: "United States" };
+    // GitLab's (owner, 2026-11-04).
+    expect(residenceAnswer(yesNo("Are you located in the US or Canada?"), dallas)).toBe("Yes");
+    expect(residenceAnswer(yesNo("Do you currently reside in the United States?"), { location: "Dallas, Texas", country: "" })).toBe("Yes");
+    expect(residenceAnswer(control("q", "text", "Are you based in the U.S.?"), dallas)).toBe("Yes");
+    // Moving, commuting, another country, or a person who isn't in the US.
+    expect(residenceAnswer(yesNo("Are you located in or willing to relocate to the US?"), dallas)).toBeNull();
+    expect(residenceAnswer(yesNo("Are you located within 50 miles of our New York office?"), dallas)).toBeNull();
+    expect(residenceAnswer(yesNo("Are you located in Canada?"), dallas)).toBeNull();
+    expect(residenceAnswer(yesNo("Are you located in the US?"), { location: "Toronto, ON", country: "Canada" })).toBeNull();
+    expect(residenceAnswer(yesNo("Are you located in the US?"), { location: "", country: "" })).toBeNull();
   });
 
   it("answers whether the applicant worked at the company from the resume", () => {
