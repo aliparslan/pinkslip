@@ -78,11 +78,29 @@ function markScript(open: string[], mine: string[], colors: { tint: string; acce
     }
     return el;
   };
+  // iOS draws a native dropdown itself, above the page and ignoring rings,
+  // outlines and borders, so a blank one gets a ring just outside its edge
+  // (owner, 2026-11-04: a required one went unmarked). Taps go through it.
+  const ring = (el) => {
+    const box = el.getBoundingClientRect();
+    const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+    const mark = document.createElement("div");
+    mark.setAttribute("data-pinkslip-ring", "");
+    mark.style.cssText = "position:absolute;box-sizing:border-box;pointer-events:none;z-index:2147483647;border:2px solid ${colors.accent};"
+      + "left:" + (box.left + scrollX - 2) + "px;top:" + (box.top + scrollY - 2) + "px;width:" + (box.width + 4) + "px;height:" + (box.height + 4) + "px;"
+      + "border-radius:" + (radius + 2) + "px";
+    document.body.appendChild(mark);
+  };
+  for (const el of document.querySelectorAll("[data-pinkslip-ring]")) el.remove();
   for (const el of document.querySelectorAll("[data-pinkslip-mark]")) el.removeAttribute("data-pinkslip-mark");
   const open = new Set(${JSON.stringify(open)}), mine = new Set(${JSON.stringify(mine)});
   for (const el of document.querySelectorAll("[data-pinkslip-ref]")) {
     const ref = el.getAttribute("data-pinkslip-ref");
-    if (open.has(ref)) shown(el).setAttribute("data-pinkslip-mark", "need");
+    if (open.has(ref)) {
+      const target = shown(el);
+      target.setAttribute("data-pinkslip-mark", "need");
+      if (target.tagName === "SELECT") ring(target);
+    }
     else if (mine.has(ref)) shown(el).setAttribute("data-pinkslip-mark", "filled");
   }
 })(); true;`;
