@@ -19,6 +19,7 @@ import { rowActions } from "../jobs/row-actions";
 import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
+import { useJobPreview } from "./JobPreview";
 import { feedSections, plainText, rowAge, rowFacts } from "./job-facts";
 import { STAGES_IN_ORDER } from "./search-draft";
 
@@ -171,6 +172,7 @@ const noop = () => undefined;
 export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
+  const preview = useJobPreview(job);
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
@@ -180,7 +182,7 @@ export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; vi
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
           actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />
       </Link.Trigger>
-      <Link.Preview />
+      <Link.Preview style={preview.style}>{preview.content}</Link.Preview>
       <Link.Menu>
         {menu.filter((item) => !item.destructive).map((item) => glyphMenuAction(glyphItem(item)))}
         {menu.some((item) => item.destructive) ? <Link.Menu inline title="">
