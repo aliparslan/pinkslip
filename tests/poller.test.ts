@@ -157,6 +157,16 @@ describe("fetchPollingSnapshot", () => {
     expect(fullFetches).toBe(0);
   });
 
+  it("tidies stray and doubled spaces out of titles", async () => {
+    const adapter: ATSAdapter = {
+      name: "spacey-board",
+      fetchJobs: async () => [{ ...makeJob("a"), title: " Intermediate  Fullstack Engineer,\tSubscription Lifecycle " }, makeJob("b")],
+      fetchJobContent: content,
+    };
+    const { jobs } = await fetchPollingSnapshot(adapter, "board");
+    expect(jobs.map((job) => job.title)).toEqual(["Intermediate Fullstack Engineer, Subscription Lifecycle", makeJob("b").title]);
+  });
+
   it("keeps normal adapter snapshots authoritative", async () => {
     const adapter: ATSAdapter = {
       name: "small-board",

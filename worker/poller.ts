@@ -598,19 +598,27 @@ export interface PollingSnapshot {
   complete: boolean;
 }
 
+/** A title as people read it: boards leave stray and doubled spaces
+ * ("Intermediate Fullstack Engineer, Subscription Lifecycle ", owner,
+ * 2026-11-04: it showed in a push). */
+export function cleanTitle(title: string): string {
+  return title.replace(/\s+/g, " ").trim();
+}
+
 export async function fetchPollingSnapshot(
   adapter: ATSAdapter,
   slug: string,
   mode: "discovery" | "complete" = "discovery"
 ): Promise<PollingSnapshot> {
+  const tidy = (jobs: JobListing[]) => jobs.map((job) => (job.title === cleanTitle(job.title) ? job : { ...job, title: cleanTitle(job.title) }));
   if (mode === "discovery" && adapter.fetchDiscoveryJobs) {
     return {
-      jobs: await adapter.fetchDiscoveryJobs(slug),
+      jobs: tidy(await adapter.fetchDiscoveryJobs(slug)),
       complete: false,
     };
   }
   return {
-    jobs: await adapter.fetchJobs(slug),
+    jobs: tidy(await adapter.fetchJobs(slug)),
     complete: true,
   };
 }
