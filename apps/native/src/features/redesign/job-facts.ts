@@ -53,11 +53,6 @@ export function jobLevel(job: FactsJob): string | null {
 }
 
 /** The stated experience for the ticket ("3+ years"), only when the posting says. */
-/** The years a job asks for, when its match fact says ("Asks for 2+ years"). */
-export function jobYears(job: FactsJob): number | null {
-  return stageOf(job).years;
-}
-
 export function jobExperience(job: FactsJob): string | null {
   const { years } = stageOf(job);
   return years === null ? null : `${years}+ years`;

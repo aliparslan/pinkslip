@@ -1116,11 +1116,10 @@ cut so that each remaining one has a job.
   - A job row's long-press menu leads with Apply for me (bot glyph) on Jobs
     and Saved when Pinkslip can send the job; it queues the send without
     opening the job, and the live bar follows it.
-  - The long press's preview is the job's header and ticket, then a line
-    from what you'd do and one from what it asks, with "you have about 1"
-    when the years asked are more than the resume's first role to now
-    (Paper "Job preview on long press · Nov 4", B, approved). None of the
-    job page's buttons; tapping it still opens the job. `JobPreview.tsx`.
+  - The long press's preview is the job's header and ticket (Paper "Job
+    preview on long press · Nov 4", A; the owner tried B on the phone and
+    dropped its lines under the ticket). None of the job page's buttons;
+    tapping it still opens the job. `JobPreview.tsx`.
 - **2026-10-29**
   - Built the send screens (Paper "Send screens · the missing states ·
     Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`
