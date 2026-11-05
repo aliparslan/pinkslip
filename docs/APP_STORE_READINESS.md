@@ -199,7 +199,8 @@ label.
   disagrees. The questions alone give 4+, but the terms of use require users
   to be at least 16, and Apple requires the rating to match a stated
   minimum. Devices on iOS older than 26 show 17+.
-- [ ] Copyright: "2026 " and the owner's legal name.
+- [x] Copyright: "2026 Pinkslip" (owner, 2026-11-04). Switch it to the
+  LLC's name once the membership is converted.
 - [x] Content rights: the app shows third-party content (job postings,
   company names and logos) and has the rights to it (owner, 2026-11-04).
 - [x] App Privacy answers published (2026-11-04).
