@@ -15,6 +15,12 @@ describe("formatJobLocation", () => {
     expect(formatJobLocation("Remote-Friendly (Travel-Required) | New York, NY")).toBe("Remote-friendly (travel) +1");
   });
 
+  it("leads with a US place, the rest in the posting's order", () => {
+    expect(formatJobLocation("Canada - Remote; Germany - Remote; United Kingdom - Remote; United States - Remote")).toBe("United States - Remote +3");
+    expect(formatJobLocation("Toronto, ON, CA / Austin, TX")).toBe("Austin, TX + Toronto, ON, CA");
+    expect(formatJobLocation("London, UK; Dublin, Ireland; Berlin, Germany")).toBe("London, UK +2");
+  });
+
   it("keeps two short locations readable", () => {
     expect(formatJobLocation("Chicago, IL; Boston, MA")).toBe("Chicago, IL + Boston, MA");
   });

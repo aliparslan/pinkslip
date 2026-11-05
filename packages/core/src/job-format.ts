@@ -61,11 +61,30 @@ export function jobLocationParts(location: string | null | undefined): string[] 
     .map((key) => parts.find((part) => part.toLowerCase() === key) as string);
 }
 
+const OTHER_COUNTRIES = /\b(canada|mexico|brazil|argentina|chile|colombia|peru|united kingdom|uk|england|scotland|wales|ireland|germany|france|spain|portugal|netherlands|belgium|switzerland|austria|poland|sweden|denmark|norway|finland|italy|czech( republic)?|czechia|romania|hungary|greece|turkey|israel|india|pakistan|singapore|japan|korea|china|hong kong|taiwan|australia|new zealand|philippines|vietnam|indonesia|malaysia|thailand|uae|united arab emirates|dubai|saudi arabia|egypt|nigeria|kenya|south africa|emea|apac|latam|europe)\b/i;
+
+/** A place in another country: "Canada - Remote", "London, UK", or one that
+ * ends in a country code other than US ("Toronto, ON, CA", "Bengaluru, KA,
+ * IN"). A place that names no country ("Remote", "Sunnyvale") isn't. */
+export function isPlaceAbroad(place: string): boolean {
+  const coded = /,\s*[^,]+,\s*([A-Za-z]{2})$/.exec(place);
+  if (coded) return coded[1]!.toUpperCase() !== "US";
+  // "Remote - US or Canada" is in the US too.
+  return OTHER_COUNTRIES.test(place) && !/\b(united states|usa)\b/i.test(place) && !/\bUS\b/.test(place);
+}
+
+/** The same places with ones abroad last, otherwise in the posting's order. */
+export function placesAbroadLast<T>(places: readonly T[], place: (entry: T) => string = String): T[] {
+  return [...places.filter((entry) => !isPlaceAbroad(place(entry))), ...places.filter((entry) => isPlaceAbroad(place(entry)))];
+}
+
 // ATS feeds often send a long list (sometimes with country names repeated).
 // Keep the first meaningful place visible and summarize the rest for feed rows;
 // the full source location remains available on the job detail screen.
+// Pinkslip is for the US, so places abroad go last (owner, 2026-11-04: a row
+// read "Canada - Remote +3" for a job that's also remote in the US).
 export function formatJobLocation(location: string | null | undefined): string | null {
-  const unique = jobLocationParts(location);
+  const unique = placesAbroadLast(jobLocationParts(location));
   if (unique.length === 0) return null;
   if (unique.length === 1) return unique[0];
 

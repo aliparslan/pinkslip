@@ -1,7 +1,7 @@
 import type { ApplicationStage, Job } from "@pinkslip/core/api";
 import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { decodeEntities } from "@pinkslip/core/job-description";
-import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts } from "@pinkslip/core/job-format";
+import { formatCompactSalaryText, formatRowLocation, formatRowSalary, jobLocationParts, placesAbroadLast } from "@pinkslip/core/job-format";
 import { compactJobAge } from "@pinkslip/core/job-timing";
 import { companySourceLabel, isCompanySourceType } from "@pinkslip/domain/company-sources";
 import { formatPayRange, paySpread, rangeForPlace, rangesNamePlaces } from "@pinkslip/domain/pay-ranges";
@@ -97,9 +97,10 @@ export function placeMatches(place: string, profile: SearchProfile | undefined):
 
 const NOT_LISTED = "Not listed";
 
-/** Every place, the ones the saved search covers first. */
+/** Every place, the ones the saved search covers first and, within each,
+ * the ones abroad last ("Remote" matches "Canada - Remote" too). */
 export function orderedPlaces(job: FactsJob, profile: SearchProfile | undefined): { place: string; matched: boolean }[] {
-  const places = jobLocationParts(job.location).map((place) => ({ place, matched: placeMatches(place, profile) }));
+  const places = placesAbroadLast(jobLocationParts(job.location)).map((place) => ({ place, matched: placeMatches(place, profile) }));
   return [...places.filter((entry) => entry.matched), ...places.filter((entry) => !entry.matched)];
 }
 
