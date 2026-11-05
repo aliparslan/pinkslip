@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, TextInput, View, type TextInputPro
 import Svg, { Path } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PressableScale } from "../kit/PressableScale";
-import { faces, useUiFontsLoaded } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 import { SHEET_GROUP_RADIUS } from "./sheet-geometry";
 import { Text, type TextTone } from "./Text";
@@ -76,7 +76,6 @@ export interface SignInFieldProps extends Pick<TextInputProps, "keyboardType" | 
  * label always above the value (S2), the sign-in ring when it's wrong (E1). */
 export function SignInField({ label, value, onChangeText, invalid, keyboardType, textContentType, autoComplete, returnKeyType, onSubmitEditing, autoFocus, secureTextEntry }: SignInFieldProps) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   styles.useVariants({ invalid: Boolean(invalid) });
   return <View style={styles.field}>
     <Text role="footnote" tone="ink-3">{label}</Text>
@@ -84,7 +83,7 @@ export function SignInField({ label, value, onChangeText, invalid, keyboardType,
       keyboardType={keyboardType} textContentType={textContentType} autoComplete={autoComplete} autoCapitalize="none" autoCorrect={false}
       secureTextEntry={secureTextEntry}
       returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} selectionColor={theme.ui.color.accent}
-      style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
+      style={[styles.input, face.text]} />
   </View>;
 }
 

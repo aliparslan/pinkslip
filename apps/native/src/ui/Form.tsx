@@ -3,7 +3,7 @@ import { frame, pickerStyle, tag } from "@expo/ui/swift-ui/modifiers";
 import { Children, Fragment, useState, type ReactNode } from "react";
 import { Pressable, Switch, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces, useUiFontsLoaded } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -46,7 +46,6 @@ export interface TextFieldProps {
  * shrinks up above it (R2c). */
 export function TextField({ label, value, onChangeText, keyboardType, autoCapitalize, autoComplete, textContentType, multiline, autoFocus }: TextFieldProps) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const [focused, setFocused] = useState(false);
   const raised = focused || value.length > 0;
   const url = keyboardType === "url" || keyboardType === "email-address";
@@ -56,19 +55,18 @@ export function TextField({ label, value, onChangeText, keyboardType, autoCapita
       onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} accessibilityLabel={label}
       keyboardType={keyboardType} autoCapitalize={autoCapitalize ?? (url ? "none" : "sentences")} autoCorrect={!url}
       autoComplete={autoComplete} textContentType={textContentType} multiline={multiline} autoFocus={autoFocus}
-      selectionColor={theme.ui.color.accent} style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
+      selectionColor={theme.ui.color.accent} style={[styles.input, face.text]} />
   </View>;
 }
 
 /** A value typed at the row's end (GPA). */
 export function InlineField({ label, value, onChangeText, keyboardType }: Pick<TextFieldProps, "label" | "value" | "onChangeText" | "keyboardType">) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   return <View style={styles.row}>
     <Text flex>{label}</Text>
     <TextInput value={value} onChangeText={onChangeText} keyboardType={keyboardType} accessibilityLabel={label} placeholder="Add" textAlign="right"
       placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
-      style={[styles.inline, { fontFamily: fonts ? faces.text : undefined }]} />
+      style={[styles.inline, face.text]} />
   </View>;
 }
 
@@ -136,9 +134,8 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
  * goes when you leave it. */
 export function BulletRows({ items, onChange, label = "Add a line" }: { items: string[]; onChange: (items: string[]) => void; label?: string }) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const [fresh, setFresh] = useState<number | null>(null);
-  const font = { fontFamily: fonts ? faces.text : undefined };
+  const font = face.text;
   return <>
     {items.map((item, index) => <Fragment key={index}>
       {index > 0 ? <View style={styles.bulletRule} /> : null}

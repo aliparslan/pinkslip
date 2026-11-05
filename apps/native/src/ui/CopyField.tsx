@@ -6,7 +6,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { durations, easeOut } from "../kit/motion";
 import { PressableScale } from "../kit/PressableScale";
 import { haptics } from "../platform/haptics";
-import { faces } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 import { SHEET_GROUP_RADIUS } from "./sheet-geometry";
 import { Text, type TextTone } from "./Text";
@@ -121,6 +121,6 @@ const styles = StyleSheet.create((theme) => ({
   block: { alignItems: "flex-start", padding: theme.ui.space["4"], paddingTop: 10, paddingRight: 10 },
   // An address or a code is set in Founders like a ticket's facts; both sit
   // outside the type scale, as the date tile does.
-  value: { flex: 1, fontFamily: faces.display, fontSize: 17, lineHeight: 22, color: theme.ui.color.ink },
+  value: { flex: 1, ...face.display, fontSize: 17, lineHeight: 22, color: theme.ui.color.ink },
   code: { fontSize: 40, lineHeight: 44, letterSpacing: 2.4 },
 }));

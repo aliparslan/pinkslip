@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Text as RNText, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces } from "./fonts";
+import { face } from "./fonts";
 import { Grain } from "./Grain";
 import { StampFrame } from "./StampFrame";
 
@@ -72,6 +72,6 @@ const styles = StyleSheet.create((theme) => ({
     transformOrigin: "0% 0%",
     transform: [{ rotate: "-10deg" }],
   },
-  stampLabel: { fontFamily: faces.stamp, fontSize: 18, lineHeight: 22, letterSpacing: 1.08, color: theme.ui.color.ink },
-  stampDetail: { fontFamily: faces.stampDetail, fontSize: 12, lineHeight: 16, letterSpacing: 0.72, color: theme.ui.color.ink },
+  stampLabel: { ...face.stamp, fontSize: 18, lineHeight: 22, letterSpacing: 1.08, color: theme.ui.color.ink },
+  stampDetail: { ...face.stampDetail, fontSize: 12, lineHeight: 16, letterSpacing: 0.72, color: theme.ui.color.ink },
 }));

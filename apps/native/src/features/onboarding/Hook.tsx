@@ -10,7 +10,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { ScopedTheme, StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../platform/haptics";
 import { Button, Text } from "../../ui";
-import { faces } from "../../ui/fonts";
+import { face } from "../../ui/fonts";
 import { motion, spring } from "../../ui/motion";
 
 const { land: LAND, words: WORDS, throw: THROW } = motion.onboarding;
@@ -233,7 +233,7 @@ function Fade() {
 
 function Small({ children, tone = D["ink-2"], medium = false, size = 12, line = false }: { children: ReactNode; tone?: string; medium?: boolean; size?: 12 | 13; line?: boolean }) {
   return <RNText allowFontScaling={false} numberOfLines={line ? 1 : undefined}
-    style={[size === 12 ? styles.small : styles.note, line && styles.shrink, { color: tone, fontFamily: medium ? faces.textMedium : faces.text }]}>
+    style={[size === 12 ? styles.small : styles.note, line && styles.shrink, { color: tone, ...(medium ? face.textMedium : face.text) }]}>
     {children}
   </RNText>;
 }
@@ -403,7 +403,7 @@ const styles = StyleSheet.create((theme) => ({
     width: 148, height: 144, gap: theme.ui.space["1"], paddingTop: theme.ui.space["5"], paddingHorizontal: theme.ui.space["4"], paddingBottom: theme.ui.space["4"],
     borderRadius: 4, overflow: "visible", boxShadow: "0px 20px 30px -12px rgba(0, 0, 0, 0.7)",
   },
-  stickyText: { fontFamily: faces.textMedium, fontSize: 17, lineHeight: 22, color: MESS.stickyInk },
+  stickyText: { ...face.textMedium, fontSize: 17, lineHeight: 22, color: MESS.stickyInk },
   tape: { position: "absolute", left: 44, top: -8, width: 60, height: 18, backgroundColor: MESS.tape, transform: [{ rotate: "4deg" }] },
   email: { width: 236 },
   to: { flexDirection: "row", gap: theme.ui.space["2"], paddingVertical: theme.ui.space["2"], paddingHorizontal: theme.ui.space["3"] },
@@ -421,5 +421,5 @@ const styles = StyleSheet.create((theme) => ({
   postLine: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   postDetail: { paddingLeft: theme.ui.space["4"] },
   odds: { flexDirection: "row", gap: theme.ui.space["4"], paddingVertical: theme.ui.space["3"], paddingHorizontal: theme.ui.space["4"] },
-  stat: { fontFamily: faces.display, fontSize: 28, lineHeight: 30 },
+  stat: { ...face.display, fontSize: 28, lineHeight: 30 },
 }));

@@ -8,7 +8,7 @@ export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { CopyField, CopyGlyph, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
-export { faces, loadUiFonts, useUiFontsLoaded } from "./fonts";
+export { face, klim, loadUiFonts, useUiFontsLoaded } from "./fonts";
 export { Icon, type IconName, type IconProps } from "./Icon";
 export { IconTile, type IconTileProps, type TileMeaning } from "./IconTile";
 export { IconButton, type IconButtonProps } from "./IconButton";

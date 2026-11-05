@@ -1,12 +1,18 @@
-import * as Font from "expo-font";
-import { useSyncExternalStore } from "react";
+import type { TextStyle } from "react-native";
 
-/** The Klim faces the redesign uses: Founders Grotesk Semibold for display,
- * Untitled Sans for text and Founders Grotesk Mono for the stub's stamps.
- * They are the trial cuts for now (about 67 characters), so iOS draws
- * missing punctuation in the system font. Buy the app licence before an App
- * Store build ships them. */
-export const faces = {
+/**
+ * The app draws in SF, the system font, for now (owner, 2026-11-04: getting
+ * ready for the App Store before the Klim licences are bought; the trial
+ * cuts can't ship in a store build, so nothing here loads them). `face` is
+ * the one switch: each role's family and weight. SF Mono isn't open to apps,
+ * so the stub's stamps keep SF with even-width digits.
+ *
+ * Back to Klim once licensed: point `face` at `klim` (with no weights; each
+ * file is its own), and load the files from assets/fonts in loadUiFonts:
+ * FoundersGrotesk-Semibold, UntitledSans-Regular and -Medium, and
+ * FoundersGroteskMono-Medium and -Regular.
+ */
+export const klim = {
   display: "FoundersGrotesk-Semibold",
   text: "UntitledSans-Regular",
   textMedium: "UntitledSans-Medium",
@@ -14,25 +20,22 @@ export const faces = {
   stampDetail: "FoundersGroteskMono-Regular",
 } as const;
 
-let loaded = false;
-let loading: Promise<void> | undefined;
-const listeners = new Set<() => void>();
+type Face = Pick<TextStyle, "fontFamily" | "fontWeight" | "fontVariant">;
 
-/** Loads the faces once. Text draws in the system font until they land. */
+export const face = {
+  display: { fontFamily: "System", fontWeight: "600" },
+  text: { fontFamily: "System", fontWeight: "400" },
+  textMedium: { fontFamily: "System", fontWeight: "500" },
+  stamp: { fontFamily: "System", fontWeight: "500", fontVariant: ["tabular-nums"] },
+  stampDetail: { fontFamily: "System", fontWeight: "400", fontVariant: ["tabular-nums"] },
+} as const satisfies Record<keyof typeof klim, Face>;
+
+/** Nothing to load while the app is on SF. */
 export function loadUiFonts(): Promise<void> {
-  loading ??= Font.loadAsync({
-    [faces.display]: require("../../assets/fonts/FoundersGrotesk-Semibold.otf"),
-    [faces.text]: require("../../assets/fonts/UntitledSans-Regular.otf"),
-    [faces.textMedium]: require("../../assets/fonts/UntitledSans-Medium.otf"),
-    [faces.stamp]: require("../../assets/fonts/FoundersGroteskMono-Medium.otf"),
-    [faces.stampDetail]: require("../../assets/fonts/FoundersGroteskMono-Regular.otf"),
-  }).then(() => {
-    loaded = true;
-    for (const listener of listeners) listener();
-  }, () => { loading = undefined; });
-  return loading;
+  return Promise.resolve();
 }
 
+/** False while on SF, so text and fields take the system font and a weight. */
 export function useUiFontsLoaded(): boolean {
-  return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => loaded);
+  return false;
 }

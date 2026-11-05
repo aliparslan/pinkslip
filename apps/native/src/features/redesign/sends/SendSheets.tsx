@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
-  Button, Choice, Choices, CodeBoxes, CompanyLogo, faces, Icon, LETTER_CODE_LENGTH, SearchField, SHEET_GROUP_RADIUS, SheetBack, SheetStep, Text, useSheetTravel,
-  useSheet, useUiFontsLoaded,
+  Button, Choice, Choices, CodeBoxes, CompanyLogo, face, Icon, LETTER_CODE_LENGTH, SearchField, SHEET_GROUP_RADIUS, SheetBack, SheetStep, Text, useSheetTravel,
+  useSheet,
 } from "../../../ui";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { StackedLogos } from "../apply-flow/AskFirst";
@@ -156,14 +156,13 @@ export function WaitingSheet({ waiting, pending, onKeep, onSendAll }: {
  * long list (a school) that shows the closest few. */
 function NeedInput({ need, value, onChange }: { need: SendNeed; value: string | string[] | undefined; onChange: (value: string | string[]) => void }) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const [query, setQuery] = useState("");
   const control = needControl(need);
   if (control.kind === "text") {
     return <View style={styles.field}>
       <TextInput value={typeof value === "string" ? value : ""} onChangeText={onChange} autoFocus multiline={control.multiline}
         maxLength={2000} textAlignVertical="top" accessibilityLabel={need.label} placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
-        style={[styles.input, control.multiline && styles.inputLong, { fontFamily: fonts ? faces.text : undefined }]} />
+        style={[styles.input, control.multiline && styles.inputLong, face.text]} />
     </View>;
   }
   const picked = Array.isArray(value) ? value : value ? [value] : [];

@@ -8,7 +8,7 @@ import { settleSpring } from "../kit/motion";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
-import { faces } from "./fonts";
+import { face } from "./fonts";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
 
@@ -385,5 +385,5 @@ const styles = StyleSheet.create((theme) => ({
   pillContent: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: PILL_ICON_GAP },
   pillContentLeft: { left: 0 },
   pillContentRight: { right: 0 },
-  pillLabel: { fontFamily: faces.textMedium, fontSize: theme.ui.type.footnote.size, lineHeight: theme.ui.type.footnote.line },
+  pillLabel: { ...face.textMedium, fontSize: theme.ui.type.footnote.size, lineHeight: theme.ui.type.footnote.line },
 }));

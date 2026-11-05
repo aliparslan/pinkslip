@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, CopyGlyph, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, Text, faces, toast, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
+import { Button, CopyGlyph, Icon, ListGroup, ListItem, PAGE_BAR, PageBar, Text, face, toast, useCopy, useTabBarScroll, useTabBarSpace } from "../../../ui";
 import { jobEmailsThisMonth, shortAddress, sinceLastEmail, trackingState, type TrackingState } from "./email-facts";
 import { useEmailTrackingPrefs, type EmailTrackingPrefs } from "./email-prefs";
 import { EmailSetupSheet, useEmailSetupActions, type EmailSetupActions, type SetupStart } from "./SetupSheet";
@@ -141,5 +141,5 @@ const styles = StyleSheet.create((theme) => ({
   spacer: { flex: 1 },
   setUp: { paddingTop: theme.ui.space["2"] },
   // The numbers are Founders, read at a glance like the Today numbers.
-  number: { fontFamily: faces.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.ink },
+  number: { ...face.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.ink },
 }));

@@ -1,7 +1,7 @@
 import { Children, Fragment, useEffect, useRef, type ReactNode } from "react";
 import { Pressable, Switch, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces, useUiFontsLoaded } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 import { Radio } from "./List";
 import { SHEET_GROUP_BOTTOM_RADIUS, SHEET_GROUP_RADIUS } from "./sheet-geometry";
@@ -74,7 +74,6 @@ export interface AmountInputProps {
  * so there's no error to show. */
 export function AmountInput({ value, onChange, max, focused, onFocus, label }: AmountInputProps) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const input = useRef<TextInput>(null);
   useEffect(() => {
     if (focused) input.current?.focus();
@@ -87,7 +86,7 @@ export function AmountInput({ value, onChange, max, focused, onFocus, label }: A
       if (next >= 1 && next <= max) onChange(next);
     }}
     onFocus={onFocus} keyboardType="number-pad" textAlign="right" accessibilityLabel={label}
-    selectionColor={theme.ui.color.accent} style={[styles.amount, { fontFamily: fonts ? faces.text : undefined }]} />;
+    selectionColor={theme.ui.color.accent} style={[styles.amount, face.text]} />;
 }
 
 export interface ChoiceLinkProps {

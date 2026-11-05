@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { haptics } from "../../../platform/haptics";
 import {
-  Button, CompanyLogo, EmptyState, faces, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, SheetModal, SheetStep, Text, toast, useCopy, useSheet,
+  Button, CompanyLogo, EmptyState, face, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, SheetModal, SheetStep, Text, toast, useCopy, useSheet,
   useTabBarStepsAside, useToastLift,
   type GlyphMenuItem,
 } from "../../../ui";
@@ -218,7 +218,7 @@ const styles = StyleSheet.create((theme) => ({
   who: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
   whoText: { flex: 1, gap: 2 },
   avatar: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
-  initials: { fontFamily: faces.display, fontSize: 15, lineHeight: 18, color: theme.ui.color["ink-2"] },
+  initials: { ...face.display, fontSize: 15, lineHeight: 18, color: theme.ui.color["ink-2"] },
   section: { gap: theme.ui.space["1"] },
   label: { paddingHorizontal: theme.ui.size.gutter },
   labelRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },

@@ -155,6 +155,12 @@ else is decided.
 - **Pink text** is for needs-you labels ("2 need you"). Tappable words
   inside rows or sentences (Change, Undo, Pause) are ink (owner,
   2026-10-13). Never for headings or body copy.
+- **The app draws in SF for now** (owner, 2026-11-04: the App Store build
+  can't ship the Klim trial cuts, and the licences aren't bought yet). Every
+  face below is the system font at its weight: display Semibold 600, text
+  Regular 400 and Medium 500, the stub's stamps SF with even digits (SF Mono
+  isn't open to apps). `face` in `apps/native/src/ui/fonts.ts` is the one
+  switch back to Klim. Paper and the website keep Klim.
 - **Type** follows Apple's text styles so it scales with the iPhone's text
   size:
 
@@ -1099,6 +1105,7 @@ cut so that each remaining one has a job.
     in, so there's no error state; the button stays gray until there's an
     amount.
 - **2026-11-04**
+  - The app switched to SF (see Text) until the Klim licences are bought.
   - Built stopped sends (Paper "Stopped sends · Nov 4", approved, W2's
     deadline taken out): "A send on the job page" above. New:
     `WaitingSheet` (`sends/SendSheets.tsx`) and its modal

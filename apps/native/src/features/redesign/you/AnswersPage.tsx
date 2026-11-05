@@ -8,8 +8,7 @@ import { Alert, Pressable, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu, type MenuItem } from "../../../kit";
 import {
-  Button, Choice, Choices, EmptyState, faces, Icon, MonthRow, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, toast, useSheet, useUiFontsLoaded,
-} from "../../../ui";
+  Button, Choice, Choices, EmptyState, face, Icon, MonthRow, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, toast, useSheet, } from "../../../ui";
 import { ComingSoon, YouPage } from "./Page";
 
 /**
@@ -155,7 +154,6 @@ function SalarySheet({ open, value, onClosed, onSave, onLeave }: { open: boolean
 
 function SalaryStep({ value, onSave, onLeave }: { value: string; onSave: (value: string) => void; onLeave: () => void }) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const sheet = useSheet();
   const hourly = /an hour$/i.test(value);
   const [amount, setAmount] = useState(value.replace(/\s*(a year|an hour)$/i, ""));
@@ -165,7 +163,7 @@ function SalaryStep({ value, onSave, onLeave }: { value: string; onSave: (value:
     <View style={styles.sheetField}>
       <TextInput value={amount} onChangeText={setAmount} keyboardType="numbers-and-punctuation" placeholder="$110,000" autoFocus
         placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent} accessibilityLabel="Amount"
-        style={[styles.sheetInput, { fontFamily: fonts ? faces.text : undefined }]} />
+        style={[styles.sheetInput, face.text]} />
       <Menu title="" items={(["a year", "an hour"] as const).map((option) => ({ id: option, title: option === "a year" ? "A year" : "An hour", checked: per === option, onSelect: () => setPer(option) }))}>
         <View style={styles.menuValue}><Text tone="ink-3">{per}</Text><Icon name="pick" size={12} tone="ink-4" /></View>
       </Menu>
@@ -192,7 +190,6 @@ function WrittenSheet({ answer, onClosed, onSave, onForget }: {
 
 function WrittenStep({ answer, onSave, onForget }: { answer: SavedApplicationAnswer; onSave: WrittenSheetSave; onForget: (answer: SavedApplicationAnswer) => void }) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const sheet = useSheet();
   const yesNo = answer.value === "yes" || answer.value === "no";
   const [draft, setDraft] = useState(Array.isArray(answer.value) ? answer.value.join(", ") : answer.value === "decline" ? "" : answer.value);
@@ -205,7 +202,7 @@ function WrittenStep({ answer, onSave, onForget }: { answer: SavedApplicationAns
         onPress={() => { onSave(answer, choice); sheet.close(); }} />)}
     </Choices> : <View style={styles.answerBox}>
       <TextInput value={draft} onChangeText={setDraft} multiline scrollEnabled={false} textAlignVertical="top" accessibilityLabel="Your answer"
-        selectionColor={theme.ui.color.accent} style={[styles.answerInput, { fontFamily: fonts ? faces.text : undefined }]} />
+        selectionColor={theme.ui.color.accent} style={[styles.answerInput, face.text]} />
     </View>}
     <View style={styles.note}><Text role="footnote" tone="ink-3">{`Saved ${saved}`}</Text></View>
     <View style={styles.answers}>

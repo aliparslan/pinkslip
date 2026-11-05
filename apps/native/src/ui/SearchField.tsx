@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Floating } from "./Floating";
-import { faces, useUiFontsLoaded } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 
 export interface SearchFieldProps {
@@ -21,13 +21,12 @@ export interface SearchFieldProps {
  * clear button once there's text. */
 export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField({ value, onChangeText, placeholder, onSubmit, autoFocus, floating }, ref) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const content = <>
     <Icon name="search" size={18} tone="ink-3" />
     <TextInput ref={ref} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={theme.ui.color["ink-3"]}
       onSubmitEditing={onSubmit} autoFocus={autoFocus} returnKeyType="search" autoCorrect={false} autoCapitalize="none" clearButtonMode="never"
       selectionColor={theme.ui.color.accent} accessibilityRole="search"
-      style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
+      style={[styles.input, face.text]} />
     {value ? <Pressable onPress={() => onChangeText("")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.clear}>
       <Icon name="close" size={10} tone="bg" />
     </Pressable> : null}

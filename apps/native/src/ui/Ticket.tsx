@@ -7,7 +7,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "../platform/haptics";
-import { faces } from "./fonts";
+import { face } from "./fonts";
 import { Grain } from "./Grain";
 import { Icon } from "./Icon";
 import { motion, timing } from "./motion";
@@ -545,8 +545,8 @@ const stubStyles = StyleSheet.create((theme) => ({
   /** The 1.5 frame is drawn over the padding, where a border would sit. */
   stamp: { paddingHorizontal: 11.5, paddingVertical: 7.5, gap: 1 },
   fill: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
-  stampLabel: { fontFamily: faces.stamp, fontSize: 13, lineHeight: 16, letterSpacing: 0.78 },
-  stampDetail: { fontFamily: faces.stampDetail, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
+  stampLabel: { ...face.stamp, fontSize: 13, lineHeight: 16, letterSpacing: 0.78 },
+  stampDetail: { ...face.stampDetail, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
   aside: { paddingLeft: theme.ui.space["1"] },
   foot: { gap: theme.ui.space["3"] },
   rule: { alignSelf: "stretch" },

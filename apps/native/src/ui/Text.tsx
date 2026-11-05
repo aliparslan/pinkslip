@@ -2,7 +2,7 @@ import type { UiTypeRole } from "@pinkslip/tokens/types";
 import type { ReactNode } from "react";
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces, useUiFontsLoaded } from "./fonts";
+import { face } from "./fonts";
 
 export type TextRole = UiTypeRole;
 /** `ink-4` is missing on purpose: it's for strokes and disabled marks, never text. */
@@ -12,7 +12,7 @@ export type TextWeight = "regular" | "medium";
 export interface TextProps extends Pick<RNTextProps, "accessibilityRole" | "accessibilityLabel" | "selectable" | "onPress" | "testID"> {
   role?: TextRole;
   tone?: TextTone;
-  /** Text roles only; display roles are always Founders Grotesk Semibold. */
+  /** Text roles only; display roles are always the display face's semibold. */
   weight?: TextWeight;
   lines?: number;
   align?: "left" | "center" | "right";
@@ -21,17 +21,16 @@ export interface TextProps extends Pick<RNTextProps, "accessibilityRole" | "acce
   children: ReactNode;
 }
 
-/** Text on Apple's text styles: Founders Grotesk for display, Untitled Sans for
- * text, the system font for tab labels. It scales with Dynamic Type. */
+/** Text on Apple's text styles in the app's faces (SF for now, ui/fonts.ts),
+ * the system font for tab labels. It scales with Dynamic Type. */
 export function Text({ role = "body", tone = "ink", weight = "regular", lines, align, flex, children, ...rest }: TextProps) {
   const { theme } = useUnistyles();
-  const fontsLoaded = useUiFontsLoaded();
   const type = theme.ui.type[role];
   const display = type.face === "display";
-  const family = !fontsLoaded || type.face === "system" ? undefined
-    : display ? faces.display : weight === "medium" ? faces.textMedium : faces.text;
-  // The system font (and the fallback before the Klim files load) takes a weight.
-  const fontWeight = family ? undefined : display ? "600" : weight === "medium" ? "500" : "400";
+  // Each role's face (ui/fonts.ts: SF for now); tab labels are always the system font.
+  const { fontFamily: family, fontWeight } = type.face === "system"
+    ? { fontFamily: undefined, fontWeight: weight === "medium" ? "500" as const : "400" as const }
+    : display ? face.display : weight === "medium" ? face.textMedium : face.text;
   return <RNText {...rest} numberOfLines={lines} maxFontSizeMultiplier={display ? 1.5 : 2}
     style={[styles.root(tone), {
       fontFamily: family, fontWeight, fontSize: type.size, lineHeight: type.line, letterSpacing: type.tracking,

@@ -11,7 +11,7 @@ import { Menu } from "../../../kit";
 import { deviceRegion } from "../../../platform/region";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
-import { faces, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
+import { face, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
 import { autoApplyValue } from "../apply-flow/auto-apply-facts";
@@ -246,7 +246,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   pressed: { backgroundColor: theme.ui.color.fill },
   avatar: { width: 56, height: 56, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.bg, alignItems: "center", justifyContent: "center" },
-  initials: { fontFamily: faces.display, fontSize: 22, lineHeight: 26, color: theme.ui.color["ink-2"] },
+  initials: { ...face.display, fontSize: 22, lineHeight: 26, color: theme.ui.color["ink-2"] },
   personText: { flex: 1, minWidth: 0, gap: 2 },
   version: { paddingBottom: theme.ui.space["2"] },
 }));

@@ -2,7 +2,7 @@ import { useReportJob, type ReportType } from "@pinkslip/data";
 import { useState } from "react";
 import { Keyboard, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, Choice, Choices, faces, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, toast, useSheet, useUiFontsLoaded } from "../../ui";
+import { Button, Choice, Choices, face, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, toast, useSheet } from "../../ui";
 
 /** The reasons, in the words a person would use, each with what its note
  * asks for (Paper "Approved", R1 to R3). */
@@ -38,7 +38,6 @@ export function ReportJobSheet({ jobId, open, onClosed, onReportedClosed, sample
 
 function ReportStep({ jobId, onReportedClosed, sample }: Pick<ReportJobSheetProps, "jobId" | "onReportedClosed" | "sample">) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const sheet = useSheet();
   const report = useReportJob();
   const [picked, setPicked] = useState<ReportType | null>(null);
@@ -78,7 +77,7 @@ function ReportStep({ jobId, onReportedClosed, sample }: Pick<ReportJobSheetProp
       <TextInput value={note} onChangeText={setNote} multiline maxLength={1000} textAlignVertical="top"
         placeholder={reason.note} placeholderTextColor={theme.ui.color["ink-3"]} accessibilityLabel={reason.note}
         onFocus={() => setFolded(true)}
-        style={[styles.input, { fontFamily: fonts ? faces.text : undefined }]} />
+        style={[styles.input, face.text]} />
     </View> : null}
     <Button variant="primary" fullWidth disabled={!picked} pending={report.isPending} onPress={send}>Send</Button>
   </SheetStep>;

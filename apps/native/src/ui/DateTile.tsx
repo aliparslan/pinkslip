@@ -1,6 +1,6 @@
 import { Text as RNText, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces } from "./fonts";
+import { face } from "./fonts";
 import { Icon } from "./Icon";
 
 export interface DateTileProps {
@@ -38,6 +38,6 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color.fill,
   },
   empty: { backgroundColor: "transparent", borderWidth: 1.5, borderStyle: "dashed" },
-  month: { fontFamily: faces.display, fontSize: 11, lineHeight: 12, letterSpacing: 0.88, color: theme.ui.color["ink-3"] },
-  day: { fontFamily: faces.display, fontSize: 20, lineHeight: 20, color: theme.ui.color.ink },
+  month: { ...face.display, fontSize: 11, lineHeight: 12, letterSpacing: 0.88, color: theme.ui.color["ink-3"] },
+  day: { ...face.display, fontSize: 20, lineHeight: 20, color: theme.ui.color.ink },
 }));

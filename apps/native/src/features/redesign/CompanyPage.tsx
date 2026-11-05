@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Button, CompanyLogo, EmptyState, faces, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { Button, CompanyLogo, EmptyState, face, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
 import { Text as RNText } from "react-native";
 import { openSignIn } from "../account/sign-in-request";
 import { initials } from "./outreach/outreach-facts";
@@ -215,7 +215,7 @@ const styles = StyleSheet.create((theme) => ({
   pressed: { backgroundColor: theme.ui.color.fill },
   person: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingLeft: theme.ui.size.gutter },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
-  initials: { fontFamily: faces.display, fontSize: 15, lineHeight: 18, color: theme.ui.color["ink-2"] },
+  initials: { ...face.display, fontSize: 15, lineHeight: 18, color: theme.ui.color["ink-2"] },
   personText: {
     flex: 1, gap: 2, paddingVertical: theme.ui.space["3"], paddingRight: theme.ui.size.gutter,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ui.color.separator,

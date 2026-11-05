@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../../platform/haptics";
-import { Button, faces, ListGroup, ListItem, Segmented, toast, useUiFontsLoaded } from "../../../ui";
+import { Button, face, ListGroup, ListItem, Segmented, toast } from "../../../ui";
 import { YouPage } from "./Page";
 
 export type FeedbackKind = "idea" | "problem";
@@ -22,12 +22,11 @@ export interface HelpViewProps {
  * asks for its name in the iPhone's prompt. */
 export function HelpView({ actions }: HelpViewProps) {
   const { theme } = useUnistyles();
-  const fonts = useUiFontsLoaded();
   const [kind, setKind] = useState<FeedbackKind>("idea");
   const [subject, setSubject] = useState("");
   const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
-  const font = { fontFamily: fonts ? faces.text : undefined };
+  const font = face.text;
   const send = () => {
     setSending(true);
     actions.send(kind, subject.trim(), details.trim()).then(({ duplicate }) => {

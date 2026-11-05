@@ -3,7 +3,7 @@ import * as WebBrowser from "expo-web-browser";
 import type { ReactNode } from "react";
 import { Text as RNText, TextInput, View, type StyleProp, type TextStyle } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { faces, useUiFontsLoaded } from "../../ui";
+import { face, useUiFontsLoaded } from "../../ui";
 
 function Runs({ runs, loaded }: { runs: DescriptionRun[]; loaded: boolean }) {
   return runs.map((run, index) => <RNText key={index}
@@ -52,8 +52,8 @@ const styles = StyleSheet.create((theme) => {
     root: { gap: theme.ui.space["3"] },
     heading: { color: theme.ui.color.ink, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, marginTop: theme.ui.space["3"] },
     paragraph: { color: theme.ui.color.ink, fontSize: long.size, lineHeight: long.line, letterSpacing: long.tracking },
-    textFace: { fontFamily: faces.text },
-    boldFace: { fontFamily: faces.textMedium },
+    textFace: { ...face.text },
+    boldFace: { ...face.textMedium },
     boldWeight: { fontWeight: "500" },
     italic: { fontStyle: "italic" },
     link: { color: theme.ui.color.ink, textDecorationLine: "underline" },

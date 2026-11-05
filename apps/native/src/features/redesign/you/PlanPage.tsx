@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Text as RNText, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, Choice, Choices, ListGroup, ListItem, SheetHeader, SheetModal, SheetStep, Text, faces, useSheet } from "../../../ui";
+import { Button, Choice, Choices, ListGroup, ListItem, SheetHeader, SheetModal, SheetStep, Text, face, useSheet } from "../../../ui";
 import { ComingSoon, YouPage } from "./Page";
 
 /** One of the weekly allowances on Free. */
@@ -179,7 +179,7 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1, gap: 10, padding: theme.ui.space["4"],
     borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"],
   },
-  left: { fontFamily: faces.display, fontSize: 34, lineHeight: 40, color: theme.ui.color.ink },
+  left: { ...face.display, fontSize: 34, lineHeight: 40, color: theme.ui.color.ink },
   bars: { flexDirection: "row", gap: theme.ui.space["1"] },
   bar: { flex: 1, height: 6, borderRadius: 3 },
   barLeft: { backgroundColor: theme.ui.color.ink },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["accent-soft"],
   },
   proText: { gap: 2 },
-  proTitle: { fontFamily: faces.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.accent },
+  proTitle: { ...face.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.accent },
   // Clear of the slips in the corner.
   proLine: { paddingRight: 64 },
   proFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -206,5 +206,5 @@ const styles = StyleSheet.create((theme) => ({
   week: { gap: theme.ui.space["2"] },
   weekLabel: { flexDirection: "row", gap: 6 },
   numbers: { flexDirection: "row", gap: theme.ui.space["6"] },
-  number: { fontFamily: faces.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.ink },
+  number: { ...face.display, fontSize: 28, lineHeight: 34, color: theme.ui.color.ink },
 }));
