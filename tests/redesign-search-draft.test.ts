@@ -10,7 +10,9 @@ describe("Edit search summaries", () => {
   test("career stages shorten to fit a menu row, and every stage is Any", () => {
     expect(stageSummary(profile({ target_levels: ["new_grad"] }))).toBe("New grad");
     expect(stageSummary(profile({ target_levels: ["new_grad", "early_career"] }))).toBe("New grad +1");
-    expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "mid_career"] }))).toBe("New grad +2");
+    // Internship comes first, in full (owner, 2026-11-07).
+    expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "mid_career"] }))).toBe("Internship +2");
+    expect(stageSummary(profile({ target_levels: ["internship"] }))).toBe("Internship");
     expect(stageSummary(profile({ target_levels: ["internship", "new_grad", "early_career", "mid_career"] }))).toBe("Any");
   });
 

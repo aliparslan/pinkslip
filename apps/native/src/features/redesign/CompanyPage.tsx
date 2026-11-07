@@ -75,7 +75,7 @@ export function CompanyPage({ companyId }: { companyId: string }) {
       : segment === "events"
       ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <RowPlaceholders lines={2} logo={false} />
-      : <CompanyJobs jobs={jobs} />}
+      : <CompanyJobs jobs={jobs} company={plainText(name)} />}
   </ScrollView>
   <PageBar />
   </>;
@@ -151,12 +151,13 @@ function useCompanyJobs(companyId: string, name: string | undefined) {
   return { jobs, isPending: results.some((result) => result.isPending), isSuccess: results.every((result) => result.isSuccess) };
 }
 
-function CompanyJobs({ jobs }: { jobs: Job[] }) {
+function CompanyJobs({ jobs, company }: { jobs: Job[]; company: string }) {
   const profile = usePreferences().data?.search_profile;
   const viewed = useViewedJobs();
   const fitting = jobs.filter((job) => fitsYourSearch(job, profile).length > 0);
   const others = jobs.filter((job) => !fitting.includes(job));
-  if (jobs.length === 0) return <View style={styles.soon}><Text role="subhead" tone="ink-2" align="center">No open jobs here right now.</Text></View>;
+  // The same empty state as People and Events (owner, 2026-11-07).
+  if (jobs.length === 0) return <EmptyState title="No open jobs" message={`${company}'s new roles show up here as they're posted.`} />;
   return <View>
     {fitting.length > 0 ? <SectionHeader title="Fits your search" count={fitting.length} first /> : null}
     {fitting.map((job) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} />)}
@@ -202,7 +203,6 @@ const styles = StyleSheet.create((theme) => ({
   buttons: { flexDirection: "row", gap: theme.ui.space["2"] },
   half: { flex: 1 },
   segments: { marginTop: theme.ui.space["1"] },
-  soon: { paddingHorizontal: theme.ui.space["8"], paddingVertical: theme.ui.space["10"], alignItems: "center" },
   row: { paddingLeft: theme.ui.size.gutter },
   rowText: {
     paddingVertical: theme.ui.space["3"], paddingRight: theme.ui.size.gutter,

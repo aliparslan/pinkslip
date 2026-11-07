@@ -72,8 +72,9 @@ export function useJobActions(context: JobListContext) {
       onSuccess: () => { haptics.success(); toast.success("Added to applied jobs"); },
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),
     }) : context === "feed" ? (job) => markApplied.mutate(job, {
-      // The row stays in Jobs with its Applied mark, and a swipe takes it back.
-      onSuccess: () => haptics.success(),
+      // The row leaves Jobs for Tracker. One light tap, as Save has: the
+      // success buzz from a row read as jitter (owner, 2026-11-07).
+      onSuccess: () => haptics.tap(),
       onError: () => toast.error("Couldn't mark that job as applied. Try again."),
     }) : undefined,
     unmarkApplied: context === "applied" ? (job) => unmarkApplied.mutate(job, {
@@ -85,11 +86,18 @@ export function useJobActions(context: JobListContext) {
     toggleRead: context === "feed" ? (job, viewed) => setViewed.mutate({ id: job.id, viewed }, {
       onError: () => toast.error("Couldn't update that job. Try again."),
     }) : undefined,
+    // The toast comes with the row leaving, not after the server answers
+    // (owner, 2026-11-07); Undo waits for the hide to land, then reverses it.
     hide: context === "feed" ? (job) => {
-      hideJob(job.id).then((hidden) => toast.show({
+      const hiding = hideJob(job.id);
+      const shown = toast.show({
         message: "Job hidden", icon: "hide", duration: UNDO_TOAST_DURATION,
-        action: { label: "Undo", run: () => hidden.undo().catch(() => { toast.error("Couldn't bring that job back."); }) },
-      }), () => toast.error("Couldn't hide that job. Try again."));
+        action: { label: "Undo", run: () => hiding.then((hidden) => hidden.undo()).catch(() => { toast.error("Couldn't bring that job back."); }) },
+      });
+      hiding.catch(() => {
+        toast.dismiss(shown);
+        toast.error("Couldn't hide that job. Try again.");
+      });
     } : undefined,
     block: context === "feed" && access.admin ? (job) => Alert.alert("Block this job?",
       `This permanently removes ${job.title} at ${job.company_name} for everyone.`, [

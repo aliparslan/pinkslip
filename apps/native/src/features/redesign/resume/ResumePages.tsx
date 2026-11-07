@@ -1,5 +1,5 @@
 import type { DegreeType, ResumeProfile } from "@pinkslip/core/api";
-import { formatResumeDate, monthInputValue } from "@pinkslip/core/resume-fields";
+import { formatResumeDate, hasResumeContent, monthInputValue } from "@pinkslip/core/resume-fields";
 import { createEmptyResumeProfile, normalizeResumeProfile, type OptionalSectionKind } from "@pinkslip/domain/resume-profile";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams, type Href } from "expo-router";
@@ -13,6 +13,8 @@ import {
   AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow, ProgressBar,
   SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, SwitchRow, Text, TextField, toast, UNDO_TOAST_DURATION, useSheet,
 } from "../../../ui";
+import { openSignIn } from "../../account/sign-in-request";
+import { useSessionAccess } from "../../jobs/useJobActions";
 import { ResumeImportFailure, type ImportedResume, type ImportStep } from "../../resume/import";
 import { useImportResume } from "../../resume/useImportResume";
 import { YouPage } from "../you/Page";
@@ -59,6 +61,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
   const draft = useResumeDraft();
   const file = useLocalResumeFile();
   const importResume = useImportResume();
+  const { signedIn } = useSessionAccess();
   const [step, setStep] = useState<ImportStep | null>(null);
   const [found, setFound] = useState<ImportedResume | null>(null);
   const cancel = useRef<AbortController | null>(null);
@@ -71,6 +74,13 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
   const empty = !profile.contact.name && profile.experience.length === 0 && profile.education.length === 0 && profile.projects.length === 0 && skills === 0;
 
   const runImport = async () => {
+    // Importing reads the PDF on Pinkslip's servers, for accounts only: a
+    // guest signs in first instead of picking a file only to be told so
+    // (owner, 2026-11-07).
+    if (!signedIn) {
+      openSignIn({ title: "Sign in to import a PDF" });
+      return;
+    }
     cancel.current = new AbortController();
     try {
       const result = await importResume(setStep, cancel.current.signal);
@@ -261,6 +271,14 @@ function EntryRow({ initial, title, line, when, onPress }: { initial: string; ti
   </Pressable>;
 }
 
+/** The entries with something in them. A new one is in the resume from the
+ * moment its page opens, and an empty one is dropped as you leave it, so the
+ * list under the page leaves it out meanwhile (owner, 2026-11-07: "Untitled
+ * role" showed as the page slid in, and again after backing out). */
+function filled<T>(items: T[]): T[] {
+  return items.filter((item) => hasResumeContent(item));
+}
+
 /** Newest first, by when it started (an ongoing one first of all). */
 function byDate<T>(items: T[], start: (item: T) => string, end: (item: T) => string): T[] {
   const key = (item: T) => PRESENT.test(end(item).trim()) ? "9999-99" : monthInputValue(start(item)) || "0000-00";
@@ -271,9 +289,9 @@ export function ExperienceListPage() {
   return <Loaded title="Experience">{(profile) => {
     const add = () => go({ pathname: "/you/resume-role", params: { id: "new" } });
     return <YouPage title="Experience" bar={<Button fullWidth icon="add" onPress={add}>Add experience</Button>}>
-      {profile.experience.length === 0
+      {filled(profile.experience).length === 0
         ? <EmptyState title="No experience yet" message="Jobs, internships, clubs: anything you'd put on a resume." />
-        : <View>{byDate(profile.experience, (entry) => entry.startDate, (entry) => entry.endDate).map((entry) =>
+        : <View>{byDate(filled(profile.experience), (entry) => entry.startDate, (entry) => entry.endDate).map((entry) =>
           <EntryRow key={entry.id} initial={entry.company} title={entry.title || "Untitled role"}
             line={[entry.company, entry.location].filter((part) => part.trim()).join(" · ")} when={dateRange(entry.startDate, entry.endDate)}
             onPress={() => go({ pathname: "/you/resume-role", params: { id: entry.id } })} />)}</View>}
@@ -285,9 +303,9 @@ export function EducationListPage() {
   return <Loaded title="Education">{(profile) => {
     const add = () => go({ pathname: "/you/resume-school", params: { id: "new" } });
     return <YouPage title="Education" bar={<Button fullWidth icon="add" onPress={add}>Add a school</Button>}>
-      {profile.education.length === 0
+      {filled(profile.education).length === 0
         ? <EmptyState title="No schools yet" message="Where you studied, with your degree." />
-        : <View>{byDate(profile.education, (entry) => entry.startDate, (entry) => entry.endDate).map((entry) => {
+        : <View>{byDate(filled(profile.education), (entry) => entry.startDate, (entry) => entry.endDate).map((entry) => {
           const credential = entry.credentials[0];
           const degree = [credential?.degreeType ? degreeShort[credential.degreeType] : "", credential?.fieldsOfStudy.filter(Boolean).join(" and ")].filter(Boolean).join(", ");
           return <EntryRow key={entry.id} initial={entry.institution} title={entry.institution || "Untitled school"} line={degree}
@@ -301,9 +319,9 @@ export function ProjectListPage() {
   return <Loaded title="Projects">{(profile) => {
     const add = () => go({ pathname: "/you/resume-project", params: { id: "new" } });
     return <YouPage title="Projects" bar={<Button fullWidth icon="add" onPress={add}>Add a project</Button>}>
-      {profile.projects.length === 0
+      {filled(profile.projects).length === 0
         ? <EmptyState title="No projects yet" message="Things you built on your own or with a team." />
-        : <View>{byDate(profile.projects, (entry) => entry.date ?? "", () => "").map((entry) =>
+        : <View>{byDate(filled(profile.projects), (entry) => entry.date ?? "", () => "").map((entry) =>
           <EntryRow key={entry.id} initial={entry.name} title={entry.name || "Untitled project"} line={entry.role}
             when={formatResumeDate(entry.date ?? "")} onPress={() => go({ pathname: "/you/resume-project", params: { id: entry.id } })} />)}</View>}
     </YouPage>;

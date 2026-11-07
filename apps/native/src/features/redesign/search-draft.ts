@@ -11,13 +11,14 @@ import { CAREER_STAGE_OPTIONS, ROLE_OPTIONS, type CareerStage, type WorkMode } f
 /** "New grad, Early career": the stage names without their year ranges. */
 export const stageName = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
 
-/** The stages in the order they're offered: Internships last, since most
- * people here are past them (owner, 2026-10-15, audit Q10). */
-export const STAGES_IN_ORDER: readonly CareerStage[] = ["new_grad", "early_career", "mid_career", "internship"];
+/** The stages in the order they're offered: a career's own order,
+ * Internship first (owner, 2026-11-07, replacing internships last from
+ * 2026-10-15). */
+export const STAGES_IN_ORDER: readonly CareerStage[] = ["internship", "new_grad", "early_career", "mid_career"];
 
 /** The stage names for half a ticket: "New grad, Early". */
 const stageShort: Record<CareerStage, string> = {
-  internship: "Interns",
+  internship: "Internship",
   new_grad: "New grad",
   early_career: "Early",
   mid_career: "Mid",

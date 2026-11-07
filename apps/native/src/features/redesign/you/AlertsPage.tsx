@@ -2,9 +2,9 @@ import { DatePicker, Host } from "@expo/ui/swift-ui";
 import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { useApi, useNotificationSettings, useUpdateNotificationSettings } from "@pinkslip/data";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, View } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { enableDevicePush } from "../../../platform/push";
+import { enableDevicePush, openNotificationSettings } from "../../../platform/push";
 import { AlertPreview, EmptyState, GroupPlaceholders, ListGroup, ListItem, toast } from "../../../ui";
 import { useDevicePush } from "../../alerts/Alerts";
 import { YouPage } from "./Page";
@@ -42,6 +42,8 @@ export function AlertsView({ newJobs, dailyAt, applicationChanges, blocked = fal
     {newJobs !== "off" ? <View style={styles.slot}><AlertPreview daily={newJobs === "daily"} at={dailyAt ? formatDailyTime(dailyAt) : undefined} /></View> : null}
     <ListGroup surface="fill" header="New jobs"
       footer={blocked ? "Notifications are off for Pinkslip in the iPhone's Settings." : undefined}>
+      {/* Off, the default, comes first (owner, 2026-11-07). */}
+      <ListItem title="Off" accessory="radio" selected={newJobs === "off"} onPress={() => actions.setNewJobs("off")} />
       <ListItem title="As they post" accessory="radio" selected={newJobs === "post"} onPress={() => actions.setNewJobs("post")} />
       {/* The time is iOS's own picker, as on a step's date (owner,
           2026-10-24: the chip looked like one and did nothing). */}
@@ -51,14 +53,13 @@ export function AlertsView({ newJobs, dailyAt, applicationChanges, blocked = fal
             onDateChange={(date) => actions.setDailyTime(dailyValue(date))}
             modifiers={[datePickerStyle("compact"), tint(theme.ui.color["accent-fill"])]} />
         </Host>} /> : null}
-      <ListItem title="Off" accessory="radio" selected={newJobs === "off"} onPress={() => actions.setNewJobs("off")} />
     </ListGroup>
     <ListGroup surface="fill">
       {applicationChanges !== undefined && actions.setApplicationChanges
         ? <ListItem title="Application changes" detail="When an email moves one to a new stage" accessory="switch"
           selected={applicationChanges} onToggle={actions.setApplicationChanges} />
         : null}
-      {blocked ? <ListItem title="Open Settings" onPress={() => void Linking.openSettings()} />
+      {blocked ? <ListItem title="Open Settings" onPress={() => void openNotificationSettings()} />
         : <ListItem title="Send a test" onPress={testing ? undefined : test} trailing={testing ? <Spinner /> : undefined} />}
     </ListGroup>
   </YouPage>;
@@ -109,7 +110,10 @@ export function AlertsPage() {
 
   const newJobsSetting = settings.data.kinds.new_jobs;
   const current: NewJobAlerts = newJobsSetting.enabled ? newJobsSetting.mode : "off";
-  const newJobs = choice ?? current;
+  // Blocked in Settings, no alert arrives, so Off is what's picked; the
+  // saved choice comes back once they're allowed (owner, 2026-11-07).
+  const blocked = current !== "off" && status === "denied";
+  const newJobs = blocked ? "off" : choice ?? current;
 
   // N3: shown once the server sends it (the kind is listed when it's live).
   const changesSetting = settings.data.kinds.application_moved;
@@ -143,7 +147,7 @@ export function AlertsPage() {
     if (status === "denied") {
       Alert.alert("Notifications are off", "Turn them on for Pinkslip in Settings, then come back.", [
         { text: "Cancel", style: "cancel" },
-        { text: "Settings", isPreferred: true, onPress: () => void Linking.openSettings() },
+        { text: "Settings", isPreferred: true, onPress: () => void openNotificationSettings() },
       ]);
       return;
     }
@@ -161,7 +165,7 @@ export function AlertsPage() {
   };
   return <AlertsView newJobs={newJobs} dailyAt={timeChoice ?? newJobsSetting.daily_time}
     applicationChanges={changesSetting ? changesChoice ?? changesSetting.enabled : undefined}
-    blocked={newJobs !== "off" && status === "denied"} actions={{
+    blocked={blocked} actions={{
       setNewJobs: (next) => void setNewJobs(next),
       setDailyTime: (time) => void setNewJobs("daily", time),
       setApplicationChanges,

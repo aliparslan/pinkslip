@@ -128,7 +128,13 @@ function pillCommit(width: number, reveal: number) {
   return Math.max(width * 0.42, reveal + 56);
 }
 
-export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRowProps) {
+export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = [], children }: SwipeRowProps) {
+  // What the pills say. An action freezes them until the next swipe, so a
+  // row going home after Save still says Save, and the next swipe says
+  // Unsave, as Mail's rows do (owner, 2026-11-07: it changed on the way home).
+  const [frozen, setFrozen] = useState<{ leading: readonly SwipeAction[]; trailing: readonly SwipeAction[] } | null>(null);
+  const leading = frozen?.leading ?? given;
+  const trailing = frozen?.trailing ?? givenTrailing;
   const x = useSharedValue(0);
   const start = useSharedValue(0);
   const width = useSharedValue(390);
@@ -164,10 +170,12 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
     fill.value = 0;
     armed.value = false;
     setOpen(null);
+    setFrozen(null);
   }, [id, x, fold, fill, armed]);
 
-  const latest = useRef({ leading, trailing });
-  useEffect(() => { latest.current = { leading, trailing }; });
+  // Actions run from the row's current ones, whatever the pills still say.
+  const latest = useRef({ leading: given, trailing: givenTrailing });
+  useEffect(() => { latest.current = { leading: given, trailing: givenTrailing }; });
 
   const run = (side: "leading" | "trailing", index: number) => {
     latest.current[side][index]?.run();
@@ -182,6 +190,7 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
     }
   };
   const startDrag = () => {
+    setFrozen(null);
     if (openRow && openRow.id !== id) openRow.close();
     if (settled.current) clearTimeout(settled.current);
     setSwiping(true);
@@ -197,6 +206,7 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
     const action = latest.current[side][index];
     if (!action) return;
     const sign = side === "leading" ? 1 : -1;
+    setFrozen({ ...latest.current });
     markOpen(null);
     if (index === 0) fill.value = withTiming(1, FAST);
     if (action.removes) {
@@ -219,7 +229,7 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
   };
 
   const pan = useMemo(() => Gesture.Pan()
-    .enabled(leading.length > 0 || trailing.length > 0)
+    .enabled(given.length > 0 || givenTrailing.length > 0)
     .activeOffsetX([-14, 14])
     .failOffsetY([-10, 10])
     .onStart(() => {
@@ -262,7 +272,7 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
       const stayOpen = success && reveal > 0 && outward > -150 && heading >= threshold;
       x.value = withSpring(stayOpen ? sign * reveal : 0, { ...settleSpring, velocity: event.velocityX });
       scheduleOnRN(markOpen, stayOpen ? side : null);
-    }), [leading.length > 0, trailing.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [given.length > 0, givenTrailing.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The swiped row becomes a card: corners round off the moment it moves,
   // and it takes the grey of a pressed row as it goes.
@@ -271,7 +281,13 @@ export function SwipeRow({ id, leading = [], trailing = [], children }: SwipeRow
     borderRadius: interpolate(Math.abs(x.value), [0, 24], [0, CARD_RADIUS], "clamp"),
   }));
   const cardStyle = useAnimatedStyle(() => ({ opacity: interpolate(Math.abs(x.value), [0, 48], [0, 1], "clamp") }));
-  const foldStyle = useAnimatedStyle(() => fold.value < 1 ? { height: height.value * fold.value, opacity: fold.value } : {});
+  // Back to its own height and fully shown, said outright: Reanimated keeps
+  // a style it stops returning, so `{}` left a hidden row's cell folded shut,
+  // and the job Undo put back (or the next job in that cell) stayed invisible
+  // (owner, 2026-11-07).
+  const foldStyle = useAnimatedStyle(() => fold.value < 1
+    ? { height: height.value * fold.value, opacity: fold.value }
+    : { height: "auto" as const, opacity: 1 });
 
   return <Animated.View style={[styles.root, foldStyle]}
     onLayout={(event) => {

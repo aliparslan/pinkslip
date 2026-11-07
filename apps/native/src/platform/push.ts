@@ -2,6 +2,7 @@ import { APPLY_ASK_CATEGORY, type ApiClient } from "@pinkslip/core/api";
 import * as Crypto from "expo-crypto";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import { Linking } from "react-native";
 import { storage } from "./storage";
 
 /** Foreground pushes show as banners but never navigate on their own. */
@@ -21,6 +22,17 @@ void Notifications.setNotificationCategoryAsync(APPLY_ASK_CATEGORY, [
 ]).catch(() => undefined);
 
 export type DevicePushStatus = "enabled" | "promptable" | "denied" | "unsupported";
+
+/** Opens Pinkslip's Notifications page in Settings (iOS's
+ * `openNotificationSettingsURLString`), not the list of apps the plain
+ * settings link lands on (owner, 2026-11-07). */
+export async function openNotificationSettings(): Promise<void> {
+  try {
+    await Linking.openURL("app-settings:notifications");
+  } catch {
+    await Linking.openSettings();
+  }
+}
 
 /** The app icon's number: what needs you on Today. Pushes carry the same
  * count from the server; this keeps it right after you act in the app. */

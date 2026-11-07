@@ -1,6 +1,7 @@
 import { HStack, Host, Picker, Text as SwiftText } from "@expo/ui/swift-ui";
 import { frame, pickerStyle, tag } from "@expo/ui/swift-ui/modifiers";
-import { Children, Fragment, useState, type ReactNode } from "react";
+import { Children, Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressable, Switch, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { face } from "./fonts";
@@ -43,21 +44,43 @@ export interface TextFieldProps {
 }
 
 /** A field whose label sits in the value's place until you type, then
- * shrinks up above it (R2c). */
+ * shrinks up above it (R2c). The label glides up and shrinks as the field
+ * takes focus, and the value has one place from the start, so nothing jumps
+ * as you type (owner, 2026-11-07: the text moved down and the label just
+ * swapped). The whole field takes the tap, not only its line of text. */
 export function TextField({ label, value, onChangeText, keyboardType, autoCapitalize, autoComplete, textContentType, multiline, autoFocus }: TextFieldProps) {
   const { theme } = useUnistyles();
+  const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   const raised = focused || value.length > 0;
+  const lift = useSharedValue(raised ? 1 : 0);
+  useEffect(() => { lift.value = withTiming(raised ? 1 : 0, LABEL_MOTION); }, [raised, lift]);
+  const body = theme.ui.type.body;
+  const small = theme.ui.type.footnote.size / body.size;
+  // At rest it's centred in the field, where the value would be; raised, it
+  // sits in the footnote's line above the value.
+  const rest = (FIELD_HEIGHT - body.line) / 2 - FIELD_PAD;
+  const labelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - lift.value) * rest }, { scale: 1 - (1 - small) * lift.value }],
+  }), [rest, small]);
   const url = keyboardType === "url" || keyboardType === "email-address";
-  return <View style={styles.field}>
-    {raised ? <Text role="footnote" tone="ink-3">{label}</Text> : null}
-    <TextInput value={value} onChangeText={onChangeText} placeholder={raised ? undefined : label} placeholderTextColor={theme.ui.color["ink-3"]}
+  return <Pressable style={styles.field} onPress={() => input.current?.focus()} accessible={false}>
+    <Animated.View pointerEvents="none" style={[styles.label, labelStyle]} importantForAccessibility="no-hide-descendants">
+      <Text tone="ink-3" lines={1}>{label}</Text>
+    </Animated.View>
+    <TextInput ref={input} value={value} onChangeText={onChangeText}
       onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} accessibilityLabel={label}
       keyboardType={keyboardType} autoCapitalize={autoCapitalize ?? (url ? "none" : "sentences")} autoCorrect={!url}
       autoComplete={autoComplete} textContentType={textContentType} multiline={multiline} autoFocus={autoFocus}
       selectionColor={theme.ui.color.accent} style={[styles.input, face.text]} />
-  </View>;
+  </Pressable>;
 }
+
+/** A field's height and the room above and below its lines. */
+const FIELD_HEIGHT = 62;
+const FIELD_PAD = 10;
+/** The label's move: quick, easing out, as a field taking focus does. */
+const LABEL_MOTION = { duration: 180, easing: Easing.out(Easing.cubic) };
 
 /** A value typed at the row's end (GPA). */
 export function InlineField({ label, value, onChangeText, keyboardType }: Pick<TextFieldProps, "label" | "value" | "onChangeText" | "keyboardType">) {
@@ -183,7 +206,9 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color["bg-grouped"],
   },
   rule: { height: StyleSheet.hairlineWidth, backgroundColor: theme.ui.color.separator },
-  field: { minHeight: 62, justifyContent: "center", paddingVertical: 10 },
+  // The value's line sits under the label's, from the start.
+  field: { minHeight: FIELD_HEIGHT, paddingTop: FIELD_PAD + theme.ui.type.footnote.line, paddingBottom: FIELD_HEIGHT - FIELD_PAD - theme.ui.type.footnote.line - theme.ui.type.body.line },
+  label: { position: "absolute", top: FIELD_PAD, left: 0, right: 0, transformOrigin: "0% 0%" },
   input: { padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },
   row: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   inline: { minWidth: 80, padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },

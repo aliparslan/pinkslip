@@ -235,15 +235,15 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     admin && { label: "Block for everyone", icon: "nosign", destructive: true, run: confirmBlock },
   ].filter((item): item is JobMenuItem => Boolean(item));
 
-  // The redesigned page's ⋯ (Paper "Menus · Oct 16" M2): Save and Hide as
-  // icons across the top (Hide was "Not interested"), the rest with words,
-  // Block on its own. Share is beside ⋯ already, so it isn't here.
+  // The redesigned page's ⋯ (Paper "Menus · Oct 16" M2): Save and Hide
+  // lead the rows, in words like the rest (owner, 2026-11-07: no longer
+  // icons in a group of their own; Hide was "Not interested"), Block on its
+  // own. Share is beside ⋯ already, so it isn't here.
   const glyphMenu: GlyphMenuSpec = {
-    top: [
-      { id: "save", title: saved ? "Saved" : "Save", glyph: saved ? "saved" : "save", onSelect: toggleSave },
-      !applied && { id: "hide", title: "Hide", glyph: "hide", onSelect: () => void notInterested() },
-    ].filter((item): item is GlyphMenuItem => Boolean(item)),
     items: [
+      // In words, as the row's long press says it.
+      { id: "save", title: saved ? "Remove from saved" : "Save", glyph: saved ? "saved" : "save", onSelect: toggleSave },
+      !applied && { id: "hide", title: "Hide", glyph: "hide", onSelect: () => void notInterested() },
       applied
         ? { id: "unapply", title: "I didn't apply", glyph: "undo", onSelect: () => setApplied(false) }
         : { id: "apply", title: "I applied", glyph: "applied", onSelect: () => setApplied(true) },

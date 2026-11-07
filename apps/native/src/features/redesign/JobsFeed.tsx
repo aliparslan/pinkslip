@@ -71,7 +71,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
   const params = useMemo(() => (scope === "all" ? { q: search.q } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
   const waiting = idle !== undefined && !search.q;
-  const feed = useFeed(params, preferences.isSuccess && !waiting);
+  // A chip or a search keeps the rows on screen until the new ones arrive.
+  const feed = useFeed(params, preferences.isSuccess && !waiting, { keepPrevious: true });
   const stats = useStats();
   const viewed = useViewedJobs();
   const { actions, onOpen } = useJobActions("feed");
@@ -109,7 +110,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const refresh = async () => { await Promise.all([feed.refetch(), stats.refetch()]); };
   const pull = usePullToRefresh(refresh);
   const loadMore = () => {
-    if (!feed.hasNextPage || feed.isFetchingNextPage) return;
+    if (!feed.hasNextPage || feed.isFetchingNextPage || feed.isPlaceholderData) return;
     setMoreFailed(false);
     // The next page failing says so at the list's end (P3), not in a toast.
     void feed.fetchNextPage().then((result) => setMoreFailed(result.isFetchNextPageError));
@@ -131,6 +132,10 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
+    // FlashList keeps the row you were looking at in place when the data
+    // changes, so a chip that brought that row into a new list scrolled you
+    // down to it (owner, 2026-11-07). The list stays where it is instead.
+    maintainVisibleContentPosition={NO_ANCHOR}
     renderItem={({ item, index }) => item.kind === "section"
       ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
       : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
@@ -165,6 +170,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 }
 
 const noop = () => undefined;
+const NO_ANCHOR = { disabled: true };
 
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). Exported for
@@ -172,7 +178,7 @@ const noop = () => undefined;
 export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
-  const preview = useJobPreview(job);
+  const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
@@ -220,7 +226,7 @@ function swipeActions(job: RowJob, actions: JobActions, viewed: boolean): { lead
   return { leading, trailing };
 }
 
-/** Internships last, as Your search lists them. */
+/** In Your search's order. */
 const stageRank = (id: string) => { const rank = (STAGES_IN_ORDER as readonly string[]).indexOf(id); return rank < 0 ? STAGES_IN_ORDER.length : rank; };
 const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.id === id)?.label.replace(/ \(.*\)$/, "") ?? id;
 

@@ -1,3 +1,4 @@
+import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
@@ -10,6 +11,7 @@ import { useRedesign } from "../../features/redesign/flag";
 import { useLiveSends } from "../../features/redesign/sends/LiveSends";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
+import { appPathFor } from "../../platform/links";
 import { TabBar } from "../../ui";
 
 /** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
@@ -28,9 +30,13 @@ function PillTabs() {
   const live = useLiveSends();
   // The app opens on Today, the first tab; "/" is still Jobs for links. A
   // new install stays on Jobs, where onboarding ends.
+  // A link that opened the app goes where it points (owner, 2026-11-07: a
+  // shared job opened on Today, the job left behind on Jobs).
   const pathname = usePathname();
   useEffect(() => {
-    if (pathname === "/" && !onboardingDue()) router.navigate("/today");
+    const launchedBy = Linking.getLinkingURL();
+    const linked = launchedBy ? appPathFor(launchedBy) : null;
+    if (pathname === "/" && !onboardingDue() && (!linked || linked === "/")) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   return <>

@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient, type JobsListParams } from "@pinkslip/core/api";
-import { infiniteQueryOptions, queryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { infiniteQueryOptions, keepPreviousData, queryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
 
@@ -50,8 +50,11 @@ export const feedQueryOptions = (api: ApiClient, params: JobsListParams) =>
     staleTime: 5 * 60_000,
   });
 
-export function useFeed(params: JobsListParams, enabled = true) {
-  return useInfiniteQuery({ ...feedQueryOptions(useApi(), params), enabled });
+/** With `keepPrevious`, new criteria (a filter, a search) keep the last
+ * results on screen until theirs arrive (`isPlaceholderData` meanwhile),
+ * instead of emptying the list. */
+export function useFeed(params: JobsListParams, enabled = true, { keepPrevious = false } = {}) {
+  return useInfiniteQuery({ ...feedQueryOptions(useApi(), params), enabled, placeholderData: keepPrevious ? keepPreviousData : undefined });
 }
 
 /** Catalog health: when the poller last finished. */

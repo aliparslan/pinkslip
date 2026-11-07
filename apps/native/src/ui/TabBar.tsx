@@ -444,6 +444,17 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
 
   const follower = useFollower(tabs[selected]?.name);
   const follow = useMemo(() => followStyles(follower ?? restingList(), screen), [follower, screen]);
+  // Back at rest, the resting values are sent to the native side again once
+  // the bar is drawn with them. Attaching them alone doesn't move a view the
+  // native driver last placed, so a bar left off to the side by a page that
+  // went without its slide back (a reset stack, a replaced route) stayed
+  // there on every tab (owner, 2026-11-07: the bar vanished, for good).
+  useEffect(() => {
+    if (follower) return;
+    const rest = restingList();
+    rest.progress.setValue(1);
+    rest.closing.setValue(0);
+  }, [follower]);
 
   // The pill is centred; scrolling down shrinks it towards the bottom edge.
   const pillWidth = count * PITCH + PAD_X * 2;

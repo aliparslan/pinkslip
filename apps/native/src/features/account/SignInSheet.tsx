@@ -385,7 +385,7 @@ function TermsLine() {
     By continuing you agree to the{"\n"}
     <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/terms")}>Terms</RNText>
     {" "}and{" "}
-    <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</RNText>.
+    <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</RNText>
   </Text></View>;
 }
 

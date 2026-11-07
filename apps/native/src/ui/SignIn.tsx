@@ -43,7 +43,7 @@ export interface ProviderButtonProps {
 
 /**
  * A way in: Apple black (white in dark mode, as Apple asks on dark
- * backgrounds), Google white with a hairline, email on the grey fill. Each
+ * backgrounds), Google and email on the grey fill. Each
  * leads with its own mark at 18 and the label in Body Medium.
  */
 export function ProviderButton({ provider, pending, disabled, onPress, children }: ProviderButtonProps) {
@@ -145,7 +145,8 @@ const styles = StyleSheet.create((theme) => ({
     variants: {
       provider: {
         apple: {},
-        google: { backgroundColor: theme.ui.color["sheet-group"], borderWidth: 1, borderColor: theme.ui.color.outline },
+        // Google's neutral style, on the same grey as email (owner, 2026-11-07).
+        google: { backgroundColor: theme.ui.color.fill },
         email: { backgroundColor: theme.ui.color.fill },
       },
     },

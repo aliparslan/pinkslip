@@ -78,7 +78,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
         </View> : null}
       </View>
       <Text role={news ? "body" : "subhead"} weight={news ? "medium" : weight} tone={quiet ? "ink-3" : tracker ? "ink-2" : "ink"} lines={1}>{title}</Text>
-      <View style={styles.line}>
+      <View style={styles.factsLine}>
         <Text role="subhead" tone={factsBad ? "bad" : quiet ? "ink-3" : "ink-2"} lines={1} flex>{facts ?? ""}</Text>
         {stage ? <View style={styles.stage}>
           <StageMark stage={stage} tone="ink-3" />
@@ -115,6 +115,10 @@ const styles = StyleSheet.create((theme) => {
       borderBottomColor: theme.ui.color.separator,
     },
     line: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
+    // Centred, not on the baseline: the stage's icon has none, so on the
+    // baseline it hung below and a saved row grew a point (owner, 2026-11-07).
+    // Both sides are one subhead line, so the words still line up.
+    factsLine: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
     stage: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
   };
 });
