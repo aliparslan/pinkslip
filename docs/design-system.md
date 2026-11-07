@@ -126,6 +126,9 @@ else is decided.
   clear inside, in both modes (owner, 2026-10-19, Paper "Pink chips,
   refining E", 1; the owner tried E's pink tint in light first and preferred
   no fill). Off is the same outline as any chip. Jobs' filters stay ink.
+- **A list of choices puts the default first** (owner, 2026-11-07: Alerts
+  led with As they post while Off was picked). Off leads New jobs; a list
+  whose default is something else leads with that.
 - **Checks, radios and switches change a setting,** so they are pink. A
   check or radio that's on is a pink circle with a white
   check; one that's off is a 1.75pt `ink-4` ring. A switch that's on has a
@@ -504,9 +507,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   leading with its own mark as tall as the label (Apple's at 18, whose glyph
   stands 16; Google's G, which fills its square, at 16) and the label in
   Body Medium: Apple black
-  (white in dark mode) with Apple's logo, Google `sheet-group` with a 1pt
-  `outline` and Google's own "G" (an image from Google's 2026 kit, which
-  react-native-svg can't draw), email on `fill`. Email is S2 then S4: the
+  (white in dark mode) with Apple's logo, Google on `fill` with no outline,
+  as email is (owner, 2026-11-07; Google's neutral style), with Google's own
+  "G" (an image from Google's 2026 kit, which react-native-svg can't draw),
+  email on `fill`. Email is S2 then S4: the
   field is white at the sheet group's radius with its label always above,
   and the code is six 60-tall boxes 9 apart (the next one ringed
   `accent-fill` with its caret), filled from Mail. What goes wrong is one
@@ -1148,6 +1152,17 @@ cut so that each remaining one has a job.
     preview on long press · Nov 4", A; the owner tried B on the phone and
     dropped its lines under the ticket). None of the job page's buttons;
     tapping it still opens the job. `JobPreview.tsx`.
+- **2026-11-07** (owner's run of the flow checklist)
+  - A field's label glides up and shrinks as it takes focus, and the value
+    keeps one place from the start (`TextField`); the whole field takes the
+    tap.
+  - A list of choices puts its default first (Alerts: Off first). Google's
+    sign-in button is on `fill` like email's, with no outline. Internship
+    leads the career stages. Save and Hide lead the job page's ⋯ rows
+    instead of sitting as icons across the top.
+  - A saved row is the same height as the rest (the stage mark no longer
+    hangs below the baseline). A swipe's pills keep their words until the
+    row is home, as Mail's do.
 - **2026-10-29**
   - Built the send screens (Paper "Send screens · the missing states ·
     Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`
