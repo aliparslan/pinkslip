@@ -26,6 +26,27 @@ describe("native session lifecycle", () => {
     const api = await controller.initialize();
     expect(await api.me.get()).toMatchObject({ bearer: "Bearer account" });
   });
+  test("a fresh install forgets an account token the Keychain kept and starts as a guest", async () => {
+    const writes: Array<string | null> = [];
+    let reads = 0;
+    const controller = createSessionController({ baseUrl, freshInstall: true,
+      readToken: async () => { reads += 1; return "account"; },
+      writeToken: async (token) => { writes.push(token); },
+      fetch: async (url, init) => String(url).endsWith("/native/session")
+        ? Response.json({ token: "guest" })
+        : Response.json({ bearer: new Headers(init?.headers).get("authorization") }) });
+    const api = await controller.initialize();
+    expect(reads).toBe(0);
+    expect(writes).toEqual([null, "guest"]);
+    expect(await api.me.get()).toMatchObject({ bearer: "Bearer guest" });
+  });
+  test("a fresh install still starts when the Keychain refuses the delete", async () => {
+    const controller = createSessionController({ baseUrl, freshInstall: true, readToken: async () => "account",
+      writeToken: async (token) => { if (token === null) throw new Error("Keychain unavailable"); },
+      fetch: async () => Response.json({ token: "guest" }) });
+    await controller.initialize();
+    expect(controller.currentToken()).toBe("guest");
+  });
   test("keychain failure is reported and Retry persists the same token", async () => {
     let writes = 0;
     const controller = createSessionController({ baseUrl, readToken: async () => null,

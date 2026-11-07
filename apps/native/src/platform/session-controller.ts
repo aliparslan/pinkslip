@@ -7,6 +7,11 @@ export function createSessionController(options: {
   fetch?: ApiClientConfig["fetch"];
   readToken(): Promise<string | null>;
   writeToken(token: string | null): Promise<void>;
+  /** The app was just installed. iOS keeps the Keychain when an app is
+   * deleted, so a reinstall would come back signed in, behind onboarding
+   * meant for someone new; a fresh install forgets the kept token and starts
+   * as a guest instead (owner, 2026-11-06, as most apps do). */
+  freshInstall?: boolean;
 }) {
   let token: string | null = null;
   let revision = 0;
@@ -52,7 +57,13 @@ export function createSessionController(options: {
     initialize() {
       if (initializing) return initializing;
       initializing = (async () => {
-        if (!loaded) { token = await options.readToken(); persisted = token; loaded = true; }
+        if (!loaded) {
+          // A failed delete is overwritten by the guest token stored below.
+          if (options.freshInstall) await options.writeToken(null).catch(() => undefined);
+          token = options.freshInstall ? null : await options.readToken();
+          persisted = token;
+          loaded = true;
+        }
         if (!token) await guest();
         if (persisted !== token) await store(token);
         return api;

@@ -2,6 +2,7 @@ import type { ApiClient } from "@pinkslip/core/api";
 import * as SecureStore from "expo-secure-store";
 import { createSessionController } from "./session-controller";
 import { API_URL } from "./config";
+import { appRanBefore } from "./first-launch";
 export { API_URL, WEB_URL } from "./config";
 
 export type { ApiClient };
@@ -12,6 +13,7 @@ const controller = createSessionController({
   baseUrl: API_URL,
   readToken: () => SecureStore.getItemAsync(TOKEN_KEY),
   writeToken: (token) => token ? SecureStore.setItemAsync(TOKEN_KEY, token) : SecureStore.deleteItemAsync(TOKEN_KEY),
+  freshInstall: !appRanBefore,
 });
 export const currentSessionToken = controller.currentToken;
 

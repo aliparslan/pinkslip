@@ -1,8 +1,7 @@
+import { appRanBefore } from "../../platform/first-launch";
 import { storage } from "../../platform/storage";
 
-/** Whether this phone ran the app before this launch. Read when the app
- * starts, before anything this launch writes (the root layout imports it). */
-export const appRanBefore = storage.getAllKeys().length > 0;
+export { appRanBefore };
 
 const STARTED = "onboarding.started";
 const DONE = "onboarding.done";
