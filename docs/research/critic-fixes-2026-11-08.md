@@ -59,3 +59,37 @@ outlined, as they are today.
 
 Each is a change to an approved design (title-first rows and the plain
 glyphs especially), so nothing is built until the owner picks.
+
+## Pass 3, the last (6/10)
+
+Pass 3 changes:
+- Today leads with one statement, "3 new grad jobs this week", with setup
+  folded into one row: "2 steps before Pinkslip can apply for you".
+- The two Apple postings say "2 postings" in the meta line.
+- Appearance gets its menu chevron.
+
+The critic now gets a list of owner decisions not to re-raise (in CLAUDE.md
+and the agent file). Its first two passes had spent themselves on settled
+things: the tab bar, counts, white on pink, the pink dot and the avatar,
+some of which it reversed between passes.
+
+Left unfixed after three passes, for the owner:
+
+1. **Today has two headline tiers that compete** ("Today", then the
+   statement), and the page stops halfway down. Make the statement a
+   section header, fill to the fold with more jobs, and end on a
+   full-width "See all jobs" row.
+2. **The setup row looks like the search field.** It also says "2 steps"
+   without naming them. Make it a short checklist (Add your resume, Sign
+   in), with the next step as the only pink.
+3. **Today promises applying for you while You says Auto-apply is coming
+   soon.** That's a product-truth question for the owner: which story
+   ships in 1.4.0?
+4. **Counts should count rows.** With the two postings as one row,
+   "3" sits above two rows.
+5. **Logos are drawn three ways**: inset with a hairline, full-bleed black,
+   and a grey monogram. That ties in with the "Logos · square ones fill the
+   tile" proposal on the System page.
+6. **The guest card states a limitation, not a benefit.** Proposed: "Keep
+   saves and alerts on every device". Also, "Resume · Add" puts a verb
+   where the other rows have states; "None" fits better.
