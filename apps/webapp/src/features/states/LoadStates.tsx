@@ -1,4 +1,4 @@
-import { ArrowClockwise, WarningCircle, WifiSlash } from "@phosphor-icons/react";
+import { ArrowClockwise, WarningCircle, CloudSlash } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Alert, Button, EmptyState, Spinner } from "../../kit";
 import styles from "./States.module.css";
@@ -22,7 +22,7 @@ interface RetryProps {
 export function PageFailure({
   title = "Unable to load", message = "Check your connection and try again.", onRetry, retrying, level = 2, actions,
 }: RetryProps & { level?: 1 | 2; actions?: ReactNode }) {
-  return <EmptyState level={level} alert icon={WifiSlash} title={title} message={message}
+  return <EmptyState level={level} alert icon={CloudSlash} title={title} message={message}
     actions={(onRetry || actions) && <>
       {onRetry && <Button variant="secondary" icon={ArrowClockwise} pending={retrying} onClick={onRetry}>Try again</Button>}
       {actions}

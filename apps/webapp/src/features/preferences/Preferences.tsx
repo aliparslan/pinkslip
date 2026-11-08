@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowCounterClockwise } from "@phosphor-icons/react";
+import { ArrowUUpLeft } from "@phosphor-icons/react";
 import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
 import { useApi, usePreferences, useUpdatePreferences } from "@pinkslip/data";
 import { Button, Heading, SaveStatus, Stack, Surface } from "../../kit";
@@ -71,7 +71,7 @@ function PreferencesForm({ initial }: { initial: Profile }) {
       </Surface>
     </div>
     <div>
-      <Button variant="secondary" icon={ArrowCounterClockwise} onClick={() => {
+      <Button variant="secondary" icon={ArrowUUpLeft} onClick={() => {
         setProfile(resetProfile(profile));
         setGeneration((value) => value + 1);
       }}>Reset to defaults</Button>

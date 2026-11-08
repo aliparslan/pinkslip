@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { onlineManager } from "@tanstack/react-query";
-import { WifiSlash } from "@phosphor-icons/react";
+import { CloudSlash } from "@phosphor-icons/react";
 import { Alert } from "../../kit";
 import styles from "./States.module.css";
 
@@ -18,7 +18,7 @@ export function OfflineBanner() {
   const online = useOnline();
   if (online) return null;
   return <div className={styles.offline}>
-    <Alert tone="warning" size="compact" icon={WifiSlash}>
+    <Alert tone="warning" size="compact" icon={CloudSlash}>
       You're offline. Changes and new results return when you're back online.
     </Alert>
   </div>;

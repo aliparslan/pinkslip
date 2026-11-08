@@ -2,8 +2,8 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowCounterClockwise, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise,
-  DotsThree, EnvelopeSimple, EyeSlash, Flag, MapPin, Money, Prohibit, ShareNetwork, Sparkle, ThumbsDown, type IconProps,
+  ArrowUUpLeft, ArrowSquareOut, BookmarkSimple, CheckCircle, ClockCounterClockwise,
+  DotsThree, EnvelopeSimple, EyeSlash, Flag, MapPin, CurrencyCircleDollar, Prohibit, Export, Sparkle, ThumbsDown, type IconProps,
 } from "@phosphor-icons/react";
 import type { Job } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
@@ -227,7 +227,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
 
     <ul className={styles.meta}>
       {location && <li><MapPin size={15} aria-hidden /><span>{location}</span></li>}
-      {salary && <li><Money size={15} aria-hidden /><span>{salary}</span></li>}
+      {salary && <li><CurrencyCircleDollar size={15} aria-hidden /><span>{salary}</span></li>}
       {original && <li><ClockCounterClockwise size={15} aria-hidden /><span suppressHydrationWarning>{original}</span></li>}
     </ul>
 
@@ -241,7 +241,7 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
         : blocks.length > 0 ? <Description blocks={blocks} />
         : <div className={styles.missing}>
           <Text tone="ink-2">We couldn’t pull the full job description yet. The original posting may still have it.</Text>
-          <Button variant="secondary" size="compact" icon={ArrowCounterClockwise} onClick={onRetryDescription}>Try again</Button>
+          <Button variant="secondary" size="compact" icon={ArrowUUpLeft} onClick={onRetryDescription}>Try again</Button>
         </div>}
       {full && job.url && <a className={styles.original} href={job.url} target="_blank" rel="noopener noreferrer">
         Read the original posting <ArrowSquareOut size={13} aria-hidden />
@@ -256,12 +256,12 @@ function JobView({ job, from, full, pendingDescription, onRetryDescription, leav
       <div className={styles.actions}>
         <Menu label="More job actions" trigger={{ icon: DotsThree, label: "More job actions" }}>
           {access.personal && (applied
-            ? <MenuItem icon={ArrowCounterClockwise} onSelect={() => setApplied(false)}>I didn't apply</MenuItem>
+            ? <MenuItem icon={ArrowUUpLeft} onSelect={() => setApplied(false)}>I didn't apply</MenuItem>
             : <MenuItem icon={CheckCircle} onSelect={() => setApplied(true)}>I applied</MenuItem>)}
           {access.personal && !applied && <MenuItem icon={ThumbsDown} onSelect={notInterested}>Not interested</MenuItem>}
           {outreach && <MenuItem icon={EnvelopeSimple} onSelect={() => setEmailing(true)}>Email recruiter</MenuItem>}
           {tailoringShown && access.personal && <MenuItem icon={Sparkle} onSelect={() => void navigate({ to: "/tailor/$jobId", params: { jobId: job.id }, search: from ? { from } : {} })}>Tailor resume</MenuItem>}
-          <MenuItem icon={ShareNetwork} onSelect={() => void share(job)}>Share</MenuItem>
+          <MenuItem icon={Export} onSelect={() => void share(job)}>Share</MenuItem>
           {access.personal && job.company_id && <MenuItem icon={EyeSlash} onSelect={hideTheCompany}>Hide {job.company_name}</MenuItem>}
           {access.personal && <MenuItem icon={Flag} onSelect={() => setReporting(true)}>Report listing</MenuItem>}
           {access.admin && <>

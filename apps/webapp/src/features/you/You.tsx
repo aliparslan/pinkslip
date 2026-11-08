@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Fragment, useId, type ReactNode } from "react";
 import {
-  Bell, Buildings, CaretRight, ChatCircleDots, ClipboardText, FileText, PaintBrush, SlidersHorizontal, Sparkle,
+  Bell, Buildings, CaretRight, ChatCircleDots, ClipboardText, FileText, CircleHalf, SlidersHorizontal, Sparkle,
   UserCircle, Wrench, type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
 import { normalizeSearchProfile } from "@pinkslip/domain/search-profile";
@@ -99,7 +99,7 @@ export function You() {
       <Group label="Materials"><Rows rows={materials} /></Group>
       <Group label="App">
         <li className={styles.row} data-static>
-          <Icon icon={PaintBrush} size={20} />
+          <Icon icon={CircleHalf} size={20} />
           <span className={styles.copy}><Text as="span" weight="medium">Appearance</Text></span>
           <span className={styles.select}>
             <Select aria-label="Appearance" value={theme} onChange={(event) => setThemePreference(event.target.value as ThemePreference)}>

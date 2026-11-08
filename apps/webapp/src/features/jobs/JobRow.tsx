@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowCounterClockwise, BookmarkSimple, CheckCircle, DotsThreeVertical, EnvelopeOpen, EnvelopeSimple, EyeSlash, Prohibit, X } from "@phosphor-icons/react";
+import { ArrowUUpLeft, BookmarkSimple, CheckCircle, DotsThree, EnvelopeSimpleOpen, EnvelopeSimple, EyeSlash, Prohibit, X } from "@phosphor-icons/react";
 import type { Job } from "@pinkslip/core/api";
 import { formatCompactSalaryText, formatJobLocation } from "@pinkslip/core/job-format";
 import { isFreshJobTiming, jobTimingLabel } from "@pinkslip/core/job-timing";
@@ -108,12 +108,12 @@ export function JobRow({ job, viewed = false, selected, contextLabel, from, onOp
       </span>
     </Link>
     {hasMenu && <div className={styles.accessory}>
-      <Menu trigger={{ icon: DotsThreeVertical, label: `Actions for ${job.title} at ${job.company_name}`, size: "sm", iconSize: 18 }}>
+      <Menu trigger={{ icon: DotsThree, label: `Actions for ${job.title} at ${job.company_name}`, size: "sm", iconSize: 18 }}>
         {onSave && !saved && <MenuItem icon={BookmarkSimple} onSelect={() => onSave(job)}>Save</MenuItem>}
         {onUnsave && saved && <MenuItem icon={X} onSelect={() => leave(onUnsave)}>Remove from saved</MenuItem>}
         {onMarkApplied && !applied && <MenuItem icon={CheckCircle} onSelect={() => onMarkApplied(job)}>Mark as applied</MenuItem>}
-        {onUnmarkApplied && applied && <MenuItem icon={ArrowCounterClockwise} onSelect={() => leave(onUnmarkApplied)}>I didn't apply</MenuItem>}
-        {onToggleRead && <MenuItem icon={viewed ? EnvelopeSimple : EnvelopeOpen} onSelect={() => onToggleRead(job, !viewed)}>
+        {onUnmarkApplied && applied && <MenuItem icon={ArrowUUpLeft} onSelect={() => leave(onUnmarkApplied)}>I didn't apply</MenuItem>}
+        {onToggleRead && <MenuItem icon={viewed ? EnvelopeSimple : EnvelopeSimpleOpen} onSelect={() => onToggleRead(job, !viewed)}>
           {viewed ? "Mark as unread" : "Mark as read"}
         </MenuItem>}
         {onHide && <MenuItem icon={EyeSlash} onSelect={() => leave(onHide)}>Hide</MenuItem>}

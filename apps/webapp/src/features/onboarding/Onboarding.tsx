@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { BellRinging, CaretLeft, Check, UploadSimple } from "@phosphor-icons/react";
+import { Bell, CaretLeft, Check, UploadSimple } from "@phosphor-icons/react";
 import { normalizeSearchProfile, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
 import { normalizeResumeProfile } from "@pinkslip/domain/resume-profile";
 import { useApi, usePreferences, useSaveResume, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
@@ -161,7 +161,7 @@ function Steps({ initial }: { initial: Profile }) {
               ? <Alert tone="warning">On iPhone, add Pinkslip to your Home Screen first (Share, then Add to Home Screen). You can turn alerts on later in You.</Alert>
               : push === "denied" || push === "unsupported"
                 ? <Alert tone="warning">Alerts aren’t available in this browser right now. You can turn them on later in You.</Alert>
-                : <Button variant="secondary" fullWidth icon={BellRinging} pending={enabling} onClick={() => void turnOnAlerts()}>Turn on alerts</Button>}
+                : <Button variant="secondary" fullWidth icon={Bell} pending={enabling} onClick={() => void turnOnAlerts()}>Turn on alerts</Button>}
           {push === "error" && <Alert tone="error">Couldn’t turn on alerts. Try again, or later in You.</Alert>}
         </Stack>}
       </section>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DotsThreeVertical, PencilSimple, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
+import { DotsThree, PencilSimple, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
 import {
   friendlyPollError, matchesSourceStatus as matchesStatus, SOURCE_STATUSES as STATUSES, sourceNeedsAttention as needsAttention, type SourceStatus as Status,
 } from "@pinkslip/core/admin-format";
@@ -123,7 +123,7 @@ function SourceRow({ company, onToggle, onEdit, onRemove }: {
     </span>
     <span className={styles.actions}>
       <Switch label={`Enable ${company.name}`} checked={Boolean(company.enabled)} onCheckedChange={onToggle} />
-      <Menu trigger={{ icon: DotsThreeVertical, label: `More actions for ${company.name}`, size: "sm" }}>
+      <Menu trigger={{ icon: DotsThree, label: `More actions for ${company.name}`, size: "sm" }}>
         <MenuItem icon={PencilSimple} onSelect={onEdit}>Edit source</MenuItem>
         <MenuItem icon={Trash} tone="danger" onSelect={onRemove}>Remove source</MenuItem>
       </Menu>

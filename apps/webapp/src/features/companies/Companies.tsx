@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowCounterClockwise, Buildings, EyeSlash, Flag, Plus } from "@phosphor-icons/react";
+import { ArrowUUpLeft, Buildings, EyeSlash, Flag, Plus } from "@phosphor-icons/react";
 import type { Company } from "@pinkslip/core/api";
 import { companyCareersUrl } from "@pinkslip/domain/company-sources";
 import { useCompanies, useReportCompany, useRequestCompany, useSetCompanyHidden } from "@pinkslip/data";
@@ -87,7 +87,7 @@ export function Companies() {
               <CompanyLogo name={company.name} domain={company.website} size={32} />
               <CompanyName company={company} />
               {company.blocked
-                ? <Button variant="secondary" size="compact" icon={ArrowCounterClockwise} aria-label={`Restore ${company.name}`}
+                ? <Button variant="secondary" size="compact" icon={ArrowUUpLeft} aria-label={`Restore ${company.name}`}
                   onClick={() => hide(company, false)}>Restore</Button>
                 : <span className={styles.actions}>
                   <IconButton icon={Flag} label={`Report a problem with ${company.name}`} size="sm" iconSize={16} onClick={() => setReporting(company)} />

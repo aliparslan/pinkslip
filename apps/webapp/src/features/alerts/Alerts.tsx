@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BellRinging, ShareFat } from "@phosphor-icons/react";
+import { Bell, Export } from "@phosphor-icons/react";
 import { useApi, usePreferences, usePushSettings, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
 import { Alert, Button, Heading, Separator, Stack, Surface, Switch, Text, toast } from "../../kit";
 import { PageFailure, PageLoading } from "../states/LoadStates";
@@ -86,7 +86,7 @@ export function Alerts() {
           <Text weight="medium">This device</Text>
           {device && <span className={styles.status} data-tone={device.tone}>{device.text}</span>}
         </div>
-        {canEnable && <Button variant="secondary" size="compact" icon={BellRinging} pending={enabling} onClick={() => void enableDevice()}>
+        {canEnable && <Button variant="secondary" size="compact" icon={Bell} pending={enabling} onClick={() => void enableDevice()}>
           {registrationFailed ? "Retry" : "Turn on"}
         </Button>}
       </div>
@@ -101,7 +101,7 @@ export function Alerts() {
         </div>
       </>}
     </Surface>
-    {status === "requires-install" && <Alert tone="warning" icon={ShareFat} title="Add Pinkslip to your Home Screen">
+    {status === "requires-install" && <Alert tone="warning" icon={Export} title="Add Pinkslip to your Home Screen">
       On iPhone, tap Share, then Add to Home Screen. Open Pinkslip from there to turn on alerts.
     </Alert>}
     {status === "denied" && <Alert tone="warning">Notifications are blocked for this site. Allow them in your browser’s site settings, then come back.</Alert>}
