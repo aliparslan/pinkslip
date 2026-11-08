@@ -17,6 +17,8 @@ import { openSignIn } from "../../account/sign-in-request";
 import { useSessionAccess } from "../../jobs/useJobActions";
 import { ResumeImportFailure, type ImportedResume, type ImportStep } from "../../resume/import";
 import { useImportResume } from "../../resume/useImportResume";
+import { Fold } from "../../../ui/Fold";
+import { motionTrial, useMotionTrial } from "../../../ui/motion-trial";
 import { YouPage } from "../you/Page";
 import { endResumeSample, useResumeDraft, useTidyOnLeave } from "./draft";
 import { addedLine, dateRange, PRESENT, shortSchool } from "./facts";
@@ -64,6 +66,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
   const { signedIn } = useSessionAccess();
   const [step, setStep] = useState<ImportStep | null>(null);
   const [found, setFound] = useState<ImportedResume | null>(null);
+  const [finished, setFinished] = useState(false);
   const cancel = useRef<AbortController | null>(null);
   // Leaving the kit's sample returns the editors to your own resume.
   useEffect(() => () => endResumeSample(), []);
@@ -81,12 +84,20 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
       openSignIn({ title: "Sign in to import a PDF" });
       return;
     }
-    cancel.current = new AbortController();
+    const signal = (cancel.current = new AbortController()).signal;
     try {
-      const result = await importResume(setStep, cancel.current.signal);
-      if (result) setFound(result);
+      const result = await importResume(setStep, signal);
+      // The bar fills to the end before what it found comes in, so you see
+      // it finish (flow run 5.9; Kit → Motion fixes).
+      if (result && motionTrial("pdfSettle")) {
+        setFinished(true);
+        await new Promise((resolve) => setTimeout(resolve, IMPORT_FINISH_MS));
+      }
+      if (result && !signal.aborted) setFound(result);
+      setFinished(false);
       setStep(null);
     } catch (error) {
+      setFinished(false);
       setStep(null);
       toast.error(error instanceof ResumeImportFailure ? error.message : "Couldn't read that PDF. Try another file.");
     }
@@ -121,7 +132,7 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
     </View> : null}
     {fresh ? null : importButton}
     {empty ? null : <DangerRow label="Clear resume" onPress={clear} />}
-    <ImportSheet step={step} found={found} onClosed={() => { cancel.current?.abort(); setStep(null); setFound(null); }} onUse={(accepted) => {
+    <ImportSheet step={step} found={found} finished={finished} onClosed={() => { cancel.current?.abort(); setStep(null); setFound(null); }} onUse={(accepted) => {
       draft.replace(withImport(profile, accepted.profile));
       void keepResumeFile(accepted.sourceFile).then(() => undefined, () => toast.error("Couldn't keep the PDF for applications."));
     }} />
@@ -129,6 +140,8 @@ function ResumeOverview({ profile }: { profile: ResumeProfile }) {
 }
 
 /** The lines on the card's little first page: a heading, then text. */
+/** The bar's last stretch (ProgressBar's finish), before what it found. */
+const IMPORT_FINISH_MS = 200;
 const PAGE_LINES = [18, 26, 22, 26, 14, 24];
 
 /**
@@ -176,24 +189,24 @@ function withImport(current: ResumeProfile, imported: Partial<ResumeProfile>): R
  * one modal at a time, so a second sheet opened as the first left never
  * appeared and the import seemed to do nothing (owner, 2026-10-19). Closing
  * it while it reads cancels the import. */
-function ImportSheet({ step, found, onClosed, onUse }: {
-  step: ImportStep | null; found: ImportedResume | null; onClosed: () => void; onUse: (found: ImportedResume) => void;
+function ImportSheet({ step, found, finished, onClosed, onUse }: {
+  step: ImportStep | null; found: ImportedResume | null; finished: boolean; onClosed: () => void; onUse: (found: ImportedResume) => void;
 }) {
   return <SheetModal open={step !== null || found !== null} onClosed={onClosed}>
-    {found ? <UseThisResumeStep found={found} onUse={onUse} /> : step ? <ImportingStep step={step} /> : null}
+    {found ? <UseThisResumeStep found={found} onUse={onUse} /> : step ? <ImportingStep step={step} finished={finished} /> : null}
   </SheetModal>;
 }
 
 /** L3: what the import is doing, a bar that fills by real steps, and Cancel.
  * Never a time estimate. */
-function ImportingStep({ step }: { step: ImportStep }) {
+function ImportingStep({ step, finished }: { step: ImportStep; finished: boolean }) {
   const sheet = useSheet();
   return <SheetStep id="importing">
     <View style={styles.lead}>
       <SheetHeader title={`Reading ${step.name}`} />
       <Text tone="ink-2">{step.step === "reading" ? "Finding your experience and skills." : "It's a scan, so reading it page by page."}</Text>
     </View>
-    <ProgressBar share={step.step === "reading" ? 0.45 : 0.75} />
+    <ProgressBar share={finished ? 1 : step.step === "reading" ? 0.45 : 0.75} />
     <Button variant="text" fullWidth onPress={sheet.close}>Cancel</Button>
   </SheetStep>;
 }
@@ -368,6 +381,7 @@ function useOpenWheel() {
 export function RolePage() {
   const { record, change, remove, isNew } = useRecord("experience", () => ({ id: "", company: "", title: "", location: "", startDate: "", endDate: "", bullets: [] }));
   const wheel = useOpenWheel();
+  const smooth = useMotionTrial("wheel");
   if (!record) return <YouPage title={isNew ? "New role" : "Role"}>{null}</YouPage>;
   const current = PRESENT.test(record.endDate.trim());
   return <YouPage title={isNew ? "New role" : "Role"}>
@@ -378,7 +392,10 @@ export function RolePage() {
     </FieldGroup>
     <FieldGroup>
       <MonthRow label="Started" value={monthInputValue(record.startDate)} onChange={(startDate) => change({ startDate })} open={wheel.isOpen("start")} onToggle={() => wheel.toggle("start")} />
-      {current ? null : <MonthRow label="Ended" value={monthInputValue(record.endDate)} onChange={(endDate) => change({ endDate })} open={wheel.isOpen("end")} onToggle={() => wheel.toggle("end")} />}
+      {/* Folds away while you work here, and back (flow run 5.2). */}
+      <Fold shown={!current} animate={smooth}>
+        <MonthRow label="Ended" value={monthInputValue(record.endDate)} onChange={(endDate) => change({ endDate })} open={wheel.isOpen("end")} onToggle={() => wheel.toggle("end")} />
+      </Fold>
       <SwitchRow label="I work here now" value={current} onChange={(on) => change({ endDate: on ? "Present" : "" })} />
     </FieldGroup>
     <FieldGroup label="What you did">

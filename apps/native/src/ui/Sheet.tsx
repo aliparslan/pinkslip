@@ -10,6 +10,7 @@ import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon } from "./Icon";
 import { motion, rubberBand, timing } from "./motion";
+import { useMotionTrial } from "./motion-trial";
 import { SHEET_BOTTOM_RADIUS, SHEET_INSET, SHEET_PADDING, SHEET_RADIUS } from "./sheet-geometry";
 import { Text } from "./Text";
 
@@ -23,6 +24,16 @@ const SETTLE = timing(motion.sheet.settle);
 const PUSH = timing(motion.sheet.push);
 /** A step whose content changes (a list loading in) eases to its new height. */
 const RESIZE = timing(motion.sheet.resize);
+/** Or the sheet stays put and its steps fade in place, as Family's trays do
+ * (flow run 4.10; Paper "2 · Steps in a sheet fade", 2026-11-08): the new
+ * step fades in over 200ms, coming 8 from the way you're going, while the
+ * sheet eases to the new height. The step you leave goes at once: Reanimated
+ * draws a leaving view under the one arriving, so its 100ms fade-out (the
+ * board's) never showed, and waiting 80ms for it left the sheet blank. Kit
+ * → Motion fixes compares it with the slide. */
+const FADE_OUT = timing({ duration: 100, curve: [0.23, 1, 0.32, 1] });
+const FADE_IN = timing({ duration: 200, curve: [0.23, 1, 0.32, 1] });
+const FADE_SHIFT = 8;
 /** Let go past this share of the sheet's height, or flick down faster than
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
@@ -55,6 +66,12 @@ interface SheetContextValue {
   /** Which way a run of steps is moving: 1 forward, -1 back, 0 for a menu
    * whose steps slide by `inner`. Read as the cards move (useSheetTravel). */
   travel: SharedValue<number>;
+  /** The height of the step in front: a step that fades in starts there. */
+  cardHeight: SharedValue<number>;
+  /** Steps fade in place instead of sliding (Kit → Motion fixes). */
+  fade: boolean;
+  /** Counts the steps shown, so each fades in under the one it replaces. */
+  order: RefObject<number>;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
@@ -133,6 +150,8 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const fromTop = useSharedValue(true);
   const travel = useSharedValue(0);
   const opened = useRef(false);
+  const order = useRef(0);
+  const fade = useMotionTrial("sheetFade");
   const guard = useRef<(() => void) | null>(null);
   const maxHeight = height - insets.top - SHEET_INSET;
 
@@ -196,8 +215,8 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const keyboard = useAnimatedKeyboard();
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value - keyboard.height.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width, travel }),
-    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width, travel]);
+  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width, travel, cardHeight, fade, order }),
+    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width, travel, cardHeight, fade]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>
@@ -315,6 +334,14 @@ function leaving(to: 1 | -1, travel: SharedValue<number>, width: number) {
   };
 }
 
+/** Fading, the step you leave just goes, over the one coming in. */
+function fadingOut() {
+  return () => {
+    "worklet";
+    return { initialValues: { opacity: 1 }, animations: { opacity: withTiming(0, FADE_OUT) } };
+  };
+}
+
 /** One step of a sheet: its own card, standing on the bottom edge at the
  * height of what it holds. */
 export function SheetStep({ id, inner = false, grabber = true, children }: SheetStepProps) {
@@ -322,26 +349,40 @@ export function SheetStep({ id, inner = false, grabber = true, children }: Sheet
 }
 
 function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boolean; children: ReactNode }) {
-  const { dismiss, measure, opened, maxHeight, width, travel } = useSheetContext();
+  const { dismiss, measure, opened, maxHeight, width, travel, cardHeight, fade, order } = useSheetContext();
   // The step the sheet opens with rises with it; only later steps slide in.
   const [initial] = useState(() => !opened.current);
-  const height = useSharedValue(0);
+  const side = inner ? 1 : -1;
+  // Fading, a step starts at the height of the one in front and stands
+  // under it, so the one leaving fades off over this one's sheet.
+  const [fades] = useState(() => fade && !initial);
+  const [layer] = useState(() => fade ? -order.current++ : 0);
+  const height = useSharedValue(fades ? cardHeight.value : 0);
+  const shown = useSharedValue(fades ? 0 : 1);
+  const [from] = useState(() => (travel.value !== 0 ? travel.value : side) * FADE_SHIFT);
+  const shift = useSharedValue(fades ? from : 0);
+  useEffect(() => {
+    if (!fades) return;
+    shown.value = withTiming(1, FADE_IN);
+    shift.value = withTiming(0, FADE_IN);
+  }, [fades, shown, shift]);
   const sized = useRef(false);
-  // Its first height is set at once; later ones (a list loading in) ease.
+  // Its first height is set at once; later ones (a list loading in) ease,
+  // as does a fading step's first, from the height of the one before.
   const onLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout.height;
-    height.value = sized.current ? withTiming(next, RESIZE) : next;
+    height.value = sized.current || fades ? withTiming(next, RESIZE) : next;
     sized.current = true;
     measure(next);
   };
-  const side = inner ? 1 : -1;
   const card = useAnimatedStyle(() => ({ height: height.value }));
-  return <Animated.View entering={initial ? undefined : arriving(side, travel, width)} exiting={leaving(side, travel, width)}
-    style={[styles.card, card]}>
+  const content = useAnimatedStyle(() => ({ opacity: shown.value, transform: [{ translateX: shift.value }] }));
+  return <Animated.View entering={initial || fade ? undefined : arriving(side, travel, width)} exiting={fade ? fadingOut() : leaving(side, travel, width)}
+    style={[styles.card, { zIndex: layer }, card]}>
     {/* The content stands on the card's bottom edge, so it holds still while the card grows. */}
-    <View onLayout={onLayout} style={[styles.step, { maxHeight }]}>
+    <Animated.View onLayout={onLayout} style={[styles.step, { maxHeight }, content]}>
       {children}
-    </View>
+    </Animated.View>
     {/* Drag it down to close; VoiceOver can close it from here. */}
     {grabber ? <View style={styles.grabber} accessible accessibilityRole="button" accessibilityLabel="Close" onAccessibilityTap={dismiss} /> : null}
   </Animated.View>;

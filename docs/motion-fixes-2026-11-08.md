@@ -17,6 +17,35 @@ you can feel both on the phone before the old one goes.
 | 5 · Swipe colours | 2.35 | Read and Applied use the glyph inks Today's tiles already use. In dark mode their tint goes 14% → 20%. Light keeps 14%. The full-swipe fill doesn't change. |
 | 6 · A read resume settles in place | 5.9 | The bar fills to the end (200ms), then "Use this resume?" cross-fades in place and the sheet grows to fit, instead of a tall card flying in from the side. |
 
+## Built (Nov 8)
+
+All six are in the iOS app behind **Kit → Redesign kit → Motion fixes**.
+Each fix has a switch: on is the proposal and is the default, off is what the
+app did before. The choice is kept on the phone.
+
+| Board | Where | Checked in the simulator |
+| --- | --- | --- |
+| 1 Undo | `ui/SwipeRow.tsx` (a row that left comes back the way it went) | Yes, in Kit → Swipes, whose Hide now has Undo |
+| 2 Sheet steps | `ui/Sheet.tsx` (`StepCard`) | Yes, Your search → Visa sponsorship and Back |
+| 3 Wheel and Ended | `ui/Fold.tsx` (new), `ui/Form.tsx` `MonthRow`, Role page | Yes, recorded frame by frame |
+| 4 Tracker | `ui/RowPlaceholders.tsx` (`chips`, `giveWay`), `TrackerScreen.tsx` | No, it needs a signed-in first load |
+| 5 Swipe colours | `ui/SwipeRow.tsx` `toneColors` | Light, yes. Dark, not yet |
+| 6 Resume PDF | `ui/ProgressBar.tsx` (a 200ms finish), Resume overview | No, it needs a signed-in import |
+
+Where the build differs from the boards:
+
+- **Sheet steps: the old step goes at once** instead of fading for 100ms.
+  React Native draws a leaving step under the new one, so its fade never
+  showed, and waiting 80ms for it left the sheet blank. The new step now
+  fades in from the tap. Boards 2 and 6 are updated.
+- **Undo brings back only the row.** Without hiding them, the row's
+  Applied and Hide actions reappeared behind it as it slid in.
+- **The wheel is built 0.7s after the page opens.** iOS took about 300ms
+  to build it on a tap, and the opening ran during that freeze. It's now
+  ready before you tap, so the space opens smoothly.
+- **Known:** at the start of an Undo, the row below shows faintly for one
+  frame where the space opens. Tell me if you notice it.
+
 ## The numbers behind board 5
 
 Contrast is WCAG, measured from the token values with each pill's tint over the page.

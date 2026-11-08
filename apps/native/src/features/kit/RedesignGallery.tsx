@@ -19,6 +19,7 @@ import { UPDATE_NOTES, type UpdateNotes } from "../redesign/update-notes";
 import { RELEASES, UpdateNotesSheet, WhatsNewSheet, type Release } from "../redesign/whats-new";
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
 import { setTabMotion, TAB_MOTIONS, useTabMotion } from "../../ui/tab-motion";
+import { MotionTrialList } from "./MotionTrials";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -51,6 +52,10 @@ export function RedesignGallery() {
         {TAB_MOTIONS.map((option) => <ListItem key={option.id} title={option.title} detail={option.detail}
           accessory="radio" selected={tabMotion === option.id} onPress={() => setTabMotion(option.id)} />)}
       </ListGroup>
+    </Section>
+
+    <Section title="Motion fixes" flush>
+      <MotionTrialList />
     </Section>
 
     <Section title="Screens" flush>

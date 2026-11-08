@@ -5,6 +5,7 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import Animated, { Easing, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
@@ -18,6 +19,7 @@ import { trackingState } from "./email/email-facts";
 import { dismissNudge, useEmailTrackingPrefs } from "./email/email-prefs";
 import { EmailSetupSheet, LiveEmailSetupSheet } from "./email/SetupSheet";
 import { TrackerNudge } from "./email/TrackerNudge";
+import { useMotionTrial } from "../../ui/motion-trial";
 import { trackerOutreachLine } from "./outreach/outreach-facts";
 import {
   byWeek, companyName, groupApplications, jobTitle, MOVE_TO, STAGE_GROUPS, stageGroupLabels, trackerAge, trackerFacts,
@@ -27,6 +29,12 @@ export type TrackerView = "all" | StageGroup;
 
 /** How many rows each stage shows under All; its header opens the rest. */
 const PER_STAGE = 3;
+/** Tracker's first rows arrive as one: chips, headers and rows fade in
+ * together over 200ms, a beat after the placeholders have gone (flow run
+ * 2.7; Paper "4 · Tracker loads in place", 2026-11-08). Only what renders
+ * as they arrive fades; rows scrolled to later don't. */
+const ROWS_IN = FadeIn.delay(80).duration(200).easing(Easing.bezier(0.23, 1, 0.32, 1));
+const ARRIVING_MS = 300;
 
 type Item =
   | { kind: "stage"; key: string; group: StageGroup; count: number }
@@ -74,6 +82,14 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const sampleTracking = useSampleEmailTracking("off");
   const applications = useApplications();
   const pull = usePullToRefresh(() => applications.refetch());
+  const settles = useMotionTrial("trackerLoad") && !sample;
+  // When the first load lands, read as it renders so its rows fade in.
+  const loading = useRef(applications.isPending);
+  const arrivedAt = useRef(0);
+  if (loading.current && !applications.isPending) arrivedAt.current = Date.now();
+  loading.current = applications.isPending;
+  const arriving = settles && Date.now() - arrivedAt.current < ARRIVING_MS;
+  const entering = arriving ? ROWS_IN : undefined;
 
   // The redesign kit passes sample applications to show the screen full.
   const data = sample ?? applications.data;
@@ -106,14 +122,14 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
       <View style={styles.nav}>{(data?.length ?? 0) > 0 ? <IconButton icon="stats" label="Stats" onPress={() => setStats(true)} /> : null}</View>
       <Text role="largeTitle" accessibilityRole="header">Tracker</Text>
     </View>
-    {present.length > 0 ? <ScrollView ref={chips} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+    {present.length > 0 ? <Animated.View entering={entering}><ScrollView ref={chips} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
       {(["all", ...present] as TrackerView[]).map((option) =>
         <View key={option} onLayout={(event) => chipX.current.set(option, event.nativeEvent.layout.x)}>
           <Chip label={option === "all" ? "All" : stageGroupLabels[option]} count={option === "all" ? undefined : groups.get(option)?.length}
             selected={view === option} onPress={() => setView(view === option ? "all" : option)} />
         </View>)}
-    </ScrollView> : null}
-    {nudge ? <TrackerNudge onSetUp={() => setSetup(true)} onDismiss={() => sample ? setSampleNudge(false) : dismissNudge()} /> : null}
+    </ScrollView></Animated.View> : null}
+    {nudge ? <Animated.View entering={entering}><TrackerNudge onSetUp={() => setSetup(true)} onDismiss={() => sample ? setSampleNudge(false) : dismissNudge()} /></Animated.View> : null}
   </View>;
 
   return <>
@@ -121,14 +137,14 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
     <FlashList ref={list} {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
-      renderItem={({ item, index }) => item.kind === "stage"
+      renderItem={({ item, index }) => <Animated.View entering={entering}>{item.kind === "stage"
         ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} />}
           onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} />}
+        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} />}</Animated.View>}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
-      ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { paddingTop: height * EMPTY_TOP }]}>
+      ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders chips={settles} giveWay={settles} /> : <View style={[styles.empty, { paddingTop: height * EMPTY_TOP }]}>
         {applications.isError
           ? <EmptyState title="Tracker didn't load" message="Your applications are safe."
             action={{ label: "Try again", variant: "secondary", pending: applications.isFetching, onPress: () => void applications.refetch() }} />

@@ -1,10 +1,12 @@
 import { HStack, Host, Picker, Text as SwiftText } from "@expo/ui/swift-ui";
 import { frame, pickerStyle, tag } from "@expo/ui/swift-ui/modifiers";
-import { Children, Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressable, Switch, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { face } from "./fonts";
+import { Fold, OPEN_WHEEL } from "./Fold";
+import { useMotionTrial } from "./motion-trial";
 import { Icon } from "./Icon";
 import { Text } from "./Text";
 
@@ -23,8 +25,10 @@ export function FieldGroup({ label, children }: { label?: string; children: Reac
     {label ? <View style={styles.groupLabel}><Text role="footnote" weight="medium" tone="ink-2">{label}</Text></View> : null}
     <View style={styles.card}>
       {rows.map((row, index) => <Fragment key={index}>
-        {index > 0 ? <View style={styles.rule} /> : null}
-        {row}
+        {/* A row that folds away takes its line with it. */}
+        {index > 0 && isValidElement(row) && row.type === Fold
+          ? cloneElement(row as ReactElement<{ lead?: ReactNode }>, { lead: <View style={styles.rule} /> })
+          : <>{index > 0 ? <View style={styles.rule} /> : null}{row}</>}
       </Fragment>)}
     </View>
   </View>;
@@ -102,6 +106,12 @@ export function SwitchRow({ label, value, onChange }: { label: string; value: bo
   </View>;
 }
 
+/** After a page's push has settled. */
+const WHEEL_WARM_MS = 700;
+/** iOS's wheel, and the room under it. */
+const WHEEL_HEIGHT = 216;
+const WHEEL_GAP = 8;
+
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const SHORT = MONTHS.map((month) => month.slice(0, 3));
 
@@ -132,6 +142,31 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
     if (!open && !match) set(year, month);
     onToggle();
   };
+  // The wheel's space opens and closes instead of jumping, and the wheel
+  // is drawn at its full size from the start so iOS sizes it once (flow run
+  // 5.2; Kit → Motion fixes).
+  const smooth = useMotionTrial("wheel");
+  // Built a moment after the page opens, while nothing is moving, so a
+  // tap opens it at once instead of waiting for iOS to build it.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    if (!smooth) return;
+    const timer = setTimeout(() => setWarm(true), WHEEL_WARM_MS);
+    return () => clearTimeout(timer);
+  }, [smooth]);
+  const picker = <Host matchContents={smooth ? undefined : { vertical: true }} style={smooth ? styles.wheelFill : styles.wheel}>
+    <HStack spacing={0}>
+      <Picker selection={month} onSelectionChange={(next: number) => set(year, next)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
+        {MONTHS.map((name, index) => <SwiftText key={name} modifiers={[tag(index + 1)]}>{name}</SwiftText>)}
+      </Picker>
+      <Picker selection={year} onSelectionChange={(next: number) => set(next, month)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
+        {years.map((option) => <SwiftText key={option} modifiers={[tag(option)]}>{String(option)}</SwiftText>)}
+      </Picker>
+    </HStack>
+  </Host>;
+  // In a frame of iOS's own wheel height, set up front instead of measured
+  // as it draws.
+  const wheel = smooth ? <View style={styles.wheelFrame}>{picker}</View> : picker;
   return <View>
     <View style={styles.row}>
       <Text flex>{label}</Text>
@@ -140,16 +175,7 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
         <Text tone={open ? "accent" : value ? "ink" : "ink-3"}>{monthLabel(value) || "Month"}</Text>
       </Pressable>
     </View>
-    {open ? <Host matchContents={{ vertical: true }} style={styles.wheel}>
-      <HStack spacing={0}>
-        <Picker selection={month} onSelectionChange={(next: number) => set(year, next)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
-          {MONTHS.map((name, index) => <SwiftText key={name} modifiers={[tag(index + 1)]}>{name}</SwiftText>)}
-        </Picker>
-        <Picker selection={year} onSelectionChange={(next: number) => set(next, month)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
-          {years.map((option) => <SwiftText key={option} modifiers={[tag(option)]}>{String(option)}</SwiftText>)}
-        </Picker>
-      </HStack>
-    </Host> : null}
+    {smooth ? <Fold shown={open} motion={OPEN_WHEEL} warm={warm} height={WHEEL_HEIGHT + WHEEL_GAP}>{wheel}</Fold> : open ? wheel : null}
   </View>;
 }
 
@@ -214,7 +240,9 @@ const styles = StyleSheet.create((theme) => ({
   inline: { minWidth: 80, padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },
   chip: { height: 34, justifyContent: "center", paddingHorizontal: 11, borderRadius: theme.ui.radius.sm, borderCurve: "continuous", backgroundColor: theme.ui.color.bg },
   chipOpen: { backgroundColor: theme.ui.color["accent-soft"] },
-  wheel: { marginBottom: theme.ui.space["2"] },
+  wheel: { marginBottom: WHEEL_GAP },
+  wheelFrame: { height: WHEEL_HEIGHT, marginBottom: WHEEL_GAP },
+  wheelFill: { flex: 1 },
   bullet: { flexDirection: "row", gap: 10, paddingVertical: 14 },
   bulletInput: { flex: 1, padding: 0, fontSize: theme.ui.type.body.size, lineHeight: theme.ui.type.body.line, color: theme.ui.color.ink },
   bulletRule: { height: StyleSheet.hairlineWidth, marginLeft: 18, backgroundColor: theme.ui.color.separator },

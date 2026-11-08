@@ -1,4 +1,4 @@
-import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text as RNText, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -11,6 +11,7 @@ import { haptics } from "../platform/haptics";
 import { face } from "./fonts";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
+import { motionTrial, useMotionTrial } from "./motion-trial";
 
 /** What an action is, which sets its color (Paper "Swipe actions · Oct
  * 14", S4): pink saves, blue reads, green is applying, graphite hides. */
@@ -53,13 +54,18 @@ export function closeOpenSwipeRow() {
   openRow?.close();
 }
 
-function toneColors(tone: SwipeTone, color: Record<string, string>) {
+function toneColors(tone: SwipeTone, color: Record<string, string>, glyphInk: boolean, dark: boolean) {
   // A tint is the ink at 14%, so it reads on white and on graphite alike.
-  const tint = (hex: string) => `${hex}24`;
+  // Read and Applied were too faint at night (flow run 2.35): they take the
+  // glyph inks Today's tiles draw with, and 20% in dark mode, about as much
+  // colour as Save carries (Paper "5 · Swipe colours", 2026-11-08). The
+  // full-swipe fill keeps the tile ink, which white reads on.
+  const tint = (hex: string) => `${hex}${glyphInk && dark ? "33" : "24"}`;
+  const ink = (kind: "find" | "apply") => color[glyphInk ? `glyph-${kind}` : `tile-${kind}-ink`]!;
   switch (tone) {
     case "accent": return { tint: color["accent-soft"]!, ink: color.accent!, fill: color["accent-fill"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
-    case "find": return { tint: tint(color["tile-find-ink"]!), ink: color["tile-find-ink"]!, fill: color["tile-find-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
-    case "apply": return { tint: tint(color["tile-apply-ink"]!), ink: color["tile-apply-ink"]!, fill: color["tile-apply-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
+    case "find": return { tint: tint(ink("find")), ink: ink("find"), fill: color["tile-find-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
+    case "apply": return { tint: tint(ink("apply")), ink: ink("apply"), fill: color["tile-apply-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
     case "neutral": return { tint: color.fill!, ink: color["ink-2"]!, fill: color["ink-2"]!, onFill: color.bg!, onFillTone: "bg" as const };
   }
 }
@@ -101,6 +107,15 @@ const OPEN_AT = 8;
 /** The space closes once the row is mostly gone, so leaving and closing up read as one. */
 const FOLD_DELAY = 120;
 const FOLD = { duration: 240, easing: Easing.bezier(0.2, 0.7, 0.2, 1) };
+/** Undo plays Hide backwards (flow run 2.36; Paper "1 · Undo brings the job
+ * back", 2026-11-08): the space opens on the fold's curve, and the row
+ * slides back in from the edge it left by, a beat behind, landing in a
+ * space that's already open. */
+const RETURN_DELAY = 60;
+/** Rows that just left, by id, and the way they went. One that comes back
+ * within the window (Undo, or an action that failed) plays it backwards. */
+const gone = new Map<string, { sign: 1 | -1; at: number }>();
+const RETURN_WINDOW = 15_000;
 
 /** Label widths measured once, shared by every row. */
 const measured = new Map<string, number>();
@@ -143,6 +158,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
   const armed = useSharedValue(false);
   /** 0 to 1: the outer pill filling, solid, to the row's edge. */
   const fill = useSharedValue(0);
+  const hush = useSharedValue(0);
   const [open, setOpen] = useState<"leading" | "trailing" | null>(null);
   const [swiping, setSwiping] = useState(false);
   const [, setMeasured] = useState(0);
@@ -164,14 +180,30 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
     if (openRow?.id === id) openRow = null;
   };
 
-  useEffect(() => {
-    x.value = 0;
-    fold.value = 1;
+  const restore = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Before the first paint, so a row coming back never shows a frame of
+  // whatever this cell held before.
+  useLayoutEffect(() => {
+    if (restore.current) clearTimeout(restore.current);
     fill.value = 0;
     armed.value = false;
     setOpen(null);
     setFrozen(null);
-  }, [id, x, fold, fill, armed]);
+    const left = gone.get(id);
+    gone.delete(id);
+    if (left && Date.now() - left.at < RETURN_WINDOW && motionTrial("undo")) {
+      fold.value = 0;
+      hush.value = 1;
+      x.value = left.sign * width.value;
+      fold.value = withTiming(1, FOLD);
+      // Just the row comes back, not the actions it left by.
+      x.value = withDelay(RETURN_DELAY, withSpring(0, LEAVE, () => { hush.value = 0; }));
+      return;
+    }
+    x.value = 0;
+    fold.value = 1;
+    hush.value = 0;
+  }, [id, x, fold, fill, armed, width, hush]);
 
   // Actions run from the row's current ones, whatever the pills still say.
   const latest = useRef({ leading: given, trailing: givenTrailing });
@@ -210,12 +242,14 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
     markOpen(null);
     if (index === 0) fill.value = withTiming(1, FAST);
     if (action.removes) {
+      gone.set(id, { sign, at: Date.now() });
       x.value = withSpring(sign * width.value, { ...LEAVE, velocity });
       fold.value = withDelay(FOLD_DELAY, withTiming(0, FOLD, (done) => {
         if (done) scheduleOnRN(run, side, index);
       }));
       // Back where it was if the row stays (a failure, or Undo).
-      setTimeout(() => {
+      if (restore.current) clearTimeout(restore.current);
+      restore.current = setTimeout(() => {
         x.value = 0;
         fold.value = 1;
         fill.value = 0;
@@ -299,12 +333,14 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
       const geometry = side === "leading" ? lead : trail;
       return actions.length > 0 ? <View key={side} style={StyleSheet.absoluteFill} pointerEvents={open === side ? "box-none" : "none"}>
         {actions.map((action, index) => <Pill key={action.id} action={action} index={index} side={side}
-          width={geometry.widths[index]!} near={geometry.near[index]!} reveal={geometry.reveal} x={x} fill={fill}
+          width={geometry.widths[index]!} near={geometry.near[index]!} reveal={geometry.reveal} x={x} fill={fill} hush={hush}
           onPress={() => perform(side, index)} />)}
       </View> : null;
     })}
     <GestureDetector gesture={pan}>
-      <Animated.View style={[styles.card, rowStyle]}>
+      {/* The card keeps its own height while the cell folds, so a row
+          coming back knows how far to open. */}
+      <Animated.View style={[styles.card, rowStyle]} onLayout={(event) => { height.value = event.nativeEvent.layout.height; }}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardTint, cardStyle]} />
         <SwipeCardContext.Provider value>
           <SwipingContext.Provider value={swiping}>{children}</SwipingContext.Provider>
@@ -324,7 +360,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
 }
 
 /** One action's pill, in its slot `near` points in from the screen's edge. */
-function Pill({ action, index, side, width: own, near, reveal, x, fill, onPress }: {
+function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, onPress }: {
   action: SwipeAction;
   index: number;
   side: "leading" | "trailing";
@@ -333,10 +369,13 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, onPress 
   reveal: number;
   x: SharedValue<number>;
   fill: SharedValue<number>;
+  /** 1 while a row comes back: its actions stay out of sight. */
+  hush: SharedValue<number>;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
-  const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>);
+  const { theme, rt } = useUnistyles();
+  const glyphInk = useMotionTrial("swipeInk");
+  const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>, glyphInk, !rt.themeName?.startsWith("light"));
   const sign = side === "leading" ? 1 : -1;
   const outer = index === 0;
   // Its size chases a target set by how far the row has gone: from just
@@ -364,7 +403,7 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, onPress 
     return {
       width: outer ? stretched + (filled - stretched) * f : own,
       // The inner ones are gone by the time the outer one reaches them.
-      opacity: outer ? Math.max(shown, f) : shown * Math.max(0, 1 - fill.value * 3),
+      opacity: (outer ? Math.max(shown, f) : shown * Math.max(0, 1 - fill.value * 3)) * (1 - hush.value),
       // The inner ones keep their place beside the outer one as it stretches.
       transform: [{ translateX: outer ? 0 : sign * over }, { scale: grow + (1 - grow) * f }],
       backgroundColor: outer ? interpolateColor(f, [0, 1], [colors.tint, colors.fill]) : colors.tint,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 
 /** Each row's three bars, in points, so the list doesn't read as a grid. */
@@ -62,11 +62,27 @@ export function GroupPlaceholders({ groups }: { groups: readonly number[] }) {
   </View>;
 }
 
-export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: { rows?: number; lines?: 1 | 2 | 3; logo?: boolean }) {
+/** Placeholders that give way to rows go quickly, before the rows fade in,
+ * so the two are never read at once (Paper "4 · Tracker loads in place",
+ * 2026-11-08). */
+const GIVE_WAY = FadeOut.duration(100).easing(Easing.bezier(0.23, 1, 0.32, 1));
+
+export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true, chips = false, giveWay = false }: {
+  rows?: number; lines?: 1 | 2 | 3; logo?: boolean;
+  /** Above the rows, the chips and a section header the list will have,
+   * so nothing moves when it arrives (Tracker). */
+  chips?: boolean;
+  /** Fade out quickly when the rows arrive, instead of at once. */
+  giveWay?: boolean;
+}) {
   const shown = useDelayed();
   const fade = usePulse(shown);
   if (!shown) return null;
-  return <Animated.View style={fade} accessible accessibilityLabel="Loading">
+  return <Animated.View exiting={giveWay ? GIVE_WAY : undefined}><Animated.View style={fade} accessible accessibilityLabel="Loading">
+    {chips ? <>
+      <View style={styles.chips}>{CHIPS.map((width) => <View key={width} style={[styles.chip, { width }]} />)}</View>
+      <View style={styles.header}><View style={styles.headerBar} /></View>
+    </> : null}
     {ROWS.slice(0, rows).map((bars, index) => <View key={index} style={[styles.row, lines < 3 && styles.short, lines === 1 && styles.single, !logo && styles.bare]}>
       {logo ? <View style={styles.logoSlot}><View style={styles.logo} /></View> : null}
       <View style={[styles.bars, lines === 1 && styles.barsSingle]}>
@@ -74,8 +90,11 @@ export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true }: 
         {(lines === 1 ? bars.slice(0, 1) : bars.slice(3 - lines)).map((width, bar) => <View key={bar} style={[styles.bar, { width }]} />)}
       </View>
     </View>)}
-  </Animated.View>;
+  </Animated.View></Animated.View>;
 }
+
+/** "All" and one stage, as Tracker's chips usually start. */
+const CHIPS = [50, 84] as const;
 
 /** Each line's share of the width, so the text placeholder reads as prose:
  * two paragraphs, the last line of each short. */
@@ -107,6 +126,12 @@ const styles = StyleSheet.create((theme) => ({
   bars: { gap: 10, paddingTop: theme.ui.space["1"] },
   barsSingle: { paddingTop: 0 },
   bar: { height: 12, borderRadius: 6, backgroundColor: theme.ui.color.fill },
+  // Where Tracker's chips and its first stage header sit (TrackerScreen
+  // chips, List's SectionHeader first).
+  chips: { flexDirection: "row", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
+  chip: { height: theme.ui.size.chip, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill },
+  header: { height: theme.ui.type.footnote.line + theme.ui.space["4"] + theme.ui.space["1"], paddingTop: theme.ui.space["4"], paddingBottom: theme.ui.space["1"], paddingHorizontal: theme.ui.space["4"], justifyContent: "center" },
+  headerBar: { width: 64, height: 10, borderRadius: 5, backgroundColor: theme.ui.color.fill },
   // A settings card's label is 14 tall and sits 8 above it.
   groups: { gap: theme.ui.space["6"], paddingTop: 22, paddingHorizontal: theme.ui.size.gutter },
   card: { paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-grouped"] },

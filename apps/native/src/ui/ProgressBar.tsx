@@ -6,6 +6,9 @@ import { easeOut } from "../kit/motion";
 
 /** Long for UI motion on purpose: it reports progress, it doesn't answer a tap. */
 const GROW = { duration: 600, easing: easeOut };
+/** Reaching the end is quick: the work is done, and what comes next waits
+ * for it (Paper "6 · A read resume settles in place", 2026-11-08). */
+const FINISH = { duration: 200, easing: easeOut };
 
 /**
  * A thin bar that fills by real steps (Motion lab #1, owner 2026-10-24): it
@@ -18,7 +21,7 @@ export function ProgressBar({ share }: { share: number }) {
   const shown = useSharedValue(0);
   useEffect(() => {
     // Back to empty is a reset, not progress, so it doesn't animate.
-    shown.value = reduced || share <= shown.value ? share : withTiming(share, GROW);
+    shown.value = reduced || share <= shown.value ? share : withTiming(share, share >= 1 ? FINISH : GROW);
   }, [share, reduced, shown]);
   // A full-width fill slid in from the left keeps its rounded end, where a
   // stretched one would squash it.

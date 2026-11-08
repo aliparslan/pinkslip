@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, closeOpenSwipeRow, PAGE_BAR, PageBar, Text, useTabBarSpace } from "../../ui";
+import { Button, closeOpenSwipeRow, PAGE_BAR, PageBar, Text, toast, UNDO_TOAST_DURATION, useTabBarSpace } from "../../ui";
 import type { JobActions } from "../jobs/useJobActions";
 import { FeedRow } from "../redesign/JobsFeed";
 
@@ -48,7 +48,14 @@ export function SwipeFeedLab() {
     markApplied: (job) => patch(job.id, { applied: true }),
     unmarkApplied: (job) => patch(job.id, { applied: false }),
     toggleRead: (job, read) => setViewed((all) => { const next = new Set(all); if (read) next.add(job.id); else next.delete(job.id); return next; }),
-    hide: (job) => setJobs((all) => all.filter((other) => other.id !== job.id)),
+    // Undo puts it back where it was, as the feed's does (Kit → Motion fixes).
+    hide: (job) => {
+      let at = 0;
+      setJobs((all) => { at = all.findIndex((other) => other.id === job.id); return all.filter((other) => other.id !== job.id); });
+      toast.show({ message: "Job hidden", icon: "hide", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => {
+        setJobs((all) => all.some((other) => other.id === job.id) ? all : [...all.slice(0, at), job, ...all.slice(at)]);
+      } } });
+    },
   }), []);
   return <View style={styles.screen}>
     <Stack.Screen options={{ headerShown: false }} />
