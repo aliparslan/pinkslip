@@ -5,7 +5,7 @@ the Nov 4 polish pass (`polish-pass-2026-11-04.md`) and the Nov 7 flow run
 (`flow-run-2026-11-07.md`). The owner wants all of it ("all of these are
 awesome. lets jot em all down"). Each item goes through Paper first, and
 motion gets a kit toggle to compare against iOS's own apps (Match iOS
-motion).
+motion). How each should move: `motion-course-notes-2026-11-07.md`.
 
 The app's bones are good: calm, consistent, and its paper-and-stamp look is
 its own. What's missing is a few moments that feel earned, and the iOS
@@ -34,11 +34,12 @@ Nov 7 flow run:
       pages the same way. Expo Router 57 has it
       (`<Link.Trigger withAppleZoom>`, iOS 18+), unused so far. The biggest
       single "this feels native" step.
-- [ ] **The stamp lands.** When you apply, the job's ticket is stamped
-      Applied, with the success haptic; the same when Pinkslip's send goes
-      out; and Offer, once, when a job reaches it (it pairs with "Pro ends
-      when you're hired"). Rare, so it can afford delight. The stamp's land
-      motion already exists (`StampedSlip`, `stub-motion`).
+- [ ] **The stamp lands where you are.** Already built: the stub tears off
+      when you apply (`motion.stub`), and a new step's stamp lands on your
+      stub while you watch (`motion.stamp`). Left: the same moment when
+      Pinkslip's send goes out while you're elsewhere (the live bar), and
+      Offer, once, when a job reaches it (it pairs with "Pro ends when
+      you're hired").
 - [ ] **Tracker rows move between stages** with a layout transition
       instead of vanishing and reappearing, and counts tick over ("3 of 10
       sent").
@@ -102,7 +103,7 @@ more onboarding.
 ## Order
 
 1. Section 1 before 1.4.0.
-2. Zoom to the job page and the Applied stamp as the first update after
-   launch.
+2. Zoom to the job page and the stamp for a send as the first update
+   after launch.
 3. A native release built around the Live Activity and the share
    extension, after Pro.
