@@ -1163,6 +1163,9 @@ cut so that each remaining one has a job.
   - A saved row is the same height as the rest (the stage mark no longer
     hangs below the baseline). A swipe's pills keep their words until the
     row is home, as Mail's do.
+  - In You, a page with a pinned action takes the tab bar with the page
+    under it, sliding, as a job's page does; pages opened from it keep the
+    bar away rather than popping it back (Resume → Education → School).
 - **2026-10-29**
   - Built the send screens (Paper "Send screens · the missing states ·
     Oct 24", approved): "A send on the job page" above. Kit: `ApplyButton`
