@@ -85,6 +85,8 @@ export function RedesignGallery() {
         <ListItem title="Auto-apply, paused" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-auto-apply", params: { paused: "1" } })} />
         <ListItem title="People: Dana, before writing" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: "sample-dana" } })} />
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
+        <ListItem title="Tracker, a row moves to a new stage" accessory="chevron" onPress={() => router.push("/you/kit-tracker-moves")} />
+        <ListItem title="Jobs, new postings arrive" accessory="chevron" onPress={() => router.push("/you/kit-new-jobs")} />
         <ListItem title="Application page with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-interview" } })} />
         <ListItem title="Application Pinkslip sent, confirmed" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-confirmed" } })} />
         <ListItem title="Application Pinkslip sent, waiting" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-sent" } })} />

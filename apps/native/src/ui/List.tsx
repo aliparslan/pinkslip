@@ -2,6 +2,7 @@ import { Children, createContext, Fragment, useContext, type ReactNode } from "r
 import { Pressable, Switch, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Icon } from "./Icon";
+import { RollingCount } from "./RollingCount";
 import { Text } from "./Text";
 
 /** The slot for a row's leading icon, so titles line up down the card. */
@@ -135,16 +136,21 @@ export interface SectionHeaderProps {
   /** The first thing under the title or chips: 16 above it. After a list
    * it's 24 (owner, 2026-10-15). */
   first?: boolean;
+  /** A numeric count rolls when it changes (RollingCount). Kit mock-ups
+   * only, until the owner picks it (Nov 8). */
+  rolls?: boolean;
 }
 
 /** The label above a run of plain rows (New today, Earlier this week), with
  * its count after it the way chips carry theirs. */
-export function SectionHeader({ title, count, needsYou, leading, onPress, first }: SectionHeaderProps) {
+export function SectionHeader({ title, count, needsYou, leading, onPress, first, rolls = false }: SectionHeaderProps) {
   const content = <>
     {leading}
     <View style={styles.sectionLabel}>
       <Text role="footnote" weight="medium" tone={needsYou ? "accent" : "ink-2"}>{title}</Text>
-      {count !== undefined ? <Text role="footnote" tone="ink-3">{String(count)}</Text> : null}
+      {count === undefined ? null
+        : rolls && typeof count === "number" ? <RollingCount value={count} />
+        : <Text role="footnote" tone="ink-3">{String(count)}</Text>}
       {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={11} tone="ink-3" /></View> : null}
     </View>
   </>;
