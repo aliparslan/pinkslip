@@ -454,8 +454,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   its content. The 40 logo (radius 10) sits on the 16 margin; text and
   separators start on the 68 line. Nothing sits in the left gutter.
   - **On Jobs** the lines are all Subhead (15/20). Company and title are
-    Medium until opened, then Regular; the facts line is `ink-2`; the age is
-    `ink-3` (`ink` while unread). One 8pt pink dot follows the age.
+    Medium until opened, then Regular: the one sign of new (owner,
+    2026-11-08; the pink dot and darker age that went with it made three,
+    and the dot pushed the age out of its column). The facts line is
+    `ink-2` and leaves out the level when the search shows only that one;
+    the age is `ink-3`. Pink dots are for Needs you only.
   - **On Today** (owner, 2026-10-13) line two is the headline: Body 17/22
     Medium `ink`, the thing to do or the news ("Reply to the offer",
     "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
@@ -790,6 +793,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   2026-10-13; closest-to-an-offer first had put Saved near the bottom).
 - **Large title:** 8 under the 44 nav row on every tab, so titles line up
   across tabs. A date eyebrow sits inside the nav row, not above the title.
+- **A tab's bottom** (owner, 2026-11-08, from the design critic's pass):
+  rows that scroll under the tab bar go soft the same way (`BottomEdgeBlur`,
+  inside the tab bar so it comes and goes with it): the thin material with
+  the page colour at 70% over it, solid from the pill's middle down and
+  gone 28 above the pill. Through the pill's glass alone, rows read clearly.
 - **A tab's top** (owner, 2026-10-19, Paper "Consistency · Oct 19", C7b):
   rows scrolled up go soft under a blur behind the clock (`TopEdgeBlur`:
   iOS's thin material, solid through the status bar, gone 32 under it), as
