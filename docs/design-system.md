@@ -453,12 +453,15 @@ part isn't there yet, draw it from the kit's values and add it to that page.
 - **The row** (`JobRow.tsx`): three lines, at least 84 tall, growing with
   its content. The 40 logo (radius 10) sits on the 16 margin; text and
   separators start on the 68 line. Nothing sits in the left gutter.
-  - **On Jobs** the lines are all Subhead (15/20). Company and title are
-    Medium until opened, then Regular: the one sign of new (owner,
-    2026-11-08; the pink dot and darker age that went with it made three,
-    and the dot pushed the age out of its column). The facts line is
-    `ink-2` and leaves out the level when the search shows only that one;
-    the age is `ink-3`. Pink dots are for Needs you only.
+  - **On Jobs** (owner, 2026-11-08, Paper "Critic fixes · Nov 8") the
+    title leads, Subhead, up to two lines with the age (`ink-3`) at its end;
+    then "Company · Place · Pay" in Subhead `ink-2` with the stage at the
+    end. Rows grow from 64. The title is Medium until opened, then Regular:
+    the one sign of new (the pink dot and darker age that went with it made
+    three). The level is left out when the search shows only that one. Pink
+    dots are for Needs you only. Identical postings (company, title, place)
+    are one row, "Company · Place · 2 postings"; a tap opens a sheet listing
+    each by pay. Section counts count rows.
   - **On Today** (owner, 2026-10-13) line two is the headline: Body 17/22
     Medium `ink`, the thing to do or the news ("Reply to the offer",
     "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
