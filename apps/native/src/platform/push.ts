@@ -93,6 +93,12 @@ export async function refreshDevicePush(api: ApiClient): Promise<void> {
 
 export interface NotificationTarget { url: string | null; jobIds: string[]; notificationId: string | null }
 
+/** Where the alert that started the app goes, if one did. */
+export function launchNotificationUrl(): string | null {
+  const response = Notifications.getLastNotificationResponse();
+  return response ? notificationTarget(response).url : null;
+}
+
 /** Where a tapped alert goes. A remote push's `data` is its payload's
  * `body` key; pushes sent before it carried one have the link at the top of
  * the payload, which the trigger holds. */

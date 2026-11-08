@@ -8,5 +8,5 @@ export const unstable_settings = { initialRouteName: "library" };
 
 export default function LibraryStack() {
   const { theme } = useUnistyles();
-  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout} />;
+  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout("(library)")} />;
 }

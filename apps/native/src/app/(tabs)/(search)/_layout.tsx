@@ -8,5 +8,5 @@ export const unstable_settings = { initialRouteName: "search" };
 
 export default function SearchStack() {
   const { theme } = useUnistyles();
-  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout} />;
+  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout("(search)")} />;
 }

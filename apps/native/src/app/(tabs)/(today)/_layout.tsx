@@ -8,5 +8,5 @@ export const unstable_settings = { initialRouteName: "today" };
 
 export default function TodayStack() {
   const { theme } = useUnistyles();
-  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout} />;
+  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout("(today)")} />;
 }

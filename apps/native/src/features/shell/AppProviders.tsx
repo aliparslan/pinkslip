@@ -6,7 +6,7 @@ import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { toast, ToastHost } from "../../kit";
-import { appPathFor } from "../../platform/links";
+import { appPathFor, inHomeTab } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
 import { ASK_APPLY, ASK_DISMISS, isAlertButton, notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
@@ -75,7 +75,7 @@ function AppEffects({ api }: { api: ApiClient }) {
   useEffect(() => {
     const handled = new Set<string>();
     // A tapped alert opens its job (or the feed) and records the open.
-    const open = (response: Notifications.NotificationResponse) => {
+    const open = (response: Notifications.NotificationResponse, launching = false) => {
       const id = response.notification.request.identifier;
       if (handled.has(id)) return;
       handled.add(id);
@@ -106,10 +106,10 @@ function AppEffects({ api }: { api: ApiClient }) {
         void api.push.opened(target.jobIds, target.notificationId ?? undefined).catch(() => undefined);
       }
       const path = target.url ? appPathFor(target.url) : "/";
-      if (path) router.push(path as never);
+      if (path) router.push((launching ? inHomeTab(path) : path) as never);
     };
     const last = Notifications.getLastNotificationResponse();
-    if (last) open(last);
+    if (last) open(last, true);
     const subscription = Notifications.addNotificationResponseReceivedListener(open);
     return () => subscription.remove();
   }, [api, queryClient]);

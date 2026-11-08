@@ -8,5 +8,5 @@ export const unstable_settings = { initialRouteName: "index" };
 
 export default function JobsStack() {
   const { theme } = useUnistyles();
-  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout} />;
+  return <Stack screenOptions={stackOptions(theme)} screenLayout={tabStackScreenLayout("(jobs)")} />;
 }

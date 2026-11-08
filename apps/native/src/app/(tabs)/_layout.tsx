@@ -10,6 +10,7 @@ import { useLiveSends } from "../../features/redesign/sends/LiveSends";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { appPathFor } from "../../platform/links";
+import { launchNotificationUrl } from "../../platform/push";
 import { openTabInPlace, TabBar } from "../../ui";
 import { tabTransition, useTabMotion } from "../../ui/tab-motion";
 
@@ -59,14 +60,17 @@ function OpenOnToday() {
   // on Today instead of moving there (owner, 2026-11-08: on every launch
   // its oval slid over from Jobs).
   const [toToday] = useState(() => {
-    const launchedBy = Linking.getLinkingURL();
+    // Opened by a link or an alert, you go where that says: moving to Today
+    // as well left the job behind it (owner, Nov 8).
+    const launchedBy = Linking.getLinkingURL() ?? launchNotificationUrl();
     const linked = launchedBy ? appPathFor(launchedBy) : null;
     const go = pathname === "/" && !onboardingDue() && (!linked || linked === "/");
     if (go) openTabInPlace("(today)");
     return go;
   });
   useEffect(() => {
-    if (toToday) router.navigate("/today");
+    // Checked again here: an alert can reach the app just after the first look.
+    if (toToday && !launchNotificationUrl()) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   return null;

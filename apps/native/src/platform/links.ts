@@ -34,3 +34,15 @@ export function appPathFor(input: string): string | null {
   if (admin) return `/you/admin${admin[1] ?? ""}`;
   return null;
 }
+
+/**
+ * A page opened as the app starts has no tab to open in, and the router
+ * would pick any stack that has it: Back from a job landed on Search. So it
+ * opens in its home tab, on top of that tab's list (owner, Nov 8).
+ */
+export function inHomeTab(path: string): string {
+  if (path.startsWith("/jobs/")) return `/(tabs)/(jobs)${path}`;
+  if (path.startsWith("/applications/")) return `/(tabs)/(library)${path}`;
+  if (path.startsWith("/events/")) return `/(tabs)/(today)${path}`;
+  return path;
+}
