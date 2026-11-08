@@ -267,11 +267,13 @@ async function applyDb() {
   sqlite.run(`INSERT INTO companies VALUES
     ('aptos', 'Aptos Labs', 'greenhouse', NULL, 'aptoslabs'),
     ('fireworks', 'Fireworks', 'ashby', NULL, 'fireworks'),
-    ('acme', 'Acme', 'custom', 'workday', 'acme')`);
+    ('acme', 'Acme', 'custom', 'workday', 'acme'),
+    ('levco', 'Levco', 'lever', NULL, 'levco')`);
   sqlite.run(`INSERT INTO jobs VALUES
     ('gh-job', 'aptos', '4720881005', 'Engineer'),
     ('ashby-job', 'fireworks', 'a610c272', 'Engineer'),
-    ('wd-job', 'acme', 'R1', 'Engineer')`);
+    ('wd-job', 'acme', 'R1', 'Engineer'),
+    ('lever-job', 'levco', 'abc-123', 'Engineer')`);
   sqlite.run(`INSERT INTO user_profiles (user_id, data) VALUES ('user-1', '${JSON.stringify(student).replace(/'/g, "''")}')`);
   return { sqlite, db, env: { DB: db } as Env };
 }
@@ -317,6 +319,20 @@ describe("preparing a job", () => {
       fields: [],
       missing_required: 0,
     });
+  });
+
+  it("opens Lever's form, a page past its posting, with nothing prepared", async () => {
+    const { env } = await applyDb();
+    const calls: string[] = [];
+    expect(await prepareApplication(env, "user-1", "lever-job", fakeAts(calls))).toEqual({
+      job_id: "lever-job",
+      supported: false,
+      ats: null,
+      apply_url: "https://jobs.lever.co/levco/abc-123/apply",
+      fields: [],
+      missing_required: 0,
+    });
+    expect(calls).toEqual([]);
   });
 
   it("saves answers once and reuses them on another employer's form", async () => {

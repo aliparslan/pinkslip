@@ -25,7 +25,7 @@ async function formForJob(
   env: Env,
   jobId: string,
   fetcher: typeof fetch,
-): Promise<{ form: ApplicationForm; source: FormSource } | null> {
+): Promise<{ form: ApplicationForm | null; source: FormSource }> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.external_id, c.ats_type, c.source_type, c.ats_slug
      FROM jobs j JOIN companies c ON c.id = j.company_id
@@ -36,8 +36,7 @@ async function formForJob(
   }>();
   if (!job) throw new ApplyError("Job not found", 404, "not_found");
   const source = { ats: getCompanySourceType(job), slug: job.ats_slug, externalId: job.external_id };
-  const form = await applicationFormForJob(env.DB, job.id, source, fetcher);
-  return form ? { form, source } : null;
+  return { form: await applicationFormForJob(env.DB, job.id, source, fetcher), source };
 }
 
 export async function savedAnswers(db: D1Database, userId: string): Promise<Map<string, ApplicationAnswerValue>> {
@@ -76,9 +75,8 @@ export async function prepareApplication(
   jobId: string,
   fetcher: typeof fetch = fetch,
 ): Promise<PreparedApplication> {
-  const found = await formForJob(env, jobId, fetcher);
-  if (!found) return { job_id: jobId, supported: false, ats: null, apply_url: null, fields: [], missing_required: 0 };
-  const { form, source } = found;
+  const { form, source } = await formForJob(env, jobId, fetcher);
+  if (!form) return { job_id: jobId, supported: false, ats: null, apply_url: applicationUrl(source), fields: [], missing_required: 0 };
   const [profile, saved, workAuthorization] = await Promise.all([
     getUserProfile(env.DB, userId),
     savedAnswers(env.DB, userId),
@@ -114,9 +112,9 @@ export async function saveApplicationAnswers(
   fetcher: typeof fetch = fetch,
   now = new Date(),
 ): Promise<PreparedApplication> {
-  const found = await formForJob(env, jobId, fetcher);
-  if (!found) throw new ApplyError("This application can't be prepared here.", 400, "unsupported");
-  const byId = new Map(found.form.fields.map((field) => [field.id, field]));
+  const { form } = await formForJob(env, jobId, fetcher);
+  if (!form) throw new ApplyError("This application can't be prepared here.", 400, "unsupported");
+  const byId = new Map(form.fields.map((field) => [field.id, field]));
   const statements: D1PreparedStatement[] = [];
   for (const [fieldId, raw] of Object.entries(answers)) {
     const field = byId.get(fieldId);

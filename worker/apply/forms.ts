@@ -197,6 +197,9 @@ export function applicationUrl(source: FormSource): string | null {
   const id = encodeURIComponent(source.externalId);
   if (source.ats === "greenhouse") return `https://job-boards.greenhouse.io/embed/job_app?for=${slug}&token=${id}`;
   if (source.ats === "ashby") return `https://jobs.ashbyhq.com/${slug}/${id}/application`;
+  // Lever's posting only links to its form, one page further on. Pinkslip
+  // doesn't prepare its questions, but the phone reads and fills the page.
+  if (source.ats === "lever") return `https://jobs.lever.co/${slug}/${id}/apply`;
   return null;
 }
 
