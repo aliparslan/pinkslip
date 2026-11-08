@@ -277,32 +277,31 @@ interface TransitionEvents {
 /** What Add to Calendar names the event from. */
 interface ForCalendar { id: string; company: string; role: string }
 
-/** Under an interview that's still ahead: a quiet way to put it on the phone's
- * calendar, then a note that it's there (Paper "Calendar and alert buttons"). */
-function CalendarLine({ item, when }: { item: ForCalendar; when: string }) {
-  const added = useInCalendar(item.id, when);
-  const line = (icon: "calendarAdd" | "calendarAdded", tone: "ink-2" | "ink-3", text: string) => <>
-    <View style={styles.calendarIcon}><Icon name={icon} size={20} tone={tone} /></View>
-    <Text tone={tone} flex>{text}</Text>
-  </>;
-  if (added) return <View style={styles.nextRow}>{line("calendarAdded", "ink-3", "In your calendar")}</View>;
+/** Under an interview that's still ahead and not on the phone's calendar: a
+ * quiet way to put it there (Paper "Calendar and alert buttons"). Once it's
+ * there, a check under the time says so (owner, 2026-11-08). */
+function AddToCalendar({ item, when }: { item: ForCalendar; when: string }) {
   return <PressableScale accessibilityRole="button" hitSlop={8} contentStyle={styles.nextRow}
     onPress={() => void addInterviewToCalendar(item, when)}>
-    {line("calendarAdd", "ink-2", "Add to Calendar")}
+    <View style={styles.calendarIcon}><Icon name="calendarAdd" size={20} tone="ink-2" /></View>
+    <Text tone="ink-2" flex>Add to Calendar</Text>
   </PressableScale>;
 }
 
 /** The date that goes with the stage, or a quiet row to add one. */
 function NextSection({ application, onOpen, forCalendar }: { application: ApplicationDetail; onOpen: () => void; forCalendar: ForCalendar }) {
   const { stage, stage_date: stageDate } = application;
+  const inCalendar = useInCalendar(application.id, stageDate ?? "");
   const addLabel = addStageDateLabels[stage];
   if (!stageDate && !addLabel) return null;
   const facts = stageDate ? nextRowFacts(stageDate) : null;
   const title = stageDateTitles[stage] ?? "";
+  const ahead = stage === "interview" && stageDate && interviewAhead(stageDate) ? stageDate : null;
+  const added = Boolean(ahead) && inCalendar;
   return <View style={styles.next}>
     <Text role="footnote" weight="medium" tone="ink-2" accessibilityRole="header">Next</Text>
     <Pressable onPress={onOpen} accessibilityRole="button"
-      accessibilityLabel={facts ? `${title}, ${facts.when}${facts.time ? ` at ${facts.time}` : ""}. Change` : addLabel}
+      accessibilityLabel={facts ? `${title}, ${facts.when}${facts.time ? ` at ${facts.time}` : ""}${added ? ", in your calendar" : ""}. Change` : addLabel}
       style={({ pressed }) => [styles.nextRow, pressed && styles.pressed]}>
       {facts ? <DateTile month={facts.month} day={facts.day} /> : <EmptyDateTile />}
       {facts
@@ -311,11 +310,14 @@ function NextSection({ application, onOpen, forCalendar }: { application: Applic
             <Text role="subhead" tone="ink-2" flex>{facts.when}</Text>
             {facts.time ? <Text role="subhead" tone="ink-3">{facts.time}</Text> : null}
           </View>
-          <Text weight="medium">{title}</Text>
+          <View style={styles.nextTitle}>
+            <Text weight="medium" flex>{title}</Text>
+            {added ? <Icon name="calendarAdded" size={20} tone="ink-3" /> : null}
+          </View>
         </View>
         : <Text tone="ink-2" flex>{addLabel}</Text>}
     </Pressable>
-    {stage === "interview" && stageDate && interviewAhead(stageDate) ? <CalendarLine item={forCalendar} when={stageDate} /> : null}
+    {ahead && !added ? <AddToCalendar item={forCalendar} when={ahead} /> : null}
   </View>;
 }
 
@@ -483,6 +485,7 @@ const styles = StyleSheet.create((theme) => ({
   nextRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   nextText: { flex: 1 },
   nextLine: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
+  nextTitle: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   calendarIcon: { width: theme.ui.size.logo, alignItems: "center" },
   pressed: { opacity: 0.6 },
   about: { gap: theme.ui.space["2"], marginTop: theme.ui.space["6"] },

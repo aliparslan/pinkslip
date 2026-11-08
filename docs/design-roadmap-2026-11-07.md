@@ -76,8 +76,8 @@ Nov 7 flow run:
       one "N more new jobs" that opens Jobs, as one buzz and one stack. The
       daily digest stays one.
 - [x] **Add an interview to Calendar** (owner, 2026-11-08), built for
-      1.3.10: "Add to Calendar" under the Next row, then "In your
-      calendar", and "Save and add to Calendar" in the date sheet. iOS's own
+      1.3.10: "Add to Calendar" under the Next row, then a calendar
+      check under the time, and "Save and add to Calendar" in the date sheet. iOS's own
       New Event sheet, so no calendar permission on iOS 17 and later.
 - Back burner (owner, 2026-11-08): Spotlight search of your jobs; Siri and
   Shortcuts.
