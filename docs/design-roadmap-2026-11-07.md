@@ -73,7 +73,8 @@ Nov 7 flow run:
       Greenhouse or Ashby form when the person has sends and a resume on
       file; a failure says so with its own alert, and "Sent for you" is the
       only follow-up. Several jobs at once: one alert each up to five, then
-      one "N more new jobs" that opens Jobs. The daily digest stays one.
+      one "N more new jobs" that opens Jobs, as one buzz and one stack. The
+      daily digest stays one.
 - [x] **Add an interview to Calendar** (owner, 2026-11-08), built for
       1.3.10: "Add to Calendar" under the Next row, then "In your
       calendar", and "Save and add to Calendar" in the date sheet. iOS's own

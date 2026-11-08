@@ -90,6 +90,12 @@ describe("buildApnsBody", () => {
     // expo-notifications reads a remote push's data from `body` on iOS.
     expect(body.body).toEqual({ url: "/jobs/abc123", job_ids: ["abc123"] });
   });
+
+  it("leaves the sound off a silent alert, so a run buzzes once", () => {
+    const body = JSON.parse(buildApnsBody({ title: "Ramp", body: "Engineer", data: { url: "/jobs/j1" }, silent: true }));
+    expect(body.aps.sound).toBeUndefined();
+    expect(body.aps.alert).toEqual({ title: "Ramp", body: "Engineer" });
+  });
 });
 
 describe("sendApnsNotification", () => {

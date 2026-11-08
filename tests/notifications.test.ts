@@ -411,6 +411,8 @@ describe("new-job alerts (N1, N2)", () => {
 
     expect(sent).toBe(5);
     expect(harness.sent).toHaveLength(5);
+    // One buzz: only the first of the run makes a sound.
+    expect(harness.sent.map(({ payload }) => payload.silent)).toEqual([false, true, true, true, true]);
     for (const { payload } of harness.sent) {
       expect(payload).toMatchObject({ kind: "new_jobs", category: "job_alert" });
       expect(payload.data.job_ids).toHaveLength(1);

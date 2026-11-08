@@ -418,6 +418,8 @@ export async function deliverPendingNotifications(
           data: { ...alert.payload.data, notification_id: notificationId },
           kind: "new_jobs",
           badge,
+          // One buzz for the run, on the first alert this device took.
+          silent: tookOne,
         };
         const covers = new Set(alert.jobIds);
         const carried = claimed.filter((delivery) => covers.has(candidateById.get(delivery.candidate_id)?.job_id ?? ""));

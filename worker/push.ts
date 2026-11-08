@@ -19,6 +19,9 @@ export interface NotificationPayload {
   badge?: number;
   /** Buttons on the push, registered by the app under this name (apply_ask). */
   category?: string;
+  /** Shows without a sound or buzz: every alert of a run after the first, so
+   * several jobs arrive as one buzz (owner, 2026-11-08). */
+  silent?: boolean;
 }
 
 export function buildNotificationPayload(jobs: NotificationJob[]): NotificationPayload {

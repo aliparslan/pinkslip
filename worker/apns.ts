@@ -112,7 +112,7 @@ export function buildApnsBody(payload: NotificationPayload): string {
   return JSON.stringify({
     aps: {
       alert: { title: payload.title, body: payload.body },
-      sound: "default",
+      ...(payload.silent ? {} : { sound: "default" }),
       ...(payload.kind ? { "thread-id": payload.kind } : {}),
       ...(payload.timeSensitive ? { "interruption-level": "time-sensitive" } : {}),
       ...(typeof payload.badge === "number" ? { badge: payload.badge } : {}),
