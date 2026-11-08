@@ -45,7 +45,8 @@ export function SwipeFeedLab() {
   const actions = useMemo<JobActions>(() => ({
     save: (job) => patch(job.id, { saved: true }),
     unsave: (job) => patch(job.id, { saved: false }),
-    markApplied: (job) => patch(job.id, { applied: true }),
+    // As in the feed, an applied job leaves for Tracker.
+    markApplied: (job) => setJobs((all) => all.filter((other) => other.id !== job.id)),
     unmarkApplied: (job) => patch(job.id, { applied: false }),
     toggleRead: (job, read) => setViewed((all) => { const next = new Set(all); if (read) next.add(job.id); else next.delete(job.id); return next; }),
     // Undo puts it back where it was, as the feed's does (Kit → Motion fixes).
@@ -63,7 +64,7 @@ export function SwipeFeedLab() {
       contentContainerStyle={{ paddingTop: insets.top + PAGE_BAR + 8, paddingBottom: tabSpace }}
       ListHeaderComponent={<View style={styles.header}>
         <Text role="title1" accessibilityRole="header">Swipes</Text>
-        <Text role="subhead" tone="ink-2">The feed's rows on sample jobs. Save, Read and Applied toggle; Hide takes the row away.</Text>
+        <Text role="subhead" tone="ink-2">The feed's rows on sample jobs. Save and Read toggle; Applied and Hide take the row away.</Text>
         <Button variant="secondary" onPress={() => { setJobs(sampleJobs()); setViewed(new Set()); }}>Reset</Button>
       </View>}
       renderItem={({ item }) => <FeedRow job={item} viewed={viewed.has(item.id)} actions={actions} tab="(you)" onOpen={() => undefined} />} />

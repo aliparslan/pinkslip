@@ -239,6 +239,9 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
     setFrozen({ ...latest.current });
     markOpen(null);
     if (index === 0) fill.value = withTiming(1, FAST);
+    // An inner one that takes the row away (Applied): the buttons fade as it
+    // goes, so the outer one doesn't stretch after it as if it had run.
+    else if (action.removes) hush.value = withTiming(1, FAST);
     if (action.removes) {
       gone.set(id, { sign, at: Date.now() });
       x.value = withSpring(sign * width.value, { ...LEAVE, velocity });
@@ -251,6 +254,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
         x.value = 0;
         fold.value = 1;
         fill.value = 0;
+        hush.value = 0;
       }, 1200);
     } else {
       x.value = withSpring(0, { ...HOME, velocity }, () => {

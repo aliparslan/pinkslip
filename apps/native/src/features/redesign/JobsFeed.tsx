@@ -246,7 +246,9 @@ function swipeActions(job: RowJob, actions: JobActions, viewed: boolean, choices
           : { id: "read", label: "Read", icon: "read", tone: "find", run: () => actions.toggleRead?.(job, true) };
       case "applied":
         if (job.applied) return actions.unmarkApplied ? { id: "unapplied", label: "Not applied", icon: "undo", tone: "neutral", run: () => actions.unmarkApplied?.(job) } : null;
-        return actions.markApplied ? { id: "applied", label: "Applied", icon: "applied", tone: "apply", run: () => actions.markApplied?.(job) } : null;
+        // An applied job leaves Jobs and Search for Tracker, so it slides out
+        // as Hide does rather than going home and vanishing (owner, 2026-11-08).
+        return actions.markApplied ? { id: "applied", label: "Applied", icon: "applied", tone: "apply", removes: true, run: () => actions.markApplied?.(job) } : null;
       case "hide":
         return actions.hide ? { id: "hide", label: "Hide", icon: "hide", tone: "neutral", removes: true, run: () => actions.hide?.(job) } : null;
       case "queue":

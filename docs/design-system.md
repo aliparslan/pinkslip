@@ -721,6 +721,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     arms, its glyph grows 15% and the haptic ticks.
   - While a row is open, the separator above it gives way, so no line sits
     on the buttons' tops (owner, 2026-11-08).
+  - Applied takes the row away in Jobs and Search (an applied job lives in
+    Tracker), so it slides out and closes up as Hide does, rather than going
+    home and vanishing (owner, 2026-11-08). Run from the inner button, the
+    buttons fade as the row leaves, so the outer one doesn't stretch after
+    it as if it had run.
   - A short swipe stays open on them: from closed, about 22pt of drag opens
     the row all the way, counting where a flick was heading, as Reminders
     does from 18. From open, it closes once pushed back past half, or
