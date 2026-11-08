@@ -18,6 +18,11 @@ export function getRouter() {
     routeTree,
     context,
     scrollRestoration: true,
+    // A page's code and data start loading when a link is hovered or
+    // pressed, so it's often there by the click (roadmap §4, C3). Query
+    // decides what's fresh, so the router always asks it.
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 0,
     defaultViewTransition: {
       types: ({ fromLocation, toLocation, pathChanged }): string[] | false => {
         if (!pathChanged || !fromLocation || typeof window === "undefined"

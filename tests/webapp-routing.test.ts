@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   isApiOwnedPath, isIndexablePath, legacyRedirect, sitemapXml, withNoIndex, withPageSecurity,
 } from "../apps/webapp/src/server/routing";
-import { jobPostingJsonLd } from "../apps/webapp/src/features/job-detail/structured-data";
+import { baseSalary, employmentType, jobPostingJsonLd, postalAddress } from "../apps/webapp/src/features/job-detail/structured-data";
 
 describe("React web Worker routing", () => {
   it("forwards the complete API and Worker-owned callback routes", () => {
@@ -83,7 +83,31 @@ describe("JobPosting structured data", () => {
       hiringOrganization: { name: "Acme", sameAs: "https://acme.com" }, jobLocationType: "TELECOMMUTE",
       url: "https://pinkslip.work/jobs/job-1",
     });
-    expect(data.jobLocation).toEqual([{ "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Chicago, IL", addressCountry: "US" } }]);
+    expect(data.jobLocation).toEqual([{ "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "Chicago", addressRegion: "IL", addressCountry: "US" } }]);
+    expect(data).toMatchObject({ employmentType: "FULL_TIME", hiringOrganization: { logo: "https://pinkslip.work/api/v2/logo?domain=acme.com" } });
+  });
+
+  it("splits a place into city, region and country", () => {
+    expect(postalAddress("Hybrid - San Francisco, CA")).toEqual({ "@type": "PostalAddress", addressLocality: "San Francisco", addressRegion: "CA", addressCountry: "US" });
+    expect(postalAddress("Toronto, ON, CA")).toEqual({ "@type": "PostalAddress", addressLocality: "Toronto", addressRegion: "ON", addressCountry: "CA" });
+    expect(postalAddress("Sunnyvale")).toEqual({ "@type": "PostalAddress", addressLocality: "Sunnyvale", addressCountry: "US" });
+  });
+
+  it("reads pay as a yearly or hourly range", () => {
+    expect(baseSalary("$150,000 - $180,000")).toMatchObject({ currency: "USD", value: { minValue: 150000, maxValue: 180000, unitText: "YEAR" } });
+    expect(baseSalary("$150K–180K")).toMatchObject({ value: { minValue: 150000, maxValue: 180000, unitText: "YEAR" } });
+    expect(baseSalary("$150–180K")).toMatchObject({ value: { minValue: 150000, maxValue: 180000 } });
+    expect(baseSalary("$45/hr")).toMatchObject({ value: { value: 45, unitText: "HOUR" } });
+    expect(baseSalary("New York: $160,000 - $190,000 | Remote: $140,000 - $170,000")).toMatchObject({ value: { minValue: 160000, maxValue: 190000 } });
+    expect(baseSalary("€50,000")).toBeNull();
+    expect(baseSalary(null)).toBeNull();
+  });
+
+  it("says when a job is an internship", () => {
+    expect(employmentType("Software Engineering Intern, Summer 2027")).toBe("INTERN");
+    expect(employmentType("Co-op, Platform")).toBe("INTERN");
+    expect(employmentType("Software Engineer, New Grad")).toBe("FULL_TIME");
+    expect(employmentType("Internal Tools Engineer")).toBe("FULL_TIME");
   });
 
   it("leaves out what it can't vouch for", () => {
