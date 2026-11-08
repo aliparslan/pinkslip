@@ -444,7 +444,6 @@ function positionLocation(
 function positionPostedAt(position: Record<string, unknown>, externalId: string) {
   const value = position.postedTs
     ?? position.posted_ts
-    ?? position.t_update
     ?? position.creationTs
     ?? position.t_create;
   if (value === null || value === undefined) return null;
@@ -712,10 +711,10 @@ function detailUrl(
 function normalizeClassicDetail(position: Record<string, unknown>) {
   return {
     ...position,
-    // Classic `t_update` changes when the ATS record is edited; `t_create` is
-    // the original publication/creation time and is the correct freshness
-    // value to preserve when detail hydration merges back into the list row.
-    postedTs: position.t_create ?? position.t_update,
+    // Classic `t_update` changes when the ATS record is edited, so it says
+    // nothing about when the role was posted. `t_create` is the original
+    // publication time; without one the job stays undated.
+    postedTs: position.t_create,
     creationTs: position.t_create,
     workLocationOption: position.work_location_option,
     jobDescription: position.job_description,

@@ -57,7 +57,7 @@ describe("AtlassianAdapter", () => {
       url: "https://www.atlassian.com/company/careers/details/26070",
       location: "San Francisco, United States / Mountain View, United States",
       department: "Graduates",
-      postedAt: "2026-10-30T16:03:00.000Z",
+      postedAt: null,
     }));
     expect(graduate!.description).toContain("<h3>Requirements</h3>");
     expect(sales).toEqual(expect.objectContaining({

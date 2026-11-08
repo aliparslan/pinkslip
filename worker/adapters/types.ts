@@ -6,6 +6,12 @@ export interface JobListing {
   url: string;
   location: string;
   department: string | null;
+  /**
+   * When the source says the role was posted, or null if it doesn't say. Never
+   * a last-updated or modified time: an undated job reads "Found" and stays
+   * eligible while listed, while a wrong date tells people something false.
+   * Greenhouse is the one exception, and the apps label its date "Updated".
+   */
   postedAt: string | null;
   description: string | null;
   salary: string | null;

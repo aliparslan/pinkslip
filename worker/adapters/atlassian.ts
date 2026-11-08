@@ -15,7 +15,6 @@ interface AtlassianJob {
   overview?: string | null;
   responsibilities?: string | null;
   qualifications?: string | null;
-  portalJobPost?: { updatedDate?: string | null } | null;
 }
 
 export function normalizeAtlassianSource(value: string): string {
@@ -57,16 +56,6 @@ function jobLocation(job: AtlassianJob): string {
   return (named.length > 0 ? named : places).join(" / ") || "Unknown";
 }
 
-/** "2026-10-30 04:03 PM", the closest thing the listing has to a posted date. */
-function parseUpdatedDate(value: string | null | undefined): string | null {
-  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{1,2}):(\d{2}) (AM|PM)$/i);
-  if (!match) return null;
-  const hour = (Number(match[4]) % 12) + (match[6]!.toUpperCase() === "PM" ? 12 : 0);
-  return new Date(Date.UTC(
-    Number(match[1]), Number(match[2]) - 1, Number(match[3]), hour, Number(match[5])
-  )).toISOString();
-}
-
 function description(job: AtlassianJob): string | null {
   const sections = [
     job.overview?.trim(),
@@ -84,7 +73,8 @@ function mapJob(job: AtlassianJob): JobListing {
     url: `https://www.atlassian.com/company/careers/details/${job.id}`,
     location: jobLocation(job),
     department: job.category?.trim() || null,
-    postedAt: parseUpdatedDate(job.portalJobPost?.updatedDate),
+    // The listing only has a last-updated date, which isn't when it was posted.
+    postedAt: null,
     description: text,
     salary: extractSalaryFromHtml(text),
   };
