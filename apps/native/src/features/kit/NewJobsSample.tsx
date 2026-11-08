@@ -1,27 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import Animated, {
-  cancelAnimation, Easing, FadeIn, FadeOut, Keyframe, LinearTransition, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
-} from "react-native-reanimated";
+import Animated, { cancelAnimation, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 import { Button, JobRow, SectionHeader, Text } from "../../ui";
 import { KitPage } from "./KitPage";
+import { ROW_ARRIVE, ROW_LEAVE, ROW_MOVE } from "./list-motion";
 
 /**
- * A mock-up of Paper "Tracker moves, first load, link card · Nov 8", board 2,
- * as picked (Nov 8): postings new since you last looked rise in at the top,
- * 30ms apart, while the rows you've seen slide down; a first launch shows
- * placeholders in the rows' own shape and fades the rows in together. On
- * sample rows; Jobs is unchanged until the owner picks it.
+ * Paper "Tracker moves, first load, link card · Nov 8", board 2, made calmer
+ * (owner, Nov 8: the postings sliding in looked wrong). Postings new since
+ * you last looked are uncovered at the top as the rows you've seen make
+ * room, all at once on Reminders' list spring: no rise, no stagger, nothing
+ * waiting. A first launch shows placeholders in the rows' own shape and
+ * fades the rows in together. On sample rows; Jobs is unchanged until the
+ * owner picks it.
  */
 
-/** The rows below make room on the app's ease-out. */
-const MAKE_ROOM = LinearTransition.duration(220).easing(Easing.bezier(0.23, 1, 0.32, 1));
-/** The app's one entrance for a row: in and up 8pt over 220ms. */
-const rise = (index: number) => new Keyframe({
-  0: { opacity: 0, transform: [{ translateY: 8 }] },
-  100: { opacity: 1, transform: [{ translateY: 0 }], easing: Easing.out(Easing.cubic) },
-}).duration(220).delay(index * 30);
 /** A first launch: the rows arrive together, plainly. */
 const ARRIVE = FadeIn.duration(150);
 /** Placeholders go quickly as the rows come, so the two aren't read at once. */
@@ -41,6 +35,8 @@ const NEW: Sample[] = [
   { id: "asana", title: "Associate Software Engineer", company: "Asana", facts: "San Francisco", age: "8m" },
 ];
 
+const NEW_IDS = new Set(NEW.map((row) => row.id));
+
 type Phase = "seen" | "new" | "loading" | "launched";
 
 export function NewJobsSample() {
@@ -52,11 +48,10 @@ export function NewJobsSample() {
     timer.current = setTimeout(() => setPhase("launched"), LOADING_MS);
   };
   const rows = phase === "new" ? [...NEW, ...SEEN] : phase === "loading" ? [] : SEEN;
-  const fresh = new Set(phase === "new" ? NEW.map((row) => row.id) : []);
 
   return <KitPage title="New jobs arrive">
     <View style={styles.intro}>
-      <Text role="subhead" tone="ink-2">Opening Pinkslip shows the list it kept; what's new since you looked rises in at the top. A first launch has nothing kept, so it shows the rows' shape and fades them in.</Text>
+      <Text role="subhead" tone="ink-2">Opening Pinkslip shows the list it kept; what's new since you looked is uncovered at the top as the rest make room. A first launch has nothing kept, so it shows the rows' shape and fades them in.</Text>
       <View style={styles.buttons}>
         <Button variant="primary" disabled={phase === "new" || phase === "loading"} onPress={() => setPhase("new")}>Three new postings arrive</Button>
         <Button variant="secondary" disabled={phase === "loading"} onPress={launch}>First launch</Button>
@@ -66,11 +61,16 @@ export function NewJobsSample() {
     {phase === "loading"
       ? <Animated.View key="placeholders" exiting={GIVE_WAY}><JobPlaceholders /></Animated.View>
       : <Animated.View key={phase === "launched" ? "launched" : "list"} entering={phase === "launched" ? ARRIVE : undefined}>
-        <SectionHeader title="New today" count={rows.length} rolls first />
-        {rows.map((row) => <Animated.View key={row.id} layout={MAKE_ROOM} entering={fresh.has(row.id) ? rise([...fresh].indexOf(row.id)) : undefined}>
-          <JobRow title={row.title} company={row.company} facts={row.facts} age={row.age} unread={fresh.has(row.id)}
-            logo={{ name: row.company, uri: null }} />
-        </Animated.View>)}
+        <SectionHeader title="New today" count={rows.length} first />
+        {rows.map((row) => {
+          const fresh = NEW_IDS.has(row.id);
+          // New rows sit under the ones you've seen, which slide off them.
+          return <Animated.View key={row.id} layout={ROW_MOVE} entering={fresh ? ROW_ARRIVE : undefined} exiting={fresh ? ROW_LEAVE : undefined}
+            style={[styles.row, fresh ? styles.under : styles.over]}>
+            <JobRow title={row.title} company={row.company} facts={row.facts} age={row.age} unread={fresh}
+              logo={{ name: row.company, uri: null }} />
+          </Animated.View>;
+        })}
       </Animated.View>}
   </KitPage>;
 }
@@ -103,6 +103,10 @@ function JobPlaceholders() {
 const styles = StyleSheet.create((theme) => ({
   intro: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingBottom: theme.ui.space["2"] },
   buttons: { gap: theme.ui.space["2"] },
+  // Opaque, so a row sliding over another covers it.
+  row: { backgroundColor: theme.ui.color.bg },
+  under: { zIndex: 0 },
+  over: { zIndex: 1 },
   headerBar: { paddingTop: theme.ui.space["4"], paddingBottom: theme.ui.space["1"], paddingHorizontal: theme.ui.size.gutter, height: theme.ui.type.footnote.line + theme.ui.space["4"] + theme.ui.space["1"], justifyContent: "center" },
   headerBarFill: { width: 84, height: 10, borderRadius: 5 },
   placeholder: { flexDirection: "row", alignItems: "flex-start", minHeight: 64 },

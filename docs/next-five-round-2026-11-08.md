@@ -137,12 +137,55 @@ still don't show after the next update, tell me where you shared from.
   badge, the default preview, which is now black too); the mark is the app
   icon's carbon copy (`public/brand`).
 
+## Reworked frame by frame (Nov 8)
+
+You said the Tracker move had too much going on and its slide looked wrong,
+and that new jobs sliding in didn't feel right. Recorded in the simulator and
+read at 60 frames a second:
+
+- **Tracker, as built:**
+  - Nothing moved for about 66ms. Then Mercury jumped a third of a row in one
+    frame (the curve put most of its distance up front) and crept the rest.
+  - Plaid slid up under Mercury, so the rows crossed.
+  - A row-tall hole sat between them for about 70ms, until Notion rose in
+    after its 120ms delay.
+  - Mercury covered the Interviewing header for about 100ms, then the header
+    popped back.
+  - Five separate things happened: the fill, two counts rolling at different
+    times, Notion rising, and the time changing.
+- **New jobs, as built:** the rows you'd seen jumped down first and left an
+  empty band at the top. The new rows came in late, 30ms apart, each rising
+  8pt.
+- **iOS, recorded in Reminders:**
+  - A re-sorted row, and a removed one, move within a frame. They settle on a
+    spring that never overshoots, response 0.25s: no lurch, a long soft
+    landing. That's close to the swipe spring already fitted to Reminders
+    (0.24).
+  - A removed row stays put while the rows below slide up over it, so no
+    hole opens. Nothing fades, rises or staggers on its own.
+  - Section headers sit above rows, so a moving row passes under them.
+
+**Now, in Kit:**
+
+- **Tracker** has a switch between iOS's two ways of moving a row. Each is one
+  beat on that spring. There's no fill, no rising row and no rolling counts:
+  the counts just change.
+  - **Glide:** the row slides straight to its new stage, under the
+    Interviewing header, as a re-sorted reminder does.
+  - **In place:** its old place closes as the rows below slide up over it.
+    The rows in the new stage make room and uncover it, as Reminders removes
+    and adds. Nothing crosses.
+- **New jobs:** the rows you've seen slide down on the same spring and
+  uncover the new ones in place, all at once. No rise, no stagger, no wait.
+  The first launch (placeholders, then a plain fade) is unchanged.
+- The rolling count (`RollingCount`) is gone from the kit. It was part of
+  the "too much".
+
 ## Your calls
 
-1. **Board 1:** build as drawn, with Interviewing's count rolling after the
-   row lands? And the "Moved to … · Undo" line for moves off screen: yes or
-   no?
-2. **Board 2:** the rise only for postings new since you looked, and a plain
-   fade on a first launch?
+1. **Tracker moves:** Glide or In place, from Kit? And the "Moved to … ·
+   Undo" line for moves off screen: yes or no?
+2. **New jobs:** the reworked arrival in Kit, for postings new since you
+   looked, with a plain fade on a first launch?
 4. **Haptics:** the rule and its seven changes.
 5. **Share extension:** the three calls in its scope doc.
