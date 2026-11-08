@@ -4,7 +4,7 @@ import { useApi, useUpdatePreferences } from "@pinkslip/data";
 import { LOCATION_OPTIONS, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
 import { useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
-import Animated, { useReducedMotion, useSharedValue, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
+import Animated, { useReducedMotion, useSharedValue, withDelay, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 import { haptics } from "../../platform/haptics";
 import { Button, Chip, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, toast, useSheet, useSheetGuard } from "../../ui";
@@ -36,6 +36,8 @@ export interface QuestionsProps {
   /** Once the answers are saved: resolves when the feed behind shows Jobs'
    * own list for them, so the sheet can go. */
   handOver: () => Promise<void>;
+  /** The sheet is about to go: the screen behind can start to change. */
+  onLeaving: () => void;
   onDone: () => void;
 }
 
@@ -56,7 +58,7 @@ export function Questions({ open, onDone, ...props }: QuestionsProps) {
   </SheetModal>;
 }
 
-function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver }: Omit<QuestionsProps, "open" | "onDone">) {
+function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver, onLeaving }: Omit<QuestionsProps, "open" | "onDone">) {
   const sheet = useSheet();
   const api = useApi();
   const update = useUpdatePreferences();
@@ -98,6 +100,7 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver 
         .catch(() => undefined);
     }
     haptics.success();
+    onLeaving();
     sheet.close();
   };
 
@@ -130,7 +133,9 @@ function arrive(direction: SharedValue<number>, width: number): EntryExitAnimati
     "worklet";
     return {
       initialValues: { opacity: 0, transform: [{ translateX: direction.value * width * STEP.shift }] },
-      animations: { opacity: withTiming(1, { duration: 220 }), transform: [{ translateX: withSpring(0, STEP_SPRING) }] },
+      // The words coming in wait for the last ones to clear, so the two are
+      // never read over each other (owner, Nov 8, from a recording).
+      animations: { opacity: withDelay(70, withTiming(1, { duration: 170 })), transform: [{ translateX: withSpring(0, STEP_SPRING) }] },
     };
   };
 }
@@ -142,7 +147,7 @@ function depart(direction: SharedValue<number>, width: number): EntryExitAnimati
     return {
       initialValues: { opacity: 1, transform: [{ translateX: 0 }] },
       animations: {
-        opacity: withTiming(0, { duration: 180 }),
+        opacity: withTiming(0, { duration: 80 }),
         transform: [{ translateX: withSpring(-direction.value * width * STEP.shift, STEP_SPRING) }],
       },
     };

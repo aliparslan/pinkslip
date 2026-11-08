@@ -21,6 +21,7 @@ import { useSwipeChoices, type SwipeChoice, type SwipeChoices, type SwipeSlots }
 import { queueable } from "./send-facts";
 import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
+import { HELD_BACK, useHoldingPostings } from "./arrival-demo";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
 import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
@@ -92,7 +93,12 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { actions, onOpen } = useJobActions("feed");
   const track = useTrack();
 
-  const jobs = useMemo(() => (waiting ? [] : feed.data?.pages.flatMap((page) => page.jobs) ?? []), [waiting, feed.data]);
+  // Kit's "postings arrive on your list" holds the top rows back for a moment.
+  const holding = useHoldingPostings() && scope === "feed" && !searching;
+  const jobs = useMemo(() => {
+    const all = waiting ? [] : feed.data?.pages.flatMap((page) => page.jobs) ?? [];
+    return holding ? all.slice(HELD_BACK) : all;
+  }, [waiting, feed.data, holding]);
   const matching = feed.data?.pages[0]?.meta.matching;
   const items = useMemo(() => {
     const sections = feedSections(jobs);
@@ -107,17 +113,18 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   // same list does this; a chip or a search swaps rows with no entrance.
   const arrives = useMotionTrial("jobsArrive");
   const [held, setHeld] = useState<{ items: Item[]; changing: ReadonlySet<string>; logos: string[] } | null>(null);
-  const last = useRef({ items, params, fetching: feed.isFetching });
+  const last = useRef({ items, params, fetching: feed.isFetching, holding });
   if (last.current.items !== items) {
     const previous = last.current;
-    last.current = { items, params, fetching: feed.isFetching };
-    const arrived = arrives && previous.fetching && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
+    last.current = { items, params, fetching: feed.isFetching, holding };
+    const arrived = arrives && (previous.fetching || previous.holding) && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
     if (arrived > 0) {
       const fresh = items.filter((item): item is Extract<Item, { kind: "job" }> => item.kind === "job").slice(0, arrived);
       setHeld({ items: previous.items, changing: changedKeys(allKeys(previous.items), allKeys(items)), logos: fresh.flatMap((item) => logoUri(item.job.company_domain) ?? []) });
     }
   } else {
     last.current.fetching = feed.isFetching;
+    last.current.holding = holding;
   }
   const shown = held?.items ?? items;
   const keys = useMemo(() => allKeys(shown), [shown]);

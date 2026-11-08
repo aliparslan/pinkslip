@@ -61,7 +61,14 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   const [index, setIndex] = useState(0);
   const [handingOver, setHandingOver] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  useTabBarStepsAside(true);
+  // The tab bar is there as the sheet goes, not popped in after everything.
+  useTabBarStepsAside(!leaving);
+  // Over once the sheet and the feed behind it have both gone.
+  const [sheetGone, setSheetGone] = useState(false);
+  const [feedGone, setFeedGone] = useState(false);
+  useEffect(() => {
+    if (sheetGone && feedGone) onDone();
+  }, [sheetGone, feedGone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saved = useMemo(() => (preferences.data ? normalizeSearchProfile(preferences.data.search_profile) : null), [preferences.data]);
   // The questions start unanswered, from the search as it was.
@@ -122,13 +129,13 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   const answered = Boolean(draft && (draft.target_levels.length > 0 || index > 0));
   return <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
     {stage !== "hook" && draft ? <PreviewFeed jobs={pool.data} draft={draft} answered={answered} whereAsked={index >= 2} arriving={arriving}
-      final={final} leaving={leaving} onGone={onDone} /> : null}
+      final={final} leaving={leaving} onGone={() => setFeedGone(true)} /> : null}
     {stage === "hook" ? <Hook onLeave={leave} onAccount={onAccount} /> : null}
     {stage !== "hook" && !pageGone
       ? <Handles onLeaving={() => setArriving(true)} onReady={() => setStage("questions")} onGone={() => setPageGone(true)} /> : null}
     {bloom ? <Bloom from={bloom} onCovered={() => setStage("handles")} onGone={() => setBloom(null)} /> : null}
     {saved && draft ? <Questions open={stage === "questions"} saved={saved} draft={draft} change={change} index={index} setIndex={setIndex}
-      saves={saves} counts={counts} handOver={handOver} onDone={() => setLeaving(true)} /> : null}
+      saves={saves} counts={counts} handOver={handOver} onLeaving={() => setLeaving(true)} onDone={() => setSheetGone(true)} /> : null}
   </View>;
 }
 

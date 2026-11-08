@@ -15,13 +15,16 @@ const BAR = 62;
  * option A). A page action (Add experience, Send) is `bar`: pinned to the
  * bottom on the page's Mist, the tab bar stepping aside, with a line above
  * only once content scrolls under it (owner, 2026-10-14). */
-export function YouPage({ title, subtitle, children, scroll = true, bar, action }: {
+export function YouPage({ title, subtitle, children, scroll = true, bar, barStaysDown = false, action }: {
   title: string;
   /** One line under the title, for a page whose rule isn't on its face (Swipe actions). */
   subtitle?: string;
   children: ReactNode;
   scroll?: boolean;
   bar?: ReactNode;
+  /** A bar that isn't what you're typing towards stays behind the keyboard
+   * (Skills' Add a group, while you add a chip). */
+  barStaysDown?: boolean;
   /** On the right of Back, in the bar: a PageBarButton or a PageBarNote (Admin's refresh, +, "1 of 12"). */
   action?: ReactNode;
 }) {
@@ -37,7 +40,7 @@ export function YouPage({ title, subtitle, children, scroll = true, bar, action 
   // While you type, the bar stands 8 above the keyboard.
   const keyboard = useAnimatedKeyboard();
   const lift = useAnimatedStyle(() => ({
-    transform: [{ translateY: keyboard.height.value > 0 ? -(keyboard.height.value + 8 - barBottom) : 0 }],
+    transform: [{ translateY: !barStaysDown && keyboard.height.value > 0 ? -(keyboard.height.value + 8 - barBottom) : 0 }],
   }));
   const under = box.content > box.frame;
   // The title sits 8 under Back, where it sat before Back floated.

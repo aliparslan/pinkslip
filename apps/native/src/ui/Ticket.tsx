@@ -1,3 +1,5 @@
+import { useIsFocused } from "expo-router";
+import { useIsPreview } from "expo-router/build/link/preview/PreviewRouteContext";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Dimensions, Pressable, View, type LayoutChangeEvent } from "react-native";
 import Animated, {
@@ -58,6 +60,15 @@ type Flight = "falling" | "rising";
 /** How far the stub drops with nothing to catch it. */
 const SHORT_DROP = 56;
 
+/** Whether you're looking at this page. A stage moved from Tracker's menu
+ * also changes the page in that row's long-press preview, and any left open
+ * under others: those change quietly, with no tear, stamp or buzz (owner,
+ * Nov 8: "i am not physically seeing it get torn"). */
+function useWatched() {
+  const focused = useIsFocused();
+  return focused && !useIsPreview();
+}
+
 /** The job's facts as a printed ticket: faint grain, a slight lift, and a stub
  * punched along its perforation. On Apply the stub tears off from its left
  * end and falls behind the page's pinned bar (Paper "The stub tears off,
@@ -73,10 +84,11 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg", catcher, onC
   const [frame, setFrame] = useState<{ y: number; height: number } | null>(null);
   const [shown, setShown] = useState(torn);
   const [flight, setFlight] = useState<{ kind: Flight; id: number } | null>(null);
+  const watched = useWatched();
   if (shown !== torn) {
     setShown(torn);
     // A ticket that never showed its stub has nothing to tear or bring back.
-    setFlight(stub && frame ? { kind: torn ? "falling" : "rising", id: (flight?.id ?? 0) + 1 } : null);
+    setFlight(stub && frame && watched ? { kind: torn ? "falling" : "rising", id: (flight?.id ?? 0) + 1 } : null);
   }
   const caught = useRef(onCaught);
   caught.current = onCaught;
@@ -87,7 +99,7 @@ export function Ticket({ rows, stub, torn = false, backdrop = "bg", catcher, onC
       return;
     }
     // Torn with no stub to watch: the bar changes straight away.
-    if (torn && !(stub && frame)) caught.current?.();
+    if (torn && !(stub && frame && watched)) caught.current?.();
   }, [torn]);
   const piece = useStubFlight(flight, { root, catcher, frame, width, onDone: (id, landed) => {
     setFlight((current) => (current?.id === id ? null : current));
@@ -197,7 +209,8 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
   const seen = useRef<Set<string> | null>(null);
   seen.current ??= new Set(stamps.map((stamp) => stamp.key));
   const newest = stamps.at(-1);
-  const arriving = newest && !seen.current.has(newest.key) ? newest.key : null;
+  const watched = useWatched();
+  const arriving = watched && newest && !seen.current.has(newest.key) ? newest.key : null;
   useEffect(() => { for (const stamp of stamps) seen.current?.add(stamp.key); }, [stamps]);
   // While a new stamp comes down, the one before keeps its ink until it
   // meets the paper.
@@ -215,7 +228,7 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
   const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
   const mark = (stamp: StubStamp, index: number) => {
     const inner = <RubberStamp stamp={stamp} fresh={index === last || (coming && index === last - 1)}
-      angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={!seen.current?.has(stamp.key)} />;
+      angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={watched && !seen.current?.has(stamp.key)} />;
     return stamp.onPress
       ? <Pressable key={stamp.key} onPress={stamp.onPress} accessibilityRole="button" accessibilityHint="Changes its date"
         accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`} style={({ pressed }) => pressed && styles.pressed}>
@@ -412,7 +425,12 @@ export function useStubCatch(applied: boolean, covered: boolean) {
   const [caught, setCaught] = useState(applied);
   if (!applied && caught) setCaught(false);
   const scale = useSharedValue(1);
+  const watched = useWatched();
   const onCaught = () => {
+    if (!watched) {
+      setCaught(true);
+      return;
+    }
     const dip = motion.stub.catch;
     const out = Easing.bezier(...dip.curve);
     scale.value = withSequence(withTiming(dip.scale, { duration: dip.down * pace, easing: out }), withTiming(1, { duration: dip.up * pace, easing: out }));

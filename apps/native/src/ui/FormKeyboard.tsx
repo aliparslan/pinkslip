@@ -11,6 +11,8 @@ interface Form {
   focused: () => void;
   go: (step: -1 | 1) => void;
   ends: { first: boolean; last: boolean };
+  /** More than one field: a page with one has nowhere to go. */
+  several: boolean;
 }
 
 const FormFields = createContext<Form | null>(null);
@@ -26,7 +28,7 @@ export function useFormField(field: Field) {
   const id = useId();
   const add = form?.add;
   useEffect(() => add?.(field), [add, field]);
-  if (!form) return null;
+  if (!form?.several) return null;
   return { id, focused: form.focused, bar: <InputAccessoryView nativeID={id}><KeyboardBar /></InputAccessoryView> };
 }
 
@@ -42,16 +44,20 @@ async function onScreen(fields: Iterable<Field>): Promise<Field[]> {
 
 /**
  * iOS's Previous / Next / Done above the keyboard, for a page of fields
- * (owner, 2026-11-08). The arrows go between the page's fields as they
- * stand on screen, and dim at either end.
+ * (owner, 2026-11-08), on forms: a page with one field doesn't get it. The
+ * arrows go between the page's fields as they stand on screen, and dim at
+ * either end.
  */
 export function FormKeyboard({ children }: { children: ReactNode }) {
   const fields = useRef(new Set<Field>());
   const [ends, setEnds] = useState({ first: true, last: true });
+  const [count, setCount] = useState(0);
   const add = useCallback((field: Field) => {
     fields.current.add(field);
+    setCount(fields.current.size);
     return () => {
       fields.current.delete(field);
+      setCount(fields.current.size);
     };
   }, []);
   const place = useCallback(async () => {
@@ -65,7 +71,8 @@ export function FormKeyboard({ children }: { children: ReactNode }) {
   const go = useCallback((step: -1 | 1) => {
     void place().then(({ ordered, at }) => ordered[at + step]?.current?.focus());
   }, [place]);
-  const form = useMemo(() => ({ add, focused, go, ends }), [add, focused, go, ends]);
+  const several = count > 1;
+  const form = useMemo(() => ({ add, focused, go, ends, several }), [add, focused, go, ends, several]);
   return <FormFields.Provider value={form}>{children}</FormFields.Provider>;
 }
 

@@ -4,13 +4,13 @@ import { createEmptyResumeProfile, normalizeResumeProfile, type OptionalSectionK
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, Pressable, TextInput, View } from "react-native";
 import { ui } from "@pinkslip/tokens/native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu } from "../../../kit";
 import { clearResumeFile, keepResumeFile, useLocalResumeFile, type LocalResumeFile } from "../../../platform/resume-file";
 import {
-  AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow, ProgressBar,
+  AddRow, BulletRows, Button, CompanyLogo, DangerRow, EmptyState, face, FieldGroup, Icon, InlineField, ListGroup, ListItem, MonthRow, ProgressBar,
   SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, SwitchRow, Text, TextField, toast, UNDO_TOAST_DURATION, useSheet,
 } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
@@ -497,20 +497,38 @@ function Tag({ label, onRemove }: { label: string; onRemove: () => void }) {
   </Pressable>;
 }
 
-/** The dashed Add chip (owner, 2026-10-14): 1.5 ink-4, 5 on and 4 off. */
-function AddTag({ onPress }: { onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={onPress} style={({ pressed }) => [styles.tag, styles.addTag, pressed && styles.entryPressed]}>
+/** The dashed Add chip (owner, 2026-10-14): 1.5 ink-4, 5 on and 4 off. Tap
+ * it and you type inside it (owner, 2026-11-08). Return adds what you typed
+ * and leaves it open for the next, and closes it when it's empty; leaving it
+ * adds what's there and closes. */
+function AddTag({ onAdd }: { onAdd: (text: string) => void }) {
+  const { theme } = useUnistyles();
+  const [typing, setTyping] = useState(false);
+  const [text, setText] = useState("");
+  const commit = () => {
+    if (text.trim()) onAdd(text);
+    setText("");
+  };
+  if (typing) {
+    return <View style={[styles.tag, styles.addTag]}>
+      {/* intentional: a field inside the chip, which no kit field is */}
+      <TextInput value={text} onChangeText={setText} autoFocus submitBehavior="submit" returnKeyType="done" accessibilityLabel="Add"
+        placeholder="Add" placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
+        onSubmitEditing={() => (text.trim() ? commit() : setTyping(false))} onBlur={() => { commit(); setTyping(false); }} style={[styles.tagInput, face.text]} />
+    </View>;
+  }
+  return <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={() => setTyping(true)} style={({ pressed }) => [styles.tag, styles.addTag, pressed && styles.entryPressed]}>
     <Icon name="add" size={14} tone="ink-3" />
     <Text role="subhead" tone="ink-3">Add</Text>
   </Pressable>;
 }
 
-function TagGroup({ title, tags, onAdd, onRemove }: { title: string; tags: string[]; onAdd: () => void; onRemove: (index: number) => void }) {
+function TagGroup({ title, tags, onAdd, onRemove }: { title: string; tags: string[]; onAdd: (text: string) => void; onRemove: (index: number) => void }) {
   return <View style={styles.tagGroup}>
     <Text role="footnote" weight="medium" tone="ink-2">{title}</Text>
     <View style={styles.tags}>
       {tags.map((tag, index) => <Tag key={`${tag}-${index}`} label={tag} onRemove={() => onRemove(index)} />)}
-      <AddTag onPress={onAdd} />
+      <AddTag onAdd={onAdd} />
     </View>
   </View>;
 }
@@ -524,32 +542,18 @@ function Skills({ skills }: { skills: ResumeProfile["skills"] }) {
   const setGroup = (index: number, items: string[]) => update((profile) => ({
     ...profile, skills: profile.skills.map((group, at) => at === index ? { ...group, items: items.join(", ") } : group),
   }));
-  const addTo = (index: number) => Alert.prompt(`Add to ${skills[index]?.category || "skills"}`, "Separate several with commas.", (text) => {
-    const added = splitItems(text ?? "");
+  const addTo = (index: number, text: string) => {
+    const added = splitItems(text);
     if (added.length) setGroup(index, [...splitItems(skills[index]?.items ?? ""), ...added]);
-  });
-  // A new group is named in the page, under the others (owner, 2026-11-08).
-  const [naming, setNaming] = useState(false);
-  const [name, setName] = useState("");
-  // Return, Done and leaving the field all finish it, once.
-  const stillNaming = useRef(false);
-  const startNaming = () => {
-    stillNaming.current = true;
-    setNaming(true);
   };
-  const finishNaming = () => {
-    if (!stillNaming.current) return;
-    stillNaming.current = false;
-    const category = name.trim();
-    setNaming(false);
-    setName("");
+  const addGroup = () => Alert.prompt("Name the group", "Languages, Frameworks, Tools…", (name) => {
+    const category = name?.trim();
     if (category) update((profile) => ({ ...profile, skills: [...profile.skills, { category, items: "" }] }));
-  };
-  return <YouPage title="Skills" bar={<Button fullWidth icon={naming ? undefined : "add"} onPress={naming ? finishNaming : startNaming}>{naming ? "Done" : "Add a group"}</Button>}>
-    {skills.length === 0 && !naming ? <EmptyState title="No skills yet" message="Group them: languages, frameworks, tools." /> : null}
+  });
+  return <YouPage title="Skills" barStaysDown bar={<Button fullWidth icon="add" onPress={addGroup}>Add a group</Button>}>
+    {skills.length === 0 ? <EmptyState title="No skills yet" message="Group them: languages, frameworks, tools." /> : null}
     {skills.map((group, index) => <TagGroup key={index} title={group.category || "Skills"} tags={splitItems(group.items)}
-      onAdd={() => addTo(index)} onRemove={(at) => setGroup(index, splitItems(group.items).filter((_, position) => position !== at))} />)}
-    {naming ? <FieldGroup><TextField label="Name the group" value={name} onChangeText={setName} autoFocus returnKeyType="done" onSubmitEditing={finishNaming} onBlur={finishNaming} /></FieldGroup> : null}
+      onAdd={(text) => addTo(index, text)} onRemove={(at) => setGroup(index, splitItems(group.items).filter((_, position) => position !== at))} />)}
   </YouPage>;
 }
 
@@ -568,18 +572,19 @@ function More({ sections }: { sections: ResumeProfile["optionalSections"] }) {
     const rest = profile.optionalSections.filter((section) => section.kind !== kind);
     return { ...profile, optionalSections: items.length ? [...rest, { kind, items }] : rest };
   });
-  const add = (kind: OptionalSectionKind) => Alert.prompt(`Add to ${optionalNames[kind]}`, undefined, (text) => {
+  const addItem = (kind: OptionalSectionKind, text: string | undefined) => {
     const title = text?.trim();
     if (title) setItems(kind, [...itemsOf(kind), { category: title, items: "" }]);
-  });
+  };
+  const add = (kind: OptionalSectionKind) => Alert.prompt(`Add to ${optionalNames[kind]}`, undefined, (text) => addItem(kind, text));
   const others = MORE_KINDS.filter((kind) => !shown.includes(kind));
   const addGroup = () => Alert.alert("Add a group", undefined, [
     ...others.map((kind) => ({ text: optionalNames[kind], onPress: () => add(kind) })),
     { text: "Cancel", style: "cancel" as const },
   ]);
-  return <YouPage title="Certifications and awards" bar={others.length ? <Button fullWidth icon="add" onPress={addGroup}>Add a group</Button> : undefined}>
+  return <YouPage title="Certifications and awards" barStaysDown bar={others.length ? <Button fullWidth icon="add" onPress={addGroup}>Add a group</Button> : undefined}>
     {shown.map((kind) => <TagGroup key={kind} title={optionalNames[kind]} tags={itemsOf(kind).map((item) => item.category)}
-      onAdd={() => add(kind)} onRemove={(at) => setItems(kind, itemsOf(kind).filter((_, position) => position !== at))} />)}
+      onAdd={(text) => addItem(kind, text)} onRemove={(at) => setItems(kind, itemsOf(kind).filter((_, position) => position !== at))} />)}
   </YouPage>;
 }
 
@@ -622,5 +627,7 @@ const styles = StyleSheet.create((theme) => ({
     height: 32, flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"],
     paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill,
   },
+  // The chip grows with what's typed; the line height is the chip's own text.
+  tagInput: { minWidth: 56, padding: 0, fontSize: theme.ui.type.subhead.size, color: theme.ui.color.ink },
   addTag: { backgroundColor: "transparent", borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"], paddingHorizontal: theme.ui.space["3"] },
 }));

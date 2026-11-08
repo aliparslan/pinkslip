@@ -12,6 +12,7 @@ import { SwipeRow } from "../../kit";
 import { openSignIn } from "../account/sign-in-request";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
 import { replayOnboarding } from "../onboarding/launch";
+import { showPostingsArriving } from "../redesign/arrival-demo";
 import { DidYouApply } from "../redesign/ApplySheets";
 import { LIVE_FORM_URL, SAMPLE_FORM_URL } from "../apply/sample-form";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
@@ -87,6 +88,7 @@ export function RedesignGallery() {
         <ListItem title="Tracker with sample data" accessory="chevron" onPress={() => router.push("/you/kit-tracker")} />
         <ListItem title="Tracker, a row moves to a new stage" accessory="chevron" onPress={() => router.push("/you/kit-tracker-moves")} />
         <ListItem title="Jobs, new postings arrive" accessory="chevron" onPress={() => router.push("/you/kit-new-jobs")} />
+        <ListItem title="Jobs, postings arrive on your real list" accessory="chevron" onPress={() => { showPostingsArriving(); router.navigate("/"); }} />
         <ListItem title="Application page with sample data" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-interview" } })} />
         <ListItem title="Application Pinkslip sent, confirmed" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-confirmed" } })} />
         <ListItem title="Application Pinkslip sent, waiting" accessory="chevron" onPress={() => router.push({ pathname: "/(tabs)/(library)/applications/[applicationId]", params: { applicationId: "sample-sent" } })} />
