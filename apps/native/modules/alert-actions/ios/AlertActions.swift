@@ -39,13 +39,19 @@ final class AlertActions: NotificationDelegate {
   /// registered already, so the "Apply for you?" buttons stay. `authenticationRequired`
   /// has iOS unlock the phone first, which also frees the session token.
   func registerButtons() {
-    func button(_ action: Action, _ title: String, _ icon: UNNotificationActionIcon) -> UNNotificationAction {
-      UNNotificationAction(identifier: action.rawValue, title: title, options: [.authenticationRequired], icon: icon)
+    // Apple's symbols, which iOS draws itself: the app's own images showed in
+    // the simulator but came up blank on a real phone (owner, 2026-11-08).
+    func button(_ action: Action, _ title: String, _ symbol: String) -> UNNotificationAction {
+      UNNotificationAction(
+        identifier: action.rawValue,
+        title: title,
+        options: [.authenticationRequired],
+        icon: UNNotificationActionIcon(systemImageName: symbol)
+      )
     }
-    // Pinkslip's own icons, the images the in-app menus use (Images.xcassets).
-    let save = button(.save, "Save", UNNotificationActionIcon(templateImageName: "menu-save"))
-    let queue = button(.queue, "Queue", UNNotificationActionIcon(templateImageName: "menu-bot"))
-    let hide = button(.hide, "Hide", UNNotificationActionIcon(templateImageName: "menu-hide"))
+    let save = button(.save, "Save", "bookmark")
+    let queue = button(.queue, "Queue", "paperplane")
+    let hide = button(.hide, "Hide", "eye.slash")
     let sets = [
       UNNotificationCategory(identifier: "job_alert", actions: [save, hide], intentIdentifiers: []),
       UNNotificationCategory(identifier: "job_alert_queue", actions: [save, queue, hide], intentIdentifiers: [])
