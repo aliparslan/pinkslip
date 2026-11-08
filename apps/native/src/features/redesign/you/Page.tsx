@@ -4,7 +4,7 @@ import { ScrollView, View } from "react-native";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Icon, PAGE_BAR, PageBar, Text, useTabBarScroll, useTabBarSpace, useTabBarStepsAside, useToastLift } from "../../../ui";
+import { Icon, PAGE_BAR, PageBar, TabBarFollowsTransition, Text, useTabBarScroll, useTabBarSpace, useTabBarStepsAside, useToastLift } from "../../../ui";
 
 /** The pinned bar's own height: a 50 button with 12 above it. */
 const BAR = 62;
@@ -41,6 +41,11 @@ export function YouPage({ title, children, scroll = true, bar, action }: {
   // The title sits 8 under Back, where it sat before Back floated.
   const top = <>
     <Stack.Screen options={{ headerShown: false }} />
+    {/* The tab bar leaves with the page under this one as it comes in and
+        returns with it on Back, rather than popping out and in at the tap;
+        pages opened from here keep it away (owner, 2026-11-07: Resume →
+        Education → Add school). */}
+    {bar ? <TabBarFollowsTransition /> : null}
     {title ? <View style={styles.title}><Text role="title1" accessibilityRole="header">{title}</Text></View> : null}
   </>;
   const pageTop = insets.top + PAGE_BAR + 8;

@@ -109,6 +109,9 @@ interface Follower extends Transition {
   tab: string;
 }
 const followers: Follower[] = [];
+/** The pages that hide the bar, by route key, so a page above one of them
+ * leaves the bar hidden rather than following the page under. */
+const hidingPages = new Set<string>();
 const followerListeners = new Set<() => void>();
 function followersChanged() {
   for (const listener of followerListeners) listener();
@@ -128,8 +131,12 @@ export function TabBarFollowsTransition() {
     const index = routes.findIndex((entry) => entry.key === route.key);
     const under = index > 0 ? routes[index - 1]! : null;
     // Under another page that hides the bar, it stays hidden.
-    return under && !HIDES_BAR.test(under.name) ? transitions.get(under.key) ?? null : null;
+    return under && !HIDES_BAR.test(under.name) && !hidingPages.has(under.key) ? transitions.get(under.key) ?? null : null;
   });
+  useEffect(() => {
+    hidingPages.add(route.key);
+    return () => { hidingPages.delete(route.key); };
+  }, [route.key]);
   useEffect(() => {
     if (!below) return;
     const follower: Follower = { tab, ...below };
