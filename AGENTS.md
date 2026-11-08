@@ -77,6 +77,17 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
   The dev API worker reads the repository-root `.dev.vars` (merged in
   `vite.config.ts`); restart after editing it.
 
+### iOS kit
+
+- iOS screens are built from `apps/native/src/ui` (and `src/kit`), with
+  values from `theme.ui` (generated from `packages/tokens/src/tokens.ts`).
+- `bun scripts/check-kit.ts` in `apps/native` (part of its `check`) fails a
+  new raw `Pressable`, `TextInput` or react-native `Text`, a numeric font
+  size, weight, padding, margin or gap, or a hex colour outside the kit.
+  Today's cases are the baseline in `scripts/kit-baseline.json`; fix them
+  as you pass, then `--update` to shrink it. A deliberate exception carries
+  `// intentional: why` on its line or the line above.
+
 ### Working with the owner
 
 - Lay out options with trade-offs before proposing a plan for anything

@@ -1,0 +1,155 @@
+{
+  "src/features/account/SignInSheet.tsx": {
+    "raw-text": 2
+  },
+  "src/features/admin/parts.tsx": {
+    "raw-pressable": 1
+  },
+  "src/features/apply/ApplicationBrowser.tsx": {
+    "spacing": 6
+  },
+  "src/features/apply/OutreachSheet.tsx": {
+    "spacing": 2
+  },
+  "src/features/apply/sample-form.ts": {
+    "spacing": 5
+  },
+  "src/features/jobs/CompanyLogo.tsx": {
+    "raw-text": 1,
+    "font-weight": 1,
+    "hex": 1
+  },
+  "src/features/jobs/JobRow.tsx": {
+    "raw-pressable": 1,
+    "spacing": 1
+  },
+  "src/features/onboarding/Handles.tsx": {
+    "spacing": 2
+  },
+  "src/features/onboarding/Hook.tsx": {
+    "hex": 23,
+    "raw-text": 4,
+    "font-size": 4,
+    "spacing": 6
+  },
+  "src/features/onboarding/Questions.tsx": {
+    "spacing": 1
+  },
+  "src/features/redesign/admin/AdminViews.tsx": {
+    "raw-pressable": 4
+  },
+  "src/features/redesign/ApplicationPage.tsx": {
+    "raw-pressable": 1
+  },
+  "src/features/redesign/apply-flow/AskFirst.tsx": {
+    "raw-pressable": 6,
+    "spacing": 2
+  },
+  "src/features/redesign/apply-flow/AutoApplyPage.tsx": {
+    "raw-pressable": 3
+  },
+  "src/features/redesign/apply-flow/WhileItRuns.tsx": {
+    "raw-pressable": 4,
+    "spacing": 6
+  },
+  "src/features/redesign/ApplySheets.tsx": {
+    "raw-pressable": 2,
+    "spacing": 1
+  },
+  "src/features/redesign/CompanyPage.tsx": {
+    "raw-pressable": 2,
+    "raw-text": 1,
+    "spacing": 3,
+    "font-size": 1
+  },
+  "src/features/redesign/Description.tsx": {
+    "raw-text": 4,
+    "raw-textinput": 1,
+    "font-weight": 1
+  },
+  "src/features/redesign/email/EmailTrackingPage.tsx": {
+    "raw-pressable": 1,
+    "raw-text": 1,
+    "font-size": 1
+  },
+  "src/features/redesign/errors.tsx": {
+    "raw-pressable": 1,
+    "spacing": 1
+  },
+  "src/features/redesign/EventPage.tsx": {
+    "spacing": 1
+  },
+  "src/features/redesign/JobIdentity.tsx": {
+    "raw-pressable": 2,
+    "spacing": 1
+  },
+  "src/features/redesign/JobPage.tsx": {
+    "spacing": 3
+  },
+  "src/features/redesign/JobsScreen.tsx": {
+    "raw-pressable": 1
+  },
+  "src/features/redesign/outreach/PersonPage.tsx": {
+    "raw-text": 1,
+    "raw-pressable": 4,
+    "spacing": 4,
+    "font-size": 1
+  },
+  "src/features/redesign/ReportJobSheet.tsx": {
+    "raw-textinput": 1,
+    "spacing": 2
+  },
+  "src/features/redesign/resume/ResumePages.tsx": {
+    "raw-pressable": 5,
+    "spacing": 2
+  },
+  "src/features/redesign/SearchScreen.tsx": {
+    "raw-textinput": 1,
+    "raw-pressable": 3
+  },
+  "src/features/redesign/sends/SendSheets.tsx": {
+    "raw-pressable": 2,
+    "raw-textinput": 1,
+    "spacing": 2
+  },
+  "src/features/redesign/sends/SentPage.tsx": {
+    "raw-pressable": 2,
+    "spacing": 1
+  },
+  "src/features/redesign/TodayScreen.tsx": {
+    "raw-pressable": 1
+  },
+  "src/features/redesign/whats-new.tsx": {
+    "spacing": 4
+  },
+  "src/features/redesign/you/AnswersPage.tsx": {
+    "raw-pressable": 2,
+    "raw-textinput": 2,
+    "spacing": 1
+  },
+  "src/features/redesign/you/HelpPage.tsx": {
+    "raw-textinput": 2,
+    "font-size": 2,
+    "spacing": 1
+  },
+  "src/features/redesign/you/HiddenCompaniesPage.tsx": {
+    "spacing": 1
+  },
+  "src/features/redesign/you/Page.tsx": {
+    "spacing": 1
+  },
+  "src/features/redesign/you/PlanPage.tsx": {
+    "raw-text": 3,
+    "spacing": 4,
+    "font-size": 3
+  },
+  "src/features/redesign/you/SwipeActionsPage.tsx": {
+    "spacing": 1
+  },
+  "src/features/redesign/you/YouScreen.tsx": {
+    "raw-pressable": 1,
+    "raw-text": 1,
+    "font-size": 1,
+    "spacing": 1
+  }
+}

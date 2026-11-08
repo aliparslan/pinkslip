@@ -6,7 +6,7 @@
   "scripts": {
     "start": "expo start",
     "export:ios": "expo export --platform ios --output-dir dist",
-    "check": "tsc --noEmit && tsc --noEmit -p autofill && tsc --noEmit -p resume-renderer && bun scripts/build-autofill.ts --check && bun scripts/build-resume-renderer.ts --check",
+    "check": "tsc --noEmit && tsc --noEmit -p autofill && tsc --noEmit -p resume-renderer && bun scripts/build-autofill.ts --check && bun scripts/build-resume-renderer.ts --check && bun scripts/check-kit.ts",
     "autofill": "bun scripts/build-autofill.ts",
     "resume-renderer": "bun scripts/build-resume-renderer.ts",
     "test:autofill": "playwright test -c playwright.config.ts",
