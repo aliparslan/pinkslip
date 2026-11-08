@@ -151,6 +151,19 @@ up to five years. Feed matching and notification delivery share the same policy
 and cached qualification facts. Jev remains a disabled comparison path in the
 production configuration; this expansion adds no model calls.
 
+## Doctoral bullets (classifier v25)
+
+A bullet that opens with the doctorate counts as a requirement when a heading
+above it asks for qualifications, including headings written as sentences ("The
+ideal candidate will have"). A bullet with no such heading stays with a person.
+"Or a related field with 5+ years of experience" no longer reads as a route
+around the doctorate: the experience has to follow the "or" directly.
+
+Checked on 2026-11-08 against all 2,271 open jobs mentioning a doctorate: 15
+became doctoral and 2 stopped being, with no other field changing. A reviewed
+job keeps its review, so a role rejected as doctoral has to be approved again
+for doctorate holders to see it.
+
 ## Early-career and mid-career stages (profile v7)
 
 Profile v7 splits the former "Early / mid-career (1–5 years)" stage in two:

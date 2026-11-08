@@ -21,7 +21,7 @@ import {
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v24-five-years-doctoral";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v25-doctoral-bullets";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -406,9 +406,16 @@ function hasEligibleDegreeCohortAlternative(clause: string): boolean {
 }
 
 function hasExperienceAlternativeToDoctorate(clause: string): boolean {
-  const experiencePath = String.raw`(?:(?:\d{1,2}\s*\+?\s*(?:years?|yrs?|yoe)(?:\s+of)?\s*)?(?:(?:equivalent|practical|industry|research|relevant|substantial)\s+)*(?:experience|research depth|track record))`;
+  const experiencePath = String.raw`(?:(?:\d{1,2}\s*\+?\s*(?:years?|yrs?|yoe)(?:\s+of)?\s*)?(?:(?:equivalent|practical|industry|research|relevant|substantial|professional|work|comparable|similar|proven|demonstrated|extensive|applied|industrial)\s+)*(?:experience|research depth|track record|record))`;
+  // The experience must directly follow "or". "PhD in physics or a related
+  // field with 5+ years of experience" offers a different field, not a route
+  // around the doctorate.
   const doctorateThenExperience = new RegExp(
-    String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b[^.;|]{0,120}?\bor\b[^.;|]{0,100}?(?:have\s+)?${experiencePath}\b`
+    String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b[^.;|]{0,240}?\bor\s+(?:(?:have|with|an?|at least|minimum|of)\s+)*${experiencePath}\b`
+  );
+  // "PhD or 5-years full-time software engineering work experience".
+  const doctorateThenYears = new RegExp(
+    String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b[^.;|]{0,240}?\bor\s+(?:(?:at least|minimum|of)\s+)*\d{1,2}\s*[-+]?\s*(?:years?|yrs?|yoe)\b[^.;|]{0,120}?\bexperience\b`
   );
   const experienceThenDoctorate = new RegExp(
     String.raw`\b${experiencePath}\b[^.;|]{0,120}?\bor\b[^.;|]{0,100}?\b${DOCTORATE_DEGREE_SOURCE}\b`
@@ -419,6 +426,7 @@ function hasExperienceAlternativeToDoctorate(clause: string): boolean {
     String.raw`\b\d{1,2}\s*\+?\s*years?\s+(?:of\s+)?[^.;|]{0,220}?\b(?:coding|querying|statistical analysis|experience)\b[^.;|]{0,160}?\bor\s+(?:an?\s+)?${DOCTORATE_DEGREE_SOURCE}\b`
   );
   return doctorateThenExperience.test(clause)
+    || doctorateThenYears.test(clause)
     || experienceThenDoctorate.test(clause)
     || quantifiedWorkThenDoctorate.test(clause);
 }
@@ -461,6 +469,31 @@ function doctorateMentionIsContextual(
     || /\bph\.?\s?d\.? candidates?\b[^.;]{0,160}\bor independent researchers?\b/.test(clause);
 }
 
+const DOCTORATE_WAIVED = new RegExp(
+  String.raw`\b(?:without|no)\s+(?:an?\s+)?${DOCTORATE_DEGREE_SOURCE}\b|\b${DOCTORATE_DEGREE_SOURCE}\s+(?:is\s+)?not\s+(?:required|necessary)\b`
+);
+const OPTIONAL_WORDING = /\b(?:preferred|preferable|prefer|a plus|nice to have|bonus|desirable|optional|ideally|welcome|encouraged|helpful|advantageous)\b/;
+/** "a bachelor's, master's, PhD or JD": any of them will do. */
+const LISTED_WITH_ELIGIBLE_DEGREE = new RegExp(String.raw`\b${ELIGIBLE_DEGREE_SOURCE}\s*,\s*${DOCTORATE_DEGREE_SOURCE}\b`);
+const REQUIREMENT_LEAD_IN = /^(?:(?:the )?ideal candidate (?:will )?(?:have|has)|we(?:'|\u2019)?re excited about you because you have|your skills (?:and|&) experience|what you(?:'ll|\u2019ll| will)? bring|what we need to see|essential\b|qualifications?\b|you (?:should|must|will) have|what you have)/;
+const OPTIONAL_LEAD_IN = /\b(?:bonus|nice[- ]to[- ]haves?|a plus|would be (?:great|nice|helpful)|we(?:'|\u2019)?d love|love to see|even better|extra credit|stand out|set you apart|preferred|ideally|also excited|might also)\b/;
+
+/**
+ * A list item that opens with the doctorate ("PhD in physics") is a stated
+ * qualification when a heading above it asks for qualifications. Anything
+ * softening the bullet, a soft heading above it, or no heading at all keeps it
+ * out: a lone "PhD in physics" is left for a person to judge.
+ */
+function isBareDoctorateBullet(clause: string, start: number, clauses: QualificationClause[], index: number): boolean {
+  if (!/^(?:an?\s+)?$/.test(clause.slice(0, start)) || OPTIONAL_WORDING.test(clause)) return false;
+  for (let back = index - 1; back >= Math.max(0, index - 12); back--) {
+    const text = clauses[back]!.text;
+    if (REQUIRED_QUALIFICATION_HEADING.test(text) || text.length < 90 && REQUIREMENT_LEAD_IN.test(text)) return true;
+    if (text.length < 90 && OPTIONAL_LEAD_IN.test(text)) return false;
+  }
+  return false;
+}
+
 /**
  * True when a doctorate is stated as a requirement rather than offered as one
  * acceptable background among several.
@@ -472,7 +505,9 @@ export function requiresAdvancedDegree(description: string | null): boolean {
   if (!description) return false;
   const doctorate = new RegExp(String.raw`\b${DOCTORATE_DEGREE_SOURCE}\b`, "g");
 
-  for (const { text: clause, section } of qualificationClauses(description)) {
+  const clauses = qualificationClauses(description);
+  const waivable = DOCTORATE_WAIVED.test(normalizeClassifierText(description));
+  for (const [index, { text: clause, section }] of clauses.entries()) {
     for (const match of clause.matchAll(doctorate)) {
       const start = match.index ?? 0;
       const before = clause.slice(Math.max(0, start - 140), start);
@@ -485,14 +520,18 @@ export function requiresAdvancedDegree(description: string | null): boolean {
       const hasAlternative = /^[^.;|]{0,130}\bor equivalent(?: practical| industry| research)? (?:experience|depth|track record)\b/.test(after)
         || hasEligibleDegreeAlternative(clause)
         || hasEligibleDegreeCohortAlternative(clause)
-        || hasExperienceAlternativeToDoctorate(clause);
+        || hasExperienceAlternativeToDoctorate(clause)
+        || /\b(?:alternatively|in the alternative|will (?:also )?accept)\b/.test(clause)
+        || LISTED_WITH_ELIGIBLE_DEGREE.test(clause)
+        || /^(?:or\b|alternatively\b|in the alternative\b)/.test(clauses[index + 1]?.text ?? "");
       const positiveRequirement = section === "required"
         || /\bcurrently (?:has|holds),?\s+or\s+is\s+in\s+the\s+process\s+of\s+obtaining\b[^.;|]{0,140}$/.test(before)
         || /\b(?:currently\s+)?(?:pursuing|working\s+towards?|enrolled\s+in|admitted\s+to)\s+(?:an?\s+)?$/.test(before)
         || /\b(?:(?:looking|searching)\s+for|seeking|hiring)\b[^.;|]{0,80}$/.test(before)
         || /^[^.;|]{0,55}\b(?:student|candidate|graduate)\b/.test(after)
         || /\b(?:required|requires?|requirements?|must have|must hold|must possess|minimum qualifications?|qualifications?)\b[^.;|]{0,120}$/.test(before)
-        || /^[^.;|]{0,120}\b(?:is\s+)?(?:required|requires?|must have|must hold|must possess|necessary|mandatory|minimum qualifications?)\b/.test(after);
+        || /^[^.;|]{0,120}\b(?:is\s+)?(?:required|requires?|must have|must hold|must possess|necessary|mandatory|minimum qualifications?)\b/.test(after)
+        || !waivable && isBareDoctorateBullet(clause, start, clauses, index);
 
       if (
         !optionalMention

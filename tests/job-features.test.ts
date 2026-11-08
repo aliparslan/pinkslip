@@ -154,6 +154,34 @@ describe("advanced degree requirement", () => {
     salary: null,
   });
 
+  it("reads a doctorate as required under a heading that asks for qualifications", () => {
+    for (const description of [
+      "We're excited about you because you have...\nPhD in operations research, computer science, or a related field.\n2+ years of research experience.",
+      "The Ideal Candidate will have:\nA PhD in protein engineering, biochemistry, or a related field.",
+      "Your Skills and Experience:\nPhD in Machine Learning, Physics or a related quantitative field.",
+      "What you'll bring:\nPhD in Biostatistics, Computer Science, or a related field.",
+      "Minimum Requirements.\nPhD in Biomechanics, Biomedical Engineering, or a closely related field with 5+ years of experience.",
+    ]) {
+      expect(classifyJob(listing("Research Scientist", description)).requires_advanced_degree).toBe(true);
+    }
+  });
+
+  it("keeps a doctorate optional when the posting offers another route", () => {
+    for (const description of [
+      "Minimum qualifications:\nPhD degree in Computational Biology, Physics, Computer Science, or a related quantitative field, or equivalent practical experience.",
+      "Qualifications:\nPhD in Machine Learning, Computer Science, Statistics, Applied Mathematics, or a closely related field strongly preferred.\nCandidates without a PhD may be considered with equivalent research experience.",
+      "Minimum qualifications:\nPhD in electrical engineering, physics, applied physics, or a closely related field with emphasis on integrated photonics, silicon photonics, or photonic device physics (or equivalent experience).",
+      "Minimum qualifications:\nPhD or equivalent in computer science, engineering, mathematics or related field and 2-years full-time software engineering work experience or 5-years full-time software engineering work experience.",
+      "Position requires:\nAlternatively, will accept a PhD in Statistics, Mathematics, Physics or a related field and 3 years of experience in the job offered.",
+      "Required qualifications:\nPhD in biochemistry, biophysics, or a related discipline with 4+ years of relevant research experience; or M.S. with 8+ years of relevant experience.",
+      "Background:\nWe are seeking candidates who hold a bachelor's, master's, PhD, MD/DO, or JD degree.",
+      "It would be great if you have:\nPhD in Machine Learning or a related field.",
+      "Qualifications:\nA PhD or equivalent research record in computational biology.",
+    ]) {
+      expect(classifyJob(listing("Research Scientist", description)).requires_advanced_degree).toBe(false);
+    }
+  });
+
   it("requires positive evidence before flagging a doctorate requirement", () => {
     const uncertain = listing(
       "Research Scientist, Gemini",
