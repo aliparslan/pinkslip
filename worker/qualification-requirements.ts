@@ -16,7 +16,8 @@ export interface QualificationPath {
 export interface QualificationRequirements {
   groups: QualificationPath[][];
   experience_specified: boolean;
-  doctorate_requirement?: "none" | "completed" | "enrolled";
+  /** "completed_or_enrolled": "currently has, or is obtaining, a PhD". */
+  doctorate_requirement?: "none" | "completed" | "enrolled" | "completed_or_enrolled";
   doctoral_internship_eligibility?: "doctoral_only" | "doctoral_eligible" | "other";
 }
 
@@ -73,9 +74,16 @@ export function extractQualificationRequirements(
   let experienceSpecified = false;
   for (const { text: original, section } of clauses) {
     if (section === "preferred") continue;
+    // "PhD in physics, math, or a related field strongly preferred": the
+    // preference covers the whole list, unlike "BS in CS, master's preferred".
+    if (/^(?:an? )?(?:phd|dphil|doctorate|doctoral)\b/.test(original.trim())
+      && degrees(original).every((level) => level === "doctorate")
+      && /\b(?:preferred|preferable|desired|desirable|a plus|nice to have)\s*$/.test(original.trim())) continue;
     // Keep a mandatory base before an inline preference, but ignore figures
     // whose own clause marks them as optional ("3 years preferred").
     const text = original.replace(/\([^)]*\b(?:preferred|a plus|optional)\b[^)]*\)/g, " ")
+      // One status, not two routes: splitting here would strand "currently has".
+      .replace(/\b(?:has|holds),?\s+or\s+is\s+in\s+the\s+process\s+of\s+obtaining,?/g, "is obtaining")
       .split(/,?\s*\b(?:ideally|nice[- ]to[- ]have|bonus|a plus)\b/, 1)[0]
       .split(/,\s*/).filter((part) => !optional(part)).join(", ");
     if (optional(text)) continue;
@@ -170,7 +178,12 @@ export function qualificationsEligible(
   return years <= ceiling;
 }
 
+function holdsOrStudiesDoctorate(profile: SearchProfile): boolean {
+  return profile.highest_education === "doctorate" || profile.doctoral_student;
+}
+
 function educationEligible(path: QualificationPath, requirements: QualificationRequirements, profile: SearchProfile): boolean {
+  if (path.education === "doctorate" && requirements.doctorate_requirement === "completed_or_enrolled") return holdsOrStudiesDoctorate(profile);
   if (path.doctoral_enrollment || path.education === "doctorate" && requirements.doctorate_requirement === "enrolled") return profile.doctoral_student;
   if (path.education === "doctorate") return profile.highest_education === "doctorate";
   return path.education === null || profile.highest_education === "unspecified"
@@ -181,6 +194,7 @@ function educationEligible(path: QualificationPath, requirements: QualificationR
 export function qualificationYearsForProfile(requirements: QualificationRequirements, profile: SearchProfile, fallback: number | null): number | null | undefined {
   if (requirements.doctorate_requirement === "completed" && profile.highest_education !== "doctorate") return undefined;
   if (requirements.doctorate_requirement === "enrolled" && !profile.doctoral_student) return undefined;
+  if (requirements.doctorate_requirement === "completed_or_enrolled" && !holdsOrStudiesDoctorate(profile)) return undefined;
   let minimum: number | null = null;
   for (const group of requirements.groups) {
     const available = group.filter((path) => educationEligible(path, requirements, profile));
@@ -197,7 +211,7 @@ export function parseStoredQualifications(value: string | null | undefined): Qua
     const parsed = JSON.parse(value) as QualificationRequirements;
     const levels = new Set([null, "none", "high_school", "associate", "bachelor", "master", "doctorate"]);
     const years = (value: unknown) => value === null || typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 99;
-    if (parsed.doctorate_requirement !== undefined && !["none", "completed", "enrolled"].includes(parsed.doctorate_requirement)) return null;
+    if (parsed.doctorate_requirement !== undefined && !["none", "completed", "enrolled", "completed_or_enrolled"].includes(parsed.doctorate_requirement)) return null;
     if (parsed.doctoral_internship_eligibility !== undefined && !["doctoral_only", "doctoral_eligible", "other"].includes(parsed.doctoral_internship_eligibility)) return null;
     if (typeof parsed.experience_specified !== "boolean" || !Array.isArray(parsed.groups)
       || !parsed.groups.every((group) => Array.isArray(group) && group.length > 0 && group.every((path) =>

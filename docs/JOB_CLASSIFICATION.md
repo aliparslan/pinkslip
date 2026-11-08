@@ -162,9 +162,13 @@ around the doctorate: the experience has to follow the "or" directly.
 Checked on 2026-11-08 against all 2,271 open jobs mentioning a doctorate: 15
 became doctoral and 2 stopped being, with no other field changing. A reviewed
 job keeps its review, so a role rejected as doctoral has to be approved again
-for doctorate holders to see it. A known gap: "currently has or is in the process
-of obtaining a PhD" is stored as a completed doctorate unless the title says PhD
-and intern, so a current PhD student won't match those postings.
+for doctorate holders to see it.
+
+Classifier v26 stores "currently has or is in the process of obtaining a PhD" as
+`completed_or_enrolled`, which matches doctorate holders and current PhD students.
+That wording is one status, so it no longer splits a following "or equivalent
+practical experience" away from the doctorate. A trailing "strongly preferred" on
+a doctorate-only list covers the whole list.
 
 ## Early-career and mid-career stages (profile v7)
 

@@ -37,6 +37,24 @@ describe("five-year and doctoral matching", () => {
     }
     expect(match("Software Engineer", "PhD required.", { highest_education: "doctorate" }).plausible).toBe(true);
   });
+  test("has or is obtaining a doctorate admits holders and current students", () => {
+    const text = "Minimum Qualifications:\nCurrently has or is in the process of obtaining a PhD degree in Machine Learning or a relevant technical field.";
+    expect(match("Software Engineer", text, { highest_education: "doctorate" }).plausible).toBe(true);
+    expect(match("Software Engineer", text, { highest_education: "master", doctoral_student: true }).plausible).toBe(true);
+    expect(match("Software Engineer", text, { highest_education: "master" }).plausible).toBe(false);
+    expect(match("Software Engineer", text, { highest_education: "bachelor" }).plausible).toBe(false);
+  });
+  test("a route around the doctorate stays open to everyone", () => {
+    const equivalent = "Minimum Qualifications:\nCurrently has or is in the process of obtaining a PhD degree in Robotics, a related field, or equivalent practical experience.";
+    expect(match("Software Engineer", equivalent, { highest_education: "bachelor" }).plausible).toBe(true);
+    const preferred = "Qualifications:\nPhD in Machine Learning, Computer Science, Statistics, or a closely related field strongly preferred.";
+    expect(match("Software Engineer", preferred, { highest_education: "bachelor" }).plausible).toBe(true);
+  });
+  test("a preference on a higher degree keeps the required one", () => {
+    const text = "Minimum Qualifications:\nBachelor's degree in Computer Science, master's degree preferred.";
+    expect(match("Software Engineer", text, { highest_education: "bachelor" }).plausible).toBe(true);
+    expect(match("Software Engineer", text, { highest_education: "high_school" }).plausible).toBe(false);
+  });
   test("doctoral enrollment is independent of completed education", () => {
     const text = "Requirements\nCurrently pursuing a PhD in computer science.";
     expect(match("Software Engineer Intern", text, student).plausible).toBe(true);

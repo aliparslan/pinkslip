@@ -21,7 +21,7 @@ import {
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
 // reclassification instead of mixing old and new policy.
-export const JOB_CLASSIFIER_VERSION = "deterministic-v25-doctoral-bullets";
+export const JOB_CLASSIFIER_VERSION = "deterministic-v26-doctoral-routes";
 
 export type ClassifiedSeniority = CareerStage
   | "mid_level"
@@ -840,7 +840,7 @@ export function catalogCareerStage(features: Pick<JobFeatures, "seniority" | "mi
   return catalogCareerStages(features)[0] ?? null;
 }
 
-function doctorateRequirement(title: string, description: string | null, required: boolean): "none" | "completed" | "enrolled" {
+function doctorateRequirement(title: string, description: string | null, required: boolean): "none" | "completed" | "enrolled" | "completed_or_enrolled" {
   if (!required) return "none";
   const titleText = normalizeClassifierText(title);
   const clauses = qualificationClauses(description ?? "").filter((clause) => clause.section !== "preferred"
@@ -851,11 +851,12 @@ function doctorateRequirement(title: string, description: string | null, require
   if (/\b(?:phd|doctoral|doctorate)\b/.test(titleText) && /\b(?:intern|internship|students?|candidates?)\b/.test(titleText)
     || clauses.some(({ text }) => /\b(?:pursuing|enrolled|working towards?|working toward|(?:phd|doctoral|doctorate) students?|(?:phd|doctoral|doctorate) candidates?)\b/.test(text)
       && !/\b(?:mentor\w*|supervis\w*|advis\w*|teach\w*|support\w*|work with|team of|how)\b/.test(text))) return "enrolled";
+  if (clauses.some(({ text }) => /\b(?:has|holds),?\s+or\s+is\s+in\s+the\s+process\s+of\s+obtaining\b/.test(text))) return "completed_or_enrolled";
   return "completed";
 }
 
-function doctoralInternshipEligibility(title: string, description: string | null, requirement: "none" | "completed" | "enrolled"): "doctoral_only" | "doctoral_eligible" | "other" {
-  if (requirement === "enrolled") return "doctoral_only";
+function doctoralInternshipEligibility(title: string, description: string | null, requirement: "none" | "completed" | "enrolled" | "completed_or_enrolled"): "doctoral_only" | "doctoral_eligible" | "other" {
+  if (requirement === "enrolled" || requirement === "completed_or_enrolled") return "doctoral_only";
   const clauses = qualificationClauses(title + "\n" + (description ?? ""));
   for (const { text, section } of clauses) {
     if (section === "preferred" || /\b(?:preferred|optional|a plus|nice to have)\b/.test(text)) continue;

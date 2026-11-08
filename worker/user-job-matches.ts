@@ -127,10 +127,13 @@ export function evaluateJobForProfile(
     : features.min_years === null && !profile.include_unspecified_experience;
 
   // Enrollment and a completed doctorate are separate qualifications.
+  const doctorateRequirement = features.qualification_requirements?.doctorate_requirement;
   const advancedDegreeDisqualified = features.requires_advanced_degree && (
-    features.qualification_requirements?.doctorate_requirement === "enrolled"
+    doctorateRequirement === "enrolled"
       ? !profile.doctoral_student
-      : profile.highest_education !== "doctorate"
+      : doctorateRequirement === "completed_or_enrolled"
+        ? !profile.doctoral_student && profile.highest_education !== "doctorate"
+        : profile.highest_education !== "doctorate"
   );
   const doctoralInternship = features.qualification_requirements?.doctoral_internship_eligibility;
   const doctoralInternshipDisqualified = careerStages.includes("internship") && profile.doctoral_student
