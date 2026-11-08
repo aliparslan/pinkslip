@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import Animated, { cancelAnimation, Easing, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 /** Each row's three bars, in points, so the list doesn't read as a grid. */
 const ROWS = [[84, 214, 160], [70, 182, 140], [84, 232, 176], [96, 196, 128], [62, 220, 150], [84, 168, 164]] as const;
@@ -95,6 +95,14 @@ export function RowPlaceholders({ rows = ROWS.length, lines = 3, logo = true, ch
 
 /** "All" and one stage, as Tracker's chips usually start. */
 const CHIPS = [50, 84] as const;
+
+/** A whole page on its way, before anything of it is known: nothing for
+ * the first second, as the lists wait, then a spinner. A page that grows
+ * out of its row no longer shows one inside the zoom (owner, Nov 8). */
+export function PageLoading() {
+  const { theme } = useUnistyles();
+  return useDelayed() ? <ActivityIndicator color={theme.ui.color["ink-3"]} accessibilityLabel="Loading" /> : null;
+}
 
 /** Each line's share of the width, so the text placeholder reads as prose:
  * two paragraphs, the last line of each short. */

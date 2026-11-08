@@ -1,7 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation, usePathname, useRoute, useScrollToTop, useSegments } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { Animated as RNAnimated, Pressable, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -107,6 +107,18 @@ function TransitionSource({ routeKey }: { routeKey: string }) {
 interface Follower extends Transition {
   /** The tab the page is in ("(jobs)"); the bar follows only that tab's. */
   tab: string;
+  /** The page grew out of its row (Link.Trigger withAppleZoom), so nothing
+   * slides: the bar fades and drops instead (Paper "Signature moments ·
+   * Nov 8"; owner, Nov 8: it wiped in from the left on the way back). */
+  zoom: boolean;
+}
+
+/** Expo Router's note on a page opened by a zoom: the row it grew from. */
+const ZOOM_SOURCE = "__internal_expo_router_zoom_transition_source_id";
+function openedByZoom(params: object | undefined): boolean {
+  if (!params) return false;
+  const nested = "params" in params && typeof params.params === "object" ? params.params as object | undefined : undefined;
+  return Boolean((params as Record<string, unknown>)[ZOOM_SOURCE] ?? (nested as Record<string, unknown> | undefined)?.[ZOOM_SOURCE]);
 }
 const followers: Follower[] = [];
 /** The pages that hide the bar, by route key, so a page above one of them
@@ -126,12 +138,18 @@ export function TabBarFollowsTransition() {
   // moves on when you switch tabs.
   const segments = useSegments() as readonly string[];
   const [tab] = useState(() => segments[1] ?? "(jobs)");
+  const [zoom] = useState(() => openedByZoom(route.params));
   const [below] = useState(() => {
     const routes = navigation.getState()?.routes ?? [];
     const index = routes.findIndex((entry) => entry.key === route.key);
     const under = index > 0 ? routes[index - 1]! : null;
-    // Under another page that hides the bar, it stays hidden.
-    return under && !HIDES_BAR.test(under.name) && !hidingPages.has(under.key) ? transitions.get(under.key) ?? null : null;
+    // Under another page that hides the bar, it stays hidden. So it does
+    // anywhere above one (a company's page opened from a job's): following
+    // the page under it there popped the bar in for the length of a zoom,
+    // and left it showing on the way back. Search's own screen hides it
+    // only while it's in front, so only the pages count further down.
+    const hidden = Boolean(under && HIDES_BAR.test(under.name)) || routes.slice(0, Math.max(index, 0)).some((entry) => hidingPages.has(entry.key));
+    return under && !hidden ? transitions.get(under.key) ?? null : null;
   });
   useEffect(() => {
     hidingPages.add(route.key);
@@ -139,7 +157,7 @@ export function TabBarFollowsTransition() {
   }, [route.key]);
   useEffect(() => {
     if (!below) return;
-    const follower: Follower = { tab, ...below };
+    const follower: Follower = { tab, zoom, ...below };
     followers.push(follower);
     followersChanged();
     return () => unfollowOnceIn(follower);
@@ -279,6 +297,16 @@ export function useTabBarLine(size: number) {
   return pillBottom(insets.bottom) + (PILL - size) / 2;
 }
 
+/** A tab the app opens by itself, as it starts: the oval is put there
+ * rather than gliding over (owner, 2026-11-08: on every launch it slid
+ * from Jobs to Today). */
+let placeAt: string | null = null;
+export function openTabInPlace(route: string) {
+  placeAt = route;
+  // Should the move not come, the bar goes back to following the tabs.
+  setTimeout(() => { if (placeAt === route) placeAt = null; }, 2000);
+}
+
 /** Search is a quick lookup you leave with its X, back to the tab you were
  * on before it (owner, 2026-10-22, Paper "Search at the bottom · Oct 22").
  * The bar knows which tab that was. */
@@ -349,9 +377,13 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   const { width: screen } = useWindowDimensions();
   const bottom = pillBottom(insets.bottom);
 
+  // At launch, until the app's own move to Today lands, the oval and the
+  // lit icon are already on Today.
+  const launching = placeAt !== null && placeAt !== tabs[selected]?.name ? tabs.findIndex((route) => route.name === placeAt) : -1;
+  const shown = launching >= 0 ? launching : selected;
   // At rest the oval is at `x`. While dragging it's under the finger, plus an
   // offset that eases to nothing, so it slides over rather than jumping.
-  const x = useSharedValue(slotX(Math.max(selected, 0)));
+  const x = useSharedValue(slotX(Math.max(shown, 0)));
   const dragging = useSharedValue(false);
   const finger = useSharedValue(0);
   const offset = useSharedValue(0);
@@ -360,15 +392,21 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   const [hover, setHover] = useState<number | null>(null);
 
   const placed = useRef(false);
-  useEffect(() => {
-    if (selected < 0) return;
+  // Before the frame is drawn, so the oval is never a frame behind the tab
+  // (at launch, a passive effect waited ~0.4s behind Today's first render).
+  useLayoutEffect(() => {
+    if (selected < 0 || launching >= 0) return;
     current.value = selected;
     // A new tab starts with the full bar.
     setCompact(false);
-    // In place on the first frame; after that it glides.
-    x.value = placed.current ? withSpring(slotX(selected), GLIDE) : slotX(selected);
+    // In place on the first frame and for the app's own move at launch;
+    // after that it glides.
+    const name = tabs[selected]?.name;
+    const inPlace = !placed.current || placeAt === name;
+    if (placeAt === name) placeAt = null;
+    x.value = inPlace ? slotX(selected) : withSpring(slotX(selected), GLIDE);
     placed.current = true;
-  }, [selected, x, current]);
+  }, [selected, x, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search's X goes back to the tab you were on before it.
   const previous = useRef("(jobs)");
@@ -457,7 +495,7 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   }, [count, x, dragging, finger, offset, current, hovered]);
 
   const follower = useFollower(tabs[selected]?.name);
-  const follow = useMemo(() => followStyles(follower ?? restingList(), screen), [follower, screen]);
+  const follow = useMemo(() => followStyles(follower ?? restingList(), screen, follower?.zoom ?? false), [follower, screen]);
   // Back at rest, the resting values are sent to the native side again once
   // the bar is drawn with them. Attaching them alone doesn't move a view the
   // native driver last placed, so a bar left off to the side by a page that
@@ -480,7 +518,7 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   }));
   if (onJobPage && !follower) return null;
 
-  const lit = hover ?? selected;
+  const lit = hover ?? shown;
   // Over a page it's off to the side, behind the page's edge: out of reach.
   return <RNAnimated.View pointerEvents={onJobPage ? "none" : "box-none"} accessibilityElementsHidden={onJobPage}
     style={[styles.bar, { height: bottom + PILL + room }, follow.clip]}>
@@ -520,19 +558,29 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
  * The bar's place while a hiding page comes or goes, from the transition of
  * the list under it, all on the native driver. The bar moves with the list's
  * 30% parallax, and a clip whose right edge is the page's left edge hides
- * what the page covers.
+ * what the page covers. Under a zoom it fades and drops instead: gone by
+ * the zoom's middle, and back in its second half as the page lands in its
+ * row. Every style names the same properties, always from the native
+ * driver, since a property it stops naming keeps the last value it had.
  */
-function followStyles({ progress: p, closing: c }: Transition, width: number) {
+function followStyles({ progress: p, closing: c }: Transition, width: number, zoom: boolean) {
   const scale = (value: RNAnimated.Animated, to: number) => (value as RNAnimated.Value).interpolate({ inputRange: [0, 1], outputRange: [0, to] });
   // How much of the list is showing: 1 - p as the page arrives (the list
   // closing), p as the page leaves (the list coming back), so p + c(1 - 2p).
   const shown = RNAnimated.add(p, RNAnimated.multiply(c, p.interpolate({ inputRange: [0, 1], outputRange: [1, -1] })));
   const hidden = RNAnimated.add(1, RNAnimated.multiply(shown, -1));
   return {
-    clip: { transform: [{ translateX: scale(hidden, -width) }] },
-    content: { transform: [{ translateX: scale(hidden, width * 0.7) }] },
+    clip: { transform: [{ translateX: scale(hidden, zoom ? 0 : -width) }] },
+    content: {
+      opacity: shown.interpolate({ inputRange: [0, ZOOM_FADE_FROM, 1], outputRange: zoom ? [0, 0, 1] : [1, 1, 1], extrapolate: "clamp" }),
+      transform: [{ translateX: scale(hidden, zoom ? 0 : width * 0.7) }, { translateY: scale(hidden, zoom ? ZOOM_DROP : 0) }],
+    },
   };
 }
+/** Under a zoom, the bar shows over the last half of the list's return. */
+const ZOOM_FADE_FROM = 0.5;
+/** How far it drops as it fades (points). */
+const ZOOM_DROP = 16;
 
 /** Where the oval sits under the tab at this index. */
 function slotX(index: number) {

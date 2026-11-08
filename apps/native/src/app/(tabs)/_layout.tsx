@@ -1,7 +1,7 @@
 import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useReducedMotion } from "react-native-reanimated";
 import { onboardingDue } from "../../features/onboarding/launch";
 import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
@@ -10,7 +10,7 @@ import { useLiveSends } from "../../features/redesign/sends/LiveSends";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { appPathFor } from "../../platform/links";
-import { TabBar } from "../../ui";
+import { openTabInPlace, TabBar } from "../../ui";
 import { tabTransition, useTabMotion } from "../../ui/tab-motion";
 
 /** Today, Jobs, Tracker, Search and You, each with its own stack, under our
@@ -33,6 +33,8 @@ export default function TabsLayout() {
   // stack came back blank until something else redrew it (owner, 2026-11-08:
   // "tab switches are extremely laggy"). Still detaches tabs, as before.
   return <>
+  {/* First, so it has decided before the tab bar draws. */}
+  <OpenOnToday />
   <Tabs detachInactiveScreens={motion === "still"} screenOptions={screenOptions}
     tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} above={live} aboveHeight={LIVE_BAR_HEIGHT} />}>
     <Tabs.Screen name="(today)" />
@@ -41,7 +43,6 @@ export default function TabsLayout() {
     <Tabs.Screen name="(search)" />
     <Tabs.Screen name="(you)" />
   </Tabs>
-  <OpenOnToday />
   <WhatsNewOnLaunch />
   <OnboardingOnLaunch />
   </>;
@@ -54,10 +55,18 @@ export default function TabsLayout() {
  * reading the path doesn't re-render the tabs on every navigation. */
 function OpenOnToday() {
   const pathname = usePathname();
-  useEffect(() => {
+  // Decided as it first renders, before the tab bar does, so the bar starts
+  // on Today instead of moving there (owner, 2026-11-08: on every launch
+  // its oval slid over from Jobs).
+  const [toToday] = useState(() => {
     const launchedBy = Linking.getLinkingURL();
     const linked = launchedBy ? appPathFor(launchedBy) : null;
-    if (pathname === "/" && !onboardingDue() && (!linked || linked === "/")) router.navigate("/today");
+    const go = pathname === "/" && !onboardingDue() && (!linked || linked === "/");
+    if (go) openTabInPlace("(today)");
+    return go;
+  });
+  useEffect(() => {
+    if (toToday) router.navigate("/today");
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   return null;

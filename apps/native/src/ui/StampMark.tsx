@@ -11,9 +11,10 @@ import { StampFrame } from "./StampFrame";
  * How much larger a stamp starts when it lands where you weren't looking
  * (Paper "Signature moments · Nov 8", 2): the stub's own press
  * (`motion.stamp.land`), from further up than its 1.12. A trial until the
- * owner settles it, then a token.
+ * owner settles it, then a token. OFFER lands as the stub's other stamps
+ * do (owner, Nov 8).
  */
-export const ARRIVING_FROM = { sent: 1.3, offer: 1.4 } as const;
+export const ARRIVING_FROM = { sent: 1.3 } as const;
 
 /**
  * A stamp on its own, off the stub: SENT on the live bar. With `landing` it

@@ -11,7 +11,8 @@ export function cachedJob(queryClient: QueryClient, id: string): AnyJob | undefi
   const own = queryClient.getQueryData<Job>(queryKeys.personal.job(id)) ?? queryClient.getQueryData<PublicJob | null>(queryKeys.public.job(id));
   if (own) return own;
   type Lists = Job[] | { jobs: Job[] } | InfiniteData<{ jobs: Job[] }> | undefined;
-  for (const key of [queryKeys.personal.jobsRoot, queryKeys.personal.saved(), queryKeys.personal.applied()]) {
+  // A company's page keeps its jobs under its own key (CompanyPage).
+  for (const key of [queryKeys.personal.jobsRoot, queryKeys.personal.saved(), queryKeys.personal.applied(), ["company-jobs"]]) {
     for (const [, data] of queryClient.getQueriesData<Lists>({ queryKey: key })) {
       const jobs = Array.isArray(data) ? data : data && "pages" in data ? data.pages.flatMap((page) => page.jobs) : data?.jobs ?? [];
       const found = jobs.find((job) => job.id === id);

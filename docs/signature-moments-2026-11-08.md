@@ -43,6 +43,35 @@ Where the build differs from the boards:
   and Reduce Motion (the stamps appear in place with the tap; the zoom
   becomes iOS's own).
 
+## After your first look (Nov 8)
+
+You liked the zoom and SENT. Changed from what you said:
+
+- **The tab bar after a zoom** fades and drops by the zoom's middle, and
+  comes back over the second half as the page lands in its row, as the
+  board drew it. Before, it followed a slide that wasn't there: it wiped in
+  from the left and slid a third of the screen. A page that slides still
+  takes the bar with it as before. On a company's page opened from a job,
+  the bar stays hidden; opening one of its jobs and coming back no longer
+  flashes it in.
+- **OFFER is a stamp like the others:** the same size, in the row, with
+  its date and EMAIL, coming down from 1.12× with the light tap, and
+  INTERVIEWING greys as it lands. It still waits for the page to arrive,
+  plays once per application, and inks green. Say if green should go too.
+- **At launch the tab bar starts on Today.** The app opens on Jobs ("/")
+  and moves itself to Today; the oval used to glide over. It's now on Today
+  from the first frame.
+- **No spinner inside the zoom:**
+  - A company's jobs fill the job page at once, as Jobs and Search already
+    did.
+  - Tracker fetches the page behind each row while the row is on screen
+    (fresh for a minute), so an application opens whole. That's a request
+    per row in view when Tracker opens.
+  - The application page shows the grey lines while the posting loads,
+    like the job page.
+  - A page that knows nothing yet (a link on a slow network) shows nothing
+    for its first second, as lists do, then a spinner.
+
 ## 1 · A job grows out of its row
 
 - **Today:** the job page slides in from the right, like any page.

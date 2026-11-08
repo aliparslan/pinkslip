@@ -23,7 +23,7 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "pdfSettle", title: "A read resume", today: "The bar stops, a card flies in", proposed: "The bar finishes, it settles" },
   { id: "zoom", title: "A job grows out of its row", today: "It slides in", proposed: "It zooms out of the row" },
   { id: "stampBar", title: "SENT on the live bar", today: "A green check and a close", proposed: "SENT lands, the bar turns to the job" },
-  { id: "stampOffer", title: "OFFER, once", today: "Among the stamps", proposed: "Lands across the tear, in green" },
+  { id: "stampOffer", title: "OFFER, once", today: "Among the stamps", proposed: "Lands on the stub once, in green" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;

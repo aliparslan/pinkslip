@@ -13,7 +13,6 @@ import { Icon } from "./Icon";
 import { motion, timing } from "./motion";
 import { fallTime, RIP_TICKS, stubPose } from "./stub-motion";
 import { StampFrame } from "./StampFrame";
-import { ARRIVING_FROM } from "./StampMark";
 import { Text } from "./Text";
 
 export interface TicketFact {
@@ -164,10 +163,9 @@ export interface StubStamp {
   /** Tapping the stamp fixes its step's date (owner, 2026-10-19, Paper
    * "Step dates · Oct 19"). */
   onPress?: () => void;
-  /** The offer: half as big again, in green, struck across the tear at the
-   * stub's right (Paper "Signature moments · Nov 8", 2). Only as the
-   * freshest stamp. */
-  hero?: boolean;
+  /** The offer inks in green (Paper "Signature moments · Nov 8", 2); in
+   * size, place and landing it's a stamp like the rest (owner, Nov 8). */
+  tone?: "good";
 }
 
 export interface StubProps {
@@ -185,11 +183,6 @@ export interface StubProps {
 
 /** Each stamp lands at its own angle, as a hand would put it down. */
 const STAMP_ANGLES = [-3, 2, -1.5, 2.5, -2, 1.5];
-
-/** The hero is turned further than the rest, and where the next stamp in
- * the row would meet it they overlap this much, like a second impression. */
-const HERO_ANGLE = -7;
-const HERO_OVERLAP = 22;
 
 /**
  * Your stub (Paper "C · Your stub"): the part of the ticket that tore off when
@@ -217,20 +210,12 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
   }, [arriving]);
   useEffect(() => () => { for (const meet of meetings.current) clearTimeout(meet); }, []);
   const coming = (arriving ?? landing) !== null && (arriving ?? landing) === newest?.key;
-  // The ticket gives a point under the hero as it lands.
-  const dip = useSharedValue(0);
-  const give = () => { dip.value = withSequence(withTiming(1, { duration: 90 }), withTiming(0, timing({ duration: 200, curve: [0.23, 1, 0.32, 1] }))); };
-  const dipStyle = useAnimatedStyle(() => ({ transform: [{ translateY: dip.value }] }));
-  const [heroWidth, setHeroWidth] = useState(0);
   const last = stamps.length - 1;
   const holeColor = theme.ui.color[backdrop];
   const onLayout = (event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width));
   const mark = (stamp: StubStamp, index: number) => {
-    const hero = Boolean(stamp.hero) && index === last;
-    const arrived = !seen.current?.has(stamp.key);
     const inner = <RubberStamp stamp={stamp} fresh={index === last || (coming && index === last - 1)}
-      angle={hero ? HERO_ANGLE : STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={arrived} hero={hero}
-      onMeet={hero ? give : undefined} />;
+      angle={STAMP_ANGLES[index % STAMP_ANGLES.length]!} arrived={!seen.current?.has(stamp.key)} />;
     return stamp.onPress
       ? <Pressable key={stamp.key} onPress={stamp.onPress} accessibilityRole="button" accessibilityHint="Changes its date"
         accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`} style={({ pressed }) => pressed && styles.pressed}>
@@ -238,8 +223,7 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
       </Pressable>
       : <Fragment key={stamp.key}>{inner}</Fragment>;
   };
-  const heroStamp = last >= 0 && stamps[last]!.hero ? stamps[last]! : null;
-  return <Animated.View style={[stubStyles.stub, dipStyle]} onLayout={onLayout}>
+  return <View style={stubStyles.stub} onLayout={onLayout}>
     <Grain radius={theme.ui.radius.lg} flatTop />
     {width > 0 ? <Fragment>
       <View style={stubStyles.tear} pointerEvents="none">
@@ -251,14 +235,10 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
       <View style={[stubStyles.halfNotch, styles.notchLeft, { backgroundColor: holeColor }]} pointerEvents="none" />
       <View style={[stubStyles.halfNotch, styles.notchRight, { backgroundColor: holeColor }]} pointerEvents="none" />
     </Fragment> : null}
-    {/* The row leaves the hero its room, less the overlap. */}
-    <View style={[stubStyles.stamps, heroStamp && { paddingRight: Math.max(0, heroWidth - HERO_OVERLAP) }]}>
-      {stamps.map((stamp, index) => heroStamp && index === last ? null : mark(stamp, index))}
+    <View style={stubStyles.stamps}>
+      {stamps.map(mark)}
       {aside ? <View style={stubStyles.aside}>{aside}</View> : null}
     </View>
-    {heroStamp ? <View style={stubStyles.hero} onLayout={(event) => setHeroWidth(Math.round(event.nativeEvent.layout.width))}>
-      {mark(heroStamp, last)}
-    </View> : null}
     {foot || action ? <View style={stubStyles.foot}>
       {width > 0 ? <Svg width={width - 2 * theme.ui.space["4"]} height={1} style={stubStyles.rule}>
         <Line x1={0} y1={0.5} x2={width} y2={0.5} stroke={theme.ui.color["ink-4"]} strokeWidth={1} strokeDasharray="3 3" />
@@ -274,41 +254,29 @@ export function Stub({ stamps, aside, foot, action, backdrop = "bg" }: StubProps
         </Pressable> : null}
       </View>
     </View> : null}
-  </Animated.View>;
+  </View>;
 }
 
 /** A stamp; one that `arrived` while you look comes down onto the paper
  * (tokens `motion.stamp`) with a tap as it meets it, and the one before it
- * fades to `ink-3`. The hero (the offer) is bigger and green, starts
- * further up, and lands with a success tap. */
-function RubberStamp({ stamp, fresh, angle, arrived, hero = false, onMeet }: {
-  stamp: StubStamp; fresh: boolean; angle: number; arrived: boolean;
-  hero?: boolean;
-  /** As it meets the paper. */
-  onMeet?: () => void;
-}) {
+ * fades to `ink-3` as it does. */
+function RubberStamp({ stamp, fresh, angle, arrived }: { stamp: StubStamp; fresh: boolean; angle: number; arrived: boolean }) {
   const { theme } = useUnistyles();
   const reduced = useReducedMotion();
   const full = fresh && !stamp.pending;
-  const [dark, light] = [hero ? theme.ui.color.good : theme.ui.color.ink, theme.ui.color["ink-3"]];
+  const [dark, light] = [stamp.tone === "good" ? theme.ui.color.good : theme.ui.color.ink, theme.ui.color["ink-3"]];
   const ink = useSharedValue(full ? 1 : 0);
   useEffect(() => { ink.value = withTiming(full ? 1 : 0, { duration: 200 }); }, [full, ink]);
   const { land } = motion.stamp;
-  const from = hero ? ARRIVING_FROM.offer : land.from;
   const press = useSharedValue(arrived ? 0 : 1);
   useEffect(() => {
     if (!arrived) return;
-    const meet = () => {
-      if (hero) haptics.success();
-      else stampDown();
-      onMeet?.();
-    };
-    press.value = withTiming(1, timing(land), (finished) => { if (finished) scheduleOnRN(meet); });
+    press.value = withTiming(1, timing(land), (finished) => { if (finished) scheduleOnRN(stampDown); });
     // Only as it first appears.
   }, []);
   const body = useAnimatedStyle(() => ({
     opacity: press.value,
-    transform: [{ rotate: `${angle}deg` }, { scale: reduced ? 1 : from + (1 - from) * press.value }],
+    transform: [{ rotate: `${angle}deg` }, { scale: reduced ? 1 : land.from + (1 - land.from) * press.value }],
   }));
   const words = useAnimatedStyle(() => ({ color: interpolateColor(ink.value, [0, 1], [light, dark]) }));
   // The full ink lies over the faded one, so fading is the top frame going.
@@ -316,20 +284,15 @@ function RubberStamp({ stamp, fresh, angle, arrived, hero = false, onMeet }: {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return <Animated.View accessible accessibilityLabel={`${stamp.label.toLowerCase()}, ${stamp.detail.toLowerCase()}`}
     onLayout={(event) => setSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}
-    style={[stubStyles.stamp, hero && stubStyles.heroStamp, body]}>
+    style={[stubStyles.stamp, body]}>
     {size ? <Fragment>
-      <StampFrame {...size} color={light} dashed={stamp.pending} {...(hero ? HERO_FRAME : null)} />
-      <Animated.View style={[stubStyles.fill, fullInk]} pointerEvents="none">
-        <StampFrame {...size} color={dark} dashed={stamp.pending} {...(hero ? HERO_FRAME : null)} />
-      </Animated.View>
+      <StampFrame {...size} color={light} dashed={stamp.pending} />
+      <Animated.View style={[stubStyles.fill, fullInk]} pointerEvents="none"><StampFrame {...size} color={dark} dashed={stamp.pending} /></Animated.View>
     </Fragment> : null}
-    <Animated.Text style={[stubStyles.stampLabel, hero && stubStyles.heroLabel, words]} maxFontSizeMultiplier={1.4}>{stamp.label}</Animated.Text>
-    <Animated.Text style={[stubStyles.stampDetail, hero && stubStyles.heroDetail, words]} maxFontSizeMultiplier={1.4}>{stamp.detail}</Animated.Text>
+    <Animated.Text style={[stubStyles.stampLabel, words]} maxFontSizeMultiplier={1.4}>{stamp.label}</Animated.Text>
+    <Animated.Text style={[stubStyles.stampDetail, words]} maxFontSizeMultiplier={1.4}>{stamp.detail}</Animated.Text>
   </Animated.View>;
 }
-
-/** The hero's frame, heavier for its size. */
-const HERO_FRAME = { line: 2, radius: 8 };
 
 /**
  * The torn stub's flight along its path (`stub-motion.ts`): one clock, in
@@ -604,10 +567,6 @@ const stubStyles = StyleSheet.create((theme) => ({
   stampDetail: { ...face.stampDetail, fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
   /** The offer, half as big again, struck across the tear at the right
    * (Paper "Signature moments · Nov 8", 2). */
-  hero: { position: "absolute", top: -theme.ui.space["4"], right: theme.ui.space["3"] },
-  heroStamp: { paddingHorizontal: 17, paddingVertical: 11, gap: 2 },
-  heroLabel: { fontSize: 19.5, lineHeight: 24, letterSpacing: 1.17 },
-  heroDetail: { fontSize: 16.5, lineHeight: 20, letterSpacing: 0.99 },
   aside: { paddingLeft: theme.ui.space["1"] },
   foot: { gap: theme.ui.space["3"] },
   rule: { alignSelf: "stretch" },

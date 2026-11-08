@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
   ApplyButton, Button, ChoiceLink, Choices, CompanyLogo, EmptyState, Floating, GlyphMenu, Icon, PAGE_BAR, PageBar, PageBarSlot, SheetHeader, SheetModal,
-  SheetScroll, SheetStep, StampedSlip, Text, TextPlaceholders,
+  PageLoading, SheetScroll, SheetStep, StampedSlip, Text, TextPlaceholders,
   Ticket, useStubCatch, useToastLift,
   type GlyphMenuSpec,
 } from "../../ui";
@@ -35,7 +35,7 @@ export function JobPage({ jobId, outreachThread, sendOpening }: { jobId: string;
     // The same bar while it loads, so Back doesn't jump when the page arrives.
     if (status === "loading") return <View style={styles.center}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ActivityIndicator color={theme.ui.color["ink-3"]} />
+      <PageLoading />
       <PageBar />
     </View>;
     // A link to a job that isn't there (W4) is rare enough for its slip; a

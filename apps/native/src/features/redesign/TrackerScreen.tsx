@@ -1,5 +1,8 @@
 import type { Application, ApplicationStage } from "@pinkslip/core/api";
-import { useApplications, useInbox, useOutreachThreads, useRemoveApplication, useSession, useUpdateApplication } from "@pinkslip/data";
+import {
+  applicationQueryOptions, jobQueryOptions, useApi, useApplications, useInbox, useOutreachThreads, useRemoveApplication, useSession, useUpdateApplication,
+} from "@pinkslip/data";
+import { useQueryClient } from "@tanstack/react-query";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack } from "expo-router";
@@ -35,6 +38,9 @@ const PER_STAGE = 3;
  * as they arrive fades; rows scrolled to later don't. */
 const ROWS_IN = FadeIn.delay(80).duration(200).easing(Easing.bezier(0.23, 1, 0.32, 1));
 const ARRIVING_MS = 300;
+/** A row's page, fetched ahead, counts as fresh this long, so rows scrolled
+ * past again don't fetch it again. */
+const READY_FOR = 60_000;
 
 type Item =
   | { kind: "stage"; key: string; group: StageGroup; count: number }
@@ -171,6 +177,16 @@ function TrackerRow({ application, sample, thread }: { application: Application;
   const remove = useRemoveApplication();
   // Its page grows out of the row (Paper "Signature moments · Nov 8", 1).
   const zoom = useMotionTrial("zoom");
+  // Fetched while the row is on screen, so the page that grows out of it
+  // is already whole (owner, Nov 8: a spinner showed inside the zoom).
+  const queryClient = useQueryClient();
+  const api = useApi();
+  const opens = sample ? null : application.stage === "saved" ? application.job_id : application.id;
+  useEffect(() => {
+    if (!opens) return;
+    if (application.stage === "saved") void queryClient.prefetchQuery({ ...jobQueryOptions(api, opens), staleTime: READY_FOR });
+    else void queryClient.prefetchQuery({ ...applicationQueryOptions(api, opens), staleTime: READY_FOR });
+  }, [opens, application.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
   const outreach = thread && application.stage !== "saved" ? trackerOutreachLine(thread) : null;
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
     facts={outreach ?? trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
