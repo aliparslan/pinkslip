@@ -1,7 +1,7 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation, usePathname, useRoute, useScrollToTop, useSegments } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useContext, createContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { Animated as RNAnimated, Pressable, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -78,10 +78,22 @@ interface Transition {
 /** Each tab stack screen's transition, by route key. */
 const transitions = new Map<string, Transition>();
 
-/** Each tab stack's `screenLayout`: the screen, and a note of its transition
- * for the bar. */
-export function tabStackScreenLayout({ route, children }: { route: { key: string }; children: React.ReactElement }) {
-  return <>{children}<TransitionSource routeKey={route.key} /></>;
+/** Which tab's stack a page is in. It comes from the stack itself: the URL
+ * says where you are now, and a page can open in a tab you're not on (one
+ * launched by a notification while the app moved to Today left the bar
+ * following the wrong tab, and hidden: owner, Nov 8). */
+const TabName = createContext<string | null>(null);
+const stackLayouts = new Map<string, (props: { route: { key: string }; children: React.ReactElement }) => React.ReactElement>();
+
+/** A tab's `screenLayout` for its stack: the screen, told which tab it's
+ * in, and a note of its transition for the bar. */
+export function tabStackScreenLayout(tab: string) {
+  let layout = stackLayouts.get(tab);
+  if (!layout) {
+    layout = ({ route, children }) => <TabName.Provider value={tab}>{children}<TransitionSource routeKey={route.key} /></TabName.Provider>;
+    stackLayouts.set(tab, layout);
+  }
+  return layout;
 }
 
 /** On its own beside the screen: the stack hands out the transition as a
@@ -134,10 +146,10 @@ function followersChanged() {
 export function TabBarFollowsTransition() {
   const route = useRoute();
   const navigation = useNavigation();
-  // The tab this page opened in and the page under it, read once: the URL
-  // moves on when you switch tabs.
+  // The tab this page is in, and the page under it, read once.
   const segments = useSegments() as readonly string[];
-  const [tab] = useState(() => segments[1] ?? "(jobs)");
+  const stackTab = useContext(TabName);
+  const [tab] = useState(() => stackTab ?? segments[1] ?? "(jobs)");
   const [zoom] = useState(() => openedByZoom(route.params));
   const [below] = useState(() => {
     const routes = navigation.getState()?.routes ?? [];
@@ -559,9 +571,11 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
  * the list under it, all on the native driver. The bar moves with the list's
  * 30% parallax, and a clip whose right edge is the page's left edge hides
  * what the page covers. Under a zoom it fades and drops instead: gone by
- * the zoom's middle, and back in its second half as the page lands in its
- * row. Every style names the same properties, always from the native
- * driver, since a property it stops naming keeps the last value it had.
+ * the zoom's middle, and back as soon as the page has shrunk clear of it
+ * (owner, 2026-11-08: waiting for the zoom's second half took a beat; it
+ * settled 400ms after a tap on Back, now about 120ms). Every style names
+ * the same properties, always from the native driver, since a property it
+ * stops naming keeps the last value it had.
  */
 function followStyles({ progress: p, closing: c }: Transition, width: number, zoom: boolean) {
   const scale = (value: RNAnimated.Animated, to: number) => (value as RNAnimated.Value).interpolate({ inputRange: [0, 1], outputRange: [0, to] });
@@ -569,16 +583,29 @@ function followStyles({ progress: p, closing: c }: Transition, width: number, zo
   // closing), p as the page leaves (the list coming back), so p + c(1 - 2p).
   const shown = RNAnimated.add(p, RNAnimated.multiply(c, p.interpolate({ inputRange: [0, 1], outputRange: [1, -1] })));
   const hidden = RNAnimated.add(1, RNAnimated.multiply(shown, -1));
+  // A zoom leaves and returns on different stretches: `closing` picks which.
+  const returning = c.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const leaving = shown.interpolate({ inputRange: [0, ZOOM_FADE_FROM, 1], outputRange: [0, 0, 1], extrapolate: "clamp" });
+  const back = shown.interpolate({ inputRange: [ZOOM_BACK_FROM, ZOOM_BACK_TO], outputRange: [0, 1], extrapolate: "clamp" });
+  const zoomOpacity = RNAnimated.add(RNAnimated.multiply(c, leaving), RNAnimated.multiply(returning, back));
+  const zoomDrop = RNAnimated.add(
+    RNAnimated.multiply(c, scale(hidden, ZOOM_DROP)),
+    RNAnimated.multiply(returning, back.interpolate({ inputRange: [0, 1], outputRange: [ZOOM_DROP, 0] })),
+  );
   return {
     clip: { transform: [{ translateX: scale(hidden, zoom ? 0 : -width) }] },
     content: {
-      opacity: shown.interpolate({ inputRange: [0, ZOOM_FADE_FROM, 1], outputRange: zoom ? [0, 0, 1] : [1, 1, 1], extrapolate: "clamp" }),
-      transform: [{ translateX: scale(hidden, zoom ? 0 : width * 0.7) }, { translateY: scale(hidden, zoom ? ZOOM_DROP : 0) }],
+      opacity: zoom ? zoomOpacity : shown.interpolate({ inputRange: [0, 1], outputRange: [1, 1] }),
+      transform: [{ translateX: scale(hidden, zoom ? 0 : width * 0.7) }, { translateY: zoom ? zoomDrop : scale(hidden, 0) }],
     },
   };
 }
-/** Under a zoom, the bar shows over the last half of the list's return. */
+/** Under a zoom, the bar goes over the first half of the list's leaving. */
 const ZOOM_FADE_FROM = 0.5;
+/** And it's back over this stretch of the list's return: from when the
+ * shrinking page has cleared the bar's place, so it never sits on the page. */
+const ZOOM_BACK_FROM = 0.2;
+const ZOOM_BACK_TO = 0.4;
 /** How far it drops as it fades (points). */
 const ZOOM_DROP = 16;
 
