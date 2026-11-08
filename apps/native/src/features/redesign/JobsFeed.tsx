@@ -17,6 +17,8 @@ import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
 import { rowActions } from "../jobs/row-actions";
+import { useSwipeChoices, type SwipeChoice, type SwipeChoices, type SwipeSlots } from "../jobs/swipe-choices";
+import { queueable } from "./send-facts";
 import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
@@ -192,7 +194,7 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   onlyStage?: Parameters<typeof rowFacts>[1];
 }) {
   const { menu } = rowActions(job, actions, viewed);
-  const { leading, trailing } = swipeActions(job, actions, viewed);
+  const { leading, trailing } = swipeActions(job, actions, viewed, useSwipeChoices());
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
   // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
   const zoom = useMotionTrial("zoom");
@@ -224,23 +226,41 @@ function glyphItem(item: MenuItem): GlyphMenuItem {
   return { id: item.id, title: item.title, glyph, destructive: item.destructive, onSelect: item.onSelect };
 }
 
-/** The swipes (Paper "Swipe actions · Oct 14", S4, owner 2026-10-14):
- * right is Save, all the way, then Read or Unread; left is Hide, all the
- * way, then Applied. Everything else is in the long-press menu. */
-function swipeActions(job: RowJob, actions: JobActions, viewed: boolean): { leading: SwipeAction[]; trailing: SwipeAction[] } {
-  const leading: SwipeAction[] = [];
-  const trailing: SwipeAction[] = [];
-  if (job.saved && actions.unsave) leading.push({ id: "unsave", label: "Unsave", icon: "saved", tone: "neutral", run: () => actions.unsave?.(job) });
-  else if (!job.saved && actions.save) leading.push({ id: "save", label: "Save", icon: "save", tone: "accent", run: () => actions.save?.(job) });
-  if (actions.toggleRead) {
-    leading.push(viewed
-      ? { id: "unread", label: "Unread", icon: "unread", tone: "find", run: () => actions.toggleRead?.(job, false) }
-      : { id: "read", label: "Read", icon: "read", tone: "find", run: () => actions.toggleRead?.(job, true) });
-  }
-  if (actions.hide) trailing.push({ id: "hide", label: "Hide", icon: "hide", tone: "neutral", removes: true, run: () => actions.hide?.(job) });
-  if (job.applied && actions.unmarkApplied) trailing.push({ id: "unapplied", label: "Not applied", icon: "undo", tone: "neutral", run: () => actions.unmarkApplied?.(job) });
-  else if (!job.applied && actions.markApplied) trailing.push({ id: "applied", label: "Applied", icon: "applied", tone: "apply", run: () => actions.markApplied?.(job) });
-  return { leading, trailing };
+/** The swipes, as chosen in You → Swipe actions (owner, 2026-11-08, Paper
+ * "Choosing swipe actions · Nov 8", B; as Paper "Swipe actions · Oct 14"
+ * S4 until changed: right is Save, then Read; left is Hide, then Applied).
+ * Each follows the job (Save is Unsave once saved), the outer one runs on a
+ * full swipe, and one the job can't take leaves the other alone, except
+ * Queue, which is never the full swipe. Everything else is in the
+ * long-press menu. */
+function swipeActions(job: RowJob, actions: JobActions, viewed: boolean, choices: SwipeChoices): { leading: SwipeAction[]; trailing: SwipeAction[] } {
+  const build = (choice: SwipeChoice): SwipeAction | null => {
+    switch (choice) {
+      case "save":
+        if (job.saved) return actions.unsave ? { id: "unsave", label: "Unsave", icon: "saved", tone: "neutral", run: () => actions.unsave?.(job) } : null;
+        return actions.save ? { id: "save", label: "Save", icon: "save", tone: "accent", run: () => actions.save?.(job) } : null;
+      case "read":
+        if (!actions.toggleRead) return null;
+        return viewed
+          ? { id: "unread", label: "Unread", icon: "unread", tone: "find", run: () => actions.toggleRead?.(job, false) }
+          : { id: "read", label: "Read", icon: "read", tone: "find", run: () => actions.toggleRead?.(job, true) };
+      case "applied":
+        if (job.applied) return actions.unmarkApplied ? { id: "unapplied", label: "Not applied", icon: "undo", tone: "neutral", run: () => actions.unmarkApplied?.(job) } : null;
+        return actions.markApplied ? { id: "applied", label: "Applied", icon: "applied", tone: "apply", run: () => actions.markApplied?.(job) } : null;
+      case "hide":
+        return actions.hide ? { id: "hide", label: "Hide", icon: "hide", tone: "neutral", removes: true, run: () => actions.hide?.(job) } : null;
+      case "queue":
+        return actions.applyForMe && queueable(job) ? { id: "queue", label: "Queue", icon: "autoApply", tone: "neutral", run: () => actions.applyForMe?.(job) } : null;
+    }
+  };
+  const side = ([outerChoice, innerChoice]: SwipeSlots): SwipeAction[] => {
+    const outer = build(outerChoice);
+    const inner = innerChoice ? build(innerChoice) : null;
+    if (outer) return inner ? [outer, inner] : [outer];
+    // Alone, the inner one becomes the full swipe; Queue never does.
+    return inner && innerChoice !== "queue" ? [inner] : [];
+  };
+  return { leading: side(choices.right), trailing: side(choices.left) };
 }
 
 /** In Your search's order. */

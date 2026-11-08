@@ -74,6 +74,8 @@ export const ICONS = {
   signOut: "SignOut",
   plan: "Ticket",
   appearance: "CircleHalf",
+  /** You → Swipe actions (owner, 2026-11-08). */
+  swipes: "HandSwipeRight",
   help: "ChatCircleDots",
   whatsNew: "Gift",
   /** Support Pinkslip: filled on its pink tile and in the thank-you toast

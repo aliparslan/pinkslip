@@ -717,6 +717,17 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     whenever the finger is moving back. All the way runs the outer one.
   - The row being swiped is a card: corners round to 22 and it takes the
     separator's grey. `JobRow` drops its own background inside one.
+  - **You choose them** (owner, 2026-11-08, Paper "Choosing swipe actions ·
+    Nov 8", B): You → Swipe actions, under Appearance, its value the two
+    full swipes ("Save, Hide"). Each side is a card holding a job row
+    caught mid-swipe; its buttons are the controls, and a tap opens the
+    system menu for that slot. The outer button, filled, is the full swipe:
+    Save, Read, Applied or Hide. The second can also be Queue (Apply for me,
+    when sends are open) or None. Queue is never the full swipe: from a row
+    it sends a real application at once. A choice already in use trades
+    places with the one it replaces, and the other card shows it at once.
+    Starts as right Save then Read, left Hide then Applied; kept on the phone
+    (`features/jobs/swipe-rules.ts`). Rows on Jobs and Search follow it.
 - **Dashed outlines** mean "add" or "not set yet" (an Add chip, the empty
   date tile): 1.5 stroke in `ink-4`, 5 on and 4 off, round ends.
 - **Settings cards** (`ListGroup surface="fill"`, which now draws
@@ -930,13 +941,7 @@ cut so that each remaining one has a job.
 
 ## Open decisions
 
-- **Choosing your swipe actions** (owner, 2026-11-04: "at some point we
-  should allow the user to change their swipe actions"). Each side keeps
-  its two pills, but which actions fill them becomes a setting, with
-  Apply for me (queueing a send) the first new one the owner wants on
-  offer. Until then Apply for me is in a job row's long-press menu.
-  Needs Paper first: the setting's page and how a full swipe's action is
-  picked.
+- **Choosing your swipe actions**: built 2026-11-08, see Swipe actions.
 - The application page was decided as C, your stub stamped with each step
   (Paper "Application page · ideas · Oct 13"), and is built.
 

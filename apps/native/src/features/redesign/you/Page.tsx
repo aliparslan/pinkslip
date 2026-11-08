@@ -15,8 +15,10 @@ const BAR = 62;
  * option A). A page action (Add experience, Send) is `bar`: pinned to the
  * bottom on the page's Mist, the tab bar stepping aside, with a line above
  * only once content scrolls under it (owner, 2026-10-14). */
-export function YouPage({ title, children, scroll = true, bar, action }: {
+export function YouPage({ title, subtitle, children, scroll = true, bar, action }: {
   title: string;
+  /** One line under the title, for a page whose rule isn't on its face (Swipe actions). */
+  subtitle?: string;
   children: ReactNode;
   scroll?: boolean;
   bar?: ReactNode;
@@ -46,7 +48,10 @@ export function YouPage({ title, children, scroll = true, bar, action }: {
         pages opened from here keep it away (owner, 2026-11-07: Resume →
         Education → Add school). */}
     {bar ? <TabBarFollowsTransition /> : null}
-    {title ? <View style={styles.title}><Text role="title1" accessibilityRole="header">{title}</Text></View> : null}
+    {title ? <View style={styles.title}>
+      <Text role="title1" accessibilityRole="header">{title}</Text>
+      {subtitle ? <Text role="subhead" tone="ink-2">{subtitle}</Text> : null}
+    </View> : null}
   </>;
   const pageTop = insets.top + PAGE_BAR + 8;
   const pageBar = <PageBar actions={action} />;
@@ -92,7 +97,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   barLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.ui.color.separator },
   content: { gap: theme.ui.space["6"] },
-  title: { paddingHorizontal: theme.ui.size.gutter },
+  title: { paddingHorizontal: theme.ui.size.gutter, gap: theme.ui.space["1"] },
   soon: { alignItems: "center", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.space["8"], paddingTop: 150 },
   wrench: { marginBottom: theme.ui.space["2"] },
 }));

@@ -426,8 +426,27 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, on
   </Animated.View>;
 }
 
+/** A swipe action standing still, as a row shows it once open: You → Swipe
+ * actions draws its preview with these, and a tap picks what goes there
+ * (owner, 2026-11-08, Paper "Choosing swipe actions · Nov 8", B). The outer
+ * one is filled, as it is when a full swipe is about to run it. */
+export function SwipeButton({ action, filled }: { action: Pick<SwipeAction, "label" | "icon" | "tone">; filled?: boolean }) {
+  const { theme, rt } = useUnistyles();
+  const glyphInk = useMotionTrial("swipeInk");
+  const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>, glyphInk, !rt.themeName?.startsWith("light"));
+  const ink = filled ? colors.onFill : colors.ink;
+  return <View style={[styles.still, { minWidth: PILL_MIN, backgroundColor: filled ? colors.fill : colors.tint }]}>
+    <Icon name={action.icon} size={PILL_ICON} color={ink} />
+    <RNText style={[styles.pillLabel, { color: ink }]} numberOfLines={1}>{action.label}</RNText>
+  </View>;
+}
+
 const styles = StyleSheet.create((theme) => ({
   root: { overflow: "hidden", backgroundColor: theme.ui.color.bg },
+  still: {
+    height: PILL, paddingHorizontal: PILL_PAD, gap: PILL_ICON_GAP, alignItems: "center", justifyContent: "center",
+    borderRadius: theme.ui.radius.full, borderCurve: "continuous",
+  },
   measure: { position: "absolute", top: 0, left: 0, width: 400, flexDirection: "row", alignItems: "flex-start", opacity: 0 },
   // The row's moving card, over the page's colour, with the tint of a swiped row.
   card: { backgroundColor: theme.ui.color.bg, overflow: "hidden", borderCurve: "continuous" },

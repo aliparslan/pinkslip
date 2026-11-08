@@ -23,16 +23,18 @@ import { redesignKitAvailable } from "../flag";
 import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
 import { SupportSheet } from "./SupportSheet";
+import { swipeChoiceLabel } from "./SwipeActionsPage";
+import { useSwipeChoices } from "../../jobs/swipe-choices";
 
 /** The rows that open something. "search" opens the Your search sheet and
  * "support" Support Pinkslip's. */
-export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "autoApply" | "help" | "whatsNew" | "support" | "admin" | "kit";
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "autoApply" | "swipes" | "help" | "whatsNew" | "support" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
   person: { name: string; email: string | null } | null;
   /** Each row's current value; undefined while it loads. */
-  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan" | "autoApply" | "whatsNew", string>>;
+  values: Partial<Record<"search" | "email" | "alerts" | "resume" | "answers" | "plan" | "autoApply" | "swipes" | "whatsNew", string>>;
   appearance: AppearancePreference;
   onAppearance: (preference: AppearancePreference) => void;
   /** Rows only some people see. */
@@ -113,6 +115,8 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
           </Menu>
         </View>
       </View>
+      {/* Owner, 2026-11-08, Paper "Choosing swipe actions · Nov 8": the two full swipes as its value. */}
+      <ListItem leading={<IconTile icon="swipes" meaning="app" />} title="Swipe actions" value={values.swipes} accessory="chevron" onPress={() => open("swipes")} />
       <ListItem leading={<IconTile icon="help" meaning="app" />} title="Help and feedback" accessory="chevron" onPress={() => open("help")} />
       <ListItem leading={<IconTile icon="whatsNew" meaning="app" />} title="What's new" value={values.whatsNew} accessory="chevron" onPress={() => open("whatsNew")} />
     </ListGroup>
@@ -169,6 +173,7 @@ export function YouScreen() {
   const inbox = useInbox({ enabled: signedIn && emailPrefs.started });
   const { status: device } = useDevicePush();
   const appearance = useAppearancePreference();
+  const swipes = useSwipeChoices();
   const [searching, setSearching] = useState(false);
   const [supporting, setSupporting] = useState(false);
   const checkout = useSupportCheckout();
@@ -180,7 +185,7 @@ export function YouScreen() {
   const go = (href: Href) => router.push(href);
   const destinations: Record<Exclude<YouDestination, "search" | "support">, Href> = {
     account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
-    outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", autoApply: "/you/auto-apply", help: "/you/feedback", whatsNew: "/you/whats-new",
+    outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", autoApply: "/you/auto-apply", swipes: "/you/swipes", help: "/you/feedback", whatsNew: "/you/whats-new",
     admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
   return <>
@@ -194,6 +199,7 @@ export function YouScreen() {
         answers: answers.data ? String(answers.data.length) : undefined,
         whatsNew: latestReleaseVersion(),
         autoApply: autoApply.data ? autoApplyValue(autoApply.data) : undefined,
+        swipes: `${swipeChoiceLabel(swipes.right[0])}, ${swipeChoiceLabel(swipes.left[0])}`,
       }}
       appearance={appearance}
       onAppearance={setAppearancePreference}
