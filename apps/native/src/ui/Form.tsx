@@ -83,6 +83,7 @@ export function TextField({ label, value, onChangeText, keyboardType, autoCapita
       autoComplete={autoComplete} textContentType={textContentType} multiline={multiline} autoFocus={autoFocus}
       returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} inputAccessoryViewID={form?.id}
       selectionColor={theme.ui.color.accent} style={[styles.input, face.text]} />
+    {form?.bar}
   </Pressable>;
 }
 
@@ -102,6 +103,7 @@ export function InlineField({ label, value, onChangeText, keyboardType }: Pick<T
     <TextInput ref={input} onFocus={form?.focused} inputAccessoryViewID={form?.id} value={value} onChangeText={onChangeText} keyboardType={keyboardType} accessibilityLabel={label} placeholder="Add" textAlign="right"
       placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
       style={[styles.inline, face.text]} />
+    {form?.bar}
   </View>;
 }
 

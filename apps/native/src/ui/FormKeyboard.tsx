@@ -7,20 +7,27 @@ import { Text } from "./Text";
 type Field = RefObject<TextInput | null>;
 
 interface Form {
-  id: string;
   add: (field: Field) => () => void;
   focused: () => void;
+  go: (step: -1 | 1) => void;
+  ends: { first: boolean; last: boolean };
 }
 
 const FormFields = createContext<Form | null>(null);
 
-/** A field's place in the page's form: pass `id` to its input's
- * `inputAccessoryViewID` and call `focused` when it takes focus. */
+/**
+ * A field's place in the page's form: pass `id` to its input's
+ * `inputAccessoryViewID`, call `focused` when it takes focus and render
+ * `bar` beside the input. Each field has its own bar: on the new
+ * architecture an accessory attaches to the first input with its id only.
+ */
 export function useFormField(field: Field) {
   const form = useContext(FormFields);
+  const id = useId();
   const add = form?.add;
   useEffect(() => add?.(field), [add, field]);
-  return form;
+  if (!form) return null;
+  return { id, focused: form.focused, bar: <InputAccessoryView nativeID={id}><KeyboardBar /></InputAccessoryView> };
 }
 
 /** Fields top to bottom as they stand on screen, so rows added later fall
@@ -36,20 +43,15 @@ async function onScreen(fields: Iterable<Field>): Promise<Field[]> {
 /**
  * iOS's Previous / Next / Done above the keyboard, for a page of fields
  * (owner, 2026-11-08). The arrows go between the page's fields as they
- * stand on screen; they dim at either end. A page with no fields shows
- * nothing.
+ * stand on screen, and dim at either end.
  */
 export function FormKeyboard({ children }: { children: ReactNode }) {
-  const id = useId();
   const fields = useRef(new Set<Field>());
-  const [count, setCount] = useState(0);
   const [ends, setEnds] = useState({ first: true, last: true });
   const add = useCallback((field: Field) => {
     fields.current.add(field);
-    setCount(fields.current.size);
     return () => {
       fields.current.delete(field);
-      setCount(fields.current.size);
     };
   }, []);
   const place = useCallback(async () => {
@@ -60,21 +62,24 @@ export function FormKeyboard({ children }: { children: ReactNode }) {
   const focused = useCallback(() => {
     void place().then(({ ordered, at }) => setEnds({ first: at <= 0, last: at === ordered.length - 1 }));
   }, [place]);
-  const go = (step: -1 | 1) => void place().then(({ ordered, at }) => ordered[at + step]?.current?.focus());
-  const form = useMemo(() => ({ id, add, focused }), [id, add, focused]);
-  return <FormFields.Provider value={form}>
-    {children}
-    {count > 0 ? <InputAccessoryView nativeID={id}>
-      <View style={styles.bar}>
-        <Arrow label="Previous field" turn="-90deg" disabled={ends.first} onPress={() => go(-1)} />
-        <Arrow label="Next field" turn="90deg" disabled={ends.last} onPress={() => go(1)} />
-        <View style={styles.space} />
-        <Pressable accessibilityRole="button" onPress={Keyboard.dismiss} hitSlop={8} style={styles.done}>
-          <Text weight="medium" tone="accent">Done</Text>
-        </Pressable>
-      </View>
-    </InputAccessoryView> : null}
-  </FormFields.Provider>;
+  const go = useCallback((step: -1 | 1) => {
+    void place().then(({ ordered, at }) => ordered[at + step]?.current?.focus());
+  }, [place]);
+  const form = useMemo(() => ({ add, focused, go, ends }), [add, focused, go, ends]);
+  return <FormFields.Provider value={form}>{children}</FormFields.Provider>;
+}
+
+function KeyboardBar() {
+  const form = useContext(FormFields);
+  if (!form) return null;
+  return <View style={styles.bar}>
+    <Arrow label="Previous field" turn="-90deg" disabled={form.ends.first} onPress={() => form.go(-1)} />
+    <Arrow label="Next field" turn="90deg" disabled={form.ends.last} onPress={() => form.go(1)} />
+    <View style={styles.space} />
+    <Pressable accessibilityRole="button" onPress={Keyboard.dismiss} hitSlop={8} style={styles.done}>
+      <Text weight="medium" tone="accent">Done</Text>
+    </Pressable>
+  </View>;
 }
 
 function Arrow({ label, turn, disabled, onPress }: { label: string; turn: string; disabled: boolean; onPress: () => void }) {
