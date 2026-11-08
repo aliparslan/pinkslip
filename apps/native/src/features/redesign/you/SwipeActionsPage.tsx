@@ -1,22 +1,19 @@
 import { useSession } from "@pinkslip/data";
 import { useWindowDimensions, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu, type MenuItem } from "../../../kit";
-import { CompanyLogo, SWIPE_BUTTON, SwipeButton, Text, type IconName, type SwipeTone } from "../../../ui";
+import { CompanyLogo, GlyphMenu, SWIPE_BUTTON, SwipeButton, Text, type GlyphMenuItem, type IconName, type MenuGlyph, type SwipeTone, type WordMenuItem } from "../../../ui";
 import { chooseSwipe, OUTER_CHOICES, SWIPE_CHOICES, useSwipeChoices, type SwipeChoice, type SwipeSide } from "../../jobs/swipe-choices";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { YouPage } from "./Page";
 
-type SFSymbol = NonNullable<MenuItem["icon"]>;
-
 /** How each choice looks on a row and in the menu. Queue is Apply for me,
  * named for what a swipe does with it (owner, 2026-11-08). */
-const LOOK: Record<SwipeChoice, { label: string; icon: IconName; tone: SwipeTone; symbol: SFSymbol }> = {
-  save: { label: "Save", icon: "save", tone: "accent", symbol: "bookmark" },
-  read: { label: "Read", icon: "read", tone: "find", symbol: "envelope.open" },
-  applied: { label: "Applied", icon: "applied", tone: "apply", symbol: "checkmark.circle" },
-  hide: { label: "Hide", icon: "hide", tone: "neutral", symbol: "eye.slash" },
-  queue: { label: "Queue", icon: "autoApply", tone: "queue", symbol: "paperplane" },
+const LOOK: Record<SwipeChoice, { label: string; icon: IconName; tone: SwipeTone; glyph: MenuGlyph }> = {
+  save: { label: "Save", icon: "save", tone: "accent", glyph: "save" },
+  read: { label: "Read", icon: "read", tone: "find", glyph: "read" },
+  applied: { label: "Applied", icon: "applied", tone: "apply", glyph: "applied" },
+  hide: { label: "Hide", icon: "hide", tone: "neutral", glyph: "hide" },
+  queue: { label: "Queue", icon: "autoApply", tone: "queue", glyph: "bot" },
 };
 
 export function swipeChoiceLabel(choice: SwipeChoice): string {
@@ -68,19 +65,19 @@ function Side({ side, title, slots, queue }: { side: SwipeSide; title: string; s
 
 function Slot({ side, slot, choice, queue }: { side: SwipeSide; slot: 0 | 1; choice: SwipeChoice | null; queue: boolean }) {
   const offered = (slot === 0 ? OUTER_CHOICES : SWIPE_CHOICES).filter((option) => option !== "queue" || queue);
-  const items: MenuItem[] = [
+  const items: (GlyphMenuItem | WordMenuItem)[] = [
     ...offered.map((option) => ({
-      id: option, title: LOOK[option].label, icon: LOOK[option].symbol,
+      id: option, title: LOOK[option].label, glyph: LOOK[option].glyph,
       onSelect: () => chooseSwipe(side, slot, option),
     })),
     ...(slot === 1 ? [{ id: "none", title: "None", onSelect: () => chooseSwipe(side, slot, null) }] : []),
   ];
   const where = `${side === "right" ? "Swipe right" : "Swipe left"}, ${slot === 0 ? "full swipe" : "second button"}`;
-  return <Menu title="" items={items}>
+  return <GlyphMenu items={items}>
     <View accessibilityRole="button" accessibilityLabel={`${where}, ${choice ? LOOK[choice].label : "None"}`}>
       {choice ? <SwipeButton action={LOOK[choice]} /> : <View style={styles.none}><View style={styles.empty} /><Text role="footnote" tone="ink-3">None</Text></View>}
     </View>
-  </Menu>;
+  </GlyphMenu>;
 }
 
 const styles = StyleSheet.create((theme) => ({

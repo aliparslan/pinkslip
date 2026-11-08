@@ -4,7 +4,7 @@ import { normalizeResumeProfile } from "@pinkslip/domain/resume-profile";
 import { normalizeSearchProfile, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
 import { useApi, usePreferences, useSaveResume, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
 import { router } from "expo-router";
-import { BellRinging, CaretLeft, Check, UploadSimple, WarningCircle } from "phosphor-react-native";
+import { Bell, CaretLeft, Check, UploadSimple, WarningCircle } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated, { FadeIn, FadeInLeft, FadeInRight, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
@@ -143,7 +143,7 @@ function Steps({ initial }: { initial: Profile }) {
             <Text tone="ink-2">Pinkslip sends an alert when a new posting fits your search.</Text>
             {push === "enabled" ? <View style={styles.done}><Check size={18} weight="bold" color={theme.colors.good} /><Text tone="good">Alerts are on for this iPhone</Text></View>
               : push === "denied" || push === "unsupported" ? <Text tone="warn">Alerts are off for Pinkslip in Settings. You can turn them on later in You.</Text>
-              : <Button fullWidth icon={BellRinging} pending={enabling} onPress={() => void turnOnAlerts()}>Turn on alerts</Button>}
+              : <Button fullWidth icon={Bell} pending={enabling} onPress={() => void turnOnAlerts()}>Turn on alerts</Button>}
             {push === "error" && <Text tone="bad">Couldn't turn on alerts. Try again, or later in You.</Text>}
           </>}
         </Stack>

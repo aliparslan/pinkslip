@@ -1,5 +1,5 @@
 import { useApi, usePreferences, usePushSettings, useUpdatePreferences, useUpdatePushSettings } from "@pinkslip/data";
-import { BellRinging, WarningCircle } from "phosphor-react-native";
+import { Bell, WarningCircle } from "phosphor-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Linking, View } from "react-native";
 import { Button, EmptyState, Inline, ListRow, ListSection, Screen, Spinner, Switch, Text } from "../../kit";
@@ -73,7 +73,7 @@ export function Alerts() {
     <ListSection>
       <ListRow title="Job alerts" accessory={<Switch label="Job alerts" checked={alertsOn} onCheckedChange={setAlerts} />} />
       <ListRow title="This iPhone" detail={device} accessory={(registrationFailed || status === "promptable")
-        ? <Button size="compact" icon={BellRinging} pending={enabling} onPress={() => void enableDevice()}>{registrationFailed ? "Retry" : "Turn on"}</Button>
+        ? <Button size="compact" icon={Bell} pending={enabling} onPress={() => void enableDevice()}>{registrationFailed ? "Retry" : "Turn on"}</Button>
         : status === "denied" ? <Button size="compact" onPress={() => void Linking.openSettings()}>Settings</Button> : undefined} />
       {status === "enabled" && !registrationFailed && <ListRow title="Send a test" accessory={<Inline gap="2">
         <Button size="compact" pending={testing === 0} disabled={testing !== null} onPress={() => sendTest(0)}>Now</Button>

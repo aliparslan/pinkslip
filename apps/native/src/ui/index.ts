@@ -40,5 +40,5 @@ export { setTearPace, Stub, Ticket, tornEdge, useStubCatch, type StubProps, type
 export { ARRIVING_FROM, StampMark } from "./StampMark";
 export { FormKeyboard } from "./FormKeyboard";
 export { AddRow, BulletRows, DangerRow, FieldGroup, InlineField, monthLabel, MonthRow, SwitchRow, TextField, type TextFieldProps } from "./Form";
-export { GlyphMenu, glyphMenuAction, menuAsset, type GlyphMenuItem, type GlyphMenuSpec, type MenuGlyph } from "./GlyphMenu";
+export { GlyphMenu, glyphMenuAction, menuAsset, type GlyphMenuItem, type GlyphMenuSpec, type WordMenuItem, type MenuGlyph } from "./GlyphMenu";
 export { ApplyButton, type ApplyButtonProps, type ApplyState } from "./ApplyButton";

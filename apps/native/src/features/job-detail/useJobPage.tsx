@@ -68,8 +68,6 @@ export function useDetailJob(jobId: string) {
 
 export interface JobMenuItem {
   label: string;
-  /** An SF Symbol. */
-  icon: string;
   destructive?: boolean;
   run: () => void;
 }
@@ -237,14 +235,14 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   ]);
 
   const menu = [
-    applied ? { label: "I didn't apply", icon: "arrow.uturn.backward", run: () => setApplied(false) } : { label: "I applied", icon: "checkmark.circle", run: () => setApplied(true) },
-    !applied && { label: "Not interested", icon: "hand.thumbsdown", run: notInterested },
-    outreach && { label: "Email recruiter", icon: "envelope", run: emailRecruiter },
-    tailoringShown && { label: "Tailor resume", icon: "sparkles", run:() => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
-    { label: "Share", icon: "square.and.arrow.up", run: () => void shareJob(job) },
-    job.company_id && { label: `Hide ${job.company_name}`, icon: "eye.slash", run: hideTheCompany },
-    { label: "Report listing", icon: "flag", run: () => setReporting(true) },
-    admin && { label: "Block for everyone", icon: "nosign", destructive: true, run: confirmBlock },
+    applied ? { label: "I didn't apply", run: () => setApplied(false) } : { label: "I applied", run: () => setApplied(true) },
+    !applied && { label: "Not interested", run: notInterested },
+    outreach && { label: "Email recruiter", run: emailRecruiter },
+    tailoringShown && { label: "Tailor resume", run:() => router.push({ pathname: `/(tabs)/${group}/tailor/[jobId]`, params: { jobId: job.id } }) },
+    { label: "Share", run: () => void shareJob(job) },
+    job.company_id && { label: `Hide ${job.company_name}`, run: hideTheCompany },
+    { label: "Report listing", run: () => setReporting(true) },
+    admin && { label: "Block for everyone", destructive: true, run: confirmBlock },
   ].filter((item): item is JobMenuItem => Boolean(item));
 
   // The redesigned page's ⋯ (Paper "Menus · Oct 16" M2): Save and Hide

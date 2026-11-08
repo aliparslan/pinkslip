@@ -8,6 +8,10 @@
  * Application stages are drawn as Pinkslip's own ring (it fills as an
  * application advances), not as icons; saved jobs use the bookmark, since
  * saving isn't a stage.
+ *
+ * `scripts/check-icons.ts` (part of `bun run check`) holds every screen to
+ * this table: a Phosphor icon that isn't here, one of Apple's SF Symbols on
+ * iOS, or a menu image that isn't its Phosphor glyph fails the check.
  */
 export const ICONS = {
   // The tab bar and the navigation bar
@@ -21,6 +25,17 @@ export const ICONS = {
   back: "CaretLeft",
   close: "X",
   more: "DotsThree",
+  info: "Info",
+  caution: "Warning",
+  /** The website's Library tab; iOS's Tracker is the path above. */
+  library: "BookmarksSimple",
+  /** The website's page-not-found. */
+  notFound: "Compass",
+  edit: "PencilSimple",
+  delete: "Trash",
+  upload: "UploadSimple",
+  /** Peek at a job from a long press. */
+  preview: "Eye",
   share: "Export",
   disclosure: "CaretRight",
   recent: "ClockCounterClockwise",

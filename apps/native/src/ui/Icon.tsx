@@ -1,10 +1,10 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
-  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
-  CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Lock, MagnifyingGlass, MapPin,
-  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
-  WarningCircle, Wrench, X, XCircle,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, BookmarksSimple, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
+  CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Compass, Copy, CurrencyCircleDollar,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
+  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
+  Warning, WarningCircle, Wrench, X, XCircle,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
 } from "phosphor-react-native";
 import type { ComponentType } from "react";
@@ -15,11 +15,11 @@ import type { TextTone } from "./Text";
 // Every Phosphor name the shared table uses needs its component here: a
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
-  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
-  CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Lock, MagnifyingGlass, MapPin,
-  PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
-  WarningCircle, Wrench, X, XCircle,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, BookmarksSimple, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
+  CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Compass, Copy, CurrencyCircleDollar,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
+  PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
+  Warning, WarningCircle, Wrench, X, XCircle,
   // The package exports this one as PathIcon (Path would clash with SVG's).
   Path: PathIcon,
 };

@@ -7,7 +7,7 @@ import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { usePullToRefresh, type MenuItem } from "../../kit";
+import { usePullToRefresh } from "../../kit";
 import {
   changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
@@ -264,21 +264,13 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
       </Link.Trigger>
       <Link.Preview style={preview.style}>{preview.content}</Link.Preview>
       <Link.Menu>
-        {menu.filter((item) => !item.destructive).map((item) => glyphMenuAction(glyphItem(item)))}
+        {menu.filter((item) => !item.destructive).map((item) => glyphMenuAction(item))}
         {menu.some((item) => item.destructive) ? <Link.Menu inline title="">
-          {menu.filter((item) => item.destructive).map((item) => glyphMenuAction(glyphItem(item)))}
+          {menu.filter((item) => item.destructive).map((item) => glyphMenuAction(item))}
         </Link.Menu> : null}
       </Link.Menu>
     </Link>
   </SwipeRow>;
-}
-
-/** A row's menu item with its icon (Paper "Menus · Oct 16" M1). */
-function glyphItem(item: MenuItem): GlyphMenuItem {
-  const glyph: MenuGlyph = item.id === "apply_for_me" ? "bot" : item.id === "save" ? "save" : item.id === "unsave" ? "saved" : item.id === "applied" ? "applied"
-    : item.id === "unapplied" ? "undo" : item.id === "read" ? (item.icon === "envelope.open" ? "read" : "unread")
-    : item.id === "hide" ? "hide" : "block";
-  return { id: item.id, title: item.title, glyph, destructive: item.destructive, onSelect: item.onSelect };
 }
 
 /** The swipes, as chosen in You → Swipe actions (owner, 2026-11-08, Paper

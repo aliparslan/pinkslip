@@ -1,6 +1,6 @@
 import { useSession } from "@pinkslip/data";
 import * as WebBrowser from "expo-web-browser";
-import { ArrowSquareOut, LockSimple, WarningCircle } from "phosphor-react-native";
+import { ArrowSquareOut, Lock, WarningCircle } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { Linking, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -11,7 +11,7 @@ import { Button, EmptyState, Inline, Spinner, Stack, Text } from "../../kit";
 export function AdminOnly({ children }: { children: ReactNode }) {
   const session = useSession();
   if (session.isPending) return <Centered><Spinner label="Loading" /></Centered>;
-  if (!session.data?.me?.is_admin) return <Centered><EmptyState icon={LockSimple} title="Admin only" message="Sign in with an admin account to use these tools." /></Centered>;
+  if (!session.data?.me?.is_admin) return <Centered><EmptyState icon={Lock} title="Admin only" message="Sign in with an admin account to use these tools." /></Centered>;
   return <>{children}</>;
 }
 

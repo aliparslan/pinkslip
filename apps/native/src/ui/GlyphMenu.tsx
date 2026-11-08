@@ -42,6 +42,7 @@ function inThisBuild(glyph: MenuGlyph): boolean {
 }
 
 function GlyphImage({ glyph }: { glyph: MenuGlyph }) {
+  // intentional: only for builds older than the image, which can't show it.
   return inThisBuild(glyph) ? <Image assetName={menuAsset(glyph)} /> : <Image systemName={LATER_GLYPHS[glyph]!.symbol as never} />;
 }
 
@@ -55,10 +56,13 @@ export interface GlyphMenuItem {
   onSelect: () => void;
 }
 
+/** A choice that's only a word (Swipe actions' None). */
+export type WordMenuItem = Omit<GlyphMenuItem, "glyph"> & { glyph?: undefined };
+
 /** A menu's three groups: icons only across the top, then rows, then a last group. */
 export interface GlyphMenuSpec {
   top?: GlyphMenuItem[];
-  items: GlyphMenuItem[];
+  items: (GlyphMenuItem | WordMenuItem)[];
   last?: GlyphMenuItem[];
 }
 
@@ -68,13 +72,14 @@ export interface GlyphMenuSpec {
  * in a group of its own (Block). The trigger is the children.
  */
 export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpec & { children: ReactNode }) {
-  const button = (item: GlyphMenuItem) => item.on !== undefined
+  const button = (item: GlyphMenuItem | WordMenuItem) => item.on !== undefined
     ? <Toggle key={item.id} isOn={item.on} onIsOnChange={() => item.onSelect()}>
-      <Label title={item.title} icon={<GlyphImage glyph={item.glyph} />} />
+      <Label title={item.title} icon={item.glyph ? <GlyphImage glyph={item.glyph} /> : undefined} />
     </Toggle>
-    : <Button key={item.id} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect}>
+    : item.glyph ? <Button key={item.id} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect}>
       <Label title={item.title} icon={<GlyphImage glyph={item.glyph} />} />
-    </Button>;
+    </Button>
+    : <Button key={item.id} label={item.title} role={item.destructive ? "destructive" : undefined} onPress={item.onSelect} />;
   if (!menuIconsAvailable) {
     return <Host matchContents ignoreSafeArea="all">
       <Menu label={<RNHostView matchContents><>{children}</></RNHostView>}>

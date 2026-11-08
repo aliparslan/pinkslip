@@ -36,8 +36,8 @@ export function KitGallery() {
       <Button variant="danger" icon={Trash}>Delete</Button>
       <Inline gap="2"><Button size="compact" icon={Plus}>Compact</Button><Button size="compact" pending>Saving</Button><Button size="compact" disabled>Disabled</Button></Inline>
       <Inline gap="1"><IconButton icon={BookmarkSimple} label="Save" /><IconButton icon={BookmarkSimple} label="Saved" pressed /><IconButton icon={Flag} label="Report" size="sm" /></Inline>
-      <Menu items={[{ id: "share", title: "Share", icon: "square.and.arrow.up", onSelect: () => toast.show({ message: "Share" }) },
-        { id: "hide", title: "Hide", icon: "eye.slash", destructive: true, onSelect: () => toast.show({ message: "Hidden", action: { label: "Undo", run: () => undefined } }) }]}>
+      <Menu items={[{ id: "share", title: "Share", onSelect: () => toast.show({ message: "Share" }) },
+        { id: "hide", title: "Hide", destructive: true, onSelect: () => toast.show({ message: "Hidden", action: { label: "Undo", run: () => undefined } }) }]}>
         <Button size="compact">Open menu</Button>
       </Menu>
       <Inline gap="2">
