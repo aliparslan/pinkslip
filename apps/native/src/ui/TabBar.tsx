@@ -1,5 +1,4 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { BottomEdgeBlur } from "./Floating";
 import { useNavigation, usePathname, useRoute, useScrollToTop, useSegments } from "expo-router";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
@@ -479,7 +478,6 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   return <RNAnimated.View pointerEvents={onJobPage ? "none" : "box-none"} accessibilityElementsHidden={onJobPage}
     style={[styles.bar, { height: bottom + PILL + room }, follow.clip]}>
     <RNAnimated.View pointerEvents="box-none" style={[styles.fill, follow.content]}>
-    <BottomEdgeBlur pillTop={bottom + PILL} pillMiddle={bottom + PILL / 2} />
     {above ? <View pointerEvents="box-none" style={[styles.above, { bottom: bottom + PILL + ABOVE_GAP, height: aboveHeight }]}>{above}</View> : null}
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.pillFrame, { bottom, left: (screen - pillWidth) / 2, width: pillWidth }, pillFrame]}>

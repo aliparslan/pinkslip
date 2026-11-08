@@ -138,7 +138,7 @@ function PersonCard({ person, onPress }: { person: YouViewProps["person"]; onPre
       </View>
       <View style={styles.personText}>
         <Text weight="medium" lines={1}>{person ? person.name || person.email : "Guest"}</Text>
-        <Text role="subhead" tone="ink-2" lines={1}>{person ? (person.name ? person.email : null) ?? "Signed in" : "Sign in to sync"}</Text>
+        <Text role="subhead" tone="ink-2" lines={1}>{person ? (person.name ? person.email : null) ?? "Signed in" : "Sign in to keep your saves"}</Text>
       </View>
       <Icon name="disclosure" size={12} tone="ink-4" />
     </Pressable>

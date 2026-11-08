@@ -90,7 +90,8 @@ export function useTopEdge() {
  * just under it (owner, 2026-10-19, Paper "Consistency · Oct 19", C7b: the
  * flat band was harsh). Like iOS's scroll edge it shows only once something
  * is under it, so a tab at rest has nothing there. Tabs only; a pushed
- * page's bar keeps TopEdgeFade; the bottom has BottomEdgeBlur. */
+ * page's bar keeps TopEdgeFade. The bottom has none: rows show through the
+ * tab bar's glass (owner, 2026-11-08: keep the translucency, for now). */
 export function TopEdgeBlur({ under }: { under: boolean }) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
@@ -109,34 +110,8 @@ export function TopEdgeBlur({ under }: { under: boolean }) {
   </Host>;
 }
 
-/** How far above the tab bar's pill the bottom blur fades out. */
-const BOTTOM_TAIL = 28;
-
-/** The same soft edge at the bottom, behind the floating tab bar: rows that
- * scroll under the pill go soft instead of reading clearly through its glass
- * (owner, 2026-11-08, from the design critic's first pass). Solid from the
- * pill's middle down, fading out a little above it. It goes wherever the bar
- * goes, so a pushed page has none. */
-export function BottomEdgeBlur({ pillTop, pillMiddle }: { pillTop: number; pillMiddle: number }) {
-  const { theme } = useUnistyles();
-  const height = pillTop + BOTTOM_TAIL + BLUR_BLEED;
-  const colors = maskColors((pillMiddle + BLUR_BLEED) / height);
-  return <Host pointerEvents="none" ignoreSafeArea="all" style={[styles.bottomBlur, { height }]}>
-    <Mask>
-      <ZStack>
-        <Rectangle modifiers={[foregroundStyle({ type: "material", material: "ultraThin" })]} />
-        <Rectangle modifiers={[foregroundStyle(theme.ui.color.bg), opacity(TINT)]} />
-      </ZStack>
-      <Mask.Content>
-        <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors, startPoint: { x: 0.5, y: 1 }, endPoint: { x: 0.5, y: 0 } })]} />
-      </Mask.Content>
-    </Mask>
-  </Host>;
-}
-
 const styles = StyleSheet.create((theme) => ({
   root: { borderRadius: theme.ui.radius.full, overflow: "hidden" },
-  bottomBlur: { position: "absolute", bottom: -BLUR_BLEED, left: -BLUR_BLEED, right: -BLUR_BLEED },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill, overflow: "visible" },
   fade: { position: "absolute", top: 0, left: 0, right: 0 },
   blur: { position: "absolute", top: -BLUR_BLEED, left: -BLUR_BLEED, right: -BLUR_BLEED },
