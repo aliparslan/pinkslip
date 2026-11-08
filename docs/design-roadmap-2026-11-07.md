@@ -94,7 +94,7 @@ To fix:
       `defaultPreload: "intent"` loads a page's data on hover or press, the
       client-side version of the page's speculation rules.
 
-
+## Left out on purpose
 
 Confetti, sounds, parallax, anything that animates on every scroll, and
 more onboarding.
