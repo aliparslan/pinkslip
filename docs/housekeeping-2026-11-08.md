@@ -304,3 +304,24 @@ Everyone left in the queue was labelled from their title, employer and, where
 it could change the answer, their LinkedIn. Two real recruiters, at Google and
 Uber, have no last name and so can't be listed. Three people who work at their
 companies but aren't clearly tech recruiters are left for the owner.
+
+## 7. The October company research
+
+The candidate review from 2026-10-05 ([Pinkslip Company Candidates](https://claude.ai/artifact/82EqHoBh3wd67RRnjGbjwY))
+covered 6,510 companies, including 2,595 from 15 venture funds' portfolio boards. The
+owner approved 113 new companies and skipped 986, but the approved ones were never
+added.
+
+80 of the approved are on platforms Pinkslip reads. Re-read through the adapters
+on 2026-11-08, 77 still work and they carry about 1,587 catalog candidates.
+Migration `0116_add_approved_companies.sql` adds 76. Left out:
+
+- Lumos: its board is Lumos Fiber, not the identity software.
+- U-Haul: over Workday's 2,000-job cap, and no tech roles to speak of.
+- CVS Health: its Workday answered 500 on the day.
+- Old Mission: already in the catalog as Old Mission Capital.
+
+31 more approved companies need a reader or a closer look, including JPMorgan,
+Goldman Sachs, Microsoft, Visa, Walmart, Oracle, AMD, Citadel, Intuit, TikTok and
+American Express. 564 of Claude's picks from that review were never decided.
+
