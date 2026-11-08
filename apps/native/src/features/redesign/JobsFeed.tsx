@@ -1,16 +1,15 @@
 import { feedParams, selectedStages, type FeedSearch } from "@pinkslip/core/feed-criteria";
-import { formatRowSalary } from "@pinkslip/core/job-format";
 import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList } from "@shopify/flash-list";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, ChoiceLink, Choices, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge,
+  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
 } from "../../ui";
 import { useFeedCriteria } from "../feed/Feed";
@@ -21,13 +20,13 @@ import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
-import { feedSections, groupPostings, plainText, postingsFacts, rowAge, rowFacts, sectionCount } from "./job-facts";
+import { feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
 import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
 const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
-type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob; postings: RowJob[] };
+type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
 
 export interface JobsFeedProps {
   /** Search results: this text over the feed's filters. */
@@ -89,12 +88,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const matching = feed.data?.pages[0]?.meta.matching;
   const items = useMemo(() => {
     const sections = feedSections(jobs);
-    // Identical postings (same company, title and place) share one row.
-    const groups = sections.map((section) => groupPostings(section.jobs));
-    const rows = groups.map((group) => group.length);
     return sections.flatMap<Item>((section, index) => [
-      { kind: "section", key: `section-${section.title}`, title: section.title, count: sectionCount(sections, index, feed.hasNextPage, matching, rows) },
-      ...groups[index]!.map((postings): Item => ({ kind: "job", key: postings[0]!.id, job: postings[0]!, postings })),
+      { kind: "section", key: `section-${section.title}`, title: section.title, count: sectionCount(sections, index, feed.hasNextPage, matching) },
+      ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
     ]);
   }, [jobs, feed.hasNextPage, matching]);
 
@@ -147,7 +143,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     maintainVisibleContentPosition={NO_ANCHOR}
     renderItem={({ item, index }) => item.kind === "section"
       ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-      : <FeedRow job={item.job} postings={item.postings} viewed={item.postings.every((posting) => viewed.data?.has(posting.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} />}
+      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     // Always there: adding or removing it rebuilds the list's content on iOS,
     // and Jobs' field in the header would lose its keyboard.
@@ -189,14 +185,11 @@ const NO_ANCHOR = { disabled: true };
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). Exported for
  * the kit's swipe lab, which runs it on sample jobs. */
-export function FeedRow({ job, postings, viewed, actions, tab, onOpen, onlyStage }: {
+export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void;
-  /** Every posting the row stands for, when there's more than one. */
-  postings?: RowJob[];
   /** The one level the search shows, which the row leaves out. */
   onlyStage?: Parameters<typeof rowFacts>[1];
 }) {
-  if (postings && postings.length > 1) return <PostingsRow postings={postings} viewed={viewed} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} />;
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
@@ -221,41 +214,6 @@ export function FeedRow({ job, postings, viewed, actions, tab, onOpen, onlyStage
 }
 
 /** A row's menu item with its icon (Paper "Menus · Oct 16" M1). */
-/** Identical postings as one row (owner, 2026-11-08): the title once, the
- * place and how many, and a tap opens a sheet listing each by its pay, the
- * only thing that tells them apart, with its age. Swipes and the stage go by
- * the newest posting. */
-function PostingsRow({ postings, viewed, actions, tab, onOpen, onlyStage }: {
-  postings: RowJob[]; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void;
-  onlyStage?: Parameters<typeof rowFacts>[1];
-}) {
-  const [choosing, setChoosing] = useState(false);
-  const job = postings[0]!;
-  const { leading, trailing } = swipeActions(job, actions, viewed);
-  const open = (posting: RowJob) => {
-    setChoosing(false);
-    onOpen(posting);
-    router.push({ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: posting.id } });
-  };
-  return <>
-    <SwipeRow id={job.id} leading={leading} trailing={trailing}>
-      <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={postingsFacts(job, postings.length, onlyStage)} age={rowAge(job)}
-        stage={postings.some((posting) => posting.applied) ? "applied" : postings.some((posting) => posting.saved) ? "saved" : undefined}
-        unread={!viewed}
-        logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
-        onPress={() => setChoosing(true)} />
-    </SwipeRow>
-    <SheetModal open={choosing} onClosed={() => setChoosing(false)}>
-      <SheetStep id="postings">
-        <SheetHeader title={`${postings.length} postings`} />
-        <Choices>
-          {postings.map((posting) => <ChoiceLink key={posting.id} title={formatRowSalary(posting.salary) ?? "Pay not listed"} value={rowAge(posting)} onPress={() => open(posting)} />)}
-        </Choices>
-      </SheetStep>
-    </SheetModal>
-  </>;
-}
-
 function glyphItem(item: MenuItem): GlyphMenuItem {
   const glyph: MenuGlyph = item.id === "apply_for_me" ? "bot" : item.id === "save" ? "save" : item.id === "unsave" ? "saved" : item.id === "applied" ? "applied"
     : item.id === "unapplied" ? "undo" : item.id === "read" ? (item.icon === "envelope.open" ? "read" : "unread")

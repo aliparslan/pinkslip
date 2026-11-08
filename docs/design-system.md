@@ -459,9 +459,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     end. Rows grow from 64. The title is Medium until opened, then Regular:
     the one sign of new (the pink dot and darker age that went with it made
     three). The level is left out when the search shows only that one. Pink
-    dots are for Needs you only. Identical postings (company, title, place)
-    are one row, "Company · Place · 2 postings"; a tap opens a sheet listing
-    each by pay. Section counts count rows.
+    dots are for Needs you only. Two postings with the same title stay two
+    rows: they're different jobs, told apart by their pay (owner,
+    2026-11-08, after trying them as one row the same day).
   - **On Today** (owner, 2026-10-13) line two is the headline: Body 17/22
     Medium `ink`, the thing to do or the news ("Reply to the offer",
     "Mercury interview"). Lines one and three are Subhead Regular `ink-2`,
