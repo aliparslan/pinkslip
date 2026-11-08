@@ -378,6 +378,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Varia
         "/api/v2/me",
         "/api/v2/preferences",
         "/api/v2/logo",
+        "/api/v2/logo/shape",
         "/api/v2/stats",
         "/api/v2/jobs",
       ]);
