@@ -488,17 +488,21 @@ const splitItems = (items: string) => items.split(",").map((item) => item.trim()
 
 /** Tags: filled, since they aren't filters (owner, 2026-10-15, Q9). Tapping
  * one offers to remove it. */
+/** A chip's height on one line, and the Add chip's dashed line. */
+const TAG_HEIGHT = 32;
+const TAG_LINE = 1.5;
+
 function Tag({ label, onRemove }: { label: string; onRemove: () => void }) {
   return <Pressable accessibilityRole="button" accessibilityHint="Removes it" onPress={() => Alert.alert(label, undefined, [
     { text: "Cancel", style: "cancel" },
     { text: "Remove", style: "destructive", onPress: onRemove },
   ])} style={({ pressed }) => [styles.tag, pressed && styles.entryPressed]}>
-    <Text role="subhead">{label}</Text>
+    <View style={styles.tagLabel}><Text role="subhead">{label}</Text></View>
   </Pressable>;
 }
 
 /** The dashed Add chip (owner, 2026-10-14): 1.5 ink-4, 5 on and 4 off. Tap
- * it and you type inside it (owner, 2026-11-08). Return adds what you typed
+ * it and you type inside it, next to its plus (owner, 2026-11-08). Return adds what you typed
  * and leaves it open for the next, and closes it when it's empty; leaving it
  * adds what's there and closes. */
 function AddTag({ onAdd }: { onAdd: (text: string) => void }) {
@@ -511,14 +515,18 @@ function AddTag({ onAdd }: { onAdd: (text: string) => void }) {
   };
   if (typing) {
     return <View style={[styles.tag, styles.addTag]}>
-      <View>
+      <Icon name="add" size={14} tone="ink-3" />
+      <View style={styles.tagField}>
+        {/* The word, or what's typed, sets the field's width: the chip looks
+            the same until you type, then grows with each letter. It's the
+            kit's own line, so "Add" sits level with the chips beside it. */}
+        <View style={text ? styles.tagSizer : undefined} accessibilityElementsHidden>
+          <Text role="subhead" tone="ink-3" lines={1}>{text || "Add"}</Text>
+        </View>
         {/* intentional: a field inside the chip, which no kit field is */}
         <TextInput value={text} onChangeText={setText} autoFocus submitBehavior="submit" returnKeyType="done" accessibilityLabel="Add"
           selectionColor={theme.ui.color.accent}
           onSubmitEditing={() => (text.trim() ? commit() : setTyping(false))} onBlur={() => { commit(); setTyping(false); }} style={[styles.tagInput, face.text]} />
-        {/* The kit's own line, so "Add" sits level with the chips beside it;
-            iOS's placeholder sat 3pt below them on the phone (owner, Nov 8). */}
-        {text ? null : <View style={styles.tagGhost} pointerEvents="none" accessibilityElementsHidden><Text role="subhead" tone="ink-3">Add</Text></View>}
       </View>
     </View>;
   }
@@ -645,13 +653,25 @@ const styles = StyleSheet.create((theme) => ({
   pickValue: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], minHeight: 44 },
   tagGroup: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: theme.ui.space["2"] },
+  // One line is 32, a pill. A long one (an award's whole line) wraps inside
+  // the chip, keeping a pill's corners (owner, 2026-11-08).
   tag: {
-    height: 32, flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"],
-    paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill,
+    minHeight: TAG_HEIGHT, maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"],
+    paddingHorizontal: theme.ui.space["4"], paddingVertical: (TAG_HEIGHT - theme.ui.type.subhead.line) / 2,
+    borderRadius: TAG_HEIGHT / 2, backgroundColor: theme.ui.color.fill,
   },
-  // The chip grows with what's typed; the line height is the chip's own text.
-  tagInput: { minWidth: 56, height: theme.ui.type.subhead.line, padding: 0, fontSize: theme.ui.type.subhead.size, color: theme.ui.color.ink },
-  tagGhost: { position: "absolute", left: 0, top: 0 },
+  tagLabel: { flexShrink: 1 },
+  tagField: { flexShrink: 1 },
+  tagSizer: { opacity: 0 },
+  // Over its sizer, with 4 past the end so the caret has room there.
+  tagInput: {
+    position: "absolute", left: 0, right: -theme.ui.space["1"], top: 0, height: theme.ui.type.subhead.line,
+    padding: 0, fontSize: theme.ui.type.subhead.size, letterSpacing: theme.ui.type.subhead.tracking, color: theme.ui.color.ink,
+  },
   tagGroupHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  addTag: { backgroundColor: "transparent", borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"], paddingHorizontal: theme.ui.space["3"] },
+  // The dashed line stands inside the 32.
+  addTag: {
+    backgroundColor: "transparent", borderWidth: TAG_LINE, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"], paddingHorizontal: theme.ui.space["3"],
+    paddingVertical: (TAG_HEIGHT - theme.ui.type.subhead.line) / 2 - TAG_LINE,
+  },
 }));
