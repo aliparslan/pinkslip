@@ -22,6 +22,8 @@ import {
   SendError,
   answerSend,
   deliverSendCode,
+  hasSendWaitingForCode,
+  stopSend,
   describeSent,
   enterSendCode,
   expireSendCode,
@@ -583,6 +585,48 @@ describe("running a send", () => {
     expect(Date.parse(push().scheduled_for) - Date.parse("2026-10-24T15:00:00Z")).toBe(60_000);
     expect(await deliverSendCode(context.env, "u1", "OGRULIke")).toBe(true);
     expect(push().status).toBe("skipped");
+  });
+
+  it("stops a send that's filling: nothing sent, the send back, never submitted after", async () => {
+    const context = setup();
+    const terminated: string[] = [];
+    (context.env.APPLY_SEND as unknown as { get: (id: string) => Promise<unknown> }).get = async (id: string) => ({ terminate: async () => { terminated.push(id); } });
+    const send = await queued(context);
+    context.sqlite.run("UPDATE apply_sends SET status = 'running' WHERE id = ?", [send.id]);
+    const stopped = await stopSend(context.env, "u1", send.id);
+    expect(stopped).toMatchObject({ status: "failed", stopped: true, detail: "You stopped it. Nothing was sent." });
+    expect(context.ledger()[0]!.released_at).not.toBeNull();
+    expect(terminated).toEqual([send.id]);
+    // A browser step still going when it's stopped never reaches Submit.
+    context.sqlite.run("UPDATE apply_sends SET status = 'queued', dropped_at = NULL WHERE id = ?", [send.id]);
+    const page = fakePage({ controls: form(), errors: () => {
+      context.sqlite.run("UPDATE apply_sends SET status = 'failed' WHERE id = ?", [send.id]);
+      return [];
+    } });
+    expect(await runSend(context.env, send.id, deps(page, steps))).toEqual({ outcome: "failed" });
+    expect(page.calls).not.toContain("submit");
+    expect(page.closed()).toBe(true);
+  });
+
+  it("won't stop a send that's pressing Submit, and lets one waiting on answers go", async () => {
+    const context = setup();
+    const send = await queued(context);
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitting' WHERE id = ?", [send.id]);
+    await expect(stopSend(context.env, "u1", send.id)).rejects.toMatchObject({ code: "already_sending", status: 409 });
+    context.sqlite.run("UPDATE apply_sends SET status = 'needs_you', finished_at = '2026-10-24T15:00:00Z' WHERE id = ?", [send.id]);
+    expect(await stopSend(context.env, "u1", send.id)).toMatchObject({ status: "needs_you", stopped: true, waiting_until: null });
+    await expect(stopSend(context.env, "u2", send.id)).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("takes a forwarded code that comes while the send is still submitting", async () => {
+    const context = setup();
+    const send = await queued(context);
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitting' WHERE id = ?", [send.id]);
+    expect(await hasSendWaitingForCode(context.db, "u1")).toBe(true);
+    expect(await deliverSendCode(context.env, "u1", "OGRULIke")).toBe(true);
+    expect(context.events).toEqual([{ id: send.id, type: "code", payload: { code: "OGRULIke" } }]);
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitted' WHERE id = ?", [send.id]);
+    expect(await hasSendWaitingForCode(context.db, "u1")).toBe(false);
   });
 
   it("stops before Submit when the form shows its own validation error", async () => {

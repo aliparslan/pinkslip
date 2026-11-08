@@ -457,9 +457,17 @@ jobs.get("/", async (c) => {
         SELECT 1
         FROM dismissed_jobs d
         WHERE d.user_id = ? AND d.job_id = j.id
+      )`,
+      // A job you've moved past Saved lives in Tracker, not the feed: one
+      // email tracking marked applied or rejected was never hidden, so it
+      // came back in Jobs (owner, 2026-11-08: rejected jobs in the feed).
+      `NOT EXISTS (
+        SELECT 1
+        FROM applications a
+        WHERE a.user_id = ? AND a.job_id = j.id AND a.stage <> 'saved'
       )`
     );
-    bindings.push(userId);
+    bindings.push(userId, userId);
   }
   // dismissed=all → no filter
 

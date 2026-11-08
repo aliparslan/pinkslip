@@ -210,6 +210,19 @@ describe("applications API", () => {
     expect(stages()).toEqual([]);
   });
 
+  it("leaves jobs past Saved out of the feed, even ones never hidden", async () => {
+    const { sqlite, call, patchJob } = await setup();
+    // The feed matches jobs with a posting to read.
+    sqlite.run("UPDATE jobs SET description = 'Build and ship the product.'");
+    const feed = async () => ((await call("/jobs")).body.jobs as Array<{ id: string }>).map((job) => job.id).sort();
+    expect(await feed()).toEqual(["job-a", "job-b"]);
+    await patchJob("job-a", { saved: true });
+    expect(await feed()).toEqual(["job-a", "job-b"]);
+    // Email tracking moves an application on without hiding the job.
+    sqlite.run("UPDATE applications SET stage = 'rejected' WHERE job_id = 'job-a'");
+    expect(await feed()).toEqual(["job-b"]);
+  });
+
   it("moves an application through stages with a timeline and notes", async () => {
     const { call, lists, events } = await setup();
 

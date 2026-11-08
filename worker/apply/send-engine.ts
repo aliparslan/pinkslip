@@ -39,7 +39,7 @@ export class PageNavigated extends Error {}
 
 type FillOutcome = "filled" | "missing" | "no_match" | "failed";
 interface PageRead { submitted: boolean; controls: FormControl[] }
-interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "unknown"; errors: string[]; url: string }
+interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "code" | "unknown"; errors: string[]; url: string }
 
 export const isEmpty = (control: Pick<FormControl, "value">) =>
   control.value === null || (Array.isArray(control.value) ? control.value.length === 0 : control.value.trim() === "");
@@ -244,6 +244,8 @@ async function afterSubmit(page: FormPage, report: SubmitReport): Promise<Submit
     if (prompt.asks) return { status: "code_needed" };
   }
   if (report.status === "invalid") return { status: "invalid", errors: report.errors, url: report.url };
+  // Asked for a code, but not one Pinkslip can find the boxes for.
+  if (report.status === "code") return { status: "unknown", url: report.url };
   // Nothing recognisable, but the form is still there and says what's wrong:
   // it refused, rather than sending without a confirmation.
   if (report.status === "unknown") {

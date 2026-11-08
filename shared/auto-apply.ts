@@ -68,6 +68,9 @@ export interface ApplySend {
    * stopped; null once dropped, and for everything else. Missing from
    * servers before migration 0110. */
   waiting_until?: string | null;
+  /** The person stopped it, or chose not to send it (Don't send). Missing
+   * from servers before 2026-11-08. */
+  stopped?: boolean;
 }
 
 /** Sends that stopped on questions the person can answer in one sheet

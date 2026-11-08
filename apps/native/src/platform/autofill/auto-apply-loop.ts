@@ -25,7 +25,7 @@ export type FillProgress =
 interface PageRead { submitted: boolean; controls: FormControl[] }
 type FillOutcome = "filled" | "missing" | "no_match" | "failed";
 interface FillReport { outcomes: Record<string, FillOutcome> }
-interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "unknown"; errors: string[]; url: string }
+interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "code" | "unknown"; errors: string[]; url: string }
 
 export type AutoApplyResult = "submitted" | "closed";
 export interface AutoApplyOptions { jobId: string; url: string; autoSubmit: boolean; onSubmitted?: () => void }
@@ -210,6 +210,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         if (report.status === "submitted") { tell({ stage: "submitted", by: "app" }); await applied(expected); }
         else if (report.status === "captcha") await browser.setStatus("Finish the check, then submit");
         else if (report.status === "invalid") await browser.setStatus(`${report.errors.length || "Some"} fields need you`);
+        else if (report.status === "code") await browser.setStatus("Enter the code they emailed you");
         else await browser.setStatus("Check the form, then submit");
       } catch (error) {
         if (!isCurrent(expected)) return;

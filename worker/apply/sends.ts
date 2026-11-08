@@ -445,7 +445,7 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
   };
   try {
     if (page.status === 404 || page.status === 410) return finish(env, row, "gone", { detail: "The posting is gone." }, deps.now());
-    if (page.blocked) return finish(env, row, "blocked", { detail: "The site showed a bot check. Finish it on your phone." }, deps.now());
+    if (page.blocked) return finish(env, row, "blocked", { detail: "The site showed a bot check. Finish it yourself in the app." }, deps.now());
     const prepared = kept ? await keptForm(page) : await prepareForm(page, resume);
     if (prepared.kind === "no_form") return finish(env, row, "gone", { detail: "The page had no application form." }, deps.now());
 
@@ -477,7 +477,10 @@ export async function runSend(env: Env, sendId: string, deps: SendDeps = default
       }, deps.now());
     }
 
-    await setStatus(env.DB, sendId, "submitting", deps.now());
+    // A send stopped while it filled ends here: Submit is never pressed.
+    const going = await env.DB.prepare("UPDATE apply_sends SET status = 'submitting', updated_at = ? WHERE id = ? AND status = 'running'")
+      .bind(deps.now().toISOString(), sendId).run();
+    if ((going.meta?.changes ?? 0) === 0) return { outcome: (await loadRow(env.DB, sendId))?.status ?? "failed" };
     const result = await submit(page);
     if (result.status === "code_needed") {
       await setStatus(env.DB, sendId, "code_needed", deps.now(), { browser_session: page.sessionId });
@@ -512,7 +515,7 @@ async function recordSubmit(
         confirmationUrl: result.url,
       }, now);
     case "captcha":
-      return finish(env, row, "blocked", { detail: "A captcha came up on Submit. Finish it on your phone; nothing was sent.", ...kept }, now);
+      return finish(env, row, "blocked", { detail: "A captcha came up on Submit. Finish it yourself in the app; nothing was sent.", ...kept }, now);
     case "invalid":
       return finish(env, row, "needs_you", {
         detail: "The form turned the answers back. Nothing was sent.",
@@ -585,13 +588,59 @@ export async function failSend(env: Env, sendId: string, message: string, now = 
   return finish(env, row, "failed", { detail: "Something went wrong before anything was sent." }, now);
 }
 
+// ─── Stopping ────────────────────────────────────────────────────────────────
+
+/** Still filling or waiting on the person: a send that can be stopped. */
+const STOPPABLE: ReadonlySet<ApplySendStatus> = new Set(["queued", "running", "code_needed", "needs_you", "blocked", "ready"]);
+const UNDER_WAY: ReadonlySet<ApplySendStatus> = new Set(["queued", "running", "code_needed"]);
+
+/**
+ * The person stops a send (owner, 2026-11-08: there was no way to stop one
+ * that was stuck or no longer wanted). One still filling, or waiting on a
+ * code, ends with nothing sent and its allowance back; one waiting on
+ * answers stops waiting. One already pressing Submit can't be stopped.
+ */
+export async function stopSend(env: Env, userId: string, sendId: string, deps: SendDeps = defaultDeps): Promise<ApplySend> {
+  const row = await loadRow(env.DB, sendId);
+  if (!row || row.user_id !== userId) throw new SendError("Not found.", 404, "not_found");
+  if (row.status === "submitting") throw new SendError("It's already sending.", 409, "already_sending");
+  if (!STOPPABLE.has(row.status) || row.dropped_at) return describeSend(env.DB, row);
+  const stamp = deps.now().toISOString();
+  // Only from where it was read: a send that reached Submit meanwhile goes on.
+  const stopped = await env.DB.prepare(
+    `UPDATE apply_sends SET
+       status = CASE WHEN status IN ('queued', 'running', 'code_needed') THEN 'failed' ELSE status END,
+       detail = CASE WHEN status IN ('queued', 'running', 'code_needed') THEN 'You stopped it. Nothing was sent.' ELSE detail END,
+       dropped_at = ?, browser_session = NULL, finished_at = COALESCE(finished_at, ?), updated_at = ?
+     WHERE id = ? AND status = ?`
+  ).bind(stamp, stamp, stamp, sendId, row.status).run();
+  const after = (await loadRow(env.DB, sendId))!;
+  if ((stopped.meta?.changes ?? 0) === 0) {
+    if (after.status === "submitting") throw new SendError("It's already sending.", 409, "already_sending");
+    return describeSend(env.DB, after);
+  }
+  if (UNDER_WAY.has(row.status)) {
+    if (row.ledger_id) await releaseAllowance(env.DB, row.ledger_id, deps.now());
+    await env.APPLY_SEND?.get(sendId).then((instance) => instance.terminate()).catch(() => undefined);
+  }
+  if (row.browser_session) {
+    await deps.reconnect(env.BROWSER!, row.browser_session, row.url).then((page) => page.close()).catch(() => undefined);
+  }
+  await skipCodePush(env.DB, row);
+  return describeSend(env.DB, after);
+}
+
 // ─── Codes ───────────────────────────────────────────────────────────────────
 
-/** Hands a code to the person's send that's waiting for one. */
+/** Hands a code to the person's send that's waiting for one, or about to:
+ * Greenhouse emails the code the moment Submit is pressed, and forwarding
+ * can bring it before the send has seen the code box. The Workflow keeps an
+ * event that comes early until it waits for it (owner, 2026-11-08: the
+ * forwarded code went unused and the app asked for it instead). */
 export async function deliverSendCode(env: Env, userId: string, code: string, sendId?: string): Promise<boolean> {
   if (!env.APPLY_SEND) return false;
   const row = await env.DB.prepare(
-    `SELECT id FROM apply_sends WHERE user_id = ? AND status = 'code_needed' ${sendId ? "AND id = ?" : ""}
+    `SELECT id FROM apply_sends WHERE user_id = ? AND status IN ('code_needed', 'submitting') ${sendId ? "AND id = ?" : ""}
      ORDER BY updated_at DESC LIMIT 1`
   ).bind(...(sendId ? [userId, sendId] : [userId])).first<{ id: string }>();
   if (!row) return false;
@@ -602,7 +651,7 @@ export async function deliverSendCode(env: Env, userId: string, code: string, se
 }
 
 export async function hasSendWaitingForCode(db: D1Database, userId: string): Promise<boolean> {
-  return Boolean(await db.prepare("SELECT 1 AS hit FROM apply_sends WHERE user_id = ? AND status = 'code_needed' LIMIT 1").bind(userId).first());
+  return Boolean(await db.prepare("SELECT 1 AS hit FROM apply_sends WHERE user_id = ? AND status IN ('code_needed', 'submitting') LIMIT 1").bind(userId).first());
 }
 
 /** Greenhouse's "security code" email, by its sender and subject alone. */
@@ -742,6 +791,7 @@ async function describeSend(db: D1Database, row: SendRow): Promise<ApplySend> {
     waiting_until: row.status === "needs_you" && !row.dry_run && !row.dropped_at && row.finished_at
       ? new Date(Date.parse(row.finished_at) + WAIT_MS).toISOString()
       : null,
+    stopped: Boolean(row.dropped_at),
   };
 }
 

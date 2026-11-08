@@ -21,7 +21,8 @@ export interface FillReport {
   outcomes: Record<string, FillOutcome>;
 }
 
-export type SubmitStatus = "submitted" | "captcha" | "invalid" | "no_button" | "unknown";
+/** `code`: the page asks for a code it emailed (Greenhouse's security code). */
+export type SubmitStatus = "submitted" | "captcha" | "invalid" | "no_button" | "code" | "unknown";
 
 export interface SubmitReport {
   status: SubmitStatus;
@@ -283,6 +284,14 @@ export async function submitForm(): Promise<SubmitReport> {
     const challenge = [...document.querySelectorAll("iframe")].find((frame) =>
       /recaptcha\/(api2|enterprise)\/bframe|hcaptcha/.test(frame.src) && frame.getBoundingClientRect().height > 100);
     if (challenge) return { status: "captcha", errors: [], url: location.href };
+    // Greenhouse asks for the code it just emailed: said at once rather than
+    // after the whole wait, so the code can go in while it's fresh (owner,
+    // 2026-11-08: it took 10 to 15 seconds after the email to ask).
+    const asksCode = /(verification|security|confirmation|one.?time|access) code|enter (the|your) code|code (was|has been|we) sent/i.test(document.body.innerText);
+    if (asksCode && [...document.querySelectorAll("input")].some((field) => shown(field) && !field.value
+      && (field.maxLength === 1 || /code|otp|security|verif|one-time/i.test([field.name, field.id, field.getAttribute("aria-label"), field.getAttribute("autocomplete")].join(" "))))) {
+      return { status: "code", errors: [], url: location.href };
+    }
     const invalid = [...document.querySelectorAll("[aria-invalid='true']")].filter(shown);
     if (invalid.length > 0 && attempt >= 2) {
       const errors = invalid.map((field) =>

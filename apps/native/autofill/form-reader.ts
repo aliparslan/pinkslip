@@ -204,6 +204,18 @@ export function readForm(): FormControl[] {
     }
     if (type === "file") {
       const label = labelFor(input);
+      // Ashby (and Greenhouse) take the file, empty their input and show it
+      // as a chip with its name and a delete button: the chip's file name
+      // counts as filled (owner, 2026-11-08: Ashby always said "1 needs you",
+      // ringing the resume's delete button).
+      let shownFile: string | null = null;
+      let around: Element | null = input.parentElement;
+      for (let depth = 0; around && depth < 4 && !shownFile; depth += 1, around = around.parentElement) {
+        if (around.querySelectorAll("input[type=file]").length > 1) break;
+        const words = (around as HTMLElement).innerText ?? around.textContent ?? "";
+        // A name, not a hint like "(.pdf, .docx)": it starts with a letter or digit.
+        shownFile = words.match(/[A-Za-z0-9][^\s/\\(),]*\.(pdf|docx?|rtf|txt|pages|odt)\b/i)?.[0] ?? null;
+      }
       controls.push({
         ref: stamp(input),
         kind: "file",
@@ -211,7 +223,7 @@ export function readForm(): FormControl[] {
         required: isRequired(input, label),
         options: [],
         searchable: false,
-        value: input.files && input.files.length > 0 ? input.files[0].name : null,
+        value: input.files && input.files.length > 0 ? input.files[0].name : shownFile,
       });
       continue;
     }

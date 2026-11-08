@@ -124,3 +124,31 @@ test("knows Ashby's sent application, in its own words or the company's", async 
   await page.goto("https://jobs.example.com/custom/1/application");
   expect((await read(page)).submitted).toBe(true);
 });
+
+test("counts Ashby's resume chip as attached, though its input is empty again", async ({ page }) => {
+  // Ashby takes the file, empties its input and shows the name with a delete button.
+  const body = `<!doctype html><html><head><style>._required_x::after { content: "*"; }</style></head><body>
+<div data-field-path="_systemfield_resume"><label class="_heading _required_x" for="_systemfield_resume">Resume</label>
+  <div class="_fileUpload"><div class="_uploaded"><span>Ali_Arslan_Resume.pdf</span><button aria-label="Delete">×</button></div>
+  <input id="_systemfield_resume" type="file" tabindex="-1"></div></div>
+<div data-field-path="cover"><label class="_heading" for="cover">Cover letter</label>
+  <div class="_fileUpload"><button>Upload File</button><span>(.pdf, .docx)</span><input id="cover" type="file" tabindex="-1"></div></div>
+</body></html>`;
+  await page.route("https://jobs.example.com/**", (route) => route.fulfill({ contentType: "text/html", body }));
+  await page.goto("https://jobs.example.com/render/1/application");
+  const { controls } = await read(page);
+  const byLabel = Object.fromEntries(controls.map((control) => [control.label, control]));
+  expect(byLabel["Resume"]).toMatchObject({ kind: "file", required: true, value: "Ali_Arslan_Resume.pdf" });
+  expect(byLabel["Cover letter"]).toMatchObject({ kind: "file", value: null });
+});
+
+test("says when Submit brings up a box for an emailed code, without the whole wait", async ({ page }) => {
+  const body = `<!doctype html><html><body><form onsubmit="event.preventDefault(); document.body.innerHTML = '<p>Enter the security code we sent to your email</p><input id=code name=security_code>';">
+<label for="n">Name</label><input id="n" value="Ali"><button type="submit">Submit application</button></form></body></html>`;
+  await page.route("https://boards.example.com/**", (route) => route.fulfill({ contentType: "text/html", body }));
+  await page.goto("https://boards.example.com/jobs/2");
+  const started = Date.now();
+  const report = JSON.parse(await page.evaluate(`(async () => { ${SUBMIT_FORM_BODY} })()`) as string) as { status: string };
+  expect(report.status).toBe("code");
+  expect(Date.now() - started).toBeLessThan(3_000);
+});

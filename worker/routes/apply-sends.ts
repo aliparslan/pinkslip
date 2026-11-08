@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireFlag } from "../feature-flags";
 import { resolveJobId } from "../job-identity";
-import { SendError, answerSend, deliverSendCode, getSend, listSends, queueSend, sendShot, sendWaiting } from "../apply/sends";
+import { SendError, answerSend, deliverSendCode, getSend, listSends, queueSend, sendShot, sendWaiting, stopSend } from "../apply/sends";
 import { dropWaiting, keepWaitingAnswers, waitingRows, waitingView } from "../apply/waiting";
 import { ResumeFileError, applyResumeInfo, applyResumeKey, saveApplyResume } from "../apply/send-files";
 import type { Env, Variables } from "../types";
@@ -83,6 +83,10 @@ sends.post("/sends/:id/answers", async (c) => {
   });
   return c.json(result, result.send ? 201 : 200);
 });
+
+/** Stops a send that's filling or waiting on the person. 409 once it's
+ * pressing Submit. */
+sends.post("/sends/:id/stop", async (c) => c.json(await stopSend(c.env, c.get("userId"), c.req.param("id"))));
 
 /** The code Greenhouse emailed, typed by the person when email tracking
  * didn't catch it. */
