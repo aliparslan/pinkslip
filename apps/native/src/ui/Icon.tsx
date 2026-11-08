@@ -1,6 +1,6 @@
 import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons";
 import {
-  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
   CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Lock, MagnifyingGlass, MapPin,
   PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,
@@ -15,7 +15,7 @@ import type { TextTone } from "./Text";
 // Every Phosphor name the shared table uses needs its component here: a
 // missing one fails to compile.
 const components: Record<PhosphorName, PhosphorIcon> = {
-  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank,
+  ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
   CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Copy, CurrencyCircleDollar,
   DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Lock, MagnifyingGlass, MapPin,
   PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, UserCircle, UsersThree,

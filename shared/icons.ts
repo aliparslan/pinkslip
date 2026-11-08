@@ -66,6 +66,9 @@ export const ICONS = {
   pay: "CurrencyCircleDollar",
   visa: "GlobeHemisphereWest",
   deadline: "CalendarBlank",
+  /** Add to Calendar under the Next interview row, then In your calendar. */
+  calendarAdd: "CalendarPlus",
+  calendarAdded: "CalendarCheck",
   resume: "FileText",
   answers: "ClipboardText",
   /** Drawn as Pinkslip's own bot mark on iOS (B2, owner 2026-10-14); see Icon.tsx. */

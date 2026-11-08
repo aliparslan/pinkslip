@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import type { ApplicationDetail, ApplicationEvent } from "../shared/application-stages";
 import {
   daysSinceApplied, nextRowFacts, sentStub, stageDateToSend, stageDateValue, stubStamps,
+  interviewAhead,
+  interviewEvent,
 } from "../apps/native/src/features/redesign/application-facts";
 
 const event = (stage: ApplicationEvent["stage"], occurred_at: string, email?: { id: string; subject: string }): ApplicationEvent => ({
@@ -91,5 +93,30 @@ describe("an application Pinkslip sent", () => {
   test("a later step is proof enough", () => {
     const later = detail([event("applied", "2026-10-14T09:52:00"), event("interview", "2026-10-20T09:00:00")]);
     expect(sentStub(later, { via: "Ashby", confirmed: null }, stubStamps(later))).toMatchObject({ waiting: false, aside: null });
+  });
+});
+
+describe("Add to Calendar", () => {
+  test("names the event and runs an hour from the interview's time", () => {
+    const when = "2026-11-10T16:00:00.000Z";
+    expect(interviewEvent({ company: "Mercury", role: "Software Engineer, New Grad", when })).toEqual({
+      title: "Interview with Mercury",
+      notes: "Software Engineer, New Grad",
+      startDate: new Date(when),
+      endDate: new Date("2026-11-10T17:00:00.000Z"),
+      allDay: false,
+    });
+  });
+
+  test("is all day when the interview only has a date", () => {
+    expect(interviewEvent({ company: "Ramp", role: "Engineer", when: "2026-11-10" })).toMatchObject({ allDay: true, startDate: new Date(2026, 10, 10) });
+  });
+
+  test("offers it only while the interview is ahead", () => {
+    const now = new Date("2026-11-10T16:00:00.000Z");
+    expect(interviewAhead("2026-11-10T17:00:00.000Z", now)).toBe(true);
+    expect(interviewAhead("2026-11-10T15:00:00.000Z", now)).toBe(false);
+    expect(interviewAhead("2026-11-10", new Date(2026, 10, 10, 20))).toBe(true);
+    expect(interviewAhead("2026-11-09", new Date(2026, 10, 10, 8))).toBe(false);
   });
 });

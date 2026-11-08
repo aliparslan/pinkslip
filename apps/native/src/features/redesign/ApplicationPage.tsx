@@ -13,13 +13,15 @@ import { storage } from "../../platform/storage";
 import { shareJob } from "../../platform/share";
 import { useMotionTrial } from "../../ui/motion-trial";
 import {
-  Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
+  Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, Icon, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
   PageLoading, TextPlaceholders, toast, useSheet,
   type GlyphMenuItem, type GlyphMenuSpec, type StubStamp,
 } from "../../ui";
+import { PressableScale } from "../../kit/PressableScale";
 import { useDetailJob, type DetailJob } from "../job-detail/useJobPage";
+import { addInterviewToCalendar, useInCalendar } from "./interview-calendar";
 import {
-  addStageDateLabels, asksForDate, daysSinceApplied, nextRowFacts, stageDateHasTime, stageDatePrompts, stageDateTitles, stageDateToSend,
+  addStageDateLabels, asksForDate, daysSinceApplied, interviewAhead, nextRowFacts, stageDateHasTime, stageDatePrompts, stageDateTitles, stageDateToSend,
   stageDateValue, sentStub, stepDatePrompts, stepNouns, stubStamps, type SentProof, type Stamp,
 } from "./application-facts";
 import { Description } from "./Description";
@@ -141,6 +143,8 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
   const [sheet, setSheet] = useState<SheetStart | null>(null);
   // The stamp whose date is being fixed.
   const [fixing, setFixing] = useState<Stamp & { eventId: string } | null>(null);
+  const calendarAfterSheet = useRef<string | null>(null);
+  const forCalendar: ForCalendar = { id: application.id, company: job?.company_name ?? application.company_name, role: job?.title ?? application.title };
   const stamps = stubStamps(application);
   const latest = stamps.at(-1);
   const proof = sent ? sentStub(application, sent, stamps) : null;
@@ -231,7 +235,7 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
           action={latest?.email ? { label: "Not right?", onPress: () => confirmUndo(latest as Stamp & { email: NonNullable<Stamp["email"]> }) }
             : proof && onWhatItSent ? { label: "What it sent", onPress: onWhatItSent, opens: true } : undefined} />
       </View>
-      <NextSection application={application} onOpen={() => setSheet("date")} />
+      <NextSection application={application} onOpen={() => setSheet("date")} forCalendar={forCalendar} />
       {about ? <View style={styles.about}>
         <Text weight="medium" accessibilityRole="header">About the role</Text>
         {about}
@@ -241,8 +245,13 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       <Button variant="secondary" fullWidth onPress={() => setSheet("stages")}>Change stage</Button>
     </View>
-    <SheetModal open={sheet !== null} onClosed={() => setSheet(null)}>
-      {sheet ? <StageSheet application={application} start={sheet} actions={actions} /> : null}
+    <SheetModal open={sheet !== null} onClosed={() => setSheet(null)} onGone={() => {
+      // iOS's New Event sheet can only come up once this one's modal has gone.
+      const when = calendarAfterSheet.current;
+      calendarAfterSheet.current = null;
+      if (when) void addInterviewToCalendar(forCalendar, when);
+    }}>
+      {sheet ? <StageSheet application={application} start={sheet} actions={actions} onCalendar={(when) => { calendarAfterSheet.current = when; }} /> : null}
     </SheetModal>
     <SheetModal open={fixing !== null} onClosed={() => setFixing(null)}>
       {fixing ? <StepDateSheet stamp={fixing} company={job?.company_name ?? application.company_name} actions={actions} /> : null}
@@ -265,8 +274,26 @@ interface TransitionEvents {
   addListener(event: "transitionEnd", listener: (event: { data?: { closing?: boolean } }) => void): () => void;
 }
 
+/** What Add to Calendar names the event from. */
+interface ForCalendar { id: string; company: string; role: string }
+
+/** Under an interview that's still ahead: a quiet way to put it on the phone's
+ * calendar, then a note that it's there (Paper "Calendar and alert buttons"). */
+function CalendarLine({ item, when }: { item: ForCalendar; when: string }) {
+  const added = useInCalendar(item.id, when);
+  const line = (icon: "calendarAdd" | "calendarAdded", tone: "ink-2" | "ink-3", text: string) => <>
+    <View style={styles.calendarIcon}><Icon name={icon} size={20} tone={tone} /></View>
+    <Text tone={tone} flex>{text}</Text>
+  </>;
+  if (added) return <View style={styles.nextRow}>{line("calendarAdded", "ink-3", "In your calendar")}</View>;
+  return <PressableScale accessibilityRole="button" hitSlop={8} contentStyle={styles.nextRow}
+    onPress={() => void addInterviewToCalendar(item, when)}>
+    {line("calendarAdd", "ink-2", "Add to Calendar")}
+  </PressableScale>;
+}
+
 /** The date that goes with the stage, or a quiet row to add one. */
-function NextSection({ application, onOpen }: { application: ApplicationDetail; onOpen: () => void }) {
+function NextSection({ application, onOpen, forCalendar }: { application: ApplicationDetail; onOpen: () => void; forCalendar: ForCalendar }) {
   const { stage, stage_date: stageDate } = application;
   const addLabel = addStageDateLabels[stage];
   if (!stageDate && !addLabel) return null;
@@ -288,6 +315,7 @@ function NextSection({ application, onOpen }: { application: ApplicationDetail; 
         </View>
         : <Text tone="ink-2" flex>{addLabel}</Text>}
     </Pressable>
+    {stage === "interview" && stageDate && interviewAhead(stageDate) ? <CalendarLine item={forCalendar} when={stageDate} /> : null}
   </View>;
 }
 
@@ -300,7 +328,13 @@ const ENDINGS = MOVE_TO.slice(5);
  * A stage with a date of its own slides on to ask for it (Paper "C · 2"),
  * which is also where the Next row and "Add a hear-back date" open.
  */
-function StageSheet({ application, start, actions }: { application: ApplicationDetail; start: SheetStart; actions: ApplicationActions }) {
+function StageSheet({ application, start, actions, onCalendar }: {
+  application: ApplicationDetail;
+  start: SheetStart;
+  actions: ApplicationActions;
+  /** Save and add to Calendar: the date to add once this sheet has gone. */
+  onCalendar: (when: string) => void;
+}) {
   const sheet = useSheet();
   const [step, setStep] = useState<SheetStart>(start);
   const [moved, setMoved] = useState(false);
@@ -336,6 +370,11 @@ function StageSheet({ application, start, actions }: { application: ApplicationD
       void actions.setDate(value).catch(() => undefined);
       sheet.close();
     }}
+    onSaveToCalendar={stage === "interview" ? (value) => {
+      void actions.setDate(value).catch(() => undefined);
+      onCalendar(value);
+      sheet.close();
+    } : undefined}
     onRemove={existing ? () => {
       void actions.setDate(null).catch(() => undefined);
       sheet.close();
@@ -392,11 +431,13 @@ function StepDateSheet({ stamp, company, actions }: { stamp: Stamp & { eventId: 
 
 /** "When's the interview?": the calendar, a time for an interview, then Save,
  * with Skip under it (or Remove date when it already had one). */
-function DateStep({ stage, existing, inner, onSave, onRemove, onSkip }: {
+function DateStep({ stage, existing, inner, onSave, onSaveToCalendar, onRemove, onSkip }: {
   stage: ApplicationStage;
   existing: string | null;
   inner: boolean;
   onSave: (value: string) => void;
+  /** An interview's other way out, offered while the date is still ahead. */
+  onSaveToCalendar?: (value: string) => void;
   onRemove?: () => void;
   onSkip: () => void;
 }) {
@@ -423,6 +464,9 @@ function DateStep({ stage, existing, inner, onSave, onRemove, onSkip }: {
     </View> : null}
     <View style={styles.answers}>
       <Button variant="primary" fullWidth onPress={() => onSave(stageDateToSend(date, withTime))}>Save</Button>
+      {onSaveToCalendar && date.getTime() > Date.now()
+        ? <Button variant="secondary" fullWidth onPress={() => onSaveToCalendar(stageDateToSend(date, withTime))}>Save and add to Calendar</Button>
+        : null}
       {onRemove
         ? <Button variant="text" fullWidth onPress={onRemove}>Remove date</Button>
         : <Button variant="text" fullWidth onPress={onSkip}>Skip</Button>}
@@ -439,6 +483,7 @@ const styles = StyleSheet.create((theme) => ({
   nextRow: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
   nextText: { flex: 1 },
   nextLine: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
+  calendarIcon: { width: theme.ui.size.logo, alignItems: "center" },
   pressed: { opacity: 0.6 },
   about: { gap: theme.ui.space["2"], marginTop: theme.ui.space["6"] },
   bar: {

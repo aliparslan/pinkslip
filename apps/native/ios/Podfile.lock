@@ -1,4 +1,7 @@
 PODS:
+  - AlertActions (1.0.0):
+    - ExpoModulesCore
+    - ExpoNotifications
   - EASClient (57.0.5):
     - ExpoModulesCore
   - EXApplication (57.0.3):
@@ -185,6 +188,8 @@ PODS:
   - ExpoAppleAuthentication (57.0.2):
     - ExpoModulesCore
   - ExpoAsset (57.0.19):
+    - ExpoModulesCore
+  - ExpoCalendar (57.0.6):
     - ExpoModulesCore
   - ExpoClipboard (57.0.2):
     - ExpoModulesCore
@@ -2592,6 +2597,7 @@ PODS:
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - AlertActions (from `../modules/alert-actions/ios`)
   - "EASClient (from `../../../node_modules/.bun/expo-eas-client@57.0.5/node_modules/expo-eas-client/ios`)"
   - "EXApplication (from `../../../node_modules/.bun/expo-application@57.0.3+b2864a0bdc6dca62/node_modules/expo-application/ios`)"
   - "EXConstants (from `../../../node_modules/.bun/expo-constants@57.0.21+b2864a0bdc6dca62/node_modules/expo-constants/ios`)"
@@ -2604,6 +2610,7 @@ DEPENDENCIES:
   - "expo-dev-menu-interface (from `../../../node_modules/.bun/expo-dev-menu-interface@57.0.0+b2864a0bdc6dca62/node_modules/expo-dev-menu-interface/ios`)"
   - "ExpoAppleAuthentication (from `../../../node_modules/.bun/expo-apple-authentication@57.0.2+b2864a0bdc6dca62/node_modules/expo-apple-authentication/ios`)"
   - "ExpoAsset (from `../../../node_modules/.bun/expo-asset@57.0.19+b2864a0bdc6dca62/node_modules/expo-asset/ios`)"
+  - "ExpoCalendar (from `../../../node_modules/.bun/expo-calendar@57.0.6+b2864a0bdc6dca62/node_modules/expo-calendar/ios`)"
   - "ExpoClipboard (from `../../../node_modules/.bun/expo-clipboard@57.0.2+b2864a0bdc6dca62/node_modules/expo-clipboard/ios`)"
   - "ExpoCrypto (from `../../../node_modules/.bun/expo-crypto@57.0.3+b2864a0bdc6dca62/node_modules/expo-crypto/ios`)"
   - "ExpoDevice (from `../../../node_modules/.bun/expo-device@57.0.2+b2864a0bdc6dca62/node_modules/expo-device/ios`)"
@@ -2611,7 +2618,7 @@ DEPENDENCIES:
   - "ExpoDomWebView (from `../../../node_modules/.bun/@expo+dom-webview@57.0.1+2acb37eb2699ddf3/node_modules/@expo/dom-webview/ios`)"
   - "ExpoFileSystem (from `../../../node_modules/.bun/expo-file-system@57.0.7+b2864a0bdc6dca62/node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)"
   - "ExpoFont (from `../../../node_modules/.bun/expo-font@57.0.4+b2864a0bdc6dca62/node_modules/expo-font/ios/ExpoFont.podspec`)"
-  - "ExpoGlassEffect (from `../../../node_modules/.bun/expo-glass-effect@57.0.4+24c323656af5a4da/node_modules/expo-glass-effect/ios`)"
+  - "ExpoGlassEffect (from `../../../node_modules/.bun/expo-glass-effect@57.0.4+b2864a0bdc6dca62/node_modules/expo-glass-effect/ios`)"
   - "ExpoHaptics (from `../../../node_modules/.bun/expo-haptics@57.0.3+b2864a0bdc6dca62/node_modules/expo-haptics/ios`)"
   - "ExpoKeepAwake (from `../../../node_modules/.bun/expo-keep-awake@57.0.2+ae12effd4c3e7989/node_modules/expo-keep-awake/ios`)"
   - "ExpoLinking (from `../../../node_modules/.bun/expo-linking@57.0.12+b2864a0bdc6dca62/node_modules/expo-linking/ios`)"
@@ -2725,6 +2732,8 @@ SPEC REPOS:
     - ReachabilitySwift
 
 EXTERNAL SOURCES:
+  AlertActions:
+    :path: "../modules/alert-actions/ios"
   EASClient:
     :path: "../../../node_modules/.bun/expo-eas-client@57.0.5/node_modules/expo-eas-client/ios"
   EXApplication:
@@ -2749,6 +2758,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.bun/expo-apple-authentication@57.0.2+b2864a0bdc6dca62/node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../../../node_modules/.bun/expo-asset@57.0.19+b2864a0bdc6dca62/node_modules/expo-asset/ios"
+  ExpoCalendar:
+    :path: "../../../node_modules/.bun/expo-calendar@57.0.6+b2864a0bdc6dca62/node_modules/expo-calendar/ios"
   ExpoClipboard:
     :path: "../../../node_modules/.bun/expo-clipboard@57.0.2+b2864a0bdc6dca62/node_modules/expo-clipboard/ios"
   ExpoCrypto:
@@ -2764,7 +2775,7 @@ EXTERNAL SOURCES:
   ExpoFont:
     :podspec: "../../../node_modules/.bun/expo-font@57.0.4+b2864a0bdc6dca62/node_modules/expo-font/ios/ExpoFont.podspec"
   ExpoGlassEffect:
-    :path: "../../../node_modules/.bun/expo-glass-effect@57.0.4+24c323656af5a4da/node_modules/expo-glass-effect/ios"
+    :path: "../../../node_modules/.bun/expo-glass-effect@57.0.4+b2864a0bdc6dca62/node_modules/expo-glass-effect/ios"
   ExpoHaptics:
     :path: "../../../node_modules/.bun/expo-haptics@57.0.3+b2864a0bdc6dca62/node_modules/expo-haptics/ios"
   ExpoKeepAwake:
@@ -2978,6 +2989,7 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.bun/react-native@0.86.3+51dd493e756a3a11/node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
+  AlertActions: 4dde21cff6b8fdfa49acc87d08dc3e5fb6cd49ae
   EASClient: c0ccc7ee5d3da785fbbd8c87b881d151a7428742
   EXApplication: a727f05eb8592f0bc764f6ab8d51eacc158652ec
   EXConstants: b4e9051547ee9b8337155565fbdbe66036865120
@@ -2990,6 +3002,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 7a59e803916fbfd1b96c75ff91ea8dddac7e722f
   ExpoAppleAuthentication: 16c2955d33ec7315e5a99d17fb5d62ed33cdb5b9
   ExpoAsset: 78dbecc7bc9f60d839fb37ba8b10317b64779685
+  ExpoCalendar: d900ff6cb5e971b0b83f8dc76ae88fd2b02e16b1
   ExpoClipboard: 15b8cc88075d7c50af165ed8fca0a76915903bba
   ExpoCrypto: 3ba3d7fcf244a3ae8cb888c5759e0db70ecc236d
   ExpoDevice: 5c638e530304a51992263ab5c1cab726f992b9dc

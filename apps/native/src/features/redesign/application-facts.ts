@@ -172,6 +172,27 @@ export function stageDateValue(value: string): Date {
   return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(value);
 }
 
+/** The New Event sheet's fields for an interview: an hour long from its
+ * time, or all day when it only has a date. */
+export function interviewEvent(input: { company: string; role: string; when: string }) {
+  const startDate = stageDateValue(input.when);
+  const allDay = DAY.test(input.when);
+  return {
+    title: `Interview with ${input.company}`,
+    notes: input.role,
+    startDate,
+    endDate: allDay ? startDate : new Date(startDate.getTime() + 60 * 60 * 1000),
+    allDay,
+  };
+}
+
+/** Whether an interview is still ahead, so adding it to a calendar makes sense. */
+export function interviewAhead(when: string, now: Date = new Date()): boolean {
+  const date = stageDateValue(when);
+  if (DAY.test(when)) date.setHours(23, 59, 59, 999);
+  return date.getTime() > now.getTime();
+}
+
 /** What the app sends: the day alone ("2026-10-15"), or the instant with a time. */
 export function stageDateToSend(date: Date, withTime: boolean): string {
   if (withTime) return date.toISOString();
