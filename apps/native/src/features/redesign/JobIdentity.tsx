@@ -25,7 +25,8 @@ export function JobIdentity({ companyName, companyDomain, companyId, title, clos
     if (companyId) router.push({ pathname: `/(tabs)/${tab}/companies/[companyId]` as "/(tabs)/(jobs)/companies/[companyId]", params: { companyId } });
   };
   return <View style={styles.identity}>
-    <Pressable onPress={openCompany} disabled={!companyId} accessibilityLabel={`${plainText(companyName)}, company page`}>
+    {/* The company's name beside it is the same link, so VoiceOver stops there once. */}
+    <Pressable onPress={openCompany} disabled={!companyId} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <CompanyLogo name={companyName} uri={logoUri(companyDomain)} size="page" />
     </Pressable>
     <View style={styles.heading}>

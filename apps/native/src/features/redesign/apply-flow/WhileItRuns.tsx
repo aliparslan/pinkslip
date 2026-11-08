@@ -202,7 +202,7 @@ function Section({ label, count, children }: { label: string; count?: number; ch
 }
 
 function QueueRow({ job, trailing, onPress }: { job: LiveJob; trailing?: React.ReactNode; onPress?: () => void }) {
-  return <Pressable disabled={!onPress} onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+  return <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? "button" : undefined} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
     <CompanyLogo name={job.company} uri={logoUri(job.domain ?? null)} />
     <View style={styles.flex}>
       <View style={styles.line}>

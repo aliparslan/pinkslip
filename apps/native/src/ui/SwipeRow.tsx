@@ -345,7 +345,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
         <SwipeCardContext.Provider value>
           <SwipingContext.Provider value={swiping}>{children}</SwipingContext.Provider>
         </SwipeCardContext.Provider>
-        {open ? <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Close actions" onPress={() => close.current()} /> : null}
+        {open ? <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Close actions" onPress={() => close.current()} /> : null}
       </Animated.View>
     </GestureDetector>
     {unmeasured.length > 0 ? <View style={styles.measure} pointerEvents="none">
