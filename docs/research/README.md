@@ -12,6 +12,7 @@ re-derive them. Read this index first.
 - **[reading.md](reading.md)**: every article and tool read, what it says
   and what it means here, marked read, partly, secondhand or unread.
 - **[log.md](log.md)**: what was added when.
+- **[critic-first-run-2026-11-08.md](critic-first-run-2026-11-08.md)**: the design critic on Today, Jobs and You (6/10), checked against decisions.
 
 ## Sources
 
