@@ -715,9 +715,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     purple, not indigo), Hide, Unsave and Not applied gray; Save keeps
     `accent-fill`. They replace the tinted pills with the label inside
     (2026-11-04), whose tints the owner found odd.
-  - A full swipe stretches the outer capsule toward the row; once it arms,
-    it runs from the screen's edge (cut square there), its glyph grows 15%
-    and the haptic ticks.
+  - A full swipe stretches the outer capsule toward the row; its outer end
+    stays in its slot (owner, 2026-11-08: only the row's side grows). As it
+    arms, its glyph grows 15% and the haptic ticks.
+  - While a row is open, the separator above it gives way, so no line sits
+    on the buttons' tops (owner, 2026-11-08).
   - A short swipe stays open on them: from closed, about 22pt of drag opens
     the row all the way, counting where a flick was heading, as Reminders
     does from 18. From open, it closes once pushed back past half, or

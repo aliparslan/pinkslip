@@ -313,6 +313,10 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
     borderRadius: interpolate(Math.abs(x.value), [0, 24], [0, CARD_RADIUS], "clamp"),
   }));
   const cardStyle = useAnimatedStyle(() => ({ opacity: interpolate(Math.abs(x.value), [0, 48], [0, 1], "clamp") }));
+  // The line above belongs to the row before; it would sit right on the
+  // buttons' tops, so it gives way while this row is open (owner,
+  // 2026-11-08: "hairline above the icons looks off").
+  const lineCover = useAnimatedStyle(() => ({ opacity: interpolate(Math.abs(x.value), [0, 8], [0, 1], "clamp") }));
   // Back to its own height and fully shown, said outright: Reanimated keeps
   // a style it stops returning, so `{}` left a hidden row's cell folded shut,
   // and the job Undo put back (or the next job in that cell) stayed invisible
@@ -326,6 +330,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
       width.value = event.nativeEvent.layout.width;
       if (fold.value === 1) height.value = event.nativeEvent.layout.height;
     }}>
+    <Animated.View pointerEvents="none" style={[styles.lineCover, lineCover]} />
     {(["leading", "trailing"] as const).map((side) => {
       const actions = side === "leading" ? leading : trailing;
       const geometry = side === "leading" ? lead : trail;
@@ -389,34 +394,27 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, on
     const over = Math.max(0, distance - reveal);
     const f = outer ? fill.value : 0;
     const stretched = own + over;
-    // Armed, it runs from the screen's edge to the row's.
-    const filled = Math.max(0, distance - PILL_GAP);
+    // Armed, it reaches the row; its outer edge stays in its slot (owner,
+    // 2026-11-08: only the row's side should grow).
+    const filled = Math.max(0, distance - PILL_EDGE - PILL_GAP);
     return {
       width: outer ? stretched + (filled - stretched) * f : own,
       // The inner ones are gone by the time the outer one reaches them.
       opacity: (outer ? Math.max(shown, f) : shown * Math.max(0, 1 - fill.value * 3)) * (1 - hush.value),
       // The inner ones keep their place beside the outer one as it stretches.
-      transform: [{ translateX: outer ? -sign * near * f : sign * over }, { scale: grow + (1 - grow) * f }],
+      transform: [{ translateX: outer ? 0 : sign * over }, { scale: grow + (1 - grow) * f }],
     };
   }, [own, near, reveal, outer, sign]);
-  // The screen's edge cuts the armed capsule square, so it reads as pulled
-  // out from the edge.
-  const capsule = useAnimatedStyle(() => {
-    const corner = (CAPSULE_H / 2) * (1 - (outer ? fill.value : 0));
-    return side === "leading"
-      ? { borderTopLeftRadius: corner, borderBottomLeftRadius: corner }
-      : { borderTopRightRadius: corner, borderBottomRightRadius: corner };
-  }, [outer, side]);
   const pop = useAnimatedStyle(() => ({ transform: [{ scale: outer ? 1 + (ARMED_SCALE - 1) * fill.value : 1 }] }), [outer]);
   // The glyph and label stay at the row's side, by the finger, as it stretches.
   const anchor = side === "trailing" ? styles.anchorLeft : styles.anchorRight;
   return <Animated.View style={[styles.pill, side === "leading" ? { left: near } : { right: near }, shape]}>
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={action.label} style={StyleSheet.absoluteFill}>
-      <Animated.View style={[styles.capsule, { backgroundColor: solid }, capsule]}>
+      <View style={[styles.capsule, { backgroundColor: solid }]}>
         <Animated.View style={[styles.glyph, { width: own }, anchor, pop]}>
           <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={PILL_ICON} tone="accent-ink" />
         </Animated.View>
-      </Animated.View>
+      </View>
       <RNText style={[styles.label, { width: own + PILL_GAP }, side === "trailing" ? styles.labelLeft : styles.labelRight]}
         numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</RNText>
     </Pressable>
@@ -441,7 +439,11 @@ export function SwipeButton({ action }: { action: Pick<SwipeAction, "label" | "i
 export const SWIPE_BUTTON = { width: CAPSULE_W, height: CAPSULE_H, gap: LABEL_GAP, spacing: PILL_GAP } as const;
 
 const styles = StyleSheet.create((theme) => ({
-  root: { overflow: "hidden", backgroundColor: theme.ui.color.bg },
+  // A hairline higher than its cell, over the row before's separator, which
+  // `lineCover` hides while this row is swiped. Clear itself, so the line
+  // shows the rest of the time.
+  root: { overflow: "hidden", marginTop: -StyleSheet.hairlineWidth, paddingTop: StyleSheet.hairlineWidth },
+  lineCover: { position: "absolute", top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: theme.ui.color.bg },
   // The row's moving card, over the page's colour, with the tint of a swiped row.
   card: { backgroundColor: theme.ui.color.bg, overflow: "hidden", borderCurve: "continuous" },
   // The separator's grey: about the grey iOS gives a row being swiped.
