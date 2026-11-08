@@ -96,7 +96,9 @@ async function fetchListings(): Promise<AtlassianJob[]> {
   if (!response.ok) throw new Error(`Atlassian listings ${response.status}`);
   const data = await response.json();
   if (!Array.isArray(data)) throw new Error("Atlassian listings returned an unexpected payload");
-  return data as AtlassianJob[];
+  // A role can appear once per hiring portal, under the same id.
+  const unique = new Map((data as AtlassianJob[]).map((job) => [String(job.id), job]));
+  return [...unique.values()];
 }
 
 export class AtlassianAdapter implements ATSAdapter {

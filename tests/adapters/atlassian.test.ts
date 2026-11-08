@@ -67,6 +67,12 @@ describe("AtlassianAdapter", () => {
     }));
   });
 
+  it("keeps one copy of a role listed on two portals", async () => {
+    stub([listings[0], { ...listings[0] }, listings[1]]);
+    const jobs = await new AtlassianAdapter().fetchJobs("atlassian");
+    expect(jobs.map((job) => job.externalId)).toEqual(["26070", "27339"]);
+  });
+
   it("fails rather than returning an empty board", async () => {
     stub(listings, false, 503);
     await expect(new AtlassianAdapter().fetchJobs("atlassian")).rejects.toThrow("Atlassian listings 503");
