@@ -325,3 +325,52 @@ Migration `0116_add_approved_companies.sql` adds 76. Left out:
 Goldman Sachs, Microsoft, Visa, Walmart, Oracle, AMD, Citadel, Intuit, TikTok and
 American Express. 564 of Claude's picks from that review were never decided.
 
+
+## 8. Recruiters, Lever and the filters, later the same day
+
+**Recruiters.** Searches ran at 11 of the biggest hiring companies. Of the 49
+shortlisted at Amazon, Apple, NVIDIA, Meta and OpenAI, 42 were checked by hand on
+LinkedIn and added to People. Six other companies (SpaceX, Databricks, Anthropic,
+Waymo, Roblox, Stripe) have 68 technical or early-career candidates still to check.
+
+Amazon's catalog website is its careers site, `amazon.jobs`, which takes mail, so
+every guessed address went there. Its format is now set to `amazon.com`.
+
+Some people who met the bar were left off because the guessed address would
+probably reach someone else: first-name-only addresses at OpenAI for common first
+names, and first-initial-plus-surname addresses for very common surnames.
+
+**Lever.** Apply myself opened Lever's posting, which only links to the form. It
+now opens the form, and the phone's reader takes Lever's labels cleanly. Read
+against six live Lever forms. Lever stays off Apply for me because of its captcha
+on Submit; in Apply myself the person finishes that themselves.
+
+Workday is not a small step: each employer's site asks for its own account, and the
+form runs across several screens without a page load.
+
+**What the filters drop.**
+
+| Reason | Rows |
+| --- | --- |
+| Management title | 16,020 |
+| No technical signal | 12,021 |
+| Stale | 7,506 |
+| Other engineering discipline | 6,981 |
+| Non-technical function | 6,252 |
+| Catalog candidate (kept) | 6,195 |
+| Outside the US | 4,964 |
+| Too senior | 3,590 |
+| Needs description | 2,550 |
+| Clearance | 1,026 |
+
+- "Needs description" is not a backlog. 2,130 of those rows are already stored as
+  jobs, and only 25 recent ones are not.
+- About 40 early-career product and program roles are out on purpose, because any
+  `manager` title is management and product management counts as non-technical.
+  They include associate product manager new-grad programs and technical program
+  manager internships. Whether to admit them is the owner's call.
+
+**Readers.** Of the 31 approved companies still missing, six looked like they fit
+existing readers (Visa, Sandisk, Unity, Qualcomm, Walmart, Electronic Arts). None
+answered at the obvious address, so each needs its own look. Eight are on Oracle
+Recruiting Cloud, which needs a new reader.
