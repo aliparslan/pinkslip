@@ -2,12 +2,13 @@ import type { Application, InboundEmail } from "@pinkslip/core/api";
 import { feedParams } from "@pinkslip/core/feed-criteria";
 import { useAssignInboundEmail, useDismissInboundEmail, useDropWaiting, useFeed, useMarkTodaySeen, useToday } from "@pinkslip/data";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Link, router, Stack, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import { DateTile, EMPTY_TOP, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
+import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
 import { LiveEmailSetupSheet } from "./email/SetupSheet";
@@ -182,7 +183,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
           }]}>
             <TodayRow item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />
           </SwipeRow>
-          : <TodayRow key={item.key} item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />)}
+          : <TodayRow key={item.key} item={item} needsYou={section.needsYou} href={sample ? null : pageOf(item.target)} onPress={() => open(item.target)} />)}
       </View>)}
     </>;
 
@@ -214,11 +215,24 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
   </>;
 }
 
-function TodayRow({ item, needsYou, onPress }: { item: TodayItem; needsYou?: boolean; onPress: () => void }) {
-  return <JobRow headline="news" company={item.company} title={item.headline} facts={item.facts} age={item.trailing} needsYou={needsYou}
+/** The page a row opens, for those that open one. */
+function pageOf(target: TodayTarget): Href | null {
+  if (target.kind === "job") return { pathname: "/(tabs)/(today)/jobs/[jobId]", params: { jobId: target.id } };
+  if (target.kind === "event") return { pathname: "/(tabs)/(today)/events/[eventId]", params: { eventId: target.id } };
+  if (target.kind === "person") return { pathname: "/(tabs)/(today)/people/[threadId]", params: { threadId: target.id } };
+  if (target.kind === "application") return { pathname: "/(tabs)/(today)/applications/[applicationId]", params: { applicationId: target.id } };
+  return null;
+}
+
+/** A row's page grows out of it, as on Jobs and Tracker (Kit → Motion fixes). */
+function TodayRow({ item, needsYou, href, onPress }: { item: TodayItem; needsYou?: boolean; href?: Href | null; onPress: () => void }) {
+  const zoom = useMotionTrial("todayZoom");
+  const opensPage = zoom && href;
+  const row = <JobRow headline="news" company={item.company} title={item.headline} facts={item.facts} age={item.trailing} needsYou={needsYou}
     leading={item.date ? <DateTile month={item.date.month} day={item.date.day} />
       : item.logos ? <StackedLogos first={item.logos[0]} second={item.logos[1]} ring="bg" /> : undefined}
-    logo={item.logo ? { name: item.logo.name, uri: logoUri(item.logo.domain ?? undefined) } : undefined} onPress={onPress} />;
+    logo={item.logo ? { name: item.logo.name, uri: logoUri(item.logo.domain ?? undefined) } : undefined} onPress={opensPage ? undefined : onPress} />;
+  return opensPage ? <Link href={href} asChild><Link.Trigger withAppleZoom>{row}</Link.Trigger></Link> : row;
 }
 
 /** A quiet day's way into Jobs (T3): the count of today's new jobs. */

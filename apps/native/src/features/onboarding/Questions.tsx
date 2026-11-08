@@ -2,7 +2,7 @@ import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { NO_ROLE_PREFERENCE, roleChips, visibleRoles, type Profile } from "@pinkslip/core/profile-fields";
 import { useApi, useUpdatePreferences } from "@pinkslip/data";
 import { LOCATION_OPTIONS, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import Animated, { useReducedMotion, useSharedValue, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
@@ -65,6 +65,8 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver 
   // Which way the words move: read as one question leaves and the next comes.
   const direction = useSharedValue(1);
   const [finishing, setFinishing] = useState(false);
+  // The first question is part of the sheet coming in, not a second entrance.
+  const stepped = useRef(false);
   useSheetGuard(true, () => undefined);
 
   const question = QUESTIONS[index]!;
@@ -74,6 +76,7 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver 
     change(patch);
   };
   const go = (to: number) => {
+    stepped.current = true;
     direction.value = to > index ? 1 : -1;
     setIndex(to);
   };
@@ -105,7 +108,7 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver 
 
   return <SheetStep id="questions" grabber={false}>
     <Animated.View key={question} style={styles.question}
-      entering={reduced ? undefined : arrive(direction, width)} exiting={reduced ? undefined : depart(direction, width)}>
+      entering={reduced || !stepped.current ? undefined : arrive(direction, width)} exiting={reduced ? undefined : depart(direction, width)}>
       <View style={styles.header}>
         <Text role="subhead" tone="ink-3">{`${index + 1} of ${QUESTIONS.length}`}</Text>
         <SheetHeader title={TITLES[question]} />

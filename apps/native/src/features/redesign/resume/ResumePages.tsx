@@ -528,14 +528,28 @@ function Skills({ skills }: { skills: ResumeProfile["skills"] }) {
     const added = splitItems(text ?? "");
     if (added.length) setGroup(index, [...splitItems(skills[index]?.items ?? ""), ...added]);
   });
-  const addGroup = () => Alert.prompt("Name the group", "Languages, Frameworks, Tools…", (name) => {
-    const category = name?.trim();
+  // A new group is named in the page, under the others (owner, 2026-11-08).
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+  // Return, Done and leaving the field all finish it, once.
+  const stillNaming = useRef(false);
+  const startNaming = () => {
+    stillNaming.current = true;
+    setNaming(true);
+  };
+  const finishNaming = () => {
+    if (!stillNaming.current) return;
+    stillNaming.current = false;
+    const category = name.trim();
+    setNaming(false);
+    setName("");
     if (category) update((profile) => ({ ...profile, skills: [...profile.skills, { category, items: "" }] }));
-  });
-  return <YouPage title="Skills" bar={<Button fullWidth icon="add" onPress={addGroup}>Add a group</Button>}>
-    {skills.length === 0 ? <EmptyState title="No skills yet" message="Group them: languages, frameworks, tools." /> : null}
+  };
+  return <YouPage title="Skills" bar={<Button fullWidth icon={naming ? undefined : "add"} onPress={naming ? finishNaming : startNaming}>{naming ? "Done" : "Add a group"}</Button>}>
+    {skills.length === 0 && !naming ? <EmptyState title="No skills yet" message="Group them: languages, frameworks, tools." /> : null}
     {skills.map((group, index) => <TagGroup key={index} title={group.category || "Skills"} tags={splitItems(group.items)}
       onAdd={() => addTo(index)} onRemove={(at) => setGroup(index, splitItems(group.items).filter((_, position) => position !== at))} />)}
+    {naming ? <FieldGroup><TextField label="Name the group" value={name} onChangeText={setName} autoFocus returnKeyType="done" onSubmitEditing={finishNaming} onBlur={finishNaming} /></FieldGroup> : null}
   </YouPage>;
 }
 

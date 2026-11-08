@@ -8,6 +8,7 @@ import { face } from "./fonts";
 import { Fold, OPEN_WHEEL } from "./Fold";
 import { useMotionTrial } from "./motion-trial";
 import { Icon } from "./Icon";
+import { useFormField } from "./FormKeyboard";
 import { Text } from "./Text";
 
 /**
@@ -45,6 +46,9 @@ export interface TextFieldProps {
   /** Several lines (a bullet). */
   multiline?: boolean;
   autoFocus?: boolean;
+  returnKeyType?: TextInputProps["returnKeyType"];
+  onSubmitEditing?: () => void;
+  onBlur?: () => void;
 }
 
 /** A field whose label sits in the value's place until you type, then
@@ -52,9 +56,10 @@ export interface TextFieldProps {
  * takes focus, and the value has one place from the start, so nothing jumps
  * as you type (owner, 2026-11-07: the text moved down and the label just
  * swapped). The whole field takes the tap, not only its line of text. */
-export function TextField({ label, value, onChangeText, keyboardType, autoCapitalize, autoComplete, textContentType, multiline, autoFocus }: TextFieldProps) {
+export function TextField({ label, value, onChangeText, keyboardType, autoCapitalize, autoComplete, textContentType, multiline, autoFocus, returnKeyType, onSubmitEditing, onBlur }: TextFieldProps) {
   const { theme } = useUnistyles();
   const input = useRef<TextInput>(null);
+  const form = useFormField(input);
   const [focused, setFocused] = useState(false);
   const raised = focused || value.length > 0;
   const lift = useSharedValue(raised ? 1 : 0);
@@ -73,9 +78,10 @@ export function TextField({ label, value, onChangeText, keyboardType, autoCapita
       <Text tone="ink-3" lines={1}>{label}</Text>
     </Animated.View>
     <TextInput ref={input} value={value} onChangeText={onChangeText}
-      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} accessibilityLabel={label}
+      onFocus={() => { setFocused(true); form?.focused(); }} onBlur={() => { setFocused(false); onBlur?.(); }} accessibilityLabel={label}
       keyboardType={keyboardType} autoCapitalize={autoCapitalize ?? (url ? "none" : "sentences")} autoCorrect={!url}
       autoComplete={autoComplete} textContentType={textContentType} multiline={multiline} autoFocus={autoFocus}
+      returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} inputAccessoryViewID={form?.id}
       selectionColor={theme.ui.color.accent} style={[styles.input, face.text]} />
   </Pressable>;
 }
@@ -89,9 +95,11 @@ const LABEL_MOTION = { duration: 180, easing: Easing.out(Easing.cubic) };
 /** A value typed at the row's end (GPA). */
 export function InlineField({ label, value, onChangeText, keyboardType }: Pick<TextFieldProps, "label" | "value" | "onChangeText" | "keyboardType">) {
   const { theme } = useUnistyles();
+  const input = useRef<TextInput>(null);
+  const form = useFormField(input);
   return <View style={styles.row}>
     <Text flex>{label}</Text>
-    <TextInput value={value} onChangeText={onChangeText} keyboardType={keyboardType} accessibilityLabel={label} placeholder="Add" textAlign="right"
+    <TextInput ref={input} onFocus={form?.focused} inputAccessoryViewID={form?.id} value={value} onChangeText={onChangeText} keyboardType={keyboardType} accessibilityLabel={label} placeholder="Add" textAlign="right"
       placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
       style={[styles.inline, face.text]} />
   </View>;

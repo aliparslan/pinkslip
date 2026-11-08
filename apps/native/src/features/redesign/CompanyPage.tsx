@@ -26,7 +26,8 @@ type Segment = "jobs" | "people" | "events";
  * A company's page (Paper "Search and companies · Oct 12"): its logo and
  * name, Follow and its careers site, then Jobs, People and Events. Jobs
  * comes first, the ones that fit your search on top; rows drop the logo and
- * name, since every row is this company. People and Events are coming.
+ * name, since every row is this company. People says Soon until it opens
+ * to you (owner, 2026-11-08), as Follow does.
  */
 export function CompanyPage({ companyId }: { companyId: string }) {
   const { theme } = useUnistyles();
@@ -44,7 +45,8 @@ export function CompanyPage({ companyId }: { companyId: string }) {
   // 2026-10-24 don't say, and keep People to signed-in people.
   const session = useSession().data;
   const features = session?.me?.features;
-  const people = useCompanyPeople(companyId, features?.outreach_people_enabled ?? (session?.state === "authenticated" && Boolean(features?.outreach_enabled)));
+  const peopleOpen = features?.outreach_people_enabled ?? (session?.state === "authenticated" && Boolean(features?.outreach_enabled));
+  const people = useCompanyPeople(companyId, peopleOpen);
   const peopleCount = people.data?.signed_in === false ? people.data.count : people.data?.people.length;
   const name = company?.name ?? jobs[0]?.company_name ?? "";
   const website = company?.website ?? (jobs[0]?.company_domain ? `https://${jobs[0].company_domain}` : null);
@@ -63,14 +65,16 @@ export function CompanyPage({ companyId }: { companyId: string }) {
       <View style={styles.buttons}>
         <View style={styles.half}><Button fullWidth icon="add" disabled>Follow · Soon</Button></View>
         <View style={styles.half}>
-          <Button fullWidth disabled={!website} onPress={() => website && void WebBrowser.openBrowserAsync(website, { controlsColor: theme.ui.color.accent })}>Careers site</Button>
+          <Button fullWidth disabled={!website} onPress={() => website && void WebBrowser.openBrowserAsync(website, { presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent })}>Careers site</Button>
         </View>
       </View>
       <View style={styles.segments}><Segmented value={segment} onChange={setSegment} segments={[
-        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: "People", count: peopleCount || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
+        { value: "jobs", label: "Jobs", count: feed.isSuccess ? jobs.length : undefined }, { value: "people", label: peopleOpen ? "People" : "People · Soon", count: peopleCount || undefined }, { value: "events", label: "Events", count: events.data?.length || undefined },
       ]} /></View>
     </View>
-    {segment === "people"
+    {segment === "people" && !peopleOpen
+      ? <EmptyState title="Coming soon" message={`People at ${plainText(name)} will show up here.`} />
+      : segment === "people"
       ? people.isError && !people.data ? <DidntLoad onRetry={() => void people.refetch()} />
       : <People people={people.data?.people} guestCount={people.data?.signed_in === false ? people.data.count ?? 0 : undefined}
         pending={people.isPending && people.fetchStatus !== "idle"} company={plainText(name)} />
@@ -198,7 +202,6 @@ function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
           <Text role="subhead" weight={weight} lines={1} flex>{plainText(job.title)}</Text>
           <View style={styles.age}>
             <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{rowAge(job)}</Text>
-            {unread ? <View style={styles.dot} /> : null}
           </View>
         </View>
         <View style={styles.line}>
@@ -230,7 +233,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   line: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   age: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.ui.color.accent },
   stage: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },
   pressed: { backgroundColor: theme.ui.color.fill },
   person: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingLeft: theme.ui.size.gutter },

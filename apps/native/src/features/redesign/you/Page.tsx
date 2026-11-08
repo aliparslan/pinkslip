@@ -4,7 +4,7 @@ import { ScrollView, View } from "react-native";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Icon, PAGE_BAR, PageBar, TabBarFollowsTransition, Text, useTabBarScroll, useTabBarSpace, useTabBarStepsAside, useToastLift } from "../../../ui";
+import { FormKeyboard, Icon, PAGE_BAR, PageBar, TabBarFollowsTransition, Text, useTabBarScroll, useTabBarSpace, useTabBarStepsAside, useToastLift } from "../../../ui";
 
 /** The pinned bar's own height: a 50 button with 12 above it. */
 const BAR = 62;
@@ -71,12 +71,12 @@ export function YouPage({ title, subtitle, children, scroll = true, bar, action 
     {top}
     {children}
   </ScrollView>;
-  if (!bar) return <View style={styles.fill}>{page}{pageBar}</View>;
-  return <View style={styles.fill}>
+  if (!bar) return <FormKeyboard><View style={styles.fill}>{page}{pageBar}</View></FormKeyboard>;
+  return <FormKeyboard><View style={styles.fill}>
     {page}
     {pageBar}
     <Animated.View style={[styles.bar, under && styles.barLine, { paddingBottom: barBottom }, lift]}>{bar}</Animated.View>
-  </View>;
+  </View></FormKeyboard>;
 }
 
 /** A page for something on the way (Paper Tailoring): the wrench, what's

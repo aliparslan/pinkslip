@@ -121,7 +121,11 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
   let rows = 0;
   return <Animated.View style={[styles.root, { paddingTop: insets.top }, slide]} pointerEvents="none">
     <View style={styles.header}>
-      <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+      {/* Level with Jobs' own title, so nothing jumps when this one goes. */}
+      <View style={styles.titleBlock}>
+        <View style={styles.nav} />
+        <Text role="largeTitle" accessibilityRole="header">Jobs</Text>
+      </View>
       <View style={styles.row}>
         <View style={styles.flex}><SearchField value="" onChangeText={() => undefined} placeholder="Search these jobs" /></View>
         <IconButton icon="editSearch" label="Your search" onPress={() => undefined} />
@@ -150,7 +154,9 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
 const styles = StyleSheet.create((theme) => ({
   root: { ...StyleSheet.absoluteFillObject, overflow: "hidden", backgroundColor: theme.ui.color.bg },
   // As Jobs draws its header (JobsScreen) and quick filters (JobsFeed).
-  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"] },
+  header: { gap: theme.ui.space["3"], paddingHorizontal: theme.ui.size.gutter },
+  titleBlock: { gap: theme.ui.space["2"] },
+  nav: { height: theme.ui.size.iconButton },
   row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   flex: { flex: 1 },
   // A horizontal ScrollView grows and shrinks with its column; this one keeps its own height.
