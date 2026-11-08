@@ -1,11 +1,12 @@
 import type { Job } from "@pinkslip/core/api";
 import {
-  useBlockJob, useHideJob, useMarkApplied, useMarkViewed, useSaveJob, useSession, useSetViewed, useUnmarkApplied, useUnsaveJob,
+  useBlockJob, useHideJob, useMarkApplied, useMarkViewed, useSaveJob, useSession, useSetViewed, useStopSend, useUnmarkApplied, useUnsaveJob,
 } from "@pinkslip/data";
 import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import { haptics } from "../../platform/haptics";
 import { askToKeepSaves } from "../account/keep-saves";
+import { plainText } from "../redesign/job-facts";
 import { useBeginSend } from "../redesign/sends/useSendFlow";
 
 export type JobListContext = "feed" | "saved" | "applied";
@@ -50,6 +51,7 @@ export function useJobActions(context: JobListContext) {
   const markViewed = useMarkViewed();
   const sends = Boolean(useSession().data?.me?.features?.auto_apply_send_enabled);
   const { begin } = useBeginSend(sends && context !== "applied");
+  const stopSend = useStopSend();
 
   const saveJob = (job: RowJob) => {
     haptics.tap();
@@ -58,7 +60,19 @@ export function useJobActions(context: JobListContext) {
   };
 
   const actions: JobActions = {
-    applyForMe: sends && context !== "applied" ? (job) => void begin(job.id, job.company_name, false) : undefined,
+    // From a long press or Queue on a swipe it sends a real application with
+    // nothing to review, so it comes with Undo, as Hide does (owner,
+    // 2026-11-08). Undo stops the send before Submit; one already pressing
+    // Submit carries on.
+    applyForMe: sends && context !== "applied" ? (job) => void begin(job.id, job.company_name, false, (send) => {
+      toast.show({
+        message: `Applying to ${plainText(job.company_name)}`, icon: "autoApply", duration: UNDO_TOAST_DURATION,
+        action: { label: "Undo", run: () => stopSend.mutate(send.id, {
+          onSuccess: () => toast.show({ message: "Stopped. Nothing was sent", icon: "autoApply" }),
+          onError: () => toast.error("Couldn't stop it. Try again."),
+        }) },
+      });
+    }) : undefined,
     save: context === "feed" ? saveJob : undefined,
     // In Library the row leaves, so it gets Undo; in the feed it stays.
     unsave: context === "saved" ? (job) => unsave.mutate(job.id, {
