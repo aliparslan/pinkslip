@@ -434,6 +434,26 @@ the storyboard spec. These were chosen in the Motion lab
   as Apple does.
 - **Presses** dim to 60%.
 
+## Haptics
+
+Owner, 2026-11-08 ([haptics-rule-2026-11-08.md](haptics-rule-2026-11-08.md)).
+A buzz says something happened that you'd otherwise have to look for; one
+per moment, never two for the same thing. All of them go through
+`src/platform/haptics.ts` (a test holds it).
+
+- **Success:** something left you and arrived, or a long flow finished: an
+  application recorded (the torn stub caught), SENT landing, the board
+  confirming a send, a message or feedback sent, a payment, signing in,
+  finishing onboarding or email setup.
+- **Tap:** something physical where you're looking: a stamp meeting the
+  paper, each tick of the rip, Save, "I applied" from a row, Copy.
+- **Tick:** moving through choices (answer chips; wheels tick themselves).
+- **Warning:** Pinkslip said no (a send refused: the day's limit, a closed
+  job).
+- **Error:** something failed; it comes with every error toast.
+- **Nothing:** scrolling, switching tabs, opening or closing pages and
+  sheets, menus, swipes, saving a setting, moving a stage (its stamp taps).
+
 ## Paper objects
 
 | Object | Means | Where |

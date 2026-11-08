@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { haptics } from "../../../platform/haptics";
 import {
   Button, Choice, Choices, EmptyState, JobRow, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet,
   useTabBarScroll, useTabBarSpace,
@@ -126,7 +125,6 @@ function WhichApplication({ email, actions }: { email: InboundEmail; actions: Pi
     setBusy(true);
     try {
       await work();
-      haptics.success();
       sheet.close();
     } catch {
       Alert.alert("Couldn't save that", "Check your connection and try again.");

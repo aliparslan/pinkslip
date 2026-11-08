@@ -1,4 +1,4 @@
-# One rule for haptics (proposed, Nov 8)
+# One rule for haptics (approved and built, Nov 8)
 
 Roadmap §2, directions A10. Today there are 39 haptic calls outside the
 kit and no written rule. Most are already right; what follows is the rule they

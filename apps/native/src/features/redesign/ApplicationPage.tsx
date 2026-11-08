@@ -9,7 +9,6 @@ import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { haptics } from "../../platform/haptics";
 import { storage } from "../../platform/storage";
 import { shareJob } from "../../platform/share";
 import { useMotionTrial } from "../../ui/motion-trial";
@@ -71,8 +70,8 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
   };
   const actions: ApplicationActions = {
     setStage: async (stage) => {
+      // No buzz here: the new stage's stamp taps as it lands.
       await update.mutateAsync({ id: application.id, stage }).catch(failed("Couldn't change the stage. Try again."));
-      haptics.success();
     },
     setDate: async (stageDate) => {
       await update.mutateAsync({ id: application.id, stage_date: stageDate }).catch(failed("Couldn't save the date. Try again."));
@@ -335,7 +334,6 @@ function StageSheet({ application, start, actions }: { application: ApplicationD
   return <DateStep stage={stage} existing={existing} inner={start === "stages"}
     onSave={(value) => {
       void actions.setDate(value).catch(() => undefined);
-      haptics.success();
       sheet.close();
     }}
     onRemove={existing ? () => {
@@ -377,7 +375,6 @@ function StepDateSheet({ stamp, company, actions }: { stamp: Stamp & { eventId: 
     setSaving(true);
     try {
       await actions.setStepDate(stamp.eventId, stageDateToSend(date, false));
-      haptics.success();
       sheet.close();
     } catch {
       setSaving(false);

@@ -7,7 +7,6 @@ import { router, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { haptics } from "../../platform/haptics";
 import { Button, Choice, ChoiceLink, Choices, ChoiceSwitch, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, toast, useSheet, useSheetGuard } from "../../ui";
 import {
   changedRows, changedSentence, experienceSummary, needsSponsorship, rolesSummary, stageName, STAGES_IN_ORDER, stageSummary, toggled, wantsRemote, whereSummary,
@@ -79,7 +78,6 @@ function YourSearch() {
   const save = async () => {
     try {
       await update.mutateAsync({ search_profile: draft });
-      haptics.success();
       void api.interactions.event({ event_name: "search_profile_adjusted", entity_type: "search_profile", properties: { source: "edit_search" } }).catch(() => undefined);
       sheet.close();
     } catch {

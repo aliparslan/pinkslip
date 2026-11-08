@@ -40,6 +40,8 @@ function showRefusal(error: unknown, company: string, retry: () => void) {
     toast.error(outcome.message, outcome.retry ? { action: { label: "Try again", run: retry } } : {});
     return;
   }
+  // Pinkslip said no (the day's limit, a closed job): a warning, once.
+  haptics.warning();
   toast.show({ message: outcome.message, icon: outcome.icon });
 }
 

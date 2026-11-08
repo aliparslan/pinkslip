@@ -151,7 +151,9 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
    * Tracker, and the toast says where it went, with Undo. */
   const appliedThroughBrowser = () => markApplied.mutate(asJob, {
     onSuccess: () => {
-      haptics.success();
+      // The redesigned page's success comes as the torn stub lands in its
+      // button; one buzz per moment (docs/haptics-rule-2026-11-08.md).
+      if (!ownSheets) haptics.success();
       toast.show({ message: `Applied to ${job.company_name}. It's in Tracker.`, icon: "done", duration: UNDO_TOAST_DURATION,
         action: { label: "Undo", run: () => setApplied(false) } });
     },
