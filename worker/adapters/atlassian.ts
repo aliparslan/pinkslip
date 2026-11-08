@@ -5,6 +5,7 @@ import { fetchWithTimeout } from "../http";
 // Atlassian's careers site reads every role, in full, from one public listing.
 const LISTINGS_URL = "https://www.atlassian.com/endpoint/careers/listings";
 const SOURCE = "atlassian";
+const USER_AGENT = "Mozilla/5.0 (compatible; Pinkslip/1.0; +https://pinkslip.work)";
 
 interface AtlassianJob {
   id: number | string;
@@ -90,7 +91,8 @@ function mapJob(job: AtlassianJob): JobListing {
 }
 
 async function fetchListings(): Promise<AtlassianJob[]> {
-  const response = await fetchWithTimeout(LISTINGS_URL);
+  // Atlassian's CDN answers 403 without one, and Workers send none by default.
+  const response = await fetchWithTimeout(LISTINGS_URL, { headers: { "user-agent": USER_AGENT } });
   if (!response.ok) throw new Error(`Atlassian listings ${response.status}`);
   const data = await response.json();
   if (!Array.isArray(data)) throw new Error("Atlassian listings returned an unexpected payload");

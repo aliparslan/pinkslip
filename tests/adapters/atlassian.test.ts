@@ -41,6 +41,13 @@ describe("AtlassianAdapter", () => {
     expect(() => normalizeAtlassianSource("stripe")).toThrow();
   });
 
+  it("sends a user agent, without which Atlassian answers 403", async () => {
+    stub();
+    await new AtlassianAdapter().fetchJobs("atlassian");
+    const [, init] = (globalThis.fetch as unknown as ReturnType<typeof mock>).mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("user-agent")).toContain("Pinkslip");
+  });
+
   it("maps listings, tidying places and combining the description", async () => {
     stub();
     const [graduate, sales] = await new AtlassianAdapter().fetchJobs("atlassian");

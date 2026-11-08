@@ -2,6 +2,8 @@ import type { ATSAdapter, JobContent, JobListing } from "./types";
 import { extractSalaryFromHtml } from "./salary";
 import { fetchWithTimeout } from "../http";
 
+const USER_AGENT = "Mozilla/5.0 (compatible; Pinkslip/1.0; +https://pinkslip.work)";
+
 interface WorkableLocation {
   country?: string | null;
   city?: string | null;
@@ -50,7 +52,7 @@ function boardUrl(slug: string) {
 }
 
 async function fetchBoard(slug: string): Promise<WorkableJob[]> {
-  const response = await fetchWithTimeout(boardUrl(slug));
+  const response = await fetchWithTimeout(boardUrl(slug), { headers: { "user-agent": USER_AGENT } });
   if (!response.ok) throw new Error(`Workable API ${response.status}`);
 
   const data = await response.json() as { jobs?: unknown };

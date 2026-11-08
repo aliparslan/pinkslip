@@ -162,7 +162,9 @@ around the doctorate: the experience has to follow the "or" directly.
 Checked on 2026-11-08 against all 2,271 open jobs mentioning a doctorate: 15
 became doctoral and 2 stopped being, with no other field changing. A reviewed
 job keeps its review, so a role rejected as doctoral has to be approved again
-for doctorate holders to see it.
+for doctorate holders to see it. A known gap: "currently has or is in the process
+of obtaining a PhD" is stored as a completed doctorate unless the title says PhD
+and intern, so a current PhD student won't match those postings.
 
 ## Early-career and mid-career stages (profile v7)
 

@@ -97,7 +97,8 @@ const SOURCE_RUNTIMES = {
   workable: {
     createAdapter: () => new WorkableAdapter(),
     normalize: normalizeWorkableSource,
-    defaultPollTier: 1,
+    // Workable rate-limits every-15-minute polling from Cloudflare's network.
+    defaultPollTier: 2,
   },
   avature: {
     createAdapter: () => new AvatureAdapter(),
