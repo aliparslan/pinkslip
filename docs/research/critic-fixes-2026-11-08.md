@@ -22,31 +22,40 @@ The sheet cross-fade (flow run 4.10) belongs to the other session's
 steps at once. It has been redrawn so the old step leaves in 100ms and the
 new one arrives over 200ms, starting at 80ms.
 
-## Drawn in Paper, for the owner to pick
+## Drawn in Paper, for the owner to pick (pass 2)
 
-1. **Today for a new user.** "Get set up" holds Add your resume and Turn on
-   alerts (the two things You shows as unfinished). Below it, "New for you"
-   shows the top three matches and a "See all jobs" link. No illustration,
-   nothing centred.
+The critic scored the first drawings 6/10. Pass 2 takes up the findings
+that don't contradict an owner decision. Two of its findings stay as they
+are because the owner decided them: the five-tab bar, with Search at the
+bottom (Oct 12 and Oct 22), and a count on every section (Oct 13). One
+it contradicted itself on: it first wanted filled chips to match the
+search field, then said filled chips read as suggestions. The chips stay
+outlined, as they are today.
+
+1. **Today for a new user.**
+   - "Get set up" has one strong step: Add your resume, with the only pink
+     button on the screen.
+   - Alerts is an inline switch.
+   - "New grad jobs this week" lists only this week's jobs, in the same
+     row as Jobs, then a "See all jobs" link.
+   - Plain glyphs: the same style as You.
 2. **Jobs.**
-   - **Title first.** The title leads in Subhead and may wrap to two lines.
-     Line two is "Company · Place · Pay". Rows grow with the title, so the
-     84pt rows go.
+   - **Title first, on Today and Jobs alike.** The title can wrap to two
+     lines, then Company · Place · Pay. Rows grow with the title, so the
+     fixed 84pt rows go.
    - **Identical postings become one row.** Apple's two "Cellular Power
      Optimization Software Engineer, Wireless Technologies & Ecosystems"
-     postings are the same title in the same place with different pay
-     bands. Wrapping the title can't tell them apart, so one row says
-     "2 postings" and gives the combined pay.
-   - **Chips are filled grey capsules,** like the search field and the
-     filter button.
+     postings have the same title in the same place, with different pay
+     bands. Wrapping can't tell them apart, so they become one row with
+     the combined pay and "×2" in the trailing slot (VoiceOver: "2
+     postings").
 3. **You.**
-   - **Sign in with Apple inside the guest card,** under "Your saves stay on
-     this phone".
-   - **Plain glyphs in `ink-2` instead of the tinted tiles.** This replaces
-     the find/apply/pro tile colours on You only; Today's tiles stay.
-   - **Outreach, Plan and Auto-apply move into a "Coming soon" group.**
-     Their labels are dimmed and they have no chevrons. They stay as
-     roadmap signals.
+   - **The guest card** is "Your saves stay on this phone" over Sign in with
+     Apple. The placeholder avatar and "Guest" are gone.
+   - **Plain glyphs in `ink-2`** in place of the tinted tiles.
+   - **One quiet line** at the end, "Coming soon: Outreach, Plan and
+     Auto-apply" with the wrench. It replaces three dimmed rows and keeps
+     the roadmap signal.
 
-Each is a change to an approved design, so nothing is built until the owner
-picks.
+Each is a change to an approved design (title-first rows and the plain
+glyphs especially), so nothing is built until the owner picks.
