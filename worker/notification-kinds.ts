@@ -270,7 +270,7 @@ export function applySendNotification(send: { status: string; company: string; t
         url,
       };
     case "blocked":
-      return { kind: "apply_needs_you" as const, title: send.company, body: what("Finish it yourself"), url };
+      return { kind: "apply_needs_you" as const, title: send.company, body: what("Hit a captcha. Over to you"), url };
     case "code_needed":
       return { kind: "apply_code" as const, title: send.company, body: "Enter the code Greenhouse emailed you", url };
     default:

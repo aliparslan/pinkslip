@@ -4,7 +4,7 @@ import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
@@ -111,21 +111,18 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   }, [jobs, feed.hasNextPage, matching]);
   // Under a job's page the rows hold still, so going back zooms into the row
   // it grew from, and whatever changed meanwhile arrives once it has landed.
-  const covered = usePageOver();
-  const steady = useRef(latest);
-  if (!covered) steady.current = latest;
-  const items = steady.current;
+  const { steady: items, justReleased } = useSteadyUnderPage(latest);
 
   // Postings new since you looked arrive at the top: the rows you've seen
   // make room and uncover them (Kit → Motion fixes). Only a refresh of the
   // same list does this; a chip or a search swaps rows with no entrance.
   const arrives = useMotionTrial("jobsArrive");
   const [held, setHeld] = useState<{ items: Item[]; changing: ReadonlySet<string>; logos: string[] } | null>(null);
-  const last = useRef({ items, params, fetching: feed.isFetching, holding, covered });
+  const last = useRef({ items, params, fetching: feed.isFetching, holding });
   if (last.current.items !== items) {
     const previous = last.current;
-    last.current = { items, params, fetching: feed.isFetching, holding, covered };
-    const arrived = arrives && (previous.fetching || previous.holding || previous.covered) && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
+    last.current = { items, params, fetching: feed.isFetching, holding };
+    const arrived = arrives && (previous.fetching || previous.holding || justReleased) && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
     if (arrived > 0) {
       const fresh = items.filter((item): item is Extract<Item, { kind: "job" }> => item.kind === "job").slice(0, arrived);
       setHeld({ items: previous.items, changing: changedKeys(allKeys(previous.items), allKeys(items)), logos: fresh.flatMap((item) => logoUri(item.job.company_domain) ?? []) });
@@ -133,7 +130,6 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   } else {
     last.current.fetching = feed.isFetching;
     last.current.holding = holding;
-    last.current.covered = covered;
   }
   const shown = held?.items ?? items;
   const keys = useMemo(() => allKeys(shown), [shown]);
@@ -252,22 +248,38 @@ const NO_ANCHOR = { disabled: true };
 /** How long a page takes to zoom back into its row. */
 const ZOOM_BACK_MS = 700;
 
-/** True from when a page opens over this list until it has zoomed away. */
-function usePageOver(): boolean {
+/**
+ * `latest`, held still from when a page opens over this list until it has
+ * zoomed away. The page opening or closing renders nothing here unless the
+ * list really changed meanwhile: a zoom shouldn't share its first frames
+ * with a render of every row.
+ */
+function useSteadyUnderPage<T>(latest: T): { steady: T; justReleased: boolean } {
   const navigation = useNavigation();
   const route = useRoute();
-  const [over, setOver] = useState(false);
+  const over = useRef(false);
+  const steady = useRef(latest);
+  const newest = useRef(latest);
+  const released = useRef(false);
+  const [, render] = useReducer((count: number) => count + 1, 0);
+  newest.current = latest;
+  if (!over.current) steady.current = latest;
   useEffect(() => {
     let settling: ReturnType<typeof setTimeout> | undefined;
     const stopBlur = navigation.addListener("blur", () => {
       clearTimeout(settling);
       // Another tab leaves this list on top of its own stack: nothing to hold.
       const state = navigation.getState();
-      if (state && state.routes[state.index]?.key !== route.key) setOver(true);
+      if (state && state.routes[state.index]?.key !== route.key) over.current = true;
     });
     const stopFocus = navigation.addListener("focus", () => {
       clearTimeout(settling);
-      settling = setTimeout(() => setOver(false), ZOOM_BACK_MS);
+      settling = setTimeout(() => {
+        over.current = false;
+        if (newest.current === steady.current) return;
+        released.current = true;
+        render();
+      }, ZOOM_BACK_MS);
     });
     return () => {
       clearTimeout(settling);
@@ -275,7 +287,9 @@ function usePageOver(): boolean {
       stopFocus();
     };
   }, [navigation, route.key]);
-  return over;
+  const justReleased = released.current;
+  released.current = false;
+  return { steady: steady.current, justReleased };
 }
 
 /** A row opens its job; long-press peeks at it with the row's actions under

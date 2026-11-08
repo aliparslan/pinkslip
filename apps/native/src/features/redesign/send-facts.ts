@@ -66,9 +66,9 @@ export function sendButtonState(send: ApplySend | null, company: string, now = D
       // Something the app can't answer (the form's own error, a file) is
       // finished in assisted apply; nothing at all means the run broke.
       if (send.needs.length === 0) return { kind: "didntSend" };
-      return send.needs.every(canAnswer) ? { kind: "needsYou", questions: send.needs.length } : { kind: "finishOnPhone" };
+      return send.needs.every(canAnswer) ? { kind: "needsYou", questions: send.needs.length } : { kind: "finishOnPhone", reason: "stuck" };
     }
-    case "blocked": return { kind: "finishOnPhone" };
+    case "blocked": return { kind: "finishOnPhone", reason: "captcha" };
     case "gone": return { kind: "apply", closed: true };
     case "failed": return { kind: "didntSend" };
   }

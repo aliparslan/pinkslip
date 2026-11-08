@@ -45,14 +45,14 @@ describe("the job page's send", () => {
   test("turns pink when the next move is yours", () => {
     expect(sendButtonState(send({ status: "code_needed" }), "Stripe")).toEqual({ kind: "code" });
     expect(sendButtonState(send({ status: "ready", dry_run: true }), "Stripe")).toEqual({ kind: "checked" });
-    expect(sendButtonState(send({ status: "blocked" }), "Stripe")).toEqual({ kind: "finishOnPhone" });
+    expect(sendButtonState(send({ status: "blocked" }), "Stripe")).toEqual({ kind: "finishOnPhone", reason: "captcha" });
     const needs = [{ ref: "q1", label: "Visa?", kind: "radio", options: ["Yes", "No"], required: true }];
     expect(sendButtonState(send({ status: "needs_you", needs }), "Stripe")).toEqual({ kind: "needsYou", questions: 1 });
   });
 
   test("sends what the app can't answer to the phone, and a broken run to Try again", () => {
     const error = { label: "School is required", kind: "error" };
-    expect(sendButtonState(send({ status: "needs_you", needs: [error] }), "Stripe")).toEqual({ kind: "finishOnPhone" });
+    expect(sendButtonState(send({ status: "needs_you", needs: [error] }), "Stripe")).toEqual({ kind: "finishOnPhone", reason: "stuck" });
     expect(sendButtonState(send({ status: "needs_you", needs: [] }), "Stripe")).toEqual({ kind: "didntSend" });
     expect(sendButtonState(send({ status: "failed" }), "Stripe")).toEqual({ kind: "didntSend" });
     expect(sendButtonState(send({ status: "gone" }), "Stripe")).toEqual({ kind: "apply", closed: true });

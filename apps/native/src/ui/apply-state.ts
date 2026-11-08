@@ -19,8 +19,9 @@ export type ApplyState =
   | { kind: "checked" }
   /** Greenhouse emailed a code, and the form waits for it. */
   | { kind: "code" }
-  /** A captcha came up: assisted apply opens on the phone, already filled. */
-  | { kind: "finishOnPhone" }
+  /** Pinkslip's browser stopped short, and why: assisted apply opens on the
+   * phone, already filled. */
+  | { kind: "finishOnPhone"; reason: "captcha" | "stuck" }
   /** It broke before Submit, so nothing went out; the send was given back. */
   | { kind: "didntSend" }
   /** Until the board or the company's email confirms it. */

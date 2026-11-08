@@ -22,7 +22,7 @@ const STATES: { caption: string; state: ApplyState }[] = [
   { caption: "7 · Applied · the thank-you page confirmed it", state: { kind: "applied", date: "Oct 24" } },
   { caption: "9 · Checked · opens Ready to send", state: { kind: "checked" } },
   { caption: "10 · Code · opens Greenhouse's code", state: { kind: "code" } },
-  { caption: "11 · Captcha · opens assisted apply, filled", state: { kind: "finishOnPhone" } },
+  { caption: "11 · Captcha · opens assisted apply, filled", state: { kind: "finishOnPhone", reason: "captcha" } },
   { caption: "12 · Didn't send · starts it again", state: { kind: "didntSend" } },
   { caption: "13 · Closed", state: { kind: "apply", closed: true } },
 ];

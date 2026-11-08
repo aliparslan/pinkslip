@@ -70,17 +70,19 @@ export function NeedsSheet({ job, needs, dryRun, pending, onSend, onDontSend }: 
       <Text weight="medium">{need.label}</Text>
     </View>
     <NeedInput key={ref} need={need} value={value} onChange={set} />
-    <View style={styles.actions}>
-      {step > 0 ? <SheetBack onPress={() => go(-1)} /> : null}
-      <View style={styles.flex}>
-        <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
-          onPress={() => (last ? onSend(answers) : go(1))}>
-          {!last ? "Next" : dryRun ? "Check again" : `Send to ${job.company}`}
-        </Button>
+    <View style={styles.answer}>
+      <View style={styles.actions}>
+        {step > 0 ? <SheetBack onPress={() => go(-1)} /> : null}
+        <View style={styles.flex}>
+          <Button variant="primary" fullWidth disabled={!answered} pending={last && pending}
+            onPress={() => (last ? onSend(answers) : go(1))}>
+            {!last ? "Next" : dryRun ? "Check again" : `Send to ${job.company}`}
+          </Button>
+        </View>
       </View>
+      {/* A word under the answers, as Discard sits under Save in Your search. */}
+      {onDontSend && !dryRun ? <Button variant="text" fullWidth onPress={onDontSend}>Don't send</Button> : null}
     </View>
-    {/* A word under the answers, as Discard sits under Save in Your search. */}
-    {onDontSend && !dryRun ? <Button variant="text" fullWidth onPress={onDontSend}>Don't send</Button> : null}
   </SheetStep>;
 }
 
@@ -225,6 +227,8 @@ const styles = StyleSheet.create((theme) => ({
   close: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },
   pressed: { opacity: 0.6 },
   question: { gap: theme.ui.space["1"] },
+  // Send and Don't send belong together: the sign-in sheet's Not now is as close.
+  answer: { gap: theme.ui.space["2"] },
   actions: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   field: {
     paddingHorizontal: theme.ui.space["4"],
