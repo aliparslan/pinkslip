@@ -1,8 +1,10 @@
 # Housekeeping (2026-11-08)
 
-Read from production D1 with `wrangler d1 execute --remote`, read-only. Nothing
-here has been deployed or applied. Every board and domain below was checked on
-2026-11-08.
+Findings came from production D1, read-only, and every board and domain below
+was checked on 2026-11-08.
+
+**Deployed 2026-11-08:** API Worker `44a1690e`, web Worker `0dfd62fb`, migrations
+0112 to 0114, and 243 logos in the R2 bucket `pinkslip-logos`. Jev is unchanged.
 
 ## 1. Failing sources
 
