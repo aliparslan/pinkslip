@@ -122,9 +122,11 @@ still don't show after the next update, tell me where you shared from.
 
 ## After your picks (Nov 8)
 
-- **The link card is black** (B), with the company's tile and the mark on
-  top, the position as the biggest thing, and the pay and place on one line
-  under it (Paper board 4). Built: the web Worker draws each job's card at
+- **The link card is black** (B), with the company's tile on top, the
+  position as the biggest thing, and the pay and place on one line under it,
+  ending in a small Pinkslip mark (Paper board 4; the mark moved from top
+  right, where it competed with the company's logo). Deployed: web
+  `ae981e02`, then the mark's move. Built: the web Worker draws each job's card at
   `/og/jobs/:id.png` and keeps it at the edge for a day; job pages point at
   it, and their share text is "Ramp · $150–180K · New York". Not deployed.
   The trial display font lacks "$", "–", "·", "(", "&" and "/", so the facts

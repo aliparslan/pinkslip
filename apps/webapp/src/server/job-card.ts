@@ -3,15 +3,16 @@ import { ImageResponse } from "workers-og";
 import interMedium from "@fontsource/inter/files/inter-latin-500-normal.woff?inline";
 import interRegular from "@fontsource/inter/files/inter-latin-400-normal.woff?inline";
 import interSemibold from "@fontsource/inter/files/inter-latin-600-normal.woff?inline";
-import mark from "../../public/brand/mark.svg?raw";
+import mark from "../../public/brand/mark-small.svg?raw";
 import { cardFacts, cardTitle } from "../features/job-detail/card-facts";
 import display from "./card/founders-grotesk-semibold.ttf?inline";
 
 /**
  * A job's link preview (owner, 2026-11-08, Paper "The job card, black, and
- * the mark everywhere"): black, the company's tile top left and Pinkslip's
- * mark top right, the position as the biggest thing, and the pay and place
- * on one line under it. 1200×630, drawn the first time it's asked for and
+ * the mark everywhere"): black, the company's tile top left, the position as
+ * the biggest thing, and the pay and place on one line under it, signed with
+ * a small Pinkslip mark at its end (owner: top right competed with the
+ * company's logo). The mark is the small one: in a chat it's about 16px. 1200×630, drawn the first time it's asked for and
  * kept at the edge for a day.
  *
  * The display face's trial cut has no "$", "–" or "·", so the facts line is
@@ -72,12 +73,12 @@ function card(job: PublicJob, logo: { src: string; fills: boolean } | null): Nod
     : h("div", { style: { fontFamily: "Letter", fontSize: 56, color: "#7A7A82" } }, job.company_name.trim().charAt(0).toUpperCase() || "·");
   const facts = cardFacts(job);
   return h("div", { style: { display: "flex", flexDirection: "column", justifyContent: "space-between", width: WIDTH, height: HEIGHT, padding: "72px 80px 76px", background: FIELD } },
-    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
-      h("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 128, height: 128, borderRadius: 32, background: "#FFFFFF", overflow: "hidden" } }, tile),
-      h("img", { src: `data:image/svg+xml;base64,${btoa(mark)}`, width: 128, height: 128 })),
+    h("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 128, height: 128, borderRadius: 32, background: "#FFFFFF", overflow: "hidden" } }, tile),
     h("div", { style: { display: "flex", flexDirection: "column" } },
       h("div", { style: { fontFamily: "Display, Punctuation", fontSize: 72, lineHeight: 1.06, letterSpacing: -0.7, color: "#FFFFFF" } }, cardTitle(job.title)),
-      facts ? h("div", { style: { marginTop: 20, fontFamily: "Text", fontSize: 40, color: "#B6B6BD" } }, facts) : null));
+      h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 20 } },
+        h("div", { style: { fontFamily: "Text", fontSize: 40, color: "#B6B6BD" } }, facts || " "),
+        h("img", { src: `data:image/svg+xml;base64,${btoa(mark)}`, width: 68, height: 68 }))));
 }
 
 /** GET /og/jobs/:id.png: the card for a public job, from the edge cache
