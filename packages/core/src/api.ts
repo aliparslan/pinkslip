@@ -663,6 +663,8 @@ export interface JobsListParams {
   /** @deprecated Older clients may continue sending numeric experience bounds. */
   max_yoe?: string;
   posted?: string;
+  /** "all" with `q`: every open job, not only those matching your search. */
+  scope?: "all";
 }
 
 export interface MeResponse {

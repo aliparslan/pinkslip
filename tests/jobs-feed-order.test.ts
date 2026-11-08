@@ -4,6 +4,7 @@ import {
   buildStageExperienceFilter,
   JOB_FEED_ORDER_BY,
   JOB_MATCH_FACT_CASE,
+  matchJoin,
   parseStageFilter,
 } from "@worker/routes/jobs";
 
@@ -36,6 +37,25 @@ describe("job feed order", () => {
       "apple-late",
       "date-only-early",
     ]);
+  });
+});
+
+describe("how the list reaches your matches", () => {
+  const ids = (everyJob: boolean) => {
+    const db = new Database(":memory:");
+    db.run("CREATE TABLE jobs (id TEXT PRIMARY KEY)");
+    db.run("CREATE TABLE user_job_matches (job_id TEXT, user_id TEXT, required_years INTEGER)");
+    db.run("INSERT INTO jobs (id) VALUES ('matched'), ('outside-my-search')");
+    db.run("INSERT INTO user_job_matches (job_id, user_id) VALUES ('matched', 'me')");
+    return db.query<{ id: string }, [string]>(`SELECT j.id FROM jobs j ${matchJoin(everyJob)} ORDER BY j.id`).all("me").map((row) => row.id);
+  };
+
+  it("keeps the feed to the jobs that match your search", () => {
+    expect(ids(false)).toEqual(["matched"]);
+  });
+
+  it("lets Search see every open job", () => {
+    expect(ids(true)).toEqual(["matched", "outside-my-search"]);
   });
 });
 

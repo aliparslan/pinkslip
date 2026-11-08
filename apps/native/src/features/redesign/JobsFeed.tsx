@@ -77,7 +77,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
-  const params = useMemo(() => (scope === "all" ? { q: search.q } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
+  const params = useMemo(() => (scope === "all" ? { q: search.q, scope: "all" as const } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
   const waiting = idle !== undefined && !search.q;
   // When the search shows only one level, the rows needn't say it.
   const onlyStage = useMemo(() => {

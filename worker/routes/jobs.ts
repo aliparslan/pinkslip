@@ -50,6 +50,15 @@ export const JOB_MATCH_FACT_CASE = `CASE
   ELSE 'Experience not specified'
 END`;
 
+/**
+ * How the list reaches a person's matches. The feed is only the jobs that
+ * match your saved search; Search (`scope=all` with words to look for) sees
+ * every open job, matched or not (owner, 2026-11-08: it promised "every open
+ * job and company").
+ */
+export const matchJoin = (everyJob: boolean) =>
+  `${everyJob ? "LEFT JOIN" : "JOIN"} user_job_matches us ON us.job_id = j.id AND us.user_id = ?`;
+
 const jobs = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 export { MAX_POSTED_AGE_DAYS };
@@ -372,8 +381,10 @@ jobs.get("/", async (c) => {
     max_yoe,
     posted,
     roles,
+    scope,
     stages,
   } = c.req.query();
+  const everyJob = scope === "all" && q !== undefined && q.trim() !== "";
   const roleFilter = parseRoleFilter(roles);
   if (roleFilter === null) {
     return c.json({ error: "Invalid roles filter" }, 400);
@@ -385,7 +396,7 @@ jobs.get("/", async (c) => {
 
   if (posted === "evergreen") {
     await ensureUserEvergreenMatchesReady(c.env.DB, userId);
-  } else {
+  } else if (!everyJob) {
     await ensureUserJobMatchesReady(c.env.DB, userId);
   }
 
@@ -412,7 +423,7 @@ jobs.get("/", async (c) => {
   const conditions: string[] = [
     "c.enabled = 1",
     "j.closed_at IS NULL",
-    "us.matcher_version = ?",
+    ...(everyJob ? [] : ["us.matcher_version = ?"]),
     `(us.required_years IS NULL OR us.required_years <= ${MAX_YEARS_EXPERIENCE})`,
     "(jrq.job_id IS NULL OR jrq.state = 'approved')",
     `NOT EXISTS (
@@ -438,7 +449,7 @@ jobs.get("/", async (c) => {
     userId,
     userId,
     userId,
-    MATCHER_VERSION,
+    ...(everyJob ? [] : [MATCHER_VERSION]),
     userId,
   ];
 
@@ -547,7 +558,7 @@ jobs.get("/", async (c) => {
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     JOIN job_features jf ON jf.job_id = j.id
-    JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+    ${matchJoin(everyJob)}
     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
     ${where}
     ORDER BY ${orderBy}
@@ -576,7 +587,7 @@ jobs.get("/", async (c) => {
           FROM jobs j
           JOIN companies c ON j.company_id = c.id
           JOIN job_features jf ON jf.job_id = j.id
-          JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+          ${matchJoin(everyJob)}
           LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
           ${where}
         `).bind(...countBindings).first<{ n: number }>()
