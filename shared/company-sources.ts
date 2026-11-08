@@ -6,6 +6,8 @@ export const POLLABLE_COMPANY_SOURCE_TYPES = [
   "rippling",
   "gem",
   "smartrecruiters",
+  "workable",
+  "avature",
   "yc",
   "amazon",
   "apple",
@@ -96,6 +98,24 @@ export const COMPANY_SOURCE_PRESENTATION = {
       placeholder: "e.g. smartrecruiters",
     },
     careersUrl: (slug) => `https://jobs.smartrecruiters.com/${slug}`,
+  },
+  workable: {
+    label: "Workable",
+    input: {
+      label: "Account slug or URL",
+      type: "text",
+      placeholder: "e.g. huggingface",
+    },
+    careersUrl: (slug) => `https://apply.workable.com/${slug}`,
+  },
+  avature: {
+    label: "Avature",
+    input: {
+      label: "Listing page URL",
+      type: "url",
+      placeholder: "https://careers.company.com/careers/OpenRoles",
+    },
+    careersUrl: (slug) => slug,
   },
   yc: {
     label: "Y Combinator",

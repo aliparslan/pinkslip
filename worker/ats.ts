@@ -27,6 +27,8 @@ import {
   SmartRecruitersAdapter,
   normalizeSmartRecruitersSource,
 } from "./adapters/smartrecruiters";
+import { WorkableAdapter, normalizeWorkableSource } from "./adapters/workable";
+import { AvatureAdapter, normalizeAvatureSource } from "./adapters/avature";
 import { WorkdayAdapter, normalizeWorkdaySource } from "./adapters/workday";
 import { YcAdapter, normalizeYcSource } from "./adapters/yc";
 import type { ATSAdapter, JobListing } from "./adapters/types";
@@ -90,6 +92,16 @@ const SOURCE_RUNTIMES = {
     createAdapter: () => new SmartRecruitersAdapter(),
     normalize: normalizeSmartRecruitersSource,
     defaultPollTier: 1,
+  },
+  workable: {
+    createAdapter: () => new WorkableAdapter(),
+    normalize: normalizeWorkableSource,
+    defaultPollTier: 1,
+  },
+  avature: {
+    createAdapter: () => new AvatureAdapter(),
+    normalize: normalizeAvatureSource,
+    defaultPollTier: 2,
   },
   yc: {
     createAdapter: () => new YcAdapter(),
