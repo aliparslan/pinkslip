@@ -1,6 +1,10 @@
 import { formatRowLocation, formatRowSalary } from "@pinkslip/core/job-format";
 import type { PublicJob } from "@pinkslip/domain/public-jobs";
 
+/** The job card's design: part of its address, so a redesign isn't served
+ * from caches holding the old one. */
+export const JOB_CARD_VERSION = 1;
+
 /** The line under a job card's title, and its share text: the pay and the
  * place, as a job row shows them ("$150–180K · New York"). */
 export function cardFacts(job: Pick<PublicJob, "salary" | "location">): string {
