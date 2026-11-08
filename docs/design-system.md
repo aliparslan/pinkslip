@@ -453,6 +453,14 @@ part isn't there yet, draw it from the kit's values and add it to that page.
 - **The row** (`JobRow.tsx`): three lines, at least 84 tall, growing with
   its content. The 40 logo (radius 10) sits on the 16 margin; text and
   separators start on the 68 line. Nothing sits in the left gutter.
+  - **Logos** (owner, 2026-11-08, Paper "Critic fixes · Nov 8", B): every
+    tile is white in both modes with the faint `image-outline`. A logo
+    that's a full square (Stripe, Notion, Sixtyfour) fills the tile at its
+    radius; marks and circles (Apple, Databricks) sit inset at 80%. A
+    company without a logo gets its first letter, Medium `ink-3`, on the
+    same white tile (grey `fill` before). The Worker's `/logo/shape` reads
+    each favicon's edges (`worker/logo-shape.ts`); the phone keeps the
+    answer a week.
   - **On Jobs** (owner, 2026-11-08, Paper "Critic fixes · Nov 8") the
     title leads, Subhead, up to two lines with the age (`ink-3`) at its end;
     then "Company · Place · Pay" in Subhead `ink-2` with the stage at the
@@ -1162,6 +1170,10 @@ cut so that each remaining one has a job.
     preview on long press · Nov 4", A; the owner tried B on the phone and
     dropped its lines under the ticket). None of the job page's buttons;
     tapping it still opens the job. `JobPreview.tsx`.
+- **2026-11-08**
+  - Logos fill the tile when they're full squares (B, above); the letter
+    tile is white like the rest. This closes the 2026-10-13 note that it
+    waited on the server reading each favicon's edges.
 - **2026-11-07** (owner's run of the flow checklist)
   - A field's label glides up and shrinks as it takes focus, and the value
     keeps one place from the start (`TextField`); the whole field takes the
