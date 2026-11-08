@@ -4,6 +4,7 @@ import {
   isEvergreenTitle,
   isFreshPostedAt,
   MAX_POSTED_AGE_DAYS,
+  namesUpcomingCohort,
 } from "../shared/job-policy";
 
 describe("evergreen postings", () => {
@@ -45,5 +46,35 @@ describe("job freshness policy", () => {
   test("keeps undated jobs but rejects malformed dates", () => {
     expect(isFreshPostedAt(null, now)).toBe(true);
     expect(isFreshPostedAt("not-a-date", now)).toBe(false);
+  });
+});
+
+describe("namesUpcomingCohort", () => {
+  const NOV_2026 = Date.UTC(2026, 10, 8);
+  const MAR_2027 = Date.UTC(2027, 2, 1);
+  const AUG_2027 = Date.UTC(2027, 7, 1);
+
+  test("recognizes early-career programs for a cohort that hasn't started", () => {
+    for (const title of [
+      "2027 Intern - Software Engineer",
+      "Software Development Engineer Intern - Summer 2027 (USA)",
+      "Cybersecurity Software Engineer - New Grad (2027)",
+      "2027 University Graduate - Machine Learning Engineer",
+      "Software Development Engineer I, Annapurna Labs, Early Career - 2027",
+      "Software Engineer - Entry Level 2027",
+      "Software Engineer, Applied Emerging Talent (2027)",
+    ]) expect(namesUpcomingCohort(title, NOV_2026)).toBe(true);
+  });
+
+  test("needs both an early-career word and an upcoming year", () => {
+    expect(namesUpcomingCohort("Software Engineer Intern", NOV_2026)).toBe(false);
+    expect(namesUpcomingCohort("Solutions Architect, AWSI - 2027", NOV_2026)).toBe(false);
+    expect(namesUpcomingCohort("Expression of Interest: 2027 Trading Sneak Peek Weeks", NOV_2026)).toBe(false);
+    expect(namesUpcomingCohort("Software Engineer Intern, Summer 2026", NOV_2026)).toBe(false);
+  });
+
+  test("lets this year's cohort count only until June", () => {
+    expect(namesUpcomingCohort("Software Engineer Intern, Summer 2027", MAR_2027)).toBe(true);
+    expect(namesUpcomingCohort("Software Engineer Intern, Summer 2027", AUG_2027)).toBe(false);
   });
 });

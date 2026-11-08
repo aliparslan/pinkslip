@@ -17,6 +17,22 @@ export function isFreshPostedAt(
   return nowMs - postedMs < STALE_AFTER_MS;
 }
 
+const EARLY_CAREER_TITLE = /\b(?:intern(?:ship)?s?|co-?ops?|new grad(?:uate)?s?|graduate|university|campus|early career|entry[- ]level|emerging talent|apprentice(?:ship)?s?)\b/i;
+
+/**
+ * A title naming a cohort that hasn't started ("Summer 2027", "New Grad (2027)")
+ * is open recruiting however long ago it was posted. Without this, a program we
+ * first see on day 30 is never admitted, while the same program seen on day 29
+ * stays for as long as it's listed. Next year counts; this year counts until June.
+ */
+export function namesUpcomingCohort(title: string, nowMs = Date.now()): boolean {
+  if (!EARLY_CAREER_TITLE.test(title)) return false;
+  const now = new Date(nowMs);
+  const thisYear = now.getUTCFullYear();
+  return [...title.matchAll(/\b(20\d{2})\b/g)].some(([, year]) =>
+    Number(year) > thisYear || (Number(year) === thisYear && now.getUTCMonth() < 5));
+}
+
 /**
  * Titles companies use for standing pipeline requisitions rather than a
  * specific opening. These never close, so age alone would take a long time to

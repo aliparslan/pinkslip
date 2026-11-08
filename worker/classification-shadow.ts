@@ -3,7 +3,7 @@ import type { Env } from "./types";
 import { classifyTitleScope } from "./job-scope";
 import { classifyJob, catalogCareerStage, hasPotentiallyEligibleSeniority, JOB_CLASSIFIER_VERSION, requiresSecurityClearance } from "./job-features";
 import { isUsJobLocation } from "./us-jobs";
-import { isFreshPostedAt } from "../shared/job-policy";
+import { isFreshPostedAt, namesUpcomingCohort } from "../shared/job-policy";
 import { hasTable } from "./db-schema";
 import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevRunner } from "./jev";
 import { aiBudgetStatus, alertOnAiBudget } from "./ai-budget";
@@ -19,7 +19,7 @@ export function catalogDecisionReason(job: JobListing, customTitles: readonly st
   const scope = classifyTitleScope(job.title, job.department, customTitles);
   if (!scope.admitted) return scope.reason;
   if (!isUsJobLocation(job.location)) return "rejected_location";
-  if (!isFreshPostedAt(job.postedAt)) return "rejected_freshness";
+  if (!isFreshPostedAt(job.postedAt) && !namesUpcomingCohort(job.title)) return "rejected_freshness";
   if (!hasPotentiallyEligibleSeniority(job.title)) return "rejected_seniority";
   if (/\b(?:ts\s*\/\s*sci|top secret|(?:active|current)\s+(?:secret|security)\s+clearance|secret\s+clearance)\b/i.test(job.title)
     || requiresSecurityClearance(job.description)) return "rejected_clearance";

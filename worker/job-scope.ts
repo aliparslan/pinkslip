@@ -5,7 +5,7 @@ import {
   requiresSecurityClearance,
 } from "./job-features";
 import { isUsJobLocation } from "./us-jobs";
-import { isFreshPostedAt } from "../shared/job-policy";
+import { isFreshPostedAt, namesUpcomingCohort } from "../shared/job-policy";
 
 // ─── Scope model ─────────────────────────────────────────────────────────────
 //
@@ -439,7 +439,7 @@ export function isEligibleJobListing(
   customTitles: readonly string[] = []
 ): boolean {
   return isCurrentJobScopeListing(job, customTitles)
-    && isFreshPostedAt(job.postedAt);
+    && (isFreshPostedAt(job.postedAt) || namesUpcomingCohort(job.title));
 }
 
 /**

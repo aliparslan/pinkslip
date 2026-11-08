@@ -709,8 +709,8 @@ export async function pollCompany(
       const statements = [
         db
         .prepare(
-          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary, pay_ranges)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`
+          `INSERT INTO jobs (id, company_id, external_id, title, url, location, department, posted_at, first_seen_at, dismissed, description, salary, pay_ranges, evergreen)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
         )
         .bind(
           job.jobId,
@@ -724,7 +724,9 @@ export async function pollCompany(
           now,
           job.listing.description ?? null,
           job.listing.salary ?? null,
-          payRangesJson(job.listing.payRanges)
+          payRangesJson(job.listing.payRanges),
+          // An older upcoming-cohort program is admitted as still listed, not new.
+          isEvergreenPosting(job.listing.title, job.listing.postedAt, true) ? 1 : 0
         ),
       ];
       if (shouldQueueNotificationsForCompany(company)) {
