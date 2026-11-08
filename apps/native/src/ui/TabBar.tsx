@@ -387,7 +387,14 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
     const route = tabs[index];
     if (!route) return;
     const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-    if (index !== selected && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+    if (index !== selected && !event.defaultPrevented) {
+      // The oval sets off at the tap, on the UI thread, instead of once the
+      // new tab has rendered. The effect on `selected` aims it at the same
+      // place, which Reanimated carries on as one glide.
+      current.value = index;
+      x.value = withSpring(slotX(index), GLIDE);
+      navigation.navigate(route.name, route.params);
+    }
     if (route.name === "(search)" && !event.defaultPrevented) for (const listener of searchPressed) listener();
   };
   // The drag is built once per tab count; it reaches today's tabs through here.
