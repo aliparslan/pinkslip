@@ -71,15 +71,26 @@ export function CompanyPage({ companyId }: { companyId: string }) {
       ]} /></View>
     </View>
     {segment === "people"
-      ? <People people={people.data?.people} guestCount={people.data?.signed_in === false ? people.data.count ?? 0 : undefined}
+      ? people.isError && !people.data ? <DidntLoad onRetry={() => void people.refetch()} />
+      : <People people={people.data?.people} guestCount={people.data?.signed_in === false ? people.data.count ?? 0 : undefined}
         pending={people.isPending && people.fetchStatus !== "idle"} company={plainText(name)} />
       : segment === "events"
-      ? <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
+      ? events.isError && !events.data ? <DidntLoad onRetry={() => void events.refetch()} />
+      : <CompanyEvents events={events.data} pending={events.isPending} company={plainText(name)} />
       : feed.isPending ? <RowPlaceholders lines={2} logo={false} />
+      : feed.isError ? <DidntLoad onRetry={feed.refetch} />
       : <CompanyJobs jobs={jobs} company={plainText(name)} />}
   </ScrollView>
   <PageBar />
   </>;
+}
+
+/** A tab whose request failed says so, instead of its empty state: "No open
+ * jobs" while offline was wrong (pre-1.4.0 audit, Nov 8). The app's own
+ * words for a page that didn't load. */
+function DidntLoad({ onRetry }: { onRetry: () => void }) {
+  return <EmptyState title="This didn't load" message="Check your connection and try again."
+    action={{ label: "Try again", variant: "secondary", onPress: onRetry }} />;
 }
 
 /** E1: the company's events as Coming up's rows, soonest first; E1b when
@@ -149,7 +160,13 @@ function useCompanyJobs(companyId: string, name: string | undefined) {
   });
   const jobs = useMemo(() => results.flatMap((result) => result.data?.jobs ?? [])
     .sort((a, b) => (b.posted_at ?? b.first_seen_at).localeCompare(a.posted_at ?? a.first_seen_at)), [results]);
-  return { jobs, isPending: results.some((result) => result.isPending), isSuccess: results.every((result) => result.isSuccess) };
+  return {
+    jobs,
+    isPending: results.some((result) => result.isPending),
+    isSuccess: results.every((result) => result.isSuccess),
+    isError: results.some((result) => result.isError && !result.data),
+    refetch: () => results.forEach((result) => void result.refetch()),
+  };
 }
 
 function CompanyJobs({ jobs, company }: { jobs: Job[]; company: string }) {
@@ -175,7 +192,7 @@ function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
   // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
   const zoom = useMotionTrial("zoom");
   return <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild>
-    <Link.Trigger withAppleZoom={zoom}><Pressable>
+    <Link.Trigger withAppleZoom={zoom}><Pressable accessibilityRole="button">
       {({ pressed }) => <View style={[styles.row, pressed && styles.pressed]}><View style={styles.rowText}>
         <View style={styles.line}>
           <Text role="subhead" weight={weight} lines={1} flex>{plainText(job.title)}</Text>
