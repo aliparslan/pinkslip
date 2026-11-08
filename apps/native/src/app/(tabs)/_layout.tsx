@@ -3,6 +3,7 @@ import { router, usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect } from "react";
+import { useReducedMotion } from "react-native-reanimated";
 import { useUnistyles } from "react-native-unistyles";
 import { onboardingDue } from "../../features/onboarding/launch";
 import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
@@ -13,6 +14,7 @@ import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
 import { appPathFor } from "../../platform/links";
 import { TabBar } from "../../ui";
+import { tabTransition, useTabMotion } from "../../ui/tab-motion";
 
 /** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
  * Search and You, each with its own stack. The redesign draws its own
@@ -33,6 +35,9 @@ function PillTabs() {
   // A link that opened the app goes where it points (owner, 2026-11-07: a
   // shared job opened on Today, the job left behind on Jobs).
   const pathname = usePathname();
+  // Still, or one of the slides being compared in the kit; Reduce Motion keeps it still.
+  const tabMotion = useTabMotion();
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     const launchedBy = Linking.getLinkingURL();
     const linked = launchedBy ? appPathFor(launchedBy) : null;
@@ -40,7 +45,7 @@ function PillTabs() {
     // Only at launch: Jobs is "/" whenever you open it after.
   }, []);
   return <>
-  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} above={live} aboveHeight={LIVE_BAR_HEIGHT} />} screenOptions={{ headerShown: false, animation: "none" }}>
+  <Tabs tabBar={(props) => <TabBar {...props} badges={{ "(today)": needsYou }} above={live} aboveHeight={LIVE_BAR_HEIGHT} />} screenOptions={{ headerShown: false, ...tabTransition(reduceMotion ? "still" : tabMotion) }}>
     <Tabs.Screen name="(today)" />
     <Tabs.Screen name="(jobs)" />
     <Tabs.Screen name="(library)" />

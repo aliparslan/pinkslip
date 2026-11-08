@@ -19,6 +19,7 @@ import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { UPDATE_NOTES, type UpdateNotes } from "../redesign/update-notes";
 import { RELEASES, UpdateNotesSheet, WhatsNewSheet, type Release } from "../redesign/whats-new";
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
+import { setTabMotion, TAB_MOTIONS, useTabMotion } from "../../ui/tab-motion";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -34,6 +35,7 @@ export function RedesignGallery() {
   const [torn, setTorn] = useState(false);
   const [punches, setPunches] = useState(3);
   const texture = usePaperTexture();
+  const tabMotion = useTabMotion();
   const [reporting, setReporting] = useState(false);
   const [release, setRelease] = useState<Release | null>(null);
   const [notes, setNotes] = useState<UpdateNotes | null>(null);
@@ -46,6 +48,13 @@ export function RedesignGallery() {
   const sampleRequest: ApplicationRequest = { jobId: "sample", url: SAMPLE_FORM_URL, autoSubmit: false, company: "Stripe", sample: true, local: true };
   const sampleApplied = () => toast.show({ message: "Applied to Stripe. It's in Tracker.", icon: "done" });
   return <KitPage title="Redesign kit" style={styles.screen} contentStyle={styles.content}>
+    <Section title="Tab switches" flush>
+      <ListGroup footer="Kept on this phone. Switch tabs for a few days before deciding. Reduce Motion keeps them still.">
+        {TAB_MOTIONS.map((option) => <ListItem key={option.id} title={option.title} detail={option.detail}
+          accessory="radio" selected={tabMotion === option.id} onPress={() => setTabMotion(option.id)} />)}
+      </ListGroup>
+    </Section>
+
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
         <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
