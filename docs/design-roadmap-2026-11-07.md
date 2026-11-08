@@ -67,11 +67,17 @@ Nov 7 flow run:
 - [ ] **Designed preview cards for shared job links** (flow run 2.30):
       every shared link reads as an ad. Web, not native.
 
-- [ ] **Buttons on job alerts** (owner, 2026-11-08): Save, Hide and Queue
-      on a one-job alert, acting without opening the app (a background
-      handler, so a new build); a batch alert opens the app on just those
-      jobs, since one set of buttons can't serve several.
-- [ ] **Add an interview to Calendar** (owner, 2026-11-08), a new build.
+- [x] **Buttons on job alerts** (owner, 2026-11-08), built for 1.3.10:
+      Save, Queue and Hide on a one-job alert, acting without opening the
+      app (`apps/native/modules/alert-actions`). Queue shows for a
+      Greenhouse or Ashby form when the person has sends and a resume on
+      file; a failure says so with its own alert, and "Sent for you" is the
+      only follow-up. Several jobs at once: one alert each up to five, then
+      one "N more new jobs" that opens Jobs. The daily digest stays one.
+- [x] **Add an interview to Calendar** (owner, 2026-11-08), built for
+      1.3.10: "Add to Calendar" under the Next row, then "In your
+      calendar", and "Save and add to Calendar" in the date sheet. iOS's own
+      New Event sheet, so no calendar permission on iOS 17 and later.
 - Back burner (owner, 2026-11-08): Spotlight search of your jobs; Siri and
   Shortcuts.
 
