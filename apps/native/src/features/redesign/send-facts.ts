@@ -48,15 +48,17 @@ export function lapsed(send: ApplySend, now = Date.now()): boolean {
 
 const monthDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-/** The button for where a send stands; null to leave the page's own. */
-export function sendButtonState(send: ApplySend | null, company: string, now = Date.now()): ApplyState | null {
+/** The button for where a send stands; null to leave the page's own.
+ * `gettingCode`: forwarding is still bringing Greenhouse's code, so the send
+ * is still sending rather than asking for it (code-wait.ts). */
+export function sendButtonState(send: ApplySend | null, company: string, now = Date.now(), gettingCode = false): ApplyState | null {
   // Stopped, the job is back to Apply for me.
   if (!send || send.stopped || lapsed(send, now)) return null;
   switch (send.status) {
     case "queued": return { kind: "opening" };
     case "running": return send.progress ? { kind: "applying", filled: send.progress.filled, of: send.progress.of } : { kind: "opening" };
     case "submitting": return { kind: "sending", company };
-    case "code_needed": return { kind: "code" };
+    case "code_needed": return gettingCode ? { kind: "sending", company } : { kind: "code" };
     case "submitted": return { kind: "applied", date: monthDay(send.finished_at ?? send.created_at) };
     case "unconfirmed": return { kind: "sent", company };
     case "ready": return { kind: "checked" };
@@ -164,7 +166,13 @@ const WAITS = new Set<ApplySend["status"]>(["needs_you", "blocked", "code_needed
  * nothing, since the person finished it themselves (owner, 2026-11-08: after
  * Finish and "Did you apply? Yes", the bar stayed).
  */
-export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now(), applied: ReadonlySet<string> = new Set()): LiveBarFacts | null {
+export function liveBar(
+  sends: readonly ApplySend[] | undefined,
+  now = Date.now(),
+  applied: ReadonlySet<string> = new Set(),
+  /** Sends whose code forwarding is still bringing (code-wait.ts). */
+  gettingCode: ReadonlySet<string> = new Set(),
+): LiveBarFacts | null {
   const newest = new Map<string, ApplySend>();
   for (const send of sends ?? []) {
     if (send.dry_run || now - Date.parse(send.created_at) > RUN_WINDOW_MS) continue;
@@ -173,13 +181,14 @@ export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now(
   const run = [...newest.values()].filter((send) => !send.finished_at || now - Date.parse(send.finished_at) < WAITS_ON_BAR_MS
     || send.status === "code_needed")
     .filter((send) => !send.stopped && !(applied.has(send.job_id) && WAITS.has(send.status)));
-  const going = run.filter((send) => GOING.has(send.status));
+  const fetching = (send: ApplySend) => send.status === "code_needed" && gettingCode.has(send.id);
+  const going = run.filter((send) => GOING.has(send.status) || fetching(send));
   const stopped = (send: ApplySend) => send.status === "needs_you" && send.needs.length > 0 && !lapsed(send, now);
   // Several stops whose questions the one sheet takes are one ask, not one
   // after another (owner, 2026-11-08: Stripe's three replaced Reddit's one,
   // then Reddit's came back).
   const answerable = run.filter((send) => stopped(send) && send.needs.every(canAnswer));
-  const code = run.find((send) => send.status === "code_needed");
+  const code = run.find((send) => send.status === "code_needed" && !fetching(send));
   const waiting = code ?? (answerable.length > 1 ? null : run.find((send) => stopped(send) || send.status === "blocked"));
   if (going.length === 0 && !waiting && answerable.length < 2) return null;
   const sent = run.filter((send) => send.status === "submitted" || send.status === "unconfirmed");
@@ -202,7 +211,9 @@ export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now(
   // form and sending it, rather than sitting on "15 of 15" (owner,
   // 2026-11-08); several count applications.
   const fields = run.length === 1 ? current!.progress : null;
-  const state: LiveBarState = run.length === 1 && current!.status === "submitting"
+  const state: LiveBarState = run.length === 1 && fetching(current!)
+    ? { kind: "sending", company: name(current!), count: "Getting the code", share: 1 }
+    : run.length === 1 && current!.status === "submitting"
     ? { kind: "sending", company: name(current!), count: "Sending", share: 1 }
     : fields
     ? { kind: "sending", company: name(current!), count: fields.filled >= fields.of ? "Checking" : `${fields.filled} of ${fields.of}`, share: fields.filled / Math.max(fields.of, 1) }

@@ -150,7 +150,12 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
           : feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
       </View>
     </> : null}
-    ListEmptyComponent={waiting ? <>{idle}</> : feed.isPending ? <RowPlaceholders /> : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
+    ListEmptyComponent={waiting ? <>{idle}</> : feed.isPending ? <RowPlaceholders />
+      // Search's own field clears it and its X leaves, so no third button,
+      // and a line under the companies rather than a big empty state that
+      // sat down by the field (owner, 2026-11-08: "Clear search" and two Xs).
+      : scope === "all" && search.q && !feed.isError ? <View style={styles.quiet}><Text role="subhead" tone="ink-2" align="center">No jobs match</Text></View>
+      : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
       {emptyOffline
         ? <EmptyState title="You're offline" message="Jobs will be here when you're back." />
         : feed.isError && !feed.data
@@ -257,4 +262,5 @@ const styles = StyleSheet.create((theme) => ({
   footer: { alignItems: "center", paddingTop: theme.ui.space["8"], paddingBottom: theme.ui.space["10"] },
   // Centred in the room under the header, not tucked under it.
   empty: { justifyContent: "center" },
+  quiet: { paddingHorizontal: theme.ui.space["8"], paddingTop: theme.ui.space["6"] },
 }));

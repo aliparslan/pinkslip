@@ -13,6 +13,7 @@ import type { DetailJob } from "../../job-detail/useJobPage";
 import { plainText } from "../job-facts";
 import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE, stoppable } from "../send-facts";
 import type { SendOpening } from "./LiveSends";
+import { useGettingCode } from "./code-wait";
 import { CodeSheet, NeedsSheet, type SendJob } from "./SendSheets";
 
 /** Sends need their own copy of the resume on the server; the first one
@@ -100,6 +101,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
   const sendable = enabled && SENDABLE.has(job.source_type ?? "") && !closed;
   const sends = useApplySends(sendable);
   const send = followedSend(sends.data, job.id);
+  const gettingCode = useGettingCode(sends.data, sendable);
   const { begin, starting } = useBeginSend(sendable);
   const answer = useAnswerSend();
   const code = useSendCode();
@@ -139,7 +141,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
   const go = (dryRun: boolean) => void begin(job.id, company, dryRun);
 
   let state: ApplyState | null = null;
-  if (sendable && !applied) state = starting ? { kind: "opening" } : sendButtonState(send, company) ?? { kind: "applyForMe" };
+  if (sendable && !applied) state = starting ? { kind: "opening" } : sendButtonState(send, company, Date.now(), Boolean(send && gettingCode.has(send.id))) ?? { kind: "applyForMe" };
 
   const onPress = (): (() => void) | undefined => {
     if (!state || !send && state.kind !== "applyForMe") return undefined;

@@ -1,9 +1,11 @@
 import type { ApplySend } from "@pinkslip/core/api";
-import { useApplySends, useAppliedJobs, useSession } from "@pinkslip/data";
+import { useApplySends, useAppliedJobs, useSession, useStopSend } from "@pinkslip/data";
 import { router, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LiveBar, type LiveJob } from "../apply-flow/WhileItRuns";
-import { liveBar, liveBarDone } from "../send-facts";
+import { toast } from "../../../ui";
+import { liveBar, liveBarDone, stoppable } from "../send-facts";
+import { useGettingCode } from "./code-wait";
 
 /** Done stays this long, then the bar leaves on its own (Paper 4.3). */
 const DONE_MS = 4_000;
@@ -28,8 +30,10 @@ export function useLiveSends(): ReactNode | null {
   // Jobs you've applied to yourself: their stops leave the bar.
   const appliedJobs = useAppliedJobs(enabled).data;
   const applied = useMemo(() => new Set((appliedJobs ?? []).map((job) => job.id)), [appliedJobs]);
+  const gettingCode = useGettingCode(sends.data, enabled);
+  const stopSend = useStopSend();
   const [now, setNow] = useState(() => Date.now());
-  const facts = enabled ? liveBar(sends.data, now, applied) : null;
+  const facts = enabled ? liveBar(sends.data, now, applied, gettingCode) : null;
 
   // A stop that waits on you leaves the bar after a while, for Today.
   useEffect(() => {
@@ -72,7 +76,17 @@ export function useLiveSends(): ReactNode | null {
       : facts.state.action === "Enter" ? "code" : facts.state.action === "Finish" ? "finish" : "answer";
     // Several stops' questions are one sheet, in Today.
     const answerAll = () => router.push({ pathname: "/today", params: { answer: "sends" } });
-    return <LiveBar state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)}
+    // Stop applying, from the queue: what's applying now and what's next.
+    // One already pressing Submit carries on.
+    const toStop = [facts.queue.now, ...facts.queue.next].filter((send): send is ApplySend => stoppable(send));
+    const stopAll = toStop.length > 0 ? () => {
+      void Promise.allSettled(toStop.map((send) => stopSend.mutateAsync(send.id))).then((results) => {
+        const stopped = results.filter((result) => result.status === "fulfilled").length;
+        if (stopped === 0) toast.error("Couldn't stop it. Try again.");
+        else toast.show({ message: stopped === 1 ? "Stopped. Nothing was sent" : `Stopped ${stopped}. Nothing was sent`, icon: "autoApply" });
+      });
+    } : undefined;
+    return <LiveBar state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)} onStop={stopAll}
       onAction={facts.state.kind === "needs" && facts.state.group ? answerAll : facts.jobId ? () => openJob(facts.jobId!, opening) : undefined} />;
   }
   if (done) return <LiveBar state={{ kind: "done", ...done }} queue={{ now: null, next: [], sent: [] }} onDismiss={() => setDone(null)} />;

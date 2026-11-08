@@ -42,7 +42,7 @@ export interface LiveQueue {
  * behind it, and, once sends can pause, a round pause. Tapping it opens the
  * queue. Its place is the tab bar's `above` slot.
  */
-export function LiveBar({ state, queue, onAction, onDismiss, onPause, onOpenJob }: {
+export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, onOpenJob }: {
   state: LiveState;
   queue: LiveQueue;
   /** The needs-you state's button: opens the job. */
@@ -50,6 +50,8 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onOpenJob 
   onDismiss?: () => void;
   /** Leave out until sends can pause (backend phase C). */
   onPause?: () => void;
+  /** Stops what's applying and what's next, from the queue (owner, 2026-11-08). */
+  onStop?: () => void;
   onOpenJob?: (job: LiveJob) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -86,7 +88,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onOpenJob 
       </GlassView>
     </Pressable>
     <SheetModal open={open} onClosed={() => setOpen(false)}>
-      {open ? <Queue queue={queue} paused={state.kind === "paused"} onPause={onPause} onOpenJob={onOpenJob} /> : null}
+      {open ? <Queue queue={queue} paused={state.kind === "paused"} onPause={onPause} onStop={onStop} onOpenJob={onOpenJob} /> : null}
     </SheetModal>
   </>;
 }
@@ -105,7 +107,7 @@ function PauseMark({ paused }: { paused: boolean }) {
 
 /** 4.2, the queue: Now, Up next and Sent (Confirmed once the board's
  * thank-you page or its email says so), then Pause once sends can pause. */
-function Queue({ queue, paused, onPause, onOpenJob }: { queue: LiveQueue; paused: boolean; onPause?: () => void; onOpenJob?: (job: LiveJob) => void }) {
+function Queue({ queue, paused, onPause, onStop, onOpenJob }: { queue: LiveQueue; paused: boolean; onPause?: () => void; onStop?: () => void; onOpenJob?: (job: LiveJob) => void }) {
   const sheet = useSheet();
   const shownNext = queue.next.slice(0, 2);
   const open = onOpenJob ? (job: LiveJob) => () => { sheet.close(); setTimeout(() => onOpenJob(job), 320); } : undefined;
@@ -128,6 +130,8 @@ function Queue({ queue, paused, onPause, onOpenJob }: { queue: LiveQueue; paused
         : <Text role="subhead" tone="ink-3">Sent</Text>} />)}
     </Section> : null}
     {onPause ? <Button fullWidth onPress={() => { onPause(); sheet.close(); }}>{paused ? "Resume" : "Pause"}</Button> : null}
+    {/* Where Pause goes: nothing more is sent, and what's queued is let go. */}
+    {onStop ? <Button fullWidth onPress={() => { onStop(); sheet.close(); }}>Stop applying</Button> : null}
   </SheetStep>;
 }
 

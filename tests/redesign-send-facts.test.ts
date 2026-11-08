@@ -154,6 +154,14 @@ describe("the live bar", () => {
       .toMatchObject({ words: "Reddit needs 1 answer", detail: "1 applying" });
   });
 
+  test("reads as getting the code while forwarding brings it, then asks for it", () => {
+    const waiting = job("Stripe", { status: "code_needed" });
+    expect(liveBar([waiting], at, new Set(), new Set([waiting.id]))?.state).toMatchObject({ kind: "sending", count: "Getting the code" });
+    expect(liveBar([waiting], at)?.state).toMatchObject({ words: "Stripe needs Greenhouse's code", action: "Enter" });
+    expect(sendButtonState(waiting, "Stripe", at, true)).toEqual({ kind: "sending", company: "Stripe" });
+    expect(sendButtonState(waiting, "Stripe", at)).toEqual({ kind: "code" });
+  });
+
   test("lets go of a stop you finished yourself, or stopped", () => {
     const blocked = job("Render", { status: "blocked", finished_at: minutesAgo(2) });
     expect(liveBar([blocked], at)?.state).toMatchObject({ words: "Render needs you", action: "Finish" });
