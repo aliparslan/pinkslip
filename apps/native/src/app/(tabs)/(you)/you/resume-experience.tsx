@@ -1,9 +1,6 @@
-import { Redirect } from "expo-router";
-import { useRedesign } from "../../../../features/redesign/flag";
 import { ExperienceListPage } from "../../../../features/redesign/resume/ResumePages";
 
-/** A resume editor page; today's screens edit the resume in one place. */
+/** One of the resume editor's pages. */
 export default function Screen() {
-  if (!useRedesign()) return <Redirect href="/you/resume" />;
   return <ExperienceListPage />;
 }

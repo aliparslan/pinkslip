@@ -1,14 +1,11 @@
 import * as Linking from "expo-linking";
 import { router, usePathname } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useEffect } from "react";
 import { useReducedMotion } from "react-native-reanimated";
-import { useUnistyles } from "react-native-unistyles";
 import { onboardingDue } from "../../features/onboarding/launch";
 import { OnboardingOnLaunch } from "../../features/onboarding/OnboardingOnLaunch";
 import { LIVE_BAR_HEIGHT } from "../../features/redesign/apply-flow/WhileItRuns";
-import { useRedesign } from "../../features/redesign/flag";
 import { useLiveSends } from "../../features/redesign/sends/LiveSends";
 import { useTodayNeedsYou } from "../../features/redesign/TodayScreen";
 import { WhatsNewOnLaunch } from "../../features/redesign/whats-new";
@@ -16,17 +13,11 @@ import { appPathFor } from "../../platform/links";
 import { TabBar } from "../../ui";
 import { tabTransition, useTabMotion } from "../../ui/tab-motion";
 
-/** Today (the redesign only), Jobs, Tracker (Library on the system tab bar),
- * Search and You, each with its own stack. The redesign draws its own
- * floating tab bar; today's screens keep the system one. */
+/** Today, Jobs, Tracker, Search and You, each with its own stack, under our
+ * tab bar (Paper "Tab bar · Oct 12", option C). It floats over the content
+ * on every tab, You included (owner, 2026-10-18: a band under it read as a
+ * dark box); each screen leaves room under its list. */
 export default function TabsLayout() {
-  return useRedesign() ? <PillTabs /> : <SystemTabs />;
-}
-
-/** Our tab bar (Paper "Tab bar · Oct 12", option C). It floats over the
- * content on every tab, You included (owner, 2026-10-18: a band under it
- * read as a dark box); each screen leaves room under its list. */
-function PillTabs() {
   const needsYou = useTodayNeedsYou();
   // Above the pill on every tab while Pinkslip applies (Paper "4 · While it runs").
   const live = useLiveSends();
@@ -55,29 +46,4 @@ function PillTabs() {
   <WhatsNewOnLaunch />
   <OnboardingOnLaunch />
   </>;
-}
-
-/** The system tab bar: Jobs, Library, You. */
-function SystemTabs() {
-  const { theme } = useUnistyles();
-  return <NativeTabs tintColor={theme.colors.accent}>
-    <NativeTabs.Trigger name="(today)" hidden>
-      <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
-    </NativeTabs.Trigger>
-    <NativeTabs.Trigger name="(jobs)">
-      <NativeTabs.Trigger.Icon sf={{ default: "briefcase", selected: "briefcase.fill" }} />
-      <NativeTabs.Trigger.Label>Jobs</NativeTabs.Trigger.Label>
-    </NativeTabs.Trigger>
-    <NativeTabs.Trigger name="(library)">
-      <NativeTabs.Trigger.Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
-      <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
-    </NativeTabs.Trigger>
-    <NativeTabs.Trigger name="(search)" hidden>
-      <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
-    </NativeTabs.Trigger>
-    <NativeTabs.Trigger name="(you)">
-      <NativeTabs.Trigger.Icon sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }} />
-      <NativeTabs.Trigger.Label>You</NativeTabs.Trigger.Label>
-    </NativeTabs.Trigger>
-  </NativeTabs>;
 }

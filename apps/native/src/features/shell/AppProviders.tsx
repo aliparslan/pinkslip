@@ -4,9 +4,8 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import * as Notifications from "expo-notifications";
 import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { AppState, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
-import { Button, EmptyState, toast, ToastHost } from "../../kit";
+import { AppState } from "react-native";
+import { toast, ToastHost } from "../../kit";
 import { appPathFor } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
 import { ASK_APPLY, ASK_DISMISS, notificationTarget, refreshDevicePush } from "../../platform/push";
@@ -15,7 +14,7 @@ import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
 import { SignInHost } from "../account/SignInSheet";
 import { LaunchFailure } from "../redesign/errors";
-import { redesignEnabled, rememberOwnerPhone } from "../redesign/flag";
+import { rememberOwnerPhone } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
 
 void SplashScreen.preventAutoHideAsync();
@@ -39,11 +38,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const retry = () => { initializeSession().then(setApi, (error: unknown) => setFailure({ error })); };
 
   if (!api) {
-    if (failure && redesignEnabled()) return <LaunchFailure error={failure.error} onRetry={retry} />;
-    return failure ? <View style={styles.center}>
-      <EmptyState title="Couldn't reach Pinkslip" message="Check your connection and try again."
-        actions={<Button variant="primary" onPress={start}>Try again</Button>} />
-    </View> : null;
+    return failure ? <LaunchFailure error={failure.error} onRetry={retry} /> : null;
   }
   return <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
     <DataProvider api={api}>
@@ -117,7 +112,3 @@ function AppEffects({ api }: { api: ApiClient }) {
   }, [api, queryClient]);
   return null;
 }
-
-const styles = StyleSheet.create((theme) => ({
-  center: { flex: 1, justifyContent: "center", backgroundColor: theme.colors.bg },
-}));

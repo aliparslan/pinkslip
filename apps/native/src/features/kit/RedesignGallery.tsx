@@ -14,7 +14,6 @@ import { ApplicationBrowser, type ApplicationRequest } from "../apply/Applicatio
 import { replayOnboarding } from "../onboarding/launch";
 import { DidYouApply } from "../redesign/ApplySheets";
 import { LIVE_FORM_URL, SAMPLE_FORM_URL } from "../apply/sample-form";
-import { setRedesignEnabled, useRedesign } from "../redesign/flag";
 import { ReportJobSheet } from "../redesign/ReportJobSheet";
 import { UPDATE_NOTES, type UpdateNotes } from "../redesign/update-notes";
 import { RELEASES, UpdateNotesSheet, WhatsNewSheet, type Release } from "../redesign/whats-new";
@@ -31,7 +30,6 @@ const facts = [
 export function RedesignGallery() {
   const [chip, setChip] = useState("Remote");
   const [plan, setPlan] = useState("monthly");
-  const redesign = useRedesign();
   const [torn, setTorn] = useState(false);
   const [punches, setPunches] = useState(3);
   const texture = usePaperTexture();
@@ -57,7 +55,6 @@ export function RedesignGallery() {
 
     <Section title="Screens" flush>
       <ListGroup footer="Dev builds and the owner's phone build only.">
-        <ListItem title="Redesigned screens" value={redesign ? "On" : "Off"} accessory="chevron" onPress={() => setRedesignEnabled(!redesign)} />
         <ListItem title="Onboarding, from the start" accessory="chevron" onPress={() => { replayOnboarding(); router.navigate("/"); }} />
         <ListItem title="Onboarding, saving to your search" accessory="chevron" onPress={() => { replayOnboarding(true); router.navigate("/"); }} />
         <ListItem title="Sign in, every step (sends nothing)" accessory="chevron" onPress={() => openSignIn({ sample: true })} />
