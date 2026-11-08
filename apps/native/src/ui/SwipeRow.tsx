@@ -2,7 +2,7 @@ import { createContext, useEffect, useLayoutEffect, useMemo, useRef, useState, t
 import { Pressable, Text as RNText, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Easing, interpolate, interpolateColor, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
+  Easing, interpolate, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { settleSpring } from "../kit/motion";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -11,11 +11,12 @@ import { haptics } from "../platform/haptics";
 import { face } from "./fonts";
 import { Icon, type IconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
-import { motionTrial, useMotionTrial } from "./motion-trial";
+import { motionTrial } from "./motion-trial";
 
-/** What an action is, which sets its color (Paper "Swipe actions · Oct
- * 14", S4): pink saves, blue reads, green is applying, graphite hides. */
-export type SwipeTone = "accent" | "find" | "apply" | "neutral";
+/** What an action is, which sets its colour: pink saves, blue reads, green
+ * is applied, purple queues an application, gray hides and undoes (owner,
+ * 2026-11-08, Paper "Swipe buttons · label under, colours · Nov 8", 4). */
+export type SwipeTone = "accent" | "find" | "apply" | "queue" | "neutral";
 
 export interface SwipeAction {
   id: string;
@@ -54,20 +55,22 @@ export function closeOpenSwipeRow() {
   openRow?.close();
 }
 
-function toneColors(tone: SwipeTone, color: Record<string, string>, glyphInk: boolean, dark: boolean) {
-  // A tint is the ink at 14%, so it reads on white and on graphite alike.
-  // Read and Applied were too faint at night (flow run 2.35): they take the
-  // glyph inks Today's tiles draw with, and 20% in dark mode, about as much
-  // colour as Save carries (Paper "5 · Swipe colours", 2026-11-08). The
-  // full-swipe fill keeps the tile ink, which white reads on.
-  const tint = (hex: string) => `${hex}${glyphInk && dark ? "33" : "24"}`;
-  const ink = (kind: "find" | "apply") => color[glyphInk ? `glyph-${kind}` : `tile-${kind}-ink`]!;
+/** A tone's solid capsule, as iOS Mail colours its swipes, under a white glyph. */
+function swipeColor(tone: SwipeTone, color: Record<string, string>): string {
   switch (tone) {
-    case "accent": return { tint: color["accent-soft"]!, ink: color.accent!, fill: color["accent-fill"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
-    case "find": return { tint: tint(ink("find")), ink: ink("find"), fill: color["tile-find-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
-    case "apply": return { tint: tint(ink("apply")), ink: ink("apply"), fill: color["tile-apply-ink"]!, onFill: color["accent-ink"]!, onFillTone: "accent-ink" as const };
-    case "neutral": return { tint: color.fill!, ink: color["ink-2"]!, fill: color["ink-2"]!, onFill: color.bg!, onFillTone: "bg" as const };
+    case "accent": return color["accent-fill"]!;
+    case "find": return color["swipe-read"]!;
+    case "apply": return color["swipe-applied"]!;
+    case "queue": return color["swipe-queue"]!;
+    case "neutral": return color["swipe-neutral"]!;
   }
+}
+
+/** The glyph a swipe draws: filled, as Mail's are, except Applied's check,
+ * a heavy line (a filled check-circle read as a badge). */
+function swipeGlyph(icon: IconName): { name: IconName; weight: "line" | "fill"; stroke?: number } {
+  if (icon === "applied") return { name: "done", weight: "line", stroke: 2.9 };
+  return { name: icon, weight: "fill" };
 }
 
 /**
@@ -82,15 +85,20 @@ function toneColors(tone: SwipeTone, color: Record<string, string>, glyphInk: bo
  * removes the row leaves and closes up in one motion, and one that doesn't
  * runs once the row is home, so nothing changes while it moves.
  */
-// The icon over its label (owner, 2026-11-04: less across).
-const PILL = 56;
-// More room either side (owner, 2026-11-04: it looked squeezed at 12).
-const PILL_PAD = 16;
-const PILL_ICON = 18;
-const PILL_ICON_GAP = 2;
-const PILL_MIN = 72;
-const PILL_GAP = 8;
-const PILL_EDGE = 8;
+// After iOS Mail (owner, 2026-11-08, Paper "Swipe buttons · label under,
+// colours · Nov 8", 4): a solid capsule wider than tall with a white glyph,
+// its label under it in ink-3, 10 apart and 10 from the screen's edge.
+// Capsule and label together are a two-line row's height.
+const CAPSULE_W = 60;
+const CAPSULE_H = 44;
+const LABEL_GAP = 2;
+/** The whole button: capsule, gap and a Footnote line. */
+const PILL = CAPSULE_H + LABEL_GAP + 18;
+const PILL_ICON = 22;
+const PILL_GAP = 10;
+const PILL_EDGE = 10;
+/** The glyph grows this much as a full swipe arms, with the haptic. */
+const ARMED_SCALE = 1.15;
 const CARD_RADIUS = 22;
 /** A pill chasing its target size: critically damped, a beat behind the drag. */
 const GROW = { ...spring(motion.swipe.grow), overshootClamping: true };
@@ -117,18 +125,10 @@ const RETURN_DELAY = 60;
 const gone = new Map<string, { sign: 1 | -1; at: number }>();
 const RETURN_WINDOW = 15_000;
 
-/** Label widths measured once, shared by every row. */
-const measured = new Map<string, number>();
-
-function pillWidth(label: string) {
-  const text = measured.get(label) ?? label.length * 8.5;
-  return Math.max(PILL_MIN, Math.ceil(PILL_PAD * 2 + text));
-}
-
 /** Each pill's width and its distance from the screen's edge, outer first,
  * and how far the row opens to show them all. */
 function pillGeometry(actions: readonly SwipeAction[]) {
-  const widths = actions.map((action) => pillWidth(action.label));
+  const widths = actions.map(() => CAPSULE_W);
   const near: number[] = [];
   let at = PILL_EDGE;
   for (const width of widths) {
@@ -161,17 +161,15 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
   const hush = useSharedValue(0);
   const [open, setOpen] = useState<"leading" | "trailing" | null>(null);
   const [swiping, setSwiping] = useState(false);
-  const [, setMeasured] = useState(0);
   const settled = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leadingKey = leading.map((action) => action.label).join("|");
   const trailingKey = trailing.map((action) => action.label).join("|");
-  const lead = useMemo(() => pillGeometry(leading), [leadingKey, measured.size]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trail = useMemo(() => pillGeometry(trailing), [trailingKey, measured.size]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lead = useMemo(() => pillGeometry(leading), [leadingKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trail = useMemo(() => pillGeometry(trailing), [trailingKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const leadReveal = useSharedValue(lead.reveal);
   const trailReveal = useSharedValue(trail.reveal);
   useEffect(() => { leadReveal.value = lead.reveal; }, [lead.reveal, leadReveal]);
   useEffect(() => { trailReveal.value = trail.reveal; }, [trail.reveal, trailReveal]);
-  const unmeasured = [...new Set([...leading, ...trailing].map((action) => action.label))].filter((label) => !measured.has(label));
 
   const close = useRef(() => {});
   close.current = () => {
@@ -348,18 +346,10 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
         {open ? <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Close actions" onPress={() => close.current()} /> : null}
       </Animated.View>
     </GestureDetector>
-    {unmeasured.length > 0 ? <View style={styles.measure} pointerEvents="none">
-      {unmeasured.map((label) => <View key={label} onLayout={(event) => {
-        measured.set(label, Math.ceil(event.nativeEvent.layout.width));
-        setMeasured(measured.size);
-      }}>
-        <RNText style={styles.pillLabel}>{label}</RNText>
-      </View>)}
-    </View> : null}
   </Animated.View>;
 }
 
-/** One action's pill, in its slot `near` points in from the screen's edge. */
+/** One action's button, in its slot `near` points in from the screen's edge. */
 function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, onPress }: {
   action: SwipeAction;
   index: number;
@@ -373,9 +363,9 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, on
   hush: SharedValue<number>;
   onPress: () => void;
 }) {
-  const { theme, rt } = useUnistyles();
-  const glyphInk = useMotionTrial("swipeInk");
-  const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>, glyphInk, !rt.themeName?.startsWith("light"));
+  const { theme } = useUnistyles();
+  const solid = swipeColor(action.tone, theme.ui.color as unknown as Record<string, string>);
+  const glyph = swipeGlyph(action.icon);
   const sign = side === "leading" ? 1 : -1;
   const outer = index === 0;
   // Its size chases a target set by how far the row has gone: from just
@@ -399,65 +389,82 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, on
     const over = Math.max(0, distance - reveal);
     const f = outer ? fill.value : 0;
     const stretched = own + over;
-    const filled = Math.max(0, distance - PILL_EDGE - PILL_GAP);
+    // Armed, it runs from the screen's edge to the row's.
+    const filled = Math.max(0, distance - PILL_GAP);
     return {
       width: outer ? stretched + (filled - stretched) * f : own,
       // The inner ones are gone by the time the outer one reaches them.
       opacity: (outer ? Math.max(shown, f) : shown * Math.max(0, 1 - fill.value * 3)) * (1 - hush.value),
       // The inner ones keep their place beside the outer one as it stretches.
-      transform: [{ translateX: outer ? 0 : sign * over }, { scale: grow + (1 - grow) * f }],
-      backgroundColor: outer ? interpolateColor(f, [0, 1], [colors.tint, colors.fill]) : colors.tint,
+      transform: [{ translateX: outer ? -sign * near * f : sign * over }, { scale: grow + (1 - grow) * f }],
     };
-  }, [own, near, reveal, outer, sign, colors.tint, colors.fill]);
-  const loud = useAnimatedStyle(() => ({ opacity: outer ? fill.value : 0 }), [outer]);
-  // The label stays with the row's side of the pill, by the finger, as it stretches.
-  const content = [styles.pillContent, { width: own }, side === "trailing" ? styles.pillContentLeft : styles.pillContentRight];
+  }, [own, near, reveal, outer, sign]);
+  // The screen's edge cuts the armed capsule square, so it reads as pulled
+  // out from the edge.
+  const capsule = useAnimatedStyle(() => {
+    const corner = (CAPSULE_H / 2) * (1 - (outer ? fill.value : 0));
+    return side === "leading"
+      ? { borderTopLeftRadius: corner, borderBottomLeftRadius: corner }
+      : { borderTopRightRadius: corner, borderBottomRightRadius: corner };
+  }, [outer, side]);
+  const pop = useAnimatedStyle(() => ({ transform: [{ scale: outer ? 1 + (ARMED_SCALE - 1) * fill.value : 1 }] }), [outer]);
+  // The glyph and label stay at the row's side, by the finger, as it stretches.
+  const anchor = side === "trailing" ? styles.anchorLeft : styles.anchorRight;
   return <Animated.View style={[styles.pill, side === "leading" ? { left: near } : { right: near }, shape]}>
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={action.label} style={StyleSheet.absoluteFill}>
-      <View style={content}>
-        <Icon name={action.icon} size={PILL_ICON} color={colors.ink} />
-        <RNText style={[styles.pillLabel, { color: colors.ink }]} numberOfLines={1}>{action.label}</RNText>
-      </View>
-      {outer ? <Animated.View style={[content, loud]}>
-        <Icon name={action.icon} size={PILL_ICON} color={colors.onFill} />
-        <RNText style={[styles.pillLabel, { color: colors.onFill }]} numberOfLines={1}>{action.label}</RNText>
-      </Animated.View> : null}
+      <Animated.View style={[styles.capsule, { backgroundColor: solid }, capsule]}>
+        <Animated.View style={[styles.glyph, { width: own }, anchor, pop]}>
+          <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={PILL_ICON} tone="accent-ink" />
+        </Animated.View>
+      </Animated.View>
+      <RNText style={[styles.label, { width: own + PILL_GAP }, side === "trailing" ? styles.labelLeft : styles.labelRight]}
+        numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</RNText>
     </Pressable>
   </Animated.View>;
 }
 
 /** A swipe action standing still, as a row shows it once open: You → Swipe
  * actions draws its preview with these, and a tap picks what goes there
- * (owner, 2026-11-08, Paper "Choosing swipe actions · Nov 8", B). The outer
- * one is filled, as it is when a full swipe is about to run it. */
-export function SwipeButton({ action, filled }: { action: Pick<SwipeAction, "label" | "icon" | "tone">; filled?: boolean }) {
-  const { theme, rt } = useUnistyles();
-  const glyphInk = useMotionTrial("swipeInk");
-  const colors = toneColors(action.tone, theme.ui.color as unknown as Record<string, string>, glyphInk, !rt.themeName?.startsWith("light"));
-  const ink = filled ? colors.onFill : colors.ink;
-  return <View style={[styles.still, { minWidth: PILL_MIN, backgroundColor: filled ? colors.fill : colors.tint }]}>
-    <Icon name={action.icon} size={PILL_ICON} color={ink} />
-    <RNText style={[styles.pillLabel, { color: ink }]} numberOfLines={1}>{action.label}</RNText>
+ * (owner, 2026-11-08, Paper "Choosing swipe actions · Nov 8", B). */
+export function SwipeButton({ action }: { action: Pick<SwipeAction, "label" | "icon" | "tone"> }) {
+  const { theme } = useUnistyles();
+  const glyph = swipeGlyph(action.icon);
+  return <View style={styles.still}>
+    <View style={[styles.stillCapsule, { backgroundColor: swipeColor(action.tone, theme.ui.color as unknown as Record<string, string>) }]}>
+      <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={PILL_ICON} tone="accent-ink" />
+    </View>
+    <RNText style={[styles.label, styles.stillLabel]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</RNText>
   </View>;
 }
 
+/** The size of a swipe button, for a slot drawn without one (Swipe actions' None). */
+export const SWIPE_BUTTON = { width: CAPSULE_W, height: CAPSULE_H, gap: LABEL_GAP, spacing: PILL_GAP } as const;
+
 const styles = StyleSheet.create((theme) => ({
   root: { overflow: "hidden", backgroundColor: theme.ui.color.bg },
-  still: {
-    height: PILL, paddingHorizontal: PILL_PAD, gap: PILL_ICON_GAP, alignItems: "center", justifyContent: "center",
-    borderRadius: theme.ui.radius.full, borderCurve: "continuous",
-  },
-  measure: { position: "absolute", top: 0, left: 0, width: 400, flexDirection: "row", alignItems: "flex-start", opacity: 0 },
   // The row's moving card, over the page's colour, with the tint of a swiped row.
   card: { backgroundColor: theme.ui.color.bg, overflow: "hidden", borderCurve: "continuous" },
   // The separator's grey: about the grey iOS gives a row being swiped.
   cardTint: { backgroundColor: theme.ui.color.separator },
-  pill: {
-    position: "absolute", top: "50%", marginTop: -PILL / 2, height: PILL,
-    borderRadius: theme.ui.radius.full, borderCurve: "continuous", overflow: "hidden",
+  pill: { position: "absolute", top: "50%", marginTop: -PILL / 2, height: PILL },
+  capsule: {
+    position: "absolute", top: 0, left: 0, right: 0, height: CAPSULE_H,
+    borderRadius: CAPSULE_H / 2, borderCurve: "continuous", overflow: "hidden",
   },
-  pillContent: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: PILL_ICON_GAP },
-  pillContentLeft: { left: 0 },
-  pillContentRight: { right: 0 },
-  pillLabel: { ...face.textMedium, fontSize: theme.ui.type.footnote.size, lineHeight: theme.ui.type.footnote.line },
+  glyph: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  anchorLeft: { left: 0 },
+  anchorRight: { right: 0 },
+  label: {
+    ...face.text, fontSize: theme.ui.type.footnote.size, lineHeight: theme.ui.type.footnote.line,
+    color: theme.ui.color["ink-3"], textAlign: "center",
+  },
+  // Centred under the capsule, a little wider so "Not applied" fits.
+  labelLeft: { position: "absolute", top: CAPSULE_H + LABEL_GAP, left: -PILL_GAP / 2 },
+  labelRight: { position: "absolute", top: CAPSULE_H + LABEL_GAP, right: -PILL_GAP / 2 },
+  still: { width: CAPSULE_W, alignItems: "center", gap: LABEL_GAP },
+  stillCapsule: {
+    width: CAPSULE_W, height: CAPSULE_H, borderRadius: CAPSULE_H / 2, borderCurve: "continuous",
+    alignItems: "center", justifyContent: "center",
+  },
+  stillLabel: { width: CAPSULE_W + PILL_GAP },
 }));

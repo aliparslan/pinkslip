@@ -705,12 +705,19 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   and dissolves on its own.
 - **Swipe actions** (`SwipeRow`; owner, 2026-10-24, after iOS Mail,
   replacing S4's circles):
-  - Up to two pills a side, 56 tall, the 18 icon over its Footnote Medium
-    label, 2 apart (owner, 2026-11-04: less across; they were 44 tall with
-    the label inline): sized to the label with 16 padding (12 looked
-    squeezed), at least 72 wide, 8 apart and 8 from the screen's edge.
-  - They're tinted by meaning (the ink at 14%), with the icon and label in
-    the tone's ink. The outer one fills solid once a full swipe arms.
+  - **After iOS Mail** (owner, 2026-11-08, Paper "Swipe buttons · label
+    under, colours · Nov 8", 4, from the owner's Mail screenshots): up to
+    two a side, each a solid capsule 60 by 44 with a white filled glyph
+    (Applied a heavy check), its label under it in Footnote Regular
+    `ink-3`; capsule and label together are 64, a two-line row's height.
+    10 apart and 10 from the screen's edge. Apple's colours, `swipe-*` in
+    tokens.ts: Read and Unread blue, Applied green, Queue purple (owner:
+    purple, not indigo), Hide, Unsave and Not applied gray; Save keeps
+    `accent-fill`. They replace the tinted pills with the label inside
+    (2026-11-04), whose tints the owner found odd.
+  - A full swipe stretches the outer capsule toward the row; once it arms,
+    it runs from the screen's edge (cut square there), its glyph grows 15%
+    and the haptic ticks.
   - A short swipe stays open on them: from closed, about 22pt of drag opens
     the row all the way, counting where a flick was heading, as Reminders
     does from 18. From open, it closes once pushed back past half, or
@@ -721,7 +728,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     Nov 8", B): You → Swipe actions, under Appearance, its value the two
     full swipes ("Save, Hide"). Each side is a card holding a job row
     caught mid-swipe; its buttons are the controls, and a tap opens the
-    system menu for that slot. The outer button, filled, is the full swipe:
+    system menu for that slot, with no check (the row shows what's there).
+    The outer button is the full swipe:
     Save, Read, Applied or Hide. The second can also be Queue (Apply for me,
     when sends are open) or None. Queue is never the full swipe: from a row
     it sends a real application at once. A choice already in use trades

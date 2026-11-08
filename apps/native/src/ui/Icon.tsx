@@ -73,7 +73,7 @@ export function Icon({ name, size = 20, tone = "ink", color: tint, weight = "lin
   const line = stroke ?? iconLine(size, lit);
   if (name === "copy" && weight === "line") return <CopyMark size={size} color={color} stroke={line} />;
   if (name === "pick") return <PickMark size={size} color={color} stroke={line} />;
-  if (name === "autoApply") return <BotMark size={size} color={color} stroke={line} />;
+  if (name === "autoApply") return <BotMark size={size} color={color} stroke={line} filled={weight === "fill"} />;
   // The stroke straddles the outline, so it adds its whole width; the viewBox is 256 wide.
   const outline = (extra: number) => extra > 0.5 ? { stroke: color, strokeWidth: extra, strokeLinejoin: "round" as const } : null;
   if (weight === "fill") {
@@ -87,10 +87,18 @@ export function Icon({ name, size = 20, tone = "ink", color: tint, weight = "lin
 /** "Pinkslip does it for you" (B2, owner 2026-10-14; Paper System, Parts):
  * an antenna with a ball, a round head and two pill eyes, on Phosphor's 256
  * grid. It replaces Phosphor Robot, whose mouth filled in at small sizes. */
-function BotMark({ size, color, stroke }: { size: number; color: string; stroke: number }) {
+function BotMark({ size, color, stroke, filled }: { size: number; color: string; stroke: number; filled?: boolean }) {
   const line = stroke * (256 / size);
   // Filled parts grow by the line beyond Phosphor's regular weight, as outlined glyphs do.
   const edge = { fill: color, stroke: color, strokeWidth: Math.max(0, line - 16), strokeLinejoin: "round" as const };
+  if (filled) {
+    // Solid, with the eyes cut out, for a swipe's capsule (owner, 2026-11-08).
+    return <Svg width={size} height={size} viewBox="0 0 256 256">
+      <Path d="M128 46V70" fill="none" stroke={color} strokeWidth={Math.max(line, 20)} strokeLinecap="round" />
+      <Circle cx={128} cy={28} r={18} fill={color} />
+      <Path fillRule="evenodd" fill={color} d={`${roundedRect(36, 74, 184, 140, 50)}${roundedRect(80, 118, 30, 50, 15)}${roundedRect(146, 118, 30, 50, 15)}`} />
+    </Svg>;
+  }
   return <Svg width={size} height={size} viewBox="0 0 256 256">
     <Path d="M128 46V70" fill="none" stroke={color} strokeWidth={line} strokeLinecap="round" />
     <Circle cx={128} cy={28} r={16} {...edge} />
@@ -98,6 +106,12 @@ function BotMark({ size, color, stroke }: { size: number; color: string; stroke:
     <Rect x={80} y={118} width={30} height={50} rx={15} {...edge} />
     <Rect x={146} y={118} width={30} height={50} rx={15} {...edge} />
   </Svg>;
+}
+
+/** A rounded rectangle as path data, so shapes can cut each other out. */
+function roundedRect(x: number, y: number, width: number, height: number, r: number): string {
+  return `M${x + r} ${y}H${x + width - r}A${r} ${r} 0 0 1 ${x + width} ${y + r}V${y + height - r}A${r} ${r} 0 0 1 ${x + width - r} ${y + height}`
+    + `H${x + r}A${r} ${r} 0 0 1 ${x} ${y + height - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
 }
 
 /** The up-and-down caret of a row whose value opens the iPhone's menu: two

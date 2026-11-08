@@ -363,6 +363,13 @@ export const uiDark = {
   "--ui-glyph-find": "oklch(0.74 0.12 259)",
   "--ui-glyph-apply": "oklch(0.75 0.12 153)",
   "--ui-glyph-pro": "oklch(0.72 0.17 350)",
+  // Swipe actions as iOS Mail colours them (owner, 2026-11-08, Paper "Swipe
+  // buttons · label under, colours · Nov 8", 4): Apple's system blue, green,
+  // purple and gray, solid under a white glyph. Save keeps `accent-fill`.
+  "--ui-swipe-read": "oklch(0.624 0.203 255.5)",
+  "--ui-swipe-applied": "oklch(0.756 0.205 147)",
+  "--ui-swipe-queue": "oklch(0.656 0.224 312.4)",
+  "--ui-swipe-neutral": "oklch(0.648 0.007 286)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
   // An outlined pill's line (owner, 2026-10-15): pills are clear with this
@@ -429,6 +436,10 @@ export const uiLight = {
   "--ui-glyph-find": "oklch(0.52 0.17 259)",
   "--ui-glyph-apply": "oklch(0.52 0.13 153)",
   "--ui-glyph-pro": "oklch(0.55 0.21 350)",
+  "--ui-swipe-read": "oklch(0.603 0.215 257.4)",
+  "--ui-swipe-applied": "oklch(0.73 0.191 147.4)",
+  "--ui-swipe-queue": "oklch(0.615 0.21 312.4)",
+  "--ui-swipe-neutral": "oklch(0.648 0.007 286)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",
   "--ui-outline": "oklch(0.18 0.006 285 / 0.16)",

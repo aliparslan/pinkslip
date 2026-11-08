@@ -250,7 +250,7 @@ function swipeActions(job: RowJob, actions: JobActions, viewed: boolean, choices
       case "hide":
         return actions.hide ? { id: "hide", label: "Hide", icon: "hide", tone: "neutral", removes: true, run: () => actions.hide?.(job) } : null;
       case "queue":
-        return actions.applyForMe && queueable(job) ? { id: "queue", label: "Queue", icon: "autoApply", tone: "neutral", run: () => actions.applyForMe?.(job) } : null;
+        return actions.applyForMe && queueable(job) ? { id: "queue", label: "Queue", icon: "autoApply", tone: "queue", run: () => actions.applyForMe?.(job) } : null;
     }
   };
   const side = ([outerChoice, innerChoice]: SwipeSlots): SwipeAction[] => {

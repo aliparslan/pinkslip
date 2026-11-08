@@ -11,7 +11,7 @@ import { storage } from "../platform/storage";
  * The last three are the first signature moments (Paper "Signature moments
  * · Nov 8", docs/signature-moments-2026-11-08.md), built the same way.
  */
-export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "swipeInk" | "pdfSettle"
+export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
   | "zoom" | "stampBar" | "stampOffer";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
@@ -19,7 +19,6 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "sheetFade", title: "Steps in a sheet", today: "Each step its own card, sliding", proposed: "One sheet, steps fade" },
   { id: "wheel", title: "The month wheel and Ended", today: "They jump", proposed: "They open and fold" },
   { id: "trackerLoad", title: "Tracker loading", today: "Rows land at once", proposed: "Tracker's shape, rows fade in" },
-  { id: "swipeInk", title: "Swipe colours", today: "Tile ink at 14%", proposed: "Glyph ink, 20% in dark" },
   { id: "pdfSettle", title: "A read resume", today: "The bar stops, a card flies in", proposed: "The bar finishes, it settles" },
   { id: "zoom", title: "A job grows out of its row", today: "It slides in", proposed: "It zooms out of the row" },
   { id: "stampBar", title: "SENT on the live bar", today: "A green check and a close", proposed: "SENT lands, the bar turns to the job" },

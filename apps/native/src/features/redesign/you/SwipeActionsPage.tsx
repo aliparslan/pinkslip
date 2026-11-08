@@ -2,7 +2,7 @@ import { useSession } from "@pinkslip/data";
 import { useWindowDimensions, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Menu, type MenuItem } from "../../../kit";
-import { CompanyLogo, SwipeButton, Text, type IconName, type SwipeTone } from "../../../ui";
+import { CompanyLogo, SWIPE_BUTTON, SwipeButton, Text, type IconName, type SwipeTone } from "../../../ui";
 import { chooseSwipe, OUTER_CHOICES, SWIPE_CHOICES, useSwipeChoices, type SwipeChoice, type SwipeSide } from "../../jobs/swipe-choices";
 import { logoUri } from "../../jobs/CompanyLogo";
 import { YouPage } from "./Page";
@@ -16,7 +16,7 @@ const LOOK: Record<SwipeChoice, { label: string; icon: IconName; tone: SwipeTone
   read: { label: "Read", icon: "read", tone: "find", symbol: "envelope.open" },
   applied: { label: "Applied", icon: "applied", tone: "apply", symbol: "checkmark.circle" },
   hide: { label: "Hide", icon: "hide", tone: "neutral", symbol: "eye.slash" },
-  queue: { label: "Queue", icon: "autoApply", tone: "neutral", symbol: "paperplane" },
+  queue: { label: "Queue", icon: "autoApply", tone: "queue", symbol: "paperplane" },
 };
 
 export function swipeChoiceLabel(choice: SwipeChoice): string {
@@ -78,7 +78,7 @@ function Slot({ side, slot, choice, queue }: { side: SwipeSide; slot: 0 | 1; cho
   const where = `${side === "right" ? "Swipe right" : "Swipe left"}, ${slot === 0 ? "full swipe" : "second button"}`;
   return <Menu title="" items={items}>
     <View accessibilityRole="button" accessibilityLabel={`${where}, ${choice ? LOOK[choice].label : "None"}`}>
-      {choice ? <SwipeButton action={LOOK[choice]} filled={slot === 0} /> : <View style={styles.empty}><Text role="footnote" weight="medium" tone="ink-3">None</Text></View>}
+      {choice ? <SwipeButton action={LOOK[choice]} /> : <View style={styles.none}><View style={styles.empty} /><Text role="footnote" tone="ink-3">None</Text></View>}
     </View>
   </Menu>;
 }
@@ -88,7 +88,7 @@ const styles = StyleSheet.create((theme) => ({
   // On the cards' content edge, as a settings card's label is.
   label: { paddingHorizontal: theme.ui.space["4"] },
   card: {
-    flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"], paddingVertical: 10, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", gap: SWIPE_BUTTON.spacing, paddingVertical: 10, overflow: "hidden",
     backgroundColor: theme.ui.color["bg-grouped"], borderRadius: theme.ui.radius.md, borderCurve: "continuous",
   },
   cardRight: { paddingLeft: theme.ui.space["4"] },
@@ -98,8 +98,10 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ui.color.separator, borderRadius: 22, borderCurve: "continuous",
   },
   rowText: { flex: 1 },
+  // An empty slot: a dashed capsule the size of a swipe button, "None" under it.
+  none: { width: SWIPE_BUTTON.width, alignItems: "center", gap: SWIPE_BUTTON.gap },
   empty: {
-    height: 56, minWidth: 72, alignItems: "center", justifyContent: "center", borderRadius: theme.ui.radius.full,
+    width: SWIPE_BUTTON.width, height: SWIPE_BUTTON.height, borderRadius: theme.ui.radius.full,
     borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"],
   },
 }));
