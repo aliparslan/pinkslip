@@ -341,6 +341,8 @@ the storyboard spec. These were chosen in the Motion lab
   - They close past a quarter of their height, or on a flick faster than
     400pt/s.
   - Dragging up stretches like a rubber band.
+  One the next thing is waiting for (the browser after Apply's sheet) goes in
+  200ms on the same curve (`motion.sheet.handOff`).
 - **A list changing under you** moves as Reminders' do (`motion.list`, fitted
   frame by frame; owner, 2026-11-08): the rows that stay settle on a spring,
   response 0.25s, damping 1, from the first frame. A row coming or going

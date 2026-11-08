@@ -177,7 +177,7 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
       application.stage === "applied" && !application.stage_date ? { id: "date", title: "Add a hear-back date", glyph: "date", onSelect: () => setSheet("date") } : null,
       application.job_id ? { id: "open", title: "Open the posting", glyph: "open", onSelect: () => router.push({ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(library)/jobs/[jobId]", params: { jobId: application.job_id! } }) } : null,
     ].filter((item): item is GlyphMenuItem => item !== null),
-    last: [{ id: "remove", title: "Remove from Tracker", glyph: "remove", destructive: true, onSelect: confirmRemove }],
+    last: [{ id: "remove", title: "Stop tracking", glyph: "remove", destructive: true, onSelect: confirmRemove }],
   };
 
   // The first time you open the application after its offer came, OFFER

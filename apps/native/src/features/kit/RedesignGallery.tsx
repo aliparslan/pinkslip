@@ -271,11 +271,11 @@ export function RedesignGallery() {
 
 /** Apply's sheet on a sample: just its Open application. */
 function SamplePrep({ onOpen }: { onOpen: () => void }) {
-  const { close } = useSheet();
+  const { handOff } = useSheet();
   return <SheetStep id="prep">
     <View style={styles.body}>
       <Text role="title2">Apply at Stripe</Text>
-      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { close(); onOpen(); }}>Open application</Button>
+      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { handOff(); onOpen(); }}>Open application</Button>
     </View>
   </SheetStep>;
 }

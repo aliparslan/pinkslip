@@ -18,6 +18,7 @@ import { Text } from "./Text";
  * a long soft landing, for opening, closing and settling back. */
 const OPEN = timing(motion.sheet.open);
 const CLOSE = timing(motion.sheet.close);
+const HAND_OFF = timing(motion.sheet.handOff);
 const SETTLE = timing(motion.sheet.settle);
 /** Between steps each step is its own card: the new one slides in at its
  * own size as the old one slides out the other way. */
@@ -48,6 +49,8 @@ const TOP = 24;
 
 interface SheetContextValue {
   close: () => void;
+  /** Close quickly, because the next thing is waiting (useSheet). */
+  handOff: () => void;
   /** Set while a step has something to lose: a swipe or a tap behind the
    * sheet runs it instead of closing. */
   guard: RefObject<(() => void) | null>;
@@ -88,7 +91,8 @@ function useSheetContext() {
 
 /** Closes the sheet it's inside: slides it away, then runs onClosed. */
 export function useSheet() {
-  return { close: useSheetContext().close };
+  const { close, handOff } = useSheetContext();
+  return { close, handOff };
 }
 
 /**
@@ -169,12 +173,14 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
     shade.value = withTiming(1, OPEN);
   }, [cardHeight, offset, shade]);
 
-  const close = useCallback(() => {
-    shade.value = withTiming(0, CLOSE);
-    offset.value = withTiming(cardHeight.value + SHEET_INSET + 24, CLOSE, (done) => {
+  const leave = useCallback((over: typeof CLOSE) => {
+    shade.value = withTiming(0, over);
+    offset.value = withTiming(cardHeight.value + SHEET_INSET + 24, over, (done) => {
       if (done) scheduleOnRN(onClosed);
     });
   }, [cardHeight, offset, shade, onClosed]);
+  const close = useCallback(() => leave(CLOSE), [leave]);
+  const handOff = useCallback(() => leave(HAND_OFF), [leave]);
 
   // A swipe, a tap behind or VoiceOver's escape: a guarded step gets asked
   // instead, and the sheet settles back where it was.
@@ -219,8 +225,8 @@ export function Sheet({ onClosed, dim = true, children }: SheetProps) {
   const keyboard = useAnimatedKeyboard();
   const lift = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value - keyboard.height.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: shade.value }));
-  const value = useMemo(() => ({ close, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width, travel, cardHeight, fade, order }),
-    [close, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width, travel, cardHeight, fade]);
+  const value = useMemo(() => ({ close, handOff, guard, dismiss, drag, scrollY, lists, offset, measure, opened, maxHeight, width, travel, cardHeight, fade, order }),
+    [close, handOff, dismiss, drag, scrollY, lists, offset, measure, maxHeight, width, travel, cardHeight, fade]);
 
   return <SheetContext.Provider value={value}>
     <View style={styles.fill}>

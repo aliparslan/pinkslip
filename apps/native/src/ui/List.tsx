@@ -88,7 +88,7 @@ export function ListItem({ title, detail, inline, value, leading, accessory = "n
         {detail ? <Text role={settings ? "footnote" : "subhead"} tone="ink-3">{detail}</Text> : null}
       </View>
       {/* The system switch, tinted with the pink fill as in the design. */}
-      <Switch value={selected} onValueChange={onToggle} trackColor={{ true: theme.ui.color["accent-fill"] }} accessibilityLabel={title} />
+      <Switch value={selected} onValueChange={onToggle} trackColor={{ true: theme.ui.color["accent-fill"] }} style={styles.switch} accessibilityLabel={title} />
     </View>;
   }
   const content = <>
@@ -154,6 +154,8 @@ export function SectionHeader({ title, count, needsYou, leading, onPress, first 
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // React Native pins a switch to the top of its row; iOS 26's shows it.
+  switch: { alignSelf: "center" },
   group: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.space["4"] },
   header: { paddingHorizontal: theme.ui.space["4"] },
   headerRow: { flexDirection: "row", gap: 6 },

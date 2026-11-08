@@ -112,7 +112,7 @@ export function SwitchRow({ label, value, onChange }: { label: string; value: bo
   const { theme } = useUnistyles();
   return <View style={styles.row}>
     <Text flex>{label}</Text>
-    <Switch value={value} onValueChange={onChange} trackColor={{ true: theme.ui.color["accent-fill"] }} accessibilityLabel={label} />
+    <Switch value={value} onValueChange={onChange} trackColor={{ true: theme.ui.color["accent-fill"] }} style={styles.switch} accessibilityLabel={label} />
   </View>;
 }
 
@@ -247,6 +247,8 @@ export function DangerRow({ label, onPress }: { label: string; onPress: () => vo
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // React Native pins a switch to the top of its row; iOS 26's shows it.
+  switch: { alignSelf: "center" },
   group: { gap: theme.ui.space["1"], paddingHorizontal: theme.ui.size.gutter },
   groupLabel: { paddingHorizontal: theme.ui.space["4"] },
   card: {

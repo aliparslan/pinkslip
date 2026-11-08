@@ -3,7 +3,7 @@ import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { Link } from "expo-router";
+import { Link, useNavigation, useRoute } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -100,24 +100,30 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     return holding ? all.slice(HELD_BACK) : all;
   }, [waiting, feed.data, holding]);
   const matching = feed.data?.pages[0]?.meta.matching;
-  const items = useMemo(() => {
+  const latest = useMemo(() => {
     const sections = feedSections(jobs);
     return sections.flatMap<Item>((section, index) => [
       { kind: "section", key: `section-${section.title}`, title: section.title, count: sectionCount(sections, index, feed.hasNextPage, matching) },
       ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
     ]);
   }, [jobs, feed.hasNextPage, matching]);
+  // Under a job's page the rows hold still, so going back zooms into the row
+  // it grew from, and whatever changed meanwhile arrives once it has landed.
+  const covered = usePageOver();
+  const steady = useRef(latest);
+  if (!covered) steady.current = latest;
+  const items = steady.current;
 
   // Postings new since you looked arrive at the top: the rows you've seen
   // make room and uncover them (Kit → Motion fixes). Only a refresh of the
   // same list does this; a chip or a search swaps rows with no entrance.
   const arrives = useMotionTrial("jobsArrive");
   const [held, setHeld] = useState<{ items: Item[]; changing: ReadonlySet<string>; logos: string[] } | null>(null);
-  const last = useRef({ items, params, fetching: feed.isFetching, holding });
+  const last = useRef({ items, params, fetching: feed.isFetching, holding, covered });
   if (last.current.items !== items) {
     const previous = last.current;
-    last.current = { items, params, fetching: feed.isFetching, holding };
-    const arrived = arrives && (previous.fetching || previous.holding) && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
+    last.current = { items, params, fetching: feed.isFetching, holding, covered };
+    const arrived = arrives && (previous.fetching || previous.holding || previous.covered) && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
     if (arrived > 0) {
       const fresh = items.filter((item): item is Extract<Item, { kind: "job" }> => item.kind === "job").slice(0, arrived);
       setHeld({ items: previous.items, changing: changedKeys(allKeys(previous.items), allKeys(items)), logos: fresh.flatMap((item) => logoUri(item.job.company_domain) ?? []) });
@@ -125,6 +131,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   } else {
     last.current.fetching = feed.isFetching;
     last.current.holding = holding;
+    last.current.covered = covered;
   }
   const shown = held?.items ?? items;
   const keys = useMemo(() => allKeys(shown), [shown]);
@@ -239,6 +246,35 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 
 const noop = () => undefined;
 const NO_ANCHOR = { disabled: true };
+
+/** How long a page takes to zoom back into its row. */
+const ZOOM_BACK_MS = 700;
+
+/** True from when a page opens over this list until it has zoomed away. */
+function usePageOver(): boolean {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    let settling: ReturnType<typeof setTimeout> | undefined;
+    const stopBlur = navigation.addListener("blur", () => {
+      clearTimeout(settling);
+      // Another tab leaves this list on top of its own stack: nothing to hold.
+      const state = navigation.getState();
+      if (state && state.routes[state.index]?.key !== route.key) setOver(true);
+    });
+    const stopFocus = navigation.addListener("focus", () => {
+      clearTimeout(settling);
+      settling = setTimeout(() => setOver(false), ZOOM_BACK_MS);
+    });
+    return () => {
+      clearTimeout(settling);
+      stopBlur();
+      stopFocus();
+    };
+  }, [navigation, route.key]);
+  return over;
+}
 
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). Exported for

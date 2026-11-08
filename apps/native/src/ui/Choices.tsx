@@ -121,11 +121,13 @@ export function ChoiceSwitch({ title, value, onChange }: ChoiceSwitchProps) {
   const { theme } = useUnistyles();
   return <View style={styles.row}>
     <View style={styles.text}><Text weight="medium">{title}</Text></View>
-    <Switch value={value} onValueChange={onChange} trackColor={{ true: theme.ui.color["accent-fill"] }} accessibilityLabel={title} />
+    <Switch value={value} onValueChange={onChange} trackColor={{ true: theme.ui.color["accent-fill"] }} style={styles.switch} accessibilityLabel={title} />
   </View>;
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // React Native pins a switch to the top of its row; iOS 26's shows it.
+  switch: { alignSelf: "center" },
   card: {
     paddingHorizontal: theme.ui.space["4"],
     borderRadius: SHEET_GROUP_RADIUS,

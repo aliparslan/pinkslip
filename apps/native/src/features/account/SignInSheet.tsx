@@ -368,13 +368,13 @@ function SignInSteps({ request }: { request: SignInRequest }) {
       </View>
       {request.notNow ? <Button variant="text" fullWidth disabled={Boolean(busy)} onPress={sheet.close}>Not now</Button> : null}
     </View>
-    <TermsLine />
+    <TermsLine tucked={Boolean(request.notNow)} />
   </SheetStep>;
 }
 
 /** Under the ways in (Paper "Sign in · Oct 15", S1): what continuing agrees
  * to, each page opening in the in-app browser over the sheet. */
-function TermsLine() {
+function TermsLine({ tucked = false }: { tucked?: boolean }) {
   const { theme } = useUnistyles();
   const open = (path: "/terms" | "/privacy") => void WebBrowser.openBrowserAsync(`${WEB_URL}${path}`, {
     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent,
@@ -383,7 +383,7 @@ function TermsLine() {
   // description are, so they read as tappable without a second colour. Two
   // set lines, the links together on the second, rather than one line run
   // out to the sheet's rounded corners.
-  return <View style={styles.terms}><Text role="footnote" tone="ink-3" align="center">
+  return <View style={[styles.terms, tucked && styles.termsTucked]}><Text role="footnote" tone="ink-3" align="center">
     By continuing you agree to the{"\n"}
     <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/terms")}>Terms</RNText>
     {" "}and{" "}
@@ -424,6 +424,9 @@ const styles = StyleSheet.create((theme) => ({
   heading: { gap: theme.ui.space["1"] },
   link: { textDecorationLine: "underline" },
   terms: { paddingHorizontal: theme.ui.space["6"], paddingTop: theme.ui.space["1"] },
+  // Not now is words in a taller box, so the box's empty end read as a gap
+  // under it. This puts the words midway between the buttons and the line.
+  termsTucked: { marginTop: -theme.ui.space["4"] },
   ways: { gap: theme.ui.space["3"] },
   tight: { gap: theme.ui.space["2"] },
   answers: { gap: theme.ui.space["2"] },

@@ -37,7 +37,7 @@ export function DidYouApply({ onYes }: { onYes: () => void }) {
  * Pinkslip fills the form; otherwise Apply goes straight to the posting.
  */
 export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; onOpen: () => void; onAlreadyApplied: () => void }) {
-  const { close } = useSheet();
+  const { close, handOff } = useSheet();
   const resume = useResumeProfile().data?.data;
   // The PDF that gets attached is the one kept on this iPhone, not the saved resume.
   const pdf = useLocalResumeFile();
@@ -64,7 +64,7 @@ export function ApplyPrep({ job, onOpen, onAlreadyApplied }: { job: DetailJob; o
       <PrepRow label="Answers" value={answers ? `${answers.length} saved` : "—"} onPress={() => change("/you/answers")} />
     </Choices>
     <View style={styles.actions}>
-      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { close(); onOpen(); }}>Open application</Button>
+      <Button variant="primary" fullWidth icon="apply" iconAfter onPress={() => { handOff(); onOpen(); }}>Open application</Button>
       <Button variant="plain" fullWidth onPress={() => { onAlreadyApplied(); close(); }}>I already applied</Button>
     </View>
   </SheetStep>;

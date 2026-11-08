@@ -697,6 +697,10 @@ export const ui = {
       },
       closeShare: 0.25,
       closeSpeed: 400,
+      handOff: {
+        duration: 200,
+        curve: [0.32, 0.72, 0, 1],
+      },
     },
     topEdge: {
       duration: 200,

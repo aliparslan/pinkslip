@@ -544,6 +544,9 @@ export const uiMotion = {
      * than this many points a second, and it closes (Vaul's rule). */
     closeShare: 0.25,
     closeSpeed: 400,
+    /** When something's waiting for the sheet to leave (the browser after
+     * Apply's sheet), it goes in this, on the same curve. */
+    handOff: { duration: 200, curve: [0.32, 0.72, 0, 1] },
   },
   /** The blur behind the clock on a tab (`TopEdgeBlur`, owner 2026-10-19)
    * fades in once a list scrolls under it, and out at the top. */
