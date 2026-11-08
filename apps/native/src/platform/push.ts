@@ -3,6 +3,9 @@ import * as Crypto from "expo-crypto";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Linking } from "react-native";
+import { ALERT_HIDE, ALERT_QUEUE, ALERT_SAVE } from "@pinkslip/domain/job-alerts";
+import { configureAlertActions } from "../../modules/alert-actions";
+import { API_URL } from "./config";
 import { storage } from "./storage";
 
 /** Foreground pushes show as banners but never navigate on their own. */
@@ -20,6 +23,16 @@ void Notifications.setNotificationCategoryAsync(APPLY_ASK_CATEGORY, [
   { identifier: ASK_APPLY, buttonTitle: "Apply", options: { opensAppToForeground: true } },
   { identifier: ASK_DISMISS, buttonTitle: "Not this one", options: { opensAppToForeground: false } },
 ]).catch(() => undefined);
+
+/** A one-job alert's buttons (owner, 2026-11-08) act where the alert is,
+ * leaving the app closed: iOS runs no JavaScript for a button press, so
+ * modules/alert-actions registers them and calls the API. */
+configureAlertActions(API_URL);
+
+/** Buttons the native handler has already run, so a tap isn't opened too. */
+export function isAlertButton(action: string): boolean {
+  return action === ALERT_SAVE || action === ALERT_QUEUE || action === ALERT_HIDE;
+}
 
 export type DevicePushStatus = "enabled" | "promptable" | "denied" | "unsupported";
 

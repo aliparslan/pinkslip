@@ -8,7 +8,7 @@ import { AppState } from "react-native";
 import { toast, ToastHost } from "../../kit";
 import { appPathFor } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
-import { ASK_APPLY, ASK_DISMISS, notificationTarget, refreshDevicePush } from "../../platform/push";
+import { ASK_APPLY, ASK_DISMISS, isAlertButton, notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
@@ -80,6 +80,9 @@ function AppEffects({ api }: { api: ApiClient }) {
       if (handled.has(id)) return;
       handled.add(id);
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
+      // Save, Queue and Hide ran where the alert is (modules/alert-actions).
+      // Not a tap on the alert, so nothing opens; lists catch up on focus.
+      if (isAlertButton(response.actionIdentifier)) return;
       const target = notificationTarget(response);
       // The "Apply for you?" push's buttons (platform/push.ts). Not this one
       // reaches here only if the app was running; the job is never asked
