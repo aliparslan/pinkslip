@@ -85,5 +85,5 @@ test("a failed session load offers a retry", async ({ page }) => {
   await expect(failure).toBeVisible({ timeout: 10_000 });
   fail = false;
   await failure.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Library" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tracker" })).toBeVisible();
 });

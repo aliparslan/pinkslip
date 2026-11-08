@@ -33,13 +33,13 @@ export function Library({ view, selectedId, onOrderChange }: LibraryProps) {
   useEffect(() => { onOrderChange?.(jobs.map((job) => job.id)); }, [jobs, onOrderChange]);
 
   return <section className={styles.root} aria-labelledby="library-title">
-    <Heading level={1} variant="root" id="library-title">Library</Heading>
+    <Heading level={1} variant="root" id="library-title">Tracker</Heading>
     <Tabs<LibraryView> label="Your jobs" value={view} tabs={[
       { value: "saved", label: "Saved", icon: BookmarkSimple, count: saved.data?.length, render: <Link to="/library/saved" resetScroll /> },
       { value: "applied", label: "Applied", icon: CheckCircle, count: applied.data?.length, render: <Link to="/library/applied" resetScroll /> },
     ]} />
     {active.isPending ? <PageLoading label="Loading your jobs" />
-      : active.isError && !active.data ? <PageFailure title="Your library didn't load" onRetry={() => void active.refetch()} retrying={active.isFetching} />
+      : active.isError && !active.data ? <PageFailure title="Tracker didn't load" onRetry={() => void active.refetch()} retrying={active.isFetching} />
       : jobs.length === 0 ? (view === "saved"
         ? <EmptyState icon={BookmarkSimple} title="No saved jobs"
           message="Save promising roles from their job page and they'll stay here."

@@ -18,7 +18,7 @@ interface Destination {
 
 const destinations: Destination[] = [
   { label: "Jobs", to: "/", root: "jobs", icon: Briefcase },
-  { label: "Library", to: "/library/saved", root: "library", icon: BookmarksSimple },
+  { label: "Tracker", to: "/library/saved", root: "library", icon: BookmarksSimple },
   { label: "You", to: "/you", root: "you", icon: UserCircle },
 ];
 

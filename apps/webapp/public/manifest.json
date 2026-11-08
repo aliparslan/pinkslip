@@ -61,8 +61,8 @@
       ]
     },
     {
-      "name": "Library",
-      "short_name": "Library",
+      "name": "Tracker",
+      "short_name": "Tracker",
       "description": "Open saved and applied jobs",
       "url": "/library/saved",
       "icons": [

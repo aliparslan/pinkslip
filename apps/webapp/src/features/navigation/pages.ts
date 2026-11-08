@@ -56,7 +56,7 @@ export type SectionPath = typeof youPages[number] | typeof libraryPages[number] 
 
 export function pageHead(page: PageMetadata) {
   const title = page.shell === "admin" ? `Admin · ${page.title}`
-    : page.root === "library" ? `Library · ${page.title}` : page.title;
+    : page.root === "library" ? `Tracker · ${page.title}` : page.title;
   return { meta: [{ title: `${title} · Pinkslip` }] };
 }
 

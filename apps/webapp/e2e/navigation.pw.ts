@@ -3,8 +3,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { installApiMocks } from "./api-mocks";
 
 const routes = [
-  ["/library/saved", "Library", "Library · Saved"],
-  ["/library/applied", "Library", "Library · Applied"],
+  ["/library/saved", "Tracker", "Tracker · Saved"],
+  ["/library/applied", "Tracker", "Tracker · Applied"],
   ["/you/preferences", "Job preferences"], ["/you/alerts", "Alerts"],
   ["/you/companies", "Companies"], ["/you/resume", "Resume"],
   ["/you/tailoring", "Tailoring"], ["/you/answers", "Application answers"],
@@ -59,7 +59,7 @@ test("all compatibility redirects preserve search and anchors", async ({ request
 test("legacy hash migration preserves both queries and replaces the history entry", async ({ page }) => {
   await page.goto("/?login=success#/my-jobs/applied?from=email");
   await expect(page).toHaveURL("/library/applied?login=success&from=email");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Library");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Tracker");
   await expect(page.getByRole("tab", { name: /Applied/ })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("link", { name: "You", exact: true }).click();
   await page.goBack();
@@ -92,7 +92,7 @@ for (const width of [320, 390, 1280]) {
     await expect(page.getByRole("link", { name: "You", exact: true })).toHaveAttribute("aria-current", "page");
     await page.getByRole("link", { name: "Back", exact: true }).click();
     await expect(page).toHaveURL("/you");
-    await page.getByRole("link", { name: "Library", exact: true }).click();
+    await page.getByRole("link", { name: "Tracker", exact: true }).click();
     await page.getByRole("tab", { name: /Applied/ }).click();
     await expect(page).toHaveURL("/library/applied");
     await expect(page.getByRole("tab", { name: /Applied/ })).toHaveAttribute("aria-selected", "true");
