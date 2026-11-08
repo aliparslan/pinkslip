@@ -1,7 +1,10 @@
 import { needsYouCount, recordActivity } from "./activity";
 import { apnsReason } from "./apns";
 import { recordProductEvent } from "./product-events";
-import { buildDailyDigestPayload, buildNotificationPayload, type NotificationJob, type NotificationPayload } from "./push";
+import { buildDailyDigestPayload, buildJobAlerts, buildNotificationPayload, type AlertJob, type JobAlert, type NotificationPayload } from "./push";
+import { flagEnabled } from "./feature-flags";
+import { SENDABLE_ATS } from "../shared/auto-apply";
+import { applyResumeKey } from "./apply/send-files";
 import {
   recordSentNotification,
   type DueDigest,
@@ -35,6 +38,7 @@ interface CandidateRow extends FeatureJobRow, StoredJobFeatureColumns, SearchPro
   user_id: string;
   job_id: string;
   company: string;
+  company_ats: string | null;
   attempt_count: number;
   evergreen: number | null;
 }
@@ -230,7 +234,7 @@ export async function deliverPendingNotifications(
 
   const candidates = await db.prepare(
     `SELECT nc.id AS candidate_id, nc.user_id, nc.job_id,
-            c.name AS company, nc.attempt_count,
+            c.name AS company, c.ats_type AS company_ats, nc.attempt_count,
             j.id, j.external_id, j.title, j.url, j.location, j.department,
             j.posted_at, j.first_seen_at, j.description, j.salary, j.evergreen,
             jf.role_family, jf.specialties_json, jf.seniority, jf.min_years,
@@ -353,6 +357,7 @@ export async function deliverPendingNotifications(
     let devicesSent = 0;
     // The app icon shows what needs the person, set with every push.
     const badge = await needsYouCount(db, userId, now);
+    const sends = !digestKey && await sendsOpen(db, env, userId);
 
     await db.batch(userCandidates.flatMap((candidate) =>
       subs.map((sub) =>
@@ -391,33 +396,44 @@ export async function deliverPendingNotifications(
       const claimed = pending.filter((_, index) => (claims[index].meta.changes ?? 0) > 0);
       if (claimed.length === 0) continue;
 
-      const jobs: NotificationJob[] = claimed
+      const jobs: AlertJob[] = claimed
         .map((delivery) => candidateById.get(delivery.candidate_id))
         .filter((candidate): candidate is CandidateRow => Boolean(candidate))
         .map((candidate) => ({
           company: candidate.company,
           title: candidate.title,
           jobId: candidate.job_id,
+          queueable: sends && SENDABLE_ATS.has(candidate.company_ats ?? ""),
         }));
-      const payload: NotificationPayload = {
-        ...(digestKey ? buildDailyDigestPayload(jobs) : buildNotificationPayload(jobs)),
-        kind: "new_jobs",
-        badge,
-      };
-      payload.data.notification_id = notificationId;
-      const result = await send(sub, payload, transports);
+      // The log keeps one line for the run, as it reads in the Alerts screen.
+      const summary = digestKey ? buildDailyDigestPayload(jobs) : buildNotificationPayload(jobs);
+      const alerts: JobAlert[] = digestKey
+        ? [{ payload: summary, jobIds: jobs.map((job) => job.jobId) }]
+        : buildJobAlerts(jobs);
+      let tookOne = false;
 
-      if (result.ok) {
-        delivered ??= payload;
-        devicesSent += 1;
-        await db.batch(claimed.map((delivery) =>
-          db.prepare(
-            `UPDATE notification_deliveries
-             SET status = 'sent', sent_at = ?, last_error = NULL
-             WHERE candidate_id = ? AND subscription_id = ?`
-          ).bind(new Date().toISOString(), delivery.candidate_id, delivery.subscription_id)
-        ));
-      } else {
+      for (const alert of alerts) {
+        const payload: NotificationPayload = {
+          ...alert.payload,
+          data: { ...alert.payload.data, notification_id: notificationId },
+          kind: "new_jobs",
+          badge,
+        };
+        const covers = new Set(alert.jobIds);
+        const carried = claimed.filter((delivery) => covers.has(candidateById.get(delivery.candidate_id)?.job_id ?? ""));
+        const result = await send(sub, payload, transports);
+
+        if (result.ok) {
+          tookOne = true;
+          await db.batch(carried.map((delivery) =>
+            db.prepare(
+              `UPDATE notification_deliveries
+               SET status = 'sent', sent_at = ?, last_error = NULL
+               WHERE candidate_id = ? AND subscription_id = ?`
+            ).bind(new Date().toISOString(), delivery.candidate_id, delivery.subscription_id)
+          ));
+          continue;
+        }
         // APNs puts its actual diagnosis in the body ({"reason":"BadDeviceToken"}),
         // and we were fetching it and discarding it — leaving only a bare status,
         // which cannot distinguish a dead token from a request we malformed.
@@ -427,7 +443,7 @@ export async function deliverPendingNotifications(
           : `Push service returned ${result.status}${reason ? ` (${reason})` : ""}`
         ).slice(0, 1000);
 
-        await db.batch(claimed.map((delivery) =>
+        await db.batch(carried.map((delivery) =>
           db.prepare(
             `UPDATE notification_deliveries
              SET status = ?, last_error = ?
@@ -446,7 +462,8 @@ export async function deliverPendingNotifications(
           // 13 candidates ended up marked "No registered push subscription"
           // with an empty notification_deliveries table and no way to tell that
           // the real cause was a rejected token. Stamp the actual push-service
-          // error onto the candidates before the cascade erases it.
+          // error onto the candidates before the cascade erases it. Every
+          // job this device was getting, since its later alerts can't go.
           await db.batch(claimed.map((delivery) =>
             db.prepare(
               `UPDATE notification_candidates
@@ -460,7 +477,13 @@ export async function deliverPendingNotifications(
           await db.prepare("DELETE FROM push_subscriptions WHERE id = ?")
             .bind(sub.id)
             .run();
+          break;
         }
+      }
+
+      if (tookOne) {
+        delivered ??= { ...summary, data: { ...summary.data, notification_id: notificationId }, kind: "new_jobs", badge };
+        devicesSent += 1;
       }
     }
 
@@ -534,6 +557,28 @@ export async function deliverPendingNotifications(
     }
   }
   return sent;
+}
+
+/** Whether a Queue button on this person's alerts could start a send: sends
+ * are open to them, as the app's auto_apply_send_enabled has it
+ * (worker/index.ts), and their resume for sends is on file, which the app
+ * would otherwise ask for first. */
+async function sendsOpen(db: D1Database, env: Env, userId: string): Promise<boolean> {
+  if (!await sendsFlagOpen(db, env, userId) || !env.APPLY_SEND || !env.RESUME_BUCKET) return false;
+  return Boolean(await env.RESUME_BUCKET.head(applyResumeKey(userId)));
+}
+
+async function sendsFlagOpen(db: D1Database, env: Env, userId: string): Promise<boolean> {
+  const mode = env.AUTO_APPLY_SEND?.trim().toLowerCase();
+  if (mode === "on") return true;
+  if (mode !== "admin") return false;
+  const row = await db.prepare(
+    `SELECT u.role = 'admin' AS admin,
+            EXISTS (SELECT 1 FROM feature_grants g WHERE g.user_id = u.id AND g.flag = 'AUTO_APPLY_SEND') AS granted
+     FROM users u
+     WHERE u.id = ? AND EXISTS (SELECT 1 FROM auth_identities ai WHERE ai.user_id = u.id)`
+  ).bind(userId).first<{ admin: number; granted: number }>();
+  return Boolean(row) && flagEnabled(env.AUTO_APPLY_SEND, row!.admin === 1, row!.granted === 1);
 }
 
 async function markCandidates(

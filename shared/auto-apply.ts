@@ -1,5 +1,8 @@
 /** Auto-apply's server sends (step 10; docs/auto-apply-phase1-2026-10-24.md). */
 
+/** The forms a send can fill: Greenhouse and Ashby. */
+export const SENDABLE_ATS: ReadonlySet<string> = new Set(["greenhouse", "ashby"]);
+
 export type ApplySendStatus =
   | "queued"
   | "running"

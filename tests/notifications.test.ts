@@ -404,27 +404,79 @@ describe("new-job alerts (N1, N2)", () => {
     return ids;
   }
 
-  it("sends new jobs as one push per person and logs it", async () => {
+  it("sends each new job its own alert with buttons, and logs the run once", async () => {
     const harness = setup();
     await matchedJobs(harness, 5);
     const sent = await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send });
 
     expect(sent).toBe(5);
-    expect(harness.sent).toHaveLength(1);
-    expect(harness.sent[0]!.payload).toMatchObject({ title: "5 new jobs", kind: "new_jobs" });
+    expect(harness.sent).toHaveLength(5);
+    for (const { payload } of harness.sent) {
+      expect(payload).toMatchObject({ kind: "new_jobs", category: "job_alert" });
+      expect(payload.data.job_ids).toHaveLength(1);
+      expect(payload.data.url).toBe(`/jobs/${payload.data.job_ids![0]}`);
+    }
     expect(harness.log()).toEqual([expect.objectContaining({ kind: "new_jobs", title: "5 new jobs", status: "sent", devices: 1 })]);
     const notificationId = harness.sent[0]!.payload.data.notification_id;
+    expect(new Set(harness.sent.map(({ payload }) => payload.data.notification_id))).toEqual(new Set([notificationId]));
     expect(harness.sqlite.query("SELECT id FROM notification_log").get()).toEqual({ id: notificationId });
   });
 
-  it("sends one push per person per run, leaving jobs past 100 for the next", async () => {
+  it("past five jobs, sends one alert for the rest that opens Jobs", async () => {
+    const harness = setup();
+    await matchedJobs(harness, 8);
+    expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(8);
+    expect(harness.sent).toHaveLength(6);
+    const [more, ...own] = harness.sent.map(({ payload }) => payload);
+    expect(more).toMatchObject({ title: "3 more new jobs", data: { url: "/" } });
+    expect(more!.category).toBeUndefined();
+    expect(more!.data.job_ids).toHaveLength(3);
+    expect(own.map((payload) => payload.category)).toEqual(Array(5).fill("job_alert"));
+    expect(harness.sqlite.query("SELECT COUNT(*) AS count FROM notification_candidates WHERE status = 'sent'").get()).toEqual({ count: 8 });
+  });
+
+  it("offers Queue on a form Pinkslip can send, to a person who has sends", async () => {
+    const harness = setup();
+    const resumes = new Set(["apply/u1/resume.pdf"]);
+    Object.assign(harness.env, {
+      AUTO_APPLY_SEND: "on",
+      APPLY_SEND: {},
+      RESUME_BUCKET: { head: async (key: string) => (resumes.has(key) ? {} : null) },
+    });
+    await matchedJobs(harness, 2);
+    harness.sqlite.run("UPDATE companies SET ats_type = 'lever' WHERE id = 't-c2'");
+    await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send });
+    expect(harness.sent.map(({ payload }) => [payload.title, payload.category])).toEqual([
+      ["Datadog", "job_alert_queue"],
+      ["Ramp", "job_alert"],
+    ]);
+  });
+
+  it("keeps Queue off until the person's resume for sends is on file", async () => {
+    const harness = setup();
+    Object.assign(harness.env, { AUTO_APPLY_SEND: "on", APPLY_SEND: {}, RESUME_BUCKET: { head: async () => null } });
+    await matchedJobs(harness, 1);
+    await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send });
+    expect(harness.sent.map(({ payload }) => payload.category)).toEqual(["job_alert"]);
+  });
+
+  it("keeps Queue off while sends are admin-only and the person isn't let in", async () => {
+    const harness = setup();
+    harness.env.AUTO_APPLY_SEND = "admin";
+    await matchedJobs(harness, 1);
+    await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send });
+    expect(harness.sent.map(({ payload }) => payload.category)).toEqual(["job_alert"]);
+  });
+
+  it("covers 100 jobs a run, leaving the rest for the next", async () => {
     const harness = setup();
     await matchedJobs(harness, 103);
     expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(100);
-    expect(harness.sent.map(({ payload }) => payload.title)).toEqual(["100 new jobs"]);
+    expect(harness.sent.map(({ payload }) => payload.title)[0]).toBe("95 more new jobs");
+    expect(harness.sent).toHaveLength(6);
     expect(harness.sqlite.query("SELECT COUNT(*) AS count FROM notification_candidates WHERE status = 'pending'").get()).toEqual({ count: 3 });
     expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: hours(0.1), send: harness.send })).toBe(3);
-    expect(harness.sent.map(({ payload }) => payload.title)).toEqual(["100 new jobs", "3 new jobs"]);
+    expect(harness.sent).toHaveLength(9);
   });
 
   it("sends new jobs as they post whatever the daily cap", async () => {
@@ -438,7 +490,7 @@ describe("new-job alerts (N1, N2)", () => {
     }
     await matchedJobs(harness, 2);
     expect(await deliverPendingNotifications(harness.db, harness.env, 200, { now: NOW, send: harness.send })).toBe(2);
-    expect(harness.sent).toHaveLength(1);
+    expect(harness.sent).toHaveLength(2);
   });
 
   it("keeps once-a-day people's jobs for their time, then sends one digest", async () => {

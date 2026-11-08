@@ -1,3 +1,5 @@
+import { JOB_ALERT_CATEGORY, JOB_ALERT_QUEUE_CATEGORY } from "../shared/job-alerts";
+
 export interface NotificationJob {
   company: string;
   title: string;
@@ -54,6 +56,45 @@ export function buildNotificationPayload(jobs: NotificationJob[]): NotificationP
 
 /** Job ids a push carries for the open receipt (POST /push/opened takes 50). */
 const MAX_PUSH_JOB_IDS = 50;
+
+/** Jobs that get an alert of their own when several post at once (owner,
+ * 2026-11-08). Past it, the rest share one alert that opens Jobs. */
+export const OWN_ALERTS = 5;
+
+export interface AlertJob extends NotificationJob {
+  /** A Greenhouse or Ashby form, for a person who has sends. */
+  queueable?: boolean;
+}
+
+export interface JobAlert {
+  payload: NotificationPayload;
+  /** The jobs it covers, so each one is marked sent by the alert that carried it. */
+  jobIds: string[];
+}
+
+/**
+ * New jobs as they post: one alert per job, with buttons, up to OWN_ALERTS;
+ * then one "3 more new jobs" alert that opens Jobs. A summary of one job
+ * would be that job without its buttons, so six jobs get six alerts. The
+ * summary comes first, so the stack shows a job on top and the summary last.
+ */
+export function buildJobAlerts(jobs: AlertJob[]): JobAlert[] {
+  const own = jobs.length <= OWN_ALERTS + 1 ? jobs : jobs.slice(0, OWN_ALERTS);
+  const rest = jobs.slice(own.length);
+  const alerts: JobAlert[] = own.map((job) => ({
+    payload: { ...buildNotificationPayload([job]), category: job.queueable ? JOB_ALERT_QUEUE_CATEGORY : JOB_ALERT_CATEGORY },
+    jobIds: [job.jobId],
+  }));
+  if (rest.length === 0) return alerts;
+  return [{
+    payload: {
+      title: `${rest.length} more new jobs`,
+      body: buildNotificationPayload(rest).body,
+      data: { url: "/", job_ids: rest.slice(0, MAX_PUSH_JOB_IDS).map((job) => job.jobId) },
+    },
+    jobIds: rest.map((job) => job.jobId),
+  }, ...alerts];
+}
 
 /**
  * New jobs once a day (N2), as the Alerts screen previews it: "12 new jobs

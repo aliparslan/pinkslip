@@ -4,7 +4,7 @@ import {
   type AutoApplyPause,
   type AutoApplySettings,
 } from "../../shared/apply-asks";
-import type { ApplySend } from "../../shared/auto-apply";
+import { SENDABLE_ATS, type ApplySend } from "../../shared/auto-apply";
 import { specificRoleSpecialties, type SearchProfile } from "../../shared/search-profile";
 import type { JobListing } from "../adapters/types";
 import type { JobFeatures } from "../job-features";
@@ -35,7 +35,7 @@ export { askTime } from "./ask-checks";
 const FOREVER = "9999-12-31T00:00:00.000Z";
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Pinkslip sends these forms itself; anything else stays a normal alert. */
-const SENDABLE = new Set(["greenhouse", "ashby"]);
+const SENDABLE = SENDABLE_ATS;
 const JOBS_PER_PASS = 90;
 /** Asks a person gets in their day; past it, strong matches get the normal alert. */
 export const ASKS_PER_DAY = 5;

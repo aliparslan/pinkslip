@@ -1,5 +1,6 @@
 import { describe, it, expect, mock, spyOn, afterEach } from "bun:test";
 import {
+  buildJobAlerts,
   buildNotificationPayload,
   sendPushNotification,
 } from "@worker/push";
@@ -160,5 +161,38 @@ describe("sendPushNotification", () => {
 
     const result = await sendPushNotification(MOCK_SUBSCRIPTION, payload, MOCK_VAPID);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("buildJobAlerts", () => {
+  const jobs = (count: number) => Array.from({ length: count }, (_, index) => ({
+    company: ["Ramp", "Mercury", "Plaid"][index % 3]!,
+    title: `Engineer ${index}`,
+    jobId: `j${index}`,
+    queueable: index === 0,
+  }));
+
+  it("gives each job its own alert, with Queue only where it can go", () => {
+    const alerts = buildJobAlerts(jobs(2));
+    expect(alerts.map(({ payload, jobIds }) => [payload.title, payload.body, payload.category, payload.data.url, jobIds])).toEqual([
+      ["Ramp", "Engineer 0", "job_alert_queue", "/jobs/j0", ["j0"]],
+      ["Mercury", "Engineer 1", "job_alert", "/jobs/j1", ["j1"]],
+    ]);
+  });
+
+  it("six jobs are six alerts, since a summary of one would lose its buttons", () => {
+    expect(buildJobAlerts(jobs(6)).map(({ payload }) => payload.category)).toEqual([
+      "job_alert_queue", "job_alert", "job_alert", "job_alert", "job_alert", "job_alert",
+    ]);
+  });
+
+  it("past that, the rest share one alert that opens Jobs, sent first", () => {
+    const alerts = buildJobAlerts(jobs(9));
+    expect(alerts).toHaveLength(6);
+    expect(alerts[0]).toEqual({
+      payload: { title: "4 more new jobs", body: "Plaid (2), Ramp, Mercury", data: { url: "/", job_ids: ["j5", "j6", "j7", "j8"] } },
+      jobIds: ["j5", "j6", "j7", "j8"],
+    });
+    expect(alerts.slice(1).flatMap(({ jobIds }) => jobIds)).toEqual(["j0", "j1", "j2", "j3", "j4"]);
   });
 });

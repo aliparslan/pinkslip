@@ -5,7 +5,7 @@ import { scheduleNotification } from "../notifications";
 import { applySendNotification } from "../notification-kinds";
 import type { CompanyRow, Env } from "../types";
 import type { ApplyPlan, FormControl } from "../../shared/application-form";
-import type { ApplySend, ApplySendStatus, SendNeed, SentAnswer } from "../../shared/auto-apply";
+import { SENDABLE_ATS, type ApplySend, type ApplySendStatus, type SendNeed, type SentAnswer } from "../../shared/auto-apply";
 import { applicationUrl, fetchApplicationForm, type FormSource } from "./forms";
 import { learnAnswers, planApplication } from "./plan";
 import { openFormPage, reconnectFormPage, type OpenedPage } from "./browser";
@@ -22,7 +22,7 @@ import { WAIT_MS, answersBySend, canAnswerInSheet, parseNeeds, tellWaiting, wait
  * form is kept, with a picture of the filled form and of the confirmation.
  */
 
-const SEND_ATS = new Set(["greenhouse", "ashby"]);
+const SEND_ATS = SENDABLE_ATS;
 /** Statuses where something went out, or may have: the allowance stays used. */
 const SENT: ReadonlySet<ApplySendStatus> = new Set(["submitted", "unconfirmed"]);
 /** Check first, or a stop on questions, keeps the filled form open this long
