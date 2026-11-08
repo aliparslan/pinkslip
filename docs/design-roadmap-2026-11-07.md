@@ -66,7 +66,35 @@ Nov 7 flow run:
 None of these are installed yet (no widget, Live Activity or share
 extension target in `apps/native`).
 
-## Left out on purpose
+## 4. The website, against "a modern motherfucking website"
+
+The owner shared modernmotherfuckingwebsite.dreamstation.systems (Nov 7):
+platform features over frameworks. Checked on pinkslip.work the same day.
+
+Already there: HTTP/3 (Cloudflare's `alt-svc: h3`), a canonical link,
+`main`/`nav`/`article`/`header` landmarks, Open Graph and Twitter cards on
+every page, dark mode from the system setting, and a `JobPosting` on each
+public job (`apps/webapp/src/features/job-detail/structured-data.ts`).
+
+To fix:
+
+- [ ] **`JobPosting` that Google can fully read** (Google for Jobs is
+      search traffic):
+  - places are written whole into `addressLocality` ("Hybrid - San
+    Francisco, CA"); split into locality "San Francisco" and region "CA",
+    without the "Hybrid -" prefix;
+  - add `baseSalary` when the job has pay, `employmentType` (`INTERN` for
+    internships, else `FULL_TIME`), and the company's `logo`;
+  - `sameAs` is missing when a company has no domain on file (Oura).
+- [ ] **A card per shared job** (flow run 2.30, section 3): the image is
+      the site's default for every job, and `og:description` is the
+      posting's first sentence ("Our mission at ŌURA…"). Pinkslip's own line
+      reads better in a chat: "New grad · San Francisco · $150–200K".
+- [ ] **Instant navigation**: the router doesn't preload. TanStack Router's
+      `defaultPreload: "intent"` loads a page's data on hover or press, the
+      client-side version of the page's speculation rules.
+
+
 
 Confetti, sounds, parallax, anything that animates on every scroll, and
 more onboarding.
