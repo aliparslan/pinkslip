@@ -71,8 +71,8 @@ function useFills(uri: string | null | undefined): boolean {
   return fills;
 }
 
-/** Logos sit on a white tile in both modes with a faint outline, so a dark
- * logo keeps its edge on graphite. Square logos fill the tile; marks, circles
+/** Logos have a faint outline, so a dark logo keeps its edge on graphite.
+ * Square logos fill the tile with nothing under them; marks, circles
  * and the letter for a company without a logo sit inset on white (owner,
  * 2026-11-08, Paper "Critic fixes · Nov 8", B). 40pt in rows, 48 on a page;
  * the corner is a quarter of the size (10 and 12). */
@@ -81,9 +81,18 @@ export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps
   // A logo that fails to load falls back to the letter.
   const [failed, setFailed] = useState<string | null>(null);
   const fills = useFills(uri);
+  if (uri && failed !== uri && fills) {
+    // Nothing white under a full square: drawn on white, its clipped edge
+    // showed a white rim (owner, 2026-11-08: Chainguard, Stripe, Twilio,
+    // Crusoe). The outline sits over the image instead of around it.
+    return <View style={styles.tile} accessibilityElementsHidden>
+      <Image source={{ uri }} style={styles.filled} resizeMode="cover" onError={() => setFailed(uri)} />
+      <View style={styles.outline} pointerEvents="none" />
+    </View>;
+  }
   if (uri && failed !== uri) {
     return <View style={[styles.tile, styles.white]} accessibilityElementsHidden>
-      <Image source={{ uri }} style={fills ? styles.filled : styles.image} resizeMode={fills ? "cover" : "contain"} onError={() => setFailed(uri)} />
+      <Image source={{ uri }} style={styles.image} resizeMode="contain" onError={() => setFailed(uri)} />
     </View>;
   }
   return <View style={[styles.tile, color ? { backgroundColor: color } : styles.white]} accessibilityElementsHidden>
@@ -108,5 +117,23 @@ const styles = StyleSheet.create((theme) => ({
   },
   white: { backgroundColor: theme.ui.color["logo-tile"], borderWidth: StyleSheet.hairlineWidth, borderColor: theme.ui.color["image-outline"] },
   image: { width: "80%", height: "80%" },
-  filled: { width: "100%", height: "100%" },
+  filled: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  outline: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.ui.color["image-outline"],
+    borderCurve: "continuous",
+    variants: {
+      size: {
+        row: { borderRadius: theme.ui.size.logo / 4 },
+        page: { borderRadius: theme.ui.size.logoLarge / 4 },
+        card: { borderRadius: 8 },
+        stack: { borderRadius: 7 },
+      },
+    },
+  },
 }));

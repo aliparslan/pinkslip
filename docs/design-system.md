@@ -456,7 +456,9 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   - **Logos** (owner, 2026-11-08, Paper "Critic fixes · Nov 8", B): every
     tile is white in both modes with the faint `image-outline`. A logo
     that's a full square (Stripe, Notion, Sixtyfour) fills the tile at its
-    radius; marks and circles (Apple, Databricks) sit inset at 80%. A
+    radius with nothing white under it and the outline drawn over its
+    edge (a white tile under it showed a white rim, owner, Nov 8); marks
+    and circles (Apple, Databricks) sit inset at 80%. A
     company without a logo gets its first letter, Medium `ink-3`, on the
     same white tile (grey `fill` before). The Worker's `/logo/shape` reads
     each favicon's edges (`worker/logo-shape.ts`); the phone keeps the
