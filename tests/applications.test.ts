@@ -223,6 +223,17 @@ describe("applications API", () => {
     expect(await feed()).toEqual(["job-b"]);
   });
 
+  it("counts everything the feed matches on its first page", async () => {
+    const { sqlite, call } = await setup();
+    sqlite.run("UPDATE jobs SET description = 'Build and ship the product.'");
+    const first = await call("/jobs?limit=1");
+    expect(first.body.jobs).toHaveLength(1);
+    expect(first.body.meta).toMatchObject({ has_more: true, matching: 2 });
+    // Later pages skip the count.
+    const second = await call("/jobs?limit=1&offset=1");
+    expect(second.body.meta.matching).toBeUndefined();
+  });
+
   it("moves an application through stages with a timeline and notes", async () => {
     const { call, lists, events } = await setup();
 

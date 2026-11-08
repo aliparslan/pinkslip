@@ -558,10 +558,30 @@ jobs.get("/", async (c) => {
     ? 1000
     : limitVal + 1;
   const queryOffset = hasAdvancedFilters ? 0 : offsetVal;
+  // Everything the feed matches, counted once on the first page so the app
+  // can count its last section (owner, 2026-10-13: a count on every section).
+  // Advanced filters already fetch every candidate, so their count is free.
+  const countMatching = offsetVal === 0 && !hasAdvancedFilters;
+  // The count has no columns, so it skips the values bound to the columns'
+  // own placeholders (the user's saved and applied flags), which come first.
+  const countBindings = bindings.slice((JOB_LIST_FIELDS.match(/\?/g) ?? []).length);
   bindings.push(queryLimit, queryOffset);
 
   const stmt = c.env.DB.prepare(sql);
-  const result = await stmt.bind(...bindings).all<JobListRow>();
+  const [result, counted] = await Promise.all([
+    stmt.bind(...bindings).all<JobListRow>(),
+    countMatching
+      ? c.env.DB.prepare(`
+          SELECT COUNT(*) AS n
+          FROM jobs j
+          JOIN companies c ON j.company_id = c.id
+          JOIN job_features jf ON jf.job_id = j.id
+          JOIN user_job_matches us ON us.job_id = j.id AND us.user_id = ?
+          LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
+          ${where}
+        `).bind(...countBindings).first<{ n: number }>()
+      : Promise.resolve(null),
+  ]);
   const filteredRows = hasAdvancedFilters
     ? (result.results ?? []).filter((row) => passesAdvancedFilters(row, advancedFilters))
     : (result.results ?? []);
@@ -578,6 +598,7 @@ jobs.get("/", async (c) => {
         ? offsetVal + rows.length < filteredRows.length || (result.results ?? []).length === queryLimit
         : filteredRows.length > limitVal,
       next_offset: offsetVal + rows.length,
+      ...(counted ? { matching: counted.n } : hasAdvancedFilters && offsetVal === 0 ? { matching: filteredRows.length } : {}),
     },
   });
 });

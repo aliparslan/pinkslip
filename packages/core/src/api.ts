@@ -636,6 +636,9 @@ export interface JobsListMeta {
   count?: number;
   has_more?: boolean;
   next_offset?: number;
+  /** Every job the feed matches, on its first page (Worker from Nov 8 2026);
+   * `total` only counts the rows fetched for the page. */
+  matching?: number;
 }
 
 export type CareerStageQuery =
