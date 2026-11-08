@@ -5,12 +5,13 @@ import { parseJobDescription } from "@pinkslip/core/job-description";
 import { useApplication, useApplySends, useRemoveApplication, useSession, useSetStepDate, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
 import { router, Stack, useNavigation, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
+import { Alert, Pressable, ScrollView, Share, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../platform/haptics";
 import { storage } from "../../platform/storage";
+import { shareJob } from "../../platform/share";
 import { useMotionTrial } from "../../ui/motion-trial";
 import {
   Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
@@ -47,7 +48,6 @@ export interface ApplicationActions {
  * date asks for it next. Tracker rows past Saved open it.
  */
 export function ApplicationPage({ applicationId }: { applicationId: string }) {
-  const { theme } = useUnistyles();
   const query = useApplication(applicationId);
   const update = useUpdateApplication();
   const removal = useRemoveApplication();
@@ -96,7 +96,6 @@ export function ApplicationPage({ applicationId }: { applicationId: string }) {
 }
 
 function WithJob({ application, jobId, actions }: { application: ApplicationDetail; jobId: string; actions: ApplicationActions }) {
-  const { theme } = useUnistyles();
   const { job, full, failed, pendingDescription } = useDetailJob(jobId);
   const blocks = useMemo(() => job ? parseJobDescription(job.description, { title: job.title, companyName: job.company_name }) : [],
     [job]);
@@ -162,7 +161,14 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     { text: "Cancel", style: "cancel" },
     { text: "Remove", style: "destructive", onPress: () => void actions.remove().catch(() => undefined) },
   ]);
-  const share = () => void Share.share({ message: `${application.company_name}: ${application.title}`, url: application.url || undefined });
+  // The job's Pinkslip page, as a bare link, so Messages shows its preview
+  // (owner, Nov 8: no previews; words beside a link make it plain text).
+  // One added by hand has only its own link, or just its words.
+  const share = () => {
+    if (application.job_id) void shareJob({ id: application.job_id, title: application.title, company_name: application.company_name });
+    else if (application.url) void Share.share({ url: application.url }).catch(() => undefined);
+    else void Share.share({ message: `${application.company_name}: ${application.title}` }).catch(() => undefined);
+  };
   const menu: GlyphMenuSpec = {
     items: [
       application.stage === "applied" && !application.stage_date ? { id: "date", title: "Add a hear-back date", glyph: "date", onSelect: () => setSheet("date") } : null,

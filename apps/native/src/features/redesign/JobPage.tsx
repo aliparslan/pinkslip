@@ -3,7 +3,7 @@ import { applicationsQueryOptions, useApi, usePreferences } from "@pinkslip/data
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useIsFocused, useSegments } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, ScrollView, View } from "react-native";
+import { AccessibilityInfo, ScrollView, View } from "react-native";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -29,7 +29,6 @@ const DESCRIPTION_IN = FadeIn.duration(180);
  * a ticket, why it fits your search, the posting, and Save and Apply pinned
  * at the bottom. Applying tears the ticket's stub off. */
 export function JobPage({ jobId, outreachThread, sendOpening }: { jobId: string; outreachThread?: string; sendOpening?: SendOpening }) {
-  const { theme } = useUnistyles();
   const { job, status, full, failed, pendingDescription, retryDescription, retry } = useDetailJob(jobId);
   if (!job) {
     // The same bar while it loads, so Back doesn't jump when the page arrives.
