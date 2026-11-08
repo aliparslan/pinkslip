@@ -61,8 +61,8 @@ Nov 7 flow run:
       usability step.
 - [ ] **A Today widget** for the home screen: the next interview, new
       replies, new matches.
-- [ ] **Pushes with the company's logo** (a notification service
-      extension).
+- [x] ~~**Pushes with the company's logo**~~ Dropped (owner, 2026-11-08):
+      a push stays Pinkslip's, so people know where it came from.
 - [ ] **Designed preview cards for shared job links** (flow run 2.30):
       every shared link reads as an ad. Web, not native.
 
