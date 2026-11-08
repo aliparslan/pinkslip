@@ -119,18 +119,26 @@ function TransitionSource({ routeKey }: { routeKey: string }) {
 interface Follower extends Transition {
   /** The tab the page is in ("(jobs)"); the bar follows only that tab's. */
   tab: string;
-  /** The page grew out of its row (Link.Trigger withAppleZoom), so nothing
-   * slides: the bar fades and drops instead (Paper "Signature moments ·
-   * Nov 8"; owner, Nov 8: it wiped in from the left on the way back). */
-  zoom: boolean;
+  how: FollowKind;
 }
+
+/** How the bar comes and goes with a page. `list`: it slides with the list.
+ * `zoom`: the page grew out of its row (Link.Trigger withAppleZoom), so
+ * nothing slides: the bar fades and drops (Paper "Signature moments · Nov 8";
+ * owner, Nov 8: it wiped in from the left on the way back). `fade`: an alert
+ * opened the page (`tabStackOptions`), and the bar crossfades with it, so it
+ * and the page's own buttons trade places. */
+type FollowKind = "list" | "zoom" | "fade";
 
 /** Expo Router's note on a page opened by a zoom: the row it grew from. */
 const ZOOM_SOURCE = "__internal_expo_router_zoom_transition_source_id";
-function openedByZoom(params: object | undefined): boolean {
-  if (!params) return false;
+function followKind(params: object | undefined): FollowKind {
+  if (!params) return "list";
   const nested = "params" in params && typeof params.params === "object" ? params.params as object | undefined : undefined;
-  return Boolean((params as Record<string, unknown>)[ZOOM_SOURCE] ?? (nested as Record<string, unknown> | undefined)?.[ZOOM_SOURCE]);
+  const own = params as Record<string, unknown>;
+  const inner = nested as Record<string, unknown> | undefined;
+  if (own[ZOOM_SOURCE] ?? inner?.[ZOOM_SOURCE]) return "zoom";
+  return own.via === "alert" || inner?.via === "alert" ? "fade" : "list";
 }
 const followers: Follower[] = [];
 /** The pages that hide the bar, by route key, so a page above one of them
@@ -150,7 +158,7 @@ export function TabBarFollowsTransition() {
   const segments = useSegments() as readonly string[];
   const stackTab = useContext(TabName);
   const [tab] = useState(() => stackTab ?? segments[1] ?? "(jobs)");
-  const [zoom] = useState(() => openedByZoom(route.params));
+  const [how] = useState(() => followKind(route.params));
   const [below] = useState(() => {
     const routes = navigation.getState()?.routes ?? [];
     const index = routes.findIndex((entry) => entry.key === route.key);
@@ -169,7 +177,7 @@ export function TabBarFollowsTransition() {
   }, [route.key]);
   useEffect(() => {
     if (!below) return;
-    const follower: Follower = { tab, zoom, ...below };
+    const follower: Follower = { tab, how, ...below };
     followers.push(follower);
     followersChanged();
     return () => unfollowOnceIn(follower);
@@ -507,7 +515,7 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
   }, [count, x, dragging, finger, offset, current, hovered]);
 
   const follower = useFollower(tabs[selected]?.name);
-  const follow = useMemo(() => followStyles(follower ?? restingList(), screen, follower?.zoom ?? false), [follower, screen]);
+  const follow = useMemo(() => followStyles(follower ?? restingList(), screen, follower?.how ?? "list"), [follower, screen]);
   // Back at rest, the resting values are sent to the native side again once
   // the bar is drawn with them. Attaching them alone doesn't move a view the
   // native driver last placed, so a bar left off to the side by a page that
@@ -577,7 +585,7 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
  * the same properties, always from the native driver, since a property it
  * stops naming keeps the last value it had.
  */
-function followStyles({ progress: p, closing: c }: Transition, width: number, zoom: boolean) {
+function followStyles({ progress: p, closing: c }: Transition, width: number, how: FollowKind) {
   const scale = (value: RNAnimated.Animated, to: number) => (value as RNAnimated.Value).interpolate({ inputRange: [0, 1], outputRange: [0, to] });
   // How much of the list is showing: 1 - p as the page arrives (the list
   // closing), p as the page leaves (the list coming back), so p + c(1 - 2p).
@@ -593,10 +601,10 @@ function followStyles({ progress: p, closing: c }: Transition, width: number, zo
     RNAnimated.multiply(returning, back.interpolate({ inputRange: [0, 1], outputRange: [ZOOM_DROP, 0] })),
   );
   return {
-    clip: { transform: [{ translateX: scale(hidden, zoom ? 0 : -width) }] },
+    clip: { transform: [{ translateX: scale(hidden, how === "list" ? -width : 0) }] },
     content: {
-      opacity: zoom ? zoomOpacity : shown.interpolate({ inputRange: [0, 1], outputRange: [1, 1] }),
-      transform: [{ translateX: scale(hidden, zoom ? 0 : width * 0.7) }, { translateY: zoom ? zoomDrop : scale(hidden, 0) }],
+      opacity: how === "zoom" ? zoomOpacity : how === "fade" ? shown : shown.interpolate({ inputRange: [0, 1], outputRange: [1, 1] }),
+      transform: [{ translateX: scale(hidden, how === "list" ? width * 0.7 : 0) }, { translateY: how === "zoom" ? zoomDrop : scale(hidden, 0) }],
     },
   };
 }

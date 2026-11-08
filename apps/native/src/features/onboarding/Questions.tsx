@@ -2,18 +2,13 @@ import { locationLabels } from "@pinkslip/core/feed-criteria";
 import { NO_ROLE_PREFERENCE, roleChips, visibleRoles, type Profile } from "@pinkslip/core/profile-fields";
 import { useApi, useUpdatePreferences } from "@pinkslip/data";
 import { LOCATION_OPTIONS, ONBOARDING_VERSION } from "@pinkslip/domain/search-profile";
-import { useRef, useState } from "react";
-import { View, useWindowDimensions } from "react-native";
-import Animated, { useReducedMotion, useSharedValue, withDelay, withSpring, withTiming, type EntryExitAnimationFunction, type SharedValue } from "react-native-reanimated";
+import { useState } from "react";
+import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { haptics } from "../../platform/haptics";
-import { Button, Chip, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, toast, useSheet, useSheetGuard } from "../../ui";
-import { motion, spring } from "../../ui/motion";
+import { Button, Chip, SheetBack, SheetHeader, SheetModal, SheetScroll, SheetStep, Text, toast, useSheet, useSheetGuard, useSheetTravel } from "../../ui";
 import { stageName, STAGES_IN_ORDER, wantsRemote } from "../redesign/search-draft";
 import { answeredSearch, canContinue, flipRemote, pickPlace, pickRole, pickStage, QUESTIONS, type Question } from "./answers";
-
-const { step: STEP } = motion.onboarding;
-const STEP_SPRING = spring(STEP);
 
 const TITLES: Record<Question, string> = {
   stage: "Where are you in your career?",
@@ -45,9 +40,9 @@ export interface QuestionsProps {
  * The three questions (Paper "Onboarding · the build · Oct 18", 3 to 3c):
  * career stage, roles and where as chips, in a short sheet over the feed
  * that leaves it bright and in view (owner: that's the point of a sheet).
- * The feed behind answers every tap at once (PreviewFeed). From one
- * question to the next the words slide and fade as the sheet eases to its
- * new height (the Onboarding Motion Lab). The answers are saved once, at
+ * The feed behind answers every tap at once (PreviewFeed). Each question is
+ * a step of the sheet, so they crossfade as every sheet's steps do (owner,
+ * Nov 8). The answers are saved once, at
  * the end; the feed behind moves to Jobs' own list for them before the
  * sheet goes, so what's left when it does is simply Jobs. It
  * can't be swiped away: three taps and it's finished.
@@ -62,13 +57,8 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver,
   const sheet = useSheet();
   const api = useApi();
   const update = useUpdatePreferences();
-  const { width } = useWindowDimensions();
-  const reduced = useReducedMotion();
-  // Which way the words move: read as one question leaves and the next comes.
-  const direction = useSharedValue(1);
+  const travel = useSheetTravel();
   const [finishing, setFinishing] = useState(false);
-  // The first question is part of the sheet coming in, not a second entrance.
-  const stepped = useRef(false);
   useSheetGuard(true, () => undefined);
 
   const question = QUESTIONS[index]!;
@@ -78,8 +68,7 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver,
     change(patch);
   };
   const go = (to: number) => {
-    stepped.current = true;
-    direction.value = to > index ? 1 : -1;
+    travel(to > index ? 1 : -1);
     setIndex(to);
   };
 
@@ -109,9 +98,8 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver,
     {last ? "Show my jobs" : "Continue"}
   </Button>;
 
-  return <SheetStep id="questions" grabber={false}>
-    <Animated.View key={question} style={styles.question}
-      entering={reduced || !stepped.current ? undefined : arrive(direction, width)} exiting={reduced ? undefined : depart(direction, width)}>
+  return <SheetStep id={question} grabber={false}>
+    <View style={styles.question}>
       <View style={styles.header}>
         <Text role="subhead" tone="ink-3">{`${index + 1} of ${QUESTIONS.length}`}</Text>
         <SheetHeader title={TITLES[question]} />
@@ -119,39 +107,12 @@ function Steps({ saved, draft, change, index, setIndex, saves, counts, handOver,
       <SheetScroll style={styles.scroll} contentContainerStyle={styles.chips}>
         <Answers question={question} draft={draft} pick={pick} />
       </SheetScroll>
-    </Animated.View>
+    </View>
     {index === 0 ? done : <View style={styles.actions}>
       <SheetBack onPress={() => go(index - 1)} />
       <View style={styles.flex}>{done}</View>
     </View>}
   </SheetStep>;
-}
-
-/** The next question's words come in from the side it's heading from... */
-function arrive(direction: SharedValue<number>, width: number): EntryExitAnimationFunction {
-  return () => {
-    "worklet";
-    return {
-      initialValues: { opacity: 0, transform: [{ translateX: direction.value * width * STEP.shift }] },
-      // The words coming in wait for the last ones to clear, so the two are
-      // never read over each other (owner, Nov 8, from a recording).
-      animations: { opacity: withDelay(70, withTiming(1, { duration: 170 })), transform: [{ translateX: withSpring(0, STEP_SPRING) }] },
-    };
-  };
-}
-
-/** ...as the last one's slide the other way and fade. */
-function depart(direction: SharedValue<number>, width: number): EntryExitAnimationFunction {
-  return () => {
-    "worklet";
-    return {
-      initialValues: { opacity: 1, transform: [{ translateX: 0 }] },
-      animations: {
-        opacity: withTiming(0, { duration: 80 }),
-        transform: [{ translateX: withSpring(-direction.value * width * STEP.shift, STEP_SPRING) }],
-      },
-    };
-  };
 }
 
 /** One question's chips: the kit's 32pt Chip, pink when on, since each

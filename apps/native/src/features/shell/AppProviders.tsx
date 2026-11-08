@@ -6,7 +6,7 @@ import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { toast, ToastHost } from "../../kit";
-import { appPathFor, inHomeTab } from "../../platform/links";
+import { appPathFor, fromAlert, inHomeTab } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
 import { ASK_APPLY, ASK_DISMISS, isAlertButton, notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
@@ -106,7 +106,7 @@ function AppEffects({ api }: { api: ApiClient }) {
         void api.push.opened(target.jobIds, target.notificationId ?? undefined).catch(() => undefined);
       }
       const path = target.url ? appPathFor(target.url) : "/";
-      if (path) router.push((launching ? inHomeTab(path) : path) as never);
+      if (path) router.push((launching ? inHomeTab(fromAlert(path)) : fromAlert(path)) as never);
     };
     const last = Notifications.getLastNotificationResponse();
     if (last) open(last, true);

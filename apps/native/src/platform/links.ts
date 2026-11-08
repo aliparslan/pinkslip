@@ -46,3 +46,10 @@ export function inHomeTab(path: string): string {
   if (path.startsWith("/events/")) return `/(tabs)/(today)${path}`;
   return path;
 }
+
+/** Marks a page an alert opened: it has no row to grow out of, so it fades
+ * in and out instead of sliding (`tabStackOptions`, owner, Nov 8). */
+export function fromAlert(path: string): string {
+  if (!/^\/(jobs|applications|events)\//.test(path)) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}via=alert`;
+}

@@ -16,3 +16,11 @@ export function stackOptions(theme: AppTheme): NativeStackNavigationOptions {
     contentStyle: { backgroundColor: theme.colors.bg },
   };
 }
+
+/** A tab stack's options. A page an alert opened has no row to grow out of,
+ * so it fades in and out, swipe back included, rather than sliding. */
+export function tabStackOptions(theme: AppTheme) {
+  const base = stackOptions(theme);
+  return ({ route }: { route: { params?: object } }): NativeStackNavigationOptions =>
+    (route.params as { via?: string } | undefined)?.via === "alert" ? { ...base, animation: "fade", animationMatchesGesture: true } : base;
+}

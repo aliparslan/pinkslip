@@ -511,10 +511,15 @@ function AddTag({ onAdd }: { onAdd: (text: string) => void }) {
   };
   if (typing) {
     return <View style={[styles.tag, styles.addTag]}>
-      {/* intentional: a field inside the chip, which no kit field is */}
-      <TextInput value={text} onChangeText={setText} autoFocus submitBehavior="submit" returnKeyType="done" accessibilityLabel="Add"
-        placeholder="Add" placeholderTextColor={theme.ui.color["ink-3"]} selectionColor={theme.ui.color.accent}
-        onSubmitEditing={() => (text.trim() ? commit() : setTyping(false))} onBlur={() => { commit(); setTyping(false); }} style={[styles.tagInput, face.text]} />
+      <View>
+        {/* intentional: a field inside the chip, which no kit field is */}
+        <TextInput value={text} onChangeText={setText} autoFocus submitBehavior="submit" returnKeyType="done" accessibilityLabel="Add"
+          selectionColor={theme.ui.color.accent}
+          onSubmitEditing={() => (text.trim() ? commit() : setTyping(false))} onBlur={() => { commit(); setTyping(false); }} style={[styles.tagInput, face.text]} />
+        {/* The kit's own line, so "Add" sits level with the chips beside it;
+            iOS's placeholder sat 3pt below them on the phone (owner, Nov 8). */}
+        {text ? null : <View style={styles.tagGhost} pointerEvents="none" accessibilityElementsHidden><Text role="subhead" tone="ink-3">Add</Text></View>}
+      </View>
     </View>;
   }
   return <Pressable accessibilityRole="button" accessibilityLabel="Add" onPress={() => setTyping(true)} style={({ pressed }) => [styles.tag, styles.addTag, pressed && styles.entryPressed]}>
@@ -523,9 +528,19 @@ function AddTag({ onAdd }: { onAdd: (text: string) => void }) {
   </Pressable>;
 }
 
-function TagGroup({ title, tags, onAdd, onRemove }: { title: string; tags: string[]; onAdd: (text: string) => void; onRemove: (index: number) => void }) {
+function TagGroup({ title, tags, onAdd, onRemove, onDelete }: {
+  title: string; tags: string[]; onAdd: (text: string) => void; onRemove: (index: number) => void;
+  /** Takes the whole group away (Skills). */
+  onDelete?: () => void;
+}) {
   return <View style={styles.tagGroup}>
-    <Text role="footnote" weight="medium" tone="ink-2">{title}</Text>
+    <View style={styles.tagGroupHead}>
+      <Text role="footnote" weight="medium" tone="ink-2">{title}</Text>
+      {/* intentional: a small mark on the label's line, which no kit button is */}
+      {onDelete ? <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${title}`} onPress={onDelete} hitSlop={14}>
+        <Icon name="close" size={14} tone="ink-3" />
+      </Pressable> : null}
+    </View>
     <View style={styles.tags}>
       {tags.map((tag, index) => <Tag key={`${tag}-${index}`} label={tag} onRemove={() => onRemove(index)} />)}
       <AddTag onAdd={onAdd} />
@@ -546,6 +561,12 @@ function Skills({ skills }: { skills: ResumeProfile["skills"] }) {
     const added = splitItems(text);
     if (added.length) setGroup(index, [...splitItems(skills[index]?.items ?? ""), ...added]);
   };
+  const deleteGroup = (index: number) => {
+    const before = skills;
+    const name = skills[index]?.category || "Skills";
+    update((profile) => ({ ...profile, skills: profile.skills.filter((_, at) => at !== index) }));
+    toast.show({ message: `${name} deleted`, icon: "remove", duration: UNDO_TOAST_DURATION, action: { label: "Undo", run: () => update((profile) => ({ ...profile, skills: before })) } });
+  };
   const addGroup = () => Alert.prompt("Name the group", "Languages, Frameworks, Tools…", (name) => {
     const category = name?.trim();
     if (category) update((profile) => ({ ...profile, skills: [...profile.skills, { category, items: "" }] }));
@@ -553,7 +574,8 @@ function Skills({ skills }: { skills: ResumeProfile["skills"] }) {
   return <YouPage title="Skills" barStaysDown bar={<Button fullWidth icon="add" onPress={addGroup}>Add a group</Button>}>
     {skills.length === 0 ? <EmptyState title="No skills yet" message="Group them: languages, frameworks, tools." /> : null}
     {skills.map((group, index) => <TagGroup key={index} title={group.category || "Skills"} tags={splitItems(group.items)}
-      onAdd={(text) => addTo(index, text)} onRemove={(at) => setGroup(index, splitItems(group.items).filter((_, position) => position !== at))} />)}
+      onAdd={(text) => addTo(index, text)} onDelete={() => deleteGroup(index)}
+      onRemove={(at) => setGroup(index, splitItems(group.items).filter((_, position) => position !== at))} />)}
   </YouPage>;
 }
 
@@ -628,6 +650,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.ui.space["4"], borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill,
   },
   // The chip grows with what's typed; the line height is the chip's own text.
-  tagInput: { minWidth: 56, padding: 0, fontSize: theme.ui.type.subhead.size, color: theme.ui.color.ink },
+  tagInput: { minWidth: 56, height: theme.ui.type.subhead.line, padding: 0, fontSize: theme.ui.type.subhead.size, color: theme.ui.color.ink },
+  tagGhost: { position: "absolute", left: 0, top: 0 },
+  tagGroupHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   addTag: { backgroundColor: "transparent", borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.ui.color["ink-4"], paddingHorizontal: theme.ui.space["3"] },
 }));

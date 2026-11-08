@@ -12,6 +12,7 @@ import Animated, { Easing, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
+import { haptics } from "../../platform/haptics";
 import {
   changedKeys, Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast,
   TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup,
@@ -230,6 +231,8 @@ function TrackerRow({ application, sample, thread, onMove }: {
   // A saved job that left the catalog has no page to open.
   if (!sample && !application.job_id && application.stage === "saved") return row;
   const move = (stage: ApplicationStage) => {
+    // One, as a stamp meeting the paper: you don't see the stub tear here.
+    if (stage === "applied") haptics.tap();
     const putBack = onMove?.(application, stage);
     if (sample) return;
     update.mutate({ id: application.id, stage }, {

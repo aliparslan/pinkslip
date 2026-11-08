@@ -429,8 +429,9 @@ the storyboard spec. These were chosen in the Motion lab
     move to their places on the same spring. Each chip ticks. An empty
     question doesn't narrow it; before the first answer it shows
     placeholders.
-  - From one question to the next the words slide 40% of the screen and
-    fade (response 0.42s, no bounce) as the sheet eases to its new height.
+  - Each question is a step of the sheet, so they change as every sheet's
+    steps do: the old one goes, the sheet takes its height, the new one
+    fades in (owner, 2026-11-08).
     The answers are saved once, at the end. Then the feed behind moves to
     Jobs' own list for them (the same rows, sections and counts Jobs will
     show), the sheet goes, and the feed fades over Jobs showing the same,
@@ -454,6 +455,7 @@ per moment, never two for the same thing. All of them go through
   finishing onboarding or email setup.
 - **Tap:** something physical where you're looking: a stamp meeting the
   paper, each tick of the rip, Save, "I applied" from a row, Copy.
+  Moving a row to Applied from Tracker's menu gets one (owner, 2026-11-08).
 - **Tick:** moving through choices (answer chips; wheels tick themselves).
 - **Warning:** Pinkslip said no (a send refused: the day's limit, a closed
   job).
