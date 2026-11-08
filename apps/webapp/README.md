@@ -84,10 +84,14 @@ bunx wrangler deploy --dry-run
 
 ## Brand icons
 
-`public/favicon.svg`, the PWA and Apple touch PNGs and the notification badge are
-generated from one mark by `bun run icons` (`scripts/generate-icons.mjs`). Its
-geometry matches `src/features/shell/BrandMark.tsx`. The mark is a placeholder
-until the commissioned logo.
+The mark is the app icon's carbon-copy slip, cut out of its tile:
+`public/brand/mark.svg` from 40px up and `public/brand/mark-small.svg` below
+(no ruled lines). `src/features/shell/BrandMark.tsx` draws them;
+`bun run icons` (`scripts/generate-icons.mjs`) makes the favicon and the
+notification badge from the small one, and the home-screen and install icons
+from `apps/native/assets/icon.png`; `bun run share-image` makes the default
+link preview. The old flat stacked slips are retired (owner, 2026-11-08). The
+mark is a placeholder until the commissioned logo.
 
 ## Cutover (chunk 3.4)
 

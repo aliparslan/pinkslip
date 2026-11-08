@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g transform="translate(16 16) scale(0.92) translate(-16.2 -15.6)">
-    <mask id="gap"><rect width="32" height="32" fill="#fff"/><rect x="8" y="8.5" width="13" height="18.5" rx="2.4" fill="#000" stroke="#000" stroke-width="3" transform="rotate(-5 14.5 17.75)"/></mask>
-    <g mask="url(#gap)"><rect x="11" y="4.5" width="13" height="18.5" rx="2.4" fill="#fff" opacity="0.5" transform="rotate(9 17.5 13.75)"/></g>
-    <rect x="8" y="8.5" width="13" height="18.5" rx="2.4" fill="#fff" transform="rotate(-5 14.5 17.75)"/>
-  </g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 13 176 176">
+  <mask id="front"><rect x="16" y="13" width="176" height="176" fill="#fff"/><g transform="rotate(-6 92 116)"><path d="M50 50H134Q140 50 140 56V164L122 182H50Q44 182 44 176V56Q44 50 50 50Z" fill="#000" stroke="#000" stroke-width="14"/></g></mask>
+  <g mask="url(#front)"><g transform="rotate(8 114 88)"><rect x="66" y="22" width="96" height="132" rx="6" fill="#fff"/></g></g>
+  <g transform="rotate(-6 92 116)"><path d="M50 50H134Q140 50 140 56V158L116 182H50Q44 182 44 176V56Q44 50 50 50Z" fill="#fff"/></g>
+</svg>

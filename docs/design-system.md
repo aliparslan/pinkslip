@@ -441,7 +441,7 @@ the storyboard spec. These were chosen in the Motion lab
 | Grained ticket with perforated stub | A job's facts: Level and Experience, then Location, then Pay and Visa sponsorship last (owner, 2026-10-19) | Job page |
 | Torn stub | You applied | Job page after applying (it falls into the Apply button), your stub on the application |
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
-| Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, small marks |
+| Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, the website's sidebar and tab, link cards. Below 40px without its ruled lines (`public/brand/mark-small.svg`); the flat stacked slips are retired (owner, 2026-11-08) |
 
 ## Before drawing (check every time)
 

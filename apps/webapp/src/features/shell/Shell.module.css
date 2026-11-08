@@ -153,7 +153,6 @@
 .mark {
   display: block;
   flex: none;
-  color: var(--color-accent-fill);
 }
 
 /* Wide: a sticky icon rail, one control wide plus its padding. Names show
