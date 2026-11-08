@@ -1,5 +1,6 @@
-import type { ApplySend } from "@pinkslip/core/api";
-import { useApplySends, useAppliedJobs, useSession, useStopSend } from "@pinkslip/data";
+import type { ApplySend, Job } from "@pinkslip/core/api";
+import { queryKeys, useApplySends, useAppliedJobs, useCompanies, useSession, useStopSend } from "@pinkslip/data";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useSegments } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo } from "react-native";
@@ -14,7 +15,17 @@ const DONE_MS = 4_000;
 
 export type SendOpening = "answer" | "code" | "finish";
 
-const asJob = (send: ApplySend): LiveJob => ({ id: send.job_id, company: send.company ?? "", title: send.title ?? "" });
+/** A send carries its company's name but not its website, so the logos in
+ * the bar and its queue came out as letters (owner, 2026-11-08). The job's
+ * own page, if it's been opened, has the domain; otherwise the companies
+ * list does, by name. */
+function useSendDomains(enabled: boolean): (send: Pick<ApplySend, "job_id" | "company">) => string | null {
+  const queryClient = useQueryClient();
+  const companies = useCompanies(enabled).data;
+  const byName = useMemo(() => new Map((companies ?? []).map((company) => [company.name.trim().toLowerCase(), company.website])), [companies]);
+  return (send) => queryClient.getQueryData<Job>(queryKeys.personal.job(send.job_id))?.company_domain
+    || (send.company ? byName.get(send.company.trim().toLowerCase()) ?? null : null);
+}
 
 /**
  * The live bar for real sends (Paper "4 · While it runs"): above the tab bar
@@ -36,6 +47,8 @@ export function useLiveSends(): ReactNode | null {
   const stopSend = useStopSend();
   const [now, setNow] = useState(() => Date.now());
   const facts = enabled ? liveBar(sends.data, now, applied, gettingCode) : null;
+  const domainOf = useSendDomains(enabled);
+  const asJob = (send: ApplySend): LiveJob => ({ id: send.job_id, company: send.company ?? "", title: send.title ?? "", domain: domainOf(send) });
 
   // A stop that waits on you leaves the bar after a while, for Today.
   useEffect(() => {
@@ -97,7 +110,11 @@ export function useLiveSends(): ReactNode | null {
         else toast.show({ message: stopped === 1 ? "Stopped. Nothing was sent" : `Stopped ${stopped}. Nothing was sent`, icon: "autoApply" });
       });
     } : undefined;
-    return <LiveBar key="live" state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)} onStop={stopAll}
+    // The one job waiting on you shows its logo too.
+    const waiting = facts.state.kind === "needs" && !facts.state.group && facts.jobId
+      ? (sends.data ?? []).find((send) => send.job_id === facts.jobId) : undefined;
+    const state = waiting && facts.state.kind === "needs" ? { ...facts.state, domain: domainOf(waiting) } : facts.state;
+    return <LiveBar key="live" state={state} queue={queue} onOpenJob={(job) => openJob(job.id)} onStop={stopAll}
       onAction={facts.state.kind === "needs" && facts.state.group ? answerAll : facts.jobId ? () => openJob(facts.jobId!, opening) : undefined} />;
   }
   if (done) return <LiveBar key="done" state={done} queue={{ now: null, next: [], sent: [] }} onDismiss={() => setDone(null)} />;
