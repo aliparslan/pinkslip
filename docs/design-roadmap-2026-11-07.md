@@ -59,12 +59,21 @@ Nov 7 flow run:
 - [ ] **A share extension.** "Track in Pinkslip" from Safari's or
       LinkedIn's share sheet, for jobs found anywhere. The biggest
       usability step.
-- [ ] **A Today widget** for the home screen: the next interview, new
-      replies, new matches.
+- [ ] **A Today widget**: back burner (owner, 2026-11-08: no clear value
+      yet, very low priority). Options were Next up, Tracker at a glance,
+      new matches.
 - [x] ~~**Pushes with the company's logo**~~ Dropped (owner, 2026-11-08):
       a push stays Pinkslip's, so people know where it came from.
 - [ ] **Designed preview cards for shared job links** (flow run 2.30):
       every shared link reads as an ad. Web, not native.
+
+- [ ] **Buttons on job alerts** (owner, 2026-11-08): Save, Hide and Queue
+      on a one-job alert, acting without opening the app (a background
+      handler, so a new build); a batch alert opens the app on just those
+      jobs, since one set of buttons can't serve several.
+- [ ] **Add an interview to Calendar** (owner, 2026-11-08), a new build.
+- Back burner (owner, 2026-11-08): Spotlight search of your jobs; Siri and
+  Shortcuts.
 
 None of these are installed yet (no widget, Live Activity or share
 extension target in `apps/native`).
