@@ -12,6 +12,7 @@ import {
   Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
 } from "../../ui";
+import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -193,9 +194,11 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
+  // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
+  const zoom = useMotionTrial("zoom");
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
-      <Link.Trigger>
+      <Link.Trigger withAppleZoom={zoom}>
         <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
           unread={!viewed}

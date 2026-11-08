@@ -169,6 +169,8 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 function TrackerRow({ application, sample, thread }: { application: Application; sample: boolean; thread?: OutreachThread }) {
   const update = useUpdateApplication();
   const remove = useRemoveApplication();
+  // Its page grows out of the row (Paper "Signature moments · Nov 8", 1).
+  const zoom = useMotionTrial("zoom");
   const outreach = thread && application.stage !== "saved" ? trackerOutreachLine(thread) : null;
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
     facts={outreach ?? trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
@@ -186,7 +188,7 @@ function TrackerRow({ application, sample, thread }: { application: Application;
     ? { pathname: "/(tabs)/(library)/jobs/[jobId]" as const, params: { jobId: application.job_id } }
     : { pathname: "/(tabs)/(library)/applications/[applicationId]" as const, params: { applicationId: application.id } };
   return <Link href={href} asChild>
-    <Link.Trigger>{row}</Link.Trigger>
+    <Link.Trigger withAppleZoom={zoom}>{row}</Link.Trigger>
     <Link.Preview />
     <Link.Menu>
       <Link.Menu title="Move to">

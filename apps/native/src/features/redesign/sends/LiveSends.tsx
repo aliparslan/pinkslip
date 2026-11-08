@@ -1,9 +1,11 @@
 import type { ApplySend } from "@pinkslip/core/api";
 import { useApplySends, useAppliedJobs, useSession, useStopSend } from "@pinkslip/data";
 import { router, useSegments } from "expo-router";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { LiveBar, type LiveJob } from "../apply-flow/WhileItRuns";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AccessibilityInfo } from "react-native";
+import { LiveBar, type LiveJob, type LiveState } from "../apply-flow/WhileItRuns";
 import { toast } from "../../../ui";
+import { motionTrial } from "../../../ui/motion-trial";
 import { liveBar, liveBarDone, stoppable } from "../send-facts";
 import { useGettingCode } from "./code-wait";
 
@@ -43,10 +45,14 @@ export function useLiveSends(): ReactNode | null {
   }, [Boolean(facts)]);
   useEffect(() => setNow(Date.now()), [sends.dataUpdatedAt]);
 
-  // When the run ends, the bar says how many went, then goes.
+  // When the run ends, the bar says how many went, then goes. What it said
+  // last while sending is where SENT lands (Kit → Motion fixes).
   const run = useRef<Set<string>>(new Set());
-  const [done, setDone] = useState<{ words: string; detail?: string } | null>(null);
-  useEffect(() => {
+  const last = useRef<Exclude<LiveState, { kind: "done" }> | null>(null);
+  if (facts) last.current = facts.state;
+  const [done, setDone] = useState<Extract<LiveState, { kind: "done" }> | null>(null);
+  // Before paint, so the bar doesn't blink out between its last send and done.
+  useLayoutEffect(() => {
     if (facts) {
       for (const send of [facts.queue.now, ...facts.queue.next, ...facts.queue.sent]) if (send) run.current.add(send.job_id);
       setDone(null);
@@ -57,13 +63,18 @@ export function useLiveSends(): ReactNode | null {
     run.current = new Set();
     const newest = new Map<string, ApplySend>();
     for (const send of sends.data ?? []) if (!send.dry_run && jobs.has(send.job_id) && !newest.has(send.job_id)) newest.set(send.job_id, send);
-    setDone(liveBarDone([...newest.values()].filter((send) => send.status === "submitted" || send.status === "unconfirmed")));
+    const sent = [...newest.values()].filter((send) => send.status === "submitted" || send.status === "unconfirmed");
+    const words = liveBarDone(sent);
+    setDone(words && { kind: "done", ...words, count: sent.length, job: sent.length === 1 ? asJob(sent[0]!) : undefined, from: last.current ?? undefined });
   }, [facts === null, sends.dataUpdatedAt]);
+  // Stamped, the bar has no close button, so with VoiceOver on it stays
+  // until it's dismissed.
+  const reader = useScreenReader();
   useEffect(() => {
-    if (!done) return;
+    if (!done || (reader && motionTrial("stampBar"))) return;
     const leave = setTimeout(() => setDone(null), DONE_MS);
     return () => clearTimeout(leave);
-  }, [done]);
+  }, [done, reader]);
 
   const openJob = (jobId: string, send?: SendOpening) => router.push({
     pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(today)/jobs/[jobId]",
@@ -86,9 +97,20 @@ export function useLiveSends(): ReactNode | null {
         else toast.show({ message: stopped === 1 ? "Stopped. Nothing was sent" : `Stopped ${stopped}. Nothing was sent`, icon: "autoApply" });
       });
     } : undefined;
-    return <LiveBar state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)} onStop={stopAll}
+    return <LiveBar key="live" state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)} onStop={stopAll}
       onAction={facts.state.kind === "needs" && facts.state.group ? answerAll : facts.jobId ? () => openJob(facts.jobId!, opening) : undefined} />;
   }
-  if (done) return <LiveBar state={{ kind: "done", ...done }} queue={{ now: null, next: [], sent: [] }} onDismiss={() => setDone(null)} />;
+  if (done) return <LiveBar key="done" state={done} queue={{ now: null, next: [], sent: [] }} onDismiss={() => setDone(null)} />;
   return null;
+}
+
+/** Whether VoiceOver is on, kept current. */
+function useScreenReader(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    void AccessibilityInfo.isScreenReaderEnabled().then(setOn);
+    const change = AccessibilityInfo.addEventListener("screenReaderChanged", setOn);
+    return () => change.remove();
+  }, []);
+  return on;
 }

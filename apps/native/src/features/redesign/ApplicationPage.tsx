@@ -3,12 +3,14 @@ import { datePickerStyle, tint } from "@expo/ui/swift-ui/modifiers";
 import { ApiError, type ApplicationDetail, type ApplicationStage } from "@pinkslip/core/api";
 import { parseJobDescription } from "@pinkslip/core/job-description";
 import { useApplication, useApplySends, useRemoveApplication, useSession, useSetStepDate, useUndoInboundEmail, useUpdateApplication } from "@pinkslip/data";
-import { router, Stack, useSegments } from "expo-router";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { router, Stack, useNavigation, useSegments } from "expo-router";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { haptics } from "../../platform/haptics";
+import { storage } from "../../platform/storage";
+import { useMotionTrial } from "../../ui/motion-trial";
 import {
   Button, Choice, Choices, DateTile, EmptyDateTile, EmptyState, PageBar, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StageMark, Stub, Text,
   toast, useSheet,
@@ -167,16 +169,48 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
     last: [{ id: "remove", title: "Remove from Tracker", glyph: "remove", destructive: true, onSelect: confirmRemove }],
   };
 
-  const stubStampsShown: StubStamp[] = stamps.map((stamp, index) => ({
-    key: `${stamp.stage}-${index}`, label: proof?.waiting ? "SENT" : stamp.label, detail: stamp.email ? `${stamp.date} · EMAIL` : stamp.date,
-    pending: proof?.waiting,
-    onPress: stamp.eventId && !proof ? () => setFixing({ ...stamp, eventId: stamp.eventId! }) : undefined,
-  }));
+  // The offer is the stub's hero, and the first time you open the
+  // application after it came, it comes down onto the stub (Paper
+  // "Signature moments · Nov 8", 2). The kit's samples land every time.
+  const offerTrial = useMotionTrial("stampOffer");
+  const heroKey = offerTrial && latest?.stage === "offer" ? `offer-${stamps.length - 1}` : null;
+  const offerSeenKey = `offer-landed-${application.id}`;
+  const sample = application.id.startsWith("sample-");
+  const landOffer = useRef<string | null | undefined>(undefined);
+  if (landOffer.current === undefined) landOffer.current = heroKey && (sample || !storage.getString(offerSeenKey)) ? heroKey : null;
+  useEffect(() => {
+    if (heroKey && !sample) storage.set(offerSeenKey, "1");
+  }, [heroKey]);
+  // It waits for the page to finish arriving, then the stub is still a
+  // moment before the offer comes down onto it.
+  const navigation = useNavigation();
+  const [offerDown, setOfferDown] = useState(!landOffer.current);
+  useEffect(() => {
+    if (offerDown) return;
+    let wait: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => { wait ??= setTimeout(() => setOfferDown(true), OFFER_WAIT); };
+    const arrived = (navigation as unknown as TransitionEvents).addListener("transitionEnd", (event) => { if (!event.data?.closing) settle(); });
+    // A page that didn't slide in (it was already there) has no transition.
+    const anyway = setTimeout(settle, SETTLE_AT_MOST);
+    return () => { arrived(); clearTimeout(anyway); if (wait) clearTimeout(wait); };
+  }, []);
+  const stubStampsShown: StubStamp[] = stamps.map((stamp, index) => {
+    const hero = `${stamp.stage}-${index}` === heroKey;
+    return {
+      // The hero carries its date alone, so it stays a stamp's size; the
+      // foot's "Not right?" still says an email moved it.
+      key: `${stamp.stage}-${index}`, label: proof?.waiting ? "SENT" : stamp.label, detail: stamp.email && !hero ? `${stamp.date} · EMAIL` : stamp.date,
+      pending: proof?.waiting,
+      onPress: stamp.eventId && !proof ? () => setFixing({ ...stamp, eventId: stamp.eventId! }) : undefined,
+      hero,
+    };
+  });
   // A new step's stamp lands once its sheet has gone (the date asked for
   // too), not behind it (owner, 2026-10-18).
-  const held = useRef(stubStampsShown);
-  if (sheet === null) held.current = stubStampsShown;
-  const stampsInView = sheet === null ? stubStampsShown : held.current;
+  const stampsNow = offerDown ? stubStampsShown : stubStampsShown.filter((stamp) => stamp.key !== landOffer.current);
+  const held = useRef(stampsNow);
+  if (sheet === null) held.current = stampsNow;
+  const stampsInView = sheet === null ? stampsNow : held.current;
   const aside = proof?.aside ?? (waiting ? { title: waiting, detail: "no reply yet" } : null);
 
   return <View style={styles.fill}>
@@ -214,6 +248,17 @@ export function ApplicationView({ application, job, about, actions, sent, onWhat
 }
 
 const label = (stage: ApplicationStage) => MOVE_TO.find((option) => option.stage === stage)?.label ?? stage;
+
+/** Once the page has arrived, the stub is still this long before the offer
+ * comes down (Paper "Signature moments · Nov 8", 2). */
+const OFFER_WAIT = 300;
+/** The longest it waits for the page's arrival before counting anyway. */
+const SETTLE_AT_MOST = 700;
+
+/** The native stack's arrival event, which the router's types leave out. */
+interface TransitionEvents {
+  addListener(event: "transitionEnd", listener: (event: { data?: { closing?: boolean } }) => void): () => void;
+}
 
 /** The date that goes with the stage, or a quiet row to add one. */
 function NextSection({ application, onOpen }: { application: ApplicationDetail; onOpen: () => void }) {

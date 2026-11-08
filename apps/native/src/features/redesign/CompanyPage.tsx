@@ -10,6 +10,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Button, CompanyLogo, EmptyState, face, Icon, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, Segmented, Text, toast, useTabBarScroll, useTabBarSpace } from "../../ui";
+import { useMotionTrial } from "../../ui/motion-trial";
 import { Text as RNText } from "react-native";
 import { openSignIn } from "../account/sign-in-request";
 import { initials } from "./outreach/outreach-facts";
@@ -171,8 +172,10 @@ function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const weight = unread ? "medium" : "regular";
   const stage = job.applied ? "Applied" : job.saved ? "Saved" : null;
+  // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
+  const zoom = useMotionTrial("zoom");
   return <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild>
-    <Pressable>
+    <Link.Trigger withAppleZoom={zoom}><Pressable>
       {({ pressed }) => <View style={[styles.row, pressed && styles.pressed]}><View style={styles.rowText}>
         <View style={styles.line}>
           <Text role="subhead" weight={weight} lines={1} flex>{plainText(job.title)}</Text>
@@ -189,7 +192,7 @@ function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
           </View> : null}
         </View>
       </View></View>}
-    </Pressable>
+    </Pressable></Link.Trigger>
   </Link>;
 }
 

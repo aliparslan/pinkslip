@@ -7,8 +7,12 @@ import { storage } from "../platform/storage";
  * asked for all six built as kit toggles (2026-11-08): the proposal is on,
  * and Kit → Motion fixes switches any one back to today's, kept on this
  * phone, so each can be felt both ways before the old one goes.
+ *
+ * The last three are the first signature moments (Paper "Signature moments
+ * · Nov 8", docs/signature-moments-2026-11-08.md), built the same way.
  */
-export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "swipeInk" | "pdfSettle";
+export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "swipeInk" | "pdfSettle"
+  | "zoom" | "stampBar" | "stampOffer";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -17,6 +21,9 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "trackerLoad", title: "Tracker loading", today: "Rows land at once", proposed: "Tracker's shape, rows fade in" },
   { id: "swipeInk", title: "Swipe colours", today: "Tile ink at 14%", proposed: "Glyph ink, 20% in dark" },
   { id: "pdfSettle", title: "A read resume", today: "The bar stops, a card flies in", proposed: "The bar finishes, it settles" },
+  { id: "zoom", title: "A job grows out of its row", today: "It slides in", proposed: "It zooms out of the row" },
+  { id: "stampBar", title: "SENT on the live bar", today: "A green check and a close", proposed: "SENT lands, the bar turns to the job" },
+  { id: "stampOffer", title: "OFFER, once", today: "Among the stamps", proposed: "Lands across the tear, in green" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;

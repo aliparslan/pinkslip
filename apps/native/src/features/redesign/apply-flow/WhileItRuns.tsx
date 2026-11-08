@@ -1,11 +1,17 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { Children, Fragment, useState } from "react";
+import { Children, Fragment, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { scheduleOnRN } from "react-native-worklets";
+import { haptics } from "../../../platform/haptics";
 import {
-  Button, CompanyLogo, Icon, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, Text, useSheet,
+  Button, CompanyLogo, Icon, SHEET_GROUP_RADIUS, SheetHeader, SheetModal, SheetStep, StampMark, Text, useSheet,
 } from "../../../ui";
+import { timing } from "../../../ui/motion";
+import { useMotionTrial } from "../../../ui/motion-trial";
 import { logoUri } from "../../jobs/CompanyLogo";
 
 const GLASS = isLiquidGlassAvailable();
@@ -26,8 +32,10 @@ export type LiveState =
   /** One job needs you; the rest keep going, and `detail` says how many.
    * Its action opens the job; for several (`group`), Today's one sheet. */
   | { kind: "needs"; company: string; domain?: string | null; words: string; action: string; detail?: string; group?: boolean }
-  /** It stays a few seconds, then leaves on its own. */
-  | { kind: "done"; words: string; detail?: string };
+  /** It stays a few seconds, then leaves on its own. With SENT stamped
+   * (Kit → Motion fixes), `job` is the one that went, `count` how many,
+   * and `from` what the bar said while sending, which SENT lands on. */
+  | { kind: "done"; words: string; detail?: string; job?: LiveJob; count?: number; from?: Exclude<LiveState, { kind: "done" }> };
 
 /** The queue sheet's lists (4.2). */
 export interface LiveQueue {
@@ -55,30 +63,74 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
   onOpenJob?: (job: LiveJob) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const share = state.kind === "sending" || state.kind === "paused" ? state.share : 0;
+  // SENT comes down onto what the bar said while sending, and the bar turns
+  // to the job under it as it lands (Paper "Signature moments · Nov 8", 2).
+  const stamped = useMotionTrial("stampBar") && state.kind === "done";
+  const [landed, setLanded] = useState(() => !(state.kind === "done" && state.from));
+  const before = stamped && !landed && state.kind === "done" ? state.from : undefined;
+  const shown: LiveState = before ?? state;
+  // While SENT comes down the form is all sent, so the fill is full.
+  const share = shown.kind === "sending" || shown.kind === "paused" ? (before ? 1 : shown.share) : 0;
+  const dip = useSharedValue(0);
+  const drag = useSharedValue(0);
+  const meet = () => {
+    haptics.success();
+    setLanded(true);
+    dip.value = withSequence(withTiming(STAMP_DIP, { duration: 90 }), withTiming(0, timing(SETTLE)));
+  };
+  // Stamped, there's no close button: swipe the bar away (or VoiceOver's
+  // Dismiss action), or let it leave on its own.
+  const swipe = useMemo(() => Gesture.Pan().enabled(stamped && Boolean(onDismiss)).activeOffsetX([-12, 12]).failOffsetY([-12, 12])
+    .onUpdate((event) => { drag.value = event.translationX; })
+    .onEnd((event) => {
+      const side = Math.sign(event.translationX || event.velocityX);
+      if (onDismiss && (Math.abs(event.translationX) > 80 || Math.abs(event.velocityX) > 600)) {
+        drag.value = withTiming(side * 480, { duration: 200 }, (finished) => { if (finished) scheduleOnRN(onDismiss); });
+      } else drag.value = withTiming(0, timing(SETTLE));
+    }), [stamped, onDismiss, drag]);
+  const moving = useAnimatedStyle(() => ({
+    opacity: 1 - Math.min(1, Math.abs(drag.value) / 320),
+    transform: [{ translateX: drag.value }, { translateY: dip.value }],
+  }));
   const label = state.kind === "sending" ? `Applying to ${state.company}, ${state.count}`
     : state.kind === "paused" ? `Paused, ${state.count}`
     : state.kind === "needs" ? [state.words, state.detail, state.action].filter(Boolean).join(". ") : [state.words, state.detail].filter(Boolean).join(", ");
   return <>
-    <Pressable onPress={() => state.kind === "needs" ? onAction?.() : setOpen(true)} accessibilityRole="button" accessibilityLabel={label}>
+    <GestureDetector gesture={swipe}><Animated.View style={moving}>
+    <Pressable onPress={() => state.kind === "needs" ? onAction?.() : setOpen(true)} accessibilityRole="button" accessibilityLabel={label}
+      accessibilityActions={stamped && onDismiss ? [{ name: "dismiss", label: "Dismiss" }] : undefined}
+      onAccessibilityAction={(event) => { if (event.nativeEvent.actionName === "dismiss") onDismiss?.(); }}>
       <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]}>
         {share > 0 ? <View style={[styles.fill, { width: `${Math.round(share * 100)}%` }]} /> : null}
-        {state.kind === "needs" && !state.group
-          ? <View style={styles.markSlot}>
-            <CompanyLogo name={state.company} uri={logoUri(state.domain ?? null)} size="card" />
-            <View style={styles.dot} />
-          </View>
-          : <View style={styles.mark}><Icon name={state.kind === "done" ? "done" : "autoApply"} size={18} tone={state.kind === "done" ? "good" : "ink"} /></View>}
-        <View style={styles.flex}>
-          <Text role="subhead" lines={1}>
-            <Text role="subhead" weight="medium">{state.kind === "sending" ? `Applying to ${state.company}`
-              : state.kind === "paused" ? "Paused" : state.words}</Text>
-            {state.kind === "sending" || state.kind === "paused" ? <Text role="subhead" tone="ink-3">{`  ${state.count}`}</Text>
-              : (state.kind === "done" || state.kind === "needs") && state.detail ? <Text role="subhead" tone="ink-3">{`  ${state.detail}`}</Text> : null}
-          </Text>
-        </View>
+        {stamped && !before && state.kind === "done"
+          ? <Animated.View key="after" entering={SWAP_IN} style={styles.done}>
+            {state.job
+              ? <View style={styles.markSlot}><CompanyLogo name={state.job.company} uri={logoUri(state.job.domain ?? null)} size="card" /></View>
+              : <View style={styles.mark}><Icon name="autoApply" size={18} tone="ink" /></View>}
+            <View style={styles.flex}>
+              <Text role="subhead" weight="medium" lines={1}>{state.job ? state.job.title : `${state.count ?? 0} applications`}</Text>
+              <Text role="footnote" tone="ink-2" lines={1}>{state.job ? [state.job.company, state.detail].filter(Boolean).join(" · ") : state.detail ?? ""}</Text>
+            </View>
+          </Animated.View>
+          : <Animated.View key="before" exiting={stamped ? SWAP_OUT : undefined} style={styles.done}>
+            {shown.kind === "needs" && !shown.group
+              ? <View style={styles.markSlot}>
+                <CompanyLogo name={shown.company} uri={logoUri(shown.domain ?? null)} size="card" />
+                <View style={styles.dot} />
+              </View>
+              : <View style={styles.mark}><Icon name={shown.kind === "done" ? "done" : "autoApply"} size={18} tone={shown.kind === "done" ? "good" : "ink"} /></View>}
+            <View style={styles.flex}>
+              <Text role="subhead" lines={1}>
+                <Text role="subhead" weight="medium">{shown.kind === "sending" ? `Applying to ${shown.company}`
+                  : shown.kind === "paused" ? "Paused" : shown.words}</Text>
+                {shown.kind === "sending" || shown.kind === "paused" ? <Text role="subhead" tone="ink-3">{`  ${shown.count}`}</Text>
+                  : (shown.kind === "done" || shown.kind === "needs") && shown.detail ? <Text role="subhead" tone="ink-3">{`  ${shown.detail}`}</Text> : null}
+              </Text>
+            </View>
+          </Animated.View>}
         {/* In its own box: a hugging button aligns to the top of a row. */}
-        {state.kind === "needs" ? <View><Button variant="primary" size="small" onPress={onAction}>{state.action}</Button></View>
+        {stamped ? <View style={styles.stampSlot}><StampMark label="SENT" landing onLanded={meet} /></View>
+          : state.kind === "needs" ? <View><Button variant="primary" size="small" onPress={onAction}>{state.action}</Button></View>
           : state.kind === "done" ? <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={6} style={styles.round}>
             <Icon name="close" size={14} tone="ink-2" />
           </Pressable>
@@ -87,6 +139,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
           </Pressable> : null}
       </GlassView>
     </Pressable>
+    </Animated.View></GestureDetector>
     <SheetModal open={open} onClosed={() => setOpen(false)}>
       {open ? <Queue queue={queue} paused={state.kind === "paused"} onPause={onPause} onStop={onStop} onOpenJob={onOpenJob} /> : null}
     </SheetModal>
@@ -164,6 +217,15 @@ function QueueRow({ job, trailing, onPress }: { job: LiveJob; trailing?: React.R
 /** How tall the bar is, for the tab bar to leave room above the pill. */
 export const LIVE_BAR_HEIGHT = 54;
 
+/** SENT meeting the bar presses it down this far, and it settles back on
+ * the stub catch's curve (Paper "Signature moments · Nov 8", 2). */
+const STAMP_DIP = 2;
+/** Under SENT, what it said goes quickly and the job fades in just behind
+ * it, so the two are never readable at once (the sheet steps' rule). */
+const SWAP_OUT = FadeOut.duration(80);
+const SWAP_IN = FadeIn.delay(60).duration(140);
+const SETTLE = { duration: 200, curve: [0.23, 1, 0.32, 1] as const };
+
 const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
   bar: { height: LIVE_BAR_HEIGHT, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: 9, borderRadius: 27, overflow: "hidden" },
@@ -171,6 +233,9 @@ const styles = StyleSheet.create((theme) => ({
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: theme.ui.color.fill },
   mark: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["bg-grouped"] },
   markSlot: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  done: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
+  // Where SENT lands: the close button's place, a little wider for the word.
+  stampSlot: { minWidth: 56, alignItems: "center", justifyContent: "center" },
   // The needs-you dot on the logo's corner (Paper 4.3).
   dot: { position: "absolute", top: 0, right: 0, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: theme.ui.color["bg-elev"], backgroundColor: theme.ui.color.accent },
   round: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color.fill },

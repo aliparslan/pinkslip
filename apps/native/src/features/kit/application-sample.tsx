@@ -8,9 +8,9 @@ import { Description } from "../redesign/Description";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export type SampleState = "interview" | "applied" | "no-date" | "confirmed" | "sent";
+export type SampleState = "interview" | "applied" | "no-date" | "confirmed" | "sent" | "offer";
 
-const STATES: readonly SampleState[] = ["interview", "applied", "no-date", "confirmed", "sent"];
+const STATES: readonly SampleState[] = ["interview", "applied", "no-date", "confirmed", "sent", "offer"];
 
 /** Sent by Pinkslip (Paper "6 · After: proof it went through"): Stripe
  * confirmed by its email, Ramp still waiting. */
@@ -48,7 +48,8 @@ export function applicationSample(state: SampleState, now = Date.now()): Applica
     };
   }
   const events = [event("saved", at(17)), event("applied", at(15))];
-  if (state !== "applied") events.push(event("interview", at(1, 9), state === "interview" ? undefined : "Next steps with Mercury"));
+  if (state === "offer") events.push(event("interview", at(7, 9)), event("offer", at(0, 9), "Your offer from Mercury"));
+  else if (state !== "applied") events.push(event("interview", at(1, 9), state === "interview" ? undefined : "Next steps with Mercury"));
   const interviewDay = new Date(now + 2 * DAY);
   interviewDay.setHours(11, 0, 0, 0);
   return {

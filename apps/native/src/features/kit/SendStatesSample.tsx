@@ -32,8 +32,32 @@ const LIVE: { caption: string; state: LiveState }[] = [
   { caption: "One application · counts its fields", state: { kind: "sending", company: "Toast", count: "11 of 17", share: 11 / 17 } },
   { caption: "Several · counts applications", state: { kind: "sending", company: "Ramp", count: "3 of 9", share: 2 / 9 } },
   { caption: "Needs you · the rest keep going", state: { kind: "needs", company: "Toast", words: "Toast needs 1 answer", action: "Answer" } },
-  { caption: "Done · leaves after 4 seconds", state: { kind: "done", words: "3 sent", detail: "2 confirmed so far" } },
+  { caption: "Done · leaves after 4 seconds", state: { kind: "done", words: "3 sent", detail: "2 confirmed so far", count: 3 } },
 ];
+
+/** One send going out and SENT landing on it (Paper "Signature moments ·
+ * Nov 8", 2), replayed with a tap. With the switch off, today's done. */
+const RAMP = { id: "ramp", company: "Ramp", domain: "ramp.com", title: "Software Engineer, New Grad" };
+const LANDING: Extract<LiveState, { kind: "done" }> = {
+  kind: "done", words: "Sent to Ramp", detail: "Confirmed", count: 1, job: RAMP,
+  from: { kind: "sending", company: "Ramp", count: "17 of 17", share: 16 / 17 },
+};
+
+function LandingSample() {
+  const [take, setTake] = useState(0);
+  const [sent, setSent] = useState(false);
+  const send = () => {
+    setSent(false);
+    setTake((count) => count + 1);
+    setTimeout(() => setSent(true), 900);
+  };
+  return <View style={styles.item}>
+    <Text role="footnote" weight="medium" tone="ink-2">Live bar · SENT lands as it goes</Text>
+    {sent ? <LiveBar key={`done-${take}`} state={LANDING} queue={LIVE_QUEUE} onDismiss={() => setSent(false)} />
+      : <LiveBar key={`live-${take}`} state={LANDING.from!} queue={LIVE_QUEUE} />}
+    <Button variant="secondary" size="small" onPress={send}>Send it</Button>
+  </View>;
+}
 const LIVE_QUEUE: LiveQueue = {
   now: { id: "ramp", company: "Ramp", domain: "ramp.com", title: "Software Engineer, New Grad" },
   next: [{ id: "notion", company: "Notion", domain: "notion.so", title: "Software Engineer, Early Career" }],
@@ -84,6 +108,7 @@ export function SendStatesSample() {
       <Text role="footnote" weight="medium" tone="ink-2">{`Live bar · ${caption}`}</Text>
       <LiveBar state={state} queue={LIVE_QUEUE} onAction={() => setSheet("needs")} onDismiss={() => undefined} />
     </View>)}
+    <LandingSample />
     <View style={styles.item}>
       <Text role="footnote" weight="medium" tone="ink-2">Stopped sends · W3 and W4, the row and its swipe</Text>
       <View style={styles.bleed}>
