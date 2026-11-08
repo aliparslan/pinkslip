@@ -8,6 +8,7 @@ export const POLLABLE_COMPANY_SOURCE_TYPES = [
   "smartrecruiters",
   "workable",
   "avature",
+  "atlassian",
   "yc",
   "amazon",
   "apple",
@@ -116,6 +117,15 @@ export const COMPANY_SOURCE_PRESENTATION = {
       placeholder: "https://careers.company.com/careers/OpenRoles",
     },
     careersUrl: (slug) => slug,
+  },
+  atlassian: {
+    label: "Atlassian",
+    input: {
+      label: "Atlassian source or URL",
+      type: "text",
+      placeholder: "atlassian",
+    },
+    careersUrl: () => "https://www.atlassian.com/company/careers/all-jobs",
   },
   yc: {
     label: "Y Combinator",
