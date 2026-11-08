@@ -442,6 +442,7 @@ the storyboard spec. These were chosen in the Motion lab
 | Torn stub | You applied | Job page after applying (it falls into the Apply button), your stub on the application |
 | Punch card | An allowance (rows of ten, up to 30) | Plan, usage |
 | Carbon-copy mark | Pinkslip itself (logo placeholder) | App icon, the website's sidebar and tab, link cards. Below 40px without its ruled lines (`public/brand/mark-small.svg`); the flat stacked slips are retired (owner, 2026-11-08) |
+| Job link card | A shared job, in a chat (owner, 2026-11-08, Paper "The job card, black, and the mark everywhere") | 1200×630, black: the company's tile top left, the mark top right, the position in the display face, the pay and place on one line under it. Drawn by the web Worker (`/og/jobs/:id.png`) |
 
 ## Before drawing (check every time)
 

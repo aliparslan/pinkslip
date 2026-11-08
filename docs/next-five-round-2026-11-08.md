@@ -120,6 +120,21 @@ still don't show after the next update, tell me where you shared from.
   - It picks C: the only one that holds in both chats. It wants C tried
     with real coloured logos before deciding.
 
+## After your picks (Nov 8)
+
+- **The link card is black** (B), with the company's tile and the mark on
+  top, the position as the biggest thing, and the pay and place on one line
+  under it (Paper board 4). Built: the web Worker draws each job's card at
+  `/og/jobs/:id.png` and keeps it at the edge for a day; job pages point at
+  it, and their share text is "Ramp · $150–180K · New York". Not deployed.
+  The trial display font lacks "$", "–", "·", "(", "&" and "/", so the facts
+  line is Inter, and a title word with that punctuation falls back to Inter
+  SemiBold until the full licence is in. The public catalog has no level,
+  so the line is pay and place.
+- **The old flat slips are gone** from the website (sidebar, tab icon,
+  badge, the default preview, which is now black too); the mark is the app
+  icon's carbon copy (`public/brand`).
+
 ## Your calls
 
 1. **Board 1:** build as drawn, with Interviewing's count rolling after the
@@ -127,7 +142,5 @@ still don't show after the next update, tell me where you shared from.
    no?
 2. **Board 2:** the rise only for postings new since you looked, and a plain
    fade on a first launch?
-3. **Board 3:** A, B or C, and the critic's simpler C (no top row, the pay
-   bigger)?
 4. **Haptics:** the rule and its seven changes.
 5. **Share extension:** the three calls in its scope doc.

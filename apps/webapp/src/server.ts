@@ -1,4 +1,5 @@
 import handler from "@tanstack/react-start/server-entry";
+import { jobCard } from "./server/job-card";
 import { isApiOwnedPath, isIndexablePath, legacyRedirect, sitemapXml, withNoIndex, withPageSecurity } from "./server/routing";
 
 /** Built from the API's public catalog, so it lists exactly the job pages
@@ -13,7 +14,7 @@ async function sitemap(env: WebBindings): Promise<Response> {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const redirect = legacyRedirect(request);
     if (redirect) return withNoIndex(redirect);
     // Preserve the original URL, cookies, body, status, and Set-Cookie headers.
@@ -27,6 +28,11 @@ export default {
     const indexing = (env.SEARCH_INDEXING as string) === "on";
     if (pathname === "/sitemap.xml" && ["GET", "HEAD"].includes(request.method)) {
       return withNoIndex(await sitemap(env));
+    }
+    // Each job's link preview (features/navigation/seo.ts points at it).
+    const card = /^\/og\/jobs\/([^/]+)\.png$/.exec(pathname);
+    if (card && ["GET", "HEAD"].includes(request.method)) {
+      return withNoIndex(await jobCard(request, env.API, ctx, decodeURIComponent(card[1]!)));
     }
     return withPageSecurity(await handler.fetch(request), indexing && isIndexablePath(pathname));
   },

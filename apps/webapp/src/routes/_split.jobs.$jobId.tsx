@@ -5,6 +5,8 @@ import type { JobOrigin } from "../features/jobs/JobRow";
 import { pages } from "../features/navigation/pages";
 import { publicHead } from "../features/navigation/seo";
 import { jobPostingJsonLd } from "../features/job-detail/structured-data";
+import { CANONICAL_ORIGIN } from "../server/routing";
+import { cardFacts } from "../features/job-detail/card-facts";
 
 function summary(html: string | null | undefined): string | undefined {
   const text = html?.replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
@@ -37,10 +39,15 @@ export const Route = createFileRoute("/_split/jobs/$jobId")({
   head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "Job · Pinkslip" }] };
     const name = `${loaderData.title} at ${loaderData.company_name}`;
+    const facts = cardFacts(loaderData);
     return publicHead({
       title: `${name} · Pinkslip`,
       shareTitle: name,
       description: summary(loaderData.description) ?? `${name}.`,
+      // Pinkslip's own line in a chat, rather than the posting's first
+      // sentence ("Our mission at…").
+      shareDescription: facts ? `${loaderData.company_name} · ${facts}` : undefined,
+      image: { url: `${CANONICAL_ORIGIN}/og/jobs/${encodeURIComponent(params.jobId)}.png`, alt: name },
       path: `/jobs/${encodeURIComponent(params.jobId)}`,
       type: "article",
       structuredData: jobPostingJsonLd(loaderData) ?? undefined,

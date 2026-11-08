@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
+    "@fontsource/inter": "5.2.8",
     "@phosphor-icons/react": "2.1.10",
     "@pinkslip/core": "workspace:*",
     "@pinkslip/data": "workspace:*",
@@ -33,7 +34,8 @@
     "@tanstack/react-virtual": "3.14.13",
     "pdfjs-dist": "6.2.108",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "workers-og": "0.0.27"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.63.1",

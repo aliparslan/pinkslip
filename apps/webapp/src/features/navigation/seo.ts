@@ -14,12 +14,17 @@ export interface PublicHead {
   type?: "website" | "article";
   /** JSON-LD, rendered as one `application/ld+json` script. */
   structuredData?: Record<string, unknown>;
+  /** The share text, when it isn't the page's description. */
+  shareDescription?: string;
+  /** The page's own link preview (a job's card); the site's otherwise. */
+  image?: { url: string; alt: string };
 }
 
 /** Head tags for a public, indexable page: description, canonical (always
  * pinkslip.work), Open Graph and Twitter cards, and optional JSON-LD. */
-export function publicHead({ title, shareTitle = title, description, path, type = "website", structuredData }: PublicHead) {
+export function publicHead({ title, shareTitle = title, description, shareDescription = description, path, type = "website", structuredData, image }: PublicHead) {
   const url = `${CANONICAL_ORIGIN}${path}`;
+  const preview = image ? { ...DEFAULT_IMAGE, ...image } : DEFAULT_IMAGE;
   return {
     meta: [
       { title },
@@ -28,15 +33,15 @@ export function publicHead({ title, shareTitle = title, description, path, type 
       { property: "og:type", content: type },
       { property: "og:url", content: url },
       { property: "og:title", content: shareTitle },
-      { property: "og:description", content: description },
-      { property: "og:image", content: DEFAULT_IMAGE.url },
-      { property: "og:image:alt", content: DEFAULT_IMAGE.alt },
-      { property: "og:image:width", content: DEFAULT_IMAGE.width },
-      { property: "og:image:height", content: DEFAULT_IMAGE.height },
+      { property: "og:description", content: shareDescription },
+      { property: "og:image", content: preview.url },
+      { property: "og:image:alt", content: preview.alt },
+      { property: "og:image:width", content: preview.width },
+      { property: "og:image:height", content: preview.height },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: shareTitle },
-      { name: "twitter:description", content: description },
-      { name: "twitter:image", content: DEFAULT_IMAGE.url },
+      { name: "twitter:description", content: shareDescription },
+      { name: "twitter:image", content: preview.url },
     ],
     links: [{ rel: "canonical", href: url }],
     scripts: structuredData
