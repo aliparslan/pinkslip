@@ -359,7 +359,11 @@ app.get("/api/v2/logo/shape", async (c) => {
     `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
     { cf: { cacheEverything: true, cacheTtl: 86400 } }
   );
-  const fills = upstream.ok ? await logoFills(new Uint8Array(await upstream.arrayBuffer())) : false;
+  // A miss isn't an answer: the app keeps only real ones, and asks again.
+  if (!upstream.ok) {
+    return c.json({ error: "Logo unavailable" }, 404, { "cache-control": "public, max-age=3600" });
+  }
+  const fills = await logoFills(new Uint8Array(await upstream.arrayBuffer()));
   return c.json({ fills }, 200, { "cache-control": "public, max-age=604800, stale-while-revalidate=86400" });
 });
 // Apple's server notifications arrive without a session; ahead of auth.
