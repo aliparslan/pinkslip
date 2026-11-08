@@ -142,8 +142,8 @@ else is decided.
   inside it, so the thumb is 32, a chip's height (owner, 2026-10-13: 2
   inside looked cramped and was off the 4 scale). A segment can carry its
   count, as chips do (the company page's Jobs).
-- **Tab bar:** the selected tab sits in a soft oval with its outline icon
-  in pink (see Icons).
+- **Tab bar:** the selected tab sits in a soft oval with its icon filled
+  in ink (see Icons).
 - **Which side the selection circle sits** (owner, 2026-10-15): on the
   left in a select mode over a list (Jobs' select, as Mail does); on the
   right in a review list you're trimming before it goes (Apply to 9).
@@ -293,9 +293,11 @@ on one line share a size.
 - **Staying with Phosphor** (owner, 2026-10-14): Lucide was ruled out as
   overused. When Phosphor's glyph doesn't hold up at our sizes, we draw our
   own on its grid rather than switch packs.
-- **The selected tab** keeps its outline icon, in pink (`accent`) at a 2pt
-  stroke, on the gray oval; Tracker's end dot fills in (owner, 2026-10-12).
-  The tabs are Today, Jobs, Tracker, Search and You (the user circle), 56
+- **The selected tab** is its filled icon in `ink`, on the gray oval (owner,
+  2026-11-08: no more pink here, and filled when selected; Paper "The whole
+  bar · calendar and bookmarks"). Only the count is pink.
+  The tabs are Today (the plain calendar), Jobs, Tracker (the stacked
+  bookmarks, as the website's Library), Search and You (the user circle), 56
   apart; the 64 × 46 oval is wider than that (owner, 2026-10-15).
 - **Search** (2026-10-15): the Search tab finds jobs and companies, so
   companies need no search of their own in settings. Jobs' field says
@@ -527,15 +529,17 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   - **Several companies in one row** (auto-apply's results): two logos
     stacked in the 40 slot, the second 12 down and right with a 2pt ring in
     the page colour. Never a number in the logo slot.
-- **Section header** (`SectionHeader`): Footnote Medium `ink-2`, then the
-  count in Footnote `ink-3` after a 6 gap, the way chips and segments carry
-  theirs (owner, 2026-10-13), on every screen; never at the far right.
-  Pink only for Needs you. 24 above a header that follows a list, 16 when
-  it's the first thing under the title or chips, 4 below (owner,
-  2026-10-15).
-  Tracker's stage headers lead with the stage mark and open their stage,
-  with a chevron after the count ("Applied 142 ›"); All shows each stage's
-  latest three (owner, 2026-10-13: a "See all" row looked strange).
+- **Section header** (`SectionHeader`, `ListGroup`; owner, 2026-11-08,
+  Paper "Section headers and counts · Nov 8", D): the `section` style, 18/24
+  display, in `ink`. The count sits at the far right in the same size and
+  color. Today has no counts, since you can see its rows. Pink only for
+  Needs you, the number too. 36 above a header that follows a list, 16 when
+  it's the first thing under the title or chips, 8 below, and a section's
+  last row has no separator.
+  Tracker's stage headers lead with the stage mark, which keeps its color,
+  and open their stage, with a chevron at the far right after the count;
+  All shows each stage's latest three (owner, 2026-10-13: a "See all" row
+  looked strange).
 - **Stage marks** (`StageMark.tsx`): Saved is the bookmark, since saving
   isn't a stage. The ring fills as a stage advances and is drawn at the
   kit's line like every icon, 14 beside small text and 20 in a sheet
@@ -623,6 +627,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   same centre line, all centred in the room under the header. The slips
   show only when a list is empty, not when it failed to load; a retry is
   the grey button.
+  - **Nothing going on** (owner, 2026-11-08, Paper "Nothing today · A smiling
+    slip"): someone tracking applications, on a day with nothing needing
+    them, no news, nothing ahead and no new jobs. The front slip smiles
+    (ink eyes, a pink mouth), "You're all caught up", "Go do something
+    fun!", and no button. The first-day state keeps its plain slips.
   - **Errors** (owner, 2026-10-15, Paper "Errors · Oct 15" and "Part ·
     Errors"): only a screen with nothing on it becomes an error screen; the
     title says what happened (offline, Pinkslip down, the thing is gone).
@@ -717,7 +726,7 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   slides over, following the finger on a swipe back. Switching tabs is
   silent: no tap, and no tick while sliding along the bar.
 - **No tab names** (owner, 2026-10-15, after living with L2): the lit tab
-  is a 64 oval around its pink icon; the others stay 56 icons. The oval
+  is a 64 oval around its filled icon; the others stay 56 icons. The oval
   grows and shrinks on the tab spring. Names are for VoiceOver only.
 - **Tab bar on scroll** (owner, 2026-10-14): scrolling a list down shrinks
   the pill to 84% towards the bottom edge; scrolling up, reaching the top,

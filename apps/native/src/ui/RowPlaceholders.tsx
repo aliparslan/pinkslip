@@ -138,7 +138,7 @@ const styles = StyleSheet.create((theme) => ({
   // chips, List's SectionHeader first).
   chips: { flexDirection: "row", gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["3"], paddingBottom: theme.ui.space["2"] },
   chip: { height: theme.ui.size.chip, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.fill },
-  header: { height: theme.ui.type.footnote.line + theme.ui.space["4"] + theme.ui.space["1"], paddingTop: theme.ui.space["4"], paddingBottom: theme.ui.space["1"], paddingHorizontal: theme.ui.space["4"], justifyContent: "center" },
+  header: { height: theme.ui.type.section.line + theme.ui.space["4"] + theme.ui.space["2"], paddingTop: theme.ui.space["4"], paddingBottom: theme.ui.space["1"], paddingHorizontal: theme.ui.space["4"], justifyContent: "center" },
   headerBar: { width: 64, height: 10, borderRadius: 5, backgroundColor: theme.ui.color.fill },
   // A settings card's label is 14 tall and sits 8 above it.
   groups: { gap: theme.ui.space["6"], paddingTop: 22, paddingHorizontal: theme.ui.size.gutter },

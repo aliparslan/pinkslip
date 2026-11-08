@@ -15,8 +15,7 @@ import { usePullToRefresh } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import {
   changedKeys, Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast,
-  TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup,
-} from "../../ui";
+  TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup, LastInSection } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
 import { trackingState } from "./email/email-facts";
@@ -178,11 +177,11 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
       renderItem={({ item, index }) => <Animated.View entering={entering}>{item.kind === "stage"
-        ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} />}
+        ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} size={16} />}
           onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} onMove={movesAtOnce ? moveNow : undefined} />}</Animated.View>}
+        : <LastInSection.Provider value={items[index + 1]?.kind !== "row"}><TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} onMove={movesAtOnce ? moveNow : undefined} /></LastInSection.Provider>}</Animated.View>}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
       ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders chips={settles} giveWay={settles} /> : <View style={[styles.empty, { paddingTop: height * EMPTY_TOP }]}>
         {applications.isError

@@ -8,7 +8,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Chip, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text } from "../../ui";
+import { Chip, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text, LastInSection } from "../../ui";
 import { motion, spring } from "../../ui/motion";
 import { logoUri } from "../jobs/CompanyLogo";
 import { feedSections, plainText, rowAge, rowFacts } from "../redesign/job-facts";
@@ -144,8 +144,8 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
           layout={reduced ? undefined : moved}>
           {item.kind === "section"
             ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-            : <JobRow title={plainText(item.job.title)} company={plainText(item.job.company_name)} facts={rowFacts(item.job)} age={rowAge(item.job)}
-              unread logo={{ name: item.job.company_name, uri: logoUri(item.job.company_domain) }} />}
+            : <LastInSection.Provider value={items[index + 1]?.kind !== "job"}><JobRow title={plainText(item.job.title)} company={plainText(item.job.company_name)} facts={rowFacts(item.job)} age={rowAge(item.job)}
+              unread logo={{ name: item.job.company_name, uri: logoUri(item.job.company_domain) }} /></LastInSection.Provider>}
         </Animated.View>;
       })}
   </Animated.View>;

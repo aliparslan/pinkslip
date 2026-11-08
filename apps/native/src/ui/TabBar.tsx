@@ -548,10 +548,10 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
                 accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
                 accessibilityState={{ selected: index === selected }} style={styles.slot}>
                 <View>
-                  {/* The outline icon; lit, it's pink and a touch heavier, and
-                      Tracker's end dot fills in (owner, 2026-10-12). */}
+                  {/* The outline icon; selected, it's filled in ink (owner, 2026-11-08:
+                      no more pink here), a touch heavier, and swaps as the oval passes. */}
                   {index === lit
-                    ? <Icon name={tab.icon} size={ICON} tone="accent" lit weight={tab.icon === "tracker" ? "fill" : "line"} />
+                    ? <Icon name={tab.icon} size={ICON} tone="ink" lit weight="fill" />
                     : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
                   {/* The count rides on the icon's top right (System, the tab bar part). */}
                   {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}

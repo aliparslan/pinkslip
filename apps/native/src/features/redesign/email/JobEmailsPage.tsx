@@ -8,8 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import {
   Button, Choice, Choices, EmptyState, JobRow, PAGE_BAR, PageBar, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, Text, useSheet,
-  useTabBarScroll, useTabBarSpace,
-} from "../../../ui";
+  useTabBarScroll, useTabBarSpace, LastInSection } from "../../../ui";
 import { plainText } from "../job-facts";
 import { groupOf, stageGroupLabels } from "../tracker-facts";
 import { logoUri } from "../../jobs/CompanyLogo";
@@ -69,10 +68,10 @@ export function JobEmailsView({ emails, loading = false, failed = false, onRetry
       ListHeaderComponent={header}
       renderItem={({ item, index }) => item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-        : <EmailRow email={item.email} onPress={() => {
+        : <LastInSection.Provider value={items[index + 1]?.kind !== "email"}><EmailRow email={item.email} onPress={() => {
           if (item.email.status === "needs_choice") setAsking(item.email);
           else if (item.email.application_id) actions.openApplication(item.email.application_id);
-        }} />}
+        }} /></LastInSection.Provider>}
       ListEmptyComponent={loading ? <RowPlaceholders /> : <View style={styles.empty}>
         {failed ? <EmptyState title="Job emails didn't load" message="Check your connection and try again."
           action={onRetry ? { label: "Try again", variant: "secondary", onPress: onRetry } : undefined} />

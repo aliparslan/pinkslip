@@ -182,14 +182,14 @@ function CompanyJobs({ jobs, company }: { jobs: Job[]; company: string }) {
   if (jobs.length === 0) return <EmptyState title="No open jobs" message={`${company}'s new roles show up here as they're posted.`} />;
   return <View>
     {fitting.length > 0 ? <SectionHeader title="Fits your search" count={fitting.length} first /> : null}
-    {fitting.map((job) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} />)}
+    {fitting.map((job, index) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} last={index === fitting.length - 1} />)}
     {others.length > 0 ? <SectionHeader title={fitting.length > 0 ? "Other roles" : "Open roles"} count={others.length} first={fitting.length === 0} /> : null}
-    {others.map((job) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} />)}
+    {others.map((job, index) => <CompanyJobRow key={job.id} job={job} unread={!viewed.data?.has(job.id)} last={index === others.length - 1} />)}
   </View>;
 }
 
 /** A job row without the logo or company: title and age, then the facts. */
-function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
+function CompanyJobRow({ job, unread, last }: { job: Job; unread: boolean; last: boolean }) {
   const tab = (useSegments() as readonly string[])[1] ?? "(jobs)";
   const weight = unread ? "medium" : "regular";
   const stage = job.applied ? "Applied" : job.saved ? "Saved" : null;
@@ -197,7 +197,7 @@ function CompanyJobRow({ job, unread }: { job: Job; unread: boolean }) {
   const zoom = useMotionTrial("zoom");
   return <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild>
     <Link.Trigger withAppleZoom={zoom}><Pressable accessibilityRole="button">
-      {({ pressed }) => <View style={[styles.row, pressed && styles.pressed]}><View style={styles.rowText}>
+      {({ pressed }) => <View style={[styles.row, pressed && styles.pressed]}><View style={[styles.rowText, last && styles.rowTextLast]}>
         <View style={styles.line}>
           <Text role="subhead" weight={weight} lines={1} flex>{plainText(job.title)}</Text>
           <View style={styles.age}>
@@ -231,6 +231,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.ui.space["3"], paddingRight: theme.ui.size.gutter,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ui.color.separator,
   },
+  rowTextLast: { borderBottomWidth: 0 },
   line: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   age: { flexDirection: "row", alignItems: "center", gap: 6 },
   stage: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] },

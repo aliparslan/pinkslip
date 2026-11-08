@@ -15,10 +15,10 @@
  */
 export const ICONS = {
   // The tab bar and the navigation bar
-  today: "Sun",
+  today: "CalendarBlank",
   jobs: "Briefcase",
   search: "MagnifyingGlass",
-  tracker: "Path",
+  tracker: "BookmarksSimple",
   you: "UserCircle",
   editSearch: "SlidersHorizontal",
   notifications: "Bell",
@@ -27,8 +27,10 @@ export const ICONS = {
   more: "DotsThree",
   info: "Info",
   caution: "Warning",
-  /** The website's Library tab; iOS's Tracker is the path above. */
+  /** The website's name for Tracker: the same idea, the same icon. */
   library: "BookmarksSimple",
+  /** Moving an application to another stage (iOS's menu image). */
+  move: "Path",
   /** The website's page-not-found. */
   notFound: "Compass",
   edit: "PencilSimple",
@@ -80,7 +82,7 @@ export const ICONS = {
   location: "MapPin",
   pay: "CurrencyCircleDollar",
   visa: "GlobeHemisphereWest",
-  deadline: "CalendarBlank",
+  deadline: "Hourglass",
   /** Add to Calendar under the Next interview row, then In your calendar. */
   calendarAdd: "CalendarPlus",
   calendarAdded: "CalendarCheck",

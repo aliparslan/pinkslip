@@ -13,9 +13,9 @@ const LEADING = 28;
 const SettingsCard = createContext(false);
 
 export interface ListGroupProps {
-  /** Footnote-sized label above the card. */
+  /** The section's name above the card. */
   header?: string;
-  /** A count after the header, 6 along, as section headers carry theirs. */
+  /** How many, at the far right in the header's own size and color. */
   count?: number;
   /** The header in pink: Admin's Needs you. */
   needsYou?: boolean;
@@ -35,8 +35,8 @@ export function ListGroup({ header, count, needsYou, footer, inset = "gutter", s
   const rows = Children.toArray(children);
   return <View style={styles.group}>
     {header ? <View style={[styles.header, surface === "fill" && styles.headerOnEdge, styles.headerRow]}>
-      <Text role="footnote" weight="medium" tone={needsYou ? "accent" : "ink-2"}>{header}</Text>
-      {count !== undefined ? <Text role="footnote" tone="ink-3">{String(count)}</Text> : null}
+      <Text role="section" tone={needsYou ? "accent" : "ink"} flex>{header}</Text>
+      {count !== undefined ? <Text role="section" tone={needsYou ? "accent" : "ink"}>{String(count)}</Text> : null}
     </View> : null}
     <View style={[styles.card, surface === "fill" && styles.fill]}>
       <SettingsCard.Provider value={surface === "fill"}>
@@ -123,33 +123,36 @@ export function Radio({ selected }: { selected: boolean }) {
 
 export interface SectionHeaderProps {
   title: string;
-  /** How many, right after the label in ink-3. */
+  /** How many, at the far right in the label's own size and color. */
   count?: string | number;
-  /** Pink only when something is waiting on you. */
+  /** Pink, the number too, only when something is waiting on you. */
   needsYou?: boolean;
-  /** A mark before the label: Tracker's stage ring. */
+  /** A mark before the label: Tracker's stage ring, in its stage's color. */
   leading?: ReactNode;
-  /** Makes the header the way into its group, with a chevron after the
-   * count ("Applied 142 ›"). */
+  /** Makes the header the way into its group, with a chevron at the far
+   * right after the count. */
   onPress?: () => void;
   /** The first thing under the title or chips: 16 above it. After a list
-   * it's 24 (owner, 2026-10-15). */
+   * it's 36 (owner, 2026-11-08). */
   first?: boolean;
 }
 
-/** The label above a run of plain rows (New today, Earlier this week), with
- * its count after it the way chips carry theirs. */
+/** The name above a run of plain rows (New today, Earlier this week), with
+ * its count at the far right in the same size and color (owner, 2026-11-08,
+ * Paper "Section headers and counts · Nov 8", D). */
 export function SectionHeader({ title, count, needsYou, leading, onPress, first }: SectionHeaderProps) {
+  const tone = needsYou ? "accent" : "ink";
+  const label = count === undefined ? title : `${title}, ${count}`;
   const content = <>
     {leading}
     <View style={styles.sectionLabel}>
-      <Text role="footnote" weight="medium" tone={needsYou ? "accent" : "ink-2"}>{title}</Text>
-      {count !== undefined ? <Text role="footnote" tone="ink-3">{String(count)}</Text> : null}
-      {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={11} tone="ink-3" /></View> : null}
+      <Text role="section" tone={tone} flex>{title}</Text>
+      {count !== undefined ? <Text role="section" tone={tone}>{String(count)}</Text> : null}
+      {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={13} tone="ink-3" /></View> : null}
     </View>
   </>;
-  if (!onPress) return <View style={[styles.section, first && styles.sectionFirst]} accessibilityRole="header">{content}</View>;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={count === undefined ? title : `${title}, ${count}`}
+  if (!onPress) return <View style={[styles.section, first && styles.sectionFirst]} accessible accessibilityRole="header" accessibilityLabel={label}>{content}</View>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
     style={({ pressed }) => [styles.section, first && styles.sectionFirst, pressed && styles.sectionPressed]}>{content}</Pressable>;
 }
 
@@ -158,9 +161,9 @@ const styles = StyleSheet.create((theme) => ({
   switch: { alignSelf: "center" },
   group: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.space["4"] },
   header: { paddingHorizontal: theme.ui.space["4"] },
-  headerRow: { flexDirection: "row", gap: 6 },
-  // A settings card's label sits on the card's edge, 4 above it (Paper Alerts B).
-  headerOnEdge: { paddingHorizontal: 0, marginBottom: -theme.ui.space["1"] },
+  headerRow: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
+  // A settings card's label sits on the card's edge, 6 above it (Paper Alerts B).
+  headerOnEdge: { paddingHorizontal: 0, marginBottom: -2 },
   footer: { paddingHorizontal: theme.ui.space["4"] },
   card: { borderRadius: theme.ui.radius.md, borderCurve: "continuous", backgroundColor: theme.ui.color["bg-elev"], overflow: "hidden" },
   fill: { backgroundColor: theme.ui.color["bg-grouped"] },
@@ -194,12 +197,12 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.ui.space["2"],
     paddingHorizontal: theme.ui.space["4"],
-    paddingTop: theme.ui.space["6"],
-    paddingBottom: theme.ui.space["1"],
+    paddingTop: 36,
+    paddingBottom: theme.ui.space["2"],
   },
   sectionFirst: { paddingTop: theme.ui.space["4"] },
-  sectionLabel: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  // Tucked toward the count, centred on the text rather than its baseline.
-  sectionChevron: { alignSelf: "center", marginLeft: -2 },
+  sectionLabel: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["1"] },
+  // Centred on the text rather than its baseline.
+  sectionChevron: { alignSelf: "center" },
   sectionPressed: { opacity: 0.6 },
 }));

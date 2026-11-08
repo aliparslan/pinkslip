@@ -2,8 +2,8 @@ import { ICONS, type IconName, type PhosphorName } from "@pinkslip/domain/icons"
 import {
   ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, BookmarksSimple, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
   CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Compass, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
-  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, Hourglass, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
+  PaperPlaneTilt, PathIcon, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
   Warning, WarningCircle, Wrench, X, XCircle,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
 } from "phosphor-react-native";
@@ -17,8 +17,8 @@ import type { TextTone } from "./Text";
 const components: Record<PhosphorName, PhosphorIcon> = {
   ArrowBendUpLeft, ArrowClockwise, ArrowsClockwise, ArrowSquareOut, ArrowUpRight, ArrowUUpLeft, Bell, BookmarkSimple, Briefcase, BookmarksSimple, Buildings, CalendarBlank, CalendarCheck, CalendarPlus,
   CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, ChartBar, ChatCircleDots, CircleHalf, ClipboardText, Clock, ClockCounterClockwise, Check, CheckCircle, CloudSlash, Compass, Copy, CurrencyCircleDollar,
-  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
-  PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Sun, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
+  DotsThree, EnvelopeSimple, EnvelopeSimpleOpen, Export, Eye, EyeSlash, FileText, Flag, Funnel, GearSix, Ghost, Gift, GlobeHemisphereWest, HandSwipeRight, Heart, Hourglass, IdentificationBadge, Info, Lock, MagnifyingGlass, MapPin, PencilSimple,
+  PaperPlaneTilt, Plus, Prohibit, Robot, Scales, SignOut, SlidersHorizontal, Sparkle, Swatches, ThumbsDown, Ticket, Trash, UploadSimple, UserCircle, UsersThree,
   Warning, WarningCircle, Wrench, X, XCircle,
   // The package exports this one as PathIcon (Path would clash with SVG's).
   Path: PathIcon,
@@ -51,7 +51,7 @@ export interface IconProps {
   tone?: TextTone | "ink-4";
   /** A color that isn't a text tone: a settings tile's blue or green ink. */
   color?: string;
-  /** Line at rest; fill for a saved mark (and the selected Tracker tab's dot). */
+  /** Line at rest; fill for a saved mark and a selected tab. */
   weight?: "line" | "fill";
   /** The heavier line: the lit tab, a check on pink. */
   lit?: boolean;

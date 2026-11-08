@@ -10,8 +10,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import {
   changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge,
-  type GlyphMenuItem, type MenuGlyph, type SwipeAction,
-} from "../../ui";
+  type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
@@ -205,7 +204,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     maintainVisibleContentPosition={NO_ANCHOR}
     renderItem={({ item, index }) => item.kind === "section"
       ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} />}
+      : <LastInSection.Provider value={shown[index + 1]?.kind !== "job"}><FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} /></LastInSection.Provider>}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     // Always there: adding or removing it rebuilds the list's content on iOS,
     // and Jobs' field in the header would lose its keyboard.

@@ -14,7 +14,7 @@ export { IconTile, type IconTileProps, type TileMeaning } from "./IconTile";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Floating, TopEdgeBlur, TopEdgeFade, useTopEdge } from "./Floating";
 export { PAGE_BAR, PageBar, PageBarButton, PageBarNote, PageBarSlot } from "./PageBar";
-export { JobRow, type JobRowProps, type JobStage } from "./JobRow";
+export { JobRow, LastInSection, type JobRowProps, type JobStage } from "./JobRow";
 export { changedKeys, ListMotionCell, ListMotionProvider, ROW_ARRIVE, ROW_LEAVE, ROW_MOVE, useListMotion } from "./ListMotion";
 export { ListGroup, ListItem, Radio, SectionHeader, type ListAccessory, type ListGroupProps, type ListItemProps, type SectionHeaderProps } from "./List";
 export { leftLabel, MAX_HOLES, PunchCard, type Allowance, type PunchCardProps } from "./PunchCard";

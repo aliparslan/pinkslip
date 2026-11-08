@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
-import { DateTile, EMPTY_TOP, EmptyState, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
+import { DateTile, EMPTY_TOP, EmptyState, Icon, JobRow, LastInSection, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -83,11 +83,13 @@ function useTodayPlan(sample?: TodaySample) {
 }
 
 /** How many of your feed's jobs posted today, from the page Jobs already
- * loads; "20+" when the first page is all today's. */
-function useNewToday(): string | null {
+ * loads; "20+" when the first page is all today's. Null when there are
+ * none, undefined until the feed has answered. */
+function useNewToday(): string | null | undefined {
   const criteria = useFeedCriteria();
   const params = useMemo(() => feedParams(criteria.search, criteria.available, criteria.defaults), [criteria.search, criteria.available, criteria.defaults]);
   const feed = useFeed(params, criteria.preferences.isSuccess);
+  if (feed.isPending && !criteria.preferences.isError) return undefined;
   const jobs = feed.data?.pages.flatMap((page) => page.jobs) ?? [];
   const today = feedSections(jobs)[0];
   if (!today || today.title !== "New today") return null;
@@ -153,6 +155,9 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
 
   const quiet = plan.needsYou.length === 0 && plan.changed.length === 0;
   const nothing = quiet && plan.comingUp.length === 0 && (sample ? sample.applications.length : today.data?.tracking ?? 0) === 0;
+  // Tracking applications, and a day with nothing in it: nothing needs you,
+  // no news, nothing ahead and no new jobs (owner, 2026-11-08).
+  const allClear = quiet && plan.comingUp.length === 0 && (sample !== undefined || newToday === null);
   const sections: { title: string; items: TodayItem[]; needsYou?: boolean }[] = [
     { title: "Needs you", items: plan.needsYou, needsYou: true },
     { title: "What changed", items: plan.changed },
@@ -172,12 +177,16 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
         action={{ label: "Browse jobs", onPress: () => router.navigate("/") }}
         secondary={{ label: "Track one from an email", onPress: () => setSetup(true) }} />
     </View>
+    : allClear
+    ? <View style={[styles.center, { paddingTop: height * EMPTY_TOP }]}>
+      <EmptyState slips="smile" title="You're all caught up" message="Go do something fun!" />
+    </View>
     : <>
       {sample?.flow === "ask" ? <View style={styles.askFirst}><AskFirstCard jobs={ASK_SAMPLE} onReview={() => router.push("/you/kit-review")} /></View> : null}
       {quiet && newToday ? <NewJobsRow count={newToday} /> : null}
       {sections.map((section, index) => <View key={section.title}>
-        <SectionHeader title={section.title} count={section.items.length} needsYou={section.needsYou} first={index === 0 && !(quiet && newToday)} />
-        {section.items.map((item) => item.target.kind === "waiting"
+        <SectionHeader title={section.title} needsYou={section.needsYou} first={index === 0 && !(quiet && newToday)} />
+        {section.items.map((item, row) => <LastInSection.Provider key={item.key} value={row === section.items.length - 1}>{item.target.kind === "waiting"
           // W4: Don't send drops them all, the way Hide drops a job.
           ? <SwipeRow key={item.key} id={item.key} trailing={[{
             id: "drop", label: "Don't send", icon: "close", tone: "neutral", removes: true,
@@ -185,7 +194,7 @@ export function TodayScreen({ sample }: { sample?: TodaySample } = {}) {
           }]}>
             <TodayRow item={item} needsYou={section.needsYou} onPress={() => open(item.target)} />
           </SwipeRow>
-          : <TodayRow key={item.key} item={item} needsYou={section.needsYou} href={sample ? null : pageOf(item.target)} onPress={() => open(item.target)} />)}
+          : <TodayRow key={item.key} item={item} needsYou={section.needsYou} href={sample ? null : pageOf(item.target)} onPress={() => open(item.target)} />}</LastInSection.Provider>)}
       </View>)}
     </>;
 

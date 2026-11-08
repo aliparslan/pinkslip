@@ -72,6 +72,7 @@ export function RedesignGallery() {
         <ListItem title="Today with sample data" accessory="chevron" onPress={() => router.push("/you/kit-today")} />
         <ListItem title="Today, Ask first's list" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "ask" } })} />
         <ListItem title="Today, applying for you" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "sending" } })} />
+        <ListItem title="Today, nothing going on" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-today", params: { flow: "clear" } })} />
         <ListItem title="Review, on Free with 3 left" accessory="chevron" onPress={() => router.push({ pathname: "/you/kit-review", params: { free: "1" } })} />
         <ListItem title="What Pinkslip sent" accessory="chevron" onPress={() => router.push("/you/kit-sent")} />
         <ListItem title="Send states, sheets and toasts" accessory="chevron" onPress={() => router.push("/you/kit-sends")} />

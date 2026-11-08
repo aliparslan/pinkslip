@@ -1,4 +1,4 @@
-import { useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
@@ -41,6 +41,10 @@ export interface JobRowProps {
 
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
+/** Around the last row of a section: it ends without a separator, and the
+ * space before the next header does the grouping (owner, 2026-11-08). */
+export const LastInSection = createContext(false);
+
 /**
  * The job row. On Jobs the title leads, up to two lines with the age at
  * its end, then "Company · Place · Pay" with the stage at the end (owner,
@@ -69,6 +73,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
   const swiping = useContext(SwipingContext);
   // In a pill swipe row the row's card is the background.
   const inCard = useContext(SwipeCardContext);
+  const last = useContext(LastInSection);
   // The highlight waits 150ms, as iOS lists do, and a row being swiped
   // neither highlights nor opens.
   return <Pressable collapsable={false} unstable_pressDelay={150} accessibilityRole="button" accessibilityLabel={label}
@@ -77,7 +82,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, titleFirst && styles.compact, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
     <View style={[styles.logo, quiet && styles.faded]}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
-    {titleFirst ? <View style={styles.text}>
+    {titleFirst ? <View style={[styles.text, last && styles.textLast]}>
       <View style={styles.line}>
         <Text role="subhead" weight={weight} tone={quiet ? "ink-3" : "ink"} lines={2} flex>{title}</Text>
         {age || dot ? <View style={styles.age}>
@@ -92,7 +97,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
         </View> : null}
       </View>
-    </View> : <View style={styles.text}>
+    </View> : <View style={[styles.text, last && styles.textLast]}>
       <View style={styles.line}>
         <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={quiet ? "ink-3" : news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
         {age || dot ? <View style={styles.age}>
@@ -139,6 +144,7 @@ const styles = StyleSheet.create((theme) => {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.ui.color.separator,
     },
+    textLast: { borderBottomWidth: 0 },
     line: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
     // Centred, not on the baseline: the stage's icon has none, so on the
     // baseline it hung below and a saved row grew a point (owner, 2026-11-07).

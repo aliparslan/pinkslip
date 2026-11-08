@@ -486,6 +486,8 @@ export const uiType = {
   largeTitle: { face: "display", size: 34, line: 41, tracking: -0.34 },
   title1: { face: "display", size: 28, line: 34, tracking: -0.28 },
   title2: { face: "display", size: 22, line: 28, tracking: 0 },
+  /** A section's name (Needs you, New today, Tools) and its number. */
+  section: { face: "display", size: 18, line: 24, tracking: 0 },
   body: { face: "text", size: 17, line: 22, tracking: 0 },
   longText: { face: "text", size: 17, line: 24, tracking: 0 },
   subhead: { face: "text", size: 15, line: 20, tracking: 0 },

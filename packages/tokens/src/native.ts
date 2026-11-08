@@ -614,6 +614,12 @@ export const ui = {
       line: 28,
       tracking: 0,
     },
+    section: {
+      face: "display",
+      size: 18,
+      line: 24,
+      tracking: 0,
+    },
     body: {
       face: "text",
       size: 17,
