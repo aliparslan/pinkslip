@@ -150,6 +150,8 @@ function SignInSteps({ request }: { request: SignInRequest }) {
   };
 
   const sendCode = async (again: boolean) => {
+    // The keyboard's Go and the button can both fire while a code is on its way.
+    if (busy) return;
     if (!checkEmail()) {
       if (step !== "email") go("email");
       return;
