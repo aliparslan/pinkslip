@@ -1,6 +1,5 @@
-import type { ApplySend, Job } from "@pinkslip/core/api";
-import { queryKeys, useApplySends, useAppliedJobs, useCompanies, useSession, useStopSend } from "@pinkslip/data";
-import { useQueryClient } from "@tanstack/react-query";
+import type { ApplySend } from "@pinkslip/core/api";
+import { useApplySends, useAppliedJobs, useCompanies, useSession, useStopSend } from "@pinkslip/data";
 import { router, useSegments } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo } from "react-native";
@@ -16,15 +15,13 @@ const DONE_MS = 4_000;
 export type SendOpening = "answer" | "code" | "finish";
 
 /** A send carries its company's name but not its website, so the logos in
- * the bar and its queue came out as letters (owner, 2026-11-08). The job's
- * own page, if it's been opened, has the domain; otherwise the companies
- * list does, by name. */
-function useSendDomains(enabled: boolean): (send: Pick<ApplySend, "job_id" | "company">) => string | null {
-  const queryClient = useQueryClient();
+ * the bar and its queue came out as letters (owner, 2026-11-08). Every job
+ * Pinkslip can apply to is a listed company's, so the companies list the
+ * app already keeps has the website, by name. */
+function useSendDomains(enabled: boolean): (send: Pick<ApplySend, "company">) => string | null {
   const companies = useCompanies(enabled).data;
   const byName = useMemo(() => new Map((companies ?? []).map((company) => [company.name.trim().toLowerCase(), company.website])), [companies]);
-  return (send) => queryClient.getQueryData<Job>(queryKeys.personal.job(send.job_id))?.company_domain
-    || (send.company ? byName.get(send.company.trim().toLowerCase()) ?? null : null);
+  return (send) => (send.company ? byName.get(send.company.trim().toLowerCase()) ?? null : null);
 }
 
 /**
