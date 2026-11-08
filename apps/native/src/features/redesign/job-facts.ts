@@ -67,9 +67,12 @@ export function rowLevel(job: FactsJob): string | null {
   return stage === "early_career" ? "1–3 yrs" : levelNames[stage];
 }
 
-/** Line two of a row after the company: level, place, pay. */
-export function rowFacts(job: FactsJob): string {
-  return [rowLevel(job), formatRowLocation(job.location), formatRowSalary(job.salary)].filter(Boolean).join(" · ");
+/** Line two of a row after the company: level, place, pay. The level is left
+ * out when the search shows only that level (owner, 2026-11-08: "New grad"
+ * on every row of a new-grad feed said nothing). */
+export function rowFacts(job: FactsJob, onlyStage?: Stage): string {
+  const level = onlyStage && stageOf(job).stage === onlyStage ? null : rowLevel(job);
+  return [level, formatRowLocation(job.location), formatRowSalary(job.salary)].filter(Boolean).join(" · ");
 }
 
 /** The age in the row's trailing slot: "2h", "3d". */
@@ -254,4 +257,18 @@ export function feedSections<T extends FactsJob>(jobs: T[], now = new Date()): F
     sections[index].jobs.push(job);
   }
   return sections.filter((section) => section.jobs.length > 0);
+}
+
+/** A section's count for its header: every section gets one (owner,
+ * 2026-10-13). The sections above the last are complete; the last is still
+ * loading while more pages are left, so it's what the feed matched in all
+ * (`matching`, from the API) less the sections above. Without that total
+ * (an older Worker) it has none rather than a wrong one. */
+export function sectionCount(sections: FeedSection<unknown>[], index: number, more: boolean, matching: number | undefined): number | undefined {
+  const section = sections[index];
+  if (!section) return undefined;
+  if (index < sections.length - 1 || !more) return section.jobs.length;
+  if (matching === undefined) return undefined;
+  const above = sections.slice(0, index).reduce((sum, earlier) => sum + earlier.jobs.length, 0);
+  return Math.max(section.jobs.length, matching - above);
 }

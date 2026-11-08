@@ -1,4 +1,4 @@
-import { feedParams, type FeedSearch } from "@pinkslip/core/feed-criteria";
+import { feedParams, selectedStages, type FeedSearch } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
@@ -20,7 +20,7 @@ import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
-import { feedSections, plainText, rowAge, rowFacts } from "./job-facts";
+import { feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
 import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
@@ -71,6 +71,12 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
   const params = useMemo(() => (scope === "all" ? { q: search.q } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
   const waiting = idle !== undefined && !search.q;
+  // When the search shows only one level, the rows needn't say it.
+  const onlyStage = useMemo(() => {
+    if (scope !== "feed") return undefined;
+    const stages = selectedStages(search, available);
+    return stages.length === 1 ? stages[0] : undefined;
+  }, [scope, search, available]);
   // A chip or a search keeps the rows on screen until the new ones arrive.
   const feed = useFeed(params, preferences.isSuccess && !waiting, { keepPrevious: true });
   const stats = useStats();
@@ -79,15 +85,14 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const track = useTrack();
 
   const jobs = useMemo(() => (waiting ? [] : feed.data?.pages.flatMap((page) => page.jobs) ?? []), [waiting, feed.data]);
+  const matching = feed.data?.pages[0]?.meta.matching;
   const items = useMemo(() => {
     const sections = feedSections(jobs);
     return sections.flatMap<Item>((section, index) => [
-      // The last section is still filling while more pages are left, so it has no count yet.
-      { kind: "section", key: `section-${section.title}`, title: section.title,
-        count: index === sections.length - 1 && feed.hasNextPage ? undefined : section.jobs.length },
+      { kind: "section", key: `section-${section.title}`, title: section.title, count: sectionCount(sections, index, feed.hasNextPage, matching) },
       ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
     ]);
-  }, [jobs, feed.hasNextPage]);
+  }, [jobs, feed.hasNextPage, matching]);
 
   // One "displayed" event per fresh first page, as the web sends.
   const firstPageAt = feed.data?.pages.length === 1 ? feed.dataUpdatedAt : 0;
@@ -138,7 +143,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     maintainVisibleContentPosition={NO_ANCHOR}
     renderItem={({ item, index }) => item.kind === "section"
       ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} />}
+      : <FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} />}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     // Always there: adding or removing it rebuilds the list's content on iOS,
     // and Jobs' field in the header would lose its keyboard.
@@ -180,14 +185,18 @@ const NO_ANCHOR = { disabled: true };
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). Exported for
  * the kit's swipe lab, which runs it on sample jobs. */
-export function FeedRow({ job, viewed, actions, tab, onOpen }: { job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void }) {
+export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
+  job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void;
+  /** The one level the search shows, which the row leaves out. */
+  onlyStage?: Parameters<typeof rowFacts>[1];
+}) {
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed);
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
     <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
       <Link.Trigger>
-        <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job)} age={rowAge(job)}
+        <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
           unread={!viewed}
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}

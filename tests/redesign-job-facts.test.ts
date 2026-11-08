@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
-  appliedLabel, applyButtonState, feedSections, plainText, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
+  appliedLabel, applyButtonState, feedSections, plainText, sectionCount, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
 } from "../apps/native/src/features/redesign/job-facts";
 
 const job = (patch: Partial<FactsJob> = {}): FactsJob => ({
@@ -42,6 +42,14 @@ describe("level and experience", () => {
   test("a row's line two is level, place, pay", () => {
     expect(rowFacts(job({ match_fact: "Early-career role" }))).toBe("1–3 yrs · New York · $145–175K");
     expect(rowFacts(job({ salary: "$147000 - $210000" }))).toBe("New York · $147–210K");
+  });
+
+  test("a search for one level leaves that level out of the row", () => {
+    const newGrad = job({ match_fact: "New-grad role" });
+    expect(rowFacts(newGrad)).toBe("New grad · New York · $145–175K");
+    expect(rowFacts(newGrad, "new_grad")).toBe("New York · $145–175K");
+    // A row of another level still says it.
+    expect(rowFacts(job({ match_fact: "Early-career role" }), "new_grad")).toBe("1–3 yrs · New York · $145–175K");
   });
 });
 
@@ -95,6 +103,23 @@ describe("feed sections", () => {
     expect(feedSections([today, tuesday, old], now).map((section) => [section.title, section.jobs.length]))
       .toEqual([["New today", 1], ["Earlier this week", 1], ["Older", 1]]);
     expect(feedSections([tuesday], now).map((section) => section.title)).toEqual(["Earlier this week"]);
+  });
+
+  test("every section is counted, the last one from what the feed matched", () => {
+    const now = new Date(2026, 9, 12, 15, 0);
+    const today = job({ posted_at: new Date(2026, 9, 12, 9, 0).toISOString() });
+    const tuesday = job({ posted_at: new Date(2026, 9, 7, 9, 0).toISOString() });
+    const old = job({ posted_at: new Date(2026, 8, 20, 9, 0).toISOString() });
+    const sections = feedSections([today, tuesday, tuesday, old], now);
+    // All loaded: each counts what it holds.
+    expect(sections.map((_, index) => sectionCount(sections, index, false, undefined))).toEqual([1, 2, 1]);
+    // More to load: the last is the feed's total less the sections above.
+    expect(sectionCount(sections, 2, true, 40)).toBe(37);
+    expect(sectionCount(sections, 0, true, 40)).toBe(1);
+    // An older Worker sends no total: no count rather than a wrong one.
+    expect(sectionCount(sections, 2, true, undefined)).toBeUndefined();
+    // Never fewer than the rows already on screen.
+    expect(sectionCount(sections, 2, true, 2)).toBe(1);
   });
 });
 

@@ -44,8 +44,10 @@ const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applie
 /**
  * The three-line job row, laid out and read the way Gmail shows mail: the
  * company and the age, then the title, then the facts with the stage at the
- * end. Until you open a job the company and title are Medium and a pink dot
- * follows the age; once opened they're Regular and the dot goes. The logo is
+ * end. Until you open a job the company and title are Medium; once opened
+ * they're Regular. That's the one sign of new (owner, 2026-11-08: a pink
+ * dot and a darker age as well made three, and the dot pushed the age out of
+ * its column). Pink stays for Needs you, the dot after the age. The logo is
  * the height of the first two lines, on the 16 margin. Each line is one line
  * long, so every row is the same 84pt; text and separators start on the 68
  * line. Tracker's row makes the company the headline instead.
@@ -54,7 +56,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
-  const dot = unread || needsYou;
+  const dot = needsYou;
   const label = [unread ? "Unread" : null, needsYou ? "Needs you" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
@@ -73,7 +75,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
       <View style={styles.line}>
         <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={quiet ? "ink-3" : news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
         {age || dot ? <View style={styles.age}>
-          {age ? <Text role="subhead" tone={unread ? "ink" : "ink-3"}>{age}</Text> : null}
+          {age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
           {dot ? <View style={styles.dot} /> : null}
         </View> : null}
       </View>
