@@ -75,6 +75,13 @@ export function rowFacts(job: FactsJob, onlyStage?: Stage): string {
   return [level, formatRowLocation(job.location), formatRowSalary(job.salary)].filter(Boolean).join(" · ");
 }
 
+/** Line two for postings shown as one row: level and place, then how many
+ * (their pay differs, so the sheet that opens lists each). */
+export function postingsFacts(job: FactsJob, count: number, onlyStage?: Stage): string {
+  const level = onlyStage && stageOf(job).stage === onlyStage ? null : rowLevel(job);
+  return [level, formatRowLocation(job.location), `${count} postings`].filter(Boolean).join(" · ");
+}
+
 /** The age in the row's trailing slot: "2h", "3d". */
 export function rowAge(job: FactsJob): string | undefined {
   return compactJobAge(job) ?? undefined;
@@ -259,16 +266,34 @@ export function feedSections<T extends FactsJob>(jobs: T[], now = new Date()): F
   return sections.filter((section) => section.jobs.length > 0);
 }
 
+/** Postings with the same company, title and place: the same job at other
+ * pay bands or levels (owner, 2026-11-08: Apple's two "Cellular Power
+ * Optimization Software Engineer" rows in San Diego). One row stands for
+ * them, led by the first (newest). Order is kept. */
+export function groupPostings<T extends FactsJob & { company_name?: string | null }>(jobs: T[]): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const job of jobs) {
+    const key = [job.company_name, job.title, job.location].map((part) => plainText(part ?? "").toLowerCase()).join("\u0000");
+    const group = groups.get(key);
+    if (group) group.push(job);
+    else groups.set(key, [job]);
+  }
+  return [...groups.values()];
+}
+
 /** A section's count for its header: every section gets one (owner,
- * 2026-10-13). The sections above the last are complete; the last is still
- * loading while more pages are left, so it's what the feed matched in all
- * (`matching`, from the API) less the sections above. Without that total
- * (an older Worker) it has none rather than a wrong one. */
-export function sectionCount(sections: FeedSection<unknown>[], index: number, more: boolean, matching: number | undefined): number | undefined {
+ * 2026-10-13), and it counts rows, so postings shown as one row count once
+ * (owner, 2026-11-08). The sections above the last are complete; the last
+ * is still loading while more pages are left, so it's what the feed matched
+ * in all (`matching`, from the API, in postings) less the postings above and
+ * the extra postings already folded into its rows. Without that total (an
+ * older Worker) it has none rather than a wrong one. */
+export function sectionCount(sections: FeedSection<unknown>[], index: number, more: boolean, matching: number | undefined, rows?: number[]): number | undefined {
   const section = sections[index];
   if (!section) return undefined;
-  if (index < sections.length - 1 || !more) return section.jobs.length;
+  const shown = rows?.[index] ?? section.jobs.length;
+  if (index < sections.length - 1 || !more) return shown;
   if (matching === undefined) return undefined;
   const above = sections.slice(0, index).reduce((sum, earlier) => sum + earlier.jobs.length, 0);
-  return Math.max(section.jobs.length, matching - above);
+  return Math.max(shown, matching - above - (section.jobs.length - shown));
 }

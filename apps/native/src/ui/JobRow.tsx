@@ -42,22 +42,28 @@ export interface JobRowProps {
 const stageLabels: Record<JobStage, string> = { saved: "Saved", applied: "Applied" };
 
 /**
- * The three-line job row, laid out and read the way Gmail shows mail: the
- * company and the age, then the title, then the facts with the stage at the
- * end. Until you open a job the company and title are Medium; once opened
- * they're Regular. That's the one sign of new (owner, 2026-11-08: a pink
- * dot and a darker age as well made three, and the dot pushed the age out of
- * its column). Pink stays for Needs you, the dot after the age. The logo is
- * the height of the first two lines, on the 16 margin. Each line is one line
- * long, so every row is the same 84pt; text and separators start on the 68
- * line. Tracker's row makes the company the headline instead.
+ * The job row. On Jobs the title leads, up to two lines with the age at
+ * its end, then "Company · Place · Pay" with the stage at the end (owner,
+ * 2026-11-08, Paper "Critic fixes · Nov 8": the company used to take a line
+ * of its own while the title was cut). Rows grow with the title, from 64.
+ * Until you open a job the title is Medium; once opened it's Regular. That's
+ * the one sign of new (owner, 2026-11-08: a pink dot and a darker age as
+ * well made three, and the dot pushed the age out of its column). Pink stays
+ * for Needs you, the dot after the age. The logo sits on the 16 margin; text
+ * and separators start on the 68 line. Tracker's row makes the company the
+ * headline and Today's the news, three lines of one line each, 84 tall.
  */
 export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, actions }: JobRowProps) {
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
   const dot = needsYou;
-  const label = [unread ? "Unread" : null, needsYou ? "Needs you" : null, company, title, stage ? stageLabels[stage] : null, facts, age].filter(Boolean).join(", ");
+  // Jobs' row: the title first, then the company with the facts.
+  const titleFirst = !tracker && !news;
+  const label = (titleFirst
+    ? [unread ? "Unread" : null, needsYou ? "Needs you" : null, title, company, stage ? stageLabels[stage] : null, facts, age]
+    : [unread ? "Unread" : null, needsYou ? "Needs you" : null, company, title, stage ? stageLabels[stage] : null, facts, age]
+  ).filter(Boolean).join(", ");
   const weight = unread ? "medium" : "regular";
   // Never flattened: a link's native preview trigger needs exactly one child view.
   const swiping = useContext(SwipingContext);
@@ -69,9 +75,24 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     onPress={swiping ? undefined : onPress} onLongPress={swiping ? undefined : onLongPress}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
-    style={({ pressed }) => [styles.row, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
+    style={({ pressed }) => [styles.row, titleFirst && styles.compact, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
     <View style={[styles.logo, quiet && styles.faded]}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
-    <View style={styles.text}>
+    {titleFirst ? <View style={styles.text}>
+      <View style={styles.line}>
+        <Text role="subhead" weight={weight} tone={quiet ? "ink-3" : "ink"} lines={2} flex>{title}</Text>
+        {age || dot ? <View style={styles.age}>
+          {age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
+          {dot ? <View style={styles.dot} /> : null}
+        </View> : null}
+      </View>
+      <View style={styles.factsLine}>
+        <Text role="subhead" tone={factsBad ? "bad" : quiet ? "ink-3" : "ink-2"} lines={1} flex>{[company, facts].filter(Boolean).join(" · ")}</Text>
+        {stage ? <View style={styles.stage}>
+          <StageMark stage={stage} tone="ink-3" />
+          <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
+        </View> : null}
+      </View>
+    </View> : <View style={styles.text}>
       <View style={styles.line}>
         <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={quiet ? "ink-3" : news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
         {age || dot ? <View style={styles.age}>
@@ -87,7 +108,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
         </View> : null}
       </View>
-    </View>
+    </View>}
   </Pressable>;
 }
 
@@ -100,6 +121,8 @@ const styles = StyleSheet.create((theme) => {
     row: { flexDirection: "row", alignItems: "flex-start", minHeight: theme.ui.size.jobRow, backgroundColor: theme.ui.color.bg },
     pressed: { backgroundColor: theme.ui.color.fill },
     clear: { backgroundColor: "transparent" },
+    // Jobs' row is two lines or three: a logo's height plus the padding.
+    compact: { minHeight: theme.ui.size.jobRow - theme.ui.type.subhead.line },
     // Centred on the digits' height rather than the line box, which sits a point higher.
     dot: { width: DOT, height: DOT, borderRadius: DOT / 2, marginTop: 2, backgroundColor: theme.ui.color.accent },
     // Level with the first line: the logo spans lines one and two.

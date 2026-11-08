@@ -573,7 +573,7 @@ export function SourcesView({ companies, now, onAdd, onEdit, onToggle, onRemove,
     {shown.length === 0 ? <View style={styles.gutterText}><Text tone="ink-2">No sources match.</Text></View> : <View style={styles.bleed}>
       {shown.slice(0, limit).map((company) => {
         const status = sourceStatus(company, now);
-        return <JobRow key={company.id} company={company.name} title={`${companySourceLabel(company.ats_type)} · ${company.ats_slug}`} facts={status.text}
+        return <JobRow key={company.id} headline="company" company={company.name} title={`${companySourceLabel(company.ats_type)} · ${company.ats_slug}`} facts={status.text}
           factsBad={status.tone === "bad"} quiet={status.tone === "quiet"} logo={{ name: company.name, uri: logoUri(domainOf(company.website)) }}
           onPress={() => onEdit(company)} onLongPress={() => hold(company)}
           actions={[{ id: "toggle", label: company.enabled ? "Turn off" : "Turn on", run: () => onToggle(company, !company.enabled) }, { id: "remove", label: "Remove", run: () => onRemove(company) }]} />;

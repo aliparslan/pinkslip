@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
-  appliedLabel, applyButtonState, feedSections, plainText, sectionCount, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
+  appliedLabel, applyButtonState, feedSections, groupPostings, plainText, postingsFacts, sectionCount, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
 } from "../apps/native/src/features/redesign/job-facts";
 
 const job = (patch: Partial<FactsJob> = {}): FactsJob => ({
@@ -120,6 +120,22 @@ describe("feed sections", () => {
     expect(sectionCount(sections, 2, true, undefined)).toBeUndefined();
     // Never fewer than the rows already on screen.
     expect(sectionCount(sections, 2, true, 2)).toBe(1);
+  });
+
+  test("identical postings share a row, and counts count rows", () => {
+    const now = new Date(2026, 9, 12, 15, 0);
+    const tuesday = new Date(2026, 9, 7, 9, 0).toISOString();
+    const a = { ...job({ posted_at: tuesday, title: "Cellular Power Optimization Software Engineer", location: "San Diego, CA" }), company_name: "Apple" };
+    const b = { ...a, salary: "$142000 - $263000" };
+    const c = { ...job({ posted_at: tuesday, title: "Software Engineer" }), company_name: "Apple" };
+    const groups = groupPostings([a, c, b]);
+    expect(groups.map((group) => group.length)).toEqual([2, 1]);
+    expect(groups[0]![0]).toBe(a);
+    expect(postingsFacts(a, 2)).toBe("San Diego, CA · 2 postings");
+    const sections = feedSections([a, c, b], now);
+    expect(sectionCount(sections, 0, false, undefined, [2])).toBe(2);
+    // While loading: 10 matched, 3 postings on screen in 2 rows, so 9 rows.
+    expect(sectionCount(sections, 0, true, 10, [2])).toBe(9);
   });
 });
 
