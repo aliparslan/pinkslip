@@ -19,6 +19,12 @@ database_id = "fc0ff85d-0921-4b25-b4b2-c77a6ed28371"
 binding = "RESUME_BUCKET"
 bucket_name = "pinkslip-resumes"
 
+# Hand-picked company logos, ahead of the favicon fallback in /api/v2/logo.
+# Create once before the first deploy: wrangler r2 bucket create pinkslip-logos
+[[r2_buckets]]
+binding = "LOGO_BUCKET"
+bucket_name = "pinkslip-logos"
+
 [[send_email]]
 name = "EMAIL"
 

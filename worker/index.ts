@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import { logoFills } from "./logo-shape";
+import { curatedLogoKey, logoFills } from "./logo-shape";
 import { cors } from "hono/cors";
 import { matchedRoutes } from "hono/route";
 import type { Env, Variables } from "./types";
@@ -328,6 +328,16 @@ app.get("/api/v2/logo", async (c) => {
   if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
     return c.json({ error: "Invalid domain" }, 400);
   }
+  const curated = await c.env.LOGO_BUCKET?.get(curatedLogoKey(domain));
+  if (curated) {
+    return new Response(curated.body, {
+      status: 200,
+      headers: {
+        "content-type": "image/png",
+        "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
+      },
+    });
+  }
   const upstream = await fetch(
     `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
     { cf: { cacheEverything: true, cacheTtl: 86400 } }
@@ -354,6 +364,11 @@ app.get("/api/v2/logo/shape", async (c) => {
   const domain = (c.req.query("domain") ?? "").trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(domain) || !domain.includes(".")) {
     return c.json({ error: "Invalid domain" }, 400);
+  }
+  const curated = await c.env.LOGO_BUCKET?.get(curatedLogoKey(domain));
+  if (curated) {
+    const fills = await logoFills(new Uint8Array(await curated.arrayBuffer()));
+    return c.json({ fills }, 200, { "cache-control": "public, max-age=604800, stale-while-revalidate=86400" });
   }
   const upstream = await fetch(
     `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,

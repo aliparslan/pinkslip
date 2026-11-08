@@ -9,6 +9,11 @@
  * clear background don't. Anything that can't be read is left inset.
  */
 
+/** Where a hand-picked logo lives in LOGO_BUCKET. It wins over the favicon. */
+export function curatedLogoKey(domain: string): string {
+  return `logos/${domain.replace(/^www\./, "")}.png`;
+}
+
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 /** Opaque enough to count as part of the logo's own background. */
 const OPAQUE = 230;

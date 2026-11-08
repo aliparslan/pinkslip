@@ -2,6 +2,8 @@ export interface Env {
   DB: D1Database;
   AI?: Ai;
   RESUME_BUCKET?: R2Bucket;
+  /** Hand-picked company logos, keyed logos/<domain>.png. */
+  LOGO_BUCKET?: R2Bucket;
   /** Optional internal Service Binding; intentionally absent until approved. */
   RESUME_COMPILER?: Fetcher;
   EMAIL?: {
