@@ -46,6 +46,18 @@ Where the build differs from the boards:
 - **Known:** at the start of an Undo, the row below shows faintly for one
   frame where the space opens. Tell me if you notice it.
 
+After the first phone check (Nov 8, owner):
+
+- **"The drawer still seems to slide bigger and smaller."** The top edge
+  travelled for 270ms over a step that was already showing. You picked
+  *size first, then step*: the empty sheet takes its new height in 150ms,
+  then the step fades in over 150ms. Steps of the same height swap at once.
+  Boards 2 and 6 are updated.
+- **"Lag before the Ended wheel opens after setting Started."** Each tap
+  redrew both iOS wheels (72 rows each), which held the tap up by about
+  200ms in the simulator. Now a wheel redraws only when its own month or
+  year changes, and the change shows in the first frame after the tap.
+
 ## The numbers behind board 5
 
 Contrast is WCAG, measured from the token values with each pill's tint over the page.

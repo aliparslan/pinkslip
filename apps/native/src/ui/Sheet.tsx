@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Modal, Pressable, View, useWindowDimensions, type LayoutChangeEvent, type ScrollViewProps } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
 import Animated, {
-  scrollTo, useAnimatedKeyboard, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
+  scrollTo, useAnimatedKeyboard, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,15 +25,19 @@ const PUSH = timing(motion.sheet.push);
 /** A step whose content changes (a list loading in) eases to its new height. */
 const RESIZE = timing(motion.sheet.resize);
 /** Or the sheet stays put and its steps fade in place, as Family's trays do
- * (flow run 4.10; Paper "2 · Steps in a sheet fade", 2026-11-08): the new
- * step fades in over 200ms, coming 8 from the way you're going, while the
- * sheet eases to the new height. The step you leave goes at once: Reanimated
- * draws a leaving view under the one arriving, so its 100ms fade-out (the
- * board's) never showed, and waiting 80ms for it left the sheet blank. Kit
- * → Motion fixes compares it with the slide. */
+ * (flow run 4.10; Paper "2 · Steps in a sheet fade", 2026-11-08). Size
+ * first, then the step (owner, 2026-11-08: the edge travelling over a step
+ * that was already there read as sliding): the empty sheet takes its new
+ * height in 150ms, then the step fades in over 150ms, coming 8 from the way
+ * you're going. The step you leave goes at once (Reanimated draws a leaving
+ * view under the one arriving, so a fade-out never showed). Kit → Motion
+ * fixes compares it with the slide. */
 const FADE_OUT = timing({ duration: 100, curve: [0.23, 1, 0.32, 1] });
-const FADE_IN = timing({ duration: 200, curve: [0.23, 1, 0.32, 1] });
+const STEP_SIZE = timing({ duration: 150, curve: [0.23, 1, 0.32, 1] });
+const STEP_IN = timing({ duration: 150, curve: [0.23, 1, 0.32, 1] });
 const FADE_SHIFT = 8;
+/** Steps this close in height swap without waiting for the size. */
+const SAME_HEIGHT = 4;
 /** Let go past this share of the sheet's height, or flick down faster than
  * this, and it closes. */
 const CLOSE_SHARE = motion.sheet.closeShare;
@@ -361,17 +365,21 @@ function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boole
   const shown = useSharedValue(fades ? 0 : 1);
   const [from] = useState(() => (travel.value !== 0 ? travel.value : side) * FADE_SHIFT);
   const shift = useSharedValue(fades ? from : 0);
-  useEffect(() => {
-    if (!fades) return;
-    shown.value = withTiming(1, FADE_IN);
-    shift.value = withTiming(0, FADE_IN);
-  }, [fades, shown, shift]);
   const sized = useRef(false);
-  // Its first height is set at once; later ones (a list loading in) ease,
-  // as does a fading step's first, from the height of the one before.
+  // Its first height is set at once; later ones (a list loading in) ease.
+  // A fading step first takes its size, from the height of the one before,
+  // and only then fades in.
   const onLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout.height;
-    height.value = sized.current || fades ? withTiming(next, RESIZE) : next;
+    if (fades && !sized.current) {
+      const resizes = Math.abs(next - height.value) > SAME_HEIGHT;
+      height.value = withTiming(next, STEP_SIZE);
+      const wait = resizes ? STEP_SIZE.duration : 0;
+      shown.value = withDelay(wait, withTiming(1, STEP_IN));
+      shift.value = withDelay(wait, withTiming(0, STEP_IN));
+    } else {
+      height.value = sized.current ? withTiming(next, RESIZE) : next;
+    }
     sized.current = true;
     measure(next);
   };

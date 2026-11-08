@@ -1,6 +1,6 @@
 import { HStack, Host, Picker, Text as SwiftText } from "@expo/ui/swift-ui";
 import { frame, pickerStyle, tag } from "@expo/ui/swift-ui/modifiers";
-import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, Fragment, isValidElement, memo, useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressable, Switch, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -135,8 +135,10 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
   const match = /^(\d{4})-(\d{2})$/.exec(value);
   const year = match ? Number(match[1]) : now.getFullYear();
   const month = match ? Number(match[2]) : now.getMonth() + 1;
-  const years = Array.from({ length: 60 }, (_, index) => now.getFullYear() + 6 - index);
-  const set = (nextYear: number, nextMonth: number) => onChange(`${nextYear}-${String(nextMonth).padStart(2, "0")}`);
+  const latest = useRef(onChange);
+  latest.current = onChange;
+  const pick = useCallback((nextYear: number, nextMonth: number) => latest.current(`${nextYear}-${String(nextMonth).padStart(2, "0")}`), []);
+  const set = pick;
   const toggle = () => {
     // Opening an empty date starts it at this month.
     if (!open && !match) set(year, month);
@@ -154,16 +156,10 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
     const timer = setTimeout(() => setWarm(true), WHEEL_WARM_MS);
     return () => clearTimeout(timer);
   }, [smooth]);
-  const picker = <Host matchContents={smooth ? undefined : { vertical: true }} style={smooth ? styles.wheelFill : styles.wheel}>
-    <HStack spacing={0}>
-      <Picker selection={month} onSelectionChange={(next: number) => set(year, next)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
-        {MONTHS.map((name, index) => <SwiftText key={name} modifiers={[tag(index + 1)]}>{name}</SwiftText>)}
-      </Picker>
-      <Picker selection={year} onSelectionChange={(next: number) => set(next, month)} modifiers={[pickerStyle("wheel"), frame({ maxWidth: 999 })]}>
-        {years.map((option) => <SwiftText key={option} modifiers={[tag(option)]}>{String(option)}</SwiftText>)}
-      </Picker>
-    </HStack>
-  </Host>;
+  // Drawn again only when its own month or year changes: rebuilding both
+  // wheels' 72 rows on every tap held a tap up by about 200ms (owner,
+  // 2026-11-08: lag before Ended's wheel opened after setting Started).
+  const picker = <Wheel year={year} month={month} onPick={pick} sized={smooth} />;
   // In a frame of iOS's own wheel height, set up front instead of measured
   // as it draws.
   const wheel = smooth ? <View style={styles.wheelFrame}>{picker}</View> : picker;
@@ -178,6 +174,24 @@ export function MonthRow({ label, value, onChange, open, onToggle }: {
     {smooth ? <Fold shown={open} motion={OPEN_WHEEL} warm={warm} height={WHEEL_HEIGHT + WHEEL_GAP}>{wheel}</Fold> : open ? wheel : null}
   </View>;
 }
+
+const WHEEL_MODIFIERS = [pickerStyle("wheel"), frame({ maxWidth: 999 })];
+const MONTH_ROWS = MONTHS.map((name, index) => <SwiftText key={name} modifiers={[tag(index + 1)]}>{name}</SwiftText>);
+const THIS_YEAR = new Date().getFullYear();
+const YEAR_ROWS = Array.from({ length: 60 }, (_, index) => THIS_YEAR + 6 - index)
+  .map((option) => <SwiftText key={option} modifiers={[tag(option)]}>{String(option)}</SwiftText>);
+
+/** iOS's month and year wheels. */
+const Wheel = memo(function Wheel({ year, month, onPick, sized }: {
+  year: number; month: number; onPick: (year: number, month: number) => void; sized: boolean;
+}) {
+  return <Host matchContents={sized ? undefined : { vertical: true }} style={sized ? styles.wheelFill : styles.wheel}>
+    <HStack spacing={0}>
+      <Picker selection={month} onSelectionChange={(next: number) => onPick(year, next)} modifiers={WHEEL_MODIFIERS}>{MONTH_ROWS}</Picker>
+      <Picker selection={year} onSelectionChange={(next: number) => onPick(next, month)} modifiers={WHEEL_MODIFIERS}>{YEAR_ROWS}</Picker>
+    </HStack>
+  </Host>;
+});
 
 /** What you did, a line each, with "Add a line" at the end. An emptied line
  * goes when you leave it. */
