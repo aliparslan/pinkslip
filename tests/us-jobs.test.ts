@@ -50,4 +50,44 @@ describe("isUsJobLocation", () => {
     // But an explicit US state signal still wins alongside the city name.
     expect(isUsJobLocation("Cambridge, MA")).toBe(true);
   });
+  it("reads a country code written first, where the code is also a US state", () => {
+    expect(isUsJobLocation("IN-Pune")).toBe(false);
+    expect(isUsJobLocation("IN-Bangalore-MSO")).toBe(false);
+    expect(isUsJobLocation("CA-Ontario-Toronto")).toBe(false);
+    expect(isUsJobLocation("CA-British Columbia-Remote")).toBe(false);
+    expect(isUsJobLocation("DE-Berlin-Trion Building")).toBe(false);
+    expect(isUsJobLocation("IL-Israel-Remote")).toBe(false);
+    expect(isUsJobLocation("CO-Colombia-Remote")).toBe(false);
+    expect(isUsJobLocation("CA-San Francisco")).toBe(true);
+    expect(isUsJobLocation("US-CA-Menlo Park")).toBe(true);
+    expect(isUsJobLocation("US-IL-Remote")).toBe(true);
+  });
+
+  it("splits places joined by a bullet or a word", () => {
+    expect(isUsJobLocation("San Francisco, CA \u2022 New York, NY")).toBe(true);
+    expect(isUsJobLocation("Devens, MA & Richmond, VA")).toBe(true);
+    expect(isUsJobLocation("San Francisco, CA or New York, NY")).toBe(true);
+    expect(isUsJobLocation("Bengaluru, KA, IN \u2022 Toronto, ON, CA")).toBe(false);
+  });
+
+  it("doesn't let plain Remote rescue a foreign place joined by a word", () => {
+    expect(isUsJobLocation("Toronto or Remote")).toBe(false);
+    expect(isUsJobLocation("San Francisco Bay Area or Remote")).toBe(true);
+  });
+
+  it("reads the place after a work-mode prefix", () => {
+    expect(isUsJobLocation("Hybrid - San Francisco")).toBe(true);
+    expect(isUsJobLocation("Hub - Seattle")).toBe(true);
+    expect(isUsJobLocation("Remote - Dallas")).toBe(true);
+    expect(isUsJobLocation("Remote - Global")).toBe(false);
+    expect(isUsJobLocation("Hub - Porto")).toBe(false);
+    expect(isUsJobLocation("Remote - CA")).toBe(false);
+    expect(isUsJobLocation("Hybrid")).toBe(false);
+  });
+
+  it("accepts a US city with an office or work-mode note", () => {
+    expect(isUsJobLocation("San Francisco Office")).toBe(true);
+    expect(isUsJobLocation("San Francisco (Remote)")).toBe(true);
+    expect(isUsJobLocation("Cambridge, UK")).toBe(false);
+  });
 });
