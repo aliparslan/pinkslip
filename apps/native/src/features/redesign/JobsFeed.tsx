@@ -24,6 +24,8 @@ import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActio
 import { HELD_BACK, useHoldingPostings } from "./arrival-demo";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
+import { rowZoomId } from "../../platform/links";
+import { Zoomed, zoomParams } from "./RowZoom";
 import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
 import { STAGES_IN_ORDER } from "./search-draft";
 
@@ -289,14 +291,17 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
   // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
   const zoom = useMotionTrial("zoom");
+  const zoomId = rowZoomId(tab, job.id);
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
-    <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id } }} asChild onPress={() => onOpen(job)}>
-      <Link.Trigger withAppleZoom={zoom}>
+    <Link href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id, ...(zoom ? zoomParams(zoomId) : {}) } }} asChild onPress={() => onOpen(job)}>
+      <Link.Trigger>
+        <Zoomed id={zoom ? zoomId : null}>
         <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage)} age={rowAge(job)}
           stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
           unread={!viewed}
           logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
           actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />
+        </Zoomed>
       </Link.Trigger>
       <Link.Preview style={preview.style}>{preview.content}</Link.Preview>
       <Link.Menu>

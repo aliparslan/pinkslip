@@ -16,6 +16,8 @@ import { WhichApplicationSheet } from "./email/JobEmailsPage";
 import { feedSections } from "./job-facts";
 import { ASK_SAMPLE, AskFirstCard, StackedLogos } from "./apply-flow/AskFirst";
 import { WaitingSheetModal } from "./sends/WaitingSends";
+import { rowZoomId } from "../../platform/links";
+import { RowZoom, zoomParams } from "./RowZoom";
 import { LiveBar, type LiveQueue } from "./apply-flow/WhileItRuns";
 import { setAppBadge } from "../../platform/push";
 import { storage } from "../../platform/storage";
@@ -224,6 +226,12 @@ function pageOf(target: TodayTarget): Href | null {
   return null;
 }
 
+/** The row a page zooms into; an event's is the one its reminder names. */
+function zoomIdOf(target: TodayTarget): string | null {
+  if (!("id" in target)) return null;
+  return rowZoomId("(today)", target.kind === "event" ? target.id : `${target.kind}-${target.id}`);
+}
+
 /** A row's page grows out of it, as on Jobs and Tracker (Kit → Motion fixes). */
 function TodayRow({ item, needsYou, href, onPress }: { item: TodayItem; needsYou?: boolean; href?: Href | null; onPress: () => void }) {
   const zoom = useMotionTrial("todayZoom");
@@ -232,7 +240,12 @@ function TodayRow({ item, needsYou, href, onPress }: { item: TodayItem; needsYou
     leading={item.date ? <DateTile month={item.date.month} day={item.date.day} />
       : item.logos ? <StackedLogos first={item.logos[0]} second={item.logos[1]} ring="bg" /> : undefined}
     logo={item.logo ? { name: item.logo.name, uri: logoUri(item.logo.domain ?? undefined) } : undefined} onPress={opensPage ? undefined : onPress} />;
-  return opensPage ? <Link href={href} asChild><Link.Trigger withAppleZoom>{row}</Link.Trigger></Link> : row;
+  const zoomId = zoomIdOf(item.target);
+  if (!opensPage || !zoomId) return row;
+  const page = href as { pathname: string; params: Record<string, string> };
+  return <Link href={{ ...page, params: { ...page.params, ...zoomParams(zoomId) } } as Href} asChild>
+    <Link.Trigger><RowZoom id={zoomId}>{row}</RowZoom></Link.Trigger>
+  </Link>;
 }
 
 /** A quiet day's way into Jobs (T3): the count of today's new jobs. */

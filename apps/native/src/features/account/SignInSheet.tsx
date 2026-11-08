@@ -380,14 +380,14 @@ function TermsLine({ tucked = false }: { tucked?: boolean }) {
     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent,
   });
   // The links keep the line's colour and are underlined, as links in a job's
-  // description are, so they read as tappable without a second colour. Two
-  // set lines, the links together on the second, rather than one line run
-  // out to the sheet's rounded corners.
+  // description are, so they read as tappable without a second colour. One
+  // line, short enough to stay clear of the sheet's rounded corners on every
+  // iPhone (owner, Nov 8: two set lines looked wrong).
   return <View style={[styles.terms, tucked && styles.termsTucked]}><Text role="footnote" tone="ink-3" align="center">
-    By continuing you agree to the{"\n"}
+    By continuing you agree to the{" "}
     <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/terms")}>Terms</RNText>
     {" "}and{" "}
-    <RNText style={styles.link} accessibilityRole="link" onPress={() => open("/privacy")}>Privacy Policy</RNText>
+    <RNText style={styles.link} accessibilityRole="link" accessibilityLabel="Privacy Policy" onPress={() => open("/privacy")}>Privacy</RNText>
   </Text></View>;
 }
 
@@ -423,7 +423,7 @@ function sampleAuth(): SignInAuth {
 const styles = StyleSheet.create((theme) => ({
   heading: { gap: theme.ui.space["1"] },
   link: { textDecorationLine: "underline" },
-  terms: { paddingHorizontal: theme.ui.space["6"], paddingTop: theme.ui.space["1"] },
+  terms: { paddingTop: theme.ui.space["1"] },
   // Not now is words in a taller box, so the box's empty end read as a gap
   // under it. This puts the words midway between the buttons and the line.
   termsTucked: { marginTop: -theme.ui.space["4"] },

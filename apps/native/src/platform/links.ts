@@ -47,9 +47,24 @@ export function inHomeTab(path: string): string {
   return path;
 }
 
-/** Marks a page an alert opened: it has no row to grow out of, so it fades
- * in and out instead of sliding (`tabStackOptions`, owner, Nov 8). */
+/** Expo Router's note on a page opened by a zoom: the row it grew from. */
+export const ZOOM_SOURCE = "__internal_expo_router_zoom_transition_source_id";
+
+/** Names a row to zoom out of: the same from a tap on it and from an alert. */
+export function rowZoomId(tab: string, id: string): string {
+  return `${tab.replace(/[()]/g, "")}-${id}`;
+}
+
+/** Has a page an alert opened zoom like a tapped row's. */
 export function fromAlert(path: string): string {
-  if (!/^\/(jobs|applications|events)\//.test(path)) return path;
-  return `${path}${path.includes("?") ? "&" : "?"}via=alert`;
+  const page = /^\/(?:jobs|applications|events)\/([^/?]+)/.exec(path);
+  const tab = homeTabOf(path);
+  if (!page || !tab) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}${ZOOM_SOURCE}=${rowZoomId(tab.slice(tab.lastIndexOf("/") + 1), page[1]!)}`;
+}
+
+/** The tab a page belongs to, when it has one. */
+export function homeTabOf(path: string): string | null {
+  const home = inHomeTab(path);
+  return home === path ? null : home.slice(0, home.indexOf(")", home.indexOf(")") + 1) + 1);
 }

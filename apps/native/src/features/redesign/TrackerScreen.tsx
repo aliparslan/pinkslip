@@ -24,6 +24,8 @@ import { dismissNudge, useEmailTrackingPrefs } from "./email/email-prefs";
 import { EmailSetupSheet, LiveEmailSetupSheet } from "./email/SetupSheet";
 import { TrackerNudge } from "./email/TrackerNudge";
 import { useMotionTrial } from "../../ui/motion-trial";
+import { rowZoomId } from "../../platform/links";
+import { Zoomed, zoomParams } from "./RowZoom";
 import { trackerOutreachLine } from "./outreach/outreach-facts";
 import {
   byWeek, companyName, groupApplications, jobTitle, MOVE_TO, STAGE_GROUPS, stageGroupLabels, trackerAge, trackerFacts,
@@ -246,12 +248,14 @@ function TrackerRow({ application, sample, thread, onMove }: {
     onError: () => toast.error("Couldn't remove it. Try again."),
   });
   // Past Saved a row opens the application; a saved job has no stub yet.
+  const zoomId = zoom && !sample ? rowZoomId("(library)", application.id) : null;
+  const zooms = zoomId ? zoomParams(zoomId) : {};
   const href = application.stage === "saved" && application.job_id
-    ? { pathname: "/(tabs)/(library)/jobs/[jobId]" as const, params: { jobId: application.job_id } }
-    : { pathname: "/(tabs)/(library)/applications/[applicationId]" as const, params: { applicationId: application.id } };
+    ? { pathname: "/(tabs)/(library)/jobs/[jobId]" as const, params: { jobId: application.job_id, ...zooms } }
+    : { pathname: "/(tabs)/(library)/applications/[applicationId]" as const, params: { applicationId: application.id, ...zooms } };
   // Samples have no pages to open, but keep the menu.
   return <Link href={href} asChild onPress={sample ? (event) => event.preventDefault() : undefined}>
-    <Link.Trigger withAppleZoom={zoom && !sample}>{row}</Link.Trigger>
+    <Link.Trigger><Zoomed id={zoomId}>{row}</Zoomed></Link.Trigger>
     {sample ? null : <Link.Preview />}
     <Link.Menu>
       <Link.Menu title="Move to">

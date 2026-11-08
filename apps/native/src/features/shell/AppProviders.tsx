@@ -6,7 +6,7 @@ import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { toast, ToastHost } from "../../kit";
-import { appPathFor, fromAlert, inHomeTab } from "../../platform/links";
+import { appPathFor, fromAlert, homeTabOf, inHomeTab } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
 import { ASK_APPLY, ASK_DISMISS, isAlertButton, notificationTarget, refreshDevicePush } from "../../platform/push";
 import { initializeSession, type ApiClient } from "../../platform/session";
@@ -16,6 +16,9 @@ import { SignInHost } from "../account/SignInSheet";
 import { LaunchFailure } from "../redesign/errors";
 import { rememberOwnerPhone } from "../redesign/flag";
 import { ResumeOcrProvider } from "../resume/ResumeOcrProvider";
+
+/** As the app starts, how long an alert's tab takes to be there to open in. */
+const TAB_MOUNT_MS = 300;
 
 void SplashScreen.preventAutoHideAsync();
 watchAppearance();
@@ -106,7 +109,16 @@ function AppEffects({ api }: { api: ApiClient }) {
         void api.push.opened(target.jobIds, target.notificationId ?? undefined).catch(() => undefined);
       }
       const path = target.url ? appPathFor(target.url) : "/";
-      if (path) router.push((launching ? inHomeTab(fromAlert(path)) : fromAlert(path)) as never);
+      if (!path) return;
+      const tab = homeTabOf(path);
+      if (!tab) {
+        router.push(path as never);
+        return;
+      }
+      // A zoom needs its row under it, and only a page pushed from its own
+      // tab gets one: the tab first, then the page.
+      router.navigate(tab as never);
+      setTimeout(() => router.push(inHomeTab(fromAlert(path)) as never), launching ? TAB_MOUNT_MS : 0);
     };
     const last = Notifications.getLastNotificationResponse();
     if (last) open(last, true);
