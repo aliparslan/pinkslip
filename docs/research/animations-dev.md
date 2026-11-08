@@ -6,6 +6,8 @@ iOS app's motion tokens (`packages/tokens/src/tokens.ts` `uiMotion`,
 `apps/native/src/ui/motion.ts`) and the website's kit CSS. The course's
 skills (animate, animate-expo, emil-design-eng, improve-animations,
 find-animation-opportunities, break-ui) are already installed here.
+Directions from it are collected with the rest in
+[directions.md](directions.md).
 
 ## Already right
 

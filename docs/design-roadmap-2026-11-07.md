@@ -5,7 +5,9 @@ the Nov 4 polish pass (`polish-pass-2026-11-04.md`) and the Nov 7 flow run
 (`flow-run-2026-11-07.md`). The owner wants all of it ("all of these are
 awesome. lets jot em all down"). Each item goes through Paper first, and
 motion gets a kit toggle to compare against iOS's own apps (Match iOS
-motion). How each should move: `motion-course-notes-2026-11-07.md`.
+motion). How each should move: `research/animations-dev.md`. Proposals
+waiting for the owner, from everything shared so far:
+`research/directions.md`.
 
 The app's bones are good: calm, consistent, and its paper-and-stamp look is
 its own. What's missing is a few moments that feel earned, and the iOS
