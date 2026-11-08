@@ -26,7 +26,8 @@ export function swipeChoiceLabel(choice: SwipeChoice): string {
 /**
  * You → Swipe actions (owner, 2026-11-08, Paper "Choosing swipe actions ·
  * Nov 8", B): each side drawn as a job row caught mid-swipe, its buttons
- * the controls. A tap opens the menu for that button; one already in use
+ * the controls. A tap opens the menu for that button, with no check: the
+ * row already shows what's there (owner, 2026-11-08). One already in use
  * trades places with it, which the other card shows at once. The outer
  * button, filled, is the full swipe, and never Queue.
  */
@@ -69,10 +70,10 @@ function Slot({ side, slot, choice, queue }: { side: SwipeSide; slot: 0 | 1; cho
   const offered = (slot === 0 ? OUTER_CHOICES : SWIPE_CHOICES).filter((option) => option !== "queue" || queue);
   const items: MenuItem[] = [
     ...offered.map((option) => ({
-      id: option, title: LOOK[option].label, icon: LOOK[option].symbol, checked: option === choice,
+      id: option, title: LOOK[option].label, icon: LOOK[option].symbol,
       onSelect: () => chooseSwipe(side, slot, option),
     })),
-    ...(slot === 1 ? [{ id: "none", title: "None", checked: choice === null, onSelect: () => chooseSwipe(side, slot, null) }] : []),
+    ...(slot === 1 ? [{ id: "none", title: "None", onSelect: () => chooseSwipe(side, slot, null) }] : []),
   ];
   const where = `${side === "right" ? "Swipe right" : "Swipe left"}, ${slot === 0 ? "full swipe" : "second button"}`;
   return <Menu title="" items={items}>
