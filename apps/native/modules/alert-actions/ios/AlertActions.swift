@@ -42,10 +42,10 @@ final class AlertActions: NotificationDelegate {
     func button(_ action: Action, _ title: String, _ icon: UNNotificationActionIcon) -> UNNotificationAction {
       UNNotificationAction(identifier: action.rawValue, title: title, options: [.authenticationRequired], icon: icon)
     }
-    let save = button(.save, "Save", UNNotificationActionIcon(systemImageName: "bookmark"))
-    // Pinkslip's own bot, the image the in-app menus use (Images.xcassets).
+    // Pinkslip's own icons, the images the in-app menus use (Images.xcassets).
+    let save = button(.save, "Save", UNNotificationActionIcon(templateImageName: "menu-save"))
     let queue = button(.queue, "Queue", UNNotificationActionIcon(templateImageName: "menu-bot"))
-    let hide = button(.hide, "Hide", UNNotificationActionIcon(systemImageName: "eye.slash"))
+    let hide = button(.hide, "Hide", UNNotificationActionIcon(templateImageName: "menu-hide"))
     let sets = [
       UNNotificationCategory(identifier: "job_alert", actions: [save, hide], intentIdentifiers: []),
       UNNotificationCategory(identifier: "job_alert_queue", actions: [save, queue, hide], intentIdentifiers: [])
