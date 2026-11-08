@@ -41,13 +41,15 @@ export type NeedAnswers = Record<string, string | string[]>;
  * step's button sends. Answers are kept for every later form, so a question
  * is asked once.
  */
-export function NeedsSheet({ job, needs, dryRun, pending, onSend }: {
+export function NeedsSheet({ job, needs, dryRun, pending, onSend, onDontSend }: {
   job: SendJob;
   needs: SendNeed[];
   /** A Check first run is checked again rather than sent. */
   dryRun: boolean;
   pending: boolean;
   onSend: (answers: NeedAnswers) => void;
+  /** Lets the application go instead (owner, 2026-11-08). */
+  onDontSend?: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<NeedAnswers>({});
@@ -77,6 +79,8 @@ export function NeedsSheet({ job, needs, dryRun, pending, onSend }: {
         </Button>
       </View>
     </View>
+    {/* A word under the answers, as Discard sits under Save in Your search. */}
+    {onDontSend && !dryRun ? <Button variant="text" fullWidth onPress={onDontSend}>Don't send</Button> : null}
   </SheetStep>;
 }
 

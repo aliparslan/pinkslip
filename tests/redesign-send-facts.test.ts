@@ -136,6 +136,32 @@ describe("the live bar", () => {
     expect(liveBar([job("Toast", { status: "code_needed" })], at)?.state).toMatchObject({ words: "Toast needs Greenhouse's code", action: "Enter" });
   });
 
+  test("says it's checking once every field is filled, then sending", () => {
+    expect(liveBar([job("Toast", { status: "running", progress: { filled: 15, of: 15 } })], at)?.state).toMatchObject({ count: "Checking" });
+    expect(liveBar([job("Toast", { status: "submitting", progress: { filled: 15, of: 15 } })], at)?.state).toMatchObject({ count: "Sending", share: 1 });
+  });
+
+  test("asks once for several stops' answers, and says what's still applying", () => {
+    const one = [{ ref: "q", label: "Q", kind: "text" }];
+    const three = [...one, { ref: "r", label: "R", kind: "text" }, { ref: "s", label: "S", kind: "text" }];
+    const bar = liveBar([
+      job("Reddit", { status: "needs_you", needs: one, finished_at: minutesAgo(2) }),
+      job("Stripe", { status: "needs_you", needs: three, finished_at: minutesAgo(1) }),
+      job("Ramp", { status: "running" }),
+    ], at);
+    expect(bar?.state).toEqual({ kind: "needs", company: "", words: "2 jobs need answers", action: "Answer", group: true, detail: "1 applying" });
+    expect(liveBar([job("Reddit", { status: "needs_you", needs: one, finished_at: minutesAgo(2) }), job("Ramp", { status: "running" })], at)?.state)
+      .toMatchObject({ words: "Reddit needs 1 answer", detail: "1 applying" });
+  });
+
+  test("lets go of a stop you finished yourself, or stopped", () => {
+    const blocked = job("Render", { status: "blocked", finished_at: minutesAgo(2) });
+    expect(liveBar([blocked], at)?.state).toMatchObject({ words: "Render needs you", action: "Finish" });
+    expect(liveBar([blocked], at, new Set(["Render"]))).toBeNull();
+    expect(liveBar([{ ...blocked, stopped: true }], at)).toBeNull();
+    expect(sendButtonState({ ...blocked, stopped: true }, "Render", at)).toBeNull();
+  });
+
   test("leaves Check first's runs and old stops to the job page and Today", () => {
     expect(liveBar([job("Toast", { status: "running", dry_run: true })], at)).toBeNull();
     expect(liveBar([job("Toast", { status: "needs_you", needs: [{ ref: "q", label: "Q", kind: "text" }], finished_at: minutesAgo(30) })], at)).toBeNull();

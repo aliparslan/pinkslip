@@ -20,8 +20,8 @@ export const appliedJobsQueryOptions = (api: ApiClient) =>
     queryFn: async () => (await api.appliedJobs.list()).jobs,
   });
 
-export function useAppliedJobs() {
-  return useQuery(appliedJobsQueryOptions(useApi()));
+export function useAppliedJobs(enabled = true) {
+  return useQuery({ ...appliedJobsQueryOptions(useApi()), enabled });
 }
 
 export function useSaveJob() {

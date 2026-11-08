@@ -1034,6 +1034,8 @@ function createEndpoints(context: ClientContext) {
         "/apply/waiting/send", { method: "POST" }, 60_000),
     /** Don't send: everything waiting is dropped. */
     dropWaiting: () => request<void>("/apply/waiting/drop", { method: "POST" }),
+    /** Stops a send that's filling or waiting on the person; 409 once it's pressing Submit. */
+    stopSend: (sendId: string) => request<ApplySend>(`/apply/sends/${encodeURIComponent(sendId)}/stop`, { method: "POST" }),
     /** The code Greenhouse emailed, when forwarding didn't bring it. */
     sendCode: (sendId: string, code: string) =>
       request<void>(`/apply/sends/${encodeURIComponent(sendId)}/code`, { method: "POST", body: JSON.stringify({ code }) }),

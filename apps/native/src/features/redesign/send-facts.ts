@@ -21,6 +21,12 @@ export function followedSend(sends: readonly ApplySend[] | undefined, jobId: str
   return mine.find((send) => !send.dry_run && WENT_OUT.has(send.status)) ?? mine[0] ?? null;
 }
 
+/** Where a send can still be stopped: filling, or waiting on the person.
+ * Not once it's pressing Submit. */
+export function stoppable(send: ApplySend | null): boolean {
+  return Boolean(send && !send.stopped && ["queued", "running", "code_needed", "needs_you", "blocked", "ready"].includes(send.status));
+}
+
 /** A job a long press can queue a send for (owner, 2026-11-04): a
  * Greenhouse or Ashby form that's still open, not applied to yet. */
 export function queueable(job: { source_type?: string | null; closed_at?: string | null; applied?: boolean | number | null }): boolean {
@@ -35,6 +41,7 @@ export const canAnswer = (need: SendNeed) => Boolean(need.ref) && need.kind !== 
  * (owner, 2026-11-04). Servers before migration 0110 don't say, and their
  * stops still wait. */
 export function lapsed(send: ApplySend, now = Date.now()): boolean {
+  if (send.stopped && send.status === "needs_you") return true;
   if (send.dry_run || send.status !== "needs_you" || send.waiting_until === undefined) return false;
   return send.waiting_until === null || Date.parse(send.waiting_until) <= now;
 }
@@ -43,7 +50,8 @@ const monthDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { mo
 
 /** The button for where a send stands; null to leave the page's own. */
 export function sendButtonState(send: ApplySend | null, company: string, now = Date.now()): ApplyState | null {
-  if (!send || lapsed(send, now)) return null;
+  // Stopped, the job is back to Apply for me.
+  if (!send || send.stopped || lapsed(send, now)) return null;
   switch (send.status) {
     case "queued": return { kind: "opening" };
     case "running": return send.progress ? { kind: "applying", filled: send.progress.filled, of: send.progress.of } : { kind: "opening" };
@@ -144,35 +152,60 @@ export interface LiveBarFacts {
 
 export type LiveBarState =
   | { kind: "sending"; company: string; count: string; share: number }
-  | { kind: "needs"; company: string; words: string; action: string };
+  /** One job waits on you, or (`group`) several wait on answers the one
+   * sheet in Today takes. `detail` says how many are still applying. */
+  | { kind: "needs"; company: string; words: string; action: string; detail?: string; group?: boolean };
 
-export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now()): LiveBarFacts | null {
+/** A stop that waits on the person until they act. */
+const WAITS = new Set<ApplySend["status"]>(["needs_you", "blocked", "code_needed"]);
+
+/**
+ * `applied` holds the jobs marked applied: a stop on one of them waits on
+ * nothing, since the person finished it themselves (owner, 2026-11-08: after
+ * Finish and "Did you apply? Yes", the bar stayed).
+ */
+export function liveBar(sends: readonly ApplySend[] | undefined, now = Date.now(), applied: ReadonlySet<string> = new Set()): LiveBarFacts | null {
   const newest = new Map<string, ApplySend>();
   for (const send of sends ?? []) {
     if (send.dry_run || now - Date.parse(send.created_at) > RUN_WINDOW_MS) continue;
     if (!newest.has(send.job_id)) newest.set(send.job_id, send);
   }
   const run = [...newest.values()].filter((send) => !send.finished_at || now - Date.parse(send.finished_at) < WAITS_ON_BAR_MS
-    || send.status === "code_needed");
+    || send.status === "code_needed")
+    .filter((send) => !send.stopped && !(applied.has(send.job_id) && WAITS.has(send.status)));
   const going = run.filter((send) => GOING.has(send.status));
-  const waiting = run.find((send) => send.status === "code_needed")
-    ?? run.find((send) => (send.status === "needs_you" && send.needs.length > 0 && !lapsed(send, now)) || send.status === "blocked");
-  if (going.length === 0 && !waiting) return null;
+  const stopped = (send: ApplySend) => send.status === "needs_you" && send.needs.length > 0 && !lapsed(send, now);
+  // Several stops whose questions the one sheet takes are one ask, not one
+  // after another (owner, 2026-11-08: Stripe's three replaced Reddit's one,
+  // then Reddit's came back).
+  const answerable = run.filter((send) => stopped(send) && send.needs.every(canAnswer));
+  const code = run.find((send) => send.status === "code_needed");
+  const waiting = code ?? (answerable.length > 1 ? null : run.find((send) => stopped(send) || send.status === "blocked"));
+  if (going.length === 0 && !waiting && answerable.length < 2) return null;
   const sent = run.filter((send) => send.status === "submitted" || send.status === "unconfirmed");
   const current = going.find((send) => send.status !== "queued") ?? going[0] ?? null;
   const queue = { now: current, next: going.filter((send) => send !== current), sent };
   const name = (send: ApplySend) => send.company ?? "the company";
+  // While one waits, the rest keep going, and the bar says so.
+  const detail = going.length > 0 ? `${going.length} applying` : undefined;
   if (waiting) {
     const asks = waiting.status === "code_needed" ? { words: `${name(waiting)} needs Greenhouse's code`, action: "Enter" }
       : waiting.status === "blocked" ? { words: `${name(waiting)} needs you`, action: "Finish" }
       : { words: `${name(waiting)} needs ${waiting.needs.length === 1 ? "1 answer" : `${waiting.needs.length} answers`}`, action: "Answer" };
-    return { state: { kind: "needs", company: name(waiting), ...asks }, queue, jobId: waiting.job_id };
+    return { state: { kind: "needs", company: name(waiting), ...asks, ...(detail ? { detail } : {}) }, queue, jobId: waiting.job_id };
+  }
+  if (answerable.length > 1) {
+    return { state: { kind: "needs", company: "", words: `${answerable.length} jobs need answers`, action: "Answer", group: true, ...(detail ? { detail } : {}) }, queue, jobId: null };
   }
   const done = run.length - going.length;
-  // One application counts its fields; several count applications.
+  // One application counts its fields, then says it's checking the filled
+  // form and sending it, rather than sitting on "15 of 15" (owner,
+  // 2026-11-08); several count applications.
   const fields = run.length === 1 ? current!.progress : null;
-  const state: LiveBarState = fields
-    ? { kind: "sending", company: name(current!), count: `${fields.filled} of ${fields.of}`, share: fields.filled / Math.max(fields.of, 1) }
+  const state: LiveBarState = run.length === 1 && current!.status === "submitting"
+    ? { kind: "sending", company: name(current!), count: "Sending", share: 1 }
+    : fields
+    ? { kind: "sending", company: name(current!), count: fields.filled >= fields.of ? "Checking" : `${fields.filled} of ${fields.of}`, share: fields.filled / Math.max(fields.of, 1) }
     : run.length === 1
       ? { kind: "sending", company: name(current!), count: "", share: 0.04 }
       : { kind: "sending", company: name(current!), count: `${done + 1} of ${run.length}`, share: done / run.length };

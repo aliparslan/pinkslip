@@ -184,8 +184,8 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   /** With auto-apply, the form opens in the application browser, which reads,
    * fills and (when allowed) submits it; a confirmed submission marks the job
    * applied. */
-  const prepareRequest = async (): Promise<ApplicationRequest | null> => {
-    track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
+  const prepareRequest = async (counted = true): Promise<ApplicationRequest | null> => {
+    if (counted) track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
     const prepared = await api.apply.prepare(job.id).catch(() => null);
     const url = prepared?.apply_url ?? job.url;
     return url ? { jobId: job.id, url, autoSubmit, company: job.company_name } : null;
@@ -198,6 +198,16 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   // waits for Apply's sheet to be gone, and "Did you apply?" for the
   // browser. The form is prepared while the sheet leaves.
   const afterPrep = useRef<Promise<ApplicationRequest | null> | null>(null);
+  /** Open application was tapped: the browser follows once the sheet's gone. */
+  const wantsBrowser = useRef(false);
+  /** Apply's sheet opens: the form is read now, while you look at your
+   * answers, so the browser can open the moment the sheet has gone (owner,
+   * 2026-11-08: Apply myself felt slow between the sheet and the browser). */
+  const openPrep = () => {
+    wantsBrowser.current = false;
+    afterPrep.current = prepareRequest(false);
+    setPreparing(true);
+  };
   const askAfterBrowser = useRef(false);
   /** The browser already knew: the board confirmed it, or "I applied" in its bar. */
   const knownApplied = useRef(false);
@@ -284,7 +294,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     applied,
     closed,
     toggleSave,
-    apply: () => (autoApply ? (ownSheets ? setPreparing(true) : void startAutoApply()) : void openApplication()),
+    apply: () => (autoApply ? (ownSheets ? openPrep() : void startAutoApply()) : void openApplication()),
     /** The Apply sheets (with `ownSheets`): "Did you apply?" after the
      * posting closes, and the assisted application's preparation. */
     applyFlow: {
@@ -293,11 +303,17 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
       preparing,
       endPreparing: () => setPreparing(false),
       confirmApplied: () => setApplied(true),
-      openAssisted: () => { afterPrep.current = prepareRequest(); },
+      openAssisted: () => {
+        track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
+        wantsBrowser.current = true;
+        afterPrep.current ??= prepareRequest(false);
+      },
       /** Apply's sheet has left the screen: the browser can open. */
       prepGone: () => {
         const pending = afterPrep.current;
         afterPrep.current = null;
+        if (!wantsBrowser.current) return;
+        wantsBrowser.current = false;
         void pending?.then((request) => { if (request) browse(request); });
       },
     },

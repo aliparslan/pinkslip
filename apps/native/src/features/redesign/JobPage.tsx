@@ -125,7 +125,9 @@ function JobView({ job, full, pendingDescription, onRetryDescription, outreachTh
         </View>
       </Animated.View>
     </ScrollView>
-    <TopBar onShare={share} menu={glyphMenu} />
+    <TopBar onShare={share} menu={sends.stop
+      ? { ...glyphMenu, items: [{ id: "stop", title: "Stop applying", glyph: "remove", onSelect: sends.stop }, ...glyphMenu.items] }
+      : glyphMenu} />
     <View ref={tear.bar} style={[styles.bar, { paddingBottom: Math.max(insets.bottom, theme.ui.space["4"]) }]}>
       <Animated.View style={tear.dip}>
         <ApplyButton state={applyState} saved={saved} onSave={toggleSave}

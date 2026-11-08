@@ -1,6 +1,6 @@
 import { ApiError, type ApplySend } from "@pinkslip/core/api";
 import {
-  queryKeys, useAnswerSend, useApplySends, useResumeProfile, useSendCode, useSendResume, useSession, useStartSend, useUploadSendResume,
+  queryKeys, useAnswerSend, useApplySends, useResumeProfile, useSendCode, useSendResume, useSession, useStartSend, useStopSend, useUploadSendResume,
 } from "@pinkslip/data";
 import { useQueryClient } from "@tanstack/react-query";
 import { File } from "expo-file-system";
@@ -11,7 +11,7 @@ import { haptics } from "../../../platform/haptics";
 import { localResumeFile } from "../../../platform/resume-file";
 import type { DetailJob } from "../../job-detail/useJobPage";
 import { plainText } from "../job-facts";
-import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE } from "../send-facts";
+import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE, stoppable } from "../send-facts";
 import type { SendOpening } from "./LiveSends";
 import { CodeSheet, NeedsSheet, type SendJob } from "./SendSheets";
 
@@ -103,6 +103,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
   const { begin, starting } = useBeginSend(sendable);
   const answer = useAnswerSend();
   const code = useSendCode();
+  const stopSend = useStopSend();
   // Where Greenhouse sent its code: read only while a send waits for one.
   const email = useResumeProfile(sendable && send?.status === "code_needed").data?.data?.contact?.email ?? null;
   const [sheet, setSheet] = useState<"needs" | "code" | null>(null);
@@ -154,10 +155,21 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
     }
   };
 
+  // Stop, from the page's ⋯ or the questions' sheet: nothing is sent, and the
+  // job is back to Apply for me (owner, 2026-11-08).
+  const stop = sendable && stoppable(send) ? () => stopSend.mutate(send!.id, {
+    onSuccess: () => {
+      setSheet(null);
+      toast.show({ message: "Stopped. Nothing was sent", icon: "autoApply" });
+    },
+    onError: (error) => toast.error(error instanceof ApiError && error.code === "already_sending"
+      ? `It's already sending to ${company}` : "Couldn't stop it. Try again."),
+  }) : undefined;
+
   const sendJob: SendJob = { company, domain: job.company_domain, title: plainText(job.title) };
   const sheets: ReactNode = send ? <>
     <SheetModal open={sheet === "needs" && send.status === "needs_you"} onClosed={() => setSheet(null)}>
-      <NeedsSheet key={send.id} job={sendJob} needs={askedNeeds(send)} dryRun={send.dry_run} pending={answer.isPending}
+      <NeedsSheet key={send.id} job={sendJob} needs={askedNeeds(send)} dryRun={send.dry_run} pending={answer.isPending} onDontSend={stop}
         onSend={(answers) => answer.mutate({ sendId: send.id, answers }, {
           onSuccess: () => setSheet(null),
           onError: (error) => showRefusal(error, company, () => undefined),
@@ -173,6 +185,8 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
     /** The button for the send, or null to keep the page's own. */
     state,
     onPress: onPress(),
+    /** Stops the send, while it's filling or waiting on you. */
+    stop,
     /** Check first, in Apply for me's caret: for admins while sends are theirs. */
     onCheckFirst: state?.kind === "applyForMe" && admin ? () => go(true) : undefined,
     sheets,

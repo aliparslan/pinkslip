@@ -28,10 +28,18 @@ export function useApplySend(sendId: string, enabled = true) {
   });
 }
 
+/** A send the server just started or changed goes into the list at once, as
+ * the newest, so the job page's button follows it straight away rather than
+ * falling back to Apply until the next refetch (owner, 2026-11-08: the
+ * progress bar went pink, then back). */
 function useRememberSend() {
   const queryClient = useQueryClient();
   return (send: ApplySend | null) => {
-    if (send) queryClient.setQueryData(queryKeys.personal.send(send.id), send);
+    if (send) {
+      queryClient.setQueryData(queryKeys.personal.send(send.id), send);
+      queryClient.setQueryData<ApplySend[]>(queryKeys.personal.sends(), (sends) =>
+        sends ? [send, ...sends.filter((entry) => entry.id !== send.id)] : sends);
+    }
     void queryClient.invalidateQueries({ queryKey: queryKeys.personal.sends() });
   };
 }
@@ -119,6 +127,20 @@ export function useDropWaiting() {
     mutationFn: () => api.apply.dropWaiting(),
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.personal.waiting(), null);
+      changed();
+    },
+  });
+}
+
+/** Stops a send that's filling or waiting on the person (owner, 2026-11-08). */
+export function useStopSend() {
+  const api = useApi();
+  const remember = useRememberSend();
+  const changed = useWaitingChanged();
+  return useMutation({
+    mutationFn: (sendId: string) => api.apply.stopSend(sendId),
+    onSuccess: (send) => {
+      remember(send);
       changed();
     },
   });

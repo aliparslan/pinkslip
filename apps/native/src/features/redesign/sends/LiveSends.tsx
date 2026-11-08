@@ -1,7 +1,7 @@
 import type { ApplySend } from "@pinkslip/core/api";
-import { useApplySends, useSession } from "@pinkslip/data";
+import { useApplySends, useAppliedJobs, useSession } from "@pinkslip/data";
 import { router, useSegments } from "expo-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LiveBar, type LiveJob } from "../apply-flow/WhileItRuns";
 import { liveBar, liveBarDone } from "../send-facts";
 
@@ -25,8 +25,11 @@ export function useLiveSends(): ReactNode | null {
   const segments = useSegments() as readonly string[];
   // Jobs open in the tab you're on, or Today from You's stack, which has none.
   const tab = segments[1] && segments[1] !== "(you)" ? segments[1] : "(today)";
+  // Jobs you've applied to yourself: their stops leave the bar.
+  const appliedJobs = useAppliedJobs(enabled).data;
+  const applied = useMemo(() => new Set((appliedJobs ?? []).map((job) => job.id)), [appliedJobs]);
   const [now, setNow] = useState(() => Date.now());
-  const facts = enabled ? liveBar(sends.data, now) : null;
+  const facts = enabled ? liveBar(sends.data, now, applied) : null;
 
   // A stop that waits on you leaves the bar after a while, for Today.
   useEffect(() => {
@@ -67,8 +70,10 @@ export function useLiveSends(): ReactNode | null {
     const queue = { now: facts.queue.now && asJob(facts.queue.now), next: facts.queue.next.map(asJob), sent: facts.queue.sent.map((send) => ({ job: asJob(send), confirmed: send.status === "submitted" })) };
     const opening: SendOpening | undefined = facts.state.kind !== "needs" ? undefined
       : facts.state.action === "Enter" ? "code" : facts.state.action === "Finish" ? "finish" : "answer";
+    // Several stops' questions are one sheet, in Today.
+    const answerAll = () => router.push({ pathname: "/today", params: { answer: "sends" } });
     return <LiveBar state={facts.state} queue={queue} onOpenJob={(job) => openJob(job.id)}
-      onAction={facts.jobId ? () => openJob(facts.jobId!, opening) : undefined} />;
+      onAction={facts.state.kind === "needs" && facts.state.group ? answerAll : facts.jobId ? () => openJob(facts.jobId!, opening) : undefined} />;
   }
   if (done) return <LiveBar state={{ kind: "done", ...done }} queue={{ now: null, next: [], sent: [] }} onDismiss={() => setDone(null)} />;
   return null;

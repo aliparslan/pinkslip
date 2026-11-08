@@ -46,7 +46,10 @@ function words(state: ApplyState): string {
     case "needsYou": return `Answer ${state.questions} question${state.questions === 1 ? "" : "s"} to finish`;
     case "checked": return "Review and send";
     case "code": return "Enter Greenhouse's code";
-    case "finishOnPhone": return "Finish on your phone";
+    // Pinkslip's browser met a captcha or something only you can do: you
+    // finish the form here (owner, 2026-11-08: "on your phone" read as a
+    // place, not as "yourself").
+    case "finishOnPhone": return "Finish it yourself";
     case "didntSend": return "Didn't send · Try again";
     case "sent": return `Sent · waiting for ${state.company}`;
     case "applied": return state.date ? `Applied ${state.date}` : "Applied";

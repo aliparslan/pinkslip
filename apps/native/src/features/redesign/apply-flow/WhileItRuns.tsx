@@ -23,8 +23,9 @@ export type LiveState =
   /** "Applying to Ramp 3 of 9": the bar fills, gray, as the run does. */
   | { kind: "sending"; company: string; count: string; share: number }
   | { kind: "paused"; count: string; share: number }
-  /** One job needs you; the rest keep going. Its action opens the job. */
-  | { kind: "needs"; company: string; domain?: string | null; words: string; action: string }
+  /** One job needs you; the rest keep going, and `detail` says how many.
+   * Its action opens the job; for several (`group`), Today's one sheet. */
+  | { kind: "needs"; company: string; domain?: string | null; words: string; action: string; detail?: string; group?: boolean }
   /** It stays a few seconds, then leaves on its own. */
   | { kind: "done"; words: string; detail?: string };
 
@@ -55,12 +56,12 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onOpenJob 
   const share = state.kind === "sending" || state.kind === "paused" ? state.share : 0;
   const label = state.kind === "sending" ? `Applying to ${state.company}, ${state.count}`
     : state.kind === "paused" ? `Paused, ${state.count}`
-    : state.kind === "needs" ? `${state.words}. ${state.action}` : [state.words, state.detail].filter(Boolean).join(", ");
+    : state.kind === "needs" ? [state.words, state.detail, state.action].filter(Boolean).join(". ") : [state.words, state.detail].filter(Boolean).join(", ");
   return <>
     <Pressable onPress={() => state.kind === "needs" ? onAction?.() : setOpen(true)} accessibilityRole="button" accessibilityLabel={label}>
       <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]}>
         {share > 0 ? <View style={[styles.fill, { width: `${Math.round(share * 100)}%` }]} /> : null}
-        {state.kind === "needs"
+        {state.kind === "needs" && !state.group
           ? <View style={styles.markSlot}>
             <CompanyLogo name={state.company} uri={logoUri(state.domain ?? null)} size="card" />
             <View style={styles.dot} />
@@ -71,7 +72,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onOpenJob 
             <Text role="subhead" weight="medium">{state.kind === "sending" ? `Applying to ${state.company}`
               : state.kind === "paused" ? "Paused" : state.words}</Text>
             {state.kind === "sending" || state.kind === "paused" ? <Text role="subhead" tone="ink-3">{`  ${state.count}`}</Text>
-              : state.kind === "done" && state.detail ? <Text role="subhead" tone="ink-3">{`  ${state.detail}`}</Text> : null}
+              : (state.kind === "done" || state.kind === "needs") && state.detail ? <Text role="subhead" tone="ink-3">{`  ${state.detail}`}</Text> : null}
           </Text>
         </View>
         {/* In its own box: a hugging button aligns to the top of a row. */}
