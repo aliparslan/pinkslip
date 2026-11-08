@@ -77,6 +77,16 @@ The plan, chunk status and decisions live in `docs/REACT_EXPO_PORT_PLAN.md`.
   The dev API worker reads the repository-root `.dev.vars` (merged in
   `vite.config.ts`); restart after editing it.
 
+### Icons
+
+- One idea, one icon, on iOS and the web: every icon comes from the Phosphor
+  table in `shared/icons.ts`. Add an idea there before using a new icon.
+- iOS's own menus and alert buttons use the `menu-*` images in the asset
+  catalog, through `GlyphMenu` or `UNNotificationActionIcon(templateImageName:)`.
+  Apple's SF Symbols aren't used; the kit's plain `Menu` takes no icons.
+- `bun run check:icons` (part of `bun run check`) enforces this. A deliberate
+  exception carries `intentional: why` on its line or the line above.
+
 ### iOS kit
 
 - iOS screens are built from `apps/native/src/ui` (and `src/kit`), with
