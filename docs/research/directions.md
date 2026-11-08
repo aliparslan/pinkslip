@@ -24,15 +24,19 @@ us**.
 2. **Right after launch:** the iOS kit check (D2), then splitting the
    design system into per-part docs (D3). Every future session builds
    better on top of these.
-3. **Then the first update:** the zoom to the job page and the stamp for a
-   send (roadmap), plus the stub falling into Tracker (B1).
+3. **Then:** the zoom to the job page and the stamp for a send (roadmap).
+
+The owner set on Nov 8 that 1.4.0 holds everything left before submission,
+so "after launch" here means "after these, still before submitting".
+Family is a source of principles, not of signature moves; see
+[benji-taylor.md](benji-taylor.md).
 
 ## A. The app: flows and motion
 
 | # | Direction | From | Needs | Status |
 | --- | --- | --- | --- | --- |
 | A1 | Fix the six motion items from the Nov 7 flow run | flow run | kit toggles | roadmap §1 |
-| A2 | Sheet steps change height as well as content, so the step is obvious; the content cross-fades with an 8pt shift in the direction of travel | Family Values (trays), animations.dev | Paper, sheet lab | proposed (joins roadmap §1, item 4.10) |
+| A2 | Sheet steps change height as well as content, so the step is obvious; the content cross-fades with an 8pt shift in the direction of travel. The sheet lab (Kit → Sheet transitions) already has this as "Cross-fade" next to today's "Each step its own card" (picked Oct 13). The Nov 7 flow-run mark 4.10 asks for fade instead of slide | Family Values (trays), animations.dev | sheet lab, owner pick | ready to try (roadmap §1, 4.10) |
 | A3 | Closes take about 350ms, faster than opens (500ms) | animations.dev | sheet lab beside iOS | roadmap via motion notes 1 |
 | A4 | A production audit before 1.4.0. It checks VoiceOver labels and order, Dynamic Type XXXL, dark mode, Increase Contrast, Reduce Motion, every screen's empty, loading and error states, offline, and the 17e's width, with worst-case content. It reports "Needs a device" and "Needs a human" lists, and writes no copy | aiforui (prep-for-prod), animations.dev | one session, a doc | proposed |
 | A5 | Rows close the gap while a hidden row leaves; Undo brings it back in reverse | animations.dev | kit | roadmap §1 (2.36) |
@@ -46,10 +50,11 @@ us**.
 
 | # | Direction | From | Needs | Status |
 | --- | --- | --- | --- | --- |
-| B1 | The torn stub falls into the Tracker tab, which then ticks; the application lives there now. Today the stub falls and shrinks away | Family (pending spinner into its tab) | Paper, phone test | proposed |
+| B1 | ~~The torn stub falls into the Tracker tab~~. The stub already falls into the job page's pinned Apply bar, which then says Applied: the same principle, done Pinkslip's way. My first note was wrong | Family (pending spinner into its tab) | none | decided (already there) |
 | B2 | Labels morph instead of swapping: Apply for me → Sending → Sent, Get Pro → You're on Pro; counts roll ("3 of 10 sent") | Family (shared-letter morph), animations.dev | kit | roadmap §2 + motion notes 5 |
 | B3 | A generator in the kit lab for the paper look. A seed plus dials for the rip edge, the punch holes, stamp ink spread and grain; Save writes JSON that the kit reads. This replaces prompting for one result | aiforui (Linear's ripped punch cards), Justin Jay Wang | kit lab | proposed |
-| B4 | The sheet's close icon turns into back on later steps (rotation and morph on Phosphor's grid) | Family, Morphing icons | Paper | proposed |
+| B4 | The close icon turns into back on later steps. It only applies to the few sheets with their own close button ("Did you apply?", Apply at, the queue); the rest close by the grab bar and put Back at the bottom | Family, Morphing icons | Paper | proposed, low |
+| B8 | Tab switches: still (iOS) or a short slide in the tab's direction. Being tried (Kit → Tab switches, kept on the phone across launches). In the Family take, the new tab slides 40pt over the old one in 240ms; the old one stays solid underneath, because the new tab's animation starts a frame late and an early fade left an empty frame | owner Nov 8, Family | phone, a few days | trying |
 | B5 | Zoom from row to job page (`Link.Trigger withAppleZoom`) | roadmap | kit | roadmap §2 |
 | B6 | Delight follows rarity: the first application sent, the first reply, Offer. Never on swipes or Save | Family's delight curve, animations.dev | Paper | roadmap §2 (Offer) |
 | B7 | Record the app now, for the App Store preview and as history | Honkish footnote | simulator | proposed |
@@ -75,20 +80,19 @@ us**.
 | D4 | **A note mode in admin builds of the app.** A two-finger long-press drops a pin. It captures the route, the kit part under the finger, the screen's data state and a screenshot, and copies markdown to paste into a session. Pointing beats describing; the owner reviews on the phone | Benji (Annotating, Agentation), Lapse | native code (JS only) | proposed |
 | D5 | **A short glossary agents read first.** Tracker vs the `(library)` route; `features/redesign` as the app; slip, stub, stamp, send, Apply for me, Ask first, Pro. It stops names drifting | Matt Pocock (ubiquitous language), aiforui vocabulary | one doc | proposed |
 | D6 | **One generation of screens.** The pre-redesign Feed, Library and old job page still ship behind `useRedesign()`. If 1.4.0 is redesign-only, remove them after launch so agents can't copy them; until then, mark them legacy in AGENTS.md | Astryx (agents copy examples) | owner decision | proposed |
-| D7 | **A fresh critic for Paper rounds.** After drawing, a fresh-context review sees only the artboard screenshots, never the repo or the brief. It scores against a studio bar, and the round goes on until it passes. It costs one extra agent per pass, against the owner's "no subagents" usage rule | Anshu Chimala, "Fresh opinion means no repo" | owner decision | proposed |
+| D7 | **A fresh critic for Paper rounds.** After drawing, a fresh-context review sees only the artboard screenshots, never the repo or the brief. It scores against a studio bar, and the round goes on until it reaches 9/10 or three passes. Set up Nov 8: `.claude/agents/design-critic.md` (local) and CLAUDE.md's "Paper design rounds" | Anshu Chimala, "Fresh opinion means no repo" | none | decided (owner, Nov 8) |
 | D8 | **The one-sentence screen test.** After D2 and D3, ask a fresh session for one real screen in a single sentence, and turn every miss into a rule | aiforui (Defining a system) | a session | proposed |
 | D9 | **Dials in the labs that drive the real `uiMotion` values**, with "compare versions" and "copy settings". DialKit doesn't run on React Native, so the panel is built from kit parts | aiforui, DialKit, Grok Bot (Motion God) | kit lab | roadmap via motion notes 7 |
 | D10 | **A retro after each chunk**, written into this folder or the system docs: what the agent got wrong, and which rule or check would have stopped it | Matt Pocock (`retro`), aiforui | habit | proposed |
-| D11 | **Install the course's 28 skills at the user level** (never in the repo), then run A4 through `emil-prep-for-prod` as the test of whether the course is worth keeping | aiforui | the owner runs the install | owner decision |
+| D11 | **The course's 28 skills, installed at the user level** (`~/.claude/skills/emil-*`, Nov 8; read before installing, markdown only, never in the repo). Next: run A4 through `emil-prep-for-prod` as the test of whether the course is worth keeping | aiforui | A4 | installed |
 | D12 | **Decisions as a questionnaire.** The open owner decisions (below) gathered into one form, answered when convenient | Matt Pocock (`to-questionnaire`) | one doc | proposed |
 
 ## E. Waiting on the owner
 
-- **D6:** is 1.4.0 redesign-only?
-- **D7:** a critic agent for Paper rounds, given the usage rule.
-- **D11:** install the course skills, and keep or refund the course.
-- **Tab switches.** Family slides in the tab's direction; iOS's own tab
-  bars don't animate. Pinkslip matches iOS today. Keep that?
+- **D6.** 1.4.0 holds everything left before submission (owner, Nov 8).
+  Should removing the old pre-redesign screens be part of it?
+- **D11.** Keep or refund the course, after the A4 test.
+- **B8.** Tab switches, after living with the options for a few days.
 - From the polish pass:
   - Soon rows in 1.4.0;
   - What's new says 1.3;

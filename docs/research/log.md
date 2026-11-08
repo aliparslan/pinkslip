@@ -26,3 +26,18 @@ repo:
 
 This folder created with directions.md, people.md and reading.md; the two
 course notes moved in.
+
+## [2026-11-08] decisions | critic, course skills, Family, tab switches
+- The owner wants a fresh critic agent: `.claude/agents/design-critic.md`,
+  plus the procedure in CLAUDE.md (local).
+- The course's 28 skills are installed at the user level, read first.
+- 1.4.0 holds everything left before submission.
+- Family is to be used for principles, not signature moves.
+- Tab switches: three options in the kit to try on the phone.
+
+Corrections:
+- B1: the stub already lands in the Apply bar.
+- Benji is now head of design at X.
+
+Rauno's Devouring Details: $249, 23 chapters with React components. X
+profiles are readable in the built-in browser, as text.

@@ -1,10 +1,29 @@
 # Benji Taylor's writing, against Pinkslip
 
 Benji Taylor founded Family, the iOS wallet both of Emil's courses hold up
-as the fluid interface to learn from (it was bought by Aave), and now leads
-design at Base. The owner shared his posts on 2026-11-07. Notes are in my
+as the fluid interface to learn from (it was bought by Aave). He led
+design at Base, and his X profile now says head of design at X and SpaceX
+SI (Nov 2026). The owner shared his posts on 2026-11-07. Notes are in my
 own words, with what each post means here. Directions are collected in
 [directions.md](directions.md).
+
+## Learning from Family without copying it
+
+The owner asked on Nov 8 whether this leans on Family too much. The line:
+
+- **Take Family's principles.** Things go where they will live. The rarer
+  the moment, the more delight it can carry. A label morphs instead of
+  being swapped. Nothing that persists is redrawn.
+- **Don't take its signature moves.** That means its trays and its exact
+  text morph, its easter eggs (the QR ripple, the trash can), and its
+  look.
+- **Keep Pinkslip's own signature.** Paper, tickets, stubs, stamps and
+  punch cards. Family has nothing like them, and they are the part worth
+  protecting.
+
+Generic patterns that Family happens to use, such as a tab switch that
+slides, are fair to try. Judge them against iOS's own apps, not against
+Family.
 
 ## Family Values (Jul 2024)
 
@@ -46,9 +65,9 @@ and the close icon turning into back. Directions A2 and B4.
 - **A pending item flies to where it will live.** After a send, the
   spinner moves into the tab that holds pending activity.
 
-Pinkslip has the torn stub, which today falls and shrinks away. It could
-fall into the Tracker tab instead, which is where the application now
-lives (directions B1).
+Pinkslip already does this in its own way. The torn stub falls into the
+job page's pinned Apply bar, which then says Applied, so the stub lands
+where the state now lives. (My first notes said it fell away; it doesn't.)
 
 **Delight** follows frequency. The less often a feature is used, the more
 delight it can carry. The most-used flows get only small touches; in

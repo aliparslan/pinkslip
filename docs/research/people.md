@@ -10,9 +10,9 @@ offers Pinkslip. Handles are on X unless noted. Facts are as found on
 
 | Person | Proof of work | Why here |
 | --- | --- | --- |
-| **Benji Taylor** (@benjitaylor, benji.org) | Founded Family (bought by Aave); head of design at Base; Agentation, Liveline, Drawesome, Stageshow | The fluid iOS reference both courses use. Notes: [benji-taylor.md](benji-taylor.md) |
+| **Benji Taylor** (@benjitaylor, benji.org) | Founded Family (bought by Aave); led design at Base; now head of design at X and SpaceX SI; Agentation, Liveline, Drawesome, Stageshow | The fluid iOS reference both courses use. Notes: [benji-taylor.md](benji-taylor.md) |
 | **Emil Kowalski** (@emilkowalski, emilkowal.ski) | Sonner, Vaul; design engineer at Linear, before that Vercel | The two courses; the skills installed here |
-| **Rauno Freiberg** (rauno.me) | Design engineer (Vercel when he wrote it); "Invisible Details of Interaction Design" | Gesture and frequency rules. Benji credits his frequency idea |
+| **Rauno Freiberg** (rauno.me) | Staff design engineer at Vercel; before that The Browser Company (Arc); "Invisible Details of Interaction Design"; the Devouring Details course | Gesture and frequency rules. Benji credits his frequency idea |
 | **Anshu Chimala** (@anshuc) | 12 years leading AI-product R&D design at Apple | How to get original design out of models (seed strings, a fresh critic). Notes: [reading.md](reading.md) |
 | **Lochie Axon** | Family | Named in animations.dev and in Benji's credits for motion |
 | **Alex Vanderzon, Miles Vinson** | Family and Honk interactions | The people behind the motion Benji describes |
@@ -71,5 +71,25 @@ As the course suggests:
 2. Use what they made.
 3. Read who they follow.
 
-X accounts often can't be read without signing in. Their personal sites
-and the products themselves are the dependable sources.
+The built-in browser can read X profiles and recent posts as text (checked
+Nov 8), but not the videos. For those, a screen recording saved to the
+Desktop works: frames can be pulled from it.
+
+## Also worth studying (added Nov 8, beyond the courses)
+
+These are products and books with proof of work, close to Pinkslip's own
+problems:
+
+- **Apple Wallet's passes.** The nearest real cousin to the ticket.
+- **Flighty** (Apple Design Award). It tracks a process through stages,
+  with the best Live Activities.
+- **Things 3** (Cultured Code). Calm and dense, done with restraint.
+- **Not Boring apps** (Andy Allen). Tactile and physical, with Apple
+  Design Awards. Andy Allen also recommends Rauno's course.
+- **Apple Design Awards winners, and WWDC's "Designing Fluid Interfaces"
+  (2018).**
+- **Ken Kocienda, *Creative Selection*.** How the original iPhone team
+  decided things through demos.
+- **Physical references for the paper look:** letterpress, rubber stamps,
+  library checkout cards and ticket stubs, from museum archives such as
+  the Cooper Hewitt collection.
