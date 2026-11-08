@@ -181,11 +181,21 @@ read at 60 frames a second:
 - The rolling count (`RollingCount`) is gone from the kit. It was part of
   the "too much".
 
+**Your picks (Nov 8):** In place for Tracker ("both great but glide feels a
+bit busy"), and the new postings arrival as it is in Kit. Both are now in
+the real screens, each with a Kit → Motion fixes switch back to today's:
+
+- **Tracker:** a stage picked from the long-press menu moves at once, as soon
+  as iOS has put the row back, without waiting for the server. If the server
+  refuses, the row goes back and a toast says so. Kit's sample Tracker has
+  the same menu and move, on sample rows.
+- **Jobs:** only a refresh of the same list plays it, and only when the new
+  postings are all at the top. Chips, searches and reshuffles swap rows with
+  no entrance. New postings' logos load first, for up to 0.8s.
+
 ## Your calls
 
-1. **Tracker moves:** Glide or In place, from Kit? And the "Moved to … ·
-   Undo" line for moves off screen: yes or no?
-2. **New jobs:** the reworked arrival in Kit, for postings new since you
-   looked, with a plain fade on a first launch?
+1. **Tracker moves:** the "Moved to … · Undo" line for moves off screen: yes
+   or no?
 4. **Haptics:** the rule and its seven changes.
 5. **Share extension:** the three calls in its scope doc.

@@ -711,6 +711,13 @@ export const ui = {
       response: 0.28,
       damping: 1,
     },
+    list: {
+      move: {
+        response: 0.25,
+        damping: 1,
+      },
+      fade: 200,
+    },
     swipe: {
       grow: {
         response: 0.24,

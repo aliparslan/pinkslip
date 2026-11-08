@@ -8,11 +8,13 @@ import { storage } from "../platform/storage";
  * and Kit → Motion fixes switches any one back to today's, kept on this
  * phone, so each can be felt both ways before the old one goes.
  *
- * The last three are the first signature moments (Paper "Signature moments
- * · Nov 8", docs/signature-moments-2026-11-08.md), built the same way.
+ * Three more are the first signature moments (Paper "Signature moments
+ * · Nov 8", docs/signature-moments-2026-11-08.md), built the same way. The
+ * last two are lists changing under you, picked in Kit on Nov 8
+ * (docs/next-five-round-2026-11-08.md).
  */
 export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
-  | "zoom" | "stampBar" | "stampOffer";
+  | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -23,6 +25,8 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "zoom", title: "A job grows out of its row", today: "It slides in", proposed: "It zooms out of the row" },
   { id: "stampBar", title: "SENT on the live bar", today: "A green check and a close", proposed: "SENT lands, the bar turns to the job" },
   { id: "stampOffer", title: "OFFER, once", today: "Among the stamps", proposed: "Lands on the stub once, in green" },
+  { id: "trackerMove", title: "A row changes stage", today: "It jumps when the server answers", proposed: "It moves at once, in place" },
+  { id: "jobsArrive", title: "New postings arrive", today: "They appear at once", proposed: "The rows make room and uncover them" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;

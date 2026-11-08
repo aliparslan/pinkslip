@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import Animated, { cancelAnimation, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, JobRow, SectionHeader, Text } from "../../ui";
+import { Button, JobRow, ROW_ARRIVE, ROW_LEAVE, ROW_MOVE, SectionHeader, Text } from "../../ui";
 import { KitPage } from "./KitPage";
-import { ROW_ARRIVE, ROW_LEAVE, ROW_MOVE } from "./list-motion";
 
 /**
  * Paper "Tracker moves, first load, link card · Nov 8", board 2, made calmer

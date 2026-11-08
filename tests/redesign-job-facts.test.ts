@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, type SearchProfile } from "../shared/search-profile";
 import {
+  arrivedAtTop,
   appliedLabel, applyButtonState, feedSections, plainText, sectionCount, fitsYourSearch, jobExperience, jobLevel, rowFacts, rowLevel, ticketRows, ticketStub, type FactsJob,
 } from "../apps/native/src/features/redesign/job-facts";
 
@@ -129,5 +130,24 @@ describe("the Apply button's state", () => {
     expect(applyButtonState(base, false, true)).toEqual({ kind: "apply", closed: true });
     expect(applyButtonState({ ...base, applied_at: "2026-10-14T15:00:00", application_stage: "applied" }, true, false)).toEqual({ kind: "applied", date: "Oct 14" });
     expect(applyButtonState({ ...base, application_stage: "interview" }, true, false)).toEqual({ kind: "stage", stage: "interview", label: "Interviewing" });
+  });
+});
+
+describe("arrivedAtTop", () => {
+  test("counts postings new at the top of an unchanged list", () => {
+    expect(arrivedAtTop(["a", "b", "c"], ["x", "y", "a", "b", "c"])).toBe(2);
+  });
+  test("allows what they pushed off the end of the last page", () => {
+    expect(arrivedAtTop(["a", "b", "c"], ["x", "a", "b"])).toBe(1);
+  });
+  test("is zero for a first load, no change or a reshuffle", () => {
+    expect(arrivedAtTop([], ["x", "a"])).toBe(0);
+    expect(arrivedAtTop(["a", "b"], ["a", "b"])).toBe(0);
+    expect(arrivedAtTop(["a", "b"], ["x", "b", "a"])).toBe(0);
+    expect(arrivedAtTop(["a", "b"], ["x", "y"])).toBe(0);
+  });
+  test("is zero when something new lands below the top", () => {
+    expect(arrivedAtTop(["a", "b"], ["a", "x", "b"])).toBe(0);
+    expect(arrivedAtTop(["a", "b"], ["x", "a", "y", "b"])).toBe(0);
   });
 });

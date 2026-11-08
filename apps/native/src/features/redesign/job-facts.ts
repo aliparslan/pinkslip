@@ -272,3 +272,18 @@ export function sectionCount(sections: FeedSection<unknown>[], index: number, mo
   const above = sections.slice(0, index).reduce((sum, earlier) => sum + earlier.jobs.length, 0);
   return Math.max(section.jobs.length, matching - above);
 }
+
+/**
+ * How many postings arrived at the top of the feed, when that's all that
+ * changed: everything that was there is still there, in order, below them
+ * (the last page may have lost what they pushed off its end). Zero for
+ * anything else, a first load or a reshuffle, which swap with no entrance.
+ */
+export function arrivedAtTop(before: readonly string[], after: readonly string[]): number {
+  if (before.length === 0) return 0;
+  const had = new Set(before);
+  const arrived = after.findIndex((id) => had.has(id));
+  if (arrived <= 0) return 0;
+  const kept = after.slice(arrived);
+  return kept.every((id, index) => before[index] === id) ? arrived : 0;
+}

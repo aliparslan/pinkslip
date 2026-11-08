@@ -2,9 +2,8 @@ import { useState } from "react";
 import { View } from "react-native";
 import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
-import { Button, JobRow, SectionHeader, Segmented, StageMark, Text } from "../../ui";
+import { Button, JobRow, ROW_ARRIVE, ROW_LEAVE, ROW_MOVE, SectionHeader, Segmented, StageMark, Text } from "../../ui";
 import { KitPage } from "./KitPage";
-import { ROW_ARRIVE, ROW_LEAVE, ROW_MOVE } from "./list-motion";
 
 /**
  * A move to a new stage, the two ways iOS moves a row (owner, Nov 8: the

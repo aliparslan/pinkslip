@@ -341,6 +341,13 @@ the storyboard spec. These were chosen in the Motion lab
   - They close past a quarter of their height, or on a flick faster than
     400pt/s.
   - Dragging up stretches like a rubber band.
+- **A list changing under you** moves as Reminders' do (`motion.list`, fitted
+  frame by frame; owner, 2026-11-08): the rows that stay settle on a spring,
+  response 0.25s, damping 1, from the first frame. A row coming or going
+  sits under them and fades over 200ms, so the rows beside it slide over its
+  place and no hole opens. One beat: nothing rises, staggers or waits, and
+  counts just change. `ListMotionCell` and `useListMotion` run it on a
+  FlashList. Tracker's stage moves and Jobs' new postings use it.
 - **The tab oval** glides on Apple's spring: response 0.4s, damping 1.
   - Press and slide along the bar: the oval follows the finger, and the icon
     under it turns pink with a selection tick. Let go and it settles on the

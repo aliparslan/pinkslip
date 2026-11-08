@@ -554,6 +554,11 @@ export const uiMotion = {
   /** The segmented control's thumb: quicker than the tab oval, as iOS's is
    * (owner, 2026-10-24: 0.4 felt slow). */
   segment: { response: 0.28, damping: 1 },
+  /** A list changing under you (owner, 2026-11-08; fitted to Reminders from
+   * recordings of a re-sorted and a removed row): rows settle on this spring
+   * from the first frame, and a row coming or going fades over `fade` ms
+   * while the rows beside it slide over it. */
+  list: { move: { response: 0.25, damping: 1 }, fade: 200 },
   /** A swipe action's pill grows in on a spring that chases the drag, so it
    * eases in a beat behind the row rather than being pushed out by it
    * (owner, 2026-10-24; fitted to Reminders, the system swipe, from two

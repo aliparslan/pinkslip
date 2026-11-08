@@ -2,14 +2,14 @@ import { feedParams, selectedStages, type FeedSearch } from "@pinkslip/core/feed
 import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge,
+  changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction,
 } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
@@ -23,13 +23,18 @@ import { useTrack } from "../jobs/track";
 import { useJobActions, type JobActions, type RowJob } from "../jobs/useJobActions";
 import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
-import { feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
+import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
 import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
 const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
+
+const jobKeys = (items: readonly Item[]) => items.filter((item) => item.kind === "job").map((item) => item.key);
+const allKeys = (items: readonly Item[]) => items.map((item) => item.key);
+/** New postings wait this long at most for their logos. */
+const LOGOS_MS = 800;
 
 export interface JobsFeedProps {
   /** Search results: this text over the feed's filters. */
@@ -65,7 +70,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { height } = useWindowDimensions();
   const tabSpace = useTabBarSpace();
   // Tapping the current tab again scrolls back to the top.
-  const list = useRef(null);
+  const list = useRef<FlashListRef<Item>>(null);
   const edge = useTopEdge();
   const tabBarScroll = useTabBarScroll(list, edge);
   const criteria = useFeedCriteria();
@@ -96,6 +101,46 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
       ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
     ]);
   }, [jobs, feed.hasNextPage, matching]);
+
+  // Postings new since you looked arrive at the top: the rows you've seen
+  // make room and uncover them (Kit → Motion fixes). Only a refresh of the
+  // same list does this; a chip or a search swaps rows with no entrance.
+  const arrives = useMotionTrial("jobsArrive");
+  const [held, setHeld] = useState<{ items: Item[]; changing: ReadonlySet<string>; logos: string[] } | null>(null);
+  const last = useRef({ items, params, fetching: feed.isFetching });
+  if (last.current.items !== items) {
+    const previous = last.current;
+    last.current = { items, params, fetching: feed.isFetching };
+    const arrived = arrives && previous.fetching && previous.params === params && !feed.isPlaceholderData ? arrivedAtTop(jobKeys(previous.items), jobKeys(items)) : 0;
+    if (arrived > 0) {
+      const fresh = items.filter((item): item is Extract<Item, { kind: "job" }> => item.kind === "job").slice(0, arrived);
+      setHeld({ items: previous.items, changing: changedKeys(allKeys(previous.items), allKeys(items)), logos: fresh.flatMap((item) => logoUri(item.job.company_domain) ?? []) });
+    }
+  } else {
+    last.current.fetching = feed.isFetching;
+  }
+  const shown = held?.items ?? items;
+  const keys = useMemo(() => allKeys(shown), [shown]);
+  const { play, value: listChange } = useListMotion(keys);
+  useEffect(() => {
+    if (!held) return;
+    let live = true;
+    const go = () => {
+      if (!live) return;
+      live = false;
+      play(held.changing, () => {
+        list.current?.prepareForLayoutAnimationRender();
+        setHeld(null);
+      });
+    };
+    // Nobody's waiting on these, so their logos can land with them.
+    void Promise.all(held.logos.map((uri) => Image.prefetch(uri).catch(() => false))).then(go);
+    const timer = setTimeout(go, LOGOS_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [held, play]);
 
   // One "displayed" event per fresh first page, as the web sends.
   const firstPageAt = feed.data?.pages.length === 1 ? feed.dataUpdatedAt : 0;
@@ -137,7 +182,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
   return <>
-  <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+  <ListMotionProvider value={listChange}>
+  <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={shown} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+    CellRendererComponent={arrives ? ListMotionCell : undefined}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     // FlashList keeps the row you were looking at in place when the data
@@ -178,6 +225,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
             ? { label: "Clear filters", variant: "secondary", onPress: () => setFeedSearch({}) }
             : { label: "Refresh", variant: "secondary", icon: "refresh", pending: feed.isRefetching, onPress: () => void refresh() }} />}
     </View>} />
+  </ListMotionProvider>
   <TopEdgeBlur under={edge.under} />
   </>;
 }

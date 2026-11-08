@@ -1,6 +1,6 @@
 import type { Application, ApplicationStage } from "@pinkslip/core/api";
 import {
-  applicationQueryOptions, jobQueryOptions, useApi, useApplications, useInbox, useOutreachThreads, useRemoveApplication, useSession, useUpdateApplication,
+  applicationQueryOptions, applicationsQueryOptions, jobQueryOptions, useApi, useApplications, useInbox, useOutreachThreads, useRemoveApplication, useSession, useUpdateApplication,
 } from "@pinkslip/data";
 import { useQueryClient } from "@tanstack/react-query";
 import type { OutreachThread } from "@pinkslip/domain/outreach";
@@ -13,8 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import {
-  Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast, TopEdgeBlur, useTabBarScroll,
-  useTabBarSpace, useTopEdge, type StageGroup,
+  changedKeys, Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast,
+  TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup,
 } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
@@ -46,6 +46,26 @@ type Item =
   | { kind: "stage"; key: string; group: StageGroup; count: number }
   | { kind: "section"; key: string; title: string; count: number }
   | { kind: "row"; key: string; application: Application };
+
+/** A view's rows. Under All, `staged` keys each row by its stage too, so a
+ * row that changes stage leaves one place and arrives in the other instead
+ * of travelling between them (owner, Nov 8: In place). */
+function trackerItems(groups: Map<StageGroup, Application[]>, view: TrackerView, staged: boolean): Item[] {
+  if (view !== "all") {
+    return byWeek(groups.get(view) ?? []).flatMap((section): Item[] => [
+      { kind: "section", key: `section-${section.title}`, title: section.title, count: section.applications.length },
+      ...section.applications.map((application): Item => ({ kind: "row", key: application.id, application })),
+    ]);
+  }
+  return STAGE_GROUPS.flatMap((group): Item[] => {
+    const rows = groups.get(group) ?? [];
+    if (rows.length === 0) return [];
+    return [
+      { kind: "stage", key: `stage-${group}`, group, count: rows.length },
+      ...rows.slice(0, PER_STAGE).map((application): Item => ({ kind: "row", key: staged ? `${group}:${application.id}` : application.id, application })),
+    ];
+  });
+}
 
 /**
  * Tracker (Paper "Tracker · what we build now (TR2c)"): where every
@@ -97,25 +117,34 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const arriving = settles && Date.now() - arrivedAt.current < ARRIVING_MS;
   const entering = arriving ? ROWS_IN : undefined;
 
-  // The redesign kit passes sample applications to show the screen full.
-  const data = sample ?? applications.data;
+  // The redesign kit passes sample applications to show the screen full;
+  // they move on the phone alone.
+  const [sampleRows, setSampleRows] = useState(sample);
+  const data = sampleRows ?? applications.data;
   const groups = useMemo(() => groupApplications(data ?? []), [data]);
-  const items = useMemo<Item[]>(() => {
-    if (view !== "all") {
-      return byWeek(groups.get(view) ?? []).flatMap((section): Item[] => [
-        { kind: "section", key: `section-${section.title}`, title: section.title, count: section.applications.length },
-        ...section.applications.map((application): Item => ({ kind: "row", key: application.id, application })),
-      ]);
-    }
-    return STAGE_GROUPS.flatMap((group): Item[] => {
-      const rows = groups.get(group) ?? [];
-      if (rows.length === 0) return [];
-      return [
-        { kind: "stage", key: `stage-${group}`, group, count: rows.length },
-        ...rows.slice(0, PER_STAGE).map((application): Item => ({ kind: "row", key: application.id, application })),
-      ];
+  // A stage change moves at once and in place (Kit → Motion fixes).
+  const movesAtOnce = useMotionTrial("trackerMove");
+  const items = useMemo(() => trackerItems(groups, view, movesAtOnce), [groups, view, movesAtOnce]);
+  const keys = useMemo(() => items.map((item) => item.key), [items]);
+  const listMotion = useListMotion(keys);
+  const queryClient = useQueryClient();
+  const api = useApi();
+  /** Moves a row as you pick its stage, and gives back the way to undo that
+   * if the server refuses. */
+  const moveNow = (application: Application, stage: ApplicationStage) => {
+    const queryKey = applicationsQueryOptions(api).queryKey;
+    const before = sampleRows ?? queryClient.getQueryData<Application[]>(queryKey);
+    if (!before) return undefined;
+    if (!sampleRows) void queryClient.cancelQueries({ queryKey });
+    const moved = before.map((row) => row.id === application.id ? { ...row, stage, stage_changed_at: new Date().toISOString() } : row);
+    const after = trackerItems(groupApplications(moved), view, true).map((item) => item.key);
+    listMotion.play(changedKeys(keys, after), () => {
+      list.current?.prepareForLayoutAnimationRender();
+      if (sampleRows) setSampleRows(moved);
+      else queryClient.setQueryData(queryKey, moved);
     });
-  }, [groups, view]);
+    return () => queryClient.setQueryData(queryKey, before);
+  };
 
   const present = STAGE_GROUPS.filter((group) => (groups.get(group)?.length ?? 0) > 0);
   // Offered until email tracking is set up or put away (Paper 1B).
@@ -140,7 +169,9 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 
   return <>
     <Stack.Screen options={{ headerShown: false }} />
+    <ListMotionProvider value={listMotion.value}>
     <FlashList ref={list} {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
+      CellRendererComponent={movesAtOnce ? ListMotionCell : undefined}
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
       renderItem={({ item, index }) => <Animated.View entering={entering}>{item.kind === "stage"
@@ -148,7 +179,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
           onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} />}</Animated.View>}
+        : <TrackerRow application={item.application} sample={Boolean(sample)} thread={item.application.job_id ? byJob.get(item.application.job_id) : undefined} onMove={movesAtOnce ? moveNow : undefined} />}</Animated.View>}
       refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
       ListEmptyComponent={sample ? null : applications.isPending ? <RowPlaceholders chips={settles} giveWay={settles} /> : <View style={[styles.empty, { paddingTop: height * EMPTY_TOP }]}>
         {applications.isError
@@ -157,6 +188,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
           : <EmptyState slips title="Nothing yet" message="Jobs you save or apply to show up here."
             action={{ label: "Browse jobs", onPress: () => router.navigate("/") }} />}
       </View>} />
+    </ListMotionProvider>
     <TopEdgeBlur under={edge.under} />
     {sample
       ? <EmailSetupSheet open={setup} onClosed={() => setSetup(false)} inbox={sampleTracking.inbox} prefs={sampleTracking.prefs} actions={sampleTracking.actions} />
@@ -172,7 +204,11 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 
 /** A row opens its job; long-press moves it to another stage or removes it
  * (a native menu, text only). */
-function TrackerRow({ application, sample, thread }: { application: Application; sample: boolean; thread?: OutreachThread }) {
+function TrackerRow({ application, sample, thread, onMove }: {
+  application: Application; sample: boolean; thread?: OutreachThread;
+  /** Moves the row before the server answers; returns how to put it back. */
+  onMove?: (application: Application, stage: ApplicationStage) => (() => void) | undefined;
+}) {
   const update = useUpdateApplication();
   const remove = useRemoveApplication();
   // Its page grows out of the row (Paper "Signature moments · Nov 8", 1).
@@ -191,28 +227,36 @@ function TrackerRow({ application, sample, thread }: { application: Application;
   const row = <JobRow headline="company" company={companyName(application)} title={jobTitle(application)}
     facts={outreach ?? trackerFacts(application)} age={trackerAge(application.stage_changed_at)}
     logo={{ name: application.company_name, uri: logoUri(application.company_domain ?? application.job?.company_domain) }} />;
-  // Samples have no pages to open, and a saved job that left the catalog has none either.
-  if (sample || (!application.job_id && application.stage === "saved")) return row;
-  const move = (stage: ApplicationStage) => update.mutate({ id: application.id, stage }, {
-    onError: () => toast.error("Couldn't move it. Try again."),
-  });
-  const forget = () => remove.mutate({ id: application.id, jobId: application.job_id }, {
+  // A saved job that left the catalog has no page to open.
+  if (!sample && !application.job_id && application.stage === "saved") return row;
+  const move = (stage: ApplicationStage) => {
+    const putBack = onMove?.(application, stage);
+    if (sample) return;
+    update.mutate({ id: application.id, stage }, {
+      onError: () => {
+        putBack?.();
+        toast.error("Couldn't move it. Try again.");
+      },
+    });
+  };
+  const forget = () => sample ? undefined : remove.mutate({ id: application.id, jobId: application.job_id }, {
     onError: () => toast.error("Couldn't remove it. Try again."),
   });
   // Past Saved a row opens the application; a saved job has no stub yet.
   const href = application.stage === "saved" && application.job_id
     ? { pathname: "/(tabs)/(library)/jobs/[jobId]" as const, params: { jobId: application.job_id } }
     : { pathname: "/(tabs)/(library)/applications/[applicationId]" as const, params: { applicationId: application.id } };
-  return <Link href={href} asChild>
-    <Link.Trigger withAppleZoom={zoom}>{row}</Link.Trigger>
-    <Link.Preview />
+  // Samples have no pages to open, but keep the menu.
+  return <Link href={href} asChild onPress={sample ? (event) => event.preventDefault() : undefined}>
+    <Link.Trigger withAppleZoom={zoom && !sample}>{row}</Link.Trigger>
+    {sample ? null : <Link.Preview />}
     <Link.Menu>
       <Link.Menu title="Move to">
         {MOVE_TO.map((option) => <Link.MenuAction key={option.stage} isOn={application.stage === option.stage}
           onPress={() => { if (application.stage !== option.stage) move(option.stage); }}>{option.label}</Link.MenuAction>)}
       </Link.Menu>
       <Link.Menu inline title="">
-        {glyphMenuAction({ id: "remove", title: "Remove from Tracker", glyph: "remove", destructive: true, onSelect: forget })}
+        {glyphMenuAction({ id: "remove", title: "Stop tracking", glyph: "remove", destructive: true, onSelect: forget })}
       </Link.Menu>
     </Link.Menu>
   </Link>;
