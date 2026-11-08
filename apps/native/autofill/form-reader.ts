@@ -28,8 +28,17 @@ export function readForm(): FormControl[] {
   /** What a person reads: visible text only, without the buttons inside it. */
   const readable = (element: Element | null | undefined): string => {
     if (!element) return "";
+    // A label wrapped around its dropdown would read out every option, and
+    // Lever keeps long notes after it. The question comes before the control.
+    const control = element.querySelector("select, textarea");
+    if (control) {
+      const before = document.createRange();
+      before.setStart(element, 0);
+      before.setEndBefore(control);
+      if (before.toString().trim()) return before.toString();
+    }
     let text = (element as HTMLElement).innerText ?? element.textContent ?? "";
-    for (const button of element.querySelectorAll("button, [role='button']")) {
+    for (const button of element.querySelectorAll("button, [role='button'], a[class*='btn' i]")) {
       const inner = (button as HTMLElement).innerText;
       if (inner) text = text.replace(inner, " ");
     }
@@ -119,7 +128,8 @@ export function readForm(): FormControl[] {
   };
 
   const optionText = (input: HTMLInputElement) =>
-    clean(readable(input.labels?.[0] ?? input.closest("label")) || input.value);
+    // Its own label first: Lever nests each option's inside the question's.
+    clean(readable(input.closest("label") ?? input.labels?.[0]) || input.value);
 
   /** The smallest element holding every option of one question. */
   const commonAncestor = (elements: Element[]): Element => {
@@ -230,6 +240,8 @@ export function readForm(): FormControl[] {
     // Inputs a person can't see aren't questions, except a file input or a
     // combobox, which sites often hide behind their own button.
     if (!visible(input) || input.tabIndex < 0) continue;
+    // Signing a government form is the person's to do (Lever's disability form).
+    if (/signature/i.test(input.getAttribute("name") ?? "")) continue;
     const label = labelFor(input);
     if (!label.text) continue;
 
@@ -308,7 +320,7 @@ export function readForm(): FormControl[] {
   for (const group of checkboxGroups.values()) {
     if (group.length === 1) {
       for (const box of group) {
-        const ownLabel = box.labels?.[0] ?? box.closest("label");
+        const ownLabel = box.closest("label") ?? box.labels?.[0];
         const own = question(ownLabel);
         const label = { text: own.text || labelFor(box).text, starred: own.starred };
         controls.push({

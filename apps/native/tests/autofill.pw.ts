@@ -44,6 +44,18 @@ const ASHBY = `<!doctype html><html><head><style>._required_x::after { content: 
 </div>
 </body></html>`;
 
+/** Lever's markup: plain HTML where each question's <label> wraps its own
+ * control, a link stands in for the upload button, each radio's label is
+ * nested in the question's, and the disability form asks for a signature. */
+const LEVER = `<!doctype html><html><head><meta charset="utf-8"></head><body><form id="application-form"><ul>
+<li class="application-question resume"><label><div class="application-label">Resume/CV <span class="required">✱</span></div><div class="application-field"><a href="#" class="postings-btn template-btn-utility"><span class="filename"></span>ATTACH RESUME/CV</a><input type="file" name="resume" required></div></label></li>
+<li class="application-question"><label><div class="application-label">Full name <span class="required">✱</span></div><div class="application-field"><input type="text" name="name" required></div></label></li>
+</ul>
+<div class="application-question"><label><div class="application-label">Gender</div><div class="application-field"><div class="application-dropdown"><select name="eeo[gender]"><option value="">Select ...</option><option value="Male">Male</option><option value="Female">Female</option></select></div></div><div class="note">About each option</div></label></div>
+<div class="application-question"><label><div class="application-label multiple-choice">Race</div><div class="application-field"><ul data-qa="multiple-choice"><li><label><input type="radio" name="eeo[race]" value="Hispanic or Latino"><span class="eeo-option-text">Hispanic or Latino</span></label></li><li><label><input type="radio" name="eeo[race]" value="White"><span class="eeo-option-text">White</span></label></li></ul></div></label></div>
+<div class="application-question"><label><div class="application-label">Name</div><div class="application-field"><input type="text" name="eeo[disabilitySignature]"></div></label></div>
+</form></body></html>`;
+
 interface Control { ref: string; kind: string; label: string; required: boolean; options: string[]; value: string | string[] | null }
 
 const read = async (page: Page) => JSON.parse(await page.evaluate(`(async () => { ${READ_FORM_BODY} })()`)) as { submitted: boolean; controls: Control[] };
@@ -61,6 +73,18 @@ test("reads the form as a person sees it", async ({ page }) => {
   expect(byLabel["Are you legally authorized to work in the United States?"]).toMatchObject({ kind: "select", options: ["Yes", "No"] });
   expect(byLabel["Will you require sponsorship?"]).toMatchObject({ kind: "radio", options: ["Yes", "No"] });
   expect(byLabel["Resume/CV"]?.kind).toBe("file");
+});
+
+test("reads Lever's questions without the options and buttons around them", async ({ page }) => {
+  await page.route("https://jobs.lever.co/**", (route) => route.fulfill({ contentType: "text/html", body: LEVER }));
+  await page.goto("https://jobs.lever.co/acme/1/apply");
+  const { controls } = await read(page);
+  const byLabel = Object.fromEntries(controls.map((control) => [control.label, control]));
+  // No "Name": the disability form's signature stays the person's to give.
+  expect(Object.keys(byLabel).sort()).toEqual(["Full name", "Gender", "Race", "Resume/CV"]);
+  expect(byLabel["Resume/CV"]).toMatchObject({ kind: "file", required: true });
+  expect(byLabel["Gender"]?.options).toEqual(["Male", "Female"]);
+  expect(byLabel["Race"]?.options).toEqual(["Hispanic or Latino", "White"]);
 });
 
 test("fills each kind of field, attaches the resume, and submits", async ({ page }) => {
