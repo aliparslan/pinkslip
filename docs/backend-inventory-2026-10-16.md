@@ -80,7 +80,8 @@ Google and email by code is live on the owner channel):
 
 Other screens waiting:
 
-- [ ] Step 4's date picker for fixing a step's date (waits for Paper).
+- [x] ~~Step 4's date picker for fixing a step's date~~ (built Oct 19:
+  tap a stamp on the application page's stub; design-system.md).
 - [ ] "Add an application" (owner, 2026-10-18: not a priority).
 
 Following (owner, 2026-10-19: parked until outreach and auto-apply):
